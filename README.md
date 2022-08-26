@@ -37,9 +37,9 @@ This repo uses four magic ingredients to make WordPress work in the browser:
 3. A PHP + WordPress WebAssembly bundle created using the emscripten toolkit.
 4. A service worker that loads the bundle and dispatches the regular HTTP traffic to the in-memory WordPress instance.
 
-The static files (.js, .css, etc.) are served from the host filesystem, not from the WebAssembly bundle.
+The static files (.js, .css, etc.) are served directly from the host filesystem, not from the WebAssembly bundle.
 
-The code is *heavily* inspired by https://github.com/seanmorris/php-wasm.
+The work is *heavily* inspired by https://github.com/seanmorris/php-wasm.
 
 ## Limitations
 
