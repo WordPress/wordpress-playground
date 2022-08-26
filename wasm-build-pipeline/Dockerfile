@@ -2,8 +2,7 @@ FROM trzeci/emscripten:1.39.18-fastcomp
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /root
-COPY ./patches /root/patches
-COPY ./patches/build-wasm.sh /root/build-wasm.sh
+COPY ./copy-to-docker-image/* /root
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
@@ -37,7 +36,7 @@ RUN git clone https://github.com/php/php-src.git php7.4-src \
     --branch PHP-7.4   \
     --single-branch          \
     --depth 1 \
-    && git apply --no-index /root/patches/php7.4.patch \
+    && git apply --no-index /root/php7.4.patch \
     && mkdir -p php7.4-src/preload/Zend \
     && cp php7.4-src/Zend/bench.php php7.4-src/preload/Zend \
     && touch php7.4-src/patched
@@ -49,7 +48,7 @@ RUN set -euxo pipefail;\
     unzip sqlite-amalgamation-3330000.zip; \
     rm sqlite-amalgamation-3330000.zip; \
     mv sqlite-amalgamation-3330000 sqlite3.33-src; \
-    git apply --no-index /root/patches/sqlite3-wasm.patch; \
+    git apply --no-index /root/sqlite3-wasm.patch; \
     cp -v sqlite3.33-src/sqlite3.h php7.4-src/main/sqlite3.h; \
     cp -v sqlite3.33-src/sqlite3.c php7.4-src/main/sqlite3.c;
 
@@ -116,5 +115,5 @@ RUN cd php7.4-src/ && emcc -O3 \
 		-I main  \
 		-I TSRM/ \
 		-I /root/libxml2 \
-		/root/patches/pib_eval.c \
+		/root/pib_eval.c \
 		-o /root/lib/pib_eval.o;

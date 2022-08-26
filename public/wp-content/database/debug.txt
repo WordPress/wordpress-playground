@@ -1,0 +1,2 @@
+Line 1642, Function: prepare_query, Message: Problem preparing the PDO SQL Statement.  Error was: SQLSTATE[HY000]: General error: 1 near "a": syntax error 
+Line 1642, Function: prepare_query, Message: Problem preparing the PDO SQL Statement.  Error was: SQLSTATE[HY000]: General error: 1 near "a": syntax error 

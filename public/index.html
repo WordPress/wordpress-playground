@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test</title>
+	</head>
+	<body>
+		Login with admin / password<br/>
+		<input
+			id="url_bar"
+			type="text"
+			style="width: 600px; height: 40px;line-height: 40px; border: 1px solid #ccc; border-radius: 15px; padding: 5px 10px; margin: 10px 0; font-size: 24px;"
+			/>
+		<script>
+
+			if(!navigator.serviceWorker)
+			{
+				alert("Service workers are not supported by your browser");
+			}
+			navigator.serviceWorker.register(`/worker.js`);
+
+			async function main() {
+				const iframe = makeIframe();
+				iframe.src = "/wp-login.php";
+
+				const urlBar = document.getElementById('url_bar');
+				setInterval(() => {
+					if(!urlBar.matches(':focus')) {
+						urlBar.value = ((iframe.contentWindow||{}).location||{}).href || "";
+					}
+				}, 100);
+
+				urlBar.addEventListener('keyup', (e) => {
+					if(e.keyCode === 13) {
+						iframe.src = document.getElementById('url_bar').value;
+					}
+				}, false);
+			}
+
+			main();
+
+			function makeIframe() {
+				const iframe = document.createElement('iframe');
+				iframe.width = '100%';
+				iframe.height = '800px';
+				iframe.style.border = '1px solid #000';
+				document.body.appendChild(iframe);
+				return iframe;
+			}
+
+		</script>
+	</body>
+</html>
+
