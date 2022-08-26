@@ -6,7 +6,7 @@
 This repository ships with a pre-built demo that you can just run!
 
 1. Clone this repo
-2. Start a local PHP server with `php -S 127.0.0.1:8000`
+2. Run `bash serve-demo.sh`
 3. Visit http://127.0.0.1:8000/index.html
 
 If you want to build the assembly yourself, follow the instructions below.
