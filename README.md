@@ -32,9 +32,9 @@ the `./wasm-build-pipeline.sh` script accordingly.
 
 This repo uses four magic ingredients to make WordPress work in the browser:
 
-1. A local WordPress installation that uses SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
+1. A WordPress configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
 2. A PHP 7.4 compiled with SQLite3 support into WebAssembly.
-3. A PHP + WordPress WebAssembly bundle. This is created using the emscripten toolkit.
+3. A PHP + WordPress WebAssembly bundle created using the emscripten toolkit.
 4. A service worker that loads the bundle and dispatches the regular HTTP traffic to WordPress.
 
 The static files (.js, .css, etc.) are served from the host filesystem, not from the WebAssembly bundle.
