@@ -1,7 +1,6 @@
 # WordPress in the browser!
 
 ![](demo.gif)
-
 ## Running the demo
 
 This repository ships with a pre-built demo that you can just run!
@@ -28,4 +27,33 @@ and does a few more things.
 If you'd like to customize the packaged WordPress installation, study and update
 the `./wasm-build-pipeline.sh` script accordingly.
 
+
+## How does it work?
+
+This repo uses four magic ingredients to make WordPress work in the browser:
+
+1. A local WordPress installation that uses SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
+2. A PHP 7.4 compiled with SQLite3 support into WebAssembly.
+3. A PHP + WordPress WebAssembly bundle. This is created using the emscripten toolkit.
+4. A service worker that loads the bundle and dispatches the regular HTTP traffic to WordPress.
+
+The static files (.js, .css, etc.) are served from the host filesystem, not from the WebAssembly bundle.
+
+The code is *heavily* inspired by https://github.com/seanmorris/php-wasm.
+
+## Limitations
+
+The worker applies a series of strange patches to WordPress, it's unclear why they're needed at the moment.
+
+The site editor does not work at the moment. The block editor does, though.
+
+PHP cannot communicate with WordPress.org so the plugin directory etc does not work.
+
+The sqlite database lives in the memory and the changes only live as long as the service worker.
+
+## Future work
+
+* Fix the workarounds mentioned above
+* Remove the static files from the wasm bundle
+* Remove unnecessary PHP extensions to lower the bundle size
 
