@@ -302,46 +302,25 @@ class WP {
 
 	_patchWordPressCode() {
 		return `
-		if ( ! file_exists( WP_HOME . ".wordpress-patched" ) ) {
-			touch(WP_HOME . ".wordpress-patched");
-				file_put_contents(
-					WP_HOME . 'wp-config.php',
-					<<<'WPCFG'
-<?php
+			if ( ! file_exists( WP_HOME . ".wordpress-patched" ) ) {
+				touch(WP_HOME . ".wordpress-patched");
+				
+				// Patching WordPress in the worker provides a faster feedback loop than
+				// rebuilding it every time. Follow the example below to patch WordPress
+				// before the first request is dispatched:
+				// 
+				// file_put_contents(
+				// 	WP_HOME . 'wp-content/db.php',
+				// 	str_replace(
+				// 		'$exploded_parts = $values_data;',
+				// 		'$exploded_parts = array( $values_data );',
+				// 		file_get_contents(WP_HOME . 'wp-content/db.php')
+				// 	)
+				// );
 
-define( 'AUTH_KEY',         'put your unique phrase here' );
-define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );
-define( 'LOGGED_IN_KEY',    'put your unique phrase here' );
-define( 'NONCE_KEY',        'put your unique phrase here' );
-define( 'AUTH_SALT',        'put your unique phrase here' );
-define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );
-define( 'LOGGED_IN_SALT',   'put your unique phrase here' );
-define( 'NONCE_SALT',       'put your unique phrase here' );
-
-$table_prefix = 'wp_';
-define( 'WP_DEBUG', true );
-define( 'USE_MYSQL', false );
-
-if ( ! defined( 'ABSPATH' ) ) {
-	define( 'ABSPATH', __DIR__ . '/' );
-}
-
-/** Sets up WordPress vars and included files. */
-require_once ABSPATH . 'wp-settings.php';
-
-WPCFG
-				);
-
-				file_put_contents(
-					WP_HOME . 'wp-content/db.php',
-					str_replace(
-						'$exploded_parts = $values_data;',
-						'$exploded_parts = array( $values_data );',
-						file_get_contents(WP_HOME . 'wp-content/db.php')
-					)
-				);
-
-                // @TODO – remove this hack
+				// WORKAROUND:
+                // For some reason, the in-browser WordPress thinks that admin user
+				// has no permissions to many REST API endpoints.
 				file_put_contents(
 					WP_HOME . 'wp-includes/class-wp-user.php',
 					str_replace(
@@ -350,6 +329,10 @@ WPCFG
 						file_get_contents(WP_HOME . 'wp-includes/class-wp-user.php')
 					)
 				);
+
+				// WORKAROUND:
+                // For some reason, the in-browser WordPress is eager to redirect the
+				// browser to http://127.0.0.1 when the site URL is http://127.0.0.1:8000.
 				file_put_contents(
 					WP_HOME . 'wp-includes/canonical.php',
 					str_replace(
@@ -359,55 +342,26 @@ WPCFG
 					)
 				);
 
+				// WORKAROUND:
+                // For some reason, the in-browser WordPress doesn't respect the site
+				// URL preset during the installation. Also, it disables the block editing
+				// experience by default.
 				file_put_contents(
 					WP_HOME . 'wp-includes/plugin.php',
-					file_get_contents(WP_HOME . 'wp-includes/plugin.php')
-					. "\n"
-					.'add_filter( "option_home", function($url) { return "/"; }, 10000 );'
-					// .'add_filter( "option_home", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );'
-					.'add_filter( "option_siteurl", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );'
-					// .'add_filter( "site_url", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );'
+					file_get_contents(WP_HOME . 'wp-includes/plugin.php') . "\n"
+					.'add_filter( "option_home", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );' . "\n"
+					.'add_filter( "option_siteurl", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );' . "\n"
                     .<<<'ADMIN'
-					function prefix_custom_editor_settings( $settings, $post ) {
+					add_filter( 'block_editor_settings', function ( $settings, $post ) {
 						$settings['richEditingEnabled'] = true;
 						$settings['codeEditingEnabled'] = true;
 						$settings['disablePostFormats'] = false;
 						$settings['titlePlaceholder'] = 'Write a captivating title!';
 					
 						return $settings;
-					}
-					add_filter( 'block_editor_settings', 'prefix_custom_editor_settings', 1000, 2 );
-					add_action( 'init', function() {
-						// add_filter('wp_redirect', function($url) {
-						// 	echo 'url';
-						// 	throw new Exception();
-						// 	var_dump($url);
-						// 	die();
-						// });
-						// var_dump(home_url());
-						// var_dump(site_url());
-						// var_dump(network_admin_url());
-						// die();
-					} );
+					}, 1000, 2 );
 ADMIN
 				);
-
-		// 				<<<'DBPHP'
-		// 				if (!is_user_logged_in()) {
-		// 					//determine WordPress user account to impersonate
-		// 					$user_login = 'admin';
-					
-		// 					//get user's ID
-		// 					$user = get_user_by('login', $user_login);
-		// 					$user_id = $user->ID;
-					
-		// 					//login
-		// 					wp_set_current_user($user_id, $user_login);
-		// 					wp_set_auth_cookie($user_id);
-		// 					do_action('wp_login', $user_login);
-		// 				}
-		// 				auth_redirect();
-		// DBPHP,
 			}
 		`;
 	}
