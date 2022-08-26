@@ -12,6 +12,8 @@ This repository ships with a pre-built demo that you can just run!
 
 If you want to build the assembly yourself, follow the instructions below.
 
+This repo draws inspiration from https://github.com/seanmorris/php-wasm and uses https://github.com/aaemnnosttv/wp-sqlite-db 
+
 ## Building the assembly
 
 The entire build process is automated with a bash script:
