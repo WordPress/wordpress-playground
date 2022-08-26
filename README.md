@@ -21,8 +21,7 @@ The entire build process is automated with a bash script:
 ./wasm-build-pipeline.sh
 ```
 
-It builds a docker image with the necessary tools, creates a local WordPress installation, 
-and does a few more things.
+It creates a docker image with the necessary tools, builds PHP as WebAssembly, prepares WordPress files, and bundles it all together.
 
 If you'd like to customize the packaged WordPress installation, study and update
 the `./wasm-build-pipeline.sh` script accordingly.
