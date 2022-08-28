@@ -1,5 +1,5 @@
 
-const workerChannel = new BroadcastChannel('sw-messages');
+const workerChannel = new BroadcastChannel('wordpress-wasm');
 
 // Polyfills for the emscripten loader
 document = {}
@@ -221,9 +221,9 @@ class PhpWithWP extends PhpBase
 class WP {
 	DOCROOT = '/preload/wordpress';
 	SCHEMA = 'http';
-	HOST = '127.0.0.1';
-	PORT = 8000;
-	ABSOLUTE_URL = `${this.SCHEMA}://${this.HOST}:${this.PORT}`
+	HOSTNAME = 'localhost';
+	PORT = 8777;
+	ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}`
 
 	constructor(php) {
 		this.php = php;
@@ -231,6 +231,7 @@ class WP {
 
 	async init() {
 		await this.php.refresh();
+		await this.noteBrowserOrigin();
 		const result = await this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._setupWordPressVariables()}
@@ -245,6 +246,22 @@ class WP {
 				result.exitCode
 			);
 		}
+	}
+
+	async noteBrowserOrigin() {
+		const allClients = await clients.matchAll({
+			includeUncontrolled: true
+		});
+
+		// If there are no clients, keep the defaults.
+		if (allClients.length === 0) {
+			return;
+		}
+
+		const url = new URL(allClients[0].url);
+		this.HOSTNAME = url.hostname;
+		this.POST = url.port;
+		this.ABSOLUTE_URL = url.origin;
 	}
 
 	async request(request) {
@@ -319,18 +336,6 @@ class WP {
 				// );
 
 				// WORKAROUND:
-                // For some reason, the in-browser WordPress thinks that admin user
-				// has no permissions to many REST API endpoints.
-				file_put_contents(
-					WP_HOME . 'wp-includes/class-wp-user.php',
-					str_replace(
-						'has_cap( $cap, ...$args ) {',
-						'has_cap( $cap, ...$args ) { return true;',
-						file_get_contents(WP_HOME . 'wp-includes/class-wp-user.php')
-					)
-				);
-
-				// WORKAROUND:
                 // For some reason, the in-browser WordPress is eager to redirect the
 				// browser to http://127.0.0.1 when the site URL is http://127.0.0.1:8000.
 				file_put_contents(
@@ -351,16 +356,6 @@ class WP {
 					file_get_contents(WP_HOME . 'wp-includes/plugin.php') . "\n"
 					.'add_filter( "option_home", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );' . "\n"
 					.'add_filter( "option_siteurl", function($url) { return "${this.ABSOLUTE_URL}"; }, 10000 );' . "\n"
-                    .<<<'ADMIN'
-					add_filter( 'block_editor_settings', function ( $settings, $post ) {
-						$settings['richEditingEnabled'] = true;
-						$settings['codeEditingEnabled'] = true;
-						$settings['disablePostFormats'] = false;
-						$settings['titlePlaceholder'] = 'Write a captivating title!';
-					
-						return $settings;
-					}, 1000, 2 );
-ADMIN
 				);
 			}
 		`;
@@ -387,6 +382,7 @@ ADMIN
 	_setupRequestCode({
 		path = '/wp-login.php',
 		method = 'GET',
+		headers,
 		_GET = '',
 		_POST = {},
 		_COOKIE = {},
@@ -395,6 +391,7 @@ ADMIN
 		const request = {
 			path,
 			method,
+			headers,
 			_GET,
 			_POST,
 			_COOKIE,
@@ -422,13 +419,18 @@ ADMIN
 
 			$_SESSION = $request->_SESSION;
 
+			foreach( $request->headers as $name => $value ) {
+				$server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+				$_SERVER[$server_key] = $value;
+			}
+
 			ini_set('session.save_path', '/home/web_user');
 			session_id('fake-cookie');
 			session_start();
 			
 			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
 			
-			$origin  = '${this.SCHEMA}://${this.HOST}:${this.PORT}';
+			$origin  = '${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}';
 			$docroot = '${this.DOCROOT}';
 			
 			$script  = ltrim($request->path, '/');
@@ -438,8 +440,8 @@ ADMIN
 			
 			$_SERVER['PATH']     = '/';
 			$_SERVER['REQUEST_URI']     = $path;
-			$_SERVER['HTTP_HOST']       = '${this.HOST}:${this.PORT}';
-			$_SERVER['REMOTE_ADDR']     = '${this.HOST}';
+			$_SERVER['HTTP_HOST']       = '${this.HOSTNAME}:${this.PORT}';
+			$_SERVER['REMOTE_ADDR']     = '${this.HOSTNAME}';
 			$_SERVER['SERVER_NAME']     = $origin;
 			$_SERVER['SERVER_PORT']     = ${this.PORT};
 			$_SERVER['REQUEST_METHOD']  = $request->method;
@@ -474,7 +476,7 @@ class WPBrowser {
 		this.cookies = {};
 	}
 
-	async request(path, method, postData={}, redirects = 0) {
+	async request(path, method, postData = {}, requestHeaders = {}, redirects = 0) {
 		const parsedUrl = new URL(path, this.wp.ABSOLUTE_URL);
 		let pathname = parsedUrl.pathname;
 		// Fix the URLs not ending with .php
@@ -488,6 +490,7 @@ class WPBrowser {
 		const response = await this.wp.request({
 			path: pathname,
 			method,
+			headers: requestHeaders,
 			_GET: parsedUrl.search,
 			_POST: postData,
 			_COOKIE: this.cookies,
@@ -499,7 +502,7 @@ class WPBrowser {
 
 		if (response.headers.location && redirects < 4) {
 			console.log('WP RESPONSE', response);
-			return this.request(response.headers.location[0], 'GET', {}, redirects + 1 );
+			return this.request(response.headers.location[0], 'GET', {}, {}, redirects + 1 );
 		}
 
 		// console.log('response', response);
@@ -526,13 +529,42 @@ class WPBrowser {
 importScripts("/php-web-wordpress.js");
 console.log("Imported wordpress, yay");
 
-const browser = (async function init() {
+function importClassicScript(url) {
+    const script = document.createElement("script")
+    script.type = "text/javascript";
+    script.src = url;
+    
+    const p = new Promise(resolve => script.onload = resolve);
+    document.body.appendChild(script);
+    return p;
+}
+
+async function init() {
     const php = new PhpWithWP();
 	const wp = new WP(new PhpWithWP());
 	await wp.init();
 
 	return new WPBrowser(wp);
-})()
+};
+
+const browser = init();
+
+browser.then((_browser) => {
+	workerChannel.addEventListener('message', async (event) => {
+		if (event.data.type === 'run_php') {
+			console.debug('"run_php" event received', event);
+			const result = await _browser.wp.php.run(event.data.code);
+			console.debug('"run_php" event processed', { result });
+			if (event.data.requestId) {
+				workerChannel.postMessage({
+					type: 'response',
+					result,
+					requestId: event.data.requestId
+				});
+			}
+		}
+	});
+})
 
 
 /**
@@ -551,7 +583,12 @@ self.addEventListener("fetch", event => {
                 console.log(`[ServiceWorker] Ignoring request: ${url.pathname}`);
                 accept(fetch(event.request));
                 return;
-            }
+			}
+
+			const requestHeaders = {};
+			for (const pair of event.request.headers.entries()) {
+				requestHeaders[pair[0]] = pair[1];
+			}
 
             console.log(`[ServiceWorker] Serving request: ${url.pathname}?${url.search}`);
             let wpResponse;
@@ -559,7 +596,8 @@ self.addEventListener("fetch", event => {
                 wpResponse = await (await browser).request(
                     url.pathname + url.search,
                     event.request.method,
-                    post
+					post,
+					requestHeaders
                 );
                 console.log({ wpResponse })
             } catch (e) {
@@ -597,16 +635,6 @@ async function parsePost(request) {
 	return await request.clone().json();
 }
 	
-
-function importClassicScript(url) {
-    const script = document.createElement("script")
-    script.type = "text/javascript";
-    script.src = url;
-    
-    const p = new Promise(resolve => script.onload = resolve);
-    document.body.appendChild(script);
-    return p;
-}
 
 
 // (async function test() {

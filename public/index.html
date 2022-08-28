@@ -2,24 +2,77 @@
 <html>
 	<head>
 		<title>Test</title>
+		<style>
+			html, body {
+				height: 100%;
+			}
+		</style>
 	</head>
 	<body>
-		Login with admin / password<br/>
-		<input
-			id="url_bar"
-			type="text"
-			style="width: 600px; height: 40px;line-height: 40px; border: 1px solid #ccc; border-radius: 15px; padding: 5px 10px; margin: 10px 0; font-size: 24px;"
-			/>
-		<script>
+		<div style="display: flex; width: 100%;height: 90%;">
+			<div style="display: flex;flex-direction:column;height: 100%;width: 50vw;">
+				<div id="container" style="border:1px solid grey; flex-grow: 0; height: 40vh"></div>
+				<button onclick="runPhp()">
+					Run!
+				</button>
+				<pre id="output" style="border:1px solid grey; flex-grow: 1"></pre>
+			</div>
+			<div id="wp">
+				<iframe width="100%" height="100%" style="border: 1px solid #000"></iframe>
+				<input
+					id="url_bar"
+					type="text"
+					style="width: 600px; height: 40px;line-height: 40px; border: 1px solid #ccc; border-radius: 15px; padding: 5px 10px; margin: 10px 0; font-size: 24px;"
+					/>
+				Login with admin / password<br/>
+			</div>
+		</div>
 
+		<script>
 			if(!navigator.serviceWorker)
 			{
 				alert("Service workers are not supported by your browser");
 			}
 			navigator.serviceWorker.register(`/worker.js`);
 
+			class WPWorker {
+				constructor() {
+					this.channel = new BroadcastChannel('wordpress-wasm');
+				}
+				run ( code ) {
+					const uniqueId = Math.random().toString(36)
+					return this.postMessage({
+						type: 'run_php',
+						code,
+					});
+				}
+				postMessage(data) {
+					return new Promise((resolve, reject) => {
+						const requestId = Math.random().toString(36)
+						const responseHandler = (event) => {
+							if(event.data.type === 'response' && event.data.requestId === requestId) {
+								this.channel.removeEventListener('message', responseHandler);
+								clearTimeout( failOntimeout );
+								resolve(event.data.result);
+							}
+						};
+						const failOntimeout = setTimeout(() => {
+							reject('Request timed out');
+							this.channel.removeEventListener('message', responseHandler);
+						}, 5000);
+						this.channel.addEventListener('message', responseHandler);
+
+						this.channel.postMessage({
+							...data,
+							requestId,
+						});
+					});
+				}
+			}
+			window.wpWorker = new WPWorker();
+
 			async function main() {
-				const iframe = makeIframe();
+				const iframe = document.querySelector('iframe');
 				iframe.src = "/wp-login.php";
 
 				const urlBar = document.getElementById('url_bar');
@@ -37,17 +90,85 @@
 			}
 
 			main();
-
-			function makeIframe() {
-				const iframe = document.createElement('iframe');
-				iframe.width = '100%';
-				iframe.height = '800px';
-				iframe.style.border = '1px solid #000';
-				document.body.appendChild(iframe);
-				return iframe;
-			}
-
 		</script>
+
+		<script src="monaco-editor/min/vs/loader.js"></script>
+		<script>
+			require.config({ paths: { vs: 'monaco-editor/min/vs' } });
+			let editor;
+			require(['vs/editor/editor.main'], function () {
+				const defaultValue = (
+					window.localStorage.getItem("monaco-editor-php")
+					|| ['<?php', '', '', ''].join('\n')
+				);
+				editor = monaco.editor.create(document.getElementById('container'), {
+					value: defaultValue,
+					language: 'php',
+				});
+
+				editor.addAction({
+					id: 'run-php',
+					label: 'Tun!',
+					keybindings: [
+						monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS
+					],
+					precondition: null,
+					keybindingContext: null,
+					contextMenuGroupId: 'navigation',
+					contextMenuOrder: 1.5,
+					run: function (ed) {
+						window.localStorage.setItem("monaco-editor-php", ed.getValue());
+						runPhp(ed.getValue());
+					}
+				});
+
+			});
+			function runPhp(phpCode) {
+				wpWorker.run(phpCode).then((result) => {
+					console.log(result);
+					output.textContent = 'Exit code: ' + result.exitCode + '\n\n';
+					if(result.stderr.length > 1 || result.stderr[0][0] !== "\n") {
+						output.textContent += "StdErr:\n";
+						output.textContent += result.stderr.join("");
+						output.textContent += "\n\n";
+					}
+					output.textContent += "StdOut:\n";
+					output.textContent += result.stdout;
+					output.textContent += "\n";
+				});
+			}
+		</script>
+
+		<!-- <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+		<script type="text/babel">
+			const React = {createElement:(...args)=>args};
+			console.log(<div/>);
+		</script>
+		<script>
+			require.config({ paths: { vs: 'monaco-editor/min/vs' } });
+			let editor;
+			require(['vs/editor/editor.main'], function () {
+				editor = monaco.editor.create(document.getElementById('container'), {
+					value: ['function x() {', '\tconsole.log("Hello world!");', '}'].join('\n'),
+					language: 'javascript'
+				});
+			});
+			function transpile() {
+				const value = editor.getValue();
+				document.getElementById('output').textContent = (
+					Babel.transform(
+						value,
+						{"presets": ["react"]}
+					).code
+				);
+			}
+		</script>
+
+		<div id="container" style="width:500px;height:150px;border:1px solid grey"></div>
+		<button onclick="transpile()">
+			Transpile!
+		</button>
+		<div id="output" style="width:500px;height:150px;border:1px solid grey"></div> -->
 	</body>
 </html>
 
