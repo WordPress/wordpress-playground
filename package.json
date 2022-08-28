@@ -1,0 +1,35 @@
+{
+  "name": "waasm-wordpress",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:html": "fswatch -o ./src/index.html | xargs -n1 -I{} cp src/index.html public/",
+    "dev:serve": "npx live-server ./public --port=8777 --entry-file=index.html",
+    "dev:js": "esbuild --bundle src/index.jsx --outfile=public/app.js --watch",
+    "dev:css": "npx tailwindcss -i ./src/style.css -o ./public/style.css --watch",
+    "dev": "npm-run-all --parallel dev:*"
+  },
+  "author": "Adam Zielinski",
+  "license": "ISC",
+  "dependencies": {
+    "monaco-editor": "^0.34.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@wordpress/eslint-plugin": "^13.0.0",
+    "esbuild": "^0.15.5",
+    "eslint": "^8.23.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.6.1",
+    "eslint-plugin-react": "^7.31.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "live-serve": "0.0.0",
+    "live-server": "^1.2.2",
+    "npm-run-all": "^4.1.5",
+    "tailwindcss": "^3.1.8"
+  }
+}

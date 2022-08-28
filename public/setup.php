@@ -1,5 +1,6 @@
 <?php
 
+// Next step: https://developer.wordpress.org/block-editor/how-to-guides/block-tutorial/writing-your-first-block-type/
 
 function createFileTree($tree, $prefix = '')
 {
@@ -30,9 +31,7 @@ createFileTree([
  */
 
 add_action('init', function() {
-    if ( array_key_exists( "rest_route", $_GET ) && $_GET['rest_route'] === '/wp/v2/block-patterns/categories' ) {
-        // die(var_dump(current_user_can( 'edit_posts' )));
-    }
+
 });
 PLUGIN
     ]
