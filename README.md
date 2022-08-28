@@ -21,8 +21,7 @@ The entire build process is automated with a bash script:
 ./wasm-build-pipeline.sh
 ```
 
-It builds a docker image with the necessary tools, creates a local WordPress installation, 
-and does a few more things.
+It creates a docker image with the necessary tools, builds PHP as WebAssembly, prepares WordPress files, and bundles it all together.
 
 If you'd like to customize the packaged WordPress installation, study and update
 the `./wasm-build-pipeline.sh` script accordingly.
@@ -32,14 +31,14 @@ the `./wasm-build-pipeline.sh` script accordingly.
 
 This repo uses four magic ingredients to make WordPress work in the browser:
 
-1. A local WordPress installation that uses SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
+1. A WordPress configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
 2. A PHP 7.4 compiled with SQLite3 support into WebAssembly.
-3. A PHP + WordPress WebAssembly bundle. This is created using the emscripten toolkit.
-4. A service worker that loads the bundle and dispatches the regular HTTP traffic to WordPress.
+3. A PHP + WordPress WebAssembly bundle created using the emscripten toolkit.
+4. A service worker that loads the bundle and dispatches the regular HTTP traffic to the in-memory WordPress instance.
 
-The static files (.js, .css, etc.) are served from the host filesystem, not from the WebAssembly bundle.
+The static files (.js, .css, etc.) are served directly from the host filesystem, not from the WebAssembly bundle.
 
-The code is *heavily* inspired by https://github.com/seanmorris/php-wasm.
+The work is *heavily* inspired by https://github.com/seanmorris/php-wasm.
 
 ## Limitations
 
