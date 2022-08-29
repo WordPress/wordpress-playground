@@ -241,7 +241,7 @@ class WP {
 
 		const url = new URL( allClients[ 0 ].url );
 		this.HOSTNAME = url.hostname;
-		this.PORT = url.port;
+		this.PORT = url.port || 80;
 		this.ABSOLUTE_URL = url.origin;
 	}
 
