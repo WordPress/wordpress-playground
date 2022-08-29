@@ -23262,7 +23262,7 @@
   }
   var workerRegistered = navigator.serviceWorker.register(`/worker.js`);
   var WordPressBrowser = React4.forwardRef(
-    function WordPressBrowserComponent({ initialUrl, className = "" }, iframeElRef) {
+    function WordPressBrowserComponent({ initialUrl, ...props }, iframeElRef) {
       (0, import_react2.useEffect)(() => {
         async function init() {
           await workerRegistered;
@@ -23271,13 +23271,13 @@
         init();
       }, []);
       return /* @__PURE__ */ React4.createElement("div", {
-        className
+        ...props
       }, /* @__PURE__ */ React4.createElement("iframe", {
         ref: iframeElRef,
         title: "WordPress",
         width: "100%",
         height: "100%",
-        className: "border-solid border-2 border-indigo-600"
+        className: "border-solid border-1 border-indigo-600"
       }), "Login with admin / password", /* @__PURE__ */ React4.createElement("br", null));
     }
   );

@@ -7,7 +7,7 @@ if ( ! navigator.serviceWorker ) {
 const workerRegistered = navigator.serviceWorker.register( `/worker.js` );
 
 export const WordPressBrowser = React.forwardRef(
-	function WordPressBrowserComponent( { initialUrl, className = '' }, iframeElRef ) {
+	function WordPressBrowserComponent( { initialUrl, ...props }, iframeElRef ) {
 		useEffect( () => {
 			async function init() {
 				await workerRegistered;
@@ -17,8 +17,8 @@ export const WordPressBrowser = React.forwardRef(
 		}, [] );
 
 		return (
-			<div className={ className }>
-				<iframe ref={ iframeElRef } title="WordPress" width="100%" height="100%" className="border-solid border-2 border-indigo-600" />
+			<div { ...props }>
+				<iframe ref={ iframeElRef } title="WordPress" width="100%" height="100%" className="border-solid border-1 border-indigo-600" />
 				{ /* <input
 				id="url_bar"
 				type="text"
