@@ -84,6 +84,7 @@ function App() {
 				<pre className="h-2/5 border-solid border-2 border-indigo-600 flex-grow-0 text-sm overflow-y-auto">
 					{ output }
 				</pre>
+				<h2>WordPress login data: admin/password</h2>
 			</div>
 			<WordPressBrowser initialUrl="/wp-login.php" className="h-full w-1/2" ref={ iframeElRef } />
 		</div>

@@ -23292,7 +23292,7 @@
         width: "100%",
         height: "100%",
         className: "border-solid border-1 border-indigo-600"
-      }), "Login with admin / password", /* @__PURE__ */ React4.createElement("br", null));
+      }));
     }
   );
   var wordpress_browser_default = WordPressBrowser;
@@ -23368,7 +23368,7 @@
       className: "h-2/5 border-solid border-2 border-indigo-600 flex-grow-0"
     }), "Code results", /* @__PURE__ */ React5.createElement("pre", {
       className: "h-2/5 border-solid border-2 border-indigo-600 flex-grow-0 text-sm overflow-y-auto"
-    }, output)), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
+    }, output), /* @__PURE__ */ React5.createElement("h2", null, "WordPress login data: admin/password")), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
       initialUrl: "/wp-login.php",
       className: "h-full w-1/2",
       ref: iframeElRef

@@ -23,7 +23,6 @@ export const WordPressBrowser = React.forwardRef(
 				id="url_bar"
 				type="text"
 			/> */ }
-				Login with admin / password<br />
 			</div>
 		);
 	},
