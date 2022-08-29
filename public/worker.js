@@ -410,7 +410,6 @@ class WP {
 			
 			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
 			
-			$origin  = '${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }';
 			$docroot = '${ this.DOCROOT }';
 			
 			$script  = ltrim($request->path, '/');
@@ -422,7 +421,7 @@ class WP {
 			$_SERVER['REQUEST_URI']     = $path;
 			$_SERVER['HTTP_HOST']       = '${ this.HOSTNAME }:${ this.PORT }';
 			$_SERVER['REMOTE_ADDR']     = '${ this.HOSTNAME }';
-			$_SERVER['SERVER_NAME']     = $origin;
+			$_SERVER['SERVER_NAME']     = '${ this.ABSOLUTE_URL }';
 			$_SERVER['SERVER_PORT']     = ${ this.PORT };
 			$_SERVER['REQUEST_METHOD']  = $request->method;
 			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
