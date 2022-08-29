@@ -15,7 +15,9 @@ function App() {
 
 	const iframeElRef = useRef();
 	useEffect( () => {
-		loadPostEditor( iframeElRef.current ).then( () => setPostEditorReady( true ) );
+		wpWorker.ready()
+			.then( () => loadPostEditor( iframeElRef.current ) )
+			.then( () => setPostEditorReady( true ) );
 	}, [] );
 
 	const runJs = useCallback( ( code ) => {
@@ -31,7 +33,7 @@ function App() {
 					how to use it:
 				</p>
 
-				{ postEditorReady && (
+				{ postEditorReady ? (
 					<JSCodeSnippet
 						runner={ runJs }
 						singleLine
@@ -39,7 +41,7 @@ function App() {
 						initialLanguage="javascript"
 						initialValue="wp.data.select( 'core' ).getEntityRecords( 'postType', 'page' )"
 					/>
-				) }
+				) : ' ... Loading – it may take a while ... ' }
 
 				<p className="my-2">
 					Once you run that code, you will see it returns null. Why? The
@@ -51,7 +53,7 @@ function App() {
 					Here's how you can use the getEntityRecords to render a list of pages:
 				</p>
 
-				{ postEditorReady && (
+				{ postEditorReady ? (
 					<JSCodeSnippet
 						runner={ runJs }
 						style={ { height: 550 } }
@@ -86,10 +88,10 @@ render(
 );
 ` }
 					/>
-				) }
+				) : ' ... Loading – it may take a while ... ' }
 
 				<WordPressBrowser
-					style={ { height: 150 } }
+					style={ { height: 150, visibility: postEditorReady ? 'visible' : 'hidden' } }
 					initialUrl="/wp-login.php"
 					ref={ iframeElRef } />
 			</div>

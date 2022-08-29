@@ -115,7 +115,22 @@ class WPWorker {
 			code,
 		} );
 	}
-	postMessage( data ) {
+	async ready() {
+		// eslint-disable-next-line no-constant-condition
+		while ( true ) {
+			try {
+				const result = await this.postMessage( {
+					type: 'is_ready',
+				}, 500 );
+				if ( result ) {
+					return true;
+				}
+			// eslint-disable-next-line no-empty
+			} catch ( e ) { }
+			await new Promise( ( resolve ) => setTimeout( resolve ), 1000 );
+		}
+	}
+	postMessage( data, timeout = 5000 ) {
 		return new Promise( ( resolve, reject ) => {
 			const requestId = ++lastRequestId;
 			const responseHandler = ( event ) => {
@@ -128,7 +143,7 @@ class WPWorker {
 			const failOntimeout = setTimeout( () => {
 				reject( 'Request timed out' );
 				this.channel.removeEventListener( 'message', responseHandler );
-			}, 5000 );
+			}, timeout );
 			this.channel.addEventListener( 'message', responseHandler );
 
 			this.channel.postMessage( {

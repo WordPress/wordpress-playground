@@ -23033,7 +23033,21 @@
         code
       });
     }
-    postMessage(data) {
+    async ready() {
+      while (true) {
+        try {
+          const result = await this.postMessage({
+            type: "is_ready"
+          }, 500);
+          if (result) {
+            return true;
+          }
+        } catch (e) {
+        }
+        await new Promise((resolve) => setTimeout(resolve), 1e3);
+      }
+    }
+    postMessage(data, timeout = 5e3) {
       return new Promise((resolve, reject) => {
         const requestId = ++lastRequestId;
         const responseHandler = (event) => {
@@ -23046,7 +23060,7 @@
         const failOntimeout = setTimeout(() => {
           reject("Request timed out");
           this.channel.removeEventListener("message", responseHandler);
-        }, 5e3);
+        }, timeout);
         this.channel.addEventListener("message", responseHandler);
         this.channel.postMessage({
           ...data,

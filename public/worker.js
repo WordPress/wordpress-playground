@@ -33,8 +33,8 @@ class UniqueIndex {
 
 		Object.defineProperty( this, 'add', {
 			configurable: false,
-			 writable: false,
-			 value: ( callback ) => {
+			writable: false,
+			value: ( callback ) => {
 				const existing = set.has( callback );
 
 				if ( existing ) {
@@ -52,8 +52,8 @@ class UniqueIndex {
 
 		Object.defineProperty( this, 'has', {
 			configurable: false,
-			 writable: false,
-			 value: ( callback ) => {
+			writable: false,
+			value: ( callback ) => {
 				if ( set.has( callback ) ) {
 					return set.get( callback );
 				}
@@ -62,8 +62,8 @@ class UniqueIndex {
 
 		Object.defineProperty( this, 'get', {
 			configurable: false,
-			 writable: false,
-			 value: ( id ) => {
+			writable: false,
+			value: ( id ) => {
 				if ( map.has( id ) ) {
 					return map.get( id );
 				}
@@ -72,8 +72,8 @@ class UniqueIndex {
 
 		Object.defineProperty( this, 'remove', {
 			configurable: false,
-			 writable: false,
-			 value: ( id ) => {
+			writable: false,
+			value: ( id ) => {
 				const callback = map.get( id );
 
 				if ( callback ) {
@@ -508,6 +508,17 @@ class WPBrowser {
 	}
 }
 
+let isReady = false;
+workerChannel.addEventListener( 'message', async ( event ) => {
+	if ( event.data.type === 'is_ready' ) {
+		workerChannel.postMessage( {
+			type: 'response',
+			result: isReady,
+			requestId: event.data.requestId,
+		} );
+	}
+} );
+
 importScripts( '/php-web-wordpress.js' );
 console.log( 'Imported wordpress, yay' );
 
@@ -530,6 +541,7 @@ async function init() {
 
 const browser = init();
 browser.then( ( _browser ) => {
+	isReady = true;
 	workerChannel.addEventListener( 'message', async ( event ) => {
 		console.debug( `"${ event.data.type }" event received` );
 		let result;
@@ -541,6 +553,8 @@ browser.then( ( _browser ) => {
 				event.data.request.method,
 				event.data.request._POST,
 			);
+		} else if ( event.data.type === 'is_ready' ) {
+			return;
 		} else {
 			console.debug( `"${ event.data.type }" event has no handler, short-circuiting` );
 			return;
