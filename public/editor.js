@@ -1019,7 +1019,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useRef(initialValue);
           }
-          function useEffect4(create, deps) {
+          function useEffect5(create, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useEffect(create, deps);
           }
@@ -1799,7 +1799,7 @@
           exports.useContext = useContext;
           exports.useDebugValue = useDebugValue;
           exports.useDeferredValue = useDeferredValue;
-          exports.useEffect = useEffect4;
+          exports.useEffect = useEffect5;
           exports.useId = useId;
           exports.useImperativeHandle = useImperativeHandle;
           exports.useInsertionEffect = useInsertionEffect;
@@ -23299,8 +23299,15 @@
 
   // src/editor-app.jsx
   function App() {
+    const [wordpressReady, setWordPressReady] = React5.useState(false);
     const [filePath, setFilePath] = React5.useState("");
     const [output, setOutput] = React5.useState("");
+    React5.useEffect(() => {
+      wp_worker_bridge_default.ready().then(() => {
+        iframeElRef.current.src = "/wp-login.php";
+        setWordPressReady(true);
+      });
+    }, []);
     const editorRef = React5.useRef();
     const iframeElRef = React5.useRef();
     const initialValue = React5.useMemo(() => window.localStorage.getItem("monaco-editor-php") || "<?php\n", []);
@@ -23354,10 +23361,10 @@
       className: "flex w-screen h-screen"
     }, /* @__PURE__ */ React5.createElement("div", {
       className: "flex flex-col w-50"
-    }, /* @__PURE__ */ React5.createElement(FilesExplorer, {
+    }, wordpressReady && /* @__PURE__ */ React5.createElement(FilesExplorer, {
       onSelectFile: handleSelectFile
     })), /* @__PURE__ */ React5.createElement("div", {
-      className: "flex flex-col h-full flex-grow"
+      className: "flex flex-col h-full w-2/5 max-w-2/5"
     }, filePath ? `Editing: ${filePath.substr(1)}` : `Code editor`, /* @__PURE__ */ React5.createElement(editor_default, {
       key: "editor",
       ref: editorRef,
@@ -23366,13 +23373,16 @@
       onRun,
       onSave,
       className: "h-2/5 border-solid border-2 border-indigo-600 flex-grow-0"
-    }), "Code results", /* @__PURE__ */ React5.createElement("pre", {
+    }), /* @__PURE__ */ React5.createElement("div", null, "Save file \u2013 cmd+s or ctrl+s", /* @__PURE__ */ React5.createElement("br", null), "Run code \u2013 cmd+s or ctrl+s"), "Output:", /* @__PURE__ */ React5.createElement("pre", {
       className: "h-2/5 border-solid border-2 border-indigo-600 flex-grow-0 text-sm overflow-y-auto"
-    }, output), /* @__PURE__ */ React5.createElement("h2", null, "WordPress login data: admin/password")), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
+    }, output)), /* @__PURE__ */ React5.createElement("div", {
+      className: "h-full flex-grow"
+    }, /* @__PURE__ */ React5.createElement("h2", null, "WordPress login data: admin/password"), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
+      ref: iframeElRef,
+      style: { visibility: wordpressReady ? "visible" : "hidden" },
       initialUrl: "/wp-login.php",
-      className: "h-full w-1/2",
-      ref: iframeElRef
-    }));
+      className: "h-full w-full"
+    })));
   }
   function getLanguage(filePath) {
     const extension = filePath.split(".").pop();

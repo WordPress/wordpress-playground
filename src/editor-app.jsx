@@ -7,8 +7,17 @@ import wpWorker from './wp-worker-bridge';
 import WordPressBrowser from './wordpress-browser';
 
 function App() {
+	const [ wordpressReady, setWordPressReady ] = React.useState( false );
 	const [ filePath, setFilePath ] = React.useState( '' );
 	const [ output, setOutput ] = React.useState( '' );
+
+	React.useEffect( () => {
+		wpWorker.ready()
+			.then( () => {
+				iframeElRef.current.src = '/wp-login.php';
+				setWordPressReady( true );
+			} );
+	}, [] );
 
 	const editorRef = React.useRef();
 	const iframeElRef = React.useRef();
@@ -67,9 +76,11 @@ function App() {
 	return (
 		<div className="flex w-screen h-screen">
 			<div className="flex flex-col w-50">
-				<FilesExplorer onSelectFile={ handleSelectFile } />
+				{ wordpressReady && (
+					<FilesExplorer onSelectFile={ handleSelectFile } />
+				) }
 			</div>
-			<div className="flex flex-col h-full flex-grow">
+			<div className="flex flex-col h-full w-2/5 max-w-2/5">
 				{ filePath ? `Editing: ${ filePath.substr( 1 ) }` : `Code editor` }
 				<Editor
 					key="editor"
@@ -80,13 +91,24 @@ function App() {
 					onSave={ onSave }
 					className="h-2/5 border-solid border-2 border-indigo-600 flex-grow-0"
 				/>
-				Code results
+				<div>
+					Save file – cmd+s or ctrl+s<br />
+					Run code – cmd+s or ctrl+s
+				</div>
+				Output:
 				<pre className="h-2/5 border-solid border-2 border-indigo-600 flex-grow-0 text-sm overflow-y-auto">
 					{ output }
 				</pre>
-				<h2>WordPress login data: admin/password</h2>
 			</div>
-			<WordPressBrowser initialUrl="/wp-login.php" className="h-full w-1/2" ref={ iframeElRef } />
+			<div className="h-full flex-grow">
+				<h2>WordPress login data: admin/password</h2>
+				<WordPressBrowser
+					ref={ iframeElRef }
+					style={ { visibility: wordpressReady ? 'visible' : 'hidden' } }
+					initialUrl="/wp-login.php"
+					className="h-full w-full"
+				/>
+			</div>
 		</div>
 	);
 }

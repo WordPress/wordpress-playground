@@ -26,7 +26,7 @@ function App() {
 
 	return (
 		<div className="flex justify-center w-screen h-screen py-2 px-4">
-			<div className="min-w-20 max-w-40 w-1/2">
+			<div className="min-w-50 w-1/2">
 				<p className="my-2">
 					To fetch the list of pages, we will use the getEntityRecords selector. In broad strokes, it will
 					issue the correct API request, cache the results, and return the list of the records we need. Here’s

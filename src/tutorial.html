@@ -1,10 +1,36 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>Test</title>
+		<title>Interactive WordPress tutorial!</title>
 		<link rel="stylesheet" href="./style.css" />
 	</head>
 	<body>
+		<div class="m-auto mt-6 my-3 min-w-50 w-1/2 max-w-80 px-2">
+			<p>
+				This demo runs the code snippets on a live WordPress
+				running in the browser via WASM. Full source code available
+				at
+				<a
+					class="text-blue-500 underline"
+					href="https://github.com/adamziel/wordpress-wasm"
+				>
+					https://github.com/adamziel/wordpress-wasm
+				</a>
+			</p>
+			
+			<p class="my-4">
+				See also
+				<a 
+					class="text-blue-500 underline"
+					href="/index.html"
+					>
+					an interactive WordPress instance and code editor
+				</a>.
+			</p>
+
+			<hr/>
+		</div>
+
 		<div id="app"></div>
 		<script src="monaco-editor/min/vs/loader.js"></script>
 		<script src="tutorial.js"></script>
