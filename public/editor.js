@@ -23377,7 +23377,9 @@
       className: "h-2/5 border-solid border-2 border-indigo-600 flex-grow-0 text-sm overflow-y-auto"
     }, output)), /* @__PURE__ */ React5.createElement("div", {
       className: "h-full flex-grow"
-    }, /* @__PURE__ */ React5.createElement("h2", null, "WordPress login data: admin/password"), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
+    }, /* @__PURE__ */ React5.createElement("h2", null, "WordPress login data: admin/password"), !wordpressReady && /* @__PURE__ */ React5.createElement("h2", {
+      style: { fontSize: 30 }
+    }, "Loading... it might take a while"), /* @__PURE__ */ React5.createElement(wordpress_browser_default, {
       ref: iframeElRef,
       style: { visibility: wordpressReady ? "visible" : "hidden" },
       initialUrl: "/wp-login.php",

@@ -102,6 +102,7 @@ function App() {
 			</div>
 			<div className="h-full flex-grow">
 				<h2>WordPress login data: admin/password</h2>
+				{ ! wordpressReady && <h2 style={ { fontSize: 30 } } >Loading... it might take a while</h2> }
 				<WordPressBrowser
 					ref={ iframeElRef }
 					style={ { visibility: wordpressReady ? 'visible' : 'hidden' } }
