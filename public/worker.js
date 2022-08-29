@@ -204,6 +204,7 @@ class WP {
 	SCHEMA = 'http';
 	HOSTNAME = 'localhost';
 	PORT = 8777;
+	HOST = `${ this.HOSTNAME }:${ this.PORT }`;
 	ABSOLUTE_URL = `${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }`;
 
 	constructor( php ) {
@@ -241,7 +242,8 @@ class WP {
 
 		const url = new URL( allClients[ 0 ].url );
 		this.HOSTNAME = url.hostname;
-		this.PORT = url.port || 80;
+		this.PORT = url.port || ( url.protocol === 'https:' ? 443 : 80 );
+		this.HOST = url.host;
 		this.ABSOLUTE_URL = url.origin;
 	}
 
@@ -380,6 +382,7 @@ class WP {
 
 		console.log( 'WP request', request );
 
+		const https = this.ABSOLUTE_URL.startsWith( 'https://' ) ? 'on' : '';
 		return `
 			$request = (object) json_decode(
 				'${ JSON.stringify( request ) }'
@@ -419,7 +422,7 @@ class WP {
 			
 			$_SERVER['PATH']     = '/';
 			$_SERVER['REQUEST_URI']     = $path;
-			$_SERVER['HTTP_HOST']       = '${ this.HOSTNAME }:${ this.PORT }';
+			$_SERVER['HTTP_HOST']       = '${ this.HOST }';
 			$_SERVER['REMOTE_ADDR']     = '${ this.HOSTNAME }';
 			$_SERVER['SERVER_NAME']     = '${ this.ABSOLUTE_URL }';
 			$_SERVER['SERVER_PORT']     = ${ this.PORT };
@@ -428,7 +431,7 @@ class WP {
 			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
 			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
 			$_SERVER['DOCUMENT_ROOT']   = '/';
-			$_SERVER['HTTPS']           = '';
+			$_SERVER['HTTPS']           = '${ https }';
 			chdir($docroot);
 		`;
 	}
