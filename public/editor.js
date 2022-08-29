@@ -23034,12 +23034,16 @@
       });
     }
     async ready() {
+      if (this._ready) {
+        return true;
+      }
       while (true) {
         try {
           const result = await this.postMessage({
             type: "is_ready"
           }, 500);
           if (result) {
+            this._ready = true;
             return true;
           }
         } catch (e) {

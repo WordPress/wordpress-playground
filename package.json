@@ -8,6 +8,7 @@
     "dev:html": "fswatch -o ./src/*.html | xargs -n1 -I{} cp src/*.html public/",
     "dev:serve": "npx live-server ./public --port=8777 --entry-file=index.html",
     "dev:js-editor": "esbuild --bundle src/editor-app.jsx --outfile=public/editor.js --watch",
+    "dev:js-embed": "esbuild --bundle src/embed.jsx --outfile=public/embed.js --watch",
     "dev:js-tutorial": "esbuild --bundle src/tutorial.jsx --outfile=public/tutorial.js --watch",
     "dev:css": "npx tailwindcss -i ./src/style.css -o ./public/style.css --watch",
     "dev": "npm-run-all --parallel dev:*"

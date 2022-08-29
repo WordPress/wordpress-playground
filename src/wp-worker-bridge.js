@@ -116,6 +116,9 @@ class WPWorker {
 		} );
 	}
 	async ready() {
+		if ( this._ready ) {
+			return true;
+		}
 		// eslint-disable-next-line no-constant-condition
 		while ( true ) {
 			try {
@@ -123,6 +126,7 @@ class WPWorker {
 					type: 'is_ready',
 				}, 500 );
 				if ( result ) {
+					this._ready = true;
 					return true;
 				}
 			// eslint-disable-next-line no-empty

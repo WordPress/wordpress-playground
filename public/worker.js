@@ -280,6 +280,7 @@ class WP {
 				// break;
 			}
 		}
+		delete response.headers[ 'x-frame-options' ];
 		return response;
 	}
 
