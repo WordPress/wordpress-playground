@@ -1,9 +1,45 @@
 
+let lastRequestId = 0;
 class WPWorker {
 	WORDPRESS_ROOT = '/preload/wordpress';
 	constructor() {
 		this.channel = new BroadcastChannel( 'wordpress-wasm' );
 	}
+
+	async request( request ) {
+		const { response } = await this.postMessage( {
+			type: 'request',
+			request,
+		} );
+		return response;
+	}
+
+	async createFiles( tree ) {
+		const { stdout } = await this.run( `<?php
+            function createFileTree($tree, $prefix = '')
+            {
+                foreach ($tree as $key => $value) {
+                    $path = $prefix . $key;
+                    echo $path . "\n";
+                    if (is_array($value)) {
+                        // Directory
+                        if (!is_dir($path)) {
+                            mkdir($path);
+                        }
+                        createFileTree($value, rtrim($path, '/') . '/');
+                    } else {
+                        // File
+                        file_put_contents($path, $value);
+                    }
+                }
+            }
+
+            $root_path = ${ JSON.stringify( this.WORDPRESS_ROOT ) };
+            createFileTree(${ JSON.stringify( tree ) }, $root_path);
+        ` );
+		return stdout;
+	}
+
 	async writeFile( path, contents ) {
 		const { stdout } = await this.run( `<?php
             function join_paths($p1, $p2) {
@@ -81,7 +117,7 @@ class WPWorker {
 	}
 	postMessage( data ) {
 		return new Promise( ( resolve, reject ) => {
-			const requestId = Math.random().toString( 36 );
+			const requestId = ++lastRequestId;
 			const responseHandler = ( event ) => {
 				if ( event.data.type === 'response' && event.data.requestId === requestId ) {
 					this.channel.removeEventListener( 'message', responseHandler );

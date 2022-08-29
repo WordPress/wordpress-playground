@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:html": "fswatch -o ./src/index.html | xargs -n1 -I{} cp src/index.html public/",
+    "dev:html": "fswatch -o ./src/*.html | xargs -n1 -I{} cp src/*.html public/",
     "dev:serve": "npx live-server ./public --port=8777 --entry-file=index.html",
-    "dev:js": "esbuild --bundle src/index.jsx --outfile=public/app.js --watch",
+    "dev:js-editor": "esbuild --bundle src/editor-app.jsx --outfile=public/editor.js --watch",
+    "dev:js-tutorial": "esbuild --bundle src/tutorial.jsx --outfile=public/tutorial.js --watch",
     "dev:css": "npx tailwindcss -i ./src/style.css -o ./public/style.css --watch",
     "dev": "npm-run-all --parallel dev:*"
   },
@@ -16,7 +17,8 @@
   "dependencies": {
     "monaco-editor": "^0.34.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-inspector": "^6.0.1"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",

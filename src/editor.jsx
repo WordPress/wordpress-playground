@@ -8,6 +8,8 @@ export const Editor = React.memo( React.forwardRef( function EditorComponent( {
 	onRun = noop,
 	onSave = noop,
 	className = '',
+	style = {},
+	singleLine = false,
 }, ref ) {
 	const editorElRef = React.useRef();
 	const callbacksRef = React.useRef( { onRun, onSave } );
@@ -19,13 +21,38 @@ export const Editor = React.memo( React.forwardRef( function EditorComponent( {
 		console.log( 'RERENDER' );
 		require.config( { paths: { vs: 'monaco-editor/min/vs' } } );
 		require( [ 'vs/editor/editor.main' ], function() {
+			let config = {
+				value: initialValue,
+				language: initialLanguage,
+				// automaticLayout: true,
+				minimap: {
+					enabled: false,
+				},
+			};
+			if ( singleLine ) {
+				config = {
+					...config,
+					wordWrap: 'off',
+					lineNumbers: 'off',
+					lineNumbersMinChars: 0,
+					// overviewRulerLanes: 0,
+					overviewRulerBorder: false,
+					// lineDecorationsWidth: 0,
+					hideCursorInOverviewRuler: true,
+					// glyphMargin: false,
+					folding: false,
+					scrollBeyondLastColumn: 0,
+					scrollbar: { horizontal: 'hidden', vertical: 'hidden' },
+					find: {
+						// addExtraSpaceOnTop: false,
+						// autoFindInSelection: 'never',
+						// seedSearchStringFromSelection: false
+					},
+				};
+			}
 			ref.current = window.monaco.editor.create(
 				editorElRef.current,
-				{
-					value: initialValue,
-					language: initialLanguage,
-					automaticLayout: true,
-				},
+				config,
 			);
 
 			ref.current.addAction( {
@@ -62,9 +89,13 @@ export const Editor = React.memo( React.forwardRef( function EditorComponent( {
 		} );
 	}, [ ] );
 
+	if ( singleLine ) {
+		style.height = '1.5em';
+	}
 	return (
 		<div
 			ref={ editorElRef }
+			style={ style }
 			className={ className }
 		>
 		</div>
