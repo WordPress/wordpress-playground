@@ -230,7 +230,7 @@ class WP {
 	}
 
 	async noteBrowserOrigin() {
-		const allClients = await clients.matchAll( {
+		const allClients = await self.clients.matchAll( {
 			includeUncontrolled: true,
 		} );
 
@@ -241,7 +241,7 @@ class WP {
 
 		const url = new URL( allClients[ 0 ].url );
 		this.HOSTNAME = url.hostname;
-		this.POST = url.port;
+		this.PORT = url.port;
 		this.ABSOLUTE_URL = url.origin;
 	}
 
