@@ -6,23 +6,23 @@ COPY ./copy-to-docker-image/* /root
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
-	apt-get update; \
-	emsdk install latest; \
-	apt-get --no-install-recommends -y install \
-		build-essential \
-		automake-1.15 \
-		libxml2-dev \
-		autoconf \
-		libtool \
-		pkgconf \
-		bison \
-		flex \
-		make \
-		re2c \
-		gdb \
-		git \
-		pv \
-        ca-certificates
+    apt-get update; \
+    emsdk install latest; \
+    apt-get --no-install-recommends -y install \
+    build-essential \
+    automake-1.15 \
+    libxml2-dev \
+    autoconf \
+    libtool \
+    pkgconf \
+    bison \
+    flex \
+    make \
+    re2c \
+    gdb \
+    git \
+    pv \
+    ca-certificates
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV PRELOAD_ASSETS preload/
@@ -54,15 +54,15 @@ RUN set -euxo pipefail;\
 
 # Get VRZNO
 RUN git clone https://github.com/seanmorris/vrzno.git php7.4-src/ext/vrzno \
-		--branch DomAccess \
-		--single-branch          \
-		--depth 1
+    --branch DomAccess \
+    --single-branch          \
+    --depth 1
 
 # Get and build Libxml2
 RUN env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
-		--branch v2.9.10 \
-		--single-branch     \
-		--depth 1;
+    --branch v2.9.10 \
+    --single-branch     \
+    --depth 1;
 
 RUN cd libxml2 && ./autogen.sh
 RUN cd libxml2 && emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/
@@ -110,10 +110,10 @@ RUN cd php7.4-src/ && emmake make -j8
 RUN cp -v php7.4-src/.libs/libphp7.la php7.4-src/.libs/libphp7.a /root/lib/
 
 RUN cd php7.4-src/ && emcc -O3 \
-		-I .     \
-		-I Zend  \
-		-I main  \
-		-I TSRM/ \
-		-I /root/libxml2 \
-		/root/pib_eval.c \
-		-o /root/lib/pib_eval.o;
+    -I .     \
+    -I Zend  \
+    -I main  \
+    -I TSRM/ \
+    -I /root/libxml2 \
+    /root/pib_eval.c \
+    -o /root/lib/pib_eval.o;
