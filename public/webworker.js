@@ -534,7 +534,7 @@ workerChannel.addEventListener( 'message', async ( event ) => {
 	let result;
 	if ( event.data.type === 'run_php' ) {
 		result = await _browser.wp.php.run( event.data.code );
-	} else if ( event.data.type === 'httpRequest' ) {
+	} else if ( event.data.type === 'request' || event.data.type === 'httpRequest' ) {
 		result = await _browser.request(
 			event.data.request.path,
 			event.data.request.method,

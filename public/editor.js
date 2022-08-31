@@ -22922,7 +22922,7 @@
   var WPWorker = class {
     WORDPRESS_ROOT = "/preload/wordpress";
     constructor() {
-      this.channel = new BroadcastChannel("wordpress-wasm");
+      this.channel = new BroadcastChannel("wordpress-service-worker");
     }
     async request(request) {
       const { response } = await this.postMessage({
@@ -23278,12 +23278,23 @@
   if (!navigator.serviceWorker) {
     alert("Service workers are not supported by your browser");
   }
-  var workerRegistered = navigator.serviceWorker.register(`/worker.js`);
+  var serviceWorkerReady = navigator.serviceWorker.register(`/slim-service-worker.js`);
+  var myWebWorker = new Worker("webworker.js");
+  var webWorkerReady = new Promise((resolve, reject) => {
+    const callback = (event) => {
+      if (event.data.type === "ready") {
+        resolve();
+        myWebWorker.removeEventListener("message", callback);
+      }
+    };
+    myWebWorker.addEventListener("message", callback);
+  });
   var WordPressBrowser = React4.forwardRef(
     function WordPressBrowserComponent({ initialUrl, ...props }, iframeElRef) {
       (0, import_react2.useEffect)(() => {
         async function init() {
-          await workerRegistered;
+          await serviceWorkerReady;
+          await webWorkerReady;
           iframeElRef.current.src = initialUrl;
         }
         init();

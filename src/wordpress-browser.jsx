@@ -4,13 +4,25 @@ import { useEffect } from 'react';
 if ( ! navigator.serviceWorker ) {
 	alert( 'Service workers are not supported by your browser' );
 }
-const workerRegistered = navigator.serviceWorker.register( `/worker.js` );
+const serviceWorkerReady = navigator.serviceWorker.register( `/slim-service-worker.js` );
+
+const myWebWorker = new Worker( 'webworker.js' );
+const webWorkerReady = new Promise( ( resolve, reject ) => {
+	const callback = ( event ) => {
+		if ( event.data.type === 'ready' ) {
+			resolve();
+			myWebWorker.removeEventListener( 'message', callback );
+		}
+	};
+	myWebWorker.addEventListener( 'message', callback );
+} );
 
 export const WordPressBrowser = React.forwardRef(
 	function WordPressBrowserComponent( { initialUrl, ...props }, iframeElRef ) {
 		useEffect( () => {
 			async function init() {
-				await workerRegistered;
+				await serviceWorkerReady;
+				await webWorkerReady;
 				iframeElRef.current.src = initialUrl;
 			}
 			init();

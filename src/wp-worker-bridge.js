@@ -3,7 +3,7 @@ let lastRequestId = 0;
 class WPWorker {
 	WORDPRESS_ROOT = '/preload/wordpress';
 	constructor() {
-		this.channel = new BroadcastChannel( 'wordpress-wasm' );
+		this.channel = new BroadcastChannel( 'wordpress-service-worker' );
 	}
 
 	async request( request ) {
