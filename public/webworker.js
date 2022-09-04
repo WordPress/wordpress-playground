@@ -193,6 +193,7 @@ class WP {
 		await this.noteBrowserOrigin();
 		const result = await this.php.run( `<?php
 			${ this._setupErrorReportingCode() }
+			${ this._setupPhpIniCode() }
 			${ this._setupWordPressVariables() }
 			${ this._patchWordPressCode() }
 		` );
@@ -402,6 +403,21 @@ class WP {
 			$_SERVER['DOCUMENT_ROOT']   = '/';
 			$_SERVER['HTTPS']           = '${ https }';
 			chdir($docroot);
+		`;
+	}
+
+	_setupPhpIniCode() {
+		return `
+mkdir('/usr');
+mkdir('/usr/local');
+mkdir('/usr/local/etc');
+file_put_contents('/usr/local/etc/php.ini', "[PHP]
+
+error_reporting = E_ERROR | E_PARSE
+display_errors = 1
+html_errors = 1
+display_startup_errors = On"
+		);
 		`;
 	}
 
