@@ -4,11 +4,11 @@ set -e
 
 cd wasm-build-pipeline
 
-# Prepare a local WordPress installation to preload with the WASM build
-bash prepare-wordpress.sh
-
 # Prepare the WASM build environment module
 docker build . --tag=wasm-wp-build
+
+# Prepare a local WordPress installation to preload with the WASM build
+bash prepare-wordpress.sh
 
 # Build the WASM module
 docker run -v `pwd`/volume:/volume wasm-wp-build:latest bash /root/build-wasm.sh

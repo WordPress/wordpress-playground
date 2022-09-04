@@ -3,7 +3,7 @@
 # Remove previous WordPress installation
 rm -rf volume/*
 
-set -e;
+# set -e;
 
 cd volume;
 
@@ -27,36 +27,67 @@ cd ..;
 # Install WordPress
 cd wordpress;
 
+# Remove non-default themes
+rm -r wp-content/themes/twentytwenty wp-content/themes/twentytwentyone
+
 # Remove unused static files
-find ./ -type f -name '*.eot' | xargs rm -r
-find ./ -type f -name '*.gif' | xargs rm -r
-find ./ -type f -name '*.htaccess' | xargs rm -r
-find ./ -type f -name '*.md' | xargs rm -r
-find ./ -type f -name '*.mp4' | xargs rm -r
-find ./ -type f -name '*.png' | xargs rm -r
-find ./ -type f -name '*.scss' | xargs rm -r
-find ./ -type f -name '*.stylelintignore' | xargs rm -r
-find ./ -type f -name '*.svg' | xargs rm -r
-find ./ -type f -name '*.ttf' | xargs rm -r
-find ./ -type f -name '*.txt' | xargs rm -r
-find ./ -type f -name '*.woff' | xargs rm -r
-find ./ -type f -name '*.wof2' | xargs rm -r
-find ./ -type f -name '*.jpeg' | xargs rm -r
-find ./ -type f -name '*.jpg' | xargs rm -r
+find ./ -type f -name '*.eot' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.gif' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.htaccess' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.md' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.mp4' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.png' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.scss' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.stylelintignore' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.svg' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.ttf' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.txt' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.woff' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.wof2' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.jpeg' | xargs rm -r 2> /dev/null
+find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
+
+echo 'Module.preInit = function() {' > ../lazyFiles.js
 
 # load-styles.php reads the CSS files from the disk and concats them.
 # However, with SCRIPT_DEBUG=false, it reads only the minified files.
 # Therefore, we can remove the unminified CSS files when a minified version is available.
 find ./ -type f -name '*.min.css' | sed 's/\.min\.css$/.css/g' | xargs rm 2> /dev/null
 
+# Let's load all the other CSS files lazily instead of preloading them with the initial data bundle.
+for match in $(find . -type f -name '*.css' ); do
+    # match is something like ./wp-includes/css/dist/block-library/style.css
+
+    # filename is style.css
+    filename=$(echo $match | awk -F'/' '{print $NF}');
+
+    # filepath is /wp-includes/css/dist/block-library
+    filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
+
+    echo "FS.createLazyFile( '/preload/wordpress/$filepath', '$filename', '$filepath/$filename', true, false );" >> ../pre.js
+done;
+
+find ./ -type f -name '*.css' | xargs rm 2> /dev/null
+
 # Same as above, but for JS and load-scripts.php
 find ./ -type f -name '*.min.js' | sed 's/\.min\.js$/.js/g' | xargs rm 2> /dev/null
 
-# Remove the RTL styles at least for the MVP version of wordpress-wasm.
-find ./ -type f -name '*-rtl.min.css' | xargs rm 2> /dev/null
+# Let's load all the other JS files lazily instead of preloading them with the initial data bundle.
+for match in $(find . -type f -name '*.js' ); do
+    # match is something like ./wp-includes/js/dist/block-library/script.js
 
-# Remove non-default themes
-rm -r wp-content/themes/twentytwenty wp-content/themes/twentytwentyone
+    # filename is script.js
+    filename=$(echo $match | awk -F'/' '{print $NF}');
+
+    # filepath is /wp-includes/js/dist/block-library
+    filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
+
+    echo "FS.createLazyFile( '/preload/wordpress/$filepath', '$filename', '$filepath/$filename', true, false );" >> ../pre.js
+done;
+
+find ./ -type f -name '*.js' | xargs rm 2> /dev/null
+
+echo "\n}" >> ../lazyFiles.js
 
 # Remove whitespace from PHP files
 for phpfile in $(find ./ -type f -name '*.php'); do

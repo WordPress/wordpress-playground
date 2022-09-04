@@ -1,27 +1,6 @@
 
-// Polyfills for the emscripten loader
+// Polyfill for the emscripten loader
 document = {};
-class XMLHttpRequest {
-	constructor() {
-		this.onprogress = function() {};
-		this.onload = function() {};
-		this.onerror = function() {};
-	}
-
-	async open( method, url, flag ) {
-		try {
-			const response = await fetch( url, { method } );
-			this.response = await response.arrayBuffer();
-			this.status = response.status;
-			this.onload( {} );
-		} catch ( e ) {
-			this.onerror( e );
-		}
-	}
-
-	send() { }
-}
-
 class UniqueIndex {
 	constructor() {
 		const map = new Map();
@@ -527,6 +506,7 @@ async function init() {
 console.log( '[WebWorker] NEW WEB WORKER IS HERE' );
 
 const browser = init();
+
 const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
 workerChannel.addEventListener( 'message', async ( event ) => {
 	console.debug( `[WebWorker] "${ event.data.type }" event received` );

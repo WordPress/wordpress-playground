@@ -21,5 +21,7 @@ emcc -O3 \
 	-s INVOKE_RUN=0                  \
 	-s USE_ZLIB=1                    \
 		/root/lib/pib_eval.o /root/lib/libphp7.a /root/lib/lib/libxml2.a \
-    --preload-file preload/ \
-    -s ENVIRONMENT=web
+	--preload-file preload/ \
+	--pre-js /volume/pre.js \
+    -s ENVIRONMENT=worker
+
