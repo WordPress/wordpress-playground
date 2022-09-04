@@ -23,5 +23,5 @@ rm -rf public/{wp-admin,wp-content,wp-includes}
 mv wasm-build-pipeline/volume/wordpress-static/{wp-admin,wp-content,wp-includes} public/
 
 # Cleanup
-rm -rf ./wasm-build-pipeline/volume/*
+# rm -rf ./wasm-build-pipeline/volume/*
 
