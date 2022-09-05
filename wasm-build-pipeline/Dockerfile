@@ -2,7 +2,7 @@ FROM trzeci/emscripten:1.39.18-fastcomp
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /root
-COPY ./copy-to-docker-image/* /root
+COPY ./copy-to-docker-image/* /root/
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
