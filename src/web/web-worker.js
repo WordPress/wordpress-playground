@@ -51,7 +51,7 @@ if ( 'function' === typeof importScripts ) {
 	// Polyfill for the emscripten loader
 	document = {};
 
-	importScripts( '/php-web.js' );
+	importScripts( '/webworker-php.js' );
 
 	let isReady = false;
 	async function init() {

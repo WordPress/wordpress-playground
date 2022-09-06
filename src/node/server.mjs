@@ -68,7 +68,8 @@ export function startServer() {
 				res.send( response.body );
 			}
 		} else {
-			res.sendFile( `${ __dirname }wordpress/${ req.path }` );
+			console.log( `${ __dirname }wordpress${ req.path }` );
+			res.sendFile( `${ __dirname }wordpress${ req.path }` );
 		}
 	} );
 

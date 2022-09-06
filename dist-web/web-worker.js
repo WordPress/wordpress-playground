@@ -143,9 +143,7 @@
     _patchWordPressCode() {
       return `
             file_put_contents( "${this.DOCROOT}/.absolute-url", "${this.ABSOLUTE_URL}" );
-			if ( ! file_exists( "${this.DOCROOT}/.wordpress-patched" ) ) {
-				touch("${this.DOCROOT}/.wordpress-patched");
-				
+			if ( ! file_exists( "${this.DOCROOT}/.wordpress-patched" ) ) {				
 				// Patching WordPress in the worker provides a faster feedback loop than
 				// rebuilding it every time. Follow the example below to patch WordPress
 				// before the first request is dispatched:
@@ -219,6 +217,7 @@ ADMIN;
                         $file_php
                     );
                 }
+				touch("${this.DOCROOT}/.wordpress-patched");
 			}
 		`;
     }
@@ -266,6 +265,7 @@ ADMIN;
       console.log("WP request", request);
       const https = this.ABSOLUTE_URL.startsWith("https://") ? "on" : "";
       return `
+			define('WP_HOME', '${this.DOCROOT}');
 			$request = (object) json_decode(
 				'${JSON.stringify(request)}'
 				, JSON_OBJECT_AS_ARRAY
@@ -367,7 +367,7 @@ ADMIN;
   if ("function" === typeof importScripts) {
     console.log("[WebWorker] Spawned");
     document = {};
-    importScripts("/php-web.js");
+    importScripts("/webworker-php.js");
     let isReady = false;
     async function init() {
       const php = new PHPWrapper();

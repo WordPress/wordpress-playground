@@ -48,7 +48,7 @@ find ./ -type f -name '*.wof2' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpeg' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
 
-echo 'setupLazyFiles() { var sa = []; ' > ../wp-lazy-files.js
+echo 'function setupLazyFiles(FS) { var sa = []; ' > ../wp-lazy-files.js
 
 # load-styles.php reads the CSS files from the disk and concats them.
 # However, with SCRIPT_DEBUG=false, it reads only the minified files.
