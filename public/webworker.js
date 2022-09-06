@@ -100,6 +100,18 @@ class PhpBase extends EventTarget {
 				this.dispatchEvent( event );
 			},
 
+			async onPreInit( FS, phpModule ) {
+				console.log( phpModule );
+				// WPModule.FS_createPath = function (...args) {
+				// 	c
+				// 	return FS.createPath( ...args );
+				// };
+				console.dir( PHP );
+				console.log( WPModule );
+				console.log( WPModule.preRun[ 0 ]() );
+				FS.mkdirTree( '/usr/local/etc' );
+			},
+
 		};
 
 		this.binary = new PhpBinary( Object.assign( {}, defaults, args ) ).then( ( php ) => {
@@ -493,8 +505,15 @@ class WPBrowser {
 	}
 }
 
-importScripts( '/php-web-wordpress.js' );
-console.log( 'Imported wordpress, yay' );
+importScripts( '/php-web.js' );
+const WPModule = {};
+importScripts( '/wp.js' );
+
+// const WPInstance = new WPModule( {} ).then( ( wpFs ) => {
+// 	console.log( wpFs );
+// } ).catch( ( error ) => console.error( error ) );
+
+console.log( 'Imported wordpress, yay', WPModule );
 
 function importClassicScript( url ) {
 	const script = document.createElement( 'script' );

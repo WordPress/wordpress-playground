@@ -5,11 +5,12 @@ rm -rf volume/*
 
 # set -e;
 
-cd volume;
+cd preload;
 
 # Download WordPress
 wget https://wordpress.org/wordpress-6.0.1.tar.gz
 tar -xzf wordpress-6.0.1.tar.gz
+rm wordpress-6.0.1.tar.gz
 
 # Patch WordPress with sqlite support
 # https://github.com/aaemnnosttv/wp-sqlite-integration
@@ -47,7 +48,7 @@ find ./ -type f -name '*.wof2' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpeg' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
 
-echo 'Module.preInit = function() { var sa = []; ' > ../pre.js
+echo 'Module.preInit = function() { var sa = []; ' > ../pre-lazy-wp-files.js
 
 # load-styles.php reads the CSS files from the disk and concats them.
 # However, with SCRIPT_DEBUG=false, it reads only the minified files.
@@ -64,7 +65,7 @@ for match in $(find . -type f -name '*.css' ); do
     # filepath is /wp-includes/css/dist/block-library
     filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
 
-    echo "sa.push( [ '/preload/wordpress/$filepath', '$filename', '$filepath/$filename' ] );" >> ../pre.js
+    echo "sa.push( [ '/preload/wordpress/$filepath', '$filename', '$filepath/$filename' ] );" >> ../pre-lazy-wp-files.js
 done;
 
 find ./ -type f -name '*.css' | xargs rm 2> /dev/null
@@ -82,7 +83,7 @@ for match in $(find . -type f -name '*.js' ); do
     # filepath is /wp-includes/js/dist/block-library
     filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
 
-    echo "sa.push( [ '/preload/wordpress$filepath', '$filename', '$filepath/$filename' ] );" >> ../pre.js
+    echo "sa.push( [ '/preload/wordpress$filepath', '$filename', '$filepath/$filename' ] );" >> ../pre-lazy-wp-files.js
 done;
 
 find ./ -type f -name '*.js' | xargs rm 2> /dev/null
@@ -95,7 +96,7 @@ sa.forEach(function(item) {
     FS.mkdirTree( path );
     FS.createLazyFile( path, filename, fullPath, true, false );
 });
-}" >> ../pre.js
+}" >> ../pre-lazy-wp-files.js
 
 # Remove whitespace from PHP files
 for phpfile in $(find ./ -type f -name '*.php'); do

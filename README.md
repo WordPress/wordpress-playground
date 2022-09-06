@@ -6,7 +6,7 @@
 This repository ships with a pre-built demo that you can just run!
 
 1. Clone this repo
-2. Run `bash serve-demo.sh`
+2. Run `cd public && php -S 127.0.0.1:8000`
 3. Visit http://127.0.0.1:8000/index.html
 
 If you want to build the assembly yourself, follow the instructions below.
@@ -24,7 +24,7 @@ The entire build process is automated with a bash script:
 It creates a docker image with the necessary tools, builds PHP as WebAssembly, prepares WordPress files, and bundles it all together.
 
 If you'd like to customize the packaged WordPress installation, study and update
-the `./wasm-build-pipeline.sh` script accordingly.
+the `php/webworker-build-wasm.sh` script accordingly.
 
 
 ## How does it work?
