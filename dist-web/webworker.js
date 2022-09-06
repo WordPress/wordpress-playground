@@ -1,6 +1,4 @@
 
-// Polyfill for the emscripten loader
-document = {};
 class UniqueIndex {
 	constructor() {
 		const map = new Map();
@@ -69,8 +67,6 @@ class PhpBase extends EventTarget {
 	constructor( PhpBinary, args = {} ) {
 		super();
 
-		const FLAGS = {};
-
 		this.onerror = function() {};
 		this.onoutput = function() {};
 		this.onready = function() {};
@@ -101,15 +97,12 @@ class PhpBase extends EventTarget {
 			},
 
 			async onPreInit( FS, phpModule ) {
-				console.log( phpModule );
-				// WPModule.FS_createPath = function (...args) {
-				// 	c
-				// 	return FS.createPath( ...args );
-				// };
-				console.dir( PHP );
-				console.log( WPModule );
-				console.log( WPModule.preRun[ 0 ]() );
+				globalThis.PHPModule = phpModule;
+				importScripts( '/wp.js' );
+				importScripts( '/wp-lazy-files.js' );
+				setupLazyFiles( FS );
 				FS.mkdirTree( '/usr/local/etc' );
+				FS.createLazyFile( '/usr/local/etc', 'php.ini', '/etc/php.ini', true, false );
 			},
 
 		};
@@ -205,8 +198,6 @@ class WP {
 		await this.noteBrowserOrigin();
 		const result = await this.php.run( `<?php
 			${ this._setupErrorReportingCode() }
-			${ this._setupPhpIniCode() }
-			${ this._setupWordPressVariables() }
 			${ this._patchWordPressCode() }
 		` );
 		if ( result.exitCode !== 0 ) {
@@ -232,7 +223,6 @@ class WP {
 		await this.php.refresh();
 		const output = await this.php.run( `<?php	
 			${ this._setupErrorReportingCode() }
-			${ this._setupWordPressVariables() }
 			${ this._setupRequestCode( request ) }
 			${ this._runWordPressCode( request.path ) }
 		` );
@@ -283,19 +273,19 @@ class WP {
 
 	_patchWordPressCode() {
 		return `
-			if ( ! file_exists( WP_HOME . ".wordpress-patched" ) ) {
-				touch(WP_HOME . ".wordpress-patched");
+			if ( ! file_exists( "${ this.DOCROOT }/.wordpress-patched" ) ) {
+				touch("${ this.DOCROOT }/.wordpress-patched");
 				
 				// Patching WordPress in the worker provides a faster feedback loop than
 				// rebuilding it every time. Follow the example below to patch WordPress
 				// before the first request is dispatched:
 				// 
 				// file_put_contents(
-				// 	WP_HOME . 'wp-content/db.php',
+				// 	'${ this.DOCROOT }/wp-content/db.php',
 				// 	str_replace(
 				// 		'$exploded_parts = $values_data;',
 				// 		'$exploded_parts = array( $values_data );',
-				// 		file_get_contents(WP_HOME . 'wp-content/db.php')
+				// 		file_get_contents('${ this.DOCROOT }/wp-content/db.php')
 				// 	)
 				// );
 
@@ -303,11 +293,11 @@ class WP {
                 // For some reason, the in-browser WordPress is eager to redirect the
 				// browser to http://127.0.0.1 when the site URL is http://127.0.0.1:8000.
 				file_put_contents(
-					WP_HOME . 'wp-includes/canonical.php',
+					'${ this.DOCROOT }/wp-includes/canonical.php',
 					str_replace(
 						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {',
 						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {return;',
-						file_get_contents(WP_HOME . 'wp-includes/canonical.php')
+						file_get_contents('${ this.DOCROOT }/wp-includes/canonical.php')
 					)
 				);
 
@@ -316,8 +306,8 @@ class WP {
 				// URL preset during the installation. Also, it disables the block editing
 				// experience by default.
 				file_put_contents(
-					WP_HOME . 'wp-includes/plugin.php',
-					file_get_contents(WP_HOME . 'wp-includes/plugin.php') . "\n"
+					'${ this.DOCROOT }/wp-includes/plugin.php',
+					file_get_contents('${ this.DOCROOT }/wp-includes/plugin.php') . "\n"
 					.'add_filter( "option_home", function($url) { return "${ this.ABSOLUTE_URL }"; }, 10000 );' . "\n"
 					.'add_filter( "option_siteurl", function($url) { return "${ this.ABSOLUTE_URL }"; }, 10000 );' . "\n"
 				);
@@ -418,33 +408,9 @@ class WP {
 		`;
 	}
 
-	_setupPhpIniCode() {
-		return `
-mkdir('/usr');
-mkdir('/usr/local');
-mkdir('/usr/local/etc');
-file_put_contents('/usr/local/etc/php.ini', "[PHP]
-
-error_reporting = E_ERROR | E_PARSE
-display_errors = 1
-html_errors = 1
-display_startup_errors = On"
-		);
-		`;
-	}
-
-	_setupWordPressVariables() {
-		return `
-			$docroot = '${ this.DOCROOT }';
-			$table_prefix = 'wp_';
-			define('WP_HOME', $docroot . '/');
-			define('WP_SITEURL', '/');
-		`;
-	}
-
 	_runWordPressCode( path ) {
 		return `
-		require_once WP_HOME . ltrim('${ path }', '/');
+		require_once '${ this.DOCROOT }/' . ltrim('${ path }', '/');
 		`;
 	}
 }
@@ -461,8 +427,7 @@ class WPBrowser {
 		// Fix the URLs not ending with .php
 		if ( pathname.endsWith( '/' ) ) {
 			pathname += 'index.php';
-		}
-		if ( ! pathname.endsWith( '.php' ) ) {
+		} else if ( ! pathname.endsWith( '.php' ) ) {
 			pathname += '.php';
 		}
 
@@ -484,11 +449,6 @@ class WPBrowser {
 			return this.request( response.headers.location[ 0 ], 'GET', {}, {}, redirects + 1 );
 		}
 
-		// console.log('response', response);
-		// console.log('stderr', response.errors);
-		// console.log('headers', response.headers);
-		// console.log('exitCode', response.exitCode);
-
 		return response;
 	}
 
@@ -505,74 +465,61 @@ class WPBrowser {
 	}
 }
 
-importScripts( '/php-web.js' );
-const WPModule = {};
-importScripts( '/wp.js' );
+if ( 'function' === typeof importScripts ) {
+	console.log( '[WebWorker] Spawned' );
 
-// const WPInstance = new WPModule( {} ).then( ( wpFs ) => {
-// 	console.log( wpFs );
-// } ).catch( ( error ) => console.error( error ) );
+	// Polyfill for the emscripten loader
+	document = {};
 
-console.log( 'Imported wordpress, yay', WPModule );
+	importScripts( '/php-web.js' );
 
-function importClassicScript( url ) {
-	const script = document.createElement( 'script' );
-	script.type = 'text/javascript';
-	script.src = url;
+	let isReady = false;
+	async function init() {
+		const wp = new WP( new PhpWithWP() );
+		await wp.init();
 
-	const p = new Promise( ( resolve ) => script.onload = resolve );
-	document.body.appendChild( script );
-	return p;
-}
+		isReady = true;
 
-let isReady = false;
-async function init() {
-	const wp = new WP( new PhpWithWP() );
-	await wp.init();
-	isReady = true;
+		postMessage( {
+			type: 'ready',
+		} );
+		return new WPBrowser( wp );
+	}
 
-	postMessage( {
-		type: 'ready',
+	const browser = init();
+
+	const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
+	workerChannel.addEventListener( 'message', async ( event ) => {
+		console.debug( `[WebWorker] "${ event.data.type }" event received` );
+		const _browser = await browser;
+		let result;
+		if ( event.data.type === 'run_php' ) {
+			result = await _browser.wp.php.run( event.data.code );
+		} else if ( event.data.type === 'request' || event.data.type === 'httpRequest' ) {
+			result = await _browser.request(
+				event.data.request.path,
+				event.data.request.method,
+				event.data.request._POST,
+				event.data.request.headers,
+			);
+		} else if ( event.data.type === 'is_ready' ) {
+			workerChannel.postMessage( {
+				type: 'response',
+				result: isReady,
+				requestId: event.data.requestId,
+			} );
+			return;
+		} else {
+			console.debug( `[WebWorker] "${ event.data.type }" event has no handler, short-circuiting` );
+			return;
+		}
+		if ( event.data.requestId ) {
+			workerChannel.postMessage( {
+				type: 'response',
+				result,
+				requestId: event.data.requestId,
+			} );
+		}
+		console.debug( `[WebWorker] "${ event.data.type }" event processed` );
 	} );
-
-	return new WPBrowser( wp );
 }
-
-console.log( '[WebWorker] NEW WEB WORKER IS HERE' );
-
-const browser = init();
-
-const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
-workerChannel.addEventListener( 'message', async ( event ) => {
-	console.debug( `[WebWorker] "${ event.data.type }" event received` );
-	const _browser = await browser;
-	let result;
-	if ( event.data.type === 'run_php' ) {
-		result = await _browser.wp.php.run( event.data.code );
-	} else if ( event.data.type === 'request' || event.data.type === 'httpRequest' ) {
-		result = await _browser.request(
-			event.data.request.path,
-			event.data.request.method,
-			event.data.request._POST,
-			event.data.request.headers,
-		);
-	} else if ( event.data.type === 'is_ready' ) {
-		workerChannel.postMessage( {
-			type: 'response',
-			result: isReady,
-			requestId: event.data.requestId,
-		} );
-		return;
-	} else {
-		console.debug( `[WebWorker] "${ event.data.type }" event has no handler, short-circuiting` );
-		return;
-	}
-	if ( event.data.requestId ) {
-		workerChannel.postMessage( {
-			type: 'response',
-			result,
-			requestId: event.data.requestId,
-		} );
-	}
-	console.debug( `[WebWorker] "${ event.data.type }" event processed` );
-} );

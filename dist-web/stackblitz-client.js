@@ -1024,7 +1024,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useLayoutEffect(create, deps);
           }
-          function useCallback2(callback, deps) {
+          function useCallback(callback, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useCallback(callback, deps);
           }
@@ -1788,7 +1788,7 @@
           exports.memo = memo;
           exports.startTransition = startTransition;
           exports.unstable_act = act;
-          exports.useCallback = useCallback2;
+          exports.useCallback = useCallback;
           exports.useContext = useContext;
           exports.useDebugValue = useDebugValue;
           exports.useDeferredValue = useDeferredValue;
@@ -22909,7 +22909,7 @@
   }
   var serviceWorkerReady = navigator.serviceWorker.register(`/slim-service-worker.js`);
   var myWebWorker = new Worker("webworker.js");
-  var webWorkerReady = new Promise((resolve, reject) => {
+  var webWorkerReady = new Promise((resolve) => {
     const callback = (event) => {
       if (event.data.type === "ready") {
         resolve();
@@ -22941,350 +22941,16 @@
   );
   var wordpress_browser_default = WordPressBrowser;
 
-  // src/web/wp-worker-bridge.js
-  var lastRequestId = 0;
-  var WPWorker = class {
-    WORDPRESS_ROOT = "/preload/wordpress";
-    constructor() {
-      this.channel = new BroadcastChannel("wordpress-service-worker");
-    }
-    async request(request) {
-      const { response } = await this.postMessage({
-        type: "request",
-        request
-      });
-      return response;
-    }
-    async createFiles(tree) {
-      const { stdout } = await this.run(`<?php
-            function createFileTree($tree, $prefix = '')
-            {
-                foreach ($tree as $key => $value) {
-                    $path = $prefix . $key;
-                    echo $path . "
-";
-                    if (is_array($value)) {
-                        // Directory
-                        if (!is_dir($path)) {
-                            mkdir($path);
-                        }
-                        createFileTree($value, rtrim($path, '/') . '/');
-                    } else {
-                        // File
-                        file_put_contents($path, $value);
-                    }
-                }
-            }
-
-            $root_path = ${JSON.stringify(this.WORDPRESS_ROOT)};
-            createFileTree(${JSON.stringify(tree)}, $root_path);
-        `);
-      return stdout;
-    }
-    async writeFile(path, contents) {
-      const { stdout } = await this.run(`<?php
-            function join_paths($p1, $p2) {
-                return preg_replace('#/+#', '/', $p1 . '/' . $p2);
-            }
-            $root_path = ${JSON.stringify(this.WORDPRESS_ROOT)};
-            $file_path = ${JSON.stringify(path)};
-            $contents = ${JSON.stringify(contents)};
-            file_put_contents( join_paths($root_path, $file_path), $contents );
-        `);
-      return stdout;
-    }
-    async readFile(path) {
-      const { stdout } = await this.run(`<?php
-            function join_paths($p1, $p2) {
-                return preg_replace('#/+#', '/', $p1 . '/' . $p2);
-            }
-            $root_path = ${JSON.stringify(this.WORDPRESS_ROOT)};
-            $file_path = ${JSON.stringify(path)};
-            echo file_get_contents( join_paths($root_path, $file_path) );
-        `);
-      return stdout;
-    }
-    async ls(path = "") {
-      const { stdout } = await this.run(
-        `<?php
-            function join_paths($p1, $p2) {
-                return preg_replace('#/+#', '/', $p1 . '/' . $p2);
-            }
-
-            $files = [];
-            $root_path = ${JSON.stringify(this.WORDPRESS_ROOT)};
-            $relative_dir_path = ${JSON.stringify(path)};
-            $absolute_dir_path = join_paths( $root_path, $relative_dir_path );
-            foreach(scandir($absolute_dir_path) as $file_name) {
-                $file_name = trim($file_name, '/');
-                if($file_name === '.' || $file_name === '..') {
-                    continue;
-                }
-                $relative_file_path = join_paths($relative_dir_path, $file_name);
-                $file = [
-                    'name' => $file_name,
-                    'path' => $relative_file_path,
-                ];
-                $absolute_file_path = join_paths($root_path, $relative_file_path);
-                if(is_dir($absolute_file_path)){
-                    $file['type'] = 'dir';
-                    $file['children'] = [];
-                } else {
-                    $file['type'] = 'file';
-                }
-                $files[] = $file;
-            }
-
-            // sort by type=dir, name
-            usort($files, function($a, $b) {
-                if($a['type'] === 'dir' && $b['type'] !== 'dir') {
-                    return -1;
-                }
-                if($a['type'] !== 'dir' && $b['type'] === 'dir') {
-                    return 1;
-                }
-                return strcmp($a['name'], $b['name']);
-            });
-
-            echo json_encode($files);
-            `
-      );
-      return JSON.parse(stdout);
-    }
-    run(code) {
-      return this.postMessage({
-        type: "run_php",
-        code
-      });
-    }
-    async ready() {
-      if (this._ready) {
-        return true;
-      }
-      while (true) {
-        try {
-          const result = await this.postMessage({
-            type: "is_ready"
-          }, 500);
-          if (result) {
-            this._ready = true;
-            return true;
-          }
-        } catch (e) {
-        }
-        await new Promise((resolve) => setTimeout(resolve), 1e3);
-      }
-    }
-    postMessage(data, timeout = 5e3) {
-      return new Promise((resolve, reject) => {
-        const requestId = ++lastRequestId;
-        const responseHandler = (event) => {
-          if (event.data.type === "response" && event.data.requestId === requestId) {
-            this.channel.removeEventListener("message", responseHandler);
-            clearTimeout(failOntimeout);
-            resolve(event.data.result);
-          }
-        };
-        const failOntimeout = setTimeout(() => {
-          reject("Request timed out");
-          this.channel.removeEventListener("message", responseHandler);
-        }, timeout);
-        this.channel.addEventListener("message", responseHandler);
-        this.channel.postMessage({
-          ...data,
-          requestId
-        });
-      });
-    }
-  };
-  var wp_worker_bridge_default = new WPWorker();
-
   // src/web/stackblitz-client.jsx
   function App() {
     const iframeElRef = (0, import_react2.useRef)();
-    const runJs = (0, import_react2.useCallback)((code) => {
-      return wp_worker_bridge_default.ready().then(() => loadPlugin(iframeElRef.current)).then(() => document.querySelector("iframe").contentWindow.eval(code));
-    }, []);
     return /* @__PURE__ */ React2.createElement("div", {
-      className: "flex flex-col justify-center w-screen h-screen py-2 px-4"
+      className: "flex flex-col justify-center py-2 px-4"
     }, /* @__PURE__ */ React2.createElement(wordpress_browser_default, {
-      className: "hidden",
+      style: { width: 900, height: 600 },
       initialUrl: "/wp-login.php",
       ref: iframeElRef
     }));
-  }
-  async function loadPlugin(iframe) {
-    console.log(iframe.src);
-    if (iframe.src.endsWith("/wp-admin/admin.php?page=my-plugin")) {
-      return;
-    }
-    await wp_worker_bridge_default.run(`
-	<?php
-
-// Next step: https://developer.wordpress.org/block-editor/how-to-guides/block-tutorial/writing-your-first-block-type/
-
-function createFileTree($tree, $prefix = '')
-{
-    foreach ($tree as $key => $value) {
-        $path = $prefix . $key;
-        echo $path . "
-";
-        if (is_array($value)) {
-            // Directory
-            if (!is_dir($path)) {
-                mkdir($path);
-            }
-            createFileTree($value, rtrim($path, '/') . '/');
-        } else {
-            // File
-            file_put_contents($path, $value);
-        }
-    }
-}
-
-createFileTree([
-    "/preload/wordpress/wp-content/plugins/my-plugin" => [
-        "style.css" => "",
-        "my-plugin.php" => <<<'PLUGIN'
-<?php
-/**
- * Plugin Name: My plugin
- *
- */
-
- function my_admin_menu() {
-    // Create a new admin page for our app.
-    add_menu_page(
-        __( 'My Development Plugin', 'gutenberg' ),
-        __( 'My Development Plugin', 'gutenberg' ),
-        'manage_options',
-        'my-plugin',
-        function () {
-        },
-        'dashicons-schedule',
-        3
-    );
-}
- 
-add_action( 'admin_menu', 'my_admin_menu' );
-
-function load_custom_wp_admin_scripts( $hook ) {
-    // Load only on ?page=my-plugin.
-    if ( 'toplevel_page_my-plugin' !== $hook ) {
-        return;
-    }
- 
-    // Load the required WordPress packages.
- 
-    // Automatically load imported dependencies and assets version.
-    $asset_file = array('dependencies' => array('wp-components', 'wp-core-data', 'wp-data', 'wp-element', 'wp-html-entities', 'wp-notices', 'wp-polyfill'), 'version' => 'e616d860b19e9c45233d4092088232c5');
- 
-    // Enqueue CSS dependencies.
-    foreach ( $asset_file['dependencies'] as $style ) {
-        wp_enqueue_style( $style );
-    }
- 
-    // Load our app.js.
-    wp_register_script(
-        'my-plugin',
-        plugins_url( 'build/index.js', __FILE__ ),
-        $asset_file['dependencies'],
-        $asset_file['version']
-    );
-    wp_enqueue_script( 'my-plugin' );
- 
-    // Load our style.css.
-    wp_register_style(
-        'my-plugin',
-        plugins_url( 'style.css', __FILE__ ),
-        array(),
-        $asset_file['version']
-    );
-    wp_enqueue_style( 'my-plugin' );
-	add_action('admin_head', function() {
-		echo '<style>
-		#wpadminbar, #adminmenuback, #adminmenuwrap {
-			display: none;
-		}
-		html.wp-toolbar {
-			padding: 10px !important;
-		}
-		body {
-			font-size: 16px;
-		}
-		ul {
-			padding-left: 20px;
-		}
-		ul,
-		ul li {
-			list-style-type: disc;
-		}
-		</style>';
-	});
-}
- 
-add_action( 'admin_enqueue_scripts', 'load_custom_wp_admin_scripts' );
-PLUGIN
-    ]
-]);
-
-// print_r(glob("/preload/wordpress/wp-content/plugins/*"));
-// print_r(glob("/preload/wordpress/wp-content/plugins/my-plugin/*"));
-// echo file_get_contents("/preload/wordpress/wp-content/plugins/my_plugin/index.php");
-
-$file_php_path = '/preload/wordpress/wp-includes/functions.php';
-$file_php = file_get_contents($file_php_path);
-
-if ($file_php) {
-    if (strpos($file_php, "start-test-snippet") !== false) {
-        $file_php = substr($file_php, 0, strpos($file_php, "start-test-snippet"));
-    }
-
-    $file_php .= <<<'ADMIN'
-        // start-test-snippet
-        add_action('init', function() {
-            require_once WP_HOME . '/wp-admin/includes/plugin.php';
-            $plugin = 'my-plugin/my-plugin.php';
-            if(!is_plugin_active($plugin)) {
-                $result = activate_plugin( $plugin, '', is_network_admin() );
-                if ( is_wp_error( $result ) ) {
-                    if ( 'unexpected_output' === $result->get_error_code() ) {
-                        var_dump($result->get_error_data());
-                        die();
-                    } else {
-                        wp_die( $result );
-                    }
-                }
-            }
-        });
-        // end-test-snippet
-ADMIN;
-
-    file_put_contents(
-        $file_php_path,
-        $file_php
-    );
-}
-
-`);
-    await wp_worker_bridge_default.request({
-      path: "/wp-login.php",
-      method: "POST",
-      _POST: {
-        log: "admin",
-        pwd: "password",
-        rememberme: "forever"
-      }
-    });
-    iframe.src = window.location.origin + "/wp-admin/admin.php?page=my-plugin";
-    await new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (iframe.contentWindow.wp && iframe.contentWindow.wp.data && iframe.contentWindow.wp.data.select("core")) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 100);
-    });
   }
   (0, import_client.createRoot)(document.querySelector("#app")).render(
     /* @__PURE__ */ React2.createElement(App, null)

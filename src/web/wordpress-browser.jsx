@@ -7,7 +7,7 @@ if ( ! navigator.serviceWorker ) {
 const serviceWorkerReady = navigator.serviceWorker.register( `/slim-service-worker.js` );
 
 const myWebWorker = new Worker( 'webworker.js' );
-const webWorkerReady = new Promise( ( resolve, reject ) => {
+const webWorkerReady = new Promise( ( resolve ) => {
 	const callback = ( event ) => {
 		if ( event.data.type === 'ready' ) {
 			resolve();
@@ -31,10 +31,6 @@ export const WordPressBrowser = React.forwardRef(
 		return (
 			<div { ...props }>
 				<iframe ref={ iframeElRef } title="WordPress" width="100%" height="100%" className="border-solid border-1 border-indigo-600" />
-				{ /* <input
-				id="url_bar"
-				type="text"
-			/> */ }
 			</div>
 		);
 	},
