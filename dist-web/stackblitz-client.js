@@ -22896,12 +22896,12 @@
     }
   });
 
-  // src/stackblitz-client.jsx
+  // src/web/stackblitz-client.jsx
   var React2 = __toESM(require_react());
   var import_react2 = __toESM(require_react());
   var import_client = __toESM(require_client());
 
-  // src/wordpress-browser.jsx
+  // src/web/wordpress-browser.jsx
   var React = __toESM(require_react());
   var import_react = __toESM(require_react());
   if (!navigator.serviceWorker) {
@@ -22941,7 +22941,7 @@
   );
   var wordpress_browser_default = WordPressBrowser;
 
-  // src/wp-worker-bridge.js
+  // src/web/wp-worker-bridge.js
   var lastRequestId = 0;
   var WPWorker = class {
     WORDPRESS_ROOT = "/preload/wordpress";
@@ -23099,7 +23099,7 @@
   };
   var wp_worker_bridge_default = new WPWorker();
 
-  // src/stackblitz-client.jsx
+  // src/web/stackblitz-client.jsx
   function App() {
     const iframeElRef = (0, import_react2.useRef)();
     const runJs = (0, import_react2.useCallback)((code) => {
