@@ -555,26 +555,6 @@ video {
   display: flex;
 }
 
-.contents {
-  display: contents;
-}
-
-.hidden {
-  display: none;
-}
-
-.h-screen {
-  height: 100vh;
-}
-
-.h-80 {
-  height: 20rem;
-}
-
-.w-screen {
-  width: 100vw;
-}
-
 .flex-col {
   flex-direction: column;
 }

@@ -6,21 +6,18 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev:web:html": "fswatch -o ./src/web/*.html | xargs -n1 -I{} cp src/web/*.html dist-web/",
-    "dev:web:serve": "npx live-server ./dist-web --port=8777 --entry-file=stackblitz-client.html",
-    "dev:web:js-stackblitz": "esbuild --bundle src/web/stackblitz-client.jsx --outfile=dist-web/stackblitz-client.js --watch",
-    "dev:web:css": "npx tailwindcss -i ./src/web/style.css -o ./dist-web/style.css --watch",
+    "dev:web:serve": "npx live-server ./dist-web --port=8777 --entry-file=wordpress.html",
+    "dev:web:web-worker": "esbuild --bundle src/web/web-worker.js --outfile=dist-web/web-worker.js --watch",
+    "dev:web:service-worker": "esbuild --bundle src/web/service-worker.js --outfile=dist-web/service-worker.js --watch",
     "dev:web": "npm-run-all --parallel dev:web:*",
     "dev:node": "node ./src/node/node-server.mjs",
     "dev": "npm run dev:web",
-
     "build:php:web": "cd wasm-build/php && bash webworker-build-wasm.sh",
     "build:php:node": "cd wasm-build/php && bash node-build-wasm.sh",
     "build:php": "npm-run-all build:php:*",
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh",
-
     "clean:php": "rm -rf dist-web/wasm-build/php/output/*",
     "clean:wp": "rm -rf dist-web/wasm-build/wordpress/output/* dist-web/wasm-build/wordpress/preload/*",
-
     "publish:php:web": "cp wasm-build/php/output/web-* dist-web/",
     "publish:php:node": "cp wasm-build/php/output/node-* src/node/",
     "publish:wp:web": "cp wasm-build/wordpress-data/output/* dist-web/ && rm -rf dist-web/{wp-admin,wp-content,wp-includes} && cp -r wasm-build/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} dist-web/",
@@ -29,13 +26,9 @@
   "author": "Adam Zielinski",
   "license": "ISC",
   "dependencies": {
-    "@babel/standalone": "^7.18.13",
-    "babel-plugin-import-global": "0.0.6",
-    "monaco-editor": "^0.34.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-inspector": "^6.0.1",
-    "tailwindcss": "^3.1.8"
+    "body-parser": "^1.20.0",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.18.1"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",
