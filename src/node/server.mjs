@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import * as url from 'url';
 
 import PHP from './node-php.js';
+import path from 'path';
 import { fileURLToPath } from 'node:url';
 
 import PHPWrapper from '../shared/php-wrapper.mjs';
@@ -11,7 +12,7 @@ import WordPress from '../shared/wordpress.mjs';
 
 const __dirname = url.fileURLToPath( new URL( '.', import.meta.url ) );
 
-async function createClient() {
+export async function createWordPressClient() {
 	const php = new PHPWrapper();
 	await php.init( PHP, {
 		locateFile() {
@@ -27,49 +28,59 @@ async function createClient() {
 	return new WordPress( php );
 }
 
-const app = express();
-app.use( cookieParser() );
-app.use( bodyParser.urlencoded( { extended: true } ) );
-const port = 9876;
+export function startServer() {
+	const app = express();
+	app.use( cookieParser() );
+	app.use( bodyParser.urlencoded( { extended: true } ) );
+	const port = 9876;
 
-const clientPromise = createClient();
-app.all( '*', async ( req, res ) => {
-	const wp = await clientPromise;
-	if ( ! wp.initialized ) {
-		await wp.init(
-		  url.format( {
-				protocol: req.protocol,
-				host: req.get( 'host' ),
-				pathname: req.originalUrl,
-		  } ),
-		);
-	}
-	if ( req.path.endsWith( '.php' ) || req.path.endsWith( '/' ) ) {
-		const parsedUrl = new URL( req.url, wp.ABSOLUTE_URL );
-		const response = await wp.request( {
-			// Fix the URLs not ending with .php
-			path: parsedUrl.pathname,
-			method: req.method,
-			headers: req.headers,
-			_GET: parsedUrl.search,
-			_POST: req.body,
-			_COOKIE: req.cookies,
-		} );
-
-		for ( const [ key, value ] of Object.entries( response.headers ) ) {
-		  res.setHeader( key, value );
+	const clientPromise = createWordPressClient();
+	app.all( '*', async ( req, res ) => {
+		const wp = await clientPromise;
+		if ( ! wp.initialized ) {
+			await wp.init(
+				url.format( {
+					protocol: req.protocol,
+					host: req.get( 'host' ),
+					pathname: req.originalUrl,
+				} ),
+			);
 		}
-		if ( 'location' in response.headers ) {
-		  res.status( 302 );
-		  res.end();
+		if ( req.path.endsWith( '.php' ) || req.path.endsWith( '/' ) ) {
+			const parsedUrl = new URL( req.url, wp.ABSOLUTE_URL );
+			const response = await wp.request( {
+				// Fix the URLs not ending with .php
+				path: parsedUrl.pathname,
+				method: req.method,
+				headers: req.headers,
+				_GET: parsedUrl.search,
+				_POST: req.body,
+				_COOKIE: req.cookies,
+			} );
+
+			for ( const [ key, value ] of Object.entries( response.headers ) ) {
+				res.setHeader( key, value );
+			}
+			if ( 'location' in response.headers ) {
+				res.status( 302 );
+				res.end();
+			} else {
+				res.send( response.body );
+			}
 		} else {
-		  res.send( response.body );
+			res.sendFile( `${ __dirname }wordpress/${ req.path }` );
 		}
-	} else {
-		res.sendFile( `${ __dirname }wordpress/${ req.path }` );
-	}
-} );
+	} );
 
-app.listen( port, async () => {
-	console.log( `Example app listening on port ${ port }` );
-} );
+	app.listen( port, async () => {
+		console.log( `WordPress server is listening on port ${ port }` );
+	} );
+}
+
+// When executed directly, start the server
+const nodePath = path.resolve( process.argv[ 1 ] );
+const modulePath = path.resolve( fileURLToPath( import.meta.url ) );
+const isRunningDirectlyViaCLI = nodePath === modulePath;
+if ( isRunningDirectlyViaCLI ) {
+	startServer();
+}

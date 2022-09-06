@@ -9,5 +9,5 @@ docker run \
 	/emsdk_portable/fastcomp/emscripten/tools/file_packager.py \
 	/output/wp.data \
 	--export-name="PHPModule" \
-	--preload=/preload/wordpress \
+	--preload /preload/wordpress \
 	--js-output=/output/wp.js

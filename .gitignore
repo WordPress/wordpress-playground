@@ -1,4 +1,9 @@
+.DS_Store
 wordpress/
 node_modules
 package-lock.json
-
+wasm-build/php/docker-output/*
+!wasm-build/php/docker-output/.gitkeep
+wasm-build/wordpress-data/docker-output/*
+!wasm-build/wordpress-data/docker-output/.gitkeep
+wasm-build/wordpress-data/preload/wordpress*
