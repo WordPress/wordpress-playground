@@ -10,7 +10,7 @@ docker run \
         -o /volume/output/webworker-php-for-wordpress.js \
         --llvm-lto 2                     \
         -s EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_exec_callback", "_del_callback"]' \
-        -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8"]' \
+        -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
         -s MAXIMUM_MEMORY=-1             \
         -s INITIAL_MEMORY=1024MB \
         -s ALLOW_MEMORY_GROWTH=1         \

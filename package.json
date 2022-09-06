@@ -5,22 +5,26 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:html": "fswatch -o ./src/*.html | xargs -n1 -I{} cp src/*.html public/",
-    "dev:serve": "npx live-server ./public --port=8777 --entry-file=index.html",
-    "dev:js-stackblitz": "esbuild --bundle src/stackblitz-client.jsx --outfile=public/stackblitz-client.js --watch",
-    "dev:css": "npx tailwindcss -i ./src/style.css -o ./public/style.css --watch",
-    "dev": "npm-run-all --parallel dev:*",
+    "dev:web:html": "fswatch -o ./src/web/*.html | xargs -n1 -I{} cp src/web/*.html dist-web/",
+    "dev:web:serve": "npx live-server ./public --port=8777 --entry-file=index.html",
+    "dev:web:js-stackblitz": "esbuild --bundle src/web/stackblitz-client.jsx --outfile=dist-web/stackblitz-client.js --watch",
+    "dev:web:css": "npx tailwindcss -i ./src/web/style.css -o ./dist-web/style.css --watch",
+    "dev:web": "npm-run-all --parallel dev:web:*",
+    "dev:node": "node ./src/node/node-server.mjs",
+    "dev": "npm run web",
 
-    "build:php:webworker": "cd wasm-build-pipeline/php && bash webworker-build-wasm.sh",
+    "build:php:web": "cd wasm-build-pipeline/php && bash webworker-build-wasm.sh",
     "build:php:node": "cd wasm-build-pipeline/php && bash node-build-wasm.sh",
     "build:php": "npm-run-all build:php:*",
     "build:wp": "cd wasm-build-pipeline/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh",
-    
-    "clean:php": "rm -rf public/wasm-build-pipeline/php/output/*",
-    "clean:wp": "rm -rf public/wasm-build-pipeline/wordpress/output/* public/wasm-build-pipeline/wordpress/preload/*",
 
-    "publish:php": "cp wasm-build-pipeline/php/output/* public/",
-    "publish:wp": "cp wasm-build-pipeline/wordpress-data/output/* public/ && rm -rf public/{wp-admin,wp-content,wp-includes} && cp -r wasm-build-pipeline/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} public/"
+    "clean:php": "rm -rf dist-web/wasm-build-pipeline/php/output/*",
+    "clean:wp": "rm -rf dist-web/wasm-build-pipeline/wordpress/output/* dist-web/wasm-build-pipeline/wordpress/preload/*",
+
+    "publish:php:web": "cp wasm-build-pipeline/php/output/web-* dist-web/",
+    "publish:php:node": "cp wasm-build-pipeline/php/output/node-* src/node/",
+    "publish:wp:web": "cp wasm-build-pipeline/wordpress-data/output/* dist-web/ && rm -rf dist-web/{wp-admin,wp-content,wp-includes} && cp -r wasm-build-pipeline/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} dist-web/",
+    "publish:wp:node": "rm -rf src/node/wordpress/* && cp -r wasm-build-pipeline/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} src/node/wordpress/ && cp -r wasm-build-pipeline/wordpress-data/preload/wordpress/* src/node/wordpress/"
   },
   "author": "Adam Zielinski",
   "license": "ISC",
