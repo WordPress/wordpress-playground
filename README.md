@@ -1,13 +1,18 @@
 # WordPress in the browser!
 
 ![](demo.gif)
+
+https://stackblitz.com/edit/wp-plugin-playground
+
+A writeup with details of how this work is coming! The README doc below is a short&sweet form without too many details.
+
 ## Running the demo
 
 This repository ships with a pre-built demo that you can just run!
 
 1. Clone this repo
-2. Run `cd public && php -S 127.0.0.1:8000`
-3. Visit http://127.0.0.1:8000/index.html
+2. Run `npm run dev`
+3. Visit http://127.0.0.1:8777/wordpress.html
 
 If you want to build the assembly yourself, follow the instructions below.
 
@@ -15,17 +20,21 @@ This repo draws inspiration from https://github.com/seanmorris/php-wasm and uses
 
 ## Building the assembly
 
-The entire build process is automated with a bash script:
+The build process is split into automated parts. The scripts below create a docker image with the necessary tools, and build  PHP as WebAssembly.
+
+### Building WASM PHP for the web
 
 ```bash
-./wasm-build-pipeline.sh
+npm run build:php:web
+```
+### Building WASM PHP for node.js
+
+```bash
+npm run build:php:node
 ```
 
-It creates a docker image with the necessary tools, builds PHP as WebAssembly, prepares WordPress files, and bundles it all together.
-
 If you'd like to customize the packaged WordPress installation, study and update
-the `php/webworker-build-wasm.sh` script accordingly.
-
+the build scripts accordingly.
 
 ## How does it work?
 
@@ -55,4 +64,5 @@ The sqlite database lives in the memory and the changes only live as long as the
 * Fix the workarounds mentioned above
 * Remove the static files from the wasm bundle
 * Remove unnecessary PHP extensions to lower the bundle size
+
 
