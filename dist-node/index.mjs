@@ -435,7 +435,7 @@ var __dirname2 = fileURLToPath2(new URL(".", import.meta.url));
 async function startExpressServer(browser, port, options = {}) {
   options = {
     mounts: {},
-    initialUrl: "/wp-login.php",
+    initialUrl: "/wp-admin/index.php",
     ...options
   };
   const app = express();
@@ -446,6 +446,7 @@ async function startExpressServer(browser, port, options = {}) {
     if (!browser.wp.initialized) {
       if ((_a = req.query) == null ? void 0 : _a.domain) {
         await browser.wp.init(new URL(req.query.domain).toString());
+        await login(browser, "admin", "password");
         res.status(302);
         res.setHeader("location", options.initialUrl);
         res.end();
