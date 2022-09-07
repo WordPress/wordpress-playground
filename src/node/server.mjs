@@ -1,16 +1,14 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
-import * as url from 'url';
-
 import PHP from './node-php.js';
 import path from 'path';
-import { fileURLToPath } from 'node:url';
+import { format, fileURLToPath } from 'node:url';
 
 import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
 
-const __dirname = url.fileURLToPath( new URL( '.', import.meta.url ) );
+const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
 
 export async function createWordPressClient() {
 	const php = new PHPWrapper();
@@ -39,7 +37,7 @@ export function startServer() {
 		const wp = await clientPromise;
 		if ( ! wp.initialized ) {
 			await wp.init(
-				url.format( {
+				format( {
 					protocol: req.protocol,
 					host: req.get( 'host' ),
 					pathname: req.originalUrl,
@@ -65,6 +63,9 @@ export function startServer() {
 				res.status( 302 );
 				res.end();
 			} else {
+				if ( response.statusCode ) {
+					res.status( response.statusCode );
+				}
 				res.send( response.body );
 			}
 		} else {

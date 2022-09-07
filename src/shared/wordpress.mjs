@@ -44,7 +44,7 @@ export default class WordPress {
 		if ( request.path.endsWith( '/' ) ) {
 			request.path += 'index.php';
 		}
-		const output = await this.php.run( `<?php	
+		const output = await this.php.run( `<?php
 			${ this._setupErrorReportingCode() }
 			${ this._setupRequestCode( request ) }
 			${ this._runWordPressCode( request.path ) }
@@ -68,6 +68,9 @@ export default class WordPress {
 				if ( name === 'headers' ) {
 					response.headers = this.parseHeaders( value );
 					break;
+				}
+				if ( name === 'status_code' ) {
+					response.statusCode = value;
 				}
 			} catch ( e ) {
 				// console.error(e);
@@ -97,11 +100,11 @@ export default class WordPress {
 	_patchWordPressCode() {
 		return `
             file_put_contents( "${ this.DOCROOT }/.absolute-url", "${ this.ABSOLUTE_URL }" );
-			if ( ! file_exists( "${ this.DOCROOT }/.wordpress-patched" ) ) {				
+			if ( ! file_exists( "${ this.DOCROOT }/.wordpress-patched" ) ) {
 				// Patching WordPress in the worker provides a faster feedback loop than
 				// rebuilding it every time. Follow the example below to patch WordPress
 				// before the first request is dispatched:
-				// 
+				//
 				// file_put_contents(
 				// 	'${ this.DOCROOT }/wp-content/db.php',
 				// 	str_replace(
@@ -178,6 +181,7 @@ ADMIN;
 			$stdErr = fopen('php://stderr', 'w');
 			$errors = [];
 			register_shutdown_function(function() use($stdErr){
+				fwrite($stdErr, json_encode(['status_code', http_response_code()]) . "\n");
 				fwrite($stdErr, json_encode(['session_id', session_id()]) . "\n");
 				fwrite($stdErr, json_encode(['headers', headers_list()]) . "\n");
 				fwrite($stdErr, json_encode(['errors', error_get_last()]) . "\n");
@@ -185,7 +189,7 @@ ADMIN;
                     fwrite($stdErr, json_encode(['session', $_SESSION]) . "\n");
                 }
 			});
-			
+
 			set_error_handler(function(...$args) use($stdErr){
 				fwrite($stdErr, print_r($args,1));
 			});
@@ -221,9 +225,9 @@ ADMIN;
 				'${ JSON.stringify( request ) }'
 				, JSON_OBJECT_AS_ARRAY
 			);
-			
+
 			parse_str(substr($request->_GET, 1), $_GET);
-			
+
 			$_POST = $request->_POST;
 
 			if ( !is_null($request->_COOKIE) ) {
@@ -243,22 +247,23 @@ ADMIN;
 			ini_set('session.save_path', '/home/web_user');
 			session_id('fake-cookie');
 			session_start();
-			
+
 			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
-			
+
 			$docroot = '${ this.DOCROOT }';
-			
+
 			$script  = ltrim($request->path, '/');
-			
+
 			$path = $request->path;
 			$path = preg_replace('/^\\/php-wasm/', '', $path);
-			
+
 			$_SERVER['PATH']     = '/';
 			$_SERVER['REQUEST_URI']     = $path;
 			$_SERVER['HTTP_HOST']       = '${ this.HOST }';
 			$_SERVER['REMOTE_ADDR']     = '${ this.HOSTNAME }';
 			$_SERVER['SERVER_NAME']     = '${ this.ABSOLUTE_URL }';
 			$_SERVER['SERVER_PORT']     = ${ this.PORT };
+			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
 			$_SERVER['REQUEST_METHOD']  = $request->method;
 			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
 			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
