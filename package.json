@@ -10,7 +10,7 @@
     "dev:web:web-worker": "esbuild --bundle src/web/web-worker.js --outfile=dist-web/web-worker.js --watch",
     "dev:web:service-worker": "esbuild --bundle src/web/service-worker.js --outfile=dist-web/service-worker.js --watch",
     "dev:web": "npm-run-all --parallel dev:web:*",
-    "dev:node": "node ./src/node/server.mjs",
+    "dev:node": "node ./src/node/command.mjs ",
     "dev": "npm run dev:web",
     "build:php:web": "cd wasm-build/php && bash webworker-build-wasm.sh",
     "build:php:node": "cd wasm-build/php && bash node-build-wasm.sh",
@@ -28,7 +28,8 @@
   "dependencies": {
     "body-parser": "^1.20.0",
     "cookie-parser": "^1.4.6",
-    "express": "^4.18.1"
+    "express": "^4.18.1",
+    "yargs": "^17.5.1"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",

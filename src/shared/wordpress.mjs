@@ -276,6 +276,9 @@ ADMIN;
 
 	_runWordPressCode( path ) {
 		return `
+		// The original version of this function crashes WASM WordPress, let's define an empty one instead.
+		function wp_new_blog_notification(...$args){} 
+
 		require_once '${ this.DOCROOT }/' . ltrim('${ path }', '/');
 		`;
 	}
