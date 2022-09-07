@@ -326,11 +326,16 @@ ADMIN;
     }
   };
 
-  // src/web/web-worker.js
+  // src/shared/wp-browser.mjs
   var WPBrowser = class {
-    constructor(wp) {
+    constructor(wp, config = {}) {
       this.wp = wp;
       this.cookies = {};
+      this.config = {
+        handleRedirects: false,
+        maxRedirects: 4,
+        ...config
+      };
     }
     async request(request, redirects = 0) {
       const response = await this.wp.request({
@@ -340,8 +345,7 @@ ADMIN;
       if (response.headers["set-cookie"]) {
         this.setCookies(response.headers["set-cookie"]);
       }
-      if (response.headers.location && redirects < 4) {
-        console.log("WP RESPONSE", response);
+      if (this.config.handleRedirects && response.headers.location && redirects < this.config.maxRedirects) {
         const parsedUrl = new URL(response.headers.location[0], this.wp.ABSOLUTE_URL);
         return this.request({
           path: parsedUrl.pathname,
@@ -364,6 +368,8 @@ ADMIN;
       }
     }
   };
+
+  // src/web/web-worker.js
   if ("function" === typeof importScripts) {
     console.log("[WebWorker] Spawned");
     document = {};
@@ -387,7 +393,7 @@ ADMIN;
       postMessage({
         type: "ready"
       });
-      return new WPBrowser(wp);
+      return new WPBrowser(wp, { handleRedirects: true });
     }
     const browser = init();
     const workerChannel = new BroadcastChannel("wordpress-service-worker");

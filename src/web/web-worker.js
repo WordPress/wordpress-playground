@@ -1,49 +1,7 @@
 
 import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
-
-class WPBrowser {
-	constructor( wp ) {
-		this.wp = wp;
-		this.cookies = {};
-	}
-
-	async request( request, redirects = 0 ) {
-		const response = await this.wp.request( {
-			...request,
-			_COOKIE: this.cookies,
-		} );
-
-		if ( response.headers[ 'set-cookie' ] ) {
-			this.setCookies( response.headers[ 'set-cookie' ] );
-		}
-
-		if ( response.headers.location && redirects < 4 ) {
-			console.log( 'WP RESPONSE', response );
-			const parsedUrl = new URL( response.headers.location[ 0 ], this.wp.ABSOLUTE_URL );
-			return this.request( {
-				path: parsedUrl.pathname,
-				method: 'GET',
-				_GET: parsedUrl.search,
-				headers: {},
-			}, redirects + 1 );
-		}
-
-		return response;
-	}
-
-	setCookies( cookies ) {
-		for ( const cookie of cookies ) {
-			try {
-				const value = cookie.split( '=' )[ 1 ].split( ';' )[ 0 ];
-				const name = cookie.split( '=' )[ 0 ];
-				this.cookies[ name ] = value;
-			} catch ( e ) {
-				console.error( e );
-			}
-		}
-	}
-}
+import WPBrowser from '../shared/wp-browser.mjs';
 
 if ( 'function' === typeof importScripts ) {
 	console.log( '[WebWorker] Spawned' );
@@ -75,7 +33,7 @@ if ( 'function' === typeof importScripts ) {
 		postMessage( {
 			type: 'ready',
 		} );
-		return new WPBrowser( wp );
+		return new WPBrowser( wp, { handleRedirects: true } );
 	}
 
 	const browser = init();
