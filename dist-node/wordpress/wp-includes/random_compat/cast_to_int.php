@@ -1,0 +1,2 @@
+<?php
+ if (!is_callable('RandomCompat_intval')) { function RandomCompat_intval($number, $fail_open = false) { if (is_int($number) || is_float($number)) { $number += 0; } elseif (is_numeric($number)) { $number += 0; } if ( is_float($number) && $number > ~PHP_INT_MAX && $number < PHP_INT_MAX ) { $number = (int) $number; } if (is_int($number)) { return (int) $number; } elseif (!$fail_open) { throw new TypeError( 'Expected an integer.' ); } return $number; } } 

@@ -7,13 +7,31 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
 
-export async function startExpressServer( browser, port, mounts = {} ) {
+export async function startExpressServer( browser, port, options = {} ) {
+	options = {
+		mounts: {},
+		initialUrl: '/wp-login.php',
+		...options,
+	};
+
 	const app = express();
 	app.use( cookieParser() );
 	app.use( bodyParser.urlencoded( { extended: true } ) );
 	app.all( '*', async ( req, res ) => {
 		if ( ! browser.wp.initialized ) {
-			return initializeWithSiteUrl( browser.wp, req, res );
+			if ( req.query?.domain ) {
+				await browser.wp.init( new URL( req.query.domain ).toString() );
+				res.status( 302 );
+				res.setHeader( 'location', options.initialUrl );
+				res.end();
+			} else {
+				res.setHeader( 'content-type', 'text/html' );
+				res.send(
+					`<!DOCTYPE html><html><head><script>window.location.href = '/?domain=' + encodeURIComponent(window.location.href);</script></head></html>`,
+				);
+				res.end();
+			}
+			return;
 		}
 
 		if ( req.path.endsWith( '.php' ) || req.path.endsWith( '/' ) ) {
@@ -38,7 +56,7 @@ export async function startExpressServer( browser, port, mounts = {} ) {
 			}
 		} else {
 			// First, check if the requested file exists in the mounts.
-			for ( let { absoluteHostPath, relativeWasmPath } of mounts ) {
+			for ( let { absoluteHostPath, relativeWasmPath } of options.mounts ) {
 				if ( relativeWasmPath.startsWith( './' ) ) {
 					relativeWasmPath = relativeWasmPath.slice( 1 );
 				}
@@ -67,19 +85,4 @@ export async function startExpressServer( browser, port, mounts = {} ) {
 		console.log( `WordPress server is listening on port ${ port }` );
 	} );
 	return app;
-}
-
-async function initializeWithSiteUrl( wp, req, res ) {
-	if ( req.query?.domain ) {
-		await wp.init( new URL( req.query.domain ).toString() );
-		res.status( 302 );
-		res.setHeader( 'location', '/wp-login.php' );
-		res.end();
-	} else {
-		res.setHeader( 'content-type', 'text/html' );
-		res.send(
-			`<!DOCTYPE html><html><head><script>window.location.href = '/?domain=' + encodeURIComponent(window.location.href);</script></head></html>`,
-		);
-		res.end();
-	}
 }

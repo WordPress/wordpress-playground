@@ -34,11 +34,10 @@ export default async function command( argv ) {
 	} );
 
 	const browser = new WPBrowser( wp );
-	if ( argv.initialUrl ) {
-		await browser.request( { path: argv.initialUrl } );
-	}
-
-	return await startExpressServer( browser, argv.port, mounts );
+	return await startExpressServer( browser, argv.port, {
+		mounts,
+		initialUrl: argv.initialUrl,
+	} );
 }
 
 const nodePath = path.resolve( process.argv[ 1 ] );
