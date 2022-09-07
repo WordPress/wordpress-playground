@@ -1,5 +1,4 @@
 .DS_Store
-wordpress/
 node_modules
 package-lock.json
 wasm-build/php/docker-output/*
