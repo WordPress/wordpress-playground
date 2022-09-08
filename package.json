@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev:web:html": "fswatch -o ./src/web/*.html | xargs -n1 -I{} cp src/web/*.html dist-web/",
-    "dev:web:serve": "npx live-server ./dist-web --port=8777 --entry-file=wordpress.html",
+    "dev:web:serve": "npx live-server ./dist-web --port=8777 --open=index.html",
     "dev:web:web-worker": "esbuild --bundle src/web/web-worker.js --outfile=dist-web/web-worker.js --watch",
     "dev:web:service-worker": "esbuild --bundle src/web/service-worker.js --outfile=dist-web/service-worker.js --watch",
     "dev:web": "npm-run-all --parallel dev:web:*",
