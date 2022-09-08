@@ -48,54 +48,60 @@ find ./ -type f -name '*.wof2' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpeg' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
 
-echo 'function setupLazyFiles(FS) { var sa = []; ' > ../wp-lazy-files.js
+echo 'function getLazyFiles() { var sa = []; ' > ../wp-lazy-files.js
 
-# load-styles.php reads the CSS files from the disk and concats them.
-# However, with SCRIPT_DEBUG=false, it reads only the minified files.
-# Therefore, we can remove the unminified CSS files when a minified version is available.
-find ./ -type f -name '*.min.css' | sed 's/\.min\.css$/.css/g' | xargs rm 2> /dev/null
+if [ "$LAZY_FILES" == "true" ]; then
+    
+    # load-styles.php reads the CSS files from the disk and concats them.
+    # However, with SCRIPT_DEBUG=false, it reads only the minified files.
+    # Therefore, we can remove the unminified CSS files when a minified version is available.
+    find ./ -type f -name '*.min.css' | sed 's/\.min\.css$/.css/g' | xargs rm 2> /dev/null
 
-# Let's load all the other CSS files lazily instead of preloading them with the initial data bundle.
-for match in $(find . -type f -name '*.css' ); do
-    # match is something like ./wp-includes/css/dist/block-library/style.css
+    # Let's load all the other CSS files lazily instead of preloading them with the initial data bundle.
+    for match in $(find . -type f -name '*.css' ); do
+        # match is something like ./wp-includes/css/dist/block-library/style.css
 
-    # filename is style.css
-    filename=$(echo $match | awk -F'/' '{print $NF}');
+        # filename is style.css
+        filename=$(echo $match | awk -F'/' '{print $NF}');
 
-    # filepath is /wp-includes/css/dist/block-library
-    filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
+        # filepath is /wp-includes/css/dist/block-library
+        filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
 
-    echo "sa.push( [ '/preload/wordpress/$filepath', '$filename', '$filepath/$filename' ] );" >> ../wp-lazy-files.js
-done;
+        filesize=$(wc -c $match | awk '{print $1}');
 
-find ./ -type f -name '*.css' | xargs rm 2> /dev/null
+        echo "sa.push( [ '/preload/wordpress/$filepath', '$filename', '$filepath/$filename', $filesize ] );" >> ../wp-lazy-files.js
+    done;
 
-# Same as above, but for JS and load-scripts.php
-find ./ -type f -name '*.min.js' | sed 's/\.min\.js$/.js/g' | xargs rm 2> /dev/null
+    find ./ -type f -name '*.css' | xargs rm 2> /dev/null
 
-# Let's load all the other JS files lazily instead of preloading them with the initial data bundle.
-for match in $(find . -type f -name '*.js' ); do
-    # match is something like ./wp-includes/js/dist/block-library/script.js
+    # Same as above, but for JS and load-scripts.php
+    find ./ -type f -name '*.min.js' | sed 's/\.min\.js$/.js/g' | xargs rm 2> /dev/null
 
-    # filename is script.js
-    filename=$(echo $match | awk -F'/' '{print $NF}');
+    # Let's load all the other JS files lazily instead of preloading them with the initial data bundle.
+    for match in $(find . -type f -name '*.js' ); do
+        # match is something like ./wp-includes/js/dist/block-library/script.js
 
-    # filepath is /wp-includes/js/dist/block-library
-    filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
+        # filename is script.js
+        filename=$(echo $match | awk -F'/' '{print $NF}');
 
-    echo "sa.push( [ '/preload/wordpress$filepath', '$filename', '$filepath/$filename' ] );" >> ../wp-lazy-files.js
-done;
+        # filepath is /wp-includes/js/dist/block-library
+        filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
 
-find ./ -type f -name '*.js' | xargs rm 2> /dev/null
+        echo "sa.push( [ '/preload/wordpress$filepath', '$filename', '$filepath/$filename' ] );" >> ../wp-lazy-files.js
+    done;
+
+    find ./ -type f -name '*.js' | xargs rm 2> /dev/null
+fi;
 
 echo "
-sa.forEach(function(item) {
-    var path = item[0];
-    var filename = item[1];
-    var fullPath = item[2];
-    FS.mkdirTree( path );
-    FS.createLazyFile( path, filename, fullPath, true, false );
-});
+return sa.map( function( a ) {
+    return {
+        path: a[0],
+        filename: a[1],
+        fullPath: a[2],
+        size: a[3],
+    };
+} );
 }" >> ../wp-lazy-files.js
 
 # Remove whitespace from PHP files
