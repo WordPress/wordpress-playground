@@ -55,6 +55,9 @@ export async function startExpressServer( browser, port, options = {} ) {
 				res.status( 302 );
 				res.end();
 			} else {
+				if ( wpResponse.statusCode ) {
+					res.status( wpResponse.statusCode );
+				}
 				res.send( wpResponse.body );
 			}
 		} else {
