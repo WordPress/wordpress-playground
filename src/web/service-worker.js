@@ -1,28 +1,7 @@
+import { postMessageFactory } from '../shared/messaging.mjs';
 const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
 
-let lastRequestId = 0;
-function postWebWorkerMessage( data, timeout = 50000 ) {
-	return new Promise( ( resolve, reject ) => {
-		const requestId = ++lastRequestId;
-		const responseHandler = ( event ) => {
-			if ( event.data.type === 'response' && event.data.requestId === requestId ) {
-				workerChannel.removeEventListener( 'message', responseHandler );
-				clearTimeout( failOntimeout );
-				resolve( event.data.result );
-			}
-		};
-		const failOntimeout = setTimeout( () => {
-			reject( 'Request timed out' );
-			workerChannel.removeEventListener( 'message', responseHandler );
-		}, timeout );
-		workerChannel.addEventListener( 'message', responseHandler );
-
-		workerChannel.postMessage( {
-			...data,
-			requestId,
-		} );
-	} );
-}
+const postWebWorkerMessage = postMessageFactory( workerChannel );
 
 /**
  * The main method. It captures the requests and loop them back to the main

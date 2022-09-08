@@ -3,31 +3,9 @@
 	<head>
 		<title>WordPress code embed!</title>
 	</head>
-	<body>
-		<iframe style="width: 900px; height: 600px; border: 1px solid #dadada;"></iframe>
-		<script>
-			if ( ! navigator.serviceWorker ) {
-				alert( 'Service workers are not supported by your browser' );
-			}
-			const serviceWorkerReady = navigator.serviceWorker.register( `/service-worker.js` );
-
-			const myWebWorker = new Worker( 'web-worker.js' );
-			const webWorkerReady = new Promise( ( resolve ) => {
-				const callback = ( event ) => {
-					if ( event.data.type === 'ready' ) {
-						resolve();
-						myWebWorker.removeEventListener( 'message', callback );
-					}
-				};
-				myWebWorker.addEventListener( 'message', callback );
-			} );
-			
-			async function init() {
-				await serviceWorkerReady;
-				await webWorkerReady;
-				document.querySelector('iframe').src = '/wp-login.php';
-			}
-			init();
-		</script>
+	<body style="padding: 0; margin: 0">
+		<iframe style="width: 100vw; height: 100vh; border: 0; margin: 0; padding: 0;"></iframe>
+		<script src="app.js"></script>
 	</body>
 </html>
+

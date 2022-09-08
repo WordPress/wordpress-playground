@@ -18,6 +18,7 @@ module.exports = {
 		'react',
 	],
 	rules: {
+		'no-inner-declaration': 0,
 		'no-use-before-define': 'off',
 		'react/prop-types': 0,
 		'jsx-a11y/click-events-have-key-events': 0,

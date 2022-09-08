@@ -1,28 +1,33 @@
 (() => {
+  // src/shared/messaging.mjs
+  function postMessageFactory(target) {
+    let lastRequestId = 0;
+    return function postMessage(data, timeout = 5e4) {
+      return new Promise((resolve, reject) => {
+        const requestId = ++lastRequestId;
+        const responseHandler = (event) => {
+          if (event.data.type === "response" && event.data.requestId === requestId) {
+            target.removeEventListener("message", responseHandler);
+            clearTimeout(failOntimeout);
+            resolve(event.data.result);
+          }
+        };
+        const failOntimeout = setTimeout(() => {
+          reject("Request timed out");
+          target.removeEventListener("message", responseHandler);
+        }, timeout);
+        target.addEventListener("message", responseHandler);
+        target.postMessage({
+          ...data,
+          requestId
+        });
+      });
+    };
+  }
+
   // src/web/service-worker.js
   var workerChannel = new BroadcastChannel("wordpress-service-worker");
-  var lastRequestId = 0;
-  function postWebWorkerMessage(data, timeout = 5e4) {
-    return new Promise((resolve, reject) => {
-      const requestId = ++lastRequestId;
-      const responseHandler = (event) => {
-        if (event.data.type === "response" && event.data.requestId === requestId) {
-          workerChannel.removeEventListener("message", responseHandler);
-          clearTimeout(failOntimeout);
-          resolve(event.data.result);
-        }
-      };
-      const failOntimeout = setTimeout(() => {
-        reject("Request timed out");
-        workerChannel.removeEventListener("message", responseHandler);
-      }, timeout);
-      workerChannel.addEventListener("message", responseHandler);
-      workerChannel.postMessage({
-        ...data,
-        requestId
-      });
-    });
-  }
+  var postWebWorkerMessage = postMessageFactory(workerChannel);
   self.addEventListener("fetch", (event) => {
     event.preventDefault();
     return event.respondWith(

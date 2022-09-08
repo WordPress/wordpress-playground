@@ -1,3 +1,4 @@
+/* eslint-disable no-inner-declarations */
 
 import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
@@ -42,39 +43,39 @@ if ( 'function' === typeof importScripts ) {
 
 	const browser = init();
 
+	function messageHandler( responseChannel ) {
+		return async function onMessage( event ) {
+			console.debug( `[WebWorker] "${ event.data.type }" event received` );
+			const _browser = await browser;
+			let result;
+			if ( event.data.type === 'run_php' ) {
+				result = await _browser.wp.php.run( event.data.code );
+			} else if ( event.data.type === 'request' || event.data.type === 'httpRequest' ) {
+				const parsedUrl = new URL( event.data.request.path, _browser.wp.ABSOLUTE_URL );
+				console.log( parsedUrl );
+				result = await _browser.request( {
+					...event.data.request,
+					path: parsedUrl.pathname,
+					_GET: parsedUrl.search,
+				} );
+			} else if ( event.data.type === 'is_ready' ) {
+				result = isReady;
+			} else {
+				console.debug( `[WebWorker] "${ event.data.type }" event has no handler, short-circuiting` );
+				return;
+			}
+			if ( event.data.requestId ) {
+				responseChannel.postMessage( {
+					type: 'response',
+					result,
+					requestId: event.data.requestId,
+				} );
+			}
+			console.debug( `[WebWorker] "${ event.data.type }" event processed` );
+		};
+	}
+
 	const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
-	workerChannel.addEventListener( 'message', async ( event ) => {
-		console.debug( `[WebWorker] "${ event.data.type }" event received` );
-		const _browser = await browser;
-		let result;
-		if ( event.data.type === 'run_php' ) {
-			result = await _browser.wp.php.run( event.data.code );
-		} else if ( event.data.type === 'request' || event.data.type === 'httpRequest' ) {
-			const parsedUrl = new URL( event.data.request.path, _browser.wp.ABSOLUTE_URL );
-			console.log( parsedUrl );
-			result = await _browser.request( {
-				...event.data.request,
-				path: parsedUrl.pathname,
-				_GET: parsedUrl.search,
-			} );
-		} else if ( event.data.type === 'is_ready' ) {
-			workerChannel.postMessage( {
-				type: 'response',
-				result: isReady,
-				requestId: event.data.requestId,
-			} );
-			return;
-		} else {
-			console.debug( `[WebWorker] "${ event.data.type }" event has no handler, short-circuiting` );
-			return;
-		}
-		if ( event.data.requestId ) {
-			workerChannel.postMessage( {
-				type: 'response',
-				result,
-				requestId: event.data.requestId,
-			} );
-		}
-		console.debug( `[WebWorker] "${ event.data.type }" event processed` );
-	} );
+	workerChannel.addEventListener( 'message', messageHandler( workerChannel ) );
+	self.onmessage = messageHandler( self );
 }
