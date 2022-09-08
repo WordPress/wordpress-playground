@@ -390,10 +390,13 @@ ADMIN;
         async onPreInit(FS, phpModule) {
           globalThis.PHPModule = phpModule;
           importScripts("/wp.js");
-          importScripts("/wp-lazy-files.js");
-          setupLazyFiles(FS);
           FS.mkdirTree("/usr/local/etc");
           FS.createLazyFile("/usr/local/etc", "php.ini", "/etc/php.ini", true, false);
+          importScripts("/wp-lazy-files.js");
+          getLazyFiles().forEach(({ path, filename, fullPath }) => {
+            FS.mkdirTree("/usr/local/etc");
+            FS.createLazyFile(path, filename, fullPath, true, false);
+          });
         }
       });
       const wp = new WordPress(php);
