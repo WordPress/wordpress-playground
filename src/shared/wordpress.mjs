@@ -258,7 +258,7 @@ ADMIN;
 			$path = preg_replace('/^\\/php-wasm/', '', $path);
 
 			$_SERVER['PATH']     = '/';
-			$_SERVER['REQUEST_URI']     = $path;
+			$_SERVER['REQUEST_URI']     = $path . ($request->_GET ? '?'.$request->_GET : '');
 			$_SERVER['HTTP_HOST']       = '${ this.HOST }';
 			$_SERVER['REMOTE_ADDR']     = '${ this.HOSTNAME }';
 			$_SERVER['SERVER_NAME']     = '${ this.ABSOLUTE_URL }';
