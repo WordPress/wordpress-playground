@@ -99,7 +99,7 @@ export default class WordPress {
 
 	_patchWordPressCode() {
 		return `
-            file_put_contents( "${ this.DOCROOT }/.absolute-url", "${ this.ABSOLUTE_URL }" );
+			file_put_contents( "${ this.DOCROOT }/.absolute-url", "${ this.ABSOLUTE_URL }" );
 			if ( ! file_exists( "${ this.DOCROOT }/.wordpress-patched" ) ) {
 				// Patching WordPress in the worker provides a faster feedback loop than
 				// rebuilding it every time. Follow the example below to patch WordPress
@@ -115,26 +115,14 @@ export default class WordPress {
 				// );
 
 				// WORKAROUND:
-                // For some reason, the in-browser WordPress is eager to redirect the
-				// browser to http://127.0.0.1 when the site URL is http://127.0.0.1:8000.
-				file_put_contents(
-					'${ this.DOCROOT }/wp-includes/canonical.php',
-					str_replace(
-						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {',
-						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {return;',
-						file_get_contents('${ this.DOCROOT }/wp-includes/canonical.php')
-					)
-				);
-
-				// WORKAROUND:
-                // For some reason, the in-browser WordPress doesn't respect the site
+				// For some reason, the in-browser WordPress doesn't respect the site
 				// URL preset during the installation. Also, it disables the block editing
 				// experience by default.
 				file_put_contents(
 					'${ this.DOCROOT }/wp-includes/plugin.php',
 					file_get_contents('${ this.DOCROOT }/wp-includes/plugin.php') . "\n"
-					.'add_filter( "option_home", function($url) { return file_get_contents("${ this.DOCROOT }/.absolute-url"); }, 10000 );' . "\n"
-					.'add_filter( "option_siteurl", function($url) { return file_get_contents("${ this.DOCROOT }/.absolute-url"); }, 10000 );' . "\n"
+					.'add_filter( "option_home", function($url) { return getenv("HOST") ?: file_get_contents(__DIR__ . "/../.absolute-url"); }, 10000 );' . "\n"
+					.'add_filter( "option_siteurl", function($url) { return getenv("HOST") ?: file_get_contents(__DIR__."/../.absolute-url"); }, 10000 );' . "\n"
 				);
 
                 if ( false ) {
