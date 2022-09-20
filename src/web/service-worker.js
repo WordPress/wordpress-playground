@@ -8,26 +8,24 @@ const postWebWorkerMessage = postMessageFactory( workerChannel );
  * application using the Loopback request
  */
 self.addEventListener( 'fetch', ( event ) => {
+	// @TODO A more involved hostname check
+	const url = new URL( event.request.url );
+	const isWpOrgRequest = url.hostname.includes( 'api.wordpress.org' );
+	const isPHPRequest = url.pathname.endsWith( '/' ) || url.pathname.endsWith( '.php' );
+	if ( isWpOrgRequest || ! isPHPRequest ) {
+		console.log( `[ServiceWorker] Ignoring request: ${ url.pathname }` );
+		return;
+	}
+
 	event.preventDefault();
 	return event.respondWith(
 		new Promise( async ( accept ) => {
+			console.log( `[ServiceWorker] Serving request: ${ url.pathname }?${ url.search }` );
 			const post = await parsePost( event.request );
-
-			const url = new URL( event.request.url );
-			const isInternalRequest = url.pathname.endsWith( '/' ) || url.pathname.endsWith( '.php' );
-
-			if ( ! isInternalRequest ) {
-				console.log( `[ServiceWorker] Ignoring request: ${ url.pathname }` );
-				accept( fetch( event.request ) );
-				return;
-			}
-
 			const requestHeaders = {};
 			for ( const pair of event.request.headers.entries() ) {
 				requestHeaders[ pair[ 0 ] ] = pair[ 1 ];
 			}
-
-			console.log( `[ServiceWorker] Serving request: ${ url.pathname }?${ url.search }` );
 
 			let wpResponse;
 			try {

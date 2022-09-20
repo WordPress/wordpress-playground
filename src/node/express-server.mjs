@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { login } from './bootstrap.mjs';
+import url from "url";
 
 const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
 
@@ -15,6 +16,10 @@ export async function startExpressServer( browser, port, options = {} ) {
 		initialUrl: '/wp-admin/index.php',
 		...options,
 	};
+
+	await browser.wp.init('http://localhost:9854', {
+		useFetchForRequests: true
+	});
 
 	const app = express();
 	app.use( cookieParser() );
@@ -40,7 +45,6 @@ export async function startExpressServer( browser, port, options = {} ) {
 		if ( req.path.endsWith( '.php' ) || req.path.endsWith( '/' ) ) {
 			const parsedUrl = new URL( req.url, browser.wp.ABSOLUTE_URL );
 			const pathToUse = parsedUrl.pathname.replace( '/preload/wordpress', '' );
-			console.log( { pathToUse } );
 			const wpResponse = await browser.request( {
 				path: pathToUse,
 				method: req.method,

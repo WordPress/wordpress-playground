@@ -1,4 +1,30 @@
 (() => {
+  var __create = Object.create;
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getProtoOf = Object.getPrototypeOf;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+  }) : x)(function(x) {
+    if (typeof require !== "undefined")
+      return require.apply(this, arguments);
+    throw new Error('Dynamic require of "' + x + '" is not supported');
+  });
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+    mod
+  ));
+
   // src/shared/php-wrapper.mjs
   var STR = "string";
   var NUM = "number";
@@ -54,6 +80,11 @@
   };
 
   // src/shared/wordpress.mjs
+  if (typeof XMLHttpRequest === "undefined") {
+    import("xmlhttprequest").then(({ XMLHttpRequest: XMLHttpRequest2 }) => {
+      global.XMLHttpRequest = XMLHttpRequest2;
+    });
+  }
   var WordPress = class {
     DOCROOT = "/preload/wordpress";
     SCHEMA = "http";
@@ -64,7 +95,11 @@
     constructor(php) {
       this.php = php;
     }
-    async init(urlString) {
+    async init(urlString, options = {}) {
+      this.options = {
+        useFetchForRequests: false,
+        ...options
+      };
       const url = new URL(urlString);
       this.HOSTNAME = url.hostname;
       this.PORT = url.port ? url.port : url.protocol === "https:" ? 443 : 80;
@@ -91,7 +126,6 @@
       if (!this.initialized) {
         throw new Error("call init() first");
       }
-      console.log(request);
       const output = await this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._setupRequestCode(request)}
@@ -169,6 +203,64 @@
 "
 					.'add_filter( "option_siteurl", function($url) { return getenv("HOST") ?: file_get_contents(__DIR__."/../.absolute-url"); }, 10000 );' . "
 "
+				);
+
+				// WORKAROUND:
+				// The fsockopen transport erroneously reports itself as a working transport. Let's force
+				// it to report it won't work.
+				file_put_contents(
+					'${this.DOCROOT}/wp-includes/Requests/Transport/fsockopen.php',
+					str_replace(
+						'public static function test',
+						'public static function test( $capabilities = array() ) { return false; } public static function test2',
+						file_get_contents( '${this.DOCROOT}/wp-includes/Requests/Transport/fsockopen.php' )
+					)
+				);
+				file_put_contents(
+					'${this.DOCROOT}/wp-includes/Requests/Transport/cURL.php',
+					str_replace(
+						'public static function test',
+						'public static function test( $capabilities = array() ) { return false; } public static function test2',
+						file_get_contents( '${this.DOCROOT}/wp-includes/Requests/Transport/cURL.php' )
+					)
+				);
+				
+				mkdir( '${this.DOCROOT}/wp-content/mu-plugins' );
+				file_put_contents(
+					'${this.DOCROOT}/wp-content/mu-plugins/requests_transport_fetch.php',
+<<<'PATCH'
+<?php
+class Requests_Transport_Fetch implements Requests_Transport { public $headers = ''; public function __construct() { } public function __destruct() { } public function request( $url, $headers = array(), $data = array(), $options = array() ) { if ( str_contains( $url, '/wp-cron.php' ) ) { return false; } $headers = Requests::flatten( $headers ); if ( ! empty( $data ) ) { $data_format = $options['data_format']; if ( $data_format === 'query' ) { $url = self::format_get( $url, $data ); $data = ''; } elseif ( ! is_string( $data ) ) { $data = http_build_query( $data, null, '&' ); } } $request = json_encode( json_encode( array( 'headers' => $headers, 'data' => $data, 'url' => $url, 'method' => $options['type'], ) ) );
+$js = <<<JAVASCRIPT
+const request = JSON.parse({$request});
+console.log("Requesting " + request.url);
+const xhr = new XMLHttpRequest();
+xhr.open(
+	request.method,
+	request.url,
+	false // false makes the xhr synchronous
+);
+xhr.withCredentials = false;
+for ( var name in request.headers ) {
+	if(name.toLowerCase() !== "content-type") {
+		// xhr.setRequestHeader(name, request.headers[name]);
+	}
+}
+xhr.send(request.data);
+
+[
+	"HTTP/1.1 " + xhr.status + " " + xhr.statusText,
+	xhr.getAllResponseHeaders(),
+	"",
+	xhr.responseText
+].join("\\\\r\\\\n");
+JAVASCRIPT;
+$this->headers = vrzno_eval( $js ); return $this->headers; } public function request_multiple( $requests, $options ) { $responses = array(); $class = get_class( $this ); foreach ( $requests as $id => $request ) { try { $handler = new $class(); $responses[ $id ] = $handler->request( $request['url'], $request['headers'], $request['data'], $request['options'] ); $request['options']['hooks']->dispatch( 'transport.internal.parse_response', array( &$responses[ $id ], $request ) ); } catch ( Requests_Exception $e ) { $responses[ $id ] = $e; } if ( ! is_string( $responses[ $id ] ) ) { $request['options']['hooks']->dispatch( 'multiple.request.complete', array( &$responses[ $id ], $id ) ); } } return $responses; } protected static function format_get( $url, $data ) { if ( ! empty( $data ) ) { $query = ''; $url_parts = parse_url( $url ); if ( empty( $url_parts['query'] ) ) { $url_parts['query'] = ''; } else { $query = $url_parts['query']; } $query .= '&' . http_build_query( $data, null, '&' ); $query = trim( $query, '&' ); if ( empty( $url_parts['query'] ) ) { $url .= '?' . $query; } else { $url = str_replace( $url_parts['query'], $query, $url ); } } return $url; } public static function test( $capabilities = array() ) { if ( ! function_exists( 'vrzno_eval' ) ) { return false; } if ( vrzno_eval( "typeof XMLHttpRequest;" ) !== 'function' ) {  return false; } return true; } }
+
+if(defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
+	Requests::add_transport( 'Requests_Transport_Fetch' );
+}
+PATCH
 				);
 
                 if ( false ) {
@@ -252,9 +344,10 @@ ADMIN;
         _COOKIE,
         _SESSION
       };
-      console.log("WP request", request);
+      console.log("Incoming request: ", request.path);
       const https = this.ABSOLUTE_URL.startsWith("https://") ? "on" : "";
       return `
+			define('USE_FETCH_FOR_REQUESTS', ${this.options.useFetchForRequests ? "true" : "false"});
 			define('WP_HOME', '${this.DOCROOT}');
 			$request = (object) json_decode(
 				'${JSON.stringify(request)}'
