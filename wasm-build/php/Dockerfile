@@ -1,8 +1,11 @@
 FROM trzeci/emscripten:1.39.18-fastcomp
 SHELL ["/bin/bash", "-c"]
+ARG VRZNO_FLAG="--disable-vrzno"
+ENV VRZNO_FLAG ${VRZNO_FLAG}
+ARG PHP_VERSION=8.0.24
+ENV PHP_VERSION ${PHP_VERSION}
 
 WORKDIR /root
-COPY ./docker-build-files/* /root/
 RUN mkdir lib
 
 RUN set -euxo pipefail;\
@@ -31,29 +34,31 @@ ENV INITIAL_MEMORY 1024MB
 ENV EMCC_ALLOW_FASTCOMP   1
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
-# Get and patch PHP 7.0.30
-RUN git clone https://github.com/php/php-src.git php7.4-src \
-    --branch PHP-7.4.30   \
+# Get and patch PHP
+COPY ./docker-build-files/php7.4.patch /root/
+RUN git clone https://github.com/php/php-src.git php-src \
+    --branch PHP-$PHP_VERSION   \
     --single-branch          \
     --depth 1 \
     && git apply --no-index /root/php7.4.patch \
-    && mkdir -p php7.4-src/preload/Zend \
-    && cp php7.4-src/Zend/bench.php php7.4-src/preload/Zend \
-    && touch php7.4-src/patched
+    && mkdir -p php-src/preload/Zend \
+    && cp php-src/Zend/bench.php php-src/preload/Zend \
+    && touch php-src/patched
 
 
 # Get and patch Sqlite3
+COPY ./docker-build-files/sqlite3-wasm.patch /root/
 RUN set -euxo pipefail;\
     wget --no-check-certificate https://sqlite.org/2020/sqlite-amalgamation-3330000.zip; \
     unzip sqlite-amalgamation-3330000.zip; \
     rm sqlite-amalgamation-3330000.zip; \
     mv sqlite-amalgamation-3330000 sqlite3.33-src; \
     git apply --no-index /root/sqlite3-wasm.patch; \
-    cp -v sqlite3.33-src/sqlite3.h php7.4-src/main/sqlite3.h; \
-    cp -v sqlite3.33-src/sqlite3.c php7.4-src/main/sqlite3.c;
+    cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
+    cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
 
 # Get VRZNO
-RUN git clone https://github.com/seanmorris/vrzno.git php7.4-src/ext/vrzno \
+RUN git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
     --branch DomAccess \
     --single-branch          \
     --depth 1
@@ -70,11 +75,11 @@ RUN cd libxml2 && emmake make
 RUN cd libxml2 && emmake make install
 
 # Build the patched PHP
-RUN cd php7.4-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
+RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 
 # RUN ls /root/lib/lib/; sleep 50
 
-RUN cd php7.4-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
+RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     --enable-embed=static \
     --with-layout=GNU  \
@@ -100,20 +105,28 @@ RUN cd php7.4-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
-    --enable-vrzno     \
+    $VRZNO_FLAG     \
     --enable-xml       \
     --enable-simplexml \
     --with-gd
 
-RUN cd php7.4-src/ && emmake make -j8
+RUN cd php-src/ && emmake make -j8
 
-RUN cp -v php7.4-src/.libs/libphp7.la php7.4-src/.libs/libphp7.a /root/lib/
+RUN cp -v php-src/.libs/libphp.la /root/lib/libphp7.la
+RUN cp -v php-src/.libs/libphp.a /root/lib//libphp7.a
 
-RUN cd php7.4-src/ && emcc -O3 \
+COPY ./docker-build-files/pib_eval.c /root/
+RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
+    then export DEFINES='-DWITH_VRZNO=1'; \
+    else export DEFINES=''; \
+    fi && \
+    cd php-src/ && \
+    emcc -O3 \
     -I .     \
     -I Zend  \
     -I main  \
     -I TSRM/ \
     -I /root/libxml2 \
+    $DEFINES \
     /root/pib_eval.c \
     -o /root/lib/pib_eval.o;

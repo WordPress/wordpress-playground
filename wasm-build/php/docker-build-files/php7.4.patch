@@ -1,6 +1,6 @@
-diff --git a/php7.4-src/ext/pdo/config.m4 b/php7.4-src/ext/pdo/config.m4
---- a/php7.4-src/ext/pdo/config.m4
-+++ b/php7.4-src/ext/pdo/config.m4
+diff --git a/php-src/ext/pdo/config.m4 b/php-src/ext/pdo/config.m4
+--- a/php-src/ext/pdo/config.m4
++++ b/php-src/ext/pdo/config.m4
 @@ -4,15 +4,14 @@ PHP_ARG_ENABLE([pdo],
      [Disable PHP Data Objects support])],
    [yes])
@@ -21,9 +21,9 @@ diff --git a/php7.4-src/ext/pdo/config.m4 b/php7.4-src/ext/pdo/config.m4
 -  dnl so we always include the known-good working hack.
    PHP_ADD_MAKEFILE_FRAGMENT
  fi
-diff --git a/php7.4-src/ext/pdo_sqlite/config.m4 b/php7.4-src/ext/pdo_sqlite/config.m4
---- a/php7.4-src/ext/pdo_sqlite/config.m4
-+++ b/php7.4-src/ext/pdo_sqlite/config.m4
+diff --git a/php-src/ext/pdo_sqlite/config.m4 b/php-src/ext/pdo_sqlite/config.m4
+--- a/php-src/ext/pdo_sqlite/config.m4
++++ b/php-src/ext/pdo_sqlite/config.m4
 @@ -10,25 +10,7 @@ if test "$PHP_PDO_SQLITE" != "no"; then
      AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
    fi
@@ -51,9 +51,9 @@ diff --git a/php7.4-src/ext/pdo_sqlite/config.m4 b/php7.4-src/ext/pdo_sqlite/con
 +   $ext_shared,,-I$pdo_cv_inc_path)
    PHP_ADD_EXTENSION_DEP(pdo_sqlite, pdo)
  fi
-diff --git a/php7.4-src/ext/pdo_sqlite/pdo_sqlite.c b/php7.4-src/ext/pdo_sqlite/pdo_sqlite.c
---- a/php7.4-src/ext/pdo_sqlite/pdo_sqlite.c
-+++ b/php7.4-src/ext/pdo_sqlite/pdo_sqlite.c
+diff --git a/php-src/ext/pdo_sqlite/pdo_sqlite.c b/php-src/ext/pdo_sqlite/pdo_sqlite.c
+--- a/php-src/ext/pdo_sqlite/pdo_sqlite.c
++++ b/php-src/ext/pdo_sqlite/pdo_sqlite.c
 @@ -23,8 +23,8 @@
  #include "php.h"
  #include "php_ini.h"
@@ -65,9 +65,9 @@ diff --git a/php7.4-src/ext/pdo_sqlite/pdo_sqlite.c b/php7.4-src/ext/pdo_sqlite/
  #include "php_pdo_sqlite.h"
  #include "php_pdo_sqlite_int.h"
  #include "zend_exceptions.h"
-diff --git a/php7.4-src/ext/pdo_sqlite/sqlite_driver.c b/php7.4-src/ext/pdo_sqlite/sqlite_driver.c
---- a/php7.4-src/ext/pdo_sqlite/sqlite_driver.c
-+++ b/php7.4-src/ext/pdo_sqlite/sqlite_driver.c
+diff --git a/php-src/ext/pdo_sqlite/sqlite_driver.c b/php-src/ext/pdo_sqlite/sqlite_driver.c
+--- a/php-src/ext/pdo_sqlite/sqlite_driver.c
++++ b/php-src/ext/pdo_sqlite/sqlite_driver.c
 @@ -23,8 +23,8 @@
  #include "php.h"
  #include "php_ini.h"
@@ -79,9 +79,9 @@ diff --git a/php7.4-src/ext/pdo_sqlite/sqlite_driver.c b/php7.4-src/ext/pdo_sqli
  #include "php_pdo_sqlite.h"
  #include "php_pdo_sqlite_int.h"
  #include "zend_exceptions.h"
-diff --git a/php7.4-src/ext/pdo_sqlite/sqlite_statement.c b/php7.4-src/ext/pdo_sqlite/sqlite_statement.c
---- a/php7.4-src/ext/pdo_sqlite/sqlite_statement.c
-+++ b/php7.4-src/ext/pdo_sqlite/sqlite_statement.c
+diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/sqlite_statement.c
+--- a/php-src/ext/pdo_sqlite/sqlite_statement.c
++++ b/php-src/ext/pdo_sqlite/sqlite_statement.c
 @@ -23,8 +23,8 @@
  #include "php.h"
  #include "php_ini.h"
@@ -93,9 +93,9 @@ diff --git a/php7.4-src/ext/pdo_sqlite/sqlite_statement.c b/php7.4-src/ext/pdo_s
  #include "php_pdo_sqlite.h"
  #include "php_pdo_sqlite_int.h"
 
-diff --git a/php7.4-src/ext/sqlite3/config0.m4 b/php7.4-src/ext/sqlite3/config0.m4
---- a/php7.4-src/ext/sqlite3/config0.m4
-+++ b/php7.4-src/ext/sqlite3/config0.m4
+diff --git a/php-src/ext/sqlite3/config0.m4 b/php-src/ext/sqlite3/config0.m4
+--- a/php-src/ext/sqlite3/config0.m4
++++ b/php-src/ext/sqlite3/config0.m4
 @@ -5,26 +5,6 @@ PHP_ARG_WITH([sqlite3],
    [yes])
 
@@ -123,9 +123,9 @@ diff --git a/php7.4-src/ext/sqlite3/config0.m4 b/php7.4-src/ext/sqlite3/config0.
    PHP_NEW_EXTENSION(sqlite3, sqlite3.c, $ext_shared,,-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
    PHP_SUBST(SQLITE3_SHARED_LIBADD)
  fi
-diff --git a/php7.4-src/sapi/embed/php_embed.c b/php7.4-src/sapi/embed/php_embed.c
---- a/php7.4-src/sapi/embed/php_embed.c
-+++ b/php7.4-src/sapi/embed/php_embed.c
+diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
+--- a/php-src/sapi/embed/php_embed.c
++++ b/php-src/sapi/embed/php_embed.c
 @@ -211,8 +211,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
  	  return FAILURE;
    }

@@ -6,8 +6,6 @@
 #include "zend_exceptions.h"
 #include "zend_closures.h"
 
-#include "../php7.4-src/ext/vrzno/php_vrzno.h"
-
 #include "sqlite3.h"
 #include "sqlite3.c"
 
@@ -99,6 +97,9 @@ int EMSCRIPTEN_KEEPALIVE pib_refresh()
 	return pib_init();
 }
 
+#ifdef WITH_VRZNO
+#include "../php-src/ext/vrzno/php_vrzno.h"
+
 int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
 {
 	int retVal = vrzno_exec_callback(fptr);
@@ -112,3 +113,4 @@ int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
 {
 	return vrzno_del_callback(fptr);
 }
+#endif

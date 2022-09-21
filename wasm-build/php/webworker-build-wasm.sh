@@ -1,6 +1,20 @@
 #!/bin/bash
 
-docker build . --tag=wasm-wordpress-php-builder
+set -e
+
+PHP_VERSION=${1:-8.0.24}
+if [[ $PHP_VERSION == "7.*" ]]
+then
+  VRZNO_FLAG="--enable-vrzno"
+  EXTRA_EXPORTED_FUNCTIONS=', "_exec_callback", "_del_callback"'
+else
+  VRZNO_FLAG="--disable-vrzno"
+  EXTRA_EXPORTED_FUNCTIONS=""
+fi
+
+EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string" '$EXTRA_EXPORTED_FUNCTIONS']'
+
+docker build . --tag=wasm-wordpress-php-builder --build-arg PHP_VERSION=$PHP_VERSION --build-arg VRZNO_FLAG="$VRZNO_FLAG"
 
 docker run \
         -v `pwd`/preload:/preload \
@@ -9,7 +23,7 @@ docker run \
         emcc -O3 \
         -o /output/webworker-php.js \
         --llvm-lto 2                     \
-        -s EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_exec_callback", "_del_callback"]' \
+        -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
         -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
         -s MAXIMUM_MEMORY=-1             \
         -s INITIAL_MEMORY=1024MB \
