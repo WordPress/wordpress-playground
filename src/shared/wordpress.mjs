@@ -41,9 +41,6 @@ export default class WordPress {
 			throw new Error( 'call init() first' );
 		}
 		console.log( request );
-		if ( request.path.endsWith( '/' ) ) {
-			request.path += 'index.php';
-		}
 		const output = await this.php.run( `<?php
 			${ this._setupErrorReportingCode() }
 			${ this._setupRequestCode( request ) }
@@ -262,12 +259,35 @@ ADMIN;
 		`;
 	}
 
-	_runWordPressCode( path ) {
+	_runWordPressCode( requestPath ) {
+		// Resolve the .php file the request should target.
+		let filePath = requestPath;
+
+		// If the path mentions a .php extension, that's our file's path.
+		if(filePath.includes(".php")) {
+			filePath = filePath.split(".php")[0] + '.php';
+		} else {
+			// Otherwise, let's assume the file is $request_path/index.php
+			if ( ! filePath.endsWith( '/' ) ) {
+				filePath += '/';
+			}
+			if ( ! filePath.endsWith( 'index.php' ) ) {
+				filePath += 'index.php';
+			}
+		}
+
 		return `
 		// The original version of this function crashes WASM WordPress, let's define an empty one instead.
 		function wp_new_blog_notification(...$args){} 
 
-		require_once '${ this.DOCROOT }/' . ltrim('${ path }', '/');
+		// Ensure the resolved path points to an existing file. If not,
+		// let's fall back to index.php
+		$candidate_path = '${ this.DOCROOT }/' . ltrim('${ filePath }', '/');
+		if ( file_exists( $candidate_path ) ) {
+			require_once $candidate_path;
+		} else {
+			require_once '${ this.DOCROOT }/index.php';
+		}
 		`;
 	}
 }
