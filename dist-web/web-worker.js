@@ -84,6 +84,9 @@
     import("xmlhttprequest").then(({ XMLHttpRequest: XMLHttpRequest2 }) => {
       global.XMLHttpRequest = XMLHttpRequest2;
     });
+    global.atob = function(data) {
+      return Buffer.from(data).toString("base64");
+    };
   }
   var WordPress = class {
     DOCROOT = "/preload/wordpress";

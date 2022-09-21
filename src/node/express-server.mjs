@@ -6,7 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { login } from './bootstrap.mjs';
-import url from "url";
 
 const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
 
@@ -17,17 +16,16 @@ export async function startExpressServer( browser, port, options = {} ) {
 		...options,
 	};
 
-	await browser.wp.init('http://localhost:9854', {
-		useFetchForRequests: true
-	});
-
 	const app = express();
 	app.use( cookieParser() );
 	app.use( bodyParser.urlencoded( { extended: true } ) );
 	app.all( '*', async ( req, res ) => {
 		if ( ! browser.wp.initialized ) {
 			if ( req.query?.domain ) {
-				await browser.wp.init( new URL( req.query.domain ).toString() );
+				await browser.wp.init(
+					new URL( req.query.domain ).toString(),
+					{ useFetchForRequests: true }
+				);
 				await login( browser, 'admin', 'password' );
 				res.status( 302 );
 				res.setHeader( 'location', options.initialUrl );
