@@ -31,9 +31,9 @@ ENV INITIAL_MEMORY 1024MB
 ENV EMCC_ALLOW_FASTCOMP   1
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
-# Get and patch PHP 7.4
+# Get and patch PHP 7.0.30
 RUN git clone https://github.com/php/php-src.git php7.4-src \
-    --branch PHP-7.4   \
+    --branch PHP-7.4.30   \
     --single-branch          \
     --depth 1 \
     && git apply --no-index /root/php7.4.patch \

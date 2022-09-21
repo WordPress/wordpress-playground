@@ -92,9 +92,6 @@
         throw new Error("call init() first");
       }
       console.log(request);
-      if (request.path.endsWith("/")) {
-        request.path += "index.php";
-      }
       const output = await this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._setupRequestCode(request)}
@@ -145,7 +142,7 @@
     }
     _patchWordPressCode() {
       return `
-            file_put_contents( "${this.DOCROOT}/.absolute-url", "${this.ABSOLUTE_URL}" );
+			file_put_contents( "${this.DOCROOT}/.absolute-url", "${this.ABSOLUTE_URL}" );
 			if ( ! file_exists( "${this.DOCROOT}/.wordpress-patched" ) ) {
 				// Patching WordPress in the worker provides a faster feedback loop than
 				// rebuilding it every time. Follow the example below to patch WordPress
@@ -161,28 +158,16 @@
 				// );
 
 				// WORKAROUND:
-                // For some reason, the in-browser WordPress is eager to redirect the
-				// browser to http://127.0.0.1 when the site URL is http://127.0.0.1:8000.
-				file_put_contents(
-					'${this.DOCROOT}/wp-includes/canonical.php',
-					str_replace(
-						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {',
-						'function redirect_canonical( $requested_url = null, $do_redirect = true ) {return;',
-						file_get_contents('${this.DOCROOT}/wp-includes/canonical.php')
-					)
-				);
-
-				// WORKAROUND:
-                // For some reason, the in-browser WordPress doesn't respect the site
+				// For some reason, the in-browser WordPress doesn't respect the site
 				// URL preset during the installation. Also, it disables the block editing
 				// experience by default.
 				file_put_contents(
 					'${this.DOCROOT}/wp-includes/plugin.php',
 					file_get_contents('${this.DOCROOT}/wp-includes/plugin.php') . "
 "
-					.'add_filter( "option_home", function($url) { return file_get_contents("${this.DOCROOT}/.absolute-url"); }, 10000 );' . "
+					.'add_filter( "option_home", function($url) { return getenv("HOST") ?: file_get_contents(__DIR__ . "/../.absolute-url"); }, 10000 );' . "
 "
-					.'add_filter( "option_siteurl", function($url) { return file_get_contents("${this.DOCROOT}/.absolute-url"); }, 10000 );' . "
+					.'add_filter( "option_siteurl", function($url) { return getenv("HOST") ?: file_get_contents(__DIR__."/../.absolute-url"); }, 10000 );' . "
 "
 				);
 
@@ -310,7 +295,7 @@ ADMIN;
 			$path = preg_replace('/^\\/php-wasm/', '', $path);
 
 			$_SERVER['PATH']     = '/';
-			$_SERVER['REQUEST_URI']     = $path;
+			$_SERVER['REQUEST_URI']     = $path . ($request->_GET ?: '');
 			$_SERVER['HTTP_HOST']       = '${this.HOST}';
 			$_SERVER['REMOTE_ADDR']     = '${this.HOSTNAME}';
 			$_SERVER['SERVER_NAME']     = '${this.ABSOLUTE_URL}';
@@ -325,12 +310,30 @@ ADMIN;
 			chdir($docroot);
 		`;
     }
-    _runWordPressCode(path) {
+    _runWordPressCode(requestPath) {
+      let filePath = requestPath;
+      if (filePath.includes(".php")) {
+        filePath = filePath.split(".php")[0] + ".php";
+      } else {
+        if (!filePath.endsWith("/")) {
+          filePath += "/";
+        }
+        if (!filePath.endsWith("index.php")) {
+          filePath += "index.php";
+        }
+      }
       return `
 		// The original version of this function crashes WASM WordPress, let's define an empty one instead.
 		function wp_new_blog_notification(...$args){} 
 
-		require_once '${this.DOCROOT}/' . ltrim('${path}', '/');
+		// Ensure the resolved path points to an existing file. If not,
+		// let's fall back to index.php
+		$candidate_path = '${this.DOCROOT}/' . ltrim('${filePath}', '/');
+		if ( file_exists( $candidate_path ) ) {
+			require_once $candidate_path;
+		} else {
+			require_once '${this.DOCROOT}/index.php';
+		}
 		`;
     }
   };
