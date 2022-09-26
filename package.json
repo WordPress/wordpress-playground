@@ -1,5 +1,5 @@
 {
-  "name": "waasm-wordpress",
+  "name": "wasm-wordpress",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
