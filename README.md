@@ -1,9 +1,10 @@
 # WordPress in the browser!
 
+See 
+[the WordPress.org blog post explaining why is this useful and how does it work](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) for more details. The README doc below is short&sweet for now. Also, [explore the early preview on StackBlitz](https://stackblitz.com/edit/wp-plugin-playground).
+
 ![](demo.gif)
 
-The README doc below is short&sweet for now. See 
-[the WordPress.org blog post explaining why is this useful and how does it work](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) for more details. Also, [explore the early preview on StackBlitz](https://stackblitz.com/edit/wp-plugin-playground).
 
 ## Running the demo
 
