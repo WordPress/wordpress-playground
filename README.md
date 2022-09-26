@@ -11,7 +11,7 @@ See
 This repository ships with a pre-built demo that you can just run!
 
 1. Clone this repo
-2. Run `npm run dev`
+2. Run `npm install && npm run dev`
 3. Visit http://127.0.0.1:8777/
 
 If you want to build the assembly yourself, follow the instructions below.
