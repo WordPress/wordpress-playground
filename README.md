@@ -2,9 +2,8 @@
 
 ![](demo.gif)
 
-https://stackblitz.com/edit/wp-plugin-playground
-
-A writeup with details of how this work is coming! The README doc below is a short&sweet form without too many details.
+The README doc below is short&sweet for now. See 
+[the WordPress.org blog post explaining why is this useful and how does it work](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) for more details. Also, [explore the early preview on StackBlitz](https://stackblitz.com/edit/wp-plugin-playground).
 
 ## Running the demo
 
@@ -12,7 +11,7 @@ This repository ships with a pre-built demo that you can just run!
 
 1. Clone this repo
 2. Run `npm run dev`
-3. Visit http://127.0.0.1:8777/wordpress.html
+3. Visit http://127.0.0.1:8777/
 
 If you want to build the assembly yourself, follow the instructions below.
 
@@ -41,7 +40,7 @@ the build scripts accordingly.
 This repo uses four magic ingredients to make WordPress work in the browser:
 
 1. A WordPress configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
-2. A PHP 7.4 compiled with SQLite3 support into WebAssembly.
+2. A PHP 8.0 compiled with SQLite3 support into WebAssembly.
 3. A PHP + WordPress WebAssembly bundle created using the emscripten toolkit.
 4. A service worker that loads the bundle and dispatches the regular HTTP traffic to the in-memory WordPress instance.
 
