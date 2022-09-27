@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:web:html": "fswatch -o ./src/web/*.html | xargs -n1 -I{} cp src/web/*.html dist-web/",
+    "dev:web:html": "chokidar --initial --silent \"./src/web/*.html\" -c \"cp src/web/*.html dist-web/\"",
     "dev:web:serve": "npx live-server ./dist-web --port=8777 --open=index.html",
     "dev:web:app": "esbuild --bundle src/web/app.mjs --outfile=dist-web/app.js --watch --external:xmlhttprequest",
     "dev:web:web-worker": "esbuild --bundle src/web/web-worker.js --outfile=dist-web/web-worker.js --watch --external:xmlhttprequest",
@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",
+    "chokidar-cli": "^3.0.0",
     "esbuild": "^0.15.5",
     "eslint": "^8.23.0",
     "eslint-config-airbnb": "^19.0.4",
