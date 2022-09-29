@@ -8,10 +8,11 @@ cd preload;
 rm -rf wordpress
 rm -rf wordpress-static
 
-# Download WordPress
-wget https://wordpress.org/wordpress-6.0.1.tar.gz
-tar -xzf wordpress-6.0.1.tar.gz
-rm wordpress-6.0.1.tar.gz
+# Download latest version of WordPress
+wp_tarfile=wordpress-latest.tar.gz
+wget https://wordpress.org/$wp_tarfile -O $wp_tarfile
+tar -xzf $wp_tarfile
+rm $wp_tarfile
 
 # Patch WordPress with sqlite support
 # https://github.com/aaemnnosttv/wp-sqlite-integration
