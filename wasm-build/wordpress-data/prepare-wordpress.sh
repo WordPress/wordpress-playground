@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# Remove previous WordPress installation
-rm -rf volume/*
-
 # set -e;
 
 cd preload;
+
+# Remove previous WordPress installation
+rm -rf wordpress
+rm -rf wordpress-static
 
 # Download WordPress
 wget https://wordpress.org/wordpress-6.0.1.tar.gz
