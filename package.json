@@ -17,7 +17,7 @@
     "build:php:node": "cd wasm-build/php && bash node-build-wasm.sh && bash node-publish.sh",
     "build:php": "npm-run-all build:php:*",
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
-    "build:app:web": "esbuild --bundle src/web/app.mjs --outfile=dist-web/app.js --watch --external:xmlhttprequest",
+    "build:app:web": "esbuild --bundle src/web/app.mjs --outfile=dist-web/app.js --external:xmlhttprequest",
     "build:app:node": "rm -rf dist-node/* && esbuild --bundle src/node/index.mjs --outfile=dist-node/index.mjs --platform=node --external:express --external:yargs --external:body-parser --external:cookie-parser --external:./src/node/node-php.js --target=node14.19.0 --format=esm && perl -pi.bak -e 's/\\.\\.\\/shared\\///g' dist-node/index.mjs && perl -pi.bak -e 's/\\.\\.\\/src\\/node\\//.\\//g' dist-node/index.mjs && cp -r src/node/node-php.* src/node/base64-encoded-database src/node/wordpress src/shared/etc dist-node/ && rm dist-node/*.bak",
     "build:app": "npm-run-all build:app:*",
     "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
