@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e;
+set -e
 
 root_dir=../..
 dest_dir=$root_dir/dist-web
