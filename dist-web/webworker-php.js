@@ -13,11 +13,7 @@ const PHP = ( function() {
 			readyPromiseResolve = resolve;
 			readyPromiseReject = reject;
 		} );
-		Module.preInit = function() {
-			if ( Module.onPreInit ) {
-				Module.onPreInit( FS, Module );
-			}
-		};
+		Module.preInit = function() {};
 		let moduleOverrides = {};
 		let key;
 		for ( key in Module ) {
@@ -74,25 +70,7 @@ const PHP = ( function() {
 						return new Uint8Array( xhr.response );
 					};
 				}
-				readAsync = function readAsync( url, onload, onerror ) {
-					const xhr = new XMLHttpRequest();
-					xhr.open( 'GET', url, true );
-					xhr.responseType = 'arraybuffer';
-					xhr.onload = function xhr_onload() {
-						if ( xhr.status == 200 || ( xhr.status == 0 && xhr.response ) ) {
-							onload( xhr.response );
-							return;
-						}
-						onerror();
-					};
-					xhr.onerror = onerror;
-					xhr.send( null );
-				};
 			}
-			setWindowTitle = function( title ) {
-				document.title = title;
-			};
-		} else {
 		}
 		const out = Module.print || console.log.bind( console );
 		const err = Module.printErr || console.warn.bind( console );
@@ -153,7 +131,6 @@ const PHP = ( function() {
 			},
 			debugger() {},
 		};
-		const functionPointers = new Array( 0 );
 		let tempRet0 = 0;
 		const setTempRet0 = function( value ) {
 			tempRet0 = value;
@@ -229,14 +206,6 @@ const PHP = ( function() {
 			if ( ! condition ) {
 				abort( 'Assertion failed: ' + text );
 			}
-		}
-		function getCFunc( ident ) {
-			const func = Module[ '_' + ident ];
-			assert(
-				func,
-				'Cannot call unknown function ' + ident + ', make sure it is exported',
-			);
-			return func;
 		}
 		const ALLOC_STACK = 1;
 		const ALLOC_NONE = 3;
@@ -474,78 +443,13 @@ const PHP = ( function() {
 		if ( wasmMemory ) {
 			buffer = wasmMemory.buffer;
 		}
-		INITIAL_INITIAL_MEMORY = buffer.byteLength;
 		updateGlobalBufferAndViews( buffer );
 		HEAP32[ DYNAMICTOP_PTR >> 2 ] = DYNAMIC_BASE;
-		function callRuntimeCallbacks( callbacks ) {
-			while ( callbacks.length > 0 ) {
-				const callback = callbacks.shift();
-				if ( typeof callback === 'function' ) {
-					callback( Module );
-					continue;
-				}
-				const func = callback.func;
-				if ( typeof func === 'number' ) {
-					if ( callback.arg === undefined ) {
-						Module.dynCall_v( func );
-					} else {
-						Module.dynCall_vi( func, callback.arg );
-					}
-				} else {
-					func( callback.arg === undefined ? null : callback.arg );
-				}
-			}
-		}
-		const __ATPRERUN__ = [];
 		const __ATINIT__ = [];
-		const __ATMAIN__ = [];
-		const __ATPOSTRUN__ = [];
 		var runtimeInitialized = false;
 		let runtimeExited = false;
-		function preRun() {
-			if ( Module.preRun ) {
-				if ( typeof Module.preRun === 'function' ) {
-					Module.preRun = [ Module.preRun ];
-				}
-				while ( Module.preRun.length ) {
-					addOnPreRun( Module.preRun.shift() );
-				}
-			}
-			callRuntimeCallbacks( __ATPRERUN__ );
-		}
-		function initRuntime() {
-			runtimeInitialized = true;
-			if ( ! Module.noFSInit && ! FS.init.initialized ) {
-				FS.init();
-			}
-			TTY.init();
-			SOCKFS.root = FS.mount( SOCKFS, {}, null );
-			PIPEFS.root = FS.mount( PIPEFS, {}, null );
-			callRuntimeCallbacks( __ATINIT__ );
-		}
-		function preMain() {
-			FS.ignorePermissions = false;
-			callRuntimeCallbacks( __ATMAIN__ );
-		}
 		function exitRuntime() {
 			runtimeExited = true;
-		}
-		function postRun() {
-			if ( Module.postRun ) {
-				if ( typeof Module.postRun === 'function' ) {
-					Module.postRun = [ Module.postRun ];
-				}
-				while ( Module.postRun.length ) {
-					addOnPostRun( Module.postRun.shift() );
-				}
-			}
-			callRuntimeCallbacks( __ATPOSTRUN__ );
-		}
-		function addOnPreRun( cb ) {
-			__ATPRERUN__.unshift( cb );
-		}
-		function addOnPostRun( cb ) {
-			__ATPOSTRUN__.unshift( cb );
 		}
 		var Math_abs = Math.abs;
 		var Math_ceil = Math.ceil;
@@ -7978,16 +7882,10 @@ const PHP = ( function() {
 		}
 		dependenciesFulfilled = function runCaller() {
 			if ( ! calledRun ) {
-				run();
-			}
-			if ( ! calledRun ) {
 				dependenciesFulfilled = runCaller;
 			}
 		};
-		function run() {
-      return;
-		}
-		Module.run = run;
+		Module.run = function(){};
 		function exit( status, implicit ) {
 			if ( implicit && noExitRuntime && status === 0 ) {
 				return;
@@ -8002,18 +7900,6 @@ const PHP = ( function() {
 				}
 			}
 			quit_( status, new ExitStatus( status ) );
-		}
-		if ( Module.preInit ) {
-			if ( typeof Module.preInit === 'function' ) {
-				Module.preInit = [ Module.preInit ];
-			}
-			while ( Module.preInit.length > 0 ) {
-				Module.preInit.pop()();
-			}
-		}
-		var shouldRunNow = false;
-		if ( Module.noInitialRun ) {
-			shouldRunNow = false;
 		}
 		noExitRuntime = true;
 
