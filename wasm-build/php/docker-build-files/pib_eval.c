@@ -217,7 +217,7 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 	memset(&core_globals, 0, sizeof(core_globals));
 	php_startup_ticks();
 
-	gc_globals_ctor();
+//	gc_globals_ctor();
 
 //	zend_startup(&zuf);
 //	zend_update_current_locale();
