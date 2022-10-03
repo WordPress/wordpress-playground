@@ -438,37 +438,6 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 				___emscripten_environ_constructor();
 			},
 		} );
-		function demangle( func ) {
-			return func;
-		}
-		function demangleAll( text ) {
-			const regex = /\b__Z[\w\d_]+/g;
-			return text.replace( regex, function( x ) {
-				const y = demangle( x );
-				return x === y ? x : y + ' [' + x + ']';
-			} );
-		}
-		function jsStackTrace() {
-			let err = new Error();
-			if ( ! err.stack ) {
-				try {
-					throw new Error();
-				} catch ( e ) {
-					err = e;
-				}
-				if ( ! err.stack ) {
-					return '(no stack trace available)';
-				}
-			}
-			return err.stack.toString();
-		}
-		function stackTrace() {
-			let js = jsStackTrace();
-			if ( Module.extraStackTrace ) {
-				js += '\n' + Module.extraStackTrace();
-			}
-			return demangleAll( js );
-		}
 		let _emscripten_get_now;
 		_emscripten_get_now = function() {
 			return performance.now();
@@ -1126,8 +1095,9 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 			filesystems: null,
 			syncFSRequests: 0,
 			handleFSError( e ) {
+				console.error(e);
 				if ( ! ( e instanceof FS.ErrnoError ) ) {
-					throw e + ' : ' + stackTrace();
+					throw e + ' FS Error';
 				}
 				return setErrNo( e.errno );
 			},
