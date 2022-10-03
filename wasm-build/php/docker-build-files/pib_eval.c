@@ -204,27 +204,7 @@ static void php_embed_register_variables(zval *track_vars_array)
 /* Module initialization (MINIT) */
 static int php_embed_startup(sapi_module_struct *sapi_module)
 {
-	zend_utility_functions zuf;
-	zend_utility_values zuv;
-	zend_result retval = SUCCESS;
-	int module_number = 0;
-	zend_module_entry *module;
-
-//	sapi_initialize_empty_request();
-//	sapi_activate();
-
-//	php_output_startup();
-//	memset(&core_globals, 0, sizeof(core_globals));
-//	php_startup_ticks();
-
-//	gc_globals_ctor();
-
-//	zend_startup(&zuf);
-//	zend_update_current_locale();
-//	zend_observer_startup();
-
-    // Uncomment to cause the crash.
-	return 0; // php_module_startup(sapi_module, NULL, 1);
+	return 0;
 }
 
 EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
