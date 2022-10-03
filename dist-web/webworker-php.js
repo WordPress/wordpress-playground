@@ -2,18 +2,11 @@ if ( typeof WebAssembly !== 'object' ) {
 	throw new Error( 'no native wasm support detected' );
 }
 
-const PHP = ( function() {
-	const noop = function()	{};
+const noop = function()	{};
 
+const EmscriptenPHPModule = ( function() {
 	return function( PHP ) {
-		PHP = PHP || {};
-
-		const Module = typeof PHP !== 'undefined' ? PHP : {};
-		let readyPromiseResolve, readyPromiseReject;
-		Module.ready = new Promise( function( resolve, reject ) {
-			readyPromiseResolve = resolve;
-			readyPromiseReject = reject;
-		} );
+		const Module = PHP;
 		Module.preInit = function() {};
 
 		const wasmTable = new WebAssembly.Table( {
@@ -85,27 +78,7 @@ const PHP = ( function() {
 			table: wasmTable,
 		};
 
-		console.log(Object.keys(asmLibraryArg));
 		// Here's where WASM is being loaded – do not remove this line!
 		Module.asm( asmGlobalArg, asmLibraryArg, buffer );
-
-		Module.ccall = noop;
-		Module.getMemory = noop;
-		Module.UTF8ToString = noop;
-		Module.lengthBytesUTF8 = noop;
-		Module.addRunDependency = noop;
-		Module.removeRunDependency = noop;
-		Module.run = function() {};
-		return PHP.ready;
 	};
 }() );
-
-if ( typeof exports === 'object' && typeof module === 'object' ) {
-	module.exports = PHP;
-} else if ( typeof define === 'function' && define.amd ) {
-	define( [], function() {
-		return PHP;
-	} );
-} else if ( typeof exports === 'object' ) {
-	exports.PHP = PHP;
-}
