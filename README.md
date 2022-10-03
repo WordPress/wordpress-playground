@@ -33,8 +33,29 @@ npm run build:php:web
 npm run build:php:node
 ```
 
-If you'd like to customize the packaged WordPress installation, study and update
-the build scripts accordingly.
+## Building custom WordPress bundle
+
+If you'd like to customize the packaged WordPress installation, update
+the build script at `wasm-build/wordpress-data/prepare-wordpress.sh`. It generates a bundle called `wp.data`.
+
+For example, before the comment "Prepare WordPress static files":
+
+- Download and extract a plugin zip package
+- Move it into `wp-content/mu-plugins`
+- Add a file that loads the plugin
+
+```sh
+plugin_file=example-plugin.1.0.0.zip
+wget https://downloads.wordpress.org/plugin/$plugin_file
+unzip $plugin_file
+rm $plugin_file
+
+mv example-plugin wordpress/wp-content/plugins/
+
+echo "<?php
+require_once ABSPATH.'wp-content/mu-plugins/example-plugin/example-plugin.php';
+" > wp-content/mu-plugins/index.php
+```
 
 ## How does it work?
 
