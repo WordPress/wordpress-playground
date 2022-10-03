@@ -247,62 +247,7 @@ static const zend_function_entry additional_functions[] = {
 
 EMBED_SAPI_API int php_embed_init(int argc, char **argv)
 {
-#if defined(SIGPIPE) && defined(SIG_IGN)
-	signal(SIGPIPE, SIG_IGN); /* ignore SIGPIPE in standalone mode so
-								 that sockets created via fsockopen()
-								 don't kill PHP if the remote site
-								 closes it.  in apache|apxs mode apache
-								 does that for us!  thies@thieso.net
-								 20000419 */
-#endif
-
-#ifdef ZTS
-	php_tsrm_startup();
-# ifdef PHP_WIN32
-	ZEND_TSRMLS_CACHE_UPDATE();
-# endif
-#endif
-
-	zend_signal_startup();
-
-	/* SAPI initialization (SINIT)
-	 *
-	 * Initialize the SAPI globals (memset to 0). After this point we can set
-	 * SAPI globals via the SG() macro.
-	 *
-	 * Reentrancy startup.
-	 *
-	 * This also sets 'php_embed_module2.ini_entries = NULL' so we cannot
-	 * allocate the INI entries until after this call.
-	 */
-	sapi_startup(&php_embed_module2);
-
-#ifdef PHP_WIN32
-	_fmode = _O_BINARY;			/*sets default for file streams to binary */
-	setmode(_fileno(stdin), O_BINARY);		/* make the stdio mode be binary */
-	setmode(_fileno(stdout), O_BINARY);		/* make the stdio mode be binary */
-	setmode(_fileno(stderr), O_BINARY);		/* make the stdio mode be binary */
-#endif
-
-	/* This hard-coded string of INI settings is parsed and read into PHP's
-	 * configuration hash table at the very end of php_init_config(). This
-	 * means these settings will overwrite any INI settings that were set from
-	 * an INI file.
-	 *
-	 * To provide overwritable INI defaults, hook the ini_defaults function
-	 * pointer that is part of the sapi_module_struct
-	 * (php_embed_module2.ini_defaults).
-	 *
-	 *     void (*ini_defaults)(HashTable *configuration_hash);
-	 *
-	 * This callback is invoked as soon as the configuration hash table is
-	 * allocated so any INI settings added via this callback will have the
-	 * lowest precedence and will allow INI files to overwrite them.
-	 */
-	php_embed_module2.ini_entries = malloc(sizeof(HARDCODED_INI));
-	memcpy(php_embed_module2.ini_entries, HARDCODED_INI, sizeof(HARDCODED_INI));
-
-	return SUCCESS;
+	return 1;
 }
 
 EMBED_SAPI_API void php_embed_shutdown(void)
