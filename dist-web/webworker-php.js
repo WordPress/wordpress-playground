@@ -3,10 +3,6 @@ if ( typeof WebAssembly !== 'object' ) {
 }
 
 const PHP = ( function() {
-	const _scriptDir =
-    typeof document !== 'undefined' && document.currentScript
-    	? document.currentScript.src
-    	: undefined;
 	const noop = function()	{};
 
 	return function( PHP ) {
@@ -19,69 +15,14 @@ const PHP = ( function() {
 			readyPromiseReject = reject;
 		} );
 		Module.preInit = function() {};
-		const ENVIRONMENT_IS_WEB = false;
-		const ENVIRONMENT_IS_WORKER = true;
-		let scriptDirectory = '';
-		function locateFile( path ) {
-			if ( Module.locateFile ) {
-				return Module.locateFile( path, scriptDirectory );
-			}
-			return scriptDirectory + path;
-		}
-		let read_, readBinary;
-		if ( ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER ) {
-			if ( ENVIRONMENT_IS_WORKER ) {
-				scriptDirectory = self.location.href;
-			} else if ( document.currentScript ) {
-				scriptDirectory = document.currentScript.src;
-			}
-			if ( _scriptDir ) {
-				scriptDirectory = _scriptDir;
-			}
-			if ( scriptDirectory.indexOf( 'blob:' ) !== 0 ) {
-				scriptDirectory = scriptDirectory.substr(
-					0,
-					scriptDirectory.lastIndexOf( '/' ) + 1,
-				);
-			} else {
-				scriptDirectory = '';
-			}
-			{
-				read_ = function shell_read( url ) {
-					const xhr = new XMLHttpRequest();
-					xhr.open( 'GET', url, false );
-					xhr.send( null );
-					return xhr.responseText;
-				};
-				if ( ENVIRONMENT_IS_WORKER ) {
-					readBinary = function readBinary( url ) {
-						const xhr = new XMLHttpRequest();
-						xhr.open( 'GET', url, false );
-						xhr.responseType = 'arraybuffer';
-						xhr.send( null );
-						return new Uint8Array( xhr.response );
-					};
-				}
-			}
-		}
-		const out = Module.print || console.log.bind( console );
-		const err = Module.printErr || console.warn.bind( console );
 
-		let wasmBinary;
-		if ( Module.wasmBinary ) {
-			wasmBinary = Module.wasmBinary;
-		}
-		let wasmMemory;
 		const wasmTable = new WebAssembly.Table( {
 			initial: 6743,
 			maximum: 6743,
 			element: 'anyfunc',
 		} );
-		let ABORT = false;
-		let EXITSTATUS = 0;
 		const WASM_PAGE_SIZE = 65536;
-		let buffer,
-			HEAP8,
+		let HEAP8,
 			HEAPU8,
 			HEAP16,
 			HEAPU16,
@@ -89,8 +30,9 @@ const PHP = ( function() {
 			HEAPU32,
 			HEAPF32,
 			HEAPF64;
+		const DYNAMIC_BASE = 7803952,
+			DYNAMICTOP_PTR = 2560880;
 		function updateGlobalBufferAndViews( buf ) {
-			buffer = buf;
 			Module.HEAP8 = HEAP8 = new Int8Array( buf );
 			Module.HEAP16 = HEAP16 = new Int16Array( buf );
 			Module.HEAP32 = HEAP32 = new Int32Array( buf );
@@ -100,84 +42,15 @@ const PHP = ( function() {
 			Module.HEAPF32 = HEAPF32 = new Float32Array( buf );
 			Module.HEAPF64 = HEAPF64 = new Float64Array( buf );
 		}
-		const DYNAMIC_BASE = 7803952,
-			DYNAMICTOP_PTR = 2560880;
-		const INITIAL_INITIAL_MEMORY = Module.INITIAL_MEMORY || 1073741824;
-		if ( Module.wasmMemory ) {
-			wasmMemory = Module.wasmMemory;
-		} else {
-			wasmMemory = new WebAssembly.Memory( {
-				initial: INITIAL_INITIAL_MEMORY / WASM_PAGE_SIZE,
-			} );
-		}
-		if ( wasmMemory ) {
-			buffer = wasmMemory.buffer;
-		}
+		const INITIAL_INITIAL_MEMORY = 1073741824;
+		const wasmMemory = new WebAssembly.Memory( {
+			initial: INITIAL_INITIAL_MEMORY / WASM_PAGE_SIZE,
+		} );
+		const buffer = wasmMemory.buffer;
 		updateGlobalBufferAndViews( buffer );
 		HEAP32[ DYNAMICTOP_PTR >> 2 ] = DYNAMIC_BASE;
 		Module.preloadedImages = {};
 		Module.preloadedAudios = {};
-		function abort( what ) {
-			if ( Module.onAbort ) {
-				Module.onAbort( what );
-			}
-			what += '';
-			out( what );
-			err( what );
-			ABORT = true;
-			EXITSTATUS = 1;
-			what = 'abort(' + what + '). Build with -s ASSERTIONS=1 for more info.';
-			throw new WebAssembly.RuntimeError( what );
-		}
-		function hasPrefix( str, prefix ) {
-			return String.prototype.startsWith
-				? str.startsWith( prefix )
-				: str.indexOf( prefix ) === 0;
-		}
-		const dataURIPrefix = 'data:application/octet-stream;base64,';
-		function isDataURI( filename ) {
-			return hasPrefix( filename, dataURIPrefix );
-		}
-		let wasmBinaryFile = 'webworker-php.wasm';
-		if ( ! isDataURI( wasmBinaryFile ) ) {
-			wasmBinaryFile = locateFile( wasmBinaryFile );
-		}
-		function getBinary() {
-			try {
-				if ( wasmBinary ) {
-					return new Uint8Array( wasmBinary );
-				}
-				if ( readBinary ) {
-					return readBinary( wasmBinaryFile );
-				}
-				throw 'both async and sync fetching of the wasm failed';
-			} catch ( err ) {
-				abort( err );
-			}
-		}
-		function getBinaryPromise() {
-			if (
-				! wasmBinary &&
-        ( ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER ) &&
-        typeof fetch === 'function'
-			) {
-				return fetch( wasmBinaryFile, { credentials: 'same-origin' } )
-					.then( function( response ) {
-						if ( ! response.ok ) {
-							throw (
-								"failed to load wasm binary file at '" + wasmBinaryFile + "'"
-							);
-						}
-						return response.arrayBuffer();
-					} )
-					.catch( function() {
-						return getBinary();
-					} );
-			}
-			return new Promise( function( resolve, reject ) {
-				resolve( getBinary() );
-			} );
-		}
 		function createWasm() {
 			const info = {
 				env: asmLibraryArg,
@@ -187,55 +60,15 @@ const PHP = ( function() {
 					'f64-rem'() {},
 				},
 			};
-			function receiveInstance( instance, module ) {
-				const exports = instance.exports;
-				Module.asm = exports;
-			}
-			function receiveInstantiatedSource( output ) {
-				console.log( 'streaming instantiated', output );
-				receiveInstance( output.instance );
-			}
-			function instantiateArrayBuffer( receiver ) {
-				return getBinaryPromise()
-					.then( function( binary ) {
-						return WebAssembly.instantiate( binary, info );
-					} )
-					.then( receiver, function( reason ) {
-						err( 'failed to asynchronously prepare wasm: ' + reason );
-						abort( reason );
-					} );
-			}
 			function instantiateAsync() {
-				if (
-					! wasmBinary &&
-          typeof WebAssembly.instantiateStreaming === 'function' &&
-          ! isDataURI( wasmBinaryFile ) &&
-          typeof fetch === 'function'
+				const wasmBinaryFile = 'webworker-php.wasm';
+				fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
+					response,
 				) {
-					fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
-						response,
-					) {
-						console.log( 'instantiated streaming' );
-						console.log( response, info );
-						const result = WebAssembly.instantiateStreaming( response, info );
-						// return result.then( receiveInstantiatedSource, function( reason ) {
-						// 	err( 'wasm streaming compile failed: ' + reason );
-						// 	err( 'falling back to ArrayBuffer instantiation' );
-						// 	return instantiateArrayBuffer( receiveInstantiatedSource );
-						// } );
-					} );
-				} else {
-					return instantiateArrayBuffer( receiveInstantiatedSource );
-				}
-			}
-			if ( Module.instantiateWasm ) {
-				try {
-					const exports = Module.instantiateWasm( info, receiveInstance );
-					return exports;
-				} catch ( e ) {
-					err( 'Module.instantiateWasm callback failed with error: ' + e );
-					return false;
-				}
+					console.log( 'instantiated streaming' );
+					console.log( response, info );
+					const result = WebAssembly.instantiateStreaming( response, info );
+				} );
 			}
 			instantiateAsync();
 			return {};
