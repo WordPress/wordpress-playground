@@ -14,21 +14,8 @@ export default class PHPWrapper {
 			return this._initPromise;
 		}
 
-		const defaults = {
-			onAbort( reason ) {
-				console.error( 'WASM aborted: ' );
-				console.error( reason );
-			},
-			print: ( ...chunks ) => {
-				this.stdout.push( ...chunks );
-			},
-			printErr: ( ...chunks ) => {
-				this.stderr.push( ...chunks );
-			},
-		};
-
 		this._initPromise = (
-			new PhpBinary( Object.assign( {}, defaults, args ) )
+			new PhpBinary( {} )
 				.then( ( { ccall } ) => {
 					ccall( 'pib_init', NUM, [ STR ], [] );
 					this.call = ccall;

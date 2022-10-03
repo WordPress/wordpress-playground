@@ -11,19 +11,7 @@
       if (this._initPromise) {
         return this._initPromise;
       }
-      const defaults = {
-        onAbort(reason) {
-          console.error("WASM aborted: ");
-          console.error(reason);
-        },
-        print: (...chunks) => {
-          this.stdout.push(...chunks);
-        },
-        printErr: (...chunks) => {
-          this.stderr.push(...chunks);
-        }
-      };
-      this._initPromise = new PhpBinary(Object.assign({}, defaults, args)).then(({ ccall }) => {
+      this._initPromise = new PhpBinary({}).then(({ ccall }) => {
         ccall("pib_init", NUM, [STR], []);
         this.call = ccall;
       });
