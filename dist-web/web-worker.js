@@ -7,7 +7,7 @@
     element: "anyfunc"
   });
   var WASM_PAGE_SIZE = 65536;
-  var INITIAL_INITIAL_MEMORY = 2073741824;
+  var INITIAL_INITIAL_MEMORY = 1073741824;
   var wasmMemory = new WebAssembly.Memory({
     initial: INITIAL_INITIAL_MEMORY / WASM_PAGE_SIZE
   });
@@ -167,9 +167,11 @@
       }
     }
   };
-  WebAssembly.instantiateStreaming(
-    fetch("webworker-php.wasm"),
-    info
-  );
+  fetch("webworker-php.wasm").then(async (response) => {
+    WebAssembly.instantiate(
+      await response.arrayBuffer(),
+      info
+    );
+  });
   console.log("Called instantiateStreaming", { info });
 })();

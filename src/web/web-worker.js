@@ -6,7 +6,7 @@ const wasmTable = new WebAssembly.Table( {
 	element: 'anyfunc',
 } );
 const WASM_PAGE_SIZE = 65536;
-const INITIAL_INITIAL_MEMORY = 2073741824;
+const INITIAL_INITIAL_MEMORY = 1073741824;
 const wasmMemory = new WebAssembly.Memory( {
 	initial: INITIAL_INITIAL_MEMORY / WASM_PAGE_SIZE,
 } );
@@ -25,9 +25,11 @@ const info = {
 		'f64-rem'() {},
 	},
 };
-WebAssembly.instantiateStreaming(
-	fetch( 'webworker-php.wasm' ),
-	info,
-);
+fetch( 'webworker-php.wasm' ).then( async ( response ) => {
+	WebAssembly.instantiate(
+		await response.arrayBuffer(),
+		info,
+	);
+} );
 
 console.log( 'Called instantiateStreaming', { info } );
