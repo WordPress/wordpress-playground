@@ -29,7 +29,6 @@ const PHP = ( function() {
 		};
 		const ENVIRONMENT_IS_WEB = false;
 		const ENVIRONMENT_IS_WORKER = true;
-		const ENVIRONMENT_IS_NODE = false;
 		let scriptDirectory = '';
 		function locateFile( path ) {
 			if ( Module.locateFile ) {
@@ -115,11 +114,6 @@ const PHP = ( function() {
 		} );
 		let ABORT = false;
 		let EXITSTATUS = 0;
-		function assert( condition, text ) {
-			if ( ! condition ) {
-				abort( 'Assertion failed: ' + text );
-			}
-		}
 		function getMemory( size ) {
 			if ( ! runtimeInitialized ) {
 				return dynamicAlloc( size );
@@ -268,18 +262,10 @@ const PHP = ( function() {
 		}
 		updateGlobalBufferAndViews( buffer );
 		HEAP32[ DYNAMICTOP_PTR >> 2 ] = DYNAMIC_BASE;
-		const __ATINIT__ = [];
 		var runtimeInitialized = false;
-		var Math_abs = Math.abs;
-		var Math_ceil = Math.ceil;
-		var Math_floor = Math.floor;
-		var Math_min = Math.min;
 		let runDependencies = 0;
 		let runDependencyWatcher = null;
 		let dependenciesFulfilled = null;
-		function getUniqueRunDependency( id ) {
-			return id;
-		}
 		function addRunDependency( id ) {
 			runDependencies++;
 			if ( Module.monitorRunDependencies ) {
@@ -431,255 +417,8 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 			return {};
 		}
 		Module.asm = createWasm;
-		__ATINIT__.push( {
-			func() {
-				___emscripten_environ_constructor();
-			},
-		} );
-		let _emscripten_get_now;
-		_emscripten_get_now = function() {
-			return performance.now();
-		};
-		var TTY = {
-			ttys: [],
-			init() {},
-			shutdown() {},
-			register( dev, ops ) {
-				TTY.ttys[ dev ] = { input: [], output: [], ops };
-				FS.registerDevice( dev, TTY.stream_ops );
-			},
-			stream_ops: {
-				open( stream ) {
-					const tty = TTY.ttys[ stream.node.rdev ];
-					if ( ! tty ) {
-						throw new FS.ErrnoError( 43 );
-					}
-					stream.tty = tty;
-					stream.seekable = false;
-				},
-				close( stream ) {
-					stream.tty.ops.flush( stream.tty );
-				},
-				flush( stream ) {
-					stream.tty.ops.flush( stream.tty );
-				},
-				read( stream, buffer, offset, length, pos ) {
-					if ( ! stream.tty || ! stream.tty.ops.get_char ) {
-						throw new FS.ErrnoError( 60 );
-					}
-					let bytesRead = 0;
-					for ( let i = 0; i < length; i++ ) {
-						var result;
-						try {
-							result = stream.tty.ops.get_char( stream.tty );
-						} catch ( e ) {
-							throw new FS.ErrnoError( 29 );
-						}
-						if ( result === undefined && bytesRead === 0 ) {
-							throw new FS.ErrnoError( 6 );
-						}
-						if ( result === null || result === undefined ) {
-							break;
-						}
-						bytesRead++;
-						buffer[ offset + i ] = result;
-					}
-					if ( bytesRead ) {
-						stream.node.timestamp = Date.now();
-					}
-					return bytesRead;
-				},
-				write( stream, buffer, offset, length, pos ) {
-					if ( ! stream.tty || ! stream.tty.ops.put_char ) {
-						throw new FS.ErrnoError( 60 );
-					}
-					try {
-						for ( var i = 0; i < length; i++ ) {
-							stream.tty.ops.put_char( stream.tty, buffer[ offset + i ] );
-						}
-					} catch ( e ) {
-						throw new FS.ErrnoError( 29 );
-					}
-					if ( length ) {
-						stream.node.timestamp = Date.now();
-					}
-					return i;
-				},
-			},
-			default_tty_ops: {
-				get_char( tty ) {
-					if ( ! tty.input.length ) {
-						let result = null;
-						if (
-							typeof window !== 'undefined' &&
-              typeof window.prompt === 'function'
-						) {
-							result = window.prompt( 'Input: ' );
-							if ( result !== null ) {
-								result += '\n';
-							}
-						} else if ( typeof readline === 'function' ) {
-							result = readline();
-							if ( result !== null ) {
-								result += '\n';
-							}
-						}
-						if ( ! result ) {
-							return null;
-						}
-						tty.input = intArrayFromString( result, true );
-					}
-					return tty.input.shift();
-				},
-				put_char( tty, val ) {
-					if ( val === null || val === 10 ) {
-						out( UTF8ArrayToString( tty.output, 0 ) );
-						tty.output = [];
-					} else if ( val != 0 ) {
-						tty.output.push( val );
-					}
-				},
-				flush( tty ) {
-					if ( tty.output && tty.output.length > 0 ) {
-						out( UTF8ArrayToString( tty.output, 0 ) );
-						tty.output = [];
-					}
-				},
-			},
-			default_tty1_ops: {
-				put_char( tty, val ) {
-					if ( val === null || val === 10 ) {
-						err( UTF8ArrayToString( tty.output, 0 ) );
-						tty.output = [];
-					} else if ( val != 0 ) {
-						tty.output.push( val );
-					}
-				},
-				flush( tty ) {
-					if ( tty.output && tty.output.length > 0 ) {
-						err( UTF8ArrayToString( tty.output, 0 ) );
-						tty.output = [];
-					}
-				},
-			},
-		};
 
-		function __inet_pton4_raw( str ) {
-			const b = str.split( '.' );
-			for ( let i = 0; i < 4; i++ ) {
-				const tmp = Number( b[ i ] );
-				if ( isNaN( tmp ) ) {
-					return null;
-				}
-				b[ i ] = tmp;
-			}
-			return ( b[ 0 ] | ( b[ 1 ] << 8 ) | ( b[ 2 ] << 16 ) | ( b[ 3 ] << 24 ) ) >>> 0;
-		}
-		function jstoi_q( str ) {
-			return parseInt( str );
-		}
-		function __inet_pton6_raw( str ) {
-			let words;
-			let w, offset, z;
-			const valid6regx =
-        /^((?=.*::)(?!.*::.+::)(::)?([\dA-F]{1,4}:(:|\b)|){5}|([\dA-F]{1,4}:){6})((([\dA-F]{1,4}((?!\3)::|:\b|$))|(?!\2\3)){2}|(((2[0-4]|1\d|[1-9])?\d|25[0-5])\.?\b){4})$/i;
-			const parts = [];
-			if ( ! valid6regx.test( str ) ) {
-				return null;
-			}
-			if ( str === '::' ) {
-				return [ 0, 0, 0, 0, 0, 0, 0, 0 ];
-			}
-			if ( str.indexOf( '::' ) === 0 ) {
-				str = str.replace( '::', 'Z:' );
-			} else {
-				str = str.replace( '::', ':Z:' );
-			}
-			if ( str.indexOf( '.' ) > 0 ) {
-				str = str.replace( new RegExp( '[.]', 'g' ), ':' );
-				words = str.split( ':' );
-				words[ words.length - 4 ] =
-          jstoi_q( words[ words.length - 4 ] ) +
-          jstoi_q( words[ words.length - 3 ] ) * 256;
-				words[ words.length - 3 ] =
-          jstoi_q( words[ words.length - 2 ] ) +
-          jstoi_q( words[ words.length - 1 ] ) * 256;
-				words = words.slice( 0, words.length - 2 );
-			} else {
-				words = str.split( ':' );
-			}
-			offset = 0;
-			z = 0;
-			for ( w = 0; w < words.length; w++ ) {
-				if ( typeof words[ w ] === 'string' ) {
-					if ( words[ w ] === 'Z' ) {
-						for ( z = 0; z < 8 - words.length + 1; z++ ) {
-							parts[ w + z ] = 0;
-						}
-						offset = z - 1;
-					} else {
-						parts[ w + offset ] = _htons( parseInt( words[ w ], 16 ) );
-					}
-				} else {
-					parts[ w + offset ] = words[ w ];
-				}
-			}
-			return [
-				( parts[ 1 ] << 16 ) | parts[ 0 ],
-				( parts[ 3 ] << 16 ) | parts[ 2 ],
-				( parts[ 5 ] << 16 ) | parts[ 4 ],
-				( parts[ 7 ] << 16 ) | parts[ 6 ],
-			];
-		}
-		var DNS = {
-			address_map: { id: 1, addrs: {}, names: {} },
-			lookup_name( name ) {
-				let res = __inet_pton4_raw( name );
-				if ( res !== null ) {
-					return name;
-				}
-				res = __inet_pton6_raw( name );
-				if ( res !== null ) {
-					return name;
-				}
-				let addr;
-				if ( DNS.address_map.addrs[ name ] ) {
-					addr = DNS.address_map.addrs[ name ];
-				} else {
-					const id = DNS.address_map.id++;
-					assert( id < 65535, 'exceeded max address mappings of 65535' );
-					addr = '172.29.' + ( id & 255 ) + '.' + ( id & 65280 );
-					DNS.address_map.names[ addr ] = name;
-					DNS.address_map.addrs[ name ] = addr;
-				}
-				return addr;
-			},
-			lookup_addr( addr ) {
-				if ( DNS.address_map.names[ addr ] ) {
-					return DNS.address_map.names[ addr ];
-				}
-				return null;
-			},
-		};
-		function _usleep( useconds ) {
-			const start = _emscripten_get_now();
-			while ( _emscripten_get_now() - start < useconds / 1e3 ) {}
-		}
-		Module._usleep = _usleep;
-		function intArrayFromString( stringy, dontAddNull, length ) {
-			const len = length > 0 ? length : lengthBytesUTF8( stringy ) + 1;
-			const u8array = new Array( len );
-			const numBytesWritten = stringToUTF8Array(
-				stringy,
-				u8array,
-				0,
-				u8array.length,
-			);
-			if ( dontAddNull ) {
-				u8array.length = numBytesWritten;
-			}
-			return u8array;
-		}
+		Module._usleep = noop;
 		const asmGlobalArg = {};
 		var asmLibraryArg = {
 			I: noop,
