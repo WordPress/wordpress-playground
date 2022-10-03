@@ -226,13 +226,13 @@ EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
 
 	NULL,                          /* header handler */
 	NULL,                          /* send headers handler */
-	php_embed_send_header,         /* send header handler */
+	NULL,         /* send header handler */
 
 	NULL,                          /* read POST data */
-	php_embed_read_cookies,        /* read Cookies */
+	NULL,        /* read Cookies */
 
-	php_embed_register_variables,  /* register server variables */
-	php_embed_log_message,         /* Log message */
+	NULL,  /* register server variables */
+	NULL,         /* Log message */
 	NULL,                          /* Get request time */
 	NULL,                          /* Child terminate */
 
