@@ -8071,6 +8071,7 @@ const PHP = ( function() {
 			}
 		}
 		function run( args ) {
+      return;
 			args = args || arguments_;
 			if ( runDependencies > 0 ) {
 				return;
