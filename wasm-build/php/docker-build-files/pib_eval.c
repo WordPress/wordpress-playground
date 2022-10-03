@@ -82,33 +82,9 @@ invalid!
 
 int main() { return 0; }
 
-
-
-/* {{{ php_request_shutdown */
-void php_request_shutdown2(void *dummy)
-{
-	bool report_memleaks;
-
-	/* 1. Call all possible shutdown functions registered with register_shutdown_function() */
-	if (PG(modules_activated)) {
-		php_call_shutdown_functions();
-	}
-
-	/* 2. Call all possible __destruct() functions */
-	zend_try {
-		zend_call_destructors();
-	} zend_end_try();
-
-	/* 3. Flush all output buffers */
-	zend_try {
-		php_output_end_all();
-	} zend_end_try();
-}
-/* }}} */
-
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    php_request_shutdown2(NULL);
+    php_call_shutdown_functions();
 
     // This works:
     return 1;
