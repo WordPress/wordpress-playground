@@ -54,7 +54,7 @@
   };
 
   // src/web/web-worker.js
-  if ("function" === typeof importScripts) {
+  setTimeout(() => {
     console.log("[WebWorker] Spawned");
     document = {};
     importScripts("/webworker-php.js");
@@ -64,5 +64,5 @@
       console.log("loaded");
     }
     init();
-  }
+  }, 0);
 })();

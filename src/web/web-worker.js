@@ -2,7 +2,7 @@
 
 import PHPWrapper from '../shared/php-wrapper.mjs';
 
-if ( 'function' === typeof importScripts ) {
+setTimeout( () => {
 	console.log( '[WebWorker] Spawned' );
 
 	// Polyfill for the emscripten loader
@@ -17,4 +17,4 @@ if ( 'function' === typeof importScripts ) {
 	}
 
 	init();
-}
+}, 0 );
