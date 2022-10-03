@@ -89,21 +89,20 @@ void php_request_shutdown2(void *dummy)
 {
 	bool report_memleaks;
 
-	EG(flags) |= EG_FLAGS_IN_SHUTDOWN;
-
-	report_memleaks = PG(report_memleaks);
-
-	/* EG(current_execute_data) points into nirvana and therefore cannot be safely accessed
-	 * inside zend_executor callback functions.
-	 */
-	EG(current_execute_data) = NULL;
-
-	php_deactivate_ticks();
-
-	/* 0. Call any open observer end handlers that are still open after a zend_bailout */
-	if (ZEND_OBSERVER_ENABLED) {
-		zend_observer_fcall_end_all();
+	/* 1. Call all possible shutdown functions registered with register_shutdown_function() */
+	if (PG(modules_activated)) {
+		php_call_shutdown_functions();
 	}
+
+	/* 2. Call all possible __destruct() functions */
+	zend_try {
+		zend_call_destructors();
+	} zend_end_try();
+
+	/* 3. Flush all output buffers */
+	zend_try {
+		php_output_end_all();
+	} zend_end_try();
 }
 /* }}} */
 
