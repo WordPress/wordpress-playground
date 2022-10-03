@@ -26,7 +26,7 @@ const info = {
 	},
 };
 WebAssembly.instantiateStreaming(
-	fetch( 'webworker-php.wasm', { credentials: 'same-origin' } ),
+	fetch( 'webworker-php.wasm' ),
 	info,
 );
 

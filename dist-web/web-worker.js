@@ -168,7 +168,7 @@
     }
   };
   WebAssembly.instantiateStreaming(
-    fetch("webworker-php.wasm", { credentials: "same-origin" }),
+    fetch("webworker-php.wasm"),
     info
   );
   console.log("Called instantiateStreaming", { info });
