@@ -44,7 +44,7 @@ For example, before the comment "Prepare WordPress static files":
 - Move it into `wp-content/mu-plugins`
 - Add a file that loads the plugin
 
-```sh
+```bash
 plugin_file=example-plugin.1.0.0.zip
 wget https://downloads.wordpress.org/plugin/$plugin_file
 unzip $plugin_file
