@@ -3,8 +3,7 @@
   console.log("[WebWorker] Spawned");
   document = {};
   importScripts("/webworker-php.js");
-  new PHP({}).then(({ ccall }) => {
-    ccall("pib_init", "number", ["string"], []);
+  new PHP({}).then(() => {
     console.log("[WebWorker] PHP initialized");
   });
 })();

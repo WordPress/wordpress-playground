@@ -8,7 +8,6 @@ document = {};
 importScripts( '/webworker-php.js' );
 
 new PHP( {} )
-	.then( ( { ccall } ) => {
-		ccall( 'pib_init', 'number', [ 'string' ], [] );
+	.then( () => {
 		console.log( '[WebWorker] PHP initialized' );
 	} );
