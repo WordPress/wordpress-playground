@@ -8,6 +8,71 @@
 #include "php_main.h"
 #include "SAPI.h"
 
+#define ZEND_INCLUDE_FULL_WINDOWS_HEADERS
+
+#include "php.h"
+#include <stdio.h>
+#include <fcntl.h>
+#ifdef PHP_WIN32
+#include "win32/time.h"
+#include "win32/signal.h"
+#include "win32/php_win32_globals.h"
+#include "win32/winutil.h"
+#include <process.h>
+#endif
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include <signal.h>
+#include <locale.h>
+#include "zend.h"
+#include "zend_types.h"
+#include "zend_extensions.h"
+#include "php_ini.h"
+#include "php_globals.h"
+#include "php_main.h"
+#include "php_syslog.h"
+#include "fopen_wrappers.h"
+#include "ext/standard/php_standard.h"
+#include "ext/date/php_date.h"
+#include "php_variables.h"
+#include "ext/standard/credits.h"
+#ifdef PHP_WIN32
+#include <io.h>
+#include "win32/php_registry.h"
+#include "ext/standard/flock_compat.h"
+#endif
+#include "php_syslog.h"
+#include "Zend/zend_exceptions.h"
+
+#if PHP_SIGCHILD
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
+
+#include "zend_compile.h"
+#include "zend_execute.h"
+#include "zend_highlight.h"
+#include "zend_extensions.h"
+#include "zend_ini.h"
+#include "zend_dtrace.h"
+#include "zend_observer.h"
+#include "zend_system_id.h"
+
+#include "php_content_types.h"
+#include "php_ticks.h"
+#include "php_streams.h"
+#include "php_open_temporary_file.h"
+
+#include "SAPI.h"
+#include "rfc1867.h"
+
+#include "ext/standard/html_tables.h"
+
 #ifdef ZTS
 invalid!
 #endif
@@ -139,8 +204,41 @@ static void php_embed_register_variables(zval *track_vars_array)
 /* Module initialization (MINIT) */
 static int php_embed_startup(sapi_module_struct *sapi_module)
 {
-    // No crash if this is commented
-	return php_module_startup(sapi_module, NULL, 1);
+	zend_utility_functions zuf;
+	zend_utility_values zuv;
+	zend_result retval = SUCCESS;
+	int module_number = 0;
+	zend_module_entry *module;
+
+	sapi_initialize_empty_request();
+	sapi_activate();
+
+	php_output_startup();
+	memset(&core_globals, 0, sizeof(core_globals));
+	php_startup_ticks();
+
+	gc_globals_ctor();
+
+//	zuf.error_function = php_error_cb;
+//	zuf.printf_function = php_printf;
+//	zuf.write_function = php_output_write;
+//	zuf.fopen_function = php_fopen_wrapper_for_zend;
+//	zuf.message_handler = php_message_handler_for_zend;
+//	zuf.get_configuration_directive = php_get_configuration_directive_for_zend;
+//	zuf.ticks_function = php_run_ticks;
+//	zuf.on_timeout = php_on_timeout;
+//	zuf.stream_open_function = php_stream_open_for_zend;
+//	zuf.printf_to_smart_string_function = php_printf_to_smart_string;
+//	zuf.printf_to_smart_str_function = php_printf_to_smart_str;
+//	zuf.getenv_function = sapi_getenv;
+//	zuf.resolve_path_function = php_resolve_path_for_zend;
+	zend_startup(&zuf);
+//	zend_reset_lc_ctype_locale();
+	zend_update_current_locale();
+
+	zend_observer_startup();
+    // Uncomment to cause the crash.
+	return 0; // php_module_startup(sapi_module, NULL, 1);
 }
 
 EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
