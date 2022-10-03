@@ -17,22 +17,15 @@ invalid!
 
 int main() { return 0; }
 
+SAPI_API sapi_module_struct private_sapi_module;
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    #if defined(SIGPIPE) && defined(SIG_IGN)
-        signal(SIGPIPE, SIG_IGN); /* ignore SIGPIPE in standalone mode so
-                                     that sockets created via fsockopen()
-                                     don't kill PHP if the remote site
-                                     closes it.  in apache|apxs mode apache
-                                     does that for us!  thies@thieso.net
-                                     20000419 */
-    #endif
     php_embed_shutdown();
     zend_signal_startup();
     // This causes the crash:
     // https://github.com/php/php-src/blob/master/main/SAPI.c
 	(&php_embed_module)->ini_entries = NULL;
-	sapi_module = *(&php_embed_module);
+	private_sapi_module = *(&php_embed_module);
 
     return 1;
 }
