@@ -119,38 +119,6 @@ void php_request_shutdown2(void *dummy)
 	zend_try {
 		php_output_end_all();
 	} zend_end_try();
-
-	/* 4. Reset max_execution_time (no longer executing php code after response sent) */
-	zend_try {
-		zend_unset_timeout();
-	} zend_end_try();
-
-	/* 5. Call all extensions RSHUTDOWN functions */
-	if (PG(modules_activated)) {
-		zend_deactivate_modules();
-	}
-
-	/* 6. Shutdown output layer (send the set HTTP headers, cleanup output handlers, etc.) */
-	zend_try {
-		php_output_deactivate();
-	} zend_end_try();
-
-	/* 7. Free shutdown functions */
-	if (PG(modules_activated)) {
-		php_free_shutdown_functions();
-	}
-
-	/* 8. Destroy super-globals */
-	zend_try {
-		int i;
-
-		for (i=0; i<NUM_TRACK_VARS; i++) {
-			zval_ptr_dtor(&PG(http_globals)[i]);
-		}
-	} zend_end_try();
-
-	/* 9. Shutdown scanner/executor/compiler and restore ini entries */
-	zend_deactivate();
 }
 /* }}} */
 
