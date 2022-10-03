@@ -1,6 +1,6 @@
 /* eslint-disable no-inner-declarations */
 
-// import PHPWrapper from '../shared/php-wrapper.mjs';
+import PHPWrapper from '../shared/php-wrapper.mjs';
 
 console.log( '[WebWorker] Spawned' );
 
@@ -9,8 +9,10 @@ document = {};
 
 importScripts( '/webworker-php.js' );
 
+const php = new PHPWrapper( );
+
 // async function init() {
-// 	const php = new PHPWrapper( );
+//
 // 	await php.init( PHP, {} );
 // 	console.log( 'loaded' );
 // }
