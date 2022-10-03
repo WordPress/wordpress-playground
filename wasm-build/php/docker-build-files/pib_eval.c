@@ -104,21 +104,6 @@ void php_request_shutdown2(void *dummy)
 	if (ZEND_OBSERVER_ENABLED) {
 		zend_observer_fcall_end_all();
 	}
-
-	/* 1. Call all possible shutdown functions registered with register_shutdown_function() */
-	if (PG(modules_activated)) {
-		php_call_shutdown_functions();
-	}
-
-	/* 2. Call all possible __destruct() functions */
-	zend_try {
-		zend_call_destructors();
-	} zend_end_try();
-
-	/* 3. Flush all output buffers */
-	zend_try {
-		php_output_end_all();
-	} zend_end_try();
 }
 /* }}} */
 
