@@ -27,31 +27,6 @@ void pib_finally()
 	fprintf(stderr, "\n");
 }
 
-char *EMSCRIPTEN_KEEPALIVE pib_exec(char *code)
-{
-	char *retVal = NULL;
-
-	zend_try
-	{
-		zval retZv;
-
-		zend_eval_string(code, &retZv, "php-wasm evaluate expression");
-
-		convert_to_string(&retZv);
-
-		retVal = Z_STRVAL(retZv);
-	}
-	zend_catch
-	{
-	}
-
-	zend_end_try();
-
-	pib_finally();
-
-	return retVal;
-}
-
 int EMSCRIPTEN_KEEPALIVE pib_run(char *code)
 {
 	int retVal = 255; // Unknown error.
@@ -77,40 +52,3 @@ int EMSCRIPTEN_KEEPALIVE pib_run(char *code)
 
 	return retVal;
 }
-
-char *pib_tokenize(char *code)
-{
-	// tokenize_parse(zval zend_string)
-
-	return "";
-}
-
-void EMSCRIPTEN_KEEPALIVE pib_destroy()
-{
-	return php_embed_shutdown();
-}
-
-int EMSCRIPTEN_KEEPALIVE pib_refresh()
-{
-	pib_destroy();
-
-	return pib_init();
-}
-
-#ifdef WITH_VRZNO
-#include "../php-src/ext/vrzno/php_vrzno.h"
-
-int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
-{
-	int retVal = vrzno_exec_callback(fptr);
-
-	fflush(stdout);
-
-	return retVal;
-}
-
-int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
-{
-	return vrzno_del_callback(fptr);
-}
-#endif

@@ -45,35 +45,6 @@ RUN git clone https://github.com/php/php-src.git php-src \
     && cp php-src/Zend/bench.php php-src/preload/Zend \
     && touch php-src/patched
 
-
-# Get and patch Sqlite3
-COPY ./docker-build-files/sqlite3-wasm.patch /root/
-RUN set -euxo pipefail;\
-    wget --no-check-certificate https://sqlite.org/2020/sqlite-amalgamation-3330000.zip; \
-    unzip sqlite-amalgamation-3330000.zip; \
-    rm sqlite-amalgamation-3330000.zip; \
-    mv sqlite-amalgamation-3330000 sqlite3.33-src; \
-    git apply --no-index /root/sqlite3-wasm.patch; \
-    cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
-    cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
-
-# Get VRZNO
-RUN git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
-    --branch DomAccess \
-    --single-branch          \
-    --depth 1
-
-# Get and build Libxml2
-RUN env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
-    --branch v2.9.10 \
-    --single-branch     \
-    --depth 1;
-
-RUN cd libxml2 && ./autogen.sh
-RUN cd libxml2 && emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/
-RUN cd libxml2 && emmake make
-RUN cd libxml2 && emmake make install
-
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 
@@ -83,50 +54,40 @@ RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     --enable-embed=static \
     --with-layout=GNU  \
-    --with-libxml      \
-    --disable-cgi      \
-    --disable-cli      \
     --disable-all      \
-    --with-sqlite3     \
-    --enable-session   \
-    --enable-filter    \
-    --enable-calendar  \
-    --enable-dom       \
-    --enable-pdo       \
-    --with-pdo-sqlite  \
+    --without-sqlite3     \
+    --without-zlib     \
+    --disable-session   \
+    --disable-filter    \
+    --disable-calendar  \
+    --disable-dom       \
+    --disable-pdo       \
+    --without-pdo-sqlite  \
+    --without-tsrm-pthreads  \
     --disable-rpath    \
     --disable-phpdbg   \
     --without-pear     \
-    --with-valgrind=no \
     --without-pcre-jit \
-    --enable-bcmath    \
-    --enable-json      \
-    --enable-ctype     \
-    --enable-mbstring  \
+    --disable-bcmath    \
+    --disable-shared    \
+    --disable-libgcc    \
+    --disable-rpath    \
+    --disable-static    \
+    --without-gnu-ld    \
+    --disable-cli    \
+    --disable-cgi    \
+    --disable-phpdbg    \
+    --without-servlet    \
+    --disable-json      \
+    --disable-ctype     \
+    --disable-mbstring  \
     --disable-mbregex  \
-    --enable-tokenizer \
-    $VRZNO_FLAG     \
-    --enable-xml       \
-    --enable-simplexml \
-    --with-gd
+    --disable-tokenizer \
+    --disable-xml       \
+    --disable-simplexml \
+    --without-gd
 
 RUN cd php-src/ && emmake make -j8
 
 RUN cp -v php-src/.libs/libphp.la /root/lib/libphp7.la
 RUN cp -v php-src/.libs/libphp.a /root/lib//libphp7.a
-
-COPY ./docker-build-files/pib_eval.c /root/
-RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
-    then export DEFINES='-DWITH_VRZNO=1'; \
-    else export DEFINES=''; \
-    fi && \
-    cd php-src/ && \
-    emcc -O3 \
-    -I .     \
-    -I Zend  \
-    -I main  \
-    -I TSRM/ \
-    -I /root/libxml2 \
-    $DEFINES \
-    /root/pib_eval.c \
-    -o /root/lib/pib_eval.o;
