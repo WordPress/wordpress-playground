@@ -2,8 +2,8 @@ console.log( '[WebWorker] Spawned' );
 
 const noop = function()	{};
 const wasmTable = new WebAssembly.Table( {
-	initial: 10,
-	maximum: 10,
+	initial: 2211,
+	maximum: 2211,
 	element: 'anyfunc',
 } );
 const WASM_PAGE_SIZE = 65536;

@@ -253,7 +253,7 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
 EMBED_SAPI_API void php_embed_shutdown(void)
 {
 //	/* Request shutdown (RSHUTDOWN) */
-//	php_request_shutdown((void *) 0);
+	php_request_shutdown((void *) 0);
 //
 //	/* Module shutdown (MSHUTDOWN) */
 //	php_module_shutdown();
