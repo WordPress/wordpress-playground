@@ -89,12 +89,6 @@ const PHP = ( function() {
 		if ( Module.quit ) {
 			quit_ = Module.quit;
 		}
-		function dynamicAlloc( size ) {
-			const ret = HEAP32[ DYNAMICTOP_PTR >> 2 ];
-			const end = ( ret + size + 15 ) & -16;
-			HEAP32[ DYNAMICTOP_PTR >> 2 ] = end;
-			return ret;
-		}
 		let wasmBinary;
 		if ( Module.wasmBinary ) {
 			wasmBinary = Module.wasmBinary;
@@ -114,12 +108,6 @@ const PHP = ( function() {
 		} );
 		let ABORT = false;
 		let EXITSTATUS = 0;
-		function getMemory( size ) {
-			if ( ! runtimeInitialized ) {
-				return dynamicAlloc( size );
-			}
-			return _malloc( size );
-		}
 		const WASM_PAGE_SIZE = 65536;
 		let buffer,
 			HEAP8,
@@ -156,7 +144,6 @@ const PHP = ( function() {
 		}
 		updateGlobalBufferAndViews( buffer );
 		HEAP32[ DYNAMICTOP_PTR >> 2 ] = DYNAMIC_BASE;
-		var runtimeInitialized = false;
 		let runDependencies = 0;
 		let runDependencyWatcher = null;
 		let dependenciesFulfilled = null;
@@ -465,7 +452,7 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 		Module.asm( asmGlobalArg, asmLibraryArg, buffer );
 
 		Module.ccall = noop;
-		Module.getMemory = getMemory;
+		Module.getMemory = noop;
 		Module.UTF8ToString = noop;
 		Module.lengthBytesUTF8 = noop;
 		Module.addRunDependency = noop;
