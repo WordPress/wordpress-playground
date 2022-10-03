@@ -6,8 +6,12 @@
 #include "zend_exceptions.h"
 #include "zend_closures.h"
 #include "php_main.h"
+#include "SAPI.h"
 
 #ifdef ZTS
+invalid!
+#endif
+#ifdef defined(PHP_NEED_REENTRANCY)
 invalid!
 #endif
 
@@ -25,9 +29,10 @@ int EMSCRIPTEN_KEEPALIVE pib_init()
     #endif
     php_embed_shutdown();
     zend_signal_startup();
-	sapi_startup(&php_embed_module);
-    return 1; //php_tsrm_startup();
-    //zend_signal_startup();
+    // This causes the crash:
+    // https://github.com/php/php-src/blob/master/main/SAPI.c
+	(&php_embed_module)->ini_entries = NULL;
+	sapi_module = *(&php_embed_module);
 
-	//return 1; //php_embed_init(0, NULL);
+    return 1;
 }
