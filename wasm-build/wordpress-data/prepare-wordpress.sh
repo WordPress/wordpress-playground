@@ -8,9 +8,9 @@ cd preload
 rm -rf wordpress
 rm -rf wordpress-static
 
-# Download latest version of WordPress
-wp_tarfile=wordpress-latest.tar.gz
-wget https://wordpress.org/$wp_tarfile -O $wp_tarfile
+# Download specific version of WordPress
+wp_tarfile=wordpress-6.0.2.tar.gz
+wget https://wordpress.org/$wp_tarfile
 tar -xzf $wp_tarfile
 rm $wp_tarfile
 
