@@ -115,32 +115,6 @@ const PHP = ( function() {
 		}
 		updateGlobalBufferAndViews( buffer );
 		HEAP32[ DYNAMICTOP_PTR >> 2 ] = DYNAMIC_BASE;
-		let runDependencies = 0;
-		let runDependencyWatcher = null;
-		let dependenciesFulfilled = null;
-		function addRunDependency( id ) {
-			runDependencies++;
-			if ( Module.monitorRunDependencies ) {
-				Module.monitorRunDependencies( runDependencies );
-			}
-		}
-		function removeRunDependency( id ) {
-			runDependencies--;
-			if ( Module.monitorRunDependencies ) {
-				Module.monitorRunDependencies( runDependencies );
-			}
-			if ( runDependencies == 0 ) {
-				if ( runDependencyWatcher !== null ) {
-					clearInterval( runDependencyWatcher );
-					runDependencyWatcher = null;
-				}
-				if ( dependenciesFulfilled ) {
-					const callback = dependenciesFulfilled;
-					dependenciesFulfilled = null;
-					callback();
-				}
-			}
-		}
 		Module.preloadedImages = {};
 		Module.preloadedAudios = {};
 		function abort( what ) {
@@ -216,9 +190,7 @@ const PHP = ( function() {
 			function receiveInstance( instance, module ) {
 				const exports = instance.exports;
 				Module.asm = exports;
-				removeRunDependency( 'wasm-instantiate' );
 			}
-			addRunDependency( 'wasm-instantiate' );
 			function receiveInstantiatedSource( output ) {
 				console.log( 'streaming instantiated', output );
 				receiveInstance( output.instance );
@@ -428,12 +400,6 @@ const PHP = ( function() {
 		Module.lengthBytesUTF8 = noop;
 		Module.addRunDependency = noop;
 		Module.removeRunDependency = noop;
-		let calledRun;
-		dependenciesFulfilled = function runCaller() {
-			if ( ! calledRun ) {
-				dependenciesFulfilled = runCaller;
-			}
-		};
 		Module.run = function() {};
 		return PHP.ready;
 	};
