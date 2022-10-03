@@ -12,7 +12,7 @@ docker run \
         wasm-wordpress-php-builder:latest \
         emcc \
         -o /output/webworker-php.js \
-        -s EXPORTED_FUNCTIONS='["_zend_eval_string"]' \
+        -s EXPORTED_FUNCTIONS='["_main"]' \
         -s MAXIMUM_MEMORY=-1             \
         -s INITIAL_MEMORY=1024MB \
         -s ALLOW_MEMORY_GROWTH=1         \
@@ -21,7 +21,7 @@ docker run \
         -s EXPORT_NAME="'PHP'"           \
         -s MODULARIZE=1                  \
         -s INVOKE_RUN=0                  \
-                /root/lib/libphp7.a \
+                /root/lib/pib_eval.o /root/lib/libphp7.a \
         -s ENVIRONMENT=worker
 
 # -fno-exceptions

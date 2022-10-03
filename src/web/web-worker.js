@@ -2,8 +2,8 @@ console.log( '[WebWorker] Spawned' );
 
 const noop = function()	{};
 const wasmTable = new WebAssembly.Table( {
-	initial: 6889,
-	maximum: 6889,
+	initial: 2403,
+	maximum: 2403,
 	element: 'anyfunc',
 } );
 const WASM_PAGE_SIZE = 65536;
@@ -35,6 +35,8 @@ const info = {
 		nullFunc_viiiii: noop,
 		nullFunc_viiiiii: noop,
 		nullFunc_viijii: noop,
+		nullFunc_viidii: noop,
+		nullFunc_viiiiiiii: noop,
 		_strftime_l: noop,
 		abortStackOverflow: noop,
 		tempDoublePtr: 2303696,
@@ -48,7 +50,8 @@ const info = {
 		'f64-rem'() {},
 	},
 };
-fetch( 'php-disabled-all-and-more.wasm' ).then( async ( response ) => {
+
+fetch( 'webworker-embed_shutdown.wasm' ).then( async ( response ) => {
 	WebAssembly.instantiate(
 		await response.arrayBuffer(),
 		info,

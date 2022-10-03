@@ -91,3 +91,16 @@ RUN cd php-src/ && emmake make -j8
 
 RUN cp -v php-src/.libs/libphp.la /root/lib/libphp7.la
 RUN cp -v php-src/.libs/libphp.a /root/lib//libphp7.a
+
+COPY ./docker-build-files/pib_eval.c /root/
+
+RUN cd php-src/ && \
+    emcc -O3 \
+    -I .     \
+    -I Zend  \
+    -I main  \
+    -I TSRM/ \
+    $DEFINES \
+    /root/pib_eval.c \
+    -o /root/lib/pib_eval.o;
+
