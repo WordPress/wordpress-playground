@@ -211,9 +211,9 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 	zend_module_entry *module;
 
 	sapi_initialize_empty_request();
-	sapi_activate();
+//	sapi_activate();
 
-	php_output_startup();
+//	php_output_startup();
 //	memset(&core_globals, 0, sizeof(core_globals));
 //	php_startup_ticks();
 
