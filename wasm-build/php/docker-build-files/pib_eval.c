@@ -214,8 +214,8 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 	sapi_activate();
 
 	php_output_startup();
-	memset(&core_globals, 0, sizeof(core_globals));
-	php_startup_ticks();
+//	memset(&core_globals, 0, sizeof(core_globals));
+//	php_startup_ticks();
 
 //	gc_globals_ctor();
 
