@@ -212,17 +212,17 @@ EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
 	"PHP Embedded Library",        /* pretty name */
 
 	php_embed_startup,             /* startup */
-	php_module_shutdown_wrapper,   /* shutdown */
+	NULL,   /* shutdown */
 
 	NULL,                          /* activate */
-	php_embed_deactivate,          /* deactivate */
+	NULL,          /* deactivate */
 
-	php_embed_ub_write,            /* unbuffered write */
-	php_embed_flush,               /* flush */
+	NULL,            /* unbuffered write */
+	NULL,               /* flush */
 	NULL,                          /* get uid */
 	NULL,                          /* getenv */
 
-	php_error,                     /* error handler */
+	NULL,                     /* error handler */
 
 	NULL,                          /* header handler */
 	NULL,                          /* send headers handler */
@@ -236,7 +236,7 @@ EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
 	NULL,                          /* Get request time */
 	NULL,                          /* Child terminate */
 
-	STANDARD_SAPI_MODULE_PROPERTIES
+	NULL
 };
 /* }}} */
 
