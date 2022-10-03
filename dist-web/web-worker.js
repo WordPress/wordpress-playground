@@ -58,4 +58,7 @@
   document = {};
   importScripts("/webworker-php.js");
   var php = new PHPWrapper();
+  php.init(PHP, {}).then(() => {
+    console.log("[WebWorker] PHP initialized");
+  });
 })();

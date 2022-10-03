@@ -10,11 +10,6 @@ document = {};
 importScripts( '/webworker-php.js' );
 
 const php = new PHPWrapper( );
-
-// async function init() {
-//
-// 	await php.init( PHP, {} );
-// 	console.log( 'loaded' );
-// }
-//
-// init();
+php.init( PHP, {} ).then( () => {
+	console.log( '[WebWorker] PHP initialized' );
+} );
