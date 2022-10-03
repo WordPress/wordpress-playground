@@ -39,7 +39,7 @@ const EmscriptenPHPModule = ( function() {
 			Module.HEAPF32 = HEAPF32 = new Float32Array( buf );
 			Module.HEAPF64 = HEAPF64 = new Float64Array( buf );
 		}
-		const INITIAL_INITIAL_MEMORY = 1073741824;
+		const INITIAL_INITIAL_MEMORY = 2073741824;
 		const wasmMemory = new WebAssembly.Memory( {
 			initial: INITIAL_INITIAL_MEMORY / WASM_PAGE_SIZE,
 		} );
