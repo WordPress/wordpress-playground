@@ -1,20 +1,18 @@
 /* eslint-disable no-inner-declarations */
 
-import PHPWrapper from '../shared/php-wrapper.mjs';
+// import PHPWrapper from '../shared/php-wrapper.mjs';
 
-setTimeout( () => {
-	console.log( '[WebWorker] Spawned' );
+console.log( '[WebWorker] Spawned' );
 
-	// Polyfill for the emscripten loader
-	document = {};
+// Polyfill for the emscripten loader
+document = {};
 
-	importScripts( '/webworker-php.js' );
+importScripts( '/webworker-php.js' );
 
-	async function init() {
-		const php = new PHPWrapper( );
-		await php.init( PHP, {} );
-		console.log( 'loaded' );
-	}
-
-	init();
-}, 0 );
+// async function init() {
+// 	const php = new PHPWrapper( );
+// 	await php.init( PHP, {} );
+// 	console.log( 'loaded' );
+// }
+//
+// init();
