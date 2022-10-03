@@ -238,55 +238,6 @@ const PHP = ( function() {
 			);
 			return func;
 		}
-		function ccall( ident, returnType, argTypes, args, opts ) {
-			const toC = {
-				string( str ) {
-					let ret = 0;
-					if ( str !== null && str !== undefined && str !== 0 ) {
-						const len = ( str.length << 2 ) + 1;
-						ret = stackAlloc( len );
-						stringToUTF8( str, ret, len );
-					}
-					return ret;
-				},
-				array( arr ) {
-					const ret = stackAlloc( arr.length );
-					writeArrayToMemory( arr, ret );
-					return ret;
-				},
-			};
-			function convertReturnValue( ret ) {
-				if ( returnType === 'string' ) {
-					return UTF8ToString( ret );
-				}
-				if ( returnType === 'boolean' ) {
-					return Boolean( ret );
-				}
-				return ret;
-			}
-			const func = getCFunc( ident );
-			const cArgs = [];
-			let stack = 0;
-			if ( args ) {
-				for ( let i = 0; i < args.length; i++ ) {
-					const converter = toC[ argTypes[ i ] ];
-					if ( converter ) {
-						if ( stack === 0 ) {
-							stack = stackSave();
-						}
-						cArgs[ i ] = converter( args[ i ] );
-					} else {
-						cArgs[ i ] = args[ i ];
-					}
-				}
-			}
-			let ret = func.apply( null, cArgs );
-			ret = convertReturnValue( ret );
-			if ( stack !== 0 ) {
-				stackRestore( stack );
-			}
-			return ret;
-		}
 		const ALLOC_STACK = 1;
 		const ALLOC_NONE = 3;
 		function allocate( slab, types, allocator, ptr ) {
@@ -470,12 +421,6 @@ const PHP = ( function() {
 			if ( ret ) {
 				stringToUTF8Array( str, HEAP8, ret, size );
 			}
-			return ret;
-		}
-		function allocateUTF8OnStack( str ) {
-			const size = lengthBytesUTF8( str ) + 1;
-			const ret = stackAlloc( size );
-			stringToUTF8Array( str, HEAP8, ret, size );
 			return ret;
 		}
 		function writeArrayToMemory( array, buffer ) {
@@ -8010,7 +7955,7 @@ const PHP = ( function() {
 				arguments,
 			);
 		} );
-		Module.ccall = ccall;
+		Module.ccall = () => {};
 		Module.getMemory = getMemory;
 		Module.UTF8ToString = UTF8ToString;
 		Module.lengthBytesUTF8 = lengthBytesUTF8;
@@ -8031,7 +7976,6 @@ const PHP = ( function() {
 			this.message = 'Program terminated with exit(' + status + ')';
 			this.status = status;
 		}
-		let calledMain = false;
 		dependenciesFulfilled = function runCaller() {
 			if ( ! calledRun ) {
 				run();
@@ -8040,77 +7984,8 @@ const PHP = ( function() {
 				dependenciesFulfilled = runCaller;
 			}
 		};
-		function callMain( args ) {
-			const entryFunction = Module._main;
-			args = args || [];
-			const argc = args.length + 1;
-			const argv = stackAlloc( ( argc + 1 ) * 4 );
-			HEAP32[ argv >> 2 ] = allocateUTF8OnStack( thisProgram );
-			for ( let i = 1; i < argc; i++ ) {
-				HEAP32[ ( argv >> 2 ) + i ] = allocateUTF8OnStack( args[ i - 1 ] );
-			}
-			HEAP32[ ( argv >> 2 ) + argc ] = 0;
-			try {
-				const ret = entryFunction( argc, argv );
-				exit( ret, true );
-			} catch ( e ) {
-				if ( e instanceof ExitStatus ) {
-					return;
-				} else if ( e == 'unwind' ) {
-					noExitRuntime = true;
-					return;
-				}
-				let toLog = e;
-				if ( e && typeof e === 'object' && e.stack ) {
-					toLog = [ e, e.stack ];
-				}
-				err( 'exception thrown: ' + toLog );
-				quit_( 1, e );
-			} finally {
-				calledMain = true;
-			}
-		}
-		function run( args ) {
+		function run() {
       return;
-			args = args || arguments_;
-			if ( runDependencies > 0 ) {
-				return;
-			}
-			preRun();
-			if ( runDependencies > 0 ) {
-				return;
-			}
-			function doRun() {
-				if ( calledRun ) {
-					return;
-				}
-				calledRun = true;
-				Module.calledRun = true;
-				if ( ABORT ) {
-					return;
-				}
-				initRuntime();
-				preMain();
-				readyPromiseResolve( Module );
-				if ( Module.onRuntimeInitialized ) {
-					Module.onRuntimeInitialized();
-				}
-				if ( shouldRunNow ) {
-					callMain( args );
-				}
-				postRun();
-			}
-			if ( Module.setStatus ) {
-				Module.setStatus( 'Running...' );
-				setTimeout( function() {
-					setTimeout( function() {
-						Module.setStatus( '' );
-					}, 1 );
-					doRun();
-				}, 1 );
-			} else {
-				doRun();
-			}
 		}
 		Module.run = run;
 		function exit( status, implicit ) {
@@ -8141,7 +8016,6 @@ const PHP = ( function() {
 			shouldRunNow = false;
 		}
 		noExitRuntime = true;
-		run();
 
 		return PHP.ready;
 	};
