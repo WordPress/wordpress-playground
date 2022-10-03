@@ -548,8 +548,16 @@ const PHP = ( function() {
 			} );
 		}
 		function createWasm() {
+			const emptyLibraryArg = {}
+			for(const key in asmLibraryArg){
+				if(typeof asmLibraryArg[key] === "function") {
+					emptyLibraryArg[ key ] = function() {};
+				} else {
+					emptyLibraryArg[ key ] = asmLibraryArg[key];
+				}
+			}
 			const info = {
-				env: asmLibraryArg,
+				env: emptyLibraryArg, //asmLibraryArg,
 				global: { NaN, Infinity },
 				'global.Math': Math,
 				asm2wasm: {
