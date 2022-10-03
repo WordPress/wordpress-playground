@@ -57,6 +57,12 @@ require_once ABSPATH.'wp-content/mu-plugins/example-plugin/example-plugin.php';
 " > wp-content/mu-plugins/index.php
 ```
 
+To generate a new bundle, run:
+
+```bash
+npm run build:wp
+```
+
 ## How does it work?
 
 This repo uses four magic ingredients to make WordPress work in the browser:
