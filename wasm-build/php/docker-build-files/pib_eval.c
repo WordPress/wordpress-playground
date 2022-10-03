@@ -302,36 +302,6 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
 	php_embed_module2.ini_entries = malloc(sizeof(HARDCODED_INI));
 	memcpy(php_embed_module2.ini_entries, HARDCODED_INI, sizeof(HARDCODED_INI));
 
-	/* SAPI-provided functions. */
-	php_embed_module2.additional_functions = additional_functions;
-
-	if (argv) {
-		php_embed_module2.executable_location = argv[0];
-	}
-
-	/* Module initialization (MINIT) */
-	if (php_embed_module2.startup(&php_embed_module2) == FAILURE) {
-		return FAILURE;
-	}
-
-	/* Do not chdir to the script's directory. This is akin to calling the CGI
-	 * SAPI with '-C'.
-	 */
-	SG(options) |= SAPI_OPTION_NO_CHDIR;
-
-	SG(request_info).argc=argc;
-	SG(request_info).argv=argv;
-
-	/* Request initialization (RINIT) */
-	if (php_request_startup() == FAILURE) {
-		php_module_shutdown();
-		return FAILURE;
-	}
-
-	SG(headers_sent) = 1;
-	SG(request_info).no_headers = 1;
-	php_register_variable("PHP_SELF", "-", NULL);
-
 	return SUCCESS;
 }
 
