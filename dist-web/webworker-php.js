@@ -562,6 +562,7 @@ const PHP = ( function() {
 			}
 			addRunDependency( 'wasm-instantiate' );
 			function receiveInstantiatedSource( output ) {
+				console.log("streaming instantiated", output);
 				receiveInstance( output.instance );
 			}
 			function instantiateArrayBuffer( receiver ) {
@@ -584,12 +585,13 @@ const PHP = ( function() {
 					fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 						response,
 					) {
+						console.log("instantiated streaming");
 						const result = WebAssembly.instantiateStreaming( response, info );
-						return result.then( receiveInstantiatedSource, function( reason ) {
-							err( 'wasm streaming compile failed: ' + reason );
-							err( 'falling back to ArrayBuffer instantiation' );
-							return instantiateArrayBuffer( receiveInstantiatedSource );
-						} );
+						// return result.then( receiveInstantiatedSource, function( reason ) {
+						// 	err( 'wasm streaming compile failed: ' + reason );
+						// 	err( 'falling back to ArrayBuffer instantiation' );
+						// 	return instantiateArrayBuffer( receiveInstantiatedSource );
+						// } );
 					} );
 				} else {
 					return instantiateArrayBuffer( receiveInstantiatedSource );
