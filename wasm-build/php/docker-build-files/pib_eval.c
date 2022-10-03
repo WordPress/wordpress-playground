@@ -219,24 +219,10 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 
 	gc_globals_ctor();
 
-//	zuf.error_function = php_error_cb;
-//	zuf.printf_function = php_printf;
-//	zuf.write_function = php_output_write;
-//	zuf.fopen_function = php_fopen_wrapper_for_zend;
-//	zuf.message_handler = php_message_handler_for_zend;
-//	zuf.get_configuration_directive = php_get_configuration_directive_for_zend;
-//	zuf.ticks_function = php_run_ticks;
-//	zuf.on_timeout = php_on_timeout;
-//	zuf.stream_open_function = php_stream_open_for_zend;
-//	zuf.printf_to_smart_string_function = php_printf_to_smart_string;
-//	zuf.printf_to_smart_str_function = php_printf_to_smart_str;
-//	zuf.getenv_function = sapi_getenv;
-//	zuf.resolve_path_function = php_resolve_path_for_zend;
 	zend_startup(&zuf);
-//	zend_reset_lc_ctype_locale();
-	zend_update_current_locale();
+//	zend_update_current_locale();
+//	zend_observer_startup();
 
-	zend_observer_startup();
     // Uncomment to cause the crash.
 	return 0; // php_module_startup(sapi_module, NULL, 1);
 }
