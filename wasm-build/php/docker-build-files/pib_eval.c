@@ -127,8 +127,7 @@ static char* php_embed_read_cookies(void)
 
 static int php_embed_deactivate(void)
 {
-	fflush(stdout);
-	return SUCCESS;
+	return 1;
 }
 
 /* Here we prefer to use write(), which is unbuffered, over fwrite(), which is
@@ -177,9 +176,6 @@ static size_t php_embed_ub_write(const char *str, size_t str_length)
 
 static void php_embed_flush(void *server_context)
 {
-	if (fflush(stdout)==EOF) {
-		php_handle_aborted_connection();
-	}
 }
 
 static void php_embed_send_header(sapi_header_struct *sapi_header, void *server_context)
@@ -193,12 +189,10 @@ static void php_embed_send_header(sapi_header_struct *sapi_header, void *server_
  */
 static void php_embed_log_message(const char *message, int syslog_type_int)
 {
-	fprintf(stderr, "%s\n", message);
 }
 
 static void php_embed_register_variables(zval *track_vars_array)
 {
-	php_import_environment_variables(track_vars_array);
 }
 
 /* Module initialization (MINIT) */
@@ -252,23 +246,6 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
 
 EMBED_SAPI_API void php_embed_shutdown(void)
 {
-	/* Request shutdown (RSHUTDOWN) */
-	php_request_shutdown((void *) 0);
-
-	/* Module shutdown (MSHUTDOWN) */
-	php_module_shutdown();
-
-	/* SAPI shutdown (SSHUTDOWN) */
-	sapi_shutdown();
-
-#ifdef ZTS
-	tsrm_shutdown();
-#endif
-
-	if (php_embed_module2.ini_entries) {
-		free(php_embed_module2.ini_entries);
-		php_embed_module2.ini_entries = NULL;
-	}
 }
 
 
