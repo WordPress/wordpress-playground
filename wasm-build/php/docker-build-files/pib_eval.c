@@ -208,10 +208,10 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 }
 
 EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
-	"embed",                       /* name */
-	"PHP Embedded Library",        /* pretty name */
+	NULL,                       /* name */
+	NULL,        /* pretty name */
 
-	php_embed_startup,             /* startup */
+	NULL,             /* startup */
 	NULL,   /* shutdown */
 
 	NULL,                          /* activate */
