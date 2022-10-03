@@ -11,6 +11,7 @@ docker run \
         -v `pwd`/docker-output:/output \
         wasm-wordpress-php-builder:latest \
         emcc \
+        -I /root/php-src/TSRM \
         -o /output/webworker-php.js \
         -s EXPORTED_FUNCTIONS='["_main"]' \
         -s MAXIMUM_MEMORY=-1             \

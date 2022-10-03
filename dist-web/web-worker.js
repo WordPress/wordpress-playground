@@ -4,8 +4,8 @@
   var noop = function() {
   };
   var wasmTable = new WebAssembly.Table({
-    initial: 2403,
-    maximum: 2403,
+    initial: 77825,
+    maximum: 77825,
     element: "anyfunc"
   });
   var WASM_PAGE_SIZE = 65536;
@@ -273,7 +273,7 @@
       }
     }
   };
-  fetch("webworker-embed_shutdown.wasm").then(async (response) => {
+  fetch("webworker-sapi_startup.wasm").then(async (response) => {
     WebAssembly.instantiate(
       await response.arrayBuffer(),
       info
