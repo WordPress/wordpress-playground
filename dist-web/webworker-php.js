@@ -129,7 +129,7 @@ const PHP = ( function() {
 			'f64-rem'( x, y ) {
 				return x % y;
 			},
-			debugger() {},
+			// debugger() {},
 		};
 		let tempRet0 = 0;
 		const setTempRet0 = function( value ) {
@@ -550,10 +550,11 @@ const PHP = ( function() {
 		function createWasm() {
 			const info = {
 				env: asmLibraryArg,
-				wasi_snapshot_preview1: asmLibraryArg,
 				global: { NaN, Infinity },
 				'global.Math': Math,
-				asm2wasm: asm2wasmImports,
+				asm2wasm: {
+					'f64-rem'() {},
+				},
 			};
 			function receiveInstance( instance, module ) {
 				const exports = instance.exports;
@@ -582,17 +583,18 @@ const PHP = ( function() {
           ! isDataURI( wasmBinaryFile ) &&
           typeof fetch === 'function'
 				) {
-					fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
-						response,
-					) {
-						console.log("instantiated streaming");
-						const result = WebAssembly.instantiateStreaming( response, info );
-						// return result.then( receiveInstantiatedSource, function( reason ) {
-						// 	err( 'wasm streaming compile failed: ' + reason );
-						// 	err( 'falling back to ArrayBuffer instantiation' );
-						// 	return instantiateArrayBuffer( receiveInstantiatedSource );
-						// } );
-					} );
+fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
+	response,
+) {
+	console.log("instantiated streaming");
+	console.log(response, info)
+	const result = WebAssembly.instantiateStreaming( response, info );
+	// return result.then( receiveInstantiatedSource, function( reason ) {
+	// 	err( 'wasm streaming compile failed: ' + reason );
+	// 	err( 'falling back to ArrayBuffer instantiation' );
+	// 	return instantiateArrayBuffer( receiveInstantiatedSource );
+	// } );
+} );
 				} else {
 					return instantiateArrayBuffer( receiveInstantiatedSource );
 				}
