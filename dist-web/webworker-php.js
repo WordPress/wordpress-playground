@@ -120,112 +120,6 @@ const PHP = ( function() {
 			}
 			return _malloc( size );
 		}
-		const UTF8Decoder =
-      typeof TextDecoder !== 'undefined' ? new TextDecoder( 'utf8' ) : undefined;
-		function UTF8ArrayToString( heap, idx, maxBytesToRead ) {
-			const endIdx = idx + maxBytesToRead;
-			let endPtr = idx;
-			while ( heap[ endPtr ] && ! ( endPtr >= endIdx ) ) {
-				++endPtr;
-			}
-			if ( endPtr - idx > 16 && heap.subarray && UTF8Decoder ) {
-				return UTF8Decoder.decode( heap.subarray( idx, endPtr ) );
-			}
-			let str = '';
-			while ( idx < endPtr ) {
-				let u0 = heap[ idx++ ];
-				if ( ! ( u0 & 128 ) ) {
-					str += String.fromCharCode( u0 );
-					continue;
-				}
-				const u1 = heap[ idx++ ] & 63;
-				if ( ( u0 & 224 ) == 192 ) {
-					str += String.fromCharCode( ( ( u0 & 31 ) << 6 ) | u1 );
-					continue;
-				}
-				const u2 = heap[ idx++ ] & 63;
-				if ( ( u0 & 240 ) == 224 ) {
-					u0 = ( ( u0 & 15 ) << 12 ) | ( u1 << 6 ) | u2;
-				} else {
-					u0 = ( ( u0 & 7 ) << 18 ) | ( u1 << 12 ) | ( u2 << 6 ) | ( heap[ idx++ ] & 63 );
-				}
-				if ( u0 < 65536 ) {
-					str += String.fromCharCode( u0 );
-				} else {
-					const ch = u0 - 65536;
-					str += String.fromCharCode( 55296 | ( ch >> 10 ), 56320 | ( ch & 1023 ) );
-				}
-			}
-			return str;
-		}
-		function UTF8ToString( ptr, maxBytesToRead ) {
-			return ptr ? UTF8ArrayToString( HEAPU8, ptr, maxBytesToRead ) : '';
-		}
-		function stringToUTF8Array( str, heap, outIdx, maxBytesToWrite ) {
-			if ( ! ( maxBytesToWrite > 0 ) ) {
-				return 0;
-			}
-			const startIdx = outIdx;
-			const endIdx = outIdx + maxBytesToWrite - 1;
-			for ( let i = 0; i < str.length; ++i ) {
-				let u = str.charCodeAt( i );
-				if ( u >= 55296 && u <= 57343 ) {
-					const u1 = str.charCodeAt( ++i );
-					u = ( 65536 + ( ( u & 1023 ) << 10 ) ) | ( u1 & 1023 );
-				}
-				if ( u <= 127 ) {
-					if ( outIdx >= endIdx ) {
-						break;
-					}
-					heap[ outIdx++ ] = u;
-				} else if ( u <= 2047 ) {
-					if ( outIdx + 1 >= endIdx ) {
-						break;
-					}
-					heap[ outIdx++ ] = 192 | ( u >> 6 );
-					heap[ outIdx++ ] = 128 | ( u & 63 );
-				} else if ( u <= 65535 ) {
-					if ( outIdx + 2 >= endIdx ) {
-						break;
-					}
-					heap[ outIdx++ ] = 224 | ( u >> 12 );
-					heap[ outIdx++ ] = 128 | ( ( u >> 6 ) & 63 );
-					heap[ outIdx++ ] = 128 | ( u & 63 );
-				} else {
-					if ( outIdx + 3 >= endIdx ) {
-						break;
-					}
-					heap[ outIdx++ ] = 240 | ( u >> 18 );
-					heap[ outIdx++ ] = 128 | ( ( u >> 12 ) & 63 );
-					heap[ outIdx++ ] = 128 | ( ( u >> 6 ) & 63 );
-					heap[ outIdx++ ] = 128 | ( u & 63 );
-				}
-			}
-			heap[ outIdx ] = 0;
-			return outIdx - startIdx;
-		}
-		function stringToUTF8( str, outPtr, maxBytesToWrite ) {
-			return stringToUTF8Array( str, HEAPU8, outPtr, maxBytesToWrite );
-		}
-		function lengthBytesUTF8( str ) {
-			let len = 0;
-			for ( let i = 0; i < str.length; ++i ) {
-				let u = str.charCodeAt( i );
-				if ( u >= 55296 && u <= 57343 ) {
-					u = ( 65536 + ( ( u & 1023 ) << 10 ) ) | ( str.charCodeAt( ++i ) & 1023 );
-				}
-				if ( u <= 127 ) {
-					++len;
-				} else if ( u <= 2047 ) {
-					len += 2;
-				} else if ( u <= 65535 ) {
-					len += 3;
-				} else {
-					len += 4;
-				}
-			}
-			return len;
-		}
 		const WASM_PAGE_SIZE = 65536;
 		let buffer,
 			HEAP8,
@@ -570,12 +464,12 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 		// Here's where WASM is being loaded – do not remove this line!
 		Module.asm( asmGlobalArg, asmLibraryArg, buffer );
 
-		Module.ccall = () => {};
+		Module.ccall = noop;
 		Module.getMemory = getMemory;
-		Module.UTF8ToString = UTF8ToString;
-		Module.lengthBytesUTF8 = lengthBytesUTF8;
-		Module.addRunDependency = addRunDependency;
-		Module.removeRunDependency = removeRunDependency;
+		Module.UTF8ToString = noop;
+		Module.lengthBytesUTF8 = noop;
+		Module.addRunDependency = noop;
+		Module.removeRunDependency = noop;
 		let calledRun;
 		dependenciesFulfilled = function runCaller() {
 			if ( ! calledRun ) {
