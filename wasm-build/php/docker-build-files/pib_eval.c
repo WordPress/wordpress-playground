@@ -210,7 +210,7 @@ static int php_embed_startup(sapi_module_struct *sapi_module)
 	int module_number = 0;
 	zend_module_entry *module;
 
-	sapi_initialize_empty_request();
+//	sapi_initialize_empty_request();
 //	sapi_activate();
 
 //	php_output_startup();
