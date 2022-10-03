@@ -139,7 +139,8 @@ static void php_embed_register_variables(zval *track_vars_array)
 /* Module initialization (MINIT) */
 static int php_embed_startup(sapi_module_struct *sapi_module)
 {
-//	return php_module_startup(sapi_module, NULL);
+    // No crash if this is commented
+	return php_module_startup(sapi_module, NULL, 1);
 }
 
 EMBED_SAPI_API sapi_module_struct php_embed_module2 = {
