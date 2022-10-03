@@ -1,3 +1,7 @@
+if ( typeof WebAssembly !== 'object' ) {
+	throw new Error( 'no native wasm support detected' );
+}
+
 const PHP = ( function() {
 	const _scriptDir =
     typeof document !== 'undefined' && document.currentScript
@@ -15,18 +19,6 @@ const PHP = ( function() {
 			readyPromiseReject = reject;
 		} );
 		Module.preInit = function() {};
-		let moduleOverrides = {};
-		let key;
-		for ( key in Module ) {
-			if ( Module.hasOwnProperty( key ) ) {
-				moduleOverrides[ key ] = Module[ key ];
-			}
-		}
-		let arguments_ = [];
-		let thisProgram = './this.program';
-		let quit_ = function( status, toThrow ) {
-			throw toThrow;
-		};
 		const ENVIRONMENT_IS_WEB = false;
 		const ENVIRONMENT_IS_WORKER = true;
 		let scriptDirectory = '';
@@ -74,31 +66,10 @@ const PHP = ( function() {
 		}
 		const out = Module.print || console.log.bind( console );
 		const err = Module.printErr || console.warn.bind( console );
-		for ( key in moduleOverrides ) {
-			if ( moduleOverrides.hasOwnProperty( key ) ) {
-				Module[ key ] = moduleOverrides[ key ];
-			}
-		}
-		moduleOverrides = null;
-		if ( Module.arguments ) {
-			arguments_ = Module.arguments;
-		}
-		if ( Module.thisProgram ) {
-			thisProgram = Module.thisProgram;
-		}
-		if ( Module.quit ) {
-			quit_ = Module.quit;
-		}
+
 		let wasmBinary;
 		if ( Module.wasmBinary ) {
 			wasmBinary = Module.wasmBinary;
-		}
-		let noExitRuntime;
-		if ( Module.noExitRuntime ) {
-			noExitRuntime = Module.noExitRuntime;
-		}
-		if ( typeof WebAssembly !== 'object' ) {
-			err( 'no native wasm support detected' );
 		}
 		let wasmMemory;
 		const wasmTable = new WebAssembly.Table( {
@@ -129,9 +100,9 @@ const PHP = ( function() {
 			Module.HEAPF32 = HEAPF32 = new Float32Array( buf );
 			Module.HEAPF64 = HEAPF64 = new Float64Array( buf );
 		}
-		var DYNAMIC_BASE = 7803952,
+		const DYNAMIC_BASE = 7803952,
 			DYNAMICTOP_PTR = 2560880;
-		let INITIAL_INITIAL_MEMORY = Module.INITIAL_MEMORY || 1073741824;
+		const INITIAL_INITIAL_MEMORY = Module.INITIAL_MEMORY || 1073741824;
 		if ( Module.wasmMemory ) {
 			wasmMemory = Module.wasmMemory;
 		} else {
@@ -249,7 +220,7 @@ const PHP = ( function() {
 			}
 			addRunDependency( 'wasm-instantiate' );
 			function receiveInstantiatedSource( output ) {
-				console.log("streaming instantiated", output);
+				console.log( 'streaming instantiated', output );
 				receiveInstance( output.instance );
 			}
 			function instantiateArrayBuffer( receiver ) {
@@ -269,18 +240,18 @@ const PHP = ( function() {
           ! isDataURI( wasmBinaryFile ) &&
           typeof fetch === 'function'
 				) {
-fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
-	response,
-) {
-	console.log("instantiated streaming");
-	console.log(response, info)
-	const result = WebAssembly.instantiateStreaming( response, info );
-	// return result.then( receiveInstantiatedSource, function( reason ) {
-	// 	err( 'wasm streaming compile failed: ' + reason );
-	// 	err( 'falling back to ArrayBuffer instantiation' );
-	// 	return instantiateArrayBuffer( receiveInstantiatedSource );
-	// } );
-} );
+					fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
+						response,
+					) {
+						console.log( 'instantiated streaming' );
+						console.log( response, info );
+						const result = WebAssembly.instantiateStreaming( response, info );
+						// return result.then( receiveInstantiatedSource, function( reason ) {
+						// 	err( 'wasm streaming compile failed: ' + reason );
+						// 	err( 'falling back to ArrayBuffer instantiation' );
+						// 	return instantiateArrayBuffer( receiveInstantiatedSource );
+						// } );
+					} );
 				} else {
 					return instantiateArrayBuffer( receiveInstantiatedSource );
 				}
@@ -463,10 +434,11 @@ fetch( wasmBinaryFile, { credentials: 'same-origin' } ).then( function(
 				dependenciesFulfilled = runCaller;
 			}
 		};
-		Module.run = function(){};
+		Module.run = function() {};
 		return PHP.ready;
 	};
 }() );
+
 if ( typeof exports === 'object' && typeof module === 'object' ) {
 	module.exports = PHP;
 } else if ( typeof define === 'function' && define.amd ) {
