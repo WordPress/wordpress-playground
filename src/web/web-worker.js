@@ -12,8 +12,6 @@ if ( 'function' === typeof importScripts ) {
 
 	importScripts( '/webworker-php.js' );
 
-	let isReady = false;
-	async function init() {
 		const php = new PHPWrapper( );
 		await php.init( PHP, {
 			async onPreInit( FS, phpModule ) {
@@ -29,23 +27,8 @@ if ( 'function' === typeof importScripts ) {
 				} );
 			},
 		} );
-
-		const wp = new WordPress( php );
-		await wp.init( location.href );
-
-		isReady = true;
-
-		postMessage( {
-			type: 'ready',
-		} );
-		return new WPBrowser( wp, { handleRedirects: true } );
+		console.log( 'loaded' );
 	}
 
-	const browser = init();
-	browser.then(async (b) => {
-		// const result = await b.request( {
-		// 	path: '/'
-		// } );
-		console.log( 'test' );
-	});
+	init();
 }
