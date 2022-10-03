@@ -24,27 +24,4 @@ export default class PHPWrapper {
 		return this._initPromise;
 	}
 
-	async run( code ) {
-		if ( ! this.call ) {
-			throw new Error( `Run init() first!` );
-		}
-		const exitCode = this.call( 'pib_run', NUM, [ STR ], [ `?>${ code }` ] );
-		const response = {
-			exitCode,
-			stdout: this.stdout.join( '\n' ),
-			stderr: this.stderr,
-		};
-		this.clear();
-		return response;
-	}
-
-	async clear() {
-		if ( ! this.call ) {
-			throw new Error( `Run init() first!` );
-		}
-		this.call( 'pib_refresh', NUM, [], [] );
-		this.stdout = [];
-		this.stderr = [];
-	}
-	refresh = this.clear;
 }
