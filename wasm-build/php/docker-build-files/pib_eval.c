@@ -275,14 +275,7 @@ EMBED_SAPI_API void php_embed_shutdown(void)
 SAPI_API sapi_module_struct private_sapi_module;
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    char str = 'a';
-    php_embed_ub_write(&str, 1);
-    php_embed_shutdown();
-    zend_signal_startup();
-    // This causes the crash:
-    // https://github.com/php/php-src/blob/master/main/SAPI.c
-	(&php_embed_module2)->ini_entries = NULL;
-	private_sapi_module = *(&php_embed_module2);
+    php_request_shutdown(NULL);
 
     // This works:
     return 1;
