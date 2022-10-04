@@ -687,55 +687,96 @@ zend_result zend_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_
 
 	ZEND_ASSERT(fci->size == sizeof(zend_fcall_info));
 
-	/* Initialize execute_data */
-	if (!EG(current_execute_data)) {
-		/* This only happens when we're called outside any execute()'s
-		 * It shouldn't be strictly necessary to NULL execute_data out,
-		 * but it may make bugs easier to spot
-		 */
-		memset(&dummy_execute_data, 0, sizeof(zend_execute_data));
-		EG(current_execute_data) = &dummy_execute_data;
-	} else if (EG(current_execute_data)->func &&
-	           ZEND_USER_CODE(EG(current_execute_data)->func->common.type) &&
-	           EG(current_execute_data)->opline->opcode != ZEND_DO_FCALL &&
-	           EG(current_execute_data)->opline->opcode != ZEND_DO_ICALL &&
-	           EG(current_execute_data)->opline->opcode != ZEND_DO_UCALL &&
-	           EG(current_execute_data)->opline->opcode != ZEND_DO_FCALL_BY_NAME) {
-		/* Insert fake frame in case of include or magic calls */
-		dummy_execute_data = *EG(current_execute_data);
-		dummy_execute_data.prev_execute_data = EG(current_execute_data);
-		dummy_execute_data.call = NULL;
-		dummy_execute_data.opline = NULL;
-		dummy_execute_data.func = NULL;
-		EG(current_execute_data) = &dummy_execute_data;
-	}
-
 	if (!fci_cache || !fci_cache->function_handler) {
-		char *error = NULL;
-
 		if (!fci_cache) {
 			fci_cache = &fci_cache_local;
 		}
+	}
 
-		if (!zend_is_callable_ex(&fci->function_name, fci->object, IS_CALLABLE_CHECK_SILENT, NULL, fci_cache, &error)) {
-			if (error) {
-				zend_string *callable_name
-					= zend_get_callable_name_ex(&fci->function_name, fci->object);
-				zend_error(E_WARNING, "Invalid callback %s, %s", ZSTR_VAL(callable_name), error);
-				efree(error);
-				zend_string_release_ex(callable_name, 0);
-			}
+	func = fci_cache->function_handler;
+	if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache->object) {
+	} else {
+		fci->object = fci_cache->object;
+		object_or_called_scope = fci->object;
+		call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
+	}
+
+	call = zend_vm_stack_push_call_frame(call_info,
+		func, fci->param_count, object_or_called_scope);
+
+	if (UNEXPECTED(func->common.fn_flags & ZEND_ACC_DEPRECATED)) {
+		zend_deprecated_function(func);
+
+		if (UNEXPECTED(EG(exception))) {
+			zend_vm_stack_free_call_frame(call);
 			if (EG(current_execute_data) == &dummy_execute_data) {
 				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
+				zend_rethrow_exception(EG(current_execute_data));
 			}
 			return FAILURE;
 		}
-
-		ZEND_ASSERT(!error);
 	}
 
 cleanup_args:
 
+	if (fci->named_params) {
+		zend_string *name;
+		zval *arg;
+		uint32_t arg_num = ZEND_CALL_NUM_ARGS(call) + 1;
+		zend_bool have_named_params = 0;
+		ZEND_HASH_FOREACH_STR_KEY_VAL(fci->named_params, name, arg) {
+			zend_bool must_wrap = 0;
+			zval *target;
+			if (name) {
+				void *cache_slot[2] = {NULL, NULL};
+				have_named_params = 1;
+				target = zend_handle_named_arg(&call, name, &arg_num, cache_slot);
+				if (!target) {
+					goto cleanup_args;
+				}
+			} else {
+				if (have_named_params) {
+					zend_throw_error(NULL,
+						"Cannot use positional argument after named argument");
+					goto cleanup_args;
+				}
+
+				zend_vm_stack_extend_call_frame(&call, arg_num - 1, 1);
+				target = ZEND_CALL_ARG(call, arg_num);
+			}
+
+			if (ARG_SHOULD_BE_SENT_BY_REF(func, arg_num)) {
+				if (UNEXPECTED(!Z_ISREF_P(arg))) {
+					if (!ARG_MAY_BE_SENT_BY_REF(func, arg_num)) {
+						/* By-value send is not allowed -- emit a warning,
+						 * and perform the call with the value wrapped in a reference. */
+						zend_param_must_be_ref(func, arg_num);
+						must_wrap = 1;
+						if (UNEXPECTED(EG(exception))) {
+							goto cleanup_args;
+						}
+					}
+				}
+			} else {
+				if (Z_ISREF_P(arg) &&
+					!(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
+					/* don't separate references for __call */
+					arg = Z_REFVAL_P(arg);
+				}
+			}
+
+			if (EXPECTED(!must_wrap)) {
+				ZVAL_COPY(target, arg);
+			} else {
+				Z_TRY_ADDREF_P(arg);
+				ZVAL_NEW_REF(target, arg);
+			}
+			if (!name) {
+				ZEND_CALL_NUM_ARGS(call)++;
+				arg_num++;
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
 
 	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
 		if (zend_handle_undef_args(call) == FAILURE) {
