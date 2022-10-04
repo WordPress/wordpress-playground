@@ -866,17 +866,6 @@ cleanup_args:
 		} ZEND_HASH_FOREACH_END();
 	}
 
-	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
-		if (zend_handle_undef_args(call) == FAILURE) {
-			zend_vm_stack_free_args(call);
-			zend_vm_stack_free_call_frame(call);
-			if (EG(current_execute_data) == &dummy_execute_data) {
-				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-			}
-			return SUCCESS;
-		}
-	}
-
 //	if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE)) {
 //		uint32_t call_info;
 //
@@ -886,79 +875,6 @@ cleanup_args:
 //			call_info |= ZEND_CALL_FAKE_CLOSURE;
 //		}
 //		ZEND_ADD_CALL_FLAG(call, call_info);
-//	}
-//
-//	orig_fake_scope = EG(fake_scope);
-//	EG(fake_scope) = NULL;
-//	if (func->type == ZEND_USER_FUNCTION) {
-//		int call_via_handler = (func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
-//		const zend_op *current_opline_before_exception = EG(opline_before_exception);
-//		uint32_t orig_jit_trace_num = EG(jit_trace_num);
-//
-//		zend_init_func_execute_data(call, &func->op_array, fci->retval);
-//		ZEND_OBSERVER_FCALL_BEGIN(call);
-//		zend_execute_ex(call);
-//		EG(jit_trace_num) = orig_jit_trace_num;
-//		EG(opline_before_exception) = current_opline_before_exception;
-//		if (call_via_handler) {
-//			/* We must re-initialize function again */
-//			fci_cache->function_handler = NULL;
-//		}
-//	} else {
-//		int call_via_handler = (func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0;
-//
-//		ZEND_ASSERT(func->type == ZEND_INTERNAL_FUNCTION);
-//		ZVAL_NULL(fci->retval);
-//		call->prev_execute_data = EG(current_execute_data);
-//		EG(current_execute_data) = call;
-//		if (EXPECTED(zend_execute_internal == NULL)) {
-//			/* saves one function call if zend_execute_internal is not used */
-//			func->internal_function.handler(call, fci->retval);
-//		} else {
-//			zend_execute_internal(call, fci->retval);
-//		}
-//		EG(current_execute_data) = call->prev_execute_data;
-//		zend_vm_stack_free_args(call);
-//		if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_HAS_EXTRA_NAMED_PARAMS)) {
-//			zend_array_release(call->extra_named_params);
-//		}
-//
-//		if (EG(exception)) {
-//			zval_ptr_dtor(fci->retval);
-//			ZVAL_UNDEF(fci->retval);
-//		}
-//
-//		if (call_via_handler) {
-//			/* We must re-initialize function again */
-//			fci_cache->function_handler = NULL;
-//		}
-//
-//		/* This flag is regularly checked while running user functions, but not internal
-//		 * So see whether interrupt flag was set while the function was running... */
-//		if (EG(vm_interrupt)) {
-//			EG(vm_interrupt) = 0;
-//			if (EG(timed_out)) {
-//				zend_timeout();
-//			} else if (zend_interrupt_function) {
-//				zend_interrupt_function(EG(current_execute_data));
-//			}
-//		}
-//	}
-//	EG(fake_scope) = orig_fake_scope;
-//
-//	zend_vm_stack_free_call_frame(call);
-//
-//	if (EG(current_execute_data) == &dummy_execute_data) {
-//		EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-//	}
-//
-//	if (UNEXPECTED(EG(exception))) {
-//		if (UNEXPECTED(!EG(current_execute_data))) {
-//			zend_throw_exception_internal(NULL);
-//		} else if (EG(current_execute_data)->func &&
-//		           ZEND_USER_CODE(EG(current_execute_data)->func->common.type)) {
-//			zend_rethrow_exception(EG(current_execute_data));
-//		}
 //	}
 
 	return SUCCESS;
