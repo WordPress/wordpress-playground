@@ -51,11 +51,34 @@
 
 #define HT_ASSERT_RC1(ht) HT_ASSERT(ht, GC_REFCOUNT(ht) == 1)
 
-#define HT_POISONED_PTR ((HashTable *) (intptr_t) -1)
+#define HT_POISONED_PTR ((HashTable2 *) (intptr_t) -1)
 #define IS_CONSISTENT(a)
 #define SET_INCONSISTENT(n)
-#define pefree2(ptr, persistent)  free(ptr)
-//((persistent)?free(ptr):efree(ptr))
+
+typedef struct _zend_array2 HashTable2;
+
+struct _zend_array2 {
+	zend_refcounted_h gc;
+	union {
+		struct {
+			ZEND_ENDIAN_LOHI_4(
+				zend_uchar    flags,
+				zend_uchar    _unused,
+				zend_uchar    nIteratorsCount,
+				zend_uchar    _unused2)
+		} v;
+		uint32_t flags;
+	} u;
+	uint32_t          nTableMask;
+	uint32_t          *arData;
+	uint32_t          nNumUsed;
+	uint32_t          nNumOfElements;
+	uint32_t          nTableSize;
+	uint32_t          nInternalPointer;
+	zend_long         nNextFreeElement;
+	dtor_func_t       pDestructor;
+};
+
 
 static zend_always_inline void zend_string_release2(zend_string *s)
 {
@@ -66,7 +89,7 @@ static zend_always_inline void zend_string_release2(zend_string *s)
 	}
 }
 
-ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable *ht)
+ZEND_API void ZEND_FASTCALL zend_hash_destroy3(HashTable2 *ht)
 {
 	Bucket *p, *end;
 
@@ -74,7 +97,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable *ht)
 	HT_ASSERT(ht, GC_REFCOUNT(ht) <= 1);
 
 	if (ht->nNumUsed) {
-		p = ht->arData;
+//		p = ht->arData;
 		end = p + ht->nNumUsed;
 		if (ht->pDestructor) {
 			SET_INCONSISTENT(HT_IS_DESTROYING);
@@ -115,7 +138,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable *ht)
 				do {
 					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
 						if (EXPECTED(p->key)) {
-							zend_string_release2(p->key);
+//							zend_string_release2(p->key);
 						}
 					}
 				} while (++p != end);
@@ -126,10 +149,15 @@ ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable *ht)
     else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
       return;
     }
-	pefree2(HT_GET_DATA_ADDR(ht), GC_FLAGS(ht) & IS_ARRAY_PERSISTENT);
+	free(HT_GET_DATA_ADDR(ht));
 }
 
-ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable *ht)
+ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable2 *ht)
+{
+    printf(" test=%s", ((char*)((ht)->arData)));
+}
+
+ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable2 *ht)
 {
 	Bucket *p, *end;
 
@@ -181,7 +209,7 @@ ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable *ht)
 free_ht:
     return;
 //	zend_hash_iterators_remove(ht);
-//	FREE_HASHTABLE(ht);
+//	FREE_HashTable2(ht);
 }
 
 # define zend_string_destroy2 _efree
@@ -606,7 +634,7 @@ ZEND_API zend_class_entry *zend_lookup_class2(zend_string *name, zend_string *ke
 	}
 
 	if (EG(in_autoload) == NULL) {
-		ALLOC_HASHTABLE(EG(in_autoload));
+//		ALLOC_HashTable(EG(in_autoload));
 		zend_hash_init(EG(in_autoload), 8, NULL, NULL, 0);
 	}
 

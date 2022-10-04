@@ -9,6 +9,20 @@ docker build . --tag=wasm-wordpress-php-builder --build-arg PHP_VERSION=$PHP_VER
 docker run \
         -v `pwd`/preload:/preload \
         -v `pwd`/docker-output:/output \
+        -w /root/php-src \
+        wasm-wordpress-php-builder:latest \
+            emcc -O3 -E \
+            -I .     \
+            -I Zend  \
+            -I main  \
+            -I TSRM/ \
+            $DEFINES \
+            /root/pib_eval.c \
+            -o /output/pib_eval.i;
+
+docker run \
+        -v `pwd`/preload:/preload \
+        -v `pwd`/docker-output:/output \
         wasm-wordpress-php-builder:latest \
 emcc \
 -I /root/php-src/TSRM \
