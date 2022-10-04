@@ -104,24 +104,6 @@ void zend_exception_set_previous(zend_object *exception, zend_object *add_previo
 	ZVAL_OBJ(&pv, add_previous);
 	ZVAL_OBJ(&zv, exception);
 	ex = &zv;
-	do {
-		ancestor = zend_read_property_ex(i_get_exception_base(add_previous), add_previous, ZSTR_KNOWN(ZEND_STR_PREVIOUS), 1, &rv);
-		while (Z_TYPE_P(ancestor) == IS_OBJECT) {
-			if (Z_OBJ_P(ancestor) == Z_OBJ_P(ex)) {
-				OBJ_RELEASE(add_previous);
-				return;
-			}
-			ancestor = zend_read_property_ex(i_get_exception_base(Z_OBJ_P(ancestor)), Z_OBJ_P(ancestor), ZSTR_KNOWN(ZEND_STR_PREVIOUS), 1, &rv);
-		}
-		base_ce = i_get_exception_base(Z_OBJ_P(ex));
-		previous = zend_read_property_ex(base_ce, Z_OBJ_P(ex), ZSTR_KNOWN(ZEND_STR_PREVIOUS), 1, &rv);
-		if (Z_TYPE_P(previous) == IS_NULL) {
-			zend_update_property_ex(base_ce, Z_OBJ_P(ex), ZSTR_KNOWN(ZEND_STR_PREVIOUS), &pv);
-			GC_DELREF(add_previous);
-			return;
-		}
-		ex = previous;
-	} while (Z_OBJ_P(ex) != add_previous);
 }
 /* }}} */
 
