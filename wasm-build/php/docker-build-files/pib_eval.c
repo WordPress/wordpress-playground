@@ -84,28 +84,13 @@ zend_result zend_call_function2(zend_fcall_info *fci, zend_fcall_info_cache *fci
 			if (error) {
 				zend_string *callable_name
 					= zend_get_callable_name_ex(&fci->function_name, fci->object);
-				zend_error(E_WARNING, "Invalid callback %s, %s", ZSTR_VAL(callable_name), error);
 				efree(error);
 				zend_string_release_ex(callable_name, 0);
-			}
-			if (EG(current_execute_data) == &dummy_execute_data) {
-				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
 			}
 			return FAILURE;
 		}
 
 		ZEND_ASSERT(!error);
-	}
-
-	func = fci_cache->function_handler;
-	if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache->object) {
-		fci->object = NULL;
-		object_or_called_scope = fci_cache->called_scope;
-		call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
-	} else {
-		fci->object = fci_cache->object;
-		object_or_called_scope = fci->object;
-		call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
 	}
 
 
