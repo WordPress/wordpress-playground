@@ -4548,6 +4548,17 @@ ZEND_API zend_result ZEND_FASTCALL zend_handle_undef_args2(zend_execute_data *ca
                     init_func_run_time_cache(op_array);
                 }
 
+                void *run_time_cache = RUN_TIME_CACHE(op_array);
+                zval *cache_val =
+                    (zval *) ((char *) run_time_cache + Z_CACHE_SLOT_P(default_value));
+
+                /* Update constant inside a temporary zval, to make sure the CONSTANT_AST
+                 * value is not accessible through back traces. */
+                zval tmp;
+                ZVAL_COPY(&tmp, default_value);
+                zend_execute_data *old = start_fake_frame(call, opline);
+                zend_result ret = zval_update_constant_ex(&tmp, fbc->op_array.scope);
+                end_fake_frame(call, old);
 			}
 		}
 
@@ -4767,7 +4778,7 @@ void (*zend_touch_vm_stack_data)(void *vm_stack_data) = NULL;
 
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    zend_handle_undef_args2(NULL);
+    zval_update_constant_ex(NULL, NULL);
 
     // This works:
     return 1;
