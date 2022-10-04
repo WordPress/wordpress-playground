@@ -677,16 +677,6 @@ zend_result zend_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_
 
 	ZVAL_UNDEF(fci->retval);
 
-	if (!EG(active)) {
-		return FAILURE; /* executor is already inactive */
-	}
-
-	if (EG(exception)) {
-		return FAILURE; /* we would result in an instable executor otherwise */
-	}
-
-	ZEND_ASSERT(fci->size == sizeof(zend_fcall_info));
-
 	if (!fci_cache || !fci_cache->function_handler) {
 		if (!fci_cache) {
 			fci_cache = &fci_cache_local;
@@ -731,40 +721,14 @@ cleanup_args:
 				zend_vm_stack_extend_call_frame(&call, arg_num - 1, 1);
 				target = ZEND_CALL_ARG(call, arg_num);
 			}
-
-			if (ARG_SHOULD_BE_SENT_BY_REF(func, arg_num)) {
-				if (UNEXPECTED(!Z_ISREF_P(arg))) {
-					if (!ARG_MAY_BE_SENT_BY_REF(func, arg_num)) {
-						/* By-value send is not allowed -- emit a warning,
-						 * and perform the call with the value wrapped in a reference. */
-						zend_param_must_be_ref(func, arg_num);
-						must_wrap = 1;
-						if (UNEXPECTED(EG(exception))) {
-							goto cleanup_args;
-						}
-					}
-				}
-			} else {
-				if (Z_ISREF_P(arg) &&
-					!(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
-					/* don't separate references for __call */
-					arg = Z_REFVAL_P(arg);
-				}
-			}
-
-			if (EXPECTED(!must_wrap)) {
-				ZVAL_COPY(target, arg);
-			} else {
-				Z_TRY_ADDREF_P(arg);
-				ZVAL_NEW_REF(target, arg);
-			}
-			if (!name) {
-				ZEND_CALL_NUM_ARGS(call)++;
-				arg_num++;
-			}
 		} ZEND_HASH_FOREACH_END();
 	}
 
+	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
+		if (zend_handle_undef_args(call) == FAILURE) {
+			return SUCCESS;
+		}
+	}
 
 	return SUCCESS;
 }
