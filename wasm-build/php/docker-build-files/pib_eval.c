@@ -39,22 +39,4 @@ void EMSCRIPTEN_KEEPALIVE pib_init(zend_object *object)
 			GC_DELREF(object);
 		}
 	}
-
-	if (GC_REFCOUNT(object) == 0) {
-		uint32_t handle = object->handle;
-		void *ptr;
-
-		ZEND_ASSERT(EG(objects_store).object_buckets != NULL);
-		ZEND_ASSERT(IS_OBJ_VALID(EG(objects_store).object_buckets[handle]));
-		EG(objects_store).object_buckets[handle] = SET_OBJ_INVALID(object);
-		if (!(OBJ_FLAGS(object) & IS_OBJ_FREE_CALLED)) {
-			GC_ADD_FLAGS(object, IS_OBJ_FREE_CALLED);
-			GC_SET_REFCOUNT(object, 1);
-			object->handlers->free_obj(object);
-		}
-		ptr = ((char*)object) - object->handlers->offset;
-		GC_REMOVE_FROM_BUFFER(object);
-		efree(ptr);
-		ZEND_OBJECTS_STORE_ADD_TO_FREE_LIST(handle);
-	}
 }
