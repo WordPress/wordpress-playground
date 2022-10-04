@@ -51,7 +51,7 @@
 
 #define HT_ASSERT_RC1(ht) HT_ASSERT(ht, GC_REFCOUNT(ht) == 1)
 
-#define HT_POISONED_PTR ((HashTable2 *) (intptr_t) -1)
+#define HT_POISONED_PTR ((HashTable *) (intptr_t) -1)
 #define IS_CONSISTENT(a)
 #define SET_INCONSISTENT(n)
 
@@ -63,7 +63,7 @@ static zend_always_inline void i_zval_ptr_dtor2(zval *zval_ptr)
 		if (!GC_DELREF(ref)) {
 			rc_dtor_func2(ref);
 		} else {
-//			gc_check_possible_root(ref);
+			gc_check_possible_root(ref);
 		}
 	}
 }
@@ -75,33 +75,6 @@ ZEND_API void zval_ptr_dtor2(zval *zval_ptr) /* {{{ */
 
 #define ZVAL_PTR_DTOR2 zval_ptr_dtor2
 
-typedef struct _zend_array2 HashTable2;
-
-struct _zend_array2 {
-    union {
-        uint32_t         refcount;			/* reference counter 32-bit */
-        union {
-            uint32_t type_info;
-        } u;
-    } gc;
-	union {
-		struct {
-				unsigned char    flags;
-				unsigned char    _unused;
-				unsigned char    nIteratorsCount;
-				unsigned char    _unused2;
-		} v;
-		uint32_t flags;
-	} u;
-	uint32_t          nTableMask;
-	uint32_t          *arData;
-	uint32_t          nNumUsed;
-	uint32_t          nNumOfElements;
-	uint32_t          nTableSize;
-	uint32_t          nInternalPointer;
-	uint32_t         nNextFreeElement;
-	dtor_func_t       pDestructor;
-};
 
 
 static zend_always_inline void zend_string_release2(zend_string *s)
@@ -133,7 +106,7 @@ static zend_always_inline void zend_hash_iterators_remove2(HashTable *ht)
 	}
 }
 
-ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable2 *ht)
+ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable *ht)
 {
 	Bucket *p, *end;
 
@@ -197,7 +170,7 @@ ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable2 *ht)
 }
 
 
-ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable2 *ht)
+ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable *ht)
 {
 	Bucket *p, *end;
 
@@ -215,41 +188,40 @@ ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable2 *ht)
 			printf(" test=%s", "abc");
 		}
 
-//		p = ht->arData;
-//		end = p + ht->nNumUsed;
-//		SET_INCONSISTENT(HT_IS_DESTROYING);
-//
-//		if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
-//			do {
-//				i_zval_ptr_dtor(&p->val);
-//			} while (++p != end);
-//		} else if (HT_IS_WITHOUT_HOLES(ht)) {
-//			do {
-//				i_zval_ptr_dtor(&p->val);
-//				if (EXPECTED(p->key)) {
-//					zend_string_release_ex(p->key, 0);
-//				}
-//			} while (++p != end);
-//		} else {
-//			do {
-//				if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-//					i_zval_ptr_dtor(&p->val);
-//					if (EXPECTED(p->key)) {
-//						zend_string_release_ex(p->key, 0);
-//					}
-//				}
-//			} while (++p != end);
-//		}
+		p = ht->arData;
+		end = p + ht->nNumUsed;
+		SET_INCONSISTENT(HT_IS_DESTROYING);
+
+		if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
+			do {
+				i_zval_ptr_dtor2(&p->val);
+			} while (++p != end);
+		} else if (HT_IS_WITHOUT_HOLES(ht)) {
+			do {
+				i_zval_ptr_dtor2(&p->val);
+				if (EXPECTED(p->key)) {
+					zend_string_release_ex(p->key, 0);
+				}
+			} while (++p != end);
+		} else {
+			do {
+				if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+					i_zval_ptr_dtor2(&p->val);
+					if (EXPECTED(p->key)) {
+						zend_string_release_ex(p->key, 0);
+					}
+				}
+			} while (++p != end);
+		}
 	}
-//	else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
-//		goto free_ht;
-//	}
-//	SET_INCONSISTENT(HT_DESTROYED);
-//	efree(HT_GET_DATA_ADDR(ht));
+	else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
+		goto free_ht;
+	}
+	SET_INCONSISTENT(HT_DESTROYED);
+	efree(HT_GET_DATA_ADDR(ht));
 free_ht:
-    return;
-//	zend_hash_iterators_remove(ht);
-//	FREE_HashTable2(ht);
+	zend_hash_iterators_remove2(ht);
+//	FREE_HashTable(ht);
 }
 
 # define zend_string_destroy2 _efree
@@ -311,7 +283,7 @@ tail_call:
 ZEND_API void ZEND_FASTCALL zend_ast_ref_destroy2(zend_ast_ref *ast)
 {
 	zend_ast_destroy2(GC_AST(ast));
-//	efree(ast);
+	efree(ast);
 }
 
 ZEND_API void zend_objects_destroy_object2(zend_object *object)
@@ -415,9 +387,9 @@ ZEND_API void ZEND_FASTCALL zend_objects_store_del2(zend_object *object) /* {{{ 
 		if (object->handlers->dtor_obj != zend_objects_destroy_object2
 				|| object->ce->destructor) {
             printf(" test=%s", "abc");
-//			GC_SET_REFCOUNT(object, 1);
-//			object->handlers->dtor_obj(object);
-//			GC_DELREF(object);
+			GC_SET_REFCOUNT(object, 1);
+			object->handlers->dtor_obj(object);
+			GC_DELREF(object);
 		}
 	}
 
@@ -495,6 +467,24 @@ static zend_always_inline void zend_vm_stack_free_args2(zend_execute_data *call)
 	}
 }
 
+ZEND_API zend_bool zend_is_callable_at_frame2(
+		zval *callable, zend_object *object, zend_execute_data *frame,
+		uint32_t check_flags, zend_fcall_info_cache *fcc, char **error);
+
+ZEND_API zend_bool zend_is_callable_ex2(zval *callable, zend_object *object, uint32_t check_flags, zend_string **callable_name, zend_fcall_info_cache *fcc, char **error) /* {{{ */
+{
+	/* Determine callability at the first parent user frame. */
+	zend_execute_data *frame = EG(current_execute_data);
+	while (frame && (!frame->func || !ZEND_USER_CODE(frame->func->type))) {
+		frame = frame->prev_execute_data;
+	}
+
+	zend_bool ret = zend_is_callable_at_frame2(callable, object, frame, check_flags, fcc, error);
+	if (callable_name) {
+		*callable_name = zend_get_callable_name_ex(callable, object);
+	}
+	return ret;
+}
 
 zend_result zend_call_function2(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache) /* {{{ */
 {
@@ -548,7 +538,7 @@ zend_result zend_call_function2(zend_fcall_info *fci, zend_fcall_info_cache *fci
 			fci_cache = &fci_cache_local;
 		}
 
-		if( false )// (!zend_is_callable_ex(&fci->function_name, fci->object, IS_CALLABLE_CHECK_SILENT, NULL, fci_cache, &error))
+		if( !zend_is_callable_ex2(&fci->function_name, fci->object, IS_CALLABLE_CHECK_SILENT, NULL, fci_cache, &error))
 		{
 			if (error) {
 				zend_string *callable_name

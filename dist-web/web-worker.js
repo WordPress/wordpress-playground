@@ -4,8 +4,8 @@
   var noop = function() {
   };
   var wasmTable = new WebAssembly.Table({
-    initial: 994,
-    maximum: 994,
+    initial: 177,
+    maximum: 177,
     element: "anyfunc"
   });
   var WASM_PAGE_SIZE = 65536;
@@ -238,6 +238,7 @@
       "nullFunc_iiiiid": noop,
       "nullFunc_iiiiiid": noop,
       "nullFunc_iiiiii": noop,
+      _zend_empty_destroy2: noop,
       nullFunc_iiiiiii: noop,
       nullFunc_iiiiiiii: noop,
       nullFunc_iiiiiiiii: noop,
