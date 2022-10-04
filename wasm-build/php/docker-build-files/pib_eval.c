@@ -4544,44 +4544,21 @@ ZEND_API zend_result ZEND_FASTCALL zend_handle_undef_args2(zend_execute_data *ca
 			zend_op *opline = &op_array->opcodes[i];
 			if (EXPECTED(opline->opcode == ZEND_RECV_INIT)) {
 				zval *default_value = RT_CONSTANT(opline, opline->op2);
-				if (Z_OPT_TYPE_P(default_value) == IS_CONSTANT_AST) {
-					if (UNEXPECTED(!RUN_TIME_CACHE(op_array))) {
-						init_func_run_time_cache(op_array);
-					}
+                if (UNEXPECTED(!RUN_TIME_CACHE(op_array))) {
+                    init_func_run_time_cache(op_array);
+                }
 
-					void *run_time_cache = RUN_TIME_CACHE(op_array);
-					zval *cache_val =
-						(zval *) ((char *) run_time_cache + Z_CACHE_SLOT_P(default_value));
+                void *run_time_cache = RUN_TIME_CACHE(op_array);
+                zval *cache_val =
+                    (zval *) ((char *) run_time_cache + Z_CACHE_SLOT_P(default_value));
 
-					if (Z_TYPE_P(cache_val) != IS_UNDEF) {
-						/* We keep in cache only not refcounted values */
-						ZVAL_COPY_VALUE(arg, cache_val);
-					} else {
-						/* Update constant inside a temporary zval, to make sure the CONSTANT_AST
-						 * value is not accessible through back traces. */
-						zval tmp;
-						ZVAL_COPY(&tmp, default_value);
-						zend_execute_data *old = start_fake_frame(call, opline);
-						zend_result ret = zval_update_constant_ex(&tmp, fbc->op_array.scope);
-						end_fake_frame(call, old);
-						if (UNEXPECTED(ret == FAILURE)) {
-							zval_ptr_dtor_nogc(&tmp);
-							return FAILURE;
-						}
-						ZVAL_COPY_VALUE(arg, &tmp);
-						if (!Z_REFCOUNTED(tmp)) {
-							ZVAL_COPY_VALUE(cache_val, &tmp);
-						}
-					}
-				} else {
-					ZVAL_COPY(arg, default_value);
-				}
-			} else {
-				ZEND_ASSERT(opline->opcode == ZEND_RECV);
-				zend_execute_data *old = start_fake_frame(call, opline);
-				zend_argument_error(zend_ce_argument_count_error, i + 1, "not passed");
-				end_fake_frame(call, old);
-				return FAILURE;
+                /* Update constant inside a temporary zval, to make sure the CONSTANT_AST
+                 * value is not accessible through back traces. */
+                zval tmp;
+                ZVAL_COPY(&tmp, default_value);
+                zend_execute_data *old = start_fake_frame(call, opline);
+                zend_result ret = zval_update_constant_ex(&tmp, fbc->op_array.scope);
+                end_fake_frame(call, old);
 			}
 		}
 
