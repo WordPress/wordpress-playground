@@ -62,12 +62,6 @@
 139a163,167
 >  (func $_zend_mm_realloc_huge (param $$heap i32) (param $$ptr i32) (param $$size i32) (param $$copy_size i32) (result i32)
 >  (func $_zend_mm_realloc_slow (param $$heap i32) (param $$ptr i32) (param $$size i32) (param $$copy_size i32) (result i32)
->  (func $__emalloc_8 (result i32)
->  (func $__emalloc_16 (result i32)
->  (func $__emalloc_24 (result i32)
-140a169,170
->  (func $__emalloc_48 (result i32)
->  (func $__emalloc_224 (result i32)
 141a172
 >  (func $__efree_8 (param $$ptr i32)
 142a174
