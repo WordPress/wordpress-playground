@@ -55,6 +55,26 @@
 #define IS_CONSISTENT(a)
 #define SET_INCONSISTENT(n)
 
+ZEND_API void ZEND_FASTCALL rc_dtor_func2(zend_refcounted *p);
+static zend_always_inline void i_zval_ptr_dtor2(zval *zval_ptr)
+{
+	if (Z_REFCOUNTED_P(zval_ptr)) {
+		zend_refcounted *ref = Z_COUNTED_P(zval_ptr);
+		if (!GC_DELREF(ref)) {
+			rc_dtor_func2(ref);
+		} else {
+//			gc_check_possible_root(ref);
+		}
+	}
+}
+
+ZEND_API void zval_ptr_dtor2(zval *zval_ptr) /* {{{ */
+{
+	i_zval_ptr_dtor2(zval_ptr);
+}
+
+#define ZVAL_PTR_DTOR2 zval_ptr_dtor2
+
 typedef struct _zend_array2 HashTable2;
 
 struct _zend_array2 {
@@ -80,7 +100,7 @@ struct _zend_array2 {
 	uint32_t          nTableSize;
 	uint32_t          nInternalPointer;
 	uint32_t         nNextFreeElement;
-	uint32_t       pDestructor;
+	dtor_func_t       pDestructor;
 };
 
 
@@ -88,78 +108,94 @@ static zend_always_inline void zend_string_release2(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
 		if (GC_DELREF(s) == 0) {
-//			pefree(s, GC_FLAGS(s) & IS_STR_PERSISTENT);
+			pefree(s, GC_FLAGS(s) & IS_STR_PERSISTENT);
 		}
 	}
 }
-//
-//ZEND_API void ZEND_FASTCALL zend_hash_destroy3(HashTable2 *ht)
-//{
-//	Bucket *p, *end;
-//
-//	IS_CONSISTENT(ht);
-//	HT_ASSERT(ht, GC_REFCOUNT(ht) <= 1);
-//
-//	if (ht->nNumUsed) {
-////		p = ht->arData;
-//		end = p + ht->nNumUsed;
-//		if (ht->pDestructor) {
-//			SET_INCONSISTENT(HT_IS_DESTROYING);
-//
-//			if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
-//				if (HT_IS_WITHOUT_HOLES(ht)) {
-//					do {
-////						ht->pDestructor(&p->val);
-//					} while (++p != end);
-//				} else {
-//					do {
-//						if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-////							ht->pDestructor(&p->val);
-//						}
-//					} while (++p != end);
-//				}
-//			} else if (HT_IS_WITHOUT_HOLES(ht)) {
-//				do {
-////					ht->pDestructor(&p->val);
-//					if (EXPECTED(p->key)) {
-////						zend_string_release(p->key);
-//					}
-//				} while (++p != end);
-//			} else {
-//				do {
-//					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-////						ht->pDestructor(&p->val);
-//						if (EXPECTED(p->key)) {
-////							zend_string_release(p->key);
-//						}
-//					}
-//				} while (++p != end);
-//			}
-//
-//			SET_INCONSISTENT(HT_DESTROYED);
-//		} else {
-//			if (!HT_HAS_STATIC_KEYS_ONLY(ht)) {
-//				do {
-//					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-//						if (EXPECTED(p->key)) {
-////							zend_string_release2(p->key);
-//						}
-//					}
-//				} while (++p != end);
-//			}
-//		}
-////		zend_hash_iterators_remove(ht);
-//	}
-//    else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
-//      return;
-//    }
-//	free(HT_GET_DATA_ADDR(ht));
-//}
+
+static zend_never_inline void ZEND_FASTCALL _zend_hash_iterators_remove2(HashTable *ht)
+{
+	HashTableIterator *iter = EG(ht_iterators);
+	HashTableIterator *end  = iter + EG(ht_iterators_used);
+
+	while (iter != end) {
+		if (iter->ht == ht) {
+			iter->ht = HT_POISONED_PTR;
+		}
+		iter++;
+	}
+}
+
+static zend_always_inline void zend_hash_iterators_remove2(HashTable *ht)
+{
+	if (UNEXPECTED(HT_HAS_ITERATORS(ht))) {
+		_zend_hash_iterators_remove2(ht);
+	}
+}
 
 ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable2 *ht)
 {
-    printf(" test=%s", ((char*)((ht)->arData)));
+	Bucket *p, *end;
+
+	IS_CONSISTENT(ht);
+	HT_ASSERT(ht, GC_REFCOUNT(ht) <= 1);
+
+	if (ht->nNumUsed) {
+//		p = ht->arData;
+		end = p + ht->nNumUsed;
+		if (ht->pDestructor) {
+			SET_INCONSISTENT(HT_IS_DESTROYING);
+
+			if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
+				if (HT_IS_WITHOUT_HOLES(ht)) {
+					do {
+						ht->pDestructor(&p->val);
+					} while (++p != end);
+				} else {
+					do {
+						if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+							ht->pDestructor(&p->val);
+						}
+					} while (++p != end);
+				}
+			} else if (HT_IS_WITHOUT_HOLES(ht)) {
+				do {
+					ht->pDestructor(&p->val);
+					if (EXPECTED(p->key)) {
+						zend_string_release2(p->key);
+					}
+				} while (++p != end);
+			} else {
+				do {
+					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+						ht->pDestructor(&p->val);
+						if (EXPECTED(p->key)) {
+							zend_string_release2(p->key);
+						}
+					}
+				} while (++p != end);
+			}
+
+			SET_INCONSISTENT(HT_DESTROYED);
+		} else {
+			if (!HT_HAS_STATIC_KEYS_ONLY(ht)) {
+				do {
+					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+						if (EXPECTED(p->key)) {
+							zend_string_release2(p->key);
+						}
+					}
+				} while (++p != end);
+			}
+		}
+		zend_hash_iterators_remove2(ht);
+	}
+    else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
+      return;
+    }
+	free(HT_GET_DATA_ADDR(ht));
 }
+
 
 ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable2 *ht)
 {
@@ -174,9 +210,9 @@ ZEND_API void ZEND_FASTCALL zend_array_destroy2(HashTable2 *ht)
 
 	if (ht->nNumUsed) {
 		/* In some rare cases destructors of regular arrays may be changed */
-		if (UNEXPECTED(ht->pDestructor != ZVAL_PTR_DTOR)) {
-			zend_hash_destroy2(ht);
-//			goto free_ht;
+		if (UNEXPECTED(ht->pDestructor != ZVAL_PTR_DTOR2))
+		{
+			printf(" test=%s", "abc");
 		}
 
 //		p = ht->arData;
@@ -219,22 +255,217 @@ free_ht:
 # define zend_string_destroy2 _efree
 static void ZEND_FASTCALL zend_reference_destroy2(zend_reference *ref);
 static void ZEND_FASTCALL zend_empty_destroy2(zend_reference *ref);
+static zend_always_inline void zval_ptr_dtor_nogc2(zval *zval_ptr);
 
 typedef void (ZEND_FASTCALL *zend_rc_dtor_func_t2)(zend_refcounted *p);
 
+ZEND_API void ZEND_FASTCALL zend_ast_destroy2(zend_ast *ast)
+{
+tail_call:
+	if (!ast) {
+		return;
+	}
+
+	if (EXPECTED(ast->kind >= ZEND_AST_VAR)) {
+		uint32_t i, children = zend_ast_get_num_children(ast);
+
+		for (i = 1; i < children; i++) {
+			zend_ast_destroy2(ast->child[i]);
+		}
+		ast = ast->child[0];
+		goto tail_call;
+	} else if (EXPECTED(ast->kind == ZEND_AST_ZVAL)) {
+		zval_ptr_dtor_nogc2(zend_ast_get_zval(ast));
+	} else if (EXPECTED(zend_ast_is_list(ast))) {
+		zend_ast_list *list = zend_ast_get_list(ast);
+		if (list->children) {
+			uint32_t i;
+
+			for (i = 1; i < list->children; i++) {
+				zend_ast_destroy2(list->child[i]);
+			}
+			ast = list->child[0];
+			goto tail_call;
+		}
+	} else if (EXPECTED(ast->kind == ZEND_AST_CONSTANT)) {
+		zend_string_release_ex(zend_ast_get_constant_name(ast), 0);
+	} else if (EXPECTED(ast->kind >= ZEND_AST_FUNC_DECL)) {
+		zend_ast_decl *decl = (zend_ast_decl *) ast;
+
+		if (decl->name) {
+		    zend_string_release_ex(decl->name, 0);
+		}
+		if (decl->doc_comment) {
+			zend_string_release_ex(decl->doc_comment, 0);
+		}
+		zend_ast_destroy2(decl->child[0]);
+		zend_ast_destroy2(decl->child[1]);
+		zend_ast_destroy2(decl->child[2]);
+		zend_ast_destroy2(decl->child[3]);
+		ast = decl->child[4];
+		goto tail_call;
+	}
+}
+
+
+ZEND_API void ZEND_FASTCALL zend_ast_ref_destroy2(zend_ast_ref *ast)
+{
+	zend_ast_destroy2(GC_AST(ast));
+//	efree(ast);
+}
+
+ZEND_API void zend_objects_destroy_object2(zend_object *object)
+{
+	zend_function *destructor = object->ce->destructor;
+
+	if (destructor) {
+		zend_object *old_exception;
+		if (destructor->op_array.fn_flags & (ZEND_ACC_PRIVATE|ZEND_ACC_PROTECTED)) {
+			if (destructor->op_array.fn_flags & ZEND_ACC_PRIVATE) {
+				/* Ensure that if we're calling a private function, we're allowed to do so.
+				 */
+				if (EG(current_execute_data)) {
+					zend_class_entry *scope = zend_get_executed_scope();
+
+					if (object->ce != scope) {
+						zend_throw_error(NULL,
+							"Call to private %s::__destruct() from %s%s",
+							ZSTR_VAL(object->ce->name),
+							scope ? "scope " : "global scope",
+							scope ? ZSTR_VAL(scope->name) : ""
+						);
+						return;
+					}
+				} else {
+					zend_error(E_WARNING,
+						"Call to private %s::__destruct() from global scope during shutdown ignored",
+						ZSTR_VAL(object->ce->name));
+					return;
+				}
+			} else {
+				/* Ensure that if we're calling a protected function, we're allowed to do so.
+				 */
+				if (EG(current_execute_data)) {
+					zend_class_entry *scope = zend_get_executed_scope();
+
+					if (!zend_check_protected(zend_get_function_root_class(destructor), scope))
+					{
+						zend_throw_error(NULL,
+							"Call to protected %s::__destruct() from %s%s",
+							ZSTR_VAL(object->ce->name),
+							scope ? "scope " : "global scope",
+							scope ? ZSTR_VAL(scope->name) : ""
+						);
+						return;
+					}
+				} else {
+					zend_error(E_WARNING,
+						"Call to protected %s::__destruct() from global scope during shutdown ignored",
+						ZSTR_VAL(object->ce->name));
+					return;
+				}
+			}
+		}
+
+		GC_ADDREF(object);
+
+		/* Make sure that destructors are protected from previously thrown exceptions.
+		 * For example, if an exception was thrown in a function and when the function's
+		 * local variable destruction results in a destructor being called.
+		 */
+		old_exception = NULL;
+		if (EG(exception)) {
+			if (EG(exception) == object) {
+				zend_error_noreturn(E_CORE_ERROR, "Attempt to destruct pending exception");
+			} else {
+				old_exception = EG(exception);
+				EG(exception) = NULL;
+			}
+		}
+
+//		zend_call_known_instance_method_with_0_params(destructor, object, NULL);
+
+		if (old_exception) {
+			if (EG(exception)) {
+//				zend_exception_set_previous(EG(exception), old_exception);
+			} else {
+				EG(exception) = old_exception;
+			}
+		}
+//		OBJ_RELEASE(object);
+	}
+}
+
+ZEND_API void ZEND_FASTCALL zend_objects_store_del2(zend_object *object) /* {{{ */
+{
+	ZEND_ASSERT(GC_REFCOUNT(object) == 0);
+
+	/* GC might have released this object already. */
+	if (UNEXPECTED(GC_TYPE(object) == IS_NULL)) {
+		return;
+	}
+
+	/*	Make sure we hold a reference count during the destructor call
+		otherwise, when the destructor ends the storage might be freed
+		when the refcount reaches 0 a second time
+	 */
+	if (!(OBJ_FLAGS(object) & IS_OBJ_DESTRUCTOR_CALLED)) {
+		GC_ADD_FLAGS(object, IS_OBJ_DESTRUCTOR_CALLED);
+
+		if (object->handlers->dtor_obj != zend_objects_destroy_object2
+				|| object->ce->destructor) {
+            printf(" test=%s", "abc");
+//			GC_SET_REFCOUNT(object, 1);
+//			object->handlers->dtor_obj(object);
+//			GC_DELREF(object);
+		}
+	}
+
+	if (GC_REFCOUNT(object) == 0) {
+		uint32_t handle = object->handle;
+		void *ptr;
+
+		ZEND_ASSERT(EG(objects_store).object_buckets != NULL);
+		ZEND_ASSERT(IS_OBJ_VALID(EG(objects_store).object_buckets[handle]));
+		EG(objects_store).object_buckets[handle] = SET_OBJ_INVALID(object);
+		if (!(OBJ_FLAGS(object) & IS_OBJ_FREE_CALLED)) {
+			GC_ADD_FLAGS(object, IS_OBJ_FREE_CALLED);
+			GC_SET_REFCOUNT(object, 1);
+			object->handlers->free_obj(object);
+		}
+		ptr = ((char*)object) - object->handlers->offset;
+		GC_REMOVE_FROM_BUFFER(object);
+		efree(ptr);
+		ZEND_OBJECTS_STORE_ADD_TO_FREE_LIST(handle);
+	}
+}
+
+ZEND_API void ZEND_FASTCALL zend_list_free2(zend_resource *res)
+{
+	ZEND_ASSERT(GC_REFCOUNT(res) == 0);
+	zend_hash_index_del(&EG(regular_list), res->handle);
+}
+
+static void ZEND_FASTCALL zend_reference_destroy2(zend_reference *ref)
+{
+	ZEND_ASSERT(!ZEND_REF_HAS_TYPE_SOURCES(ref));
+	i_zval_ptr_dtor2(&ref->val);
+	efree_size(ref, sizeof(zend_reference));
+}
+
 static const zend_rc_dtor_func_t2 zend_rc_dtor_func2[] = {
-//	/* IS_UNDEF        */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_NULL         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_FALSE        */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_TRUE         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_LONG         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_DOUBLE       */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
-//	/* IS_STRING       */ (zend_rc_dtor_func_t2)zend_string_destroy2,
+	/* IS_UNDEF        */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_NULL         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_FALSE        */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_TRUE         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_LONG         */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_DOUBLE       */ (zend_rc_dtor_func_t2)zend_empty_destroy2,
+	/* IS_STRING       */ (zend_rc_dtor_func_t2)zend_string_destroy2,
 	/* IS_ARRAY        */ (zend_rc_dtor_func_t2)zend_array_destroy2,
-//	/* IS_OBJECT       */ (zend_rc_dtor_func_t2)zend_objects_store_del,
-//	/* IS_RESOURCE     */ (zend_rc_dtor_func_t2)zend_list_free,
-//	/* IS_REFERENCE    */ (zend_rc_dtor_func_t2)zend_reference_destroy2,
-//	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t2)zend_ast_ref_destroy
+	/* IS_OBJECT       */ (zend_rc_dtor_func_t2)zend_objects_store_del2,
+	/* IS_RESOURCE     */ (zend_rc_dtor_func_t2)zend_list_free2,
+	/* IS_REFERENCE    */ (zend_rc_dtor_func_t2)zend_reference_destroy2,
+	/* IS_CONSTANT_AST */ (zend_rc_dtor_func_t2)zend_ast_ref_destroy2
 };
 
 ZEND_API void ZEND_FASTCALL rc_dtor_func2(zend_refcounted *p)
