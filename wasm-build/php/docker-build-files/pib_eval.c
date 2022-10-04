@@ -21,9 +21,8 @@ int EMSCRIPTEN_KEEPALIVE pib_init()
 	const char *name = ZSTR_VAL(cname);
 	size_t name_len = ZSTR_LEN(cname);
     zend_string *class_name = zend_string_init(name, 10, 0);
-    zend_string_equals_literal_ci(class_name, "self");
     zend_fetch_class(class_name, 0);
-    zend_get_called_scope(EG(current_execute_data));
+//    zend_get_called_scope(EG(current_execute_data));
 
 
     return 1;
