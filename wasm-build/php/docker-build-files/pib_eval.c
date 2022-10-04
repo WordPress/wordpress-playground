@@ -75,8 +75,8 @@ struct _zend_array2 {
 	uint32_t          nNumOfElements;
 	uint32_t          nTableSize;
 	uint32_t          nInternalPointer;
-	zend_long         nNextFreeElement;
-	dtor_func_t       pDestructor;
+	uint32_t         nNextFreeElement;
+	uint32_t       pDestructor;
 };
 
 
