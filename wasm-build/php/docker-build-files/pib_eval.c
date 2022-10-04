@@ -14,9 +14,13 @@
 #include "zend_smart_str.h"
 #include "zend_exceptions_arginfo.h"
 #include "zend_observer.h"
+#include "zend_globals.h"
+#include "zend_variables.h"
+#include "zend_weakrefs.h"
 
-bool EMSCRIPTEN_KEEPALIVE pib_init(zend_object *object)
+
+void EMSCRIPTEN_KEEPALIVE pib_init(zend_object *object)
 {
-    bool a = object->handlers->dtor_obj != zend_objects_destroy_object;
-    return a;
+	zend_function *destructor = object->ce->destructor;
+    zend_call_known_instance_method_with_0_params(destructor, object, NULL);
 }
