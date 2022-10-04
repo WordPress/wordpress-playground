@@ -95,7 +95,7 @@ RUN cp -v php-src/.libs/libphp.a /root/lib//libphp7.a
 COPY ./docker-build-files/pib_eval.c /root/
 
 RUN cd php-src/ && \
-    emcc -O3 \
+    emcc -g3 \
     -I .     \
     -I Zend  \
     -I main  \

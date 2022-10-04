@@ -4,8 +4,8 @@
   var noop = function() {
   };
   var wasmTable = new WebAssembly.Table({
-    initial: 177,
-    maximum: 177,
+    initial: 1090,
+    maximum: 1090,
     element: "anyfunc"
   });
   var WASM_PAGE_SIZE = 65536;
@@ -239,6 +239,7 @@
       "nullFunc_iiiiiid": noop,
       "nullFunc_iiiiii": noop,
       _zend_empty_destroy2: noop,
+      _zend_empty_array2: 123,
       nullFunc_iiiiiii: noop,
       nullFunc_iiiiiiii: noop,
       nullFunc_iiiiiiiii: noop,
@@ -274,7 +275,7 @@
       }
     }
   };
-  fetch("webworker-sapi_startup.wasm").then(async (response) => {
+  fetch("fix.wasm").then(async (response) => {
     WebAssembly.instantiate(
       await response.arrayBuffer(),
       info
