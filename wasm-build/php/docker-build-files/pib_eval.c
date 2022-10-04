@@ -734,33 +734,6 @@ zend_result zend_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_
 		ZEND_ASSERT(!error);
 	}
 
-	func = fci_cache->function_handler;
-	if ((func->common.fn_flags & ZEND_ACC_STATIC) || !fci_cache->object) {
-		fci->object = NULL;
-		object_or_called_scope = fci_cache->called_scope;
-		call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC;
-	} else {
-		fci->object = fci_cache->object;
-		object_or_called_scope = fci->object;
-		call_info = ZEND_CALL_TOP_FUNCTION | ZEND_CALL_DYNAMIC | ZEND_CALL_HAS_THIS;
-	}
-
-	call = zend_vm_stack_push_call_frame(call_info,
-		func, fci->param_count, object_or_called_scope);
-
-	if (UNEXPECTED(func->common.fn_flags & ZEND_ACC_DEPRECATED)) {
-		zend_deprecated_function(func);
-
-		if (UNEXPECTED(EG(exception))) {
-			zend_vm_stack_free_call_frame(call);
-			if (EG(current_execute_data) == &dummy_execute_data) {
-				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-				zend_rethrow_exception(EG(current_execute_data));
-			}
-			return FAILURE;
-		}
-	}
-
 cleanup_args:
 
 	if (fci->named_params) {
