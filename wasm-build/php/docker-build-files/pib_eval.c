@@ -15,12 +15,8 @@
 #include "zend_exceptions_arginfo.h"
 #include "zend_observer.h"
 
-void EMSCRIPTEN_KEEPALIVE pib_init(zend_object *object)
+bool EMSCRIPTEN_KEEPALIVE pib_init(zend_object *object)
 {
-	if (!(OBJ_FLAGS(object) & IS_OBJ_DESTRUCTOR_CALLED)) {
-		if (object->handlers->dtor_obj != zend_objects_destroy_object
-				|| object->ce->destructor) {
-			GC_SET_REFCOUNT(object, 1);
-		}
-	}
+    bool a = object->handlers->dtor_obj != zend_objects_destroy_object;
+    return a;
 }
