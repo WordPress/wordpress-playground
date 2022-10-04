@@ -761,51 +761,7 @@ zend_result zend_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_
 		}
 	}
 
-	for (i=0; i<fci->param_count; i++) {
-		zval *param = ZEND_CALL_ARG(call, i+1);
-		zval *arg = &fci->params[i];
-		zend_bool must_wrap = 0;
-		if (UNEXPECTED(Z_ISUNDEF_P(arg))) {
-			/* Allow forwarding undef slots. This is only used by Closure::__invoke(). */
-			ZVAL_UNDEF(param);
-			ZEND_ADD_CALL_FLAG(call, ZEND_CALL_MAY_HAVE_UNDEF);
-			continue;
-		}
-
-		if (ARG_SHOULD_BE_SENT_BY_REF(func, i + 1)) {
-			if (UNEXPECTED(!Z_ISREF_P(arg))) {
-				if (!ARG_MAY_BE_SENT_BY_REF(func, i + 1)) {
-					/* By-value send is not allowed -- emit a warning,
-					 * and perform the call with the value wrapped in a reference. */
-					zend_param_must_be_ref(func, i + 1);
-					must_wrap = 1;
-					if (UNEXPECTED(EG(exception))) {
-						ZEND_CALL_NUM_ARGS(call) = i;
 cleanup_args:
-						zend_vm_stack_free_args(call);
-						zend_vm_stack_free_call_frame(call);
-						if (EG(current_execute_data) == &dummy_execute_data) {
-							EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-						}
-						return FAILURE;
-					}
-				}
-			}
-		} else {
-			if (Z_ISREF_P(arg) &&
-			    !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
-				/* don't separate references for __call */
-				arg = Z_REFVAL_P(arg);
-			}
-		}
-
-		if (EXPECTED(!must_wrap)) {
-			ZVAL_COPY(param, arg);
-		} else {
-			Z_TRY_ADDREF_P(arg);
-			ZVAL_NEW_REF(param, arg);
-		}
-	}
 
 	if (fci->named_params) {
 		zend_string *name;
