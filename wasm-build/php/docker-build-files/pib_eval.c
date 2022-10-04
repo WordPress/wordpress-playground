@@ -58,14 +58,18 @@
 typedef struct _zend_array2 HashTable2;
 
 struct _zend_array2 {
-	zend_refcounted_h gc;
+    union {
+        uint32_t         refcount;			/* reference counter 32-bit */
+        union {
+            uint32_t type_info;
+        } u;
+    } gc;
 	union {
 		struct {
-			ZEND_ENDIAN_LOHI_4(
-				zend_uchar    flags,
-				zend_uchar    _unused,
-				zend_uchar    nIteratorsCount,
-				zend_uchar    _unused2)
+				unsigned char    flags;
+				unsigned char    _unused;
+				unsigned char    nIteratorsCount;
+				unsigned char    _unused2;
 		} v;
 		uint32_t flags;
 	} u;
@@ -88,69 +92,69 @@ static zend_always_inline void zend_string_release2(zend_string *s)
 		}
 	}
 }
-
-ZEND_API void ZEND_FASTCALL zend_hash_destroy3(HashTable2 *ht)
-{
-	Bucket *p, *end;
-
-	IS_CONSISTENT(ht);
-	HT_ASSERT(ht, GC_REFCOUNT(ht) <= 1);
-
-	if (ht->nNumUsed) {
-//		p = ht->arData;
-		end = p + ht->nNumUsed;
-		if (ht->pDestructor) {
-			SET_INCONSISTENT(HT_IS_DESTROYING);
-
-			if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
-				if (HT_IS_WITHOUT_HOLES(ht)) {
-					do {
-//						ht->pDestructor(&p->val);
-					} while (++p != end);
-				} else {
-					do {
-						if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-//							ht->pDestructor(&p->val);
-						}
-					} while (++p != end);
-				}
-			} else if (HT_IS_WITHOUT_HOLES(ht)) {
-				do {
-//					ht->pDestructor(&p->val);
-					if (EXPECTED(p->key)) {
-//						zend_string_release(p->key);
-					}
-				} while (++p != end);
-			} else {
-				do {
-					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-//						ht->pDestructor(&p->val);
-						if (EXPECTED(p->key)) {
-//							zend_string_release(p->key);
-						}
-					}
-				} while (++p != end);
-			}
-
-			SET_INCONSISTENT(HT_DESTROYED);
-		} else {
-			if (!HT_HAS_STATIC_KEYS_ONLY(ht)) {
-				do {
-					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
-						if (EXPECTED(p->key)) {
-//							zend_string_release2(p->key);
-						}
-					}
-				} while (++p != end);
-			}
-		}
-//		zend_hash_iterators_remove(ht);
-	}
-    else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
-      return;
-    }
-	free(HT_GET_DATA_ADDR(ht));
-}
+//
+//ZEND_API void ZEND_FASTCALL zend_hash_destroy3(HashTable2 *ht)
+//{
+//	Bucket *p, *end;
+//
+//	IS_CONSISTENT(ht);
+//	HT_ASSERT(ht, GC_REFCOUNT(ht) <= 1);
+//
+//	if (ht->nNumUsed) {
+////		p = ht->arData;
+//		end = p + ht->nNumUsed;
+//		if (ht->pDestructor) {
+//			SET_INCONSISTENT(HT_IS_DESTROYING);
+//
+//			if (HT_HAS_STATIC_KEYS_ONLY(ht)) {
+//				if (HT_IS_WITHOUT_HOLES(ht)) {
+//					do {
+////						ht->pDestructor(&p->val);
+//					} while (++p != end);
+//				} else {
+//					do {
+//						if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+////							ht->pDestructor(&p->val);
+//						}
+//					} while (++p != end);
+//				}
+//			} else if (HT_IS_WITHOUT_HOLES(ht)) {
+//				do {
+////					ht->pDestructor(&p->val);
+//					if (EXPECTED(p->key)) {
+////						zend_string_release(p->key);
+//					}
+//				} while (++p != end);
+//			} else {
+//				do {
+//					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+////						ht->pDestructor(&p->val);
+//						if (EXPECTED(p->key)) {
+////							zend_string_release(p->key);
+//						}
+//					}
+//				} while (++p != end);
+//			}
+//
+//			SET_INCONSISTENT(HT_DESTROYED);
+//		} else {
+//			if (!HT_HAS_STATIC_KEYS_ONLY(ht)) {
+//				do {
+//					if (EXPECTED(Z_TYPE(p->val) != IS_UNDEF)) {
+//						if (EXPECTED(p->key)) {
+////							zend_string_release2(p->key);
+//						}
+//					}
+//				} while (++p != end);
+//			}
+//		}
+////		zend_hash_iterators_remove(ht);
+//	}
+//    else if (EXPECTED(HT_FLAGS(ht) & HASH_FLAG_UNINITIALIZED)) {
+//      return;
+//    }
+//	free(HT_GET_DATA_ADDR(ht));
+//}
 
 ZEND_API void ZEND_FASTCALL zend_hash_destroy2(HashTable2 *ht)
 {
