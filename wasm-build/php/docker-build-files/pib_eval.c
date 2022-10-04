@@ -85,25 +85,7 @@ ZEND_API zend_class_entry *zend_get_exception_base(zend_object *object) /* {{{ *
 
 void zend_exception_set_previous(zend_object *exception, zend_object *add_previous) /* {{{ */
 {
-    zval *previous, *ancestor, *ex;
-	zval  pv, zv, rv;
-	zend_class_entry *base_ce;
-
-	if (!exception || !add_previous) {
-		return;
-	}
-
-	if (exception == add_previous || zend_is_unwind_exit(add_previous)) {
-		OBJ_RELEASE(add_previous);
-		return;
-	}
-
-	ZEND_ASSERT(instanceof_function(add_previous->ce, zend_ce_throwable)
-		&& "Previous execption must implement Throwable");
-
-	ZVAL_OBJ(&pv, add_previous);
-	ZVAL_OBJ(&zv, exception);
-	ex = &zv;
+    OBJ_RELEASE(add_previous);
 }
 /* }}} */
 
