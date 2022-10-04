@@ -1758,7 +1758,10 @@ ZEND_API zend_result zend_set_local_var_str(const char *name, size_t len, zval *
 
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    zval_update_constant_ex(NULL, NULL);
+    zend_ast_evaluate(NULL, NULL, NULL);
+    zend_get_constant_ex(NULL, NULL, NULL);
+    zval_ptr_dtor_nogc(NULL);
+    zend_ast_get_constant_name(NULL);
 
     // This works:
     return 1;
