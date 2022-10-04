@@ -704,19 +704,6 @@ zend_result zend_call_function(zend_fcall_info *fci, zend_fcall_info_cache *fci_
 	call = zend_vm_stack_push_call_frame(call_info,
 		func, fci->param_count, object_or_called_scope);
 
-	if (UNEXPECTED(func->common.fn_flags & ZEND_ACC_DEPRECATED)) {
-		zend_deprecated_function(func);
-
-		if (UNEXPECTED(EG(exception))) {
-			zend_vm_stack_free_call_frame(call);
-			if (EG(current_execute_data) == &dummy_execute_data) {
-				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-				zend_rethrow_exception(EG(current_execute_data));
-			}
-			return FAILURE;
-		}
-	}
-
 cleanup_args:
 
 	if (fci->named_params) {
@@ -778,16 +765,6 @@ cleanup_args:
 		} ZEND_HASH_FOREACH_END();
 	}
 
-	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
-		if (zend_handle_undef_args(call) == FAILURE) {
-			zend_vm_stack_free_args(call);
-			zend_vm_stack_free_call_frame(call);
-			if (EG(current_execute_data) == &dummy_execute_data) {
-				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-			}
-			return SUCCESS;
-		}
-	}
 
 	return SUCCESS;
 }
