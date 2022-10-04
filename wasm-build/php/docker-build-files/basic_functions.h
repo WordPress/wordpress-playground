@@ -1,78 +1,3 @@
-#include "sapi/embed/php_embed.h"
-#include <emscripten.h>
-#include <stdlib.h>
-
-#include "zend_globals_macros.h"
-#include "zend_exceptions.h"
-#include "zend_closures.h"
-#include "php_main.h"
-#include "SAPI.h"
-
-#define ZEND_INCLUDE_FULL_WINDOWS_HEADERS
-
-#include "php.h"
-#include <stdio.h>
-#include <fcntl.h>
-#ifdef PHP_WIN32
-#include "win32/time.h"
-#include "win32/signal.h"
-#include "win32/php_win32_globals.h"
-#include "win32/winutil.h"
-#include <process.h>
-#endif
-#if HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <signal.h>
-#include <locale.h>
-#include "zend.h"
-#include "zend_types.h"
-#include "zend_extensions.h"
-#include "php_ini.h"
-#include "php_globals.h"
-#include "php_main.h"
-#include "php_syslog.h"
-#include "fopen_wrappers.h"
-#include "ext/standard/php_standard.h"
-#include "ext/date/php_date.h"
-#include "php_variables.h"
-#include "ext/standard/credits.h"
-#ifdef PHP_WIN32
-#include <io.h>
-#include "win32/php_registry.h"
-#include "ext/standard/flock_compat.h"
-#endif
-#include "php_syslog.h"
-#include "Zend/zend_exceptions.h"
-
-#if PHP_SIGCHILD
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
-
-#include "zend_compile.h"
-#include "zend_execute.h"
-#include "zend_highlight.h"
-#include "zend_extensions.h"
-#include "zend_ini.h"
-#include "zend_dtrace.h"
-#include "zend_observer.h"
-#include "zend_system_id.h"
-
-#include "php_content_types.h"
-#include "php_ticks.h"
-#include "php_streams.h"
-#include "php_open_temporary_file.h"
-
-#include "SAPI.h"
-#include "rfc1867.h"
-
-#include "ext/standard/html_tables.h"
-
 /*
    +----------------------------------------------------------------------+
    | Copyright (c) The PHP Group                                          |
@@ -201,74 +126,17 @@ PHPAPI zend_string *php_getenv(const char *str, size_t str_len);
 PHPAPI double php_get_nan(void);
 PHPAPI double php_get_inf(void);
 
+typedef struct _php_shutdown_function_entry {
+	zend_fcall_info fci;
+	zend_fcall_info_cache fci_cache;
+} php_shutdown_function_entry;
 
-PHPAPI extern bool register_user_shutdown_function(const char *function_name, size_t function_len, php_shutdown_function_entry2 *shutdown_function_entry);
+PHPAPI extern bool register_user_shutdown_function(const char *function_name, size_t function_len, php_shutdown_function_entry *shutdown_function_entry);
 PHPAPI extern bool remove_user_shutdown_function(const char *function_name, size_t function_len);
-PHPAPI extern bool append_user_shutdown_function(php_shutdown_function_entry2 *shutdown_function_entry);
+PHPAPI extern bool append_user_shutdown_function(php_shutdown_function_entry *shutdown_function_entry);
+
+PHPAPI void php_call_shutdown_functions(void);
+PHPAPI void php_free_shutdown_functions(void);
 
 
 #endif /* BASIC_FUNCTIONS_H */
-
-typedef struct _php_shutdown_function_entry2 {
-	zend_fcall_info fci;
-	zend_fcall_info_cache fci_cache;
-} php_shutdown_function_entry2;
-
-
-#ifdef ZTS
-invalid!
-#endif
-#if defined(PHP_NEED_REENTRANCY)
-invalid!
-#endif
-
-int main() { return 0; }
-
-
-static int user_shutdown_function_call2(zval *zv) /* {{{ */
-{
-	php_shutdown_function_entry2 *shutdown_function_entry = Z_PTR_P(zv);
-	zval retval;
-	zend_result call_status;
-
-	/* set retval zval for FCI struct */
-	shutdown_function_entry->fci.retval = &retval;
-	call_status = zend_call_function(&shutdown_function_entry->fci, &shutdown_function_entry->fci_cache);
-	ZEND_ASSERT(call_status == SUCCESS);
-	zval_ptr_dtor(&retval);
-
-	return 0;
-}
-
-PHPAPI void php_call_shutdown_functions2(void) /* {{{ */
-{
-	if (BG(user_shutdown_function_names)) {
-		zend_try {
-			zend_hash_apply(BG(user_shutdown_function_names), user_shutdown_function_call2);
-		} zend_end_try();
-	}
-}
-/* }}} */
-
-PHPAPI void php_free_shutdown_functions2(void) /* {{{ */
-{
-	if (BG(user_shutdown_function_names))
-		zend_try {
-			zend_hash_destroy(BG(user_shutdown_function_names));
-			FREE_HASHTABLE(BG(user_shutdown_function_names));
-			BG(user_shutdown_function_names) = NULL;
-		} zend_catch {
-			/* maybe shutdown method call exit, we just ignore it */
-			FREE_HASHTABLE(BG(user_shutdown_function_names));
-			BG(user_shutdown_function_names) = NULL;
-		} zend_end_try();
-}
-
-int EMSCRIPTEN_KEEPALIVE pib_init()
-{
-    php_call_shutdown_functions2();
-
-    // This works:
-    return 1;
-}
-
