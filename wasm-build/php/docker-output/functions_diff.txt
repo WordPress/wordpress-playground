@@ -122,7 +122,6 @@
 >  (func $_zend_lookup_class (param $$name i32) (result i32)
 164a241,248
 >  (func $_zend_fetch_class (param $$class_name i32) (param $$fetch_type i32) (result i32)
->  (func $_zend_throw_or_error (param $$fetch_type i32) (param $$exception_ce i32) (param $$format i32) (param $$varargs i32)
 >  (func $_get_unary_op (param $$opcode i32) (result i32)
 >  (func $_get_binary_op (param $$opcode i32) (result i32)
 >  (func $__is_numeric_string_ex (param $$str i32) (param $$length i32) (param $$lval i32) (param $$dval i32) (param $$allow_errors i32) (param $$oflow_info i32) (param $$trailing_data i32) (result i32)
