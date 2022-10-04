@@ -4,8 +4,8 @@
   var noop = function() {
   };
   var wasmTable = new WebAssembly.Table({
-    initial: 994,
-    maximum: 994,
+    initial: 930,
+    maximum: 930,
     element: "anyfunc"
   });
   var WASM_PAGE_SIZE = 65536;
