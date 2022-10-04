@@ -33,19 +33,7 @@ int main() { return 0; }
 
 int EMSCRIPTEN_KEEPALIVE pib_init()
 {
-    zend_string *class_name;
-    zend_lookup_class_ex(class_name, NULL, NULL);
-//    zend_get_called_scope(EG(current_execute_data));
-
+    zend_exception_save();
 
     return 1;
 }
-
-/*
-The crash is NOT caused by either of these functions:
-
-zend_get_class_fetch_type
-zend_get_executed_scope
-zend_get_called_scope
-
-*/
