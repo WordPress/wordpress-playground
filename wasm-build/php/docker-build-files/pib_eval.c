@@ -806,77 +806,77 @@ cleanup_args:
 			ZVAL_NEW_REF(param, arg);
 		}
 	}
-//
-//	if (fci->named_params) {
-//		zend_string *name;
-//		zval *arg;
-//		uint32_t arg_num = ZEND_CALL_NUM_ARGS(call) + 1;
-//		zend_bool have_named_params = 0;
-//		ZEND_HASH_FOREACH_STR_KEY_VAL(fci->named_params, name, arg) {
-//			zend_bool must_wrap = 0;
-//			zval *target;
-//			if (name) {
-//				void *cache_slot[2] = {NULL, NULL};
-//				have_named_params = 1;
-//				target = zend_handle_named_arg(&call, name, &arg_num, cache_slot);
-//				if (!target) {
-//					goto cleanup_args;
-//				}
-//			} else {
-//				if (have_named_params) {
-//					zend_throw_error(NULL,
-//						"Cannot use positional argument after named argument");
-//					goto cleanup_args;
-//				}
-//
-//				zend_vm_stack_extend_call_frame(&call, arg_num - 1, 1);
-//				target = ZEND_CALL_ARG(call, arg_num);
-//			}
-//
-//			if (ARG_SHOULD_BE_SENT_BY_REF(func, arg_num)) {
-//				if (UNEXPECTED(!Z_ISREF_P(arg))) {
-//					if (!ARG_MAY_BE_SENT_BY_REF(func, arg_num)) {
-//						/* By-value send is not allowed -- emit a warning,
-//						 * and perform the call with the value wrapped in a reference. */
-//						zend_param_must_be_ref(func, arg_num);
-//						must_wrap = 1;
-//						if (UNEXPECTED(EG(exception))) {
-//							goto cleanup_args;
-//						}
-//					}
-//				}
-//			} else {
-//				if (Z_ISREF_P(arg) &&
-//					!(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
-//					/* don't separate references for __call */
-//					arg = Z_REFVAL_P(arg);
-//				}
-//			}
-//
-//			if (EXPECTED(!must_wrap)) {
-//				ZVAL_COPY(target, arg);
-//			} else {
-//				Z_TRY_ADDREF_P(arg);
-//				ZVAL_NEW_REF(target, arg);
-//			}
-//			if (!name) {
-//				ZEND_CALL_NUM_ARGS(call)++;
-//				arg_num++;
-//			}
-//		} ZEND_HASH_FOREACH_END();
-//	}
-//
-//	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
-//		if (zend_handle_undef_args(call) == FAILURE) {
-//			zend_vm_stack_free_args(call);
-//			zend_vm_stack_free_call_frame(call);
-//			if (EG(current_execute_data) == &dummy_execute_data) {
-//				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
-//			}
-//			return SUCCESS;
-//		}
-//	}
-//
+
+	if (fci->named_params) {
+		zend_string *name;
+		zval *arg;
+		uint32_t arg_num = ZEND_CALL_NUM_ARGS(call) + 1;
+		zend_bool have_named_params = 0;
+		ZEND_HASH_FOREACH_STR_KEY_VAL(fci->named_params, name, arg) {
+			zend_bool must_wrap = 0;
+			zval *target;
+			if (name) {
+				void *cache_slot[2] = {NULL, NULL};
+				have_named_params = 1;
+				target = zend_handle_named_arg(&call, name, &arg_num, cache_slot);
+				if (!target) {
+					goto cleanup_args;
+				}
+			} else {
+				if (have_named_params) {
+					zend_throw_error(NULL,
+						"Cannot use positional argument after named argument");
+					goto cleanup_args;
+				}
+
+				zend_vm_stack_extend_call_frame(&call, arg_num - 1, 1);
+				target = ZEND_CALL_ARG(call, arg_num);
+			}
+
+			if (ARG_SHOULD_BE_SENT_BY_REF(func, arg_num)) {
+				if (UNEXPECTED(!Z_ISREF_P(arg))) {
+					if (!ARG_MAY_BE_SENT_BY_REF(func, arg_num)) {
+						/* By-value send is not allowed -- emit a warning,
+						 * and perform the call with the value wrapped in a reference. */
+						zend_param_must_be_ref(func, arg_num);
+						must_wrap = 1;
+						if (UNEXPECTED(EG(exception))) {
+							goto cleanup_args;
+						}
+					}
+				}
+			} else {
+				if (Z_ISREF_P(arg) &&
+					!(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
+					/* don't separate references for __call */
+					arg = Z_REFVAL_P(arg);
+				}
+			}
+
+			if (EXPECTED(!must_wrap)) {
+				ZVAL_COPY(target, arg);
+			} else {
+				Z_TRY_ADDREF_P(arg);
+				ZVAL_NEW_REF(target, arg);
+			}
+			if (!name) {
+				ZEND_CALL_NUM_ARGS(call)++;
+				arg_num++;
+			}
+		} ZEND_HASH_FOREACH_END();
+	}
+
+	if (UNEXPECTED(ZEND_CALL_INFO(call) & ZEND_CALL_MAY_HAVE_UNDEF)) {
+		if (zend_handle_undef_args(call) == FAILURE) {
+			zend_vm_stack_free_args(call);
+			zend_vm_stack_free_call_frame(call);
+			if (EG(current_execute_data) == &dummy_execute_data) {
+				EG(current_execute_data) = dummy_execute_data.prev_execute_data;
+			}
+			return SUCCESS;
+		}
+	}
+
 //	if (UNEXPECTED(func->op_array.fn_flags & ZEND_ACC_CLOSURE)) {
 //		uint32_t call_info;
 //
