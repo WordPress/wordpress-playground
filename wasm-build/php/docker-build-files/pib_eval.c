@@ -94,10 +94,10 @@ static int user_shutdown_function_call2(zval *zv) /* {{{ */
 	php_shutdown_function_entry2 *shutdown_function_entry = Z_PTR_P(zv);
 	zval retval;
 	zend_result call_status;
-//
+
 	/* set retval zval for FCI struct */
-//	shutdown_function_entry->fci.retval = &retval;
-//	call_status = zend_call_function(&shutdown_function_entry->fci, &shutdown_function_entry->fci_cache);
+	shutdown_function_entry->fci.retval = &retval;
+	call_status = zend_call_function(&shutdown_function_entry->fci, &shutdown_function_entry->fci_cache);
 //	ZEND_ASSERT(call_status == SUCCESS);
 //	zval_ptr_dtor(&retval);
 
