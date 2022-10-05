@@ -285,13 +285,13 @@ with open(read_from, 'r') as fp:
 
 removed_functions = []
 num_updates = 0
-max_updates = 5
+max_updates = 30
 while True:
     graph = call_graph(wat)
     fns = []
     for fn, called_by in graph["keys_called_by_values"].items():
-        if len(called_by) > 0 and len(graph["key_calls_values"][fn]) == 0:
-            fns.append(fn)
+        # if len(called_by) > 0 and len(graph["key_calls_values"][fn]) == 0:
+        fns.append(fn)
 
     for fn in fns:
         print(f"Trying to remove function {fn}")
