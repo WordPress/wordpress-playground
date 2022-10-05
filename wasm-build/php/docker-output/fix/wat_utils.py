@@ -285,7 +285,7 @@ with open(read_from, 'r') as fp:
 
 removed_functions = []
 num_updates = 0
-max_updates = 7
+max_updates = 1
 while True:
     graph = call_graph(wat)
     fns = []
@@ -310,13 +310,13 @@ while True:
             removed_functions.append(fn)
             print("✅")
             num_updates += 1
-            if num_updates > max_updates:
+            if num_updates >= max_updates:
                 break
         else:
             print("❌")
             with open(read_from, 'w') as fp:
                 fp.write(wat)
-    if num_updates > max_updates:
+    if num_updates >= max_updates:
         break
 
 as_str = " ".join(removed_functions)
