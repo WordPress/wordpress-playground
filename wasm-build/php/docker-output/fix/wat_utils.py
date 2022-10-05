@@ -287,9 +287,6 @@ with open(read_from, 'r') as fp:
 updated_wat = remove_functions_with_callers_but_no_callees(wat)
 
 if len(updated_wat):
-    with open(write_to, 'w') as fp:
-        fp.write(updated_wat)
-
     with open(read_from, 'w') as fp:
         fp.write(updated_wat)
 else:
