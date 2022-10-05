@@ -233,16 +233,23 @@ def find_unused_functions(wat, keep=None):
 #     doctest.testmod()
 
 
-read_from = 'fix/webworker-php-rev.wat'
-write_to = 'fix/updated.wat'
+read_from = 'fix/updated.wat'
+write_to = 'fix/updated2.wat'
 with open(read_from, 'r') as fp:
     wat = "".join(fp.readlines())
 
-with open(write_to, 'w') as fp:
-    unused_functions = find_unused_functions(wat, ['$_pib_init2'])
-    print("Removing the following unused functions:")
-    pprint(unused_functions)
-    updated_wat = wat
-    for fn in unused_functions:
-        updated_wat = remove_function(updated_wat, fn)
-    fp.write(updated_wat)
+unused_functions = find_unused_functions(wat, ['$_pib_init2'])
+print("Removing the following unused functions:")
+pprint(unused_functions)
+updated_wat = wat
+for fn in unused_functions:
+    updated_wat = remove_function(updated_wat, fn)
+
+if len(updated_wat):
+    with open(write_to, 'w') as fp:
+        fp.write(updated_wat)
+
+    with open(read_from, 'w') as fp:
+        fp.write(updated_wat)
+else:
+    print("Resulting WAT file is empty – something wet wrong")
