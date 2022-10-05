@@ -285,7 +285,7 @@ with open(read_from, 'r') as fp:
 
 removed_functions = []
 num_updates = 0
-max_updates = 50
+max_updates = 5
 while True:
     graph = call_graph(wat)
     fns = []
