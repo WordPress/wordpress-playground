@@ -1,3 +1,4 @@
+import subprocess
 from functools import reduce
 from multiprocessing.sharedctypes import Value
 from pprint import pprint
@@ -66,7 +67,6 @@ def get_function_meta(wat, name):
 
     if _type == "0" and not len(_params):
         _params = ["i32"]
-    print(_params, _type)
     return {"params": _params, "return": _return, "type": _type, "starts_at": starts_at, "ends_at": ends_at}
 
 
@@ -280,14 +280,43 @@ def remove_functions_with_callers_but_no_callees(wat):
 
 
 read_from = 'fix/updated.wat'
-write_to = 'fix/updated2.wat'
 with open(read_from, 'r') as fp:
     wat = "".join(fp.readlines())
 
-updated_wat = remove_functions_with_callers_but_no_callees(wat)
+removed_functions = []
+num_updates = 0
+while num_updates < 15:
+    graph = call_graph(wat)
+    fns = []
+    for fn, called_by in graph["keys_called_by_values"].items():
+        if len(called_by) > 0 and len(graph["key_calls_values"][fn]) == 0:
+            fns.append(fn)
 
-if len(updated_wat):
-    with open(read_from, 'w') as fp:
-        fp.write(updated_wat)
-else:
-    print("Resulting WAT file is empty – something wet wrong")
+    for fn in fns:
+        print(f"Trying to remove function {fn}")
+        updated_wat = remove_function(wat, fn)
+
+        if len(updated_wat):
+            with open(read_from, 'w') as fp:
+                fp.write(updated_wat)
+        else:
+            print("Resulting WAT file is empty – something wet wrong")
+
+        cmd = "wat2wasm fix/updated.wat -o ../../../dist-web/fix.wasm"
+        returned_value = subprocess.call(cmd, shell=True)
+        if returned_value == 0:
+            wat = updated_wat
+            removed_functions.append(fn)
+            print("✅")
+            num_updates += 1
+            if num_updates > 15:
+                break
+        else:
+            print("❌")
+            with open(read_from, 'w') as fp:
+                fp.write(wat)
+    if num_updates > 15:
+        break
+
+as_str = " ".join(removed_functions)
+print(f"Crash: Removed functions {as_str}")
