@@ -285,7 +285,8 @@ with open(read_from, 'r') as fp:
 
 removed_functions = []
 num_updates = 0
-while num_updates < 15:
+max_updates = 50
+while True:
     graph = call_graph(wat)
     fns = []
     for fn, called_by in graph["keys_called_by_values"].items():
@@ -309,13 +310,13 @@ while num_updates < 15:
             removed_functions.append(fn)
             print("✅")
             num_updates += 1
-            if num_updates > 15:
+            if num_updates > max_updates:
                 break
         else:
             print("❌")
             with open(read_from, 'w') as fp:
                 fp.write(wat)
-    if num_updates > 15:
+    if num_updates > max_updates:
         break
 
 as_str = " ".join(removed_functions)
