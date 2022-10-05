@@ -279,30 +279,6 @@ def remove_functions_with_callers_but_no_callees(wat):
     return reduce(remove_function, fns, wat)
 
 
-if __name__ == "__main__":
-    print(remove_function_declaration(remove_function_calls('''
-      (func $_fmt_x (type 29) (param i64 i32 i32) (result i32)
-    (local i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i32 i64 i64)
-    global.get 16
-    local.set 16
-    local.get 0
-    i64.const 0
-    i64.eq)
-                local.get 380
-                local.get 85
-                local.get 102
-                call $_fmt_x
-                local.set 140
-                local.get 108
-                i64.load
-                local.set 381
-                local.get 381
-                i64.const 0
-    ''', '$_fmt_x'), '$_fmt_x'))
-#     import doctest
-#     doctest.testmod()
-
-
 read_from = 'fix/updated.wat'
 write_to = 'fix/updated2.wat'
 with open(read_from, 'r') as fp:
