@@ -24,6 +24,7 @@
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
     "build:app": "npm-run-all build:web build:node",
     "build:node": "rm -rf dist-node/* && esbuild --bundle src/node/index.mjs --outfile=dist-node/index.mjs --platform=node --external:express --external:yargs --external:body-parser --external:cookie-parser --external:./src/node/node-php.js --target=node14.19.0 --format=esm && perl -pi.bak -e 's/\\.\\.\\/shared\\///g' dist-node/index.mjs && perl -pi.bak -e 's/\\.\\.\\/src\\/node\\//.\\//g' dist-node/index.mjs && cp -r src/node/node-php.* src/node/base64-encoded-database src/node/wordpress src/shared/etc dist-node/ && rm dist-node/*.bak",
+    "clean": "npm-run-all --parallel clean:*",
     "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
     "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
     "test": "echo \"Error: no test specified\" && exit 1"
