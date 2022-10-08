@@ -20,7 +20,7 @@ docker run \
         -v `pwd`/preload:/preload \
         -v `pwd`/docker-output:/output \
         wasm-wordpress-php-builder:latest \
-        emcc -O3 \
+        emcc -Oz \
         -o /output/webworker-php.js \
         --llvm-lto 2                     \
         -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \

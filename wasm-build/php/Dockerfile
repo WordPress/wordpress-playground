@@ -121,7 +121,7 @@ RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
     else export DEFINES=''; \
     fi && \
     cd php-src/ && \
-    emcc -O3 \
+    emcc -Oz \
     -I .     \
     -I Zend  \
     -I main  \

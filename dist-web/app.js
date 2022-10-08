@@ -37,30 +37,30 @@
     alert("Service workers are not supported by your browser");
   }
   var serviceWorkerReady = navigator.serviceWorker.register(`/service-worker.js`);
-  var myWebWorker = new Worker("web-worker.js");
+  var workerChannel = document.querySelector("iframe").contentWindow;
   var webWorkerReady = new Promise((resolve) => {
     const callback = (event) => {
       if (event.data.type === "ready") {
         resolve();
-        myWebWorker.removeEventListener("message", callback);
+        workerChannel.removeEventListener("message", callback);
       }
     };
-    myWebWorker.addEventListener("message", callback);
+    workerChannel.addEventListener("message", callback);
   });
   async function init() {
     await serviceWorkerReady;
     await webWorkerReady;
-    const postMessage = postMessageFactory(myWebWorker);
-    window.addEventListener("message", async (event) => {
+    const postMessage = postMessageFactory(workerChannel);
+    workerChannel.addEventListener("message", async (event) => {
       if (event.data.type === "goto") {
-        document.querySelector("iframe").src = event.data.path;
+        document.querySelector("#wp").src = event.data.path;
       }
       console.log("[APP.js] Got a message", event);
       const response = await postMessage(event.data);
       console.log("[APP.js] Got a response", response);
       replyTo(event, response, parent);
     });
-    document.querySelector("iframe").src = "/wp-login.php";
+    document.querySelector("#wp").src = "/wp-login.php";
   }
   init();
 })();
