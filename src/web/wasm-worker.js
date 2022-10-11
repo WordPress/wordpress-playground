@@ -4,7 +4,7 @@ import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
 import WPBrowser from '../shared/wp-browser.mjs';
 import { responseTo } from '../shared/messaging.mjs';
-const noop = function () { };
+const noop = function() { };
 
 console.log( '[WASM Worker] Spawned' );
 
@@ -14,34 +14,34 @@ const IS_IFRAME = ENVIRONMENT === 'IFRAME';
 const IS_WEBWORKER = ENVIRONMENT === 'WEBWORKER';
 
 // Define polyfills
-if (IS_IFRAME) {
-	window.importScripts = function (...urls) {
-		for (const url of urls) {
-			const script = document.createElement('script');
+if ( IS_IFRAME ) {
+	window.importScripts = function( ...urls ) {
+		for ( const url of urls ) {
+			const script = document.createElement( 'script' );
 			script.src = url;
-			document.body.appendChild(script);
+			document.body.appendChild( script );
 		}
-	}
+	};
 }
 
 // Listen to messages
-if (IS_IFRAME) {
+if ( IS_IFRAME ) {
 	importScripts( '/php-web.js' );
 	window.addEventListener(
 		'message',
-		(event) => handleMessageEvent(
+		( event ) => handleMessageEvent(
 			event,
-			response => event.source.postMessage(response, '*')
+			( response ) => event.source.postMessage( response, '*' ),
 		),
-		false
+		false,
 	);
-} else if (IS_WEBWORKER) {
+} else if ( IS_WEBWORKER ) {
 	importScripts( '/php-webworker.js' );
-	onmessage = event => {
+	onmessage = ( event ) => {
 		handleMessageEvent(
 			event,
-			postMessage
-		)
+			postMessage,
+		);
 	};
 }
 
@@ -49,18 +49,18 @@ if (IS_IFRAME) {
 
 // We're in a worker right now, and we're receiving the incoming
 // communication from the main window via `postMessage`:
-async function handleMessageEvent(event, respond) {
-	console.debug(`[WASM Worker] "${event.data.type}" event received`, event);
+async function handleMessageEvent( event, respond ) {
+	console.debug( `[WASM Worker] "${ event.data.type }" event received`, event );
 
-	const result = await generateResponseForMessage(event.data);
+	const result = await generateResponseForMessage( event.data );
 
 	// The main window expects a response when it includes a `messageId` in the message:
-	if (event.data.messageId) {
+	if ( event.data.messageId ) {
 		respond(
 			responseTo(
 				event.data.messageId,
-				result
-			)
+				result,
+			),
 		);
 	}
 
@@ -68,29 +68,29 @@ async function handleMessageEvent(event, respond) {
 }
 
 let wpBrowser;
-async function generateResponseForMessage(message) {
-	if (message.type === 'initialize_wordpress') {
+async function generateResponseForMessage( message ) {
+	if ( message.type === 'initialize_wordpress' ) {
 		wpBrowser = await initWPBrowser( message.siteURL );
 		isWordPressInitialized = true;
 		return true;
 	}
 
-	if (message.type === 'is_alive') {
+	if ( message.type === 'is_alive' ) {
 		return true;
 	}
 
-	if (message.type === 'run_php') {
-		const output = await wpBrowser.wp.php.run(message.code);
+	if ( message.type === 'run_php' ) {
+		const output = await wpBrowser.wp.php.run( message.code );
 		return output;
 	}
 
-	if (message.type === 'request' || message.type === 'httpRequest') {
-		const parsedUrl = new URL(message.request.path, wpBrowser.wp.ABSOLUTE_URL);
-		return await wpBrowser.request({
+	if ( message.type === 'request' || message.type === 'httpRequest' ) {
+		const parsedUrl = new URL( message.request.path, wpBrowser.wp.ABSOLUTE_URL );
+		return await wpBrowser.request( {
 			...message.request,
 			path: parsedUrl.pathname,
 			_GET: parsedUrl.search,
-		});
+		} );
 	}
 
 	console.debug( `[WASM Worker] "${ message.type }" event has no handler, short-circuiting` );
@@ -98,7 +98,7 @@ async function generateResponseForMessage(message) {
 
 async function initWPBrowser( siteUrl ) {
 	const php = new PHPWrapper( );
-	console.log("[WASM Worker] Before wp.init()");
+	console.log( '[WASM Worker] Before wp.init()' );
 	await php.init( PHP, {
 		async onPreInit( FS, phpModule ) {
 			globalThis.PHPModule = phpModule;
@@ -116,7 +116,7 @@ async function initWPBrowser( siteUrl ) {
 
 	const wp = new WordPress( php );
 	await wp.init( siteUrl );
-	console.log("[WASM Worker] After wp.init()");
+	console.log( '[WASM Worker] After wp.init()' );
 
 	return new WPBrowser( wp, { handleRedirects: true } );
 }
