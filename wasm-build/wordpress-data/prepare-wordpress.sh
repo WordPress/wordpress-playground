@@ -1,16 +1,18 @@
 #!/bin/bash
 
+# set -e
+
+cd preload
+
 # Remove previous WordPress installation
-rm -rf volume/*
+rm -rf wordpress
+rm -rf wordpress-static
 
-# set -e;
-
-cd preload;
-
-# Download WordPress
-wget https://wordpress.org/wordpress-6.0.1.tar.gz
-tar -xzf wordpress-6.0.1.tar.gz
-rm wordpress-6.0.1.tar.gz
+# Download specific version of WordPress
+wp_tarfile=wordpress-6.0.2.tar.gz
+wget https://wordpress.org/$wp_tarfile
+tar -xzf $wp_tarfile
+rm $wp_tarfile
 
 # Patch WordPress with sqlite support
 # https://github.com/aaemnnosttv/wp-sqlite-integration
@@ -23,10 +25,10 @@ curl https://raw.githubusercontent.com/aaemnnosttv/wp-sqlite-db/master/src/db.ph
 cp -r wordpress wordpress-static
 cd wordpress-static
 find ./ -name '*.php' | xargs rm
-cd ..;
+cd ..
 
 # Install WordPress
-cd wordpress;
+cd wordpress
 
 # Remove non-default themes
 rm -r wp-content/themes/twentytwenty wp-content/themes/twentytwentyone
@@ -82,16 +84,16 @@ if [ "$LAZY_FILES" == "true" ]; then
         # match is something like ./wp-includes/js/dist/block-library/script.js
 
         # filename is script.js
-        filename=$(echo $match | awk -F'/' '{print $NF}');
+        filename=$(echo $match | awk -F'/' '{print $NF}')
 
         # filepath is /wp-includes/js/dist/block-library
-        filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev);
+        filepath=$(echo ${match:1} | rev | cut -d '/' -f 2- | rev)
 
         echo "sa.push( [ '/preload/wordpress$filepath', '$filename', '$filepath/$filename' ] );" >> ../wp-lazy-files.js
-    done;
+    done
 
     find ./ -type f -name '*.js' | xargs rm 2> /dev/null
-fi;
+fi
 
 echo "
 return sa.map( function( a ) {
@@ -106,17 +108,17 @@ return sa.map( function( a ) {
 
 # Remove whitespace from PHP files
 for phpfile in $(find ./ -type f -name '*.php'); do
-    php -w $phpfile > $phpfile.small;
-    mv $phpfile.small $phpfile;
-done;
+    php -w $phpfile > $phpfile.small
+    mv $phpfile.small $phpfile
+done
 
 # Let the WordPress installer do its magic
 cp wp-config-sample.php wp-config.php # Required by the drop-in SQLite integration plugin
 php -S 127.0.0.1:8000&
-sleep 6;
+sleep 6
 http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com")
 pkill php
 if [ $http_response != "200" ]; then
-    exit 'WordPress installation failed';
-    cat debug.txt;
-fi;
+    exit 'WordPress installation failed'
+    cat debug.txt
+fi
