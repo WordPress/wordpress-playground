@@ -40,8 +40,8 @@ serviceWorkerChannel.addEventListener( 'message', async function onMessage( even
 const wasmWorker = createWordPressWorker(
 	{
 		// @TODO: Use a dynamic URL, not a hardcoded one:
-		// backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
-		backend: webWorkerBackend("/wasm-worker.js"),
+		backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
+		// backend: webWorkerBackend("/wasm-worker.js"),
 		wordPressSiteURL: location.href
 	}
 );
