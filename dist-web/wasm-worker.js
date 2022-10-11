@@ -500,8 +500,8 @@ ADMIN;
       }
     };
   }
-  importScripts("/webworker-php.js");
   if (IS_IFRAME) {
+    importScripts("/php-web.js");
     window.addEventListener(
       "message",
       (event) => handleMessageEvent(
@@ -511,6 +511,7 @@ ADMIN;
       false
     );
   } else if (IS_WEBWORKER) {
+    importScripts("/php-webworker.js");
     onmessage = (event) => {
       handleMessageEvent(
         event,

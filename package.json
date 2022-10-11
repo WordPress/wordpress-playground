@@ -14,7 +14,7 @@
     "dev:web": "npm-run-all --parallel dev:web:*",
     "dev:node": "node ./src/node/command.mjs ",
     "dev": "npm run dev:web",
-    "build:php:web": "cd wasm-build/php && bash wasm-worker-build-wasm.sh",
+    "build:php:web": "cd wasm-build/php && bash web-build-wasm.sh",
     "build:php:node": "cd wasm-build/php && bash node-build-wasm.sh",
     "build:php": "npm-run-all build:php:*",
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh",
@@ -23,7 +23,7 @@
     "build:app": "npm-run-all build:app:*",
     "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
     "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
-    "publish:php:web": "cp wasm-build/php/docker-output/webworker-* dist-web/ && cp src/shared/etc/php.ini dist-web/etc/",
+    "publish:php:web": "cp wasm-build/php/docker-output/php* dist-web/ && cp src/shared/etc/php.ini dist-web/etc/",
     "publish:php:node": "cp wasm-build/php/docker-output/node-* src/node/",
     "publish:wp:web": "cp wasm-build/wordpress-data/docker-output/* dist-web/ && cp wasm-build/wordpress-data/preload/wp-lazy-files.js dist-web/ && rm -rf dist-web/{wp-admin,wp-content,wp-includes} && cp -r wasm-build/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} dist-web/",
     "publish:wp:node": "rm -rf src/node/wordpress/* && cp -r wasm-build/wordpress-data/preload/wordpress-static/{wp-admin,wp-content,wp-includes} src/node/wordpress/ && cp -r wasm-build/wordpress-data/preload/wordpress/* src/node/wordpress/"

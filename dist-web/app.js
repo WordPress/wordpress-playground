@@ -64,7 +64,7 @@
   });
   var wasmWorker = createWordPressWorker(
     {
-      backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
+      backend: webWorkerBackend("/wasm-worker.js"),
       wordPressSiteURL: location.href
     }
   );
@@ -90,15 +90,12 @@
       }
     };
   }
-  function iframeWorkerBackend(workerDocumentURL) {
-    const iframe = document.createElement("iframe");
-    iframe.src = workerDocumentURL;
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
+  function webWorkerBackend(workerURL) {
+    const worker = new Worker(workerURL);
     return {
       sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
-        const messageId = postMessageExpectReply(iframe.contentWindow, message, "*");
-        const response = await awaitReply(window, messageId, timeout);
+        const messageId = postMessageExpectReply(worker, message);
+        const response = await awaitReply(worker, messageId, timeout);
         return response;
       }
     };

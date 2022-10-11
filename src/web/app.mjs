@@ -10,7 +10,7 @@ const serviceWorkerReady = navigator.serviceWorker.register( `/service-worker.js
 const serviceWorkerChannel = new BroadcastChannel('wordpress-service-worker');
 serviceWorkerChannel.addEventListener( 'message', async function onMessage( event ) {
 	console.debug(`[Main] "${event.data.type}" message received from a service worker`);
-	
+
 	let result;
 	if (event.data.type === 'is_ready') {
 		result = isReady;
@@ -21,7 +21,7 @@ serviceWorkerChannel.addEventListener( 'message', async function onMessage( even
 		const worker = await wasmWorker;
 		result = await worker.HTTPRequest(event.data.request);
 	}
-	
+
 	// The service worker expects a response when it includes a `messageId` in the message:
 	if (event.data.messageId) {
 		serviceWorkerChannel.postMessage(
@@ -40,8 +40,8 @@ serviceWorkerChannel.addEventListener( 'message', async function onMessage( even
 const wasmWorker = createWordPressWorker(
 	{
 		// @TODO: Use a dynamic URL, not a hardcoded one:
-		backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
-		// backend: webWorkerBackend("/wasm-worker.js"),
+		// backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
+		backend: webWorkerBackend("/wasm-worker.js"),
 		wordPressSiteURL: location.href
 	}
 );
@@ -110,7 +110,7 @@ async function init() {
 	await serviceWorkerReady;
 	isReady = true;
     console.log("[Main] Iframe is ready")
-	
+
 	const WPIframe = document.querySelector('#wp');
 	WPIframe.src = '/wp-login.php';
 }

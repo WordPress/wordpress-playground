@@ -25,8 +25,8 @@ if (IS_IFRAME) {
 }
 
 // Listen to messages
-importScripts( '/webworker-php.js' );
 if (IS_IFRAME) {
+	importScripts( '/php-web.js' );
 	window.addEventListener(
 		'message',
 		(event) => handleMessageEvent(
@@ -36,6 +36,7 @@ if (IS_IFRAME) {
 		false
 	);
 } else if (IS_WEBWORKER) {
+	importScripts( '/php-webworker.js' );
 	onmessage = event => {
 		handleMessageEvent(
 			event,
@@ -46,13 +47,13 @@ if (IS_IFRAME) {
 
 // Actual worker logic below:
 
-// We're in a worker right now, and we're receiving the incoming 
+// We're in a worker right now, and we're receiving the incoming
 // communication from the main window via `postMessage`:
 async function handleMessageEvent(event, respond) {
 	console.debug(`[WASM Worker] "${event.data.type}" event received`, event);
 
 	const result = await generateResponseForMessage(event.data);
-	
+
 	// The main window expects a response when it includes a `messageId` in the message:
 	if (event.data.messageId) {
 		respond(
