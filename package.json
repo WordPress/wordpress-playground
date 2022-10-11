@@ -14,7 +14,7 @@
     "dev:web": "npm-run-all --parallel dev:web:*",
     "dev:node": "node ./src/node/command.mjs ",
     "dev": "npm run dev:web",
-    "build:php:web": "cd wasm-build/php && bash webworker-build-wasm.sh",
+    "build:php:web": "cd wasm-build/php && bash wasm-worker-build-wasm.sh",
     "build:php:node": "cd wasm-build/php && bash node-build-wasm.sh",
     "build:php": "npm-run-all build:php:*",
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh",
