@@ -42,6 +42,7 @@ const wasmWorker = createWordPressWorker(
 		// @TODO: Use a dynamic URL, not a hardcoded one:
 		backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
 		// backend: webWorkerBackend("/wasm-worker.js"),
+		// backend: sharedWorkerBackend("/wasm-worker.js"),
 		wordPressSiteURL: location.href
 	}
 );
@@ -82,6 +83,18 @@ function webWorkerBackend(workerURL) {
 		sendMessage: async function( message, timeout=DEFAULT_REPLY_TIMEOUT ) {
 			const messageId = postMessageExpectReply(worker, message);
 			const response = await awaitReply(worker, messageId, timeout);
+			return response;
+		}
+	};
+}
+
+function sharedWorkerBackend(workerURL) {
+	const worker = new SharedWorker(workerURL);
+	worker.port.start();
+	return {
+		sendMessage: async function( message, timeout=DEFAULT_REPLY_TIMEOUT ) {
+			const messageId = postMessageExpectReply(worker.port, message);
+			const response = await awaitReply(worker.port, messageId, timeout);
 			return response;
 		}
 	};

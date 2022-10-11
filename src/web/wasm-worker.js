@@ -9,11 +9,13 @@ console.log( '[WASM Worker] Spawned' );
 
 // Infer the environment
 const IS_IFRAME = typeof window !== 'undefined';
-const IS_WEBWORKER = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+const IS_SHARED_WORKER = typeof SharedWorkerGlobalScope !== 'undefined' && self instanceof SharedWorkerGlobalScope;
+const IS_WEBWORKER = ! IS_SHARED_WORKER && typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
 
 console.log( '[WASM Worker] Environment', {
 	IS_IFRAME,
-	IS_WEBWORKER
+	IS_WEBWORKER,
+	IS_SHARED_WORKER,
 } );
 
 // Define polyfills
@@ -45,6 +47,20 @@ if ( IS_IFRAME ) {
 			event,
 			postMessage,
 		);
+	};
+} else if ( IS_SHARED_WORKER ) {
+	importScripts( '/php-webworker.js' );
+	self.onconnect = ( e ) => {
+		const port = e.ports[ 0 ];
+
+		port.addEventListener( 'message', ( event ) => {
+			handleMessageEvent(
+				event,
+				( r ) => port.postMessage( r ),
+			);
+		} );
+
+		port.start(); // Required when using addEventListener. Otherwise called implicitly by onmessage setter.
 	};
 }
 

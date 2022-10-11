@@ -489,10 +489,12 @@ ADMIN;
   // src/web/wasm-worker.js
   console.log("[WASM Worker] Spawned");
   var IS_IFRAME = typeof window !== "undefined";
-  var IS_WEBWORKER = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+  var IS_SHARED_WORKER = typeof SharedWorkerGlobalScope !== "undefined" && self instanceof SharedWorkerGlobalScope;
+  var IS_WEBWORKER = !IS_SHARED_WORKER && typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
   console.log("[WASM Worker] Environment", {
     IS_IFRAME,
-    IS_WEBWORKER
+    IS_WEBWORKER,
+    IS_SHARED_WORKER
   });
   if (IS_IFRAME) {
     window.importScripts = function(...urls) {
@@ -520,6 +522,18 @@ ADMIN;
         event,
         postMessage
       );
+    };
+  } else if (IS_SHARED_WORKER) {
+    importScripts("/php-webworker.js");
+    self.onconnect = (e) => {
+      const port = e.ports[0];
+      port.addEventListener("message", (event) => {
+        handleMessageEvent(
+          event,
+          (r) => port.postMessage(r)
+        );
+      });
+      port.start();
     };
   }
   async function handleMessageEvent(event, respond) {
