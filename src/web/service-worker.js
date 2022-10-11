@@ -1,7 +1,6 @@
-import { postMessageFactory } from '../shared/messaging.mjs';
-const workerChannel = new BroadcastChannel( 'wordpress-service-worker' );
+import { postMessageExpectReply, awaitReply } from '../shared/messaging.mjs';
 
-const postWebWorkerMessage = postMessageFactory( workerChannel );
+const broadcastChannel = new BroadcastChannel( 'wordpress-service-worker' );
 
 /**
  * The main method. It captures the requests and loop them back to the main
@@ -11,7 +10,7 @@ self.addEventListener( 'fetch', ( event ) => {
 	// @TODO A more involved hostname check
 	const url = new URL( event.request.url );
 	const isWpOrgRequest = url.hostname.includes( 'api.wordpress.org' );
-	const isPHPRequest = url.pathname.endsWith( '/' ) || url.pathname.endsWith( '.php' );
+	const isPHPRequest = (url.pathname.endsWith('/') && url !== "/") || url.pathname.endsWith('.php');
 	if ( isWpOrgRequest || ! isPHPRequest ) {
 		console.log( `[ServiceWorker] Ignoring request: ${ url.pathname }` );
 		return;
@@ -21,6 +20,7 @@ self.addEventListener( 'fetch', ( event ) => {
 	return event.respondWith(
 		new Promise( async ( accept ) => {
 			console.log( `[ServiceWorker] Serving request: ${ url.pathname }?${ url.search }` );
+			console.log( { isWpOrgRequest, isPHPRequest } );
 			const post = await parsePost( event.request );
 			const requestHeaders = {};
 			for ( const pair of event.request.headers.entries() ) {
@@ -29,7 +29,7 @@ self.addEventListener( 'fetch', ( event ) => {
 
 			let wpResponse;
 			try {
-				wpResponse = await postWebWorkerMessage( {
+				const message = {
 					type: 'httpRequest',
 					request: {
 						path: url.pathname + url.search,
@@ -37,8 +37,11 @@ self.addEventListener( 'fetch', ( event ) => {
 						_POST: post,
 						headers: requestHeaders,
 					},
-				} );
-				console.log( { wpResponse } );
+				};
+				console.log("[ServiceWorker] Forwarding a request to the main app", { message });
+				const messageId = postMessageExpectReply( broadcastChannel, message );
+				wpResponse = await awaitReply( broadcastChannel, messageId );
+				console.log("[ServiceWorker] Response received from the main app", { wpResponse });
 			} catch ( e ) {
 				console.error( e );
 				throw e;
