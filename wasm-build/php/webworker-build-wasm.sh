@@ -36,7 +36,7 @@ docker run \
         -s USE_ZLIB=1                    \
                 /root/lib/pib_eval.o /root/lib/libphp7.a /root/lib/lib/libxml2.a \
         --pre-js /preload/webworker-pre-php.js \
-        -s ENVIRONMENT=worker \
+        -s ENVIRONMENT=web \
         -s FORCE_FILESYSTEM=1
 
 # -fno-exceptions
