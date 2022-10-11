@@ -38,3 +38,4 @@ docker run \
         -lnodefs.js \
         --pre-js /preload/node-pre.js \
         -s ENVIRONMENT=node
+

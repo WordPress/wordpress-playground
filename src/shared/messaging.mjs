@@ -1,34 +1,40 @@
 
-export function postMessageFactory( target ) {
-	let lastRequestId = 0;
-	return function postMessage( data, timeout = 50000 ) {
-		return new Promise( ( resolve, reject ) => {
-			const requestId = ++lastRequestId;
-			const responseHandler = ( event ) => {
-				if ( event.data.type === 'response' && event.data.requestId === requestId ) {
-					target.removeEventListener( 'message', responseHandler );
-					clearTimeout( failOntimeout );
-					resolve( event.data.result );
-				}
-			};
-			const failOntimeout = setTimeout( () => {
-				reject( 'Request timed out' );
-				target.removeEventListener( 'message', responseHandler );
-			}, timeout );
-			target.addEventListener( 'message', responseHandler );
+export const DEFAULT_REPLY_TIMEOUT = 25000;
 
-			target.postMessage( {
-				...data,
-				requestId,
-			} );
-		} );
-	};
+let lastMessageId = 0;
+export function postMessageExpectReply( messageTarget, message, ...postMessageArgs ) {
+	const messageId = ++lastMessageId;
+	messageTarget.postMessage(
+		{
+			...message,
+			messageId,
+		},
+		...postMessageArgs
+	);
+	return messageId;
 }
 
-export function replyTo( event, result, target ) {
-	target.postMessage( {
+export async function awaitReply( messageTarget, messageId, timeout = DEFAULT_REPLY_TIMEOUT ) {
+	return new Promise((resolve, reject) => {
+		const responseHandler = (event) => {
+			if (event.data.type === 'response' && event.data.messageId === messageId) {
+				messageTarget.removeEventListener('message', responseHandler);
+				clearTimeout(failOntimeout);
+				resolve(event.data.result);
+			}
+		};
+		const failOntimeout = setTimeout(() => {
+			reject(new Error('Request timed out'));
+			messageTarget.removeEventListener('message', responseHandler);
+		}, timeout);
+		messageTarget.addEventListener('message', responseHandler);
+	});
+}
+
+export function responseTo( messageId, result ) {
+	return {
 		type: 'response',
-		requestId: event.data.requestId,
+		messageId,
 		result,
-	}, event.origin );
+	};
 }

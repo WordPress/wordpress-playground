@@ -1,35 +1,40 @@
 (() => {
   // src/shared/messaging.mjs
-  function postMessageFactory(target) {
-    let lastRequestId = 0;
-    return function postMessage(data, timeout = 5e4) {
-      return new Promise((resolve, reject) => {
-        const requestId = ++lastRequestId;
-        const responseHandler = (event) => {
-          if (event.data.type === "response" && event.data.requestId === requestId) {
-            target.removeEventListener("message", responseHandler);
-            clearTimeout(failOntimeout);
-            resolve(event.data.result);
-          }
-        };
-        const failOntimeout = setTimeout(() => {
-          reject("Request timed out");
-          target.removeEventListener("message", responseHandler);
-        }, timeout);
-        target.addEventListener("message", responseHandler);
-        target.postMessage({
-          ...data,
-          requestId
-        });
-      });
-    };
+  var DEFAULT_REPLY_TIMEOUT = 25e3;
+  var lastMessageId = 0;
+  function postMessageExpectReply(messageTarget, message, ...postMessageArgs) {
+    const messageId = ++lastMessageId;
+    messageTarget.postMessage(
+      {
+        ...message,
+        messageId
+      },
+      ...postMessageArgs
+    );
+    return messageId;
   }
-  function replyTo(event, result, target) {
-    target.postMessage({
+  async function awaitReply(messageTarget, messageId, timeout = DEFAULT_REPLY_TIMEOUT) {
+    return new Promise((resolve, reject) => {
+      const responseHandler = (event) => {
+        if (event.data.type === "response" && event.data.messageId === messageId) {
+          messageTarget.removeEventListener("message", responseHandler);
+          clearTimeout(failOntimeout);
+          resolve(event.data.result);
+        }
+      };
+      const failOntimeout = setTimeout(() => {
+        reject(new Error("Request timed out"));
+        messageTarget.removeEventListener("message", responseHandler);
+      }, timeout);
+      messageTarget.addEventListener("message", responseHandler);
+    });
+  }
+  function responseTo(messageId, result) {
+    return {
       type: "response",
-      requestId: event.data.requestId,
+      messageId,
       result
-    }, event.origin);
+    };
   }
 
   // src/web/app.mjs
@@ -37,30 +42,76 @@
     alert("Service workers are not supported by your browser");
   }
   var serviceWorkerReady = navigator.serviceWorker.register(`/service-worker.js`);
-  var myWebWorker = new Worker("web-worker.js");
-  var webWorkerReady = new Promise((resolve) => {
-    const callback = (event) => {
-      if (event.data.type === "ready") {
-        resolve();
-        myWebWorker.removeEventListener("message", callback);
+  var serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
+  serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
+    console.debug(`[Main] "${event.data.type}" message received from a service worker`);
+    let result;
+    if (event.data.type === "is_ready") {
+      result = isReady;
+    } else if (event.data.type === "request" || event.data.type === "httpRequest") {
+      const worker = await wasmWorker;
+      result = await worker.HTTPRequest(event.data.request);
+    }
+    if (event.data.messageId) {
+      serviceWorkerChannel.postMessage(
+        responseTo(
+          event.data.messageId,
+          result
+        )
+      );
+    }
+    console.debug(`[Main] "${event.data.type}" message processed`, { result });
+  });
+  var wasmWorker = createWordPressWorker(
+    {
+      backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
+      wordPressSiteURL: location.href
+    }
+  );
+  async function createWordPressWorker({ backend, wordPressSiteURL }) {
+    while (true) {
+      try {
+        await backend.sendMessage({ type: "is_alive" }, 50);
+        break;
+      } catch (e) {
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    await backend.sendMessage({
+      type: "initialize_wordpress",
+      siteURL: wordPressSiteURL
+    });
+    return {
+      async HTTPRequest(request) {
+        return await backend.sendMessage({
+          type: "request",
+          request
+        });
       }
     };
-    myWebWorker.addEventListener("message", callback);
-  });
-  async function init() {
-    await serviceWorkerReady;
-    await webWorkerReady;
-    const postMessage = postMessageFactory(myWebWorker);
-    window.addEventListener("message", async (event) => {
-      if (event.data.type === "goto") {
-        document.querySelector("iframe").src = event.data.path;
+  }
+  function iframeWorkerBackend(workerDocumentURL) {
+    const iframe = document.createElement("iframe");
+    iframe.src = workerDocumentURL;
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+    return {
+      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+        const messageId = postMessageExpectReply(iframe.contentWindow, message, "*");
+        const response = await awaitReply(window, messageId, timeout);
+        return response;
       }
-      console.log("[APP.js] Got a message", event);
-      const response = await postMessage(event.data);
-      console.log("[APP.js] Got a response", response);
-      replyTo(event, response, parent);
-    });
-    document.querySelector("iframe").src = "/wp-login.php";
+    };
+  }
+  var isReady = false;
+  async function init() {
+    console.log("[Main] Initializing the worker");
+    await wasmWorker;
+    await serviceWorkerReady;
+    isReady = true;
+    console.log("[Main] Iframe is ready");
+    const WPIframe = document.querySelector("#wp");
+    WPIframe.src = "/wp-login.php";
   }
   init();
 })();

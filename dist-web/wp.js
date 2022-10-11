@@ -6,7 +6,7 @@
   }
   Module.expectedDataFileDownloads++;
   (function() {
-   var loadPackage = function(metadata) {
+    var loadPackage = function(metadata) {
   
       var PACKAGE_PATH;
       if (typeof window === 'object') {
