@@ -35,7 +35,7 @@
   self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     const isWpOrgRequest = url.hostname.includes("api.wordpress.org");
-    const isPHPRequest = url.pathname.endsWith("/") && url !== "/" || url.pathname.endsWith(".php");
+    const isPHPRequest = url.pathname.endsWith("/") && url.pathname !== "/" || url.pathname.endsWith(".php");
     if (isWpOrgRequest || !isPHPRequest) {
       console.log(`[ServiceWorker] Ignoring request: ${url.pathname}`);
       return;

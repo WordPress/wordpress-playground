@@ -10,7 +10,7 @@ self.addEventListener( 'fetch', ( event ) => {
 	// @TODO A more involved hostname check
 	const url = new URL( event.request.url );
 	const isWpOrgRequest = url.hostname.includes( 'api.wordpress.org' );
-	const isPHPRequest = (url.pathname.endsWith('/') && url !== "/") || url.pathname.endsWith('.php');
+	const isPHPRequest = ( url.pathname.endsWith( '/' ) && url.pathname !== '/' ) || url.pathname.endsWith( '.php' );
 	if ( isWpOrgRequest || ! isPHPRequest ) {
 		console.log( `[ServiceWorker] Ignoring request: ${ url.pathname }` );
 		return;
@@ -38,10 +38,10 @@ self.addEventListener( 'fetch', ( event ) => {
 						headers: requestHeaders,
 					},
 				};
-				console.log("[ServiceWorker] Forwarding a request to the main app", { message });
+				console.log( '[ServiceWorker] Forwarding a request to the main app', { message } );
 				const messageId = postMessageExpectReply( broadcastChannel, message );
 				wpResponse = await awaitReply( broadcastChannel, messageId );
-				console.log("[ServiceWorker] Response received from the main app", { wpResponse });
+				console.log( '[ServiceWorker] Response received from the main app', { wpResponse } );
 			} catch ( e ) {
 				console.error( e );
 				throw e;
