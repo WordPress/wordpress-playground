@@ -488,9 +488,12 @@ ADMIN;
 
   // src/web/wasm-worker.js
   console.log("[WASM Worker] Spawned");
-  var ENVIRONMENT = typeof window !== "undefined" ? "IFRAME" : typeof self !== "undefined" ? "WEBWORKER" : void 0;
-  var IS_IFRAME = ENVIRONMENT === "IFRAME";
-  var IS_WEBWORKER = ENVIRONMENT === "WEBWORKER";
+  var IS_IFRAME = typeof window !== "undefined";
+  var IS_WEBWORKER = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+  console.log("[WASM Worker] Environment", {
+    IS_IFRAME,
+    IS_WEBWORKER
+  });
   if (IS_IFRAME) {
     window.importScripts = function(...urls) {
       for (const url of urls) {
@@ -536,15 +539,13 @@ ADMIN;
   async function generateResponseForMessage(message) {
     if (message.type === "initialize_wordpress") {
       wpBrowser = await initWPBrowser(message.siteURL);
-      isWordPressInitialized = true;
       return true;
     }
     if (message.type === "is_alive") {
       return true;
     }
     if (message.type === "run_php") {
-      const output = await wpBrowser.wp.php.run(message.code);
-      return output;
+      return await wpBrowser.wp.php.run(message.code);
     }
     if (message.type === "request" || message.type === "httpRequest") {
       const parsedUrl = new URL(message.request.path, wpBrowser.wp.ABSOLUTE_URL);

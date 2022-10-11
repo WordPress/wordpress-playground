@@ -4,14 +4,17 @@ import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
 import WPBrowser from '../shared/wp-browser.mjs';
 import { responseTo } from '../shared/messaging.mjs';
-const noop = function() { };
 
 console.log( '[WASM Worker] Spawned' );
 
 // Infer the environment
-const ENVIRONMENT = typeof window !== 'undefined' ? 'IFRAME' : typeof self !== 'undefined' ? 'WEBWORKER' : undefined;
-const IS_IFRAME = ENVIRONMENT === 'IFRAME';
-const IS_WEBWORKER = ENVIRONMENT === 'WEBWORKER';
+const IS_IFRAME = typeof window !== 'undefined';
+const IS_WEBWORKER = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope;
+
+console.log( '[WASM Worker] Environment', {
+	IS_IFRAME,
+	IS_WEBWORKER
+} );
 
 // Define polyfills
 if ( IS_IFRAME ) {
@@ -71,7 +74,6 @@ let wpBrowser;
 async function generateResponseForMessage( message ) {
 	if ( message.type === 'initialize_wordpress' ) {
 		wpBrowser = await initWPBrowser( message.siteURL );
-		isWordPressInitialized = true;
 		return true;
 	}
 
@@ -80,8 +82,7 @@ async function generateResponseForMessage( message ) {
 	}
 
 	if ( message.type === 'run_php' ) {
-		const output = await wpBrowser.wp.php.run( message.code );
-		return output;
+		return await wpBrowser.wp.php.run( message.code );
 	}
 
 	if ( message.type === 'request' || message.type === 'httpRequest' ) {
