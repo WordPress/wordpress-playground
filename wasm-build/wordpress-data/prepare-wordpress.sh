@@ -9,10 +9,10 @@ rm -rf wordpress
 rm -rf wordpress-static
 
 # Download specific version of WordPress
-wp_tarfile=wordpress-6.0.2.tar.gz
-wget https://wordpress.org/$wp_tarfile
-tar -xzf $wp_tarfile
-rm $wp_tarfile
+wp_zip_url=${1:-${WP_URL:-https://wordpress.org/wordpress-6.0.2.zip}}
+wget -O wp.zip $wp_zip_url
+unzip wp.zip
+rm wp.zip
 
 # Patch WordPress with sqlite support
 # https://github.com/aaemnnosttv/wp-sqlite-integration
