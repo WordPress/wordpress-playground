@@ -1,0 +1,104 @@
+import { postMessageExpectReply, awaitReply, responseTo, DEFAULT_REPLY_TIMEOUT } from '../shared/messaging.mjs';
+
+// <SERVICE WORKER>
+// Register the service worker and handle any HTTP WordPress requests it provides us:
+export async function registerServiceWorker(url, onRequest) {
+	if ( ! navigator.serviceWorker ) {
+		alert('Service workers are not supported in this browser.');
+		throw new Exception('Service workers are not supported in this browser.');
+	}
+	await navigator.serviceWorker.register(url);
+	const serviceWorkerChannel = new BroadcastChannel('wordpress-service-worker');
+	serviceWorkerChannel.addEventListener('message', async function onMessage(event) {
+		console.debug(`[Main] "${event.data.type}" message received from a service worker`);
+
+		let result;
+		if (event.data.type === 'request' || event.data.type === 'httpRequest') {
+			result = await onRequest(event.data.request);
+		} else {
+			throw new Error(`[Main] Unexpected message received from the service-worker: "${event.data.type}"`);
+		}
+
+		// The service worker expects a response when it includes a `messageId` in the message:
+		if (event.data.messageId) {
+			serviceWorkerChannel.postMessage(
+				responseTo(
+					event.data.messageId,
+					result
+				)
+			);
+		}
+		console.debug(`[Main] "${event.data.type}" message processed`, { result });
+	});
+}
+// </SERVICE WORKER>
+
+// <WASM WORKER>
+export async function createWordPressWorker({ backend, wordPressSiteURL }) {
+	// Keep asking if the worker is alive until we get a response
+	while (true) {
+		try {
+			await backend.sendMessage({ type: 'is_alive' }, 50);
+			break;
+		} catch (e) {
+			// Ignore timeouts
+		}
+		// Sleep 100ms
+		await new Promise(resolve => setTimeout(resolve, 50));
+	}
+
+	// Now that the worker is up and running, let's ask it to initialize
+	// WordPress:
+	await backend.sendMessage({
+		type: 'initialize_wordpress',
+		siteURL: wordPressSiteURL
+	});
+
+	return {
+		async HTTPRequest(request) {
+			return await backend.sendMessage({
+				type: 'request',
+				request
+			})
+		}
+	};
+}
+
+export function webWorkerBackend(workerURL) {
+	const worker = new Worker(workerURL);
+	return {
+		sendMessage: async function( message, timeout=DEFAULT_REPLY_TIMEOUT ) {
+			const messageId = postMessageExpectReply(worker, message);
+			const response = await awaitReply(worker, messageId, timeout);
+			return response;
+		}
+	};
+}
+
+export function sharedWorkerBackend(workerURL) {
+	const worker = new SharedWorker(workerURL);
+	worker.port.start();
+	return {
+		sendMessage: async function( message, timeout=DEFAULT_REPLY_TIMEOUT ) {
+			const messageId = postMessageExpectReply(worker.port, message);
+			const response = await awaitReply(worker.port, messageId, timeout);
+			return response;
+		}
+	};
+}
+
+export function iframeBackend(workerDocumentURL) {
+	const iframe = document.createElement('iframe');
+	iframe.src = workerDocumentURL;
+	iframe.style.display = 'none';
+	document.body.appendChild(iframe);
+	return {
+		sendMessage: async function( message, timeout=DEFAULT_REPLY_TIMEOUT ) {
+			const messageId = postMessageExpectReply(iframe.contentWindow, message, '*');
+			const response = await awaitReply(window, messageId, timeout);
+			return response;
+		}
+	};
+}
+
+// </WASM WORKER>

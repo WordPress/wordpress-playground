@@ -37,37 +37,33 @@
     };
   }
 
-  // src/web/app.mjs
-  if (!navigator.serviceWorker) {
-    alert("Service workers are not supported by your browser");
+  // src/web/library.js
+  async function registerServiceWorker(url, onRequest) {
+    if (!navigator.serviceWorker) {
+      alert("Service workers are not supported in this browser.");
+      throw new Exception("Service workers are not supported in this browser.");
+    }
+    await navigator.serviceWorker.register(url);
+    const serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
+    serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
+      console.debug(`[Main] "${event.data.type}" message received from a service worker`);
+      let result;
+      if (event.data.type === "request" || event.data.type === "httpRequest") {
+        result = await onRequest(event.data.request);
+      } else {
+        throw new Error(`[Main] Unexpected message received from the service-worker: "${event.data.type}"`);
+      }
+      if (event.data.messageId) {
+        serviceWorkerChannel.postMessage(
+          responseTo(
+            event.data.messageId,
+            result
+          )
+        );
+      }
+      console.debug(`[Main] "${event.data.type}" message processed`, { result });
+    });
   }
-  var serviceWorkerReady = navigator.serviceWorker.register(`/service-worker.js`);
-  var serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
-  serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
-    console.debug(`[Main] "${event.data.type}" message received from a service worker`);
-    let result;
-    if (event.data.type === "is_ready") {
-      result = isReady;
-    } else if (event.data.type === "request" || event.data.type === "httpRequest") {
-      const worker = await wasmWorker;
-      result = await worker.HTTPRequest(event.data.request);
-    }
-    if (event.data.messageId) {
-      serviceWorkerChannel.postMessage(
-        responseTo(
-          event.data.messageId,
-          result
-        )
-      );
-    }
-    console.debug(`[Main] "${event.data.type}" message processed`, { result });
-  });
-  var wasmWorker = createWordPressWorker(
-    {
-      backend: iframeWorkerBackend("http://127.0.0.1:8778/iframe-worker.html"),
-      wordPressSiteURL: location.href
-    }
-  );
   async function createWordPressWorker({ backend, wordPressSiteURL }) {
     while (true) {
       try {
@@ -90,7 +86,7 @@
       }
     };
   }
-  function iframeWorkerBackend(workerDocumentURL) {
+  function iframeBackend(workerDocumentURL) {
     const iframe = document.createElement("iframe");
     iframe.src = workerDocumentURL;
     iframe.style.display = "none";
@@ -103,15 +99,24 @@
       }
     };
   }
-  var isReady = false;
+
+  // src/web/app.mjs
   async function init() {
-    console.log("[Main] Initializing the worker");
-    await wasmWorker;
-    await serviceWorkerReady;
-    isReady = true;
-    console.log("[Main] Iframe is ready");
-    const WPIframe = document.querySelector("#wp");
-    WPIframe.src = "/wp-login.php";
+    console.log("[Main] Initializing the workers");
+    const wasmWorker = await createWordPressWorker(
+      {
+        backend: iframeBackend("http://127.0.0.1:8778/iframe-worker.html"),
+        wordPressSiteURL: location.href
+      }
+    );
+    await registerServiceWorker(
+      `http://localhost:8777/service-worker.js`,
+      async (request) => {
+        return await wasmWorker.HTTPRequest(request);
+      }
+    );
+    console.log("[Main] Workers are ready");
+    document.querySelector("#wp").src = "/wp-login.php";
   }
   init();
 })();
