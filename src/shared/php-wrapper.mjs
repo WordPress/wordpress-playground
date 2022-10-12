@@ -10,10 +10,13 @@ export default class PHPWrapper {
 	stderr = [];
 
 	async init( PhpBinary, args = {} ) {
-		if ( this._initPromise ) {
-			return this._initPromise;
+		if (!this._initPromise) {
+			this._initPromise = this._init(PhpBinary, args);
 		}
+		return this._initPromise;
+	}
 
+	async _init( PhpBinary, args = {} ) {
 		const defaults = {
 			onAbort( reason ) {
 				console.error( 'WASM aborted: ' );
@@ -24,17 +27,15 @@ export default class PHPWrapper {
 			},
 			printErr: ( ...chunks ) => {
 				this.stderr.push( ...chunks );
-			},
+			}
 		};
 
-		this._initPromise = (
-			new PhpBinary( Object.assign( {}, defaults, args ) )
-				.then( ( { ccall } ) => {
-					ccall( 'pib_init', NUM, [ STR ], [] );
-					this.call = ccall;
-				} )
-		);
-		return this._initPromise;
+		const PHPModule = Object.assign({}, defaults, args);
+		await new PhpBinary(PHPModule);
+		
+		this.call = PHPModule.ccall;
+		await this.call('pib_init', NUM, [STR], []);
+		return PHPModule;
 	}
 
 	async run( code ) {

@@ -19,19 +19,28 @@ console.log( '[WASM Worker] Environment', {
 } );
 
 // Define polyfills
-if ( IS_IFRAME ) {
-	window.importScripts = function( ...urls ) {
-		for ( const url of urls ) {
-			const script = document.createElement( 'script' );
-			script.src = url;
-			document.body.appendChild( script );
-		}
+if (IS_IFRAME) {
+	// importScripts is synchronous in a web worker.
+	// Let's make it async in an iframe so we can at await it before moving forward.
+	window.importScripts = async function (...urls) {
+		return Promise.all(
+			urls.map(url => {
+				const script = document.createElement('script');
+				script.src = url;
+				script.async = false;
+				document.body.appendChild(script);
+				return new Promise(resolve => {
+					script.onload = resolve;
+				});
+			})
+		)
 	};
 }
 
+let phpLoaderScriptName;
 // Listen to messages
-if ( IS_IFRAME ) {
-	importScripts( '/php-web.js' );
+if (IS_IFRAME) {
+	phpLoaderScriptName = '/php-web.js';
 	window.addEventListener(
 		'message',
 		( event ) => handleMessageEvent(
@@ -41,7 +50,7 @@ if ( IS_IFRAME ) {
 		false,
 	);
 } else if ( IS_WEBWORKER ) {
-	importScripts( '/php-webworker.js' );
+	phpLoaderScriptName = '/php-webworker.js';
 	onmessage = ( event ) => {
 		handleMessageEvent(
 			event,
@@ -49,7 +58,7 @@ if ( IS_IFRAME ) {
 		);
 	};
 } else if ( IS_SHARED_WORKER ) {
-	importScripts( '/php-webworker.js' );
+	phpLoaderScriptName = '/php-webworker.js';
 	self.onconnect = ( e ) => {
 		const port = e.ports[ 0 ];
 
@@ -113,27 +122,42 @@ async function generateResponseForMessage( message ) {
 	console.debug( `[WASM Worker] "${ message.type }" event has no handler, short-circuiting` );
 }
 
-async function initWPBrowser( siteUrl ) {
-	const php = new PHPWrapper( );
-	console.log( '[WASM Worker] Before wp.init()' );
-	await php.init( PHP, {
-		async onPreInit( FS, phpModule ) {
-			globalThis.PHPModule = phpModule;
-			importScripts( '/wp.js' );
-			FS.mkdirTree( '/usr/local/etc' );
-			FS.writeFile( '/usr/local/etc/php.ini', `[PHP]
+async function initWPBrowser(siteUrl) {	
+	console.log('[WASM Worker] Before wp.init()');
 
-			error_reporting = E_ERROR | E_PARSE
-			display_errors = 1
-			html_errors = 1
-			display_startup_errors = On
-			` );
-		},
-	} );
+	// Initialize the PHP module
+	const php = new PHPWrapper();
+	await importScripts(phpLoaderScriptName);
+	const PHPModule = await php.init(PHP);
+	
+	// Load the WordPress files
+	await new Promise((resolve) => {
+		PHPModule.monitorRunDependencies = (nbLeft) => {
+			if (nbLeft === 0) {
+				delete PHPModule.monitorRunDependencies;
+				resolve();
+			}
+		}
+		// The name PHPModule is baked into wp.js
+		globalThis.PHPModule = PHPModule;
+		importScripts('/wp.js');
+	});
 
+	// Create php.ini
+	PHPModule.FS.mkdirTree('/usr/local/etc');
+	PHPModule.FS.writeFile('/usr/local/etc/php.ini', `[PHP]
+
+	error_reporting = E_ERROR | E_PARSE
+	display_errors = 1
+	html_errors = 1
+	display_startup_errors = On
+	`);
+
+	// We're ready to initialize WordPress!
 	const wp = new WordPress( php );
 	await wp.init( siteUrl );
-	console.log( '[WASM Worker] After wp.init()' );
+
+	console.log('[WASM Worker] After wp.init()');
 
 	return new WPBrowser( wp, { handleRedirects: true } );
 }

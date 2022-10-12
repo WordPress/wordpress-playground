@@ -34,9 +34,12 @@
     stdout = [];
     stderr = [];
     async init(PhpBinary, args = {}) {
-      if (this._initPromise) {
-        return this._initPromise;
+      if (!this._initPromise) {
+        this._initPromise = this._init(PhpBinary, args);
       }
+      return this._initPromise;
+    }
+    async _init(PhpBinary, args = {}) {
       const defaults = {
         onAbort(reason) {
           console.error("WASM aborted: ");
@@ -49,11 +52,11 @@
           this.stderr.push(...chunks);
         }
       };
-      this._initPromise = new PhpBinary(Object.assign({}, defaults, args)).then(({ ccall }) => {
-        ccall("pib_init", NUM, [STR], []);
-        this.call = ccall;
-      });
-      return this._initPromise;
+      const PHPModule = Object.assign({}, defaults, args);
+      await new PhpBinary(PHPModule);
+      this.call = PHPModule.ccall;
+      await this.call("pib_init", NUM, [STR], []);
+      return PHPModule;
     }
     async run(code) {
       if (!this.call) {
@@ -497,16 +500,23 @@ ADMIN;
     IS_SHARED_WORKER
   });
   if (IS_IFRAME) {
-    window.importScripts = function(...urls) {
-      for (const url of urls) {
-        const script = document.createElement("script");
-        script.src = url;
-        document.body.appendChild(script);
-      }
+    window.importScripts = async function(...urls) {
+      return Promise.all(
+        urls.map(async (url) => {
+          const script = document.createElement("script");
+          script.src = url;
+          script.async = false;
+          document.body.appendChild(script);
+          await new Promise((resolve) => {
+            script.onload = resolve;
+          });
+        })
+      );
     };
   }
+  var phpLoaderScriptName;
   if (IS_IFRAME) {
-    importScripts("/php-web.js");
+    phpLoaderScriptName = "/php-web.js";
     window.addEventListener(
       "message",
       (event) => handleMessageEvent(
@@ -516,7 +526,7 @@ ADMIN;
       false
     );
   } else if (IS_WEBWORKER) {
-    importScripts("/php-webworker.js");
+    phpLoaderScriptName = "/php-webworker.js";
     onmessage = (event) => {
       handleMessageEvent(
         event,
@@ -524,7 +534,7 @@ ADMIN;
       );
     };
   } else if (IS_SHARED_WORKER) {
-    importScripts("/php-webworker.js");
+    phpLoaderScriptName = "/php-webworker.js";
     self.onconnect = (e) => {
       const port = e.ports[0];
       port.addEventListener("message", (event) => {
@@ -572,22 +582,28 @@ ADMIN;
     console.debug(`[WASM Worker] "${message.type}" event has no handler, short-circuiting`);
   }
   async function initWPBrowser(siteUrl) {
-    const php = new PHPWrapper();
     console.log("[WASM Worker] Before wp.init()");
-    await php.init(PHP, {
-      async onPreInit(FS, phpModule) {
-        globalThis.PHPModule = phpModule;
-        importScripts("/wp.js");
-        FS.mkdirTree("/usr/local/etc");
-        FS.writeFile("/usr/local/etc/php.ini", `[PHP]
-
-			error_reporting = E_ERROR | E_PARSE
-			display_errors = 1
-			html_errors = 1
-			display_startup_errors = On
-			`);
-      }
+    const php = new PHPWrapper();
+    await importScripts(phpLoaderScriptName);
+    const PHPModule = await php.init(PHP);
+    await new Promise((resolve) => {
+      PHPModule.monitorRunDependencies = (nbLeft) => {
+        if (nbLeft === 0) {
+          delete PHPModule.monitorRunDependencies;
+          resolve();
+        }
+      };
+      globalThis.PHPModule = PHPModule;
+      importScripts("/wp.js");
     });
+    PHPModule.FS.mkdirTree("/usr/local/etc");
+    PHPModule.FS.writeFile("/usr/local/etc/php.ini", `[PHP]
+
+	error_reporting = E_ERROR | E_PARSE
+	display_errors = 1
+	html_errors = 1
+	display_startup_errors = On
+	`);
     const wp = new WordPress(php);
     await wp.init(siteUrl);
     console.log("[WASM Worker] After wp.init()");

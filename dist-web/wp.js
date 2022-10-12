@@ -1,5 +1,5 @@
 
-  var Module = typeof PHPModule !== 'undefined' ? PHPModule : {};
+var Module = typeof PHPModule !== 'undefined' ? PHPModule : {};
   
   if (!Module.expectedDataFileDownloads) {
     Module.expectedDataFileDownloads = 0;
@@ -377,7 +377,6 @@ Module['FS_createPath']('/preload/wordpress/wp-content/themes/twentytwentytwo/as
         },
         finish: function(byteArray) {
           var that = this;
-  
           Module['FS_createDataFile'](this.name, null, byteArray, true, true, true); // canOwn this data in the filesystem, it is a slide into the heap that will never change
           Module['removeRunDependency']('fp ' + that.name);
   
@@ -423,6 +422,9 @@ Module['FS_createPath']('/preload/wordpress/wp-content/themes/twentytwentytwo/as
         }
       
     }
+    console.log(
+      "Module['calledRun']", Module['calledRun'], Module
+    )
     if (Module['calledRun']) {
       runWithFS();
     } else {
