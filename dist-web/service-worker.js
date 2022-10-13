@@ -32,6 +32,9 @@
 
   // src/web/service-worker.js
   var broadcastChannel = new BroadcastChannel("wordpress-service-worker");
+  self.addEventListener("activate", (event) => {
+    event.waitUntil(clients.claim());
+  });
   self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     const isWpOrgRequest = url.hostname.includes("api.wordpress.org");

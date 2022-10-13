@@ -1,5 +1,7 @@
 import { postMessageExpectReply, awaitReply, responseTo, DEFAULT_REPLY_TIMEOUT } from '../shared/messaging.mjs';
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, 50));
+
 // <SERVICE WORKER>
 // Register the service worker and handle any HTTP WordPress requests it provides us:
 export async function registerServiceWorker(url, onRequest) {
@@ -30,6 +32,21 @@ export async function registerServiceWorker(url, onRequest) {
 		}
 		console.debug(`[Main] "${event.data.type}" message processed`, { result });
 	});
+	navigator.serviceWorker.startMessages();
+
+	// Without sleep(0), the first request below returns 404.
+	// @TODO: Figure out why.
+	await sleep(0); 
+
+	const wordPressDomain = new URL(url).origin;
+	while (true) {
+		const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
+		if (response.ok) {
+			break;
+		} else {
+			await sleep(50);
+		}
+	}
 }
 // </SERVICE WORKER>
 
@@ -43,8 +60,7 @@ export async function createWordPressWorker({ backend, wordPressSiteURL }) {
 		} catch (e) {
 			// Ignore timeouts
 		}
-		// Sleep 100ms
-		await new Promise(resolve => setTimeout(resolve, 50));
+		await sleep(50);
 	}
 
 	// Now that the worker is up and running, let's ask it to initialize

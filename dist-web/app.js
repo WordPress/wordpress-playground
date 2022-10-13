@@ -38,6 +38,7 @@
   }
 
   // src/web/library.js
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, 50));
   async function registerServiceWorker(url, onRequest) {
     if (!navigator.serviceWorker) {
       alert("Service workers are not supported in this browser.");
@@ -63,6 +64,17 @@
       }
       console.debug(`[Main] "${event.data.type}" message processed`, { result });
     });
+    navigator.serviceWorker.startMessages();
+    await sleep(0);
+    const wordPressDomain = new URL(url).origin;
+    while (true) {
+      const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
+      if (response.ok) {
+        break;
+      } else {
+        await sleep(50);
+      }
+    }
   }
   async function createWordPressWorker({ backend, wordPressSiteURL }) {
     while (true) {
@@ -71,7 +83,7 @@
         break;
       } catch (e) {
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await sleep(50);
     }
     await backend.sendMessage({
       type: "initialize_wordpress",

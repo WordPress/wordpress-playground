@@ -3,6 +3,21 @@ import { postMessageExpectReply, awaitReply } from '../shared/messaging.mjs';
 const broadcastChannel = new BroadcastChannel( 'wordpress-service-worker' );
 
 /**
+ * Ensure the client gets claimed by this service worker right after the registration.
+ * 
+ * Only requests from the "controlled" pages are resolved via the fetch listener below.
+ * However, simply registering the worker is not enough to make it the "controller" of
+ * the current page. The user still has to reload the page. If they don't an iframe
+ * pointing to /index.php will show a 404 message instead of WordPress homepage.
+ * 
+ * This activation handles saves the user reloading the page after the initial confusion.
+ * It immediately makes this worker the controller of any client that registers it.
+ */
+self.addEventListener("activate", (event) => {
+	event.waitUntil(clients.claim());
+});
+  
+/**
  * The main method. It captures the requests and loop them back to the main
  * application using the Loopback request
  */
