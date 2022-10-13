@@ -2,6 +2,32 @@ import { postMessageExpectReply, awaitReply, responseTo, DEFAULT_REPLY_TIMEOUT }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, 50));
 
+export async function runWordPress({
+	wasmWorkerBackend,
+	wasmWorkerUrl,
+	wordPressSiteUrl,
+	serviceWorkerUrl,
+	assignScope=true
+}) {
+	const scope = assignScope ? Math.random().toFixed(16) : undefined;
+	
+	const wasmWorker = await createWordPressWorker({
+		backend: getWorkerBackend( wasmWorkerBackend, wasmWorkerUrl ),
+		wordPressSiteUrl: wordPressSiteUrl,
+		scope
+	});
+	await registerServiceWorker({
+		url: serviceWorkerUrl,
+		// Forward any HTTP requests to a worker to resolve them in another process.
+		// This way they won't slow down the UI interactions.
+		onRequest: async (request) => {
+			return await wasmWorker.HTTPRequest(request);
+		},
+		scope
+	});
+	return wasmWorker;
+}
+
 // <SERVICE WORKER>
 // Register the service worker and handle any HTTP WordPress requests it provides us:
 export async function registerServiceWorker({ url, onRequest, scope }) {
