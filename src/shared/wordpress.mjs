@@ -13,7 +13,8 @@ export default class WordPress {
 	SCHEMA = 'http';
 	HOSTNAME = 'localhost';
 	PORT = 80;
-	HOST = ``;
+	HOST = '';
+	PATHNAME = '';
 	ABSOLUTE_URL = ``;
 
 	constructor( php ) {
@@ -25,12 +26,13 @@ export default class WordPress {
 			useFetchForRequests: false,
 			...options
 		}
-		const url = new URL( urlString );
+		const url = new URL(urlString);
 		this.HOSTNAME = url.hostname;
 		this.PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
 		this.SCHEMA = ( url.protocol || '' ).replace( ':', '' );
 		this.HOST = `${ this.HOSTNAME }:${ this.PORT }`;
-		this.ABSOLUTE_URL = `${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }`;
+		this.PATHNAME = url.pathname.replace(/\/+$/, '');
+		this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
 
 		await this.php.refresh();
 
@@ -335,6 +337,9 @@ ADMIN;
 	_runWordPressCode( requestPath ) {
 		// Resolve the .php file the request should target.
 		let filePath = requestPath;
+		if (this.PATHNAME) {
+			filePath = filePath.substr( this.PATHNAME.length );
+		}
 
 		// If the path mentions a .php extension, that's our file's path.
 		if(filePath.includes(".php")) {

@@ -39,14 +39,17 @@
 
   // src/web/library.js
   var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, 50));
-  async function registerServiceWorker(url, onRequest) {
+  async function registerServiceWorker({ url, onRequest, scope }) {
     if (!navigator.serviceWorker) {
       alert("Service workers are not supported in this browser.");
       throw new Exception("Service workers are not supported in this browser.");
     }
     await navigator.serviceWorker.register(url);
-    const serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
+    const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker`);
     serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
+      if (scope && event.data.scope !== scope) {
+        return;
+      }
       console.debug(`[Main] "${event.data.type}" message received from a service worker`);
       let result;
       if (event.data.type === "request" || event.data.type === "httpRequest") {
@@ -67,12 +70,8 @@
     navigator.serviceWorker.startMessages();
     await sleep(0);
     const wordPressDomain = new URL(url).origin;
-    const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-    if (!response.ok) {
-      window.location.reload();
-    }
   }
-  async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2 }) {
+  async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2, scope }) {
     while (true) {
       try {
         await backend.sendMessage({ type: "is_alive" }, 50);
@@ -81,11 +80,17 @@
       }
       await sleep(50);
     }
+    if (scope) {
+      wordPressSiteUrl2 += `/scope:${scope}`;
+    }
     await backend.sendMessage({
       type: "initialize_wordpress",
       siteURL: wordPressSiteUrl2
     });
     return {
+      urlFor(path) {
+        return `${wordPressSiteUrl2}${path}`;
+      },
       async HTTPRequest(request) {
         return await backend.sendMessage({
           type: "request",
@@ -153,20 +158,21 @@
   // src/web/app.mjs
   async function init() {
     console.log("[Main] Initializing the workers");
-    const wasmWorker = await createWordPressWorker(
-      {
-        backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
-        wordPressSiteUrl
-      }
-    );
-    await registerServiceWorker(
-      serviceWorkerUrl,
-      async (request) => {
+    const tabScope = Math.random().toFixed(16);
+    const wasmWorker = await createWordPressWorker({
+      backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
+      wordPressSiteUrl,
+      scope: tabScope
+    });
+    await registerServiceWorker({
+      url: serviceWorkerUrl,
+      onRequest: async (request) => {
         return await wasmWorker.HTTPRequest(request);
-      }
-    );
+      },
+      scope: tabScope
+    });
     console.log("[Main] Workers are ready");
-    document.querySelector("#wp").src = "/wp-login.php";
+    document.querySelector("#wp").src = wasmWorker.urlFor(`/wp-login.php`);
   }
   init();
 })();
