@@ -31,9 +31,7 @@
   }
 
   // src/web/service-worker.js
-  var pathname = new URL(self.registration.scope).pathname;
-  var workerScope = pathname.replace(/\/+$/, "");
-  var broadcastChannel = new BroadcastChannel(`wordpress-service-worker-${pathname}`);
+  var broadcastChannel = new BroadcastChannel(`wordpress-service-worker`);
   self.addEventListener("activate", (event) => {
     event.waitUntil(clients.claim());
   });
@@ -43,6 +41,8 @@
     if (isWpOrgRequest) {
       console.log(`[ServiceWorker] Ignoring request: ${url.pathname}`);
     }
+    const isScopedRequest = url.pathname.startsWith(`/scope:`);
+    const scope = isScopedRequest ? url.pathname.split("/")[1].split(":")[1] : null;
     const isPHPRequest = url.pathname.endsWith("/") && url.pathname !== "/" || url.pathname.endsWith(".php");
     if (isPHPRequest) {
       event.preventDefault();
@@ -59,6 +59,7 @@
           try {
             const message = {
               type: "httpRequest",
+              scope,
               request: {
                 path: url.pathname + url.search,
                 method: event.request.method,
@@ -83,11 +84,10 @@
         })
       );
     }
-    const isStaticFileRequest = url.pathname.startsWith(`${workerScope}/`);
-    if (isStaticFileRequest) {
+    const isScopedStaticFileRequest = isScopedRequest;
+    if (isScopedStaticFileRequest) {
       const scopedUrl = url + "";
-      url.pathname = url.pathname.substr(workerScope.length);
-      const serverUrl = url + "";
+      url.pathname = "/" + url.pathname.split("/").slice(2).join("/");
       console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
       event.preventDefault();
       return event.respondWith(

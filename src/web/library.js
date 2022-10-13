@@ -4,16 +4,24 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, 50));
 
 // <SERVICE WORKER>
 // Register the service worker and handle any HTTP WordPress requests it provides us:
-export async function registerServiceWorker(url, onRequest, scope = '') {
+export async function registerServiceWorker({ url, onRequest, scope }) {
 	if ( ! navigator.serviceWorker ) {
 		alert('Service workers are not supported in this browser.');
 		throw new Exception('Service workers are not supported in this browser.');
 	}
-	await navigator.serviceWorker.register(url, {
-		scope
-	});
-	const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker-${scope}`);
+	await navigator.serviceWorker.register(url);
+	const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker`);
 	serviceWorkerChannel.addEventListener('message', async function onMessage(event) {
+		/**
+		 * Ignore events meant for other WordPress instances to
+		 * avoid handling the same event twice.
+		 * 
+		 * This is important because BroadcastChannel transmits
+		 * events to all the listeners across all browser tabs.
+		 */
+		if (scope && event.data.scope !== scope) {
+			return;
+		}
 		console.debug(`[Main] "${event.data.type}" message received from a service worker`);
 
 		let result;
@@ -50,7 +58,7 @@ export async function registerServiceWorker(url, onRequest, scope = '') {
 // </SERVICE WORKER>
 
 // <WASM WORKER>
-export async function createWordPressWorker({ backend, wordPressSiteUrl }) {
+export async function createWordPressWorker({ backend, wordPressSiteUrl, scope }) {
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
 		try {
@@ -62,6 +70,17 @@ export async function createWordPressWorker({ backend, wordPressSiteUrl }) {
 		await sleep(50);
 	}
 
+	/**
+	 * Scoping a WordPress instances means hosting it on a
+	 * path starting with `/scope:`. This helps WASM workers
+	 * avoid rendering any requests meant for other WASM workers.
+	 * 
+	 * @see registerServiceWorker for more details
+	 */
+	if (scope) {
+		wordPressSiteUrl += `/scope:${scope}`;
+	}
+
 	// Now that the worker is up and running, let's ask it to initialize
 	// WordPress:
 	await backend.sendMessage({
@@ -70,6 +89,9 @@ export async function createWordPressWorker({ backend, wordPressSiteUrl }) {
 	});
 
 	return {
+		urlFor(path) {
+			return `${wordPressSiteUrl}${path}`;
+		},
 		async HTTPRequest(request) {
 			return await backend.sendMessage({
 				type: 'request',

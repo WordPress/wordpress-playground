@@ -1,8 +1,6 @@
 import { postMessageExpectReply, awaitReply } from '../shared/messaging.mjs';
 
-const pathname = new URL(self.registration.scope).pathname;
-const workerScope = pathname.replace(/\/+$/, '');
-const broadcastChannel = new BroadcastChannel( `wordpress-service-worker-${pathname}` );
+const broadcastChannel = new BroadcastChannel( `wordpress-service-worker` );
 
 /**
  * Ensure the client gets claimed by this service worker right after the registration.
@@ -19,6 +17,8 @@ self.addEventListener("activate", (event) => {
 	event.waitUntil(clients.claim());
 });
 
+const urlMap = {}
+
 /**
  * The main method. It captures the requests and loop them back to the main
  * application using the Loopback request
@@ -30,6 +30,16 @@ self.addEventListener('fetch', (event) => {
 	if (isWpOrgRequest) {
 		console.log(`[ServiceWorker] Ignoring request: ${url.pathname}`);
 	}
+
+	/**
+	 * Detect scoped requests – their url starts with `/scope:`
+	 * 
+	 * We need this mechanics because BroadcastChannel transmits
+	 * events to all the listeners across all browser tabs. Scopes
+	 * helps WASM workers ignore requests meant for other WASM workers. 
+	 */
+	const isScopedRequest = url.pathname.startsWith(`/scope:`);
+	const scope = isScopedRequest ? url.pathname.split('/')[1].split(':')[1] : null;
 
 	const isPHPRequest = (url.pathname.endsWith('/') && url.pathname !== '/') || url.pathname.endsWith('.php');
 	if (isPHPRequest) {
@@ -48,6 +58,7 @@ self.addEventListener('fetch', (event) => {
 				try {
 					const message = {
 						type: 'httpRequest',
+						scope,
 						request: {
 							path: url.pathname + url.search,
 							method: event.request.method,
@@ -74,11 +85,10 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
-	const isStaticFileRequest = url.pathname.startsWith(`${workerScope}/`);
-	if (isStaticFileRequest) {
+	const isScopedStaticFileRequest = isScopedRequest;
+	if (isScopedStaticFileRequest) {
 		const scopedUrl = url + '';
-		url.pathname = url.pathname.substr(workerScope.length);
-		const serverUrl = url + '';
+		url.pathname = '/' + url.pathname.split('/').slice(2).join('/');
 		console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
 
 		event.preventDefault();
