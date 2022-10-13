@@ -24,6 +24,8 @@
     "clean": "npm-run-all --parallel clean:*",
     "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
     "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
+    "lint:js": "eslint \"./src/**/*.{js,mjs,ts}\"",
+    "lint:js:fix": "npm run lint:js -- --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Adam Zielinski",

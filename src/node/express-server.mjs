@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { login } from './bootstrap.mjs';
 
+// eslint-disable-next-line no-global-assign
 __dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 export async function startExpressServer( browser, port, options = {} ) {
@@ -24,7 +25,7 @@ export async function startExpressServer( browser, port, options = {} ) {
 			if ( req.query?.domain ) {
 				await browser.wp.init(
 					new URL( req.query.domain ).toString(),
-					{ useFetchForRequests: true }
+					{ useFetchForRequests: true },
 				);
 				await login( browser, 'admin', 'password' );
 				res.status( 302 );

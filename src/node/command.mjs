@@ -5,6 +5,7 @@ import yargs from 'yargs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 
+// eslint-disable-next-line no-global-assign
 __dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 import WPBrowser from '../shared/wp-browser.mjs';
@@ -22,7 +23,7 @@ export default async function command( argv ) {
 			return { absoluteHostPath, absoluteWasmPath, relativeHostPath, relativeWasmPath };
 		} catch ( e ) {
 			console.error( `Failed to mount ${ mount }` );
-			process.exit( 0 );
+			return process.exit( 0 );
 		}
 	} );
 	const wp = await createWordPressClient( {
@@ -42,7 +43,7 @@ export default async function command( argv ) {
 }
 
 const nodePath = path.resolve( process.argv[ 1 ] );
-const modulePath = __dirname ? `${__filename}` : path.resolve( fileURLToPath( import.meta.url ) );
+const modulePath = __dirname ? `${ __filename }` : path.resolve( fileURLToPath( import.meta.url ) );
 const isRunningDirectlyViaCLI = nodePath === modulePath;
 
 if ( isRunningDirectlyViaCLI ) {

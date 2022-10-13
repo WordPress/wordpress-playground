@@ -38,7 +38,7 @@
   }
 
   // src/web/library.js
-  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, 50));
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   async function runWordPress({
     wasmWorkerBackend: wasmWorkerBackend2,
     wasmWorkerUrl: wasmWorkerUrl2,
@@ -64,7 +64,7 @@
   async function registerServiceWorker({ url, onRequest, scope }) {
     if (!navigator.serviceWorker) {
       alert("Service workers are not supported in this browser.");
-      throw new Exception("Service workers are not supported in this browser.");
+      throw new Error("Service workers are not supported in this browser.");
     }
     await navigator.serviceWorker.register(url);
     const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker`);
@@ -142,7 +142,7 @@
   function webWorkerBackend(workerURL) {
     const worker = new Worker(workerURL);
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
         const messageId = postMessageExpectReply(worker, message);
         const response = await awaitReply(worker, messageId, timeout);
         return response;
@@ -153,7 +153,7 @@
     const worker = new SharedWorker(workerURL);
     worker.port.start();
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
         const messageId = postMessageExpectReply(worker.port, message);
         const response = await awaitReply(worker.port, messageId, timeout);
         return response;
@@ -166,7 +166,7 @@
     iframe.style.display = "none";
     document.body.appendChild(iframe);
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
         const messageId = postMessageExpectReply(iframe.contentWindow, message, "*");
         const response = await awaitReply(window, messageId, timeout);
         return response;

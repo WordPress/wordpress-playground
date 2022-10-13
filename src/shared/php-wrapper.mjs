@@ -10,8 +10,8 @@ export default class PHPWrapper {
 	stderr = [];
 
 	async init( PhpBinary, args = {} ) {
-		if (!this._initPromise) {
-			this._initPromise = this._init(PhpBinary, args);
+		if ( ! this._initPromise ) {
+			this._initPromise = this._init( PhpBinary, args );
 		}
 		return this._initPromise;
 	}
@@ -27,14 +27,14 @@ export default class PHPWrapper {
 			},
 			printErr: ( ...chunks ) => {
 				this.stderr.push( ...chunks );
-			}
+			},
 		};
 
-		const PHPModule = Object.assign({}, defaults, args);
-		await new PhpBinary(PHPModule);
-		
+		const PHPModule = Object.assign( {}, defaults, args );
+		await new PhpBinary( PHPModule );
+
 		this.call = PHPModule.ccall;
-		await this.call('pib_init', NUM, [STR], []);
+		await this.call( 'pib_init', NUM, [ STR ], [] );
 		return PHPModule;
 	}
 

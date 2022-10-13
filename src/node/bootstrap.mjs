@@ -6,6 +6,7 @@ import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
 
 import { fileURLToPath } from 'node:url';
+// eslint-disable-next-line no-global-assign
 __dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 export async function createWordPressClient( options = {} ) {
@@ -19,10 +20,10 @@ export async function createWordPressClient( options = {} ) {
 	const php = new PHPWrapper();
 	await php.init( PHP, {
 		locateFile() {
-			return path.join(__dirname, options.phpWasmPath);
+			return path.join( __dirname, options.phpWasmPath );
 		},
 		onPreInit( FS, NODEFS ) {
-			FS.mkdirTree('/usr/local/etc');
+			FS.mkdirTree( '/usr/local/etc' );
 			FS.mount( NODEFS, { root: options.etcPath }, '/usr/local/etc' );
 			FS.mkdirTree( '/preload/wordpress' );
 			FS.mount( NODEFS, { root: options.wpPath }, '/preload/wordpress' );

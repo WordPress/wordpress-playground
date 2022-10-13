@@ -103,7 +103,7 @@
     console.log(`[ServiceWorker] Ignoring a request to ${event.request.url}`);
   });
   async function cloneRequest(request, overrides) {
-    const body = ["GET", "HEAD"].includes(request.method) || "body" in overrides ? void 0 : await r.blob();
+    const body = ["GET", "HEAD"].includes(request.method) || "body" in overrides ? void 0 : await request.blob();
     return new Request(overrides.url || request.url, {
       body,
       method: request.method,

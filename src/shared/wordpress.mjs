@@ -1,13 +1,12 @@
 if ( typeof XMLHttpRequest === 'undefined' ) {
 	// Polyfill missing node.js features
-	import('xmlhttprequest').then(({XMLHttpRequest}) => {
+	import( 'xmlhttprequest' ).then( ( { XMLHttpRequest } ) => {
 		global.XMLHttpRequest = XMLHttpRequest;
-	});
-	global.atob = function(data) {
-		return Buffer.from(data).toString('base64');
-	}
+	} );
+	global.atob = function( data ) {
+		return Buffer.from( data ).toString( 'base64' );
+	};
 }
-
 export default class WordPress {
 	DOCROOT = '/preload/wordpress';
 	SCHEMA = 'http';
@@ -24,15 +23,15 @@ export default class WordPress {
 	async init( urlString, options = {} ) {
 		this.options = {
 			useFetchForRequests: false,
-			...options
-		}
-		const url = new URL(urlString);
+			...options,
+		};
+		const url = new URL( urlString );
 		this.HOSTNAME = url.hostname;
 		this.PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
 		this.SCHEMA = ( url.protocol || '' ).replace( ':', '' );
 		this.HOST = `${ this.HOSTNAME }:${ this.PORT }`;
-		this.PATHNAME = url.pathname.replace(/\/+$/, '');
-		this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
+		this.PATHNAME = url.pathname.replace( /\/+$/, '' );
+		this.ABSOLUTE_URL = `${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }${ this.PATHNAME }`;
 
 		await this.php.refresh();
 
@@ -337,13 +336,13 @@ ADMIN;
 	_runWordPressCode( requestPath ) {
 		// Resolve the .php file the request should target.
 		let filePath = requestPath;
-		if (this.PATHNAME) {
+		if ( this.PATHNAME ) {
 			filePath = filePath.substr( this.PATHNAME.length );
 		}
 
 		// If the path mentions a .php extension, that's our file's path.
-		if(filePath.includes(".php")) {
-			filePath = filePath.split(".php")[0] + '.php';
+		if ( filePath.includes( '.php' ) ) {
+			filePath = filePath.split( '.php' )[ 0 ] + '.php';
 		} else {
 			// Otherwise, let's assume the file is $request_path/index.php
 			if ( ! filePath.endsWith( '/' ) ) {

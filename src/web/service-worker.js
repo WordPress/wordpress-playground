@@ -4,54 +4,53 @@ const broadcastChannel = new BroadcastChannel( `wordpress-service-worker` );
 
 /**
  * Ensure the client gets claimed by this service worker right after the registration.
- * 
+ *
  * Only requests from the "controlled" pages are resolved via the fetch listener below.
  * However, simply registering the worker is not enough to make it the "controller" of
  * the current page. The user still has to reload the page. If they don't an iframe
  * pointing to /index.php will show a 404 message instead of WordPress homepage.
- * 
+ *
  * This activation handles saves the user reloading the page after the initial confusion.
  * It immediately makes this worker the controller of any client that registers it.
  */
-self.addEventListener("activate", (event) => {
-	event.waitUntil(clients.claim());
-});
-
-const urlMap = {}
+self.addEventListener( 'activate', ( event ) => {
+	// eslint-disable-next-line no-undef
+	event.waitUntil( clients.claim() );
+} );
 
 /**
  * The main method. It captures the requests and loop them back to the main
  * application using the Loopback request
  */
-self.addEventListener('fetch', (event) => {
+self.addEventListener( 'fetch', ( event ) => {
 	// @TODO A more involved hostname check
-	const url = new URL(event.request.url);
-	const isWpOrgRequest = url.hostname.includes('api.wordpress.org');
-	if (isWpOrgRequest) {
-		console.log(`[ServiceWorker] Ignoring request: ${url.pathname}`);
+	const url = new URL( event.request.url );
+	const isWpOrgRequest = url.hostname.includes( 'api.wordpress.org' );
+	if ( isWpOrgRequest ) {
+		console.log( `[ServiceWorker] Ignoring request: ${ url.pathname }` );
 	}
 
 	/**
 	 * Detect scoped requests – their url starts with `/scope:`
-	 * 
+	 *
 	 * We need this mechanics because BroadcastChannel transmits
 	 * events to all the listeners across all browser tabs. Scopes
-	 * helps WASM workers ignore requests meant for other WASM workers. 
+	 * helps WASM workers ignore requests meant for other WASM workers.
 	 */
-	const isScopedRequest = url.pathname.startsWith(`/scope:`);
-	const scope = isScopedRequest ? url.pathname.split('/')[1].split(':')[1] : null;
+	const isScopedRequest = url.pathname.startsWith( `/scope:` );
+	const scope = isScopedRequest ? url.pathname.split( '/' )[ 1 ].split( ':' )[ 1 ] : null;
 
-	const isPHPRequest = (url.pathname.endsWith('/') && url.pathname !== '/') || url.pathname.endsWith('.php');
-	if (isPHPRequest) {
+	const isPHPRequest = ( url.pathname.endsWith( '/' ) && url.pathname !== '/' ) || url.pathname.endsWith( '.php' );
+	if ( isPHPRequest ) {
 		event.preventDefault();
 		return event.respondWith(
-			new Promise(async (accept) => {
-				console.log(`[ServiceWorker] Serving request: ${url.pathname}?${url.search}`);
-				console.log({ isWpOrgRequest, isPHPRequest });
-				const post = await parsePost(event.request);
+			new Promise( async ( accept ) => {
+				console.log( `[ServiceWorker] Serving request: ${ url.pathname }?${ url.search }` );
+				console.log( { isWpOrgRequest, isPHPRequest } );
+				const post = await parsePost( event.request );
 				const requestHeaders = {};
-				for (const pair of event.request.headers.entries()) {
-					requestHeaders[pair[0]] = pair[1];
+				for ( const pair of event.request.headers.entries() ) {
+					requestHeaders[ pair[ 0 ] ] = pair[ 1 ];
 				}
 
 				let wpResponse;
@@ -66,67 +65,67 @@ self.addEventListener('fetch', (event) => {
 							headers: requestHeaders,
 						},
 					};
-					console.log('[ServiceWorker] Forwarding a request to the main app', { message });
-					const messageId = postMessageExpectReply(broadcastChannel, message);
-					wpResponse = await awaitReply(broadcastChannel, messageId);
-					console.log('[ServiceWorker] Response received from the main app', { wpResponse });
-				} catch (e) {
-					console.error(e);
+					console.log( '[ServiceWorker] Forwarding a request to the main app', { message } );
+					const messageId = postMessageExpectReply( broadcastChannel, message );
+					wpResponse = await awaitReply( broadcastChannel, messageId );
+					console.log( '[ServiceWorker] Response received from the main app', { wpResponse } );
+				} catch ( e ) {
+					console.error( e );
 					throw e;
 				}
 
-				accept(new Response(
+				accept( new Response(
 					wpResponse.body,
 					{
 						headers: wpResponse.headers,
 					},
-				));
-			}),
+				) );
+			} ),
 		);
 	}
 
 	const isScopedStaticFileRequest = isScopedRequest;
-	if (isScopedStaticFileRequest) {
+	if ( isScopedStaticFileRequest ) {
 		const scopedUrl = url + '';
-		url.pathname = '/' + url.pathname.split('/').slice(2).join('/');
+		url.pathname = '/' + url.pathname.split( '/' ).slice( 2 ).join( '/' );
 		const serverUrl = url + '';
-		console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
+		console.log( `[ServiceWorker] Rerouting static request from ${ scopedUrl } to ${ serverUrl }` );
 
 		event.preventDefault();
 		return event.respondWith(
-			new Promise(async (accept) => {
-				const newRequest = await cloneRequest(event.request, {
-					url: serverUrl
-				});
-				accept(fetch(newRequest));
-			})
+			new Promise( async ( accept ) => {
+				const newRequest = await cloneRequest( event.request, {
+					url: serverUrl,
+				} );
+				accept( fetch( newRequest ) );
+			} ),
 		);
 	}
 
-	console.log(`[ServiceWorker] Ignoring a request to ${event.request.url}`);
-});
+	console.log( `[ServiceWorker] Ignoring a request to ${ event.request.url }` );
+} );
 
 /**
  * Copy a request with custom overrides.
- * 
+ *
  * This function is only needed because Request properties
  * are read-only. The only way to change e.g. a URL is to
  * create an entirely new request:
- * 
+ *
  * https://developer.mozilla.org/en-US/docs/Web/API/Request
- * 
- * @param {Request} request 
- * @param {Object} overrides 
- * @returns Request
+ *
+ * @param {Request} request
+ * @param {Object}  overrides
+ * @return {Request} The new request.
  */
-async function cloneRequest(request, overrides) {
+async function cloneRequest( request, overrides ) {
 	const body =
-		['GET', 'HEAD'].includes(request.method)
-		|| 'body' in overrides
+		[ 'GET', 'HEAD' ].includes( request.method ) ||
+		'body' in overrides
 			? undefined
-			: await r.blob()
+			: await request.blob()
 	;
-	return new Request(overrides.url || request.url, {
+	return new Request( overrides.url || request.url, {
 		body,
 		method: request.method,
 		headers: request.headers,
@@ -137,8 +136,8 @@ async function cloneRequest(request, overrides) {
 		cache: request.cache,
 		redirect: request.redirect,
 		integrity: request.integrity,
-		...overrides
-	});
+		...overrides,
+	} );
 }
 
 async function parsePost( request ) {
