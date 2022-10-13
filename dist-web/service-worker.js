@@ -88,6 +88,7 @@
     if (isScopedStaticFileRequest) {
       const scopedUrl = url + "";
       url.pathname = "/" + url.pathname.split("/").slice(2).join("/");
+      const serverUrl = url + "";
       console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
       event.preventDefault();
       return event.respondWith(
