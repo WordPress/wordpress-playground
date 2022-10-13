@@ -8,7 +8,7 @@
     "dev:web": "npm-run-all --parallel dev:web:*",
     "dev:web:app": "npm run build:web:app -- --watch",
     "dev:web:html": "chokidar --initial --silent \"./src/web/*.html\" -c \"cp src/web/*.html dist-web/\"",
-    "dev:web:serve": "npx live-server ./dist-web --port=8777 --open=index.html",
+    "dev:web:serve": "npx live-server ./dist-web --port=8777 --open=wordpress.html",
     "dev:web:serve-iframe-worker": "npx live-server ./dist-web --port=8778 --no-browser",
     "dev:web:service-worker": "npm run build:web:service-worker -- --watch",
     "dev:node": "node ./src/node/command.mjs",
