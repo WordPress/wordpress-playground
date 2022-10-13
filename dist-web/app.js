@@ -92,6 +92,11 @@
     navigator.serviceWorker.startMessages();
     await sleep(0);
     const wordPressDomain = new URL(url).origin;
+    const wordPressBaseUrl = scope ? `${wordPressDomain}/scope:${scope}` : wordPressDomain;
+    const response = await fetch(`${wordPressBaseUrl}/wp-admin/atomlib.php`);
+    if (!response.ok) {
+      window.location.reload();
+    }
   }
   async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2, scope }) {
     while (true) {

@@ -75,11 +75,12 @@ export async function registerServiceWorker({ url, onRequest, scope }) {
 	await sleep(0); 
 
 	const wordPressDomain = new URL(url).origin;
-	// const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-	// if (!response.ok) {
-	// 	// The service worker did not claim this page for some reason. Let's reload.
-	// 	window.location.reload();
-	// }
+	const wordPressBaseUrl = scope ? `${wordPressDomain}/scope:${scope}` : wordPressDomain;
+	const response = await fetch(`${wordPressBaseUrl}/wp-admin/atomlib.php`);
+	if (!response.ok) {
+		// The service worker did not claim this page for some reason. Let's reload.
+		window.location.reload();
+	}
 }
 // </SERVICE WORKER>
 
