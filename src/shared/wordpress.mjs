@@ -30,7 +30,7 @@ export default class WordPress {
 		this.PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
 		this.SCHEMA = ( url.protocol || '' ).replace( ':', '' );
 		this.HOST = `${ this.HOSTNAME }:${ this.PORT }`;
-		this.ABSOLUTE_URL = `${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }`;
+		this.ABSOLUTE_URL = `${ this.SCHEMA }://${ this.HOSTNAME }:${ this.PORT }/subdirectory`;
 
 		await this.php.refresh();
 
@@ -58,7 +58,7 @@ export default class WordPress {
 		const output = await this.php.run( `<?php
 			${ this._setupErrorReportingCode() }
 			${ this._setupRequestCode( request ) }
-			${ this._runWordPressCode( request.path ) }
+			${ this._runWordPressCode( request.path.replace('/subdirectory', '') ) }
 		` );
 		return this.parseResponse( output );
 	}

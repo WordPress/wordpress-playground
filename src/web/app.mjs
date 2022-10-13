@@ -7,7 +7,7 @@ async function init() {
 	const wasmWorker = await createWordPressWorker(
 		{
 			backend: getWorkerBackend( wasmWorkerBackend, wasmWorkerUrl ),
-			wordPressSiteUrl: wordPressSiteUrl
+			wordPressSiteUrl: wordPressSiteUrl + '/subdirectory'
 		}
 	);
 	await registerServiceWorker(
@@ -20,6 +20,6 @@ async function init() {
 	);
     console.log("[Main] Workers are ready")
 
-	document.querySelector('#wp').src = '/wp-login.php';
+	document.querySelector('#wp').src = '/subdirectory/wp-login.php';
 }
 init();

@@ -44,7 +44,9 @@
       alert("Service workers are not supported in this browser.");
       throw new Exception("Service workers are not supported in this browser.");
     }
-    await navigator.serviceWorker.register(url);
+    await navigator.serviceWorker.register(url, {
+      scope: "./subdirectory"
+    });
     const serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
     serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
       console.debug(`[Main] "${event.data.type}" message received from a service worker`);
@@ -67,10 +69,6 @@
     navigator.serviceWorker.startMessages();
     await sleep(0);
     const wordPressDomain = new URL(url).origin;
-    const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-    if (!response.ok) {
-      window.location.reload();
-    }
   }
   async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2 }) {
     while (true) {
@@ -156,7 +154,7 @@
     const wasmWorker = await createWordPressWorker(
       {
         backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
-        wordPressSiteUrl
+        wordPressSiteUrl: wordPressSiteUrl + "/subdirectory"
       }
     );
     await registerServiceWorker(
@@ -166,7 +164,7 @@
       }
     );
     console.log("[Main] Workers are ready");
-    document.querySelector("#wp").src = "/wp-login.php";
+    document.querySelector("#wp").src = "/subdirectory/wp-login.php";
   }
   init();
 })();

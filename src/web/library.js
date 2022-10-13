@@ -9,7 +9,9 @@ export async function registerServiceWorker(url, onRequest) {
 		alert('Service workers are not supported in this browser.');
 		throw new Exception('Service workers are not supported in this browser.');
 	}
-	await navigator.serviceWorker.register(url);
+	await navigator.serviceWorker.register(url, {
+		scope: './subdirectory'
+	});
 	const serviceWorkerChannel = new BroadcastChannel('wordpress-service-worker');
 	serviceWorkerChannel.addEventListener('message', async function onMessage(event) {
 		console.debug(`[Main] "${event.data.type}" message received from a service worker`);
@@ -39,11 +41,11 @@ export async function registerServiceWorker(url, onRequest) {
 	await sleep(0); 
 
 	const wordPressDomain = new URL(url).origin;
-	const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-	if (!response.ok) {
-		// The service worker did not claim this page for some reason. Let's reload.
-		window.location.reload();
-	}
+	// const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
+	// if (!response.ok) {
+	// 	// The service worker did not claim this page for some reason. Let's reload.
+	// 	window.location.reload();
+	// }
 }
 // </SERVICE WORKER>
 
