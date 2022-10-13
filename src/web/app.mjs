@@ -1,24 +1,20 @@
-import { registerServiceWorker, createWordPressWorker, iframeBackend } from './library';
+import { registerServiceWorker, createWordPressWorker, getWorkerBackend } from './library';
+import { wordPressSiteUrl, serviceWorkerUrl, wasmWorkerUrl, wasmWorkerBackend } from './config';
 
 async function init() {
 	console.log("[Main] Initializing the workers")
 	
-	const serviceWorkerOrigin = location.origin;
-	const wasmWorkerOrigin = 'http://127.0.0.1:8778';
-
 	const wasmWorker = await createWordPressWorker(
 		{
-			backend: iframeBackend(`${wasmWorkerOrigin}/iframe-worker.html`),
-			// backend: webWorkerBackend("/wasm-worker.js"),
-			// backend: sharedWorkerBackend("/wasm-worker.js"),
-			wordPressSiteURL: serviceWorkerOrigin
+			backend: getWorkerBackend( wasmWorkerBackend, wasmWorkerUrl ),
+			wordPressSiteUrl: wordPressSiteUrl
 		}
 	);
 	await registerServiceWorker(
-		`${serviceWorkerOrigin}/service-worker.js`,
+		serviceWorkerUrl,
+		// Forward any HTTP requests to a worker to resolve them in another process.
+		// This way they won't slow down the UI interactions.
 		async (request) => {
-			// Forward any HTTP requests to a worker to resolve them in another process.
-			// This way they won't slow down the UI interactions.
 			return await wasmWorker.HTTPRequest(request);
 		}
 	);

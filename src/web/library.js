@@ -34,24 +34,21 @@ export async function registerServiceWorker(url, onRequest) {
 	});
 	navigator.serviceWorker.startMessages();
 
-	// Without sleep(0), the first request below returns 404.
+	// Without sleep(0), the request below always returns 404.
 	// @TODO: Figure out why.
 	await sleep(0); 
 
 	const wordPressDomain = new URL(url).origin;
-	while (true) {
-		const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-		if (response.ok) {
-			break;
-		} else {
-			await sleep(50);
-		}
+	const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
+	if (!response.ok) {
+		// The service worker did not claim this page for some reason. Let's reload.
+		window.location.reload();
 	}
 }
 // </SERVICE WORKER>
 
 // <WASM WORKER>
-export async function createWordPressWorker({ backend, wordPressSiteURL }) {
+export async function createWordPressWorker({ backend, wordPressSiteUrl }) {
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
 		try {
@@ -67,7 +64,7 @@ export async function createWordPressWorker({ backend, wordPressSiteURL }) {
 	// WordPress:
 	await backend.sendMessage({
 		type: 'initialize_wordpress',
-		siteURL: wordPressSiteURL
+		siteURL: wordPressSiteUrl
 	});
 
 	return {
@@ -78,6 +75,20 @@ export async function createWordPressWorker({ backend, wordPressSiteURL }) {
 			})
 		}
 	};
+}
+
+export function getWorkerBackend(key, url) {
+	const backends = {
+		webworker: webWorkerBackend,
+		shared_worker: sharedWorkerBackend,
+		iframe: iframeBackend,
+	}
+	const backend = backends[key];
+	if (!backend) {
+		const availableKeys = Object.keys(backends).join(", ");
+		throw new Error(`Unknown worker backend: "${key}". Choices: ${availableKeys}`);
+	}
+	return backend(url);
 }
 
 export function webWorkerBackend(workerURL) {

@@ -67,16 +67,12 @@
     navigator.serviceWorker.startMessages();
     await sleep(0);
     const wordPressDomain = new URL(url).origin;
-    while (true) {
-      const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
-      if (response.ok) {
-        break;
-      } else {
-        await sleep(50);
-      }
+    const response = await fetch(`${wordPressDomain}/wp-admin/atomlib.php`);
+    if (!response.ok) {
+      window.location.reload();
     }
   }
-  async function createWordPressWorker({ backend, wordPressSiteURL }) {
+  async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2 }) {
     while (true) {
       try {
         await backend.sendMessage({ type: "is_alive" }, 50);
@@ -87,7 +83,7 @@
     }
     await backend.sendMessage({
       type: "initialize_wordpress",
-      siteURL: wordPressSiteURL
+      siteURL: wordPressSiteUrl2
     });
     return {
       async HTTPRequest(request) {
@@ -95,6 +91,40 @@
           type: "request",
           request
         });
+      }
+    };
+  }
+  function getWorkerBackend(key, url) {
+    const backends = {
+      webworker: webWorkerBackend,
+      shared_worker: sharedWorkerBackend,
+      iframe: iframeBackend
+    };
+    const backend = backends[key];
+    if (!backend) {
+      const availableKeys = Object.keys(backends).join(", ");
+      throw new Error(`Unknown worker backend: "${key}". Choices: ${availableKeys}`);
+    }
+    return backend(url);
+  }
+  function webWorkerBackend(workerURL) {
+    const worker = new Worker(workerURL);
+    return {
+      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+        const messageId = postMessageExpectReply(worker, message);
+        const response = await awaitReply(worker, messageId, timeout);
+        return response;
+      }
+    };
+  }
+  function sharedWorkerBackend(workerURL) {
+    const worker = new SharedWorker(workerURL);
+    worker.port.start();
+    return {
+      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+        const messageId = postMessageExpectReply(worker.port, message);
+        const response = await awaitReply(worker.port, messageId, timeout);
+        return response;
       }
     };
   }
@@ -112,19 +142,25 @@
     };
   }
 
+  // src/web/config.js
+  var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
+  var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
+  var wordPressSiteUrl = serviceWorkerOrigin;
+  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html";
+  var wasmWorkerOrigin = new URL(wasmWorkerUrl).origin;
+  var wasmWorkerBackend = "iframe";
+
   // src/web/app.mjs
   async function init() {
     console.log("[Main] Initializing the workers");
-    const serviceWorkerOrigin = location.origin;
-    const wasmWorkerOrigin = "http://127.0.0.1:8778";
     const wasmWorker = await createWordPressWorker(
       {
-        backend: iframeBackend(`${wasmWorkerOrigin}/iframe-worker.html`),
-        wordPressSiteURL: serviceWorkerOrigin
+        backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
+        wordPressSiteUrl
       }
     );
     await registerServiceWorker(
-      `${serviceWorkerOrigin}/service-worker.js`,
+      serviceWorkerUrl,
       async (request) => {
         return await wasmWorker.HTTPRequest(request);
       }

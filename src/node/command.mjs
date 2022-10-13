@@ -4,7 +4,8 @@ import yargs from 'yargs';
 
 import path from 'path';
 import { fileURLToPath } from 'node:url';
-const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
+
+__dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 import WPBrowser from '../shared/wp-browser.mjs';
 
@@ -41,8 +42,9 @@ export default async function command( argv ) {
 }
 
 const nodePath = path.resolve( process.argv[ 1 ] );
-const modulePath = path.resolve( fileURLToPath( import.meta.url ) );
+const modulePath = __dirname ? `${__filename}` : path.resolve( fileURLToPath( import.meta.url ) );
 const isRunningDirectlyViaCLI = nodePath === modulePath;
+
 if ( isRunningDirectlyViaCLI ) {
 	const argv = yargs( process.argv.slice( 2 ) )
 		.command( 'server', 'Starts a WordPress server' )

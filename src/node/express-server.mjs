@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { login } from './bootstrap.mjs';
 
-const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
+__dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 export async function startExpressServer( browser, port, options = {} ) {
 	options = {

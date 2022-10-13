@@ -6,23 +6,23 @@ import PHPWrapper from '../shared/php-wrapper.mjs';
 import WordPress from '../shared/wordpress.mjs';
 
 import { fileURLToPath } from 'node:url';
-const __dirname = fileURLToPath( new URL( '.', import.meta.url ) );
+__dirname = __dirname || fileURLToPath( new URL( '.', import.meta.url ) );
 
 export async function createWordPressClient( options = {} ) {
 	options = {
 		preInit() { },
 		phpWasmPath: `./node-php.wasm`,
-		etcPath: path.join( __dirname, '../shared/etc' ),
+		etcPath: path.join( __dirname, 'etc' ),
 		wpPath: path.join( __dirname, 'wordpress' ),
 		...options,
 	};
 	const php = new PHPWrapper();
 	await php.init( PHP, {
 		locateFile() {
-			return fileURLToPath( new URL( options.phpWasmPath, import.meta.url ) );
+			return path.join(__dirname, options.phpWasmPath);
 		},
 		onPreInit( FS, NODEFS ) {
-			FS.mkdirTree( '/usr/local/etc' );
+			FS.mkdirTree('/usr/local/etc');
 			FS.mount( NODEFS, { root: options.etcPath }, '/usr/local/etc' );
 			FS.mkdirTree( '/preload/wordpress' );
 			FS.mount( NODEFS, { root: options.wpPath }, '/preload/wordpress' );
