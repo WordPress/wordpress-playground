@@ -103,14 +103,16 @@
   // src/web/app.mjs
   async function init() {
     console.log("[Main] Initializing the workers");
+    const serviceWorkerOrigin = location.origin;
+    const wasmWorkerOrigin = "http://127.0.0.1:8778";
     const wasmWorker = await createWordPressWorker(
       {
-        backend: iframeBackend("http://127.0.0.1:8778/iframe-worker.html"),
-        wordPressSiteURL: location.href
+        backend: iframeBackend(`${wasmWorkerOrigin}/iframe-worker.html`),
+        wordPressSiteURL: serviceWorkerOrigin
       }
     );
     await registerServiceWorker(
-      `http://localhost:8777/service-worker.js`,
+      `${serviceWorkerOrigin}/service-worker.js`,
       async (request) => {
         return await wasmWorker.HTTPRequest(request);
       }

@@ -502,12 +502,12 @@ ADMIN;
   if (IS_IFRAME) {
     window.importScripts = async function(...urls) {
       return Promise.all(
-        urls.map(async (url) => {
+        urls.map((url) => {
           const script = document.createElement("script");
           script.src = url;
           script.async = false;
           document.body.appendChild(script);
-          await new Promise((resolve) => {
+          return new Promise((resolve) => {
             script.onload = resolve;
           });
         })
