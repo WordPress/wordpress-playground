@@ -4,15 +4,15 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, 50));
 
 // <SERVICE WORKER>
 // Register the service worker and handle any HTTP WordPress requests it provides us:
-export async function registerServiceWorker(url, onRequest) {
+export async function registerServiceWorker(url, onRequest, scope = '') {
 	if ( ! navigator.serviceWorker ) {
 		alert('Service workers are not supported in this browser.');
 		throw new Exception('Service workers are not supported in this browser.');
 	}
 	await navigator.serviceWorker.register(url, {
-		scope: './subdirectory'
+		scope
 	});
-	const serviceWorkerChannel = new BroadcastChannel('wordpress-service-worker');
+	const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker-${scope}`);
 	serviceWorkerChannel.addEventListener('message', async function onMessage(event) {
 		console.debug(`[Main] "${event.data.type}" message received from a service worker`);
 

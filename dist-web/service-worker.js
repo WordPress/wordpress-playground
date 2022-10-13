@@ -31,7 +31,9 @@
   }
 
   // src/web/service-worker.js
-  var broadcastChannel = new BroadcastChannel("wordpress-service-worker");
+  var pathname = new URL(self.registration.scope).pathname;
+  var workerScope = pathname.replace(/\/+$/, "");
+  var broadcastChannel = new BroadcastChannel(`wordpress-service-worker-${pathname}`);
   self.addEventListener("activate", (event) => {
     event.waitUntil(clients.claim());
   });
@@ -81,10 +83,10 @@
         })
       );
     }
-    const isStaticFileRequest = url.pathname.startsWith("/subdirectory/");
+    const isStaticFileRequest = url.pathname.startsWith(`${workerScope}/`);
     if (isStaticFileRequest) {
       const scopedUrl = url + "";
-      url.pathname = url.pathname.substr("/subdirectory".length);
+      url.pathname = url.pathname.substr(workerScope.length);
       const serverUrl = url + "";
       console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
       event.preventDefault();

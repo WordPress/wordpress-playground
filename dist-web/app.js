@@ -39,15 +39,15 @@
 
   // src/web/library.js
   var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, 50));
-  async function registerServiceWorker(url, onRequest) {
+  async function registerServiceWorker(url, onRequest, scope = "") {
     if (!navigator.serviceWorker) {
       alert("Service workers are not supported in this browser.");
       throw new Exception("Service workers are not supported in this browser.");
     }
     await navigator.serviceWorker.register(url, {
-      scope: "./subdirectory"
+      scope
     });
-    const serviceWorkerChannel = new BroadcastChannel("wordpress-service-worker");
+    const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker-${scope}`);
     serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
       console.debug(`[Main] "${event.data.type}" message received from a service worker`);
       let result;
@@ -151,20 +151,23 @@
   // src/web/app.mjs
   async function init() {
     console.log("[Main] Initializing the workers");
+    const tabId = Math.random().toFixed(16);
+    const subdirectory = `/${tabId}`;
     const wasmWorker = await createWordPressWorker(
       {
         backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
-        wordPressSiteUrl: wordPressSiteUrl + "/subdirectory"
+        wordPressSiteUrl: wordPressSiteUrl + subdirectory
       }
     );
     await registerServiceWorker(
       serviceWorkerUrl,
       async (request) => {
         return await wasmWorker.HTTPRequest(request);
-      }
+      },
+      subdirectory
     );
     console.log("[Main] Workers are ready");
-    document.querySelector("#wp").src = "/subdirectory/wp-login.php";
+    document.querySelector("#wp").src = `${subdirectory}/wp-login.php`;
   }
   init();
 })();

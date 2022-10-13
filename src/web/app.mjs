@@ -3,11 +3,14 @@ import { wordPressSiteUrl, serviceWorkerUrl, wasmWorkerUrl, wasmWorkerBackend } 
 
 async function init() {
 	console.log("[Main] Initializing the workers")
+
+	const tabId = Math.random().toFixed(16);
+	const subdirectory = `/${tabId}`;
 	
 	const wasmWorker = await createWordPressWorker(
 		{
 			backend: getWorkerBackend( wasmWorkerBackend, wasmWorkerUrl ),
-			wordPressSiteUrl: wordPressSiteUrl + '/subdirectory'
+			wordPressSiteUrl: wordPressSiteUrl + subdirectory
 		}
 	);
 	await registerServiceWorker(
@@ -16,10 +19,11 @@ async function init() {
 		// This way they won't slow down the UI interactions.
 		async (request) => {
 			return await wasmWorker.HTTPRequest(request);
-		}
+		},
+		subdirectory
 	);
     console.log("[Main] Workers are ready")
 
-	document.querySelector('#wp').src = '/subdirectory/wp-login.php';
+	document.querySelector('#wp').src = `${subdirectory}/wp-login.php`;
 }
 init();

@@ -1,6 +1,8 @@
 import { postMessageExpectReply, awaitReply } from '../shared/messaging.mjs';
 
-const broadcastChannel = new BroadcastChannel( 'wordpress-service-worker' );
+const pathname = new URL(self.registration.scope).pathname;
+const workerScope = pathname.replace(/\/+$/, '');
+const broadcastChannel = new BroadcastChannel( `wordpress-service-worker-${pathname}` );
 
 /**
  * Ensure the client gets claimed by this service worker right after the registration.
@@ -16,7 +18,7 @@ const broadcastChannel = new BroadcastChannel( 'wordpress-service-worker' );
 self.addEventListener("activate", (event) => {
 	event.waitUntil(clients.claim());
 });
-  
+
 /**
  * The main method. It captures the requests and loop them back to the main
  * application using the Loopback request
@@ -72,10 +74,10 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
-	const isStaticFileRequest = url.pathname.startsWith('/subdirectory/');
+	const isStaticFileRequest = url.pathname.startsWith(`${workerScope}/`);
 	if (isStaticFileRequest) {
 		const scopedUrl = url + '';
-		url.pathname = url.pathname.substr('/subdirectory'.length);
+		url.pathname = url.pathname.substr(workerScope.length);
 		const serverUrl = url + '';
 		console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
 
