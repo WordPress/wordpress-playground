@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WordPress code embed!</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+      }
+
+      .fake-window {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        border: 1px solid #d8d8d8;
+        box-shadow: 0 22px 70px 4px rgba(0, 0, 0, 0.56);
+      }
+
+      .fake-window,
+      .outer {
+        border-radius: 7px 7px 0px 0px;
+      }
+
+      .fake-window .outer {
+        flex-grow: 0;
+      }
+
+      .fake-window iframe {
+        flex-grow: 1;
+      }
+
+      .outer {
+        background: #b4b4b4;
+        opacity: 0.9;
+        width: 100%;
+        margin: 0 auto;
+        padding: 10px;
+      }
+
+      .outer.dark {
+        background: #273138;
+      }
+
+      .outer.dark .dot {
+        background: #4a5c66;
+      }
+
+      .outer.yosemite {
+        background: #f6f6f6; /* Old browsers */
+        background: -moz-linear-gradient(
+          top,
+          #f6f6f6 0%,
+          #dadada 100%
+        ); /* FF3.6+ */
+        background: -webkit-gradient(
+          linear,
+          left top,
+          left bottom,
+          color-stop(0%, #f6f6f6),
+          color-stop(100%, #dadada)
+        ); /* Chrome,Safari4+ */
+        background: -webkit-linear-gradient(
+          top,
+          #f6f6f6 0%,
+          #dadada 100%
+        ); /* Chrome10+,Safari5.1+ */
+        background: -o-linear-gradient(
+          top,
+          #f6f6f6 0%,
+          #dadada 100%
+        ); /* Opera 11.10+ */
+        background: -ms-linear-gradient(
+          top,
+          #f6f6f6 0%,
+          #dadada 100%
+        ); /* IE10+ */
+        background: linear-gradient(
+          to bottom,
+          #f6f6f6 0%,
+          #dadada 100%
+        ); /* W3C */
+        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f6f6f6', endColorstr='#dadada',GradientType=0 ); /* IE6-9 */
+        border: 1px solid #d8d8d8;
+        border-bottom: 1px solid #b4b4b4;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #f9f9f9;
+        border-radius: 50%;
+        margin: 0 4px 0 0;
+      }
+
+      .dot.red {
+        background: #ff6057;
+        border: 1px solid #e14640;
+      }
+
+      .dot.amber {
+        background: #ffbd2e;
+        border: 1px solid #dfa123;
+      }
+
+      .dot.green {
+        background: #27c93f;
+        border: 1px solid #1dad2b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="fake-window">
+      <div class="outer">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+
+      <iframe id="wp" style="border: 0; margin: 0; padding: 0"></iframe>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
