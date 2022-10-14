@@ -1,116 +1,116 @@
-if (typeof XMLHttpRequest === "undefined") {
-  // Polyfill missing node.js features
-  import("xmlhttprequest").then(({ XMLHttpRequest }) => {
-    global.XMLHttpRequest = XMLHttpRequest;
-  });
-  global.atob = function (data) {
-    return Buffer.from(data).toString("base64");
-  };
+if (typeof XMLHttpRequest === 'undefined') {
+	// Polyfill missing node.js features
+	import('xmlhttprequest').then(({ XMLHttpRequest }) => {
+		global.XMLHttpRequest = XMLHttpRequest;
+	});
+	global.atob = function (data) {
+		return Buffer.from(data).toString('base64');
+	};
 }
 export default class WordPress {
-  DOCROOT = "/preload/wordpress";
-  SCHEMA = "http";
-  HOSTNAME = "localhost";
-  PORT = 80;
-  HOST = "";
-  PATHNAME = "";
-  ABSOLUTE_URL = ``;
+	DOCROOT = '/preload/wordpress';
+	SCHEMA = 'http';
+	HOSTNAME = 'localhost';
+	PORT = 80;
+	HOST = '';
+	PATHNAME = '';
+	ABSOLUTE_URL = ``;
 
-  constructor(php) {
-    this.php = php;
-  }
+	constructor(php) {
+		this.php = php;
+	}
 
-  async init(urlString, options = {}) {
-    this.options = {
-      useFetchForRequests: false,
-      ...options,
-    };
-    const url = new URL(urlString);
-    this.HOSTNAME = url.hostname;
-    this.PORT = url.port ? url.port : url.protocol === "https:" ? 443 : 80;
-    this.SCHEMA = (url.protocol || "").replace(":", "");
-    this.HOST = `${this.HOSTNAME}:${this.PORT}`;
-    this.PATHNAME = url.pathname.replace(/\/+$/, "");
-    this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
+	async init(urlString, options = {}) {
+		this.options = {
+			useFetchForRequests: false,
+			...options,
+		};
+		const url = new URL(urlString);
+		this.HOSTNAME = url.hostname;
+		this.PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
+		this.SCHEMA = (url.protocol || '').replace(':', '');
+		this.HOST = `${this.HOSTNAME}:${this.PORT}`;
+		this.PATHNAME = url.pathname.replace(/\/+$/, '');
+		this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
 
-    await this.php.refresh();
+		await this.php.refresh();
 
-    const result = await this.php.run(`<?php
+		const result = await this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._patchWordPressCode()}
 		`);
-    this.initialized = true;
-    if (result.exitCode !== 0) {
-      throw new Error(
-        {
-          message: "WordPress setup failed",
-          result,
-        },
-        result.exitCode
-      );
-    }
-  }
+		this.initialized = true;
+		if (result.exitCode !== 0) {
+			throw new Error(
+				{
+					message: 'WordPress setup failed',
+					result,
+				},
+				result.exitCode
+			);
+		}
+	}
 
-  async request(request) {
-    if (!this.initialized) {
-      throw new Error("call init() first");
-    }
+	async request(request) {
+		if (!this.initialized) {
+			throw new Error('call init() first');
+		}
 
-    const output = await this.php.run(`<?php
+		const output = await this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._setupRequestCode(request)}
 			${this._runWordPressCode(request.path)}
 		`);
-    return this.parseResponse(output);
-  }
+		return this.parseResponse(output);
+	}
 
-  parseResponse(result) {
-    const response = {
-      body: result.stdout,
-      headers: {},
-      exitCode: result.exitCode,
-      rawError: result.stderr,
-    };
-    for (const row of result.stderr) {
-      if (!row || !row.trim()) {
-        continue;
-      }
-      try {
-        const [name, value] = JSON.parse(row);
-        if (name === "headers") {
-          response.headers = this.parseHeaders(value);
-          break;
-        }
-        if (name === "status_code") {
-          response.statusCode = value;
-        }
-      } catch (e) {
-        // console.error(e);
-        // break;
-      }
-    }
-    delete response.headers["x-frame-options"];
-    return response;
-  }
+	parseResponse(result) {
+		const response = {
+			body: result.stdout,
+			headers: {},
+			exitCode: result.exitCode,
+			rawError: result.stderr,
+		};
+		for (const row of result.stderr) {
+			if (!row || !row.trim()) {
+				continue;
+			}
+			try {
+				const [name, value] = JSON.parse(row);
+				if (name === 'headers') {
+					response.headers = this.parseHeaders(value);
+					break;
+				}
+				if (name === 'status_code') {
+					response.statusCode = value;
+				}
+			} catch (e) {
+				// console.error(e);
+				// break;
+			}
+		}
+		delete response.headers['x-frame-options'];
+		return response;
+	}
 
-  parseHeaders(rawHeaders) {
-    const parsed = {};
-    for (const header of rawHeaders) {
-      const splitAt = header.indexOf(":");
-      const [name, value] = [
-        header.substring(0, splitAt).toLowerCase(),
-        header.substring(splitAt + 2),
-      ];
-      if (!(name in parsed)) {
-        parsed[name] = [];
-      }
-      parsed[name].push(value);
-    }
-    return parsed;
-  }
+	parseHeaders(rawHeaders) {
+		const parsed = {};
+		for (const header of rawHeaders) {
+			const splitAt = header.indexOf(':');
+			const [name, value] = [
+				header.substring(0, splitAt).toLowerCase(),
+				header.substring(splitAt + 2),
+			];
+			if (!(name in parsed)) {
+				parsed[name] = [];
+			}
+			parsed[name].push(value);
+		}
+		return parsed;
+	}
 
-  _patchWordPressCode() {
-    return `
+	_patchWordPressCode() {
+		return `
 			file_put_contents( "${this.DOCROOT}/.absolute-url", "${this.ABSOLUTE_URL}" );
 			if ( ! file_exists( "${this.DOCROOT}/.wordpress-patched" ) ) {
 				// Patching WordPress in the worker provides a faster feedback loop than
@@ -232,10 +232,10 @@ ADMIN;
 				touch("${this.DOCROOT}/.wordpress-patched");
 			}
 		`;
-  }
+	}
 
-  _setupErrorReportingCode() {
-    return `
+	_setupErrorReportingCode() {
+		return `
 			$stdErr = fopen('php://stderr', 'w');
 			$errors = [];
 			register_shutdown_function(function() use($stdErr){
@@ -253,39 +253,40 @@ ADMIN;
 			});
 			error_reporting(E_ALL);
 		`;
-  }
+	}
 
-  _setupRequestCode({
-    path = "/wp-login.php",
-    method = "GET",
-    headers,
-    _GET = "",
-    _POST = {},
-    _COOKIE = {},
-    _SESSION = {},
-  } = {}) {
-    const request = {
-      path,
-      method,
-      headers,
-      _GET,
-      _POST,
-      _COOKIE,
-      _SESSION,
-    };
+	_setupRequestCode({
+		path = '/wp-login.php',
+		method = 'GET',
+		headers,
+		_GET = '',
+		_POST = {},
+		_COOKIE = {},
+		_SESSION = {},
+	} = {}) {
+		const request = {
+			path,
+			method,
+			headers,
+			_GET,
+			_POST,
+			_COOKIE,
+			_SESSION,
+		};
 
-    console.log("Incoming request: ", request.path);
+		console.log('Incoming request: ', request.path);
 
-    const https = this.ABSOLUTE_URL.startsWith("https://") ? "on" : "";
-    return `
+		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
+		return `
 			define('USE_FETCH_FOR_REQUESTS', ${
-        this.options.useFetchForRequests ? "true" : "false"
-      });
+				this.options.useFetchForRequests ? 'true' : 'false'
+			});
 			define('WP_HOME', '${this.DOCROOT}');
-			$request = (object) json_decode(
-				'${JSON.stringify(request)}'
-				, JSON_OBJECT_AS_ARRAY
-			);
+			$request = (object) json_decode(<<<'REQUEST'
+        ${JSON.stringify(request)}
+REQUEST,
+        JSON_OBJECT_AS_ARRAY
+      );
 
 			parse_str(substr($request->_GET, 1), $_GET);
 
@@ -333,29 +334,29 @@ ADMIN;
 			$_SERVER['HTTPS']           = '${https}';
 			chdir($docroot);
 		`;
-  }
+	}
 
-  _runWordPressCode(requestPath) {
-    // Resolve the .php file the request should target.
-    let filePath = requestPath;
-    if (this.PATHNAME) {
-      filePath = filePath.substr(this.PATHNAME.length);
-    }
+	_runWordPressCode(requestPath) {
+		// Resolve the .php file the request should target.
+		let filePath = requestPath;
+		if (this.PATHNAME) {
+			filePath = filePath.substr(this.PATHNAME.length);
+		}
 
-    // If the path mentions a .php extension, that's our file's path.
-    if (filePath.includes(".php")) {
-      filePath = filePath.split(".php")[0] + ".php";
-    } else {
-      // Otherwise, let's assume the file is $request_path/index.php
-      if (!filePath.endsWith("/")) {
-        filePath += "/";
-      }
-      if (!filePath.endsWith("index.php")) {
-        filePath += "index.php";
-      }
-    }
+		// If the path mentions a .php extension, that's our file's path.
+		if (filePath.includes('.php')) {
+			filePath = filePath.split('.php')[0] + '.php';
+		} else {
+			// Otherwise, let's assume the file is $request_path/index.php
+			if (!filePath.endsWith('/')) {
+				filePath += '/';
+			}
+			if (!filePath.endsWith('index.php')) {
+				filePath += 'index.php';
+			}
+		}
 
-    return `
+		return `
 		// The original version of this function crashes WASM WordPress, let's define an empty one instead.
 		function wp_new_blog_notification(...$args){} 
 
@@ -368,5 +369,5 @@ ADMIN;
 			require_once '${this.DOCROOT}/index.php';
 		}
 		`;
-  }
+	}
 }

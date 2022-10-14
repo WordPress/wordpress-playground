@@ -357,10 +357,11 @@ ADMIN;
       return `
 			define('USE_FETCH_FOR_REQUESTS', ${this.options.useFetchForRequests ? "true" : "false"});
 			define('WP_HOME', '${this.DOCROOT}');
-			$request = (object) json_decode(
-				'${JSON.stringify(request)}'
-				, JSON_OBJECT_AS_ARRAY
-			);
+			$request = (object) json_decode(<<<'REQUEST'
+        ${JSON.stringify(request)}
+REQUEST,
+        JSON_OBJECT_AS_ARRAY
+      );
 
 			parse_str(substr($request->_GET, 1), $_GET);
 
