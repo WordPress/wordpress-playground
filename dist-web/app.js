@@ -67,7 +67,9 @@
       throw new Error("Service workers are not supported in this browser.");
     }
     await navigator.serviceWorker.register(url);
-    const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker`);
+    const serviceWorkerChannel = new BroadcastChannel(
+      `wordpress-service-worker`
+    );
     serviceWorkerChannel.addEventListener(
       "message",
       async function onMessage(event) {
@@ -117,16 +119,20 @@
       }
       await sleep(50);
     }
+    const scopePath = scope ? `/scope:${scope}` : "";
     if (scope) {
-      wordPressSiteUrl2 += `/scope:${scope}`;
+      wordPressSiteUrl2 += scopePath;
     }
     await backend.sendMessage({
       type: "initialize_wordpress",
       siteURL: wordPressSiteUrl2
     });
     return {
-      urlFor(path) {
-        return `${wordPressSiteUrl2}${path}`;
+      pathToInternalUrl(wordPressPath) {
+        return `${wordPressSiteUrl2}${wordPressPath}`;
+      },
+      internalUrlToPath(internalUrl) {
+        return new URL(internalUrl).pathname.substr(scopePath.length);
       },
       async HTTPRequest(request) {
         return await backend.sendMessage({
@@ -191,10 +197,10 @@
   }
 
   // src/web/config.js
-  var serviceWorkerUrl = "https://wasm.wordpress.net/service-worker.js";
+  var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
   var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
   var wordPressSiteUrl = serviceWorkerOrigin;
-  var wasmWorkerUrl = "https://wasm-worker.wordpress.net/iframe-worker.html";
+  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html";
   var wasmWorkerOrigin = new URL(wasmWorkerUrl).origin;
   var wasmWorkerBackend = "iframe";
 
@@ -209,7 +215,8 @@
       assignScope: true
     });
     console.log("[Main] WordPress is running");
-    document.querySelector("#wp").src = wasmWorker.urlFor(`/wp-login.php`);
+    document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(`/wp-login.php`);
+    window.wasmWorker = wasmWorker;
   }
   init();
 })();

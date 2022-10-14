@@ -117,6 +117,28 @@
         background: #27c93f;
         border: 1px solid #1dad2b;
       }
+
+      .address-bar-container {
+        display: flex;
+        padding: 10px 40px;
+        background: #d8d8d8;
+      }
+
+      #address-bar-form [type="submit"] {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        left: -100000px;
+        top: -100000px;
+      }
+
+      #address-bar {
+        flex-grow: 1;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid #b4b4b4;
+        font-size: 20px;
+      }
     </style>
   </head>
   <body>
@@ -126,10 +148,33 @@
         <div class="dot"></div>
         <div class="dot"></div>
       </div>
+      <form id="address-bar-form">
+        <div class="address-bar-container">
+          <input type="text" id="address-bar" autocomplete="off" />
+        </div>
+        <input type="submit" tabindex="-1" />
+      </form>
 
       <iframe id="wp" style="border: 0; margin: 0; padding: 0"></iframe>
     </div>
 
     <script src="app.js"></script>
+    <script>
+      const addressBar = document.querySelector("#address-bar");
+      document.querySelector("#wp").addEventListener("load", (e) => {
+        addressBar.value = wasmWorker.internalUrlToPath(
+          e.currentTarget.contentWindow.location.href
+        );
+      });
+
+      document
+        .querySelector("#address-bar-form")
+        .addEventListener("submit", (e) => {
+          e.preventDefault();
+          document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(
+            addressBar.value
+          );
+        });
+    </script>
   </body>
 </html>
