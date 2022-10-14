@@ -62,7 +62,8 @@ done
 cp wp-config-sample.php wp-config.php # Required by the drop-in SQLite integration plugin
 
 # Disable load-scripts.php
-sed -i "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php
+sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new
+mv wp-config.php.new wp-config.php
 
 php -S 127.0.0.1:8000&
 sleep 6
