@@ -1,0 +1,4 @@
+AddType application/wasm .wasm
+
+RewriteEngine on
+RewriteRule ^scope:.*?/(.*)$ $1 
