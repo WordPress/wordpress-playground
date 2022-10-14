@@ -143,8 +143,9 @@ export async function createWordPressWorker({
 		pathToInternalUrl(wordPressPath) {
 			return `${wordPressSiteUrl}${wordPressPath}`;
 		},
-		internalUrlToPath(internalUrl) {
-			return new URL(internalUrl).pathname.substr(scopePath.length);
+    internalUrlToPath(internalUrl) {
+      const url = new URL(internalUrl);
+			return url.toString().substr(url.origin.length).substr(scopePath.length);
 		},
 		async HTTPRequest(request) {
 			return await backend.sendMessage({
