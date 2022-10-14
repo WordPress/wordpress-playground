@@ -9,15 +9,15 @@ console.log("[WASM Worker] Spawned");
 
 // Infer the environment
 const IS_IFRAME = typeof window !== "undefined";
-// eslint-disable-next-line no-undef
+/* eslint-disable no-undef */
 const IS_SHARED_WORKER =
   typeof SharedWorkerGlobalScope !== "undefined" &&
   self instanceof SharedWorkerGlobalScope;
-// eslint-disable-next-line no-undef
 const IS_WEBWORKER =
   !IS_SHARED_WORKER &&
   typeof WorkerGlobalScope !== "undefined" &&
   self instanceof WorkerGlobalScope;
+/* eslint-enable no-undef */
 
 console.log("[WASM Worker] Environment", {
   IS_IFRAME,

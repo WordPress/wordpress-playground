@@ -48,7 +48,9 @@
       event.preventDefault();
       return event.respondWith(
         new Promise(async (accept) => {
-          console.log(`[ServiceWorker] Serving request: ${url.pathname}?${url.search}`);
+          console.log(
+            `[ServiceWorker] Serving request: ${url.pathname}?${url.search}`
+          );
           console.log({ isWpOrgRequest, isPHPRequest });
           const post = await parsePost(event.request);
           const requestHeaders = {};
@@ -67,20 +69,23 @@
                 headers: requestHeaders
               }
             };
-            console.log("[ServiceWorker] Forwarding a request to the main app", { message });
+            console.log("[ServiceWorker] Forwarding a request to the main app", {
+              message
+            });
             const messageId = postMessageExpectReply(broadcastChannel, message);
             wpResponse = await awaitReply(broadcastChannel, messageId);
-            console.log("[ServiceWorker] Response received from the main app", { wpResponse });
+            console.log("[ServiceWorker] Response received from the main app", {
+              wpResponse
+            });
           } catch (e) {
             console.error(e);
             throw e;
           }
-          accept(new Response(
-            wpResponse.body,
-            {
+          accept(
+            new Response(wpResponse.body, {
               headers: wpResponse.headers
-            }
-          ));
+            })
+          );
         })
       );
     }
@@ -89,7 +94,9 @@
       const scopedUrl = url + "";
       url.pathname = "/" + url.pathname.split("/").slice(2).join("/");
       const serverUrl = url + "";
-      console.log(`[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`);
+      console.log(
+        `[ServiceWorker] Rerouting static request from ${scopedUrl} to ${serverUrl}`
+      );
       event.preventDefault();
       return event.respondWith(
         new Promise(async (accept) => {

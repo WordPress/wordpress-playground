@@ -3,6 +3,11 @@ module.exports = {
 		browser: true,
 		es2021: true,
 	},
+	settings: {
+		'react': {
+			'version': '999.99.99' // Prevent eslint from complaining (we don't use react).
+		}
+	},
 	extends: [
 		'eslint:recommended',
 		'plugin:@wordpress/eslint-plugin/recommended',
