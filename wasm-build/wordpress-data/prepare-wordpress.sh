@@ -114,6 +114,10 @@ done
 
 # Let the WordPress installer do its magic
 cp wp-config-sample.php wp-config.php # Required by the drop-in SQLite integration plugin
+
+# Disable load-scripts.php
+sed -i "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php
+
 php -S 127.0.0.1:8000&
 sleep 6
 http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com")
