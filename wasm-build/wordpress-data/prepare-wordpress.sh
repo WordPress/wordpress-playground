@@ -49,7 +49,8 @@ find ./ -type f -name '*.woff' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.wof2' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpeg' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
-find ./ -type f -name '*.css' | xargs rm 2> /dev/null
+# Keep the theme style.css files, as they're read by PHP
+find ./ -type f -name '*.css' -not -path '*/wp-content/themes/*/style.css' | xargs rm 2> /dev/null
 find ./ -type f -name '*.js' | xargs rm 2> /dev/null
 
 # Remove whitespace from PHP files
