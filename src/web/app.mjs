@@ -20,7 +20,7 @@ async function init() {
 	console.log('[Main] WordPress is running');
 
 	document.querySelector('#wp').src =
-		wasmWorker.pathToInternalUrl(`/wp-login.php`);
+		wasmWorker.pathToInternalUrl(`/`);
 	window.wasmWorker = wasmWorker;
 }
 init();

@@ -215,7 +215,7 @@
       assignScope: true
     });
     console.log("[Main] WordPress is running");
-    document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(`/wp-login.php`);
+    document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(`/`);
     window.wasmWorker = wasmWorker;
   }
   init();
