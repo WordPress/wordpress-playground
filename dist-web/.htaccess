@@ -1,4 +1,8 @@
 AddType application/wasm .wasm
 
 RewriteEngine on
-RewriteRule ^scope:.*?/(.*)$ $1 
+RewriteRule ^scope:.*?/(.*)$ $1
+
+<FilesMatch "iframe-worker.html$">
+  Header set Origin-Agent-Cluster: ?1
+</FilesMatch>

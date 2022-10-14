@@ -18,5 +18,11 @@ liveServer.start({
 liveServer.start({
 	port: 8778,
 	root: __dirname + '/dist-web',
-	open: false
+	open: false,
+	middleware: [
+		(req, res, next) => {
+			res.setHeader('Origin-Agent-Cluster', '?1');
+			next();
+		},
+	],
 });
