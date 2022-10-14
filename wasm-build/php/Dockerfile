@@ -4,6 +4,8 @@ ARG VRZNO_FLAG="--disable-vrzno"
 ENV VRZNO_FLAG ${VRZNO_FLAG}
 ARG PHP_VERSION=8.0.24
 ENV PHP_VERSION ${PHP_VERSION}
+ARG WITH_LIBXML=no
+ENV WITH_LIBXML ${WITH_LIBXML}
 
 WORKDIR /root
 RUN mkdir lib
@@ -14,8 +16,8 @@ RUN set -euxo pipefail;\
     apt-get --no-install-recommends -y install \
     build-essential \
     automake-1.15 \
-    libxml2-dev \
     autoconf \
+    libxml2-dev \
     libtool \
     pkgconf \
     bison \
@@ -45,7 +47,6 @@ RUN git clone https://github.com/php/php-src.git php-src \
     && cp php-src/Zend/bench.php php-src/preload/Zend \
     && touch php-src/patched
 
-
 # Get and patch Sqlite3
 COPY ./docker-build-files/sqlite3-wasm.patch /root/
 RUN set -euxo pipefail;\
@@ -64,26 +65,30 @@ RUN git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
     --depth 1
 
 # Get and build Libxml2
-RUN env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
+RUN if [ "$WITH_LIBXML" = "yes" ]; \
+    then env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
     --branch v2.9.10 \
     --single-branch     \
-    --depth 1;
-
-RUN cd libxml2 && ./autogen.sh
-RUN cd libxml2 && emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/
-RUN cd libxml2 && emmake make
-RUN cd libxml2 && emmake make install
+    --depth 1 && \
+    cd libxml2 && \
+    ./autogen.sh && \
+    emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
+    emmake make && \
+    emmake make install; \
+    fi
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 
-# RUN ls /root/lib/lib/; sleep 50
+RUN if [ "$WITH_LIBXML" = "yes" ]; \
+    then export LIBXML_FLAGS=(--with-libxml --enable-dom --enable-xml --enable-simplexml); \
+    else export LIBXML_FLAGS=(--without-libxml --disable-dom --disable-xml --disable-simplexml); \
+    fi
 
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     --enable-embed=static \
     --with-layout=GNU  \
-    --with-libxml      \
     --disable-cgi      \
     --disable-cli      \
     --disable-all      \
@@ -91,7 +96,6 @@ RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     --enable-session   \
     --enable-filter    \
     --enable-calendar  \
-    --enable-dom       \
     --enable-pdo       \
     --with-pdo-sqlite  \
     --disable-rpath    \
@@ -105,28 +109,35 @@ RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
-    $VRZNO_FLAG     \
-    --enable-xml       \
-    --enable-simplexml \
+    "${LIBXML_FLAGS[@]}" \
+    $VRZNO_FLAG        \
     --with-gd
+
 
 RUN cd php-src/ && emmake make -j8
 
 RUN cp -v php-src/.libs/libphp.la /root/lib/libphp7.la
-RUN cp -v php-src/.libs/libphp.a /root/lib//libphp7.a
+RUN cp -v php-src/.libs/libphp.a /root/lib/libphp7.a
 
 COPY ./docker-build-files/pib_eval.c /root/
+
+RUN if [ "$WITH_LIBXML" = "yes" ]; \
+    then export LIBXML_EMCC_FLAGS=(-I /root/libxml2); \
+    else export LIBXML_EMCC_FLAGS=""; \
+    fi 
+
 RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
     then export DEFINES='-DWITH_VRZNO=1'; \
     else export DEFINES=''; \
-    fi && \
-    cd php-src/ && \
+    fi
+
+RUN cd php-src/ && \
     emcc -Oz \
     -I .     \
     -I Zend  \
     -I main  \
     -I TSRM/ \
-    -I /root/libxml2 \
+    "${LIBXML_EMCC_FLAGS[@]}" \
     $DEFINES \
     /root/pib_eval.c \
     -o /root/lib/pib_eval.o;
