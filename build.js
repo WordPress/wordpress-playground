@@ -36,7 +36,8 @@ if (argv.platform === "browser") {
     let wasmWorkerUrl;
     if (wasmWorkerBackend === 'iframe') {
         const wasmWorkerOrigin = process.env.WASM_WORKER_ORIGIN || 'http://127.0.0.1:8778';
-        wasmWorkerUrl = `${wasmWorkerOrigin}/iframe-worker.html`;
+        const wasmWorkerFilename = process.env.WASM_WORKER_FILENAME || 'iframe-worker.html';
+        wasmWorkerUrl = `${wasmWorkerOrigin}/${wasmWorkerFilename}`;
     } else {
         wasmWorkerUrl = `${serviceWorkerOrigin}/wasm-worker.js`;
     }

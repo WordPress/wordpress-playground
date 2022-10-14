@@ -191,10 +191,10 @@
   }
 
   // src/web/config.js
-  var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
+  var serviceWorkerUrl = "https://wasm.wordpress.net/service-worker.js";
   var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
   var wordPressSiteUrl = serviceWorkerOrigin;
-  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html";
+  var wasmWorkerUrl = "https://wasm-worker.wordpress.net/iframe-worker.html";
   var wasmWorkerOrigin = new URL(wasmWorkerUrl).origin;
   var wasmWorkerBackend = "iframe";
 
