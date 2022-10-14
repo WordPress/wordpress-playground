@@ -38,7 +38,7 @@
   }
 
   // src/web/library.js
-  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, 50));
+  var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   async function runWordPress({
     wasmWorkerBackend: wasmWorkerBackend2,
     wasmWorkerUrl: wasmWorkerUrl2,
@@ -64,31 +64,37 @@
   async function registerServiceWorker({ url, onRequest, scope }) {
     if (!navigator.serviceWorker) {
       alert("Service workers are not supported in this browser.");
-      throw new Exception("Service workers are not supported in this browser.");
+      throw new Error("Service workers are not supported in this browser.");
     }
     await navigator.serviceWorker.register(url);
     const serviceWorkerChannel = new BroadcastChannel(`wordpress-service-worker`);
-    serviceWorkerChannel.addEventListener("message", async function onMessage(event) {
-      if (scope && event.data.scope !== scope) {
-        return;
-      }
-      console.debug(`[Main] "${event.data.type}" message received from a service worker`);
-      let result;
-      if (event.data.type === "request" || event.data.type === "httpRequest") {
-        result = await onRequest(event.data.request);
-      } else {
-        throw new Error(`[Main] Unexpected message received from the service-worker: "${event.data.type}"`);
-      }
-      if (event.data.messageId) {
-        serviceWorkerChannel.postMessage(
-          responseTo(
-            event.data.messageId,
-            result
-          )
+    serviceWorkerChannel.addEventListener(
+      "message",
+      async function onMessage(event) {
+        if (scope && event.data.scope !== scope) {
+          return;
+        }
+        console.debug(
+          `[Main] "${event.data.type}" message received from a service worker`
         );
+        let result;
+        if (event.data.type === "request" || event.data.type === "httpRequest") {
+          result = await onRequest(event.data.request);
+        } else {
+          throw new Error(
+            `[Main] Unexpected message received from the service-worker: "${event.data.type}"`
+          );
+        }
+        if (event.data.messageId) {
+          serviceWorkerChannel.postMessage(
+            responseTo(event.data.messageId, result)
+          );
+        }
+        console.debug(`[Main] "${event.data.type}" message processed`, {
+          result
+        });
       }
-      console.debug(`[Main] "${event.data.type}" message processed`, { result });
-    });
+    );
     navigator.serviceWorker.startMessages();
     await sleep(0);
     const wordPressDomain = new URL(url).origin;
@@ -98,7 +104,11 @@
       window.location.reload();
     }
   }
-  async function createWordPressWorker({ backend, wordPressSiteUrl: wordPressSiteUrl2, scope }) {
+  async function createWordPressWorker({
+    backend,
+    wordPressSiteUrl: wordPressSiteUrl2,
+    scope
+  }) {
     while (true) {
       try {
         await backend.sendMessage({ type: "is_alive" }, 50);
@@ -135,14 +145,16 @@
     const backend = backends[key];
     if (!backend) {
       const availableKeys = Object.keys(backends).join(", ");
-      throw new Error(`Unknown worker backend: "${key}". Choices: ${availableKeys}`);
+      throw new Error(
+        `Unknown worker backend: "${key}". Choices: ${availableKeys}`
+      );
     }
     return backend(url);
   }
   function webWorkerBackend(workerURL) {
     const worker = new Worker(workerURL);
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
         const messageId = postMessageExpectReply(worker, message);
         const response = await awaitReply(worker, messageId, timeout);
         return response;
@@ -153,7 +165,7 @@
     const worker = new SharedWorker(workerURL);
     worker.port.start();
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
         const messageId = postMessageExpectReply(worker.port, message);
         const response = await awaitReply(worker.port, messageId, timeout);
         return response;
@@ -166,8 +178,12 @@
     iframe.style.display = "none";
     document.body.appendChild(iframe);
     return {
-      sendMessage: async function(message, timeout = DEFAULT_REPLY_TIMEOUT) {
-        const messageId = postMessageExpectReply(iframe.contentWindow, message, "*");
+      async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+        const messageId = postMessageExpectReply(
+          iframe.contentWindow,
+          message,
+          "*"
+        );
         const response = await awaitReply(window, messageId, timeout);
         return response;
       }

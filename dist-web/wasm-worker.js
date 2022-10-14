@@ -462,13 +462,19 @@ ADMIN;
         this.setCookies(response.headers["set-cookie"]);
       }
       if (this.config.handleRedirects && response.headers.location && redirects < this.config.maxRedirects) {
-        const parsedUrl = new URL(response.headers.location[0], this.wp.ABSOLUTE_URL);
-        return this.request({
-          path: parsedUrl.pathname,
-          method: "GET",
-          _GET: parsedUrl.search,
-          headers: {}
-        }, redirects + 1);
+        const parsedUrl = new URL(
+          response.headers.location[0],
+          this.wp.ABSOLUTE_URL
+        );
+        return this.request(
+          {
+            path: parsedUrl.pathname,
+            method: "GET",
+            _GET: parsedUrl.search,
+            headers: {}
+          },
+          redirects + 1
+        );
       }
       return response;
     }
@@ -533,20 +539,14 @@ ADMIN;
   } else if (IS_WEBWORKER) {
     phpLoaderScriptName = "/php-webworker.js";
     onmessage = (event) => {
-      handleMessageEvent(
-        event,
-        postMessage
-      );
+      handleMessageEvent(event, postMessage);
     };
   } else if (IS_SHARED_WORKER) {
     phpLoaderScriptName = "/php-webworker.js";
     self.onconnect = (e) => {
       const port = e.ports[0];
       port.addEventListener("message", (event) => {
-        handleMessageEvent(
-          event,
-          (r) => port.postMessage(r)
-        );
+        handleMessageEvent(event, (r) => port.postMessage(r));
       });
       port.start();
     };
@@ -555,12 +555,7 @@ ADMIN;
     console.debug(`[WASM Worker] "${event.data.type}" event received`, event);
     const result = await generateResponseForMessage(event.data);
     if (event.data.messageId) {
-      respond(
-        responseTo(
-          event.data.messageId,
-          result
-        )
-      );
+      respond(responseTo(event.data.messageId, result));
     }
     console.debug(`[WASM Worker] "${event.data.type}" event processed`);
   }
@@ -584,7 +579,9 @@ ADMIN;
         _GET: parsedUrl.search
       });
     }
-    console.debug(`[WASM Worker] "${message.type}" event has no handler, short-circuiting`);
+    console.debug(
+      `[WASM Worker] "${message.type}" event has no handler, short-circuiting`
+    );
   }
   async function initWPBrowser(siteUrl) {
     console.log("[WASM Worker] Before wp.init()");
@@ -602,13 +599,15 @@ ADMIN;
       importScripts("/wp.js");
     });
     PHPModule.FS.mkdirTree("/usr/local/etc");
-    PHPModule.FS.writeFile("/usr/local/etc/php.ini", `[PHP]
-
-	error_reporting = E_ERROR | E_PARSE
-	display_errors = 1
-	html_errors = 1
-	display_startup_errors = On
-	`);
+    PHPModule.FS.writeFile(
+      "/usr/local/etc/php.ini",
+      `[PHP]
+error_reporting = E_ERROR | E_PARSE
+display_errors = 1
+html_errors = 1
+display_startup_errors = On
+	`
+    );
     const wp = new WordPress(php);
     await wp.init(siteUrl);
     console.log("[WASM Worker] After wp.init()");
