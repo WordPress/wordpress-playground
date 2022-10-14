@@ -52,23 +52,6 @@ find ./ -type f -name '*.jpg' | xargs rm -r 2> /dev/null
 find ./ -type f -name '*.css' | xargs rm 2> /dev/null
 find ./ -type f -name '*.js' | xargs rm 2> /dev/null
 
-echo 'function getLazyFiles() { var sa = []; ' > ../wp-lazy-files.js
-
-if [ "$LAZY_FILES" == "true" ]; then
-
-fi
-
-echo "
-return sa.map( function( a ) {
-    return {
-        path: a[0],
-        filename: a[1],
-        fullPath: a[2],
-        size: a[3],
-    };
-} );
-}" >> ../wp-lazy-files.js
-
 # Remove whitespace from PHP files
 for phpfile in $(find ./ -type f -name '*.php'); do
     php -w $phpfile > $phpfile.small
