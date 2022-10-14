@@ -213,6 +213,16 @@
 "
 				);
 
+				// DISABLE SITE HEALTH:
+				file_put_contents(
+					'${this.DOCROOT}/wp-includes/default-filters.php',
+					preg_replace(
+						'!add_filter[^;]+wp_maybe_grant_site_health_caps[^;]+;!i',
+						'',
+						file_get_contents('${this.DOCROOT}/wp-includes/default-filters.php')
+					)
+				);
+
 				// WORKAROUND:
 				// The fsockopen transport erroneously reports itself as a working transport. Let's force
 				// it to report it won't work.
