@@ -6,6 +6,7 @@ import {
 } from '../shared/messaging.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const noop = ()=>{};
 
 export async function runWordPress({
 	wasmWorkerBackend,
@@ -13,6 +14,7 @@ export async function runWordPress({
 	wordPressSiteUrl,
 	serviceWorkerUrl,
 	assignScope = true,
+	onWasmDownloadProgress,
 }) {
 	const scope = assignScope ? Math.random().toFixed(16) : undefined;
 
@@ -20,6 +22,7 @@ export async function runWordPress({
 		backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
 		wordPressSiteUrl,
 		scope,
+		onDownloadProgress: onWasmDownloadProgress
 	});
 	await registerServiceWorker({
 		url: serviceWorkerUrl,
@@ -108,6 +111,7 @@ export async function createWordPressWorker({
 	backend,
 	wordPressSiteUrl,
 	scope,
+	onDownloadProgress=noop
 }) {
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
@@ -132,6 +136,12 @@ export async function createWordPressWorker({
 		wordPressSiteUrl += scopePath;
 	}
 
+	backend.addMessageListener((e) => {
+		if(e.data.type === 'download_progress') {
+			onDownloadProgress(e.data);
+		}
+	});
+
 	// Now that the worker is up and running, let's ask it to initialize
 	// WordPress:
 	await backend.sendMessage({
@@ -143,9 +153,12 @@ export async function createWordPressWorker({
 		pathToInternalUrl(wordPressPath) {
 			return `${wordPressSiteUrl}${wordPressPath}`;
 		},
-    internalUrlToPath(internalUrl) {
-      const url = new URL(internalUrl);
-			return url.toString().substr(url.origin.length).substr(scopePath.length);
+		internalUrlToPath(internalUrl) {
+			const url = new URL(internalUrl);
+			return url
+				.toString()
+				.substr(url.origin.length)
+				.substr(scopePath.length);
 		},
 		async HTTPRequest(request) {
 			return await backend.sendMessage({
@@ -180,6 +193,9 @@ export function webWorkerBackend(workerURL) {
 			const response = await awaitReply(worker, messageId, timeout);
 			return response;
 		},
+		addMessageListener(listener) {
+			worker.onmessage = listener;
+		}
 	};
 }
 
@@ -192,6 +208,9 @@ export function sharedWorkerBackend(workerURL) {
 			const response = await awaitReply(worker.port, messageId, timeout);
 			return response;
 		},
+		addMessageListener(listener) {
+			worker.port.onmessage = listener;
+		}
 	};
 }
 
@@ -210,6 +229,13 @@ export function iframeBackend(workerDocumentURL) {
 			const response = await awaitReply(window, messageId, timeout);
 			return response;
 		},
+		addMessageListener(listener) {
+			window.addEventListener('message', (e) => {
+				if(e.source.window === iframe.contentWindow) {
+					listener(e);
+				}
+			}, false);
+		}
 	};
 }
 
