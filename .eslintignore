@@ -1,2 +1,6 @@
+node_modules/**/*
+wasm-build/**/*
+dist-web/**/*
+dist-node/**/*
 src/node/wordpress/**/*
 node-php.js
