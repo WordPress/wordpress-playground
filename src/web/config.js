@@ -6,5 +6,6 @@ export const serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
 export const wordPressSiteUrl = serviceWorkerOrigin;
 
 export const wasmWorkerUrl = WASM_WORKER_URL;
-export const wasmWorkerOrigin = new URL(wasmWorkerUrl).origin;
 export const wasmWorkerBackend = WASM_WORKER_BACKEND;
+export const phpWebWasmSize = PHP_WASM_SIZE;
+export const wpDataSize = WP_DATA_SIZE;

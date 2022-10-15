@@ -269,7 +269,7 @@
       },
       addMessageListener(listener) {
         window.addEventListener("message", (e) => {
-          if (e.source.window === iframe.contentWindow) {
+          if (e.source === iframe.contentWindow) {
             listener(e);
           }
         }, false);
@@ -278,11 +278,10 @@
   }
 
   // src/web/config.js
-  var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
+  var serviceWorkerUrl = "https://wasm.wordpress.net/service-worker.js";
   var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
   var wordPressSiteUrl = serviceWorkerOrigin;
-  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html";
-  var wasmWorkerOrigin = new URL(wasmWorkerUrl).origin;
+  var wasmWorkerUrl = "https://wasm-worker.wordpress.net/iframe-worker.html";
   var wasmWorkerBackend = "iframe";
 
   // src/web/app.mjs

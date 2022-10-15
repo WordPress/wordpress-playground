@@ -5,6 +5,8 @@ import WordPress from '../shared/wordpress.mjs';
 import WPBrowser from '../shared/wp-browser.mjs';
 import { responseTo } from '../shared/messaging.mjs';
 
+import { phpWebWasmSize, wpDataSize } from './config';
+
 console.log('[WASM Worker] Spawned');
 
 // Infer the environment
@@ -238,25 +240,24 @@ class WASMDownloadMonitor extends EventTarget {
 			const file = response.url.substring(
 				new URL(response.url).origin.length + 1
 			);
+			const contentLength = response.headers.get('content-length');
+			let total = parseInt(contentLength, 10);
+
 			const reportingResponse = new Response(
 				new ReadableStream(
 					{
 						async start(controller) {
-							const contentLength =
-								response.headers.get('content-length');
-							const total = parseInt(contentLength, 10);
 
 							const reader = response.body.getReader();
 							let loaded = 0;
 							for (;;) {
 								const { done, value } = await reader.read();
+								loaded += value.byteLength;
 
 								if (done) {
-									self._notify(file, total, total);
+									self._notify(file, loaded, loaded);
 									break;
 								}
-
-								loaded += value.byteLength;
 								self._notify(file, loaded, total);
 								controller.enqueue(value);
 							}
@@ -278,6 +279,20 @@ class WASMDownloadMonitor extends EventTarget {
 	}
 
 	_notify(file, loaded, total) {
+		// The content-length header may be missing when the files are
+		// compressed before transmission.
+		// These fallback values are generated during the build process.
+		if(!total) {
+			if(file === 'php-web.wasm') {
+				total = phpWebWasmSize;
+			} else if(file === 'wp.data') {
+				total = wpDataSize;
+			} else {
+				// Let's use 5MB when there's no better guess – it's not about being exact but
+				// about giving the user a rough idea of the progress.
+				total = Math.min(loaded, 5 * 1024 * 1024);
+			}
+		}
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {

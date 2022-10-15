@@ -565,6 +565,12 @@ REQUEST,
     };
   }
 
+  // src/web/config.js
+  var serviceWorkerUrl = "https://wasm.wordpress.net/service-worker.js";
+  var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
+  var phpWebWasmSize = 6185243;
+  var wpDataSize = 13390211;
+
   // src/web/wasm-worker.js
   console.log("[WASM Worker] Spawned");
   var IS_IFRAME = typeof window !== "undefined";
@@ -646,7 +652,10 @@ REQUEST,
         return yield wpBrowser.wp.php.run(message.code);
       }
       if (message.type === "request" || message.type === "httpRequest") {
-        const parsedUrl = new URL(message.request.path, wpBrowser.wp.ABSOLUTE_URL);
+        const parsedUrl = new URL(
+          message.request.path,
+          wpBrowser.wp.ABSOLUTE_URL
+        );
         return yield wpBrowser.request(__spreadProps(__spreadValues({}, message.request), {
           path: parsedUrl.pathname,
           _GET: parsedUrl.search
@@ -734,22 +743,22 @@ display_startup_errors = On
         const file = response.url.substring(
           new URL(response.url).origin.length + 1
         );
+        const contentLength = response.headers.get("content-length");
+        let total = parseInt(contentLength, 10);
         const reportingResponse = new Response(
           new ReadableStream(
             {
               start(controller) {
                 return __async(this, null, function* () {
-                  const contentLength = response.headers.get("content-length");
-                  const total = parseInt(contentLength, 10);
                   const reader = response.body.getReader();
                   let loaded = 0;
                   for (; ; ) {
                     const { done, value } = yield reader.read();
+                    loaded += value.byteLength;
                     if (done) {
-                      self2._notify(file, total, total);
+                      self2._notify(file, loaded, loaded);
                       break;
                     }
-                    loaded += value.byteLength;
                     self2._notify(file, loaded, total);
                     controller.enqueue(value);
                   }
@@ -770,6 +779,15 @@ display_startup_errors = On
       };
     }
     _notify(file, loaded, total) {
+      if (!total) {
+        if (file === "php-web.wasm") {
+          total = phpWebWasmSize;
+        } else if (file === "wp.data") {
+          total = wpDataSize;
+        } else {
+          total = Math.min(loaded, 5 * 1024 * 1024);
+        }
+      }
       this.dispatchEvent(
         new CustomEvent("progress", {
           detail: {

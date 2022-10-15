@@ -231,8 +231,8 @@ export function iframeBackend(workerDocumentURL) {
 		},
 		addMessageListener(listener) {
 			window.addEventListener('message', (e) => {
-				if(e.source.window === iframe.contentWindow) {
-					listener(e);
+				if(e.source === iframe.contentWindow) {
+					listener( e );
 				}
 			}, false);
 		}

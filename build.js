@@ -1,5 +1,6 @@
 const { build } = require('esbuild')
 const yargs = require('yargs');
+const { execSync } = require("child_process");
 
 const argv = yargs( process.argv.slice( 2 ) )
     .command( 'build', 'Builds the project files' )
@@ -56,6 +57,8 @@ if (argv.platform === "browser") {
             SERVICE_WORKER_URL: JSON.stringify( serviceWorkerUrl ),
             WASM_WORKER_URL: JSON.stringify( wasmWorkerUrl ),
             WASM_WORKER_BACKEND: JSON.stringify( wasmWorkerBackend ),
+            PHP_WASM_SIZE: JSON.stringify( Number( execSync("cat dist-web/php-web.wasm | wc -c").toString().trim() ) ),
+            WP_DATA_SIZE: JSON.stringify( Number( execSync("cat dist-web/wp.data | wc -c").toString().trim() ) ),
         }
     };
 } else if (argv.platform === "node") {
