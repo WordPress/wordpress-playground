@@ -144,13 +144,13 @@
         border: 1px solid #b4b4b4;
         font-size: 20px;
       }
-      
+
       /* Progress bar: */
       .fake-window iframe,
       .fake-window .progress-bar-overlay {
-        transition: opacity linear 0.5s
+        transition: opacity linear 0.5s;
       }
-      
+
       .fake-window.is-loading iframe,
       .fake-window:not(.is-loading) .progress-bar-overlay {
         opacity: 0;
@@ -160,7 +160,7 @@
       .fake-window.is-loading .progress-bar-overlay {
         opacity: 1;
       }
-      
+
       .progress-bar-overlay {
         position: absolute;
         top: 0;
@@ -180,18 +180,18 @@
         margin: 4px auto;
         border-radius: 10px;
       }
-      
+
       .progress-bar-wrapper:before {
-        content: '';
+        content: "";
         position: absolute;
         top: -4px;
         left: -4px;
         bottom: -4px;
         right: -4px;
         border: 1px solid #000;
-        border-radius:2px;
+        border-radius: 2px;
       }
-      
+
       .progress-bar-wrapper .progress-bar {
         position: absolute;
         top: 0;
@@ -208,7 +208,7 @@
       .progress-bar-wrapper.mode-infinite .progress-bar.is-finite {
         opacity: 0;
       }
-      
+
       .progress-bar-wrapper.mode-finite .progress-bar.is-finite,
       .progress-bar-wrapper.mode-infinite .progress-bar.is-infinite {
         opacity: 1;
@@ -255,35 +255,76 @@
         </div>
         <input type="submit" tabindex="-1" />
       </form>
-      <div style="flex-grow: 1; display: flex; flex-direction: column; position: relative">
-          <div class="progress-bar-overlay">
-            <div class="progress-bar-wrapper mode-infinite">
-              <div class="progress-bar is-infinite"></div>
-              <div class="progress-bar is-finite"></div>
-            </div>
+      <div
+        style="
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+        "
+      >
+        <div class="progress-bar-overlay">
+          <div class="progress-bar-wrapper mode-infinite">
+            <div class="progress-bar is-infinite"></div>
+            <div class="progress-bar is-finite"></div>
           </div>
-          <iframe id="wp"></iframe>
         </div>
+        <iframe id="wp"></iframe>
       </div>
     </div>
 
     <script src="app.js"></script>
     <script>
-      const addressBar = document.querySelector("#address-bar");
-      document.querySelector("#wp").addEventListener("load", (e) => {
-        addressBar.value = wasmWorker.internalUrlToPath(
-          e.currentTarget.contentWindow.location.href
-        );
-      });
-
-      document
-        .querySelector("#address-bar-form")
-        .addEventListener("submit", (e) => {
-          e.preventDefault();
-          document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(
-            addressBar.value
+      startWordPress({ onWasmDownloadProgress }).then((wasmWorker) => {
+        const addressBar = document.querySelector("#address-bar");
+        document.querySelector("#wp").addEventListener("load", (e) => {
+          addressBar.value = wasmWorker.internalUrlToPath(
+            e.currentTarget.contentWindow.location.href
           );
         });
+
+        document
+          .querySelector("#address-bar-form")
+          .addEventListener("submit", (e) => {
+            e.preventDefault();
+            document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(
+              addressBar.value
+            );
+          });
+
+        // Hide progress bar when iframe loaded
+        document.querySelector("#wp").addEventListener("load", () => {
+          document
+            .querySelector(".fake-window.is-loading")
+            .classList.remove("is-loading");
+        });
+
+        document.querySelector("#wp").src = wasmWorker.pathToInternalUrl("/");
+      });
+
+      // Handle progress events
+      const progress = {};
+      function onWasmDownloadProgress({ file, loaded, total }) {
+        if (Object.keys(progress).length === 0) {
+          const classList = document.querySelector(
+            ".progress-bar-wrapper.mode-infinite"
+          ).classList;
+          classList.remove("mode-infinite");
+          classList.add("mode-finite");
+        }
+
+        progress[file] = loaded / total;
+        const progressSum = Object.entries(progress).reduce(
+          (acc, [_, percentFinished]) => acc + percentFinished,
+          0
+        );
+        const expectedFiles = 2;
+        const totalProgressPercentage = (100 * progressSum) / expectedFiles;
+
+        document.querySelector(
+          ".progress-bar.is-finite"
+        ).style.width = `${totalProgressPercentage}%`;
+      }
     </script>
   </body>
 </html>
