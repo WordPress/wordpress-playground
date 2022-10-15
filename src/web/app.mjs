@@ -1,26 +1,23 @@
-import { runWordPress } from './library';
+import { runWordPress } from "./library";
 import {
-	wasmWorkerUrl,
-	wasmWorkerBackend,
-	wordPressSiteUrl,
-	serviceWorkerUrl,
-} from './config';
+  wasmWorkerUrl,
+  wasmWorkerBackend,
+  wordPressSiteUrl,
+  serviceWorkerUrl,
+} from "./config";
 
-async function init() {
-	console.log('[Main] Starting WordPress...');
+window.startWordPress = async function (options = {}) {
+  console.log("[Main] Starting WordPress...");
 
-	const wasmWorker = await runWordPress({
-		wasmWorkerBackend,
-		wasmWorkerUrl,
-		wordPressSiteUrl,
-		serviceWorkerUrl,
-		assignScope: true,
-	});
+  const wasmWorker = await runWordPress({
+    wasmWorkerBackend,
+    wasmWorkerUrl,
+    wordPressSiteUrl,
+    serviceWorkerUrl,
+    assignScope: true,
+    onWasmDownloadProgress: options.onWasmDownloadProgress,
+  });
 
-	console.log('[Main] WordPress is running');
-
-	document.querySelector('#wp').src =
-		wasmWorker.pathToInternalUrl(`/`);
-	window.wasmWorker = wasmWorker;
-}
-init();
+  console.log("[Main] WordPress is running");
+  return wasmWorker;
+};

@@ -48,6 +48,7 @@ if (argv.platform === "browser") {
             'service-worker': './src/web/service-worker.js',
             'wasm-worker': './src/web/wasm-worker.js',
         },
+        target: ['es6', 'chrome90', 'firefox60','safari11'],
         outdir: './dist-web',
         external: ['xmlhttprequest'],
         define: {
@@ -75,4 +76,7 @@ if (argv.platform === "browser") {
     }
 }
 
-build(options).catch(() => process.exit(1))
+build(options).catch((e) => {
+    console.error(e);
+    process.exit(1)
+})

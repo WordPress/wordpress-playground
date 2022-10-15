@@ -1,10 +1,27 @@
 (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
+  var __defProps = Object.defineProperties;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
   var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
     get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
   }) : x)(function(x) {
@@ -24,67 +41,101 @@
     isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
     mod
   ));
+  var __publicField = (obj, key, value) => {
+    __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+    return value;
+  };
+  var __async = (__this, __arguments, generator) => {
+    return new Promise((resolve, reject) => {
+      var fulfilled = (value) => {
+        try {
+          step(generator.next(value));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      var rejected = (value) => {
+        try {
+          step(generator.throw(value));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
+      step((generator = generator.apply(__this, __arguments)).next());
+    });
+  };
 
   // src/shared/php-wrapper.mjs
   var STR = "string";
   var NUM = "number";
   var PHPWrapper = class {
-    _initPromise;
-    call;
-    stdout = [];
-    stderr = [];
-    async init(PhpBinary, args = {}) {
-      if (!this._initPromise) {
-        this._initPromise = this._init(PhpBinary, args);
-      }
-      return this._initPromise;
+    constructor() {
+      __publicField(this, "_initPromise");
+      __publicField(this, "call");
+      __publicField(this, "stdout", []);
+      __publicField(this, "stderr", []);
+      __publicField(this, "refresh", this.clear);
     }
-    async _init(PhpBinary, args = {}) {
-      const defaults = {
-        onAbort(reason) {
-          console.error("WASM aborted: ");
-          console.error(reason);
-        },
-        print: (...chunks) => {
-          this.stdout.push(...chunks);
-        },
-        printErr: (...chunks) => {
-          this.stderr.push(...chunks);
+    init(_0) {
+      return __async(this, arguments, function* (PhpBinary, args = {}) {
+        if (!this._initPromise) {
+          this._initPromise = this._init(PhpBinary, args);
         }
-      };
-      const PHPModule = Object.assign({}, defaults, args);
-      await new PhpBinary(PHPModule);
-      this.call = PHPModule.ccall;
-      await this.call("pib_init", NUM, [STR], []);
-      return PHPModule;
+        return this._initPromise;
+      });
     }
-    async run(code) {
-      if (!this.call) {
-        throw new Error(`Run init() first!`);
-      }
-      const exitCode = this.call("pib_run", NUM, [STR], [`?>${code}`]);
-      const response = {
-        exitCode,
-        stdout: this.stdout.join("\n"),
-        stderr: this.stderr
-      };
-      this.clear();
-      return response;
+    _init(_0) {
+      return __async(this, arguments, function* (PhpBinary, args = {}) {
+        const defaults = {
+          onAbort(reason) {
+            console.error("WASM aborted: ");
+            console.error(reason);
+          },
+          print: (...chunks) => {
+            this.stdout.push(...chunks);
+          },
+          printErr: (...chunks) => {
+            this.stderr.push(...chunks);
+          }
+        };
+        const PHPModule = Object.assign({}, defaults, args);
+        yield new PhpBinary(PHPModule);
+        this.call = PHPModule.ccall;
+        yield this.call("pib_init", NUM, [STR], []);
+        return PHPModule;
+      });
     }
-    async clear() {
-      if (!this.call) {
-        throw new Error(`Run init() first!`);
-      }
-      this.call("pib_refresh", NUM, [], []);
-      this.stdout = [];
-      this.stderr = [];
+    run(code) {
+      return __async(this, null, function* () {
+        if (!this.call) {
+          throw new Error(`Run init() first!`);
+        }
+        const exitCode = this.call("pib_run", NUM, [STR], [`?>${code}`]);
+        const response = {
+          exitCode,
+          stdout: this.stdout.join("\n"),
+          stderr: this.stderr
+        };
+        this.clear();
+        return response;
+      });
     }
-    refresh = this.clear;
+    clear() {
+      return __async(this, null, function* () {
+        if (!this.call) {
+          throw new Error(`Run init() first!`);
+        }
+        this.call("pib_refresh", NUM, [], []);
+        this.stdout = [];
+        this.stderr = [];
+      });
+    }
   };
 
   // src/shared/wordpress.mjs
   if (typeof XMLHttpRequest === "undefined") {
-    import("xmlhttprequest").then(({ XMLHttpRequest: XMLHttpRequest2 }) => {
+    Promise.resolve().then(() => __toESM(__require("xmlhttprequest"), 1)).then(({ XMLHttpRequest: XMLHttpRequest2 }) => {
       global.XMLHttpRequest = XMLHttpRequest2;
     });
     global.atob = function(data) {
@@ -92,54 +143,57 @@
     };
   }
   var WordPress = class {
-    DOCROOT = "/preload/wordpress";
-    SCHEMA = "http";
-    HOSTNAME = "localhost";
-    PORT = 80;
-    HOST = "";
-    PATHNAME = "";
-    ABSOLUTE_URL = ``;
     constructor(php) {
+      __publicField(this, "DOCROOT", "/preload/wordpress");
+      __publicField(this, "SCHEMA", "http");
+      __publicField(this, "HOSTNAME", "localhost");
+      __publicField(this, "PORT", 80);
+      __publicField(this, "HOST", "");
+      __publicField(this, "PATHNAME", "");
+      __publicField(this, "ABSOLUTE_URL", ``);
       this.php = php;
     }
-    async init(urlString, options = {}) {
-      this.options = {
-        useFetchForRequests: false,
-        ...options
-      };
-      const url = new URL(urlString);
-      this.HOSTNAME = url.hostname;
-      this.PORT = url.port ? url.port : url.protocol === "https:" ? 443 : 80;
-      this.SCHEMA = (url.protocol || "").replace(":", "");
-      this.HOST = `${this.HOSTNAME}:${this.PORT}`;
-      this.PATHNAME = url.pathname.replace(/\/+$/, "");
-      this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
-      await this.php.refresh();
-      const result = await this.php.run(`<?php
+    init(_0) {
+      return __async(this, arguments, function* (urlString, options = {}) {
+        this.options = __spreadValues({
+          useFetchForRequests: false
+        }, options);
+        const url = new URL(urlString);
+        this.HOSTNAME = url.hostname;
+        this.PORT = url.port ? url.port : url.protocol === "https:" ? 443 : 80;
+        this.SCHEMA = (url.protocol || "").replace(":", "");
+        this.HOST = `${this.HOSTNAME}:${this.PORT}`;
+        this.PATHNAME = url.pathname.replace(/\/+$/, "");
+        this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
+        yield this.php.refresh();
+        const result = yield this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._patchWordPressCode()}
 		`);
-      this.initialized = true;
-      if (result.exitCode !== 0) {
-        throw new Error(
-          {
-            message: "WordPress setup failed",
-            result
-          },
-          result.exitCode
-        );
-      }
+        this.initialized = true;
+        if (result.exitCode !== 0) {
+          throw new Error(
+            {
+              message: "WordPress setup failed",
+              result
+            },
+            result.exitCode
+          );
+        }
+      });
     }
-    async request(request) {
-      if (!this.initialized) {
-        throw new Error("call init() first");
-      }
-      const output = await this.php.run(`<?php
+    request(request) {
+      return __async(this, null, function* () {
+        if (!this.initialized) {
+          throw new Error("call init() first");
+        }
+        const output = yield this.php.run(`<?php
 			${this._setupErrorReportingCode()}
 			${this._setupRequestCode(request)}
 			${this._runWordPressCode(request.path)}
 		`);
-      return this.parseResponse(output);
+        return this.parseResponse(output);
+      });
     }
     parseResponse(result) {
       const response = {
@@ -458,36 +512,36 @@ REQUEST,
     constructor(wp, config = {}) {
       this.wp = wp;
       this.cookies = {};
-      this.config = {
+      this.config = __spreadValues({
         handleRedirects: false,
-        maxRedirects: 4,
-        ...config
-      };
+        maxRedirects: 4
+      }, config);
     }
-    async request(request, redirects = 0) {
-      const response = await this.wp.request({
-        ...request,
-        _COOKIE: this.cookies
+    request(request, redirects = 0) {
+      return __async(this, null, function* () {
+        const response = yield this.wp.request(__spreadProps(__spreadValues({}, request), {
+          _COOKIE: this.cookies
+        }));
+        if (response.headers["set-cookie"]) {
+          this.setCookies(response.headers["set-cookie"]);
+        }
+        if (this.config.handleRedirects && response.headers.location && redirects < this.config.maxRedirects) {
+          const parsedUrl = new URL(
+            response.headers.location[0],
+            this.wp.ABSOLUTE_URL
+          );
+          return this.request(
+            {
+              path: parsedUrl.pathname,
+              method: "GET",
+              _GET: parsedUrl.search,
+              headers: {}
+            },
+            redirects + 1
+          );
+        }
+        return response;
       });
-      if (response.headers["set-cookie"]) {
-        this.setCookies(response.headers["set-cookie"]);
-      }
-      if (this.config.handleRedirects && response.headers.location && redirects < this.config.maxRedirects) {
-        const parsedUrl = new URL(
-          response.headers.location[0],
-          this.wp.ABSOLUTE_URL
-        );
-        return this.request(
-          {
-            path: parsedUrl.pathname,
-            method: "GET",
-            _GET: parsedUrl.search,
-            headers: {}
-          },
-          redirects + 1
-        );
-      }
-      return response;
     }
     setCookies(cookies) {
       for (const cookie of cookies) {
@@ -522,21 +576,24 @@ REQUEST,
     IS_SHARED_WORKER
   });
   if (IS_IFRAME) {
-    window.importScripts = async function(...urls) {
-      return Promise.all(
-        urls.map((url) => {
-          const script = document.createElement("script");
-          script.src = url;
-          script.async = false;
-          document.body.appendChild(script);
-          return new Promise((resolve) => {
-            script.onload = resolve;
-          });
-        })
-      );
+    window.importScripts = function(...urls) {
+      return __async(this, null, function* () {
+        return Promise.all(
+          urls.map((url) => {
+            const script = document.createElement("script");
+            script.src = url;
+            script.async = false;
+            document.body.appendChild(script);
+            return new Promise((resolve) => {
+              script.onload = resolve;
+            });
+          })
+        );
+      });
     };
   }
   var phpLoaderScriptName;
+  var postMessageToParent;
   if (IS_IFRAME) {
     phpLoaderScriptName = "/php-web.js";
     window.addEventListener(
@@ -547,11 +604,13 @@ REQUEST,
       ),
       false
     );
+    postMessageToParent = (message) => window.parent.postMessage(message, "*");
   } else if (IS_WEBWORKER) {
     phpLoaderScriptName = "/php-webworker.js";
     onmessage = (event) => {
       handleMessageEvent(event, postMessage);
     };
+    postMessageToParent = postMessage;
   } else if (IS_SHARED_WORKER) {
     phpLoaderScriptName = "/php-webworker.js";
     self.onconnect = (e) => {
@@ -559,56 +618,83 @@ REQUEST,
       port.addEventListener("message", (event) => {
         handleMessageEvent(event, (r) => port.postMessage(r));
       });
+      postMessageToParent = port.postMessage;
       port.start();
     };
   }
-  async function handleMessageEvent(event, respond) {
-    console.debug(`[WASM Worker] "${event.data.type}" event received`, event);
-    const result = await generateResponseForMessage(event.data);
-    if (event.data.messageId) {
-      respond(responseTo(event.data.messageId, result));
-    }
-    console.debug(`[WASM Worker] "${event.data.type}" event processed`);
+  function handleMessageEvent(event, respond) {
+    return __async(this, null, function* () {
+      console.debug(`[WASM Worker] "${event.data.type}" event received`, event);
+      const result = yield generateResponseForMessage(event.data);
+      if (event.data.messageId) {
+        respond(responseTo(event.data.messageId, result));
+      }
+      console.debug(`[WASM Worker] "${event.data.type}" event processed`);
+    });
   }
   var wpBrowser;
-  async function generateResponseForMessage(message) {
-    if (message.type === "initialize_wordpress") {
-      wpBrowser = await initWPBrowser(message.siteURL);
-      return true;
-    }
-    if (message.type === "is_alive") {
-      return true;
-    }
-    if (message.type === "run_php") {
-      return await wpBrowser.wp.php.run(message.code);
-    }
-    if (message.type === "request" || message.type === "httpRequest") {
-      const parsedUrl = new URL(message.request.path, wpBrowser.wp.ABSOLUTE_URL);
-      return await wpBrowser.request({
-        ...message.request,
-        path: parsedUrl.pathname,
-        _GET: parsedUrl.search
-      });
-    }
-    console.debug(
-      `[WASM Worker] "${message.type}" event has no handler, short-circuiting`
-    );
-  }
-  async function initWPBrowser(siteUrl) {
-    console.log("[WASM Worker] Before wp.init()");
-    const php = new PHPWrapper();
-    await importScripts(phpLoaderScriptName);
-    const PHPModule = await php.init(PHP);
-    await new Promise((resolve) => {
-      PHPModule.monitorRunDependencies = (nbLeft) => {
-        if (nbLeft === 0) {
-          delete PHPModule.monitorRunDependencies;
-          resolve();
-        }
-      };
-      globalThis.PHPModule = PHPModule;
-      importScripts("/wp.js");
+  function generateResponseForMessage(message) {
+    return __async(this, null, function* () {
+      if (message.type === "initialize_wordpress") {
+        wpBrowser = yield initWPBrowser(message.siteURL);
+        return true;
+      }
+      if (message.type === "is_alive") {
+        return true;
+      }
+      if (message.type === "run_php") {
+        return yield wpBrowser.wp.php.run(message.code);
+      }
+      if (message.type === "request" || message.type === "httpRequest") {
+        const parsedUrl = new URL(message.request.path, wpBrowser.wp.ABSOLUTE_URL);
+        return yield wpBrowser.request(__spreadProps(__spreadValues({}, message.request), {
+          path: parsedUrl.pathname,
+          _GET: parsedUrl.search
+        }));
+      }
+      console.debug(
+        `[WASM Worker] "${message.type}" event has no handler, short-circuiting`
+      );
     });
+  }
+  function initWPBrowser(siteUrl) {
+    return __async(this, null, function* () {
+      console.log("[WASM Worker] Before wp.init()");
+      const downloadMonitor = new WASMDownloadMonitor();
+      downloadMonitor.addEventListener("progress", (e) => {
+        postMessageToParent(__spreadValues({
+          type: "download_progress"
+        }, e.detail));
+      });
+      const php = new PHPWrapper();
+      yield importScripts(phpLoaderScriptName);
+      const PHPModule = yield php.init(PHP, {
+        dataFileDownloads: downloadMonitor.dataFileDownloads
+      });
+      yield loadWordPressFiles(PHPModule);
+      setupPHPini(PHPModule);
+      const wp = new WordPress(php);
+      yield wp.init(siteUrl);
+      console.log("[WASM Worker] After wp.init()");
+      return new WPBrowser(wp, { handleRedirects: true });
+    });
+  }
+  function loadWordPressFiles(PHPModule) {
+    return __async(this, null, function* () {
+      yield new Promise((resolve) => {
+        PHPModule.monitorRunDependencies = (nbLeft) => {
+          if (nbLeft === 0) {
+            delete PHPModule.monitorRunDependencies;
+            resolve();
+          }
+        };
+        globalThis.PHPModule = PHPModule;
+        importScripts("/wp.js");
+        console.log({ PHPModule });
+      });
+    });
+  }
+  function setupPHPini(PHPModule) {
     PHPModule.FS.mkdirTree("/usr/local/etc");
     PHPModule.FS.writeFile(
       "/usr/local/etc/php.ini",
@@ -619,9 +705,80 @@ html_errors = 1
 display_startup_errors = On
 	`
     );
-    const wp = new WordPress(php);
-    await wp.init(siteUrl);
-    console.log("[WASM Worker] After wp.init()");
-    return new WPBrowser(wp, { handleRedirects: true });
   }
+  var WASMDownloadMonitor = class extends EventTarget {
+    constructor() {
+      super();
+      this._monitorWASMStreamingProgress();
+      this.dataFileDownloads = this._createDataFileDownloadsProxy();
+    }
+    _createDataFileDownloadsProxy() {
+      const self2 = this;
+      const dataFileDownloads = {};
+      return new Proxy(dataFileDownloads, {
+        set(obj, file, progress) {
+          self2._notify(file, progress.loaded, progress.total);
+          obj[file] = new Proxy(progress, {
+            set(nestedObj, prop, value) {
+              nestedObj[prop] = value;
+              self2._notify(file, nestedObj.loaded, nestedObj.total);
+            }
+          });
+        }
+      });
+    }
+    _monitorWASMStreamingProgress() {
+      const self2 = this;
+      const _instantiateStreaming = WebAssembly.instantiateStreaming;
+      WebAssembly.instantiateStreaming = (response, ...args) => {
+        const file = response.url.substring(
+          new URL(response.url).origin.length + 1
+        );
+        const reportingResponse = new Response(
+          new ReadableStream(
+            {
+              start(controller) {
+                return __async(this, null, function* () {
+                  const contentLength = response.headers.get("content-length");
+                  const total = parseInt(contentLength, 10);
+                  const reader = response.body.getReader();
+                  let loaded = 0;
+                  for (; ; ) {
+                    const { done, value } = yield reader.read();
+                    if (done) {
+                      self2._notify(file, total, total);
+                      break;
+                    }
+                    loaded += value.byteLength;
+                    self2._notify(file, loaded, total);
+                    controller.enqueue(value);
+                  }
+                  controller.close();
+                });
+              }
+            },
+            {
+              status: response.status,
+              statusText: response.statusText
+            }
+          )
+        );
+        for (const pair of response.headers.entries()) {
+          reportingResponse.headers.set(pair[0], pair[1]);
+        }
+        return _instantiateStreaming(reportingResponse, ...args);
+      };
+    }
+    _notify(file, loaded, total) {
+      this.dispatchEvent(
+        new CustomEvent("progress", {
+          detail: {
+            file,
+            loaded,
+            total
+          }
+        })
+      );
+    }
+  };
 })();
