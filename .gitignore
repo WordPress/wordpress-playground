@@ -6,3 +6,10 @@ wasm-build/php/docker-output/*
 wasm-build/wordpress-data/docker-output/*
 !wasm-build/wordpress-data/docker-output/.gitkeep
 wasm-build/wordpress-data/preload/wordpress*
+dist-web/wp-lazy-files.js
+dist-web/service-worker.js
+dist-web/wasm-worker.js
+dist-web/app.js
+dist-web/*.html
+dist-web/wp-lazy-files.js
+
