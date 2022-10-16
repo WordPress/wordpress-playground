@@ -48,7 +48,7 @@
     "@wordpress/eslint-plugin": "^13.0.0",
     "chokidar-cli": "^3.0.0",
     "esbuild": "^0.15.5",
-    "eslint": "^8.23.0",
+    "eslint": "8.22.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsx-a11y": "^6.6.1",

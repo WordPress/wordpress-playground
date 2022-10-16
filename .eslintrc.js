@@ -4,24 +4,21 @@ module.exports = {
 		es2021: true,
 	},
 	settings: {
-		'react': {
-			'version': '999.99.99' // Prevent eslint from complaining (we don't use react).
-		}
+		react: {
+			version: '999.99.99', // Prevent eslint from complaining (we don't use react).
+		},
 	},
 	extends: [
 		'eslint:recommended',
 		'plugin:@wordpress/eslint-plugin/recommended',
 		'plugin:react/recommended',
 	],
-	overrides: [
-	],
+	overrides: [],
 	parserOptions: {
 		ecmaVersion: 'latest',
 		sourceType: 'module',
 	},
-	plugins: [
-		'react',
-	],
+	plugins: ['react'],
 	rules: {
 		'no-inner-declaration': 0,
 		'no-use-before-define': 'off',
