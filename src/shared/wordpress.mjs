@@ -335,6 +335,7 @@ REQUEST,
 			$_SERVER['REMOTE_ADDR']     = '${this.HOSTNAME}';
 			$_SERVER['SERVER_NAME']     = '${this.ABSOLUTE_URL}';
 			$_SERVER['SERVER_PORT']     = ${this.PORT};
+			$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
 			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
 			$_SERVER['REQUEST_METHOD']  = $request->method;
 			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
