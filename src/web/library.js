@@ -116,10 +116,7 @@ export async function registerServiceWorker({ url, onRequest, scope }) {
 	// @TODO: Figure out why.
 	await sleep(0);
 
-	const wordPressDomain = new URL(url).origin;
-	const wordPressBaseUrl = scope
-		? `${wordPressDomain}/scope:${scope}`
-		: wordPressDomain;
+	const wordPressBaseUrl = setURLScope(new URL(url).origin, scope).toString();
 	const response = await fetch(`${wordPressBaseUrl}/wp-admin/atomlib.php`);
 	if (!response.ok) {
 		// The service worker did not claim this page for some reason. Let's reload.
@@ -153,10 +150,7 @@ export async function createWordPressWorker({
 	 *
 	 * @see registerServiceWorker for more details
 	 */
-	const scopePath = scope ? `/scope:${scope}` : '';
-	if (scope) {
-		wordPressSiteUrl += scopePath;
-	}
+	wordPressSiteUrl = setURLScope(new URL(wordPressSiteUrl), scope).toString();
 
 	backend.addMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
@@ -176,11 +170,7 @@ export async function createWordPressWorker({
 			return `${wordPressSiteUrl}${wordPressPath}`;
 		},
 		internalUrlToPath(internalUrl) {
-			const url = new URL(internalUrl);
-			return url
-				.toString()
-				.substr(url.origin.length)
-				.substr(scopePath.length);
+			return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
 		},
 		async HTTPRequest(request) {
 			return await backend.sendMessage({
@@ -284,6 +274,9 @@ export function getURLScope(url) {
 }
 
 export function setURLScope(url, scope) {
+	if (!scope) {
+		return url;
+	}
 	const newUrl = new URL(url);
 
 	if (isURLScoped(newUrl)) {
@@ -291,7 +284,8 @@ export function setURLScope(url, scope) {
 		parts[1] = `scope:${scope}`;
 		newUrl.pathname = parts.join('/');
 	} else {
-		newUrl.pathname = `/scope:${scope}${newUrl.pathname}`;
+		const suffix = newUrl.pathname === '/' ? '' : newUrl.pathname;
+		newUrl.pathname = `/scope:${scope}${suffix}`;
 	}
 
 	return newUrl;
