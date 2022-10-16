@@ -12,6 +12,8 @@
     <script>
       startWordPress().then((wasmWorker) => {
         document.querySelector("#wp").src = wasmWorker.pathToInternalUrl("/");
+      }).catch((e) => {
+        document.body.innerHTML = e.message;
       });
     </script>
   </body>

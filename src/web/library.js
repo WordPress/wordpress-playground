@@ -6,7 +6,7 @@ import {
 } from '../shared/messaging.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const noop = ()=>{};
+const noop = () => {};
 
 export async function runWordPress({
 	wasmWorkerBackend,
@@ -16,13 +16,15 @@ export async function runWordPress({
 	assignScope = true,
 	onWasmDownloadProgress,
 }) {
+	assertNotInfiniteLoadingLoop();
+
 	const scope = assignScope ? Math.random().toFixed(16) : undefined;
 
 	const wasmWorker = await createWordPressWorker({
 		backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
 		wordPressSiteUrl,
 		scope,
-		onDownloadProgress: onWasmDownloadProgress
+		onDownloadProgress: onWasmDownloadProgress,
 	});
 	await registerServiceWorker({
 		url: serviceWorkerUrl,
@@ -34,6 +36,26 @@ export async function runWordPress({
 		scope,
 	});
 	return wasmWorker;
+}
+
+/**
+ * When the service worker fails for any reason, the page displayed inside
+ * the iframe won't be a WordPress instance we expect from the service worker.
+ * Instead, it will be the original page trying to load the service worker. This
+ * causes an infinite loop with a loader inside a loader inside a loader.
+ */
+function assertNotInfiniteLoadingLoop() {
+	let isBrowserInABrowser = false;
+	try {
+		isBrowserInABrowser =
+			window.parent !== window && window.parent.IS_WASM_WORDPRESS;
+	} catch (e) {}
+	if (isBrowserInABrowser) {
+		throw new Error(
+			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-wasm/issues'
+		);
+	}
+	window.IS_WASM_WORDPRESS = true;
 }
 
 // <SERVICE WORKER>
@@ -111,7 +133,7 @@ export async function createWordPressWorker({
 	backend,
 	wordPressSiteUrl,
 	scope,
-	onDownloadProgress=noop
+	onDownloadProgress = noop,
 }) {
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
@@ -137,7 +159,7 @@ export async function createWordPressWorker({
 	}
 
 	backend.addMessageListener((e) => {
-		if(e.data.type === 'download_progress') {
+		if (e.data.type === 'download_progress') {
 			onDownloadProgress(e.data);
 		}
 	});
@@ -195,7 +217,7 @@ export function webWorkerBackend(workerURL) {
 		},
 		addMessageListener(listener) {
 			worker.onmessage = listener;
-		}
+		},
 	};
 }
 
@@ -210,7 +232,7 @@ export function sharedWorkerBackend(workerURL) {
 		},
 		addMessageListener(listener) {
 			worker.port.onmessage = listener;
-		}
+		},
 	};
 }
 
@@ -230,12 +252,16 @@ export function iframeBackend(workerDocumentURL) {
 			return response;
 		},
 		addMessageListener(listener) {
-			window.addEventListener('message', (e) => {
-				if(e.source === iframe.contentWindow) {
-					listener( e );
-				}
-			}, false);
-		}
+			window.addEventListener(
+				'message',
+				(e) => {
+					if (e.source === iframe.contentWindow) {
+						listener(e);
+					}
+				},
+				false
+			);
+		},
 	};
 }
 

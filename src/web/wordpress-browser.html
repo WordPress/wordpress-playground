@@ -275,7 +275,9 @@
 
     <script src="app.js"></script>
     <script>
+      // Prevent a browser-in-a-browser situation:
       startWordPress({ onWasmDownloadProgress }).then((wasmWorker) => {
+        // Manage the address bar
         const addressBar = document.querySelector("#address-bar");
         document.querySelector("#wp").addEventListener("load", (e) => {
           addressBar.value = wasmWorker.internalUrlToPath(
@@ -300,6 +302,8 @@
         });
 
         document.querySelector("#wp").src = wasmWorker.pathToInternalUrl("/");
+      }).catch((e) => {
+        document.body.innerHTML = e.message;
       });
 
       // Handle progress events
