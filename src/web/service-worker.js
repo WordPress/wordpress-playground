@@ -1,4 +1,10 @@
 import { postMessageExpectReply, awaitReply } from '../shared/messaging.mjs';
+import {
+	getPathQueryFragment,
+	getURLScope,
+	isURLScoped,
+	removeURLScope,
+} from './library';
 
 const broadcastChannel = new BroadcastChannel(`wordpress-service-worker`);
 
@@ -37,20 +43,21 @@ self.addEventListener('fetch', (event) => {
 	 * events to all the listeners across all browser tabs. Scopes
 	 * helps WASM workers ignore requests meant for other WASM workers.
 	 */
-	const isScopedRequest = url.pathname.startsWith(`/scope:`);
-	const scope = isScopedRequest
-		? url.pathname.split('/')[1].split(':')[1]
-		: null;
+	const scope = getURLScope(url);
+	const unscopedUrl = removeURLScope(url);
 
 	const isPHPRequest =
-		(url.pathname.endsWith('/') && url.pathname !== '/') ||
-		url.pathname.endsWith('.php');
+		unscopedUrl.pathname.endsWith('/') ||
+		unscopedUrl.pathname.endsWith('.php');
+
 	if (isPHPRequest) {
 		event.preventDefault();
 		return event.respondWith(
 			new Promise(async (accept) => {
 				console.log(
-					`[ServiceWorker] Serving request: ${url.pathname}?${url.search}`
+					`[ServiceWorker] Serving request: ${getPathQueryFragment(
+						unscopedUrl
+					)}`
 				);
 				console.log({ isWpOrgRequest, isPHPRequest });
 				const post = await parsePost(event.request);
@@ -65,7 +72,7 @@ self.addEventListener('fetch', (event) => {
 						type: 'httpRequest',
 						scope,
 						request: {
-							path: url.pathname + url.search,
+							path: getPathQueryFragment(url),
 							method: event.request.method,
 							_POST: post,
 							headers: requestHeaders,
@@ -102,8 +109,7 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
-	const isScopedStaticFileRequest = isScopedRequest;
-	if (isScopedStaticFileRequest) {
+	if (isURLScoped(url)) {
 		const scopedUrl = url + '';
 		url.pathname = '/' + url.pathname.split('/').slice(2).join('/');
 		const serverUrl = url + '';
