@@ -12,7 +12,7 @@
 </IfModule>
 
 # Akismet CSS and JS
-<FilesMatch "^(form\.js|akismet\.js|akismet\.css)$">
+<FilesMatch "^(form\.js|akismet\.js|akismet-frontend\.js|akismet\.css)$">
 	<IfModule !mod_authz_core.c>
 		Allow from all
 	</IfModule>
