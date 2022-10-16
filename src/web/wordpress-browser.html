@@ -275,11 +275,12 @@
 
     <script src="app.js"></script>
     <script>
+      const wpFrame = document.querySelector("#wp");
       // Prevent a browser-in-a-browser situation:
       startWordPress({ onWasmDownloadProgress }).then((wasmWorker) => {
         // Manage the address bar
         const addressBar = document.querySelector("#address-bar");
-        document.querySelector("#wp").addEventListener("load", (e) => {
+        wpFrame.addEventListener("load", (e) => {
           addressBar.value = wasmWorker.internalUrlToPath(
             e.currentTarget.contentWindow.location.href
           );
@@ -289,19 +290,21 @@
           .querySelector("#address-bar-form")
           .addEventListener("submit", (e) => {
             e.preventDefault();
-            document.querySelector("#wp").src = wasmWorker.pathToInternalUrl(
+            wpFrame.src = wasmWorker.pathToInternalUrl(
               addressBar.value
             );
           });
 
         // Hide progress bar when iframe loaded
-        document.querySelector("#wp").addEventListener("load", () => {
+        const hideProgressBar = () => {
           document
-            .querySelector(".fake-window.is-loading")
-            .classList.remove("is-loading");
-        });
+                  .querySelector(".fake-window.is-loading")
+                  .classList.remove("is-loading");
+          wpFrame.removeEventListener("load", hideProgressBar);
+        };
+        wpFrame.addEventListener("load", hideProgressBar);
 
-        document.querySelector("#wp").src = wasmWorker.pathToInternalUrl("/");
+        wpFrame.src = wasmWorker.pathToInternalUrl("/");
       }).catch((e) => {
         document.body.innerHTML = e.message;
       });
