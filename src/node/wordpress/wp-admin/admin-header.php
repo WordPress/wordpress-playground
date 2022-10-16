@@ -24,7 +24,7 @@ var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?
 </script>
 
 <?php
-if ( current_user_can( 'customize' ) ) { wp_customize_support_script(); } ?>
+ if ( current_user_can( 'customize' ) ) { wp_customize_support_script(); } ?>
 
 <div id="wpwrap">
 <?php require ABSPATH . 'wp-admin/menu-header.php'; ?>

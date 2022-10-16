@@ -14,7 +14,7 @@
 <p><?php _e( 'If you have posts or comments in another system, WordPress can import those into this site. To get started, choose a system to import from below:' ); ?></p>
 
 <?php
-$importers = get_importers(); foreach ( $popular_importers as $pop_importer => $pop_data ) { if ( isset( $importers[ $pop_importer ] ) ) { continue; } if ( isset( $importers[ $pop_data['importer-id'] ] ) ) { continue; } $importers[ $pop_data['importer-id'] ] = array( $pop_data['name'], $pop_data['description'], 'install' => $pop_data['plugin-slug'], ); } if ( empty( $importers ) ) { echo '<p>' . __( 'No importers are available.' ) . '</p>'; } else { uasort( $importers, '_usort_by_first_member' ); ?>
+ $importers = get_importers(); foreach ( $popular_importers as $pop_importer => $pop_data ) { if ( isset( $importers[ $pop_importer ] ) ) { continue; } if ( isset( $importers[ $pop_data['importer-id'] ] ) ) { continue; } $importers[ $pop_data['importer-id'] ] = array( $pop_data['name'], $pop_data['description'], 'install' => $pop_data['plugin-slug'], ); } if ( empty( $importers ) ) { echo '<p>' . __( 'No importers are available.' ) . '</p>'; } else { uasort( $importers, '_usort_by_first_member' ); ?>
 <table class="widefat importers striped">
 
 	<?php

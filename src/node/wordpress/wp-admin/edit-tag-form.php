@@ -66,7 +66,7 @@ wp_original_referer_field( true, 'previous' ); wp_nonce_field( 'update-tag_' . $
  if ( 'category' === $taxonomy ) { do_action_deprecated( 'edit_category_form_fields', array( $tag ), '3.0.0', '{$taxonomy}_edit_form_fields' ); } elseif ( 'link_category' === $taxonomy ) { do_action_deprecated( 'edit_link_category_form_fields', array( $tag ), '3.0.0', '{$taxonomy}_edit_form_fields' ); } else { do_action_deprecated( 'edit_tag_form_fields', array( $tag ), '3.0.0', '{$taxonomy}_edit_form_fields' ); } do_action( "{$taxonomy}_edit_form_fields", $tag, $taxonomy ); ?>
 	</table>
 <?php
-if ( 'category' === $taxonomy ) { do_action_deprecated( 'edit_category_form', array( $tag ), '3.0.0', '{$taxonomy}_add_form' ); } elseif ( 'link_category' === $taxonomy ) { do_action_deprecated( 'edit_link_category_form', array( $tag ), '3.0.0', '{$taxonomy}_add_form' ); } else { do_action_deprecated( 'edit_tag_form', array( $tag ), '3.0.0', '{$taxonomy}_edit_form' ); } do_action( "{$taxonomy}_edit_form", $tag, $taxonomy ); ?>
+ if ( 'category' === $taxonomy ) { do_action_deprecated( 'edit_category_form', array( $tag ), '3.0.0', '{$taxonomy}_add_form' ); } elseif ( 'link_category' === $taxonomy ) { do_action_deprecated( 'edit_link_category_form', array( $tag ), '3.0.0', '{$taxonomy}_add_form' ); } else { do_action_deprecated( 'edit_tag_form', array( $tag ), '3.0.0', '{$taxonomy}_edit_form' ); } do_action( "{$taxonomy}_edit_form", $tag, $taxonomy ); ?>
 
 <div class="edit-tag-actions">
 

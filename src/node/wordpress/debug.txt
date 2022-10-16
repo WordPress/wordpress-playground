@@ -1,17 +1,78 @@
 <!DOCTYPE html>
-<html lang="en-US">
+<html lang="en-US" xml:lang="en-US">
 <head>
 	<meta name="viewport" content="width=device-width" />
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<meta name="robots" content="noindex,nofollow" />
 	<title>WordPress &rsaquo; Installation</title>
-	<link rel='stylesheet' id='dashicons-css'  href='http://127.0.0.1:8000/wp-includes/css/dashicons.min.css?ver=6.0.1' media='all' />
-<link rel='stylesheet' id='buttons-css'  href='http://127.0.0.1:8000/wp-includes/css/buttons.min.css?ver=6.0.1' media='all' />
-<link rel='stylesheet' id='forms-css'  href='http://127.0.0.1:8000/wp-admin/css/forms.min.css?ver=6.0.1' media='all' />
-<link rel='stylesheet' id='l10n-css'  href='http://127.0.0.1:8000/wp-admin/css/l10n.min.css?ver=6.0.1' media='all' />
-<link rel='stylesheet' id='install-css'  href='http://127.0.0.1:8000/wp-admin/css/install.min.css?ver=6.0.1' media='all' />
+	<link rel='stylesheet' id='dashicons-css'  href='http://127.0.0.1:8000/wp-includes/css/dashicons.min.css?ver=6.0.2' type='text/css' media='all' />
+<link rel='stylesheet' id='buttons-css'  href='http://127.0.0.1:8000/wp-includes/css/buttons.min.css?ver=6.0.2' type='text/css' media='all' />
+<link rel='stylesheet' id='forms-css'  href='http://127.0.0.1:8000/wp-admin/css/forms.min.css?ver=6.0.2' type='text/css' media='all' />
+<link rel='stylesheet' id='l10n-css'  href='http://127.0.0.1:8000/wp-admin/css/l10n.min.css?ver=6.0.2' type='text/css' media='all' />
+<link rel='stylesheet' id='install-css'  href='http://127.0.0.1:8000/wp-admin/css/install.min.css?ver=6.0.2' type='text/css' media='all' />
 </head>
 <body class="wp-core-ui">
 <p id="logo">WordPress</p>
 
-	<h1>Already Installed</h1><p>You appear to have already installed WordPress. To reinstall please clear your old database tables first.</p><p class="step"><a href="http://127.0.0.1:8000/wp-login.php" class="button button-large">Log In</a></p></body></html>
+	
+<h1>Success!</h1>
+
+<p>WordPress has been installed. Thank you, and enjoy!</p>
+
+<table class="form-table install-success">
+	<tr>
+		<th>Username</th>
+		<td>admin</td>
+	</tr>
+	<tr>
+		<th>Password</th>
+		<td>
+						<p><em>Your chosen password.</em></p>
+		</td>
+	</tr>
+</table>
+
+<p class="step"><a href="http://127.0.0.1:8000/wp-login.php" class="button button-large">Log In</a></p>
+
+			<script type="text/javascript">var t = document.getElementById('weblog_title'); if (t){ t.focus(); }</script>
+	<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/jquery/jquery.min.js?ver=3.6.0' id='jquery-core-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.3.2' id='jquery-migrate-js'></script>
+<script type='text/javascript' id='zxcvbn-async-js-extra'>
+/* <![CDATA[ */
+var _zxcvbnSettings = {"src":"http:\/\/127.0.0.1:8000\/wp-includes\/js\/zxcvbn.min.js"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/zxcvbn-async.min.js?ver=1.0' id='zxcvbn-async-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/dist/vendor/regenerator-runtime.min.js?ver=0.13.9' id='regenerator-runtime-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/dist/vendor/wp-polyfill.min.js?ver=3.15.0' id='wp-polyfill-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/dist/hooks.min.js?ver=c6d64f2cb8f5c6bb49caca37f8828ce3' id='wp-hooks-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/dist/i18n.min.js?ver=ebee46757c6a411e38fd079a7ac71d94' id='wp-i18n-js'></script>
+<script type='text/javascript' id='wp-i18n-js-after'>
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+</script>
+<script type='text/javascript' id='password-strength-meter-js-extra'>
+/* <![CDATA[ */
+var pwsL10n = {"unknown":"Password strength unknown","short":"Very weak","bad":"Weak","good":"Medium","strong":"Strong","mismatch":"Mismatch"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-admin/js/password-strength-meter.min.js?ver=6.0.2' id='password-strength-meter-js'></script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/underscore.min.js?ver=1.13.3' id='underscore-js'></script>
+<script type='text/javascript' id='wp-util-js-extra'>
+/* <![CDATA[ */
+var _wpUtilSettings = {"ajax":{"url":"\/wp-admin\/admin-ajax.php"}};
+/* ]]> */
+</script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-includes/js/wp-util.min.js?ver=6.0.2' id='wp-util-js'></script>
+<script type='text/javascript' id='user-profile-js-extra'>
+/* <![CDATA[ */
+var userProfileL10n = {"user_id":"0","nonce":""};
+/* ]]> */
+</script>
+<script type='text/javascript' src='http://127.0.0.1:8000/wp-admin/js/user-profile.min.js?ver=6.0.2' id='user-profile-js'></script>
+<script type="text/javascript">
+jQuery( function( $ ) {
+	$( '.hide-if-no-js' ).removeClass( 'hide-if-no-js' );
+} );
+</script>
+</body>
+</html>

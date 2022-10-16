@@ -127,7 +127,7 @@ if ( ! validate_current_theme() || isset( $_GET['broken'] ) ) { ?>
 <p class="no-themes"><?php _e( 'No themes found. Try a different search.' ); ?></p>
 
 <?php
-$broken_themes = wp_get_themes( array( 'errors' => true ) ); if ( ! is_multisite() && $broken_themes ) { ?>
+ $broken_themes = wp_get_themes( array( 'errors' => true ) ); if ( ! is_multisite() && $broken_themes ) { ?>
 
 <div class="broken-themes">
 <h3><?php _e( 'Broken Themes' ); ?></h3>
