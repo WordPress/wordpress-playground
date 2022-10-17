@@ -1,3 +1,5 @@
+import { getPathQueryFragment, removeURLScope } from "../web/library.js";
+
 if (typeof XMLHttpRequest === 'undefined') {
 	// Polyfill missing node.js features
 	import('xmlhttprequest').then(({ XMLHttpRequest }) => {
@@ -56,12 +58,134 @@ export default class WordPress {
 			throw new Error('call init() first');
 		}
 
-		const output = await this.php.run(`<?php
-			${this._setupErrorReportingCode()}
-			${this._setupRequestCode(request)}
-			${this._runWordPressCode(request.path)}
-		`);
-		return this.parseResponse(output);
+		const unscopedPath = getPathQueryFragment(
+			removeURLScope(new URL(request.path, this.ABSOLUTE_URL))
+		);
+
+		// @TODO: Don't assume the uploads only live in /wp-content/uploads
+		const isUploadsRequest = unscopedPath.startsWith('/wp-content/uploads');
+
+		if(isUploadsRequest) {
+			return await this.serveStaticFile(unscopedPath);
+		} else {
+			return await this.PHPRequest(request);
+		}
+	}
+
+	async serveStaticFile(requestedPath) {
+		const fsPath = `${this.DOCROOT}${requestedPath}`;
+
+		if(!this.php.pathExists(fsPath)){
+			return {
+				body: '404 File not found',
+				headers: {},
+				statusCode: 404,
+				exitCode: 0,
+				rawError: '',
+			}
+		}
+		const arrayBuffer = this.php.readFile(fsPath);
+		return {
+			body: arrayBuffer,
+			headers: {
+				'Content-length': arrayBuffer.byteLength,
+				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
+				//        The code below won't return the correct mime-type if the extension
+				//        was tampered with.
+				'Content-type': inferMimeType(fsPath),
+				'Accept-Ranges': 'bytes',
+				'Cache-Control': 'public, max-age=0'
+			},
+			exitCode: 0,
+			rawError: '',
+		};
+	}
+
+	async PHPRequest(request) {
+		const _FILES = await this.prepare_FILES(request.files);
+		try {
+			const output = await this.php.run( `<?php
+			${ this._setupErrorReportingCode() }
+			${ this._setupRequestCode( {
+				...request,
+				_FILES
+			} ) }
+			${ this._runWordPressCode( request.path ) }
+		` );
+
+			return this.parseResponse( output );
+		} finally {
+			this.cleanup_FILES( _FILES );
+		}
+	}
+
+	/**
+	 * Prepares an object like { file1_name: File, ... } for
+	 * being processed as $_FILES in PHP.
+	 *
+	 * In particular:
+	 * * Creates the files in the filesystem
+	 * * Allocates a global PHP rfc1867_uploaded_files HashTable
+	 * * Registers the files in PHP's rfc1867_uploaded_files
+	 * * Converts the JavaScript files object to the $_FILES data format like below
+	 *
+	 * Array(
+	 *    [file1_name] => Array (
+	 *       [name] => file_name.jpg
+	 *       [type] => text/plain
+	 *       [tmp_name] => /tmp/php/php1h4j1o (some path in the filesystem where the tmp file is kept for processing)
+	 *       [error] => UPLOAD_ERR_OK  (= 0)
+	 *       [size] => 123   (the size in bytes)
+	 *    )
+	 *    // ...
+	 * )
+	 *
+	 * @param {Object} files JavaScript files keyed by their HTTP upload name.
+	 * @return $_FILES-compatible object.
+	 */
+	async prepare_FILES(files = {}) {
+		if(Object.keys(files).length) {
+			this.php.initUploadedFilesHash();
+		}
+
+		const _FILES = {};
+		for (const [key, value] of Object.entries(files)) {
+			const tmpName = Math.random().toFixed(20);
+			const tmpPath = `/tmp/${tmpName}`;
+			// Need to read the blob and store it in the filesystem
+			const ab = await value.arrayBuffer();
+			this.php.writeFile(
+				tmpPath,
+				new Uint8Array(await value.arrayBuffer())
+			);
+			_FILES[key] = {
+				name: value.name,
+				type: value.type,
+				tmp_name: tmpPath,
+				error: 0,
+				size: value.size,
+			};
+			this.php.registerUploadedFile(tmpPath);
+		}
+		return _FILES;
+	}
+
+	/**
+	 * Cleans up after prepare_FILES:
+	 * * Frees the PHP's rfc1867_uploaded_files HashTable
+	 * * Removes the temporary files from the filesystem
+	 *
+	 * @param _FILES $_FILES-compatible object.
+	 */
+	cleanup_FILES(_FILES={}) {
+		if(Object.keys(_FILES).length) {
+			this.php.destroyUploadedFilesHash();
+		}
+		for (const [, value] of Object.entries(_FILES)) {
+			if(this.php.pathExists(value.tmp_name)){
+				this.php.unlink(value.tmp_name);
+			}
+		}
 	}
 
 	parseResponse(result) {
@@ -266,31 +390,32 @@ ADMIN;
 	}
 
 	_setupRequestCode({
-		path = '/wp-login.php',
-		method = 'GET',
-		headers,
-		_GET = '',
-		_POST = {},
-		_COOKIE = {},
-		_SESSION = {},
-	} = {}) {
+											path = '/wp-login.php',
+											method = 'GET',
+											headers,
+											_GET = '',
+											_POST = {},
+											_FILES = {},
+											_COOKIE = {},
+											_SESSION = {},
+										} = {}) {
 		const request = {
 			path,
 			method,
 			headers,
 			_GET,
 			_POST,
+			_FILES,
 			_COOKIE,
 			_SESSION,
 		};
-
 		console.log('Incoming request: ', request.path);
 
 		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
 		return `
 			define('USE_FETCH_FOR_REQUESTS', ${
-				this.options.useFetchForRequests ? 'true' : 'false'
-			});
+			this.options.useFetchForRequests ? 'true' : 'false'
+		});
 			define('WP_HOME', '${this.DOCROOT}');
 			$request = (object) json_decode(<<<'REQUEST'
         ${JSON.stringify(request)}
@@ -301,6 +426,7 @@ REQUEST,
 			parse_str(substr($request->_GET, 1), $_GET);
 
 			$_POST = $request->_POST;
+			$_FILES = $request->_FILES;
 
 			if ( !is_null($request->_COOKIE) ) {
 				foreach ($request->_COOKIE as $key => $value) {
@@ -380,5 +506,47 @@ REQUEST,
 			require_once '${this.DOCROOT}/index.php';
 		}
 		`;
+	}
+}
+
+function inferMimeType(path) {
+	const extension = path.split('.').pop();
+	switch (extension) {
+		case 'css':
+			return 'text/css';
+		case 'js':
+			return 'application/javascript';
+		case 'png':
+			return 'image/png';
+		case 'jpg':
+		case 'jpeg':
+			return 'image/jpeg';
+		case 'gif':
+			return 'image/gif';
+		case 'svg':
+			return 'image/svg+xml';
+		case 'woff':
+			return 'font/woff';
+		case 'woff2':
+			return 'font/woff2';
+		case 'ttf':
+			return 'font/ttf';
+		case 'otf':
+			return 'font/otf';
+		case 'eot':
+			return 'font/eot';
+		case 'ico':
+			return 'image/x-icon';
+		case 'html':
+			return 'text/html';
+		case 'json':
+			return 'application/json';
+		case 'xml':
+			return 'application/xml';
+		case 'txt':
+		case 'md':
+			return 'text/plain';
+		default:
+			return 'application-octet-stream';
 	}
 }
