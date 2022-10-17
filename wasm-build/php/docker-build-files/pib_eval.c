@@ -5,6 +5,9 @@
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
 #include "zend_closures.h"
+#include "zend_hash.h"
+#include "rfc1867.h"
+#include "SAPI.h"
 
 #include "sqlite3.h"
 #include "sqlite3.c"
@@ -78,13 +81,6 @@ int EMSCRIPTEN_KEEPALIVE pib_run(char *code)
 	return retVal;
 }
 
-char *pib_tokenize(char *code)
-{
-	// tokenize_parse(zval zend_string)
-
-	return "";
-}
-
 void EMSCRIPTEN_KEEPALIVE pib_destroy()
 {
 	return php_embed_shutdown();
@@ -96,6 +92,34 @@ int EMSCRIPTEN_KEEPALIVE pib_refresh()
 
 	return pib_init();
 }
+
+// <FILE UPLOADS SUPPORT>
+static void free_filename(zval *el) {
+	zend_string *filename = Z_STR_P(el);
+	zend_string_release_ex(filename, 0);
+}
+
+void EMSCRIPTEN_KEEPALIVE pib_init_uploaded_files_hash()
+{
+	zend_hash_init(&PG(rfc1867_protected_variables), 8, NULL, NULL, 0);
+
+	HashTable *uploaded_files = NULL;
+	ALLOC_HASHTABLE(uploaded_files);
+	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
+	SG(rfc1867_uploaded_files) = uploaded_files;
+}
+
+void EMSCRIPTEN_KEEPALIVE pib_register_uploaded_file(char *tmp_path_char)
+{
+	zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
+	zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
+}
+
+void EMSCRIPTEN_KEEPALIVE pib_destroy_uploaded_files_hash()
+{
+	destroy_uploaded_files_hash();
+}
+// </FILE UPLOADS SUPPORT>
 
 #ifdef WITH_VRZNO
 #include "../php-src/ext/vrzno/php_vrzno.h"

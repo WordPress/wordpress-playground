@@ -14,7 +14,7 @@ fi
 
 WITH_LIBXML="no" # Hardcoded for now, flip to "yes" to enable libxml.
 
-EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string" '$EXTRA_EXPORTED_FUNCTIONS']'
+EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '$EXTRA_EXPORTED_FUNCTIONS']'
 
 docker build . --tag=wasm-wordpress-php-builder \
   --build-arg PHP_VERSION=$PHP_VERSION \
@@ -24,7 +24,7 @@ docker build . --tag=wasm-wordpress-php-builder \
 if [ "$WITH_LIBXML" = "yes" ]; \
     then export LIBXML="/root/lib/lib/libxml2.a"; \
     else export LIBXML=""; \
-    fi 
+    fi
 
 # Build the PHP wasm binary
 docker run \

@@ -48,8 +48,9 @@ self.addEventListener('fetch', (event) => {
 
 	const isPHPRequest =
 		unscopedUrl.pathname.endsWith('/') ||
-		unscopedUrl.pathname.endsWith('.php');
-
+		unscopedUrl.pathname.endsWith('.php') ||
+		// @TODO: Don't assume the uploads only live in /wp-content/uploads
+		unscopedUrl.pathname.startsWith('/wp-content/uploads');
 	if (isPHPRequest) {
 		event.preventDefault();
 		return event.respondWith(
@@ -60,20 +61,22 @@ self.addEventListener('fetch', (event) => {
 					)}`
 				);
 				console.log({ isWpOrgRequest, isPHPRequest });
-				const post = await parsePost(event.request);
+				const { post, files } = await parsePost(event.request);
 				const requestHeaders = {};
 				for (const pair of event.request.headers.entries()) {
 					requestHeaders[pair[0]] = pair[1];
 				}
 
+				const requestedPath = getPathQueryFragment(url);
 				let wpResponse;
 				try {
 					const message = {
 						type: 'httpRequest',
 						scope,
 						request: {
-							path: getPathQueryFragment(url),
+							path: requestedPath,
 							method: event.request.method,
+							files,
 							_POST: post,
 							headers: requestHeaders,
 						},
@@ -96,7 +99,7 @@ self.addEventListener('fetch', (event) => {
 						}
 					);
 				} catch (e) {
-					console.error(e);
+					console.error(e, { requestedPath });
 					throw e;
 				}
 
@@ -166,20 +169,26 @@ async function cloneRequest(request, overrides) {
 
 async function parsePost(request) {
 	if (request.method !== 'POST') {
-		return undefined;
+		return { post: undefined, files: undefined };
 	}
 	// Try to parse the body as form data
 	try {
 		const formData = await request.clone().formData();
 		const post = {};
+		const files = {};
 
 		for (const key of formData.keys()) {
-			post[key] = formData.get(key);
+			const value = formData.get(key);
+			if (value instanceof File) {
+				files[key] = value;
+			} else {
+				post[key] = value;
+			}
 		}
 
-		return post;
+		return { post, files };
 	} catch (e) {}
 
 	// Try to parse the body as JSON
-	return await request.clone().json();
+	return { post: await request.clone().json(), files: {} };
 }
