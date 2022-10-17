@@ -153,7 +153,6 @@ export default class WordPress {
 			const tmpName = Math.random().toFixed(20);
 			const tmpPath = `/tmp/${tmpName}`;
 			// Need to read the blob and store it in the filesystem
-			const ab = await value.arrayBuffer();
 			this.php.writeFile(
 				tmpPath,
 				new Uint8Array(await value.arrayBuffer())
@@ -390,15 +389,15 @@ ADMIN;
 	}
 
 	_setupRequestCode({
-											path = '/wp-login.php',
-											method = 'GET',
-											headers,
-											_GET = '',
-											_POST = {},
-											_FILES = {},
-											_COOKIE = {},
-											_SESSION = {},
-										} = {}) {
+		path = '/wp-login.php',
+		method = 'GET',
+		headers,
+		_GET = '',
+		_POST = {},
+		_FILES = {},
+		_COOKIE = {},
+		_SESSION = {},
+	} = {}) {
 		const request = {
 			path,
 			method,
@@ -414,8 +413,8 @@ ADMIN;
 		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
 		return `
 			define('USE_FETCH_FOR_REQUESTS', ${
-			this.options.useFetchForRequests ? 'true' : 'false'
-		});
+				this.options.useFetchForRequests ? 'true' : 'false'
+			});
 			define('WP_HOME', '${this.DOCROOT}');
 			$request = (object) json_decode(<<<'REQUEST'
         ${JSON.stringify(request)}
