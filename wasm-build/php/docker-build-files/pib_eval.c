@@ -103,7 +103,7 @@ void EMSCRIPTEN_KEEPALIVE pib_init_uploaded_files_hash()
 {
 	zend_hash_init(&PG(rfc1867_protected_variables), 8, NULL, NULL, 0);
 
-    HashTable *uploaded_files = NULL;
+	HashTable *uploaded_files = NULL;
 	ALLOC_HASHTABLE(uploaded_files);
 	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
 	SG(rfc1867_uploaded_files) = uploaded_files;
@@ -111,13 +111,13 @@ void EMSCRIPTEN_KEEPALIVE pib_init_uploaded_files_hash()
 
 void EMSCRIPTEN_KEEPALIVE pib_register_uploaded_file(char *tmp_path_char)
 {
-    zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
-    zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
+	zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
+	zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
 }
 
 void EMSCRIPTEN_KEEPALIVE pib_destroy_uploaded_files_hash()
 {
-    destroy_uploaded_files_hash();
+	destroy_uploaded_files_hash();
 }
 // </FILE UPLOADS SUPPORT>
 
