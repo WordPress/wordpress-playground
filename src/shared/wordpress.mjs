@@ -63,12 +63,12 @@ export default class WordPress {
 		);
 
 		// @TODO: Don't assume the uploads only live in /wp-content/uploads
-		const isUploadsRequest = unscopedPath.startsWith('/wp-content/uploads');
+		const isStaticFileRequest = unscopedPath.startsWith('/wp-content/uploads');
 
-		if(isUploadsRequest) {
+		if(isStaticFileRequest) {
 			return await this.serveStaticFile(unscopedPath);
 		} else {
-			return await this.PHPRequest(request);
+			return await this.dispatchToPHP(request);
 		}
 	}
 
@@ -101,7 +101,7 @@ export default class WordPress {
 		};
 	}
 
-	async PHPRequest(request) {
+	async dispatchToPHP( request) {
 		const _FILES = await this.prepare_FILES(request.files);
 		try {
 			const output = await this.php.run( `<?php
