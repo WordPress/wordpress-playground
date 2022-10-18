@@ -13,6 +13,7 @@ else
 fi
 
 WITH_LIBXML="no" # Hardcoded for now, flip to "yes" to enable libxml.
+WITH_LIBZIP="yes" # Hardcoded for now, flip to "no" to disable libzip.
 
 EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '$EXTRA_EXPORTED_FUNCTIONS']'
 
@@ -24,6 +25,11 @@ docker build . --tag=wasm-wordpress-php-builder \
 if [ "$WITH_LIBXML" = "yes" ]; \
     then export LIBXML="/root/lib/lib/libxml2.a"; \
     else export LIBXML=""; \
+    fi
+
+if [ "$WITH_LIBZIP" = "yes" ]; \
+    then export LIBZIP="/root/lib/lib/libz.a /root/lib/lib/libzip.a"; \
+    else export LIBZIP=""; \
     fi
 
 # Build the PHP wasm binary
@@ -44,8 +50,7 @@ docker run \
         -s EXPORT_NAME="'PHP'"           \
         -s MODULARIZE=1                  \
         -s INVOKE_RUN=0                  \
-        -s USE_ZLIB=1                    \
-                /root/lib/pib_eval.o /root/lib/libphp7.a $LIBXML \
+                /root/lib/pib_eval.o /root/lib/libphp7.a $LIBZIP $LIBXML \
         --pre-js /preload/php-web-pre-script.js \
         -s ENVIRONMENT=web \
         -s FORCE_FILESYSTEM=1

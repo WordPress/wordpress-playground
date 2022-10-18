@@ -13,6 +13,7 @@ else
 fi
 
 WITH_LIBXML="yes" # Hardcoded for now, flip to "no" to disable libxml.
+WITH_LIBZIP="yes" # Hardcoded for now, flip to "no" to disable libzip.
 
 EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string" '$EXTRA_EXPORTED_FUNCTIONS']'
 
@@ -25,6 +26,11 @@ if [ "$WITH_LIBXML" = "yes" ]; \
     then export LIBXML="/root/lib/lib/libxml2.a"; \
     else export LIBXML=""; \
     fi 
+
+if [ "$WITH_LIBZIP" = "yes" ]; \
+    then export LIBZIP="/root/lib/lib/libz.a /root/lib/lib/libzip.a"; \
+    else export LIBZIP=""; \
+    fi
 
 docker run \
         -v `pwd`/preload:/preload \
@@ -44,7 +50,7 @@ docker run \
         -s MODULARIZE=1                  \
         -s INVOKE_RUN=0                  \
         -s USE_ZLIB=1                    \
-                /root/lib/pib_eval.o /root/lib/libphp7.a $LIBXML \
+                /root/lib/pib_eval.o /root/lib/libphp7.a $LIBZIP $LIBXML \
         -lnodefs.js \
         --pre-js /preload/node-pre.js \
         -s ENVIRONMENT=node

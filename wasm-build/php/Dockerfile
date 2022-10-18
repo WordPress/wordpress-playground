@@ -6,6 +6,8 @@ ARG PHP_VERSION=8.0.24
 ENV PHP_VERSION ${PHP_VERSION}
 ARG WITH_LIBXML=no
 ENV WITH_LIBXML ${WITH_LIBXML}
+ARG WITH_LIBZIP=yes
+ENV WITH_LIBZIP ${WITH_LIBZIP}
 
 WORKDIR /root
 RUN mkdir lib
@@ -66,26 +68,54 @@ RUN git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
 
 # Get and build Libxml2
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
-    then env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
-    --branch v2.9.10 \
-    --single-branch     \
-    --depth 1 && \
-    cd libxml2 && \
-    ./autogen.sh && \
-    emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
-    emmake make && \
-    emmake make install; \
+    then \
+        env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
+            --branch v2.9.10 \
+            --single-branch     \
+            --depth 1 && \
+        cd libxml2 && \
+        ./autogen.sh && \
+        emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
+        emmake make && \
+        emmake make install; \
+        export LIBXML_CONFIGURE_FLAGS=(--with-libxml --enable-dom --enable-xml --enable-simplexml); \
+        export LIBXML_EMCC_FLAGS=(-I /root/libxml2); \
+    else \
+        export LIBXML_CONFIGURE_FLAGS=(--without-libxml --disable-dom --disable-xml --disable-simplexml); \
+        export LIBXML_EMCC_FLAGS=(); \
+    fi
+
+# Build the emscripten zlib port and then build libzip.
+COPY ./docker-build-files/zlib /root/zlib
+RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        cd /root/zlib && \
+        emconfigure ./configure --prefix=/root/lib/ && \
+        # emmake make fails after it built the library files – let's ignore the errors \
+        (emmake make || true) && \
+        emmake make install && \
+        curl -k https://libzip.org/download/libzip-1.9.2.tar.gz -o libzip-1.9.2.tar.gz && \
+        tar -xzf libzip-1.9.2.tar.gz && \
+        cd libzip-1.9.2 && \
+        mkdir build && \
+        cd build && \
+        emcmake cmake \
+            -DCMAKE_INSTALL_PREFIX=/root/lib \
+            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
+            -DZLIB_INCLUDE_DIR=/root/lib/include \
+            --prefix=/root/lib/ .. && \
+        emmake make && \
+        emmake make install && \
+        export LIBZIP_CONFIGURE_FLAGS=(--with-libzip); \
+        export LIBZIP_EMCC_FLAGS=(-I /root/libzip); \
+    else \
+        export LIBZIP_CONFIGURE_FLAGS=(); \
+        export LIBZIP_EMCC_FLAGS=(); \
     fi
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 
-RUN if [ "$WITH_LIBXML" = "yes" ]; \
-    then export LIBXML_FLAGS=(--with-libxml --enable-dom --enable-xml --enable-simplexml); \
-    else export LIBXML_FLAGS=(--without-libxml --disable-dom --disable-xml --disable-simplexml); \
-    fi
-
-RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
+RUN cd php-src/ && emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     --enable-embed=static \
     --with-layout=GNU  \
@@ -109,22 +139,18 @@ RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH emconfigure ./configure \
     --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
-    "${LIBXML_FLAGS[@]}" \
+    "${LIBZIP_CONFIGURE_FLAGS[@]}" \
+    "${LIBXML_CONFIGURE_FLAGS[@]}" \
     $VRZNO_FLAG        \
     --with-gd
 
 
 RUN cd php-src/ && emmake make -j8
 
-RUN cp -v php-src/.libs/libphp.la /root/lib/libphp7.la
-RUN cp -v php-src/.libs/libphp.a /root/lib/libphp7.a
+RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp7.la
+RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp7.a
 
 COPY ./docker-build-files/pib_eval.c /root/
-
-RUN if [ "$WITH_LIBXML" = "yes" ]; \
-    then export LIBXML_EMCC_FLAGS=(-I /root/libxml2); \
-    else export LIBXML_EMCC_FLAGS=""; \
-    fi 
 
 RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
     then export DEFINES='-DWITH_VRZNO=1'; \
@@ -137,6 +163,7 @@ RUN cd php-src/ && \
     -I Zend  \
     -I main  \
     -I TSRM/ \
+    "${LIBZIP_EMCC_FLAGS[@]}" \
     "${LIBXML_EMCC_FLAGS[@]}" \
     $DEFINES \
     /root/pib_eval.c \
