@@ -65,7 +65,10 @@ find ./ -type f -name '*.js' \
 # Remove whitespace from PHP files
 for phpfile in $(find ./ -type f -name '*.php'); do
     php -w $phpfile > $phpfile.small
-    mv $phpfile.small $phpfile
+    # remove set_time_limit function calls as they invoke the
+    # setitimer system call unsupported by emscripten
+    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile
+    rm $phpfile.small
 done
 
 # Let the WordPress installer do its magic
