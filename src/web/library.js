@@ -178,6 +178,21 @@ export async function createWordPressWorker({
 				request,
 			});
 		},
+		async login(user = 'admin', password = 'password') {
+			await this.HTTPRequest({
+				path: this.pathToInternalUrl('/wp-login.php'),
+			});
+
+			await this.HTTPRequest({
+				path: this.pathToInternalUrl('/wp-login.php'),
+				method: 'POST',
+				_POST: {
+					log: user,
+					pwd: password,
+					rememberme: 'forever',
+				},
+			});
+		},
 	};
 }
 
