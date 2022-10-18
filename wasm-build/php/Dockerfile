@@ -1,13 +1,17 @@
 FROM trzeci/emscripten:1.39.18-fastcomp
 SHELL ["/bin/bash", "-c"]
-ARG VRZNO_FLAG="--disable-vrzno"
-ENV VRZNO_FLAG ${VRZNO_FLAG}
 ARG PHP_VERSION=8.0.24
 ENV PHP_VERSION ${PHP_VERSION}
+ARG WITH_VRZNO="yes"
+ENV WITH_VRZNO ${WITH_VRZNO}
 ARG WITH_LIBXML=no
 ENV WITH_LIBXML ${WITH_LIBXML}
 ARG WITH_LIBZIP=yes
 ENV WITH_LIBZIP ${WITH_LIBZIP}
+ARG WITH_NODEFS=no
+ENV WITH_NODEFS ${WITH_NODEFS}
+ARG EMSCRIPTEN_ENVIRONMENT=web
+ENV EMSCRIPTEN_ENVIRONMENT ${EMSCRIPTEN_ENVIRONMENT}
 
 WORKDIR /root
 RUN mkdir lib
@@ -38,7 +42,14 @@ ENV INITIAL_MEMORY 1024MB
 ENV EMCC_ALLOW_FASTCOMP   1
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
+RUN touch /root/.configure-flags && \
+    touch /root/.emcc-pib-eval-flags && \
+    touch /root/.emcc-php-wasm-sources && \
+    touch /root/.emcc-php-wasm-flags && \
+    touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
+
 # Get and patch PHP
+# It says php7.4 but it also works with php8
 COPY ./docker-build-files/php7.4.patch /root/
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
@@ -60,13 +71,19 @@ RUN set -euxo pipefail;\
     cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
     cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
 
-# Get VRZNO
-RUN git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
-    --branch DomAccess \
-    --single-branch          \
-    --depth 1
+# Add VRZNO if needed
+RUN if [ "$WITH_VRZNO" = "yes" ]; \
+    then \
+        git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
+            --branch DomAccess \
+            --single-branch    \
+            --depth 1; \
+        echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
+        echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-pib-eval-flags; \
+        echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
+    fi
 
-# Get and build Libxml2
+# Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
@@ -78,14 +95,14 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
         emmake make && \
         emmake make install; \
-        export LIBXML_CONFIGURE_FLAGS=(--with-libxml --enable-dom --enable-xml --enable-simplexml); \
-        export LIBXML_EMCC_FLAGS=(-I /root/libxml2); \
+        echo -n ' --with-libxml --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
+        echo -n ' -I /root/libxml2' >> /root/.emcc-pib-eval-flags; \
+        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
     else \
-        export LIBXML_CONFIGURE_FLAGS=(--without-libxml --disable-dom --disable-xml --disable-simplexml); \
-        export LIBXML_EMCC_FLAGS=(); \
+        echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
 
-# Build the emscripten zlib port and then build libzip.
+# Add libzip if needed
 COPY ./docker-build-files/zlib /root/zlib
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         cd /root/zlib && \
@@ -93,9 +110,11 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         # emmake make fails after it built the library files – let's ignore the errors \
         (emmake make || true) && \
         emmake make install && \
+        cd /root && \
         curl -k https://libzip.org/download/libzip-1.9.2.tar.gz -o libzip-1.9.2.tar.gz && \
         tar -xzf libzip-1.9.2.tar.gz && \
-        cd libzip-1.9.2 && \
+        mv libzip-1.9.2 libzip && \
+        cd libzip && \
         mkdir build && \
         cd build && \
         emcmake cmake \
@@ -104,12 +123,18 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
             --prefix=/root/lib/ .. && \
         emmake make && \
-        emmake make install && \
-        export LIBZIP_CONFIGURE_FLAGS=(--with-libzip); \
-        export LIBZIP_EMCC_FLAGS=(-I /root/libzip); \
-    else \
-        export LIBZIP_CONFIGURE_FLAGS=(); \
-        export LIBZIP_EMCC_FLAGS=(); \
+        emmake make install; \
+    fi
+
+RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        echo -n ' --with-zip' >> /root/.php-configure-flags; \
+        echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-pib-eval-flags; \
+        echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+    fi
+
+# Add nodefs when requested
+RUN if [ "$WITH_NODEFS" = "yes" ]; then \
+        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # Build the patched PHP
@@ -134,37 +159,53 @@ RUN cd php-src/ && emconfigure ./configure \
     --with-valgrind=no \
     --without-pcre-jit \
     --enable-bcmath    \
-    --enable-json      \
     --enable-ctype     \
     --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
-    "${LIBZIP_CONFIGURE_FLAGS[@]}" \
-    "${LIBXML_CONFIGURE_FLAGS[@]}" \
-    $VRZNO_FLAG        \
-    --with-gd
-
+    $(cat /root/.php-configure-flags)
 
 RUN cd php-src/ && emmake make -j8
 
-RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp7.la
-RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp7.a
+RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
+RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./docker-build-files/pib_eval.c /root/
 
-RUN if [ "$VRZNO_FLAG" = "--enable-vrzno" ]; \
-    then export DEFINES='-DWITH_VRZNO=1'; \
-    else export DEFINES=''; \
-    fi
-
+# Build the higher-level PHP bindings
 RUN cd php-src/ && \
-    emcc -Oz \
+    emcc -O3 \
     -I .     \
     -I Zend  \
     -I main  \
     -I TSRM/ \
-    "${LIBZIP_EMCC_FLAGS[@]}" \
-    "${LIBXML_EMCC_FLAGS[@]}" \
-    $DEFINES \
+    $(cat /root/.emcc-pib-eval-flags) \
+    -I /root/lib/include/ \
     /root/pib_eval.c \
     -o /root/lib/pib_eval.o;
+
+# Build the final .wasm file
+RUN mkdir /root/preload /root/output
+COPY ./preload/support-onPreInit.js /root/preload/
+
+RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    emcc -O3 \
+    -o /root/output/php.js \
+    --llvm-lto 2                     \
+    -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+    -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
+    -s MAXIMUM_MEMORY=-1             \
+    -s INITIAL_MEMORY=1024MB \
+    -s ALLOW_MEMORY_GROWTH=1         \
+    -s ASSERTIONS=0                  \
+    -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
+    -s EXPORT_NAME="'PHP'"           \
+    -s MODULARIZE=1                  \
+    -s INVOKE_RUN=0                  \
+        /root/lib/libphp.a \
+        /root/lib/pib_eval.o \
+        $(cat /root/.emcc-php-wasm-sources) \
+    $(cat /root/.emcc-php-wasm-flags) \
+    --pre-js /root/preload/support-onPreInit.js \
+    -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
+    -s FORCE_FILESYSTEM=1

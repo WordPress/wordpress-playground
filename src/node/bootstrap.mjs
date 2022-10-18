@@ -1,5 +1,5 @@
 import fs from "fs";
-import PHP from "./node-php.js";
+import PHP from "./php-node.js";
 import path from "path";
 
 import PHPWrapper from "../shared/php-wrapper.mjs";
@@ -12,7 +12,7 @@ __dirname = __dirname || fileURLToPath(new URL(".", import.meta.url));
 export async function createWordPressClient(options = {}) {
   options = {
     preInit() {},
-    phpWasmPath: `./node-php.wasm`,
+    phpWasmPath: `./php.wasm`,
     etcPath: path.join(__dirname, "etc"),
     wpPath: path.join(__dirname, "wordpress"),
     ...options,
