@@ -38,6 +38,25 @@ docker run \
   wasm-wordpress-php-builder \
   cp /root/output/{php.js,php.wasm} /output/
 
+# Patch the buggy MEMFS.stream_ops.mmap method.
+# It crashes when given a `stream` argument with null `stream.node.contents`.
+# In practie, it makes copying empty files impossible, and
+# installing plugins often involves copying empty files.
+# Replace:
+#   mmap:function(stream, address, length, position, prot, flags) {
+#   // We don't currently support location hints for the address of the mapping
+#      assert(address === 0);
+# With:
+#   mmap:function(stream, address, length, position, prot, flags) {
+#      // We don't currently support location hints for the address of the mapping
+#      assert(address === 0);
+#      if (stream.node.contents === null) { stream.node.contents = new Uint8Array(0); };
+ 
+cat ./docker-output/php.js | \
+  perl -i -pe 'BEGIN{undef $/;} s#(mmap:\s*function\(\s*stream,\s*address,\s*length,\s*position,\s*prot,\s*flags\)\s*\{.*//[^\n]+\s*)(assert[^;]+;)#$1$2\nif (stream.node.contents === null) { stream.node.contents = new Uint8Array(0); };\n#sg' \
+  > ./docker-output/php.js.tmp
+mv ./docker-output/php.js.tmp ./docker-output/php.js
+
 # Copy the build files to their relevant node.js and web directories
 root_dir=../..
 if [ "$TARGET" = "nodejs" ]; then
@@ -59,3 +78,4 @@ else
   mv ./docker-output/php.js ./docker-output/php-web.js
   cp ./docker-output/{php.wasm,php-web.js,php-webworker.js} $root_dir/dist-web/
 fi
+

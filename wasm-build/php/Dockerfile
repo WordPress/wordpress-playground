@@ -1,4 +1,4 @@
-FROM trzeci/emscripten:1.39.18-fastcomp
+FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
 ARG PHP_VERSION=8.0.24
 ENV PHP_VERSION ${PHP_VERSION}
@@ -102,11 +102,11 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
 
-# Add libzip if needed
+# Add gzip and libzip if needed
 COPY ./docker-build-files/zlib /root/zlib
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         cd /root/zlib && \
-        emconfigure ./configure --prefix=/root/lib/ && \
+        emconfigure ./configure --prefix=/root/lib && \
         # emmake make fails after it built the library files – let's ignore the errors \
         (emmake make || true) && \
         emmake make install && \
@@ -176,28 +176,27 @@ COPY ./docker-build-files/pib_eval.c /root/
 RUN cd php-src/ && \
     emcc -O3 \
     -I .     \
+    -I ext   \
+    -I ext/pdo_sqlite   \
     -I Zend  \
     -I main  \
     -I TSRM/ \
     $(cat /root/.emcc-pib-eval-flags) \
-    -I /root/lib/include/ \
     /root/pib_eval.c \
-    -o /root/lib/pib_eval.o;
+    -c -o /root/lib/pib_eval.o 
 
 # Build the final .wasm file
 RUN mkdir /root/preload /root/output
 COPY ./preload/support-onPreInit.js /root/preload/
 
-RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_exec" "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     emcc -O3 \
     -o /root/output/php.js \
-    --llvm-lto 2                     \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
-    -s MAXIMUM_MEMORY=-1             \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=0                  \
+    -s ASSERTIONS=3                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s EXPORT_NAME="'PHP'"           \
     -s MODULARIZE=1                  \

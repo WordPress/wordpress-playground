@@ -1,4 +1,4 @@
-FROM trzeci/emscripten:1.39.18-fastcomp
+FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
 
 WORKDIR /root

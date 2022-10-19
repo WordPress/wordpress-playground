@@ -9,8 +9,12 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
+// The final linking step weirdly won't work without these includes:
 #include "sqlite3.h"
 #include "sqlite3.c"
+#include "sqlite_driver.c"
+#include "sqlite_statement.c"
+#include "pdo_sqlite.c"
 
 int main() { return 0; }
 
@@ -28,31 +32,6 @@ void pib_finally()
 
 	fflush(stderr);
 	fprintf(stderr, "\n");
-}
-
-char *EMSCRIPTEN_KEEPALIVE pib_exec(char *code)
-{
-	char *retVal = NULL;
-
-	zend_try
-	{
-		zval retZv;
-
-		zend_eval_string(code, &retZv, "php-wasm evaluate expression");
-
-		convert_to_string(&retZv);
-
-		retVal = Z_STRVAL(retZv);
-	}
-	zend_catch
-	{
-	}
-
-	zend_end_try();
-
-	pib_finally();
-
-	return retVal;
 }
 
 int EMSCRIPTEN_KEEPALIVE pib_run(char *code)
@@ -95,8 +74,11 @@ int EMSCRIPTEN_KEEPALIVE pib_refresh()
 
 // <FILE UPLOADS SUPPORT>
 static void free_filename(zval *el) {
-	zend_string *filename = Z_STR_P(el);
-	zend_string_release_ex(filename, 0);
+	// Uncommenting this code causes a runtime error in the browser:
+	// @TODO evaluate whether keeping it commented leads to a memory leak
+	//       and how to fix it if it does.
+	// zend_string *filename = Z_STR_P(el);
+	// zend_string_release_ex(filename, 0);
 }
 
 void EMSCRIPTEN_KEEPALIVE pib_init_uploaded_files_hash()
