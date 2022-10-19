@@ -172,6 +172,12 @@ export async function createWordPressWorker({
 		internalUrlToPath(internalUrl) {
 			return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
 		},
+		async eval(code) {
+			return await backend.sendMessage({
+				type: 'run_php',
+				code,
+			});
+		},
 		async HTTPRequest(request) {
 			return await backend.sendMessage({
 				type: 'request',
