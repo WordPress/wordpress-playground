@@ -48,41 +48,6 @@ RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
     touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
 
-# Get and patch PHP
-# It says php7.4 but it also works with php8
-COPY ./docker-build-files/php7.4.patch /root/
-RUN git clone https://github.com/php/php-src.git php-src \
-    --branch PHP-$PHP_VERSION   \
-    --single-branch          \
-    --depth 1 \
-    && git apply --no-index /root/php7.4.patch \
-    && mkdir -p php-src/preload/Zend \
-    && cp php-src/Zend/bench.php php-src/preload/Zend \
-    && touch php-src/patched
-
-# Get and patch Sqlite3
-COPY ./docker-build-files/sqlite3-wasm.patch /root/
-RUN set -euxo pipefail;\
-    wget --no-check-certificate https://sqlite.org/2020/sqlite-amalgamation-3330000.zip; \
-    unzip sqlite-amalgamation-3330000.zip; \
-    rm sqlite-amalgamation-3330000.zip; \
-    mv sqlite-amalgamation-3330000 sqlite3.33-src; \
-    git apply --no-index /root/sqlite3-wasm.patch; \
-    cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
-    cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
-
-# Add VRZNO if needed
-RUN if [ "$WITH_VRZNO" = "yes" ]; \
-    then \
-        git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
-            --branch DomAccess \
-            --single-branch    \
-            --depth 1; \
-        echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
-        echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-pib-eval-flags; \
-        echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
-    fi
-
 # Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
@@ -132,9 +97,39 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
     fi
 
-# Add nodefs when requested
-RUN if [ "$WITH_NODEFS" = "yes" ]; then \
-        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
+# Get and patch PHP
+# It says php7.4 but it also works with php8
+COPY ./docker-build-files/php7.4.patch /root/
+RUN git clone https://github.com/php/php-src.git php-src \
+    --branch PHP-$PHP_VERSION   \
+    --single-branch          \
+    --depth 1 \
+    && git apply --no-index /root/php7.4.patch \
+    && mkdir -p php-src/preload/Zend \
+    && cp php-src/Zend/bench.php php-src/preload/Zend \
+    && touch php-src/patched
+
+# Get and patch Sqlite3
+COPY ./docker-build-files/sqlite3-wasm.patch /root/
+RUN set -euxo pipefail;\
+    wget --no-check-certificate https://sqlite.org/2020/sqlite-amalgamation-3330000.zip; \
+    unzip sqlite-amalgamation-3330000.zip; \
+    rm sqlite-amalgamation-3330000.zip; \
+    mv sqlite-amalgamation-3330000 sqlite3.33-src; \
+    git apply --no-index /root/sqlite3-wasm.patch; \
+    cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
+    cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
+
+# Add VRZNO if needed
+RUN if [ "$WITH_VRZNO" = "yes" ]; \
+    then \
+        git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
+            --branch DomAccess \
+            --single-branch    \
+            --depth 1; \
+        echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
+        echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-pib-eval-flags; \
+        echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
     fi
 
 # Build the patched PHP
@@ -185,6 +180,11 @@ RUN cd php-src/ && \
     /root/pib_eval.c \
     -c -o /root/lib/pib_eval.o 
 
+# Add nodefs when requested
+RUN if [ "$WITH_NODEFS" = "yes" ]; then \
+        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
+    fi
+
 # Build the final .wasm file
 RUN mkdir /root/preload /root/output
 COPY ./preload/support-onPreInit.js /root/preload/
@@ -196,7 +196,7 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=3                  \
+    -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s EXPORT_NAME="'PHP'"           \
     -s MODULARIZE=1                  \
