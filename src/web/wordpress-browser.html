@@ -15,15 +15,21 @@
 
       body {
         margin: 0;
-        padding: 20px;
+        padding: 100px 60px;
       }
 
       .fake-window {
         display: flex;
         flex-direction: column;
+        margin: 0 auto;
+        max-width: 1200px;
         height: 100%;
-        border: 1px solid #d8d8d8;
-        box-shadow: 0 22px 70px 4px rgba(0, 0, 0, 0.56);
+        box-shadow: 0 22px 70px 4px rgb(0 0 0 / 21%);
+      }
+
+      .main-content {
+        display: flex;
+        flex-grow: 1;
       }
 
       .fake-window,
@@ -45,58 +51,11 @@
       }
 
       .outer {
-        background: #b4b4b4;
+        background: #1c2024;
         opacity: 0.9;
         width: 100%;
         margin: 0 auto;
         padding: 10px;
-      }
-
-      .outer.dark {
-        background: #273138;
-      }
-
-      .outer.dark .dot {
-        background: #4a5c66;
-      }
-
-      .outer.yosemite {
-        background: #f6f6f6; /* Old browsers */
-        background: -moz-linear-gradient(
-          top,
-          #f6f6f6 0%,
-          #dadada 100%
-        ); /* FF3.6+ */
-        background: -webkit-gradient(
-          linear,
-          left top,
-          left bottom,
-          color-stop(0%, #f6f6f6),
-          color-stop(100%, #dadada)
-        ); /* Chrome,Safari4+ */
-        background: -webkit-linear-gradient(
-          top,
-          #f6f6f6 0%,
-          #dadada 100%
-        ); /* Chrome10+,Safari5.1+ */
-        background: -o-linear-gradient(
-          top,
-          #f6f6f6 0%,
-          #dadada 100%
-        ); /* Opera 11.10+ */
-        background: -ms-linear-gradient(
-          top,
-          #f6f6f6 0%,
-          #dadada 100%
-        ); /* IE10+ */
-        background: linear-gradient(
-          to bottom,
-          #f6f6f6 0%,
-          #dadada 100%
-        ); /* W3C */
-        filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f6f6f6', endColorstr='#dadada',GradientType=0 ); /* IE6-9 */
-        border: 1px solid #d8d8d8;
-        border-bottom: 1px solid #b4b4b4;
       }
 
       .dot {
@@ -245,9 +204,9 @@
   <body>
     <div class="fake-window is-loading">
       <div class="outer">
-        <div class="dot"></div>
-        <div class="dot"></div>
-        <div class="dot"></div>
+        <div class="dot red"></div>
+        <div class="dot amber"></div>
+        <div class="dot green"></div>
       </div>
       <form id="address-bar-form">
         <div class="address-bar-container">
@@ -255,14 +214,7 @@
         </div>
         <input type="submit" tabindex="-1" />
       </form>
-      <div
-        style="
-          flex-grow: 1;
-          display: flex;
-          flex-direction: column;
-          position: relative;
-        "
-      >
+      <div class="main-content">
         <div class="progress-bar-overlay">
           <div class="progress-bar-wrapper mode-infinite">
             <div class="progress-bar is-infinite"></div>
