@@ -1,5 +1,6 @@
 .DS_Store
 .idea
+.local
 node_modules
 package-lock.json
 wasm-build/php/docker-output/*
@@ -13,4 +14,4 @@ dist-web/wasm-worker.js
 dist-web/app.js
 dist-web/*.html
 dist-web/wp-lazy-files.js
-
+packages/php-wasm/build/*
