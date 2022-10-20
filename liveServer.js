@@ -1,4 +1,5 @@
 const liveServer = require('live-server');
+const request = require('request');
 
 liveServer.start({
 	port: 8777,
@@ -9,6 +10,11 @@ liveServer.start({
 		(req, res, next) => {
 			if (req.url.startsWith('/scope:')) {
 				req.url = '/' + req.url.split('/').slice(2).join('/');
+			} else if (req.url.startsWith('/plugin-proxy')) {
+				const url = new URL(req.url, 'http://127.0.0.1:8777');
+				const pluginName = url.searchParams.get('plugin').replace(/[^a-zA-Z0-9\.\-_]/, '');
+				request(`https://downloads.wordpress.org/plugin/${pluginName}`).pipe(res);
+				return;
 			}
 			next();
 		},

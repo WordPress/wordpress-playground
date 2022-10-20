@@ -1,4 +1,4 @@
-import { runWordPress } from "./library";
+import { runWordPress, cloneResponseMonitorProgress } from "./library";
 import {
   wasmWorkerUrl,
   wasmWorkerBackend,
@@ -21,3 +21,5 @@ window.startWordPress = async function (options = {}) {
   console.log("[Main] WordPress is running");
   return wasmWorker;
 };
+
+window.cloneResponseMonitorProgress = cloneResponseMonitorProgress;

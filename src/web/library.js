@@ -200,16 +200,11 @@ export async function createWordPressWorker({
 				},
 			});
 		},
-		async installPlugin(zipUrl, options = {}) {
+		async installPlugin(pluginZipFile, options = {}) {
 			options = {
 				activate: true,
 				...options
 			};
-
-			// Download the plugin file
-			const filename = new URL(zipUrl, 'http://example.com').pathname.split('/').pop();
-			const pluginResponse = await fetch(zipUrl);
-			const pluginFile = new File([await pluginResponse.blob()], filename);
 
 			// Upload it to WordPress
 			const pluginForm = await this.HTTPRequest({
@@ -225,7 +220,7 @@ export async function createWordPressWorker({
 					path: this.pathToInternalUrl('/wp-admin/update.php?action=upload-plugin'),
 					method: 'POST',
 					_POST: postData,
-					files: { pluginzip: pluginFile },
+					files: { pluginzip: pluginZipFile },
 				});
 				const pluginInstalledPage = new DOMParser().parseFromString(pluginInstalledResponse.body, "text/html");
 				const activateButtonHref = pluginInstalledPage.querySelector('#wpbody-content .button.button-primary').attributes.href.value;
@@ -361,3 +356,46 @@ export function removeURLScope(url) {
 }
 
 // </URL UTILS>
+
+export function cloneResponseMonitorProgress(response, onProgress) {
+	const contentLength = response.headers.get('content-length');
+	// When no content-length is provided, assume total is 5MB to 
+	// at least show some progress, even if not completely accurate.
+	let total = parseInt(contentLength, 10) || 5 * 1024 * 1024; 
+
+	return new Response(
+		new ReadableStream(
+			{
+				async start(controller) {
+					const reader = response.body.getReader();
+					let loaded = 0;
+					for (; ;) {
+						try {
+							const { done, value } = await reader.read();
+							if (value) {
+								loaded += value.byteLength;
+							}
+							if (done) {
+								onProgress({ loaded, total: loaded, done });
+								controller.close();
+								break;
+							} else {
+								onProgress({ loaded, total, done });
+								controller.enqueue(value);
+							}
+						} catch (e) {
+							console.error({ e });
+							controller.error(e);
+							break;
+						}
+					}
+				},
+			}
+		),
+		{
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers
+		}
+	);
+}

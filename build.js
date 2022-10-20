@@ -100,6 +100,12 @@ if (argv.platform === 'browser') {
 		},
 	};
 
+	function copyToDist(path) {
+		const filename = path.split('/').pop();
+		const outPath = `${options.outdir}/${filename}`;
+		fs.copyFileSync(path, outPath);
+		return outPath;
+	}
 	function buildHTMLFile(path) {
 		let content = fs.readFileSync(path).toString();
 		content = content.replace(
@@ -112,16 +118,19 @@ if (argv.platform === 'browser') {
 		return outPath;
 	}
 
+	function logBuiltFile(outPath) {
+		const outPathToLog = outPath.replace(/^\.\//, '');
+		console.log(`  ${outPathToLog}`)
+	}
+
 	if (options.watch) {
 		chokidar.watch('src/web/*.html').on('change', buildHTMLFile);
+		chokidar.watch('src/web/*.php').on('change', copyToDist);
 	} else {
 		console.log("HTML files built: ")
 		console.log("")
-		for (const file of glob.sync('src/web/*.html')) {
-			const outPath = buildHTMLFile(file);
-			const outPathToLog = outPath.replace(/^\.\//, '');
-			console.log(`  ${outPathToLog}`)
-		}
+		glob.sync('src/web/*.html').map(buildHTMLFile).forEach(logBuiltFile);
+		glob.sync('src/web/*.php').map(copyToDist).forEach(logBuiltFile);
 		console.log("")
 		console.log("Esbuild output: ")
 	}

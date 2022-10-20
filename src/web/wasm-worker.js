@@ -6,6 +6,7 @@ import WPBrowser from '../shared/wp-browser.mjs';
 import { responseTo } from '../shared/messaging.mjs';
 
 import { phpWebWasmSize, wpDataSize, cacheBuster, phpWasmCacheBuster, wpDataCacheBuster } from './config';
+import { cloneResponseMonitorProgress } from './library';
 
 console.log('[WASM Worker] Spawned');
 
@@ -248,40 +249,12 @@ class WASMDownloadMonitor extends EventTarget {
 			const file = response.url.substring(
 				new URL(response.url).origin.length + 1
 			);
-			const contentLength = response.headers.get('content-length');
-			let total = parseInt(contentLength, 10);
 
-			const reportingResponse = new Response(
-				new ReadableStream(
-					{
-						async start(controller) {
-
-							const reader = response.body.getReader();
-							let loaded = 0;
-							for (;;) {
-								const { done, value } = await reader.read();
-								loaded += value.byteLength;
-
-								if (done) {
-									self._notify(file, loaded, loaded);
-									break;
-								}
-								self._notify(file, loaded, total);
-								controller.enqueue(value);
-							}
-							controller.close();
-						},
-					},
-					{
-						status: response.status,
-						statusText: response.statusText,
-					}
-				)
+			const reportingResponse = cloneResponseMonitorProgress(
+				response,
+				({ loaded, total }) => self._notify(file, loaded, total)
 			);
 
-			for (const pair of response.headers.entries()) {
-				reportingResponse.headers.set(pair[0], pair[1]);
-			}
 			return _instantiateStreaming(reportingResponse, ...args);
 		};
 	}
