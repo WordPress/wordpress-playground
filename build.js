@@ -60,7 +60,7 @@ if (argv.platform === 'browser') {
 			WASM_WORKER_BACKEND: JSON.stringify(wasmWorkerBackend),
 			PHP_WASM_SIZE: JSON.stringify(
 				Number(
-					execSync('cat dist-web/php-web.wasm | wc -c')
+					execSync('cat dist-web/php.wasm | wc -c')
 						.toString()
 						.trim()
 				)
