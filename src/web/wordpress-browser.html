@@ -278,7 +278,10 @@
           0
         );
         const expectedFiles = 2;
-        const totalProgressPercentage = (100 * progressSum) / expectedFiles;
+        const totalProgressPercentage = Math.min(
+          100,
+          (100 * progressSum) / expectedFiles
+        );
 
         document.querySelector(
           ".progress-bar.is-finite"
