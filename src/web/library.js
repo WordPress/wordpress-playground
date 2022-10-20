@@ -199,6 +199,44 @@ export async function createWordPressWorker({
 				},
 			});
 		},
+		async installPlugin(zipUrl, options = {}) {
+			options = {
+				activate: true,
+				...options
+			};
+
+			// Download the plugin file
+			const filename = new URL(zipUrl, 'http://example.com').pathname.split('/').pop();
+			const pluginResponse = await fetch(zipUrl);
+			const pluginFile = new File([await pluginResponse.blob()], filename);
+
+			// Upload it to WordPress
+			const pluginForm = await this.HTTPRequest({
+			  path: this.pathToInternalUrl('/wp-admin/plugin-install.php?tab=upload')
+			});
+			const pluginFormPage = new DOMParser().parseFromString(pluginForm.body, "text/html");
+			const pluginFormData = new FormData(pluginFormPage.querySelector('.wp-upload-form'));
+			const {pluginzip, ...postData} = Object.fromEntries(pluginFormData.entries());
+	
+			// Activate if needed
+			if (options.activate) {
+				const pluginInstalledResponse = await this.HTTPRequest({
+					path: this.pathToInternalUrl('/wp-admin/update.php?action=upload-plugin'),
+					method: 'POST',
+					_POST: postData,
+					files: { pluginzip: pluginFile },
+				});
+				const pluginInstalledPage = new DOMParser().parseFromString(pluginInstalledResponse.body, "text/html");
+				const activateButtonHref = pluginInstalledPage.querySelector('#wpbody-content .button.button-primary').attributes.href.value;
+				const activatePluginUrl = new URL(
+					activateButtonHref,
+					this.pathToInternalUrl('/wp-admin/')
+				).toString();
+				await this.HTTPRequest({
+					path: activatePluginUrl
+				})
+			}
+		}
 	};
 }
 
