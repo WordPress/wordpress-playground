@@ -5,7 +5,7 @@ import WordPress from '../shared/wordpress.mjs';
 import WPBrowser from '../shared/wp-browser.mjs';
 import { responseTo } from '../shared/messaging.mjs';
 
-import { phpWebWasmSize, wpDataSize } from './config';
+import { phpWebWasmSize, wpDataSize, cacheBuster, phpWasmCacheBuster, wpDataCacheBuster } from './config';
 
 console.log('[WASM Worker] Spawned');
 
@@ -50,7 +50,7 @@ let phpLoaderScriptName;
 let postMessageToParent;
 // Listen to messages
 if (IS_IFRAME) {
-	phpLoaderScriptName = '/php-web.js';
+	phpLoaderScriptName = `/php-web.js?${phpWasmCacheBuster}`;
 	window.addEventListener(
 		'message',
 		(event) =>
@@ -61,13 +61,13 @@ if (IS_IFRAME) {
 	);
 	postMessageToParent = (message) => window.parent.postMessage(message, '*');
 } else if (IS_WEBWORKER) {
-	phpLoaderScriptName = '/php-webworker.js';
+	phpLoaderScriptName = `/php-webworker.js?${phpWasmCacheBuster}`;
 	onmessage = (event) => {
 		handleMessageEvent(event, postMessage);
 	};
 	postMessageToParent = postMessage;
 } else if (IS_SHARED_WORKER) {
-	phpLoaderScriptName = '/php-webworker.js';
+	phpLoaderScriptName = `/php-webworker.js?${phpWasmCacheBuster}`;
 	self.onconnect = (e) => {
 		const port = e.ports[0];
 
@@ -148,6 +148,14 @@ async function initWPBrowser(siteUrl) {
 	// eslint-disable-next-line no-undef
 	const PHPModule = await php.init(PHP, {
 		dataFileDownloads: downloadMonitor.dataFileDownloads,
+		locateFile: (file) => {
+			if (file.endsWith('.wasm')) {
+				return `/${file}?${phpWasmCacheBuster}`;
+			} else if (file.endsWith('.data')) {
+				return `/${file}?${wpDataCacheBuster}`;
+			}
+			return file;
+		}
 	});
 
 	await loadWordPressFiles(PHPModule);
@@ -173,7 +181,7 @@ async function loadWordPressFiles(PHPModule) {
 		// The name PHPModule is baked into wp.js
 		globalThis.PHPModule = PHPModule;
 		// eslint-disable-next-line no-undef
-		importScripts('/wp.js');
+		importScripts(`/wp.js?${wpDataCacheBuster}`);
 		console.log({ PHPModule });
 	});
 }
