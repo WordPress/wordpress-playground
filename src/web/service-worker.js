@@ -49,8 +49,14 @@ self.addEventListener('fetch', (event) => {
 	const isPHPRequest =
 		unscopedUrl.pathname.endsWith('/') ||
 		unscopedUrl.pathname.endsWith('.php') ||
-		// @TODO: Don't assume the uploads only live in /wp-content/uploads
-		unscopedUrl.pathname.startsWith('/wp-content/uploads');
+		// @TODO: Don't assume the uploads only live in the allowlisted directories
+		unscopedUrl.pathname.startsWith('/wp-content/uploads/') ||
+		unscopedUrl.pathname.startsWith('/wp-content/plugins/') || (
+			unscopedUrl.pathname.startsWith('/wp-content/themes/') && 
+			! unscopedUrl.pathname.startsWith('/wp-content/themes/twentytwentytwo/')
+		)
+		;
+
 	if (isPHPRequest) {
 		event.preventDefault();
 		return event.respondWith(

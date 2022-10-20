@@ -58,15 +58,19 @@ export default class WordPress {
 			throw new Error('call init() first');
 		}
 
-		const unscopedPath = getPathQueryFragment(
-			removeURLScope(new URL(request.path, this.ABSOLUTE_URL))
+		const unscopedPathname = removeURLScope(new URL(request.path, this.ABSOLUTE_URL)).pathname;
+
+		// @TODO: Don't assume that uploads only live in specific paths
+		const isStaticFileRequest = (
+			unscopedPathname.startsWith('/wp-content/uploads/') ||
+			unscopedPathname.startsWith('/wp-content/plugins/') || (
+				unscopedPathname.startsWith('/wp-content/themes/') && 
+				! unscopedPathname.startsWith('/wp-content/themes/twentytwentytwo/')
+			)
 		);
-
-		// @TODO: Don't assume the uploads only live in /wp-content/uploads
-		const isStaticFileRequest = unscopedPath.startsWith('/wp-content/uploads');
-
+		
 		if(isStaticFileRequest) {
-			return await this.serveStaticFile(unscopedPath);
+			return await this.serveStaticFile(unscopedPathname);
 		} else {
 			return await this.dispatchToPHP(request);
 		}
