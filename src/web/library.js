@@ -66,7 +66,8 @@ export async function registerServiceWorker({ url, onRequest, scope }) {
 		alert('Service workers are not supported in this browser.');
 		throw new Error('Service workers are not supported in this browser.');
 	}
-	await navigator.serviceWorker.register(url);
+	const registration = await navigator.serviceWorker.register(url);
+	await registration.update();
 	const serviceWorkerChannel = new BroadcastChannel(
 		`wordpress-service-worker`
 	);
