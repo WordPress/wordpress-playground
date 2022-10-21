@@ -1,8 +1,6 @@
 #!/bin/bash
 
 # set -e
-mkdir -p preload 
-cd preload
 
 # Remove previous WordPress installation
 rm -rf wordpress

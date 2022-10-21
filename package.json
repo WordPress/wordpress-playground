@@ -4,19 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run dev:web",
-    "dev:web": "npm-run-all --parallel dev:web:*",
-    "dev:web:app": "npm run build:web -- --watch",
-    "dev:web:serve": "node liveServer.js",
-    "build": "npm run build:web",
-    "build:wpnet": "SERVICE_WORKER_ORIGIN=https://wasm.wordpress.net WASM_WORKER_ORIGIN=https://wasm-worker.wordpress.net npm run build:web",
-    "build:web": "node build.js ",
+    "dev": "npm run build -- --watch",
+    "build": "npm run build:js",
+    "build:js": "node build.js",
+    "build:wp": "cd packages/wordpress-wasm/wordpress && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
+    "build:php": "npm run build:php:web",
     "build:php:web": "cd wasm-build/php && TARGET=web bash build-wasm.sh",
-    "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
-    "build:app": "npm-run-all build:web build:node",
+    "build:php:node": "cd wasm-build/php && PLATFORM=node bash build-wasm.sh",
     "clean": "npm-run-all --parallel clean:*",
-    "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
-    "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
+    "clean:php": "rm -rf packages/php-wasm/build-wasm/*",
+    "clean:wp": "rm -rf packages/wordpress-wasm/build-wp/*",
     "format": "prettier --write src",
     "lint:js": "eslint \"./src/**/*.{js,mjs,ts}\"",
     "lint:js:fix": "npm run lint:js -- --fix",
@@ -29,19 +26,19 @@
       "npx eslint --fix"
     ]
   },
-  "engines" : { 
-    "npm" : ">=8.0.0",
-    "node" : ">=16.7.0"
+  "engines": {
+    "npm": ">=8.0.0",
+    "node": ">=16.7.0"
   },
   "author": "Adam Zielinski",
   "license": "ISC",
   "dependencies": {
     "glob": "^8.0.3",
-    "yargs": "^17.5.1",
     "php-wasm": "file:packages/php-wasm",
     "php-wasm-browser": "file:packages/php-wasm-browser",
     "wordpress-wasm": "file:packages/wordpress-wasm",
-    "wordpress-wasm-node": "file:packages/wordpress-wasm-node"
+    "wordpress-wasm-node": "file:packages/wordpress-wasm-node",
+    "yargs": "^17.5.1"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",
@@ -53,6 +50,7 @@
     "eslint-plugin-jsx-a11y": "^6.6.1",
     "eslint-plugin-react": "^7.31.1",
     "eslint-plugin-react-hooks": "^4.6.0",
+    "gulp": "^4.0.2",
     "husky": "^8.0.1",
     "lint-staged": "^13.0.3",
     "live-server": "^1.2.2",

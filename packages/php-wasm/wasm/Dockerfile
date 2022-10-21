@@ -176,7 +176,7 @@ RUN cd php-src/ && \
     -c -o /root/lib/pib_eval.o 
 
 # Add nodefs when requested
-RUN if [ "$WITH_NODEFS" = "yes" ]; then \
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
     fi
 

@@ -27,6 +27,9 @@
 		"php-wasm": "file:../php-wasm",
 		"php-wasm-browser": "file:../php-wasm-browser"
 	},
+	"devDependencies": {
+		"gulp": "^4.0.2"
+	},
 	"publishConfig": {
 		"access": "public"
 	}

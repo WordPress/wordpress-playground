@@ -15,7 +15,7 @@ else
   WITH_VRZNO="no"
 fi
 
-if [ "$TARGET" = "nodejs" ]; then
+if [ "$PLATFORM" = "node" ]; then
   WITH_NODEFS="yes"
   EMSCRIPTEN_ENVIRONMENT="node"
 else
@@ -63,7 +63,7 @@ mv $OUTDIR/php.js.tmp $OUTDIR/php.js
 
 # Copy the build files to their relevant node.js and web directories
 root_dir=../..
-if [ "$TARGET" = "nodejs" ]; then
+if [ "$PLATFORM" = "node" ]; then
   # The default output file is already compatible with node.js
   # we only need to rename it
   mv $OUTDIR/php.js $OUTDIR/php-node.js
