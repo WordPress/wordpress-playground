@@ -9,21 +9,19 @@ const { fileURLToPath } = require("node:url");
 async function createWordPressClient(options = {}) {
   options = {
     preInit() {},
-    phpWasmPath: `../../php-wasm/build-wasm/php.wasm`,
-    wpPath: path.join(__dirname, "..", "build-wp", "wordpress"),
+    phpWasmPath: __dirname + `/../../php-wasm/build-wasm/php.wasm`,
+    wpPath: path.join(__dirname, "..", "build-wp"),
     ...options,
   };
   const php = new PHP();
-  await php.init(PHPLoader, {
+  const PHPModule = await php.init(PHPLoader, {
     locateFile() {
       return path.join(__dirname, options.phpWasmPath);
-    },
-    onPreInit(FS, NODEFS) {
-      FS.mkdirTree("/preload/wordpress");
-      FS.mount(NODEFS, { root: options.wpPath }, "/preload/wordpress");
-      options.preInit(FS, NODEFS);
-    },
+    }
   });
+  // PHPModule.FS.mkdirTree("/preload/wordpress");
+  // PHPModule.FS.mount(PHPModule.NODEFS, { root: options.wpPath }, "/preload/wordpress");
+
   return new PHPServer(php);
 }
 
@@ -79,43 +77,9 @@ async function login(
   });
 }
 
-/**
- * The node.js package could ship with a binary .sqlite file, but Stackblitz somehow
- * breaks that file. This is a workaround – we ship a base64-encoded .sqlite
- * file and decode it here.
- *
- * @param {string} base64FilePath
- * @param {string} wpPath
- */
-function initDatabaseFromBase64File(
-  base64FilePath,
-  wpPath = __dirname + "/wordpress"
-) {
-  const wpdbFilePath = path.join(wpPath, "/wp-content/database/.ht.sqlite");
-  try {
-    fs.unlinkSync(wpdbFilePath);
-  } catch (e) {}
-  base64DecodeFile(base64FilePath, wpdbFilePath);
-}
-
-function base64DecodeFile(inputFile, outputFile) {
-  const base64 = fs.readFileSync(inputFile, "utf8");
-  const data = Buffer.from(base64, "base64");
-  fs.writeFileSync(outputFile, data);
-}
-
-async function encodeSqliteDbFile(wp, outfile = "db.sqlite") {
-  const file = await wp.php.run(`<?php
-	echo base64_encode(file_get_contents('/preload/wordpress/wp-content/database/.ht.sqlite'));
-	`);
-  fs.writeFileSync(outfile, file.stdout);
-}
 
 module.exports = {
   createWordPressClient,
   install,
-  login,
-  initDatabaseFromBase64File,
-  initDatabaseFromBase64File,
-  encodeSqliteDbFile
+  login
 }

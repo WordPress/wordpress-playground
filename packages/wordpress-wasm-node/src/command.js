@@ -37,8 +37,6 @@ exports.default = async function runCLICommand() {
   
     console.log("Starting server on port " + argv.port);
   
-    initDatabaseFromBase64File(path.join(__dirname, "/base64-encoded-database"));
-  
     const mounts = argv.mount.map((mount) => {
       try {
         const [relativeHostPath, relativeWasmPath] = mount.split(":");
@@ -59,14 +57,7 @@ exports.default = async function runCLICommand() {
         return process.exit(0);
       }
     });
-    const wp = await createWordPressClient({
-      preInit(FS, NODE_FS) {
-        for (const { absoluteHostPath, absoluteWasmPath } of mounts) {
-          FS.mkdirTree(absoluteWasmPath);
-          FS.mount(NODE_FS, { root: absoluteHostPath }, absoluteWasmPath);
-        }
-      },
-    });
+    const wp = await createWordPressClient();
   
     const browser = new WPBrowser(wp);
     return await startExpressServer(browser, argv.port, {
