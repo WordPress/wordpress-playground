@@ -1,2 +1,0 @@
-<?php
- function render_block_core_image( $attributes, $content ) { if ( isset( $attributes['data-id'] ) ) { $data_id_attribute = 'data-id="' . esc_attr( $attributes['data-id'] ) . '"'; if ( false === strpos( $content, $data_id_attribute ) ) { $content = str_replace( '<img', '<img ' . $data_id_attribute . ' ', $content ); } } return $content; } function register_block_core_image() { register_block_type_from_metadata( __DIR__ . '/image', array( 'render_callback' => 'render_block_core_image', ) ); } add_action( 'init', 'register_block_core_image' ); 

@@ -14,7 +14,7 @@ const argv = yargs(process.argv.slice(2))
 			type: 'string',
 			default: 'browser',
 			describe: 'The platform to build for.',
-			choices: ['browser', 'node'],
+			choices: ['browser'],
 		},
 		watch: {
 			type: 'boolean',
@@ -56,23 +56,6 @@ const baseConfig = {
     bundle: true,
     external: ['xmlhttprequest'],
 }
-
-/* 
- * @TODO Support node.js build.
- * Some options to use:
- *	options = {
- *		platform: 'node',
- *		target: 'node14.19.0',
- *		external: [
- *			'express',
- *			'yargs',
- *			'body-parser',
- *			'cookie-parser',
- *			'./src/node/node-php.js',
- *		],
- *	}
- */
-
 
 function getInternalDependencies() {
     return Object.entries(
