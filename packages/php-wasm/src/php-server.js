@@ -1,4 +1,4 @@
-if (typeof XMLHttpRequest === 'undefined') {
+if (process.env.BUILD_PLATFORM === 'node') {
 	// Polyfill missing node.js features
 	import('xmlhttprequest').then(({ XMLHttpRequest }) => {
 		global.XMLHttpRequest = XMLHttpRequest;
@@ -46,7 +46,7 @@ export default class PHPServer {
 	}
 
 	serveStaticFile(requestedPath) {
-		const fsPath = `${this.DOCROOT}${requestedPath}`;
+		const fsPath = `${this.DOCROOT}${requestedPath.substr(this.PATHNAME.length)}`;
 
 		if(!this.php.pathExists(fsPath)){
 			return {
@@ -93,7 +93,7 @@ export default class PHPServer {
     }
 
     _requireRequestHandler(request) {
-        const phpFilePath = this.resolvePHPFilePath(request.path);
+		const phpFilePath = this.resolvePHPFilePath(request.path);
         return `
         // Ensure the resolved path points to an existing file. If not,
         // let's fall back to index.php
@@ -106,18 +106,17 @@ export default class PHPServer {
         `;        
     }
     
-    function resolvePHPFilePath(requestedPath) {
+    resolvePHPFilePath(requestedPath) {
         let filePath = requestedPath;
 		if (this.PATHNAME) {
 			filePath = filePath.substr(this.PATHNAME.length);
         }
         
 		// If the path mentions a .php extension, that's our file's path.
-		if (requestedPath.includes('.php')) {
-			filePath = requestedPath.split('.php')[0] + '.php';
+		if (filePath.includes('.php')) {
+			filePath = filePath.split('.php')[0] + '.php';
         } else {
 			// Otherwise, let's assume the file is $request_path/index.php
-            filePath = requestedPath;
 			if (!filePath.endsWith('/')) {
 				filePath += '/';
 			}
@@ -220,7 +219,10 @@ export default class PHPServer {
 				// console.error(e);
 				// break;
 			}
-        }
+		}
+		if (!response.statusCode) {
+			response.statusCode = 200;
+		}
         // X-frame-options gets in a way when PHP is 
         // being displayed in an iframe.
         // @TODO: Make it configurable.
@@ -285,7 +287,6 @@ export default class PHPServer {
 			_COOKIE,
 			_SESSION,
 		};
-		console.log('Incoming request: ', request.path);
 
 		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
         return `

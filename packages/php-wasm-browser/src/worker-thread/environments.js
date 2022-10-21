@@ -23,8 +23,8 @@ export const getIframeEnvironment = ({ locateFile }) => ({
     name: 'iframe',
     getPHPLoaderScript() {
         return '/php-web.js';
-    }
-    async importScripts (...urls) {
+    },
+    importScripts: async (...urls) => {
         return Promise.all(
             urls
                 .map(locateFile)
@@ -36,9 +36,9 @@ export const getIframeEnvironment = ({ locateFile }) => ({
                     return new Promise((resolve) => {
                         script.onload = resolve;
                     });
-                });
+                })
         );
-    }   
+    },
     addMessageListener(handler) {
         window.addEventListener(
             'message',
@@ -57,7 +57,7 @@ export const getWebWorkerEnvironment = ({ locateFile }) => ({
     name: 'webWorker',
     getPHPLoaderScript() {
         return '/php-webworker.js';
-    }
+    },
     importScripts: (...urls) => importScripts(...urls.map(locateFile)),
     addMessageListener(handler) {
         onmessage = (event) => {
@@ -72,7 +72,7 @@ export const getSharedWorkerEnvironment = ({ locateFile }) => ({
     name: 'sharedWorker',
     getPHPLoaderScript() {
         return '/php-webworker.js';
-    }
+    },
     importScripts: (...urls) => importScripts(...urls.map(locateFile)),
     addMessageListener(handler) {
         let postMessageToParent;

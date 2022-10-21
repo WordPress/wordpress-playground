@@ -1,4 +1,4 @@
-import { postMessageExpectReply, awaitReply } from './messaging.mjs';
+import { postMessageExpectReply, awaitReply, responseTo } from './messaging.js';
 import {
 	getPathQueryFragment,
 	getURLScope,
@@ -14,7 +14,7 @@ import {
  * 
  * @param {Object} config
  */
-export function registerServiceWorker({ broadcastChannel, workerScriptUrl, handleRequest, scope }) {
+export async function registerServiceWorker({ broadcastChannel, url, onRequest, scope }) {
 	if (!broadcastChannel) {
 		throw new Error('Missing the required `broadcastChannel` option.');
 	}
@@ -22,7 +22,7 @@ export function registerServiceWorker({ broadcastChannel, workerScriptUrl, handl
 		throw new Error('Service workers are not supported in this browser.');
 	}
 
-	const registration = await navigator.serviceWorker.register(workerScriptUrl);
+	const registration = await navigator.serviceWorker.register(url);
 	await registration.update();
 	broadcastChannel.addEventListener(
 		'message',
@@ -74,7 +74,7 @@ export function registerServiceWorker({ broadcastChannel, workerScriptUrl, handl
  */
 export function initializeServiceWorker({
 	broadcastChannel,
-	shouldHandleRequest: (path, event) => isPHPFile(path)
+	shouldHandleRequest=isPHPFile
 }) {
 	if (!broadcastChannel) {
 		throw new Error('Missing the required `broadcastChannel` option.');
@@ -117,10 +117,6 @@ export function initializeServiceWorker({
 			// When ignoring a scoped request, let's unscope it before
 			// passing it to the browser.
 			if (isURLScoped(url)) {
-				console.log(
-					`[ServiceWorker] Rerouting a static request from ${url} to ${unscopedUrl}`
-				);
-
 				event.preventDefault();
 				return event.respondWith(
 					new Promise(async (accept) => {
@@ -150,14 +146,7 @@ export function initializeServiceWorker({
 					requestHeaders[pair[0]] = pair[1];
 				}
 
-				// PHP expects to deal with a scoped path,
-				// but the static files handler doesn't. Let's
-				// use a simple heuristics to decide whether to
-				// unscope the path or not.
-				// @TODO: Consider moving this logic to PHPServer.
-				const requestedPath = getPathQueryFragment(
-					isPHPFile(url.pathname) ? unscopedUrl : url
-				);
+				const requestedPath = getPathQueryFragment(url);
 				let phpResponse;
 				try {
 					const message = {
@@ -196,6 +185,7 @@ export function initializeServiceWorker({
 				accept(
 					new Response(phpResponse.body, {
 						headers: phpResponse.headers,
+						status: phpResponse.statusCode
 					})
 				);
 			})

@@ -11,7 +11,7 @@ import { DEFAULT_BASE_URL } from "../urls";
  * It's not about being exact but about giving the user a rough sense
  * of progress.
  */
-const FALLBACK_FILE_SIZE = Math.min(loaded, 5 * 1024 * 1024);
+const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
 
 /**
  * Creates a proxy that observes updates to Emscripten's `dataFileDownloads`
@@ -28,7 +28,7 @@ const FALLBACK_FILE_SIZE = Math.min(loaded, 5 * 1024 * 1024);
  *   })
  * ```
  */
- class DownloadMonitor extends EventTarget {
+export default class DownloadMonitor extends EventTarget {
 	constructor({ assetsSizes }) {
 		super();
 
@@ -82,7 +82,7 @@ const FALLBACK_FILE_SIZE = Math.min(loaded, 5 * 1024 * 1024);
 				detail: {
 					file,
 					loaded,
-					total: total || FALLBACK_FILE_SIZE,
+					total: total || Math.min(loaded, FALLBACK_FILE_SIZE),
 					fallbackUsed: !total,
 				},
 			})

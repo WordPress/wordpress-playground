@@ -1,8 +1,8 @@
 
-import { registerServiceWorker, isPHPFile } from 'php-wasm-browser';
-import { isStaticFile } from 'php-wasm-browser';
+import { initializeServiceWorker, isPHPFile } from 'php-wasm-browser';
+import { isStaticFile } from './';
 
 initializeServiceWorker({
     broadcastChannel: new BroadcastChannel('wordpress-wasm'),
-    shouldHandleRequest: (path, event) => isPHPFile(path) || isStaticFile(path)
+    shouldHandleRequest: (url, event) => isPHPFile(url.pathname) || isStaticFile(url.pathname)
 });

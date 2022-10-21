@@ -3,9 +3,9 @@ const request = require('request');
 
 liveServer.start({
 	port: 8777,
-	root: __dirname + '/dist-web',
-	open: '/wordpress-browser.html',
-	file: 'wordpress-browser.html',
+	root: __dirname + '/build',
+	open: '/wordpress.html',
+	file: 'wordpress.html',
 	middleware: [
 		(req, res, next) => {
 			if (req.url.startsWith('/scope:')) {
@@ -23,7 +23,7 @@ liveServer.start({
 
 liveServer.start({
 	port: 8778,
-	root: __dirname + '/dist-web',
+	root: __dirname + '/build',
 	open: false,
 	middleware: [
 		(req, res, next) => {

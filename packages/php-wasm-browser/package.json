@@ -22,8 +22,9 @@
 	"engines": {
 		"node": ">=12"
 	},
-	"main": "src/index.js",
+	"main": "build/index.js",
 	"dependencies": {
+		"php-wasm": "file:../php-wasm"
 	},
 	"publishConfig": {
 		"access": "public"

@@ -1,4 +1,7 @@
-import { postMessageExpectReply, awaitReply } from './messaging.mjs';
+import { postMessageExpectReply, awaitReply } from './messaging';
+import { setURLScope, getPathQueryFragment, removeURLScope } from './urls';
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function startPHPWorkerThread({
 	backend,
@@ -80,7 +83,7 @@ export function getWorkerThreadBackend(key, url) {
 export function webWorkerBackend(workerURL) {
 	const worker = new Worker(workerURL);
 	return {
-		async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+		async sendMessage(message, timeout) {
 			const messageId = postMessageExpectReply(worker, message);
 			const response = await awaitReply(worker, messageId, timeout);
 			return response;
@@ -95,7 +98,7 @@ export function sharedWorkerBackend(workerURL) {
 	const worker = new SharedWorker(workerURL);
 	worker.port.start();
 	return {
-		async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+		async sendMessage(message, timeout) {
 			const messageId = postMessageExpectReply(worker.port, message);
 			const response = await awaitReply(worker.port, messageId, timeout);
 			return response;
@@ -112,7 +115,7 @@ export function iframeBackend(workerDocumentURL) {
 	iframe.style.display = 'none';
 	document.body.appendChild(iframe);
 	return {
-		async sendMessage(message, timeout = DEFAULT_REPLY_TIMEOUT) {
+		async sendMessage(message, timeout) {
 			const messageId = postMessageExpectReply(
 				iframe.contentWindow,
 				message,

@@ -1,6 +1,6 @@
 
 import { PHPServer, PHPBrowser } from 'php-wasm';
-import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
+import { initializeWorkerThread } from 'php-wasm-browser';
 import { phpWasmCacheBuster, wpDataCacheBuster, phpWebWasmSize, wpDataSize } from './config';
 import { isStaticFile } from './';
 
@@ -43,9 +43,7 @@ initializeWorkerThread({
             `
         });
         
-        return new PHPBrowser(server, {
-            handleRedirects: true
-        });
+        return new PHPBrowser(server);
     },
 });
 

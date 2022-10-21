@@ -14,6 +14,7 @@ dist-web/wasm-worker.js
 dist-web/app.js
 dist-web/*.html
 dist-web/wp-lazy-files.js
-packages/*/build/*
+packages/*/build*
+packages/*/build*/*
 packages/wordpress-wasm/wordpress-bundler/preload/*
 packages/php-wasm-node/wordpress/*

@@ -1,6 +1,6 @@
 {
   "name": "wasm-wordpress",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -8,15 +8,12 @@
     "dev:web": "npm-run-all --parallel dev:web:*",
     "dev:web:app": "npm run build:web -- --watch",
     "dev:web:serve": "node liveServer.js",
-    "dev:node": "node ./src/node/command.mjs",
     "build": "npm run build:web",
     "build:wpnet": "SERVICE_WORKER_ORIGIN=https://wasm.wordpress.net WASM_WORKER_ORIGIN=https://wasm-worker.wordpress.net npm run build:web",
-    "build:web": "node build.js --platform=browser",
+    "build:web": "node build.js ",
     "build:php:web": "cd wasm-build/php && TARGET=web bash build-wasm.sh",
-    "build:php:node": "cd wasm-build/php && TARGET=nodejs bash build-wasm.sh",
     "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
     "build:app": "npm-run-all build:web build:node",
-    "build:node": "rm -rf dist-node/* && node build.js --platform=node && perl -pi.bak -e 's/\\.\\.\\/shared\\///g' dist-node/index.mjs && perl -pi.bak -e 's/\\.\\.\\/src\\/node\\//.\\//g' dist-node/index.mjs && cp -r src/node/node-php.* src/node/base64-encoded-database src/node/wordpress src/node/etc dist-node/ && rm dist-node/*.bak",
     "clean": "npm-run-all --parallel clean:*",
     "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
     "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
@@ -32,19 +29,19 @@
       "npx eslint --fix"
     ]
   },
+  "engines" : { 
+    "npm" : ">=8.0.0",
+    "node" : ">=16.7.0"
+  },
   "author": "Adam Zielinski",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.20.0",
-    "cookie-parser": "^1.4.6",
-    "express": "^4.18.1",
     "glob": "^8.0.3",
-    "xmlhttprequest": "^1.8.0",
     "yargs": "^17.5.1",
     "php-wasm": "file:packages/php-wasm",
     "php-wasm-browser": "file:packages/php-wasm-browser",
-    "php-wasm-node": "file:packages/php-wasm-node",
-    "wordpress-wasm": "file:packages/wordpress-wasm"
+    "wordpress-wasm": "file:packages/wordpress-wasm",
+    "wordpress-wasm-node": "file:packages/wordpress-wasm-node"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",

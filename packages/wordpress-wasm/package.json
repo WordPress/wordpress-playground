@@ -24,6 +24,8 @@
 	},
 	"main": "build/index.js",
 	"dependencies": {
+		"php-wasm": "file:../php-wasm",
+		"php-wasm-browser": "file:../php-wasm-browser"
 	},
 	"publishConfig": {
 		"access": "public"

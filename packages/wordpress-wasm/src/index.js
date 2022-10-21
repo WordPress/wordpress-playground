@@ -4,7 +4,8 @@ import {
     responseTo,
     registerServiceWorker,
     startPHPWorkerThread,
-    getWorkerThreadBackend
+	getWorkerThreadBackend,
+	removeURLScope
 } from 'php-wasm-browser';
 
 import {
@@ -26,13 +27,14 @@ export async function bootWordPress({
 	const scope = assignScope ? Math.random().toFixed(16) : undefined;
 
 	const workerThread = await startPHPWorkerThread({
-		backend: getWorkerBackend(wasmWorkerBackend, wasmWorkerUrl),
-		wordPressSiteUrl,
+		backend: getWorkerThreadBackend(wasmWorkerBackend, wasmWorkerUrl),
+		absoluteUrl: wordPressSiteUrl,
 		scope,
 		onDownloadProgress: onWasmDownloadProgress,
 	});
 	await registerServiceWorker({
 		url: serviceWorkerUrl,
+		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
 		// Forward any HTTP requests to a worker to resolve them in another process.
 		// This way they won't slow down the UI interactions.
 		onRequest: async (request) => {
@@ -63,10 +65,13 @@ function assertNotInfiniteLoadingLoop() {
 	window.IS_WASM_WORDPRESS = true;
 }
 
-export const isStaticFile = (path) => (
-    path.startsWith('/wp-content/uploads/') ||
-    path.startsWith('/wp-content/plugins/') || (
-        path.startsWith('/wp-content/themes/') &&
-        !path.startsWith('/wp-content/themes/twentytwentytwo/')
-    )
-);
+export const isStaticFile = (scopedPath) => {
+	const unscopedPath = removeURLScope(new URL(scopedPath, 'http://127.0.0.1')).pathname;
+	return (
+		unscopedPath.startsWith('/wp-content/uploads/') ||
+		unscopedPath.startsWith('/wp-content/plugins/') || (
+			unscopedPath.startsWith('/wp-content/themes/') &&
+			!unscopedPath.startsWith('/wp-content/themes/twentytwentytwo/')
+		)
+	);
+}

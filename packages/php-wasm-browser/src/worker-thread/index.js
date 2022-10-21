@@ -1,17 +1,18 @@
 /* eslint-disable no-inner-declarations */
 
-import { initialize } from 'esbuild';
-import { PHP } from 'php-wasm';
-import { phpBrowser, PHPBrowser } from 'php-wasm-web';
-import { responseTo } from '../messaging';
+import { PHP, PHPBrowser, PHPServer } from 'php-wasm';
+import { responseTo, messageHandler } from '../messaging';
 import { DEFAULT_BASE_URL } from '../urls';
-import { DownloadMonitor } from './download-monitor';§
+import DownloadMonitor from './download-monitor';
 import { getCurrentEnvironment } from './environments';
+export { cloneResponseMonitorProgress } from './download-monitor';
 
 const noop = () => {};
 export function initializeWorkerThread({
 	assetsSizes,
-	bootBrowser = ({ php }) => new PHPBrowser(new phpBrowser(php)),
+	bootBrowser = ({ php, message }) => new PHPBrowser(new PHPServer(php, {
+		absoluteUrl: message.absoluteUrl,
+	})),
 	locateFile = (file) => file,
 }) {
 	const workerEnv = getCurrentEnvironment({
@@ -37,7 +38,7 @@ export function initializeWorkerThread({
 
 			const php = new PHP();
 			// eslint-disable-next-line no-undef
-			await workerEnv.importScripts(env.getPHPLoaderScript());
+			await workerEnv.importScripts(workerEnv.getPHPLoaderScript());
 			// eslint-disable-next-line no-undef
 			await php.init(PHPLoader, {
 				dataFileDownloads: downloadMonitor.dataFileDownloadsProxy,
