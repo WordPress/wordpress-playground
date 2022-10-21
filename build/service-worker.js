@@ -21,9 +21,9 @@
     mod
   ));
 
-  // packages/php-wasm/build/index.js
+  // node_modules/php-wasm/build/index.js
   var require_build = __commonJS({
-    "packages/php-wasm/build/index.js"(exports, module) {
+    "node_modules/php-wasm/build/index.js"(exports, module) {
       var __defProp2 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -572,9 +572,9 @@ REQUEST,
     }
   });
 
-  // packages/php-wasm-browser/build/index.js
+  // node_modules/php-wasm-browser/build/index.js
   var require_build2 = __commonJS({
-    "packages/php-wasm-browser/build/index.js"(exports, module) {
+    "node_modules/php-wasm-browser/build/index.js"(exports, module) {
       var __defProp2 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;

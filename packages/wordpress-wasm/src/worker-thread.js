@@ -5,7 +5,7 @@ import { phpWasmCacheBuster, wpDataCacheBuster, phpWebWasmSize, wpDataSize } fro
 import { isStaticFile } from './';
 
 // Hardcoded in wp.js. @TODO make this configurable.
-const DOCROOT = '/preload/wordpress';
+const DOCROOT = '/wordpress';
 
 initializeWorkerThread({
     assetsSizes: {

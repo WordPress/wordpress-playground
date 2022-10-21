@@ -4,18 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run build -- --watch",
-    "build": "npm run build:js",
-    "build:js": "node build.js",
-    "build:wp": "cd packages/wordpress-wasm/wordpress && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
+    "dev": "node esbuild-packages.js --watch",
+    "build": "gulp build:js",
+    "build:all": "npm run clean; gulp buildAll",
+    "build:js": "gulp buildJS",
+    "build:htaccess": "gulp buildHtaccess",
+    "build:wp": "gulp buildWordPress",
     "build:php": "npm run build:php:web",
-    "build:php:web": "cd wasm-build/php && TARGET=web bash build-wasm.sh",
-    "build:php:node": "cd wasm-build/php && PLATFORM=node bash build-wasm.sh",
-    "clean": "npm-run-all --parallel clean:*",
-    "clean:php": "rm -rf packages/php-wasm/build-wasm/*",
-    "clean:wp": "rm -rf packages/wordpress-wasm/build-wp/*",
-    "format": "prettier --write src",
-    "lint:js": "eslint \"./src/**/*.{js,mjs,ts}\"",
+    "build:php:web": "PLATFORM=web gulp buildPHP",
+    "build:php:node": "PLATFORM=node gulp buildPHP",
+    "clean": "rm -rf build/* packages/*/build-*/*",
+    "format": "prettier --write packages/src",
+    "lint:js": "eslint \"./packages/src/**/*.{js,mjs,ts}\"",
     "lint:js:fix": "npm run lint:js -- --fix",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prepare": "husky install"
@@ -30,14 +30,16 @@
     "npm": ">=8.0.0",
     "node": ">=16.7.0"
   },
-  "author": "Adam Zielinski",
-  "license": "ISC",
+  "author": "The WordPress contributors",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
     "glob": "^8.0.3",
     "php-wasm": "file:packages/php-wasm",
     "php-wasm-browser": "file:packages/php-wasm-browser",
     "wordpress-wasm": "file:packages/wordpress-wasm",
-    "wordpress-wasm-node": "file:packages/wordpress-wasm-node",
     "yargs": "^17.5.1"
   },
   "devDependencies": {
@@ -51,9 +53,6 @@
     "eslint-plugin-react": "^7.31.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "gulp": "^4.0.2",
-    "husky": "^8.0.1",
-    "lint-staged": "^13.0.3",
-    "live-server": "^1.2.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
     "request": "^2.88.2"

@@ -21,9 +21,9 @@
     mod
   ));
 
-  // packages/php-wasm/build/index.js
+  // node_modules/php-wasm/build/index.js
   var require_build = __commonJS({
-    "packages/php-wasm/build/index.js"(exports, module) {
+    "node_modules/php-wasm/build/index.js"(exports, module) {
       var __defProp3 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -572,9 +572,9 @@ REQUEST,
     }
   });
 
-  // packages/php-wasm-browser/build/index.js
+  // node_modules/php-wasm-browser/build/index.js
   var require_build2 = __commonJS({
-    "packages/php-wasm-browser/build/index.js"(exports, module) {
+    "node_modules/php-wasm-browser/build/index.js"(exports, module) {
       var __defProp3 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -1248,7 +1248,7 @@ REQUEST,
   var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
   var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
   var wordPressSiteUrl = serviceWorkerOrigin;
-  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html?1028553046745027";
+  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html?9306942499988495";
   var wasmWorkerBackend = "iframe";
   async function bootWordPress({
     assignScope = true,
