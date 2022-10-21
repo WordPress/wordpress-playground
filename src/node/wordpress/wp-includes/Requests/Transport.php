@@ -1,2 +1,0 @@
-<?php
- interface Requests_Transport { public function request($url, $headers = array(), $data = array(), $options = array()); public function request_multiple($requests, $options); public static function test(); } 

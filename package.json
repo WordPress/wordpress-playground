@@ -40,7 +40,11 @@
     "express": "^4.18.1",
     "glob": "^8.0.3",
     "xmlhttprequest": "^1.8.0",
-    "yargs": "^17.5.1"
+    "yargs": "^17.5.1",
+    "php-wasm": "file:packages/php-wasm",
+    "php-wasm-browser": "file:packages/php-wasm-browser",
+    "php-wasm-node": "file:packages/php-wasm-node",
+    "wordpress-wasm": "file:packages/wordpress-wasm"
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",

@@ -1,6 +1,13 @@
 const STR = "string";
 const NUM = "number";
 
+const defaultPhpIni = `[PHP]
+error_reporting = E_ERROR | E_PARSE
+display_errors = 1
+html_errors = 1
+display_startup_errors = On
+`;
+
 export default class PHP {
   _initPromise;
   call;
@@ -8,14 +15,17 @@ export default class PHP {
   stdout = [];
   stderr = [];
 
-  init(PHPLoader, args = {}) {
+  init(PHPLoader, args) {
     if (!this._initPromise) {
-      this._initPromise = this._init(PHPLoader, args);
+      this._initPromise = this._init(PHPLoader, args || {});
     }
     return this._initPromise;
   }
 
-  async _init(PHPLoader, args = {}) {
+  async _init(PHPLoader, {
+    phpIni: defaultPhpIni,
+    ...args
+  }) {
     const PHPModule = await loadPHP(PHPLoader, {
       onAbort(reason) {
         console.error("WASM aborted: ");
@@ -26,6 +36,8 @@ export default class PHP {
       
       ...args
     });
+    // @TODO: Keep PHPModule private, don't expose it at all.
+    this.PHPModule = PHPModule;
 
     this.mkdirTree = PHPModule.FS.mkdirTree;
     this.readFile = PHPModule.FS.readFile;
@@ -39,7 +51,24 @@ export default class PHP {
         return false;
       }
     };
+    this.awaitDataDependencies = () => {
+      return new Promise((resolve) => {
+        PHPModule.monitorRunDependencies = (nbLeft) => {
+          if (nbLeft === 0) {
+            delete PHPModule.monitorRunDependencies;
+            resolve();
+          }
+        }
+      });
+    }
+
+    PHPModule.FS.mkdirTree('/usr/local/etc');
+    PHPModule.FS.writeFile(
+      '/usr/local/etc/php.ini',
+      phpIni
+    );
     this.call = PHPModule.ccall;
+    
     await this.call("pib_init", NUM, [STR], []);
     return PHPModule;
   }
