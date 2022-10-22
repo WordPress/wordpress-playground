@@ -6,6 +6,7 @@ error_reporting = E_ERROR | E_PARSE
 display_errors = 1
 html_errors = 1
 display_startup_errors = On
+session.save_path=/home/web_user
 `;
 
 export default class PHP {

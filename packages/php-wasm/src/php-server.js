@@ -322,10 +322,6 @@ REQUEST,
 				$_SERVER[$server_key] = $value;
 			}
 
-			ini_set('session.save_path', '/home/web_user');
-			session_id('fake-cookie');
-			session_start();
-
 			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
 
 			$docroot = '${this.DOCROOT}';
