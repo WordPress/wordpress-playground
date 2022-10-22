@@ -34,13 +34,7 @@ initializeWorkerThread({
         const server = new PHPServer(php, {
             documentRoot: DOCROOT,
             absoluteUrl: message.absoluteUrl,
-            isStaticFilePath: isUploadedFilePath,
-            beforeRequest: () => `
-                define('USE_FETCH_FOR_REQUESTS', false);
-                define('WP_HOME', '${DOCROOT}');
-                // The original version of this function crashes WASM WordPress, let's define an empty one instead.
-                function wp_new_blog_notification(...$args){} 
-            `
+            isStaticFilePath: isUploadedFilePath
         });
         
         return new PHPBrowser(server);
@@ -61,6 +55,16 @@ function patchWordPressFiles(php, absoluteUrl) {
             callback(php.readFile(path))
         );
     }
+
+    patchFile(`${DOCROOT}/wp-config.php`, (contents) => 
+        contents + `
+            define('USE_FETCH_FOR_REQUESTS', false);
+            define('WP_HOME', '${JSON.stringify(DOCROOT)}');
+            
+            // The original version of this function crashes WASM WordPress, let's define an empty one instead.
+            function wp_new_blog_notification(...$args){} 
+        `
+    );
 
     // Force the site URL to be $absoluteUrl:
     // Interestingly, it doesn't work when put in a mu-plugin.
@@ -94,7 +98,7 @@ function patchWordPressFiles(php, absoluteUrl) {
         )
     ));
 
-    // Add fetch() transport for HTTP requests():
+    // Add fetch() transport for HTTP requests
     php.mkdirTree(`${DOCROOT}/wp-content/mu-plugins`);
     php.writeFile(
         `${DOCROOT}/wp-content/mu-plugins/requests_transport_fetch.php`,

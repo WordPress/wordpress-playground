@@ -20,13 +20,11 @@ export default class PHPServer {
     constructor(php, {
         documentRoot = '/var/www/',
         absoluteUrl,
-        isStaticFilePath = () => false,
-        beforeRequest = (request, server) => '',
+        isStaticFilePath = () => false
     }) {
         this.php = php;
         this.DOCROOT = documentRoot;
         this.isStaticFilePath = isStaticFilePath;
-        this.beforeRequest = beforeRequest;
 
         const url = new URL(absoluteUrl);
         this.HOSTNAME = url.hostname;
@@ -295,8 +293,6 @@ export default class PHPServer {
 
 		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
         return `
-            ${this.beforeRequest(request, this)}
-
 			$request = (object) json_decode(<<<'REQUEST'
         ${JSON.stringify(request)}
 REQUEST,
