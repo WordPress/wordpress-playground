@@ -1,30 +1,24 @@
 {
-  "name": "wasm-wordpress",
-  "version": "1.0.0",
+  "name": "wordpress_wasm_root",
+  "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "build/app.js",
+  "private": "true",
   "scripts": {
-    "dev": "npm run dev:web",
-    "dev:web": "npm-run-all --parallel dev:web:*",
-    "dev:web:app": "npm run build:web -- --watch",
-    "dev:web:serve": "node liveServer.js",
-    "dev:node": "node ./src/node/command.mjs",
-    "build": "npm run build:web",
-    "build:wpnet": "SERVICE_WORKER_ORIGIN=https://wasm.wordpress.net WASM_WORKER_ORIGIN=https://wasm-worker.wordpress.net npm run build:web",
-    "build:web": "node build.js --platform=browser",
-    "build:php:web": "cd wasm-build/php && TARGET=web bash build-wasm.sh",
-    "build:php:node": "cd wasm-build/php && TARGET=nodejs bash build-wasm.sh",
-    "build:wp": "cd wasm-build/wordpress-data && bash prepare-wordpress.sh && bash bundle-data.sh && bash web-publish.sh && bash node-publish.sh",
-    "build:app": "npm-run-all build:web build:node",
-    "build:node": "rm -rf dist-node/* && node build.js --platform=node && perl -pi.bak -e 's/\\.\\.\\/shared\\///g' dist-node/index.mjs && perl -pi.bak -e 's/\\.\\.\\/src\\/node\\//.\\//g' dist-node/index.mjs && cp -r src/node/node-php.* src/node/base64-encoded-database src/node/wordpress src/node/etc dist-node/ && rm dist-node/*.bak",
-    "clean": "npm-run-all --parallel clean:*",
-    "clean:php": "rm -rf dist-web/wasm-build/php/docker-output/*",
-    "clean:wp": "rm -rf dist-web/wasm-build/wordpress/docker-output/* dist-web/wasm-build/wordpress/preload/*",
-    "format": "prettier --write src",
-    "lint:js": "eslint \"./src/**/*.{js,mjs,ts}\"",
+    "dev": "node esbuild-packages.js --watch",
+    "build": "gulp build:js",
+    "build:all": "npm run clean; gulp buildAll",
+    "build:js": "gulp buildJS",
+    "build:htaccess": "gulp buildHtaccess",
+    "build:wp": "gulp buildWordPress",
+    "build:php": "npm run build:php:web",
+    "build:php:web": "PLATFORM=web gulp buildPHP",
+    "build:php:node": "PLATFORM=node gulp buildPHP",
+    "clean": "rm -rf build/* packages/*/build-*/*",
+    "format": "prettier --write packages/src",
+    "lint:js": "eslint \"./packages/src/**/*.{js,mjs,ts}\"",
     "lint:js:fix": "npm run lint:js -- --fix",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "lint-staged": {
     "src/**/*": [
@@ -32,14 +26,20 @@
       "npx eslint --fix"
     ]
   },
-  "author": "Adam Zielinski",
-  "license": "ISC",
+  "engines": {
+    "npm": ">=8.0.0",
+    "node": ">=17.0.0"
+  },
+  "author": "The WordPress contributors",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
-    "body-parser": "^1.20.0",
-    "cookie-parser": "^1.4.6",
-    "express": "^4.18.1",
     "glob": "^8.0.3",
-    "xmlhttprequest": "^1.8.0",
+    "php-wasm": "file:packages/php-wasm",
+    "php-wasm-browser": "file:packages/php-wasm-browser",
+    "wordpress-wasm": "file:packages/wordpress-wasm",
     "yargs": "^17.5.1"
   },
   "devDependencies": {
@@ -52,9 +52,7 @@
     "eslint-plugin-jsx-a11y": "^6.6.1",
     "eslint-plugin-react": "^7.31.1",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "husky": "^8.0.1",
-    "lint-staged": "^13.0.3",
-    "live-server": "^1.2.2",
+    "gulp": "^4.0.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
     "request": "^2.88.2"

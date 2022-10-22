@@ -1,0 +1,2 @@
+RewriteEngine on
+RewriteRule ^plugin-proxy$ plugin-proxy.php [NC]
