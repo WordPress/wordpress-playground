@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@wordpress/eslint-plugin": "^13.0.0",
+    "live-server": "^1.2.2",
     "chokidar-cli": "^3.0.0",
     "esbuild": "^0.15.5",
     "eslint": "8.22.0",
