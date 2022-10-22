@@ -38,15 +38,23 @@ export default class PHPServer {
     }
 
 	async request(request) {
-		if(this.isStaticFile(request.path)) {
-			return this.serveStaticFile(request.path);
+		const unprefixedPath = this.withoutPathname(request.path);
+		if(this.isStaticFile(unprefixedPath)) {
+			return this.serveStaticFile(unprefixedPath);
 		} else {
 			return await this.dispatchToPHP(request);
 		}
 	}
 
-	serveStaticFile(requestedPath) {
-		const fsPath = `${this.DOCROOT}${requestedPath.substr(this.PATHNAME.length)}`;
+	withoutPathname(path) {
+		if (!this.PATHNAME) {
+			return path;
+		}
+		return path.substr(this.PATHNAME.length);
+	}
+
+	serveStaticFile(path) {
+		const fsPath = `${this.DOCROOT}${path}`;
 
 		if(!this.php.pathExists(fsPath)){
 			return {
@@ -107,10 +115,7 @@ export default class PHPServer {
     }
     
     resolvePHPFilePath(requestedPath) {
-        let filePath = requestedPath;
-		if (this.PATHNAME) {
-			filePath = filePath.substr(this.PATHNAME.length);
-        }
+        let filePath = this.withoutPathname(requestedPath);
         
 		// If the path mentions a .php extension, that's our file's path.
 		if (filePath.includes('.php')) {
