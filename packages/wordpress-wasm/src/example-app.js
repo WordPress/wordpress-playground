@@ -1,6 +1,6 @@
 import { bootWordPress } from './index'
 import { login, installPlugin } from './macros'
-import { cloneResponseMonitorProgress } from 'php-wasm-browser'
+import { cloneResponseMonitorProgress, postMessageHandler } from 'php-wasm-browser'
 
 function setupAddressBar(wasmWorker) {
     // Manage the address bar
@@ -121,6 +121,19 @@ async function main() {
 
         progressBar.setProgress(100);
         await installPlugin(workerThread, pluginFile);
+    }
+
+    if (query.get('rpc')) {
+        console.log("Registering an RPC handler");
+        window.addEventListener("message", postMessageHandler(async (data) => {
+            if (data.type === 'rpc') {
+                return await workerThread[data.method](...data.args);
+            } else if (data.type === 'go_to') {
+                wpFrame.src = workerThread.pathToInternalUrl(data.path);
+            } else if (data.type === 'is_alive') {
+                return true;
+            }
+        }));
     }
     
     const initialUrl = query.get('url') || '/';

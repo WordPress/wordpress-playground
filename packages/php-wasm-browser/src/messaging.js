@@ -59,3 +59,18 @@ export function messageHandler(handler) {
     }
   }
 }
+
+export function postMessageHandler(handler) {
+  return async function (event) {
+    const result = await handler(event.data);
+  
+    // When `messageId` is present, the main thread expects a response:
+    if (event.data.messageId) {
+      window.parent.postMessage(
+        responseTo(event.data.messageId, result),
+        event.origin
+      );
+    }
+  }
+}
+
