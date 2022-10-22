@@ -15,8 +15,14 @@ function setupAddressBar(wasmWorker) {
         .querySelector("#address-bar-form")
         .addEventListener("submit", (e) => {
             e.preventDefault();
+            let requestedPath = addressBar.value;
+            // Ensure a trailing slash when requesting directory paths
+            const isDirectory = !requestedPath.split("/").pop().includes(".");
+            if (isDirectory && !requestedPath.endsWith("/")) {
+                requestedPath += "/";
+            }
             wpFrame.src = wasmWorker.pathToInternalUrl(
-            addressBar.value
+                requestedPath
             );
         });
 }
