@@ -2,6 +2,7 @@ import { postMessageExpectReply, awaitReply } from './messaging';
 import { setURLScope, getPathQueryFragment, removeURLScope } from './urls';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const noop = () => {};
 
 export async function startPHPWorkerThread({
 	backend,
@@ -27,7 +28,9 @@ export async function startPHPWorkerThread({
 	 *
 	 * @see registerServiceWorker for more details
 	 */
-	absoluteUrl = setURLScope(new URL(absoluteUrl), scope).toString();
+	if (scope) {
+		absoluteUrl = setURLScope(new URL(absoluteUrl), scope).toString();
+	}
 
 	backend.addMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
