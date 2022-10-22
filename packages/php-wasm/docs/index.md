@@ -11,6 +11,9 @@ Here's what a minimal hello world looks like:
 ```js
 import { PHP, PHPServer } from 'php-wasm';
 
+helloWorld();
+// Output: "Hello from PHP!"
+
 async function helloWorld() {
     const php = await startPHP();
     console.log(
@@ -37,9 +40,6 @@ async function loadPHPwebjs() {
         script.onload = resolve;
     });
 }
-
-helloWorld();
-// Output: "Hello from PHP!"
 ```
 
 ## PHP to WebAssembly build pipeline
@@ -92,34 +92,24 @@ import { PHP, PHPServer } from 'php-wasm';
 
 startPHPServer()
     .then(server => server.request({ path: '/index.php' })
-    .then(console.log);
+    .then(response => console.log(response.body));
+// Output: "Hi from PHP!"
 
 async function startPHPServer() {
-    // Download php-web.js – shipped separately from the main bundle
-    await loadPHPwebjs();
-    // window.PHPLoader is now available
+    // Start PHP using function from the "hello world" example
+    const php = await startPHP();
 
-    // Download php.wasm and initialize the PHP instance:
-    const php = new PHP();
-    await php.init(PHPLoader);
+    // Create a file to serve
     php.mkdirTree('/www');
     php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
-    // Use our PHP instance to create a server:
+    // Create a server:
     return new PHPServer(php, {
         documentRoot: '/www',
-        // 
+        // This is to populate $_SERVER['SERVER_NAME'] etc.
+        // PHPServer does not actually bind to any address or port –
+        // it only provides an HTTP request handler.
         absoluteUrl: 'http://127.0.0.1'
-    });
-}
-
-async function loadPHPwebjs() {
-    const script = document.createElement('script');
-    script.src = '/php-web.js';
-    script.async = false;
-    document.body.appendChild(script);
-    await new Promise((resolve) => {
-        script.onload = resolve;
     });
 }
 ```
