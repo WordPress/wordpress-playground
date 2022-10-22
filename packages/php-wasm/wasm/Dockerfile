@@ -182,8 +182,6 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-COPY ./build-assets/support-onPreInit.js /root/
-
 RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     emcc -O3 \
     -o /root/output/php.js \
@@ -200,6 +198,5 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
         /root/lib/pib_eval.o \
         $(cat /root/.emcc-php-wasm-sources) \
     $(cat /root/.emcc-php-wasm-flags) \
-    --pre-js /root/support-onPreInit.js \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1
