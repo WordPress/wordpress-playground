@@ -10,7 +10,7 @@ initializeServiceWorker({
 function shouldForwardRequestToPHPServer(request, unscopedUrl) {
     const path = unscopedUrl.pathname;
     return (
-        seemsLikeAPHPServerPath(path) &&
-        ! isUploadedFilePath(path)
+        seemsLikeAPHPServerPath(path) ||
+        isUploadedFilePath(path)
     );
 }
