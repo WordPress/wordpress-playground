@@ -9,7 +9,7 @@ initializeServiceWorker({
 
 function shouldForwardRequestToPHPServer(request, unscopedUrl) {
     const path = unscopedUrl.pathname;
-    return (
+    return ! path.startsWith('/plugin-proxy') && (
         seemsLikeAPHPServerPath(path) ||
         isUploadedFilePath(path)
     );
