@@ -2,7 +2,7 @@
 import { PHPServer, PHPBrowser } from 'php-wasm';
 import { initializeWorkerThread } from 'php-wasm-browser';
 import { phpWasmCacheBuster, wpDataCacheBuster, phpWebWasmSize, wpDataSize } from './config';
-import { isStaticFile } from './';
+import { isUploadedFilePath } from './';
 
 // Hardcoded in wp.js. @TODO make this configurable.
 const DOCROOT = '/wordpress';
@@ -34,7 +34,7 @@ initializeWorkerThread({
         const server = new PHPServer(php, {
             documentRoot: DOCROOT,
             absoluteUrl: message.absoluteUrl,
-            isStaticFile,
+            isStaticFilePath: isUploadedFilePath,
             beforeRequest: () => `
                 define('USE_FETCH_FOR_REQUESTS', false);
                 define('WP_HOME', '${DOCROOT}');

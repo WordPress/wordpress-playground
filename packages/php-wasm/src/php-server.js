@@ -20,12 +20,12 @@ export default class PHPServer {
     constructor(php, {
         documentRoot = '/var/www/',
         absoluteUrl,
-        isStaticFile = () => false,
+        isStaticFilePath = () => false,
         beforeRequest = (request, server) => '',
     }) {
         this.php = php;
         this.DOCROOT = documentRoot;
-        this.isStaticFile = isStaticFile;
+        this.isStaticFilePath = isStaticFilePath;
         this.beforeRequest = beforeRequest;
 
         const url = new URL(absoluteUrl);
@@ -39,7 +39,7 @@ export default class PHPServer {
 
 	async request(request) {
 		const unprefixedPath = this.withoutPathname(request.path);
-		if(this.isStaticFile(unprefixedPath)) {
+		if(this.isStaticFilePath(unprefixedPath)) {
 			return this.serveStaticFile(unprefixedPath);
 		} else {
 			return await this.dispatchToPHP(request);

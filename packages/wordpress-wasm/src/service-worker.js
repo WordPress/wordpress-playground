@@ -1,8 +1,16 @@
 
-import { initializeServiceWorker, isPHPFile } from 'php-wasm-browser';
-import { isStaticFile } from './';
+import { initializeServiceWorker, seemsLikeAPHPServerPath } from 'php-wasm-browser';
+import { isUploadedFilePath } from './';
 
 initializeServiceWorker({
     broadcastChannel: new BroadcastChannel('wordpress-wasm'),
-    shouldHandleRequest: (url, event) => isPHPFile(url.pathname) || isStaticFile(url.pathname)
+    shouldForwardRequestToPHPServer
 });
+
+function shouldForwardRequestToPHPServer(request, unscopedUrl) {
+    const path = unscopedUrl.pathname;
+    return (
+        seemsLikeAPHPServerPath(path) &&
+        ! isUploadedFilePath(path)
+    );
+}

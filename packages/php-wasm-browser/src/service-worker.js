@@ -74,7 +74,7 @@ export async function registerServiceWorker({ broadcastChannel, url, onRequest, 
  */
 export function initializeServiceWorker({
 	broadcastChannel,
-	shouldHandleRequest=isPHPFile
+	shouldForwardRequestToPHPServer=(request, unscopedUrl)=>seemsLikeAPHPServerPath(unscopedUrl.pathname)
 }) {
 	if (!broadcastChannel) {
 		throw new Error('Missing the required `broadcastChannel` option.');
@@ -103,17 +103,8 @@ export function initializeServiceWorker({
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
 
-		/**
-		 * Detect scoped requests – their url starts with `/scope:`
-		 *
-		 * We need this mechanics because BroadcastChannel transmits
-		 * events to all the listeners across all browser tabs. Scopes
-		 * helps WASM workers ignore requests meant for other WASM workers.
-		 */
-		const scope = getURLScope(url);
 		const unscopedUrl = removeURLScope(url);
-
-		if (!shouldHandleRequest(unscopedUrl)) {
+		if (!shouldForwardRequestToPHPServer(event.request, unscopedUrl)) {
 			// When ignoring a scoped request, let's unscope it before
 			// passing it to the browser.
 			if (isURLScoped(url)) {
@@ -136,7 +127,7 @@ export function initializeServiceWorker({
 			new Promise(async (accept) => {
 				console.log(
 					`[ServiceWorker] Serving request: ${getPathQueryFragment(
-						unscopedUrl
+						removeURLScope(url)
 					)}`
 				);
 
@@ -151,7 +142,15 @@ export function initializeServiceWorker({
 				try {
 					const message = {
 						type: 'httpRequest',
-						scope,
+
+						/**
+						 * Detect scoped requests – their url starts with `/scope:`
+						 *
+						 * We need this mechanics because BroadcastChannel transmits
+						 * events to all the listeners across all browser tabs. Scopes
+						 * helps WASM workers ignore requests meant for other WASM workers.
+						 */
+						scope: getURLScope(url),
 						request: {
 							path: requestedPath,
 							method: event.request.method,
@@ -193,8 +192,20 @@ export function initializeServiceWorker({
 	});
 }
 
-export function isPHPFile(path) {
-	return path.endsWith('/') || path.endsWith('.php');
+export function seemsLikeAPHPServerPath(path) {
+	return (
+		seemsLikeAPHPFile(path) ||
+		seemsLikeADirectoryRoot(path)
+	);
+}
+
+function seemsLikeAPHPFile(path) {
+	return path.endsWith('.php') || path.includes('.php/');
+}
+
+function seemsLikeADirectoryRoot(path) {
+	const lastSegment = path.split("/").pop();
+	return !lastSegment.includes(".");
 }
 
 async function parsePost(request) {
@@ -247,7 +258,7 @@ async function parsePost(request) {
 		headers: request.headers,
 		referrer: request.referrer,
 		referrerPolicy: request.referrerPolicy,
-		mode: request.mode,
+		mode: request.mode === 'navigate' ? 'same-origin' : request.mode,
 		credentials: request.credentials,
 		cache: request.cache,
 		redirect: request.redirect,

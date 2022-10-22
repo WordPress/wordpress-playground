@@ -4,8 +4,7 @@ import {
     responseTo,
     registerServiceWorker,
     startPHPWorkerThread,
-	getWorkerThreadBackend,
-	removeURLScope
+	getWorkerThreadBackend	
 } from 'php-wasm-browser';
 
 import {
@@ -65,13 +64,12 @@ function assertNotInfiniteLoadingLoop() {
 	window.IS_WASM_WORDPRESS = true;
 }
 
-export const isStaticFile = (scopedPath) => {
-	const unscopedPath = removeURLScope(new URL(scopedPath, 'http://127.0.0.1')).pathname;
+export const isUploadedFilePath = (path) => {
 	return (
-		unscopedPath.startsWith('/wp-content/uploads/') ||
-		unscopedPath.startsWith('/wp-content/plugins/') || (
-			unscopedPath.startsWith('/wp-content/themes/') &&
-			!unscopedPath.startsWith('/wp-content/themes/twentytwentytwo/')
+		path.startsWith('/wp-content/uploads/') ||
+		path.startsWith('/wp-content/plugins/') || (
+			path.startsWith('/wp-content/themes/') &&
+			!path.startsWith('/wp-content/themes/twentytwentytwo/')
 		)
 	);
 }
