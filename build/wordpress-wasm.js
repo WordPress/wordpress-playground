@@ -21,9 +21,9 @@
     mod
   ));
 
-  // node_modules/php-wasm/build/index.js
+  // packages/php-wasm/build/index.js
   var require_build = __commonJS({
-    "node_modules/php-wasm/build/index.js"(exports, module) {
+    "packages/php-wasm/build/index.js"(exports, module) {
       var __defProp2 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -199,7 +199,7 @@ display_startup_errors = On
         constructor(php, {
           documentRoot = "/var/www/",
           absoluteUrl,
-          isStaticFile: isStaticFile2 = () => false,
+          isStaticFilePath = () => false,
           beforeRequest = (request, server) => ""
         }) {
           __publicField(this, "DOCROOT");
@@ -211,7 +211,7 @@ display_startup_errors = On
           __publicField(this, "ABSOLUTE_URL");
           this.php = php;
           this.DOCROOT = documentRoot;
-          this.isStaticFile = isStaticFile2;
+          this.isStaticFilePath = isStaticFilePath;
           this.beforeRequest = beforeRequest;
           const url = new URL(absoluteUrl);
           this.HOSTNAME = url.hostname;
@@ -222,14 +222,21 @@ display_startup_errors = On
           this.ABSOLUTE_URL = `${this.SCHEMA}://${this.HOSTNAME}:${this.PORT}${this.PATHNAME}`;
         }
         async request(request) {
-          if (this.isStaticFile(request.path)) {
-            return this.serveStaticFile(request.path);
+          const unprefixedPath = this.withoutPathname(request.path);
+          if (this.isStaticFilePath(unprefixedPath)) {
+            return this.serveStaticFile(unprefixedPath);
           } else {
             return await this.dispatchToPHP(request);
           }
         }
-        serveStaticFile(requestedPath) {
-          const fsPath = `${this.DOCROOT}${requestedPath.substr(this.PATHNAME.length)}`;
+        withoutPathname(path) {
+          if (!this.PATHNAME) {
+            return path;
+          }
+          return path.substr(this.PATHNAME.length);
+        }
+        serveStaticFile(path) {
+          const fsPath = `${this.DOCROOT}${path}`;
           if (!this.php.pathExists(fsPath)) {
             return {
               body: "404 File not found",
@@ -281,10 +288,7 @@ display_startup_errors = On
         `;
         }
         resolvePHPFilePath(requestedPath) {
-          let filePath = requestedPath;
-          if (this.PATHNAME) {
-            filePath = filePath.substr(this.PATHNAME.length);
-          }
+          let filePath = this.withoutPathname(requestedPath);
           if (filePath.includes(".php")) {
             filePath = filePath.split(".php")[0] + ".php";
           } else {
@@ -572,9 +576,9 @@ REQUEST,
     }
   });
 
-  // node_modules/php-wasm-browser/build/index.js
+  // packages/php-wasm-browser/build/index.js
   var require_build2 = __commonJS({
-    "node_modules/php-wasm-browser/build/index.js"(exports, module) {
+    "packages/php-wasm-browser/build/index.js"(exports, module) {
       var __defProp2 = Object.defineProperty;
       var __defProps = Object.defineProperties;
       var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
@@ -616,12 +620,11 @@ REQUEST,
         getWorkerThreadBackend: () => getWorkerThreadBackend2,
         initializeServiceWorker: () => initializeServiceWorker,
         initializeWorkerThread: () => initializeWorkerThread,
-        isPHPFile: () => isPHPFile,
         messageHandler: () => messageHandler,
         postMessageExpectReply: () => postMessageExpectReply2,
         registerServiceWorker: () => registerServiceWorker2,
-        removeURLScope: () => removeURLScope2,
         responseTo: () => responseTo2,
+        seemsLikeAPHPServerPath: () => seemsLikeAPHPServerPath,
         startPHPWorkerThread: () => startPHPWorkerThread2
       });
       module.exports = __toCommonJS(src_exports);
@@ -697,7 +700,7 @@ REQUEST,
         }
         return newUrl;
       }
-      function removeURLScope2(url) {
+      function removeURLScope(url) {
         if (!isURLScoped(url)) {
           return url;
         }
@@ -957,7 +960,7 @@ REQUEST,
             return `${absoluteUrl}${path}`;
           },
           internalUrlToPath(internalUrl) {
-            return getPathQueryFragment(removeURLScope2(new URL(internalUrl)));
+            return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
           },
           async eval(code) {
             return await backend.sendMessage({
@@ -1083,7 +1086,7 @@ REQUEST,
       }
       function initializeServiceWorker({
         broadcastChannel,
-        shouldHandleRequest = isPHPFile
+        shouldForwardRequestToPHPServer = (request, unscopedUrl) => seemsLikeAPHPServerPath(unscopedUrl.pathname)
       }) {
         if (!broadcastChannel) {
           throw new Error("Missing the required `broadcastChannel` option.");
@@ -1093,9 +1096,8 @@ REQUEST,
         });
         self.addEventListener("fetch", (event) => {
           const url = new URL(event.request.url);
-          const scope = getURLScope(url);
-          const unscopedUrl = removeURLScope2(url);
-          if (!shouldHandleRequest(unscopedUrl)) {
+          const unscopedUrl = removeURLScope(url);
+          if (!shouldForwardRequestToPHPServer(event.request, unscopedUrl)) {
             if (isURLScoped(url)) {
               event.preventDefault();
               return event.respondWith(
@@ -1114,7 +1116,7 @@ REQUEST,
             new Promise(async (accept) => {
               console.log(
                 `[ServiceWorker] Serving request: ${getPathQueryFragment(
-                  unscopedUrl
+                  removeURLScope(url)
                 )}`
               );
               const { post, files } = await parsePost(event.request);
@@ -1127,7 +1129,7 @@ REQUEST,
               try {
                 const message = {
                   type: "httpRequest",
-                  scope,
+                  scope: getURLScope(url),
                   request: {
                     path: requestedPath,
                     method: event.request.method,
@@ -1167,8 +1169,15 @@ REQUEST,
           );
         });
       }
-      function isPHPFile(path) {
-        return path.endsWith("/") || path.endsWith(".php");
+      function seemsLikeAPHPServerPath(path) {
+        return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
+      }
+      function seemsLikeAPHPFile(path) {
+        return path.endsWith(".php") || path.includes(".php/");
+      }
+      function seemsLikeADirectoryRoot(path) {
+        const lastSegment = path.split("/").pop();
+        return !lastSegment.includes(".");
       }
       async function parsePost(request) {
         if (request.method !== "POST") {
@@ -1199,7 +1208,7 @@ REQUEST,
           headers: request.headers,
           referrer: request.referrer,
           referrerPolicy: request.referrerPolicy,
-          mode: request.mode,
+          mode: request.mode === "navigate" ? "same-origin" : request.mode,
           credentials: request.credentials,
           cache: request.cache,
           redirect: request.redirect,
@@ -1215,7 +1224,7 @@ REQUEST,
   var serviceWorkerUrl = "http://127.0.0.1:8777/service-worker.js";
   var serviceWorkerOrigin = new URL(serviceWorkerUrl).origin;
   var wordPressSiteUrl = serviceWorkerOrigin;
-  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html?9306942499988495";
+  var wasmWorkerUrl = "http://127.0.0.1:8778/iframe-worker.html?3850829017100277";
   var wasmWorkerBackend = "iframe";
   async function bootWordPress({
     assignScope = true,
@@ -1252,8 +1261,7 @@ REQUEST,
     }
     window.IS_WASM_WORDPRESS = true;
   }
-  var isStaticFile = (scopedPath) => {
-    const unscopedPath = (0, import_php_wasm_browser.removeURLScope)(new URL(scopedPath, "http://127.0.0.1")).pathname;
-    return unscopedPath.startsWith("/wp-content/uploads/") || unscopedPath.startsWith("/wp-content/plugins/") || unscopedPath.startsWith("/wp-content/themes/") && !unscopedPath.startsWith("/wp-content/themes/twentytwentytwo/");
+  var isUploadedFilePath = (path) => {
+    return path.startsWith("/wp-content/uploads/") || path.startsWith("/wp-content/plugins/") || path.startsWith("/wp-content/themes/") && !path.startsWith("/wp-content/themes/twentytwentytwo/");
   };
 })();
