@@ -55,6 +55,9 @@ const baseConfig = {
     target: ['chrome90', 'firefox60', 'safari11'],
     bundle: true,
     external: ['xmlhttprequest'],
+    loader: {
+      '.php': 'text',
+    },
 }
 
 function getInternalDependencies() {

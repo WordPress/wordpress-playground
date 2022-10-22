@@ -40,7 +40,8 @@ export default class PHP {
     this.PHPModule = PHPModule;
 
     this.mkdirTree = PHPModule.FS.mkdirTree;
-    this.readFile = PHPModule.FS.readFile;
+    const textDecoder = new TextDecoder()
+    this.readFile = path => textDecoder.decode(PHPModule.FS.readFile(path));
     this.writeFile = PHPModule.FS.writeFile;
     this.unlink = PHPModule.FS.unlink;
     this.pathExists = path => {
