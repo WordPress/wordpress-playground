@@ -36,7 +36,7 @@ npm run build:php:node
 ## Building custom WordPress bundle
 
 If you'd like to customize the packaged WordPress installation, update
-the build script at `wasm-build/wordpress-data/prepare-wordpress.sh`. It generates a bundle called `wp.data`.
+the build script at `packages/wordpress-wasm/wordpress/prepare-wordpress.sh`. It generates a bundle called `wp.data`.
 
 For example, before the comment "Prepare WordPress static files":
 
