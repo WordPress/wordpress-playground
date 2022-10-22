@@ -32,9 +32,6 @@
   },
   "author": "The WordPress contributors",
   "license": "Apache-2.0",
-  "workspaces": [
-    "packages/*"
-  ],
   "dependencies": {
     "glob": "^8.0.3",
     "php-wasm": "file:packages/php-wasm",
