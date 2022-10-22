@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"description": "Web Browser toolkit for running WASM PHP.",
 	"author": "The WordPress Contributors",
-	"license": "Apache 2.0",
+	"license": "Apache-2.0",
 	"keywords": [
 		"wordpress",
 		"php",

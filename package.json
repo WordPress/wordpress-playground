@@ -1,8 +1,9 @@
 {
-  "name": "wasm-wordpress",
+  "name": "wordpress_wasm_root",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "build/app.js",
+  "private": "true",
   "scripts": {
     "dev": "node esbuild-packages.js --watch",
     "build": "gulp build:js",
@@ -17,8 +18,7 @@
     "format": "prettier --write packages/src",
     "lint:js": "eslint \"./packages/src/**/*.{js,mjs,ts}\"",
     "lint:js:fix": "npm run lint:js -- --fix",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky install"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "lint-staged": {
     "src/**/*": [
@@ -28,7 +28,7 @@
   },
   "engines": {
     "npm": ">=8.0.0",
-    "node": ">=16.7.0"
+    "node": ">=17.0.0"
   },
   "author": "The WordPress contributors",
   "license": "Apache-2.0",

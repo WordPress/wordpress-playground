@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"description": "PHP for JavaScript via WebAssembly.",
 	"author": "The WordPress Contributors",
-	"license": "Apache 2.0",
+	"license": "Apache-2.0",
 	"keywords": [
 		"wordpress",
 		"php",
