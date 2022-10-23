@@ -42,32 +42,10 @@ async function build() {
         '--rm',
         '-v', `${outputDir}:/output`,
         'php-wasm',
-        'cp',
-        '/root/output/php.js', '/root/output/php.wasm',
-        '/output/',
-    ], { cwd: sourceDir, stdio: 'inherit' });
-
-    // Post-process the built files
-    if (platform === 'node') {
-        // The default output file is fine and only needs to be renamed.
-        fs.renameSync(`${outputDir}/php.js`, `${outputDir}/php-node.js`);
-    } else {
-        // The webworker loader only differs by boolean flag.
-        // Let's avoid a separate build and update the hardcoded
-        // config value in the output file.
-        await asyncPipe(
-            gulp.src(`${outputDir}/php.js`)
-                .pipe(replace('var ENVIRONMENT_IS_WEB=true;', 'var ENVIRONMENT_IS_WEB=false;'))
-                .pipe(replace('var ENVIRONMENT_IS_WORKER=false;', 'var ENVIRONMENT_IS_WORKER=true;'))
-                .pipe(rename('php-webworker.js'))
-                .pipe(gulp.dest(outputDir))
-        );
-
-        // The default output file is already compatible with the web so
-        // we only need to rename it
-        fs.renameSync(`${outputDir}/php.js`, `${outputDir}/php-web.js`);
-    }
-        
+        // Use sh -c because wildcards are a shell feature and
+        // they don't work without running cp through shell.
+        'sh', '-c', `cp /root/output/php-*.js /root/output/php.wasm /output/`,
+    ], { cwd: sourceDir, stdio: 'inherit' });        
 }
 
 exports.build = gulp.series(cleanBuildDir, build);

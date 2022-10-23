@@ -200,3 +200,24 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
     $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1
+
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; \
+    then \
+        # The default output file is ready and only needs to be renamed.
+        mv /root/output/php.js /root/output/php-node.js; \
+    fi;
+
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; \
+    then \
+        # The webworker loader only differs by boolean flag.
+        # Let's avoid a separate build and update the hardcoded
+        # config value in the output file.
+        cat /root/output/php.js \
+            | sed 's/ENVIRONMENT_IS_WEB=true/ENVIRONMENT_IS_WEB=false/g' \
+            | sed 's/ENVIRONMENT_IS_WORKER=false/ENVIRONMENT_IS_WORKER=true/g' \
+            > /root/output/php-webworker.js && \
+        # The default output file is already compatible with the web so
+        # we only need to rename it
+        mv /root/output/php.js /root/output/php-web.js; \
+    fi;
+    
