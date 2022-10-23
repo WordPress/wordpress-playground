@@ -28,7 +28,10 @@ initializeWorkerThread({
         return file;
     },
     bootBrowser: async ({ php, workerEnv, message }) => {
-        await loadWordPress({ php, workerEnv });
+        await php.loadDataDependency(
+            () => workerEnv.importScripts('/wp.js'),
+            'PHPModule',
+        );
         patchWordPressFiles(php, message.absoluteUrl);
 
         const server = new PHPServer(php, {
@@ -40,14 +43,6 @@ initializeWorkerThread({
         return new PHPBrowser(server);
     },
 });
-
-async function loadWordPress({ php, workerEnv }) {
-    // The name PHPModule is baked into wp.js
-    globalThis.PHPModule = php.PHPModule;
-    // eslint-disable-next-line no-undef
-    workerEnv.importScripts('/wp.js');
-    await php.awaitDataDependencies();
-}
 
 function patchWordPressFiles(php, absoluteUrl) {
     function patchFile(path, callback) {

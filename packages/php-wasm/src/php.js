@@ -12,6 +12,7 @@ session.save_path=/home/web_user
 export default class PHP {
 
   #streams;
+  #PHPModule;
 
   static async create(PHPLoader, { phpIni = defaultPhpIni, ...args } = {}) {
     const streams = {
@@ -35,8 +36,7 @@ export default class PHP {
   }
 
   constructor(PHPModule, streams) {
-    // @TODO: Keep PHPModule private, don't expose it at all.
-    this.PHPModule = PHPModule;
+    this.#PHPModule = PHPModule;
     this.#streams = streams;
 
     this.mkdirTree = PHPModule.FS.mkdirTree;
@@ -52,19 +52,26 @@ export default class PHP {
         return false;
       }
     };
-    this.awaitDataDependencies = () => {
-      return new Promise((resolve) => {
-        PHPModule.monitorRunDependencies = (nbLeft) => {
-          if (nbLeft === 0) {
-            delete PHPModule.monitorRunDependencies;
-            resolve();
-          }
-        }
-      });
-    }
 
     this.call = PHPModule.ccall;
     this.call("pib_init", NUM, [STR], []);
+  }
+
+  async loadDataDependency(loadScriptFn, globalModuleName='PHPModule') {
+    const PHPModule = this.#PHPModule;
+    // The name PHPModule is baked into wp.js
+    globalThis[globalModuleName] = PHPModule;
+    // eslint-disable-next-line no-undef
+    await loadScriptFn();
+    delete globalThis[globalModuleName];
+    await new Promise((resolve) => {
+      PHPModule.monitorRunDependencies = (nbLeft) => {
+        if (nbLeft === 0) {
+          delete PHPModule.monitorRunDependencies;
+          resolve();
+        }
+      }
+    });
   }
 
   initUploadedFilesHash() {
