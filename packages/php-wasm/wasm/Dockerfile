@@ -1,17 +1,33 @@
 FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
+# The PHP version to build.
+# This value must point to an existing branch of the
+# https://github.com/php/php-src.git repository when prefixed
+# with "PHP-".
+# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
+# but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION=8.0.24
 ENV PHP_VERSION ${PHP_VERSION}
-ARG WITH_VRZNO="yes"
+
+# The PHP extensions to build:
+ARG WITH_VRZNO=yes
 ENV WITH_VRZNO ${WITH_VRZNO}
 ARG WITH_LIBXML=no
 ENV WITH_LIBXML ${WITH_LIBXML}
 ARG WITH_LIBZIP=yes
 ENV WITH_LIBZIP ${WITH_LIBZIP}
+
+# Whether to include the NODEFS JavaScript library.
+# It's useful for loading files and mounting directories
+# from the local filesystem.
 ARG WITH_NODEFS=no
 ENV WITH_NODEFS ${WITH_NODEFS}
+
+# The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
 ENV EMSCRIPTEN_ENVIRONMENT ${EMSCRIPTEN_ENVIRONMENT}
+
+
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
@@ -138,11 +154,11 @@ RUN cd php-src/ && emconfigure ./configure \
     --disable-cli      \
     --disable-all      \
     --with-sqlite3     \
+    --enable-pdo       \
+    --with-pdo-sqlite  \
     --enable-session   \
     --enable-filter    \
     --enable-calendar  \
-    --enable-pdo       \
-    --with-pdo-sqlite  \
     --disable-rpath    \
     --disable-phpdbg   \
     --without-pear     \
