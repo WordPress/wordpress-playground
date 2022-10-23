@@ -54,7 +54,7 @@ export default class PHPServer {
 	serveStaticFile(path) {
 		const fsPath = `${this.DOCROOT}${path}`;
 
-		if(!this.php.pathExists(fsPath)){
+		if(!this.php.fileExists(fsPath)){
 			return {
 				body: '404 File not found',
 				headers: {},
@@ -63,7 +63,7 @@ export default class PHPServer {
 				rawError: '',
 			}
 		}
-		const arrayBuffer = this.php.readFile(fsPath);
+		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
 		return {
 			body: arrayBuffer,
 			headers: {
@@ -192,7 +192,7 @@ export default class PHPServer {
 			this.php.destroyUploadedFilesHash();
 		}
 		for (const [, value] of Object.entries(_FILES)) {
-			if(this.php.pathExists(value.tmp_name)){
+			if(this.php.fileExists(value.tmp_name)){
 				this.php.unlink(value.tmp_name);
 			}
 		}

@@ -39,22 +39,36 @@ export default class PHP {
     this.#PHPModule = PHPModule;
     this.#streams = streams;
 
-    this.mkdirTree = PHPModule.FS.mkdirTree;
-    const textDecoder = new TextDecoder()
-    this.readFile = path => textDecoder.decode(PHPModule.FS.readFile(path));
-    this.writeFile = PHPModule.FS.writeFile;
-    this.unlink = PHPModule.FS.unlink;
-    this.pathExists = path => {
-      try {
-        PHPModule.FS.lookupPath(path);
-        return true;
-      } catch(e) {
-        return false;
-      }
-    };
+    PHPModule.ccall("pib_init", NUM, [STR], []);
+  }
 
-    this.call = PHPModule.ccall;
-    this.call("pib_init", NUM, [STR], []);
+  mkdirTree(path) {
+    return this.#PHPModule.FS.mkdirTree(path);
+  }
+  
+  readFileAsText(path) {
+    return new TextDecoder().decode(this.readFileAsBuffer(path));
+  }
+
+  readFileAsBuffer(path) {
+    return this.#PHPModule.FS.readFile(path);
+  }
+
+  writeFile(path, data) {
+    return this.#PHPModule.FS.writeFile(path, data);
+  }
+
+  unlink(path) {
+    return this.#PHPModule.FS.unlink(path);
+  }
+
+  fileExists(path) {
+    try {
+      this.#PHPModule.FS.lookupPath(path);
+      return true;
+    } catch(e) {
+      return false;
+    }
   }
 
   async loadDataDependency(loadScriptFn, globalModuleName='PHPModule') {
@@ -75,32 +89,32 @@ export default class PHP {
   }
 
   initUploadedFilesHash() {
-    this.call("pib_init_uploaded_files_hash", null, [], []);
+    this.#PHPModule.ccall("pib_init_uploaded_files_hash", null, [], []);
   }
 
   registerUploadedFile(tmpPath) {
-    this.call("pib_register_uploaded_file", null, [STR], [tmpPath]);
+    this.#PHPModule.ccall("pib_register_uploaded_file", null, [STR], [tmpPath]);
   }
 
   destroyUploadedFilesHash() {
-    this.call("pib_destroy_uploaded_files_hash", null, [], []);
+    this.#PHPModule.ccall("pib_destroy_uploaded_files_hash", null, [], []);
   }
 
   run(code) {
-    const exitCode = this.call("pib_run", NUM, [STR], [`?>${code}`]);
+    const exitCode = this.#PHPModule.ccall("pib_run", NUM, [STR], [`?>${code}`]);
     const response = {
       exitCode,
       stdout: this.#streams.stdout.join("\n"),
       stderr: this.#streams.stderr,
     };
-    this.clear();
+    this.#refresh();
     return response;
   }
 
-  clear() {
-    this.call("pib_refresh", NUM, [], []);
+  #refresh() {
+    this.#PHPModule.ccall("pib_refresh", NUM, [], []);
     this.#streams.stdout = [];
     this.#streams.stderr = [];
   }
-  refresh = this.clear;
+  
 }

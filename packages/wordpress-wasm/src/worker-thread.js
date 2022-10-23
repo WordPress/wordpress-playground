@@ -47,7 +47,7 @@ initializeWorkerThread({
 function patchWordPressFiles(php, absoluteUrl) {
     function patchFile(path, callback) {
         php.writeFile(path,
-            callback(php.readFile(path))
+            callback(php.readFileAsText(path))
         );
     }
 
