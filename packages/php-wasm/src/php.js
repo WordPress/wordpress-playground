@@ -10,35 +10,32 @@ session.save_path=/home/web_user
 `;
 
 export default class PHP {
-  _initPromise;
-  call;
 
-  stdout = [];
-  stderr = [];
-
-  init(PHPLoader, args) {
-    if (!this._initPromise) {
-      this._initPromise = this._init(PHPLoader, args || {});
-    }
-    return this._initPromise;
-  }
-
-  async _init(PHPLoader, {
-    phpIni=defaultPhpIni,
-    ...args
-  }) {
-    const PHPModule = await loadPHP(PHPLoader, {
+  static async create(PHPLoader, { phpIni = defaultPhpIni, ...args } = {}) {
+    const streams = {
+      stdout: [],
+      stderr: [],
+    };
+    const PHPModule = await PHPLoader({
       onAbort(reason) {
         console.error("WASM aborted: ");
         console.error(reason);
       },
-      print: (...chunks) => this.stdout.push(...chunks),
-      printErr: (...chunks) => this.stderr.push(...chunks),
-      
+      print: (...chunks) => streams.stdout.push(...chunks),
+      printErr: (...chunks) => streams.stderr.push(...chunks),
       ...args
     });
+
+    PHPModule.FS.mkdirTree('/usr/local/etc');
+    PHPModule.FS.writeFile('/usr/local/etc/php.ini', phpIni);
+
+    return new PHP(PHPModule, streams);
+  }
+
+  constructor(PHPModule, streams) {
     // @TODO: Keep PHPModule private, don't expose it at all.
     this.PHPModule = PHPModule;
+    this.streams = streams;
 
     this.mkdirTree = PHPModule.FS.mkdirTree;
     const textDecoder = new TextDecoder()
@@ -64,15 +61,8 @@ export default class PHP {
       });
     }
 
-    PHPModule.FS.mkdirTree('/usr/local/etc');
-    PHPModule.FS.writeFile(
-      '/usr/local/etc/php.ini',
-      phpIni
-    );
     this.call = PHPModule.ccall;
-    
-    await this.call("pib_init", NUM, [STR], []);
-    return PHPModule;
+    this.call("pib_init", NUM, [STR], []);
   }
 
   initUploadedFilesHash() {
@@ -88,34 +78,20 @@ export default class PHP {
   }
 
   run(code) {
-    if (!this.call) {
-      throw new Error(`Run init() first!`);
-    }
     const exitCode = this.call("pib_run", NUM, [STR], [`?>${code}`]);
     const response = {
       exitCode,
-      stdout: this.stdout.join("\n"),
-      stderr: this.stderr,
+      stdout: this.streams.stdout.join("\n"),
+      stderr: this.streams.stderr,
     };
     this.clear();
     return response;
   }
 
   clear() {
-    if (!this.call) {
-      throw new Error(`Run init() first!`);
-    }
     this.call("pib_refresh", NUM, [], []);
-    this.stdout = [];
-    this.stderr = [];
+    this.streams.stdout = [];
+    this.streams.stderr = [];
   }
   refresh = this.clear;
-}
-
-async function loadPHP(PHPLoader, args) {
-  const ModulePointer = {
-    ...args
-  };
-  await new PHPLoader(ModulePointer);
-  return ModulePointer;
 }

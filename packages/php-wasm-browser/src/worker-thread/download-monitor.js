@@ -20,7 +20,7 @@ const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
  * Usage:
  * ```js
  *   const progressMonitor = new DownloadMonitor();
- * 	 const PHPModule = await php.init(PHP, {
+ * 	 const php = await PHP.create(PHPLoader, {
  *     dataFileDownloads: progressMonitor.dataFileDownloads
  *   });
  *   progressMonitor.addEventListener('progress', (e) => {

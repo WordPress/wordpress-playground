@@ -36,11 +36,10 @@ export function initializeWorkerThread({
 				})
 			);
 
-			const php = new PHP();
 			// eslint-disable-next-line no-undef
 			await workerEnv.importScripts(workerEnv.getPHPLoaderScript());
 			// eslint-disable-next-line no-undef
-			await php.init(PHPLoader, {
+			const php = await PHP.create(PHPLoader, {
 				dataFileDownloads: downloadMonitor.dataFileDownloadsProxy,
 				locateFile
 			});
