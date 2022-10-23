@@ -11,6 +11,8 @@ session.save_path=/home/web_user
 
 export default class PHP {
 
+  #streams;
+
   static async create(PHPLoader, { phpIni = defaultPhpIni, ...args } = {}) {
     const streams = {
       stdout: [],
@@ -35,7 +37,7 @@ export default class PHP {
   constructor(PHPModule, streams) {
     // @TODO: Keep PHPModule private, don't expose it at all.
     this.PHPModule = PHPModule;
-    this.streams = streams;
+    this.#streams = streams;
 
     this.mkdirTree = PHPModule.FS.mkdirTree;
     const textDecoder = new TextDecoder()
@@ -81,8 +83,8 @@ export default class PHP {
     const exitCode = this.call("pib_run", NUM, [STR], [`?>${code}`]);
     const response = {
       exitCode,
-      stdout: this.streams.stdout.join("\n"),
-      stderr: this.streams.stderr,
+      stdout: this.#streams.stdout.join("\n"),
+      stderr: this.#streams.stderr,
     };
     this.clear();
     return response;
@@ -90,8 +92,8 @@ export default class PHP {
 
   clear() {
     this.call("pib_refresh", NUM, [], []);
-    this.streams.stdout = [];
-    this.streams.stderr = [];
+    this.#streams.stdout = [];
+    this.#streams.stderr = [];
   }
   refresh = this.clear;
 }
