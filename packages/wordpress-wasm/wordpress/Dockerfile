@@ -46,11 +46,11 @@ RUN cd wordpress && \
 # Remove unused static files
 RUN cd wordpress && \
     find ./ -type f \( \
-        -name '*.eot' -o -name '*.gif' -name '*.htaccess' \
-        -name '*.md' -o -name '*.mp4' -name '*.png' \
-        -name '*.scss' -o -name '*.stylelintignore' -name '*.svg' \
-        -name '*.ttf' -o -name '*.txt' -name '*.woff' \
-        -name '*.wof2' -o -name '*.jpeg' -name '*.jpg' \
+        -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
+        -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
+        -o -name '*.scss' -o -name '*.stylelintignore' -o -name '*.svg' \
+        -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
+        -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
     \) -delete
 
 # Keep only the CSS files that are read by PHP
@@ -98,7 +98,7 @@ RUN cd wordpress && \
     fi
 
 FROM emscripten as emscripten2
-RUN rm -rf wordpress
+RUN rm -rf ./wordpress
 COPY --from=php /root/wordpress ./wordpress
 
 # === Postprocess WordPress ===
