@@ -4,21 +4,19 @@ import { loadPHPWithProgress, initializeWorkerThread } from 'php-wasm-browser';
 import { phpJsCacheBuster, wpJsCacheBuster } from './config';
 import { isUploadedFilePath } from './';
 
-initializeWorkerThread(({absoluteUrl}) => startPHP().then(php => startWordPress(php, absoluteUrl)));
+initializeWorkerThread(startWordPress);
 
 // Hardcoded in wp.js:
 const DOCROOT = '/wordpress';
 
-async function startPHP() {
+async function startWordPress({ absoluteUrl }) {
     const [phpLoaderModule, wpLoaderModule] = await Promise.all([
         import(`/php.js?${phpJsCacheBuster}`),
         import(`/wp.js?${wpJsCacheBuster}`)
     ]);
 
-    return await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
-}
+    const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
 
-function startWordPress(php, absoluteUrl) {
     patchWordPressFiles(php, absoluteUrl);
 
     const server = new PHPServer(php, {
