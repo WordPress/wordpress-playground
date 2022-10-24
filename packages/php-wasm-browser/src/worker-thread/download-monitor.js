@@ -45,12 +45,14 @@ export default class DownloadMonitor extends EventTarget {
 				self._notify(file, progress.loaded, progress.total);
 
 				// Monitor assignments like dataFileDownloads[file].total += delta
-				obj[file] = new Proxy(progress, {
+				obj[file] = new Proxy(JSON.parse(JSON.stringify(progress)), {
 					set(nestedObj, prop, value) {
 						nestedObj[prop] = value;
 						self._notify(file, nestedObj.loaded, nestedObj.total);
+						return true;
 					},
 				});
+				return true;
 			},
 		});
 	}

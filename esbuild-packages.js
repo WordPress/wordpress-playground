@@ -52,7 +52,7 @@ const baseConfig = {
         'process.env.BUILD_PLATFORM': JSON.stringify(argv.platform),
     },
     watch: argv.watch,
-    target: ['chrome90', 'firefox60', 'safari11'],
+    target: ['chrome106', 'firefox100', 'safari15'],
     bundle: true,
     external: ['xmlhttprequest'],
     loader: {

@@ -1,44 +1,25 @@
 
 /**
- * @param {Object} options Required options: locateFile
  * @returns 
  */
-export function getCurrentEnvironment(options) {
+export function getCurrentEnvironment() {
     /* eslint-disable no-undef */
     if (typeof window !== 'undefined') {
-        return getIframeEnvironment(options);
+        return getIframeEnvironment();
     } else if(typeof SharedWorkerGlobalScope !== 'undefined' &&
         self instanceof SharedWorkerGlobalScope) {
-        return getSharedWorkerEnvironment(options);
+        return getSharedWorkerEnvironment();
     } else if(typeof WorkerGlobalScope !== 'undefined' &&
         self instanceof WorkerGlobalScope) {
-        return getWebWorkerEnvironment(options);
+        return getWebWorkerEnvironment();
     } else {
         throw new Error(`Unsupported environment`);
     }
     /* eslint-enable no-undef */
 }
 
-export const getIframeEnvironment = ({ locateFile }) => ({
+export const getIframeEnvironment = () => ({
     name: 'iframe',
-    getPHPLoaderScript() {
-        return '/php-web.js';
-    },
-    importScripts: async (...urls) => {
-        return Promise.all(
-            urls
-                .map(locateFile)
-                .map((url) => {
-                    const script = document.createElement('script');
-                    script.src = url;
-                    script.async = false;
-                    document.body.appendChild(script);
-                    return new Promise((resolve) => {
-                        script.onload = resolve;
-                    });
-                })
-        );
-    },
     addMessageListener(handler) {
         window.addEventListener(
             'message',
@@ -53,12 +34,8 @@ export const getIframeEnvironment = ({ locateFile }) => ({
     }
 });
 
-export const getWebWorkerEnvironment = ({ locateFile }) => ({
+export const getWebWorkerEnvironment = () => ({
     name: 'webWorker',
-    getPHPLoaderScript() {
-        return '/php-webworker.js';
-    },
-    importScripts: (...urls) => importScripts(...urls.map(locateFile)),
     addMessageListener(handler) {
         onmessage = (event) => {
             handler(event, postMessage);
@@ -68,12 +45,8 @@ export const getWebWorkerEnvironment = ({ locateFile }) => ({
     }
 });
 
-export const getSharedWorkerEnvironment = ({ locateFile }) => ({
+export const getSharedWorkerEnvironment = () => ({
     name: 'sharedWorker',
-    getPHPLoaderScript() {
-        return '/php-webworker.js';
-    },
-    importScripts: (...urls) => importScripts(...urls.map(locateFile)),
     addMessageListener(handler) {
         let postMessageToParent;
         self.onconnect = (e) => {

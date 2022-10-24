@@ -191,33 +191,28 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
-    -s EXPORT_NAME="'PHPLoader'"           \
-    -s MODULARIZE=1                  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \
         /root/lib/pib_eval.o \
         $(cat /root/.emcc-php-wasm-sources) \
     $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
-    -s FORCE_FILESYSTEM=1
+    -s FORCE_FILESYSTEM=1 \
+    -s EXPORT_NAME="'PHPLoader'"
 
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; \
-    then \
-        # The default output file is ready and only needs to be renamed.
-        mv /root/output/php.js /root/output/php-node.js; \
-    fi;
+# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
+# See esm-prefix.js for more details.
+COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+RUN mv /root/output/php.js /root/output/php.js.tmp && \
+    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js
 
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; \
-    then \
-        # The webworker loader only differs by boolean flag.
-        # Let's avoid a separate build and update the hardcoded
-        # config value in the output file.
-        cat /root/output/php.js \
-            | sed 's/ENVIRONMENT_IS_WEB=true/ENVIRONMENT_IS_WEB=false/g' \
-            | sed 's/ENVIRONMENT_IS_WORKER=false/ENVIRONMENT_IS_WORKER=true/g' \
-            > /root/output/php-webworker.js && \
-        # The default output file is already compatible with the web so
-        # we only need to rename it
-        mv /root/output/php.js /root/output/php-web.js; \
-    fi;
-    
+# The hardcoded ENVIRONMENT variable isn't very useful.
+# For example, the web and worker loaders only differ by a boolean flag.
+# Let's make it customizable via the wrapper args (see esm-prefix.js).
+RUN cat /root/output/php.js \
+        | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
+        > /tmp/php.js && \
+    # The default output file is already compatible with the web so
+    # we only need to rename it
+    mv /tmp/php.js /root/output/php.js;
+

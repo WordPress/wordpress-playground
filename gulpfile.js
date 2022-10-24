@@ -30,7 +30,7 @@ async function collectBuiltWordPress() {
 }
 
 async function collectBuiltPHP() {
-    glob.sync(`${outputDir}/php-*.js`).map(path => fs.rmSync(path, { force: true }));
+    glob.sync(`${outputDir}/php.js`).map(path => fs.rmSync(path, { force: true }));
     fs.rmSync(`${outputDir}/php.wasm`, { force: true });
 
     await asyncPipe(

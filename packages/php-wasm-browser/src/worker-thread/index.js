@@ -10,17 +10,10 @@ export { cloneResponseMonitorProgress } from './download-monitor';
 const noop = () => {};
 export function initializeWorkerThread({
 	assetsSizes,
-	bootBrowser = ({ php, message }) => new PHPBrowser(new PHPServer(php, {
-		absoluteUrl: message.absoluteUrl,
-	})),
-	locateFile = (file) => file,
+	bootBrowser = defaultBootBrowser
 }) {
-	const workerEnv = getCurrentEnvironment({
-		locateFile
-	});
-
 	// Handle postMessage communication from the main thread
-	const postMessageToParent = workerEnv.addMessageListener(
+	const postMessageToParent = getCurrentEnvironment().addMessageListener(
 		messageHandler(handleMessage)
 	);
 
@@ -36,15 +29,12 @@ export function initializeWorkerThread({
 				})
 			);
 
-			// eslint-disable-next-line no-undef
-			await workerEnv.importScripts(workerEnv.getPHPLoaderScript());
-			// eslint-disable-next-line no-undef
-			const php = await PHP.create(PHPLoader, {
-				dataFileDownloads: downloadMonitor.dataFileDownloadsProxy,
-				locateFile
+			phpBrowser = await bootBrowser({
+				message,
+				phpArgs: {
+					dataFileDownloads: downloadMonitor.dataFileDownloadsProxy
+				}
 			});
-
-			phpBrowser = await bootBrowser({ php, workerEnv, message });
 			return true;
 		}
 
@@ -74,3 +64,13 @@ export function initializeWorkerThread({
 	}
 }
 
+async function defaultBootBrowser({ phpArgs, message }) {
+	return new PHPBrowser(
+		new PHPServer(
+			await PHP.create('/php.js', phpArgs),
+			{
+				absoluteUrl: message.absoluteUrl
+			}
+		)
+	)
+}

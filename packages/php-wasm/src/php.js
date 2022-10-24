@@ -15,37 +15,82 @@ session.save_path=/home/web_user
  * @property {string} stdout Stdout data.
  * @property {string[]} stderr Stderr lines.
  */
+
+/**
+ * Minimal, low level-ish, runtime-agnostic wrapper around the Emscripten's generated module.
+ * 
+ * 
+ */
 export default class PHP {
 
   #streams;
-  #PHPModule;
+  #Runtime;
 
-  static async create(PHPLoader, { phpIni = defaultPhpIni, ...args } = {}) {
+  /**
+   * 
+   * @param {*} PHPLoader 
+   * @param {*} param1 
+   * @returns 
+   */
+  static async create(phpModuleUrl, phpEnv, phpModuleArgs = {}, dataModulesUrls = []) {
+    const results = await Promise.all([
+      import(phpModuleUrl),
+      ...dataModulesUrls.map(url => import(url))
+    ]);
+    const [loadPHPRuntime, ...dataModulesLoaders] = results.map(_module => _module.default);
+
+    let resolvePhpReady, resolveDepsReady;
+    const depsReady = new Promise(resolve => { resolveDepsReady = resolve; });
+    const phpReady = new Promise(resolve => { resolvePhpReady = resolve; });
+
     const streams = {
       stdout: [],
       stderr: [],
     };
-    const PHPModule = await PHPLoader({
+    const PHPRuntime = loadPHPRuntime(phpEnv, {
       onAbort(reason) {
         console.error("WASM aborted: ");
         console.error(reason);
       },
       print: (...chunks) => streams.stdout.push(...chunks),
       printErr: (...chunks) => streams.stderr.push(...chunks),
-      ...args
+      ...phpModuleArgs,
+      noInitialRun: true,
+      onRuntimeInitialized() {
+        if (phpModuleArgs.onRuntimeInitialized) {
+          phpModuleArgs.onRuntimeInitialized();
+        }
+        resolvePhpReady();
+      },
+      monitorRunDependencies(nbLeft) {
+        if (nbLeft === 0) {
+          delete PHPRuntime.monitorRunDependencies;
+          resolveDepsReady();
+        }
+      }
     });
+    for (const loadDataModule of dataModulesLoaders) {
+      loadDataModule(PHPRuntime);
+    }
+    if (!dataModulesLoaders.length) {
+      resolveDepsReady();
+    }
 
-    PHPModule.FS.mkdirTree('/usr/local/etc');
-    PHPModule.FS.writeFile('/usr/local/etc/php.ini', phpIni);
-
-    return new PHP(PHPModule, streams);
+    await depsReady;
+    await phpReady;
+    return new PHP(
+      PHPRuntime,
+      streams
+    )
   }
 
-  constructor(PHPModule, streams) {
-    this.#PHPModule = PHPModule;
+  constructor(Runtime, streams) {
+    this.#Runtime = Runtime;
     this.#streams = streams;
 
-    PHPModule.ccall("pib_init", NUM, [STR], []);
+    this.mkdirTree('/usr/local/etc');
+    this.writeFile('/usr/local/etc/php.ini', defaultPhpIni);
+    Runtime.ccall("pib_init", NUM, [STR], []);
   }
 
   /**
@@ -62,7 +107,7 @@ export default class PHP {
    * @returns {Output} The PHP process output.
    */
   run(code) {
-    const exitCode = this.#PHPModule.ccall("pib_run", NUM, [STR], [`?>${code}`]);
+    const exitCode = this.#Runtime.ccall("pib_run", NUM, [STR], [`?>${code}`]);
     const response = {
       exitCode,
       stdout: this.#streams.stdout.join("\n"),
@@ -82,7 +127,7 @@ export default class PHP {
    * @private
    */
   #refresh() {
-    this.#PHPModule.ccall("pib_refresh", NUM, [], []);
+    this.#Runtime.ccall("pib_refresh", NUM, [], []);
     this.#streams.stdout = [];
     this.#streams.stderr = [];
   }
@@ -95,7 +140,7 @@ export default class PHP {
    * @param {string} path The directory path to create.
    */
   mkdirTree(path) {
-    this.#PHPModule.FS.mkdirTree(path);
+    this.#Runtime.FS.mkdirTree(path);
   }
   
   /**
@@ -117,7 +162,7 @@ export default class PHP {
    * @returns {Uint8Array} The file contents.
    */
   readFileAsBuffer(path) {
-    return this.#PHPModule.FS.readFile(path);
+    return this.#Runtime.FS.readFile(path);
   }
 
   /**
@@ -128,7 +173,7 @@ export default class PHP {
    * @param {string|Uint8Array} data The data to write to the file.
    */
   writeFile(path, data) {
-    return this.#PHPModule.FS.writeFile(path, data);
+    return this.#Runtime.FS.writeFile(path, data);
   }
 
   /**
@@ -138,7 +183,7 @@ export default class PHP {
    * @param {string} path The file path to remove.
    */
   unlink(path) {
-    this.#PHPModule.FS.unlink(path);
+    this.#Runtime.FS.unlink(path);
   }
 
   /**
@@ -149,7 +194,7 @@ export default class PHP {
    */
   fileExists(path) {
     try {
-      this.#PHPModule.FS.lookupPath(path);
+      this.#Runtime.FS.lookupPath(path);
       return true;
     } catch(e) {
       return false;
@@ -220,7 +265,7 @@ export default class PHP {
    * ```
    */
   initUploadedFilesHash() {
-    this.#PHPModule.ccall("pib_init_uploaded_files_hash", null, [], []);
+    this.#Runtime.ccall("pib_init_uploaded_files_hash", null, [], []);
   }
 
   /**
@@ -230,7 +275,7 @@ export default class PHP {
    * @param {string} tmpPath The temporary path of the uploaded file.
    */
   registerUploadedFile(tmpPath) {
-    this.#PHPModule.ccall("pib_register_uploaded_file", null, [STR], [tmpPath]);
+    this.#Runtime.ccall("pib_register_uploaded_file", null, [STR], [tmpPath]);
   }
 
   /**
@@ -239,24 +284,7 @@ export default class PHP {
    * @see initUploadedFilesHash()
    */
   destroyUploadedFilesHash() {
-    this.#PHPModule.ccall("pib_destroy_uploaded_files_hash", null, [], []);
-  }
-  
-  async loadDataDependency(loadScriptFn, globalModuleName='PHPModule') {
-    const PHPModule = this.#PHPModule;
-    // The name PHPModule is baked into wp.js
-    globalThis[globalModuleName] = PHPModule;
-    // eslint-disable-next-line no-undef
-    await loadScriptFn();
-    delete globalThis[globalModuleName];
-    await new Promise((resolve) => {
-      PHPModule.monitorRunDependencies = (nbLeft) => {
-        if (nbLeft === 0) {
-          delete PHPModule.monitorRunDependencies;
-          resolve();
-        }
-      }
-    });
+    this.#Runtime.ccall("pib_destroy_uploaded_files_hash", null, [], []);
   }
 
 }

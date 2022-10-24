@@ -112,7 +112,14 @@ RUN cd wordpress && \
 RUN mv wordpress /wordpress && \
     /emsdk/upstream/emscripten/tools/file_packager.py \
 	/root/output/wp.data \
-	--no-node \
+	--export-name="PHPModule" \
+    --no-node \
 	--preload /wordpress \
-	--js-output=/root/output/wp.js \
-	--export-name="PHPModule" 
+	--js-output=/root/output/wp.js
+
+# Manually turn the output into an esm module instead of relying on -s MODULARIZE=1.
+# See esm-prefix.js for more details.
+COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+RUN mv /root/output/wp.js /tmp/wp.js && \
+    cat /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/wp.js && \
+    rm /tmp/wp.js

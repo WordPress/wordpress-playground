@@ -1,5 +1,5 @@
 
-import { PHPServer, PHPBrowser } from 'php-wasm';
+import { PHP, PHPServer, PHPBrowser } from 'php-wasm';
 import { initializeWorkerThread } from 'php-wasm-browser';
 import { phpWasmCacheBuster, wpDataCacheBuster, phpWebWasmSize, wpDataSize } from './config';
 import { isUploadedFilePath } from './';
@@ -12,26 +12,17 @@ initializeWorkerThread({
         'php.wasm': phpWebWasmSize,
         'wp.data': wpDataSize,
     },
-    locateFile: (file) => {
-        if (
-            file.endsWith('php.wasm') ||
-            file.endsWith('php-web.js') ||
-            file.endsWith('php-webworker.js')
-        ) {
-            return `${file}?${phpWasmCacheBuster}`;
-        } else if (
-            file.endsWith('wp.data') ||
-            file.endsWith('wp.js')
-        ) {
-            return `${file}?${wpDataCacheBuster}`;
-        }
-        return file;
-    },
-    bootBrowser: async ({ php, workerEnv, message }) => {
-        // await php.loadDataDependency(
-        //     () => workerEnv.importScripts('/wp.js'),
-        //     'PHPModule',
-        // );
+    bootBrowser: async ({ message, phpArgs }) => {
+        const php = await PHP.create(
+            `/php.js?${phpWasmCacheBuster}`,
+            'WEB',
+            {
+                ...phpArgs,
+                locateFile
+            },
+            [`/wp.js?${wpDataCacheBuster}`]
+        );
+
         patchWordPressFiles(php, message.absoluteUrl);
 
         const server = new PHPServer(php, {
@@ -43,6 +34,15 @@ initializeWorkerThread({
         return new PHPBrowser(server);
     },
 });
+
+function locateFile(file) {
+    if ( file.endsWith('php.wasm') ) {
+        return `${file}?${phpWasmCacheBuster}`;
+    } else if ( file.endsWith('wp.data') ) {
+        return `${file}?${wpDataCacheBuster}`;
+    }
+    return file;
+}
 
 function patchWordPressFiles(php, absoluteUrl) {
     function patchFile(path, callback) {
