@@ -1,14 +1,6 @@
 const STR = "string";
 const NUM = "number";
 
-const defaultPhpIni = `[PHP]
-error_reporting = E_ERROR | E_PARSE
-display_errors = 1
-html_errors = 1
-display_startup_errors = On
-session.save_path=/home/web_user
-`;
-
 /**
  * @typedef {Object} Output
  * @property {number} exitCode Exit code of the PHP process.
@@ -84,7 +76,14 @@ export class PHP {
     this.#streams = streams;
 
     this.mkdirTree('/usr/local/etc');
-    this.writeFile('/usr/local/etc/php.ini', defaultPhpIni);
+    // @TODO: make this customizable
+    this.writeFile('/usr/local/etc/php.ini', `[PHP]
+error_reporting = E_ERROR | E_PARSE
+display_errors = 1
+html_errors = 1
+display_startup_errors = On
+session.save_path=/home/web_user
+    `);
     Runtime.ccall("pib_init", NUM, [STR], []);
   }
 
