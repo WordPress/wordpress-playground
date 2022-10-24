@@ -1,6 +1,6 @@
 /* eslint-disable no-inner-declarations */
 
-import { PHP, PHPBrowser, PHPServer } from 'php-wasm';
+import { startPHP, PHPBrowser, PHPServer } from 'php-wasm';
 import { responseTo, messageHandler } from '../messaging';
 import { DEFAULT_BASE_URL } from '../urls';
 import environment from './environment';
@@ -71,7 +71,7 @@ export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModul
         })
     );
 
-    return await PHP.create(
+    return await startPHP(
         phpLoaderModule,
         environment.name,
         {

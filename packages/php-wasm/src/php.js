@@ -16,23 +16,13 @@ session.save_path=/home/web_user
  * @property {string[]} stderr Stderr lines.
  */
 
-/**
- * Minimal, low level-ish, runtime-agnostic wrapper around the Emscripten's generated module.
- * 
- * 
- */
-export default class PHP {
-
-  #streams;
-  #Runtime;
-
   /**
    * 
    * @param {*} PHPLoader 
    * @param {*} param1 
    * @returns 
    */
-  static async create(phpLoaderModule, phpEnv, phpModuleArgs = {}, dataDependenciesModules = []) {
+export async function startPHP(phpLoaderModule, phpEnv, phpModuleArgs = {}, dataDependenciesModules = []) {
     let resolvePhpReady, resolveDepsReady;
     const depsReady = new Promise(resolve => { resolveDepsReady = resolve; });
     const phpReady = new Promise(resolve => { resolvePhpReady = resolve; });
@@ -77,7 +67,17 @@ export default class PHP {
       PHPRuntime,
       streams
     )
-  }
+}
+  
+/**
+ * Minimal, low level-ish, runtime-agnostic wrapper around the Emscripten's generated module.
+ * 
+ * 
+ */
+export class PHP {
+
+  #streams;
+  #Runtime;
 
   constructor(Runtime, streams) {
     this.#Runtime = Runtime;

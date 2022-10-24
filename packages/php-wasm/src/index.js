@@ -1,5 +1,4 @@
-import PHP from "./php"
-export { PHP };
+export { startPHP } from "./php"
 
 import PHPServer from "./php-server"
 export { PHPServer };
