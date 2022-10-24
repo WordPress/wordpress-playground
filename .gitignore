@@ -8,8 +8,7 @@ build/*
 !build/wp-content
 !build/wp-includes
 !build/php.wasm
-!build/php-web.js
-!build/php-webworker.js
+!build/php.js
 !build/wp.data
 !build/wp.js
 packages/*/build*
