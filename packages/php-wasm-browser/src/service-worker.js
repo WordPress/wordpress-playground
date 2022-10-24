@@ -42,10 +42,7 @@ export async function registerServiceWorker({ broadcastChannel, url, onRequest, 
 			);
 
 			let result;
-			if (
-				event.data.type === 'request' ||
-				event.data.type === 'httpRequest'
-			) {
+			if (event.data.type === 'request') {
 				result = await onRequest(event.data.request);
 			} else {
 				throw new Error(
@@ -141,7 +138,7 @@ export function initializeServiceWorker({
 				let phpResponse;
 				try {
 					const message = {
-						type: 'httpRequest',
+						type: 'request',
 
 						/**
 						 * Detect scoped requests – their url starts with `/scope:`

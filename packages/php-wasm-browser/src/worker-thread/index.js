@@ -29,7 +29,7 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 			return await phpBrowser.server.php.run(message.code);
 		}
 
-		if (message.type === 'request' || message.type === 'httpRequest') {
+		if (message.type === 'request') {
 			const parsedUrl = new URL(
 				message.request.path,
 				DEFAULT_BASE_URL
