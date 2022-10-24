@@ -28,10 +28,10 @@ initializeWorkerThread({
         return file;
     },
     bootBrowser: async ({ php, workerEnv, message }) => {
-        await php.loadDataDependency(
-            () => workerEnv.importScripts('/wp.js'),
-            'PHPModule',
-        );
+        // await php.loadDataDependency(
+        //     () => workerEnv.importScripts('/wp.js'),
+        //     'PHPModule',
+        // );
         patchWordPressFiles(php, message.absoluteUrl);
 
         const server = new PHPServer(php, {
@@ -97,6 +97,6 @@ function patchWordPressFiles(php, absoluteUrl) {
     php.mkdirTree(`${DOCROOT}/wp-content/mu-plugins`);
     php.writeFile(
         `${DOCROOT}/wp-content/mu-plugins/requests_transport_fetch.php`,
-        require('../wordpress/requests_transport_fetch.php')
+        require('./requests_transport_fetch.php')
     );
 }
