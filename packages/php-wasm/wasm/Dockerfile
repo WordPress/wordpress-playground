@@ -200,11 +200,17 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'"
 
-# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
-# See esm-prefix.js for more details.
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
-RUN mv /root/output/php.js /root/output/php.js.tmp && \
-    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js
+
+# On the web, it's useful to add a "cache busting" query string to the .wasm file URL.
+# This tells web browsers it's a new file and they should reload it.
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
+        export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
+        cat /root/output/php.js \
+        | sed "s#php\.wasm#/php.wasm?$CACHE_BUSTER#g" \
+        > /tmp/php.js && \
+    mv /tmp/php.js /root/output/php.js; \
+    fi;
 
 # The hardcoded ENVIRONMENT variable isn't very useful.
 # For example, the web and worker loaders only differ by a boolean flag.
@@ -212,7 +218,21 @@ RUN mv /root/output/php.js /root/output/php.js.tmp && \
 RUN cat /root/output/php.js \
         | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
         > /tmp/php.js && \
-    # The default output file is already compatible with the web so
-    # we only need to rename it
     mv /tmp/php.js /root/output/php.js;
 
+# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
+# See esm-prefix.js for more details.
+
+# First, Populate the php.js module exports:
+# * Total size of the loaded dependencies – useful for progress bars.
+RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
+    export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
+    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
+
+# * Filename of the main dependency
+RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
+    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_FILENAME#'php.wasm'#g" > /root/esm-prefix.js
+
+# Then, produce the final module:
+RUN mv /root/output/php.js /root/output/php.js.tmp && \
+    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js

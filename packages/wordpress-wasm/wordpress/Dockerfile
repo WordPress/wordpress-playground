@@ -1,3 +1,5 @@
+ARG CACHE_BUSTER
+
 FROM emscripten/emsdk:3.1.24 as emscripten
 SHELL ["/bin/bash", "-c"]
 WORKDIR /root
@@ -117,9 +119,30 @@ RUN mv wordpress /wordpress && \
 	--preload /wordpress \
 	--js-output=/root/output/wp.js
 
+COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+
+# It's useful to add a "cache busting" query string to the .data file URL.
+# This tells web browsers it's a new file and they should reload it.
+RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
+    cat /root/output/wp.js \
+        | sed "s#wp\.data#/wp.data?$CACHE_BUSTER#g" \
+        > /tmp/wp.js && \
+    mv /tmp/wp.js /root/output/wp.js;
+
 # Manually turn the output into an esm module instead of relying on -s MODULARIZE=1.
 # See esm-prefix.js for more details.
-COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+
+# First, populate the php.js module exports:
+# * Total size of the loaded dependencies – useful for progress bars.
+RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
+    export FILE_SIZE=$(stat -c%s "/root/output/wp.data") && \
+    cat /tmp/esm-prefix.js | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
+
+# Filename of the main dependency
+RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
+    cat /tmp/esm-prefix.js | sed "s#WP_DATA_FILENAME#'wp.data'#g" > /root/esm-prefix.js
+
+# Then, produce the final module:
 RUN mv /root/output/wp.js /tmp/wp.js && \
     cat /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/wp.js && \
     rm /tmp/wp.js

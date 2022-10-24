@@ -1,47 +1,33 @@
 
 import { PHP, PHPServer, PHPBrowser } from 'php-wasm';
-import { initializeWorkerThread } from 'php-wasm-browser';
-import { phpWasmCacheBuster, wpDataCacheBuster, phpWebWasmSize, wpDataSize } from './config';
+import { loadPHPWithProgress, initializeWorkerThread } from 'php-wasm-browser';
+import { phpJsCacheBuster, wpJsCacheBuster } from './config';
 import { isUploadedFilePath } from './';
 
-// Hardcoded in wp.js. @TODO make this configurable.
+initializeWorkerThread(({absoluteUrl}) => startPHP().then(php => startWordPress(php, absoluteUrl)));
+
+// Hardcoded in wp.js:
 const DOCROOT = '/wordpress';
 
-initializeWorkerThread({
-    assetsSizes: {
-        'php.wasm': phpWebWasmSize,
-        'wp.data': wpDataSize,
-    },
-    bootBrowser: async ({ message, phpArgs }) => {
-        const php = await PHP.create(
-            `/php.js?${phpWasmCacheBuster}`,
-            'WEB',
-            {
-                ...phpArgs,
-                locateFile
-            },
-            [`/wp.js?${wpDataCacheBuster}`]
-        );
+async function startPHP() {
+    const [phpLoaderModule, wpLoaderModule] = await Promise.all([
+        import(`/php.js?${phpJsCacheBuster}`),
+        import(`/wp.js?${wpJsCacheBuster}`)
+    ]);
 
-        patchWordPressFiles(php, message.absoluteUrl);
+    return await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
+}
 
-        const server = new PHPServer(php, {
-            documentRoot: DOCROOT,
-            absoluteUrl: message.absoluteUrl,
-            isStaticFilePath: isUploadedFilePath
-        });
-        
-        return new PHPBrowser(server);
-    },
-});
+function startWordPress(php, absoluteUrl) {
+    patchWordPressFiles(php, absoluteUrl);
 
-function locateFile(file) {
-    if ( file.endsWith('php.wasm') ) {
-        return `${file}?${phpWasmCacheBuster}`;
-    } else if ( file.endsWith('wp.data') ) {
-        return `${file}?${wpDataCacheBuster}`;
-    }
-    return file;
+    const server = new PHPServer(php, {
+        documentRoot: DOCROOT, 
+        absoluteUrl: absoluteUrl,
+        isStaticFilePath: isUploadedFilePath
+    });
+    
+    return new PHPBrowser(server);
 }
 
 function patchWordPressFiles(php, absoluteUrl) {

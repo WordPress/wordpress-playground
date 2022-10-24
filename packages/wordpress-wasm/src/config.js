@@ -7,9 +7,9 @@ export const wordPressSiteUrl = serviceWorkerOrigin;
 
 export const wasmWorkerUrl = WASM_WORKER_THREAD_SCRIPT_URL;
 export const wasmWorkerBackend = WASM_WORKER_BACKEND;
-export const wpDataSize = WP_DATA_SIZE;
-export const wpDataCacheBuster = WP_DATA_HASH;
+export const wpJsCacheBuster = WP_JS_HASH;
+
+import { phpJsHash } from 'php-wasm';
+export { phpJsHash as phpJsCacheBuster } from 'php-wasm';
 
 export const cacheBuster = CACHE_BUSTER;
-
-export { phpWebWasmSize, phpWasmHash as phpWasmCacheBuster } from 'php-wasm';

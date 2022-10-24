@@ -91,13 +91,9 @@ async function main() {
             ...configFor('php-wasm'),
             define: {
                 ...baseConfig.define,
-                PHP_WASM_SIZE: JSON.stringify(
-                    fileSize(`packages/php-wasm/build/php.wasm`)
-                ),
-                PHP_WASM_HASH: JSON.stringify(
+                PHP_JS_HASH: JSON.stringify(
                     hashFiles([
-                        `packages/php-wasm/build/php.wasm`,
-                        `packages/php-wasm/build/php-web.js`
+                        `packages/php-wasm/build-wasm/php.js`
                     ])
                 ),
             }
@@ -110,13 +106,9 @@ async function main() {
                 SERVICE_WORKER_URL: JSON.stringify(serviceWorkerUrl),
                 WASM_WORKER_THREAD_SCRIPT_URL: JSON.stringify(workerThreadScript),
                 WASM_WORKER_BACKEND: JSON.stringify(wasmWorkerBackend),
-                WP_DATA_SIZE: JSON.stringify(
-                    fileSize(`packages/wordpress-wasm/wp.data`)
-                ),
-                WP_DATA_HASH: JSON.stringify(
+                WP_JS_HASH: JSON.stringify(
                     hashFiles([
-                        `packages/wordpress-wasm/build/wp.data`,
-                        `packages/wordpress-wasm/build/wp.js`
+                        `packages/wordpress-wasm/build-wp/wp.js`
                     ])
                 ),
             }

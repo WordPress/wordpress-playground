@@ -1,3 +1,10 @@
+// The number of bytes to download, which is just the size of the `wp.data` file.
+// Populated by the Dockerfile.
+export const dependenciesTotalSize = 10134327;
+
+// The final wp.data filename – populated by the Dockerfile.
+export const dependencyFilename = 'wp.data';
+
 // Prepending this to the built php.js file manually turns it
 // into an ESM module.
 // This replaces the Emscripten's MODULARIZE=1 which pollutes the
@@ -14,7 +21,7 @@ export default function(PHPModule) {
     // When running as a pthread, FS operations are proxied to the main thread, so we don't need to
     // fetch the .data bundle on the worker
     if (Module['ENVIRONMENT_IS_PTHREAD']) return;
-      var loadPackage = function(metadata) {
+    var loadPackage = function(metadata) {
 
       var PACKAGE_PATH = '';
       if (typeof window === 'object') {
@@ -23,8 +30,8 @@ export default function(PHPModule) {
         // web worker
         PACKAGE_PATH = encodeURIComponent(location.pathname.toString().substring(0, location.pathname.toString().lastIndexOf('/')) + '/');
       }
-      var PACKAGE_NAME = '/root/output/wp.data';
-      var REMOTE_PACKAGE_BASE = 'wp.data';
+      var PACKAGE_NAME = '/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad';
+      var REMOTE_PACKAGE_BASE = '/wp.data?55dc64b35c56ddfeef372b901b6ff2ad';
       if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
         Module['locateFile'] = Module['locateFilePackage'];
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
@@ -323,10 +330,10 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
           var files = metadata['files'];
           for (var i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
-          }          Module['removeRunDependency']('datafile_/root/output/wp.data');
+          }          Module['removeRunDependency']('datafile_/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad');
 
       };
-      Module['addRunDependency']('datafile_/root/output/wp.data');
+      Module['addRunDependency']('datafile_/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad');
 
       if (!Module.preloadResults) Module.preloadResults = {};
 

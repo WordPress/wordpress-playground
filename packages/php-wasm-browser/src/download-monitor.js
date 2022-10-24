@@ -1,4 +1,4 @@
-import { DEFAULT_BASE_URL } from "../urls";
+import { DEFAULT_BASE_URL } from "./urls";
 
 /*
  * Let's use 5MB as an approximation when the total number
@@ -29,11 +29,14 @@ const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
  * ```
  */
 export default class DownloadMonitor extends EventTarget {
-	constructor({ assetsSizes }) {
+	constructor(assetsSizes) {
 		super();
 
 		this.assetsSizes = assetsSizes;
-		this.dataFileDownloadsProxy = this._createDataFileDownloadsProxy();
+		this.monitorWebAssemblyStreaming();
+		this.phpArgs = {
+			dataFileDownloads: this._createDataFileDownloadsProxy()
+		};
 	}
 
 	_createDataFileDownloadsProxy() {
@@ -57,7 +60,7 @@ export default class DownloadMonitor extends EventTarget {
 		});
 	}
 
-	plugIntoWebAssembly_instantiateStreaming() {
+	monitorWebAssemblyStreaming() {
 		const self = this;
 		const _instantiateStreaming = WebAssembly.instantiateStreaming;
 		WebAssembly.instantiateStreaming = (response, ...args) => {

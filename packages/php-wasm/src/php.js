@@ -32,13 +32,7 @@ export default class PHP {
    * @param {*} param1 
    * @returns 
    */
-  static async create(phpModuleUrl, phpEnv, phpModuleArgs = {}, dataModulesUrls = []) {
-    const results = await Promise.all([
-      import(phpModuleUrl),
-      ...dataModulesUrls.map(url => import(url))
-    ]);
-    const [loadPHPRuntime, ...dataModulesLoaders] = results.map(_module => _module.default);
-
+  static async create(phpLoaderModule, phpEnv, phpModuleArgs = {}, dataDependenciesModules = []) {
     let resolvePhpReady, resolveDepsReady;
     const depsReady = new Promise(resolve => { resolveDepsReady = resolve; });
     const phpReady = new Promise(resolve => { resolvePhpReady = resolve; });
@@ -47,6 +41,7 @@ export default class PHP {
       stdout: [],
       stderr: [],
     };
+    const loadPHPRuntime = phpLoaderModule.default;
     const PHPRuntime = loadPHPRuntime(phpEnv, {
       onAbort(reason) {
         console.error("WASM aborted: ");
@@ -69,10 +64,10 @@ export default class PHP {
         }
       }
     });
-    for (const loadDataModule of dataModulesLoaders) {
+    for (const { default: loadDataModule } of dataDependenciesModules) {
       loadDataModule(PHPRuntime);
     }
-    if (!dataModulesLoaders.length) {
+    if (!dataDependenciesModules.length) {
       resolveDepsReady();
     }
 
