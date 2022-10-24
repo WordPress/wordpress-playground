@@ -19,17 +19,15 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 		if (message.type === 'initialize_php') {
 			phpBrowser = await bootBrowser({
 				absoluteUrl: message.absoluteUrl
-			});			
+			});
 		}
-		if (message.type === 'is_alive') {
+		else if (message.type === 'is_alive') {
 			return true;
 		}
-
-		if (message.type === 'run_php') {
+		else if (message.type === 'run_php') {
 			return await phpBrowser.server.php.run(message.code);
 		}
-
-		if (message.type === 'request') {
+		else if (message.type === 'request') {
 			const parsedUrl = new URL(
 				message.request.path,
 				DEFAULT_BASE_URL
@@ -39,11 +37,11 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 				path: parsedUrl.pathname,
 				_GET: parsedUrl.search,
 			});
+		} else {
+			console.warn(
+				`[WASM Worker] "${message.type}" event received but it has no handler.`
+			);
 		}
-
-		console.warn(
-			`[WASM Worker] "${message.type}" event received but it has no handler.`
-		);
 	}
 }
 
