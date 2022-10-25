@@ -165,10 +165,9 @@ if (require.main === module) {
 exports.main = main;
 
 function mapGlob(pattern, mapper) {
+    glob.sync(pattern).map(mapper).forEach(logBuiltFile);
     if (argv.watch) {
         chokidar.watch(pattern).on('change', mapper);
-    } else {
-        glob.sync(pattern).map(mapper).forEach(logBuiltFile);
     }
 }
 
