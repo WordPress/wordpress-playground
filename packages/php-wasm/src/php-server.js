@@ -41,7 +41,6 @@ export default class PHPServer {
 	 * @returns {Response} The response.
 	 */
 	async request(request) {
-		request.
 		const serverPath = this.#withoutServerPathname(request.path);
 		if(this.isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
