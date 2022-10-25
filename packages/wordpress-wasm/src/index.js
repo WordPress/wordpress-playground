@@ -4,7 +4,7 @@ import {
     responseTo,
     registerServiceWorker,
     startPHPWorkerThread,
-	getWorkerThreadBackend	
+	getWorkerThreadFrontend	
 } from 'php-wasm-browser';
 
 import {
@@ -26,7 +26,7 @@ export async function bootWordPress({
 	const scope = assignScope ? Math.random().toFixed(16) : undefined;
 
 	const workerThread = await startPHPWorkerThread({
-		backend: getWorkerThreadBackend(wasmWorkerBackend, wasmWorkerUrl),
+		frontend: getWorkerThreadFrontend(wasmWorkerBackend, wasmWorkerUrl),
 		absoluteUrl: wordPressSiteUrl,
 		scope,
 		onDownloadProgress: onWasmDownloadProgress,

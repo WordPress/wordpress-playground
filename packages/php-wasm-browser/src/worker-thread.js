@@ -1,11 +1,9 @@
 /* eslint-disable no-inner-declarations */
 
 import { startPHP, PHPBrowser, PHPServer } from 'php-wasm';
-import { responseTo, messageHandler } from '../messaging';
-import { DEFAULT_BASE_URL } from '../urls';
-import environment from './environment';
-export { environment };
-import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
+import { responseTo, messageHandler } from './messaging';
+import { DEFAULT_BASE_URL } from './urls';
+import EmscriptenDownloadMonitor from './emscripten-download-monitor';
 
 const noop = () => { };
 /**
@@ -55,7 +53,7 @@ const noop = () => { };
  */
 export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 	// Handle postMessage communication from the main thread
-	environment.setMessageListener(
+	currentBackend.setMessageListener(
 		messageHandler(handleMessage)
 	);
 
@@ -93,10 +91,56 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 async function defaultBootBrowser({ absoluteUrl }) {
 	return new PHPBrowser(
 		new PHPServer(
-			await startPHP('/php.js', environment.name, phpArgs),
+			await startPHP('/php.js', currentBackend.jsEnv, phpArgs),
 			{
 				absoluteUrl: absoluteUrl || location.origin
 			}
 		)
 	)
 }
+
+const webBackend = {
+    jsEnv: 'WEB', // Matches the Env argument in php.js
+    setMessageListener(handler) {
+        window.addEventListener(
+            'message',
+            (event) =>
+                handler(event, (response) =>
+                    event.source.postMessage(response, '*')
+                ),
+            false
+        );
+    },
+    postMessageToParent(message) {
+        window.parent.postMessage(message, '*');
+    }
+}
+
+const webWorkerBackend = {
+    jsEnv: 'WORKER', // Matches the Env argument in php.js
+    setMessageListener(handler) {
+        onmessage = (event) => {
+            handler(event, postMessage);
+        };
+    },
+    postMessageToParent(message) {
+        postMessage(message);
+    }
+}
+
+/**
+ * @returns 
+ */
+export const currentBackend = (function () {
+    /* eslint-disable no-undef */
+    if (typeof window !== 'undefined') {
+        return webBackend;
+    } else if (typeof WorkerGlobalScope !== 'undefined' &&
+        self instanceof WorkerGlobalScope) {
+        return webWorkerBackend;
+    } else {
+        throw new Error(`Unsupported environment`);
+    }
+    /* eslint-enable no-undef */
+})();
+

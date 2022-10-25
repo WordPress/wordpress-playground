@@ -1,10 +1,10 @@
-import { environment } from './worker-thread';
+import { currentBackend } from './worker-thread';
 import { startPHP } from 'php-wasm';
 import EmscriptenDownloadMonitor from './emscripten-download-monitor';
 
-export { environment };
+export { currentBackend };
 export { initializeWorkerThread } from './worker-thread';
-export { startPHPWorkerThread, getWorkerThreadBackend } from './worker-thread-api';
+export { startPHPWorkerThread, getWorkerThreadFrontend } from './worker-thread-api';
 export { registerServiceWorker, initializeServiceWorker, seemsLikeAPHPServerPath } from './service-worker';
 export { postMessageExpectReply, awaitReply, responseTo, messageHandler, postMessageHandler } from './messaging';
 export { cloneResponseMonitorProgress } from './emscripten-download-monitor';
@@ -18,7 +18,7 @@ export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModul
 	}, {});
     const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes);
     downloadMonitor.addEventListener('progress', (e) => 
-        environment.postMessageToParent({
+    currentBackend.postMessageToParent({
             type: 'download_progress',
             ...e.detail,
         })
@@ -26,7 +26,7 @@ export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModul
 
     return await startPHP(
         phpLoaderModule,
-        environment.name,
+        currentBackend.jsEnv,
         {
             ...phpArgs,
             ...downloadMonitor.phpArgs

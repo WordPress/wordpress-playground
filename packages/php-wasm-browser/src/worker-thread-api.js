@@ -5,7 +5,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const noop = () => {};
 
 export async function startPHPWorkerThread({
-	backend,
+	frontend,
 	absoluteUrl,
 	scope,
 	onDownloadProgress = noop,
@@ -13,7 +13,7 @@ export async function startPHPWorkerThread({
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
 		try {
-			await backend.sendMessage({ type: 'is_alive' }, 50);
+			await frontend.sendMessage({ type: 'is_alive' }, 50);
 			break;
 		} catch (e) {
 			// Ignore timeouts
@@ -32,7 +32,7 @@ export async function startPHPWorkerThread({
 		absoluteUrl = setURLScope(new URL(absoluteUrl), scope).toString();
 	}
 
-	backend.addMessageListener((e) => {
+	frontend.addMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
 			onDownloadProgress(e.data);
 		}
@@ -40,7 +40,7 @@ export async function startPHPWorkerThread({
 
 	// Now that the worker thread is up and running, let's ask
 	// it to initialize PHP:
-	await backend.sendMessage({
+	await frontend.sendMessage({
 		type: 'initialize_php',
 		absoluteUrl: absoluteUrl,
 	});
@@ -53,13 +53,13 @@ export async function startPHPWorkerThread({
 			return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
 		},
 		async eval(code) {
-			return await backend.sendMessage({
+			return await frontend.sendMessage({
 				type: 'run_php',
 				code,
 			});
 		},
 		async HTTPRequest(request) {
-			return await backend.sendMessage({
+			return await frontend.sendMessage({
 				type: 'request',
 				request,
 			});
@@ -67,23 +67,22 @@ export async function startPHPWorkerThread({
 	};
 }
 
-export function getWorkerThreadBackend(key, url) {
-	const backends = {
-		webworker: webWorkerBackend,
-		shared_worker: sharedWorkerBackend,
-		iframe: iframeBackend,
+export function getWorkerThreadFrontend(key, url) {
+	const frontends = {
+		webworker: webWorkerFrontend,
+		iframe: iframeFrontend,
 	};
-	const backend = backends[key];
-	if (!backend) {
-		const availableKeys = Object.keys(backends).join(', ');
+	const frontend = frontends[key];
+	if (!frontend) {
+		const availableKeys = Object.keys(frontends).join(', ');
 		throw new Error(
-			`Unknown worker backend: "${key}". Choices: ${availableKeys}`
+			`Unknown worker frontend: "${key}". Choices: ${availableKeys}`
 		);
 	}
-	return backend(url);
+	return frontend(url);
 }
 
-export function webWorkerBackend(workerURL) {
+export function webWorkerFrontend(workerURL) {
 	const worker = new Worker(workerURL);
 	return {
 		async sendMessage(message, timeout) {
@@ -97,22 +96,7 @@ export function webWorkerBackend(workerURL) {
 	};
 }
 
-export function sharedWorkerBackend(workerURL) {
-	const worker = new SharedWorker(workerURL);
-	worker.port.start();
-	return {
-		async sendMessage(message, timeout) {
-			const messageId = postMessageExpectReply(worker.port, message);
-			const response = await awaitReply(worker.port, messageId, timeout);
-			return response;
-		},
-		addMessageListener(listener) {
-			worker.port.onmessage = listener;
-		},
-	};
-}
-
-export function iframeBackend(workerDocumentURL) {
+export function iframeFrontend(workerDocumentURL) {
 	const iframe = document.createElement('iframe');
 	iframe.src = workerDocumentURL;
 	iframe.style.display = 'none';
