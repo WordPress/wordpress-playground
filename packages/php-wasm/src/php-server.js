@@ -1,13 +1,3 @@
-if (process.env.BUILD_PLATFORM === 'node') {
-	// Polyfill missing node.js features
-	import('xmlhttprequest').then(({ XMLHttpRequest }) => {
-		global.XMLHttpRequest = XMLHttpRequest;
-	});
-	global.atob = function (data) {
-		return Buffer.from(data).toString('base64');
-	};
-}
-
 export default class PHPServer {
 	DOCROOT;
 	SCHEMA;
