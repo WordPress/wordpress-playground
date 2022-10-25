@@ -9,32 +9,14 @@ This package enables using PHP in JavaScript. It provides:
 Here's what a minimal hello world looks like:
 
 ```js
-import { PHP, PHPServer } from 'php-wasm';
+import { createPHP } from 'php-wasm';
 
-startPHP()
-    .then(php => php.run(`<?php echo "Hello from PHP!";`))
-    .then(result => console.log(result.stdout));
+const PHPLoaderModule = await import('/php.js');
+const php = await createPHP(PHPLoaderModule);
+console.log(
+    php.run(`<?php echo "Hello from PHP!";`).stdout
+);
 // Output: "Hello from PHP!"
-
-async function startPHP() {
-    // Download php-web.js – shipped separately from the main bundle
-    await loadPHPwebjs();
-    // window.PHPLoader is now available
-    // Use it to download and run php.wasm:
-    const php = new PHP();
-    await php.init(PHPLoader);
-    return php;
-}
-
-async function loadPHPwebjs() {
-    const script = document.createElement('script');
-    script.src = '/php-web.js';
-    script.async = false;
-    document.body.appendChild(script);
-    await new Promise((resolve) => {
-        script.onload = resolve;
-    });
-}
 ```
 
 ## PHP to WebAssembly build pipeline
@@ -115,39 +97,28 @@ A PHPBrowser JavaScript class to consume the above using an iframe
 
 
 ```js
-import { PHP, PHPServer } from 'php-wasm';
+import { createPHP, PHPServer } from 'php-wasm';
 
-startPHPServer()
-    .then(server => server.request({ path: '/index.php' })
-    .then(response => console.log(response.body));
+const PHPLoaderModule = await import('/php.js');
+const php = await createPHP(PHPLoaderModule);
+
+// Create a file to serve
+php.mkdirTree('/www');
+php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+
+// Create a server:
+const server = new PHPServer(php, {
+    documentRoot: '/www',
+    // This is to populate $_SERVER['SERVER_NAME'] etc.
+    // PHPServer does not actually bind to any address or port –
+    // it only provides an HTTP request handler.
+    absoluteUrl: 'http://127.0.0.1'
+});
+
+console.log(
+   server.request({ path: '/index.php' }).body
+);
 // Output: "Hi from PHP!"
-
-async function startPHPServer() {
-    // Start PHP using function from the "hello world" example
-    const php = await startPHP();
-
-    // Create a file to serve
-    php.mkdirTree('/www');
-    php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
-
-    // Create a server:
-    return new PHPServer(php, {
-        documentRoot: '/www',
-        // This is to populate $_SERVER['SERVER_NAME'] etc.
-        // PHPServer does not actually bind to any address or port –
-        // it only provides an HTTP request handler.
-        absoluteUrl: 'http://127.0.0.1'
-    });
-}
 ```
-
 
 Which downloads the assembly file, creates a virtual heap, and exposes named native functions conveniently wrapped to accept and return JavaScript data types.
-
-```js	
-const php = new PHPWrapper();
-console.log(
-    await php.run(`<?php echo "Hello world";`).stdout
-);
-// "Hello world"
-```
