@@ -1,6 +1,6 @@
 import { bootWordPress } from './index'
 import { login, installPlugin } from './macros'
-import { cloneResponseMonitorProgress, postMessageHandler } from 'php-wasm-browser'
+import { cloneResponseMonitorProgress } from 'php-wasm-browser'
 
 function setupAddressBar(wasmWorker) {
     // Manage the address bar
@@ -125,15 +125,24 @@ async function main() {
 
     if (query.get('rpc')) {
         console.log("Registering an RPC handler");
-        window.addEventListener("message", postMessageHandler(async (data) => {
-            if (data.type === 'rpc') {
-                return await workerThread[data.method](...data.args);
-            } else if (data.type === 'go_to') {
-                wpFrame.src = workerThread.pathToInternalUrl(data.path);
-            } else if (data.type === 'is_alive') {
+        async function handleMessage(event) {
+            if (event.data.type === 'rpc') {
+                return await workerThread[event.data.method](...event.data.args);
+            } else if (event.data.type === 'go_to') {
+                wpFrame.src = workerThread.pathToInternalUrl(event.data.path);
+            } else if (event.data.type === 'is_alive') {
                 return true;
             }
-        }));
+        }
+        window.addEventListener("message", async event => {
+            const result = await handleMessage(event.data);
+
+            // When `messageId` is present, the other thread expects a response:
+            if (event.data.messageId) {
+                const response = responseTo(event.data.messageId, result);
+                window.parent.postMessage(response, '*');
+            }
+        });
     }
     
     const initialUrl = query.get('url') || '/';

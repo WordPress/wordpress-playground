@@ -1,7 +1,7 @@
 /* eslint-disable no-inner-declarations */
 
 import { startPHP, PHPBrowser, PHPServer } from 'php-wasm';
-import { responseTo, messageHandler } from './messaging';
+import { responseTo } from './messaging';
 import { DEFAULT_BASE_URL } from './urls';
 import EmscriptenDownloadMonitor from './emscripten-download-monitor';
 
@@ -53,9 +53,15 @@ const noop = () => { };
  */
 export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 	// Handle postMessage communication from the main thread
-	currentBackend.setMessageListener(
-		messageHandler(handleMessage)
-	);
+	currentBackend.setMessageListener(async event => {
+		const result = await handleMessage(event.data);
+
+		// When `messageId` is present, the other thread expects a response:
+		if (event.data.messageId) {
+			const response = responseTo(event.data.messageId, result);
+			currentBackend.postMessageToParent(response);
+		}
+	});
 
 	let phpBrowser;
 	async function handleMessage(message) {

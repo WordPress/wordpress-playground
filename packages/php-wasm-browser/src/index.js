@@ -6,7 +6,7 @@ export { currentBackend };
 export { initializeWorkerThread } from './worker-thread';
 export { startPHPWorkerThread, getWorkerThreadFrontend } from './worker-thread-api';
 export { registerServiceWorker, initializeServiceWorker, seemsLikeAPHPServerPath } from './service-worker';
-export { postMessageExpectReply, awaitReply, responseTo, messageHandler, postMessageHandler } from './messaging';
+export { postMessageExpectReply, awaitReply, responseTo } from './messaging';
 export { cloneResponseMonitorProgress } from './emscripten-download-monitor';
 
 export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModules=[], phpArgs = {}) {
