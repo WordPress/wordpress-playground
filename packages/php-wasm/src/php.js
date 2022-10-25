@@ -3,7 +3,7 @@ const NUM = "number";
 
 /**
  * @typedef {Object} Output
- * @property {number} exitCode Exit code of the PHP process.
+ * @property {number} exitCode Exit code of the PHP process. 0 means success, 1 and 2 mean error.
  * @property {string} stdout Stdout data.
  * @property {string[]} stderr Stderr lines.
  */
@@ -17,7 +17,7 @@ const NUM = "number";
  * * Ensures is all happens in a correct order
  * * Waits until the entire loading sequence is finished
  * 
- * Basic usage:
+ * @example Basic usage:
  * ```js
  *  const phpLoaderModule = await import("/php.js");
  *  const php = await startPHP(phpLoaderModule, "web");
@@ -39,7 +39,7 @@ const NUM = "number";
  * export default function(jsEnv, emscriptenModuleArgs) {}
  * ```
  * 
- * To load PHP with any data dependencies, use `startPHP()` as follows:
+ * @example To load PHP with any data dependencies, use `startPHP()` as follows:
  * ```js
  *  const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
  *    import("/php.js"),
@@ -64,6 +64,23 @@ const NUM = "number";
  * 
  * // Run the data dependency module against a specific Emscripten module:
  * export default function(emscriptenPHPModule) {}
+ * ```
+ * 
+ * Once instantiated, run the PHP code as follows:
+ * ```js
+ * console.log(php.run(`<?php echo "Hello, world!"; `));
+ * // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
+ * ```
+ * 
+ * As you may notice, the `run` method has one input (the code) and three
+ * outputs: stdout, stderr, and the exitCode. You can write to stderr like this:
+ * 
+ * ```js
+ * console.log(php.run(`<?php
+ *  $fp = fopen('php://stderr', 'w');
+ *  fwrite($fp, "Hello, world!");
+ * `));
+ * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
  * ```
  * 
  * @param {Module} phpLoaderModule The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.

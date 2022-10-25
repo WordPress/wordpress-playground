@@ -32,7 +32,7 @@ export default class PHPBrowser {
         {
           path: parsedUrl.pathname,
           method: "GET",
-          _GET: parsedUrl.search,
+          queryString: parsedUrl.search,
           headers: {},
         },
         redirects + 1

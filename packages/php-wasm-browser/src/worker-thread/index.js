@@ -35,7 +35,7 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 			return await phpBrowser.request({
 				...message.request,
 				path: parsedUrl.pathname,
-				_GET: parsedUrl.search,
+				queryString: parsedUrl.search,
 			});
 		} else {
 			console.warn(
