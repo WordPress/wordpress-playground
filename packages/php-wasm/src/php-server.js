@@ -1,35 +1,3 @@
-
-/**
- * @typedef {Object} PHPServerConfigation
- * @property {string} documentRoot The directory in the PHP filesystem where the server will look 
- *                                 for the files to serve. Default: `/var/www`.
- * @property {string} absoluteUrl Server URL. Used to populate $_SERVER details like HTTP_HOST.
- * @property {(path: string) => boolean} isStaticFilePath Optional. Callback used by the PHPServer to decide whether
- *                                                        the requested path refers to a PHP file or a static file.
- */
-
-/**
- * @typedef {Object.<string, string>} Headers
- */
-/**
- * @typedef {Object} Request
- * @property {string} path Request path without the query string.
- * @property {string} queryString Optional. Request query string.
- * @property {"GET"|"POST"|"HEAD"|"OPTIONS"|"PATCH"|"PUT"|"DELETE"} method Optional. Request method. Default: `GET`.
- * @property {Headers} headers Optional. Request headers.
- * @property {Object.<string, File>} files Optional. Request files in the {"filename": File} format.
- * @property {Object.<string, any>} _POST Optional. POST data.
- * @property {Object.<string, string>} _COOKIE Optional. Request cookies.
- */
-
-/**
- * @typedef {Object} Response
- * @property {string|ArrayBuffer} body Response body.
- * @property {Headers} headers Response headers.
- * @property {number} exitCode PHP exit code. Always 0 for static file responses.
- * @property {string[]} rawError Lines logged to stderr. Always [''] for static file responses.
- */
-
 /**
  * A fake PHP server that handles HTTP requests but does not
  * bind to any port.
@@ -73,6 +41,7 @@ export default class PHPServer {
 	 * @returns {Response} The response.
 	 */
 	async request(request) {
+		request.
 		const serverPath = this.#withoutServerPathname(request.path);
 		if(this.isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
@@ -483,3 +452,35 @@ function inferMimeType(path) {
 			return 'application-octet-stream';
 	}
 }
+
+/**
+ * @typedef {Object} PHPServerConfigation
+ * @property {string} documentRoot The directory in the PHP filesystem where the server will look 
+ *                                 for the files to serve. Default: `/var/www`.
+ * @property {string} absoluteUrl Server URL. Used to populate $_SERVER details like HTTP_HOST.
+ * @property {(path: string) => boolean} isStaticFilePath Optional. Callback used by the PHPServer to decide whether
+ *                                                        the requested path refers to a PHP file or a static file.
+ */
+
+/**
+ * @typedef {Object.<string, string>} Headers
+ */
+/**
+ * @typedef {Object} Request
+ * @property {string} path Request path without the query string.
+ * @property {string} queryString Optional. Request query string.
+ * @property {"GET"|"POST"|"HEAD"|"OPTIONS"|"PATCH"|"PUT"|"DELETE"} method Optional. Request method. Default: `GET`.
+ * @property {Headers} headers Optional. Request headers.
+ * @property {Object.<string, File>} files Optional. Request files in the {"filename": File} format.
+ * @property {Object.<string, any>} _POST Optional. POST data.
+ * @property {Object.<string, string>} _COOKIE Optional. Request cookies.
+ */
+
+/**
+ * @typedef {Object} Response
+ * @property {string|ArrayBuffer} body Response body.
+ * @property {Headers} headers Response headers.
+ * @property {number} exitCode PHP exit code. Always 0 for static file responses.
+ * @property {string[]} rawError Lines logged to stderr. Always [''] for static file responses.
+ */
+

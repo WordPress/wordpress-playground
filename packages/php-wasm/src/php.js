@@ -2,13 +2,6 @@ const STR = "string";
 const NUM = "number";
 
 /**
- * @typedef {Object} Output
- * @property {number} exitCode Exit code of the PHP process. 0 means success, 1 and 2 mean error.
- * @property {string} stdout Stdout data.
- * @property {string[]} stderr Stderr lines.
- */
-
-/**
  * Initializes the PHP runtime with the given arguments and data dependencies.
  * 
  * This function handles the entire PHP initialization pipeline. In particular, it:
@@ -368,3 +361,10 @@ session.save_path=/home/web_user
   }
 
 }
+
+/**
+ * @typedef {Object} Output
+ * @property {number} exitCode Exit code of the PHP process. 0 means success, 1 and 2 mean error.
+ * @property {string} stdout Stdout data.
+ * @property {string[]} stderr Stderr lines.
+ */
