@@ -54,7 +54,7 @@ RUN set -euxo pipefail;\
     ca-certificates
 
 RUN touch /root/.configure-flags && \
-    touch /root/.emcc-pib-eval-flags && \
+    touch /root/.emcc-php-wasm-flags && \
     touch /root/.emcc-php-wasm-sources && \
     touch /root/.emcc-php-wasm-flags && \
     touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
@@ -72,7 +72,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         emmake make && \
         emmake make install; \
         echo -n ' --with-libxml --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/libxml2' >> /root/.emcc-pib-eval-flags; \
+        echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
         echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
     else \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
@@ -104,7 +104,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         echo -n ' --with-zip' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-pib-eval-flags; \
+        echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
         echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
     fi
 
@@ -139,7 +139,7 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
             --single-branch    \
             --depth 1; \
         echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
-        echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-pib-eval-flags; \
+        echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-php-wasm-flags; \
         echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
     fi
 
@@ -176,7 +176,7 @@ RUN cd php-src/ && emmake make -j8
 RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
 
-COPY ./build-assets/pib_eval.c /root/
+COPY ./build-assets/php_wasm.c /root/
 
 # Build the higher-level PHP bindings
 RUN cd php-src/ && \
@@ -187,9 +187,9 @@ RUN cd php-src/ && \
     -I Zend  \
     -I main  \
     -I TSRM/ \
-    $(cat /root/.emcc-pib-eval-flags) \
-    /root/pib_eval.c \
-    -c -o /root/lib/pib_eval.o 
+    $(cat /root/.emcc-php-wasm-flags) \
+    /root/php_wasm.c \
+    -c -o /root/lib/php_wasm.o 
 
 # Add nodefs when requested
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
@@ -198,7 +198,7 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_refresh", "_main", "_php_embed_init", "_php_embed_shutdown", "_php_embed_shutdown", "_zend_eval_string", "_pib_init_uploaded_files_hash", "_pib_register_uploaded_file", "_pib_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     emcc -O3 \
     -o /root/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
@@ -209,7 +209,7 @@ RUN export EXPORTED_FUNCTIONS='["_pib_init", "_pib_destroy", "_pib_run", "_pib_r
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \
-        /root/lib/pib_eval.o \
+        /root/lib/php_wasm.o \
         $(cat /root/.emcc-php-wasm-sources) \
     $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \

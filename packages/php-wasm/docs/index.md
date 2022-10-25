@@ -1,12 +1,6 @@
-# php-wasm: PHP for JavaScript
+# php-wasm: Use PHP in JavaScript
 
-This package enables using PHP in JavaScript. It provides:
-
-* PHP to WebAssembly build pipeline 
-* JavaScript bindings for WebAssembly
-* PHP server implementation in JavaScript
-
-Here's what a minimal hello world looks like:
+This package enables running PHP in Javascript. Here's how:
 
 ```js
 import { createPHP } from 'php-wasm';
@@ -19,30 +13,39 @@ console.log(
 // Output: "Hello from PHP!"
 ```
 
+`php-wasm` consists of:
+
+* PHP to WebAssembly build pipeline 
+* JavaScript bindings for the WebAssembly PHP
+* PHP server implementation in JavaScript
+
 ## PHP to WebAssembly build pipeline
 
-The pipeline lives in a [`Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile) stored in the `wasm` directory. It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
+The pipeline lives in [`wasm/Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
 
-In broad strokes, the `Dockerfile`:
+In broad strokes, that `Dockerfile`:
 
 * Installs all the necessary linux packages (like `build-essential`)
 * Downloads PHP and the required libraries, e.g. `sqlite3`.
 * Applies a few patches.
 * Compiles everything using [Emscripten](https://emscripten.org/), a drop-in replacement for the C compiler.
-* Compiles `pib_eval.c` – a convenient API for JavaScript.
+* Compiles `php_wasm.c` – a convenient API for JavaScript.
 * Outputs a `php.wasm` file and one or more JavaScript loaders, depending on the configuration.
+* Transforms the Emscripten's default `php.js` output into an ESM module with additional features.
 
 To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile).
 
-### Hardcoded extensions
+### PHP extensions
+
+PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile).
 
 Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded. 
 
 If you need to turn off one of the hardcoded extensions, feel free to open an issue in this repo. Better yet, this project needs contributors. You are more than welcome to open a PR and author the change you need.
 
-### JavaScript API
+### WASM API exposed to JavaScript
 
-The API exposed to JavaScript lives in the [`wasm/build-assets/pib_eval.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/pib_eval.c) file. It isn't very well documented yet so you'll need to consult that file directly to learn more.
+The API exposed to JavaScript lives in the [`wasm/build-assets/php_wasm.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) file. It isn't very well documented yet so you'll need to consult that file directly to learn more.
 
 <!-- TODO document it there and include the reference here -->
 

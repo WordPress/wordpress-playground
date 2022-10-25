@@ -163,7 +163,7 @@ html_errors = 1
 display_startup_errors = On
 session.save_path=/home/web_user
     `);
-    Runtime.ccall("pib_init", NUM, [STR], []);
+    Runtime.ccall("phpwasm_init_context", NUM, [STR], []);
   }
 
   /**
@@ -180,7 +180,7 @@ session.save_path=/home/web_user
    * @returns {Output} The PHP process output.
    */
   run(code) {
-    const exitCode = this.#Runtime.ccall("pib_run", NUM, [STR], [`?>${code}`]);
+    const exitCode = this.#Runtime.ccall("phpwasm_run", NUM, [STR], [`?>${code}`]);
     const response = {
       exitCode,
       stdout: this.#streams.stdout.join("\n"),
@@ -200,7 +200,7 @@ session.save_path=/home/web_user
    * @private
    */
   #refresh() {
-    this.#Runtime.ccall("pib_refresh", NUM, [], []);
+    this.#Runtime.ccall("phpwasm_refresh", NUM, [], []);
     this.#streams.stdout = [];
     this.#streams.stderr = [];
   }
@@ -338,7 +338,7 @@ session.save_path=/home/web_user
    * ```
    */
   initUploadedFilesHash() {
-    this.#Runtime.ccall("pib_init_uploaded_files_hash", null, [], []);
+    this.#Runtime.ccall("phpwasm_init_uploaded_files_hash", null, [], []);
   }
 
   /**
@@ -348,7 +348,7 @@ session.save_path=/home/web_user
    * @param {string} tmpPath The temporary path of the uploaded file.
    */
   registerUploadedFile(tmpPath) {
-    this.#Runtime.ccall("pib_register_uploaded_file", null, [STR], [tmpPath]);
+    this.#Runtime.ccall("phpwasm_register_uploaded_file", null, [STR], [tmpPath]);
   }
 
   /**
@@ -357,7 +357,7 @@ session.save_path=/home/web_user
    * @see initUploadedFilesHash()
    */
   destroyUploadedFilesHash() {
-    this.#Runtime.ccall("pib_destroy_uploaded_files_hash", null, [], []);
+    this.#Runtime.ccall("phpwasm_destroy_uploaded_files_hash", null, [], []);
   }
 
 }
