@@ -4,11 +4,9 @@
 
 Say a PHP script renders a link and a user clicks that link. Normally, the browser sends a HTTP request to a server and reloads the page. What should happen when there is no server and reloading the page means losing all progress?
 
-Enter `php-wasm-browser`! A set of tools to solve the common headaches of running PHP websites in the browser.
+Enter `php-wasm-browser`! A set of tools to solve the common headaches of running PHP websites in the browser. Importantly, this package does not provide a ready-to-use app. It merely gives you the tools to build one. 
 
-## Execution model
-
-This package proposes:
+## Architecture
 
 * **Browser tab orchestrates the execution** – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
 * **Iframe-based rendering** – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab on navigation.
@@ -19,15 +17,129 @@ That's a lot of information to take in! Keep reading for the detailed breakdown.
 
 ### Browser tab orchestrates the execution
 
-### Iframe-based rendering
+The main `index.html` ties the entire application together. It starts all the concurrent processes, acts as a traffic controller between them. The app only lives as long as the main `index.html`.
 
-Imagine a simple HTML page:
+Keep this point in mind as you read through the rest of the docs. At this point it may seem obvious, by the lines may get blurry later on. This package runs code outside of the browser tab using Web Workers, Service Workers, and, in the future, Shared Workers. Some of these workers may keep running even after the browser tab with `index.html` is closed.
 
-```html
-<a href="/">Click here</a>
+#### Boot sequence
+
+Here's what a boot sequence for a minimal app looks like:
+
+![The boot sequence](./boot-sequence.png)
+
+The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled by the Worker Thread.
+
+Here's what that boot sequence looks like in code:
+
+**/index.html**:
+```js
+<script src="/app.js"></script>
+<iframe id="my-app"></iframe>
 ```
 
-#### Caveats
+**/app.js**:
+```js
+import {
+    registerServiceWorker,
+    startPHPWorkerThread,
+	getWorkerThreadFrontend	
+} from 'php-wasm-browser';
+
+export async function startApp() {
+	const workerThread = await startPHPWorkerThread({
+        // Must point to a valid worker thread implementation:
+		frontend: getWorkerThreadFrontend('webworker', '/worker-thread.js'),
+
+        // PHPserver uses this URL to populate $_SERVER:
+		absoluteUrl: window.location.origin
+	});
+    // Create a few PHP files to browse:
+    await workerThread.eval(`<?php
+        file_put_contents('index.php', '<a href="page.php">Go to page.php</a>');
+        file_put_contents('page.php', '<?php echo "Hello from PHP!"; ?>');
+    `);
+	await registerServiceWorker({
+        // Must point to a valid Service Worker implementation:
+		url: '/service-worker.js',
+
+        // Must be the same as in /service-worker.js:
+		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
+
+		// Forwards any HTTP requests worker thread to resolve them in another process.
+		// This way they won't slow down the UI interactions.
+		onRequest: async (request) => {
+			return await workerThread.HTTPRequest(request);
+		}
+	});
+
+    // Once everything is in place, let's navigate to index.php of
+    // our PHP app
+    document.getElementById('my-app').src = '/index.php';
+}
+startApp();
+```
+
+**/worker-thread.js**:
+```js
+import { initializeWorkerThread } from 'php-wasm-browser';
+// Loads /php.js and /php.wasm provided by php-wasm,
+// Listens to commands issued by the main app
+initializeWorkerThread();
+```
+
+**/service-worker.js**:
+```js
+import { initializeServiceWorker } from 'php-wasm-browser';
+
+// Intercepts all HTTP traffic on the current domain and
+// passes it to onRequest() defined in the app.js:
+initializeServiceWorker({
+    // Must be the same as in /app.js:
+    broadcastChannel: new BroadcastChannel('wordpress-wasm')
+});
+```
+
+Keep reading to learn how all these pieces fit together.
+
+#### Data flow
+
+Here's what happens whenever the iframe issues a same-domain request:
+
+![The data flow](./data-flow.png)
+
+A step-by-step breakown:
+
+1. The request is intercepted by the Service Worker
+2. The Service Worker passes it to the main app
+3. The main app passes it to the Worker Thread
+4. The Worker Thread uses the `PHPServer` to convert that request to a response
+5. The Worker Thread passes the response to the main app
+6. The main app passes it to the Service Worker
+7. The Service Worker provides the browser with a response
+
+At this point, if the request was triggered by user clicking on a link, the browser will render PHPServer's response inside the iframe.
+
+### Iframe-based rendering
+
+All the PHPServer responses must be rendered in an iframe to avoid reloading the page. Remember, the entire setup only lives as long as the main `index.html`. We want to avoid reloading the main app at all cost.
+
+In our app example above, `index.php` renders the following HTML:
+
+```html
+<a href="page.php">Go to page.php</a>
+```
+
+Imagine our `index.html` rendered that in a `<div>` instead of an `<iframe>`. As soon as you clicked on that link, the browser would try to navigate from `index.html` to `page.php`. However, `index.html` runs the entire PHP app including the Worker Thread, the PHPServer, and the traffic control connecting them to the Service Worker. Navigating away from it would destroy the app.
+
+Now, consider an iframe with the same link in it:
+
+```html
+<iframe srcdoc='<a href="page.php">Go to page.php</a>'></iframe>
+```
+
+This time, clicking the link the browser to load `page.php` **inside the iframe**. The top-level index.html where the PHP application runs remains unaffected. This is why iframes are a crucial part of the `php-wasm-browser` setup.
+
+#### Iframes caveats
 
 * `target="_top"` isn't handled yet. This means that clicking on `<a target="_top">Click here</a>` will reload the main browser tab.
 * JavaScript popup windows originating in the iframe may not work correctly yet.
@@ -70,7 +182,7 @@ The main application controls the worker thread by sending and receiving message
 
 Exchanging messages is the only way to control the worker threads. Remember – it is separate programs. The main app cannot access any functions or variables defined inside of the worker thread.
 
-Conveniently, `startPHPWorkerThread` returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally. Here it is:
+Conveniently, `startPHPWorkerThread` returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally:
 
 <!-- include the reference documentation -->
 
@@ -106,14 +218,85 @@ This package provides the following backends out of the box:
 <!-- Include the reference documentation of iframeBackend -->
 <!-- Include information about the Double domain trick and  the Origin-Agent-Cluster feature -->
 
-### Service Worker routing
+### Service Workers
 
-#### Messaging layer
+[A Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) is used to handle the HTTP traffic using the in-browser PHPServer.
 
-Request/reply protocol
+Imagine your PHP script renders the following page [in the iframe viewport](#iframe-based-rendering):
+
+```html
+<html>
+    <head>
+        <title>John's Website</title>
+    </head>
+    <body>
+        <a href="/">Homepage</a>
+        <a href="/blog">Blog</a>
+        <a href="/contact">Contact</a>
+    </body>
+</html>
+```
+
+When the user clicks, say the `Blog` link, the browser would normally send a HTTP request to the remote server to fetch the `/blog` page and then display it instead of the current iframe contents. However, our app isn't running on the remote server. The browser would just display a 404 page.
+
+Enter [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) – a tool to intercept the HTTP requests and handle them inside the browser.
+
+#### Service Worker setup
+
+The main application living in `/index.html` is responsible for registering the service worker.
+
+Here's the minimal setup:
+
+**/app.js:**
+```js
+import { registerServiceWorker } from 'php-wasm-browser';
+
+function main() {
+	await registerServiceWorker({
+        // Must point to a valid Service Worker implementation:
+		url: '/service-worker.js',
+
+        // Used to communicate with the Service Worker.
+        // Must be the same as in /service-worker.js:
+		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
+
+		// Forwards any HTTP requests to a Worker Thread to resolve them in another process.
+		// This way they won't slow down the UI interactions.
+		onRequest: async (request) => {
+            // Note you'll need to start the workerThread separately.
+            // See the Boot Sequence section of this document
+			return await workerThread.HTTPRequest(request);
+		}
+	});
+}
+```
+
+<!-- Explain the available options – include the service worker reference doc -->
+
+You will also need a separate `/service-worker.js` file that actually intercepts and routes the HTTP requests. Here's what a minimal implementation looks like:
+
+**/service-worker.js**:
+```js
+import { initializeServiceWorker } from 'php-wasm-browser';
+
+// Intercepts all HTTP traffic on the current domain and
+// passes it to onRequest() defined in the app.js:
+initializeServiceWorker({
+    // Used to communicate with app.js.
+    // Must be the same as in /app.js:
+    broadcastChannel: new BroadcastChannel('wordpress-wasm')
+});
+```
+
+<!-- Explain the available options – include the service worker reference doc -->
+
+#### Service Workers Routing 
 
 #### Scopes
-#### URL rewriting / server setup
+
+### Messaging layer
+
+<!-- Explain the available options – include the messaging reference doc -->
 
 ## Utilities
 
