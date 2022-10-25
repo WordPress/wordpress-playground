@@ -72,34 +72,103 @@ export default class PHPServer {
 
 	async dispatchToPHP(request) {
 		const _FILES = await this.prepare_FILES(request.files);
+
         try {
 			const output = await this.php.run( `<?php
-			${ this._setupErrorReportingCode() }
-			${ this._setupRequestCode( {
-				...request,
-				_FILES
-            }) }
-            ${ this._requireRequestHandler(request) }
+			// === EXPOSE THE RESPONSE INFORMATION TO PHPServer THROUGH STDERR ===
+			$stdErr = fopen('php://stderr', 'w');
+			$errors = [];
+			register_shutdown_function(function() use($stdErr){
+				fwrite($stdErr, json_encode(['status_code', http_response_code()]) . "\n");
+				fwrite($stdErr, json_encode(['session_id', session_id()]) . "\n");
+				fwrite($stdErr, json_encode(['headers', headers_list()]) . "\n");
+				fwrite($stdErr, json_encode(['errors', error_get_last()]) . "\n");
+				if(isset($_SESSION)) {
+                    fwrite($stdErr, json_encode(['session', $_SESSION]) . "\n");
+                }
+			});
+
+			set_error_handler(function(...$args) use($stdErr){
+				fwrite($stdErr, print_r($args,1));
+			});
+			error_reporting(E_ALL);
+
+			// === POPULATE THE SUPERGLOBAL VARIABLES ===
+			$request = (object) json_decode(<<<'REQUEST'
+				${JSON.stringify({
+					path: request.path,
+					method: request.method || 'GET',
+					headers: request.headers || {},
+					_GET: request._GET || '',
+					_POST: request._POST || {},
+					_FILES,
+					_COOKIE: request._COOKIE || {},
+					_SESSION: request._SESSION || {}
+				})}
+REQUEST,
+        JSON_OBJECT_AS_ARRAY
+      );
+
+			parse_str(substr($request->_GET, 1), $_GET);
+
+			$_POST = $request->_POST;
+			$_FILES = $request->_FILES;
+
+			if ( !is_null($request->_COOKIE) ) {
+				foreach ($request->_COOKIE as $key => $value) {
+					fwrite($stdErr, 'Setting Cookie: ' . $key . " => " . $value . "\n");
+					$_COOKIE[$key] = urldecode($value);
+				}
+			}
+
+			$_SESSION = $request->_SESSION;
+
+			foreach( $request->headers as $name => $value ) {
+				$server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+				$_SERVER[$server_key] = $value;
+			}
+
+			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
+
+			$docroot = ${JSON.stringify(this.DOCROOT)};
+
+			$script  = ltrim($request->path, '/');
+
+			$path = $request->path;
+			$path = preg_replace('/^\\/php-wasm/', '', $path);
+
+			$_SERVER['PATH']     = '/';
+			$_SERVER['REQUEST_URI']     = $path . ($request->_GET ?: '');
+			$_SERVER['HTTP_HOST']       = ${JSON.stringify(this.HOST)};
+			$_SERVER['REMOTE_ADDR']     = ${JSON.stringify(this.HOSTNAME)};
+			$_SERVER['SERVER_NAME']     = ${JSON.stringify(this.ABSOLUTE_URL)};
+			$_SERVER['SERVER_PORT']     = ${JSON.stringify(this.PORT)};
+			$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
+			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+			$_SERVER['REQUEST_METHOD']  = $request->method;
+			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
+			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
+			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
+			$_SERVER['DOCUMENT_ROOT']   = '/';
+			$_SERVER['HTTPS']           = ${JSON.stringify(this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '')};
+			chdir($docroot);
+			
+			// === INCLUDE THE REQUESTED PHP FILE ===
+
+			// Ensure the resolved path points to an existing file. If not,
+			// let's fall back to index.php
+			$candidate_path = $docroot . '/' . ltrim('${this.resolvePHPFilePath(request.path)}', '/');
+			if ( file_exists( $candidate_path ) ) {
+				require_once $candidate_path;
+			} else {
+				require_once $docroot . '/index.php';
+			}
 		` );
 
 			return this.parseResponse( output );
 		} finally {
 			this.cleanup_FILES( _FILES );
 		}
-    }
-
-    _requireRequestHandler(request) {
-		const phpFilePath = this.resolvePHPFilePath(request.path);
-        return `
-        // Ensure the resolved path points to an existing file. If not,
-        // let's fall back to index.php
-        $candidate_path = '${this.DOCROOT}/' . ltrim('${phpFilePath}', '/');
-        if ( file_exists( $candidate_path ) ) {
-            require_once $candidate_path;
-        } else {
-            require_once '${this.DOCROOT}/index.php';
-        }
-        `;        
     }
     
     resolvePHPFilePath(requestedPath) {
@@ -237,102 +306,6 @@ export default class PHPServer {
 			parsed[name].push(value);
 		}
 		return parsed;
-	}
-
-	_setupErrorReportingCode() {
-		return `
-			$stdErr = fopen('php://stderr', 'w');
-			$errors = [];
-			register_shutdown_function(function() use($stdErr){
-				fwrite($stdErr, json_encode(['status_code', http_response_code()]) . "\n");
-				fwrite($stdErr, json_encode(['session_id', session_id()]) . "\n");
-				fwrite($stdErr, json_encode(['headers', headers_list()]) . "\n");
-				fwrite($stdErr, json_encode(['errors', error_get_last()]) . "\n");
-				if(isset($_SESSION)) {
-                    fwrite($stdErr, json_encode(['session', $_SESSION]) . "\n");
-                }
-			});
-
-			set_error_handler(function(...$args) use($stdErr){
-				fwrite($stdErr, print_r($args,1));
-			});
-			error_reporting(E_ALL);
-		`;
-	}
-
-	_setupRequestCode({
-		path = '/',
-		method = 'GET',
-		headers,
-		_GET = '',
-		_POST = {},
-		_FILES = {},
-		_COOKIE = {},
-		_SESSION = {},
-	} = {}) {
-		const request = {
-			path,
-			method,
-			headers,
-			_GET,
-			_POST,
-			_FILES,
-			_COOKIE,
-			_SESSION,
-		};
-
-		const https = this.ABSOLUTE_URL.startsWith('https://') ? 'on' : '';
-        return `
-			$request = (object) json_decode(<<<'REQUEST'
-        ${JSON.stringify(request)}
-REQUEST,
-        JSON_OBJECT_AS_ARRAY
-      );
-
-			parse_str(substr($request->_GET, 1), $_GET);
-
-			$_POST = $request->_POST;
-			$_FILES = $request->_FILES;
-
-			if ( !is_null($request->_COOKIE) ) {
-				foreach ($request->_COOKIE as $key => $value) {
-					fwrite($stdErr, 'Setting Cookie: ' . $key . " => " . $value . "\n");
-					$_COOKIE[$key] = urldecode($value);
-				}
-			}
-
-			$_SESSION = $request->_SESSION;
-
-			foreach( $request->headers as $name => $value ) {
-				$server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
-				$_SERVER[$server_key] = $value;
-			}
-
-			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
-
-			$docroot = '${this.DOCROOT}';
-
-			$script  = ltrim($request->path, '/');
-
-			$path = $request->path;
-			$path = preg_replace('/^\\/php-wasm/', '', $path);
-
-			$_SERVER['PATH']     = '/';
-			$_SERVER['REQUEST_URI']     = $path . ($request->_GET ?: '');
-			$_SERVER['HTTP_HOST']       = '${this.HOST}';
-			$_SERVER['REMOTE_ADDR']     = '${this.HOSTNAME}';
-			$_SERVER['SERVER_NAME']     = '${this.ABSOLUTE_URL}';
-			$_SERVER['SERVER_PORT']     = ${this.PORT};
-			$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
-			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
-			$_SERVER['REQUEST_METHOD']  = $request->method;
-			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
-			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
-			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
-			$_SERVER['DOCUMENT_ROOT']   = '/';
-			$_SERVER['HTTPS']           = '${https}';
-			chdir($docroot);
-		`;
 	}
 
 }
