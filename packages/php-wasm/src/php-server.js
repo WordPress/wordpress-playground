@@ -1,6 +1,32 @@
 /**
  * A fake PHP server that handles HTTP requests but does not
  * bind to any port.
+ * 
+ * @example
+ * ```js
+ * import { createPHP, PHPServer } from 'php-wasm';
+ * 
+ * const PHPLoaderModule = await import('/php.js');
+ * const php = await createPHP(PHPLoaderModule);
+ * 
+ * // Create a file to serve:
+ * php.mkdirTree('/www');
+ * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+ * 
+ * // Create a server instance:
+ * const server = new PHPServer(php, {
+ * 		// PHP FS path to serve the files from:
+ *     documentRoot: '/www',
+ 
+ *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *     absoluteUrl: 'http://127.0.0.1'
+ * });
+ * 
+ * console.log(
+ *    server.request({ path: '/index.php' }).body
+ * );
+ * // Output: "Hi from PHP!"
+ * ```
  */
 export default class PHPServer {
 	#DOCROOT;
