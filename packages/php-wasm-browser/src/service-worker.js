@@ -7,65 +7,8 @@ import {
 } from './urls';
 
 /**
- * Run this in the main application to register the service worker.
- * 
- * It will handle all the PHP HTTP requests the browser makes on
- * the domain it's registered on.
- * 
- * @param {Object} config
- */
-export async function registerServiceWorker({ broadcastChannel, url, onRequest, scope }) {
-	if (!broadcastChannel) {
-		throw new Error('Missing the required `broadcastChannel` option.');
-	}
-	if (!navigator.serviceWorker) {
-		throw new Error('Service workers are not supported in this browser.');
-	}
-
-	const registration = await navigator.serviceWorker.register(url);
-	await registration.update();
-	broadcastChannel.addEventListener(
-		'message',
-		async function onMessage(event) {
-			/**
-			 * Ignore events meant for other PHP instances to
-			 * avoid handling the same event twice.
-			 *
-			 * This is important because BroadcastChannel transmits
-			 * events to all the listeners across all browser tabs.
-			 */
-			if (scope && event.data.scope !== scope) {
-				return;
-			}
-			console.debug(
-				`[Main] "${event.data.type}" message received from a service worker`
-			);
-
-			let result;
-			if (event.data.type === 'request') {
-				result = await onRequest(event.data.request);
-			} else {
-				throw new Error(
-					`[Main] Unexpected message received from the service-worker: "${event.data.type}"`
-				);
-			}
-
-			// The service worker expects a response when it includes a `messageId` in the message:
-			if (event.data.messageId) {
-				broadcastChannel.postMessage(
-					responseTo(event.data.messageId, result)
-				);
-			}
-			console.debug(`[Main] "${event.data.type}" message processed`, {
-				result,
-			});
-		}
-	);
-	navigator.serviceWorker.startMessages();
-}
-
-/**
- * Run this in the service worker to install the required event handlers.
+ * Run this function in the service worker to install the required event
+ * handlers.
  * 
  * @param {Object} config
  */
@@ -263,3 +206,61 @@ async function parsePost(request) {
 		...overrides,
 	});
 }
+
+/**
+ * Run this in the main application to register the service worker.
+ * 
+ * It will handle all the PHP HTTP requests the browser makes on
+ * the domain it's registered on.
+ * 
+ * @param {Object} config
+ */
+ export async function registerServiceWorker({ broadcastChannel, url, onRequest, scope }) {
+	if (!broadcastChannel) {
+		throw new Error('Missing the required `broadcastChannel` option.');
+	}
+	if (!navigator.serviceWorker) {
+		throw new Error('Service workers are not supported in this browser.');
+	}
+
+	const registration = await navigator.serviceWorker.register(url);
+	await registration.update();
+	broadcastChannel.addEventListener(
+		'message',
+		async function onMessage(event) {
+			/**
+			 * Ignore events meant for other PHP instances to
+			 * avoid handling the same event twice.
+			 *
+			 * This is important because BroadcastChannel transmits
+			 * events to all the listeners across all browser tabs.
+			 */
+			if (scope && event.data.scope !== scope) {
+				return;
+			}
+			console.debug(
+				`[Main] "${event.data.type}" message received from a service worker`
+			);
+
+			let result;
+			if (event.data.type === 'request') {
+				result = await onRequest(event.data.request);
+			} else {
+				throw new Error(
+					`[Main] Unexpected message received from the service-worker: "${event.data.type}"`
+				);
+			}
+
+			// The service worker expects a response when it includes a `messageId` in the message:
+			if (event.data.messageId) {
+				broadcastChannel.postMessage(
+					responseTo(event.data.messageId, result)
+				);
+			}
+			console.debug(`[Main] "${event.data.type}" message processed`, {
+				result,
+			});
+		}
+	);
+	navigator.serviceWorker.startMessages();
+ }

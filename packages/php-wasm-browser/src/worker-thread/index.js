@@ -5,9 +5,54 @@ import { responseTo, messageHandler } from '../messaging';
 import { DEFAULT_BASE_URL } from '../urls';
 import environment from './environment';
 export { environment };
-import DownloadMonitor from '../download-monitor';
+import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
 
-const noop = () => {};
+const noop = () => { };
+/**
+ * Call this in a worker thread script to set the stage for 
+ * offloading the PHP processing. This function:
+ * 
+ * * Initializes the PHP runtime
+ * * Starts PHPServer and PHPBrowser
+ * * Lets the main app know when its ready
+ * * Listens for messages from the main app
+ * * Runs the requested operations (like `run_php`)
+ * * Replies to the main app with the results using the [request/reply protocol](#request-reply-protocol)
+ * 
+ * Remember: The worker thread code must live in a separate JavaScript file.
+ * 
+ * A minimal worker thread script looks like this:
+ * 
+ * ```js
+ * import { initializeWorkerThread } from 'php-wasm-browser';
+ * initializeWorkerThread();
+ * ```
+ * 
+ * You can customize the PHP loading flow via the first argument:
+ * 
+ * ```js
+ * import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
+ * initializeWorkerThread( bootBrowser );
+ * 
+ * async function bootBrowser({ absoluteUrl }) {
+ *     const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
+ *         import(`/php.js`),
+ *         import(`/wp.js`)
+ *     ]);
+ * 
+ *     const php = await loadPHPWithProgress(phpLoaderModule, [myDependencyLoaderModule]);
+ *     
+ *     const server = new PHPServer(php, {
+ *         documentRoot: '/www', 
+ *         absoluteUrl: absoluteUrl
+ *     });
+ *
+ *     return new PHPBrowser(server);
+ * }
+ * ```
+ * 
+ * @param {async ({absoluteUrl}) => PHPBrowser} bootBrowser An async function that produces the PHP browser.
+ */
 export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 	// Handle postMessage communication from the main thread
 	environment.setMessageListener(
@@ -48,36 +93,10 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 async function defaultBootBrowser({ absoluteUrl }) {
 	return new PHPBrowser(
 		new PHPServer(
-			await PHP.create('/php.js', phpArgs),
+			await startPHP('/php.js', environment.name, phpArgs),
 			{
 				absoluteUrl: absoluteUrl || location.origin
 			}
 		)
 	)
-}
-
-export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModules=[], phpArgs = {}) {
-    const modules = [phpLoaderModule, ...dataDependenciesModules];
-
-	const assetsSizes = modules.reduce((acc, module) => {
-		acc[module.dependencyFilename] = module.dependenciesTotalSize;
-		return acc;
-	}, {});
-    const downloadMonitor = new DownloadMonitor(assetsSizes);
-    downloadMonitor.addEventListener('progress', (e) => 
-        environment.postMessageToParent({
-            type: 'download_progress',
-            ...e.detail,
-        })
-    );
-
-    return await startPHP(
-        phpLoaderModule,
-        environment.name,
-        {
-            ...phpArgs,
-            ...downloadMonitor.phpArgs
-        },
-        dataDependenciesModules
-    );
 }

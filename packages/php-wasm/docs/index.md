@@ -1,6 +1,6 @@
-# php-wasm: Use PHP in JavaScript
+# Use PHP in JavaScript
 
-This package enables running PHP in Javascript. Here's how:
+This package enables running PHP in Javascript:
 
 ```js
 import { createPHP } from 'php-wasm';

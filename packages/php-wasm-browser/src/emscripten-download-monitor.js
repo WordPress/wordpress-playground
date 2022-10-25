@@ -2,7 +2,7 @@ import { DEFAULT_BASE_URL } from "./urls";
 
 /*
  * Let's use 5MB as an approximation when the total number
- * of bytes is missing.
+ * of bytes when the actual information is missing.
  * 
  * This may happen when the files are compressed before transmission 
  * and no content-length header is being sent.
@@ -14,44 +14,62 @@ import { DEFAULT_BASE_URL } from "./urls";
 const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
 
 /**
- * Creates a proxy that observes updates to Emscripten's `dataFileDownloads`
- * property where the file download progress information is stored.
+ * Monitors the download progress of Emscripten modules
  *
  * Usage:
  * ```js
- *   const progressMonitor = new DownloadMonitor();
- * 	 const php = await PHP.create(PHPLoader, {
- *     dataFileDownloads: progressMonitor.dataFileDownloads
- *   });
- *   progressMonitor.addEventListener('progress', (e) => {
+ *   const downloadMonitor = new EmscriptenDownloadMonitor();
+ * 	 const php = await startPHP(
+ *       phpLoaderModule,
+ *       'web',
+ *       downloadMonitor.phpArgs
+ *   );
+ *   downloadMonitor.addEventListener('progress', (e) => {
  *     console.log( e.detail.progress);
  *   })
  * ```
  */
-export default class DownloadMonitor extends EventTarget {
+export default class EmscriptenDownloadMonitor extends EventTarget {
 	constructor(assetsSizes) {
 		super();
 
 		this.assetsSizes = assetsSizes;
-		this.monitorWebAssemblyStreaming();
+		this.#monitorWebAssemblyStreaming();
 		this.phpArgs = {
-			dataFileDownloads: this._createDataFileDownloadsProxy()
+			dataFileDownloads: this.#createDataFileDownloadsProxy()
 		};
 	}
 
-	_createDataFileDownloadsProxy() {
+	#monitorWebAssemblyStreaming() {
+		const self = this;
+		const instantiateStreaming = WebAssembly.instantiateStreaming;
+		WebAssembly.instantiateStreaming = (response, ...args) => {
+			const file = response.url.substring(
+				new URL(response.url).origin.length + 1
+			);
+
+			const reportingResponse = cloneResponseMonitorProgress(
+				response,
+				({ loaded, total }) => self.#notify(file, loaded, total)
+			);
+
+			return instantiateStreaming(reportingResponse, ...args);
+		};
+	}
+
+	#createDataFileDownloadsProxy() {
 		const self = this;
 		const dataFileDownloads = {};
 		// Monitor assignments like dataFileDownloads[file] = progress
 		return new Proxy(dataFileDownloads, {
 			set(obj, file, progress) {
-				self._notify(file, progress.loaded, progress.total);
+				self.#notify(file, progress.loaded, progress.total);
 
 				// Monitor assignments like dataFileDownloads[file].total += delta
 				obj[file] = new Proxy(JSON.parse(JSON.stringify(progress)), {
 					set(nestedObj, prop, value) {
 						nestedObj[prop] = value;
-						self._notify(file, nestedObj.loaded, nestedObj.total);
+						self.#notify(file, nestedObj.loaded, nestedObj.total);
 						return true;
 					},
 				});
@@ -60,24 +78,8 @@ export default class DownloadMonitor extends EventTarget {
 		});
 	}
 
-	monitorWebAssemblyStreaming() {
-		const self = this;
-		const _instantiateStreaming = WebAssembly.instantiateStreaming;
-		WebAssembly.instantiateStreaming = (response, ...args) => {
-			const file = response.url.substring(
-				new URL(response.url).origin.length + 1
-			);
 
-			const reportingResponse = cloneResponseMonitorProgress(
-				response,
-				({ loaded, total }) => self._notify(file, loaded, total)
-			);
-
-			return _instantiateStreaming(reportingResponse, ...args);
-		};
-	}
-
-	 _notify(file, loaded, total) {
+	#notify(file, loaded, total) {
 		if (!total) {
 			const filename = new URL(file, DEFAULT_BASE_URL).pathname.split('/').pop();
 			total = this.assetsSizes[filename];
