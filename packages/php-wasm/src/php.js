@@ -11,6 +11,7 @@ const NUM = "number";
  * * Waits until the entire loading sequence is finished
  * 
  * Basic usage:
+ * 
  * ```js
  *  const phpLoaderModule = await import("/php.js");
  *  const php = await startPHP(phpLoaderModule, "web");
@@ -23,9 +24,9 @@ const NUM = "number";
  * As you may notice, the `run` method has one input (the PHP code) and three
  * outputs: stdout, stderr, and the exitCode.
  * 
- * @TODO
- * 
- * You can write to stderr like this:
+ * Stdout is where you'll find output from `echo`, `print`, inline HTML etc.
+ * Stderr is where all the errors are logged. You can also write to it explicitly
+ * as follows:
  * 
  * ```js
  * console.log(php.run(`<?php
@@ -34,6 +35,9 @@ const NUM = "number";
  * `));
  * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
  * ```
+ * 
+ * Finally, the exit code indicates the outcome. 0 means success, while 1 and 2
+ * mean error.
  * 
  * ## The php.js module
  * 
@@ -55,7 +59,34 @@ const NUM = "number";
  * 
  * ## PHP Filesystem
  * 
- * @TODO
+ * Once initialized, the PHP has its own filesystem separate from the project
+ * files. It's provided by [Emscripten and uses its FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html).
+ * 
+ * The API exposed to you via the PHP class is succinct and abstracts
+ * await certain unintuitive parts of low-level FS interactions.
+ * 
+ * Here's how to use it:
+ * 
+ * ```js
+ * // Recursively create a /var/www directory
+ * php.mkdirTree('/var/www'); 
+ * 
+ * console.log(php.fileExists('/var/www/file.txt'));
+ * // false
+ * 
+ * php.writeFile('/var/www/file.txt', 'Hello from the filesystem!');
+ * 
+ * console.log(php.fileExists('/var/www/file.txt'));
+ * // true
+ * 
+ * console.log(php.readFile('/var/www/file.txt'));
+ * // "Hello from the filesystem!
+ * 
+ * // Delete the file:
+ * php.unlink('/var/www/file.txt');
+ * ```
+ * 
+ * For more details consult the PHP class directly.
  * 
  * ## Data dependencies
  * 

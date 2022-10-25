@@ -17,7 +17,6 @@ console.log(
 
 * PHP to WebAssembly build pipeline 
 * JavaScript bindings for the WebAssembly PHP
-* PHP server implementation in JavaScript
 
 ## PHP to WebAssembly build pipeline
 
@@ -91,39 +90,28 @@ export const dependencyFilename = 'php.wasm';
 export default function(jsEnv, emscriptenModuleArgs) {}
 ```
 
-## JavaScript bindings
+## JavaScript bindings for the WebAssembly PHP
 
-php-wasm abstracts the low-level Emscripten API with a more convenient JavaScript API. 
+`php-wasm` provides a JavaScript API to interact with the WebAssembly
+module. It lives in the `src` directory and consists of:
 
-Let's take another look at the Hello World example:
-
-```js
-import { createPHP } from 'php-wasm';
-
-const PHPLoaderModule = await import('/php.js');
-const php = await createPHP(PHPLoaderModule);
-console.log(
-    php.run(`<?php echo "Hello from PHP!";`).stdout
-);
-// Output: "Hello from PHP!"
-```
+* A `PHP` class to directly interface with the WebAssembly module.
+* A `PHPServer` class to use PHP for handling HTTP requests.
+* A `PHPBrowser` class to handle cookies and redirects emitted by `PHPServer`
 
 ### Building
 
-To build, run `npm run build:js` in the repository root. You'll find the output files in `packages/php-wasm/build-module`.
+To build the JavaScript API, run `npm run build:js` in the repository root. You'll find the output files in `packages/php-wasm/build-module`.
 
 ### PHP 
 
-<!-- include refrence docs -->
+<!-- include the refrence docs -->
 
 ### PHPServer 
-<!-- include refrence docs -->
+
+<!-- include the refrence docs -->
 
 ### PHPBrowser 
 
-<!-- include refrence docs -->
-
-
-
-### Managing the filesystem
+<!-- include the refrence docs -->
 
