@@ -8,9 +8,9 @@ WordPress.wasm is a client-side WordPress that runs without a PHP server thanks 
 
 Table of contents:
 
-- [Why is this useful?](#what-is-this-useful)
+- [Why is this useful?](#why-is-this-useful)
 - [Getting started](#getting-started)
-- [Project structure](#project-structure)
+- [Architecture overview](#architecture-overview)
 
 ## Why is this useful?
 
@@ -47,10 +47,10 @@ Why aren't there any npm packages? This is a new project and didn't get there ye
 
 ## Project structure
 
-WordPress.wasm consists of the following building blocks:
+WordPress.wasm is made of the following building blocks:
 
 * [php-wasm](./packages/php-wasm) – a configurable PHP->WebAssembly build pipeline, convenient JavaScript bindings, and a PHP server implemented in JavaScript.
 * [php-wasm-browser](./packages/php-wasm) – tools to run real PHP apps in the browser via `php-wasm`, like a Service Worker implementation or Worker Threads to run the PHP runtime concurrently.
 * [wordpress-wasm](./packages/php-wasm) – runs WordPress in the browser using the other two packages.
 
-Consult the README.md in each of these packages to learn more.
+Consult the linked README.md files in each of these packages to learn more.
