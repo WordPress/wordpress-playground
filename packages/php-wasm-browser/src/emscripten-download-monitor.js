@@ -1,8 +1,8 @@
 import { DEFAULT_BASE_URL } from "./urls";
 
 /*
- * Let's use 5MB as an approximation when the total number
- * of bytes when the actual information is missing.
+ * An approximate total file size to use when the actual
+ * total number of bytes is missing.
  * 
  * This may happen when the files are compressed before transmission 
  * and no content-length header is being sent.
@@ -40,6 +40,10 @@ export default class EmscriptenDownloadMonitor extends EventTarget {
 		};
 	}
 
+	/**
+	 * Replaces the default WebAssembly.instantiateStreaming with a version
+	 * that monitors the download progress.
+	 */
 	#monitorWebAssemblyStreaming() {
 		const self = this;
 		const instantiateStreaming = WebAssembly.instantiateStreaming;
@@ -57,6 +61,13 @@ export default class EmscriptenDownloadMonitor extends EventTarget {
 		};
 	}
 
+	/**
+	 * Creates a `dataFileDownloads` Proxy object that can be passed
+	 * to `startPHP` to monitor the download progress of the data
+	 * dependencies.
+	 * 
+	 * @returns {Object}
+	 */
 	#createDataFileDownloadsProxy() {
 		const self = this;
 		const dataFileDownloads = {};
@@ -78,7 +89,13 @@ export default class EmscriptenDownloadMonitor extends EventTarget {
 		});
 	}
 
-
+	/**
+	 * Notifies about the download progress of a file.
+	 * 
+	 * @param {string} file The file name.
+	 * @param {number} loaded The number of bytes loaded so far.
+	 * @param {number} total The total number of bytes to load.
+	 */
 	#notify(file, loaded, total) {
 		if (!total) {
 			const filename = new URL(file, DEFAULT_BASE_URL).pathname.split('/').pop();
@@ -97,6 +114,22 @@ export default class EmscriptenDownloadMonitor extends EventTarget {
 	}
 }
 
+
+/**
+ * @typedef {Object} Progress
+ * @property {number} loaded The number of bytes loaded so far.
+ * @property {number} total The total number of bytes to load.
+ */
+
+/**
+ * Clones a fetch Response object and returns a version 
+ * that calls the `onProgress` callback as the progress
+ * changes.
+ * 
+ * @param {Response} response The fetch Response object to clone.
+ * @param {(Progress) => undefined)} onProgress The callback to call when the download progress changes.
+ * @returns 
+ */
 export function cloneResponseMonitorProgress(response, onProgress) {
 	const contentLength = response.headers.get('content-length');
 	let total = parseInt(contentLength, 10) || FALLBACK_FILE_SIZE;
