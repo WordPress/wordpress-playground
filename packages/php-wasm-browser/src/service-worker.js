@@ -1,10 +1,6 @@
 import { postMessageExpectReply, awaitReply, responseTo } from './messaging.js';
-import {
-	getPathQueryFragment,
-	getURLScope,
-	isURLScoped,
-	removeURLScope,
-} from './urls';
+import { getURLScope, isURLScoped, removeURLScope } from './scope';
+import { getPathQueryFragment } from './';
 
 /**
  * Run this function in the service worker to install the required event

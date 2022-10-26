@@ -1,10 +1,4 @@
 
-export const DEFAULT_BASE_URL = 'http://example.com';
-
-export function getPathQueryFragment(url) {
-	return url.toString().substring(url.origin.length);
-}
-
 export function isURLScoped(url) {
 	return url.pathname.startsWith(`/scope:`);
 }

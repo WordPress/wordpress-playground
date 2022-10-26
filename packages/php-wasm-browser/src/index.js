@@ -44,3 +44,9 @@ export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModul
         dataDependenciesModules
     );
 }
+
+export const DEFAULT_BASE_URL = 'http://example.com';
+
+export function getPathQueryFragment(url) {
+	return url.toString().substring(url.origin.length);
+}

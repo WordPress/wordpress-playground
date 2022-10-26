@@ -2,7 +2,7 @@
 
 import { startPHP, PHPBrowser, PHPServer } from 'php-wasm';
 import { responseTo } from './messaging';
-import { DEFAULT_BASE_URL } from './urls';
+import { DEFAULT_BASE_URL } from './';
 import EmscriptenDownloadMonitor from './emscripten-download-monitor';
 
 const noop = () => { };

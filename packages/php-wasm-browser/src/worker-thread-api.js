@@ -1,5 +1,6 @@
 import { postMessageExpectReply, awaitReply } from './messaging';
-import { setURLScope, getPathQueryFragment, removeURLScope } from './urls';
+import { setURLScope, removeURLScope } from './scope';
+import { getPathQueryFragment } from './';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const noop = () => {};
