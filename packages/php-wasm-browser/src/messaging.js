@@ -37,7 +37,7 @@
  * ```
  */
 
-export const DEFAULT_REPLY_TIMEOUT = 25000;
+const DEFAULT_RESPONSE_TIMEOUT = 25000;
 
 let lastRequestId = 0;
 
@@ -80,7 +80,7 @@ export function postMessageExpectReply(
 export async function awaitReply(
   messageTarget,
   requestId,
-  timeout = DEFAULT_REPLY_TIMEOUT
+  timeout = DEFAULT_RESPONSE_TIMEOUT
 ) {
   return new Promise((resolve, reject) => {
     const responseHandler = (event) => {
