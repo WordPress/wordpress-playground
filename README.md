@@ -1,95 +1,56 @@
 # WordPress in the browser!
 
-See 
-[the WordPress.org blog post explaining why is this useful and how does it work](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) for more details. The README doc below is short&sweet for now. Also, [explore the early preview on StackBlitz](https://stackblitz.com/edit/wp-plugin-playground).
+WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. 
+
+[See the live demo!](https://wasm.wordpress.net/wordpress.html)
 
 ![](demo.gif)
 
+Table of contents:
 
-## Running the demo
+- [Why is this useful?](#what-is-this-useful)
+- [Getting started](#getting-started)
+- [Project structure](#project-structure)
 
-This repository ships with a pre-built demo that you can just run!
+## Why is this useful?
 
-1. Clone this repo
-2. Run `npm install && npm run dev`
-3. Visit http://127.0.0.1:8777/
+I'm glad you asked – WordPress.wasm is a big deal!
 
-If you want to build the assembly yourself, follow the instructions below.
+WordPress.wasm can power:
 
-This repo draws inspiration from https://github.com/seanmorris/php-wasm and uses https://github.com/aaemnnosttv/wp-sqlite-db 
+* Runeditable code examples in your documentation or course
+* Plugin and theme demos in a private WordPress instance where the user is already logged in as admin
+* Easily switching PHP and WordPress version when testing
+* Replaying and fixing the failed CI tests right in the browser
 
-## Building the assembly
+WordPress.wasm provides a strong foundation for the above use-cases but does not implement them just yet. This project is still in its early days and needs contributors. Become a contributor today and help us make these tools a reality!
 
-The build process is split into automated parts. The scripts below create a docker image with the necessary tools, and build  PHP as WebAssembly.
+See 
+[the WordPress.org blog post](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) to learn about the vision, other use-cases, and the visuals.
 
-### Building WASM PHP for the web
+### Getting started
 
-```bash
-npm run build:php:web
-```
-### Building WASM PHP for node.js
+You can run WordPress.wasm as follows:
 
-```bash
-npm run build:php:node
-```
-
-## Building custom WordPress bundle
-
-If you'd like to customize the packaged WordPress installation, update
-the build script at `packages/wordpress-wasm/wordpress/prepare-wordpress.sh`. It generates a bundle called `wp.data`.
-
-For example, before the comment "Prepare WordPress static files":
-
-- Download and extract a plugin zip package
-- Move it into `wp-content/mu-plugins`
-- Add a file that loads the plugin
-
-```bash
-plugin_file=example-plugin.1.0.0.zip
-wget https://downloads.wordpress.org/plugin/$plugin_file
-unzip $plugin_file
-rm $plugin_file
-
-mv example-plugin wordpress/wp-content/plugins/
-
-echo "<?php
-require_once ABSPATH.'wp-content/mu-plugins/example-plugin/example-plugin.php';
-" > wp-content/mu-plugins/index.php
+```js
+git clone https://github.com/WordPress/wordpress-wasm
+cd wordpress-wasm
+npm install
+npm run dev
 ```
 
-To generate a new bundle, run:
+A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html! 
 
-```bash
-npm run build:wp
-```
+As of today, the best way to play with WordPress.wasm is to directly modify the cloned files. [src/web/](https://github.com/WordPress/wordpress-wasm/tree/trunk/src) is a good place to start.
 
-## How does it work?
+Why aren't there any npm packages? This is a new project and didn't get there yet – all the efforts were focused on getting it to work. If you'd like to see public npm packages sooner than later, you are more than welcome to contribute.
 
-This repo uses four magic ingredients to make WordPress work in the browser:
+## Project structure
 
-1. A WordPress configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
-2. A PHP 8.0 compiled with SQLite3 support into WebAssembly.
-3. A PHP + WordPress WebAssembly bundle created using the emscripten toolkit.
-4. A service worker that loads the bundle and dispatches the regular HTTP traffic to the in-memory WordPress instance.
+WordPress.wasm consists of the following building blocks:
 
-The static files (.js, .css, etc.) are served directly from the host filesystem, not from the WebAssembly bundle.
+* [php-wasm](./packages/php-wasm) – a configurable PHP->WebAssembly build pipeline, convenient JavaScript bindings, and a PHP server implemented in JavaScript.
+* [php-wasm-browser](./packages/php-wasm) – tools to run real PHP apps in the browser via `php-wasm`, like a Service Worker implementation or Worker Threads to run the PHP runtime concurrently.
+* [wordpress-wasm](./packages/php-wasm) – runs WordPress in the browser using the other two packages.
 
-The work is *heavily* inspired by https://github.com/seanmorris/php-wasm.
-
-## Limitations
-
-The worker applies a series of strange patches to WordPress, it's unclear why they're needed at the moment.
-
-The site editor does not work at the moment. The block editor does, though.
-
-PHP cannot communicate with WordPress.org so the plugin directory etc does not work.
-
-The sqlite database lives in the memory and the changes only live as long as the service worker.
-
-## Future work
-
-* Fix the workarounds mentioned above
-* Remove the static files from the wasm bundle
-* Remove unnecessary PHP extensions to lower the bundle size
-
-
+Consult the README.md in each of these packages to learn more.

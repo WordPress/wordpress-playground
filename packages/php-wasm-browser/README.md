@@ -25,7 +25,7 @@ Keep this point in mind as you read through the rest of the docs. At this point 
 
 Here's what a boot sequence for a minimal app looks like:
 
-![The boot sequence](./boot-sequence.png)
+![The boot sequence](./docs/boot-sequence.png)
 
 The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled in the Worker Thread.
 
@@ -92,7 +92,7 @@ Keep reading to learn how all these pieces fit together.
 
 Here's what happens whenever the iframe issues a same-domain request:
 
-![The data flow](./data-flow.png)
+![The data flow](./docs/data-flow.png)
 
 A step-by-step breakown:
 
@@ -302,7 +302,7 @@ By default, `postMessage` does not offer any request/response mechanics. You may
 
 The idea is to include a unique `requestId` in every message sent, and then wait for a message referring to the same `requestId`.
 
-See the [messaging module docs](../src/messaging.js) for more details.
+See the [messaging module docs](./src/messaging.js) for more details.
 
 ### Scopes
 
