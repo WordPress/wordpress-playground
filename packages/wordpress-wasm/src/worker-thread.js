@@ -1,15 +1,20 @@
 
 import { PHP, PHPServer, PHPBrowser } from 'php-wasm';
 import { loadPHPWithProgress, initializeWorkerThread } from 'php-wasm-browser';
-import { phpJsCacheBuster, wpJsCacheBuster } from './config';
+import { phpJsCacheBuster, wpJsCacheBuster, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './';
+import { setURLScope } from 'php-wasm-browser';
 
-initializeWorkerThread(startWordPress);
-
+const scope = Math.random().toFixed(16);
+const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 // Hardcoded in wp.js:
-const DOCROOT = '/wordpress';
+const DOCROOT = '/wordpress'
 
-async function startWordPress({ absoluteUrl }) {
+startWordPress().then(browser => initializeWorkerThread({
+    phpBrowser: browser
+}));
+
+async function startWordPress() {
     const [phpLoaderModule, wpLoaderModule] = await Promise.all([
         import(`/php.js?${phpJsCacheBuster}`),
         import(`/wp.js?${wpJsCacheBuster}`)
@@ -17,18 +22,18 @@ async function startWordPress({ absoluteUrl }) {
 
     const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
 
-    patchWordPressFiles(php, absoluteUrl);
+    patchWordPressFiles(php);
 
     const server = new PHPServer(php, {
         documentRoot: DOCROOT, 
-        absoluteUrl: absoluteUrl,
+        absoluteUrl: scopedSiteUrl,
         isStaticFilePath: isUploadedFilePath
     });
     
     return new PHPBrowser(server);
 }
 
-function patchWordPressFiles(php, absoluteUrl) {
+function patchWordPressFiles(php) {
     function patchFile(path, callback) {
         php.writeFile(path,
             callback(php.readFileAsText(path))
@@ -45,12 +50,12 @@ function patchWordPressFiles(php, absoluteUrl) {
         `
     );
 
-    // Force the site URL to be $absoluteUrl:
+    // Force the site URL to be $scopedSiteUrl:
     // Interestingly, it doesn't work when put in a mu-plugin.
     patchFile(`${DOCROOT}/wp-includes/plugin.php`, (contents) => 
         contents + `
             function _wasm_wp_force_site_url() {
-                return ${JSON.stringify(absoluteUrl)};
+                return ${JSON.stringify(scopedSiteUrl)};
             }
             add_filter( "option_home", '_wasm_wp_force_site_url', 10000 );
             add_filter( "option_siteurl", '_wasm_wp_force_site_url', 10000 );

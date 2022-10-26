@@ -1,46 +1,15 @@
-import {
-	postMessageExpectReply,
-	awaitReply,
-    responseTo,
-    registerServiceWorker,
-    startPHPWorkerThread,
-	getWorkerThreadBackend	
-} from 'php-wasm-browser';
+import { registerServiceWorker, spawnPHPWorkerThread } from 'php-wasm-browser';
+import { wasmWorkerUrl, wasmWorkerBackend, serviceWorkerUrl } from "./config";
 
-import {
-    wasmWorkerUrl,
-    wasmWorkerBackend,
-    wordPressSiteUrl,
-    serviceWorkerUrl,
-} from "./config";
-  
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const noop = () => {};
-
-export async function bootWordPress({
-	assignScope = true,
-	onWasmDownloadProgress,
-}) {
+export async function bootWordPress({ onWasmDownloadProgress }) {
 	assertNotInfiniteLoadingLoop();
 
-	const scope = assignScope ? Math.random().toFixed(16) : undefined;
-
-	const workerThread = await startPHPWorkerThread({
-		backend: getWorkerThreadBackend(wasmWorkerBackend, wasmWorkerUrl),
-		absoluteUrl: wordPressSiteUrl,
-		scope,
-		onDownloadProgress: onWasmDownloadProgress,
-	});
-	await registerServiceWorker({
-		url: serviceWorkerUrl,
-		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
-		// Forward any HTTP requests to a worker to resolve them in another process.
-		// This way they won't slow down the UI interactions.
-		onRequest: async (request) => {
-			return await workerThread.HTTPRequest(request);
-		},
-		scope,
-	});
+	const workerThread = await spawnPHPWorkerThread(
+		wasmWorkerBackend,
+		wasmWorkerUrl,
+		{ onDownloadProgress: onWasmDownloadProgress }
+	);
+	await registerServiceWorker(serviceWorkerUrl);
 	return workerThread;
 }
 
