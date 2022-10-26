@@ -86,8 +86,8 @@ export function webWorkerFrontend(workerURL) {
 	const worker = new Worker(workerURL);
 	return {
 		async sendMessage(message, timeout) {
-			const messageId = postMessageExpectReply(worker, message);
-			const response = await awaitReply(worker, messageId, timeout);
+			const requestId = postMessageExpectReply(worker, message);
+			const response = await awaitReply(worker, requestId, timeout);
 			return response;
 		},
 		addMessageListener(listener) {
@@ -103,12 +103,12 @@ export function iframeFrontend(workerDocumentURL) {
 	document.body.appendChild(iframe);
 	return {
 		async sendMessage(message, timeout) {
-			const messageId = postMessageExpectReply(
+			const requestId = postMessageExpectReply(
 				iframe.contentWindow,
 				message,
 				'*'
 			);
-			const response = await awaitReply(window, messageId, timeout);
+			const response = await awaitReply(window, requestId, timeout);
 			return response;
 		},
 		addMessageListener(listener) {

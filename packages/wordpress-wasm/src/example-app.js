@@ -137,9 +137,9 @@ async function main() {
         window.addEventListener("message", async event => {
             const result = await handleMessage(event.data);
 
-            // When `messageId` is present, the other thread expects a response:
-            if (event.data.messageId) {
-                const response = responseTo(event.data.messageId, result);
+            // When `requestId` is present, the other thread expects a response:
+            if (event.data.requestId) {
+                const response = responseTo(event.data.requestId, result);
                 window.parent.postMessage(response, '*');
             }
         });

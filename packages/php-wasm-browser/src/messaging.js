@@ -1,5 +1,5 @@
 /**
- * This module implements responding to postMessage events.
+ * Implements request/response dynamics on top of JavaScript's `postMessage`
  * 
  * @example
  * 
@@ -8,10 +8,10 @@
  * ```js
  * import { postMessageExpectReply, awaitReply } from 'php-wasm-browser';
  * const iframeWindow = iframe.contentWindow;
- * const messageId = postMessageExpectReply(iframeWindow, {
+ * const requestId = postMessageExpectReply(iframeWindow, {
  *    type: "get_php_version"
  * });
- * const response = await awaitReply(iframeWindow, messageId);
+ * const response = await awaitReply(iframeWindow, requestId);
  * console.log(response);
  * // "8.0.24"
  * ```
@@ -21,16 +21,16 @@
  * ```js
  * import { responseTo } from 'php-wasm-browser';
  * window.addEventListener('message', (event) => {
- *    let result = '8.0.24';
+ *    let response = '8.0.24';
  *    if(event.data.type === 'get_php_version') {
- *       result = '8.0.24';
+ *       response = '8.0.24';
  *    } else {
  *       throw new Error(`Unexpected message type: ${event.data.type}`);
  *    }
  * 
- *    // When `messageId` is present, the other thread expects a response:
- *    if (event.data.messageId) {
- *       const response = responseTo(event.data.messageId, result);
+ *    // When `requestId` is present, the other thread expects a response:
+ *    if (event.data.requestId) {
+ *       const response = responseTo(event.data.requestId, response);
  *       window.parent.postMessage(response, event.origin);
  *    }
  * });
@@ -39,30 +39,31 @@
 
 export const DEFAULT_REPLY_TIMEOUT = 25000;
 
-let lastMessageId = 0;
+let lastRequestId = 0;
+
 /**
- * Posts the message to the target window and returns a unique `messageId`
- * that can be used to await a reply.
+ * Posts a message branded with a unique `requestId` to the given `target`.
+ * Then returns the `requestId` so it can be used to await a reply.
  * 
- * @param {Object} messageTarget An object that has a `postMessage` method.
+ * @param {Object} target An object that has a `postMessage` method.
  * @param {Object.<string, any>} message A key-value object that can be serialized to JSON.
  * @param  {...any} postMessageArgs Optional. Additional arguments to pass to `postMessage`.
  * @returns {number} The message ID for awaitReply().
  */
 export function postMessageExpectReply(
-  messageTarget,
+  target,
   message,
   ...postMessageArgs
 ) {
-  const messageId = ++lastMessageId;
-  messageTarget.postMessage(
+  const requestId = ++lastRequestId;
+  target.postMessage(
     {
       ...message,
-      messageId,
+      requestId,
     },
     ...postMessageArgs
   );
-  return messageId;
+  return requestId;
 }
 
 /**
@@ -71,25 +72,25 @@ export function postMessageExpectReply(
  * @throws {Error} If the reply is not received within the timeout.
  * @param {Object} messageTarget EventEmitter emitting `message` events, e.g. `window`
  *                               or a `Worker` instance.
- * @param {Number} messageId The message ID returned by postMessageExpectReply().
+ * @param {Number} requestId The message ID returned by postMessageExpectReply().
  * @param {Number} timeout Optional. The number of milliseconds to wait for a reply before
  *                         throwing an error.
  * @returns {Promise<any>} The reply from the messageTarget.
  */
 export async function awaitReply(
   messageTarget,
-  messageId,
+  requestId,
   timeout = DEFAULT_REPLY_TIMEOUT
 ) {
   return new Promise((resolve, reject) => {
     const responseHandler = (event) => {
       if (
         event.data.type === "response" &&
-        event.data.messageId === messageId
+        event.data.requestId === requestId
       ) {
         messageTarget.removeEventListener("message", responseHandler);
         clearTimeout(failOntimeout);
-        resolve(event.data.result);
+        resolve(event.data.response);
       }
     };
 
@@ -105,15 +106,15 @@ export async function awaitReply(
 /**
  * Creates a response message to the given message ID.
  * 
- * @param {Number} messageId The message ID sent from the other thread by 
+ * @param {Number} requestId The message ID sent from the other thread by 
  *                           `postMessageExpectReply` in the `message` event.
- * @param {Object} result The result to send back to the messageTarget.
+ * @param {Object} response The response to send back to the messageTarget.
  * @returns {Object} A message object that can be sent back to the other thread.
  */
-export function responseTo(messageId, result) {
+export function responseTo(requestId, response) {
   return {
     type: "response",
-    messageId,
-    result,
+    requestId,
+    response,
   };
 }

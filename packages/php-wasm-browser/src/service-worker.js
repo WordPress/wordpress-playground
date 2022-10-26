@@ -105,11 +105,11 @@ export function initializeServiceWorker({
 							message,
 						}
 					);
-					const messageId = postMessageExpectReply(
+					const requestId = postMessageExpectReply(
 						broadcastChannel,
 						message
 					);
-					phpResponse = await awaitReply(broadcastChannel, messageId);
+					phpResponse = await awaitReply(broadcastChannel, requestId);
 					console.log(
 						'[ServiceWorker] Response received from the main app',
 						{
@@ -251,10 +251,10 @@ async function parsePost(request) {
 				);
 			}
 
-			// The service worker expects a response when it includes a `messageId` in the message:
-			if (event.data.messageId) {
+			// The service worker expects a response when it includes a `requestId` in the message:
+			if (event.data.requestId) {
 				broadcastChannel.postMessage(
-					responseTo(event.data.messageId, result)
+					responseTo(event.data.requestId, result)
 				);
 			}
 			console.debug(`[Main] "${event.data.type}" message processed`, {
