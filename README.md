@@ -41,7 +41,7 @@ npm run dev
 
 A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html! 
 
-As of today, the best way to play with WordPress.wasm is to directly modify the cloned files. [src/web/](https://github.com/WordPress/wordpress-wasm/tree/trunk/src) is a good place to start.
+As of today, the best way to play with WordPress.wasm is to directly modify the cloned files – [packages/wordpress-wasm/](./packages/wordpress-wasm) is a good place to start.
 
 Why aren't there any npm packages? This is a new project and didn't get there yet – all the efforts were focused on getting it to work. If you'd like to see public npm packages sooner than later, you are more than welcome to contribute.
 
@@ -50,7 +50,7 @@ Why aren't there any npm packages? This is a new project and didn't get there ye
 WordPress.wasm is made of the following building blocks:
 
 * [php-wasm](./packages/php-wasm) – a configurable PHP->WebAssembly build pipeline, convenient JavaScript bindings, and a PHP server implemented in JavaScript.
-* [php-wasm-browser](./packages/php-wasm) – tools to run real PHP apps in the browser via `php-wasm`, like a Service Worker implementation or Worker Threads to run the PHP runtime concurrently.
-* [wordpress-wasm](./packages/php-wasm) – runs WordPress in the browser using the other two packages.
+* [php-wasm-browser](./packages/php-wasm-browser) – tools to run real PHP apps in the browser via `php-wasm`, like a Service Worker implementation or Worker Threads to run the PHP runtime concurrently.
+* [wordpress-wasm](./packages/wordpress-wasm) – runs WordPress in the browser using the other two packages.
 
 Consult the linked README.md files in each of these packages to learn more.
