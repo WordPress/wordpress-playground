@@ -1,10 +1,10 @@
-import { registerServiceWorker, startPHPWorkerThread } from 'php-wasm-browser';
+import { registerServiceWorker, spawnPHPWorkerThread } from 'php-wasm-browser';
 import { wasmWorkerUrl, wasmWorkerBackend, serviceWorkerUrl } from "./config";
 
 export async function bootWordPress({ onWasmDownloadProgress }) {
 	assertNotInfiniteLoadingLoop();
 
-	const workerThread = await startPHPWorkerThread(
+	const workerThread = await spawnPHPWorkerThread(
 		wasmWorkerBackend,
 		wasmWorkerUrl,
 		{ onDownloadProgress: onWasmDownloadProgress }

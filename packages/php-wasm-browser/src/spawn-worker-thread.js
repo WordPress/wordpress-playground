@@ -19,7 +19,7 @@ const noop = () => {};
  * @param {WorkerThreadConfig} config 
  * @returns {SpawnedWorkerThread} The spawned Worker Thread.
  */
-export async function startPHPWorkerThread(backendName, workerScriptUrl, {
+export async function spawnPHPWorkerThread(backendName, workerScriptUrl, {
 	onDownloadProgress = noop,
 }) {
 	let messageChannel;
