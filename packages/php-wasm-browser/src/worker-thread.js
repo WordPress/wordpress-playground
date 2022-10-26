@@ -50,7 +50,8 @@ const noop = () => { };
  * }
  * ```
  * 
- * @param {async ({absoluteUrl}) => PHPBrowser} bootBrowser An async function that produces the PHP browser.
+ * @param {WorkerThreadConfiguration} configuration The worker thread configuration.
+ * @return {Object} The backend object to communicate with the parent thread.
  */
 export async function initializeWorkerThread({
 	phpBrowser,
@@ -131,15 +132,22 @@ export async function initializeWorkerThread({
 			queryString: parsedUrl.search,
 		});
 	}
+
+	return currentBackend;
 }
 
-async function defaultBootBrowser({ absoluteUrl }) {
+/**
+ * @typedef {Object} WorkerThreadConfiguration
+ * @property {PHPBrowser} [phpBrowser] Optional. The PHP browser instance to use.
+ * @property {BroadcastChannel} [broadcastChannel] Optional. The broadcast channel to use for communication
+ * 												   with the service worker.
+ */
+
+async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {
 	return new PHPBrowser(
 		new PHPServer(
-			await startPHP('/php.js', currentBackend.jsEnv, phpArgs),
-			{
-				absoluteUrl: absoluteUrl || location.origin
-			}
+			await startPHP('/php.js', currentBackend.jsEnv),
+			{ absoluteUrl }
 		)
 	)
 }
@@ -189,3 +197,39 @@ export const currentBackend = (function () {
     /* eslint-enable no-undef */
 })();
 
+
+/**
+ * Call this in a Worker Thread to start load the PHP runtime
+ * and post the progress to the main thread.
+ * 
+ * @see startPHP
+ * @param {Module} phpLoaderModule The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
+ * @param {Object} phpModuleArgs Optional. The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
+ * @param {Module[]} dataDependenciesModules. Optional. A list of the ESM-wrapped Emscripten data dependency modules.
+ * @returns {PHP} PHP instance. 
+ */
+ export async function loadPHPWithProgress(phpLoaderModule, dataDependenciesModules=[], phpArgs = {}) {
+    const modules = [phpLoaderModule, ...dataDependenciesModules];
+
+	const assetsSizes = modules.reduce((acc, module) => {
+		acc[module.dependencyFilename] = module.dependenciesTotalSize;
+		return acc;
+	}, {});
+    const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes);
+    downloadMonitor.addEventListener('progress', (e) => 
+    currentBackend.postMessageToParent({
+            type: 'download_progress',
+            ...e.detail,
+        })
+    );
+
+    return await startPHP(
+        phpLoaderModule,
+        currentBackend.jsEnv,
+        {
+            ...phpArgs,
+            ...downloadMonitor.phpArgs
+        },
+        dataDependenciesModules
+    );
+ }

@@ -17,7 +17,7 @@ That's a lot of information to take in! Keep reading for the detailed breakdown.
 
 ### Browser tab orchestrates the execution
 
-The main `index.html` ties the entire application together. It starts all the concurrent processes, acts as a traffic controller between them. The app only lives as long as the main `index.html`.
+The main `index.html` ties the entire application together. It starts all the concurrent processes and displays the PHP responses. The app only lives as long as the main `index.html`.
 
 Keep this point in mind as you read through the rest of the docs. At this point it may seem obvious, by the lines may get blurry later on. This package runs code outside of the browser tab using Web Workers, Service Workers, and, in the future, Shared Workers. Some of these workers may keep running even after the browser tab with `index.html` is closed.
 
@@ -27,7 +27,7 @@ Here's what a boot sequence for a minimal app looks like:
 
 ![The boot sequence](./boot-sequence.png)
 
-The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled by the Worker Thread.
+The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled in the Worker Thread.
 
 Here's what that boot sequence looks like in code:
 
@@ -46,34 +46,22 @@ import {
 } from 'php-wasm-browser';
 
 export async function startApp() {
-	const workerThread = await startPHPWorkerThread({
-        // Must point to a valid worker thread implementation:
-		frontend: getWorkerThreadFrontend('webworker', '/worker-thread.js'),
+	const workerThread = await startPHPWorkerThread(
+        // Worker Thread backend – either 'iframe' or 'webworker'
+		'webworker',
+        // Must point to a valid worker thread script:
+		'/worker-thread.js'
+	);
+    // Must point to a valid Service Worker script:
+	await registerServiceWorker('/service-worker.js');
 
-        // PHPserver uses this URL to populate $_SERVER:
-		absoluteUrl: window.location.origin
-	});
     // Create a few PHP files to browse:
     await workerThread.eval(`<?php
         file_put_contents('index.php', '<a href="page.php">Go to page.php</a>');
         file_put_contents('page.php', '<?php echo "Hello from PHP!"; ?>');
     `);
-	await registerServiceWorker({
-        // Must point to a valid Service Worker implementation:
-		url: '/service-worker.js',
 
-        // Must be the same as in /service-worker.js:
-		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
-
-		// Forwards any HTTP requests worker thread to resolve them in another process.
-		// This way they won't slow down the UI interactions.
-		onRequest: async (request) => {
-			return await workerThread.HTTPRequest(request);
-		}
-	});
-
-    // Once everything is in place, let's navigate to index.php of
-    // our PHP app
+    // Navigate to index.php:
     document.getElementById('my-app').src = '/index.php';
 }
 startApp();
@@ -82,8 +70,10 @@ startApp();
 **/worker-thread.js**:
 ```js
 import { initializeWorkerThread } from 'php-wasm-browser';
+
 // Loads /php.js and /php.wasm provided by php-wasm,
-// Listens to commands issued by the main app
+// Listens to commands issued by the main app and
+// the requests from the Service Worker.
 initializeWorkerThread();
 ```
 
@@ -92,11 +82,8 @@ initializeWorkerThread();
 import { initializeServiceWorker } from 'php-wasm-browser';
 
 // Intercepts all HTTP traffic on the current domain and
-// passes it to onRequest() defined in the app.js:
-initializeServiceWorker({
-    // Must be the same as in /app.js:
-    broadcastChannel: new BroadcastChannel('wordpress-wasm')
-});
+// passes it to the Worker Thread.
+initializeServiceWorker();
 ```
 
 Keep reading to learn how all these pieces fit together.
@@ -110,12 +97,10 @@ Here's what happens whenever the iframe issues a same-domain request:
 A step-by-step breakown:
 
 1. The request is intercepted by the Service Worker
-2. The Service Worker passes it to the main app
-3. The main app passes it to the Worker Thread
-4. The Worker Thread uses the `PHPServer` to convert that request to a response
-5. The Worker Thread passes the response to the main app
-6. The main app passes it to the Service Worker
-7. The Service Worker provides the browser with a response
+2. The Service Worker passes it to the Worker Thread
+3. The Worker Thread uses the `PHPServer` to convert that request to a response
+4. The Worker Thread passes the response to the Service Worker
+5. The Service Worker provides the browser with a response
 
 At this point, if the request was triggered by user clicking on a link, the browser will render PHPServer's response inside the iframe.
 
@@ -129,7 +114,7 @@ In our app example above, `index.php` renders the following HTML:
 <a href="page.php">Go to page.php</a>
 ```
 
-Imagine our `index.html` rendered that in a `<div>` instead of an `<iframe>`. As soon as you clicked on that link, the browser would try to navigate from `index.html` to `page.php`. However, `index.html` runs the entire PHP app including the Worker Thread, the PHPServer, and the traffic control connecting them to the Service Worker. Navigating away from it would destroy the app.
+Imagine our `index.html` rendered it in a `<div>` instead of an `<iframe>`. As soon as you clicked on that link, the browser would try to navigate from `index.html` to `page.php`. However, `index.html` runs the entire PHP app including the Worker Thread, the PHPServer, and the traffic control connecting them to the Service Worker. Navigating away from it would destroy the app.
 
 Now, consider an iframe with the same link in it:
 
@@ -162,13 +147,12 @@ As soon as you click that button the browser will freeze and you won't be able t
 Worker threads are separate programs that can process heavy tasks outside of the main application. They must be initiated by the main JavaScript program living in the browser tab. Here's how:
 
 ```js
-const workerThread = await startPHPWorkerThread({
-    // Multiprocessing backend:
-    backend: webWorkerBackend('/worker-thread.js'),
-
-    // PHPServer URL:
-    absoluteUrl: 'http://127.0.0.1:8777/'
-});
+const workerThread = await startPHPWorkerThread(
+    // Worker Thread backend – either 'iframe' or 'webworker'
+    'webworker',
+    // Must point to a valid worker thread script:
+    '/worker-thread.js'
+);
 workerThread.eval(`<?php
     echo "Hello from the thread!";
 `);
@@ -216,7 +200,12 @@ This package provides the following backends out of the box:
 ##### `iframeBackend`
 
 <!-- Include the reference documentation of iframeBackend -->
-<!-- Include information about the Double domain trick and  the Origin-Agent-Cluster feature -->
+<!-- Include information about the Double domain trick and the Origin-Agent-Cluster  that hints the browser to allocate a separate process.
+
+It makes for a noticable speed improvement in the browsers that support it.
+
+In the browsers that don't, the iframe must be loaded from another domain to spin a new browser thread. If it's loaded from the same domain, PHPServer will run in the same thread that paints the user interface and dramatically slow down all user interactions.
+-->
 
 ### Service Workers
 
@@ -252,26 +241,10 @@ Here's the minimal setup:
 import { registerServiceWorker } from 'php-wasm-browser';
 
 function main() {
-	await registerServiceWorker({
-        // Must point to a valid Service Worker implementation:
-		url: '/service-worker.js',
-
-        // Used to communicate with the Service Worker.
-        // Must be the same as in /service-worker.js:
-		broadcastChannel: new BroadcastChannel('wordpress-wasm'),
-
-		// Forwards any HTTP requests to a Worker Thread to resolve them in another process.
-		// This way they won't slow down the UI interactions.
-		onRequest: async (request) => {
-            // Note you'll need to start the workerThread separately.
-            // See the Boot Sequence section of this document
-			return await workerThread.HTTPRequest(request);
-		}
-	});
+    // Must point to a valid Service Worker implementation:
+	await registerServiceWorker( '/service-worker.js' );
 }
 ```
-
-<!-- Explain the available options – include the service worker reference doc -->
 
 You will also need a separate `/service-worker.js` file that actually intercepts and routes the HTTP requests. Here's what a minimal implementation looks like:
 
@@ -280,15 +253,12 @@ You will also need a separate `/service-worker.js` file that actually intercepts
 import { initializeServiceWorker } from 'php-wasm-browser';
 
 // Intercepts all HTTP traffic on the current domain and
-// passes it to onRequest() defined in the app.js:
-initializeServiceWorker({
-    // Used to communicate with app.js.
-    // Must be the same as in /app.js:
-    broadcastChannel: new BroadcastChannel('wordpress-wasm')
-});
+// passes it to the Worker Thread.
+initializeServiceWorker();
 ```
 
 <!-- Explain the available options – include the service worker reference doc -->
+
 ### Cross-process communication
 
 `php-wasm-browser` implements request/response dynamics on top of JavaScript's `postMessage`.
@@ -299,7 +269,7 @@ By default, `postMessage` does not offer any request/response mechanics. You may
 
 The idea is to include a unique `requestId` in every message sent, and then wait for a message referring to the same `requestId`.
 
-<!-- Include the messaging reference doc -->
+See the [messaging module docs](../src/messaging.js) for more details.
 
 ### Scopes
 
@@ -307,11 +277,11 @@ Scopes keep your app working when you open it in two different different browser
 
 The Service Worker passes the intercepted HTTP requests to the PHPServer for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
 
-Unfortunately, the Service Worker cannot directly communicate with the tab that sent the request – see [PR #31](https://github.com/WordPress/wordpress-wasm/pull/31) and [issue #9](https://github.com/WordPress/wordpress-wasm/issues/9) for more details.
+Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-wasm/pull/31) and [issue #9](https://github.com/WordPress/wordpress-wasm/issues/9) for more details.
 
 Scopes enable each browser tab to:
 
-* Brand its own outgoing HTTP requests with a unique id
+* Brand the outgoing HTTP requests with a unique tab id
 * Ignore any `BroadcastChannel` messages with a different id
 
 Technically, a scope is a string included in the `PHPServer.absoluteUrl`. For example:
@@ -321,10 +291,38 @@ Technically, a scope is a string included in the `PHPServer.absoluteUrl`. For ex
 
 The service worker is aware of this concept and will attach the `/scope:` found in the request URL to the related `BroadcastChannel` communication.
 
-To use scopes, generate ant random ID and passing it to both `startPHPWorkerThread` and `registerServiceWorker` via the `scope` option.
+To use scopes, initiate the worker thread with a scoped `absoluteUrl`:
+
+```js
+import { startPHP, PHPServer, PHPBrowser } from 'php-wasm';
+import { initializeWorkerThread } from 'php-wasm-browser';
+import { setURLScope } from 'php-wasm-browser';
+
+async function main() {
+    const php = await startPHP(import('/php.js'));
+
+    // Don't use the absoluteURL directly:
+    const absoluteURL = 'http://127.0.0.1';
+
+    // Instead, set the scope first:
+    const scope = Math.random().toFixed(16);
+    const scopedURL = setURLScope(absoluteURL, scope).toString();
+
+    const server = new PHPServer(php, {
+        documentRoot: '/var/www', 
+        absoluteUrl: scopedURL
+    });
+    
+    const browser = await new PHPBrowser(server);
+
+    await initializeWorkerThread({
+        phpBrowser: browser
+    });
+}
+```
 
 ## Utilities
 
-### Progress monitor
+### EmscriptenDownloadMonitor
 
 <!-- Include the reference docs -->
