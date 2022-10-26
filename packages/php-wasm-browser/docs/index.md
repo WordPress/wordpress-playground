@@ -289,13 +289,6 @@ initializeServiceWorker({
 ```
 
 <!-- Explain the available options – include the service worker reference doc -->
-
-#### Service Workers Routing 
-
-<!-- Server assets -->
-<!-- Scopes? -->
-<!-- BroadcastChannel? -->
-
 ### Cross-process communication
 
 `php-wasm-browser` implements request/response dynamics on top of JavaScript's `postMessage`.
@@ -334,3 +327,4 @@ To use scopes, generate ant random ID and passing it to both `startPHPWorkerThre
 
 ### Progress monitor
 
+<!-- Include the reference docs -->
