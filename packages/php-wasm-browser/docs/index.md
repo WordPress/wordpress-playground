@@ -292,11 +292,43 @@ initializeServiceWorker({
 
 #### Service Workers Routing 
 
-#### Scopes
+<!-- Server assets -->
+<!-- Scopes? -->
+<!-- BroadcastChannel? -->
 
-### Messaging layer
+### Cross-process communication
 
-<!-- Explain the available options – include the messaging reference doc -->
+`php-wasm-browser` implements request/response dynamics on top of JavaScript's `postMessage`.
+
+If `postMessage` sounds unfamiliar, it's what JavaScript threads use to communicate. Please review the [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage) before continuing.
+
+By default, `postMessage` does not offer any request/response mechanics. You may send messages to another thread and you may independently receive messages from it, but you can't send a message and await a response to that specific message. 
+
+The idea is to include a unique `requestId` in every message sent, and then wait for a message referring to the same `requestId`.
+
+<!-- Include the messaging reference doc -->
+
+### Scopes
+
+Scopes keep your app working when you open it in two different different browser tabs.
+
+The Service Worker passes the intercepted HTTP requests to the PHPServer for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
+
+Unfortunately, the Service Worker cannot directly communicate with the tab that sent the request – see [PR #31](https://github.com/WordPress/wordpress-wasm/pull/31) and [issue #9](https://github.com/WordPress/wordpress-wasm/issues/9) for more details.
+
+Scopes enable each browser tab to:
+
+* Brand its own outgoing HTTP requests with a unique id
+* Ignore any `BroadcastChannel` messages with a different id
+
+Technically, a scope is a string included in the `PHPServer.absoluteUrl`. For example:
+
+* In an **unscoped app**, `/index.php` would be available at `http://localhost:8778/wp-login.php`
+* In an **scoped app**, `/index.php` would be available at `http://localhost:8778/scope:96253/wp-login.php`
+
+The service worker is aware of this concept and will attach the `/scope:` found in the request URL to the related `BroadcastChannel` communication.
+
+To use scopes, generate ant random ID and passing it to both `startPHPWorkerThread` and `registerServiceWorker` via the `scope` option.
 
 ## Utilities
 
