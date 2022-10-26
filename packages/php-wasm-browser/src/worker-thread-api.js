@@ -5,7 +5,23 @@ import { getPathQueryFragment } from './';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const noop = () => {};
 
-export async function startPHPWorkerThread({
+/**
+ * @typedef {Object} WorkerThreadConfig
+ * @property {string} frontend The frontend object to communicate with the worker thread.
+ * @property {string} absoluteUrl The absolute URL used to initiate the PHPServer.
+ * @property {string} scope Optional. The scope to use for this worker thread. See the 
+ *                          Scopes section in the documentation for more details.
+ * @property {Function} onDownloadProgress Optional. A function to call when a download
+ * 									       progress event is received from the worker
+ */
+
+/**
+ * Starts
+ * 
+ * @param {WorkerThreadConfig} config 
+ * @returns 
+ */
+export async function initializePHPWorkerThread({
 	frontend,
 	absoluteUrl,
 	scope,
