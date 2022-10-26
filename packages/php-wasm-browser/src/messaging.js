@@ -28,11 +28,10 @@
  *       throw new Error(`Unexpected message type: ${event.data.type}`);
  *    }
  * 
+ *    // When `messageId` is present, the other thread expects a response:
  *    if (event.data.messageId) {
- *       window.parent.postMessage(
- *          responseTo(event.data.messageId, result),
- *          event.origin
- *       );
+ *       const response = responseTo(event.data.messageId, result);
+ *       window.parent.postMessage(response, event.origin);
  *    }
  * });
  * ```
