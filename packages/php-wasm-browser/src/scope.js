@@ -9,7 +9,7 @@
  * An **unscoped** URL: http://localhost:8778/wp-login.php
  * A **scoped** URL:    http://localhost:8778/scope:96253/wp-login.php
  * 
- * For more information, see section on scopes in the documentation.
+ * For more information, see the README section on scopes.
  */
 
 /**

@@ -1,16 +1,14 @@
 import PHPServer from "./php-server";
 
 /**
- * A fake web browser for the PHPServer to handle 
- * cookies and redirects internally without making them
- * visible to the end user.
+ * A fake web browser that handles PHPServer's cookies and redirects
+ * internally without exposing them to the consumer.
  */
 export default class PHPBrowser {
   #cookies;
   #config;
 
   /**
-   * 
    * @param {PHPServer} server The PHP server to browse.
    * @param {PHPBrowserConfiguration} config The browser configuration. 
    */

@@ -19,27 +19,7 @@ const NUM = "number";
  *  // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
  * ```
  * 
- * ## PHP Output
- * 
- * As you may notice, the `run` method has one input (the PHP code) and three
- * outputs: stdout, stderr, and the exitCode.
- * 
- * Stdout is where you'll find output from `echo`, `print`, inline HTML etc.
- * Stderr is where all the errors are logged. You can also write to it explicitly
- * as follows:
- * 
- * ```js
- * console.log(php.run(`<?php
- *  $fp = fopen('php://stderr', 'w');
- *  fwrite($fp, "Hello, world!");
- * `));
- * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
- * ```
- * 
- * Finally, the exit code indicates the outcome. 0 means success, while 1 and 2
- * mean error.
- * 
- * ## The php.js module
+ * **The `/php.js` module:**
  * 
  * In the basic usage example, `php.js` is **not** a vanilla Emscripten module. Instead,
  * it's an ESM module that wraps the regular Emscripten output and adds some
@@ -57,7 +37,7 @@ const NUM = "number";
  * export default function(jsEnv, emscriptenModuleArgs) {}
  * ```
  * 
- * ## PHP Filesystem
+ * **PHP Filesystem:**
  * 
  * Once initialized, the PHP has its own filesystem separate from the project
  * files. It's provided by [Emscripten and uses its FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html).
@@ -88,7 +68,7 @@ const NUM = "number";
  * 
  * For more details consult the PHP class directly.
  * 
- * ## Data dependencies
+ * **Data dependencies:**
  * 
  * Using existing PHP packages by manually recreating them file-by-file would
  * be quite inconvenient. Fortunately, Emscripten provides a "data dependencies"
@@ -192,7 +172,7 @@ export async function startPHP(phpLoaderModule, jsEnv, phpModuleArgs = {}, dataD
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  * 
- * @internal This class is not meant to be used directly. Use `startPHP` instead.
+ * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
 export class PHP {
 
@@ -222,9 +202,23 @@ session.save_path=/home/web_user
   }
 
   /**
-   * Runs a PHP script.
+   * Runs a PHP script and outputs an object with three properties:
+   * stdout, stderr, and the exitCode.
    * 
-   * Example:
+   * * `exitCode` – the exit code of the script. 0 is success, while 1 and 2 indicate an error.
+   * * `stdout` – containing the output from `echo`, `print`, inline HTML etc.
+   * * `stderr` – containing all the errors are logged. It can also be written
+   *              to explicitly:
+   * 
+   * ```js
+   * console.log(php.run(`<?php
+   *  $fp = fopen('php://stderr', 'w');
+   *  fwrite($fp, "Hello, world!");
+   * `));
+   * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
+   * ```
+   * 
+   * @example
    * 
    * ```js
    * const output = php.run('<?php echo "Hello world!";');

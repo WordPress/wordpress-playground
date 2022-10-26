@@ -29,7 +29,7 @@ const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
  *   })
  * ```
  */
-export default class EmscriptenDownloadMonitor extends EventTarget {
+export class EmscriptenDownloadMonitor extends EventTarget {
 	constructor(assetsSizes) {
 		super();
 
@@ -114,6 +114,7 @@ export default class EmscriptenDownloadMonitor extends EventTarget {
 	}
 }
 
+export default EmscriptenDownloadMonitor;
 
 /**
  * @typedef {Object} Progress
