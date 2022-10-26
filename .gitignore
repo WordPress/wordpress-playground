@@ -13,3 +13,6 @@ build/*
 !build/wp.js
 packages/*/build*
 packages/*/build*/*
+*.tsbuildinfo
+tsdoc-metadata.json
+

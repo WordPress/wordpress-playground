@@ -3,50 +3,50 @@
  * the outgoing HTTP traffic from each browser tab. This helps the
  * main thread distinguish between the relevant and irrelevant BroadcastChannel
  * messages from the Service Worker.
- * 
+ *
  * Scopes are included in the `PHPServer.absoluteUrl` as follows:
- * 
+ *
  * An **unscoped** URL: http://localhost:8778/wp-login.php
  * A **scoped** URL:    http://localhost:8778/scope:96253/wp-login.php
- * 
+ *
  * For more information, see the README section on scopes.
  */
 
 /**
  * Checks if the given URL contains scope information.
- * 
+ *
  * @example
  * ```js
  * isURLScoped(new URL('http://localhost/scope:96253/index.php'));
  * // true
- * 
+ *
  * isURLScoped(new URL('http://localhost/index.php'));
  * // false
  * ```
- * 
- * @param {URL} url The URL to check.
- * @returns {boolean} `true` if the URL contains scope information, `false` otherwise.
+ *
+ * @param  url The URL to check.
+ * @returns `true` if the URL contains scope information, `false` otherwise.
  */
-export function isURLScoped(url) {
+export function isURLScoped(url: URL): boolean {
 	return url.pathname.startsWith(`/scope:`);
 }
 
 /**
  * Returns the scope stored in the given URL.
- * 
+ *
  * @example
  * ```js
  * getScopeFromURL(new URL('http://localhost/scope:96253/index.php'));
  * // '96253'
- * 
+ *
  * getScopeFromURL(new URL('http://localhost/index.php'));
  * // null
  * ```
- * 
- * @param {URL} url The URL.
- * @returns {string} The scope if the URL contains a scope, `null` otherwise.
+ *
+ * @param  url The URL.
+ * @returns The scope if the URL contains a scope, `null` otherwise.
  */
-export function getURLScope(url) {
+export function getURLScope(url: URL): string | null {
 	if (isURLScoped(url)) {
 		return url.pathname.split('/')[1].split(':')[1];
 	}
@@ -55,28 +55,28 @@ export function getURLScope(url) {
 
 /**
  * Returns a new URL with the requested scope information.
- * 
+ *
  * @example
  * ```js
  * setURLScope(new URL('http://localhost/index.php'), '96253');
  * // URL('http://localhost/scope:96253/index.php')
- * 
+ *
  * setURLScope(new URL('http://localhost/scope:96253/index.php'), '12345');
  * // URL('http://localhost/scope:12345/index.php')
- * 
+ *
  * setURLScope(new URL('http://localhost/index.php'), null);
  * // URL('http://localhost/index.php')
  * ```
- * 
- * @param {URL} url The URL to scope.
- * @param {string} scope The scope value.
- * @returns {URL} A new URL with the scope information in it.
+ *
+ * @param  url   The URL to scope.
+ * @param  scope The scope value.
+ * @returns A new URL with the scope information in it.
  */
-export function setURLScope(url, scope) {
-	if (!scope) {
-		return url;
-	}
+export function setURLScope(url: URL | string, scope: string): URL {
 	const newUrl = new URL(url);
+	if (!scope) {
+		return newUrl;
+	}
 
 	if (isURLScoped(newUrl)) {
 		const parts = newUrl.pathname.split('/');
@@ -92,20 +92,20 @@ export function setURLScope(url, scope) {
 
 /**
  * Returns a new URL without any scope information.
- * 
+ *
  * @example
  * ```js
  * removeURLScope(new URL('http://localhost/scope:96253/index.php'));
  * // URL('http://localhost/index.php')
- * 
+ *
  * removeURLScope(new URL('http://localhost/index.php'));
  * // URL('http://localhost/index.php')
  * ```
- * 
- * @param {URL} url The URL to remove scope information from.
- * @returns {URL} A new URL without the scope information.
+ *
+ * @param  url The URL to remove scope information from.
+ * @returns A new URL without the scope information.
  */
-export function removeURLScope(url) {
+export function removeURLScope(url: URL): URL {
 	if (!isURLScoped(url)) {
 		return url;
 	}

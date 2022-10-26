@@ -1,28 +1,38 @@
-import { postMessageExpectReply, awaitReply } from './messaging';
-import { setURLScope, removeURLScope } from './scope';
-import { getPathQueryFragment } from './';
+import type { PHPOutput, PHPRequest, PHPResponse } from 'php-wasm';
+import {
+	postMessageExpectReply,
+	awaitReply,
+	MessageResponse,
+} from '../messaging';
+import { removeURLScope } from '../scope';
+import { getPathQueryFragment } from '..';
+import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const noop = () => {};
 
-/**
- * @typedef {Object} WorkerThreadConfig
- * @property {Function} onDownloadProgress Optional. A function to call when a download
- * 									       progress event is received from the worker
- */
+interface WorkerThreadConfig {
+	/**
+	 * A function to call when a download progress event is received from the worker
+	 */
+	onDownloadProgress?: (event: DownloadProgressEvent) => void;
+}
 
 /**
  * Spawns a new Worker Thread.
- * 
- * @property {string} backendName The Worker Thread backend to use. Either 'webworker' or 'iframe'.
- * @property {string} workerScriptUrl The absolute URL of the worker script.
- * @param {WorkerThreadConfig} config 
- * @returns {SpawnedWorkerThread} The spawned Worker Thread.
+ *
+ * @param  backendName     The Worker Thread backend to use. Either 'webworker' or 'iframe'.
+ * @param  workerScriptUrl The absolute URL of the worker script.
+ * @param  config
+ * @returns  The spawned Worker Thread.
  */
-export async function spawnPHPWorkerThread(backendName, workerScriptUrl, {
-	onDownloadProgress = noop,
-}) {
-	let messageChannel;
+export async function spawnPHPWorkerThread(
+	backendName: string,
+	workerScriptUrl: string,
+	config: WorkerThreadConfig
+): Promise<SpawnedWorkerThread> {
+	const { onDownloadProgress = noop } = config;
+	let messageChannel: WorkerThreadMessageTarget;
 	if (backendName === 'webworker') {
 		messageChannel = spawnWebWorker(workerScriptUrl);
 	} else if (backendName === 'iframe') {
@@ -30,7 +40,7 @@ export async function spawnPHPWorkerThread(backendName, workerScriptUrl, {
 	} else {
 		throw new Error(`Unknown backendName: ${backendName}`);
 	}
-	
+
 	messageChannel.setMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
 			onDownloadProgress(e.data);
@@ -49,13 +59,15 @@ export async function spawnPHPWorkerThread(backendName, workerScriptUrl, {
 	}
 
 	const absoluteUrl = await messageChannel.sendMessage({
-		type: 'get_absolute_url'
+		type: 'get_absolute_url',
 	});
 
 	return new SpawnedWorkerThread(messageChannel, absoluteUrl);
 }
 
-class SpawnedWorkerThread {
+export class SpawnedWorkerThread {
+	messageChannel;
+	serverUrl;
 
 	constructor(messageChannel, serverUrl) {
 		this.messageChannel = messageChannel;
@@ -65,32 +77,32 @@ class SpawnedWorkerThread {
 	/**
 	 * Converts a path to an absolute URL based at the PHPServer
 	 * root.
-	 * 
-	 * @param {string} path The server path to convert to an absolute URL.
-	 * @returns {string} The absolute URL.
+	 *
+	 * @param  path The server path to convert to an absolute URL.
+	 * @returns The absolute URL.
 	 */
-	pathToInternalUrl(path) {
+	pathToInternalUrl(path: string): string {
 		return `${this.serverUrl}${path}`;
 	}
 
 	/**
 	 * Converts an absolute URL based at the PHPServer to a relative path
 	 * without the server pathname and scope.
-	 * 
-	 * @param {string} internalUrl An absolute URL based at the PHPServer root.
-	 * @returns {string} The relative path.
+	 *
+	 * @param  internalUrl An absolute URL based at the PHPServer root.
+	 * @returns The relative path.
 	 */
-	internalUrlToPath(internalUrl) {
+	internalUrlToPath(internalUrl: string): string {
 		return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
 	}
 
 	/**
 	 * Runs PHP code.
-	 * 
-	 * @param {string} code The PHP code to run.
-	 * @returns {Promise<Output>} The result of the PHP code.
+	 *
+	 * @param  code The PHP code to run.
+	 * @returns The result of the PHP code.
 	 */
-	async eval(code) {
+	async eval(code: string): Promise<PHPOutput> {
 		return await this.messageChannel.sendMessage({
 			type: 'run_php',
 			code,
@@ -99,11 +111,11 @@ class SpawnedWorkerThread {
 
 	/**
 	 * Dispatches a request to the PHPServer.
-	 * 
-	 * @param {Request} request The request to dispatch.
-	 * @returns {Promise<Response>} The response from the PHPServer.
+	 *
+	 * @param  request - The request to dispatch.
+	 * @returns  The response from the PHPServer.
 	 */
-	async HTTPRequest(request) {
+	async HTTPRequest(request: PHPRequest): Promise<PHPResponse> {
 		return await this.messageChannel.sendMessage({
 			type: 'request',
 			request,
@@ -111,20 +123,15 @@ class SpawnedWorkerThread {
 	}
 }
 
-/**
- * @typedef {import('php-wasm/src/php').Output} Output
- */
-/**
- * @typedef {import('php-wasm/src/php-server').Request} Request
- */
-/**
- * @typedef {import('php-wasm/src/php-server').Response} Response
- */
+interface WorkerThreadMessageTarget {
+	sendMessage(message: any, timeout?: number): Promise<MessageResponse<any>>;
+	setMessageListener(listener: (message: any) => void): void;
+}
 
-function spawnWebWorker(workerURL) {
+function spawnWebWorker(workerURL: string): WorkerThreadMessageTarget {
 	const worker = new Worker(workerURL);
 	return {
-		async sendMessage(message, timeout) {
+		async sendMessage(message: any, timeout: number) {
 			const requestId = postMessageExpectReply(worker, message);
 			const response = await awaitReply(worker, requestId, timeout);
 			return response;
@@ -135,7 +142,9 @@ function spawnWebWorker(workerURL) {
 	};
 }
 
-function spawnIframeWorker(workerDocumentURL) {
+function spawnIframeWorker(
+	workerDocumentURL: string
+): WorkerThreadMessageTarget {
 	const iframe = document.createElement('iframe');
 	iframe.src = workerDocumentURL;
 	iframe.style.display = 'none';
@@ -143,7 +152,7 @@ function spawnIframeWorker(workerDocumentURL) {
 	return {
 		async sendMessage(message, timeout) {
 			const requestId = postMessageExpectReply(
-				iframe.contentWindow,
+				iframe.contentWindow!,
 				message,
 				'*'
 			);
