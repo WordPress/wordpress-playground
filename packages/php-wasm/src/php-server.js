@@ -57,7 +57,11 @@ export default class PHPServer {
         this.#HOST = `${this.#HOSTNAME}:${this.#PORT}`;
         this.#PATHNAME = url.pathname.replace(/\/+$/, '');
         this.#ABSOLUTE_URL = `${this.#PROTOCOL}://${this.#HOSTNAME}:${this.#PORT}${this.#PATHNAME}`;
-    }
+	}
+	
+	get absoluteUrl() {
+		return this.#ABSOLUTE_URL;
+	}
 
 	/**
 	 * Serves the request – either by serving a static file, or by

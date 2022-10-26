@@ -4,7 +4,8 @@ import EmscriptenDownloadMonitor from './emscripten-download-monitor';
 
 export { currentBackend };
 export { initializeWorkerThread } from './worker-thread';
-export { initializePHPWorkerThread as startPHPWorkerThread, getWorkerThreadFrontend } from './worker-thread-api';
+export { startPHPWorkerThread } from './spawn-worker-thread';
+export { setURLScope } from './scope';
 export { registerServiceWorker, initializeServiceWorker, seemsLikeAPHPServerPath } from './service-worker';
 export { postMessageExpectReply, awaitReply, responseTo } from './messaging';
 export { cloneResponseMonitorProgress } from './emscripten-download-monitor';

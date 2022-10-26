@@ -13,7 +13,7 @@ export function initializeServiceWorker({
 	shouldForwardRequestToPHPServer=(request, unscopedUrl)=>seemsLikeAPHPServerPath(unscopedUrl.pathname)
 }) {
 	if (!broadcastChannel) {
-		throw new Error('Missing the required `broadcastChannel` option.');
+		broadcastChannel = new BroadcastChannel('php-wasm-browser');
 	}
 
 	/**
@@ -33,8 +33,8 @@ export function initializeServiceWorker({
 	});
 
 	/**
-	 * The main method. It captures the requests and loop them back to the main
-	 * application using the Loopback request
+	 * The main method. It captures the requests and loop them back to the 
+	 * Worker Thread using the Loopback request
 	 */
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
@@ -96,10 +96,8 @@ export function initializeServiceWorker({
 						},
 					};
 					console.log(
-						'[ServiceWorker] Forwarding a request to the main app',
-						{
-							message,
-						}
+						'[ServiceWorker] Forwarding a request to the Worker Thread',
+						{ message }
 					);
 					const requestId = postMessageExpectReply(
 						broadcastChannel,
@@ -108,9 +106,7 @@ export function initializeServiceWorker({
 					phpResponse = await awaitReply(broadcastChannel, requestId);
 					console.log(
 						'[ServiceWorker] Response received from the main app',
-						{
-							phpResponse,
-						}
+						{ phpResponse }
 					);
 				} catch (e) {
 					console.error(e, { requestedPath });
@@ -128,6 +124,22 @@ export function initializeServiceWorker({
 	});
 }
 
+/**
+ * Guesses whether the given path looks like a PHP file.
+ * 
+ * @example
+ * ```js
+ * seemsLikeAPHPServerPath('/index.php') // true
+ * seemsLikeAPHPServerPath('/index.php') // true
+ * seemsLikeAPHPServerPath('/index.php/foo/bar') // true
+ * seemsLikeAPHPServerPath('/index.html') // false
+ * seemsLikeAPHPServerPath('/index.html/foo/bar') // false
+ * seemsLikeAPHPServerPath('/') // true
+ * ```
+ * 
+ * @param {string} path The path to check.
+ * @returns {boolean} Whether the path seems like a PHP server path.
+ */
 export function seemsLikeAPHPServerPath(path) {
 	return (
 		seemsLikeAPHPFile(path) ||
@@ -206,57 +218,14 @@ async function parsePost(request) {
 /**
  * Run this in the main application to register the service worker.
  * 
- * It will handle all the PHP HTTP requests the browser makes on
- * the domain it's registered on.
- * 
- * @param {Object} config
+ * @param {string} scriptUrl The URL of the service worker script.
  */
- export async function registerServiceWorker({ broadcastChannel, url, onRequest, scope }) {
-	if (!broadcastChannel) {
-		throw new Error('Missing the required `broadcastChannel` option.');
-	}
+ export async function registerServiceWorker( scriptUrl ) {
 	if (!navigator.serviceWorker) {
 		throw new Error('Service workers are not supported in this browser.');
 	}
 
-	const registration = await navigator.serviceWorker.register(url);
+	const registration = await navigator.serviceWorker.register(scriptUrl);
 	await registration.update();
-	broadcastChannel.addEventListener(
-		'message',
-		async function onMessage(event) {
-			/**
-			 * Ignore events meant for other PHP instances to
-			 * avoid handling the same event twice.
-			 *
-			 * This is important because BroadcastChannel transmits
-			 * events to all the listeners across all browser tabs.
-			 */
-			if (scope && event.data.scope !== scope) {
-				return;
-			}
-			console.debug(
-				`[Main] "${event.data.type}" message received from a service worker`
-			);
-
-			let result;
-			if (event.data.type === 'request') {
-				result = await onRequest(event.data.request);
-			} else {
-				throw new Error(
-					`[Main] Unexpected message received from the service-worker: "${event.data.type}"`
-				);
-			}
-
-			// The service worker expects a response when it includes a `requestId` in the message:
-			if (event.data.requestId) {
-				broadcastChannel.postMessage(
-					responseTo(event.data.requestId, result)
-				);
-			}
-			console.debug(`[Main] "${event.data.type}" message processed`, {
-				result,
-			});
-		}
-	);
 	navigator.serviceWorker.startMessages();
  }

@@ -3,7 +3,8 @@
 import { startPHP, PHPBrowser, PHPServer } from 'php-wasm';
 import { responseTo } from './messaging';
 import { DEFAULT_BASE_URL } from './';
-import EmscriptenDownloadMonitor from './emscripten-download-monitor';
+import EmscriptenDownloadMonitor, { cloneResponseMonitorProgress } from './emscripten-download-monitor';
+import { getURLScope } from './scope';
 
 const noop = () => { };
 /**
@@ -51,7 +52,20 @@ const noop = () => { };
  * 
  * @param {async ({absoluteUrl}) => PHPBrowser} bootBrowser An async function that produces the PHP browser.
  */
-export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
+export async function initializeWorkerThread({
+	phpBrowser,
+	broadcastChannel
+}) {
+	if (!phpBrowser) {
+		phpBrowser = await defaultBootBrowser();
+	}
+	if (!broadcastChannel) {
+		broadcastChannel = new BroadcastChannel('php-wasm-browser');
+	}
+
+	const absoluteUrl = phpBrowser.server.absoluteUrl;
+	const scope = getURLScope(new URL(absoluteUrl));		
+
 	// Handle postMessage communication from the main thread
 	currentBackend.setMessageListener(async event => {
 		const result = await handleMessage(event.data);
@@ -63,34 +77,59 @@ export async function initializeWorkerThread(bootBrowser=defaultBootBrowser) {
 		}
 	});
 
-	let phpBrowser;
-	async function handleMessage(message) {
-		if (message.type === 'initialize_php') {
-			phpBrowser = await bootBrowser({
-				absoluteUrl: message.absoluteUrl
-			});
+	broadcastChannel.addEventListener('message', async function onMessage(event) {
+		console.log('broadcastChannel message', event);
+		/**
+		 * Ignore events meant for other PHP instances to
+		 * avoid handling the same event twice.
+		 *
+		 * This is important because BroadcastChannel transmits
+		 * events to all the listeners across all browser tabs.
+		 */
+		if (scope && event.data.scope !== scope) {
+			return;
 		}
-		else if (message.type === 'is_alive') {
+
+		const result = await handleMessage(event.data);
+
+		// The service worker expects a response when it includes a `requestId` in the message:
+		if (event.data.requestId) {
+			const response = responseTo(event.data.requestId, result);
+			broadcastChannel.postMessage(response);
+		}
+	});
+
+	async function handleMessage(message) {
+		console.debug(
+			`[Worker Thread] "${message.type}" message received from a service worker`
+		);
+
+		if (message.type === 'is_alive') {
 			return true;
+		}
+		else if (message.type === 'get_absolute_url') {
+			return phpBrowser.server.absoluteUrl;
 		}
 		else if (message.type === 'run_php') {
 			return await phpBrowser.server.php.run(message.code);
 		}
 		else if (message.type === 'request') {
-			const parsedUrl = new URL(
-				message.request.path,
-				DEFAULT_BASE_URL
-			);
-			return await phpBrowser.request({
-				...message.request,
-				path: parsedUrl.pathname,
-				queryString: parsedUrl.search,
-			});
-		} else {
-			console.warn(
-				`[WASM Worker] "${message.type}" event received but it has no handler.`
+			return await renderRequest(message.request);
+		}
+		else {
+			throw new Error(
+				`[Worker Thread] Received unexpected message: "${message.type}"`
 			);
 		}
+	}
+
+	async function renderRequest(request) {
+		const parsedUrl = new URL(request.path, DEFAULT_BASE_URL);
+		return await phpBrowser.request({
+			...request,
+			path: parsedUrl.pathname,
+			queryString: parsedUrl.search,
+		});
 	}
 }
 

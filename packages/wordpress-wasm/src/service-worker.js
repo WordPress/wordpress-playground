@@ -3,7 +3,6 @@ import { initializeServiceWorker, seemsLikeAPHPServerPath } from 'php-wasm-brows
 import { isUploadedFilePath } from './';
 
 initializeServiceWorker({
-    broadcastChannel: new BroadcastChannel('wordpress-wasm'),
     shouldForwardRequestToPHPServer
 });
 
