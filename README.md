@@ -45,7 +45,7 @@ As of today, the best way to play with WordPress.wasm is to directly modify the 
 
 Why aren't there any npm packages? This is a new project and didn't get there yet – all the efforts were focused on getting it to work. If you'd like to see public npm packages sooner than later, you are more than welcome to contribute.
 
-## Project structure
+## Architecture overview
 
 WordPress.wasm is made of the following building blocks:
 
