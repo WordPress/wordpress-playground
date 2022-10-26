@@ -54,9 +54,17 @@ export default class PHPServer {
         this.#HOSTNAME = url.hostname;
         this.#PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
         this.#PROTOCOL = (url.protocol || '').replace(':', '');
-        this.#HOST = `${this.#HOSTNAME}:${this.#PORT}`;
-        this.#PATHNAME = url.pathname.replace(/\/+$/, '');
-        this.#ABSOLUTE_URL = `${this.#PROTOCOL}://${this.#HOSTNAME}:${this.#PORT}${this.#PATHNAME}`;
+		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
+		this.#HOST = [
+			this.#HOSTNAME,
+			isNonStandardPort ? `:${this.#PORT}` : '',
+		].join("\n");
+		this.#PATHNAME = url.pathname.replace(/\/+$/, '');
+		this.#ABSOLUTE_URL = [
+			`${this.#PROTOCOL}://`,
+			this.#HOST,
+			this.#PATHNAME
+		].join("");
 	}
 	
 	get absoluteUrl() {
