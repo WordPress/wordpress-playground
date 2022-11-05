@@ -1,0 +1,35 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"allowSyntheticDefaultImports": true,
+		"jsx": "preserve",
+		"target": "esnext",
+		"module": "esnext",
+		"lib": [ "dom", "esnext" ],
+		"declaration": true,
+		"declarationMap": false,
+		"composite": true,
+		"emitDeclarationOnly": true,
+		"isolatedModules": true,
+		"removeComments": false,
+
+		"strict": true,
+
+		"noImplicitAny": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"importsNotUsedAsValues": "error",
+
+		"moduleResolution": "NodeNext",
+
+		"esModuleInterop": false,
+		"resolveJsonModule": true,
+
+		"typeRoots": [ "./typings" ],
+		"types": []
+	},
+	"exclude": []
+}

@@ -1,7 +1,15 @@
-import { registerServiceWorker, spawnPHPWorkerThread } from 'php-wasm-browser';
-import { wasmWorkerUrl, wasmWorkerBackend, serviceWorkerUrl } from "./config";
+import {
+	registerServiceWorker,
+	spawnPHPWorkerThread,
+	SpawnedWorkerThread,
+	DownloadProgressCallback,
+} from 'php-wasm-browser';
+import { wasmWorkerUrl, wasmWorkerBackend, serviceWorkerUrl } from './config';
 
-export async function bootWordPress({ onWasmDownloadProgress }) {
+export async function bootWordPress(
+	config: BootConfiguration
+): Promise<SpawnedWorkerThread> {
+	const { onWasmDownloadProgress } = config;
 	assertNotInfiniteLoadingLoop();
 
 	const workerThread = await spawnPHPWorkerThread(
@@ -11,6 +19,10 @@ export async function bootWordPress({ onWasmDownloadProgress }) {
 	);
 	await registerServiceWorker(serviceWorkerUrl);
 	return workerThread;
+}
+
+export interface BootConfiguration {
+	onWasmDownloadProgress: DownloadProgressCallback;
 }
 
 /**
@@ -23,22 +35,13 @@ function assertNotInfiniteLoadingLoop() {
 	let isBrowserInABrowser = false;
 	try {
 		isBrowserInABrowser =
-			window.parent !== window && window.parent.IS_WASM_WORDPRESS;
+			window.parent !== window &&
+			(window as any).parent.IS_WASM_WORDPRESS;
 	} catch (e) {}
 	if (isBrowserInABrowser) {
 		throw new Error(
 			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-wasm/issues'
 		);
 	}
-	window.IS_WASM_WORDPRESS = true;
-}
-
-export const isUploadedFilePath = (path) => {
-	return (
-		path.startsWith('/wp-content/uploads/') ||
-		path.startsWith('/wp-content/plugins/') || (
-			path.startsWith('/wp-content/themes/') &&
-			!path.startsWith('/wp-content/themes/twentytwentytwo/')
-		)
-	);
+	(window as any).IS_WASM_WORDPRESS = true;
 }

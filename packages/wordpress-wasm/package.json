@@ -23,6 +23,7 @@
 		"node": ">=12"
 	},
 	"main": "build/index.js",
+	"types": "build-types",
 	"dependencies": {
 		"php-wasm": "file:../php-wasm",
 		"php-wasm-browser": "file:../php-wasm-browser"

@@ -7,6 +7,12 @@ module.exports = {
 		react: {
 			version: '999.99.99', // Prevent eslint from complaining (we don't use react).
 		},
+		jsdoc: {
+			tagNamePreference: {
+				return: 'returns',
+				internal: 'internal',
+			},
+		},
 	},
 	extends: [
 		'eslint:recommended',

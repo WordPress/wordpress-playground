@@ -22,7 +22,13 @@
 	"engines": {
 		"node": ">=12"
 	},
+	"exports": {
+	  "./worker-thread": "./src/worker-thread/worker-library.ts",
+	  "./service-worker": "./src/service-worker/worker-library.ts",
+	  ".": "./src/index.ts"
+	},
 	"main": "build/index.js",
+	"types": "build-types",
 	"dependencies": {
 		"php-wasm": "file:../php-wasm"
 	},

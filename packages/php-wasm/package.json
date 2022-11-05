@@ -23,6 +23,7 @@
 		"node": ">=12"
 	},
 	"main": "build/index.js",
+	"types": "build-types",
 	"dependencies": {},
 	"publishConfig": {
 		"access": "public"

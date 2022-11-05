@@ -1,72 +1,89 @@
+import type { PHP, PHPOutput } from './php';
+
 /**
  * A fake PHP server that handles HTTP requests but does not
  * bind to any port.
- * 
+ *
+ * @public
  * @example
  * ```js
  * import { createPHP, PHPServer } from 'php-wasm';
- * 
+ *
  * const PHPLoaderModule = await import('/php.js');
  * const php = await createPHP(PHPLoaderModule);
- * 
+ *
  * // Create a file to serve:
  * php.mkdirTree('/www');
  * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
- * 
+ *
  * // Create a server instance:
  * const server = new PHPServer(php, {
- * 		// PHP FS path to serve the files from:
+ *     // PHP FS path to serve the files from:
  *     documentRoot: '/www',
- 
+ *
  *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
  *     absoluteUrl: 'http://127.0.0.1'
  * });
- * 
+ *
  * console.log(
  *    server.request({ path: '/index.php' }).body
  * );
  * // Output: "Hi from PHP!"
  * ```
  */
-export default class PHPServer {
-	#DOCROOT;
-	#PROTOCOL;
-	#HOSTNAME;
-	#PORT;
-	#HOST;
-	#PATHNAME;
-    #ABSOLUTE_URL;
+export class PHPServer {
+	#DOCROOT: string;
+	#PROTOCOL: string;
+	#HOSTNAME: string;
+	#PORT: number;
+	#HOST: string;
+	#PATHNAME: string;
+	#ABSOLUTE_URL: string;
 
 	/**
-	 * @param {PHP} php PHP instance.
-	 * @param {PHPServerConfigation} config Server configuration.
+	 * The PHP instance
 	 */
-    constructor(php, {
-        documentRoot = '/var/www/',
-        absoluteUrl,
-        isStaticFilePath = () => false
-    }) {
-        this.php = php;
-        this.#DOCROOT = documentRoot;
-        this.isStaticFilePath = isStaticFilePath;
+	php: PHP;
+	#isStaticFilePath: (path: string) => boolean;
 
-        const url = new URL(absoluteUrl);
-        this.#HOSTNAME = url.hostname;
-        this.#PORT = url.port ? url.port : url.protocol === 'https:' ? 443 : 80;
-        this.#PROTOCOL = (url.protocol || '').replace(':', '');
+	/**
+	 * @param  php    - The PHP instance.
+	 * @param  config - Server configuration.
+	 */
+	constructor(php: PHP, config: PHPServerConfigation) {
+		const {
+			documentRoot = '/var/www/',
+			absoluteUrl,
+			isStaticFilePath = () => false,
+		} = config;
+		this.php = php;
+		this.#DOCROOT = documentRoot;
+		this.#isStaticFilePath = isStaticFilePath;
+
+		const url = new URL(absoluteUrl);
+		this.#HOSTNAME = url.hostname;
+		this.#PORT = url.port
+			? Number(url.port)
+			: url.protocol === 'https:'
+			? 443
+			: 80;
+		this.#PROTOCOL = (url.protocol || '').replace(':', '');
 		const isNonStandardPort = this.#PORT !== 443 && this.#PORT !== 80;
 		this.#HOST = [
 			this.#HOSTNAME,
 			isNonStandardPort ? `:${this.#PORT}` : '',
-		].join("\n");
+		].join('\n');
 		this.#PATHNAME = url.pathname.replace(/\/+$/, '');
 		this.#ABSOLUTE_URL = [
 			`${this.#PROTOCOL}://`,
 			this.#HOST,
-			this.#PATHNAME
-		].join("");
+			this.#PATHNAME,
+		].join('');
 	}
-	
+
+	/**
+	 * The absolute URL of this PHPServer instance.
+	 */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
@@ -74,49 +91,49 @@ export default class PHPServer {
 	/**
 	 * Serves the request – either by serving a static file, or by
 	 * dispatching it to the PHP runtime.
-	 * 
-	 * @param {Request} request The request.
-	 * @returns {Response} The response.
+	 *
+	 * @param  request - The request.
+	 * @returns The response.
 	 */
-	async request(request) {
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		const serverPath = this.#withoutServerPathname(request.path);
-		if(this.isStaticFilePath(serverPath)) {
+		if (this.#isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
-		} else {
-			return await this.#dispatchToPHP(request);
 		}
+		return await this.#dispatchToPHP(request);
 	}
 
 	/**
 	 * Serves a static file from the PHP filesystem.
-	 * 
-	 * @param {string} path The requested static file path.
-	 * @returns {Response} The response.
+	 *
+	 * @param  path - The requested static file path.
+	 * @returns The response.
 	 */
-	#serveStaticFile(path) {
+	#serveStaticFile(path: string): PHPResponse {
 		const fsPath = `${this.#DOCROOT}${path}`;
 
-		if(!this.php.fileExists(fsPath)){
+		if (!this.php.fileExists(fsPath)) {
 			return {
 				body: '404 File not found',
 				headers: {},
 				statusCode: 404,
 				exitCode: 0,
 				rawError: [''],
-			}
+			};
 		}
 		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
 		return {
 			body: arrayBuffer,
 			headers: {
-				'Content-length': arrayBuffer.byteLength,
+				'Content-length': `${arrayBuffer.byteLength}`,
 				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
 				//        The code below won't return the correct mime-type if the extension
 				//        was tampered with.
 				'Content-type': inferMimeType(fsPath),
 				'Accept-Ranges': 'bytes',
-				'Cache-Control': 'public, max-age=0'
+				'Cache-Control': 'public, max-age=0',
 			},
+			statusCode: 200,
 			exitCode: 0,
 			rawError: [''],
 		};
@@ -125,16 +142,16 @@ export default class PHPServer {
 	/**
 	 * Runs the requested PHP file with all the request and $_SERVER
 	 * superglobals populated.
-	 * 
+	 *
 	 * @see #prepare_FILES for details on how JavaScript `files` are converted to $_FILES.
-	 * @param {Request} request The request.
-	 * @returns {Response} The response.
+	 * @param  request - The request.
+	 * @returns The response.
 	 */
-	async #dispatchToPHP(request) {
+	async #dispatchToPHP(request: PHPRequest): Promise<PHPResponse> {
 		const _FILES = await this.#prepare_FILES(request.files);
 
-        try {
-			const output = await this.php.run( `<?php
+		try {
+			const output = await this.php.run(`<?php
 			/**
 			 * Logs response headers, status code etc to stderr for parseResponse()
 			 * to process.
@@ -174,7 +191,7 @@ export default class PHPServer {
 					_POST: request._POST || {},
 					_FILES,
 					_COOKIE: request._COOKIE || {},
-					_SESSION: {}
+					_SESSION: {},
 				})}
 REQUEST,
         JSON_OBJECT_AS_ARRAY
@@ -212,7 +229,9 @@ REQUEST,
 			$_SERVER['REMOTE_ADDR']     = ${JSON.stringify(this.#HOSTNAME)};
 			$_SERVER['SERVER_NAME']     = ${JSON.stringify(this.#ABSOLUTE_URL)};
 			$_SERVER['SERVER_PORT']     = ${JSON.stringify(this.#PORT)};
-			$_SERVER['HTTPS']           = ${JSON.stringify(this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '')};
+			$_SERVER['HTTPS']           = ${JSON.stringify(
+				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
+			)};
 			$_SERVER['HTTP_HOST']       = ${JSON.stringify(this.#HOST)};
 			$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
 			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
@@ -224,29 +243,29 @@ REQUEST,
 			chdir($docroot);
 			
 			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
-		` );
+		`);
 
-			return parseResponse( output );
+			return parseResponse(output);
 		} finally {
-			this.#cleanup_FILES( _FILES );
+			this.#cleanup_FILES(_FILES);
 		}
-    }
-    
+	}
+
 	/**
 	 * Resolve the requested path to the filesystem path of the requested PHP file.
-	 * 
+	 *
 	 * Fall back to index.php as if there was a url rewriting rule in place.
-	 * 
-	 * @param {string} requestedPath The requested pathname.
-	 * @returns {string} The resolved filesystem path.
+	 *
+	 * @param  requestedPath - The requested pathname.
+	 * @returns The resolved filesystem path.
 	 */
-    #resolvePHPFilePath(requestedPath) {
-        let filePath = this.#withoutServerPathname(requestedPath);
-        
+	#resolvePHPFilePath(requestedPath: string): string {
+		let filePath = this.#withoutServerPathname(requestedPath);
+
 		// If the path mentions a .php extension, that's our file's path.
 		if (filePath.includes('.php')) {
 			filePath = filePath.split('.php')[0] + '.php';
-        } else {
+		} else {
 			// Otherwise, let's assume the file is $request_path/index.php
 			if (!filePath.endsWith('/')) {
 				filePath += '/';
@@ -255,38 +274,37 @@ REQUEST,
 				filePath += 'index.php';
 			}
 		}
-		
+
 		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
-		} else {
-			return `${this.#DOCROOT}/index.php`;
 		}
-    }
+		return `${this.#DOCROOT}/index.php`;
+	}
 
 	/**
 	 * Remove the server pathname from the requested path.
-	 * 
+	 *
 	 * This method enables including an arbitrary pathname
 	 * in the server's absolute URL.
-	 * 
+	 *
 	 * For example, say the requestedPath is `/subdirectory/index.php`
-	 * 
+	 *
 	 * If the server's absolute URL is something like
-	 * `http://localhost/`, this method returns the unchanged 
+	 * `http://localhost/`, this method returns the unchanged
 	 * requestedPath.
-	 * 
+	 *
 	 * However, if the server's absolute URL is
 	 * `http://localhost/subdirectory`, this method will return
 	 * just `/index.php`.
-	 * 
+	 *
 	 * This way, PHPSerer can resolve just the `/index.php` instead
 	 * of `/subdirectory/index.php` which is likely undesirable.
-	 * 
-	 * @param {string} requestedPath The requested path.
-	 * @returns {string} A path with the server prefix removed.
+	 *
+	 * @param  requestedPath - The requested path.
+	 * @returns A path with the server prefix removed.
 	 */
-	#withoutServerPathname(requestedPath) {
+	#withoutServerPathname(requestedPath: string): string {
 		if (!this.#PATHNAME) {
 			return requestedPath;
 		}
@@ -314,15 +332,15 @@ REQUEST,
 	 *    // ...
 	 * )
 	 *
-	 * @param {Object} files JavaScript files keyed by their HTTP upload name.
-	 * @return $_FILES-compatible object.
+	 * @param  files - JavaScript files keyed by their HTTP upload name.
+	 * @returns $_FILES-compatible object.
 	 */
-	async #prepare_FILES(files = {}) {
-		if(Object.keys(files).length) {
+	async #prepare_FILES(files: Record<string, File> = {}): Promise<_FILES> {
+		if (Object.keys(files).length) {
 			this.php.initUploadedFilesHash();
 		}
 
-		const _FILES = {};
+		const _FILES: _FILES = {};
 		for (const [key, value] of Object.entries(files)) {
 			const tmpName = Math.random().toFixed(20);
 			const tmpPath = `/tmp/${tmpName}`;
@@ -348,36 +366,36 @@ REQUEST,
 	 * * Frees the PHP's rfc1867_uploaded_files HashTable
 	 * * Removes the temporary files from the filesystem
 	 *
-	 * @param _FILES $_FILES-compatible object.
+	 * @param  _FILES - $_FILES-compatible object.
 	 */
-	#cleanup_FILES(_FILES={}) {
-		if(Object.keys(_FILES).length) {
+	#cleanup_FILES(_FILES: _FILES = {}) {
+		if (Object.keys(_FILES).length) {
 			this.php.destroyUploadedFilesHash();
 		}
-		for (const [, value] of Object.entries(_FILES)) {
-			if(this.php.fileExists(value.tmp_name)){
+		for (const value of Object.values(_FILES)) {
+			if (this.php.fileExists(value.tmp_name)) {
 				this.php.unlink(value.tmp_name);
 			}
 		}
 	}
-
 }
 
 /**
  * Turns the PHP output into a Response object.
- * 
+ *
  * The response body is sourced from stdout, and
  * the headers and status code are sourced from stderr.
- * 
- * @param {import("./php").Output} result Raw output of PHP.run().
- * @returns {Response} Parsed response
+ *
+ * @param  result - Raw output of PHP.run().
+ * @returns Parsed response
  */
-function parseResponse(result) {
+function parseResponse(result: PHPOutput): PHPResponse {
 	const response = {
 		body: result.stdout,
 		headers: {},
 		exitCode: result.exitCode,
 		rawError: result.stderr || [''],
+		statusCode: -1,
 	};
 	// Try to parse each line of stderr as JSON and
 	// look for familiar data structurs.
@@ -402,7 +420,7 @@ function parseResponse(result) {
 	if (!response.statusCode) {
 		response.statusCode = 200;
 	}
-	// X-frame-options gets in a way when PHP is 
+	// X-frame-options gets in a way when PHP is
 	// being displayed in an iframe.
 	// @TODO: Make it configurable.
 	delete response.headers['x-frame-options'];
@@ -412,17 +430,17 @@ function parseResponse(result) {
 /**
  * Parse an array of raw HTTP header lines into
  * a key-value object.
- * 
+ *
  * @example
  * ```js
  * parseHeaders(['Content-type: text/html', 'Content-length: 123'])
  * // { 'Content-type': ['text/html'], 'Content-length': [123] }
  * ```
- * 
- * @param {string[]} rawHeaders Raw HTTP header lines.
- * @returns {Headers} Parsed headers.
+ *
+ * @param  rawHeaders - Raw HTTP header lines.
+ * @returns Parsed headers.
  */
-function parseHeaders(rawHeaders) {
+function parseHeaders(rawHeaders: string[]): PHPHeaders {
 	const parsed = {};
 	for (const header of rawHeaders) {
 		const splitAt = header.indexOf(':');
@@ -440,15 +458,15 @@ function parseHeaders(rawHeaders) {
 
 /**
  * Naively infer a file mime type from its path.
- * 
+ *
  * @todo Infer the mime type based on the file contents.
  *       A naive function like this one can be inaccurate
  *       and potentially have negative security consequences.
- * 
- * @param {string} path The file path
- * @returns {string} The inferred mime type.
+ *
+ * @param  path - The file path
+ * @returns The inferred mime type.
  */
-function inferMimeType(path) {
+function inferMimeType(path: string): string {
 	const extension = path.split('.').pop();
 	switch (extension) {
 		case 'css':
@@ -490,34 +508,87 @@ function inferMimeType(path) {
 	}
 }
 
-/**
- * @typedef {Object} PHPServerConfigation
- * @property {string} documentRoot The directory in the PHP filesystem where the server will look 
- *                                 for the files to serve. Default: `/var/www`.
- * @property {string} absoluteUrl Server URL. Used to populate $_SERVER details like HTTP_HOST.
- * @property {(path: string) => boolean} isStaticFilePath Optional. Callback used by the PHPServer to decide whether
- *                                                        the requested path refers to a PHP file or a static file.
- */
+export interface PHPServerConfigation {
+	/**
+	 * The directory in the PHP filesystem where the server will look
+	 * for the files to serve. Default: `/var/www`.
+	 */
+	documentRoot: string;
+	/**
+	 * Server URL. Used to populate $_SERVER details like HTTP_HOST.
+	 */
+	absoluteUrl: string;
+	/**
+	 * Callback used by the PHPServer to decide whether
+	 * the requested path refers to a PHP file or a static file.
+	 */
+	isStaticFilePath?: (path: string) => boolean;
+}
 
-/**
- * @typedef {Object.<string, string>} Headers
- */
-/**
- * @typedef {Object} Request
- * @property {string} path Request path without the query string.
- * @property {string} queryString Optional. Request query string.
- * @property {"GET"|"POST"|"HEAD"|"OPTIONS"|"PATCH"|"PUT"|"DELETE"} method Optional. Request method. Default: `GET`.
- * @property {Headers} headers Optional. Request headers.
- * @property {Object.<string, File>} files Optional. Request files in the {"filename": File} format.
- * @property {Object.<string, any>} _POST Optional. POST data.
- * @property {Object.<string, string>} _COOKIE Optional. Request cookies.
- */
+type PHPHeaders = Record<string, string>;
 
-/**
- * @typedef {Object} Response
- * @property {string|ArrayBuffer} body Response body.
- * @property {Headers} headers Response headers.
- * @property {number} exitCode PHP exit code. Always 0 for static file responses.
- * @property {string[]} rawError Lines logged to stderr. Always [''] for static file responses.
- */
+export interface PHPRequest {
+	/**
+	 * Request path without the query string.
+	 */
+	path: string;
+	/**
+	 * Request query string.
+	 */
+	queryString?: string;
+	/**
+	 * Request method. Default: `GET`.
+	 */
+	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
+	/**
+	 * Request headers.
+	 */
+	headers?: PHPHeaders;
+	/**
+	 * Request files in the `{"filename": File}` format.
+	 */
+	files?: Record<string, File>;
+	/**
+	 * POST data.
+	 */
+	_POST?: Record<string, any>;
+	/**
+	 * Request cookies.
+	 */
+	_COOKIE?: Record<string, string>;
+}
 
+export interface PHPResponse {
+	/**
+	 * Response body.
+	 */
+	body: string | ArrayBuffer;
+	/**
+	 * Response headers.
+	 */
+	headers: PHPHeaders;
+	/**
+	 * Response HTTP status code, e.g. 200.
+	 */
+	statusCode: number;
+	/**
+	 * PHP exit code. Always 0 for static file responses.
+	 */
+	exitCode: number;
+	/**
+	 * Lines logged to stderr. Always [''] for static file responses.
+	 */
+	rawError: string[];
+}
+
+type _FILES = Record<string, _FILE>;
+
+interface _FILE {
+	name: string;
+	type: string;
+	tmp_name: string;
+	error: number;
+	size: number;
+}
+
+export default PHPServer;

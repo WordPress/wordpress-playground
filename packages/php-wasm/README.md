@@ -236,8 +236,8 @@ _Parameters_
 
 -   _phpLoaderModule_ `Module`: The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
 -   _jsEnv_ `string`: The current JavaScript environment. One of: NODE, WEB, or WEBWORKER.
--   _phpModuleArgs_ `Object`: Optional. The Emscripten module arguments, see <https://emscripten.org/docs/api_reference/module.html#affecting-execution>.
--   _dataDependenciesModules._ `Module[]`: Optional. A list of the ESM-wrapped Emscripten data dependency modules.
+-   _phpModuleArgs_ `Object`: The Emscripten module arguments, see <https://emscripten.org/docs/api_reference/module.html#affecting-execution>.
+-   _dataDependenciesModules._ `Module[]`: A list of the ESM-wrapped Emscripten data dependency modules.
 
 ## php-server.js
 
