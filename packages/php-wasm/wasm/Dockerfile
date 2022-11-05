@@ -51,7 +51,8 @@ RUN set -euxo pipefail;\
     gdb \
     git \
     pv \
-    ca-certificates
+    ca-certificates \
+    brotli
 
 RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
@@ -216,7 +217,11 @@ RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_conte
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'"
 
-COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+COPY ./build-assets/brotli-decode.js ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+
+# make brotli compressed .wasm file
+RUN brotli -q 11 -f -o /root/output/php.wasm.br /root/output/php.wasm
+RUN cp /root/output/php.wasm.br /root/output/php.wasm
 
 # On the web, it's useful to add a "cache busting" query string to the .wasm file URL.
 # This tells web browsers it's a new file and they should reload it.
@@ -236,6 +241,12 @@ RUN cat /root/output/php.js \
         > /tmp/php.js && \
     mv /tmp/php.js /root/output/php.js;
 
+# Don't know where php.js source is, so we inject brotli decompress here.
+RUN cat /root/output/php.js \
+        | sed "s/WebAssembly.instantiate(binary,info)/WebAssembly.instantiate(BrotliDecode(new Uint8Array(binary)),info)/" \
+        > /tmp/php.js && \
+    mv /tmp/php.js /root/output/php.js;
+
 # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 # See esm-prefix.js for more details.
 
@@ -251,4 +262,4 @@ RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
 
 # Then, produce the final module:
 RUN mv /root/output/php.js /root/output/php.js.tmp && \
-    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js
+    cat /root/brotli-decode.js /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js
