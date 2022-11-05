@@ -1,3 +1,7 @@
+This package, typescript-reference-doc-generator, is based on @microsoft/api-documenter.
+
+Here's the original LICENSE for typescript-reference-doc-generator:
+
 @microsoft/api-documenter
 
 Copyright (c) Microsoft Corporation. All rights reserved.

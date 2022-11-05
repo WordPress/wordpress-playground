@@ -14,6 +14,10 @@
     "build:php": "npm run build:php:web",
     "build:php:web": "PLATFORM=web gulp buildPHP",
     "build:php:node": "PLATFORM=node gulp buildPHP",
+    "build:doc-generator": "gulp buildDocGenerator",
+    "docs:dev": "vitepress dev temp-md",
+    "docs:build": "vitepress build temp-md",
+    "docs:serve": "vitepress serve temp-md",
     "clean": "rm -rf build/* packages/*/build-*/*",
     "format": "prettier --write packages/src",
     "lint:js": "eslint \"./packages/src/**/*.{js,mjs,ts}\"",
@@ -33,6 +37,7 @@
   "author": "The WordPress contributors",
   "license": "Apache-2.0",
   "dependencies": {
+    "@microsoft/tsdoc": "^0.14.2",
     "glob": "^8.0.3",
     "php-wasm": "file:packages/php-wasm",
     "php-wasm-browser": "file:packages/php-wasm-browser",
@@ -40,6 +45,9 @@
     "yargs": "^17.5.1"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7. 33.5",
+    "@microsoft/api-extractor-model ": "7.25.2",
+    "@microsoft/tsdoc": "0.14.2",
     "@wordpress/docgen": "^1.29.0",
     "@wordpress/eslint-plugin": "^13.0.0",
     "chokidar-cli": "^3.0.0",
@@ -56,6 +64,11 @@
     "live-server": "^1.2.2",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "vitepress": "^1.0.0-alpha.26",
+    "vue": "^3.2.41",
+    "colors": "~1.2.1",
+    "typescript": "4.8.4",
+    "@types/node": "12.20.24"
   }
 }

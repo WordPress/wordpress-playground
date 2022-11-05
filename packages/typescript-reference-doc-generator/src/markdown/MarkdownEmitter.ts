@@ -20,7 +20,6 @@ import {
 	DocSoftBreak,
 	DocExcerpt,
 } from '@microsoft/tsdoc';
-import { InternalError } from '@rushstack/node-core-library';
 
 import { IndentedWriter } from '../utils/IndentedWriter';
 
@@ -237,7 +236,7 @@ export class MarkdownEmitter {
 				break;
 			}
 			default:
-				throw new InternalError(
+				throw new Error(
 					'Unsupported DocNodeKind kind: ' + docNode.kind
 				);
 		}
@@ -253,7 +252,7 @@ export class MarkdownEmitter {
 		context: IMarkdownEmitterContext
 	): void {
 		// The subclass needs to implement this to support code destinations
-		throw new InternalError('writeLinkTagWithCodeDestination()');
+		throw new Error('writeLinkTagWithCodeDestination()');
 	}
 
 	/**

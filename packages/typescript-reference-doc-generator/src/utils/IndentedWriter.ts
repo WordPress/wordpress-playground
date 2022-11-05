@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT license.
 // See LICENSE in the project root for license information.
 
-import { StringBuilder, IStringBuilder } from '@rushstack/node-core-library';
-
+import { StringBuilder } from '@microsoft/tsdoc';
 /**
  * A utility for writing indented text.
  *
@@ -37,7 +36,7 @@ export class IndentedWriter {
 	 */
 	public defaultIndentPrefix: string = '  ';
 
-	private readonly _builder: IStringBuilder;
+	private readonly _builder: StringBuilder;
 
 	private _latestChunk: string | undefined;
 	private _previousChunk: string | undefined;
@@ -49,7 +48,7 @@ export class IndentedWriter {
 	private _beforeStack: string[];
 	private _isWritingBeforeStack: boolean;
 
-	public constructor(builder?: IStringBuilder) {
+	public constructor(builder?: StringBuilder) {
 		this._builder = builder === undefined ? new StringBuilder() : builder;
 
 		this._latestChunk = undefined;

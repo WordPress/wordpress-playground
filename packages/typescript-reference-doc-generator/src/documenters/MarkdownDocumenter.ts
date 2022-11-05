@@ -2,7 +2,7 @@
 // See LICENSE in the project root for license information.
 
 import * as path from 'path';
-import fs from 'fs';
+import * as fs from 'fs';
 import {
 	DocSection,
 	DocPlainText,
@@ -62,13 +62,7 @@ import { DocTableCell } from '../nodes/DocTableCell';
 import { DocNoteBox } from '../nodes/DocNoteBox';
 import { ClassifiedToken, Utilities } from '../utils/Utilities';
 import { CustomMarkdownEmitter } from '../markdown/CustomMarkdownEmitter';
-import { PluginLoader } from '../plugin/PluginLoader';
-import {
-	IMarkdownDocumenterFeatureOnBeforeWritePageArgs,
-	MarkdownDocumenterFeatureContext,
-} from '../plugin/MarkdownDocumenterFeature';
 import { DocumenterConfig } from './DocumenterConfig';
-import { MarkdownDocumenterAccessor } from '../plugin/MarkdownDocumenterAccessor';
 import { ContentBlockType, DocContentBlock } from '../nodes/DocContentBlock';
 import {
 	BuilderArg,
@@ -102,7 +96,6 @@ export class MarkdownDocumenter {
 	private readonly _tsdocConfiguration: TSDocConfiguration;
 	private readonly _markdownEmitter: CustomMarkdownEmitter;
 	private readonly _outputFolder: string;
-	private readonly _pluginLoader: PluginLoader;
 	private readonly _typeResolver: TypeResolver;
 
 	public constructor(options: IMarkdownDocumenterOptions) {
@@ -117,24 +110,9 @@ export class MarkdownDocumenter {
 				return this._getLinkFilenameForApiItem(apiItem);
 			}
 		);
-		this._pluginLoader = new PluginLoader();
 	}
 
 	public generateFiles(): void {
-		if (this._documenterConfig) {
-			this._pluginLoader.load(this._documenterConfig, () => {
-				return new MarkdownDocumenterFeatureContext({
-					apiModel: this._apiModel,
-					outputFolder: this._outputFolder,
-					documenter: new MarkdownDocumenterAccessor({
-						getLinkForApiItem: (apiItem: ApiItem) => {
-							return this._getLinkFilenameForApiItem(apiItem);
-						},
-					}),
-				});
-			});
-		}
-
 		this._deleteOldOutputFiles();
 
 		try {
@@ -142,10 +120,6 @@ export class MarkdownDocumenter {
 		} catch (e) {
 			console.error(e);
 			throw e;
-		}
-
-		if (this._pluginLoader.markdownDocumenterFeature) {
-			this._pluginLoader.markdownDocumenterFeature.onFinished({});
 		}
 	}
 
@@ -356,19 +330,6 @@ export class MarkdownDocumenter {
 		});
 
 		let pageContent: string = stringBuilder.toString();
-
-		if (this._pluginLoader.markdownDocumenterFeature) {
-			// Allow the plugin to customize the pageContent
-			const eventArgs: IMarkdownDocumenterFeatureOnBeforeWritePageArgs = {
-				apiItem: apiItem,
-				outputFilename: filename,
-				pageContent: pageContent,
-			};
-			this._pluginLoader.markdownDocumenterFeature.onBeforeWritePage(
-				eventArgs
-			);
-			pageContent = eventArgs.pageContent;
-		}
 
 		fs.writeFileSync(filename, pageContent);
 	}
