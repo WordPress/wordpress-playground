@@ -1,3 +1,5 @@
+require('./patch-tsdoc');
+
 const fs = require('fs');
 const yargs = require('yargs');
 let generator;
