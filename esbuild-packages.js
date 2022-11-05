@@ -83,6 +83,7 @@ const configFor = (packageName, entrypoints = ['index']) => {
 		outdir: `packages/${packageName}/build`,
 	};
 };
+exports.configFor = configFor;
 
 async function main() {
 	// Build the packages first
