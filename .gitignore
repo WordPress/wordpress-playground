@@ -3,13 +3,6 @@
 .local
 node_modules
 package-lock.json
-build/*
-!build/wp-admin
-!build/wp-content
-!build/wp-includes
-!build/php.wasm
-!build/php.js
-!build/wp.data
-!build/wp.js
+build
 packages/*/build*
 packages/*/build*/*

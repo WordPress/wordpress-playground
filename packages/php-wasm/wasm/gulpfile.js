@@ -44,8 +44,8 @@ async function build() {
         'php-wasm',
         // Use sh -c because wildcards are a shell feature and
         // they don't work without running cp through shell.
-        'sh', '-c', `cp /root/output/php.js /root/output/php.wasm /output/`,
-    ], { cwd: sourceDir, stdio: 'inherit' });        
+        'sh', '-c', `cp /root/output/php.js /root/output/php.wasm /root/output/php.wasm.br /output/`,
+    ], { cwd: sourceDir, stdio: 'inherit' });  
 }
 
 exports.build = gulp.series(cleanBuildDir, build);

@@ -11,7 +11,9 @@ RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
     apt-get update; \
-    emsdk install latest
+    emsdk install latest; \
+	apt-get --no-install-recommends -y install \
+	brotli
 
 # Download specific version of WordPress
 RUN wget -O wp.zip $WP_ZIP_URL && \
@@ -119,13 +121,23 @@ RUN mv wordpress /wordpress && \
 	--preload /wordpress \
 	--js-output=/root/output/wp.js
 
-COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+COPY ./build-assets/brotli-decode.js ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
+
+# make brotli compressed .wasm file
+RUN brotli -q 11 -f -o /root/output/wp.data.br /root/output/wp.data
+RUN cp /root/output/wp.data.br /root/output/wp.data
 
 # It's useful to add a "cache busting" query string to the .data file URL.
 # This tells web browsers it's a new file and they should reload it.
 RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
     cat /root/output/wp.js \
         | sed "s#wp\.data#/wp.data?$CACHE_BUSTER#g" \
+        > /tmp/wp.js && \
+    mv /tmp/wp.js /root/output/wp.js;
+
+# Don't know where wp.js source is, so we inject brotli decompress here.
+RUN cat /root/output/wp.js \
+        | sed "s/callback(packageData)/callback(BrotliDecode(new Uint8Array(packageData)).buffer)/" \
         > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 
@@ -144,5 +156,5 @@ RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
 
 # Then, produce the final module:
 RUN mv /root/output/wp.js /tmp/wp.js && \
-    cat /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/wp.js && \
+    cat /root/brotli-decode.js /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/wp.js && \
     rm /tmp/wp.js
