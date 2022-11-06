@@ -15,7 +15,7 @@
     "build:php": "npm run build:php:web",
     "build:php:web": "PLATFORM=web gulp buildPHP",
     "build:php:node": "PLATFORM=node gulp buildPHP",
-    "build:api-docs": "bash scripts/refresh-api-docs.sh",
+    "build:api-docs": "bash scripts/run-docs-pipeline.sh",
     "build:doc-generator": "gulp buildDocGenerator",
     "clean": "rm -rf build/* packages/*/build-*/*",
     "format": "prettier --write packages/src",
