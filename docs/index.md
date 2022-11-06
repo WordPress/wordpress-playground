@@ -95,15 +95,15 @@ To go beyond the basic usage, you'll need to understand the project architecture
 
 WordPress.wasm is made of the following building blocks:
 
-### `php-wasm`
+### PHP in JavaScript
 
-This package enables running PHP in JavaScript. It consists of:
+The `php-wasm` package enables running PHP in JavaScript. It consists of:
 
 -   PHP to WebAssembly build pipeline
 -   JavaScript bindings to run the WebAssembly PHP
 -   PHP server implementation in JavaScript
 
-Review [the documentation](./packages/php-wasm) to learn:
+See [using PHP in Javascript](./packages/php-wasm) to learn:
 
 -   How does the WebAssembly PHP work?
 -   How to customize the PHP installation?
@@ -112,9 +112,9 @@ Review [the documentation](./packages/php-wasm) to learn:
 *   How to create and delete files in the PHP filesystem?
 *   How does the PHP Server work?
 
-### `php-wasm-browser`
+### PHP in the browser
 
-This package provides tools to run `php-wasm` in the browser:
+The `php-wasm-browser` package provides tools to run `php-wasm` in the browser:
 
 ![The boot sequence](./docs/boot-sequence.png)
 
@@ -126,11 +126,11 @@ It consists of:
 -   A messaging layer to wire all the processes together.
 -   PHP initialization progress monitor.
 
-Review [the documentation](./packages/php-wasm-browser) to learn more.
+See [using PHP in the browser](./packages/php-wasm-browser) to learn more.
 
-### `wordpress-wasm`
+### WordPress in the browser
 
-This package runs WordPress in the browser with the help of `php-wasm` and `php-wasm-browser`.
+The `wordpress-wasm` package runs WordPress in the browser with the help of `php-wasm` and `php-wasm-browser`.
 
 It consists of:
 
@@ -140,4 +140,4 @@ It consists of:
 -   WordPress-specific automations for tasks like signing in or installing plugins.
 -   A PHP proxy to download plugins from the WordPress.org directory.
 
-Review [the documentation](./packages/wordpress-wasm) to learn more.
+Review [using WordPress in the browser](./packages/wordpress-wasm) to learn more.

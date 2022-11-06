@@ -1,4 +1,4 @@
-# Run PHP in the browser
+# Using WordPress in the browser
 
 Uses [php-wasm](../php-wasm/) and [php-wasm-browser](../php-wasm-browser/) to run WordPress fully in the browser without any PHP server.
 
@@ -16,7 +16,7 @@ npm run build:wp
 
 ## Other notes
 
-* WordPress is configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
-* The static files (.js, .css, etc.) are served directly from the server filesystem, not from the WebAssembly bundle.
-* PHP cannot communicate with the WordPress.org API yet, so the plugin directory etc does not work.
-* The sqlite database lives in the memory and the changes only live as long as the loaded page.
+-   WordPress is configured to use SQLite instead of MySQL. This is possible thanks to https://github.com/aaemnnosttv/wp-sqlite-db.
+-   The static files (.js, .css, etc.) are served directly from the server filesystem, not from the WebAssembly bundle.
+-   PHP cannot communicate with the WordPress.org API yet, so the plugin directory etc does not work.
+-   The sqlite database lives in the memory and the changes only live as long as the loaded page.
