@@ -2,6 +2,13 @@
 
 WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. [See the live demo!](https://wasm.wordpress.net/wordpress.html)
 
+Related resources:
+
+-   [Using PHP in Javascript](./using-php-in-javascript.md)
+-   [Using WordPress in the browser](./using-php-in-the-browser.md)
+-   [Using PHP in the browser](./using-wordpress-in-the-browser.md)
+-   [API Reference](./api)
+
 ## Getting started
 
 You can run WordPress.wasm as follows:
@@ -103,7 +110,7 @@ The `php-wasm` package enables running PHP in JavaScript. It consists of:
 -   JavaScript bindings to run the WebAssembly PHP
 -   PHP server implementation in JavaScript
 
-See [using PHP in Javascript](./packages/php-wasm) to learn:
+See [using PHP in Javascript](./using-php-in-javascript.md) to learn:
 
 -   How does the WebAssembly PHP work?
 -   How to customize the PHP installation?
@@ -116,7 +123,7 @@ See [using PHP in Javascript](./packages/php-wasm) to learn:
 
 The `php-wasm-browser` package provides tools to run `php-wasm` in the browser:
 
-![The boot sequence](./docs/boot-sequence.png)
+![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-wasm/trunk/docs/boot-sequence.png)
 
 It consists of:
 
@@ -126,7 +133,7 @@ It consists of:
 -   A messaging layer to wire all the processes together.
 -   PHP initialization progress monitor.
 
-See [using PHP in the browser](./packages/php-wasm-browser) to learn more.
+See [using PHP in the browser](./using-php-in-the-browser.md) to learn more.
 
 ### WordPress in the browser
 
@@ -140,4 +147,4 @@ It consists of:
 -   WordPress-specific automations for tasks like signing in or installing plugins.
 -   A PHP proxy to download plugins from the WordPress.org directory.
 
-Review [using WordPress in the browser](./packages/wordpress-wasm) to learn more.
+See [using WordPress in the browser](./using-wordpress-in-the-browser.md) to learn more.
