@@ -1,10 +1,12 @@
 # Use PHP in the browser
 
+[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/using-php-in-the-browser.md)
+
 `php-wasm` makes running PHP code in JavaScript easy, but running PHP websites in the browser is more complex than just executing some code.
 
 Say a PHP script renders a link and a user clicks that link. Normally, the browser sends a HTTP request to a server and reloads the page. What should happen when there is no server and reloading the page means losing all progress?
 
-Enter `php-wasm-browser`! A set of tools to solve the common headaches of running PHP websites in the browser. Importantly, this package does not provide a ready-to-use app. It merely gives you the tools to build one. 
+Enter `php-wasm-browser`! A set of tools to solve the common headaches of running PHP websites in the browser. Importantly, this package does not provide a ready-to-use app. It merely gives you the tools to build one.
 
 ## Architecture
 
@@ -42,29 +44,29 @@ Here's what that boot sequence looks like in code:
 
 ```js
 import {
-    registerServiceWorker,
-    spawnPHPWorkerThread,
-	getWorkerThreadFrontend	
+	registerServiceWorker,
+	spawnPHPWorkerThread,
+	getWorkerThreadFrontend,
 } from 'php-wasm-browser';
 
 export async function startApp() {
 	const workerThread = await spawnPHPWorkerThread(
-        // Worker Thread backend – either 'iframe' or 'webworker'
+		// Worker Thread backend – either 'iframe' or 'webworker'
 		'webworker',
-        // Must point to a valid worker thread script:
+		// Must point to a valid worker thread script:
 		'/worker-thread.js'
 	);
-    // Must point to a valid Service Worker script:
+	// Must point to a valid Service Worker script:
 	await registerServiceWorker('/service-worker.js');
 
-    // Create a few PHP files to browse:
-    await workerThread.eval(`<?php
+	// Create a few PHP files to browse:
+	await workerThread.eval(`<?php
         file_put_contents('index.php', '<a href="page.php">Go to page.php</a>');
         file_put_contents('page.php', '<?php echo "Hello from PHP!"; ?>');
     `);
 
-    // Navigate to index.php:
-    document.getElementById('my-app').src = '/index.php';
+	// Navigate to index.php:
+	document.getElementById('my-app').src = '/index.php';
 }
 startApp();
 ```
@@ -152,10 +154,10 @@ Worker threads are separate programs that can process heavy tasks outside of the
 
 ```js
 const workerThread = await spawnPHPWorkerThread(
-    // Worker Thread backend – either 'iframe' or 'webworker'
-    'webworker',
-    // Must point to a valid worker thread script:
-    '/worker-thread.js'
+	// Worker Thread backend – either 'iframe' or 'webworker'
+	'webworker',
+	// Must point to a valid worker thread script:
+	'/worker-thread.js'
 );
 workerThread.eval(`<?php
     echo "Hello from the thread!";
@@ -184,59 +186,8 @@ initializeWorkerThread();
 It may not seem like much, but `initializeWorkerThread()` does a lot of
 the heavy lifting. Here's its documentation:
 
-#### Worker Thread API
-
-##### initializeWorkerThread
-
-Call this in a worker thread script to set the stage for 
-offloading the PHP processing. This function:
-
--   Initializes the PHP runtime
--   Starts PHPServer and PHPBrowser
--   Lets the main app know when its ready
--   Listens for messages from the main app
--   Runs the requested operations (like `run_php`)
--   Replies to the main app with the results using the [request/reply protocol](#request-reply-protocol)
-
-Remember: The worker thread code must live in a separate JavaScript file.
-
-A minimal worker thread script looks like this:
-
-```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
-```
-
-You can customize the PHP loading flow via the first argument:
-
-```js
-import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
-initializeWorkerThread( bootBrowser );
-
-async function bootBrowser({ absoluteUrl }) {
-    const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
-        import(`/php.js`),
-        import(`/wp.js`)
-    ]);
-
-    const php = await loadPHPWithProgress(phpLoaderModule, [myDependencyLoaderModule]);
-    
-    const server = new PHPServer(php, {
-        documentRoot: '/www', 
-        absoluteUrl: absoluteUrl
-    });
-
-    return new PHPBrowser(server);
-}
-```
-
-_Parameters_
-
--   _configuration_ `WorkerThreadConfiguration`: The worker thread configuration.
-
-_Returns_
-
--   `Object`: The backend object to communicate with the parent thread.
+<!-- include /docs/api/php-wasm-browser.initializeworkerthread.md#initializeWorkerThread() function -->
+<!-- /include /docs/api/php-wasm-browser.initializeworkerthread.md#initializeWorkerThread() function -->
 
 #### Worker thread backends
 
@@ -246,14 +197,14 @@ Worker threads can use any multiprocessing technique like an iframe, WebWorker, 
 
 Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-wasm/issues/1) to learn more details.
 
-Example usage: 
+Example usage:
 
 **/app.js**:
 
 ```js
 const workerThread = await spawnPHPWorkerThread(
-    'webworker',
-    '/worker-thread.js'
+	'webworker',
+	'/worker-thread.js'
 );
 ```
 
@@ -281,8 +232,8 @@ Example usage of the iframe backend:
 
 ```js
 const workerThread = await spawnPHPWorkerThread(
-    'iframe',
-    'http://another-domain.com/iframe-worker.html'
+	'iframe',
+	'http://another-domain.com/iframe-worker.html'
 );
 ```
 
@@ -307,14 +258,14 @@ Imagine your PHP script renders the following page [in the iframe viewport](#ifr
 
 ```html
 <html>
-    <head>
-        <title>John's Website</title>
-    </head>
-    <body>
-        <a href="/">Homepage</a>
-        <a href="/blog">Blog</a>
-        <a href="/contact">Contact</a>
-    </body>
+	<head>
+		<title>John's Website</title>
+	</head>
+	<body>
+		<a href="/">Homepage</a>
+		<a href="/blog">Blog</a>
+		<a href="/contact">Contact</a>
+	</body>
 </html>
 ```
 
@@ -357,7 +308,7 @@ initializeServiceWorker();
 
 If `postMessage` sounds unfamiliar, it's what JavaScript threads use to communicate. Please review the [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage) before continuing.
 
-By default, `postMessage` does not offer any request/response mechanics. You may send messages to another thread and you may independently receive messages from it, but you can't send a message and await a response to that specific message. 
+By default, `postMessage` does not offer any request/response mechanics. You may send messages to another thread and you may independently receive messages from it, but you can't send a message and await a response to that specific message.
 
 The idea is to include a unique `requestId` in every message sent, and then wait for a message referring to the same `requestId`.
 
@@ -391,59 +342,24 @@ import { initializeWorkerThread } from 'php-wasm-browser';
 import { setURLScope } from 'php-wasm-browser';
 
 async function main() {
-    const php = await startPHP(import('/php.js'));
+	const php = await startPHP(import('/php.js'));
 
-    // Don't use the absoluteURL directly:
-    const absoluteURL = 'http://127.0.0.1';
+	// Don't use the absoluteURL directly:
+	const absoluteURL = 'http://127.0.0.1';
 
-    // Instead, set the scope first:
-    const scope = Math.random().toFixed(16);
-    const scopedURL = setURLScope(absoluteURL, scope).toString();
+	// Instead, set the scope first:
+	const scope = Math.random().toFixed(16);
+	const scopedURL = setURLScope(absoluteURL, scope).toString();
 
-    const server = new PHPServer(php, {
-        documentRoot: '/var/www', 
-        absoluteUrl: scopedURL
-    });
-    
-    const browser = await new PHPBrowser(server);
+	const server = new PHPServer(php, {
+		documentRoot: '/var/www',
+		absoluteUrl: scopedURL,
+	});
 
-    await initializeWorkerThread({
-        phpBrowser: browser
-    });
+	const browser = await new PHPBrowser(server);
+
+	await initializeWorkerThread({
+		phpBrowser: browser,
+	});
 }
 ```
-
-## Utilities
-
-### cloneResponseMonitorProgress
-
-Clones a fetch Response object and returns a version 
-that calls the `onProgress` callback as the progress
-changes.
-
-_Parameters_
-
--   _response_ `Response`: The fetch Response object to clone.
--   _onProgress_ `(Progress) => undefined)`: The callback to call when the download progress changes.
-
-### EmscriptenDownloadMonitor
-
-Monitors the download progress of Emscripten modules
-
-Usage:
-
-```js
-  const downloadMonitor = new EmscriptenDownloadMonitor();
-	 const php = await startPHP(
-      phpLoaderModule,
-      'web',
-      downloadMonitor.phpArgs
-  );
-  downloadMonitor.addEventListener('progress', (e) => {
-    console.log( e.detail.progress);
-  })
-```
-
-_Type_
-
--   `EmscriptenDownloadMonitor`

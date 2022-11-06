@@ -1,5 +1,7 @@
 # Use PHP in JavaScript
 
+[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/using-php-in-javascript.md)
+
 This package enables running PHP in Javascript:
 
 ```js
@@ -7,15 +9,13 @@ import { createPHP } from 'php-wasm';
 
 const PHPLoaderModule = await import('/php.js');
 const php = await createPHP(PHPLoaderModule);
-console.log(
-    php.run(`<?php echo "Hello from PHP!";`).stdout
-);
+console.log(php.run(`<?php echo "Hello from PHP!";`).stdout);
 // Output: "Hello from PHP!"
 ```
 
 `php-wasm` consists of:
 
--   PHP to WebAssembly build pipeline 
+-   PHP to WebAssembly build pipeline
 -   JavaScript bindings for the WebAssembly PHP
 
 ## PHP to WebAssembly build pipeline
@@ -42,7 +42,7 @@ To build, run `npm run build:php:web` in the repository root. You'll find the ou
 
 PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile).
 
-Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded. 
+Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded.
 
 If you need to turn off one of the hardcoded extensions, feel free to open an issue in this repo. Better yet, this project needs contributors. You are more than welcome to open a PR and author the change you need.
 
@@ -82,12 +82,12 @@ Here's the API it exposes:
 ```js
 // php.wasm size in bytes:
 export const dependenciesTotalSize = 5644199;
- 
+
 // php.wasm filename:
-export const dependencyFilename = 'php.wasm'; 
- 
+export const dependencyFilename = 'php.wasm';
+
 // Run Emscripten's generated module:
-export default function(jsEnv, emscriptenModuleArgs) {}
+export default function (jsEnv, emscriptenModuleArgs) {}
 ```
 
 ## JavaScript bindings for the WebAssembly PHP
@@ -103,22 +103,9 @@ module. It lives in the `src` directory and consists of:
 
 To build the JavaScript API, run `npm run build:js` in the repository root. You'll find the output files in `packages/php-wasm/build-module`.
 
-# API
+## API
 
-## php.js
-
-### PHP
-
-An environment-agnostic wrapper around the Emscripten PHP runtime
-that abstracts the super low-level API and provides a more convenient
-higher-level API.
-
-It exposes a minimal set of methods to run PHP scripts and to
-interact with the PHP filesystem.
-
-_Related_
-
--   This class is not meant to be used directly. Use `startPHP` instead.
+Below you'll find a few especially relevant parts of the API. Consult the [php-wasm API reference page](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm.md) to learn about the rest of it.
 
 ### startPHP
 
@@ -134,10 +121,10 @@ This function handles the entire PHP initialization pipeline. In particular, it:
 Basic usage:
 
 ```js
- const phpLoaderModule = await import("/php.js");
- const php = await startPHP(phpLoaderModule, "web");
- console.log(php.run(`<?php echo "Hello, world!"; `));
- // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
+const phpLoaderModule = await import('/php.js');
+const php = await startPHP(phpLoaderModule, 'web');
+console.log(php.run(`<?php echo "Hello, world!"; `));
+// { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
 ```
 
 **The `/php.js` module:**
@@ -152,10 +139,10 @@ Here's the API it provides:
 export const dependenciesTotalSize = 5644199;
 
 // php.wasm filename:
-export const dependencyFilename = 'php.wasm'; 
+export const dependencyFilename = 'php.wasm';
 
 // Run Emscripten's generated module:
-export default function(jsEnv, emscriptenModuleArgs) {}
+export default function (jsEnv, emscriptenModuleArgs) {}
 ```
 
 **PHP Filesystem:**
@@ -170,7 +157,7 @@ Here's how to use it:
 
 ```js
 // Recursively create a /var/www directory
-php.mkdirTree('/var/www'); 
+php.mkdirTree('/var/www');
 
 console.log(php.fileExists('/var/www/file.txt'));
 // false
@@ -211,11 +198,12 @@ You want the final output to look as follows:
 
 ```js
 export const dependenciesTotalSize = 5644199;
-export const dependencyFilename = 'dependency.data'; 
-export default function(emscriptenPHPModule) {
-   // Emscripten-generated code:
-   var Module = typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
-   // ... the rest of it ...
+export const dependencyFilename = 'dependency.data';
+export default function (emscriptenPHPModule) {
+	// Emscripten-generated code:
+	var Module =
+		typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
+	// ... the rest of it ...
 }
 ```
 
@@ -225,11 +213,11 @@ Such a constructions enables loading the `dependency.js` as an ES Module using
 Once it's ready, you can load PHP and your data dependencies as follows:
 
 ```js
- const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
-   import("/php.js"),
-   import("/wp.js") 
- ]);
- const php = await startPHP(phpLoaderModule, "web", {}, [wordPressLoaderModule]);
+const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
+	import('/php.js'),
+	import('/wp.js'),
+]);
+const php = await startPHP(phpLoaderModule, 'web', {}, [wordPressLoaderModule]);
 ```
 
 _Parameters_
@@ -260,22 +248,13 @@ php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
 // Create a server instance:
 const server = new PHPServer(php, {
-		// PHP FS path to serve the files from:
-    documentRoot: '/www',
- 
-    // Used to populate $_SERVER['SERVER_NAME'] etc.:
-    absoluteUrl: 'http://127.0.0.1'
+	// PHP FS path to serve the files from:
+	documentRoot: '/www',
+
+	// Used to populate $_SERVER['SERVER_NAME'] etc.:
+	absoluteUrl: 'http://127.0.0.1',
 });
 
-console.log(
-   server.request({ path: '/index.php' }).body
-);
+console.log(server.request({ path: '/index.php' }).body);
 // Output: "Hi from PHP!"
 ```
-
-## php-browser.js
-
-### default
-
-A fake web browser that handles PHPServer's cookies and redirects
-internally without exposing them to the consumer.
