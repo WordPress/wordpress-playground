@@ -1,6 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
+const DOCS_ABSOLUTE_URL =
+	'https://github.com/WordPress/wordpress-wasm/blob/trunk/';
+
+const REPO_ROOT_PATH = path.dirname(__dirname);
+
 /**
  * Loop through all the markdown files given as the CLI argument.
  */
@@ -45,19 +50,40 @@ function updateIncludes(file, content) {
 	const regex = /<!-- include (.*?) -->(.*)<!-- \/include \1 -->/gms;
 	return content.replace(regex, (match, includePath) => {
 		const [filePath, header] = includePath.split('#');
+
+		const originalFilePathRelativeToRepoRoot = path
+			.dirname(file)
+			.substring(REPO_ROOT_PATH.length);
+
+		const includedFilePathRelativeToRepoRoot = filePath.startsWith('/')
+			? filePath
+			: path.normalize(
+					path.join(originalFilePathRelativeToRepoRoot, filePath)
+			  );
+
 		const fileContents = fs.readFileSync(
-			path.join(__dirname, '..', filePath),
+			path.join(REPO_ROOT_PATH, includedFilePathRelativeToRepoRoot),
 			'utf8'
 		);
-		const sectionContents = getMarkdownSectionContents(
-			fileContents,
-			header
-		);
+		let sectionContents = getMarkdownSectionContents(fileContents, header);
 		if (!sectionContents) {
 			throw new Error(
 				`Section "${header}" not found in the file ${filePath} (included in ${file})`
 			);
 		}
+
+		const absoluteUrlPrefix =
+			path.join(
+				DOCS_ABSOLUTE_URL,
+				path.dirname(includedFilePathRelativeToRepoRoot)
+			) + '/';
+
+		// Normalize the relative links in the included file.
+		sectionContents = sectionContents.replace(
+			/(\]\()\.\//g,
+			`$1${absoluteUrlPrefix}`
+		);
+
 		return `<!-- include ${includePath} -->\n\n${sectionContents}\n\n<!-- /include ${includePath} -->`;
 	});
 }
@@ -75,7 +101,6 @@ function getMarkdownSectionContents(content, header) {
 		'ms'
 	);
 	const match = content.match(regex);
-	console.log({ match });
 	if (match) {
 		return match[2].trim();
 	}

@@ -1,12 +1,12 @@
 # Using WordPress in the browser
 
-Uses [php-wasm](../php-wasm/) and [php-wasm-browser](../php-wasm-browser/) to run WordPress fully in the browser without any PHP server.
+Uses [php-wasm](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/using-php-in-javascript.md) and [php-wasm-browser](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/using-php-in-the-browser.md) to run WordPress fully in the browser without any PHP server.
 
-The documentation for both is quite comprehensive, but this README file is still a work in progress. Fortunately, this package is rather thin and mostly uses the APIs provided by the other two. Please read the other two documents and then refer directly to the code in the [php-wasm](./src/) directory to learn more.
+The documentation for both is quite comprehensive, but this README file is still a work in progress. Fortunately, this package is rather thin and mostly uses the APIs provided by the other two. Please read the other two documents to learn more.
 
 ## Customizing the WordPress installation
 
-You can customize the WordPress installation by adjusting the [Dockerfile](./wordpress/Dockerfile) that generates the `wp.data` Data Dependency bundle.
+You can customize the WordPress installation by adjusting the [Dockerfile](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/wordpress-wasm/wordpress) that generates the `wp.data` Data Dependency bundle.
 
 Once you're finished, rebuild WordPress by running:
 
