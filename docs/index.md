@@ -5,8 +5,8 @@ WordPress.wasm is a client-side WordPress that runs without a PHP server thanks 
 Related resources:
 
 -   [Using PHP in Javascript](./using-php-in-javascript.md)
--   [Using WordPress in the browser](./using-php-in-the-browser.md)
--   [Using PHP in the browser](./using-wordpress-in-the-browser.md)
+-   [Using PHP in the browser](./using-php-in-the-browser.md)
+-   [Using WordPress in the browser](./using-wordpress-in-the-browser.md)
 -   [API Reference](./api)
 
 ## Getting started
