@@ -1,6 +1,6 @@
 # WordPress.wasm
 
-[Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs) | [API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api)
+[Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/index.md) | [API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/index.md)
 
 WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
