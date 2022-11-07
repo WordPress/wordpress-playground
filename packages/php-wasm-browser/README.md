@@ -1,6 +1,6 @@
 # Using PHP in the browser
 
-[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/using-php-in-the-browser.md)
+[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm-browser.md)
 
 `php-wasm` makes running PHP code in JavaScript easy, but running PHP websites in the browser is more complex than just executing some code.
 

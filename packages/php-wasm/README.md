@@ -1,6 +1,6 @@
 # Using PHP in JavaScript
 
-[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/using-php-in-javascript.md)
+[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm.md)
 
 This package enables running PHP in Javascript:
 

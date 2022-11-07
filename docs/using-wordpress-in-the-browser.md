@@ -1,5 +1,7 @@
 # Using WordPress in the browser
 
+[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/wordpress-wasm.md)
+
 Uses [php-wasm](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/using-php-in-javascript.md) and [php-wasm-browser](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/using-php-in-the-browser.md) to run WordPress fully in the browser without any PHP server.
 
 The documentation for both is quite comprehensive, but this README file is still a work in progress. Fortunately, this package is rather thin and mostly uses the APIs provided by the other two. Please read the other two documents to learn more.
