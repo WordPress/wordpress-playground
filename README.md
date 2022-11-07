@@ -1,34 +1,28 @@
-# WordPress in the browser!
+# WordPress.wasm
 
-WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. 
+[Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/index.md) | [API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/index.md)
 
-[See the live demo!](https://wasm.wordpress.net/wordpress.html)
+WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
-![](demo.gif)
+![](https://raw.githubusercontent.com/wordpress/wordpress-wasm/trunk/demo.gif)
 
-Table of contents:
-
-- [Why is this useful?](#why-is-this-useful)
-- [Getting started](#getting-started)
-- [Architecture overview](#architecture-overview)
-
-## Why is this useful?
+## Why is WordPress.wasm useful?
 
 I'm glad you asked – WordPress.wasm is a big deal!
 
-WordPress.wasm can power:
+It can power:
 
-* Runeditable code examples in your documentation or course
-* Plugin and theme demos in a private WordPress instance where the user is already logged in as admin
-* Easily switching PHP and WordPress version when testing
-* Replaying and fixing the failed CI tests right in the browser
+-   Runeditable code examples in your documentation or course
+-   Plugin and theme demos in a private WordPress instance where the user is already logged in as admin
+-   Easily switching PHP and WordPress version when testing
+-   Replaying and fixing the failed CI tests right in the browser
 
 WordPress.wasm provides a strong foundation for the above use-cases but does not implement them just yet. This project is still in its early days and needs contributors. Become a contributor today and help us make these tools a reality!
 
-See 
+See
 [the WordPress.org blog post](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) to learn about the vision, other use-cases, and the visuals.
 
-### Getting started
+## Getting started
 
 You can run WordPress.wasm as follows:
 
@@ -39,18 +33,12 @@ npm install
 npm run dev
 ```
 
-A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html! 
+A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html!
 
 As of today, the best way to play with WordPress.wasm is to directly modify the cloned files – [packages/wordpress-wasm/](./packages/wordpress-wasm) is a good place to start.
 
 Why aren't there any npm packages? This is a new project and didn't get there yet – all the efforts were focused on getting it to work. If you'd like to see public npm packages sooner than later, you are more than welcome to contribute.
 
-## Architecture overview
+## Next steps
 
-WordPress.wasm is made of the following building blocks:
-
-* [php-wasm](./packages/php-wasm) – a configurable PHP->WebAssembly build pipeline, convenient JavaScript bindings, and a PHP server implemented in JavaScript.
-* [php-wasm-browser](./packages/php-wasm-browser) – tools to run real PHP apps in the browser via `php-wasm`, like a Service Worker implementation or Worker Threads to run the PHP runtime concurrently.
-* [wordpress-wasm](./packages/wordpress-wasm) – runs WordPress in the browser using the other two packages.
-
-Consult the linked README.md files in each of these packages to learn more.
+Consult the [documentation](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs) to learn how WordPress.wasm works and how you can help you build amazing things!

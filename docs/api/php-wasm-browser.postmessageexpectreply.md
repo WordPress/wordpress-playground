@@ -15,5 +15,38 @@ postMessageExpectReply<!-- -->(\
 * Returns: The message ID for awaitReply().
 
 
-Posts a message branded with a unique `requestId` to the given `target`<!-- -->. Then returns the `requestId` so it can be used to await a reply.
+Posts a message branded with a unique `requestId` to the given `target`<!-- -->. Then returns the `requestId` so it can be used to await a reply. Effectively, it implements the request/response dynamics on of JavaScript's `postMessage`
+
+## Example
+In the main app:
+
+```js
+import { postMessageExpectReply, awaitReply } from 'php-wasm-browser';
+const iframeWindow = iframe.contentWindow;
+const requestId = postMessageExpectReply(iframeWindow, {
+   type: "get_php_version"
+});
+const response = await awaitReply(iframeWindow, requestId);
+console.log(response);
+// "8.0.24"
+```
+In the iframe:
+
+```js
+import { responseTo } from 'php-wasm-browser';
+window.addEventListener('message', (event) => {
+   let response = '8.0.24';
+   if(event.data.type === 'get_php_version') {
+      response = '8.0.24';
+   } else {
+      throw new Error(`Unexpected message type: ${event.data.type}`);
+   }
+
+   // When `requestId` is present, the other thread expects a response:
+   if (event.data.requestId) {
+      const response = responseTo(event.data.requestId, response);
+      window.parent.postMessage(response, event.origin);
+   }
+});
+```
 

@@ -1,5 +1,12 @@
+const DEFAULT_RESPONSE_TIMEOUT = 25000;
+
+let lastRequestId = 0;
+
 /**
- * Implements request/response dynamics on top of JavaScript's `postMessage`
+ * Posts a message branded with a unique `requestId` to the given `target`.
+ * Then returns the `requestId` so it can be used to await a reply.
+ * Effectively, it implements the request/response dynamics on
+ * of JavaScript's `postMessage`
  *
  * @example
  *
@@ -35,15 +42,6 @@
  *    }
  * });
  * ```
- */
-
-const DEFAULT_RESPONSE_TIMEOUT = 25000;
-
-let lastRequestId = 0;
-
-/**
- * Posts a message branded with a unique `requestId` to the given `target`.
- * Then returns the `requestId` so it can be used to await a reply.
  *
  * @param  target          An object that has a `postMessage` method.
  * @param  message         A key-value object that can be serialized to JSON.
@@ -69,6 +67,7 @@ export function postMessageExpectReply(
 /**
  * Awaits a reply to the message with the given ID.
  *
+ * @see postMessageExpectReply
  * @throws {@link Error} If the reply is not received within the timeout.
  * @param  messageTarget EventEmitter emitting `message` events, e.g. `window`
  *                       or a `Worker` instance.
@@ -106,6 +105,7 @@ export function awaitReply(
 /**
  * Creates a response message to the given message ID.
  *
+ * @see postMessageExpectReply
  * @param  requestId The message ID sent from the other thread by
  *                   `postMessageExpectReply` in the `message` event.
  * @param  response  The response to send back to the messageTarget.
