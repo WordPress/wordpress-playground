@@ -3,6 +3,7 @@ theme:
     name: readthedocs
 
 repo_url: https://github.com/WordPress/wordpress-wasm
+edit_uri: blob/trunk/docs/
 
 nav:
     - Overview: index.md
