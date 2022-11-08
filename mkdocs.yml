@@ -14,3 +14,9 @@ nav:
           - php-wasm Reference: api/php-wasm.md
           - php-wasm-browser Reference: api/php-wasm-browser.md
           - wordpress-wasm Reference: api/wordpress-wasm.md
+
+# markdown_extensions:
+#     - meta
+#     - toc
+
+hooks: ['docs_hooks.py']
