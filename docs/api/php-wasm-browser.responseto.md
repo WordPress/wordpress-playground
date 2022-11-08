@@ -3,7 +3,10 @@
 ## responseTo() function
 responseTo<!-- -->&lt;<!-- -->T&gt;<!-- -->(<!-- -->requestId<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, response<!-- -->: T<!-- -->)<!-- -->: [MessageResponse](./php-wasm-browser.messageresponse.md)<!-- -->&lt;<!-- -->T<!-- -->&gt;
 
-* `requestId` – The message ID sent from the other thread by `postMessageExpectReply` in the `message` event.
+* `requestId` – The message ID sent from the other thread by
+`postMessageExpectReply` in the `message` event.
+
+
 * `response` – The response to send back to the messageTarget.
 * Returns: A message object that can be sent back to the other thread.
 

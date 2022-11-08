@@ -11,5 +11,7 @@ cloneResponseMonitorProgress<!-- -->(\
 * Returns: The cloned response
 
 
-Clones a fetch Response object and returns a version that calls the `onProgress` callback as the progress changes.
+Clones a fetch Response object and returns a version
+that calls the `onProgress` callback as the progress
+changes.
 

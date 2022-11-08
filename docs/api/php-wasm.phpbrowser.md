@@ -6,7 +6,8 @@
 ```typescript
 class PHPBrowser 
 ```
-A fake web browser that handles PHPServer's cookies and redirects internally without exposing them to the consumer.
+A fake web browser that handles PHPServer's cookies and redirects
+internally without exposing them to the consumer.
 
 ## Constructors
 
@@ -31,9 +32,12 @@ Constructs a new instance of the `PHPBrowser` class
 
 
 Sends the request to the server.
-When cookies are present in the response, this method stores them and sends them with any subsequent requests.
+When cookies are present in the response, this method stores
+them and sends them with any subsequent requests.
 
-When a redirection is present in the response, this method follows it by discarding a response and sending a subsequent request.
+When a redirection is present in the response, this method
+follows it by discarding a response and sending a subsequent
+request.
 
 
 

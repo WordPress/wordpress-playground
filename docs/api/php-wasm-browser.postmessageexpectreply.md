@@ -13,7 +13,10 @@ postMessageExpectReply<!-- -->(\
 * Returns: The message ID for awaitReply().
 
 
-Posts a message branded with a unique `requestId` to the given `target`<!-- -->. Then returns the `requestId` so it can be used to await a reply. Effectively, it implements the request/response dynamics on of JavaScript's `postMessage`
+Posts a message branded with a unique `requestId` to the given `target`<!-- -->.
+Then returns the `requestId` so it can be used to await a reply.
+Effectively, it implements the request/response dynamics on
+of JavaScript's `postMessage`
 
 ## Example
 In the main app:

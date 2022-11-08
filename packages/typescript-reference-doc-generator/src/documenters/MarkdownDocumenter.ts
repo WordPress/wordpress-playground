@@ -327,7 +327,7 @@ export class MarkdownDocumenter {
 			},
 		});
 
-		let pageContent: string = stringBuilder.toString();
+		const pageContent: string = stringBuilder.toString();
 
 		fs.writeFileSync(filename, pageContent);
 	}
@@ -342,6 +342,10 @@ export class MarkdownDocumenter {
 			const tsdocComment: DocComment | undefined = apiItem.tsdocComment;
 
 			if (tsdocComment) {
+				const asText = Utilities.nodeToText(tsdocComment);
+				if (asText.includes(`is_uploaded_file`)) {
+					debugger;
+				}
 				if (tsdocComment.deprecatedBlock) {
 					output.appendNode(
 						new DocNoteBox({ configuration }, [
@@ -544,6 +548,9 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: MODEL
+	 *
+	 * @param  output
+	 * @param  apiModel
 	 */
 	private _writeModelTable(output: DocSection, apiModel: ApiModel): void {
 		const packagesTable: DocTable = this.table(['Package', 'Description']);
@@ -570,6 +577,9 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: PACKAGE or NAMESPACE
+	 *
+	 * @param  output
+	 * @param  apiContainer
 	 */
 	private _writePackageOrNamespaceTables(
 		output: DocSection,
@@ -667,6 +677,9 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: CLASS
+	 *
+	 * @param  output
+	 * @param  apiClass
 	 */
 	private _writeClassMembers(output: DocSection, apiClass: ApiClass): void {
 		const eventsTable: DocTable = this.table([
@@ -789,6 +802,9 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: ENUM
+	 *
+	 * @param  output
+	 * @param  apiEnum
 	 */
 	private _writeEnumTables(output: DocSection, apiEnum: ApiEnum): void {
 		const enumMembersTable: DocTable = this.table([
@@ -821,6 +837,9 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: INTERFACE
+	 *
+	 * @param  output
+	 * @param  apiInterface
 	 */
 	private _writeInterfaceMembers(
 		output: DocSection,
@@ -903,6 +922,10 @@ export class MarkdownDocumenter {
 
 	/**
 	 * GENERATE PAGE: FUNCTION-LIKE
+	 *
+	 * @param  apiParameterListMixin
+	 * @param  root0
+	 * @param  root0.withTypes
 	 */
 	private _createParametersList(
 		apiParameterListMixin: ApiParameterListMixin,
@@ -1128,9 +1151,8 @@ export class MarkdownDocumenter {
 			linkedTokens.map(({ text, url }) => {
 				if (url) {
 					return this.link(text, url);
-				} else {
-					return this.text(text);
 				}
+				return this.text(text);
 			}),
 			'inline'
 		);
@@ -1142,9 +1164,8 @@ export class MarkdownDocumenter {
 			return this.link(resolved.name, resolved.docUrl);
 		} else if (type instanceof ExcerptToken) {
 			return this.text(type.text);
-		} else {
-			return this.text(type);
 		}
+		return this.text(type);
 	}
 
 	private formatApiParameterDescription(
@@ -1207,6 +1228,8 @@ export class MarkdownDocumenter {
 	/**
 	 * This generates a DocTableCell for an ApiItem including the summary section and "(BETA)" annotation.
 	 *
+	 * @param  apiItem
+	 * @param  isInherited
 	 * @remarks
 	 * We mostly assume that the input is an ApiDocumentedItem, but it's easier to perform this as a runtime
 	 * check than to have each caller perform a type cast.

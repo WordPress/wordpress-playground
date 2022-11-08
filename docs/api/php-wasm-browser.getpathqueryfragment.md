@@ -7,7 +7,8 @@ getPathQueryFragment<!-- -->(<!-- -->url<!-- -->: [URL](https://developer.mozill
 * Returns: The path, query, and fragment.
 
 
-Returns a string representing the path, query, and fragment of the given URL.
+Returns a string representing the path, query, and
+fragment of the given URL.
 
 ## Example
 

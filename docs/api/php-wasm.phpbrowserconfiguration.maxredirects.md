@@ -6,5 +6,6 @@
 ```typescript
 maxRedirects?: number;
 ```
-The maximum number of redirects to follow internally. Once exceeded, request() will return the redirecting response.
+The maximum number of redirects to follow internally. Once
+exceeded, request() will return the redirecting response.
 

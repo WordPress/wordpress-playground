@@ -14,7 +14,10 @@ request(request: PHPRequest, redirects?: number): Promise<PHPResponse>;
 
 Sends the request to the server.
 
-When cookies are present in the response, this method stores them and sends them with any subsequent requests.
+When cookies are present in the response, this method stores
+them and sends them with any subsequent requests.
 
-When a redirection is present in the response, this method follows it by discarding a response and sending a subsequent request.
+When a redirection is present in the response, this method
+follows it by discarding a response and sending a subsequent
+request.
 

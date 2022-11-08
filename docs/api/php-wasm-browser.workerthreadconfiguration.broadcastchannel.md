@@ -6,5 +6,6 @@
 ```typescript
 broadcastChannel?: BroadcastChannel;
 ```
-The broadcast channel to use for communication with the service worker.
+The broadcast channel to use for communication
+with the service worker.
 

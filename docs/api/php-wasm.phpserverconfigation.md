@@ -9,6 +9,12 @@ interface PHPServerConfigation
 ## Properties
 
 * `absoluteUrl`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Server URL. Used to populate $_SERVER details like HTTP_HOST.
-* `documentRoot`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The directory in the PHP filesystem where the server will look for the files to serve. Default: `/var/www`<!-- -->.
-* `isStaticFilePath`    (<!-- -->path<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->=&gt;[boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Callback used by the PHPServer to decide whether the requested path refers to a PHP file or a static file.
+* `documentRoot`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The directory in the PHP filesystem where the server will look
+for the files to serve. Default: `/var/www`<!-- -->.
+
+
+* `isStaticFilePath`    (<!-- -->path<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->=&gt;[boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Callback used by the PHPServer to decide whether
+the requested path refers to a PHP file or a static file.
+
+
 

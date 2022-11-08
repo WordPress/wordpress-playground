@@ -40,12 +40,18 @@ Dispatches a request to the PHPServer.
 * Returns: The relative path.
 
 
-Converts an absolute URL based at the PHPServer to a relative path without the server pathname and scope.
+Converts an absolute URL based at the PHPServer to a relative path
+without the server pathname and scope.
+
+
 ### pathToInternalUrl<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
 * `path` – The server path to convert to an absolute URL.
 * Returns: The absolute URL.
 
 
-Converts a path to an absolute URL based at the PHPServer root.
+Converts a path to an absolute URL based at the PHPServer
+root.
+
+
 

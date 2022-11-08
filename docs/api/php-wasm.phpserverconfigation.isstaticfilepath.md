@@ -6,5 +6,6 @@
 ```typescript
 isStaticFilePath?: (path: string) => boolean;
 ```
-Callback used by the PHPServer to decide whether the requested path refers to a PHP file or a static file.
+Callback used by the PHPServer to decide whether
+the requested path refers to a PHP file or a static file.
 

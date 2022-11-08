@@ -6,5 +6,6 @@
 ```typescript
 phpJsHash: any
 ```
-Hash of the emscripten-compiled php.js file. Used for cache busting in web browsers.
+Hash of the emscripten-compiled php.js file. Used for cache busting in
+web browsers.
 

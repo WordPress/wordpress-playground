@@ -9,9 +9,12 @@ class PHP
 ## Remarks
 The constructor for this class is marked as internal. Third-party code should not call the constructor directly or create subclasses that extend the `PHP` class.
 
-An environment-agnostic wrapper around the Emscripten PHP runtime that abstracts the super low-level API and provides a more convenient higher-level API.
+An environment-agnostic wrapper around the Emscripten PHP runtime
+that abstracts the super low-level API and provides a more convenient
+higher-level API.
 
-It exposes a minimal set of methods to run PHP scripts and to interact with the PHP filesystem.
+It exposes a minimal set of methods to run PHP scripts and to
+interact with the PHP filesystem.
 
 ## Methods
 
@@ -32,13 +35,33 @@ Checks if a file (or a directory) exists in the PHP filesystem.
 
 
 Allocates an internal HashTable to keep track of the legitimate uploads.
-Supporting file uploads via WebAssembly is a bit tricky. Functions like `is_uploaded_file` or `move_uploaded_file` fail to work with those $_FILES entries that are not in an internal hash table. This is a security feature, see this exceprt from the `is_uploaded_file` documentation:
+Supporting file uploads via WebAssembly is a bit tricky.
+Functions like `is_uploaded_file` or `move_uploaded_file` fail to work
+with those $_FILES entries that are not in an internal hash table. This
+is a security feature, see this exceprt from the `is_uploaded_file` documentation:
 
-> is_uploaded_file > > Returns true if the file named by filename was uploaded via HTTP POST. This is > useful to help ensure that a malicious user hasn't tried to trick the script into > working on files upon which it should not be working--for instance, /etc/passwd. > > This sort of check is especially important if there is any chance that anything > done with uploaded files could reveal their contents to the user, or even to other > users on the same system. > > For proper working, the function is_uploaded_file() needs an argument like > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's > machine $_FILES['userfile']['name'] does not work.
+> is_uploaded_file
+>
+> Returns true if the file named by filename was uploaded via HTTP POST. This is
+> useful to help ensure that a malicious user hasn't tried to trick the script into
+> working on files upon which it should not be working--for instance, /etc/passwd.
+>
+> This sort of check is especially important if there is any chance that anything
+> done with uploaded files could reveal their contents to the user, or even to other
+> users on the same system.
+>
+> For proper working, the function is_uploaded_file() needs an argument like
+> $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
+> machine $_FILES['userfile']['name'] does not work.
 
-This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has a chance to note which files were actually uploaded. In practice, `is_uploaded_file()` always returns false.
+This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has
+a chance to note which files were actually uploaded. In practice, `is_uploaded_file()`
+always returns false.
 
-`initUploadedFilesHash()`<!-- -->, `registerUploadedFile()`<!-- -->, and `destroyUploadedFilesHash()` are a workaround for this problem. They allow you to manually register uploaded files in the internal hash table, so that PHP functions like `move_uploaded_file()` can recognize them.
+`initUploadedFilesHash()`<!-- -->, `registerUploadedFile()`<!-- -->, and `destroyUploadedFilesHash()`
+are a workaround for this problem. They allow you to manually register uploaded
+files in the internal hash table, so that PHP functions like `move_uploaded_file()`
+can recognize them.
 
 Usage:
 
@@ -78,7 +101,11 @@ php.destroyUploadedFilesHash();
 * `path` – The directory path to create.
 
 
-Recursively creates a directory with the given path in the PHP filesystem. For example, if the path is `/root/php/data`<!-- -->, and `/root` already exists, it will create the directories `/root/php` and `/root/php/data`<!-- -->.
+Recursively creates a directory with the given path in the PHP filesystem.
+For example, if the path is `/root/php/data`<!-- -->, and `/root` already exists,
+it will create the directories `/root/php` and `/root/php/data`<!-- -->.
+
+
 ### readFileAsBuffer<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array)
 
 * `path` – The file path to read.
@@ -109,8 +136,13 @@ Registers an uploaded file in the internal hash table.
 * Returns: The PHP process output.
 
 
-Runs a PHP script and outputs an object with three properties: stdout, stderr, and the exitCode.
-* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error. * `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc. * `stderr` – containing all the errors are logged. It can also be written to explicitly:
+Runs a PHP script and outputs an object with three properties:
+stdout, stderr, and the exitCode.
+
+* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error.
+* `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc.
+* `stderr` – containing all the errors are logged. It can also be written
+to explicitly:
 
 ```js
 console.log(php.run(`<?php
@@ -135,5 +167,8 @@ Removes a file from the PHP filesystem.
 * `data` – The data to write to the file.
 
 
-Overwrites data in a file in the PHP filesystem. Creates a new file if one doesn't exist yet.
+Overwrites data in a file in the PHP filesystem.
+Creates a new file if one doesn't exist yet.
+
+
 

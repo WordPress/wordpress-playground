@@ -11,5 +11,6 @@ pathToInternalUrl(path: string): string;
 * Returns: The absolute URL.
 
 
-Converts a path to an absolute URL based at the PHPServer root.
+Converts a path to an absolute URL based at the PHPServer
+root.
 

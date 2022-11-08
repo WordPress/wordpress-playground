@@ -11,5 +11,6 @@ internalUrlToPath(internalUrl: string): string;
 * Returns: The relative path.
 
 
-Converts an absolute URL based at the PHPServer to a relative path without the server pathname and scope.
+Converts an absolute URL based at the PHPServer to a relative path
+without the server pathname and scope.
 

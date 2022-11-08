@@ -11,5 +11,6 @@ writeFile(path: string, data: string | Uint8Array): any;
 * `data` – The data to write to the file.
 
 
-Overwrites data in a file in the PHP filesystem. Creates a new file if one doesn't exist yet.
+Overwrites data in a file in the PHP filesystem.
+Creates a new file if one doesn't exist yet.
 

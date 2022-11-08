@@ -11,5 +11,6 @@ request(request: PHPRequest): Promise<PHPResponse>;
 * Returns: The response.
 
 
-Serves the request – either by serving a static file, or by dispatching it to the PHP runtime.
+Serves the request – either by serving a static file, or by
+dispatching it to the PHP runtime.
 

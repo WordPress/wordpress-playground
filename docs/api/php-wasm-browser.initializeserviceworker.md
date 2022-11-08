@@ -6,5 +6,6 @@ initializeServiceWorker<!-- -->(<!-- -->config<!-- -->: [ServiceWorkerConfigurat
 * `config` – 
 
 
-Run this function in the service worker to install the required event handlers.
+Run this function in the service worker to install the required event
+handlers.
 

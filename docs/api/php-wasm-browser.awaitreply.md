@@ -7,9 +7,15 @@ awaitReply<!-- -->(\
 &emsp;&emsp;&emsp;<!-- -->timeout?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
 
-* `messageTarget` – EventEmitter emitting `message` events, e.g. `window` or a `Worker` instance.
+* `messageTarget` – EventEmitter emitting `message` events, e.g. `window`
+or a `Worker` instance.
+
+
 * `requestId` – The message ID returned by postMessageExpectReply().
-* `timeout` – Optional. The number of milliseconds to wait for a reply before throwing an error.
+* `timeout` – Optional. The number of milliseconds to wait for a reply before
+throwing an error.
+
+
 * Returns: The reply from the messageTarget.
 
 Exceptions:

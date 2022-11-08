@@ -13,5 +13,6 @@ loadPHPWithProgress<!-- -->(\
 * Returns: PHP instance.
 
 
-Call this in a Worker Thread to start load the PHP runtime and post the progress to the main thread.
+Call this in a Worker Thread to start load the PHP runtime
+and post the progress to the main thread.
 

@@ -9,5 +9,8 @@ interface PHPBrowserConfiguration
 ## Properties
 
 * `handleRedirects`    [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Should handle redirects internally?
-* `maxRedirects`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> The maximum number of redirects to follow internally. Once exceeded, request() will return the redirecting response.
+* `maxRedirects`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> The maximum number of redirects to follow internally. Once
+exceeded, request() will return the redirecting response.
+
+
 

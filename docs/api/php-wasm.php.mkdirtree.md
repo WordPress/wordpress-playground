@@ -10,5 +10,7 @@ mkdirTree(path: string): void;
 * `path` – The directory path to create.
 
 
-Recursively creates a directory with the given path in the PHP filesystem. For example, if the path is `/root/php/data`<!-- -->, and `/root` already exists, it will create the directories `/root/php` and `/root/php/data`<!-- -->.
+Recursively creates a directory with the given path in the PHP filesystem.
+For example, if the path is `/root/php/data`<!-- -->, and `/root` already exists,
+it will create the directories `/root/php` and `/root/php/data`<!-- -->.
 

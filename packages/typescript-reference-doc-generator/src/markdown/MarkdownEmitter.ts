@@ -21,6 +21,7 @@ import {
 	DocExcerpt,
 } from '@microsoft/tsdoc';
 
+import { Utilities } from '../utils/Utilities';
 import { IndentedWriter } from '../utils/IndentedWriter';
 
 export interface IMarkdownEmitterOptions {}
@@ -203,6 +204,7 @@ export class MarkdownEmitter {
 				break;
 			}
 			case DocNodeKind.SoftBreak: {
+				debugger;
 				if (!/^\s?$/.test(writer.peekLastCharacter())) {
 					// Output the same soft break character as consumed
 					// from the original input.

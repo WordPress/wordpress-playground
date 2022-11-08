@@ -6,7 +6,8 @@
 ```typescript
 class PHPServer 
 ```
-A fake PHP server that handles HTTP requests but does not bind to any port.
+A fake PHP server that handles HTTP requests but does not
+bind to any port.
 
 ## Constructors
 
@@ -30,7 +31,10 @@ Constructs a new instance of the `PHPServer` class
 * Returns: The response.
 
 
-Serves the request – either by serving a static file, or by dispatching it to the PHP runtime.
+Serves the request – either by serving a static file, or by
+dispatching it to the PHP runtime.
+
+
 
 ## Example
 

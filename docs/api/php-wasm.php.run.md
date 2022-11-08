@@ -11,9 +11,13 @@ run(code: string): PHPOutput;
 * Returns: The PHP process output.
 
 
-Runs a PHP script and outputs an object with three properties: stdout, stderr, and the exitCode.
+Runs a PHP script and outputs an object with three properties:
+stdout, stderr, and the exitCode.
 
-* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error. * `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc. * `stderr` – containing all the errors are logged. It can also be written to explicitly:
+* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error.
+* `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc.
+* `stderr` – containing all the errors are logged. It can also be written
+to explicitly:
 
 ```js
 console.log(php.run(`<?php

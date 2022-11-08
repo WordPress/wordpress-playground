@@ -11,13 +11,33 @@ initUploadedFilesHash(): void;
 
 Allocates an internal HashTable to keep track of the legitimate uploads.
 
-Supporting file uploads via WebAssembly is a bit tricky. Functions like `is_uploaded_file` or `move_uploaded_file` fail to work with those $_FILES entries that are not in an internal hash table. This is a security feature, see this exceprt from the `is_uploaded_file` documentation:
+Supporting file uploads via WebAssembly is a bit tricky.
+Functions like `is_uploaded_file` or `move_uploaded_file` fail to work
+with those $_FILES entries that are not in an internal hash table. This
+is a security feature, see this exceprt from the `is_uploaded_file` documentation:
 
-> is_uploaded_file > > Returns true if the file named by filename was uploaded via HTTP POST. This is > useful to help ensure that a malicious user hasn't tried to trick the script into > working on files upon which it should not be working--for instance, /etc/passwd. > > This sort of check is especially important if there is any chance that anything > done with uploaded files could reveal their contents to the user, or even to other > users on the same system. > > For proper working, the function is_uploaded_file() needs an argument like > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's > machine $_FILES['userfile']['name'] does not work.
+> is_uploaded_file
+>
+> Returns true if the file named by filename was uploaded via HTTP POST. This is
+> useful to help ensure that a malicious user hasn't tried to trick the script into
+> working on files upon which it should not be working--for instance, /etc/passwd.
+>
+> This sort of check is especially important if there is any chance that anything
+> done with uploaded files could reveal their contents to the user, or even to other
+> users on the same system.
+>
+> For proper working, the function is_uploaded_file() needs an argument like
+> $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
+> machine $_FILES['userfile']['name'] does not work.
 
-This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has a chance to note which files were actually uploaded. In practice, `is_uploaded_file()` always returns false.
+This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has
+a chance to note which files were actually uploaded. In practice, `is_uploaded_file()`
+always returns false.
 
-`initUploadedFilesHash()`<!-- -->, `registerUploadedFile()`<!-- -->, and `destroyUploadedFilesHash()` are a workaround for this problem. They allow you to manually register uploaded files in the internal hash table, so that PHP functions like `move_uploaded_file()` can recognize them.
+`initUploadedFilesHash()`<!-- -->, `registerUploadedFile()`<!-- -->, and `destroyUploadedFilesHash()`
+are a workaround for this problem. They allow you to manually register uploaded
+files in the internal hash table, so that PHP functions like `move_uploaded_file()`
+can recognize them.
 
 Usage:
 
