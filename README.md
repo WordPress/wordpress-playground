@@ -12,7 +12,7 @@ I'm glad you asked – WordPress.wasm is a big deal!
 
 It can power:
 
--   Runeditable code examples in your documentation or course
+-   Run editable code examples in your documentation or course
 -   Plugin and theme demos in a private WordPress instance where the user is already logged in as admin
 -   Easily switching PHP and WordPress version when testing
 -   Replaying and fixing the failed CI tests right in the browser
@@ -26,7 +26,7 @@ See
 
 You can run WordPress.wasm as follows:
 
-```js
+```console
 git clone https://github.com/WordPress/wordpress-wasm
 cd wordpress-wasm
 npm install
