@@ -127,8 +127,6 @@ export class MarkdownDocumenter {
 		const configuration: TSDocConfiguration = this._tsdocConfiguration;
 		const output: DocSection = this.section();
 
-		this._writeBreadcrumb(output, apiItem);
-
 		const scopedName: string = apiItem.getScopedNameWithinPackage();
 
 		switch (apiItem.kind) {
