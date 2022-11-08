@@ -1,6 +1,6 @@
 # WordPress.wasm
 
-[Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation](https://github.com/WordPress/wordpress-wasm/blob/trunk/docs/index.md) | [API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/index.md)
+[Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation and API Reference](https://wordpresswasm.readthedocs.io/en/latest/)
 
 WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html!
+A browser should open and take you to your very own client-side WordPress at [http://127.0.0.1:8777/wordpress.html](http://127.0.0.1:8777/wordpress.html)!
 
 As of today, the best way to play with WordPress.wasm is to directly modify the cloned files – [packages/wordpress-wasm/](./packages/wordpress-wasm) is a good place to start.
 
