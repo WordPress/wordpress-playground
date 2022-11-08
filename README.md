@@ -26,7 +26,7 @@ See
 
 You can run WordPress.wasm as follows:
 
-```console
+```bash
 git clone https://github.com/WordPress/wordpress-wasm
 cd wordpress-wasm
 npm install
