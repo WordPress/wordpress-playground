@@ -30,8 +30,8 @@ export default function(PHPModule) {
         // web worker
         PACKAGE_PATH = encodeURIComponent(location.pathname.toString().substring(0, location.pathname.toString().lastIndexOf('/')) + '/');
       }
-      var PACKAGE_NAME = '/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad';
-      var REMOTE_PACKAGE_BASE = '/wp.data?55dc64b35c56ddfeef372b901b6ff2ad';
+      var PACKAGE_NAME = '/root/output//wp.data?19a172eea15825668cbea30cbf15af99';
+      var REMOTE_PACKAGE_BASE = '/wp.data?19a172eea15825668cbea30cbf15af99';
       if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
         Module['locateFile'] = Module['locateFilePackage'];
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
@@ -330,10 +330,10 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
           var files = metadata['files'];
           for (var i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
-          }          Module['removeRunDependency']('datafile_/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad');
+          }          Module['removeRunDependency']('datafile_/root/output//wp.data?19a172eea15825668cbea30cbf15af99');
 
       };
-      Module['addRunDependency']('datafile_/root/output//wp.data?55dc64b35c56ddfeef372b901b6ff2ad');
+      Module['addRunDependency']('datafile_/root/output//wp.data?19a172eea15825668cbea30cbf15af99');
 
       if (!Module.preloadResults) Module.preloadResults = {};
 

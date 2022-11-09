@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"allowJs": true,
-		"checkJs": true,
+		"checkJs": false,
 		"allowSyntheticDefaultImports": true,
 		"jsx": "preserve",
 		"target": "esnext",
@@ -18,7 +18,7 @@
 
 		"noImplicitAny": false,
 		"noUnusedLocals": true,
-		"noUnusedParameters": true,
+		"noUnusedParameters": false,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 		"importsNotUsedAsValues": "error",
@@ -28,8 +28,9 @@
 		"esModuleInterop": false,
 		"resolveJsonModule": true,
 
-		"typeRoots": [ "./typings" ],
-		"types": []
+		"rootDir": "src",
+		"declarationDir": "build-types",
+		"outDir": "build-types",
 	},
-	"exclude": []
+	"references": [],
 }

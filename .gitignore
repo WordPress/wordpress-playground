@@ -4,7 +4,11 @@
 node_modules
 package-lock.json
 build/*
-build-api/*
+build-api
+build-wp
+build-php
+build-api
+build-scripts
 !build/wp-admin
 !build/wp-content
 !build/wp-includes
@@ -12,8 +16,6 @@ build-api/*
 !build/php.js
 !build/wp.data
 !build/wp.js
-packages/*/build*
-packages/*/build*/*
 *.tsbuildinfo
 tsdoc-metadata.json
 

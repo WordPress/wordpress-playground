@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+  "extends": "../../api-extractor-base.json",
+  "mainEntryPointFilePath": "<projectFolder>/build-types/php-wasm-browser/service-worker/worker-library.d.ts",
+  "docModel": {
+    "apiJsonFilePath": "<projectFolder>/build-api/distinct/php-wasm-browser-service-worker.api.json"
+  }
+}

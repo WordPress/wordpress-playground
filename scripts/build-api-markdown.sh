@@ -1,3 +1,4 @@
 #!/bin/bash
 
-node packages/typescript-reference-doc-generator/bin/generate-docs.js -i ./build-api -o ./docs/api
+node ./build-scripts/generate-reference-docs.js -i ./build-api/combined -o ./docs/api
+

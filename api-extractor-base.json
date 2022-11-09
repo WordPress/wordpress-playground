@@ -45,7 +45,7 @@
    *
    * SUPPORTED TOKENS: <projectFolder>, <packageName>, <unscopedPackageName>
    */
-  "mainEntryPointFilePath": "<projectFolder>/packages/php-wasm-browser/build-types/index.d.ts",
+  "mainEntryPointFilePath": "<projectFolder>/build-types/index.d.ts",
 
   /**
    * A list of NPM package names whose exports should be treated as part of this package.
@@ -206,7 +206,7 @@
      * SUPPORTED TOKENS: <projectFolder>, <packageName>, <unscopedPackageName>
      * DEFAULT VALUE: "<projectFolder>/temp/<unscopedPackageName>.api.json"
      */
-    "apiJsonFilePath": "<projectFolder>/build-api/<unscopedPackageName>.api.json",
+    "apiJsonFilePath": "<projectFolder>/build-api/distinct/<unscopedPackageName>.api.json",
 
     /**
      * Whether "forgotten exports" should be included in the doc model file. Forgotten exports are declarations

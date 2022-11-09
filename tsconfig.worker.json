@@ -1,0 +1,21 @@
+{
+	"extends": "./tsconfig.base.json",
+	"include": [
+		 "src/php-wasm/php.ts",
+		 "src/php-wasm/index.ts",
+		 "src/php-wasm/php-server.ts",
+		 "src/php-wasm/php-browser.ts",
+		 
+		 "src/php-wasm-browser/service-worker/worker-library.ts",
+		 "src/php-wasm-browser/worker-thread/worker-library.ts",
+		 "src/php-wasm-browser/emscripten-download-monitor.ts",
+		 "src/php-wasm-browser/messaging.ts",
+		 "src/php-wasm-browser/scope.ts",
+		 "src/php-wasm-browser/utils.ts",
+
+		 "src/wordpress-wasm/service-worker.ts",
+		 "src/wordpress-wasm/worker-thread.ts",
+		 "src/wordpress-wasm/utils.ts",
+		 "src/wordpress-wasm/config.ts"
+ 	]
+}

@@ -1,13 +1,15 @@
 {
-  "name": "wordpress_wasm_root",
+  "name": "@wordpress/wasm",
   "version": "0.0.1",
   "description": "",
   "main": "build/app.js",
+  "types": "build-types",
   "private": "true",
   "scripts": {
-    "dev": "node esbuild-packages.js --watch",
+    "dev": "npm-run-all --parallel dev:js dev:types",
+    "dev:js": "node esbuild.js --watch",
+    "dev:types": "npm-run-all --parallel 'build:types:* -- --watch'",
     "dev:docs:html": "vitepress dev docs/api",
-    "dev:doc-generator": "gulp watchDocGenerator",
     "build": "gulp build:js",
     "build:all": "npm run clean; gulp buildAll",
     "build:js": "gulp buildJS",
@@ -17,10 +19,12 @@
     "build:php:web": "PLATFORM=web gulp buildPHP",
     "build:php:node": "PLATFORM=node gulp buildPHP",
     "build:api-docs": "bash scripts/run-docs-pipeline.sh",
-    "build:doc-generator": "gulp buildDocGenerator",
-    "clean": "rm -rf build/* packages/*/build-*/*",
-    "format": "prettier --write packages/src",
-    "lint:js": "eslint \"./packages/src/**/*.{js,mjs,ts}\"",
+    "build:types": "npm-run-all --parallel build:types:*",
+    "build:types:general": "tsc -p ./tsconfig.json",
+    "build:types:workers": "tsc -p ./tsconfig.worker.json",
+    "clean": "rm -rf build/* ./build-*/*",
+    "format": "prettier --write src",
+    "lint:js": "eslint \"./src/**/*.{js,mjs,ts}\"",
     "lint:js:fix": "npm run lint:js -- --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -39,9 +43,6 @@
   "dependencies": {
     "@microsoft/tsdoc": "^0.14.2",
     "glob": "^8.0.3",
-    "php-wasm": "file:packages/php-wasm",
-    "php-wasm-browser": "file:packages/php-wasm-browser",
-    "wordpress-wasm": "file:packages/wordpress-wasm",
     "yargs": "^17.5.1"
   },
   "devDependencies": {
