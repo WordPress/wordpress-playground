@@ -12,5 +12,5 @@ done;
 # Unique modules that the API docs were sourced from
 for module in $(find . -type f -maxdepth 3 -name 'api-extractor*.json' -exec dirname "{}" \; | xargs basename | sort -u | uniq | grep -v '\.'); do
     node ./src/typescript-reference-doc-generator/bin/merge-api-models.js \
-        ./build-api/distinct/$module*.json > build-api/combined/$module.api.json; 
+        ./build-api/distinct/$module*.json > build-api/combined/$module.api.json;
 done;

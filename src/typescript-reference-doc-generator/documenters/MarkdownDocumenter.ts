@@ -551,6 +551,14 @@ export class MarkdownDocumenter {
 	private _writeModelTable(output: DocSection, apiModel: ApiModel): void {
 		const packagesTable: DocTable = this.table(['Package', 'Description']);
 
+		const packages = new Set();
+		Utilities.forEachMemberRecursive(apiModel, (apiMember: ApiItem) => {
+			const apiMemberAny = apiMember as any;
+			if ('fileUrlPath' in apiMemberAny && apiMemberAny.fileUrlPath) {
+				packages.add(apiMemberAny.fileUrlPath.split('/')[1]);
+			}
+		});
+
 		for (const apiMember of apiModel.members) {
 			const row: DocTableRow = this.tableRow([
 				this._createTitleCell(apiMember),
@@ -1095,9 +1103,7 @@ export class MarkdownDocumenter {
 		}
 
 		// Take note of the type parameters to avoid linking them
-		const typeParameters = ApiTypeParameterListMixin.isBaseClassOf(apiItem)
-			? apiItem.typeParameters.map((t) => t.name)
-			: [];
+		const typeParameters = Utilities.getTypeParameters(apiItem);
 
 		const classifiedTokens = Utilities.classifyTypeExpression(
 			typeExpression,

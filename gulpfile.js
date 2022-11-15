@@ -2,6 +2,7 @@ const gulp = require('gulp');
 const path = require('path');
 const glob = require('glob');
 const fs = require('fs');
+const { spawnSync } = require('child_process');
 
 const {
 	build: buildWordPress,
@@ -11,7 +12,6 @@ const { build: buildPHP } = require('./src/php-wasm/wasm/gulpfile');
 const outputDir = path.join(__dirname, 'build');
 
 console.log('Building the PHP WASM module...');
-console.log('Target path: $OUTDIR');
 
 async function collectBuiltWordPress() {
 	glob.sync(`${outputDir}/wp-*`).map((filePath) =>
@@ -53,6 +53,31 @@ async function buildModules() {
 	await esbuildModules();
 }
 
+function buildDocs(cb) {
+	const dtsPath = suffix => path.join(__dirname, 'build-types', suffix);
+	spawnSync(
+		'node',
+		[
+			'build-scripts/tsdoc-to-api-markdown.js',
+			'-e', 
+			dtsPath('php-wasm/index.d.ts'),
+			dtsPath('php-wasm-browser/index.d.ts'),
+			dtsPath('php-wasm-browser/service-worker/worker-library.d.ts'),
+			dtsPath('php-wasm-browser/worker-thread/worker-library.d.ts'),
+			dtsPath('wordpress-wasm/index.d.ts'),
+			dtsPath('wordpress-wasm/service-worker.d.ts'),
+			dtsPath('wordpress-wasm/worker-thread.d.ts'),
+			'-o',
+			path.join(__dirname, 'docs', 'api')
+		],
+		{
+			cwd: __dirname,
+			stdio: 'inherit',
+		}
+	);
+	cb();
+}
+
 exports.copyBuiltWordPress = collectBuiltWordPress;
 exports.collectBuiltPHP = collectBuiltPHP;
 exports.copyBuiltAssets = gulp.parallel(collectBuiltWordPress, collectBuiltPHP);
@@ -60,6 +85,7 @@ exports.buildHtaccess = buildHtaccess;
 exports.buildWordPress = gulp.series(buildWordPress, collectBuiltWordPress);
 exports.buildPHP = gulp.series(buildPHP, collectBuiltPHP);
 exports.buildJS = buildModules;
+exports.buildApiReference = buildDocs;
 
 exports.buildAll = gulp.parallel(
 	exports.buildHtaccess,

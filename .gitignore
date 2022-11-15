@@ -7,7 +7,7 @@ build/*
 build-api
 build-wp
 build-php
-build-api
+build-types
 build-scripts
 !build/wp-admin
 !build/wp-content

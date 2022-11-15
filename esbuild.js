@@ -70,6 +70,7 @@ async function main() {
 		nodePaths: ['packages'],
 		loader: {
 			'.php': 'text',
+			// '.json': 'text',
 		},
 		entryPoints: {
 			'service-worker': 'src/wordpress-wasm/service-worker.ts',
@@ -80,10 +81,11 @@ async function main() {
 	build({
 		logLevel: 'info',
 		platform: 'node',
-		outfile: './build-scripts/generate-reference-docs.js',
+		outdir: './build-scripts/',
 		bundle: true,
+		external: ['@microsoft/*', 'node_modules/*'],
 		entryPoints: [
-			'./src/typescript-reference-doc-generator/bin/generate-docs.js',
+			'./src/typescript-reference-doc-generator/bin/tsdoc-to-api-markdown.js',
 		],
 		watch: argv.watch,
 	});

@@ -11,9 +11,9 @@ const TARGET_DIR = path.join(REPO_ROOT_PATH, 'docs');
  * Loop through all the markdown files given as the CLI argument.
  */
 const mdFiles = {
-	'./packages/php-wasm/README.md': 'using-php-in-javascript.md',
-	'./packages/php-wasm-browser/README.md': 'using-php-in-the-browser.md',
-	'./packages/wordpress-wasm/README.md': 'using-wordpress-in-the-browser.md',
+	'./src/php-wasm/README.md': 'using-php-in-javascript.md',
+	'./src/php-wasm-browser/README.md': 'using-php-in-the-browser.md',
+	'./src/wordpress-wasm/README.md': 'using-wordpress-in-the-browser.md',
 };
 console.log(`Building the markdown files...`);
 

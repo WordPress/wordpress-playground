@@ -6,6 +6,7 @@ import {
 	ApiItem,
 	ApiDeclaredItem,
 	ApiClass,
+	ApiTypeParameterListMixin,
 } from '@microsoft/api-extractor-model';
 import { DocLinkTag, DocNode, DocPlainText } from '@microsoft/tsdoc';
 import ts from 'typescript';
@@ -53,6 +54,18 @@ export class Utilities {
 			signature = conciseSignature;
 		}
 		return signature;
+	}
+
+	public static getTypeParameters(apiItem: ApiItem): string[] {
+		const typeParams: string[] = [];
+		do {
+			if (ApiTypeParameterListMixin.isBaseClassOf(apiItem)) {
+				const names = apiItem.typeParameters.map((x) => x.name);
+				typeParams.push(...names);
+			}
+			apiItem = apiItem.parent!;
+		} while (apiItem);
+		return typeParams;
 	}
 
 	public static forEachChildRecursive(
@@ -214,6 +227,16 @@ export class Utilities {
 		classifyRecursive(sourceFile, 0, sourceFile);
 		return allTokens;
 	}
+
+	public static forEachMemberRecursive(apiItem: ApiItem, callback: (item: ApiItem) => void) {
+		if ('members' in apiItem) {
+			for(const member of apiItem.members) {
+				callback(member);
+				this.forEachMemberRecursive(member, callback);
+			}
+		}
+	}
+
 }
 
 export interface ClassifiedToken {
