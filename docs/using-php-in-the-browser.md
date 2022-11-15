@@ -192,12 +192,21 @@ the heavy lifting. Here's its documentation:
 
 initializeWorkerThread<!-- -->(<!-- -->config<!-- -->: [WorkerThreadConfiguration](api/php-wasm-browser.initializeworkerthread.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
 
-* `config` – The worker thread configuration.  The backend object to communicate with the parent thread.
+* `config` – The worker thread configuration.
+ The backend object to communicate with the parent thread.
 
 
-Call this in a worker thread script to set the stage for offloading the PHP processing. This function:
 
-* Initializes the PHP runtime * Starts PHPServer and PHPBrowser * Lets the main app know when its ready * Listens for messages from the main app * Runs the requested operations (like `run_php`<!-- -->) * Replies to the main app with the results using the [request/reply protocol](api/php-wasm-browser.initializeworkerthread.md)
+
+Call this in a worker thread script to set the stage for
+offloading the PHP processing. This function:
+
+* Initializes the PHP runtime
+* Starts PHPServer and PHPBrowser
+* Lets the main app know when its ready
+* Listens for messages from the main app
+* Runs the requested operations (like `run_php`<!-- -->)
+* Replies to the main app with the results using the [request/reply protocol](api/php-wasm-browser.initializeworkerthread.md)
 
 Remember: The worker thread code must live in a separate JavaScript file.
 
