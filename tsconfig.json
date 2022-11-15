@@ -1,13 +1,15 @@
 {
-	"compilerOptions": {
-		"jsx": "preserve",
-		"target": "esnext",
-		"module": "esnext",
-	},
-	"references": [
-		{ "path": "packages/php-wasm" },
-		{ "path": "packages/php-wasm-browser" },
-		{ "path": "packages/wordpress-wasm" }
-	],
-	"files": []
+	"extends": "./tsconfig.base.json",
+	"include": [ "src/**/*" ],
+	"exclude": [
+		 "src/php-wasm-browser/service-worker/worker-library.ts",
+		 "src/php-wasm-browser/worker-thread/worker-library.ts",
+		 "src/wordpress-wasm/service-worker.ts",
+		 "src/wordpress-wasm/worker-thread.ts",
+		 "src/wordpress-wasm/wordpress/**/*",
+		 "src/php-wasm/wasm/**/*",
+		 "build/**/*",
+		 "build-*/**/*",
+		 "build-types/**/*"
+ 	]
 }

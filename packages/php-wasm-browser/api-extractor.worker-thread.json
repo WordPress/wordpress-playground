@@ -1,8 +1,0 @@
-{
-  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
-  "extends": "../../api-extractor-base.json",
-  "mainEntryPointFilePath": "<projectFolder>/build-types/worker-thread/worker-library.d.ts",
-  "docModel": {
-    "apiJsonFilePath": "<projectFolder>/build-api/<unscopedPackageName>-worker-thread.api.json"
-  }
-}
