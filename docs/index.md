@@ -37,17 +37,17 @@ All the code examples in this sections will work only inside `packages/wordpress
 The WordPress instance is controlled via the `workerThread` object:
 
 ```js
-import { bootWordPress } from './';
-const workerThread = await bootWordPress();
+import { bootWordPress } from './'
+const workerThread = await bootWordPress()
 ```
 
 The `bootWordPress` utility downloads the WebAssembly runtime, starts it in a separate thread for performance reasons, and returns a `SpawnedWorkerThread` instance. The main application can control the WordPress instance through the `SpawnedWorkerThread` API.
 
-For example, you can run PHP code using the `eval` method:
+For example, you can run PHP code using the `run` method:
 
 ```js
-const result = await workerThread.eval(`<?php echo "Hello, world!";`);
-console.log(result);
+const result = await workerThread.run(`<?php echo "Hello, world!";`)
+console.log(result)
 // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
 ```
 
@@ -57,10 +57,10 @@ You can also dispatch HTTP requests to WordPress as follows:
 const response = await workerThread.HTTPRequest({
 	path: workerThread.pathToInternalUrl('/wp-login.php'),
 	method: 'GET',
-});
-console.log(response.statusCode);
+})
+console.log(response.statusCode)
 // 200
-console.log(response.body);
+console.log(response.body)
 // ... the rendered wp-login.php page ...
 ```
 
@@ -71,11 +71,11 @@ For more details, see the `SpawnedWorkerThread` reference manual page and the ar
 `wordpress-wasm` provides helpers to automate common use-cases, like logging the user in:
 
 ```js
-import { login } from './macros';
+import { login } from './macros'
 
 // Authenticate the user by sending a POST request to
 // /wp-login.php (via workerThread.HTTPRequest()):
-await login(workerThread, 'admin', 'password');
+await login(workerThread, 'admin', 'password')
 ```
 
 ### Installing plugins

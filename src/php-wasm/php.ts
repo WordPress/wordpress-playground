@@ -1,14 +1,14 @@
-const STR = 'string';
-const NUM = 'number';
+const STR = 'string'
+const NUM = 'number'
 
-export type JavascriptRuntime = 'NODE' | 'WEB' | 'WEBWORKER';
+export type JavascriptRuntime = 'NODE' | 'WEB' | 'WEBWORKER'
 
 /**
  * @internal
  */
 interface Streams {
-	stdout: string[];
-	stderr: string[];
+	stdout: string[]
+	stderr: string[]
 }
 
 /**
@@ -134,23 +134,23 @@ export async function startPHP(
 	phpModuleArgs: any = {},
 	dataDependenciesModules: any[] = []
 ): Promise<PHP> {
-	let resolvePhpReady, resolveDepsReady;
+	let resolvePhpReady, resolveDepsReady
 	const depsReady = new Promise((resolve) => {
-		resolveDepsReady = resolve;
-	});
+		resolveDepsReady = resolve
+	})
 	const phpReady = new Promise((resolve) => {
-		resolvePhpReady = resolve;
-	});
+		resolvePhpReady = resolve
+	})
 
 	const streams: Streams = {
 		stdout: [],
 		stderr: [],
-	};
-	const loadPHPRuntime = phpLoaderModule.default;
+	}
+	const loadPHPRuntime = phpLoaderModule.default
 	const PHPRuntime = loadPHPRuntime(runtime, {
 		onAbort(reason) {
-			console.error('WASM aborted: ');
-			console.error(reason);
+			console.error('WASM aborted: ')
+			console.error(reason)
 		},
 		print: (...chunks) => streams.stdout.push(...chunks),
 		printErr: (...chunks) => streams.stderr.push(...chunks),
@@ -158,27 +158,27 @@ export async function startPHP(
 		noInitialRun: true,
 		onRuntimeInitialized() {
 			if (phpModuleArgs.onRuntimeInitialized) {
-				phpModuleArgs.onRuntimeInitialized();
+				phpModuleArgs.onRuntimeInitialized()
 			}
-			resolvePhpReady();
+			resolvePhpReady()
 		},
 		monitorRunDependencies(nbLeft) {
 			if (nbLeft === 0) {
-				delete PHPRuntime.monitorRunDependencies;
-				resolveDepsReady();
+				delete PHPRuntime.monitorRunDependencies
+				resolveDepsReady()
 			}
 		},
-	});
+	})
 	for (const { default: loadDataModule } of dataDependenciesModules) {
-		loadDataModule(PHPRuntime);
+		loadDataModule(PHPRuntime)
 	}
 	if (!dataDependenciesModules.length) {
-		resolveDepsReady();
+		resolveDepsReady()
 	}
 
-	await depsReady;
-	await phpReady;
-	return new PHP(PHPRuntime, streams);
+	await depsReady
+	await phpReady
+	return new PHP(PHPRuntime, streams)
 }
 
 /**
@@ -193,8 +193,8 @@ export async function startPHP(
  * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
 export class PHP {
-	#Runtime;
-	#streams;
+	#Runtime
+	#streams
 
 	/**
 	 * Initializes a PHP runtime.
@@ -204,10 +204,10 @@ export class PHP {
 	 * @param  streams    - An object pointing to stdout and stderr streams, as initilized by startPHP.
 	 */
 	constructor(PHPRuntime: any, streams: Streams) {
-		this.#Runtime = PHPRuntime;
-		this.#streams = streams;
+		this.#Runtime = PHPRuntime
+		this.#streams = streams
 
-		this.mkdirTree('/usr/local/etc');
+		this.mkdirTree('/usr/local/etc')
 		// @TODO: make this customizable
 		this.writeFile(
 			'/usr/local/etc/php.ini',
@@ -218,8 +218,8 @@ html_errors = 1
 display_startup_errors = On
 session.save_path=/home/web_user
     `
-		);
-		this.#Runtime.ccall('phpwasm_init_context', NUM, [STR], []);
+		)
+		this.#Runtime.ccall('phpwasm_init_context', NUM, [STR], [])
 	}
 
 	/**
@@ -255,14 +255,14 @@ session.save_path=/home/web_user
 			NUM,
 			[STR],
 			[`?>${code}`]
-		);
+		)
 		const response = {
 			exitCode,
 			stdout: this.#streams.stdout.join('\n'),
 			stderr: this.#streams.stderr,
-		};
-		this.#refresh();
-		return response;
+		}
+		this.#refresh()
+		return response
 	}
 
 	/**
@@ -275,9 +275,9 @@ session.save_path=/home/web_user
 	 * @internal
 	 */
 	#refresh() {
-		this.#Runtime.ccall('phpwasm_refresh', NUM, [], []);
-		this.#streams.stdout = [];
-		this.#streams.stderr = [];
+		this.#Runtime.ccall('phpwasm_refresh', NUM, [], [])
+		this.#streams.stdout = []
+		this.#streams.stderr = []
 	}
 
 	/**
@@ -288,7 +288,7 @@ session.save_path=/home/web_user
 	 * @param  path - The directory path to create.
 	 */
 	mkdirTree(path: string) {
-		this.#Runtime.FS.mkdirTree(path);
+		this.#Runtime.FS.mkdirTree(path)
 	}
 
 	/**
@@ -299,7 +299,7 @@ session.save_path=/home/web_user
 	 * @returns The file contents.
 	 */
 	readFileAsText(path: string): string {
-		return new TextDecoder().decode(this.readFileAsBuffer(path));
+		return new TextDecoder().decode(this.readFileAsBuffer(path))
 	}
 
 	/**
@@ -310,7 +310,7 @@ session.save_path=/home/web_user
 	 * @returns The file contents.
 	 */
 	readFileAsBuffer(path: string): Uint8Array {
-		return this.#Runtime.FS.readFile(path);
+		return this.#Runtime.FS.readFile(path)
 	}
 
 	/**
@@ -321,7 +321,7 @@ session.save_path=/home/web_user
 	 * @param  data - The data to write to the file.
 	 */
 	writeFile(path: string, data: string | Uint8Array) {
-		return this.#Runtime.FS.writeFile(path, data);
+		return this.#Runtime.FS.writeFile(path, data)
 	}
 
 	/**
@@ -331,7 +331,42 @@ session.save_path=/home/web_user
 	 * @param  path - The file path to remove.
 	 */
 	unlink(path: string) {
-		this.#Runtime.FS.unlink(path);
+		this.#Runtime.FS.unlink(path)
+	}
+
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @returns The list of files and directories in the given directory.
+	 */
+	listFiles(path: string): string[] {
+		if (!this.fileExists(path)) {
+			return []
+		}
+		try {
+			return this.#Runtime.FS.readdir(path).filter(
+				(name) => name !== '.' && name !== '..'
+			)
+		} catch (e) {
+			console.error(e, { path })
+			return []
+		}
+	}
+
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	isDir(path: string): boolean {
+		if (!this.fileExists(path)) {
+			return false
+		}
+		return this.#Runtime.FS.isDir(
+			this.#Runtime.FS.lookupPath(path).node.mode
+		)
 	}
 
 	/**
@@ -342,10 +377,10 @@ session.save_path=/home/web_user
 	 */
 	fileExists(path: string): boolean {
 		try {
-			this.#Runtime.FS.lookupPath(path);
-			return true;
+			this.#Runtime.FS.lookupPath(path)
+			return true
 		} catch (e) {
-			return false;
+			return false
 		}
 	}
 
@@ -413,7 +448,7 @@ session.save_path=/home/web_user
 	 * ```
 	 */
 	initUploadedFilesHash() {
-		this.#Runtime.ccall('phpwasm_init_uploaded_files_hash', null, [], []);
+		this.#Runtime.ccall('phpwasm_init_uploaded_files_hash', null, [], [])
 	}
 
 	/**
@@ -428,7 +463,7 @@ session.save_path=/home/web_user
 			null,
 			[STR],
 			[tmpPath]
-		);
+		)
 	}
 
 	/**
@@ -437,12 +472,7 @@ session.save_path=/home/web_user
 	 * @see initUploadedFilesHash()
 	 */
 	destroyUploadedFilesHash() {
-		this.#Runtime.ccall(
-			'phpwasm_destroy_uploaded_files_hash',
-			null,
-			[],
-			[]
-		);
+		this.#Runtime.ccall('phpwasm_destroy_uploaded_files_hash', null, [], [])
 	}
 }
 
@@ -451,13 +481,13 @@ session.save_path=/home/web_user
  */
 export interface PHPOutput {
 	/** Exit code of the PHP process. 0 means success, 1 and 2 mean error. */
-	exitCode: number;
+	exitCode: number
 
 	/** Stdout data */
-	stdout: string;
+	stdout: string
 
 	/** Stderr lines */
-	stderr: string[];
+	stderr: string[]
 }
 
 /**

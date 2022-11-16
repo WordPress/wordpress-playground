@@ -1,21 +1,21 @@
-import type { PHPOutput, PHPRequest, PHPResponse } from '../../php-wasm';
+import type { PHPOutput, PHPRequest, PHPResponse } from '../../php-wasm'
 import {
 	postMessageExpectReply,
 	awaitReply,
 	MessageResponse,
-} from '../messaging';
-import { removeURLScope } from '../scope';
-import { getPathQueryFragment } from '..';
-import type { DownloadProgressEvent } from '../emscripten-download-monitor';
+} from '../messaging'
+import { removeURLScope } from '../scope'
+import { getPathQueryFragment } from '..'
+import type { DownloadProgressEvent } from '../emscripten-download-monitor'
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const noop = () => {};
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const noop = () => {}
 
 interface WorkerThreadConfig {
 	/**
 	 * A function to call when a download progress event is received from the worker
 	 */
-	onDownloadProgress?: (event: DownloadProgressEvent) => void;
+	onDownloadProgress?: (event: DownloadProgressEvent) => void
 }
 
 /**
@@ -31,47 +31,47 @@ export async function spawnPHPWorkerThread(
 	workerScriptUrl: string,
 	config: WorkerThreadConfig
 ): Promise<SpawnedWorkerThread> {
-	const { onDownloadProgress = noop } = config;
-	let messageChannel: WorkerThreadMessageTarget;
+	const { onDownloadProgress = noop } = config
+	let messageChannel: WorkerThreadMessageTarget
 	if (backendName === 'webworker') {
-		messageChannel = spawnWebWorker(workerScriptUrl);
+		messageChannel = spawnWebWorker(workerScriptUrl)
 	} else if (backendName === 'iframe') {
-		messageChannel = spawnIframeWorker(workerScriptUrl);
+		messageChannel = spawnIframeWorker(workerScriptUrl)
 	} else {
-		throw new Error(`Unknown backendName: ${backendName}`);
+		throw new Error(`Unknown backendName: ${backendName}`)
 	}
 
 	messageChannel.setMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
-			onDownloadProgress(e.data);
+			onDownloadProgress(e.data)
 		}
-	});
+	})
 
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
 		try {
-			await messageChannel.sendMessage({ type: 'is_alive' }, 50);
-			break;
+			await messageChannel.sendMessage({ type: 'isAlive' }, 50)
+			break
 		} catch (e) {
 			// Ignore timeouts
 		}
-		await sleep(50);
+		await sleep(50)
 	}
 
 	const absoluteUrl = await messageChannel.sendMessage({
-		type: 'get_absolute_url',
-	});
+		type: 'getAbsoluteUrl',
+	})
 
-	return new SpawnedWorkerThread(messageChannel, absoluteUrl);
+	return new SpawnedWorkerThread(messageChannel, absoluteUrl)
 }
 
 export class SpawnedWorkerThread {
-	messageChannel;
-	serverUrl;
+	messageChannel
+	serverUrl
 
 	constructor(messageChannel, serverUrl) {
-		this.messageChannel = messageChannel;
-		this.serverUrl = serverUrl;
+		this.messageChannel = messageChannel
+		this.serverUrl = serverUrl
 	}
 
 	/**
@@ -82,7 +82,7 @@ export class SpawnedWorkerThread {
 	 * @returns The absolute URL.
 	 */
 	pathToInternalUrl(path: string): string {
-		return `${this.serverUrl}${path}`;
+		return `${this.serverUrl}${path}`
 	}
 
 	/**
@@ -93,7 +93,7 @@ export class SpawnedWorkerThread {
 	 * @returns The relative path.
 	 */
 	internalUrlToPath(internalUrl: string): string {
-		return getPathQueryFragment(removeURLScope(new URL(internalUrl)));
+		return getPathQueryFragment(removeURLScope(new URL(internalUrl)))
 	}
 
 	/**
@@ -102,11 +102,8 @@ export class SpawnedWorkerThread {
 	 * @param  code The PHP code to run.
 	 * @returns The result of the PHP code.
 	 */
-	async eval(code: string): Promise<PHPOutput> {
-		return await this.messageChannel.sendMessage({
-			type: 'run_php',
-			code,
-		});
+	async run(code: string): Promise<PHPOutput> {
+		return await this.#rpc('run', { code })
 	}
 
 	/**
@@ -116,59 +113,91 @@ export class SpawnedWorkerThread {
 	 * @returns  The response from the PHPServer.
 	 */
 	async HTTPRequest(request: PHPRequest): Promise<PHPResponse> {
+		return await this.#rpc('HTTPRequest', { request })
+	}
+
+	async writeFile(path: string, contents: string): Promise<void> {
+		return await this.#rpc('writeFile', { path, contents })
+	}
+
+	async unlink(path: string): Promise<void> {
+		return await this.#rpc('unlink', { path })
+	}
+
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @returns The list of files and directories in the given directory.
+	 */
+	async listFiles(path: string): Promise<string[]> {
+		return await this.#rpc('listFiles', { path })
+	}
+
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	async isDir(path: string): Promise<boolean> {
+		return await this.#rpc('isDir', { path })
+	}
+
+	async #rpc<T>(type: string, args?: Record<string, any>): Promise<T> {
 		return await this.messageChannel.sendMessage({
-			type: 'request',
-			request,
-		});
+			...args,
+			type,
+		})
 	}
 }
 
 interface WorkerThreadMessageTarget {
-	sendMessage(message: any, timeout?: number): Promise<MessageResponse<any>>;
-	setMessageListener(listener: (message: any) => void): void;
+	sendMessage(message: any, timeout?: number): Promise<MessageResponse<any>>
+	setMessageListener(listener: (message: any) => void): void
 }
 
 function spawnWebWorker(workerURL: string): WorkerThreadMessageTarget {
-	const worker = new Worker(workerURL);
+	const worker = new Worker(workerURL)
 	return {
 		async sendMessage(message: any, timeout: number) {
-			const requestId = postMessageExpectReply(worker, message);
-			const response = await awaitReply(worker, requestId, timeout);
-			return response;
+			const requestId = postMessageExpectReply(worker, message)
+			const response = await awaitReply(worker, requestId, timeout)
+			return response
 		},
 		setMessageListener(listener) {
-			worker.onmessage = listener;
+			worker.onmessage = listener
 		},
-	};
+	}
 }
 
 function spawnIframeWorker(
 	workerDocumentURL: string
 ): WorkerThreadMessageTarget {
-	const iframe = document.createElement('iframe');
-	iframe.src = workerDocumentURL;
-	iframe.style.display = 'none';
-	document.body.appendChild(iframe);
+	const iframe = document.createElement('iframe')
+	iframe.src = workerDocumentURL
+	iframe.style.display = 'none'
+	document.body.appendChild(iframe)
 	return {
 		async sendMessage(message, timeout) {
 			const requestId = postMessageExpectReply(
 				iframe.contentWindow!,
 				message,
 				'*'
-			);
-			const response = await awaitReply(window, requestId, timeout);
-			return response;
+			)
+			const response = await awaitReply(window, requestId, timeout)
+			return response
 		},
 		setMessageListener(listener) {
 			window.addEventListener(
 				'message',
 				(e) => {
 					if (e.source === iframe.contentWindow) {
-						listener(e);
+						listener(e)
 					}
 				},
 				false
-			);
+			)
 		},
-	};
+	}
 }
