@@ -2,6 +2,7 @@ import React from 'react';
 import { useCallback, useMemo } from 'react';
 import { Tree } from '@geist-ui/core';
 import { useDeferredValue } from '../hooks';
+import { pathJoin } from './fs-utils';
 
 const noop = () => {};
 
@@ -36,7 +37,7 @@ export default function FilesExplorer({
 	filesSource,
 }: FilesExplorerProps) {
 	const onClick = useCallback((file) => {
-		onSelectFile(joinPath(root, file));
+		onSelectFile(pathJoin(root, file));
 	}, []);
 
 	const treePromise = useTreeComponents(filesSource, root);
@@ -59,7 +60,7 @@ async function buildTreeComponents(filesSource: FilesSource, root: string) {
 
 	return await Promise.all(
 		files.map(async (file) => {
-			const path = joinPath(root, file);
+			const path = pathJoin(root, file);
 			const isDir = await filesSource.isDir(path);
 			if (isDir) {
 				return (
@@ -72,8 +73,4 @@ async function buildTreeComponents(filesSource: FilesSource, root: string) {
 			}
 		})
 	);
-}
-
-function joinPath(...parts: string[]) {
-	return parts.join('/').replace(/\/+/g, '/');
 }

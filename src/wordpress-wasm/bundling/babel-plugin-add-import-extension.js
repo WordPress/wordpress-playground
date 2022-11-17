@@ -1,23 +1,23 @@
-const babel = require('@babel/standalone')
+const babel = require('@babel/standalone');
 
-module.exports = (api, options) => {
+export default (api, options) => {
 	return {
 		name: 'add-import-extension',
 		visitor: {
 			ImportDeclaration: (path) => {
-				const newImportPathString = updateImportPath(path)
+				const newImportPathString = updateImportPath(path);
 				if (newImportPathString) {
 					path.replaceWith(
 						api.types.importDeclaration(
 							path.node.specifiers,
 							api.types.stringLiteral(newImportPathString)
 						)
-					)
-					path.skip()
+					);
+					path.skip();
 				}
 			},
 			ExportNamedDeclaration: (path) => {
-				const newImportPathString = updateImportPath(path)
+				const newImportPathString = updateImportPath(path);
 				if (newImportPathString) {
 					path.replaceWith(
 						api.types.exportNamedDeclaration(
@@ -25,48 +25,48 @@ module.exports = (api, options) => {
 							path.node.specifiers,
 							api.types.stringLiteral(newImportPathString)
 						)
-					)
-					path.skip()
+					);
+					path.skip();
 				}
 			},
 			ExportAllDeclaration: (path) => {
-				const newImportPathString = updateImportPath(path)
+				const newImportPathString = updateImportPath(path);
 				if (newImportPathString) {
 					path.replaceWith(
 						api.types.exportAllDeclaration(
 							api.types.stringLiteral(newImportPathString)
 						)
-					)
-					path.skip()
+					);
+					path.skip();
 				}
 			},
 		},
-	}
-}
+	};
+};
 
 function updateImportPath({ node: { source, exportKind, importKind } }) {
-	const isTypeOnly = exportKind === 'type' || importKind === 'type'
+	const isTypeOnly = exportKind === 'type' || importKind === 'type';
 
 	if (!source || isTypeOnly) {
-		return
+		return;
 	}
 
-	const module = source && source.value
+	const module = source && source.value;
 	if (!module.startsWith('.')) {
-		return
+		return;
 	}
-	const segments = module.split('/')
-	const lastSegment = segments[segments.length - 1] || 'index.js'
-	const pieces = lastSegment.split('.')
+	const segments = module.split('/');
+	const lastSegment = segments[segments.length - 1] || 'index.js';
+	const pieces = lastSegment.split('.');
 	const nameWithoutExtension =
 		pieces.length > 1
 			? pieces.slice(0, pieces.length - 1).join('.')
-			: pieces[0]
-	const extension = pieces.length > 1 ? pieces[pieces.length - 1] : null
-	const newExtension = !extension ? 'js' : extension
+			: pieces[0];
+	const extension = pieces.length > 1 ? pieces[pieces.length - 1] : null;
+	const newExtension = !extension ? 'js' : extension;
 
 	return segments
 		.slice(0, -1)
 		.concat(`${nameWithoutExtension}.${newExtension}`)
-		.join('/')
+		.join('/');
 }
