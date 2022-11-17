@@ -117,17 +117,16 @@ export async function initializeWorkerThread(
 			return true
 		} else if (message.type === 'getAbsoluteUrl') {
 			return phpBrowser.server.absoluteUrl
-		} else if (message.type === 'writeFile') {
-			return await phpBrowser.server.php.writeFile(
-				message.path,
-				message.contents
-			)
+		} else if (message.type === 'readFile') {
+			return phpBrowser.server.php.readFileAsText(message.path)
 		} else if (message.type === 'listFiles') {
 			return phpBrowser.server.php.listFiles(message.path)
 		} else if (message.type === 'unlink') {
 			return phpBrowser.server.php.unlink(message.path)
 		} else if (message.type === 'isDir') {
 			return phpBrowser.server.php.isDir(message.path)
+		} else if (message.type === 'mkdirTree') {
+			return phpBrowser.server.php.mkdirTree(message.path)
 		} else if (message.type === 'writeFile') {
 			return await phpBrowser.server.php.writeFile(
 				message.path,

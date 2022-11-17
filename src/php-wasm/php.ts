@@ -321,7 +321,7 @@ session.save_path=/home/web_user
 	 * @param  data - The data to write to the file.
 	 */
 	writeFile(path: string, data: string | Uint8Array) {
-		return this.#Runtime.FS.writeFile(path, data)
+		this.#Runtime.FS.writeFile(path, data)
 	}
 
 	/**

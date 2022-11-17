@@ -97,48 +97,56 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
-	 * Runs PHP code.
-	 *
-	 * @param  code The PHP code to run.
-	 * @returns The result of the PHP code.
+	 * @see {PHP.run}
 	 */
 	async run(code: string): Promise<PHPOutput> {
 		return await this.#rpc('run', { code })
 	}
 
 	/**
-	 * Dispatches a request to the PHPServer.
-	 *
-	 * @param  request - The request to dispatch.
-	 * @returns  The response from the PHPServer.
+	 * @see {PHP.request}
 	 */
 	async HTTPRequest(request: PHPRequest): Promise<PHPResponse> {
 		return await this.#rpc('HTTPRequest', { request })
 	}
 
+	/**
+	 * @see {PHP.readFile}
+	 */
+	async readFile(path: string): Promise<string> {
+		return await this.#rpc('readFile', { path })
+	}
+
+	/**
+	 * @see {PHP.writeFile}
+	 */
 	async writeFile(path: string, contents: string): Promise<void> {
 		return await this.#rpc('writeFile', { path, contents })
 	}
 
+	/**
+	 * @see {PHP.unlink}
+	 */
 	async unlink(path: string): Promise<void> {
 		return await this.#rpc('unlink', { path })
 	}
 
 	/**
-	 * Lists the files and directories in the given directory.
-	 *
-	 * @param  path - The directory path to list.
-	 * @returns The list of files and directories in the given directory.
+	 * @see {PHP.mkdirTree}
+	 */
+	async mkdirTree(path: string): Promise<void> {
+		return await this.#rpc('mkdirTree', { path })
+	}
+
+	/**
+	 * @see {PHP.listFiles}
 	 */
 	async listFiles(path: string): Promise<string[]> {
 		return await this.#rpc('listFiles', { path })
 	}
 
 	/**
-	 * Checks if a directory exists in the PHP filesystem.
-	 *
-	 * @param path – The path to check.
-	 * @returns True if the path is a directory, false otherwise.
+	 * @see {PHP.isDir}
 	 */
 	async isDir(path: string): Promise<boolean> {
 		return await this.#rpc('isDir', { path })

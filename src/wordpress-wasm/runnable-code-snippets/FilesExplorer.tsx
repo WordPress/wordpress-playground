@@ -36,7 +36,7 @@ export default function FilesExplorer({
 	filesSource,
 }: FilesExplorerProps) {
 	const onClick = useCallback((file) => {
-		onSelectFile(file)
+		onSelectFile(joinPath(root, file))
 	}, [])
 
 	const treePromise = useTreeComponents(filesSource, root)
