@@ -49,8 +49,8 @@
     "yargs": "^17.5.1"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "^7. 33.5",
-    "@microsoft/api-extractor-model ": "7.25.2",
+    "@microsoft/api-extractor": "^7.33.5",
+    "@microsoft/api-extractor-model": "7.25.2",
     "@microsoft/tsdoc": "0.14.2",
     "@wordpress/eslint-plugin": "^13.0.0",
     "chokidar-cli": "^3.0.0",
