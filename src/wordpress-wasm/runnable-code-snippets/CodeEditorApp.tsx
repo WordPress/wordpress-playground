@@ -1,14 +1,14 @@
-import FilesExplorer from './FilesExplorer'
-import { EditorView, basicSetup } from 'codemirror'
-import type { ViewUpdate } from '@codemirror/view'
-import { keymap } from '@codemirror/view'
-import { javascript } from '@codemirror/lang-javascript'
-import { html } from '@codemirror/lang-html'
-import { css } from '@codemirror/lang-css'
-import { markdown } from '@codemirror/lang-markdown'
-import { php } from '@codemirror/lang-php'
-import React from 'react'
-import { useCallback, useState, useMemo, useEffect, useRef } from 'react'
+import FilesExplorer from './FilesExplorer';
+import { EditorView, basicSetup } from 'codemirror';
+import type { ViewUpdate } from '@codemirror/view';
+import { keymap } from '@codemirror/view';
+import { javascript } from '@codemirror/lang-javascript';
+import { html } from '@codemirror/lang-html';
+import { css } from '@codemirror/lang-css';
+import { markdown } from '@codemirror/lang-markdown';
+import { php } from '@codemirror/lang-php';
+import React from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 
 export default function CodeEditorApp({
 	workerThread,
@@ -16,37 +16,37 @@ export default function CodeEditorApp({
 	onSaveFile = (path: string) => {},
 	initialFile = '',
 }) {
-	const editorRef = useRef(null)
+	const editorRef = useRef(null);
 	const [file, setFile] = useState({
 		path: '/tmp/fake.js',
 		contents: "console.log('hello world!');",
-	})
+	});
 	const onSelectFile = useCallback(
 		(path) => {
 			async function handle() {
-				console.log({ path })
-				setFile({ path, contents: await workerThread.readFile(path) })
+				console.log({ path });
+				setFile({ path, contents: await workerThread.readFile(path) });
 			}
-			handle()
+			handle();
 		},
 		[workerThread]
-	)
+	);
 	useEffect(() => {
 		if (initialFile) {
-			onSelectFile(initialFile)
+			onSelectFile(initialFile);
 		}
-	}, [])
+	}, []);
 	const onChange = useCallback(
 		(value) => {
 			// @TODO use an async queue to avoid out-of-order updates:
-			workerThread.writeFile(file.path, value)
-			onSaveFile(file.path)
+			workerThread.writeFile(file.path, value);
+			onSaveFile(file.path);
 		},
 		[workerThread, file]
-	)
+	);
 	const view = useMemo(() => {
 		if (!editorRef.current) {
-			return null
+			return null;
 		}
 
 		const syntaxExtension = {
@@ -58,35 +58,35 @@ export default function CodeEditorApp({
 			css: css(),
 			md: markdown(),
 			php: php(),
-		}[file.path.split('.').pop()!]
+		}[file.path.split('.').pop()!];
 
-		const syntaxExtensions = syntaxExtension ? [syntaxExtension] : []
+		const syntaxExtensions = syntaxExtension ? [syntaxExtension] : [];
 
 		const themeOptions = EditorView.theme({
 			'&': {
 				height: '350px',
 				width: '100%',
 			},
-		})
+		});
 
 		const ourKeymap = keymap.of([
 			{
 				key: 'Mod-s',
 				run() {
-					return true
+					return true;
 				},
 			},
-		])
+		]);
 
 		const updateListener = EditorView.updateListener.of(
 			(vu: ViewUpdate) => {
 				if (vu.docChanged && typeof onChange === 'function') {
-					const doc = vu.state.doc
-					const value = doc.toString()
-					onChange(value)
+					const doc = vu.state.doc;
+					const value = doc.toString();
+					onChange(value);
 				}
 			}
-		)
+		);
 
 		const _view = new EditorView({
 			doc: file.contents,
@@ -98,15 +98,15 @@ export default function CodeEditorApp({
 				...syntaxExtensions,
 			],
 			parent: editorRef.current,
-		})
+		});
 
-		return _view
-	}, [file, editorRef.current, onChange])
+		return _view;
+	}, [file, editorRef.current, onChange]);
 
 	useEffect(() => {
 		// return a function to be executed at component unmount
-		return () => view && view.destroy()
-	}, [view])
+		return () => view && view.destroy();
+	}, [view]);
 
 	return (
 		<div style={{ display: 'flex', flexDirection: 'row' }}>
@@ -125,5 +125,5 @@ export default function CodeEditorApp({
 				}}
 			></div>
 		</div>
-	)
+	);
 }

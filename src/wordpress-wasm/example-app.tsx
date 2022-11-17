@@ -1,115 +1,117 @@
-import { bootWordPress } from './index'
-import { login, installPlugin } from './macros'
+import { bootWordPress } from './index';
+import { login, installPlugin } from './macros';
 import {
 	cloneResponseMonitorProgress,
 	responseTo,
-} from '../php-wasm-browser/index'
-import React from 'react'
-import { render } from 'react-dom'
-import CodeEditorApp from './runnable-code-snippets/CodeEditorApp'
+} from '../php-wasm-browser/index';
+import React from 'react';
+import { render } from 'react-dom';
+import CodeEditorApp from './runnable-code-snippets/CodeEditorApp';
 
-const query = new URL(document.location.href).searchParams
+const query = new URL(document.location.href).searchParams;
 
-const wpFrame = document.querySelector('#wp') as HTMLIFrameElement
+const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 
 function setupAddressBar(wasmWorker) {
 	// Manage the address bar
 	const addressBar = document.querySelector(
 		'#address-bar'
-	)! as HTMLInputElement
+	)! as HTMLInputElement;
 	wpFrame.addEventListener('load', (e: any) => {
 		addressBar.value = wasmWorker.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
-		)
-	})
+		);
+	});
 
 	document
 		.querySelector('#address-bar-form')!
 		.addEventListener('submit', (e) => {
-			e.preventDefault()
-			let requestedPath = addressBar.value
+			e.preventDefault();
+			let requestedPath = addressBar.value;
 			// Ensure a trailing slash when requesting directory paths
-			const isDirectory = !requestedPath.split('/').pop()!.includes('.')
+			const isDirectory = !requestedPath.split('/').pop()!.includes('.');
 			if (isDirectory && !requestedPath.endsWith('/')) {
-				requestedPath += '/'
+				requestedPath += '/';
 			}
-			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath)
-		})
+			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
+		});
 }
 
 class FetchProgressBar {
-	expectedRequests
-	progress
-	min
-	max
-	el
+	expectedRequests;
+	progress;
+	min;
+	max;
+	el;
 	constructor({ expectedRequests, min = 0, max = 100 }) {
-		this.expectedRequests = expectedRequests
-		this.progress = {}
-		this.min = min
-		this.max = max
-		this.el = document.querySelector('.progress-bar.is-finite')
+		this.expectedRequests = expectedRequests;
+		this.progress = {};
+		this.min = min;
+		this.max = max;
+		this.el = document.querySelector('.progress-bar.is-finite');
 
 		// Hide the progress bar when the page is first loaded.
 		const hideProgressBar = () => {
 			document
 				.querySelector('body.is-loading')!
-				.classList.remove('is-loading')
-			wpFrame.removeEventListener('load', hideProgressBar)
-		}
-		wpFrame.addEventListener('load', hideProgressBar)
+				.classList.remove('is-loading');
+			wpFrame.removeEventListener('load', hideProgressBar);
+		};
+		wpFrame.addEventListener('load', hideProgressBar);
 	}
 
 	onDataChunk = ({ file, loaded, total }) => {
 		if (Object.keys(this.progress).length === 0) {
-			this.setFinite()
+			this.setFinite();
 		}
 
-		this.progress[file] = loaded / total
+		this.progress[file] = loaded / total;
 		const progressSum = Object.entries(this.progress).reduce(
 			(acc, [_, percentFinished]) => acc + (percentFinished as number),
 			0
-		)
-		const totalProgress = Math.min(1, progressSum / this.expectedRequests)
+		);
+		const totalProgress = Math.min(1, progressSum / this.expectedRequests);
 		const scaledProgressPercentage =
-			this.min + (this.max - this.min) * totalProgress
+			this.min + (this.max - this.min) * totalProgress;
 
-		this.setProgress(scaledProgressPercentage)
-	}
+		this.setProgress(scaledProgressPercentage);
+	};
 
 	setProgress(percent) {
-		this.el.style.width = `${percent}%`
+		this.el.style.width = `${percent}%`;
 	}
 
 	setFinite() {
 		const classList = document.querySelector(
 			'.progress-bar-wrapper.mode-infinite'
-		)!.classList
-		classList.remove('mode-infinite')
-		classList.add('mode-finite')
+		)!.classList;
+		classList.remove('mode-infinite');
+		classList.add('mode-finite');
 	}
 }
 
 async function main() {
-	const preinstallPlugin = query.get('plugin')
-	let progressBar
-	let pluginResponse
+	const preinstallPlugin = query.get('plugin');
+	let progressBar;
+	let pluginResponse;
 	if (preinstallPlugin) {
-		pluginResponse = await fetch('/plugin-proxy?plugin=' + preinstallPlugin)
+		pluginResponse = await fetch(
+			'/plugin-proxy?plugin=' + preinstallPlugin
+		);
 		progressBar = new FetchProgressBar({
 			expectedRequests: 3,
 			max: 80,
-		})
+		});
 	} else {
-		progressBar = new FetchProgressBar({ expectedRequests: 2 })
+		progressBar = new FetchProgressBar({ expectedRequests: 2 });
 	}
 
 	const workerThread = await bootWordPress({
 		onWasmDownloadProgress: progressBar.onDataChunk,
-	})
-	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser'
+	});
+	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
-		setupAddressBar(workerThread)
+		setupAddressBar(workerThread);
 	}
 
 	if (preinstallPlugin) {
@@ -118,49 +120,51 @@ async function main() {
 			pluginResponse,
 			(progress) =>
 				progressBar.onDataChunk({ file: preinstallPlugin, ...progress })
-		)
-		const blob = await progressPluginResponse.blob()
-		const pluginFile = new File([blob], preinstallPlugin)
+		);
+		const blob = await progressPluginResponse.blob();
+		const pluginFile = new File([blob], preinstallPlugin);
 
 		// We can't tell how long the operations below
 		// will take. Let's slow down the CSS width transition
 		// to at least give some impression of progress.
-		progressBar.el.classList.add('indeterminate')
+		progressBar.el.classList.add('indeterminate');
 		// We're at 80 already, but it's a nice reminder.
-		progressBar.setProgress(80)
+		progressBar.setProgress(80);
 
-		progressBar.setProgress(85)
-		await login(workerThread, 'admin', 'password')
+		progressBar.setProgress(85);
+		await login(workerThread, 'admin', 'password');
 
-		progressBar.setProgress(100)
-		await installPlugin(workerThread, pluginFile)
+		progressBar.setProgress(100);
+		await installPlugin(workerThread, pluginFile);
 	} else if (query.get('login')) {
-		await login(workerThread, 'admin', 'password')
+		await login(workerThread, 'admin', 'password');
 	}
 
 	if (query.get('rpc')) {
-		console.log('Registering an RPC handler')
+		console.log('Registering an RPC handler');
 		async function handleMessage(event) {
 			if (event.data.type === 'rpc') {
-				return await workerThread[event.data.method](...event.data.args)
+				return await workerThread[event.data.method](
+					...event.data.args
+				);
 			} else if (event.data.type === 'go_to') {
-				wpFrame.src = workerThread.pathToInternalUrl(event.data.path)
+				wpFrame.src = workerThread.pathToInternalUrl(event.data.path);
 			} else if (event.data.type === 'is_alive') {
-				return true
+				return true;
 			}
 		}
 		window.addEventListener('message', async (event) => {
-			const result = await handleMessage(event.data)
+			const result = await handleMessage(event.data);
 
 			// When `requestId` is present, the other thread expects a response:
 			if (event.data.requestId) {
-				const response = responseTo(event.data.requestId, result)
-				window.parent.postMessage(response, '*')
+				const response = responseTo(event.data.requestId, result);
+				window.parent.postMessage(response, '*');
 			}
-		})
+		});
 	}
 
-	await scaffoldCreateBlockTutorial(workerThread)
+	await scaffoldCreateBlockTutorial(workerThread);
 
 	render(
 		<CodeEditorApp
@@ -170,32 +174,32 @@ async function main() {
 			onSaveFile={() => buildSourceFiles(workerThread)}
 		/>,
 		document.getElementById('test-snippets')!
-	)
+	);
 
-	const initialUrl = query.get('url') || '/'
-	wpFrame.src = workerThread.pathToInternalUrl(initialUrl)
+	const initialUrl = query.get('url') || '/';
+	wpFrame.src = workerThread.pathToInternalUrl(initialUrl);
 }
-main()
+main();
 
 async function scaffoldCreateBlockTutorial(workerThread) {
-	await createSourceFiles(workerThread)
-	await buildSourceFiles(workerThread)
+	await createSourceFiles(workerThread);
+	await buildSourceFiles(workerThread);
 }
 
-const muPluginsPath = `/wordpress/wp-content/mu-plugins`
-const myBlockPath = `${muPluginsPath}/my-block`
-const buildPath = `${myBlockPath}/build`
-const srcPath = `${myBlockPath}/src`
+const muPluginsPath = `/wordpress/wp-content/mu-plugins`;
+const myBlockPath = `${muPluginsPath}/my-block`;
+const buildPath = `${myBlockPath}/build`;
+const srcPath = `${myBlockPath}/src`;
 
 async function createSourceFiles(workerThread) {
-	await workerThread.mkdirTree(srcPath)
-	await workerThread.mkdirTree(buildPath)
+	await workerThread.mkdirTree(srcPath);
+	await workerThread.mkdirTree(buildPath);
 	await workerThread.writeFile(
 		`${muPluginsPath}/my-block.php`,
 		`<?php
 		require_once "${buildPath}/index.php";
 	`
-	)
+	);
 	await workerThread.writeFile(
 		`${srcPath}/index.php`,
 		`<?php
@@ -213,6 +217,7 @@ async function createSourceFiles(workerThread) {
  * @package           create-block
  */
 
+
 /**
  * Registers the block using the metadata loaded from the \`block.json\` file.
  * Behind the scenes, it registers also all assets so they can be enqueued
@@ -225,7 +230,7 @@ function create_block_example_static_block_init() {
 }
 add_action( 'init', 'create_block_example_static_block_init' );
 	`
-	)
+	);
 
 	await workerThread.writeFile(
 		`${srcPath}/block.json`,
@@ -249,7 +254,7 @@ add_action( 'init', 'create_block_example_static_block_init' );
 			null,
 			2
 		)
-	)
+	);
 	await workerThread.writeFile(
 		`${srcPath}/edit.js`,
 		`/**
@@ -285,7 +290,7 @@ export default function Edit() {
 		</p>
 	);
 }`
-	)
+	);
 
 	await workerThread.writeFile(
 		`${srcPath}/save.js`,
@@ -314,7 +319,7 @@ export default function save() {
 	);
 }
 `
-	)
+	);
 
 	await workerThread.writeFile(
 		`${srcPath}/style.css`,
@@ -331,7 +336,7 @@ export default function save() {
 	padding: 2px;
 }
 `
-	)
+	);
 
 	await workerThread.writeFile(
 		`${srcPath}/index.js`,
@@ -374,49 +379,49 @@ registerBlockType( metadata.name, {
 	*/
 	save,
 } );`
-	)
+	);
 }
 
-import json from './bundling/rollup-plugin-json'
-import css from './bundling/rollup-plugin-css'
+import json from './bundling/rollup-plugin-json';
+import css from './bundling/rollup-plugin-css';
 
 async function buildSourceFiles(workerThread) {
 	for (const fileName of await workerThread.listFiles(buildPath)) {
-		workerThread.unlink(`${buildPath}/${fileName}`)
+		workerThread.unlink(`${buildPath}/${fileName}`);
 	}
-	const allUsedWpAssets = new Set()
-	const files = {}
+	const allUsedWpAssets = new Set();
+	const files = {};
 	for (let fileName of await workerThread.listFiles(srcPath)) {
-		let ext = fileName.split('.').pop()
+		let ext = fileName.split('.').pop();
 		let builtContents = await workerThread.readFile(
 			`${srcPath}/${fileName}`
-		)
+		);
 		if (['js', 'jsx', 'ts', 'tsx'].includes(ext)) {
-			const { usedWpAssets, code } = await transpile(builtContents)
-			usedWpAssets.forEach((asset) => allUsedWpAssets.add(asset))
-			fileName = fileName.substr(0, fileName.lastIndexOf('.')) + '.js'
-			builtContents = code
+			const { usedWpAssets, code } = await transpile(builtContents);
+			usedWpAssets.forEach((asset) => allUsedWpAssets.add(asset));
+			fileName = fileName.substr(0, fileName.lastIndexOf('.')) + '.js';
+			builtContents = code;
 		} else {
 			await workerThread.writeFile(
 				`${buildPath}/${fileName}`,
 				builtContents
-			)
+			);
 		}
-		files[fileName] = builtContents
+		files[fileName] = builtContents;
 	}
 
-	console.log('allUsedWpAssets', allUsedWpAssets)
+	console.log('allUsedWpAssets', allUsedWpAssets);
 
 	const assetsPHP = Array.from(allUsedWpAssets)
 		.map((name) => JSON.stringify(name))
-		.join(', ')
+		.join(', ');
 	console.log(`<?php return array('dependencies' => array(${assetsPHP}), 'version' => '6b9f26bada2f399976e5');
-	`)
+	`);
 	await workerThread.writeFile(
 		`${buildPath}/index.asset.php`,
 		`<?php return array('dependencies' => array(${assetsPHP}), 'version' => '6b9f26bada2f399976e5');
 		`
-	)
+	);
 
 	const generator = await rollup.rollup({
 		input: 'rollup://localhost/index.js',
@@ -424,35 +429,35 @@ async function buildSourceFiles(workerThread) {
 			{
 				name: 'rollup-in-browser-example',
 				resolveId(importee, importer) {
-					console.debug('resolveId', { importee, importer })
-					return new URL(importee, importer).href
+					console.debug('resolveId', { importee, importer });
+					return new URL(importee, importer).href;
 				},
 				load(id) {
-					const prefix = 'rollup://localhost/'
-					const relativePath = id.substring(prefix.length)
-					return files[relativePath]
+					const prefix = 'rollup://localhost/';
+					const relativePath = id.substring(prefix.length);
+					return files[relativePath];
 				},
 			},
 			json() as any,
 			css() as any,
 		],
-	})
-	const build = await generator.generate({})
+	});
+	const build = await generator.generate({});
 	for (const module of build.output) {
 		await workerThread.writeFile(
 			`${buildPath}/${module.fileName}`,
 			(module as any).code || (module as any).source || ''
-		)
+		);
 	}
 }
 
-import * as babel from '@babel/standalone'
-import * as rollup from '@rollup/browser'
-import importGlobal from 'babel-plugin-import-global'
-import addImportExtension from './babel-plugin-add-import-extension'
+import * as babel from '@babel/standalone';
+import * as rollup from '@rollup/browser';
+import importGlobal from 'babel-plugin-import-global';
+import addImportExtension from './babel-plugin-add-import-extension';
 
 function transpile(rawCode) {
-	const usedWpAssets: string[] = []
+	const usedWpAssets: string[] = [];
 	const code = babel.transform(rawCode, {
 		plugins: [
 			[
@@ -515,18 +520,18 @@ function transpile(rawCode) {
 							'@wordpress/warning': 'wp.warning',
 							'@wordpress/widgets': 'wp.widgets',
 							'@wordpress/wordcount': 'wp.wordcount',
-						}
+						};
 						usedWpAssets.push(
 							src
 								.replace('@', '')
 								.replace('/', '-')
 								.replace('wordpress-', 'wp-')
-						)
-						return map[src]
+						);
+						return map[src];
 					},
 				},
 			],
 		],
-	}).code
-	return { usedWpAssets, code }
+	}).code;
+	return { usedWpAssets, code };
 }

@@ -2,19 +2,19 @@
 /// <reference lib="esnext" />
 /// <reference lib="WebWorker" />
 
-declare const self: WorkerGlobalScope
-declare const window: any // For the web backend
+declare const self: WorkerGlobalScope;
+declare const window: any; // For the web backend
 
 /* eslint-disable no-inner-declarations */
 
-import { startPHP, PHPBrowser, PHPServer } from '../../php-wasm'
-import type { PHP, JavascriptRuntime } from '../../php-wasm'
-import { responseTo } from '../messaging'
-import { DEFAULT_BASE_URL } from '../utils'
-import EmscriptenDownloadMonitor from '../emscripten-download-monitor'
-import type { DownloadProgressEvent } from '../emscripten-download-monitor'
-import { getURLScope } from '../scope'
-export * from '../scope'
+import { startPHP, PHPBrowser, PHPServer } from '../../php-wasm';
+import type { PHP, JavascriptRuntime } from '../../php-wasm';
+import { responseTo } from '../messaging';
+import { DEFAULT_BASE_URL } from '../utils';
+import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
+import type { DownloadProgressEvent } from '../emscripten-download-monitor';
+import { getURLScope } from '../scope';
+export * from '../scope';
 
 /**
  * Call this in a worker thread script to set the stage for
@@ -65,28 +65,28 @@ export * from '../scope'
 export async function initializeWorkerThread(
 	config: WorkerThreadConfiguration
 ): Promise<any> {
-	const phpBrowser = config.phpBrowser || (await defaultBootBrowser())
+	const phpBrowser = config.phpBrowser || (await defaultBootBrowser());
 	const broadcastChannel =
-		config.broadcastChannel || new BroadcastChannel('php-wasm-browser')
+		config.broadcastChannel || new BroadcastChannel('php-wasm-browser');
 
-	const absoluteUrl = phpBrowser.server.absoluteUrl
-	const scope = getURLScope(new URL(absoluteUrl))
+	const absoluteUrl = phpBrowser.server.absoluteUrl;
+	const scope = getURLScope(new URL(absoluteUrl));
 
 	// Handle postMessage communication from the main thread
 	currentBackend.setMessageListener(async (event) => {
-		const result = await handleMessage(event.data)
+		const result = await handleMessage(event.data);
 
 		// When `requestId` is present, the other thread expects a response:
 		if (event.data.requestId) {
-			const response = responseTo(event.data.requestId, result)
-			currentBackend.postMessageToParent(response)
+			const response = responseTo(event.data.requestId, result);
+			currentBackend.postMessageToParent(response);
 		}
-	})
+	});
 
 	broadcastChannel.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.log('broadcastChannel message', event)
+			console.log('broadcastChannel message', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
@@ -95,75 +95,75 @@ export async function initializeWorkerThread(
 			 * events to all the listeners across all browser tabs.
 			 */
 			if (scope && event.data.scope !== scope) {
-				return
+				return;
 			}
 
-			const result = await handleMessage(event.data)
+			const result = await handleMessage(event.data);
 
 			// The service worker expects a response when it includes a `requestId` in the message:
 			if (event.data.requestId) {
-				const response = responseTo(event.data.requestId, result)
-				broadcastChannel.postMessage(response)
+				const response = responseTo(event.data.requestId, result);
+				broadcastChannel.postMessage(response);
 			}
 		}
-	)
+	);
 
 	async function handleMessage(message) {
 		console.debug(
 			`[Worker Thread] "${message.type}" message received from a service worker`
-		)
+		);
 
 		if (message.type === 'isAlive') {
-			return true
+			return true;
 		} else if (message.type === 'getAbsoluteUrl') {
-			return phpBrowser.server.absoluteUrl
+			return phpBrowser.server.absoluteUrl;
 		} else if (message.type === 'readFile') {
-			return phpBrowser.server.php.readFileAsText(message.path)
+			return phpBrowser.server.php.readFileAsText(message.path);
 		} else if (message.type === 'listFiles') {
-			return phpBrowser.server.php.listFiles(message.path)
+			return phpBrowser.server.php.listFiles(message.path);
 		} else if (message.type === 'unlink') {
-			return phpBrowser.server.php.unlink(message.path)
+			return phpBrowser.server.php.unlink(message.path);
 		} else if (message.type === 'isDir') {
-			return phpBrowser.server.php.isDir(message.path)
+			return phpBrowser.server.php.isDir(message.path);
 		} else if (message.type === 'mkdirTree') {
-			return phpBrowser.server.php.mkdirTree(message.path)
+			return phpBrowser.server.php.mkdirTree(message.path);
 		} else if (message.type === 'writeFile') {
 			return await phpBrowser.server.php.writeFile(
 				message.path,
 				message.contents
-			)
+			);
 		} else if (message.type === 'run') {
-			return phpBrowser.server.php.run(message.code)
+			return phpBrowser.server.php.run(message.code);
 		} else if (message.type === 'HTTPRequest') {
-			return await renderRequest(message.request)
+			return await renderRequest(message.request);
 		}
 		throw new Error(
 			`[Worker Thread] Received unexpected message: "${message.type}"`
-		)
+		);
 	}
 
 	async function renderRequest(request) {
-		const parsedUrl = new URL(request.path, DEFAULT_BASE_URL)
+		const parsedUrl = new URL(request.path, DEFAULT_BASE_URL);
 		return await phpBrowser.request({
 			...request,
 			path: parsedUrl.pathname,
 			queryString: parsedUrl.search,
-		})
+		});
 	}
 
-	return currentBackend
+	return currentBackend;
 }
 
 interface WorkerThreadConfiguration {
 	/**
 	 * The PHP browser instance to use.
 	 */
-	phpBrowser?: PHPBrowser
+	phpBrowser?: PHPBrowser;
 	/**
 	 * The broadcast channel to use for communication
 	 *  with the service worker.
 	 */
-	broadcastChannel?: BroadcastChannel
+	broadcastChannel?: BroadcastChannel;
 }
 
 async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {
@@ -172,13 +172,13 @@ async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {
 			absoluteUrl,
 			documentRoot: '/www',
 		})
-	)
+	);
 }
 
 interface WorkerThreadBackend {
-	jsEnv: JavascriptRuntime
-	setMessageListener(handler: any)
-	postMessageToParent(message: any)
+	jsEnv: JavascriptRuntime;
+	setMessageListener(handler: any);
+	postMessageToParent(message: any);
 }
 
 const webBackend: WorkerThreadBackend = {
@@ -191,24 +191,24 @@ const webBackend: WorkerThreadBackend = {
 					event.source!.postMessage(response, '*' as any)
 				),
 			false
-		)
+		);
 	},
 	postMessageToParent(message) {
-		window.parent.postMessage(message, '*')
+		window.parent.postMessage(message, '*');
 	},
-}
+};
 
 const webWorkerBackend: WorkerThreadBackend = {
 	jsEnv: 'WORKER' as JavascriptRuntime, // Matches the Env argument in php.js
 	setMessageListener(handler) {
 		onmessage = (event) => {
-			handler(event, postMessage)
-		}
+			handler(event, postMessage);
+		};
 	},
 	postMessageToParent(message) {
-		postMessage(message)
+		postMessage(message);
 	},
-}
+};
 
 /**
  * @returns
@@ -216,17 +216,17 @@ const webWorkerBackend: WorkerThreadBackend = {
 export const currentBackend: WorkerThreadBackend = (function () {
 	/* eslint-disable no-undef */
 	if (typeof window !== 'undefined') {
-		return webBackend
+		return webBackend;
 	} else if (
 		typeof WorkerGlobalScope !== 'undefined' &&
 		self instanceof WorkerGlobalScope
 	) {
-		return webWorkerBackend
+		return webWorkerBackend;
 	}
-	throw new Error(`Unsupported environment`)
+	throw new Error(`Unsupported environment`);
 
 	/* eslint-enable no-undef */
-})()
+})();
 
 /**
  * Call this in a Worker Thread to start load the PHP runtime
@@ -243,21 +243,21 @@ export async function loadPHPWithProgress(
 	dataDependenciesModules: any[] = [],
 	phpModuleArgs: any = {}
 ): Promise<PHP> {
-	const modules = [phpLoaderModule, ...dataDependenciesModules]
+	const modules = [phpLoaderModule, ...dataDependenciesModules];
 
 	const assetsSizes = modules.reduce((acc, module) => {
-		acc[module.dependencyFilename] = module.dependenciesTotalSize
-		return acc
-	}, {})
-	const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes)
-	;(downloadMonitor as any).addEventListener(
+		acc[module.dependencyFilename] = module.dependenciesTotalSize;
+		return acc;
+	}, {});
+	const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes);
+	(downloadMonitor as any).addEventListener(
 		'progress',
 		(e: CustomEvent<DownloadProgressEvent>) =>
 			currentBackend.postMessageToParent({
 				type: 'download_progress',
 				...e.detail,
 			})
-	)
+	);
 
 	return await startPHP(
 		phpLoaderModule,
@@ -267,5 +267,5 @@ export async function loadPHPWithProgress(
 			...downloadMonitor.phpArgs,
 		},
 		dataDependenciesModules
-	)
+	);
 }
