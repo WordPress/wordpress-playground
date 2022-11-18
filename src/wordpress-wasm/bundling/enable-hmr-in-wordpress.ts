@@ -15,8 +15,8 @@ export default async function enableHMRinWordPress(workerThread) {
 			add_action( 'init', '__sandbox_enqueue_react_fast_refresh', 10000 );
 
 			function __sandbox_override_react_dom($scripts) {
-				__sandbox_override_script($scripts, 'react', '/react-17.dev.js');
-				__sandbox_override_script($scripts, 'react-dom', '/react-dom-17.dev.js');
+				__sandbox_override_script($scripts, 'react', '/react.development.js');
+				__sandbox_override_script($scripts, 'react-dom', '/react-dom.development.js');
 			}
 			add_action( 'wp_default_scripts', '__sandbox_override_react_dom' );
 

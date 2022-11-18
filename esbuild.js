@@ -98,13 +98,12 @@ async function main() {
 
 	console.log('');
 	console.log('Static files copied: ');
-	mapGlob(`src/*/*.html`, (filePath) =>
-		buildHTMLFile(globalOutDir, filePath)
-	);
-	mapGlob(`src/wordpress-wasm/bundling/test/*.html`, (filePath) =>
-		buildHTMLFile(globalOutDir, filePath)
-	);
-	mapGlob(`src/*/*.php`, (filePath) => copyToDist(globalOutDir, filePath));
+	mapGlob(`src/*/*.html`, buildHTMLFile);
+	mapGlob(`src/wordpress-wasm/bundling/test/*.html`, buildHTMLFile);
+
+	mapGlob(`node_modules/react/umd/react.development.js`, copyToDist);
+	mapGlob(`node_modules/react-dom/umd/react-dom.development.js`, copyToDist);
+	mapGlob(`src/*/*.php`, copyToDist);
 	if (argv.watch) {
 		const liveServer = require('live-server');
 		const request = require('request');
@@ -149,14 +148,16 @@ function mapGlob(pattern, mapper) {
 	}
 }
 
-function copyToDist(outdir, filePath) {
+function copyToDist(filePath) {
+	outdir = globalOutDir;
 	const filename = filePath.split('/').pop();
 	const outPath = `${outdir}/${filename}`;
 	fs.copyFileSync(filePath, outPath);
 	return outPath;
 }
 
-function buildHTMLFile(outdir, filePath) {
+function buildHTMLFile(filePath) {
+	const outdir = globalOutDir;
 	let content = fs.readFileSync(filePath).toString();
 	content = content.replace(
 		/(<script[^>]+src=")([^"]+)("><\/script>)/,
