@@ -10,6 +10,6 @@ export async function buildWordPressPlugin(
 ) {
 	await cleanDirectory(workerThread, buildPath);
 	const sourceFiles = await readFiles(workerThread, srcPath);
-	const chunks = await bundle(sourceFiles, jsEntrypoint);
-	await writeFiles(workerThread, buildPath, chunks);
+	const builtChunks = await bundle(sourceFiles, jsEntrypoint);
+	await writeFiles(workerThread, buildPath, builtChunks);
 }

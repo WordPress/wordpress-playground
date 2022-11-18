@@ -31,7 +31,7 @@ export async function bundle(
 	const prefix = `rollup://localhost/`;
 	const relativeEntrypoint = entrypoint.replace(/^\//, '');
 
-	const allUsedWpAssets = new Set();
+	const allUsedWpAssets = new Set<string>();
 	const onWpAssetUsed = (asset: string) => allUsedWpAssets.add(asset);
 	const generator = await rollup.rollup({
 		input: `${prefix}${relativeEntrypoint}`,
@@ -74,7 +74,7 @@ export async function bundle(
 				},
 			},
 			{
-				name: 'react-live-refresh-wrapper',
+				name: 'react-fast-refresh-wrapper',
 				transform(code, id) {
 					return `
 					let prevRefreshReg = window.$RefreshReg$;
@@ -109,30 +109,31 @@ export async function bundle(
 		// }
 	);
 
+	const rollupChunks = build.output.map((module) => ({
+		fileName: module.fileName,
+		contents: `(function() { ${
+			(module as any).code || (module as any).source || ''
+		}; })()`,
+	}));
+	const rollupChunksNames = new Set(rollupChunks.map((x) => x.fileName));
+
+	return rollupChunks
+		.concat([buildIndexAssetPhp(allUsedWpAssets)])
+		.concat(
+			files.filter(
+				(file) =>
+					!['.js'].includes(extname(file.fileName)) &&
+					!rollupChunksNames.has(file.fileName)
+			)
+		);
+}
+
+function buildIndexAssetPhp(allUsedWpAssets: Set<string>) {
 	const assetsAsPHPArray = Array.from(allUsedWpAssets)
 		.map((x) => JSON.stringify(x))
 		.join(', ');
-
-	const rollupChunks = build.output
-		.map((module) => ({
-			fileName: module.fileName,
-			contents: `(function() { ${
-				(module as any).code || (module as any).source || ''
-			}; })()`,
-		}))
-		.concat([
-			{
-				fileName: 'index.asset.php',
-				contents: `<?php return array('dependencies' => array(${assetsAsPHPArray}), 'version' => '6b9f26bada2f399976e5');\n`,
-			},
-		]);
-	const rollupChunksNames = new Set(rollupChunks.map((x) => x.fileName));
-
-	return rollupChunks.concat(
-		files.filter(
-			(file) =>
-				!['.js'].includes(extname(file.fileName)) &&
-				!rollupChunksNames.has(file.fileName)
-		)
-	);
+	return {
+		fileName: 'index.asset.php',
+		contents: `<?php return array('dependencies' => array(${assetsAsPHPArray}), 'version' => '6b9f26bada2f399976e5');\n`,
+	};
 }
