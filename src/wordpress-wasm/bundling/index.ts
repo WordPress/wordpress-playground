@@ -2,33 +2,11 @@ import * as babel from '@babel/standalone';
 import addImportExtension from './babel-plugin-add-import-extension';
 import transpileWordPressImports from './babel-plugin-transpile-wordpress-imports';
 import reactRefresh from './babel-plugin-react-refresh';
-
 import * as rollup from '@rollup/browser';
 import json from './rollup-plugin-json';
 import css from './rollup-plugin-css';
 import type { MemFile } from '../runnable-code-snippets/fs-utils';
-
-type WPTranspilationResult = { usedWpAssets: string[]; contents: string };
-
-export function transpileWordPressJsx(rawCode: string): WPTranspilationResult {
-	const usedWpAssets: string[] = [];
-	const contents = babel.transform(rawCode, {
-		plugins: [
-			[
-				babel.availablePlugins['transform-react-jsx'],
-				{
-					pragma: 'window.wp.element.createElement',
-					pragmaFrag: 'Fragment',
-				},
-			],
-			[addImportExtension, { extension: 'js' }],
-			transpileWordPressImports((asset) => usedWpAssets.push(asset)),
-			// [babel.availablePlugins['transform-modules-umd'], {}],
-			[reactRefresh, { skipEnvCheck: true }],
-		],
-	}).code;
-	return { usedWpAssets, contents };
-}
+import { extname } from '../runnable-code-snippets/fs-utils';
 
 /**
  * Transpiles WordPress JS code to a format that can be run in the browser.
@@ -52,10 +30,36 @@ export async function bundle(
 
 	const prefix = `rollup://localhost/`;
 	const relativeEntrypoint = entrypoint.replace(/^\//, '');
+
+	const allUsedWpAssets = new Set();
+	const onWpAssetUsed = (asset: string) => allUsedWpAssets.add(asset);
 	const generator = await rollup.rollup({
 		input: `${prefix}${relativeEntrypoint}`,
 		external: ['react'],
 		plugins: [
+			json({
+				include: /\.json$/,
+			}) as any,
+			css() as any,
+			{
+				name: 'babel-plugin',
+				transform(code) {
+					return babel.transform(code, {
+						plugins: [
+							[
+								babel.availablePlugins['transform-react-jsx'],
+								{
+									pragma: 'window.wp.element.createElement',
+									pragmaFrag: 'Fragment',
+								},
+							],
+							[addImportExtension, { extension: 'js' }],
+							transpileWordPressImports(onWpAssetUsed),
+							[reactRefresh, { skipEnvCheck: true }],
+						],
+					}).code;
+				},
+			},
 			{
 				name: 'rollup-dependency-loader',
 				resolveId(importee, importer) {
@@ -69,11 +73,6 @@ export async function bundle(
 					return filesIndex[relativePath];
 				},
 			},
-
-			json({
-				include: /\.json$/,
-			}) as any,
-			css() as any,
 			{
 				name: 'react-live-refresh-wrapper',
 				transform(code, id) {
@@ -110,11 +109,30 @@ export async function bundle(
 		// }
 	);
 
-	console.log(build);
-	return build.output.map((module) => ({
-		fileName: module.fileName,
-		contents: `(function() {
-			${(module as any).code || (module as any).source || ''};
-		})()`,
-	}));
+	const assetsAsPHPArray = Array.from(allUsedWpAssets)
+		.map((x) => JSON.stringify(x))
+		.join(', ');
+
+	const rollupChunks = build.output
+		.map((module) => ({
+			fileName: module.fileName,
+			contents: `(function() { ${
+				(module as any).code || (module as any).source || ''
+			}; })()`,
+		}))
+		.concat([
+			{
+				fileName: 'index.asset.php',
+				contents: `<?php return array('dependencies' => array(${assetsAsPHPArray}), 'version' => '6b9f26bada2f399976e5');\n`,
+			},
+		]);
+	const rollupChunksNames = new Set(rollupChunks.map((x) => x.fileName));
+
+	return rollupChunks.concat(
+		files.filter(
+			(file) =>
+				!['.js'].includes(extname(file.fileName)) &&
+				!rollupChunksNames.has(file.fileName)
+		)
+	);
 }
