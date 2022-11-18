@@ -8,6 +8,11 @@ import css from './rollup-plugin-css';
 import type { MemFile } from '../runnable-code-snippets/fs-utils';
 import { extname } from '../runnable-code-snippets/fs-utils';
 
+type Bundle = {
+	jsBundle: MemFile;
+	otherFiles: MemFile[];
+};
+
 /**
  * Transpiles WordPress JS code to a format that can be run in the browser.
  *
@@ -20,9 +25,8 @@ import { extname } from '../runnable-code-snippets/fs-utils';
  */
 export async function bundle(
 	files: MemFile[],
-	entrypoint: string,
-	outputOptions = {}
-) {
+	entrypoint: string
+): Promise<Bundle> {
 	const filesIndex = files.reduce((acc, file) => {
 		acc[file.fileName] = file.contents;
 		return acc;
@@ -73,59 +77,53 @@ export async function bundle(
 					return filesIndex[relativePath];
 				},
 			},
-			{
-				name: 'react-fast-refresh-wrapper',
-				transform(code, id) {
-					return `
-					let prevRefreshReg = window.$RefreshReg$;
-					let prevRefreshSig = window.$RefreshSig$;
-					
-					window.$RefreshReg$ = (type, id) => {
-						const fullId = ${JSON.stringify(id)} + ' ' + id;
-						window.RefreshRuntime.register(type, fullId);
-					}
-					window.$RefreshSig$ = window.RefreshRuntime.createSignatureFunctionForTransform;
-					
-					${code}
-					
-					// if (isReactRefreshBoundary(myExports)) {
-					window.__enqueueReactUpdate();
-					// }
-
-					window.$RefreshReg$ = prevRefreshReg;
-					window.$RefreshSig$ = prevRefreshSig;
-					`;
-				},
-			},
 		],
 	});
-	const build = await generator.generate(
-		outputOptions
-		// {
-		// format: 'cjs',
-		// manualChunks(id) {
-		// 	return id.replace('/', '-').replace(/[^a-zA-Z0-9\-\._]/g, '__');
-		// }
-		// }
-	);
+	const build = await generator.generate({
+		format: 'amd',
+		amd: {
+			autoId: true,
+			forceJsExtensionForImports: false,
+		},
+		entryFileNames: '[name].js',
+		chunkFileNames: '[name].js',
+		assetFileNames: '[name][extname]',
 
-	const rollupChunks = build.output.map((module) => ({
-		fileName: module.fileName,
-		contents: `(function() { ${
-			(module as any).code || (module as any).source || ''
-		}; })()`,
-	}));
-	const rollupChunksNames = new Set(rollupChunks.map((x) => x.fileName));
+		manualChunks(name) {
+			return normalizeRollupFilename(name).replace(/\.js$/, '');
+		},
+		sanitizeFileName(name) {
+			return normalizeRollupFilename(name).replace(/\.js$/, ''); // + '.js';
+		},
+	});
 
-	return rollupChunks
-		.concat([buildIndexAssetPhp(allUsedWpAssets)])
-		.concat(
-			files.filter(
+	const builtFileNames = build.output.map((module) => module.fileName);
+	const builtCode = build.output
+		.map((module) => (module as any).code || (module as any).source || '')
+		.join('\n');
+	const builtEntrypointFilename = build.output.find((module) =>
+		'isEntry' in module ? module.isEntry : false
+	)!.fileName;
+
+	return {
+		jsBundle: {
+			fileName: entrypoint,
+			contents: `
+			${amdLoader}
+			${builtCode}
+			require(${JSON.stringify(builtEntrypointFilename)})
+			reloadDirtyModules();
+			`,
+		},
+		otherFiles: [
+			buildIndexAssetPhp(allUsedWpAssets),
+			...files.filter(
 				(file) =>
 					!['.js'].includes(extname(file.fileName)) &&
-					!rollupChunksNames.has(file.fileName)
-			)
-		);
+					!builtFileNames.includes(file.fileName)
+			),
+		],
+	};
 }
 
 function buildIndexAssetPhp(allUsedWpAssets: Set<string>) {
@@ -137,3 +135,115 @@ function buildIndexAssetPhp(allUsedWpAssets: Set<string>) {
 		contents: `<?php return array('dependencies' => array(${assetsAsPHPArray}), 'version' => '6b9f26bada2f399976e5');\n`,
 	};
 }
+
+function normalizeRollupFilename(name) {
+	if (name.startsWith('rollup://localhost/')) {
+		name = name.substring('rollup://localhost/'.length);
+	}
+	if (name.startsWith('_virtual/')) {
+		name = name.substring('_virtual/'.length);
+	}
+	if (name.startsWith('./')) {
+		name = name.substring('./'.length);
+	}
+	return name;
+}
+
+/**
+ * The amdLoader below is stringified and included in the rollup bundle to
+ * make all the define() calls work.
+ */
+const amdLoader =
+	'(' +
+	function () {
+		if (!('define' in window)) {
+			const global: any = window;
+			global.__modules = {};
+			global.__modulesMeta = {};
+			global.define = function define(moduleName, deps, factory) {
+				if (typeof deps === 'function') {
+					factory = deps;
+					deps = [];
+				}
+				const moduleKey = normalizeModuleKey(moduleName);
+				global.__modulesMeta[moduleKey] = {
+					deps,
+					factory,
+					dirty:
+						!global.__modulesMeta[moduleKey] ||
+						global.__modulesMeta[moduleKey].factory + '' !==
+							factory + '',
+				};
+			};
+			global.require = function require(moduleName) {
+				const moduleKey = normalizeModuleKey(moduleName);
+				if (!global.__modules[moduleKey]) {
+					global.__modules[moduleKey] = loadModule(moduleKey);
+				}
+
+				return global.__modules[moduleKey];
+			};
+			global.reloadDirtyModules = function () {
+				for (const moduleName in global.__modulesMeta) {
+					const mod = global.__modulesMeta[moduleName];
+					if (mod.dirty) {
+						const exports = loadModule(moduleName);
+						global.__modules[moduleName] = exports;
+
+						if (global.isReactRefreshBoundary(exports)) {
+							global.__enqueueReactUpdate();
+						}
+					}
+				}
+			};
+
+			function normalizeModuleKey(moduleKey) {
+				if (moduleKey.startsWith('./')) {
+					moduleKey = moduleKey.substring('./'.length);
+				}
+				if (!moduleKey.endsWith('.js')) {
+					moduleKey += '.js';
+				}
+				return moduleKey;
+			}
+
+			function loadModule(moduleName) {
+				const meta = global.__modulesMeta[moduleName];
+				if (!meta) {
+					console.log('global modules meta:', global.__modulesMeta);
+					throw new Error(`Could not find module "${moduleName}"`);
+				}
+				if (meta.dirty) {
+					meta.dirty = false;
+				}
+
+				let exports = {};
+				const deps = meta.deps.map((dep) => {
+					if (dep === 'exports') {
+						return exports;
+					}
+					return global.require(dep);
+				});
+
+				// React-fast-refresh support
+				let prevRefreshReg = global.$RefreshReg$;
+				let prevRefreshSig = global.$RefreshSig$;
+
+				global.$RefreshReg$ = (type, id) => {
+					const fullId = JSON.stringify(id) + ' ' + id;
+					global.RefreshRuntime.register(type, fullId);
+				};
+				global.$RefreshSig$ =
+					global.RefreshRuntime.createSignatureFunctionForTransform;
+
+				// Run the module factory
+				meta.factory(...deps);
+
+				global.$RefreshReg$ = prevRefreshReg;
+				global.$RefreshSig$ = prevRefreshSig;
+
+				return exports;
+			}
+		}
+	} +
+	')();';

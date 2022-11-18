@@ -22,8 +22,8 @@ window.__enqueueReactUpdate = debounce(function () {
 	runtime.performReactRefresh();
 }, 500);
 
-window.isReactRefreshBoundary = function (Refresh, moduleExports) {
-	if (Refresh.isLikelyComponentType(moduleExports)) {
+window.isReactRefreshBoundary = function (moduleExports) {
+	if (RefreshRuntime.isLikelyComponentType(moduleExports)) {
 		return true;
 	}
 	if (moduleExports == null || typeof moduleExports !== 'object') {
@@ -43,7 +43,7 @@ window.isReactRefreshBoundary = function (Refresh, moduleExports) {
 			return false;
 		}
 		const exportValue = moduleExports[key];
-		if (!Refresh.isLikelyComponentType(exportValue)) {
+		if (!RefreshRuntime.isLikelyComponentType(exportValue)) {
 			areAllExportsComponents = false;
 		}
 	}

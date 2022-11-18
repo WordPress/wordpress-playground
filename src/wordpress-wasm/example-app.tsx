@@ -182,13 +182,12 @@ async function main() {
 			root={srcPath}
 			initialFile={`${srcPath}/edit.js`}
 			onSaveFile={async () => {
-				await buildWordPressPlugin(workerThread, srcPath, buildPath);
-				const script = wpFrame.contentDocument!.createElement('script');
-				script.src = workerThread.pathToInternalUrl(
-					'/wp-content/mu-plugins/create-block/build/index.js?reload=' +
-						Math.random()
+				const jsBundle = await buildWordPressPlugin(
+					workerThread,
+					srcPath,
+					buildPath
 				);
-				wpFrame.contentDocument!.body.appendChild(script);
+				(wpFrame.contentWindow as any).eval(jsBundle.contents);
 			}}
 		/>,
 		document.getElementById('test-snippets')!

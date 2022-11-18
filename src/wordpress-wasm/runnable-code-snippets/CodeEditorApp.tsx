@@ -24,7 +24,6 @@ export default function CodeEditorApp({
 	const onSelectFile = useCallback(
 		(path) => {
 			async function handle() {
-				console.log({ path });
 				setFile({ path, contents: await workerThread.readFile(path) });
 			}
 			handle();
