@@ -161,7 +161,6 @@ export function getProperty(object, property) {
 }
 
 export function performReactRefresh() {
-	console.log('pendingUpdates', pendingUpdates);
 	if (pendingUpdates.length === 0) {
 		return null;
 	}

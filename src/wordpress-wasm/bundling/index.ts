@@ -63,9 +63,6 @@ export async function bundle(
 				},
 				load(id) {
 					const relativePath = id.substring(prefix.length);
-					if (relativePath.startsWith('is-react-refresh-boundary')) {
-						return require('./is-react-refresh-boundary.txt.js');
-					}
 					if (!(relativePath in filesIndex)) {
 						throw new Error(`Could not find file ${relativePath}`);
 					}
@@ -80,16 +77,9 @@ export async function bundle(
 			{
 				name: 'react-live-refresh-wrapper',
 				transform(code, id) {
-					if (
-						id.endsWith('is-react-refresh-boundary') ||
-						id.endsWith('systemjs')
-					) {
-						return code;
-					}
 					return `
 					let prevRefreshReg = window.$RefreshReg$;
 					let prevRefreshSig = window.$RefreshSig$;
-					// import isReactRefreshBoundary from 'is-react-refresh-boundary';
 					
 					window.$RefreshReg$ = (type, id) => {
 						const fullId = ${JSON.stringify(id)} + ' ' + id;

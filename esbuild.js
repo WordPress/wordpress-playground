@@ -78,10 +78,8 @@ async function main() {
 			'service-worker': 'src/wordpress-wasm/service-worker.ts',
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
 			app: 'src/wordpress-wasm/example-app.tsx',
-			'test-react-fast-refresh':
-				'src/wordpress-wasm/bundling/test/test-react-fast-refresh.js',
-			'hook-fast-refresh-runtime':
-				'src/wordpress-wasm/bundling/test/fast-refresh-runtime-hook.js',
+			'setup-fast-refresh-runtime':
+				'src/wordpress-wasm/bundling/refresh-runtime/setup-react-refresh-runtime.js',
 		},
 		sourcemap: true,
 	});
