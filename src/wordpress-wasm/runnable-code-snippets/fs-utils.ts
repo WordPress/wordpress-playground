@@ -1,5 +1,7 @@
 import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
 
+export const MU_PLUGINS_PATH = `/wordpress/wp-content/mu-plugins`;
+
 export type MemFile = {
 	fileName: string;
 	contents: string;

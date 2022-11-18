@@ -6,7 +6,12 @@ import {
 } from '../php-wasm-browser/index';
 import React from 'react';
 import { render } from 'react-dom';
+
 import CodeEditorApp from './runnable-code-snippets/CodeEditorApp';
+import createBlockPluginFixture from './runnable-code-snippets/fixtures/create-block-plugin';
+import { buildWordPressPlugin } from './runnable-code-snippets/build-wordpress-plugin';
+import enableHMRinWordPress from './bundling/enable-hmr-in-wordpress';
+import { setupFixture } from './runnable-code-snippets/fixtures/index';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -164,7 +169,12 @@ async function main() {
 		});
 	}
 
-	await setupCreateBlockTutorial(workerThread);
+	await enableHMRinWordPress(workerThread);
+	const { srcPath, buildPath } = await setupFixture(
+		workerThread,
+		createBlockPluginFixture
+	);
+	await buildWordPressPlugin(workerThread, srcPath, buildPath);
 
 	render(
 		<CodeEditorApp
@@ -172,10 +182,10 @@ async function main() {
 			root={srcPath}
 			initialFile={`${srcPath}/edit.js`}
 			onSaveFile={async () => {
-				await rebuildCreateBlockPlugin(workerThread);
+				await buildWordPressPlugin(workerThread, srcPath, buildPath);
 				const script = wpFrame.contentDocument!.createElement('script');
 				script.src = workerThread.pathToInternalUrl(
-					'/wp-content/mu-plugins/my-block/build/index.js?reload=' +
+					'/wp-content/mu-plugins/create-block/build/index.js?reload=' +
 						Math.random()
 				);
 				wpFrame.contentDocument!.body.appendChild(script);
@@ -188,30 +198,3 @@ async function main() {
 	wpFrame.src = workerThread.pathToInternalUrl(initialUrl);
 }
 main();
-
-import copyCreateBlockPluginFiles from './runnable-code-snippets/copy-create-block-plugin-files';
-import { pathJoin } from './runnable-code-snippets/fs-utils';
-import { buildWordPressPlugin } from './runnable-code-snippets/build-wordpress-plugin';
-import enableHMRinWordPress from './bundling/enable-hmr-in-wordpress';
-
-const muPluginsPath = `/wordpress/wp-content/mu-plugins`;
-const myBlockPath = `${muPluginsPath}/my-block`;
-const buildPath = `${myBlockPath}/build`;
-const srcPath = `${myBlockPath}/src`;
-
-async function setupCreateBlockTutorial(workerThread) {
-	await enableHMRinWordPress(workerThread, muPluginsPath);
-	await copyCreateBlockPluginFiles(workerThread, srcPath);
-
-	await workerThread.mkdirTree(buildPath);
-	await workerThread.writeFile(
-		pathJoin(muPluginsPath, 'create-block.php'),
-		`<?php require_once "${buildPath}/index.php"; \n`
-	);
-
-	await rebuildCreateBlockPlugin(workerThread);
-}
-
-async function rebuildCreateBlockPlugin(workerThread) {
-	await buildWordPressPlugin(workerThread, srcPath, buildPath);
-}

@@ -1,17 +1,3 @@
-import { writeFiles } from './fs-utils';
-
-export default async function copyCreateBlockPluginFiles(workerThread, toPath) {
-	await workerThread.mkdirTree(toPath);
-	await writeFiles(workerThread, toPath, [
-		{ fileName: 'index.php', contents: INDEX_PHP },
-		{ fileName: 'block.json', contents: BLOCK_JSON },
-		{ fileName: 'edit.js', contents: EDIT_JS },
-		{ fileName: 'save.js', contents: SAVE_JS },
-		{ fileName: 'style.css', contents: STYLE_CSS },
-		{ fileName: 'index.js', contents: INDEX_JS },
-	]);
-}
-
 const INDEX_PHP = `<?php
 /**
  * Plugin Name:       Example Static
@@ -181,3 +167,15 @@ const BLOCK_JSON =
 		null,
 		2
 	) + '\n';
+
+export default {
+	name: 'create-block',
+	files: [
+		{ fileName: 'index.php', contents: INDEX_PHP },
+		{ fileName: 'block.json', contents: BLOCK_JSON },
+		{ fileName: 'edit.js', contents: EDIT_JS },
+		{ fileName: 'save.js', contents: SAVE_JS },
+		{ fileName: 'style.css', contents: STYLE_CSS },
+		{ fileName: 'index.js', contents: INDEX_JS },
+	],
+};
