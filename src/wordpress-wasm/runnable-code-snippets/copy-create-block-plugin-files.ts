@@ -64,22 +64,26 @@ import Edit from './edit';
 import save from './save';
 import metadata from './block.json';
 
-/**
-* Every block starts by registering a new block type definition.
-*
-* @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
-*/
-registerBlockType( metadata.name, {
+if(!window.done) {
+	window.done = true;
 	/**
-	* @see ./edit.js
+	* Every block starts by registering a new block type definition.
+	*
+	* @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
 	*/
-	edit: Edit,
+	registerBlockType( metadata.name, {
+		/**
+		* @see ./edit.js
+		*/
+		edit: Edit,
 
-	/**
-	* @see ./save.js
-	*/
-	save,
-} );`;
+		/**
+		* @see ./save.js
+		*/
+		save,
+	} );
+}
+`;
 
 const STYLE_CSS = `/**
 * The following styles get applied both on the front of your site
