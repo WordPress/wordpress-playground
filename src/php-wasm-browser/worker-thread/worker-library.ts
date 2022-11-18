@@ -86,7 +86,7 @@ export async function initializeWorkerThread(
 	broadcastChannel.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.log('broadcastChannel message', event);
+			console.debug('broadcastChannel message', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.

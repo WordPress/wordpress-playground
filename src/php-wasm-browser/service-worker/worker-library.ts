@@ -69,7 +69,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		event.preventDefault();
 		return event.respondWith(
 			new Promise(async (accept) => {
-				console.log(
+				console.debug(
 					`[ServiceWorker] Serving request: ${getPathQueryFragment(
 						removeURLScope(url)
 					)}`
@@ -103,7 +103,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 							headers: requestHeaders,
 						},
 					};
-					console.log(
+					console.debug(
 						'[ServiceWorker] Forwarding a request to the Worker Thread',
 						{ message }
 					);
@@ -112,7 +112,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 						message
 					);
 					phpResponse = await awaitReply(broadcastChannel, requestId);
-					console.log(
+					console.debug(
 						'[ServiceWorker] Response received from the main app',
 						{ phpResponse }
 					);
