@@ -187,6 +187,15 @@ async function main() {
 					srcPath,
 					buildPath
 				);
+				// @TODO – Consider using https://github.dev extension instead of a custom
+				//         CodeMirror setup
+				//
+				// @TODO – Expose JS and compilation errors to avoid confusion.
+				//         (Can CodeMirror underscore bad lines?)
+				//
+				// @TODO – compile and refresh the code on save with a button or cmd+s,
+				//         but don't do it automatically on every change.
+				//
 				// @TODO – fix the `Block "create-block/example-static" is already registered.`
 				//         errors occuring when updating the index.js file.
 				//         Technically we should wrap the factory in try {} finally {} and
