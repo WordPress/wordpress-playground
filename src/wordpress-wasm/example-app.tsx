@@ -187,6 +187,11 @@ async function main() {
 					srcPath,
 					buildPath
 				);
+				// @TODO – fix the `Block "create-block/example-static" is already registered.`
+				//         errors occuring when updating the index.js file.
+				//         Technically we should wrap the factory in try {} finally {} and
+				//         then refresh the page if it's not a React Component or a CSS file.
+				//
 				// @TODO – do not blindly eval the built bundle.
 				//         instead, only eval the new bundle if an
 				//         old one is already present. This could be
