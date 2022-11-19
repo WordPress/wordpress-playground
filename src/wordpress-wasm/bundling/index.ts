@@ -5,7 +5,7 @@ import reactRefresh from './babel-plugin-react-refresh';
 import * as rollup from '@rollup/browser';
 import json from './rollup-plugin-json';
 import css from './rollup-plugin-css';
-import type { MemFile } from '../runnable-code-snippets/fs-utils';
+import { MemFile, pathJoin } from '../runnable-code-snippets/fs-utils';
 import { extname } from '../runnable-code-snippets/fs-utils';
 
 type Bundle = {
@@ -25,7 +25,8 @@ type Bundle = {
  */
 export async function bundle(
 	files: MemFile[],
-	entrypoint: string
+	entrypoint: string,
+	{ cssUrlPrefix = '' }
 ): Promise<Bundle> {
 	const filesIndex = files.reduce((acc, file) => {
 		acc[file.fileName] = file.contents;
@@ -41,10 +42,37 @@ export async function bundle(
 		input: `${prefix}${relativeEntrypoint}`,
 		external: ['react'],
 		plugins: [
+			css({
+				transform: (code, id) => {
+					const sanitizedId = id.replace(/[^a-zA-Z0-9\-\_]/g, '-');
+					const normalizedCssFilename = normalizeRollupFilename(
+						id
+					).replace(/\.js$/, '');
+					let removeCssLink = cssUrlPrefix
+						? `
+							document.querySelector('link[href*="${pathJoin(
+								cssUrlPrefix,
+								normalizedCssFilename
+							)}"]')?.remove()
+						`
+						: '';
+
+					return `
+					${removeCssLink}
+					const existingStyle = document.getElementById('${sanitizedId}');
+					if (existingStyle) {
+						existingStyle.remove();
+					}
+					const style = document.createElement('style');
+					style.id = '${sanitizedId}';
+					style.innerHTML = ${JSON.stringify(code)};
+					document.head.appendChild(style);
+					`;
+				},
+			}) as any,
 			json({
 				include: /\.json$/,
 			}) as any,
-			css() as any,
 			{
 				name: 'babel-plugin',
 				transform(code) {
@@ -83,17 +111,14 @@ export async function bundle(
 		format: 'amd',
 		amd: {
 			autoId: true,
-			forceJsExtensionForImports: false,
+			forceJsExtensionForImports: true,
 		},
 		entryFileNames: '[name].js',
 		chunkFileNames: '[name].js',
 		assetFileNames: '[name][extname]',
-
-		manualChunks(name) {
-			return normalizeRollupFilename(name).replace(/\.js$/, '');
-		},
+		preserveModules: true,
 		sanitizeFileName(name) {
-			return normalizeRollupFilename(name).replace(/\.js$/, ''); // + '.js';
+			return normalizeRollupFilename(name).replace(/\.js$/, '');
 		},
 	});
 
@@ -217,9 +242,11 @@ const amdLoader =
 					meta.dirty = false;
 				}
 
+				let exportIsADependency = false;
 				let exports = {};
 				const deps = meta.deps.map((dep) => {
 					if (dep === 'exports') {
+						exportIsADependency = true;
 						return exports;
 					}
 					return global.require(dep);
@@ -237,7 +264,10 @@ const amdLoader =
 					global.RefreshRuntime.createSignatureFunctionForTransform;
 
 				// Run the module factory
-				meta.factory(...deps);
+				const result = meta.factory(...deps);
+				if (!exportIsADependency) {
+					exports = result;
+				}
 
 				global.$RefreshReg$ = prevRefreshReg;
 				global.$RefreshSig$ = prevRefreshSig;

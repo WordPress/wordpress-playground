@@ -32,11 +32,13 @@ export default function css(options = {}) {
 
 		/* convert the css file to a module and save the code for a file output */
 		transform(code, id) {
-			if (!filter(id)) return;
+			if (!filter(id)) {
+				return;
+			}
 
 			const transformedCode = options.minify
-				? minifyCSS(options.transform(code))
-				: options.transform(code);
+				? minifyCSS(options.transform(code, id))
+				: options.transform(code, id);
 
 			/* cache the result */
 			if (!styles[id] || styles[id] != transformedCode) {
