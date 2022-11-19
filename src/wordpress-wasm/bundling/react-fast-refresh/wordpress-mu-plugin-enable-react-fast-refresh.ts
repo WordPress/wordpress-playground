@@ -1,6 +1,9 @@
-import { pathJoin, MU_PLUGINS_PATH } from '../runnable-code-snippets/fs-utils';
+import {
+	pathJoin,
+	MU_PLUGINS_PATH,
+} from '../../runnable-code-snippets/fs-utils';
 
-export default async function enableHMRinWordPress(workerThread) {
+export default async function muPluginEnableReactFastRefresh(workerThread) {
 	await workerThread.writeFile(
 		pathJoin(MU_PLUGINS_PATH, 'sandbox_hmr.php'),
 		`<?php 

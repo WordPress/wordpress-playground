@@ -1,8 +1,18 @@
+import { pathJoin } from '../runnable-code-snippets/fs-utils';
+import { normalizeRollupFilename } from './common';
 import { createFilter } from './rollup-plugin-utils';
+import type { OutputChunk, Plugin } from '@rollup/browser';
 
-export default function css(options = {}) {
-	if (!options.transform) options.transform = (code) => code;
+type CSSPluginOptions = {
+	include?: RegExp | RegExp[] | string | string[];
+	exclude?: RegExp | RegExp[] | string | string[];
+	alwaysOutput?: boolean;
+	minify?: boolean;
+	cssUrlPrefix: string;
+	output?: string;
+};
 
+export default function css(options: CSSPluginOptions): Plugin {
 	const styles = {};
 	const alwaysOutput = options.alwaysOutput ?? false;
 	const filter = createFilter(
@@ -36,9 +46,33 @@ export default function css(options = {}) {
 				return;
 			}
 
-			const transformedCode = options.minify
-				? minifyCSS(options.transform(code, id))
-				: options.transform(code, id);
+			const sanitizedId = id.replace(/[^a-zA-Z0-9\-\_]/g, '-');
+			const normalizedCssFilename = normalizeRollupFilename(id).replace(
+				/\.js$/,
+				''
+			);
+			const removeCssLink = `
+				document.querySelector('link[href*="${pathJoin(
+					options.cssUrlPrefix,
+					normalizedCssFilename
+				)}"]')?.remove()
+			`;
+
+			let transformedCode = `
+			${removeCssLink}
+			const existingStyle = document.getElementById('${sanitizedId}');
+			if (existingStyle) {
+				existingStyle.remove();
+			}
+			const style = document.createElement('style');
+			style.id = '${sanitizedId}';
+			style.innerHTML = ${JSON.stringify(code)};
+			document.head.appendChild(style);
+			`;
+
+			if (options.minify) {
+				transformedCode = minifyCSS(transformedCode);
+			}
 
 			/* cache the result */
 			if (!styles[id] || styles[id] != transformedCode) {
@@ -55,10 +89,13 @@ export default function css(options = {}) {
 		generateBundle(opts, bundle) {
 			/* collect all the imported modules for each entry file */
 			let modules = {};
-			let entryChunk = null;
-			for (let file in bundle) {
-				modules = Object.assign(modules, bundle[file].modules);
-				if (!entryChunk) entryChunk = bundle[file].facadeModuleId;
+			let entryChunk: string | null = null;
+			for (const file in bundle) {
+				const chunk = bundle[file] as OutputChunk;
+				modules = Object.assign(modules, chunk.modules);
+				if (!entryChunk) {
+					entryChunk = chunk.facadeModuleId;
+				}
 			}
 
 			/* get the list of modules in order */
@@ -80,7 +117,7 @@ export default function css(options = {}) {
 			if (css.trim().length <= 0 && !alwaysOutput) return;
 
 			const filename = options.output ?? opts.file ?? 'bundle.js';
-			const dest = basename(filename, extname(filename));
+			const dest = filename.replace(/\.{1,4}}$/, '');
 			this.emitFile({
 				type: 'asset',
 				fileName: `${dest}.css`,
@@ -99,12 +136,4 @@ function minifyCSS(content) {
 	content = content.replace(/([;,]) /g, '$1');
 	content = content.replace(/ !/g, '!');
 	return content;
-}
-
-function basename(path) {
-	return path.split('/').pop();
-}
-
-function extname(path) {
-	return path.split('.').pop();
 }

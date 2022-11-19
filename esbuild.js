@@ -79,7 +79,7 @@ async function main() {
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
 			app: 'src/wordpress-wasm/example-app.tsx',
 			'setup-fast-refresh-runtime':
-				'src/wordpress-wasm/bundling/refresh-runtime/setup-react-refresh-runtime.js',
+				'src/wordpress-wasm/bundling/react-fast-refresh/setup-react-refresh-runtime.js',
 		},
 		sourcemap: true,
 	});

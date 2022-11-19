@@ -1,6 +1,16 @@
 import { createFilter, dataToEsm } from './rollup-plugin-utils';
+import type { Plugin } from '@rollup/browser';
 
-export default function json(options = {}) {
+type JsonPluginOptions = {
+	include?: RegExp | RegExp[] | string | string[];
+	exclude?: RegExp | RegExp[] | string | string[];
+	indent?: string;
+	preferConst?: boolean;
+	compact?: boolean;
+	namedExports?: boolean;
+};
+export default function json(options: JsonPluginOptions = {}): Plugin {
+	options.include = options.include || /\.json$/;
 	const filter = createFilter(options.include, options.exclude);
 	const indent = 'indent' in options ? options.indent : '\t';
 
@@ -24,12 +34,14 @@ export default function json(options = {}) {
 					map: { mappings: '' },
 				};
 			} catch (err) {
-				const message = 'Could not parse JSON file';
-				const position = parseInt(
-					(/[\d]/.exec(err.message) || [])[0],
-					10
-				);
-				this.warn({ message, id, position });
+				if (err instanceof Error) {
+					const message = 'Could not parse JSON file';
+					const position = parseInt(
+						(/[\d]/.exec(err.message) || [])[0],
+						10
+					);
+					this.warn({ message, id, position } as any);
+				}
 				console.error(err);
 				return null;
 			}

@@ -10,7 +10,7 @@ import { render } from 'react-dom';
 import CodeEditorApp from './runnable-code-snippets/CodeEditorApp';
 import createBlockPluginFixture from './runnable-code-snippets/fixtures/create-block-plugin';
 import { buildWordPressPlugin } from './runnable-code-snippets/build-wordpress-plugin';
-import enableHMRinWordPress from './bundling/enable-hmr-in-wordpress';
+import muPluginEnableReactFastRefresh from './bundling/react-fast-refresh/wordpress-mu-plugin-enable-react-fast-refresh';
 import { setupFixture } from './runnable-code-snippets/fixtures/index';
 
 const query = new URL(document.location.href).searchParams;
@@ -169,7 +169,7 @@ async function main() {
 		});
 	}
 
-	await enableHMRinWordPress(workerThread);
+	await muPluginEnableReactFastRefresh(workerThread);
 	const { srcPath, buildPath } = await setupFixture(
 		workerThread,
 		createBlockPluginFixture
@@ -196,31 +196,6 @@ async function main() {
 				// @TODO – compile and refresh the code on save with a button or cmd+s,
 				//         but don't do it automatically on every change.
 				//
-				// @TODO – fix the `Block "create-block/example-static" is already registered.`
-				//         errors occuring when updating the index.js file.
-				//         Technically we should wrap the factory in try {} finally {} and
-				//         then refresh the page if it's not a React Component or a CSS file.
-				//
-				// @TODO – do not blindly eval the built bundle.
-				//         instead, only eval the new bundle if an
-				//         old one is already present. This could be
-				//         an argument like below:
-				//
-				//             buildWordPressPlugin({ mode: 'init' })
-				//             // ^ sets a global flag indicating the
-				//             //   entrypoint id. Errors out if it's already present.
-				//
-				//             buildWordPressPlugin({ mode: 'refresh' })
-				//             // ^ calls refreshDirtyModules().
-				//             //   Errors out if the global flag isn't present.
-				//
-				// @TODO – refresh CSS files even if they're loaded directly
-				//         and not as JS chunks. The { cssUrlPrefix } option
-				//         could be helpful there. Technically the current CSS
-				//         transform already does it, we just want to make sure
-				//         to a) load the updated CSS in the same DOM location as the
-				//         old one and b) allow CSS HMR even if the parent JS entrypoint
-				//         isn't allowed to refresh.
 				(wpFrame.contentWindow as any).eval(jsBundle.contents);
 			}}
 		/>,
