@@ -185,7 +185,10 @@ async function main() {
 				const jsBundle = await buildWordPressPlugin(
 					workerThread,
 					srcPath,
-					buildPath
+					buildPath,
+					{
+						reloadOnly: true,
+					}
 				);
 				// @TODO – Consider using https://github.dev extension instead of a custom
 				//         CodeMirror setup

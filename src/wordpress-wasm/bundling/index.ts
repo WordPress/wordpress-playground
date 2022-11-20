@@ -2,9 +2,9 @@ import addImportExtension from './babel-plugin-add-import-extension';
 import transpileWordPressImports from './babel-plugin-transpile-wordpress-imports';
 import transpileWordPressJsx from './babel-plugin-transpile-wordpress-jsx';
 import reactFastRefresh from './babel-plugin-react-fast-refresh';
-import { rollup } from '@rollup/browser';
+import * as rollup from '@rollup/browser';
 import json from './rollup-plugin-json';
-import css from './rollup-plugin-css';
+import css, { makeUniqueCssRule } from './rollup-plugin-css';
 import createAmdLoader from './create-amd-loader';
 import type { MemFile } from '../runnable-code-snippets/fs-utils';
 import { extname } from '../runnable-code-snippets/fs-utils';
@@ -17,6 +17,10 @@ type Bundle = {
 	otherFiles: MemFile[];
 };
 
+interface BundleOptions {
+	reloadOnly?: boolean;
+}
+
 /**
  * Transpiles WordPress JS code to a format that can be run in the browser.
  *
@@ -25,24 +29,28 @@ type Bundle = {
  *
  * @param files The files to transpile.
  * @param entrypoint The entrypoint file name.
+ * @param options Bundler options.
  * @returns A list of the transpiled chunks.
  */
 export async function bundle(
 	files: MemFile[],
 	entrypoint: string,
-	{ cssUrlPrefix = '' }
+	options: BundleOptions
 ): Promise<Bundle> {
+	const { reloadOnly = false } = options;
 	const prefix = `rollup://localhost/`;
 	const relativeEntrypoint = entrypoint.replace(/^\//, '');
 
 	const allUsedWpAssets = new Set<string>();
 	const onWpAssetUsed = (asset: string) => allUsedWpAssets.add(asset);
-	const generator = await rollup({
+	const generator = await rollup.rollup({
 		input: `${prefix}${relativeEntrypoint}`,
 		external: ['react'],
+		// Prevent optimizing away CSS exports:
+		treeshake: false,
 		plugins: [
-			css({ cssUrlPrefix }),
 			json(),
+			css({ idPrefix: prefix }),
 			babelForRollup({
 				plugins: [
 					transpileWordPressJsx(),
@@ -69,41 +77,50 @@ export async function bundle(
 			return normalizeRollupFilename(name).replace(/\.js$/, '');
 		},
 	});
-
 	return {
-		jsBundle: makeJsBundle(build, entrypoint, cssUrlPrefix),
+		jsBundle: {
+			fileName: entrypoint,
+			contents: `
+			${createAmdLoader({
+				reloadOnly,
+				entrypoint: getEntrypointFilename(build.output),
+			})}
+			${concatChunks(build.output)}
+			`,
+		},
 		otherFiles: [
 			buildIndexAssetPhp(allUsedWpAssets),
-			...extractNonBuiltFiles(files, build),
+			...reconcileStaticAssets(files, build),
 		],
 	};
 }
 
-function makeJsBundle(build, entrypoint, cssUrlPrefix) {
-	const builtCode = build.output
+function concatChunks(modules: Array<any>) {
+	return modules
+		.filter((module) => module.type === 'chunk')
 		.map((module) => (module as any).code || (module as any).source || '')
 		.join('\n');
-	const builtEntrypointFilename = build.output.find((module) =>
-		'isEntry' in module ? module.isEntry : false
-	)!.fileName;
-	return {
-		fileName: entrypoint,
-		contents: `
-		${createAmdLoader({ cssUrlPrefix })}
-		${builtCode}
-		require(${JSON.stringify(builtEntrypointFilename)})
-		reloadDirtyModules();
-		`,
-	};
 }
 
-function extractNonBuiltFiles(files, build) {
-	const builtFileNames = build.output.map((module) => module.fileName);
-	return files.filter(
-		(file) =>
-			!['.js'].includes(extname(file.fileName)) &&
-			!builtFileNames.includes(file.fileName)
-	);
+function getEntrypointFilename(modules: Array<any>) {
+	return modules.find((module) =>
+		'isEntry' in module ? module.isEntry : false
+	)!.fileName;
+}
+
+function reconcileStaticAssets(files, build) {
+	return files.flatMap((file) => {
+		if (['.js'].includes(extname(file.fileName))) {
+			return [];
+		}
+		const builtFile = build.output.find(
+			(module) => module.fileName === file.fileName
+		);
+		if (builtFile?.type === 'asset') {
+			return [{ fileName: file.fileName, contents: builtFile.source }];
+		}
+		return [file];
+	});
 }
 
 function buildIndexAssetPhp(allUsedWpAssets: Set<string>) {

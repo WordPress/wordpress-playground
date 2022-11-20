@@ -5,6 +5,7 @@ import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
 
 type BuildOptions = {
 	jsEntrypoint: string;
+	reloadOnly: boolean;
 };
 
 export async function buildWordPressPlugin(
@@ -13,11 +14,11 @@ export async function buildWordPressPlugin(
 	buildPath,
 	options: Partial<BuildOptions> = {}
 ) {
-	let { jsEntrypoint = 'index.js' } = options;
+	let { jsEntrypoint = 'index.js', reloadOnly = false } = options;
 	await cleanDirectory(workerThread, buildPath);
 	const sourceFiles = await readFiles(workerThread, srcPath);
 	const { jsBundle, otherFiles } = await bundle(sourceFiles, jsEntrypoint, {
-		cssUrlPrefix: buildPath.replace(/^\/wordpress/, ''),
+		reloadOnly,
 	});
 	await writeFiles(workerThread, buildPath, otherFiles.concat([jsBundle]));
 	return jsBundle;
