@@ -48,7 +48,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		const url = new URL(event.request.url);
 
 		const unscopedUrl = removeURLScope(url);
-		if (!shouldForwardRequestToPHPServer(event.request, unscopedUrl)) {
+		if (
+			!isURLScoped(url) ||
+			!shouldForwardRequestToPHPServer(event.request, unscopedUrl)
+		) {
 			// When ignoring a scoped request, let's unscope it before
 			// passing it to the browser.
 			if (isURLScoped(url)) {
