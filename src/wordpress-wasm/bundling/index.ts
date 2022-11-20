@@ -69,6 +69,7 @@ export async function bundle(
 			autoId: true,
 			forceJsExtensionForImports: true,
 		},
+		exports: 'named',
 		entryFileNames: '[name].js',
 		chunkFileNames: '[name].js',
 		assetFileNames: '[name][extname]',
