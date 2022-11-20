@@ -50,25 +50,22 @@ import Edit from './edit';
 import save from './save';
 import metadata from './block.json';
 
-if(!window.done) {
-	window.done = true;
+/**
+* Every block starts by registering a new block type definition.
+*
+* @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
+*/
+registerBlockType( metadata.name, {
 	/**
-	* Every block starts by registering a new block type definition.
-	*
-	* @see https://developer.wordpress.org/block-editor/reference-guides/block-api/block-registration/
+	* @see ./edit.js
 	*/
-	registerBlockType( metadata.name, {
-		/**
-		* @see ./edit.js
-		*/
-		edit: Edit,
+	edit: Edit,
 
-		/**
-		* @see ./save.js
-		*/
-		save,
-	} );
-}
+	/**
+	* @see ./save.js
+	*/
+	save,
+} );
 `;
 
 const STYLE_CSS = `/**
