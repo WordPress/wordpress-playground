@@ -4,7 +4,7 @@ import transpileWordPressJsx from './babel-plugin-transpile-wordpress-jsx';
 import reactFastRefresh from './babel-plugin-react-fast-refresh';
 import * as rollup from '@rollup/browser';
 import json from './rollup-plugin-json';
-import css, { makeUniqueCssRule } from './rollup-plugin-css';
+import css from './rollup-plugin-css';
 import createAmdLoader from './create-amd-loader';
 import type { MemFile } from '../runnable-code-snippets/fs-utils';
 import { extname } from '../runnable-code-snippets/fs-utils';
