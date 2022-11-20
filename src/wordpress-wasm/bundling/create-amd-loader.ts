@@ -11,11 +11,18 @@ interface ModuleMeta {
 }
 
 /**
- * The amdLoader below is executed in the WORDPRESS IFRAME, not in the
- * current environment. The function is stringified and included in the
+ * Loader for the rollup bundle.
+ *
+ * It runs and hot-reloads the JavaScript and CSS modules.
+ *
+ * The hot-reloading happens only for the modules that were already
+ * loaded on the page.
+ *
+ * The loader is only meant to run in the **WordPress iFrame** and not in the
+ * top-level execution frame. The function is stringified and included in the
  * rollup bundle to make all the define() calls work.
  *
- * Splutting the rollup bundle into separate modules is required for
+ * Splitting the rollup bundle into separate modules is required for
  * the hot module reloading to work.
  */
 export default function createAmdLoader(options: AmdLoaderOptions) {
@@ -23,44 +30,6 @@ export default function createAmdLoader(options: AmdLoaderOptions) {
 	//         errors occuring when updating the index.js file.
 	//         Technically we should wrap the factory in try {} finally {} and
 	//         then refresh the page if it's not a React Component or a CSS file.
-	//
-	// @TODO – do not blindly eval the built bundle.
-	//         instead, only eval the new bundle if an
-	//         old one is already present. This could be
-	//         an argument like below:
-	//
-	//             buildWordPressPlugin({ mode: 'init' })
-	//             // ^ sets a global flag indicating the
-	//             //   entrypoint id. Errors out if it's already present.
-	//
-	//             buildWordPressPlugin({ mode: 'refresh' })
-	//             // ^ calls refreshDirtyModules().
-	//             //   Errors out if the global flag isn't present.
-	//
-	// @TODO – refresh CSS files even if they're loaded directly
-	//         and not as JS chunks. The { assetsUrl } option
-	//         could be helpful there. Technically the current CSS
-	//         transform already does it, we just want to make sure
-	//         to a) load the updated CSS in the same DOM location as the
-	//         old one and b) allow CSS HMR even if the parent JS entrypoint
-	//         isn't allowed to refresh.
-
-	// Initial load:
-	// Subsequent load:
-
-	// ----
-
-	// I load the bundle and want this to happen:
-	// * If it is a JS bundle
-	// 	 * If it is being loaded via <script src=""></script>, load it
-	// 	 * Else, if it is being loaded via eval() now
-	//	 	 * If it was already loaded via <script src=""></script>, reload it
-	//		 * Otherwise, do nothing
-	// * If it's a CSS bundle
-	//   * If it is being loaded via <link rel="" /> or <style></style>, load it
-	// 	 * Else, if it is being loaded via eval() now
-	// 		 * If it was already loaded via <link rel="" /> or <style></style>, reload it
-	// 		 * Otherwise, do nothing
 
 	return (
 		'(' +
