@@ -199,6 +199,11 @@ async function main() {
 				// @TODO – compile and refresh the code on save with a button or cmd+s,
 				//         but don't do it automatically on every change.
 				//
+				// @TODO – fix the `Block "create-block/example-static" is already registered.`
+				//         errors occuring when updating the index.js file.
+				//         Technically we should wrap the factory in try {} finally {} and
+				//         then refresh the page if it's not a React Component or a CSS file.
+
 				(wpFrame.contentWindow as any).eval(jsBundle.contents);
 			}}
 		/>,

@@ -26,11 +26,6 @@ interface ModuleMeta {
  * the hot module reloading to work.
  */
 export default function createAmdLoader(options: AmdLoaderOptions) {
-	// @TODO – fix the `Block "create-block/example-static" is already registered.`
-	//         errors occuring when updating the index.js file.
-	//         Technically we should wrap the factory in try {} finally {} and
-	//         then refresh the page if it's not a React Component or a CSS file.
-
 	return (
 		'(' +
 		function ({ reloadOnly, entrypoint }) {
