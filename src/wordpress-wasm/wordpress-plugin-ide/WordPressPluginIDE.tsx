@@ -14,7 +14,7 @@ import { pathJoin } from './fs-utils';
 interface Props {
 	workerThread: SpawnedWorkerThread;
 	plugin: Fixture;
-	initialFileName: string;
+	initialEditedFile: string;
 	onBundleReady: (code: string) => void;
 }
 
@@ -40,7 +40,7 @@ export default function WordPressPluginIDE({
 	workerThread,
 	plugin,
 	onBundleReady,
-	initialFileName = '',
+	initialEditedFile = '',
 }: Props) {
 	const editorRef = useRef<CodeMirrorRef>(null);
 	const [fixturePaths, setFixturePaths] = useState<FixturePaths | null>(null);
@@ -67,8 +67,8 @@ export default function WordPressPluginIDE({
 				chroot
 			);
 			setFixturePaths(fixturePaths);
-			if (initialFileName) {
-				selectFile(pathJoin(fixturePaths.srcPath, initialFileName));
+			if (initialEditedFile) {
+				selectFile(pathJoin(fixturePaths.srcPath, initialEditedFile));
 			}
 
 			const bundle = await buildWordPressPlugin(

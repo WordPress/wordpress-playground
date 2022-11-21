@@ -171,7 +171,7 @@ async function main() {
 		<WordPressPluginIDE
 			plugin={createBlockPluginFixture}
 			workerThread={workerThread}
-			initialFileName="edit.js"
+			initialEditedFile="edit.js"
 			onBundleReady={(bundleContents: string) => {
 				if (doneFirstBoot) {
 					(wpFrame.contentWindow as any).eval(bundleContents);
