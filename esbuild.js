@@ -68,7 +68,7 @@ async function main() {
 		target: ['chrome106', 'firefox100', 'safari15'],
 		bundle: true,
 		external: ['xmlhttprequest'],
-		nodePaths: ['packages', 'src/wordpress-wasm/bundling/polyfills'],
+		nodePaths: ['packages', 'src/wordpress-plugin-ide/bundler/polyfills'],
 		loader: {
 			'.php': 'text',
 			'.txt.js': 'text',
@@ -79,7 +79,7 @@ async function main() {
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
 			app: 'src/wordpress-wasm/example-app.tsx',
 			'setup-fast-refresh-runtime':
-				'src/wordpress-wasm/bundling/react-fast-refresh/setup-react-refresh-runtime.js',
+				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
 		},
 		sourcemap: true,
 	});

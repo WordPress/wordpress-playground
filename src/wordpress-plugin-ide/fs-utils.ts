@@ -1,4 +1,4 @@
-import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
+import type { SpawnedWorkerThread } from '../php-wasm-browser/index';
 
 export type MemFile = {
 	fileName: string;

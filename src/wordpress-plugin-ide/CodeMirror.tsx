@@ -17,7 +17,7 @@ import {
 	useRef,
 	useImperativeHandle,
 } from 'react';
-import { babelTranspile } from '../bundling/index';
+import { babelTranspile } from './bundler/index';
 import type { MemFile } from './fs-utils';
 
 interface CodeMirrorProps {

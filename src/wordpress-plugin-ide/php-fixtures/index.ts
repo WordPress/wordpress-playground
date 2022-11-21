@@ -1,4 +1,4 @@
-import type { SpawnedWorkerThread } from '../../../php-wasm-browser/index';
+import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
 import { MemFile, pathJoin, writeFiles } from '../fs-utils';
 
 export type Fixture = {
@@ -32,3 +32,7 @@ export async function setupFixture(
 	);
 	return { srcPath, buildPath };
 }
+
+import createBlockPluginFixture from './create-block-plugin';
+import enableReactFastRefreshPluginFixture from './enable-react-fast-refresh';
+export { createBlockPluginFixture, enableReactFastRefreshPluginFixture };

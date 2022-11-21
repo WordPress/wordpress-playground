@@ -1,11 +1,11 @@
 import React from 'react';
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import FilesExplorer from './FilesExplorer';
-import debounce from '../../utils/debounce';
+import debounce from '../utils/debounce';
 import CodeMirror from './CodeMirror';
 import { buildWordPressPlugin } from './build-wordpress-plugin';
 import type { CodeMirrorRef } from './CodeMirror';
-import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
+import type { SpawnedWorkerThread } from '../php-wasm-browser/index';
 import { setupFixture } from './php-fixtures';
 import type { Fixture } from './php-fixtures';
 import enableReactFastRefresh from './php-fixtures/enable-react-fast-refresh';
@@ -36,7 +36,7 @@ const chroot = '/wordpress/wp-content/mu-plugins/';
 //         Technically we should wrap the factory in try {} finally {} and
 //         then refresh the page if it's not a React Component or a CSS file.
 
-export default function WordPressPluginIDE({
+export function WordPressPluginIDE({
 	workerThread,
 	plugin,
 	onBundleReady,

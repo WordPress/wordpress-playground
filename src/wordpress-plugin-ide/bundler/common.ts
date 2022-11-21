@@ -11,7 +11,7 @@ export function normalizeRollupFilename(name) {
 	return name;
 }
 
-export type { MemFile } from '../wordpress-plugin-ide/fs-utils';
+export type { MemFile } from '../fs-utils';
 
 export {
 	extname,
@@ -19,4 +19,4 @@ export {
 	resolve,
 	isAbsolute,
 	normalizePath,
-} from '../wordpress-plugin-ide/fs-utils';
+} from '../fs-utils';

@@ -1,7 +1,7 @@
 import { cleanDirectory, readFiles, writeFiles } from './fs-utils';
 
-import { bundle } from '../bundling/index';
-import type { SpawnedWorkerThread } from '../../php-wasm-browser/index';
+import { bundle } from './bundler/index';
+import type { SpawnedWorkerThread } from '../php-wasm-browser/index';
 
 type BuildOptions = {
 	jsEntrypoint: string;

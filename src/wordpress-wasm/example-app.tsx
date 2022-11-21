@@ -7,8 +7,10 @@ import {
 import React from 'react';
 import { render } from 'react-dom';
 
-import WordPressPluginIDE from './wordpress-plugin-ide/WordPressPluginIDE';
-import createBlockPluginFixture from './wordpress-plugin-ide/php-fixtures/create-block-plugin';
+import {
+	WordPressPluginIDE,
+	createBlockPluginFixture,
+} from '../wordpress-plugin-ide';
 
 const query = new URL(document.location.href).searchParams;
 

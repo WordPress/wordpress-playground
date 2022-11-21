@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCallback, useMemo } from 'react';
 import { Tree } from '@geist-ui/core';
-import { useDeferredValue } from '../hooks';
+import { useDeferredValue } from './hooks';
 import { pathJoin } from './fs-utils';
 
 const noop = () => {};
