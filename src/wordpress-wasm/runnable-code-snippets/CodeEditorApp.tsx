@@ -3,13 +3,17 @@ import { EditorView, basicSetup } from 'codemirror';
 import type { ViewUpdate } from '@codemirror/view';
 import { keymap } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
+import { json, jsonParseLinter } from '@codemirror/lang-json';
 import { html } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
 import { markdown } from '@codemirror/lang-markdown';
 import { php } from '@codemirror/lang-php';
+import { linter, lintKeymap, lintGutter } from '@codemirror/lint';
+
 import React from 'react';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import debounce from '../../utils/debounce';
+import { babelTranspile } from '../bundling/index';
 
 export default function CodeEditorApp({
 	workerThread,
@@ -50,18 +54,23 @@ export default function CodeEditorApp({
 			return null;
 		}
 
-		const syntaxExtension = {
-			js: javascript({ jsx: true }),
-			ts: javascript({ typescript: true, jsx: true }),
-			jsx: javascript({ jsx: true }),
-			tsx: javascript({ typescript: true, jsx: true }),
-			html: html(),
-			css: css(),
-			md: markdown(),
-			php: php(),
-		}[file.path.split('.').pop()!];
-
-		const syntaxExtensions = syntaxExtension ? [syntaxExtension] : [];
+		const fileSpecificExtensions = {
+			js: () => [javascript({ jsx: true }), babelLinter],
+			ts: () => [
+				javascript({ typescript: true, jsx: true }),
+				babelLinter,
+			],
+			jsx: () => [javascript({ jsx: true }), babelLinter],
+			tsx: () => [
+				javascript({ typescript: true, jsx: true }),
+				babelLinter,
+			],
+			json: () => [json(), linter(jsonParseLinter())],
+			html: () => [html()],
+			css: () => [css()],
+			md: () => [markdown()],
+			php: () => [php()],
+		}[file.path.split('.').pop()!]();
 
 		const themeOptions = EditorView.theme({
 			'&': {
@@ -77,6 +86,7 @@ export default function CodeEditorApp({
 					return true;
 				},
 			},
+			...lintKeymap,
 		]);
 
 		const updateListener = EditorView.updateListener.of(
@@ -95,8 +105,9 @@ export default function CodeEditorApp({
 				basicSetup,
 				themeOptions,
 				ourKeymap,
+				...fileSpecificExtensions,
+				lintGutter(),
 				updateListener,
-				...syntaxExtensions,
 			],
 			parent: editorRef.current,
 		});
@@ -128,3 +139,20 @@ export default function CodeEditorApp({
 		</div>
 	);
 }
+
+const babelLinter = linter((view) => {
+	let diagnostics: any[] = [];
+	const code: string = view.state.doc.toString();
+	try {
+		babelTranspile(code);
+	} catch (e: any) {
+		const line = view.state.doc.lineAt(e.loc.index);
+		diagnostics.push({
+			from: line.from,
+			to: line.to,
+			severity: 'error',
+			message: e.message,
+		});
+	}
+	return diagnostics;
+});

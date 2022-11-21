@@ -3,6 +3,7 @@ import transpileWordPressImports from './babel-plugin-transpile-wordpress-import
 import transpileWordPressJsx from './babel-plugin-transpile-wordpress-jsx';
 import reactFastRefresh from './babel-plugin-react-fast-refresh';
 import * as rollup from '@rollup/browser';
+import * as babel from '@babel/standalone';
 import json from './rollup-plugin-json';
 import css from './rollup-plugin-css';
 import createAmdLoader from './create-amd-loader';
@@ -10,7 +11,6 @@ import type { MemFile } from '../runnable-code-snippets/fs-utils';
 import { extname } from '../runnable-code-snippets/fs-utils';
 import { normalizeRollupFilename } from './common';
 import provideDependencies from './rollup-plugin-provide-dependencies';
-import babelForRollup from './rollup-plugin-babel';
 
 type Bundle = {
 	jsBundle: MemFile;
@@ -51,14 +51,10 @@ export async function bundle(
 		plugins: [
 			json(),
 			css({ idPrefix: prefix }),
-			babelForRollup({
-				plugins: [
-					transpileWordPressJsx(),
-					[addImportExtension, { extension: 'js' }],
-					transpileWordPressImports(onWpAssetUsed),
-					[reactFastRefresh, { skipEnvCheck: true }],
-				],
-			}),
+			{
+				name: 'babel-plugin',
+				transform: (code) => babelTranspile(code, onWpAssetUsed).code,
+			},
 			provideDependencies({ files, inputPrefix: prefix }),
 		],
 	});
@@ -94,6 +90,21 @@ export async function bundle(
 			...reconcileStaticAssets(files, build),
 		],
 	};
+}
+
+type OnWpAssetUsed = (name: string) => any;
+export function babelTranspile(
+	code: string,
+	onWpAssetUsed: OnWpAssetUsed = () => {}
+) {
+	return (babel as any).transform(code, {
+		plugins: [
+			transpileWordPressJsx(),
+			[addImportExtension, { extension: 'js' }],
+			transpileWordPressImports(onWpAssetUsed),
+			[reactFastRefresh, { skipEnvCheck: true }],
+		],
+	});
 }
 
 function concatChunks(modules: Array<any>) {
