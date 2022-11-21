@@ -6,7 +6,8 @@ import { pathJoin } from './fs-utils';
 
 const noop = () => {};
 
-interface FilesSource {
+type MaybePromise<T> = Promise<T> | T;
+interface FileSystem {
 	/**
 	 * Lists the files and directories in the given directory.
 	 *
@@ -14,58 +15,56 @@ interface FilesSource {
 	 * @returns The list of files and directories in the given directory.
 	 */
 	listFiles(path: string): MaybePromise<string[]>;
+
 	/**
-	 * Checks if a directory exists in the PHP filesystem.
+	 * Checks if a directory exists in the filesystem.
 	 *
 	 * @param path – The path to check.
 	 * @returns True if the path is a directory, false otherwise.
 	 */
 	isDir(path: string): MaybePromise<boolean>;
 }
-
-type MaybePromise<T> = Promise<T> | T;
-
 interface FilesExplorerProps {
-	root?: string;
+	chroot?: string;
 	onSelectFile?: (path: string) => void;
-	filesSource: FilesSource;
+	fileSystem: FileSystem;
 }
 
 export default function FilesExplorer({
-	root = '/',
+	chroot = '/',
 	onSelectFile = noop,
-	filesSource,
+	fileSystem,
 }: FilesExplorerProps) {
 	const onClick = useCallback((file) => {
-		onSelectFile(pathJoin(root, file));
+		onSelectFile(pathJoin(chroot, file));
 	}, []);
 
-	const treePromise = useTreeComponents(filesSource, root);
+	const treePromise = useTreeComponents(fileSystem, chroot);
 	const tree = useDeferredValue(treePromise) as any;
 
 	return <Tree onClick={onClick}>{tree}</Tree>;
 }
 
 async function useTreeComponents(
-	filesSource: FilesSource,
-	root: string
+	fileSystem: FileSystem,
+	chroot: string
 ): Promise<any> {
 	return useMemo(() => {
-		return buildTreeComponents(filesSource, root);
-	}, [filesSource, root]);
+		return buildTreeComponents(fileSystem, chroot);
+	}, [fileSystem, chroot]);
 }
 
-async function buildTreeComponents(filesSource: FilesSource, root: string) {
-	const files = await filesSource.listFiles(root);
+async function buildTreeComponents(fileSystem: FileSystem, chroot: string) {
+	const files = await fileSystem.listFiles(chroot);
 
 	return await Promise.all(
 		files.map(async (file) => {
-			const path = pathJoin(root, file);
-			const isDir = await filesSource.isDir(path);
+			const path = pathJoin(chroot, file);
+			const isDir = await fileSystem.isDir(path);
 			if (isDir) {
 				return (
 					<Tree.Folder name={file} key={file}>
-						{(await buildTreeComponents(filesSource, path)) as any}
+						{(await buildTreeComponents(fileSystem, path)) as any}
 					</Tree.Folder>
 				);
 			} else {

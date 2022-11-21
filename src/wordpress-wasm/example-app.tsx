@@ -7,11 +7,8 @@ import {
 import React from 'react';
 import { render } from 'react-dom';
 
-import MiniIDE from './runnable-code-snippets/MiniIDE';
-import createBlockPluginFixture from './runnable-code-snippets/fixtures/create-block-plugin';
-import { buildWordPressPlugin } from './runnable-code-snippets/build-wordpress-plugin';
-import muPluginEnableReactFastRefresh from './bundling/react-fast-refresh/wordpress-mu-plugin-enable-react-fast-refresh';
-import { setupFixture } from './runnable-code-snippets/fixtures/index';
+import WordPressPluginIDE from './wordpress-plugin-ide/WordPressPluginIDE';
+import createBlockPluginFixture from './wordpress-plugin-ide/php-fixtures/create-block-plugin';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -169,48 +166,24 @@ async function main() {
 		});
 	}
 
-	await muPluginEnableReactFastRefresh(workerThread);
-	const { srcPath, buildPath } = await setupFixture(
-		workerThread,
-		createBlockPluginFixture
-	);
-	await buildWordPressPlugin(workerThread, srcPath, buildPath);
-
+	let doneFirstBoot = false;
 	render(
-		<MiniIDE
+		<WordPressPluginIDE
+			plugin={createBlockPluginFixture}
 			workerThread={workerThread}
-			root={srcPath}
-			initialFile={`${srcPath}/edit.js`}
-			onSaveFile={async () => {
-				const jsBundle = await buildWordPressPlugin(
-					workerThread,
-					srcPath,
-					buildPath,
-					{
-						reloadOnly: true,
-					}
-				);
-				// @TODO – Consider using https://github.dev extension instead of a custom
-				//         CodeMirror setup
-				//
-				// @TODO – Expose JS and compilation errors to avoid confusion.
-				//         (Can CodeMirror underscore bad lines?)
-				//
-				// @TODO – compile and refresh the code on save with a button or cmd+s,
-				//         but don't do it automatically on every change.
-				//
-				// @TODO – fix the `Block "create-block/example-static" is already registered.`
-				//         errors occuring when updating the index.js file.
-				//         Technically we should wrap the factory in try {} finally {} and
-				//         then refresh the page if it's not a React Component or a CSS file.
-
-				(wpFrame.contentWindow as any).eval(jsBundle.contents);
+			initialFileName="edit.js"
+			onBundleReady={(bundleContents: string) => {
+				if (doneFirstBoot) {
+					(wpFrame.contentWindow as any).eval(bundleContents);
+				} else {
+					doneFirstBoot = true;
+					wpFrame.src = workerThread.pathToInternalUrl(
+						query.get('url') || '/'
+					);
+				}
 			}}
 		/>,
 		document.getElementById('test-snippets')!
 	);
-
-	const initialUrl = query.get('url') || '/';
-	wpFrame.src = workerThread.pathToInternalUrl(initialUrl);
 }
 main();

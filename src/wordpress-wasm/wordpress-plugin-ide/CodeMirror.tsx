@@ -34,7 +34,7 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
 		const codeMirrorRef = useRef(null);
 		const [file, setFile] = useState<MemFile>(
 			initialFile || {
-				fileName: '/tmp/fake.js',
+				fileName: 'fake.js',
 				contents: "console.log('hello world!');",
 			}
 		);

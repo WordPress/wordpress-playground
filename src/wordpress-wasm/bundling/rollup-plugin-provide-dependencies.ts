@@ -1,5 +1,5 @@
 import type { Plugin } from '@rollup/browser';
-import type { MemFile } from '../runnable-code-snippets/fs-utils';
+import type { MemFile } from './common';
 
 type ProvideDependenciesOptions = {
 	files: MemFile[];

@@ -1,9 +1,4 @@
-import {
-	pathJoin,
-	resolve,
-	isAbsolute,
-	normalizePath,
-} from '../runnable-code-snippets/fs-utils';
+import { pathJoin, resolve, isAbsolute, normalizePath } from './common';
 import { walk } from 'estree-walker';
 
 export function createFilter(include, exclude, options) {

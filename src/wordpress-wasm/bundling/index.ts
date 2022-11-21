@@ -7,9 +7,8 @@ import * as babel from '@babel/standalone';
 import json from './rollup-plugin-json';
 import css from './rollup-plugin-css';
 import createAmdLoader from './create-amd-loader';
-import type { MemFile } from '../runnable-code-snippets/fs-utils';
-import { extname } from '../runnable-code-snippets/fs-utils';
-import { normalizeRollupFilename } from './common';
+import type { MemFile } from './common';
+import { extname, normalizeRollupFilename } from './common';
 import provideDependencies from './rollup-plugin-provide-dependencies';
 
 type Bundle = {

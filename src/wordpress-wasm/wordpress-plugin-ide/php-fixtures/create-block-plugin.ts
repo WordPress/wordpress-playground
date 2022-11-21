@@ -167,6 +167,7 @@ const BLOCK_JSON =
 
 export default {
 	name: 'create-block',
+	build: true,
 	files: [
 		{ fileName: 'index.php', contents: INDEX_PHP },
 		{ fileName: 'block.json', contents: BLOCK_JSON },

@@ -10,3 +10,13 @@ export function normalizeRollupFilename(name) {
 	}
 	return name;
 }
+
+export type { MemFile } from '../wordpress-plugin-ide/fs-utils';
+
+export {
+	extname,
+	pathJoin,
+	resolve,
+	isAbsolute,
+	normalizePath,
+} from '../wordpress-plugin-ide/fs-utils';
