@@ -7,7 +7,7 @@ import {
 import React from 'react';
 import { render } from 'react-dom';
 
-import CodeEditorApp from './runnable-code-snippets/CodeEditorApp';
+import MiniIDE from './runnable-code-snippets/MiniIDE';
 import createBlockPluginFixture from './runnable-code-snippets/fixtures/create-block-plugin';
 import { buildWordPressPlugin } from './runnable-code-snippets/build-wordpress-plugin';
 import muPluginEnableReactFastRefresh from './bundling/react-fast-refresh/wordpress-mu-plugin-enable-react-fast-refresh';
@@ -56,13 +56,13 @@ class FetchProgressBar {
 		this.el = document.querySelector('.progress-bar.is-finite');
 
 		// Hide the progress bar when the page is first loaded.
-		const hideProgressBar = () => {
+		const HideProgressBar = () => {
 			document
 				.querySelector('body.is-loading')!
 				.classList.remove('is-loading');
-			wpFrame.removeEventListener('load', hideProgressBar);
+			wpFrame.removeEventListener('load', HideProgressBar);
 		};
-		wpFrame.addEventListener('load', hideProgressBar);
+		wpFrame.addEventListener('load', HideProgressBar);
 	}
 
 	onDataChunk = ({ file, loaded, total }) => {
@@ -177,7 +177,7 @@ async function main() {
 	await buildWordPressPlugin(workerThread, srcPath, buildPath);
 
 	render(
-		<CodeEditorApp
+		<MiniIDE
 			workerThread={workerThread}
 			root={srcPath}
 			initialFile={`${srcPath}/edit.js`}
