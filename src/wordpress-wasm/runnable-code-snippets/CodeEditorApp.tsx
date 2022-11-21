@@ -9,6 +9,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { php } from '@codemirror/lang-php';
 import React from 'react';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import debounce from '../../utils/debounce';
 
 export default function CodeEditorApp({
 	workerThread,
@@ -35,12 +36,13 @@ export default function CodeEditorApp({
 			onSelectFile(initialFile);
 		}
 	}, []);
-	const onChange = useCallback(
-		(value) => {
-			// @TODO use an async queue to avoid out-of-order updates:
-			workerThread.writeFile(file.path, value);
-			onSaveFile(file.path);
-		},
+	const onChange = useMemo(
+		() =>
+			debounce((value) => {
+				// @TODO use an async queue to avoid out-of-order updates:
+				workerThread.writeFile(file.path, value);
+				onSaveFile(file.path);
+			}, 500),
 		[workerThread, file]
 	);
 	const view = useMemo(() => {
