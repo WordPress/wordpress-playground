@@ -86,7 +86,7 @@ export async function initializeWorkerThread(
 	broadcastChannel.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.log('broadcastChannel message', event);
+			console.debug('broadcastChannel message', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
@@ -113,13 +113,28 @@ export async function initializeWorkerThread(
 			`[Worker Thread] "${message.type}" message received from a service worker`
 		);
 
-		if (message.type === 'is_alive') {
+		if (message.type === 'isAlive') {
 			return true;
-		} else if (message.type === 'get_absolute_url') {
+		} else if (message.type === 'getAbsoluteUrl') {
 			return phpBrowser.server.absoluteUrl;
-		} else if (message.type === 'run_php') {
-			return await phpBrowser.server.php.run(message.code);
-		} else if (message.type === 'request') {
+		} else if (message.type === 'readFile') {
+			return phpBrowser.server.php.readFileAsText(message.path);
+		} else if (message.type === 'listFiles') {
+			return phpBrowser.server.php.listFiles(message.path);
+		} else if (message.type === 'unlink') {
+			return phpBrowser.server.php.unlink(message.path);
+		} else if (message.type === 'isDir') {
+			return phpBrowser.server.php.isDir(message.path);
+		} else if (message.type === 'mkdirTree') {
+			return phpBrowser.server.php.mkdirTree(message.path);
+		} else if (message.type === 'writeFile') {
+			return await phpBrowser.server.php.writeFile(
+				message.path,
+				message.contents
+			);
+		} else if (message.type === 'run') {
+			return phpBrowser.server.php.run(message.code);
+		} else if (message.type === 'HTTPRequest') {
 			return await renderRequest(message.request);
 		}
 		throw new Error(

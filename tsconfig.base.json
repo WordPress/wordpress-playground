@@ -3,7 +3,9 @@
 		"allowJs": true,
 		"checkJs": false,
 		"allowSyntheticDefaultImports": true,
-		"jsx": "preserve",
+
+		"jsx": "react",
+
 		"target": "esnext",
 		"module": "esnext",
 		"lib": [ "dom", "esnext" ],
@@ -31,6 +33,7 @@
 		"rootDir": "src",
 		"declarationDir": "build-types",
 		"outDir": "build-types",
+		"baseUrl": "."
 	},
 	"references": [],
 }

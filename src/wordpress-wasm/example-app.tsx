@@ -1,6 +1,9 @@
 import { bootWordPress } from './index';
 import { login, installPlugin } from './macros';
-import { cloneResponseMonitorProgress, responseTo } from '../php-wasm-browser';
+import {
+	cloneResponseMonitorProgress,
+	responseTo,
+} from '../php-wasm-browser/index';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -30,7 +33,6 @@ function setupAddressBar(wasmWorker) {
 			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
 		});
 }
-
 class FetchProgressBar {
 	expectedRequests;
 	progress;
@@ -45,13 +47,13 @@ class FetchProgressBar {
 		this.el = document.querySelector('.progress-bar.is-finite');
 
 		// Hide the progress bar when the page is first loaded.
-		const hideProgressBar = () => {
+		const HideProgressBar = () => {
 			document
 				.querySelector('body.is-loading')!
 				.classList.remove('is-loading');
-			wpFrame.removeEventListener('load', hideProgressBar);
+			wpFrame.removeEventListener('load', HideProgressBar);
 		};
-		wpFrame.addEventListener('load', hideProgressBar);
+		wpFrame.addEventListener('load', HideProgressBar);
 	}
 
 	onDataChunk = ({ file, loaded, total }) => {
@@ -130,6 +132,8 @@ async function main() {
 
 		progressBar.setProgress(100);
 		await installPlugin(workerThread, pluginFile);
+	} else if (query.get('login')) {
+		await login(workerThread, 'admin', 'password');
 	}
 
 	if (query.get('rpc')) {
@@ -156,7 +160,36 @@ async function main() {
 		});
 	}
 
-	const initialUrl = query.get('url') || '/';
-	wpFrame.src = workerThread.pathToInternalUrl(initialUrl);
+	if (query.has('ide')) {
+		let doneFirstBoot = false;
+		const { WordPressPluginIDE, createBlockPluginFixture } = await import(
+			'../wordpress-plugin-ide/index.js'
+		);
+		const { default: React } = await import('react');
+		const {
+			default: { render },
+		} = await import('react-dom');
+		render(
+			<WordPressPluginIDE
+				plugin={createBlockPluginFixture}
+				workerThread={workerThread}
+				initialEditedFile="edit.js"
+				onBundleReady={(bundleContents: string) => {
+					if (doneFirstBoot) {
+						(wpFrame.contentWindow as any).eval(bundleContents);
+					} else {
+						doneFirstBoot = true;
+						wpFrame.src = workerThread.pathToInternalUrl(
+							query.get('url') || '/'
+						);
+					}
+				}}
+			/>,
+			document.getElementById('test-snippets')!
+		);
+	} else {
+		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
+	}
 }
 main();
+console.log(20);

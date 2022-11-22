@@ -50,7 +50,7 @@ export async function spawnPHPWorkerThread(
 	// Keep asking if the worker is alive until we get a response
 	while (true) {
 		try {
-			await messageChannel.sendMessage({ type: 'is_alive' }, 50);
+			await messageChannel.sendMessage({ type: 'isAlive' }, 50);
 			break;
 		} catch (e) {
 			// Ignore timeouts
@@ -59,7 +59,7 @@ export async function spawnPHPWorkerThread(
 	}
 
 	const absoluteUrl = await messageChannel.sendMessage({
-		type: 'get_absolute_url',
+		type: 'getAbsoluteUrl',
 	});
 
 	return new SpawnedWorkerThread(messageChannel, absoluteUrl);
@@ -97,28 +97,65 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
-	 * Runs PHP code.
-	 *
-	 * @param  code The PHP code to run.
-	 * @returns The result of the PHP code.
+	 * @see {PHP.run}
 	 */
-	async eval(code: string): Promise<PHPOutput> {
-		return await this.messageChannel.sendMessage({
-			type: 'run_php',
-			code,
-		});
+	async run(code: string): Promise<PHPOutput> {
+		return await this.#rpc('run', { code });
 	}
 
 	/**
-	 * Dispatches a request to the PHPServer.
-	 *
-	 * @param  request - The request to dispatch.
-	 * @returns  The response from the PHPServer.
+	 * @see {PHP.request}
 	 */
 	async HTTPRequest(request: PHPRequest): Promise<PHPResponse> {
+		return await this.#rpc('HTTPRequest', { request });
+	}
+
+	/**
+	 * @see {PHP.readFile}
+	 */
+	async readFile(path: string): Promise<string> {
+		return await this.#rpc('readFile', { path });
+	}
+
+	/**
+	 * @see {PHP.writeFile}
+	 */
+	async writeFile(path: string, contents: string): Promise<void> {
+		return await this.#rpc('writeFile', { path, contents });
+	}
+
+	/**
+	 * @see {PHP.unlink}
+	 */
+	async unlink(path: string): Promise<void> {
+		return await this.#rpc('unlink', { path });
+	}
+
+	/**
+	 * @see {PHP.mkdirTree}
+	 */
+	async mkdirTree(path: string): Promise<void> {
+		return await this.#rpc('mkdirTree', { path });
+	}
+
+	/**
+	 * @see {PHP.listFiles}
+	 */
+	async listFiles(path: string): Promise<string[]> {
+		return await this.#rpc('listFiles', { path });
+	}
+
+	/**
+	 * @see {PHP.isDir}
+	 */
+	async isDir(path: string): Promise<boolean> {
+		return await this.#rpc('isDir', { path });
+	}
+
+	async #rpc<T>(type: string, args?: Record<string, any>): Promise<T> {
 		return await this.messageChannel.sendMessage({
-			type: 'request',
-			request,
+			...args,
+			type,
 		});
 	}
 }

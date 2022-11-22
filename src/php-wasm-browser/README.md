@@ -47,7 +47,7 @@ import {
 	registerServiceWorker,
 	spawnPHPWorkerThread,
 	getWorkerThreadFrontend,
-} from 'php-wasm-browser';
+} from 'php-wasm-browser'
 
 export async function startApp() {
 	const workerThread = await spawnPHPWorkerThread(
@@ -55,41 +55,41 @@ export async function startApp() {
 		'webworker',
 		// Must point to a valid worker thread script:
 		'/worker-thread.js'
-	);
+	)
 	// Must point to a valid Service Worker script:
-	await registerServiceWorker('/service-worker.js');
+	await registerServiceWorker('/service-worker.js')
 
 	// Create a few PHP files to browse:
-	await workerThread.eval(`<?php
+	await workerThread.run(`<?php
         file_put_contents('index.php', '<a href="page.php">Go to page.php</a>');
         file_put_contents('page.php', '<?php echo "Hello from PHP!"; ?>');
-    `);
+    `)
 
 	// Navigate to index.php:
-	document.getElementById('my-app').src = '/index.php';
+	document.getElementById('my-app').src = '/index.php'
 }
-startApp();
+startApp()
 ```
 
 **/worker-thread.js**:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser';
+import { initializeWorkerThread } from 'php-wasm-browser'
 
 // Loads /php.js and /php.wasm provided by php-wasm,
 // Listens to commands issued by the main app and
 // the requests from the Service Worker.
-initializeWorkerThread();
+initializeWorkerThread()
 ```
 
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from 'php-wasm-browser';
+import { initializeServiceWorker } from 'php-wasm-browser'
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
-initializeServiceWorker();
+initializeServiceWorker()
 ```
 
 Keep reading to learn how all these pieces fit together.
@@ -158,10 +158,10 @@ const workerThread = await spawnPHPWorkerThread(
 	'webworker',
 	// Must point to a valid worker thread script:
 	'/worker-thread.js'
-);
-workerThread.eval(`<?php
+)
+workerThread.run(`<?php
     echo "Hello from the thread!";
-`);
+`)
 ```
 
 Worker threads can use any multiprocessing technique like an iframe, WebWorker, or a SharedWorker. See the next sections to learn more about the supported backends.
@@ -179,8 +179,8 @@ Conveniently, [spawnPHPWorkerThread](https://github.com/WordPress/wordpress-wasm
 A worker thread must live in a separate JavaScript file. Here's what a minimal implementation of that file looks like:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
+import { initializeWorkerThread } from 'php-wasm-browser'
+initializeWorkerThread()
 ```
 
 It may not seem like much, but `initializeWorkerThread()` does a lot of
@@ -203,32 +203,32 @@ Remember: The worker thread code must live in a separate JavaScript file.
 A minimal worker thread script looks like this:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
+import { initializeWorkerThread } from 'php-wasm-browser'
+initializeWorkerThread()
 ```
 
 You can customize the PHP loading flow via the first argument:
 
 ```js
-import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
-initializeWorkerThread(bootBrowser);
+import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser'
+initializeWorkerThread(bootBrowser)
 
 async function bootBrowser({ absoluteUrl }) {
 	const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
 		import(`/php.js`),
 		import(`/wp.js`),
-	]);
+	])
 
 	const php = await loadPHPWithProgress(phpLoaderModule, [
 		myDependencyLoaderModule,
-	]);
+	])
 
 	const server = new PHPServer(php, {
 		documentRoot: '/www',
 		absoluteUrl: absoluteUrl,
-	});
+	})
 
-	return new PHPBrowser(server);
+	return new PHPBrowser(server)
 }
 ```
 
@@ -250,14 +250,14 @@ Example usage:
 const workerThread = await spawnPHPWorkerThread(
 	'webworker',
 	'/worker-thread.js'
-);
+)
 ```
 
 **/worker-thread.js**:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
+import { initializeWorkerThread } from 'php-wasm-browser'
+initializeWorkerThread()
 ```
 
 ##### `iframe`
@@ -279,7 +279,7 @@ Example usage of the iframe backend:
 const workerThread = await spawnPHPWorkerThread(
 	'iframe',
 	'http://another-domain.com/iframe-worker.html'
-);
+)
 ```
 
 **/iframe-worker.html** (provided in this package):
@@ -291,8 +291,8 @@ const workerThread = await spawnPHPWorkerThread(
 **/worker-thread.js**:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
+import { initializeWorkerThread } from 'php-wasm-browser'
+initializeWorkerThread()
 ```
 
 ### Service Workers
@@ -340,11 +340,11 @@ You will also need a separate `/service-worker.js` file that actually intercepts
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from 'php-wasm-browser';
+import { initializeServiceWorker } from 'php-wasm-browser'
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
-initializeServiceWorker();
+initializeServiceWorker()
 ```
 
 ### Cross-process communication
@@ -362,34 +362,34 @@ The idea is to include a unique `requestId` in every message sent, and then wait
 In the main app:
 
 ```js
-import { postMessageExpectReply, awaitReply } from 'php-wasm-browser';
-const iframeWindow = iframe.contentWindow;
+import { postMessageExpectReply, awaitReply } from 'php-wasm-browser'
+const iframeWindow = iframe.contentWindow
 const requestId = postMessageExpectReply(iframeWindow, {
 	type: 'get_php_version',
-});
-const response = await awaitReply(iframeWindow, requestId);
-console.log(response);
+})
+const response = await awaitReply(iframeWindow, requestId)
+console.log(response)
 // "8.0.24"
 ```
 
 In the iframe:
 
 ```js
-import { responseTo } from 'php-wasm-browser';
+import { responseTo } from 'php-wasm-browser'
 window.addEventListener('message', (event) => {
-	let response = '8.0.24';
+	let response = '8.0.24'
 	if (event.data.type === 'get_php_version') {
-		response = '8.0.24';
+		response = '8.0.24'
 	} else {
-		throw new Error(`Unexpected message type: ${event.data.type}`);
+		throw new Error(`Unexpected message type: ${event.data.type}`)
 	}
 
 	// When `requestId` is present, the other thread expects a response:
 	if (event.data.requestId) {
-		const response = responseTo(event.data.requestId, response);
-		window.parent.postMessage(response, event.origin);
+		const response = responseTo(event.data.requestId, response)
+		window.parent.postMessage(response, event.origin)
 	}
-});
+})
 ```
 
 <!-- /include /docs/api/php-wasm-browser.postmessageexpectreply.md#Example -->
@@ -417,29 +417,29 @@ The service worker is aware of this concept and will attach the `/scope:` found 
 To use scopes, initiate the worker thread with a scoped `absoluteUrl`:
 
 ```js
-import { startPHP, PHPServer, PHPBrowser } from 'php-wasm';
-import { initializeWorkerThread } from 'php-wasm-browser';
-import { setURLScope } from 'php-wasm-browser';
+import { startPHP, PHPServer, PHPBrowser } from 'php-wasm'
+import { initializeWorkerThread } from 'php-wasm-browser'
+import { setURLScope } from 'php-wasm-browser'
 
 async function main() {
-	const php = await startPHP(import('/php.js'));
+	const php = await startPHP(import('/php.js'))
 
 	// Don't use the absoluteURL directly:
-	const absoluteURL = 'http://127.0.0.1';
+	const absoluteURL = 'http://127.0.0.1'
 
 	// Instead, set the scope first:
-	const scope = Math.random().toFixed(16);
-	const scopedURL = setURLScope(absoluteURL, scope).toString();
+	const scope = Math.random().toFixed(16)
+	const scopedURL = setURLScope(absoluteURL, scope).toString()
 
 	const server = new PHPServer(php, {
 		documentRoot: '/var/www',
 		absoluteUrl: scopedURL,
-	});
+	})
 
-	const browser = await new PHPBrowser(server);
+	const browser = await new PHPBrowser(server)
 
 	await initializeWorkerThread({
 		phpBrowser: browser,
-	});
+	})
 }
 ```

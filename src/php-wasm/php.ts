@@ -321,7 +321,7 @@ session.save_path=/home/web_user
 	 * @param  data - The data to write to the file.
 	 */
 	writeFile(path: string, data: string | Uint8Array) {
-		return this.#Runtime.FS.writeFile(path, data);
+		this.#Runtime.FS.writeFile(path, data);
 	}
 
 	/**
@@ -332,6 +332,41 @@ session.save_path=/home/web_user
 	 */
 	unlink(path: string) {
 		this.#Runtime.FS.unlink(path);
+	}
+
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @returns The list of files and directories in the given directory.
+	 */
+	listFiles(path: string): string[] {
+		if (!this.fileExists(path)) {
+			return [];
+		}
+		try {
+			return this.#Runtime.FS.readdir(path).filter(
+				(name) => name !== '.' && name !== '..'
+			);
+		} catch (e) {
+			console.error(e, { path });
+			return [];
+		}
+	}
+
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	isDir(path: string): boolean {
+		if (!this.fileExists(path)) {
+			return false;
+		}
+		return this.#Runtime.FS.isDir(
+			this.#Runtime.FS.lookupPath(path).node.mode
+		);
 	}
 
 	/**

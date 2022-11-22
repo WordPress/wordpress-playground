@@ -48,7 +48,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		const url = new URL(event.request.url);
 
 		const unscopedUrl = removeURLScope(url);
-		if (!shouldForwardRequestToPHPServer(event.request, unscopedUrl)) {
+		if (
+			!isURLScoped(url) ||
+			!shouldForwardRequestToPHPServer(event.request, unscopedUrl)
+		) {
 			// When ignoring a scoped request, let's unscope it before
 			// passing it to the browser.
 			if (isURLScoped(url)) {
@@ -69,7 +72,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		event.preventDefault();
 		return event.respondWith(
 			new Promise(async (accept) => {
-				console.log(
+				console.debug(
 					`[ServiceWorker] Serving request: ${getPathQueryFragment(
 						removeURLScope(url)
 					)}`
@@ -85,7 +88,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 				let phpResponse;
 				try {
 					const message = {
-						type: 'request',
+						type: 'HTTPRequest',
 
 						/**
 						 * Detect scoped requests – their url starts with `/scope:`
@@ -103,7 +106,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 							headers: requestHeaders,
 						},
 					};
-					console.log(
+					console.debug(
 						'[ServiceWorker] Forwarding a request to the Worker Thread',
 						{ message }
 					);
@@ -112,7 +115,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 						message
 					);
 					phpResponse = await awaitReply(broadcastChannel, requestId);
-					console.log(
+					console.debug(
 						'[ServiceWorker] Response received from the main app',
 						{ phpResponse }
 					);
