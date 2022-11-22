@@ -120,9 +120,17 @@ export async function installTheme(
 			return;
 		}
 
-		const activateButtonHref = themeInstalledPage
-			.querySelector('#wpbody-content .activatelink')!
-			.attributes.getNamedItem('href')!.value;
+		const activateButton = themeInstalledPage.querySelector(
+			'#wpbody-content .activatelink, ' +
+				'.update-from-upload-actions .button.button-primary'
+		);
+		if (!activateButton) {
+			console.error('The "activate" button was not found.');
+			return;
+		}
+
+		const activateButtonHref =
+			activateButton.attributes.getNamedItem('href')!.value;
 		const activateThemeUrl = new URL(
 			activateButtonHref,
 			workerThread.pathToInternalUrl('/wp-admin/')
