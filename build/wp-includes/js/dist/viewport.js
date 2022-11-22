@@ -91,6 +91,9 @@ function reducer() {
  * Returns an action object used in signalling that viewport queries have been
  * updated. Values are specified as an object of breakpoint query keys where
  * value represents whether query matches.
+ * Ignored from documentation as it is for internal use only.
+ *
+ * @ignore
  *
  * @param {Object} values Breakpoint query matches.
  *
@@ -114,8 +117,21 @@ function setIsMatching(values) {
  * @example
  *
  * ```js
- * isViewportMatch( state, '< huge' );
- * isViewPortMatch( state, 'medium' );
+ * import { store as viewportStore } from '@wordpress/viewport';
+ * import { useSelect } from '@wordpress/data';
+ * import { __ } from '@wordpress/i18n';
+ * const ExampleComponent = () => {
+ *     const isMobile = useSelect(
+ *         ( select ) => select( viewportStore ).isViewportMatch( '< small' ),
+ *         []
+ *     );
+ *
+ *     return isMobile ? (
+ *         <div>{ __( 'Mobile' ) }</div>
+ *     ) : (
+ *         <div>{ __( 'Not Mobile' ) }</div>
+ *     );
+ * };
  * ```
  *
  * @return {boolean} Whether viewport matches query.
@@ -195,7 +211,8 @@ const addDimensionsEventListener = (breakpoints, operators) => {
    */
 
   const queries = (0,external_lodash_namespaceObject.reduce)(breakpoints, (result, width, name) => {
-    (0,external_lodash_namespaceObject.forEach)(operators, (condition, operator) => {
+    Object.entries(operators).forEach(_ref => {
+      let [operator, condition] = _ref;
       const list = window.matchMedia(`(${condition}: ${width}px)`);
       list.addListener(setIsMatching);
       const key = [operator, name].join(' ');
@@ -218,14 +235,12 @@ function _extends() {
   _extends = Object.assign ? Object.assign.bind() : function (target) {
     for (var i = 1; i < arguments.length; i++) {
       var source = arguments[i];
-
       for (var key in source) {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
           target[key] = source[key];
         }
       }
     }
-
     return target;
   };
   return _extends.apply(this, arguments);

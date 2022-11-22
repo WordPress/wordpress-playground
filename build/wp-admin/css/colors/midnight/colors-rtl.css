@@ -325,6 +325,7 @@ ul#adminmenu > li.current > a.current:after {
 }
 
 /* Admin Menu: bubble */
+#adminmenu .menu-counter,
 #adminmenu .awaiting-mod,
 #adminmenu .update-plugins {
   color: #fff;
@@ -706,15 +707,12 @@ div#wp-responsive-toggle a:before {
 
 /* Welcome Panel */
 .welcome-panel {
-  background-color: #fbeae8;
+  background-color: #69a8bb;
 }
 
-.welcome-panel-header-image .about-six {
-  fill: #e14d43;
-}
-
-.welcome-panel-header-image .about-zero {
-  fill: #363b3f;
+.welcome-panel-header-image circle {
+  stroke: rgba(255, 255, 255, 0.5);
+  fill: #69a8bb;
 }
 
 [class*=welcome-panel-icon] {

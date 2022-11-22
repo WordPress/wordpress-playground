@@ -4,7 +4,7 @@ FROM emscripten/emsdk:3.1.24 as emscripten
 SHELL ["/bin/bash", "-c"]
 WORKDIR /root
 
-ARG WP_ZIP_URL=https://wordpress.org/wordpress-6.0.2.zip
+ARG WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip
 ENV WP_ZIP_URL ${WP_ZIP_URL}
 
 RUN mkdir /root/output
@@ -22,10 +22,10 @@ RUN wget -O wp.zip $WP_ZIP_URL && \
 # https://github.com/aaemnnosttv/wp-sqlite-integration
 # https://github.com/aaemnnosttv/wp-sqlite-db
 RUN curl https://raw.githubusercontent.com/aaemnnosttv/wp-sqlite-db/master/src/db.php \
-   | sed 's/$exploded_parts = $values_data;/$exploded_parts = array( $values_data );/g' \
-   > wordpress/wp-content/db.php && \
-   # Required by the drop-in SQLite integration plugin:
-   cp wordpress/wp-config-sample.php wordpress/wp-config.php 
+    | sed 's/$exploded_parts = $values_data;/$exploded_parts = array( $values_data );/g' \
+    > wordpress/wp-content/db.php && \
+    # Required by the drop-in SQLite integration plugin:
+    cp wordpress/wp-config-sample.php wordpress/wp-config.php 
 
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
@@ -43,30 +43,30 @@ RUN mv wordpress-static/* /root/output
 
 # Remove non-default themes
 RUN cd wordpress && \
-    rm -r wp-content/themes/twentytwenty wp-content/themes/twentytwentyone
+    rm -r wp-content/themes/twentytwentyone wp-content/themes/twentytwentytwo
 
 # Remove unused static files
 RUN cd wordpress && \
     find ./ -type f \( \
-        -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
-        -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
-        -o -name '*.scss' -o -name '*.stylelintignore' -o -name '*.svg' \
-        -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
-        -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
+    -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
+    -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
+    -o -name '*.scss' -o -name '*.stylelintignore' -o -name '*.svg' \
+    -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
+    -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
     \) -delete
 
 # Keep only the CSS files that are read by PHP
 RUN cd wordpress && \
     find ./ -type f -name '*.css' \
-        -not -path '*/wp-includes/blocks/*/*.min.css' \
-        -not -path '*/wp-content/themes/*/style.css' \
-        -delete && \
+    -not -path '*/wp-includes/blocks/*/*.min.css' \
+    -not -path '*/wp-content/themes/*/style.css' \
+    -delete && \
     find ./ -type f -name '*-rtl.min.css' -delete && \
     # Keep only the JS files that are read by PHP
     find ./ -type f -name '*.js' \
-        -not -path '*/wp-includes/blocks/*/*.min.js' \
-        -not -name 'wp-emoji-loader.min.js' \
-        -delete
+    -not -path '*/wp-includes/blocks/*/*.min.js' \
+    -not -name 'wp-emoji-loader.min.js' \
+    -delete
 
 RUN cd wordpress && \
     # Remove any empty directories
@@ -81,12 +81,12 @@ WORKDIR /root/
 COPY --from=emscripten /root/wordpress ./wordpress
 RUN cd wordpress && \
     for phpfile in $(find ./ -type f -name '*.php'); do \
-        # Remove whitespace from PHP files
-        php -w $phpfile > $phpfile.small && \
-        # remove set_time_limit function calls as they invoke the
-        # setitimer system call unsupported by emscripten
-        perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
-        rm $phpfile.small; \
+    # Remove whitespace from PHP files
+    php -w $phpfile > $phpfile.small && \
+    # remove set_time_limit function calls as they invoke the
+    # setitimer system call unsupported by emscripten
+    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
+    rm $phpfile.small; \
     done
 
 # === Run WordPress Installer ===
@@ -95,8 +95,8 @@ RUN cd wordpress && \
     sleep 6; \
     http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
     if [ "$http_response" != "200" ]; then \
-        cat debug.txt && \
-        exit 'WordPress installation failed'; \
+    cat debug.txt && \
+    exit 'WordPress installation failed'; \
     fi
 
 FROM emscripten as emscripten2
@@ -113,11 +113,11 @@ RUN cd wordpress && \
 # Bundle the .data file using Emscripten 
 RUN mv wordpress /wordpress && \
     /emsdk/upstream/emscripten/tools/file_packager.py \
-	/root/output/wp.data \
-	--export-name="PHPModule" \
+    /root/output/wp.data \
+    --export-name="PHPModule" \
     --no-node \
-	--preload /wordpress \
-	--js-output=/root/output/wp.js
+    --preload /wordpress \
+    --js-output=/root/output/wp.js
 
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 
@@ -125,8 +125,8 @@ COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 # This tells web browsers it's a new file and they should reload it.
 RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
     cat /root/output/wp.js \
-        | sed "s#wp\.data#/wp.data?$CACHE_BUSTER#g" \
-        > /tmp/wp.js && \
+    | sed "s#wp\.data#/wp.data?$CACHE_BUSTER#g" \
+    > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 
 # Manually turn the output into an esm module instead of relying on -s MODULARIZE=1.
