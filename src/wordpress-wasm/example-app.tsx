@@ -1,11 +1,12 @@
 import { bootWordPress } from './index';
-import { login, installPlugin } from './macros';
+import { login, installPlugin, installTheme } from './macros';
+import type { SpawnedWorkerThread } from '../php-wasm-browser/index';
 import {
 	cloneResponseMonitorProgress,
 	responseTo,
 } from '../php-wasm-browser/index';
 
-const query = new URL(document.location.href).searchParams;
+const query = new URL(document.location.href).searchParams as any;
 
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 
@@ -33,107 +34,61 @@ function setupAddressBar(wasmWorker) {
 			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
 		});
 }
-class FetchProgressBar {
-	expectedRequests;
-	progress;
-	min;
-	max;
-	el;
-	constructor({ expectedRequests, min = 0, max = 100 }) {
-		this.expectedRequests = expectedRequests;
-		this.progress = {};
-		this.min = min;
-		this.max = max;
-		this.el = document.querySelector('.progress-bar.is-finite');
-
-		// Hide the progress bar when the page is first loaded.
-		const HideProgressBar = () => {
-			document
-				.querySelector('body.is-loading')!
-				.classList.remove('is-loading');
-			wpFrame.removeEventListener('load', HideProgressBar);
-		};
-		wpFrame.addEventListener('load', HideProgressBar);
-	}
-
-	onDataChunk = ({ file, loaded, total }) => {
-		if (Object.keys(this.progress).length === 0) {
-			this.setFinite();
-		}
-
-		this.progress[file] = loaded / total;
-		const progressSum = Object.entries(this.progress).reduce(
-			(acc, [_, percentFinished]) => acc + (percentFinished as number),
-			0
-		);
-		const totalProgress = Math.min(1, progressSum / this.expectedRequests);
-		const scaledProgressPercentage =
-			this.min + (this.max - this.min) * totalProgress;
-
-		this.setProgress(scaledProgressPercentage);
-	};
-
-	setProgress(percent) {
-		this.el.style.width = `${percent}%`;
-	}
-
-	setFinite() {
-		const classList = document.querySelector(
-			'.progress-bar-wrapper.mode-infinite'
-		)!.classList;
-		classList.remove('mode-infinite');
-		classList.add('mode-finite');
-	}
-}
 
 async function main() {
 	const preinstallPlugin = query.get('plugin');
-	let progressBar;
-	let pluginResponse;
-	if (preinstallPlugin) {
-		pluginResponse = await fetch(
-			'/plugin-proxy?plugin=' + preinstallPlugin
-		);
-		progressBar = new FetchProgressBar({
-			expectedRequests: 3,
-			max: 80,
-		});
-	} else {
-		progressBar = new FetchProgressBar({ expectedRequests: 2 });
-	}
+	const preinstallTheme = query.get('theme');
+
+	const progressBar = new FetchProgressBar({
+		expectedRequests:
+			2 + (preinstallPlugin ? 1 : 0) + (preinstallTheme ? 1 : 0),
+		max: preinstallPlugin || preinstallTheme ? 80 : 100,
+	});
 
 	const workerThread = await bootWordPress({
-		onWasmDownloadProgress: progressBar.onDataChunk,
+		onWasmDownloadProgress: progressBar.onDataChunk as any,
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
 		setupAddressBar(workerThread);
 	}
 
+	if (query.get('login') || preinstallPlugin || preinstallTheme) {
+		await login(workerThread, 'admin', 'password');
+	}
+
 	if (preinstallPlugin) {
 		// Download the plugin file
-		const progressPluginResponse = cloneResponseMonitorProgress(
-			pluginResponse,
-			(progress) =>
-				progressBar.onDataChunk({ file: preinstallPlugin, ...progress })
+		const pluginFile = await downloadFileWithProgress(
+			'/plugin-proxy?plugin=' + preinstallTheme,
+			preinstallTheme,
+			progressBar
 		);
-		const blob = await progressPluginResponse.blob();
-		const pluginFile = new File([blob], preinstallPlugin);
 
 		// We can't tell how long the operations below
 		// will take. Let's slow down the CSS width transition
 		// to at least give some impression of progress.
 		progressBar.el.classList.add('indeterminate');
-		// We're at 80 already, but it's a nice reminder.
 		progressBar.setProgress(80);
-
-		progressBar.setProgress(85);
-		await login(workerThread, 'admin', 'password');
-
-		progressBar.setProgress(100);
+		progressBar.setProgress(90);
 		await installPlugin(workerThread, pluginFile);
-	} else if (query.get('login')) {
-		await login(workerThread, 'admin', 'password');
+	}
+
+	if (preinstallTheme) {
+		// Download the plugin file
+		const themeFile = await downloadFileWithProgress(
+			'/plugin-proxy?theme=' + preinstallTheme,
+			preinstallTheme,
+			progressBar
+		);
+
+		// We can't tell how long the operations below
+		// will take. Let's slow down the CSS width transition
+		// to at least give some impression of progress.
+		progressBar.el.classList.add('indeterminate');
+		progressBar.setProgress(90);
+		progressBar.setProgress(100);
+		await installTheme(workerThread, themeFile);
 	}
 
 	if (query.get('rpc')) {
@@ -191,5 +146,67 @@ async function main() {
 		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
 	}
 }
+
+async function downloadFileWithProgress(url, fileName, progressBar) {
+	const response = cloneResponseMonitorProgress(
+		await fetch(url),
+		(progress) => progressBar.onDataChunk({ file: fileName, ...progress })
+	);
+	const blob = await response.blob();
+	return new File([blob], fileName);
+}
+
+class FetchProgressBar {
+	expectedRequests;
+	progress;
+	min;
+	max;
+	el;
+	constructor({ expectedRequests, min = 0, max = 100 }) {
+		this.expectedRequests = expectedRequests;
+		this.progress = {};
+		this.min = min;
+		this.max = max;
+		this.el = document.querySelector('.progress-bar.is-finite');
+
+		// Hide the progress bar when the page is first loaded.
+		const HideProgressBar = () => {
+			document
+				.querySelector('body.is-loading')!
+				.classList.remove('is-loading');
+			wpFrame.removeEventListener('load', HideProgressBar);
+		};
+		wpFrame.addEventListener('load', HideProgressBar);
+	}
+
+	onDataChunk = ({ file, loaded, total }) => {
+		if (Object.keys(this.progress).length === 0) {
+			this.setFinite();
+		}
+
+		this.progress[file] = loaded / total;
+		const progressSum = Object.entries(this.progress).reduce(
+			(acc, [_, percentFinished]) => acc + (percentFinished as number),
+			0
+		);
+		const totalProgress = Math.min(1, progressSum / this.expectedRequests);
+		const scaledProgressPercentage =
+			this.min + (this.max - this.min) * totalProgress;
+
+		this.setProgress(scaledProgressPercentage);
+	};
+
+	setProgress(percent) {
+		this.el.style.width = `${percent}%`;
+	}
+
+	setFinite() {
+		const classList = document.querySelector(
+			'.progress-bar-wrapper.mode-infinite'
+		)!.classList;
+		classList.remove('mode-infinite');
+		classList.add('mode-finite');
+	}
+}
+
 main();
-console.log(20);

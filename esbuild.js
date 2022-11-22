@@ -137,12 +137,23 @@ async function main() {
 						res.setHeader('Origin-Agent-Cluster', '?1');
 					} else if (req.url.startsWith('/plugin-proxy')) {
 						const url = new URL(req.url, 'http://127.0.0.1:8777');
-						const pluginName = url.searchParams
-							.get('plugin')
-							.replace(/[^a-zA-Z0-9\.\-_]/, '');
-						request(
-							`https://downloads.wordpress.org/plugin/${pluginName}`
-						).pipe(res);
+						if (url.searchParams.has('plugin')) {
+							const pluginName = url.searchParams
+								.get('plugin')
+								.replace(/[^a-zA-Z0-9\.\-_]/, '');
+							request(
+								`https://downloads.wordpress.org/plugin/${pluginName}`
+							).pipe(res);
+						} else if (url.searchParams.has('theme')) {
+							const themeName = url.searchParams
+								.get('theme')
+								.replace(/[^a-zA-Z0-9\.\-_]/, '');
+							request(
+								`https://downloads.wordpress.org/theme/${themeName}`
+							).pipe(res);
+						} else {
+							res.end('Invalid request');
+						}
 						return;
 					}
 					next();
