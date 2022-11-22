@@ -4,13 +4,6 @@ import {
 	cloneResponseMonitorProgress,
 	responseTo,
 } from '../php-wasm-browser/index';
-import React from 'react';
-import { render } from 'react-dom';
-
-import {
-	WordPressPluginIDE,
-	createBlockPluginFixture,
-} from '../wordpress-plugin-ide';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -40,7 +33,6 @@ function setupAddressBar(wasmWorker) {
 			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
 		});
 }
-
 class FetchProgressBar {
 	expectedRequests;
 	progress;
@@ -168,24 +160,36 @@ async function main() {
 		});
 	}
 
-	let doneFirstBoot = false;
-	render(
-		<WordPressPluginIDE
-			plugin={createBlockPluginFixture}
-			workerThread={workerThread}
-			initialEditedFile="edit.js"
-			onBundleReady={(bundleContents: string) => {
-				if (doneFirstBoot) {
-					(wpFrame.contentWindow as any).eval(bundleContents);
-				} else {
-					doneFirstBoot = true;
-					wpFrame.src = workerThread.pathToInternalUrl(
-						query.get('url') || '/'
-					);
-				}
-			}}
-		/>,
-		document.getElementById('test-snippets')!
-	);
+	if (query.has('ide')) {
+		let doneFirstBoot = false;
+		const { WordPressPluginIDE, createBlockPluginFixture } = await import(
+			'../wordpress-plugin-ide/index.js'
+		);
+		const { default: React } = await import('react');
+		const {
+			default: { render },
+		} = await import('react-dom');
+		render(
+			<WordPressPluginIDE
+				plugin={createBlockPluginFixture}
+				workerThread={workerThread}
+				initialEditedFile="edit.js"
+				onBundleReady={(bundleContents: string) => {
+					if (doneFirstBoot) {
+						(wpFrame.contentWindow as any).eval(bundleContents);
+					} else {
+						doneFirstBoot = true;
+						wpFrame.src = workerThread.pathToInternalUrl(
+							query.get('url') || '/'
+						);
+					}
+				}}
+			/>,
+			document.getElementById('test-snippets')!
+		);
+	} else {
+		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
+	}
 }
 main();
+console.log(20);

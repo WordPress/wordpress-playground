@@ -46,9 +46,24 @@ if (wasmWorkerBackend === 'iframe') {
 const globalOutDir = 'build';
 
 async function main() {
-	build({
+	const baseConfig = {
 		logLevel: 'info',
 		platform: argv.platform,
+		outdir: globalOutDir,
+		watch: argv.watch,
+		target: ['chrome106', 'firefox100', 'safari15'],
+		bundle: true,
+		nodePaths: ['packages', 'src/wordpress-plugin-ide/bundler/polyfills'],
+		loader: {
+			'.php': 'text',
+			'.txt.js': 'text',
+			'.js': 'jsx',
+		},
+		treeShaking: true,
+		minify: true,
+	};
+	build({
+		...baseConfig,
 		define: {
 			CACHE_BUSTER: JSON.stringify(CACHE_BUSTER),
 			'process.env.BUILD_PLATFORM': JSON.stringify(argv.platform),
@@ -63,25 +78,26 @@ async function main() {
 				hashFiles([`packages/php-wasm/build-wasm/php.js`])
 			),
 		},
-		outdir: globalOutDir,
-		watch: argv.watch,
-		target: ['chrome106', 'firefox100', 'safari15'],
-		bundle: true,
-		external: ['xmlhttprequest'],
-		nodePaths: ['packages', 'src/wordpress-plugin-ide/bundler/polyfills'],
-		loader: {
-			'.php': 'text',
-			'.txt.js': 'text',
-			'.js': 'jsx',
-		},
 		entryPoints: {
 			'service-worker': 'src/wordpress-wasm/service-worker.ts',
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
 			app: 'src/wordpress-wasm/example-app.tsx',
+			'wordpress-plugin-ide': 'src/wordpress-plugin-ide/index.ts',
+			react: 'react',
+			'react-dom': 'react-dom',
+		},
+		splitting: true,
+		sourcemap: true,
+		format: 'esm',
+		metafile: true,
+		plugins: [cleanup({ pattern: 'chunk-*' })],
+	});
+	build({
+		...baseConfig,
+		entryPoints: {
 			'setup-fast-refresh-runtime':
 				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
 		},
-		sourcemap: true,
 	});
 	build({
 		logLevel: 'info',
@@ -195,4 +211,25 @@ function sha256(buffer) {
 	const hash = crypto.createHash('sha256');
 	hash.update(buffer);
 	return hash.digest('hex');
+}
+
+function cleanup({ pattern = '*' }) {
+	return {
+		name: 'cleanupFiles',
+		setup(build) {
+			const options = build.initialOptions;
+			build.onEnd((result) => {
+				if (!result.metafile) {
+					return;
+				}
+				const safelist = new Set(Object.keys(result.metafile.outputs));
+				const files = glob.sync(path.join(options.outdir, pattern));
+				files.forEach((path) => {
+					if (!safelist.has(path)) {
+						fs.unlinkSync(path);
+					}
+				});
+			});
+		},
+	};
 }

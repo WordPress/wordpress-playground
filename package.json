@@ -64,7 +64,7 @@
     "chokidar-cli": "^3.0.0",
     "codemirror": "^6.0.1",
     "colors": "~1.2.1",
-    "esbuild": "^0.15.5",
+    "esbuild": "^0.15.15",
     "eslint": "8.22.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-plugin-import": "^2.26.0",

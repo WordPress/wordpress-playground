@@ -44,7 +44,7 @@ export function WordPressPluginIDE({
 }: Props) {
 	const editorRef = useRef<CodeMirrorRef>(null);
 	const [fixturePaths, setFixturePaths] = useState<FixturePaths | null>(null);
-	const [editedFile, setEditedFile] = useState<string | null>(null);
+	const [, setEditedFile] = useState<string | null>(null);
 	const selectFile = useCallback(
 		(fileName) => {
 			setEditedFile(fileName);

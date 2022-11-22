@@ -9,7 +9,9 @@ export async function registerServiceWorker(scriptUrl) {
 		throw new Error('Service workers are not supported in this browser.');
 	}
 
-	const registration = await sw.register(scriptUrl);
+	const registration = await sw.register(scriptUrl, {
+		type: 'module',
+	});
 	await registration.update();
 	sw.startMessages();
 }
