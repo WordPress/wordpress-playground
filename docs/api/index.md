@@ -7,5 +7,6 @@
 |  --- | --- |
 |  [php-wasm](./php-wasm.md) |  |
 |  [php-wasm-browser](./php-wasm-browser.md) |  |
+|  [wordpress-plugin-ide](./wordpress-plugin-ide.md) |  |
 |  [wordpress-wasm](./wordpress-wasm.md) |  |
 

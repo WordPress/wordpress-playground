@@ -14,6 +14,7 @@ const mdFiles = {
 	'./src/php-wasm/README.md': 'using-php-in-javascript.md',
 	'./src/php-wasm-browser/README.md': 'using-php-in-the-browser.md',
 	'./src/wordpress-wasm/README.md': 'using-wordpress-in-the-browser.md',
+	'./src/wordpress-plugin-ide/README.md': 'wordpress-plugin-ide.md',
 };
 console.log(`Building the markdown files...`);
 

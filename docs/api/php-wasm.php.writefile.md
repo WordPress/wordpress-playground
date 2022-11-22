@@ -4,7 +4,7 @@
 <b>Signature:</b>
 
 ```typescript
-writeFile(path: string, data: string | Uint8Array): any;
+writeFile(path: string, data: string | Uint8Array): void;
 ```
 
 * `path` – The file path to write to.

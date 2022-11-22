@@ -54,12 +54,12 @@ async function buildModules() {
 }
 
 function buildDocs(cb) {
-	const dtsPath = suffix => path.join(__dirname, 'build-types', suffix);
+	const dtsPath = (suffix) => path.join(__dirname, 'build-types', suffix);
 	spawnSync(
 		'node',
 		[
 			'build-scripts/tsdoc-to-api-markdown.js',
-			'-e', 
+			'-e',
 			dtsPath('php-wasm/index.d.ts'),
 			dtsPath('php-wasm-browser/index.d.ts'),
 			dtsPath('php-wasm-browser/service-worker/worker-library.d.ts'),
@@ -67,8 +67,9 @@ function buildDocs(cb) {
 			dtsPath('wordpress-wasm/index.d.ts'),
 			dtsPath('wordpress-wasm/service-worker.d.ts'),
 			dtsPath('wordpress-wasm/worker-thread.d.ts'),
+			dtsPath('wordpress-plugin-ide/index.d.ts'),
 			'-o',
-			path.join(__dirname, 'docs', 'api')
+			path.join(__dirname, 'docs', 'api'),
 		],
 		{
 			cwd: __dirname,

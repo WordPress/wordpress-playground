@@ -192,50 +192,50 @@ the heavy lifting. Here's its documentation:
 
 initializeWorkerThread<!-- -->(<!-- -->config<!-- -->: [WorkerThreadConfiguration](api/php-wasm-browser.initializeworkerthread.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
 
--   `config` – The worker thread configuration.
-    The backend object to communicate with the parent thread.
+* `config` – The worker thread configuration.
+ The backend object to communicate with the parent thread.
+
+
+
 
 Call this in a worker thread script to set the stage for
 offloading the PHP processing. This function:
 
--   Initializes the PHP runtime
--   Starts PHPServer and PHPBrowser
--   Lets the main app know when its ready
--   Listens for messages from the main app
--   Runs the requested operations (like `run_php`<!-- -->)
--   Replies to the main app with the results using the [request/reply protocol](api/php-wasm-browser.initializeworkerthread.md)
+* Initializes the PHP runtime
+* Starts PHPServer and PHPBrowser
+* Lets the main app know when its ready
+* Listens for messages from the main app
+* Runs the requested operations (like `run_php`<!-- -->)
+* Replies to the main app with the results using the [request/reply protocol](api/php-wasm-browser.initializeworkerthread.md)
 
 Remember: The worker thread code must live in a separate JavaScript file.
 
 A minimal worker thread script looks like this:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser'
-initializeWorkerThread()
+import { initializeWorkerThread } from 'php-wasm-browser';
+initializeWorkerThread();
 ```
-
 You can customize the PHP loading flow via the first argument:
 
 ```js
-import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser'
-initializeWorkerThread(bootBrowser)
+import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
+initializeWorkerThread( bootBrowser );
 
 async function bootBrowser({ absoluteUrl }) {
-	const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
-		import(`/php.js`),
-		import(`/wp.js`),
-	])
+    const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
+        import(`/php.js`),
+        import(`/wp.js`)
+    ]);
 
-	const php = await loadPHPWithProgress(phpLoaderModule, [
-		myDependencyLoaderModule,
-	])
+    const php = await loadPHPWithProgress(phpLoaderModule, [myDependencyLoaderModule]);
 
-	const server = new PHPServer(php, {
-		documentRoot: '/www',
-		absoluteUrl: absoluteUrl,
-	})
+    const server = new PHPServer(php, {
+        documentRoot: '/www',
+        absoluteUrl: absoluteUrl
+    });
 
-	return new PHPBrowser(server)
+    return new PHPBrowser(server);
 }
 ```
 
@@ -369,34 +369,33 @@ The idea is to include a unique `requestId` in every message sent, and then wait
 In the main app:
 
 ```js
-import { postMessageExpectReply, awaitReply } from 'php-wasm-browser'
-const iframeWindow = iframe.contentWindow
+import { postMessageExpectReply, awaitReply } from 'php-wasm-browser';
+const iframeWindow = iframe.contentWindow;
 const requestId = postMessageExpectReply(iframeWindow, {
-	type: 'get_php_version',
-})
-const response = await awaitReply(iframeWindow, requestId)
-console.log(response)
+   type: "get_php_version"
+});
+const response = await awaitReply(iframeWindow, requestId);
+console.log(response);
 // "8.0.24"
 ```
-
 In the iframe:
 
 ```js
-import { responseTo } from 'php-wasm-browser'
+import { responseTo } from 'php-wasm-browser';
 window.addEventListener('message', (event) => {
-	let response = '8.0.24'
-	if (event.data.type === 'get_php_version') {
-		response = '8.0.24'
-	} else {
-		throw new Error(`Unexpected message type: ${event.data.type}`)
-	}
+   let response = '8.0.24';
+   if(event.data.type === 'get_php_version') {
+      response = '8.0.24';
+   } else {
+      throw new Error(`Unexpected message type: ${event.data.type}`);
+   }
 
-	// When `requestId` is present, the other thread expects a response:
-	if (event.data.requestId) {
-		const response = responseTo(event.data.requestId, response)
-		window.parent.postMessage(response, event.origin)
-	}
-})
+   // When `requestId` is present, the other thread expects a response:
+   if (event.data.requestId) {
+      const response = responseTo(event.data.requestId, response);
+      window.parent.postMessage(response, event.origin);
+   }
+});
 ```
 
 <!-- /include /docs/api/php-wasm-browser.postmessageexpectreply.md#Example -->
