@@ -66,8 +66,6 @@ export async function initializeWorkerThread(
 	config: WorkerThreadConfiguration
 ): Promise<any> {
 	const phpBrowser = config.phpBrowser || (await defaultBootBrowser());
-	const broadcastChannel =
-		config.broadcastChannel || new BroadcastChannel('php-wasm-browser');
 
 	const absoluteUrl = phpBrowser.server.absoluteUrl;
 	const scope = getURLScope(new URL(absoluteUrl));
@@ -83,31 +81,6 @@ export async function initializeWorkerThread(
 		}
 	});
 
-	broadcastChannel.addEventListener(
-		'message',
-		async function onMessage(event) {
-			console.debug('broadcastChannel message', event);
-			/**
-			 * Ignore events meant for other PHP instances to
-			 * avoid handling the same event twice.
-			 *
-			 * This is important because BroadcastChannel transmits
-			 * events to all the listeners across all browser tabs.
-			 */
-			if (scope && event.data.scope !== scope) {
-				return;
-			}
-
-			const result = await handleMessage(event.data);
-
-			// The service worker expects a response when it includes a `requestId` in the message:
-			if (event.data.requestId) {
-				const response = responseTo(event.data.requestId, result);
-				broadcastChannel.postMessage(response);
-			}
-		}
-	);
-
 	async function handleMessage(message) {
 		console.debug(
 			`[Worker Thread] "${message.type}" message received from a service worker`
@@ -117,6 +90,8 @@ export async function initializeWorkerThread(
 			return true;
 		} else if (message.type === 'getAbsoluteUrl') {
 			return phpBrowser.server.absoluteUrl;
+		} else if (message.type === 'getScope') {
+			return scope;
 		} else if (message.type === 'readFile') {
 			return phpBrowser.server.php.readFileAsText(message.path);
 		} else if (message.type === 'listFiles') {

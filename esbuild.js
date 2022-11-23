@@ -37,7 +37,7 @@ const wasmWorkerBackend = process.env.WASM_WORKER_BACKEND || 'iframe';
 let workerThreadScript;
 if (wasmWorkerBackend === 'iframe') {
 	const wasmWorkerOrigin =
-		process.env.WASM_WORKER_ORIGIN || 'http://127.0.0.1:8777';
+		process.env.WASM_WORKER_ORIGIN || 'http://127.0.0.1:8778';
 	workerThreadScript = `${wasmWorkerOrigin}/iframe-worker.html?${CACHE_BUSTER}`;
 } else {
 	workerThreadScript = `${serviceWorkerOrigin}/worker-thread.js?${CACHE_BUSTER}`;
@@ -159,6 +159,15 @@ async function main() {
 					next();
 				},
 			],
+		});
+
+		// Serve the iframe worker from a different origin
+		// to make the Origin-Agent-Cluster header work.
+		// See https://web.dev/origin-agent-cluster/ for more info.
+		liveServer.start({
+			port: 8778,
+			root: __dirname + '/build',
+			open: false,
 		});
 	}
 }

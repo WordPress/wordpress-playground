@@ -3,6 +3,7 @@ import {
 	postMessageExpectReply,
 	awaitReply,
 	MessageResponse,
+	responseTo,
 } from '../messaging';
 import { removeURLScope } from '../scope';
 import { getPathQueryFragment } from '..';
@@ -57,6 +58,34 @@ export async function spawnPHPWorkerThread(
 		}
 		await sleep(50);
 	}
+
+	// Proxy the service worker messages to the worker thread:
+	const scope = await messageChannel.sendMessage({ type: 'getScope' }, 50);
+	const broadcastChannel = new BroadcastChannel('php-wasm-browser');
+	broadcastChannel.addEventListener(
+		'message',
+		async function onMessage(event) {
+			console.debug('broadcastChannel message', event);
+			/**
+			 * Ignore events meant for other PHP instances to
+			 * avoid handling the same event twice.
+			 *
+			 * This is important because BroadcastChannel transmits
+			 * events to all the listeners across all browser tabs.
+			 */
+			if (scope && event.data.scope !== scope) {
+				return;
+			}
+
+			const result = await messageChannel.sendMessage(event.data);
+			// The service worker expects a response when it includes a `requestId` in the message:
+			if (event.data.requestId) {
+				broadcastChannel.postMessage(
+					responseTo(event.data.requestId, result)
+				);
+			}
+		}
+	);
 
 	const absoluteUrl = await messageChannel.sendMessage({
 		type: 'getAbsoluteUrl',
