@@ -224,7 +224,7 @@ REQUEST,
 			$path = preg_replace('/^\\/php-wasm/', '', $path);
 
 			$_SERVER['PATH']     = '/';
-			$_SERVER['REQUEST_URI']     = $path . ($request->_GET ?: '');
+			$_SERVER['REQUEST_URI']     = $path . ($request->queryString ?: '');
 			$_SERVER['REQUEST_METHOD']  = $request->method;
 			$_SERVER['REMOTE_ADDR']     = ${JSON.stringify(this.#HOSTNAME)};
 			$_SERVER['SERVER_NAME']     = ${JSON.stringify(this.#ABSOLUTE_URL)};
