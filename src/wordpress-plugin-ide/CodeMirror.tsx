@@ -23,6 +23,7 @@ import type { MemFile } from './fs-utils';
 interface CodeMirrorProps {
 	onChange: (updatedFile: MemFile) => void;
 	initialFile?: MemFile;
+	className?: string;
 }
 
 export type CodeMirrorRef = {
@@ -30,7 +31,7 @@ export type CodeMirrorRef = {
 };
 
 export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
-	function CodeMirror({ onChange, initialFile }, ref) {
+	function CodeMirror({ onChange, initialFile, className = '' }, ref) {
 		const codeMirrorRef = useRef(null);
 		const [file, setFile] = useState<MemFile>(
 			initialFile || {
@@ -114,15 +115,7 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
 			return () => view && view.destroy();
 		}, [view]);
 
-		return (
-			<div
-				ref={codeMirrorRef}
-				style={{
-					width: '100%',
-					minHeight: 300,
-				}}
-			/>
-		);
+		return <div ref={codeMirrorRef} className={className} />;
 	}
 );
 

@@ -28,12 +28,14 @@ interface FilesExplorerProps {
 	chroot?: string;
 	onSelectFile?: (path: string) => void;
 	fileSystem: FileSystem;
+	className?: string;
 }
 
 export default function FilesExplorer({
 	chroot = '/',
 	onSelectFile = noop,
 	fileSystem,
+	className = '',
 }: FilesExplorerProps) {
 	const onClick = useCallback((file) => {
 		onSelectFile(pathJoin(chroot, file));
@@ -42,7 +44,11 @@ export default function FilesExplorer({
 	const treePromise = useTreeComponents(fileSystem, chroot);
 	const tree = useDeferredValue(treePromise) as any;
 
-	return <Tree onClick={onClick}>{tree}</Tree>;
+	return (
+		<Tree onClick={onClick} className={className}>
+			{tree}
+		</Tree>
+	);
 }
 
 async function useTreeComponents(

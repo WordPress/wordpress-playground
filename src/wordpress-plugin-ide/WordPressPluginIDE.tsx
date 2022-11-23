@@ -105,14 +105,17 @@ export function WordPressPluginIDE({
 
 	return (
 		<div style={{ display: 'flex', flexDirection: 'row' }}>
-			<div style={{ width: 300 }}>
-				<FilesExplorer
-					chroot={fixturePaths.srcPath!}
-					fileSystem={workerThread}
-					onSelectFile={selectFile}
-				/>
-			</div>
-			<CodeMirror onChange={onFileChange} ref={editorRef} />
+			<FilesExplorer
+				chroot={fixturePaths.srcPath!}
+				fileSystem={workerThread}
+				onSelectFile={selectFile}
+				className="ide-panel is-files-explorer"
+			/>
+			<CodeMirror
+				onChange={onFileChange}
+				ref={editorRef}
+				className="ide-panel is-code-mirror"
+			/>
 		</div>
 	);
 }
