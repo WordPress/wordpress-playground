@@ -1,6 +1,5 @@
 import { bootWordPress } from './index';
 import { login, installPlugin, installTheme } from './macros';
-import type { SpawnedWorkerThread } from '../php-wasm-browser/index';
 import {
 	cloneResponseMonitorProgress,
 	responseTo,
@@ -12,27 +11,26 @@ const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 
 function setupAddressBar(wasmWorker) {
 	// Manage the address bar
-	const addressBar = document.querySelector(
-		'#address-bar'
-	)! as HTMLInputElement;
+	const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 	wpFrame.addEventListener('load', (e: any) => {
 		addressBar.value = wasmWorker.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
 		);
 	});
 
-	document
-		.querySelector('#address-bar-form')!
-		.addEventListener('submit', (e) => {
-			e.preventDefault();
-			let requestedPath = addressBar.value;
-			// Ensure a trailing slash when requesting directory paths
-			const isDirectory = !requestedPath.split('/').pop()!.includes('.');
-			if (isDirectory && !requestedPath.endsWith('/')) {
-				requestedPath += '/';
-			}
-			wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
-		});
+	document.querySelector('#url-bar-form')!.addEventListener('submit', (e) => {
+		e.preventDefault();
+		let requestedPath = addressBar.value;
+		// Ensure a trailing slash when requesting directory paths
+		const isDirectory = !requestedPath.split('/').pop()!.includes('.');
+		if (isDirectory && !requestedPath.endsWith('/')) {
+			requestedPath += '/';
+		}
+		wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
+		(
+			document.querySelector('#url-bar-form input[type="text"]')! as any
+		).blur();
+	});
 }
 
 async function main() {
