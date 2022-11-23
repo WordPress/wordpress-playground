@@ -79,7 +79,6 @@ async function main() {
 			),
 		},
 		entryPoints: {
-			'service-worker': 'src/wordpress-wasm/service-worker.ts',
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
 			app: 'src/wordpress-wasm/example-app.tsx',
 			'wordpress-plugin-ide': 'src/wordpress-plugin-ide/index.ts',
@@ -95,6 +94,7 @@ async function main() {
 	build({
 		...baseConfig,
 		entryPoints: {
+			'service-worker': 'src/wordpress-wasm/service-worker.ts',
 			'setup-fast-refresh-runtime':
 				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
 		},
