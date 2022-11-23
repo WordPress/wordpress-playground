@@ -40,7 +40,19 @@
         margin: 0 auto;
         max-width: 1200px;
         height: 100%;
-        filter: drop-shadow(0px 4px 44px rgba(13, 32, 117, 0.5));
+        animation: pulse 6s ease-in infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          filter: drop-shadow(0px 4px 44px rgba(13, 32, 117, 0.5)) drop-shadow(0px 0 0 rgba(13, 32, 117, 0.5));
+        }
+        50% {
+          filter: drop-shadow(0px 4px 44px rgba(13, 32, 117, 0.5)) drop-shadow(0px 0 88px rgba(13, 32, 117, 0.5));
+        }
+        100% {
+          filter: drop-shadow(0px 4px 44px rgba(13, 32, 117, 0.5)) drop-shadow(0px 0 0 rgba(13, 32, 117, 0.5));
+        }
       }
 
       .main-content {
