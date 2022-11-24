@@ -31,12 +31,16 @@ const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
  */
 export class EmscriptenDownloadMonitor extends EventTarget {
 	assetsSizes: Record<string, number>;
+	progress: Record<string, number>;
 	phpArgs: any;
 
 	constructor(assetsSizes: Record<string, number>) {
 		super();
 
 		this.assetsSizes = assetsSizes;
+		this.progress = Object.fromEntries(
+			Object.entries(assetsSizes).map(([name]) => [name, 0])
+		);
 		this.#monitorWebAssemblyStreaming();
 		this.phpArgs = {
 			dataFileDownloads: this.#createDataFileDownloadsProxy(),
@@ -98,27 +102,38 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	 * Notifies about the download progress of a file.
 	 *
 	 * @param  file   The file name.
-	 * @param  loaded The number of bytes loaded so far.
-	 * @param  total  The total number of bytes to load.
+	 * @param  loaded The number of bytes of that file loaded so far.
+	 * @param  fileSize  The total number of bytes in the loaded file.
 	 */
-	#notify(file: string, loaded: number, total: number) {
-		if (!total) {
-			const filename = new URL(file, DEFAULT_BASE_URL).pathname
-				.split('/')
-				.pop()!;
-			total = this.assetsSizes[filename];
+	#notify(file: string, loaded: number, fileSize: number) {
+		const fileName = new URL(file, DEFAULT_BASE_URL).pathname
+			.split('/')
+			.pop()!;
+		if (!fileSize) {
+			fileSize = this.assetsSizes[fileName];
 		}
+		if (!(fileName in this.progress)) {
+			console.warn(
+				`Registered a download progress of an unregistered file "${fileName}". ` +
+					`This may cause a sudden **decrease** in the progress percentage as the ` +
+					`total number of bytes increases during the download.`
+			);
+		}
+
+		this.progress[file] = loaded;
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
-					file,
-					loaded,
-					total: total || Math.min(loaded, FALLBACK_FILE_SIZE),
-					fallbackUsed: !total,
+					loaded: sumValues(this.progress),
+					total: sumValues(this.assetsSizes),
 				},
 			})
 		);
 	}
+}
+
+function sumValues(obj: Record<string, number>) {
+	return Object.values(obj).reduce((total, value) => total + value, 0);
 }
 
 export default EmscriptenDownloadMonitor;

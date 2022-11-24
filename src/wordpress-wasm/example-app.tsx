@@ -37,14 +37,40 @@ async function main() {
 	const preinstallPlugin = query.get('plugin');
 	const preinstallTheme = query.get('theme');
 
-	const progressBar = new FetchProgressBar({
-		expectedRequests:
-			2 + (preinstallPlugin ? 1 : 0) + (preinstallTheme ? 1 : 0),
-		max: preinstallPlugin || preinstallTheme ? 80 : 100,
+	const progressBarEl = document.querySelector(
+		'.progress-bar.is-finite'
+	) as any;
+	const progress = new ProgressObserver((progress, mode) => {
+		const infiniteWrapper = document.querySelector(
+			'.progress-bar-wrapper.mode-infinite'
+		);
+		if (infiniteWrapper) {
+			infiniteWrapper.classList.remove('mode-infinite');
+			infiniteWrapper.classList.add('mode-finite');
+		}
+		if (mode === ProgressType.SLOWLY_INCREMENT) {
+			progressBarEl.classList.add('slowly-incrementing');
+		} else {
+			progressBarEl.classList.remove('slowly-incrementing');
+		}
+		progressBarEl.style.width = `${progress}%`;
 	});
 
+	// Hide the progress bar when the page is first loaded.
+	const HideProgressBar = () => {
+		document
+			.querySelector('body.is-loading')!
+			.classList.remove('is-loading');
+		wpFrame.removeEventListener('load', HideProgressBar);
+	};
+	wpFrame.addEventListener('load', HideProgressBar);
+
+	const installPluginProgress = preinstallPlugin ? 20 : 0;
+	const installThemeProgress = preinstallTheme ? 20 : 0;
+	const bootProgress = 100 - installPluginProgress - installThemeProgress;
+
 	const workerThread = await bootWordPress({
-		onWasmDownloadProgress: progressBar.onDataChunk as any,
+		onWasmDownloadProgress: progress.partialObserver(bootProgress),
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -57,35 +83,25 @@ async function main() {
 
 	if (preinstallPlugin) {
 		// Download the plugin file
-		const pluginFile = await downloadFileWithProgress(
-			'/plugin-proxy?plugin=' + preinstallTheme,
-			preinstallTheme,
-			progressBar
+		const response = cloneResponseMonitorProgress(
+			await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
+			progress.partialObserver(installPluginProgress - 10)
 		);
+		const pluginFile = new File([await response.blob()], preinstallTheme);
 
-		// We can't tell how long the operations below
-		// will take. Let's slow down the CSS width transition
-		// to at least give some impression of progress.
-		progressBar.el.classList.add('indeterminate');
-		progressBar.setProgress(80);
-		progressBar.setProgress(90);
+		progress.slowlyIncrementBy(10);
 		await installPlugin(workerThread, pluginFile);
 	}
 
 	if (preinstallTheme) {
-		// Download the plugin file
-		const themeFile = await downloadFileWithProgress(
-			'/plugin-proxy?theme=' + preinstallTheme,
-			preinstallTheme,
-			progressBar
+		// Download the theme file
+		const response = cloneResponseMonitorProgress(
+			await fetch('/plugin-proxy?theme=' + preinstallTheme),
+			progress.partialObserver(installThemeProgress - 10)
 		);
+		const themeFile = new File([await response.blob()], preinstallTheme);
 
-		// We can't tell how long the operations below
-		// will take. Let's slow down the CSS width transition
-		// to at least give some impression of progress.
-		progressBar.el.classList.add('indeterminate');
-		progressBar.setProgress(90);
-		progressBar.setProgress(100);
+		progress.slowlyIncrementBy(10);
 		await installTheme(workerThread, themeFile);
 	}
 
@@ -145,65 +161,49 @@ async function main() {
 	}
 }
 
-async function downloadFileWithProgress(url, fileName, progressBar) {
-	const response = cloneResponseMonitorProgress(
-		await fetch(url),
-		(progress) => progressBar.onDataChunk({ file: fileName, ...progress })
-	);
-	const blob = await response.blob();
-	return new File([blob], fileName);
+const enum ProgressType {
+	/**
+	 * Real-time progress is used when we get real-time reports
+	 * about the progress.
+	 */
+	REAL_TIME = 'REAL_TIME',
+	/**
+	 * Slowly increment progress is used when we don't know how long
+	 * an operation will take and just want to keep slowly incrementing
+	 * the progress bar.
+	 */
+	SLOWLY_INCREMENT = 'SLOWLY_INCREMENT',
 }
 
-class FetchProgressBar {
-	expectedRequests;
-	progress;
-	min;
-	max;
-	el;
-	constructor({ expectedRequests, min = 0, max = 100 }) {
-		this.expectedRequests = expectedRequests;
-		this.progress = {};
-		this.min = min;
-		this.max = max;
-		this.el = document.querySelector('.progress-bar.is-finite');
+class ProgressObserver {
+	#observedProgresses: Record<number, number> = {};
+	#lastObserverId = 0;
+	#onProgress: (progress: number, mode: ProgressType) => void;
 
-		// Hide the progress bar when the page is first loaded.
-		const HideProgressBar = () => {
-			document
-				.querySelector('body.is-loading')!
-				.classList.remove('is-loading');
-			wpFrame.removeEventListener('load', HideProgressBar);
-		};
-		wpFrame.addEventListener('load', HideProgressBar);
+	constructor(onProgress) {
+		this.#onProgress = onProgress;
 	}
 
-	onDataChunk = ({ file, loaded, total }) => {
-		if (Object.keys(this.progress).length === 0) {
-			this.setFinite();
-		}
+	partialObserver(progressBudget) {
+		const id = ++this.#lastObserverId;
+		this.#observedProgresses[id] = 0;
+		return ({ loaded, total }) => {
+			this.#observedProgresses[id] = (loaded / total) * progressBudget;
+			this.#onProgress(this.totalProgress, ProgressType.REAL_TIME);
+		};
+	}
 
-		this.progress[file] = loaded / total;
-		const progressSum = Object.entries(this.progress).reduce(
-			(acc, [_, percentFinished]) => acc + (percentFinished as number),
+	slowlyIncrementBy(progress) {
+		const id = ++this.#lastObserverId;
+		this.#observedProgresses[id] += progress;
+		this.#onProgress(this.totalProgress, ProgressType.SLOWLY_INCREMENT);
+	}
+
+	get totalProgress() {
+		return Object.values(this.#observedProgresses).reduce(
+			(total, progress) => total + progress,
 			0
 		);
-		const totalProgress = Math.min(1, progressSum / this.expectedRequests);
-		const scaledProgressPercentage =
-			this.min + (this.max - this.min) * totalProgress;
-
-		this.setProgress(scaledProgressPercentage);
-	};
-
-	setProgress(percent) {
-		this.el.style.width = `${percent}%`;
-	}
-
-	setFinite() {
-		const classList = document.querySelector(
-			'.progress-bar-wrapper.mode-infinite'
-		)!.classList;
-		classList.remove('mode-infinite');
-		classList.add('mode-finite');
 	}
 }
 
