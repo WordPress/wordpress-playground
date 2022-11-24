@@ -37,38 +37,11 @@ async function main() {
 	const preinstallPlugin = query.get('plugin');
 	const preinstallTheme = query.get('theme');
 
-	const progressBarEl = document.querySelector(
-		'.progress-bar.is-finite'
-	) as any;
-	const progress = new ProgressObserver((progress, mode) => {
-		const infiniteWrapper = document.querySelector(
-			'.progress-bar-wrapper.mode-infinite'
-		);
-		if (infiniteWrapper) {
-			infiniteWrapper.classList.remove('mode-infinite');
-			infiniteWrapper.classList.add('mode-finite');
-		}
-		if (mode === ProgressType.SLOWLY_INCREMENT) {
-			progressBarEl.classList.add('slowly-incrementing');
-		} else {
-			progressBarEl.classList.remove('slowly-incrementing');
-		}
-		progressBarEl.style.width = `${progress}%`;
-	});
-
-	// Hide the progress bar when the page is first loaded.
-	const HideProgressBar = () => {
-		document
-			.querySelector('body.is-loading')!
-			.classList.remove('is-loading');
-		wpFrame.removeEventListener('load', HideProgressBar);
-	};
-	wpFrame.addEventListener('load', HideProgressBar);
-
 	const installPluginProgress = preinstallPlugin ? 20 : 0;
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
+	const progress = wireProgressBar();
 	const workerThread = await bootWordPress({
 		onWasmDownloadProgress: progress.partialObserver(bootProgress),
 	});
@@ -159,6 +132,39 @@ async function main() {
 	} else {
 		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
 	}
+}
+
+function wireProgressBar() {
+	// Hide the progress bar when the page is first loaded.
+	const HideProgressBar = () => {
+		document
+			.querySelector('body.is-loading')!
+			.classList.remove('is-loading');
+		wpFrame.removeEventListener('load', HideProgressBar);
+	};
+	wpFrame.addEventListener('load', HideProgressBar);
+
+	const progress = new ProgressObserver((progress, mode) => {
+		const infiniteWrapper = document.querySelector(
+			'.progress-bar-wrapper.mode-infinite'
+		);
+		if (infiniteWrapper) {
+			infiniteWrapper.classList.remove('mode-infinite');
+			infiniteWrapper.classList.add('mode-finite');
+		}
+
+		const progressBarEl = document.querySelector(
+			'.progress-bar.is-finite'
+		) as any;
+		if (mode === ProgressType.SLOWLY_INCREMENT) {
+			progressBarEl.classList.add('slowly-incrementing');
+		} else {
+			progressBarEl.classList.remove('slowly-incrementing');
+		}
+		progressBarEl.style.width = `${progress}%`;
+	});
+
+	return progress;
 }
 
 const enum ProgressType {
