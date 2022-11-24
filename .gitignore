@@ -18,4 +18,6 @@ build-scripts
 !build/wp.js
 *.tsbuildinfo
 tsdoc-metadata.json
-
+var
+dist.zip
+.vscode
