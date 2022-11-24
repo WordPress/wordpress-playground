@@ -34,10 +34,10 @@ function setupAddressBar(wasmWorker) {
 }
 
 async function main() {
-	const preinstallPlugin = query.get('plugin');
+	const preinstallPlugins = query.getAll('plugin');
 	const preinstallTheme = query.get('theme');
 
-	const installPluginProgress = preinstallPlugin ? 20 : 0;
+	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
@@ -50,20 +50,47 @@ async function main() {
 		setupAddressBar(workerThread);
 	}
 
-	if (query.get('login') || preinstallPlugin || preinstallTheme) {
+	if (query.get('login') || preinstallPlugins.length || preinstallTheme) {
 		await login(workerThread, 'admin', 'password');
 	}
 
-	if (preinstallPlugin) {
-		// Download the plugin file
-		const response = cloneResponseMonitorProgress(
-			await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
-			progress.partialObserver(installPluginProgress - 10)
-		);
-		const pluginFile = new File([await response.blob()], preinstallTheme);
+	if (preinstallPlugins.length) {
+		const progressBudgetPerPlugin =
+			installPluginProgress / preinstallPlugins.length;
+		const fetchPluginFile = async (preinstallPlugin) => {
+			const response = cloneResponseMonitorProgress(
+				await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
+				progress.partialObserver(progressBudgetPerPlugin * 0.66)
+			);
+			return new File([await response.blob()], preinstallPlugin);
+		};
 
-		progress.slowlyIncrementBy(10);
-		await installPlugin(workerThread, pluginFile);
+		/**
+		 * Install multiple plugins to minimize the processing time.
+		 *
+		 * The downloads are done one after another to get installable
+		 * zip files as soon as possible. Each completed download triggers
+		 * plugin installation without waiting for the next download to
+		 * complete.
+		 */
+		await new Promise((finish) => {
+			const installations = new PromiseQueue();
+			const downloads = new PromiseQueue();
+			for (const preinstallPlugin of preinstallPlugins) {
+				downloads.enqueue(() => fetchPluginFile(preinstallPlugin));
+			}
+			downloads.addEventListener('resolved', (e: any) => {
+				installations.enqueue(async () => {
+					progress.slowlyIncrementBy(progressBudgetPerPlugin * 0.33);
+					await installPlugin(workerThread, e.detail as File);
+				});
+			});
+			installations.addEventListener('empty', () => {
+				if (installations.resolved === preinstallPlugins.length) {
+					finish(null);
+				}
+			});
+		});
 	}
 
 	if (preinstallTheme) {
@@ -134,6 +161,44 @@ async function main() {
 	}
 }
 
+class PromiseQueue extends EventTarget {
+	#queue: Array<() => Promise<any>> = [];
+	#running = false;
+	#_resolved = 0;
+
+	get resolved() {
+		return this.#_resolved;
+	}
+
+	async enqueue(fn: () => Promise<any>) {
+		this.#queue.push(fn);
+		this.#run();
+	}
+
+	async #run() {
+		if (this.#running) {
+			return;
+		}
+		try {
+			this.#running = true;
+			while (this.#queue.length) {
+				const next = this.#queue.shift();
+				if (!next) {
+					break;
+				}
+				const result = await next();
+				++this.#_resolved;
+				this.dispatchEvent(
+					new CustomEvent('resolved', { detail: result })
+				);
+			}
+		} finally {
+			this.#running = false;
+			this.dispatchEvent(new CustomEvent('empty'));
+		}
+	}
+}
+
 function wireProgressBar() {
 	// Hide the progress bar when the page is first loaded.
 	const HideProgressBar = () => {
@@ -201,7 +266,7 @@ class ProgressObserver {
 
 	slowlyIncrementBy(progress) {
 		const id = ++this.#lastObserverId;
-		this.#observedProgresses[id] += progress;
+		this.#observedProgresses[id] = progress;
 		this.#onProgress(this.totalProgress, ProgressType.SLOWLY_INCREMENT);
 	}
 
