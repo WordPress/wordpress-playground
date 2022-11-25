@@ -1,5 +1,8 @@
 {
 	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["WebWorker"]
+	},
 	"include": [
 		 "src/php-wasm/php.ts",
 		 "src/php-wasm/index.ts",

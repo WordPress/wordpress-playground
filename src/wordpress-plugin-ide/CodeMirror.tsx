@@ -9,8 +9,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { php } from '@codemirror/lang-php';
 import { linter, lintKeymap, lintGutter } from '@codemirror/lint';
 
-import React from 'react';
-import {
+import React, {
 	useState,
 	useMemo,
 	useEffect,
@@ -120,7 +119,7 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
 );
 
 const babelLinter = linter((view) => {
-	let diagnostics: any[] = [];
+	const diagnostics: any[] = [];
 	const code: string = view.state.doc.toString();
 	try {
 		babelTranspile(code);

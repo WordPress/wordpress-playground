@@ -8,13 +8,13 @@
 
 		"target": "esnext",
 		"module": "esnext",
-		"lib": [ "dom", "esnext" ],
 		"declaration": true,
 		"declarationMap": false,
 		"composite": true,
 		"emitDeclarationOnly": true,
 		"isolatedModules": true,
 		"removeComments": false,
+        "skipLibCheck": true,
 
 		"strict": true,
 
