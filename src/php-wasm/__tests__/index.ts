@@ -9,7 +9,7 @@ describe('PHP – boot', () => {
 	it('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
 		expect(php.run('<?php echo "1";')).toEqual({
-			stdout: '1',
+			stdout: new TextEncoder().encode('1'),
 			stderr: [''],
 			exitCode: 0,
 		});
@@ -24,14 +24,14 @@ describe('PHP ', () => {
 
 	it('should output strings (1)', async () => {
 		expect(php.run('<?php echo "Hello world!";')).toEqual({
-			stdout: 'Hello world!',
+			stdout: new TextEncoder().encode('Hello world!'),
 			stderr: [''],
 			exitCode: 0,
 		});
 	});
 	it('should output strings (2) ', async () => {
 		expect(php.run('<?php echo "Hello world!\nI am PHP";')).toEqual({
-			stdout: 'Hello world!\nI am PHP',
+			stdout: new TextEncoder().encode('Hello world!\nI am PHP'),
 			stderr: [''],
 			exitCode: 0,
 		});
@@ -40,24 +40,21 @@ describe('PHP ', () => {
 		const results = php.run(
 			'<?php echo chr(1).chr(0).chr(1).chr(0).chr(2);'
 		);
-		expect({
-			...results,
-			stdout: bytesStringToHumanReadable(results.stdout),
-		}).toEqual({
-			stdout: bytesStringToHumanReadable('\x01\x00\x01\x00\x02'),
+		expect(results).toEqual({
+			stdout: new Uint8Array([1, 0, 1, 0, 2]),
 			stderr: [''],
 			exitCode: 0,
 		});
 	});
 	it('should output strings when .run() is called twice', async () => {
 		expect(php.run('<?php echo "Hello world!";')).toEqual({
-			stdout: 'Hello world!',
+			stdout: new TextEncoder().encode('Hello world!'),
 			stderr: [''],
 			exitCode: 0,
 		});
 
 		expect(php.run('<?php echo "Ehlo world!";')).toEqual({
-			stdout: 'Ehlo world!',
+			stdout: new TextEncoder().encode('Ehlo world!'),
 			stderr: [''],
 			exitCode: 0,
 		});
@@ -68,7 +65,7 @@ describe('PHP ', () => {
 		fwrite($stdErr, "Hello from stderr!");
 		`;
 		expect(php.run(code)).toEqual({
-			stdout: '',
+			stdout: new TextEncoder().encode(''),
 			stderr: ['Hello from stderr!'],
 			exitCode: 0,
 		});
@@ -82,17 +79,9 @@ describe('PHP ', () => {
 		});
 		`;
 		expect(php.run(code)).toEqual({
-			stdout: '',
+			stdout: new TextEncoder().encode(''),
 			stderr: ['Hello from stderr!'],
 			exitCode: 0,
 		});
 	});
 });
-
-function bytesStringToHumanReadable(bytes) {
-	return bytes
-		.split('')
-		.map((byte) => byte.charCodeAt(0))
-		.join(' ');
-}
-// echo chr(1).chr(0).chr(0).chr(5);

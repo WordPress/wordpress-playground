@@ -1,0 +1,10 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["jest", "node"]
+	},
+	"include": [ 
+		"src/php-wasm/php.ts", 
+		"src/php-wasm/__tests__/*.ts"
+	]
+}
