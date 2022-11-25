@@ -4,7 +4,7 @@
 <b>Signature:</b>
 
 ```typescript
-stdout: string;
+stdout: ArrayBuffer;
 ```
 Stdout data
 

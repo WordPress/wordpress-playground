@@ -32,6 +32,10 @@
  *   Redirects writes from a given stream to a file with a speciied path.
  *   Think of it as a the ">" operator in "echo foo > bar.txt" bash command.
  *
+ *   This is useful to pass streams of bytes containing null bytes to JavaScript
+ *   handlers. You can't do that via stdout and stderr because Emscripten truncates
+ *   null bytes from these streams.
+ *
  *   stream: The stream to redirect, e.g. stdout or stderr.
  *
  *   path: The path to the file to redirect to, e.g. "/tmp/stdout".
@@ -85,6 +89,9 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
 {
 	int retVal = 255; // Unknown error.
 
+	// Write to files instead of stdout and stderr because Emscripten truncates null
+	// bytes from stdout and stderr, and null bytes are a valid output when streaming
+	// binary data.
 	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout");
 	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)

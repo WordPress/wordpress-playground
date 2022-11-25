@@ -18,6 +18,7 @@ startPHP<!-- -->(\
 Initializes the PHP runtime with the given arguments and data dependencies.
 
 This function handles the entire PHP initialization pipeline. In particular, it:
+
 * Instantiates the Emscripten PHP module
 * Wires it together with the data dependencies and loads them
 * Ensures is all happens in a correct order
@@ -29,7 +30,7 @@ Basic usage:
  const phpLoaderModule = await import("/php.js");
  const php = await startPHP(phpLoaderModule, "web");
  console.log(php.run(`<?php echo "Hello, world!"; `));
- // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
+ // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
 **The `/php.js` module:**
 

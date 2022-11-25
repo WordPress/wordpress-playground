@@ -12,5 +12,5 @@ Output of the PHP.wasm runtime.
 
 * `exitCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Exit code of the PHP process. 0 means success, 1 and 2 mean error.
 * `stderr`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->[] – Stderr lines
-* `stdout`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Stdout data
+* `stdout`    [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) – Stdout data
 

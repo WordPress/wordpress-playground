@@ -51,7 +51,7 @@ If you need to turn off one of the hardcoded extensions, feel free to open an is
 The C API exposed to JavaScript lives in the [`wasm/build-assets/php_wasm.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) file. The most important functions are:
 
 -   `void phpwasm_init()` – It creates a new PHP context and must be called before running any PHP code.
--   `int phpwasm_run(char *code)` – Runs a PHP script and writes the output to stdout and stderr. Returns the exit code.
+-   `int phpwasm_run(char *code)` – Runs a PHP script and writes the output to /tmp/stdout and /tmp/stderr. Returns the exit code.
 -   `void phpwasm_refresh()` – Destroy the current PHP context and starts a new one. Call it after running one PHP script and before running another.
 
 Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) to learn more.
@@ -128,6 +128,7 @@ startPHP<!-- -->(\
 Initializes the PHP runtime with the given arguments and data dependencies.
 
 This function handles the entire PHP initialization pipeline. In particular, it:
+
 * Instantiates the Emscripten PHP module
 * Wires it together with the data dependencies and loads them
 * Ensures is all happens in a correct order
@@ -139,7 +140,7 @@ Basic usage:
  const phpLoaderModule = await import("/php.js");
  const php = await startPHP(phpLoaderModule, "web");
  console.log(php.run(`<?php echo "Hello, world!"; `));
- // { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
+ // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
 **The `/php.js` module:**
 
