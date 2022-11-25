@@ -29,11 +29,6 @@ async function collectBuiltWordPress() {
 }
 
 async function collectBuiltPHP() {
-	glob.sync(`${outputDir}/php.js`).map((filePath) =>
-		fs.rmSync(filePath, { force: true })
-	);
-	fs.rmSync(`${outputDir}/php.wasm`, { force: true });
-
 	const phpOutputDir = path.join(__dirname, 'build-php');
 	await asyncPipe(gulp.src([`${phpOutputDir}/*`]).pipe(gulp.dest(outputDir)));
 }

@@ -46,6 +46,7 @@ async function build() {
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
 
+	const targetJsFilename = platform === 'node' ? 'php.node.js' : 'php.js';
 	// Extract the PHP WASM module
 	await asyncSpawn(
 		'docker',
@@ -61,7 +62,8 @@ async function build() {
 			// they don't work without running cp through shell.
 			'sh',
 			'-c',
-			`cp /root/output/php.js /root/output/php.wasm /output/`,
+			`cp /root/output/php.js /output/${targetJsFilename} && ` +
+				`cp /root/output/php.wasm /output`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);

@@ -4,14 +4,6 @@ const NUM = 'number';
 export type JavascriptRuntime = 'NODE' | 'WEB' | 'WEBWORKER';
 
 /**
- * @internal
- */
-interface Streams {
-	stdout: string[];
-	stderr: string[];
-}
-
-/**
  * Initializes the PHP runtime with the given arguments and data dependencies.
  *
  * This function handles the entire PHP initialization pipeline. In particular, it:
@@ -142,18 +134,12 @@ export async function startPHP(
 		resolvePhpReady = resolve;
 	});
 
-	const streams: Streams = {
-		stdout: [],
-		stderr: [],
-	};
 	const loadPHPRuntime = phpLoaderModule.default;
 	const PHPRuntime = loadPHPRuntime(runtime, {
 		onAbort(reason) {
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
-		print: (...chunks) => streams.stdout.push(...chunks),
-		printErr: (...chunks) => streams.stderr.push(...chunks),
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
@@ -178,7 +164,7 @@ export async function startPHP(
 
 	await depsReady;
 	await phpReady;
-	return new PHP(PHPRuntime, streams);
+	return new PHP(PHPRuntime);
 }
 
 /**
@@ -194,18 +180,15 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
-	#streams;
 
 	/**
 	 * Initializes a PHP runtime.
 	 *
 	 * @internal
 	 * @param  PHPRuntime - PHP Runtime as initialized by startPHP.
-	 * @param  streams    - An object pointing to stdout and stderr streams, as initilized by startPHP.
 	 */
-	constructor(PHPRuntime: any, streams: Streams) {
+	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-		this.#streams = streams;
 
 		this.mkdirTree('/usr/local/etc');
 		// @TODO: make this customizable
@@ -256,13 +239,12 @@ session.save_path=/home/web_user
 			[STR],
 			[`?>${code}`]
 		);
-		const response = {
-			exitCode,
-			stdout: this.#streams.stdout.join('\n'),
-			stderr: this.#streams.stderr,
-		};
 		this.#refresh();
-		return response;
+		return {
+			exitCode,
+			stdout: this.readFileAsBuffer('/tmp/stdout'),
+			stderr: this.readFileAsText('/tmp/stderr').split('\n'),
+		};
 	}
 
 	/**
@@ -276,8 +258,6 @@ session.save_path=/home/web_user
 	 */
 	#refresh() {
 		this.#Runtime.ccall('phpwasm_refresh', NUM, [], []);
-		this.#streams.stdout = [];
-		this.#streams.stderr = [];
 	}
 
 	/**
@@ -489,7 +469,7 @@ export interface PHPOutput {
 	exitCode: number;
 
 	/** Stdout data */
-	stdout: string;
+	stdout: ArrayBuffer;
 
 	/** Stderr lines */
 	stderr: string[];

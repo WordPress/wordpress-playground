@@ -1,6 +1,6 @@
 /**
  * Public API for php.wasm.
- * 
+ *
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code in JavaScript.
  */
@@ -8,6 +8,9 @@
 #include "sapi/embed/php_embed.h"
 #include <emscripten.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
@@ -24,17 +27,49 @@
 #include "pdo_sqlite.c"
 
 /*
- * Function: phpwasm_flush
+ * Function: redirect_stream_to_file
  * ----------------------------
- *   Flush any buffered stdout and stderr contents.
+ *   Redirects writes from a given stream to a file with a speciied path.
+ *   Think of it as a the ">" operator in "echo foo > bar.txt" bash command.
+ *
+ *   stream: The stream to redirect, e.g. stdout or stderr.
+ *
+ *   path: The path to the file to redirect to, e.g. "/tmp/stdout".
+ *
+ *   returns: The exit code: 0 on success, -1 on failure.
  */
-void phpwasm_flush()
+int redirect_stream_to_file(FILE *stream, char *file_path)
 {
-	fflush(stdout);
-	fprintf(stdout, "\n");
+	int out = open(file_path, O_TRUNC | O_WRONLY | O_CREAT, 0600);
+	if (-1 == out)
+	{
+		return -1;
+	}
 
-	fflush(stderr);
-	fprintf(stderr, "\n");
+	int replacement_stream = dup(fileno(stream));
+	if (-1 == dup2(out, fileno(stream)))
+	{
+		perror("cannot redirect stdout");
+		return -1;
+	}
+
+	return replacement_stream;
+}
+
+/*
+ * Function: restore_stream_handler
+ * ----------------------------
+ *   Restores a stream handler to its original state from before the redirect_stream_to_file
+ *   function was called.
+ *
+ *  stream: The stream to restore, e.g. stdout or stderr.
+ *
+ *  replacement_stream: The replacement stream returned by the redirect_stream_to_file function.
+ */
+void restore_stream_handler(FILE *original_stream, int replacement_stream)
+{
+	dup2(replacement_stream, fileno(original_stream));
+	close(replacement_stream);
 }
 
 /*
@@ -44,17 +79,24 @@ void phpwasm_flush()
  *
  *   code: The PHP code to run. Must include the `<?php` opener.
  *
- *   returns: the exit code. 0 means success, 1 means the code died, 2 means an error.
+ *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
  */
 int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
 {
 	int retVal = 255; // Unknown error.
 
+	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout");
+	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr");
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return retVal;
+	}
+
 	zend_try
 	{
 		retVal = zend_eval_string(code, NULL, "php-wasm run script");
 
-		if(EG(exception))
+		if (EG(exception))
 		{
 			zend_exception_error(EG(exception), E_ERROR);
 			retVal = 2;
@@ -67,10 +109,15 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
 
 	zend_end_try();
 
-	phpwasm_flush();
+	fflush(stdout);
+	fflush(stderr);
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
 
 	return retVal;
 }
+
 /*
  * Function: phpwasm_destroy_context
  * ----------------------------
@@ -118,7 +165,8 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_refresh()
  *   Frees the memory after a zval allocated to store the uploaded
  *   variable name.
  */
-static void free_filename(zval *el) {
+static void free_filename(zval *el)
+{
 	// Uncommenting this code causes a runtime error in the browser:
 	// @TODO evaluate whether keeping it commented leads to a memory leak
 	//       and how to fix it if it does.
@@ -130,11 +178,11 @@ static void free_filename(zval *el) {
  * Function: phpwasm_init_uploaded_files_hash
  * ----------------------------
  *   Allocates an internal HashTable to keep track of the legitimate uploads.
- *   
+ *
  *   Functions like `is_uploaded_file` or `move_uploaded_file` don't work with
  *   $_FILES entries that are not in an internal hash table. It's a security feature.
  *   This function allocates that internal hash table.
- *   
+ *
  *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
@@ -151,7 +199,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
  * Function: phpwasm_register_uploaded_file
  * ----------------------------
  *   Registers an uploaded file in the internal hash table.
- *   
+ *
  *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
@@ -164,7 +212,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
  * Function: phpwasm_destroy_uploaded_files_hash
  * ----------------------------
  *   Destroys the internal hash table to free the memory.
- *   
+ *
  *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
@@ -180,7 +228,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
  * ----------------------------
  *   Required by the VRZNO module.
  *   Why? I'm not sure.
- *   
+ *
  *   @see https://github.com/seanmorris/vrzno
  */
 int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
@@ -197,7 +245,7 @@ int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
  * ----------------------------
  *   Required by the VRZNO module.
  *   Why? I'm not sure.
- *   
+ *
  *   @see https://github.com/seanmorris/vrzno
  */
 int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
