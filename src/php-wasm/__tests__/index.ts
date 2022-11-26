@@ -16,9 +16,75 @@ describe('PHP – boot', () => {
 	});
 });
 
-describe('PHP ', () => {
+describe('PHP – filesystem', () => {
 	let php;
-	beforeAll(async () => {
+	beforeEach(async () => {
+		php = await startPHP(phpLoaderModule, 'NODE');
+	});
+
+	// Unit tests for the filesystem methods of the
+	// PHP runtime.
+	it('writeFile() should create a file when it does not exist', () => {
+		php.writeFile('test.txt', 'Hello World!');
+		expect(php.fileExists('test.txt')).toEqual(true);
+	});
+
+	it('writeFile() should overwrite a file when it exists', () => {
+		php.writeFile('test.txt', 'Hello World!');
+		php.writeFile('test.txt', 'New contents');
+		expect(php.readFileAsText('test.txt')).toEqual('New contents');
+	});
+
+	it('readFileAsText() should read a file as text', () => {
+		php.writeFile('test.txt', 'Hello World!');
+		expect(php.readFileAsText('test.txt')).toEqual('Hello World!');
+	});
+
+	it('readFileAsBuffer() should read a file as buffer', () => {
+		php.writeFile('test.txt', 'Hello World!');
+		expect(php.readFileAsBuffer('test.txt')).toEqual(
+			new TextEncoder().encode('Hello World!')
+		);
+	});
+
+	it('unlink() should delete a file', () => {
+		php.writeFile('test.txt', 'Hello World!');
+		expect(php.fileExists('test.txt')).toEqual(true);
+		php.unlink('test.txt');
+		expect(php.fileExists('test.txt')).toEqual(false);
+	});
+
+	it('mkdirTree() should create a directory', () => {
+		php.mkdirTree('test');
+		expect(php.fileExists('test')).toEqual(true);
+	});
+
+	it('mkdirTree() should create all nested directories', () => {
+		php.mkdirTree('test/nested/doubly/triply');
+		expect(php.isDir('test/nested/doubly/triply')).toEqual(true);
+	});
+
+	it('isDir() should correctly distinguish between a file and a directory', () => {
+		php.mkdirTree('test');
+		expect(php.fileExists('test')).toEqual(true);
+		expect(php.isDir('test')).toEqual(true);
+
+		php.writeFile('test.txt', 'Hello World!');
+		expect(php.fileExists('test.txt')).toEqual(true);
+		expect(php.isDir('test.txt')).toEqual(false);
+	});
+
+	it('listFiles() should return a list of files in a directory', () => {
+		php.mkdirTree('test');
+		php.writeFile('test/test.txt', 'Hello World!');
+		php.writeFile('test/test2.txt', 'Hello World!');
+		expect(php.listFiles('test')).toEqual(['test.txt', 'test2.txt']);
+	});
+});
+
+describe('PHP – stdio', () => {
+	let php;
+	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 	});
 
