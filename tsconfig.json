@@ -10,7 +10,8 @@
 		 "src/wordpress-wasm/service-worker.ts",
 		 "src/wordpress-wasm/worker-thread.ts",
 		 "src/wordpress-wasm/wordpress/**/*",
-		 "src/php-wasm/wasm/**/*",
+		 "src/php-wasm/wasm/**/*", 
+		 "src/php-wasm/__tests__/*.ts",
 		 "build/**/*",
 		 "build-*/**/*",
 		 "build-types/**/*"
