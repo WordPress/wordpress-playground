@@ -1,3 +1,5 @@
+import type { SpawnedWorkerThread } from "src/php-wasm-browser/index";
+
 export async function login(
 	workerThread,
 	user = 'admin',
@@ -19,8 +21,8 @@ export async function login(
 }
 
 export async function installPlugin(
-	workerThread,
-	pluginZipFile,
+	workerThread: SpawnedWorkerThread,
+	pluginZipFile: File,
 	options: any = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
@@ -32,7 +34,7 @@ export async function installPlugin(
 		),
 	});
 	const pluginFormPage = new DOMParser().parseFromString(
-		pluginForm.body,
+		pluginForm.text,
 		'text/html'
 	);
 	const pluginFormData = new FormData(
@@ -54,7 +56,7 @@ export async function installPlugin(
 	// Activate if needed
 	if (activate) {
 		const pluginInstalledPage = new DOMParser().parseFromString(
-			pluginInstalledResponse.body,
+			pluginInstalledResponse.text,
 			'text/html'
 		)!;
 		const activateButtonHref = pluginInstalledPage
@@ -71,8 +73,8 @@ export async function installPlugin(
 }
 
 export async function installTheme(
-	workerThread,
-	themeZipFile,
+	workerThread: SpawnedWorkerThread,
+	themeZipFile: File,
 	options: any = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
@@ -82,7 +84,7 @@ export async function installTheme(
 		path: workerThread.pathToInternalUrl('/wp-admin/theme-install.php'),
 	});
 	const themeFormPage = new DOMParser().parseFromString(
-		themeForm.body,
+		themeForm.text,
 		'text/html'
 	);
 	const themeFormData = new FormData(
@@ -104,7 +106,7 @@ export async function installTheme(
 	// Activate if needed
 	if (activate) {
 		const themeInstalledPage = new DOMParser().parseFromString(
-			themeInstalledResponse.body,
+			themeInstalledResponse.text,
 			'text/html'
 		)!;
 

@@ -135,8 +135,14 @@ export class SpawnedWorkerThread {
 	/**
 	 * @see {PHP.request}
 	 */
-	async HTTPRequest(request: PHPRequest): Promise<PHPResponse> {
-		return await this.#rpc('HTTPRequest', { request });
+	async HTTPRequest(request: PHPRequest): Promise<PHPResponse & { text: string }> {
+		const response = await this.#rpc('HTTPRequest', { request }) as PHPResponse;
+		return {
+			...response,
+			get text() {
+				return new TextDecoder().decode(response.body);
+			}
+		}
 	}
 
 	/**

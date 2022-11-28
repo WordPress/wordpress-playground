@@ -114,7 +114,7 @@ export class PHPServer {
 
 		if (!this.php.fileExists(fsPath)) {
 			return {
-				body: '404 File not found',
+				body: new TextEncoder().encode('404 File not found'),
 				headers: {},
 				statusCode: 404,
 				exitCode: 0,
@@ -562,7 +562,7 @@ export interface PHPResponse {
 	/**
 	 * Response body.
 	 */
-	body: string | ArrayBuffer;
+	body: ArrayBuffer;
 	/**
 	 * Response headers.
 	 */
