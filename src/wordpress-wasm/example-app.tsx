@@ -97,7 +97,7 @@ async function main() {
 		// Download the theme file
 		const response = cloneResponseMonitorProgress(
 			await fetch('/plugin-proxy?theme=' + preinstallTheme),
-			progress.partialObserver(installThemeProgress - 10, `Installing ${preinstallTheme}`)
+			progress.partialObserver(installThemeProgress - 10, `Installing theme...`)
 		);
 		const themeFile = new File([await response.blob()], preinstallTheme);
 
