@@ -13,6 +13,7 @@
         width: 100%;
         margin: 0;
         padding: 0;
+        font-family: arial, sans-serif;
       }
 
       body.browser-mode {
@@ -176,6 +177,11 @@
       }
 
       /* Progress bar: */
+      .progress-bar-overlay {
+        display: flex;
+        flex-direction: column;
+      }
+
       body #wp,
       body .progress-bar-overlay {
         transition: opacity linear 0.5s;
@@ -277,6 +283,10 @@
         }
       }
 
+      .progress-bar-overlay-caption {
+        font-weight: 400;
+      }
+
       .ide-panel {
         background: rgba(255,255,255,0.6);
         max-height: 80vh;
@@ -323,6 +333,7 @@
           </div>
           <div class="main-content">
             <div class="progress-bar-overlay">
+              <h3 class="progress-bar-overlay-caption"></h3>
               <div class="progress-bar-wrapper mode-infinite">
                 <div class="progress-bar is-infinite"></div>
                 <div class="progress-bar is-finite"></div>
@@ -349,6 +360,7 @@
     </script>
     <script type="template" id="seamless-mode">
       <div class="progress-bar-overlay">
+        <h3 class="progress-bar-overlay-caption"></h3>
         <div class="progress-bar-wrapper mode-infinite">
           <div class="progress-bar is-infinite"></div>
           <div class="progress-bar is-finite"></div>
