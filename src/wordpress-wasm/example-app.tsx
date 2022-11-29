@@ -215,12 +215,14 @@ function wireProgressBar() {
 			infiniteWrapper.classList.remove('mode-infinite');
 			infiniteWrapper.classList.add('mode-finite');
 		}
-		if( caption && caption.length )  {
+		if (caption && caption.length)  {
 			const captionElement = document.querySelector(
 				'.progress-bar-overlay-caption'
 			) as HTMLElement;
 
-			captionElement.innerText= caption;
+			if (captionElement) {
+				captionElement.innerText = caption;
+			}
 		}
 
 		const progressBarEl = document.querySelector(
