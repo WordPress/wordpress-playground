@@ -62,6 +62,9 @@ async function main() {
 				await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
 				progress.partialObserver(progressBudgetPerPlugin * 0.66)
 			);
+			if (response.status !== 200) {
+				return null;
+			}
 			return new File([await response.blob()], preinstallPlugin);
 		};
 
@@ -81,6 +84,9 @@ async function main() {
 			}
 			downloads.addEventListener('resolved', (e: any) => {
 				installations.enqueue(async () => {
+					if (!e.detail) {
+						return;
+					}
 					progress.slowlyIncrementBy(progressBudgetPerPlugin * 0.33);
 					await installPlugin(workerThread, e.detail as File);
 				});
