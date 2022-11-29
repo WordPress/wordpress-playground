@@ -262,7 +262,7 @@ class ProgressObserver {
 		this.#onProgress = onProgress;
 	}
 
-	partialObserver( progressBudget, caption = '') {
+	partialObserver(progressBudget, caption = '') {
 		const id = ++this.#lastObserverId;
 		this.#observedProgresses[id] = 0;
 		return ({ loaded, total }) => {
