@@ -33,6 +33,7 @@ function setupAddressBar(wasmWorker) {
 	});
 }
 
+let isBooted = false;
 async function main() {
 	const preinstallPlugins = query.getAll('plugin');
 	const preinstallTheme = query.get('theme');
@@ -114,6 +115,8 @@ async function main() {
 				wpFrame.src = workerThread.pathToInternalUrl(data.path);
 			} else if (data.type === 'is_alive') {
 				return true;
+			} else if (data.type === 'is_booted') {
+				return isBooted;
 			}
 		}
 		window.addEventListener('message', async (event) => {
@@ -124,6 +127,20 @@ async function main() {
 				const response = responseTo(event.data.requestId, result);
 				window.parent.postMessage(response, '*');
 			}
+		});
+
+		// Notify the parent window about any URL changes in the
+		// WordPress iframe
+		wpFrame.addEventListener('load', (e: any) => {
+			window.parent.postMessage(
+				{
+					type: 'new_path',
+					path: workerThread.internalUrlToPath(
+						e.currentTarget!.contentWindow.location.href
+					),
+				},
+				'*'
+			);
 		});
 	}
 
@@ -157,6 +174,7 @@ async function main() {
 	} else {
 		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
 	}
+	isBooted = true;
 }
 
 class PromiseQueue extends EventTarget {
