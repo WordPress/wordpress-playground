@@ -34,6 +34,10 @@
         padding: 55px 60px;
       }
 
+      .is-embedded .fake-window-wrapper {
+       	padding: 15px;
+      }
+
       .fake-window {
         display: flex;
         flex-direction: column;
@@ -300,6 +304,9 @@
     </style>
   </head>
   <body class="is-loading">
+    <script>
+     if (window.top!=window.self) document.body.classList.add('is-embedded');
+    </script>
 
     <div id="test-snippets"></div>
 
