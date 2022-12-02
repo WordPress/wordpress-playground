@@ -130,9 +130,6 @@ async function main() {
 			open: '/wordpress.html',
 			middleware: [
 				(req, res, next) => {
-					if (req.url.startsWith('/scope:')) {
-						req.url = '/' + req.url.split('/').slice(2).join('/');
-					}
 					if (req.url.endsWith('iframe-worker.html')) {
 						res.setHeader('Origin-Agent-Cluster', '?1');
 					} else if (req.url.startsWith('/plugin-proxy')) {
