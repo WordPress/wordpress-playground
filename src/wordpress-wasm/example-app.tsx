@@ -44,7 +44,10 @@ async function main() {
 
 	const progress = wireProgressBar();
 	const workerThread = await bootWordPress({
-		onWasmDownloadProgress: progress.partialObserver(bootProgress),
+		onWasmDownloadProgress: progress.partialObserver(
+			bootProgress,
+			'Preparing WordPress...'
+		),
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -61,7 +64,12 @@ async function main() {
 		const fetchPluginFile = async (preinstallPlugin) => {
 			const response = cloneResponseMonitorProgress(
 				await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
-				progress.partialObserver(progressBudgetPerPlugin * 0.66)
+				progress.partialObserver(
+					progressBudgetPerPlugin * 0.66,
+					`Installing ${zipNameToHumanName(
+						preinstallPlugin
+					)} plugin...`
+				)
 			);
 			return new File([await response.blob()], preinstallPlugin);
 		};
@@ -98,7 +106,10 @@ async function main() {
 		// Download the theme file
 		const response = cloneResponseMonitorProgress(
 			await fetch('/plugin-proxy?theme=' + preinstallTheme),
-			progress.partialObserver(installThemeProgress - 10)
+			progress.partialObserver(
+				installThemeProgress - 10,
+				`Installing ${zipNameToHumanName(preinstallTheme)} theme...`
+			)
 		);
 		const themeFile = new File([await response.blob()], preinstallTheme);
 
@@ -225,13 +236,22 @@ function wireProgressBar() {
 	};
 	wpFrame.addEventListener('load', HideProgressBar);
 
-	const progress = new ProgressObserver((progress, mode) => {
+	const progress = new ProgressObserver((progress, mode, caption) => {
 		const infiniteWrapper = document.querySelector(
 			'.progress-bar-wrapper.mode-infinite'
 		);
 		if (infiniteWrapper) {
 			infiniteWrapper.classList.remove('mode-infinite');
 			infiniteWrapper.classList.add('mode-finite');
+		}
+		if (caption && caption.length) {
+			const captionElement = document.querySelector(
+				'.progress-bar-overlay-caption'
+			) as HTMLElement;
+
+			if (captionElement) {
+				captionElement.innerText = caption;
+			}
 		}
 
 		const progressBarEl = document.querySelector(
@@ -265,18 +285,26 @@ const enum ProgressType {
 class ProgressObserver {
 	#observedProgresses: Record<number, number> = {};
 	#lastObserverId = 0;
-	#onProgress: (progress: number, mode: ProgressType) => void;
+	#onProgress: (
+		progress: number,
+		mode: ProgressType,
+		caption?: string
+	) => void;
 
 	constructor(onProgress) {
 		this.#onProgress = onProgress;
 	}
 
-	partialObserver(progressBudget) {
+	partialObserver(progressBudget, caption = '') {
 		const id = ++this.#lastObserverId;
 		this.#observedProgresses[id] = 0;
 		return ({ loaded, total }) => {
 			this.#observedProgresses[id] = (loaded / total) * progressBudget;
-			this.#onProgress(this.totalProgress, ProgressType.REAL_TIME);
+			this.#onProgress(
+				this.totalProgress,
+				ProgressType.REAL_TIME,
+				caption
+			);
 		};
 	}
 
@@ -292,6 +320,14 @@ class ProgressObserver {
 			0
 		);
 	}
+}
+
+function zipNameToHumanName(zipName) {
+	const mixedCaseName = zipName.split('.').shift()!.replace('-', ' ');
+	return (
+		mixedCaseName.charAt(0).toUpperCase() +
+		mixedCaseName.slice(1).toLowerCase()
+	);
 }
 
 main();
