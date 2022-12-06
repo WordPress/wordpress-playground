@@ -43,7 +43,10 @@ async function main() {
 
 	const progress = wireProgressBar();
 	const workerThread = await bootWordPress({
-		onWasmDownloadProgress: progress.partialObserver(bootProgress, 'Preparing WordPress...', ),
+		onWasmDownloadProgress: progress.partialObserver(
+			bootProgress,
+			'Preparing WordPress...'
+		),
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -60,7 +63,12 @@ async function main() {
 		const fetchPluginFile = async (preinstallPlugin) => {
 			const response = cloneResponseMonitorProgress(
 				await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
-				progress.partialObserver(progressBudgetPerPlugin * 0.66, 'Installing plugins...')
+				progress.partialObserver(
+					progressBudgetPerPlugin * 0.66,
+					`Installing ${zipNameToHumanName(
+						preinstallPlugin
+					)} plugin...`
+				)
 			);
 			return new File([await response.blob()], preinstallPlugin);
 		};
@@ -97,7 +105,10 @@ async function main() {
 		// Download the theme file
 		const response = cloneResponseMonitorProgress(
 			await fetch('/plugin-proxy?theme=' + preinstallTheme),
-			progress.partialObserver(installThemeProgress - 10, `Installing theme...`)
+			progress.partialObserver(
+				installThemeProgress - 10,
+				`Installing ${zipNameToHumanName(preinstallTheme)} theme...`
+			)
 		);
 		const themeFile = new File([await response.blob()], preinstallTheme);
 
@@ -215,7 +226,7 @@ function wireProgressBar() {
 			infiniteWrapper.classList.remove('mode-infinite');
 			infiniteWrapper.classList.add('mode-finite');
 		}
-		if (caption && caption.length)  {
+		if (caption && caption.length) {
 			const captionElement = document.querySelector(
 				'.progress-bar-overlay-caption'
 			) as HTMLElement;
@@ -256,7 +267,11 @@ const enum ProgressType {
 class ProgressObserver {
 	#observedProgresses: Record<number, number> = {};
 	#lastObserverId = 0;
-	#onProgress: (progress: number, mode: ProgressType, caption?: string) => void;
+	#onProgress: (
+		progress: number,
+		mode: ProgressType,
+		caption?: string
+	) => void;
 
 	constructor(onProgress) {
 		this.#onProgress = onProgress;
@@ -267,7 +282,11 @@ class ProgressObserver {
 		this.#observedProgresses[id] = 0;
 		return ({ loaded, total }) => {
 			this.#observedProgresses[id] = (loaded / total) * progressBudget;
-			this.#onProgress(this.totalProgress, ProgressType.REAL_TIME, caption);
+			this.#onProgress(
+				this.totalProgress,
+				ProgressType.REAL_TIME,
+				caption
+			);
 		};
 	}
 
@@ -283,6 +302,14 @@ class ProgressObserver {
 			0
 		);
 	}
+}
+
+function zipNameToHumanName(zipName) {
+	const mixedCaseName = zipName.split('.').shift()!.replace('-', ' ');
+	return (
+		mixedCaseName.charAt(0).toUpperCase() +
+		mixedCaseName.slice(1).toLowerCase()
+	);
 }
 
 main();
