@@ -63,6 +63,10 @@ async function main() {
 				progress.partialObserver(progressBudgetPerPlugin * 0.66)
 			);
 			if (response.status !== 200) {
+				console.error(
+					`Proceeding without the ${preinstallPlugin} plugin. Could not download the zip bundle from https://downloads.wordpress.org/plugin/${preinstallPlugin} – ` +
+						`Is the file name correct?`
+				);
 				return null;
 			}
 			return new File([await response.blob()], preinstallPlugin);
@@ -88,7 +92,15 @@ async function main() {
 						return;
 					}
 					progress.slowlyIncrementBy(progressBudgetPerPlugin * 0.33);
-					await installPlugin(workerThread, e.detail as File);
+					try {
+						await installPlugin(workerThread, e.detail as File);
+					} catch (error) {
+						console.error(
+							`Proceeding without the ${e.detail.name} plugin. Could not install it in wp-admin. ` +
+								`The original error was: ${error}`
+						);
+						console.error(error);
+					}
 				});
 			});
 			installations.addEventListener('empty', () => {
@@ -105,10 +117,29 @@ async function main() {
 			await fetch('/plugin-proxy?theme=' + preinstallTheme),
 			progress.partialObserver(installThemeProgress - 10)
 		);
-		const themeFile = new File([await response.blob()], preinstallTheme);
-
 		progress.slowlyIncrementBy(10);
-		await installTheme(workerThread, themeFile);
+
+		if (response.status === 200) {
+			const themeFile = new File(
+				[await response.blob()],
+				preinstallTheme
+			);
+
+			try {
+				await installTheme(workerThread, themeFile);
+			} catch (error) {
+				console.error(
+					`Proceeding without the ${preinstallTheme} theme. Could not install it in wp-admin. ` +
+						`The original error was: ${error}`
+				);
+				console.error(error);
+			}
+		} else {
+			console.error(
+				`Proceeding without the ${preinstallTheme} theme. Could not download the zip bundle from https://downloads.wordpress.org/themes/${preinstallTheme} – ` +
+					`Is the file name correct?`
+			);
+		}
 	}
 
 	if (query.get('rpc')) {
