@@ -72,7 +72,7 @@ export class PHPServer {
 		this.#HOST = [
 			this.#HOSTNAME,
 			isNonStandardPort ? `:${this.#PORT}` : '',
-		].join('\n');
+		].join('');
 		this.#PATHNAME = url.pathname.replace(/\/+$/, '');
 		this.#ABSOLUTE_URL = [
 			`${this.#PROTOCOL}://`,
