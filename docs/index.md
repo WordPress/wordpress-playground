@@ -1,6 +1,6 @@
 # WordPress in the browser!
 
-WordPress.wasm is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. [See the live demo!](https://wasm.wordpress.net/wordpress.html)
+WordPress Sandbox is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. [See the live demo!](https://wasm.wordpress.net/wordpress.html)
 
 Related resources:
 
@@ -12,28 +12,28 @@ Related resources:
 
 ## Getting started
 
-You can run WordPress.wasm as follows:
+You can run WordPress Sandbox as follows:
 
 ```js
-git clone https://github.com/WordPress/wordpress-wasm
-cd wordpress-wasm
+git clone https://github.com/WordPress/wordpress-sandbox
+cd wordpress-sandbox
 npm install
 npm run dev
 ```
 
 A browser should open and take you to your very own client-side WordPress at http://127.0.0.1:8777/wordpress.html!
 
-## Creating your own WordPress.wasm app
+## Creating your own WordPress Sandbox app
 
-As of today, the best way of building a WordPress.wasm app is by directly modifying the `wordpress-wasm` package. Unfortunately, there are no importable npm packages yet. They will get published, eventually, but so far all the efforts were focused on getting this project to work.
+As of today, the best way of building a WordPress Sandbox app is by directly modifying the `wordpress-sandbox` package. Unfortunately, there are no importable npm packages yet. They will get published, eventually, but so far all the efforts were focused on getting this project to work.
 
 If you'd like to see public npm packages sooner than later, you are more than welcome to contribute!
 
 ## Basic usage
 
-All the code examples in this sections will work only inside `packages/wordpress-wasm/src`.
+All the code examples in this sections will work only inside `packages/wordpress-sandbox/src`.
 
-### Controlling WordPress.wasm
+### Controlling WordPress Sandbox
 
 The WordPress instance is controlled via the `workerThread` object:
 
@@ -69,7 +69,7 @@ For more details, see the `SpawnedWorkerThread` reference manual page and the ar
 
 ### Logging the user in
 
-`wordpress-wasm` provides helpers to automate common use-cases, like logging the user in:
+`wordpress-sandbox` provides helpers to automate common use-cases, like logging the user in:
 
 ```js
 import { login } from './macros';
@@ -101,7 +101,7 @@ await installPlugin(workerThread, pluginFile);
 
 To go beyond the basic usage, you'll need to understand the project architecture.
 
-WordPress.wasm is made of the following building blocks:
+WordPress Sandbox is made of the following building blocks:
 
 ### PHP in JavaScript
 
@@ -124,7 +124,7 @@ See [using PHP in Javascript](./using-php-in-javascript.md) to learn:
 
 The `php-wasm-browser` package provides tools to run `php-wasm` in the browser:
 
-![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-wasm/trunk/docs/boot-sequence.png)
+![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-sandbox/trunk/docs/boot-sequence.png)
 
 It consists of:
 
@@ -138,7 +138,7 @@ See [using PHP in the browser](./using-php-in-the-browser.md) to learn more.
 
 ### WordPress in the browser
 
-The `wordpress-wasm` package runs WordPress in the browser with the help of `php-wasm` and `php-wasm-browser`.
+The `wordpress-sandbox` package runs WordPress in the browser with the help of `php-wasm` and `php-wasm-browser`.
 
 It consists of:
 

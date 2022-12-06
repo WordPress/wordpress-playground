@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DOCS_ABSOLUTE_URL =
-	'https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/';
+	'https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/';
 
 const REPO_ROOT_PATH = path.dirname(__dirname);
 const TARGET_DIR = path.join(REPO_ROOT_PATH, 'docs');
@@ -13,7 +13,7 @@ const TARGET_DIR = path.join(REPO_ROOT_PATH, 'docs');
 const mdFiles = {
 	'./src/php-wasm/README.md': 'using-php-in-javascript.md',
 	'./src/php-wasm-browser/README.md': 'using-php-in-the-browser.md',
-	'./src/wordpress-wasm/README.md': 'using-wordpress-in-the-browser.md',
+	'./src/wordpress-sandbox/README.md': 'using-wordpress-in-the-browser.md',
 	'./src/wordpress-plugin-ide/README.md': 'wordpress-plugin-ide.md',
 };
 console.log(`Building the markdown files...`);

@@ -12,7 +12,7 @@ async function buildWordPress() {
 		[
 			'build',
 			'.',
-			'--tag=wordpress-wasm',
+			'--tag=wordpress-sandbox',
 			'--progress=plain',
 			...(process.env.WP_ZIP_URL
 				? ['--build-arg', `WP_ZIP_URL=${wpZipUrl}`]
@@ -27,11 +27,11 @@ async function buildWordPress() {
 		[
 			'run',
 			'--name',
-			'wordpress-wasm-tmp',
+			'wordpress-sandbox-tmp',
 			'--rm',
 			'-v',
 			`${buildDir}:/output`,
-			'wordpress-wasm',
+			'wordpress-sandbox',
 			// Use sh -c because wildcards are a shell feature and
 			// they don't work without running cp through shell.
 			'sh',

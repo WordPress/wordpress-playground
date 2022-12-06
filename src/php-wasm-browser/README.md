@@ -1,6 +1,6 @@
 # Using PHP in the browser
 
-[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm-browser.md)
+[API Reference](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm-browser.md)
 
 `php-wasm` makes running PHP code in JavaScript easy, but running PHP websites in the browser is more complex than just executing some code.
 
@@ -27,7 +27,7 @@ Keep this point in mind as you read through the rest of the docs. At this point 
 
 Here's what a boot sequence for a minimal app looks like:
 
-![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-wasm/trunk/docs/boot-sequence.png)
+![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-sandbox/trunk/docs/boot-sequence.png)
 
 The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled in the Worker Thread.
 
@@ -98,7 +98,7 @@ Keep reading to learn how all these pieces fit together.
 
 Here's what happens whenever the iframe issues a same-domain request:
 
-![The data flow](https://raw.githubusercontent.com/wordpress/wordpress-wasm/trunk/docs/data-flow.png)
+![The data flow](https://raw.githubusercontent.com/wordpress/wordpress-sandbox/trunk/docs/data-flow.png)
 
 A step-by-step breakown:
 
@@ -172,7 +172,7 @@ The main application controls the worker thread by sending and receiving message
 
 Exchanging messages is the only way to control the worker threads. Remember – it is separate programs. The main app cannot access any functions or variables defined inside of the worker thread.
 
-Conveniently, [spawnPHPWorkerThread](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm-browser.spawnphpworkerthread.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
+Conveniently, [spawnPHPWorkerThread](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm-browser.spawnphpworkerthread.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
 
 #### Worker thread implementation
 
@@ -190,7 +190,7 @@ the heavy lifting. Here's its documentation:
 
 <!-- include /docs/api/php-wasm-browser.initializeworkerthread.md#initializeWorkerThread() function -->
 
-initializeWorkerThread<!-- -->(<!-- -->config<!-- -->: [WorkerThreadConfiguration](https:/github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm-browser.workerthreadconfiguration.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
+initializeWorkerThread<!-- -->(<!-- -->config<!-- -->: [WorkerThreadConfiguration](https:/github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm-browser.workerthreadconfiguration.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
 
 -   `config` – The worker thread configuration. The backend object to communicate with the parent thread.
 
@@ -240,7 +240,7 @@ Worker threads can use any multiprocessing technique like an iframe, WebWorker, 
 
 ##### `webworker`
 
-Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-wasm/issues/1) to learn more details.
+Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-sandbox/issues/1) to learn more details.
 
 Example usage:
 
@@ -400,7 +400,7 @@ Scopes keep your app working when you open it in two different different browser
 
 The Service Worker passes the intercepted HTTP requests to the PHPServer for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
 
-Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-wasm/pull/31) and [issue #9](https://github.com/WordPress/wordpress-wasm/issues/9) for more details.
+Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-sandbox/pull/31) and [issue #9](https://github.com/WordPress/wordpress-sandbox/issues/9) for more details.
 
 Scopes enable each browser tab to:
 

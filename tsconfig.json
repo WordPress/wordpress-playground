@@ -7,9 +7,9 @@
 	"exclude": [
 		 "src/php-wasm-browser/service-worker/worker-library.ts",
 		 "src/php-wasm-browser/worker-thread/worker-library.ts",
-		 "src/wordpress-wasm/service-worker.ts",
-		 "src/wordpress-wasm/worker-thread.ts",
-		 "src/wordpress-wasm/wordpress/**/*",
+		 "src/wordpress-sandbox/service-worker.ts",
+		 "src/wordpress-sandbox/worker-thread.ts",
+		 "src/wordpress-sandbox/wordpress/**/*",
 		 "src/php-wasm/wasm/**/*", 
 		 "src/php-wasm/__tests__/*.ts",
 		 "build/**/*",

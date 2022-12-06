@@ -1,8 +1,8 @@
-site_name: WordPress.wasm
+site_name: WordPress Sandbox
 theme:
     name: readthedocs
 
-repo_url: https://github.com/WordPress/wordpress-wasm
+repo_url: https://github.com/WordPress/wordpress-sandbox
 edit_uri: blob/trunk/docs/
 
 nav:
@@ -14,7 +14,7 @@ nav:
     - API Reference:
           - php-wasm Reference: api/php-wasm.md
           - php-wasm-browser Reference: api/php-wasm-browser.md
-          - wordpress-wasm Reference: api/wordpress-wasm.md
+          - wordpress-sandbox Reference: api/wordpress-sandbox.md
           - wordpress-plugin-ide Reference: api/wordpress-plugin-ide.md
 
 # markdown_extensions:

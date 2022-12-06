@@ -1,6 +1,6 @@
 # Using PHP in JavaScript
 
-[API Reference](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm.md)
+[API Reference](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm.md)
 
 This package enables running PHP in Javascript:
 
@@ -20,7 +20,7 @@ console.log(php.run(`<?php echo "Hello from PHP!";`).stdout);
 
 ## PHP to WebAssembly build pipeline
 
-The pipeline lives in [`wasm/Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
+The pipeline lives in [`wasm/Dockerfile`](https://github.com/WordPress/wordpress-sandbox/blob/trunk/packages/php-wasm/wasm/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
 
 In broad strokes, that `Dockerfile`:
 
@@ -32,7 +32,7 @@ In broad strokes, that `Dockerfile`:
 -   Outputs a `php.wasm` file and one or more JavaScript loaders, depending on the configuration.
 -   Transforms the Emscripten's default `php.js` output into an ESM module with additional features.
 
-To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile).
+To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-sandbox/blob/trunk/packages/php-wasm/wasm/Dockerfile).
 
 ### Building
 
@@ -40,7 +40,7 @@ To build, run `npm run build:php:web` in the repository root. You'll find the ou
 
 ### PHP extensions
 
-PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/Dockerfile).
+PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-sandbox/blob/trunk/packages/php-wasm/wasm/Dockerfile).
 
 Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded.
 
@@ -48,13 +48,13 @@ If you need to turn off one of the hardcoded extensions, feel free to open an is
 
 ### C API exposed to JavaScript
 
-The C API exposed to JavaScript lives in the [`wasm/build-assets/php_wasm.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) file. The most important functions are:
+The C API exposed to JavaScript lives in the [`wasm/build-assets/php_wasm.c`](https://github.com/WordPress/wordpress-sandbox/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) file. The most important functions are:
 
 -   `void phpwasm_init()` – It creates a new PHP context and must be called before running any PHP code.
 -   `int phpwasm_run(char *code)` – Runs a PHP script and writes the output to /tmp/stdout and /tmp/stderr. Returns the exit code.
 -   `void phpwasm_refresh()` – Destroy the current PHP context and starts a new one. Call it after running one PHP script and before running another.
 
-Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-wasm/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) to learn more.
+Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-sandbox/blob/trunk/packages/php-wasm/wasm/build-assets/php_wasm.c) to learn more.
 
 ### Build configuration
 
@@ -105,7 +105,7 @@ To build the JavaScript API, run `npm run build:js` in the repository root. You'
 
 ## API
 
-Below you'll find a few especially relevant parts of the API. Consult the [php-wasm API reference page](https://github.com/WordPress/wordpress-wasm/tree/trunk/docs/api/php-wasm.md) to learn about the rest of it.
+Below you'll find a few especially relevant parts of the API. Consult the [php-wasm API reference page](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm.md) to learn about the rest of it.
 
 ### startPHP
 
@@ -113,10 +113,10 @@ Below you'll find a few especially relevant parts of the API. Consult the [php-w
 
 startPHP<!-- -->(\
 &emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->runtime<!-- -->: [JavascriptRuntime](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.javascriptruntime.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->runtime<!-- -->: [JavascriptRuntime](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.javascriptruntime.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->[]\
-)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHP](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.php.md)<!-- -->&gt;
+)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHP](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.php.md)<!-- -->&gt;
 
 -   `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
 -   `runtime` – The current JavaScript environment. One of: NODE, WEB, or WEBWORKER.
@@ -232,7 +232,7 @@ A fake PHP server that handles HTTP requests but does not bind to any port.
 
 ## Constructors
 
-### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.php.md)<!-- -->, config<!-- -->: [PHPServerConfigation](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.phpserverconfigation.md)<!-- -->)
+### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.php.md)<!-- -->, config<!-- -->: [PHPServerConfigation](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.phpserverconfigation.md)<!-- -->)
 
 -   `php` – The PHP instance.
 -   `config` – Server configuration.
@@ -242,11 +242,11 @@ Constructs a new instance of the `PHPServer` class
 ## Properties
 
 -   `absoluteUrl` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
--   `php` [PHP](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.php.md) – The PHP instance
+-   `php` [PHP](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.php.md) – The PHP instance
 
 ## Methods
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPRequest](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](https:/github.com/WordPress/wordpress-wasm/blob/trunk/docs/api/php-wasm.phpresponse.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPRequest](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](https:/github.com/WordPress/wordpress-sandbox/blob/trunk/docs/api/php-wasm.phpresponse.md)<!-- -->&gt;
 
 -   `request` – The request.
 -   Returns: The response.

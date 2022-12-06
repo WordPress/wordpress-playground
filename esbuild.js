@@ -72,15 +72,15 @@ async function main() {
 			WASM_WORKER_THREAD_SCRIPT_URL: JSON.stringify(workerThreadScript),
 			WASM_WORKER_BACKEND: JSON.stringify(wasmWorkerBackend),
 			WP_JS_HASH: JSON.stringify(
-				hashFiles([`packages/wordpress-wasm/build-wp/wp.js`])
+				hashFiles([`packages/wordpress-sandbox/build-wp/wp.js`])
 			),
 			PHP_JS_HASH: JSON.stringify(
 				hashFiles([`packages/php-wasm/build-wasm/php.js`])
 			),
 		},
 		entryPoints: {
-			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
-			app: 'src/wordpress-wasm/index.tsx',
+			'worker-thread': 'src/wordpress-sandbox/worker-thread.ts',
+			app: 'src/wordpress-sandbox/index.tsx',
 			'wordpress-plugin-ide': 'src/wordpress-plugin-ide/index.ts',
 			react: 'react',
 			'react-dom': 'react-dom',
@@ -94,7 +94,7 @@ async function main() {
 	build({
 		...baseConfig,
 		entryPoints: {
-			'service-worker': 'src/wordpress-wasm/service-worker.ts',
+			'service-worker': 'src/wordpress-sandbox/service-worker.ts',
 			'setup-fast-refresh-runtime':
 				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
 		},
@@ -115,7 +115,7 @@ async function main() {
 	console.log('');
 	console.log('Static files copied: ');
 	mapGlob(`src/*/*.html`, buildHTMLFile);
-	mapGlob(`src/wordpress-wasm/bundling/test/*.html`, buildHTMLFile);
+	mapGlob(`src/wordpress-sandbox/bundling/test/*.html`, buildHTMLFile);
 
 	mapGlob(`node_modules/react/umd/react.development.js`, copyToDist);
 	mapGlob(`node_modules/react-dom/umd/react-dom.development.js`, copyToDist);
