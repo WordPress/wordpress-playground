@@ -26,7 +26,7 @@ module.exports = {
 	},
 	plugins: ['react'],
 	rules: {
-		'no-inner-declaration': 0,
+		'no-inner-declarations': 0,
 		'no-use-before-define': 'off',
 		'react/prop-types': 0,
 		'no-console': 0,

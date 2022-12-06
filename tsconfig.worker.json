@@ -18,7 +18,7 @@
 
 		 "src/wordpress-wasm/service-worker.ts",
 		 "src/wordpress-wasm/worker-thread.ts",
-		 "src/wordpress-wasm/utils.ts",
+		 "src/wordpress-wasm/worker-utils.ts",
 		 "src/wordpress-wasm/config.ts"
  	]
 }

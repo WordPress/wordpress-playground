@@ -80,7 +80,7 @@ async function main() {
 		},
 		entryPoints: {
 			'worker-thread': 'src/wordpress-wasm/worker-thread.ts',
-			app: 'src/wordpress-wasm/example-app.tsx',
+			app: 'src/wordpress-wasm/index.tsx',
 			'wordpress-plugin-ide': 'src/wordpress-plugin-ide/index.ts',
 			react: 'react',
 			'react-dom': 'react-dom',

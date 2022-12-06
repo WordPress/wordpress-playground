@@ -1,7 +1,3 @@
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="WebWorker" />
-
 declare const self: WorkerGlobalScope;
 declare const require: any;
 
@@ -12,7 +8,7 @@ import {
 	setURLScope,
 } from '../php-wasm-browser/worker-thread/worker-library';
 import { phpJsCacheBuster, wpJsCacheBuster, wordPressSiteUrl } from './config';
-import { isUploadedFilePath } from './utils';
+import { isUploadedFilePath } from './worker-utils';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();

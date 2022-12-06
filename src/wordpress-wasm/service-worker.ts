@@ -1,12 +1,8 @@
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="WebWorker" />
-
 import {
 	initializeServiceWorker,
 	seemsLikeAPHPServerPath,
 } from '../php-wasm-browser/service-worker/worker-library';
-import { isUploadedFilePath } from './utils';
+import { isUploadedFilePath } from './worker-utils';
 
 initializeServiceWorker({
 	shouldForwardRequestToPHPServer,
