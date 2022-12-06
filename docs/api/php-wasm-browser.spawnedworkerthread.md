@@ -20,7 +20,7 @@ Constructs a new instance of the `SpawnedWorkerThread` class
 
 ## Methods
 
-### HTTPRequest<!-- -->(<!-- -->request<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&gt;
+### HTTPRequest<!-- -->(<!-- -->request<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&amp;<!-- -->{<!-- -->text<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->;<!-- -->}<!-- -->&gt;
 
 
 

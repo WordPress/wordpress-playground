@@ -4,7 +4,7 @@
 <b>Signature:</b>
 
 ```typescript
-body: string | ArrayBuffer;
+body: ArrayBuffer;
 ```
 Response body.
 

@@ -8,7 +8,7 @@ interface PHPResponse
 ```
 ## Properties
 
-* `body`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->|[ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) – Response body.
+* `body`    [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) – Response body.
 * `exitCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – PHP exit code. Always 0 for static file responses.
 * `headers`    [PHPHeaders](./php-wasm.phpheaders.md) – Response headers.
 * `rawError`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->[] – Lines logged to stderr. Always [''] for static file responses.

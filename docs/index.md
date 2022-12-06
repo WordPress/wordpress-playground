@@ -1,4 +1,4 @@
-# WordPress in the browser!
+# WordPress Sandbox – use WordPress in the browser!
 
 WordPress Sandbox is a client-side WordPress that runs without a PHP server thanks to the magic of WebAssembly. [See the live demo!](https://wasm.wordpress.net/wordpress.html)
 
