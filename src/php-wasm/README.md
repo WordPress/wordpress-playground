@@ -1,4 +1,4 @@
-# Using PHP in JavaScript
+# PHP in JavaScript
 
 [API Reference](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm.md)
 

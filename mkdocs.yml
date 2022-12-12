@@ -7,15 +7,13 @@ edit_uri: blob/trunk/docs/
 
 nav:
     - Overview: index.md
-    - Using PHP in Javascript: using-php-in-javascript.md
-    - Using PHP in the browser: using-php-in-the-browser.md
-    - Using WordPress in the browser: using-wordpress-in-the-browser.md
-    - Building WordPress plugins in the browser: wordpress-plugin-ide.md
+    - WordPress in the browser: using-wordpress-in-the-browser.md
+    - PHP in the browser: using-php-in-the-browser.md
+    - PHP in Javascript: using-php-in-javascript.md
     - API Reference:
           - php-wasm Reference: api/php-wasm.md
           - php-wasm-browser Reference: api/php-wasm-browser.md
           - wordpress-sandbox Reference: api/wordpress-sandbox.md
-          - wordpress-plugin-ide Reference: api/wordpress-plugin-ide.md
 
 # markdown_extensions:
 #     - meta

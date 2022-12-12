@@ -1,4 +1,4 @@
-# Using PHP in the browser
+# PHP in the browser
 
 [API Reference](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/php-wasm-browser.md)
 
