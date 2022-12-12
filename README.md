@@ -20,7 +20,11 @@ See
 
 ## Getting started
 
-You can run WordPress Sandbox as follows:
+WordPress Sandbox has a [live demo](https://developer.wordpress.org/sandbox/demo/) available.
+
+It can also be embedded on other websites – find out how in the [documentation](https://wordpresswasm.readthedocs.io/en/latest/).
+
+Finally, you can run WordPress Sandbox locally as follows:
 
 ```bash
 git clone https://github.com/WordPress/wordpress-sandbox
