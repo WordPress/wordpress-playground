@@ -6,7 +6,7 @@ const { spawnSync } = require('child_process');
 
 const {
 	build: buildWordPress,
-} = require('./src/wordpress-sandbox/wordpress/gulpfile');
+} = require('./src/wordpress-playground/wordpress/gulpfile');
 const { build: buildPHP } = require('./src/php-wasm/wasm/gulpfile');
 
 const outputDir = path.join(__dirname, 'build');
@@ -59,9 +59,9 @@ function buildDocs(cb) {
 			dtsPath('php-wasm-browser/index.d.ts'),
 			dtsPath('php-wasm-browser/service-worker/worker-library.d.ts'),
 			dtsPath('php-wasm-browser/worker-thread/worker-library.d.ts'),
-			dtsPath('wordpress-sandbox/index.d.ts'),
-			dtsPath('wordpress-sandbox/service-worker.d.ts'),
-			dtsPath('wordpress-sandbox/worker-thread.d.ts'),
+			dtsPath('wordpress-playground/index.d.ts'),
+			dtsPath('wordpress-playground/service-worker.d.ts'),
+			dtsPath('wordpress-playground/worker-thread.d.ts'),
 			dtsPath('wordpress-plugin-ide/index.d.ts'),
 			'-o',
 			path.join(__dirname, 'docs', 'api'),

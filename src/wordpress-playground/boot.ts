@@ -40,7 +40,7 @@ function assertNotInfiniteLoadingLoop() {
 	} catch (e) {}
 	if (isBrowserInABrowser) {
 		throw new Error(
-			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-sandbox/issues'
+			'The service worker did not load correctly. This is a bug, please report it on https://github.com/WordPress/wordpress-playground/issues'
 		);
 	}
 	(window as any).IS_WASM_WORDPRESS = true;

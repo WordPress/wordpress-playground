@@ -151,7 +151,7 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  			goto safe_to_copy;
  			break;
  		case 0:
-+			// Fix for https://github.com/WordPress/wordpress-sandbox/issues/54:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
 +			// Problem: Calling copy() on an empty source file crashes the JavaScript
 +			//          runtime.
 +			// Solution: Avoid copying empty files. Just create create an empty

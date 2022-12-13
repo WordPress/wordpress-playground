@@ -61,7 +61,7 @@ RUN cp -r wordpress wordpress-static && \
 # Ideally this issue would be fixed directly in Gutenberg and the patch
 # below would be removed.
 # 
-# See https://github.com/WordPress/wordpress-sandbox/issues/42 for more details
+# See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 
 RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
     gsed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \

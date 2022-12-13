@@ -1,8 +1,8 @@
-site_name: WordPress Sandbox
+site_name: WordPress Playground
 theme:
     name: readthedocs
 
-repo_url: https://github.com/WordPress/wordpress-sandbox
+repo_url: https://github.com/WordPress/wordpress-playground
 edit_uri: blob/trunk/docs/
 
 nav:
@@ -13,7 +13,7 @@ nav:
     - API Reference:
           - php-wasm Reference: api/php-wasm.md
           - php-wasm-browser Reference: api/php-wasm-browser.md
-          - wordpress-sandbox Reference: api/wordpress-sandbox.md
+          - wordpress-playground Reference: api/wordpress-playground.md
 
 # markdown_extensions:
 #     - meta

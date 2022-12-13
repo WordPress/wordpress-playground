@@ -10,14 +10,14 @@
 		"wasm",
 		"WebAssembly"
 	],
-	"homepage": "https://github.com/WordPress/wordpress-sandbox/tree/HEAD/packages/wordpress-sandbox",
+	"homepage": "https://github.com/WordPress/wordpress-playground/tree/HEAD/packages/wordpress-playground",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/WordPress/wordpress-sandbox.git",
+		"url": "https://github.com/WordPress/wordpress-playground.git",
 		"directory": "packages/typescript-reference-doc-generator"
 	},
 	"bugs": {
-		"url": "https://github.com/WordPress/wordpress-sandbox/issues"
+		"url": "https://github.com/WordPress/wordpress-playground/issues"
 	},
 	"engines": {
 		"node": ">=12"

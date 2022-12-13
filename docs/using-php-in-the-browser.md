@@ -28,7 +28,7 @@ Keep this point in mind as you read through the rest of the docs. At this point 
 
 Here's what a boot sequence for a minimal app looks like:
 
-![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-sandbox/trunk/docs/boot-sequence.png)
+![The boot sequence](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/boot-sequence.png)
 
 The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled in the Worker Thread.
 
@@ -99,7 +99,7 @@ Keep reading to learn how all these pieces fit together.
 
 Here's what happens whenever the iframe issues a same-domain request:
 
-![The data flow](https://raw.githubusercontent.com/wordpress/wordpress-sandbox/trunk/docs/data-flow.png)
+![The data flow](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/data-flow.png)
 
 A step-by-step breakown:
 
@@ -248,7 +248,7 @@ Worker threads can use any multiprocessing technique like an iframe, WebWorker, 
 
 ##### `webworker`
 
-Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-sandbox/issues/1) to learn more details.
+Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-playground/issues/1) to learn more details.
 
 Example usage:
 
@@ -407,7 +407,7 @@ Scopes keep your app working when you open it in two different different browser
 
 The Service Worker passes the intercepted HTTP requests to the PHPServer for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
 
-Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-sandbox/pull/31) and [issue #9](https://github.com/WordPress/wordpress-sandbox/issues/9) for more details.
+Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-playground/pull/31) and [issue #9](https://github.com/WordPress/wordpress-playground/issues/9) for more details.
 
 Scopes enable each browser tab to:
 

@@ -1,24 +1,24 @@
 # WordPress in the browser
 
-[API Reference](https://github.com/WordPress/wordpress-sandbox/tree/trunk/docs/api/wordpress-sandbox.md)
+[API Reference](https://github.com/WordPress/wordpress-playground/tree/trunk/docs/api/wordpress-playground.md)
 
-This package uses [php-wasm](https://github.com/WordPress/wordpress-sandbox/blob/trunk/docs/using-php-in-javascript.md) and [php-wasm-browser](https://github.com/WordPress/wordpress-sandbox/blob/trunk/docs/using-php-in-the-browser.md) to run WordPress fully in the browser and without a PHP server.
+This package uses [php-wasm](https://github.com/WordPress/wordpress-playground/blob/trunk/docs/using-php-in-javascript.md) and [php-wasm-browser](https://github.com/WordPress/wordpress-playground/blob/trunk/docs/using-php-in-the-browser.md) to run WordPress fully in the browser and without a PHP server.
 
-The `wordpress-sandbox` package consists of:
+The `wordpress-playground` package consists of:
 
--   Embeddable sandbox web page
+-   Embeddable playground web page
 -   WordPress web bundler
 -   WordPress-specific setup for the Worker Thread and the Service Worker
 -   WordPress-specific automations for tasks like signing in or installing plugins
 -   A PHP proxy to download plugins and themes from the WordPress.org directory
 
-## Embeddable sandbox web page
+## Embeddable playground web page
 
 All parts of this repository come together in the `wordpress.html` page where WordPress is loaded and displayed. 
 
-### Embedding WordPress Sandbox on other websites
+### Embedding WordPress Playground on other websites
 
-The public WordPress Sandbox available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as follows:
+The public WordPress Playground available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as follows:
 
 ```html
 <iframe
@@ -38,7 +38,7 @@ Here are all the supported configuration options:
 * `theme=disco` – Installs the specified theme. Use the theme name from the themes directory URL, e.g. for a URL like `https://wordpress.org/themes/disco/`, the theme name would be `disco`. Installing a theme automatically logs the user in as an admin.
 * `rpc=1` – Enables the experimental JavaScript API.
 
-For example, the following code embeds a Sandbox with a preinstalled Gutenberg plugin, and opens the post editor:
+For example, the following code embeds a Playground with a preinstalled Gutenberg plugin, and opens the post editor:
 
 ```html
 <iframe
@@ -47,24 +47,24 @@ For example, the following code embeds a Sandbox with a preinstalled Gutenberg p
 ></iframe>
 ```
 
-### Controlling the embedded WordPress Sandbox via JavaScript API
+### Controlling the embedded WordPress Playground via JavaScript API
 
 **The JavaScript API is an early preview and will likely evolve in the future.**
 
-The embedded Sandbox can be controlled from JavaScript via `window.postMessage` if you used the `rpc=1` option:
+The embedded Playground can be controlled from JavaScript via `window.postMessage` if you used the `rpc=1` option:
 
 ```js
-// Ask the Sandbox whether it has finished booting:
-document.querySelector('#sandbox').contentWindow.postMessage({
+// Ask the Playground whether it has finished booting:
+document.querySelector('#playground').contentWindow.postMessage({
    type: 'is_booted',
    requestId: 1
 }, '*');
 
-// Receive the messages from Sandbox:
+// Receive the messages from Playground:
 function handleResponse(e) {
    if(e.data.type === 'response' && e.data.requestId === 1 && e.data.response === true) {
-      // Navigate to wp-admin if the Sandbox was booted:
-      document.querySelector('#sandbox').contentWindow.postMessage({
+      // Navigate to wp-admin if the Playground was booted:
+      document.querySelector('#playground').contentWindow.postMessage({
          type: 'go_to',
          path: '/wp-admin/index.php',
       }, '*');
@@ -73,11 +73,11 @@ function handleResponse(e) {
 window.addEventListener('message', handleResponse);
 ```
 
-Sandbox accepts messages in format `{ "type": <TYPE>, "requestId": <optional Number>, ...data : <optional Object> }` and sends back messages in the same format. At the moment, you need to implement the protocol on your own as there isn't yet JavaScript library to automate that. This page will be updated as soon as one is released.
+Playground accepts messages in format `{ "type": <TYPE>, "requestId": <optional Number>, ...data : <optional Object> }` and sends back messages in the same format. At the moment, you need to implement the protocol on your own as there isn't yet JavaScript library to automate that. This page will be updated as soon as one is released.
 
-Sandbox understands the following messages:
+Playground understands the following messages:
 
-* `{"type": "is_booted", "requestId": <number>}` – Replies with true if the Sandbox is loaded and ready for messages.
+* `{"type": "is_booted", "requestId": <number>}` – Replies with true if the Playground is loaded and ready for messages.
 * `{"type": "go_to", "path": <string>}` – Navigates to the requested path.
 * `{"type": "rpc", "method": <string>, "args": <string[]>, "requestId": <number>}` – Calls one of the following functions:
   * `run(phpCode: string):` Promise<`{ exitCode: number; stdout: ArrayBuffer; stderr: string[]; }`>
@@ -89,10 +89,10 @@ Sandbox understands the following messages:
   * `listFiles(path: string):` Promise<string[]>
   * `isDir(path: string):` Promise<boolean>
 
-You will receive the following messages from Sandbox:
+You will receive the following messages from Playground:
 
 * `{ "type": "response", "requestId": <number>, "data": <any> }` – A response to the message you sent earlier, identified by a unique requestId .
-* `{ "type": "new_path", "path": <string> }` – Whenever a new page is loaded in the Sandbox.
+* `{ "type": "new_path", "path": <string> }` – Whenever a new page is loaded in the Playground.
 
 
 ## WordPress web bundler
@@ -114,13 +114,13 @@ The command outputs two files:
 * `build/wp.js` – the JavaScript loader for `wp.data`
 * `build/wp.data` – the WordPress data bundle consisting of concatenated contents of all WordPress files
 
-Most of the work is done in the [relevant Dockerfile](https://github.com/WordPress/wordpress-sandbox/blob/trunk/src/wordpress-sandbox/wordpress/Dockerfile) – consult that file for more details. You can also customize the default WordPress installation by modifying that Dockerfile.
+Most of the work is done in the [relevant Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/wordpress/Dockerfile) – consult that file for more details. You can also customize the default WordPress installation by modifying that Dockerfile.
 
 ## WordPress-specific setup for the Worker Thread and the Service Worker.
 
-As seen in the [php-wasm-browser package documentation](https://github.com/WordPress/wordpress-sandbox/blob/trunk/docs/using-php-in-the-browser.md), running PHP in the browser requires a Worker Thread and a Service Worker.
+As seen in the [php-wasm-browser package documentation](https://github.com/WordPress/wordpress-playground/blob/trunk/docs/using-php-in-the-browser.md), running PHP in the browser requires a Worker Thread and a Service Worker.
 
-This package provides both, see [worker-thread.ts](https://github.com/WordPress/wordpress-sandbox/blob/trunk/src/wordpress-sandbox/worker-thread.ts) and [service-worker.ts](https://github.com/WordPress/wordpress-sandbox/blob/trunk/src/wordpress-sandbox/service-worker.ts). The browser expects each to be a separate script so they are not bundled with the main project. Instead, each is its own bundle built into `build/` directory.
+This package provides both, see [worker-thread.ts](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/worker-thread.ts) and [service-worker.ts](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/service-worker.ts). The browser expects each to be a separate script so they are not bundled with the main project. Instead, each is its own bundle built into `build/` directory.
 
 WordPress and PHP are both initialized in the Worker Thread. The main application starts the Worker Thread using the `bootWordPress` function:
 
@@ -158,7 +158,7 @@ For more details, see the `SpawnedWorkerThread` reference manual page and the ar
 
 ### Logging the user in
 
-`wordpress-sandbox` provides helpers to automate common use-cases, like logging the user in:
+`wordpress-playground` provides helpers to automate common use-cases, like logging the user in:
 
 ```js
 import { login } from './macros';
@@ -188,4 +188,4 @@ await installPlugin(workerThread, pluginFile);
 
 ## A PHP proxy to download plugins and themes from the WordPress.org directory
 
-The browser cannot simply download a WordPress theme or plugin zip file from the wordpress.org directory because of the cross-origin request policy restrictions. This package provides a [PHP proxy script](https://github.com/WordPress/wordpress-sandbox/blob/trunk/src/wordpress-sandbox/plugin-proxy.php) that exposes plugins and themes on the same domain where WordPress Sandbox is hosted.
+The browser cannot simply download a WordPress theme or plugin zip file from the wordpress.org directory because of the cross-origin request policy restrictions. This package provides a [PHP proxy script](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/plugin-proxy.php) that exposes plugins and themes on the same domain where WordPress Playground is hosted.
