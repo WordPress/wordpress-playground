@@ -16,9 +16,9 @@
 		 "src/php-wasm-browser/scope.ts",
 		 "src/php-wasm-browser/utils.ts",
 
-		 "src/wordpress-sandbox/service-worker.ts",
-		 "src/wordpress-sandbox/worker-thread.ts",
-		 "src/wordpress-sandbox/worker-utils.ts",
-		 "src/wordpress-sandbox/config.ts"
+		 "src/wordpress-playground/service-worker.ts",
+		 "src/wordpress-playground/worker-thread.ts",
+		 "src/wordpress-playground/worker-utils.ts",
+		 "src/wordpress-playground/config.ts"
  	]
 }
