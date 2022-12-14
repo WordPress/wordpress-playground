@@ -37,7 +37,7 @@ async function main() {
 		setupAddressBar(workerThread);
 	}
 
-	if (query.get('login') || preinstallPlugins.length || preinstallTheme) {
+	if (query.get('login') || preinstallPlugins.length || query.get('theme')) {
 		await login(workerThread, 'admin', 'password');
 	}
 
