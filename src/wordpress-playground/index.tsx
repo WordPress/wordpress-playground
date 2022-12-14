@@ -15,11 +15,10 @@ let isBooted = false;
 
 async function main() {
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
-	let preinstallTheme = toZipName(query.get('theme'));
 	// Don't preinstall the default theme
-	if (preinstallTheme === 'twentytwentythree') {
-		preinstallTheme = null;
-	}
+	const queryTheme =
+		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
+	const preinstallTheme = toZipName(queryTheme);
 
 	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
