@@ -149,6 +149,7 @@ interface WorkerThreadBackend {
 	jsEnv: JavascriptRuntime;
 	setMessageListener(handler: any);
 	postMessageToParent(message: any);
+	getOptions: () => Record<string, string>;
 }
 
 const webBackend: WorkerThreadBackend = {
@@ -166,6 +167,9 @@ const webBackend: WorkerThreadBackend = {
 	postMessageToParent(message) {
 		window.parent.postMessage(message, '*');
 	},
+	getOptions() {
+		return searchParamsToObject(new URL(window.location).searchParams);
+	},
 };
 
 const webWorkerBackend: WorkerThreadBackend = {
@@ -178,7 +182,18 @@ const webWorkerBackend: WorkerThreadBackend = {
 	postMessageToParent(message) {
 		postMessage(message);
 	},
+	getOptions() {
+		return searchParamsToObject(new URL(self.location).searchParams);
+	},
 };
+
+function searchParamsToObject(params: URLSearchParams) {
+	const result: Record<string, string> = {};
+	params.forEach((value, key) => {
+		result[key] = value;
+	});
+	return result;
+}
 
 /**
  * @returns

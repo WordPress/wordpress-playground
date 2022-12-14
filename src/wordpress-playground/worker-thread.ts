@@ -3,8 +3,9 @@ declare const require: any;
 
 import { PHPServer, PHPBrowser } from '../php-wasm';
 import {
-	loadPHPWithProgress,
 	initializeWorkerThread,
+	loadPHPWithProgress,
+	currentBackend,
 	setURLScope,
 } from '../php-wasm-browser/worker-thread/worker-library';
 import { phpJsCacheBuster, wpJsCacheBuster, wordPressSiteUrl } from './config';
@@ -24,7 +25,7 @@ startWordPress().then((browser) =>
 async function startWordPress() {
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 		import(`/php.js?${phpJsCacheBuster}`),
-		import(`/wp.js?${wpJsCacheBuster}`),
+		import(`/${getRequestedDataModule()}?${wpJsCacheBuster}`),
 	]);
 
 	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
@@ -38,6 +39,17 @@ async function startWordPress() {
 	});
 
 	return new PHPBrowser(server);
+}
+
+function getRequestedDataModule() {
+	const allowedWpModules = {
+		vanilla: 'wp.js',
+		test: 'wp-test-content.js',
+		playground: 'wp-playground-default.js',
+	};
+	const requestedModule = currentBackend.getOptions().dataModule;
+
+	return allowedWpModules[requestedModule] || allowedWpModules.playground;
 }
 
 function patchWordPressFiles(php) {

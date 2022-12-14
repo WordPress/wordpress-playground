@@ -17,6 +17,11 @@ interface WorkerThreadConfig {
 	 * A function to call when a download progress event is received from the worker
 	 */
 	onDownloadProgress?: (event: DownloadProgressEvent) => void;
+
+	/**
+	 * A record of options to pass to the worker thread.
+	 */
+	options?: Record<string, string>;
 }
 
 /**
@@ -34,6 +39,16 @@ export async function spawnPHPWorkerThread(
 ): Promise<SpawnedWorkerThread> {
 	const { onDownloadProgress = noop } = config;
 	let messageChannel: WorkerThreadMessageTarget;
+
+	// Pass worker options via the query string
+	if (config.options) {
+		const urlWithOptions = new URL(workerScriptUrl);
+		for (const [key, value] of Object.entries(config.options)) {
+			urlWithOptions.searchParams.set(key, value);
+		}
+		workerScriptUrl = urlWithOptions.toString();
+	}
+
 	if (backendName === 'webworker') {
 		messageChannel = spawnWebWorker(workerScriptUrl);
 	} else if (backendName === 'iframe') {

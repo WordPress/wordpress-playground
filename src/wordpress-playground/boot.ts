@@ -15,7 +15,12 @@ export async function bootWordPress(
 	const workerThread = await spawnPHPWorkerThread(
 		wasmWorkerBackend,
 		wasmWorkerUrl,
-		{ onDownloadProgress: onWasmDownloadProgress }
+		{
+			onDownloadProgress: onWasmDownloadProgress,
+			options: {
+				dataModule: config.dataModule || '',
+			},
+		}
 	);
 	await registerServiceWorker(serviceWorkerUrl);
 	return workerThread;
@@ -23,6 +28,7 @@ export async function bootWordPress(
 
 export interface BootConfiguration {
 	onWasmDownloadProgress: DownloadProgressCallback;
+	dataModule?: string;
 }
 
 /**
