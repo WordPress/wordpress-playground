@@ -200,7 +200,9 @@ interface WorkerThreadMessageTarget {
 }
 
 function spawnWebWorker(workerURL: string): WorkerThreadMessageTarget {
-	const worker = new Worker(workerURL);
+	const worker = new Worker(workerURL, {
+		type: 'module',
+	});
 	return {
 		async sendMessage(message: any, timeout: number) {
 			const requestId = postMessageExpectReply(worker, message);
