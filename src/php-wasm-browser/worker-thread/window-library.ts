@@ -125,6 +125,7 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  code
 	 * @see {PHP.run}
 	 */
 	async run(code: string): Promise<PHPOutput> {
@@ -132,19 +133,25 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  request
 	 * @see {PHP.request}
 	 */
-	async HTTPRequest(request: PHPRequest): Promise<PHPResponse & { text: string }> {
-		const response = await this.#rpc('HTTPRequest', { request }) as PHPResponse;
+	async HTTPRequest(
+		request: PHPRequest
+	): Promise<PHPResponse & { text: string }> {
+		const response = (await this.#rpc('HTTPRequest', {
+			request,
+		})) as PHPResponse;
 		return {
 			...response,
 			get text() {
 				return new TextDecoder().decode(response.body);
-			}
-		}
+			},
+		};
 	}
 
 	/**
+	 * @param  path
 	 * @see {PHP.readFile}
 	 */
 	async readFile(path: string): Promise<string> {
@@ -152,6 +159,8 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  path
+	 * @param  contents
 	 * @see {PHP.writeFile}
 	 */
 	async writeFile(path: string, contents: string): Promise<void> {
@@ -159,6 +168,7 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  path
 	 * @see {PHP.unlink}
 	 */
 	async unlink(path: string): Promise<void> {
@@ -166,6 +176,7 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  path
 	 * @see {PHP.mkdirTree}
 	 */
 	async mkdirTree(path: string): Promise<void> {
@@ -173,6 +184,7 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  path
 	 * @see {PHP.listFiles}
 	 */
 	async listFiles(path: string): Promise<string[]> {
@@ -180,6 +192,7 @@ export class SpawnedWorkerThread {
 	}
 
 	/**
+	 * @param  path
 	 * @see {PHP.isDir}
 	 */
 	async isDir(path: string): Promise<boolean> {
