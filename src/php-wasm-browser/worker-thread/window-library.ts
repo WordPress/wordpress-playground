@@ -94,7 +94,7 @@ export async function spawnPHPWorkerThread(
 			const result = await messageChannel.sendMessage(event.data);
 			// The service worker expects a response when it includes a `requestId` in the message:
 			if (event.data.requestId) {
-				event.source.postMessage(
+				event.source!.postMessage(
 					responseTo(event.data.requestId, result)
 				);
 			}
