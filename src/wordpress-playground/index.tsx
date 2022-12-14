@@ -30,7 +30,7 @@ async function main() {
 			bootProgress,
 			'Preparing WordPress...'
 		),
-		dataModule: query.get('dataset') || 'playground',
+		dataModule: query.get('dataset') || 'vanilla',
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
