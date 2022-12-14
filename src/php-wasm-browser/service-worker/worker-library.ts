@@ -152,7 +152,13 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
  */
 async function broadcastMessageExpectReply(message) {
 	const requestId = getNextRequestId();
-	for (const client of await self.clients.matchAll()) {
+	for (const client of await self.clients.matchAll({
+		// Sometimes the client that triggered the current fetch()
+		// event is considered uncontrolled in Google Chrome. This
+		// only happens on the first few fetches() after the initial
+		// registration of the service worker.
+		includeUncontrolled: true,
+	})) {
 		client.postMessage({
 			...message,
 			requestId,
