@@ -183,7 +183,7 @@ const webWorkerBackend: WorkerThreadBackend = {
 		postMessage(message);
 	},
 	getOptions() {
-		return searchParamsToObject(new URL(self.location).searchParams);
+		return searchParamsToObject(new URL(self.location.href).searchParams);
 	},
 };
 
