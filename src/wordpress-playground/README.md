@@ -18,7 +18,7 @@ All parts of this repository come together in the `wordpress.html` page where Wo
 
 ### Embedding WordPress Playground on other websites
 
-The public WordPress Playground available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as follows:
+The latest build available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as below. **Remember this is an experimental software that may break or change without a warning.**
 
 ```html
 <iframe

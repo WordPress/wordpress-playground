@@ -11,6 +11,8 @@ Try out the [WordPress Playground demo](https://developer.wordpress.org/playgrou
 
 ## Getting started
 
+**This is an experimental project – it might break or change without a warning.**
+
 You can bring WordPress Playground to your project in a few different ways:
 
 * Embed WordPress Playground on your website via an iframe
@@ -21,7 +23,7 @@ You can bring WordPress Playground to your project in a few different ways:
 
 <!-- include /docs/using-wordpress-in-the-browser.md#Embedding WordPress Playground on other websites -->
 
-The public WordPress Playground available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as follows:
+The latest build available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as below. **Remember this is an experimental software that may break or change without a warning.**
 
 ```html
 <iframe

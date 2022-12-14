@@ -19,7 +19,7 @@ All parts of this repository come together in the `wordpress.html` page where Wo
 
 ### Embedding WordPress Playground on other websites
 
-The public WordPress Playground available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as follows:
+The latest build available at [https://wasm.wordpress.net/wordpress.html](https://wasm.wordpress.net/wordpress.html) may be embedded on other websites via the `<iframe>` HTML tag as below. **Remember this is an experimental software that may break or change without a warning.**
 
 ```html
 <iframe
@@ -28,15 +28,15 @@ The public WordPress Playground available at [https://wasm.wordpress.net/wordpre
 ></iframe>
 ```
 
-Notice how the URL says mode=seamless. This is a configuration option that turns off the "browser UI" and gives WordPress the entire available space.
+Notice how the URL says `mode=seamless`. This is a configuration option that turns off the "browser UI" and gives WordPress the entire available space.
 
-The other supported configuration options are:
+Here are all the supported configuration options:
 
 * `mode=seamless` or `mode=browser` – Displays WordPress on a full-page or wraps it in a browser UI
 * `login=1` – Logs the user in as an admin.
 * `page=/wp-admin/` – Load the specified initial page displaying WordPress
-* `plugin=coblocks` – Installs the specified plugin. Use the plugin name from the plugins directory URL, e.g. https://wordpress.org/plugins/wp-lazy-loading/ -> wp-lazy-loading. You can pre-install multiple plugins by saying plugin=coblocks&plugin=wp-lazy-loading&… . Installing a plugin automatically logs the user in as an admin.
-* `theme=disco` – Installs the specified theme. Use the theme name from the themes directory URL, e.g. https://wordpress.org/themes/disco/ -> disco. Installing a theme automatically logs the user in as an admin.
+* `plugin=coblocks` – Installs the specified plugin. Use the plugin name from the plugins directory URL, e.g. for a URL like `https://wordpress.org/plugins/wp-lazy-loading/`, the plugin name would be `wp-lazy-loading`. You can pre-install multiple plugins by saying `plugin=coblocks&plugin=wp-lazy-loading&…`. Installing a plugin automatically logs the user in as an admin.
+* `theme=disco` – Installs the specified theme. Use the theme name from the themes directory URL, e.g. for a URL like `https://wordpress.org/themes/disco/`, the theme name would be `disco`. Installing a theme automatically logs the user in as an admin.
 * `rpc=1` – Enables the experimental JavaScript API.
 
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin, and opens the post editor:
