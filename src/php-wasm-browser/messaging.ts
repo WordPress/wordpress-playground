@@ -53,7 +53,7 @@ export function postMessageExpectReply(
 	message: Record<string, any>,
 	...postMessageArgs: any[]
 ): number {
-	const requestId = ++lastRequestId;
+	const requestId = getNextRequestId();
 	target.postMessage(
 		{
 			...message,
@@ -62,6 +62,10 @@ export function postMessageExpectReply(
 		...postMessageArgs
 	);
 	return requestId;
+}
+
+export function getNextRequestId() {
+	return ++lastRequestId;
 }
 
 /**

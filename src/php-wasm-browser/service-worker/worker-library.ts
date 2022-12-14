@@ -4,7 +4,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { postMessageExpectReply, awaitReply } from '../messaging';
+import { awaitReply, getNextRequestId } from '../messaging';
 import { getURLScope, isURLScoped, removeURLScope } from '../scope';
 import { getPathQueryFragment } from '../utils';
 
@@ -21,8 +21,6 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			unscopedUrl: URL
 		) => seemsLikeAPHPServerPath(unscopedUrl.pathname),
 	} = config;
-	const broadcastChannel =
-		config.broadcastChannel || new BroadcastChannel('php-wasm-browser');
 
 	/**
 	 * Ensure the client gets claimed by this service worker right after the registration.
@@ -93,7 +91,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 						/**
 						 * Detect scoped requests – their url starts with `/scope:`
 						 *
-						 * We need this mechanics because BroadcastChannel transmits
+						 * We need this mechanics because this worker broadcasts
 						 * events to all the listeners across all browser tabs. Scopes
 						 * helps WASM workers ignore requests meant for other WASM workers.
 						 */
@@ -110,11 +108,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 						'[ServiceWorker] Forwarding a request to the Worker Thread',
 						{ message }
 					);
-					const requestId = postMessageExpectReply(
-						broadcastChannel,
+					const requestId = await broadcastMessageExpectReply(
 						message
 					);
-					phpResponse = await awaitReply(broadcastChannel, requestId);
+					phpResponse = await awaitReply(self, requestId);
 					console.debug(
 						'[ServiceWorker] Response received from the main app',
 						{ phpResponse }
@@ -135,8 +132,36 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	});
 }
 
+/**
+ * Sends the message to all the controlled clients
+ * of this service worker.
+ *
+ * This used to be implemented with a BroadcastChannel, but
+ * it didn't work in Safari. BroadcastChannel breaks iframe
+ * embedding the playground in Safari.
+ *
+ * Weirdly, Safari does not pass any messages from the ServiceWorker
+ * to Window if the page is rendered inside an iframe. Window to Service
+ * Worker communication works just fine.
+ *
+ * The regular client.postMessage() communication works perfectly, so that's
+ * what this function uses to broadcast the message.
+ *
+ * @param  message The message to broadcast.
+ * @returns The request ID to receive the reply.
+ */
+async function broadcastMessageExpectReply(message) {
+	const requestId = getNextRequestId();
+	for (const client of await self.clients.matchAll()) {
+		client.postMessage({
+			...message,
+			requestId,
+		});
+	}
+	return requestId;
+}
+
 interface ServiceWorkerConfiguration {
-	broadcastChannel?: BroadcastChannel;
 	shouldForwardRequestToPHPServer?: (
 		request: Request,
 		unscopedUrl: URL

@@ -1,8 +1,8 @@
 /**
  * Scopes are unique strings, like `96253`, used to uniquely brand
  * the outgoing HTTP traffic from each browser tab. This helps the
- * main thread distinguish between the relevant and irrelevant BroadcastChannel
- * messages from the Service Worker.
+ * main thread distinguish between the relevant and irrelevant 
+ * messages received from the Service Worker.
  *
  * Scopes are included in the `PHPServer.absoluteUrl` as follows:
  *

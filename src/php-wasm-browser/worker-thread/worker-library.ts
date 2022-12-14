@@ -134,11 +134,6 @@ interface WorkerThreadConfiguration {
 	 * The PHP browser instance to use.
 	 */
 	phpBrowser?: PHPBrowser;
-	/**
-	 * The broadcast channel to use for communication
-	 *  with the service worker.
-	 */
-	broadcastChannel?: BroadcastChannel;
 }
 
 async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {

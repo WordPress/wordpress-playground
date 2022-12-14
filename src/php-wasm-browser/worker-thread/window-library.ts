@@ -61,17 +61,16 @@ export async function spawnPHPWorkerThread(
 
 	// Proxy the service worker messages to the worker thread:
 	const scope = await messageChannel.sendMessage({ type: 'getScope' }, 50);
-	const broadcastChannel = new BroadcastChannel('php-wasm-browser');
-	broadcastChannel.addEventListener(
+	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.debug('broadcastChannel message', event);
+			console.debug('Message from ServiceWorker', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
 			 *
-			 * This is important because BroadcastChannel transmits
-			 * events to all the listeners across all browser tabs.
+			 * This is important because the service worker posts the
+			 * same message to all application instances across all browser tabs.
 			 */
 			if (scope && event.data.scope !== scope) {
 				return;
@@ -80,7 +79,7 @@ export async function spawnPHPWorkerThread(
 			const result = await messageChannel.sendMessage(event.data);
 			// The service worker expects a response when it includes a `requestId` in the message:
 			if (event.data.requestId) {
-				broadcastChannel.postMessage(
+				event.source.postMessage(
 					responseTo(event.data.requestId, result)
 				);
 			}
