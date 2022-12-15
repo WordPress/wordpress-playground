@@ -8,9 +8,5 @@ interface WorkerThreadConfiguration
 ```
 ## Properties
 
-* `broadcastChannel`    [BroadcastChannel](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) – <b>(Optional)</b> The broadcast channel to use for communication
-with the service worker.
-
-
 * `phpBrowser`    [PHPBrowser](./php-wasm.phpbrowser.md) – <b>(Optional)</b> The PHP browser instance to use.
 

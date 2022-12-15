@@ -7,5 +7,6 @@
 run(code: string): Promise<PHPOutput>;
 ```
 
+* `code` – 
 
 

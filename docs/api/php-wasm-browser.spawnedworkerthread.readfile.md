@@ -7,5 +7,6 @@
 readFile(path: string): Promise<string>;
 ```
 
+* `path` – 
 
 

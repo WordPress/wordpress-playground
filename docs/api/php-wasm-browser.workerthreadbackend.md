@@ -8,6 +8,7 @@ interface WorkerThreadBackend
 ```
 ## Properties
 
+* `getOptions`    (<!-- -->)<!-- -->=&gt;[Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->,[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
 * `jsEnv`    [JavascriptRuntime](./php-wasm.javascriptruntime.md)
 
 ## Methods

@@ -7,5 +7,6 @@
 mkdirTree(path: string): Promise<void>;
 ```
 
+* `path` – 
 
 

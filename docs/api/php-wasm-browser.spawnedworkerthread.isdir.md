@@ -7,5 +7,6 @@
 isDir(path: string): Promise<boolean>;
 ```
 
+* `path` – 
 
 

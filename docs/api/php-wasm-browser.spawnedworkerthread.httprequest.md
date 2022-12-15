@@ -9,5 +9,6 @@ HTTPRequest(request: PHPRequest): Promise<PHPResponse & {
     }>;
 ```
 
+* `request` – 
 
 

@@ -7,5 +7,6 @@
 listFiles(path: string): Promise<string[]>;
 ```
 
+* `path` – 
 
 

@@ -7,5 +7,7 @@
 writeFile(path: string, contents: string): Promise<void>;
 ```
 
+* `path` – 
+* `contents` – 
 
 

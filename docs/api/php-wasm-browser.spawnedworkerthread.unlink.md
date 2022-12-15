@@ -7,5 +7,6 @@
 unlink(path: string): Promise<void>;
 ```
 
+* `path` – 
 
 
