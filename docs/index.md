@@ -2,9 +2,9 @@
 
 WordPress Playground is a WordPress running in the browser without a PHP server.
 
-[Try the demo](https://developer.wordpress.org/playground/demo/) to experiment with an anonymous WordPress website where you can test-drive plugins and themes.
-
 ## Getting started
+
+[Try the demo](https://developer.wordpress.org/playground/demo/) to experiment with an anonymous WordPress website where you can test-drive plugins and themes.
 
 ### Embedding the WordPress Playground demo
 
