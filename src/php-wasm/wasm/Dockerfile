@@ -1,3 +1,5 @@
+# Originally forked from https://github.com/seanmorris/php-wasm
+
 FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
 # The PHP version to build.
