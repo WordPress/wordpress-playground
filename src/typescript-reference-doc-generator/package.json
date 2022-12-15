@@ -10,11 +10,11 @@
 		"wasm",
 		"WebAssembly"
 	],
-	"homepage": "https://github.com/WordPress/wordpress-playground/tree/HEAD/packages/wordpress-playground",
+	"homepage": "https://github.com/WordPress/wordpress-playground",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground.git",
-		"directory": "packages/typescript-reference-doc-generator"
+		"directory": "src/typescript-reference-doc-generator"
 	},
 	"bugs": {
 		"url": "https://github.com/WordPress/wordpress-playground/issues"

@@ -71,12 +71,8 @@ async function main() {
 			SERVICE_WORKER_URL: JSON.stringify(serviceWorkerUrl),
 			WASM_WORKER_THREAD_SCRIPT_URL: JSON.stringify(workerThreadScript),
 			WASM_WORKER_BACKEND: JSON.stringify(wasmWorkerBackend),
-			WP_JS_HASH: JSON.stringify(
-				hashFiles([`packages/wordpress-playground/build-wp/wp.js`])
-			),
-			PHP_JS_HASH: JSON.stringify(
-				hashFiles([`packages/php-wasm/build-wasm/php.js`])
-			),
+			WP_JS_HASH: JSON.stringify(hashFiles([`build/wp.js`])),
+			PHP_JS_HASH: JSON.stringify(hashFiles([`build/php.js`])),
 		},
 		entryPoints: {
 			'worker-thread': 'src/wordpress-playground/worker-thread.ts',
