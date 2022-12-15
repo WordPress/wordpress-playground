@@ -36,14 +36,16 @@ A browser should open and take you to your very own WordPress Playground at `htt
 
 ## Architecture overview
 
-![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/architecture-overview.png)
+Here's a high-level breakdown of how WordPress Playground works:
 
-In broad strokes:
-
-* `wordpress.html` starts the Worker Thread and a ServiceWorker
-* The Worker Thread starts PHP and populates the filesystem with WordPress files
+* `wordpress.html` starts a Worker Thread and a ServiceWorker
+* The Worker Thread starts PHP and populates the filesystem with a WordPress patched to run on SQLite
 * The ServiceWorker starts intercepting all HTTP requests and forwarding them to the Worker Thread
 * `wordpress.html` creates an `<iframe src="/index.php">` where the WordPress homepage is rendered
+
+Visually, it looks like this:
+
+![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/architecture-overview.png)
 
 ## Next steps
 
