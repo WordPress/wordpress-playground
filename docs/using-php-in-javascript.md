@@ -13,8 +13,8 @@ console.log(php.run(`<?php echo "Hello from PHP!";`).stdout);
 
 It consists of two major building blocks:
 
--   [PHP to WebAssembly build pipeline](#PHP to WebAssembly build pipeline)
--   [JavaScript bindings for the WebAssembly PHP](#JavaScript bindings for the WebAssembly PHP)
+-   [PHP to WebAssembly build pipeline](#php-to-webassembly-build-pipeline)
+-   [JavaScript bindings for the WebAssembly PHP](#javascript-bindings-for-the-webassembly-php)
 
 See also the [API Reference](api/php-wasm.md).
 

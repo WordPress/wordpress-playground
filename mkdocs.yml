@@ -6,14 +6,15 @@ repo_url: https://github.com/WordPress/wordpress-playground
 edit_uri: blob/trunk/docs/
 
 nav:
-    - Overview: index.md
-    - WordPress in the browser: using-wordpress-in-the-browser.md
-    - PHP in the browser: using-php-in-the-browser.md
-    - PHP in Javascript: using-php-in-javascript.md
-    - API Reference:
-          - php-wasm Reference: api/php-wasm.md
-          - php-wasm-browser Reference: api/php-wasm-browser.md
-          - wordpress-playground Reference: api/wordpress-playground.md
+    - Getting Started: index.md
+    - Compiling PHP to WebAssembly and using it in JavaScript: using-php-in-javascript.md
+    - Running PHP apps in the browser with ServiceWorkers and Worker Threads: using-php-in-the-browser.md
+    - Bundling WordPress for the browser: bundling-wordpress-for-the-browser.md
+    - Running WordPress in the browser: running-wordpress-in-the-browser.md
+    - Embedding WordPress Playground on other websites: embedding-wordpress-playground-on-other-websites.md
+    - Implementing a live WordPress code editor: wordpress-plugin-ide.md
+    - API Reference: api/index.md
+
 
 # markdown_extensions:
 #     - meta

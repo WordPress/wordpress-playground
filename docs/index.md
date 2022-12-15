@@ -36,7 +36,7 @@ A browser should open and take you to your very own WordPress Playground at `htt
 
 ## Architecture overview
 
-![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/boot-sequence.png)
+![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/architecture-overview.png)
 
 In broad strokes:
 

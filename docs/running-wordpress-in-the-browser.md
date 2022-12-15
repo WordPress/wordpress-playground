@@ -1,6 +1,6 @@
 # Running WordPress in the browser
 
-WordPress runs using the framework described in [running PHP apps in the browser](./using-php-in-the-browser.md). See also the [API Reference](api/wordpress-playground.md).
+WordPress runs using the framework described in [running PHP apps in the browser](./using-php-in-the-browser.md).
 
 ## WordPress-specific Worker Thread and ServiceWorker setup
 
