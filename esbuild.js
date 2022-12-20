@@ -72,7 +72,7 @@ async function main() {
 			WASM_WORKER_THREAD_SCRIPT_URL: JSON.stringify(workerThreadScript),
 			WASM_WORKER_BACKEND: JSON.stringify(wasmWorkerBackend),
 			WP_JS_HASH: JSON.stringify(hashFiles([`build/wp.js`])),
-			PHP_JS_HASH: JSON.stringify(hashFiles([`build/php.js`])),
+			PHP_JS_HASH: JSON.stringify(hashFiles(glob.sync('build/php-*.js'))),
 		},
 		entryPoints: {
 			'worker-thread': 'src/wordpress-playground/worker-thread.ts',

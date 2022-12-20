@@ -19,12 +19,15 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-// The final linking step weirdly won't work without these includes:
 #include "sqlite3.h"
 #include "sqlite3.c"
+#if PHP_MAJOR_VERSION >= 8
+// In PHP 8 the final linking step won't
+// work without these includes:
 #include "sqlite_driver.c"
 #include "sqlite_statement.c"
 #include "pdo_sqlite.c"
+#endif
 
 /*
  * Function: redirect_stream_to_file

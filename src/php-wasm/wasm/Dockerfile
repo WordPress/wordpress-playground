@@ -111,14 +111,13 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
     fi
 
 # Get and patch PHP
-# It says php7.4 but it also works with php8
 COPY ./build-assets/php7.4.patch /root/
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
-    --depth 1 \
-    && git apply --no-index /root/php7.4.patch \
-    && mkdir -p php-src/preload/Zend \
+    --depth 1;
+RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
+    mkdir -p php-src/preload/Zend \
     && cp php-src/Zend/bench.php php-src/preload/Zend \
     && touch php-src/patched
 
@@ -147,9 +146,20 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-
 RUN cd php-src/ && emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+    # Fibers are a PHP 8.1+ feature. They are compiled as 
+    # a custom assembly implementation by default. However,
+    # that implementation does not work with emscripten.
+    #
+    # The line below disables it, forcing PHP to use the
+    # C implementation instead.
+    #
+    # See https://github.com/WordPress/wordpress-playground/issues/92
+    # for more context.
+    --disable-fiber-asm \
+    # --enable-json for PHP < 8.0:
+    --enable-json      \
     --enable-embed=static \
     --with-layout=GNU  \
     --disable-cgi      \
@@ -168,7 +178,7 @@ RUN cd php-src/ && emconfigure ./configure \
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
-    --enable-mbstring  \
+    --disable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
     $(cat /root/.php-configure-flags)
@@ -186,6 +196,7 @@ RUN cd php-src/ && \
     -I .     \
     -I ext   \
     -I ext/pdo_sqlite   \
+    -I ext/json   \
     -I Zend  \
     -I main  \
     -I TSRM/ \
@@ -200,9 +211,11 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT=".node.js"; \
+    else export EXT=".js"; fi; \
+    export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     emcc -O3 \
-    -o /root/output/php.js \
+    -o /root/output/php-${PHP_VERSION:0:3}$EXT \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
