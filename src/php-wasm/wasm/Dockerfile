@@ -111,7 +111,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
     fi
 
 # Get and patch PHP
-COPY ./build-assets/php7.4.patch /root/
+COPY ./build-assets/php*.patch /root/
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
@@ -211,11 +211,9 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT=".node.js"; \
-    else export EXT=".js"; fi; \
-    export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     emcc -O3 \
-    -o /root/output/php-${PHP_VERSION:0:3}$EXT \
+    -o /root/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
@@ -231,39 +229,66 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT=".node.js"; \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'"
 
-COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
-
-# On the web, it's useful to add a "cache busting" query string to the .wasm file URL.
-# This tells web browsers it's a new file and they should reload it.
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
-        export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
+# Postprocess the build php.js module:
+# ## Wrap it in an ES module with proper `export` statements.
+# - Export the PHPLoader object as the default export.
+# - Export the cache buster string.
+# - Export the .wasm filename
+# - Rename the output files to reflect the build configuration, e.g. `php-7.4.node.js` or `php-8.0.js`
+RUN \
+    # Figure out the target file names and URLs
+        # The goal:
+            # The .js and .wasm filenames should reflect the build configuration, e.g.:
+            # * `php-7.4.node.js` and `php-7.4.node.wasm`
+            # * `php-8.0.js` and `php-8.0.wasm`
+            # In addition, the `.wasm` file URL should have a "cache busting" query string on the
+            # web, so that web browsers will reload it when the file contents change.
+        # Precompute export variables:
+        export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
+        export FILENAME_PREFIX="php-${PHP_VERSION:0:3}"; \
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT_PREFIX=".node"; \
+        else export EXT_PREFIX=""; fi; \
+        export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
+        export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
+        # Handle cache busting:
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
+            export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
+            export WASM_URL="$WASM_FILENAME?$CACHE_BUSTER"; \
+        else \
+            export WASM_URL="$WASM_FILENAME"; \
+        fi; \
+    # Preprocess the php.js file
+        # php.js relies on a hardcoded "php.wasm" filename. Let's make it
+        # rely on a `dependencyFilename` variable instead.
         cat /root/output/php.js \
-        | sed "s#php\.wasm#/php.wasm?$CACHE_BUSTER#g" \
-        > /tmp/php.js && \
-    mv /tmp/php.js /root/output/php.js; \
-    fi;
+            | sed 's#"php\.wasm"#dependencyFilename#g' \
+            > /tmp/php.js && \
+        mv /tmp/php.js /root/output/php.js && \
+        # Replace the hardcoded ENVIRONMENT variable with a dynamic computation.
+            # The JavaScript code of the web loader and web worker loader is identical,
+            # but Emscripten forces running different code paths by setting
+            #
+            # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
+            #
+            # This project supports both environments and would have to maintain two
+            # separate copies of the code. Instead, we use a dynamic computation of the
+            # environment, based on the `Env` variable, which is an argument to the
+            # wrapper function.
+            cat /root/output/php.js \
+                | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
+                > /tmp/php.js && \
+            mv /tmp/php.js /root/output/php.js && \
+    # Turn the php.js file into an ES module
+        # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
+        # which pollutes the global namespace and does not play well with import() mechanics.
+        echo "export const dependenciesTotalSize = $FILE_SIZE; export const dependencyFilename = '$WASM_URL'; export default function(Env, PHPLoader) {" >> /root/output/php-module.js && \
+        cat /root/output/php.js >> /root/output/php-module.js && \
+        echo " return PHPLoader; }" >> /root/output/php-module.js && \
+        \
+        # Remove the old php.js file
+        rm /root/output/php.js && \
+        \
+        # Rename the build files to their final names
+        mv /root/output/php-module.js "/root/output/$JS_FILENAME" && \
+        mv /root/output/php.wasm "/root/output/$WASM_FILENAME"
 
-# The hardcoded ENVIRONMENT variable isn't very useful.
-# For example, the web and worker loaders only differ by a boolean flag.
-# Let's make it customizable via the wrapper args (see esm-prefix.js).
-RUN cat /root/output/php.js \
-        | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
-        > /tmp/php.js && \
-    mv /tmp/php.js /root/output/php.js;
-
-# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
-# See esm-prefix.js for more details.
-
-# First, Populate the php.js module exports:
-# * Total size of the loaded dependencies – useful for progress bars.
-RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
-    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
-
-# * Filename of the main dependency
-RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_FILENAME#'php.wasm'#g" > /root/esm-prefix.js
-
-# Then, produce the final module:
-RUN mv /root/output/php.js /root/output/php.js.tmp && \
-    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js
