@@ -64,8 +64,8 @@ RUN cp -r wordpress wordpress-static && \
 # See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 
 RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
-    gsed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
-    gsed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
+    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
+    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
 
 # Move the static files to the final output directory
 RUN mv wordpress-static/* /root/output
