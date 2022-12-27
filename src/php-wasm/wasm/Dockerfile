@@ -9,15 +9,11 @@ SHELL ["/bin/bash", "-c"]
 # For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION=8.0.24
-ENV PHP_VERSION ${PHP_VERSION}
 
 # The PHP extensions to build:
 ARG WITH_VRZNO=yes
-ENV WITH_VRZNO ${WITH_VRZNO}
 ARG WITH_LIBXML=no
-ENV WITH_LIBXML ${WITH_LIBXML}
 ARG WITH_LIBZIP=yes
-ENV WITH_LIBZIP ${WITH_LIBZIP}
 
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
@@ -62,6 +58,7 @@ RUN touch /root/.configure-flags && \
     touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
 
 # Add Libxml2 if needed
+ENV WITH_LIBXML ${WITH_LIBXML}
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
@@ -82,6 +79,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 
 # Add gzip and libzip if needed
 COPY ./build-assets/zlib /root/zlib
+ENV WITH_LIBZIP ${WITH_LIBZIP}
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         cd /root/zlib && \
         emconfigure ./configure --prefix=/root/lib && \
@@ -111,6 +109,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
     fi
 
 # Get and patch PHP
+ENV PHP_VERSION ${PHP_VERSION}
 COPY ./build-assets/php*.patch /root/
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
@@ -133,6 +132,7 @@ RUN set -euxo pipefail;\
     cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
 
 # Add VRZNO if needed
+ENV WITH_VRZNO ${WITH_VRZNO}
 RUN if [ "$WITH_VRZNO" = "yes" ]; \
     then \
         git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
@@ -190,8 +190,18 @@ RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
-# Build the higher-level PHP bindings
-RUN cd php-src/ && \
+# Add nodefs when requested
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
+    fi
+RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; do \
+    echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
+    fi
+
+# Build the final .wasm file
+RUN mkdir /root/output
+RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    cd php-src/ && \
     emcc -O3 \
     -I .     \
     -I ext   \
@@ -201,18 +211,6 @@ RUN cd php-src/ && \
     -I main  \
     -I TSRM/ \
     $(cat /root/.emcc-php-wasm-flags) \
-    /root/php_wasm.c \
-    -c -o /root/lib/php_wasm.o 
-
-# Add nodefs when requested
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
-    fi
-
-# Build the final .wasm file
-RUN mkdir /root/output
-RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
-    emcc -O3 \
     -o /root/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
@@ -222,7 +220,7 @@ RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_conte
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \
-        /root/lib/php_wasm.o \
+        /root/php_wasm.c \
         $(cat /root/.emcc-php-wasm-sources) \
     $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
