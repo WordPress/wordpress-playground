@@ -43,6 +43,7 @@ async function startWordPress() {
 
 function getRequestedPHPModule() {
 	const phpVersions = {
+		"5.6": 'php-5.6.js',
 		"7.4": 'php-7.4.js',
 		"8.0": 'php-8.0.js',
 		"8.1": 'php-8.1.js',

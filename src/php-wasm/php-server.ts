@@ -182,7 +182,7 @@ export class PHPServer {
 			 * Populate the superglobal variables so the requested file
 			 * can read them.
 			 */
-			$request = (object) json_decode(<<<'REQUEST'
+			$request = (object) json_decode(<<<REQUEST
 				${JSON.stringify({
 					path: request.path,
 					method: request.method || 'GET',
@@ -193,9 +193,8 @@ export class PHPServer {
 					_COOKIE: request._COOKIE || {},
 					_SESSION: {},
 				})}
-REQUEST,
-        JSON_OBJECT_AS_ARRAY
-      );
+REQUEST
+       		, JSON_OBJECT_AS_ARRAY );
 
 			parse_str(substr($request->queryString, 1), $_GET);
 

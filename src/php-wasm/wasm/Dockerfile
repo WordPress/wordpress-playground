@@ -1,6 +1,6 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
+FROM ubuntu:lunar
 
-FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -34,22 +34,42 @@ RUN mkdir lib
 
 RUN set -euxo pipefail;\
     apt-get update; \
-    emsdk install latest; \
     apt-get --no-install-recommends -y install \
     build-essential \
-    automake-1.15 \
+    automake \
     autoconf \
     libxml2-dev \
     libtool \
     pkgconf \
-    bison \
     flex \
     make \
     re2c \
     gdb \
     git \
     pv \
-    ca-certificates
+    ca-certificates \
+    curl \
+    wget \
+    unzip \
+    cmake \
+    python3
+
+COPY ./build-assets/bison27.patch /root/bison27.patch
+RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+    tar -xvf bison-2.7.tar.gz && \
+    rm bison-2.7.tar.gz && \
+    cd bison-2.7 && \
+    git apply --no-index /root/bison27.patch && \
+    ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
+    make && \
+    make install && \
+    ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+    ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN git clone https://github.com/emscripten-core/emsdk.git && \
+    ./emsdk/emsdk install latest && \
+    /root/emsdk/emsdk activate latest
 
 RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
@@ -61,6 +81,7 @@ RUN touch /root/.configure-flags && \
 ENV WITH_LIBXML ${WITH_LIBXML}
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
+        source /root/emsdk/emsdk_env.sh && \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
             --branch v2.9.10 \
             --single-branch     \
@@ -81,6 +102,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 COPY ./build-assets/zlib /root/zlib
 ENV WITH_LIBZIP ${WITH_LIBZIP}
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        source /root/emsdk/emsdk_env.sh && \
         cd /root/zlib && \
         emconfigure ./configure --prefix=/root/lib && \
         # emmake make fails after it built the library files – let's ignore the errors \
@@ -97,7 +119,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             -DCMAKE_INSTALL_PREFIX=/root/lib \
             -DZLIB_LIBRARY=/root/lib/lib/libz.a \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
-            --prefix=/root/lib/ .. && \
+            .. && \
         emmake make && \
         emmake make install; \
     fi
@@ -110,11 +132,11 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 
 # Get and patch PHP
 ENV PHP_VERSION ${PHP_VERSION}
-COPY ./build-assets/php*.patch /root/
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
     --depth 1;
+COPY ./build-assets/php*.patch /root/
 RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
     mkdir -p php-src/preload/Zend \
     && cp php-src/Zend/bench.php php-src/preload/Zend \
@@ -146,7 +168,9 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-RUN cd php-src/ && emconfigure ./configure \
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd php-src/ && \
+    emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     # Fibers are a PHP 8.1+ feature. They are compiled as 
     # a custom assembly implementation by default. However,
@@ -183,7 +207,13 @@ RUN cd php-src/ && emconfigure ./configure \
     --enable-tokenizer \
     $(cat /root/.php-configure-flags)
 
-RUN cd php-src/ && emmake make -j8
+RUN if [ "${PHP_VERSION:0:1}" -lte "7"] && [ "${PHP_VERSION:2:3}" -lte "3"]; then \
+        echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \\
+    fi
+
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd php-src/ && \
+    emmake make -j8
 
 RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
@@ -194,13 +224,14 @@ COPY ./build-assets/php_wasm.c /root/
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
     fi
-RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; do \
+RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
     echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN source /root/emsdk/emsdk_env.sh && \
+    export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     cd php-src/ && \
     emcc -O3 \
     -I .     \
