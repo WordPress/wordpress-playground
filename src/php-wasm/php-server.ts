@@ -240,7 +240,8 @@ REQUEST
 			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
 			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
 			chdir($docroot);
-			
+			fwrite($stdErr, json_encode(['c', 'd']) . "\n");
+
 			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
 		`);
 

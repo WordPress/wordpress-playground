@@ -9,11 +9,17 @@ SHELL ["/bin/bash", "-c"]
 # For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION=8.0.24
+ENV PHP_VERSION ${PHP_VERSION}
 
 # The PHP extensions to build:
 ARG WITH_VRZNO=yes
+ENV WITH_VRZNO ${WITH_VRZNO}
+
 ARG WITH_LIBXML=no
+ENV WITH_LIBXML ${WITH_LIBXML}
+
 ARG WITH_LIBZIP=yes
+ENV WITH_LIBZIP ${WITH_LIBZIP}
 
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
@@ -24,7 +30,6 @@ ENV WITH_NODEFS ${WITH_NODEFS}
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
 ENV EMSCRIPTEN_ENVIRONMENT ${EMSCRIPTEN_ENVIRONMENT}
-
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
@@ -54,6 +59,7 @@ RUN set -euxo pipefail;\
     cmake \
     python3
 
+# Compile Bison 2.7 – it's required for PHP <= 7.3
 COPY ./build-assets/bison27.patch /root/bison27.patch
 RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
     tar -xvf bison-2.7.tar.gz && \
@@ -64,8 +70,11 @@ RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
     make && \
     make install && \
     ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-    ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+    ln -s /usr/local/bison/bin/yacc /usr/bin/yacc
 
+# Install Emscripten from the repository. We'd use the official
+# Docker image, but there is no arm64 image available which makes
+# the build take forever on Apple Silicon.
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
     ./emsdk/emsdk install latest && \
@@ -78,7 +87,6 @@ RUN touch /root/.configure-flags && \
     touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
 
 # Add Libxml2 if needed
-ENV WITH_LIBXML ${WITH_LIBXML}
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
         source /root/emsdk/emsdk_env.sh && \
@@ -100,7 +108,6 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 
 # Add gzip and libzip if needed
 COPY ./build-assets/zlib /root/zlib
-ENV WITH_LIBZIP ${WITH_LIBZIP}
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         source /root/emsdk/emsdk_env.sh && \
         cd /root/zlib && \
@@ -131,7 +138,6 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
     fi
 
 # Get and patch PHP
-ENV PHP_VERSION ${PHP_VERSION}
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
@@ -154,7 +160,6 @@ RUN set -euxo pipefail;\
     cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
 
 # Add VRZNO if needed
-ENV WITH_VRZNO ${WITH_VRZNO}
 RUN if [ "$WITH_VRZNO" = "yes" ]; \
     then \
         git clone https://github.com/seanmorris/vrzno.git php-src/ext/vrzno \
@@ -207,9 +212,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-tokenizer \
     $(cat /root/.php-configure-flags)
 
-RUN if [ "${PHP_VERSION:0:1}" -lte "7"] && [ "${PHP_VERSION:2:3}" -lte "3"]; then \
-        echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \\
-    fi
+# PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
+# so we need to force it to be enabled.
+RUN if [ "${PHP_VERSION:0:1}" -le "7" ] && [ "${PHP_VERSION:2:1}" -le "3" ]; then \
+        echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \
+    fi;
 
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
@@ -224,6 +231,14 @@ COPY ./build-assets/php_wasm.c /root/
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
     fi
+
+# PHP < 8.0 errors out with "null function or function signature mismatch"
+# unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in
+# the rc_dtor_func which traces back to calling the zend_list_free function.
+# The signatures are the same on the face value, but the wasm runtime is not
+# happy with them. This can probably be patched in PHP, but for now we just
+# enable the flag and pay the price of the additional overhead.
+# https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
 RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
     echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
     fi
@@ -253,7 +268,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
         /root/lib/libphp.a \
         /root/php_wasm.c \
         $(cat /root/.emcc-php-wasm-sources) \
-    $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'"

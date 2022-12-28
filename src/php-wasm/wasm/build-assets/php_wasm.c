@@ -19,10 +19,10 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-#if PHP_MAJOR_VERSION >= 7
-#include "sqlite3.h"
-#include "sqlite3.c"
-#endif
+// #if PHP_MAJOR_VERSION >= 7
+// #include "sqlite3.h"
+// #include "sqlite3.c"
+// #endif
 #if PHP_MAJOR_VERSION >= 8
 // In PHP 8 the final linking step won't
 // work without these includes:
