@@ -19,12 +19,17 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-// The final linking step weirdly won't work without these includes:
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
 #include "sqlite3.h"
 #include "sqlite3.c"
+#endif
+#if PHP_MAJOR_VERSION >= 8
+// In PHP 8 the final linking step won't
+// work without these includes:
 #include "sqlite_driver.c"
 #include "sqlite_statement.c"
 #include "pdo_sqlite.c"
+#endif
 
 /*
  * Function: redirect_stream_to_file
@@ -198,7 +203,11 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 
 	HashTable *uploaded_files = NULL;
 	ALLOC_HASHTABLE(uploaded_files);
+	#if PHP_MAJOR_VERSION == 5
+	zend_hash_init(uploaded_files, 5, NULL, (dtor_func_t) free_estring, 0);
+	#else
 	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
+	#endif
 	SG(rfc1867_uploaded_files) = uploaded_files;
 }
 
@@ -211,8 +220,12 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
 {
-	zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
-	zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
+	#if PHP_MAJOR_VERSION == 5
+		zend_hash_add(SG(rfc1867_uploaded_files), tmp_path_char, strlen(tmp_path_char) + 1, &tmp_path_char, sizeof(char *), NULL);
+	#else
+		zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
+		zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
+	#endif
 }
 
 /*

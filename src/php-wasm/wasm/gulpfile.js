@@ -18,7 +18,8 @@ async function cleanBuildDir() {
 
 async function build() {
 	const phpVersion = process.env.PHP_VERSION || '8.0.24';
-	const withVRZNO = phpVersion.startsWith('7.') ? 'yes' : 'no';
+	// VRZNO does not work for most supported PHP versions – let's force disable it for now
+	const withVRZNO = 'no'; //phpVersion.startsWith('7.') ? 'yes' : 'no';
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
 	const withNodeFs = platform === 'node' ? 'yes' : 'no';
 
@@ -46,7 +47,6 @@ async function build() {
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
 
-	const targetJsFilename = platform === 'node' ? 'php.node.js' : 'php.js';
 	// Extract the PHP WASM module
 	await asyncSpawn(
 		'docker',
@@ -62,8 +62,7 @@ async function build() {
 			// they don't work without running cp through shell.
 			'sh',
 			'-c',
-			`cp /root/output/php.js /output/${targetJsFilename} && ` +
-				`cp /root/output/php.wasm /output`,
+			`cp /root/output/php* /output`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);

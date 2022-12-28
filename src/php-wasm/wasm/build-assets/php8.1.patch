@@ -1,0 +1,176 @@
+diff --git a/php-src/ext/pdo/config.m4 b/php-src/ext/pdo/config.m4
+--- a/php-src/ext/pdo/config.m4
++++ b/php-src/ext/pdo/config.m4
+@@ -4,15 +4,14 @@ PHP_ARG_ENABLE([pdo],
+     [Disable PHP Data Objects support])],
+   [yes])
+
+-if test "$PHP_PDO" != "no"; then
+-
+-  dnl Make sure $PHP_PDO is 'yes' when it's not 'no' :)
+-  PHP_PDO=yes
++dnl Make sure $PHP_PDO is 'yes' when it's not 'no' :)
++PHP_PDO=yes
+
++if test "$PHP_PDO" != "no"; then
++  dnl so we always include the known-good working hack.
+   PHP_NEW_EXTENSION(pdo, pdo.c pdo_dbh.c pdo_stmt.c pdo_sql_parser.c pdo_sqlstate.c, $ext_shared)
+   PHP_ADD_EXTENSION_DEP(pdo, spl, true)
+   PHP_INSTALL_HEADERS(ext/pdo, [php_pdo.h php_pdo_driver.h php_pdo_error.h])
+
+-  dnl so we always include the known-good working hack.
+   PHP_ADD_MAKEFILE_FRAGMENT
+ fi
+diff --git a/php-src/ext/pdo_sqlite/config.m4 b/php-src/ext/pdo_sqlite/config.m4
+--- a/php-src/ext/pdo_sqlite/config.m4
++++ b/php-src/ext/pdo_sqlite/config.m4
+@@ -10,25 +10,7 @@ if test "$PHP_PDO_SQLITE" != "no"; then
+     AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
+   fi
+
+-  PHP_CHECK_PDO_INCLUDES
+-
+-  PKG_CHECK_MODULES([SQLITE], [sqlite3 >= 3.7.7])
+-
+-  PHP_EVAL_INCLINE($SQLITE_CFLAGS)
+-  PHP_EVAL_LIBLINE($SQLITE_LIBS, PDO_SQLITE_SHARED_LIBADD)
+-  AC_DEFINE(HAVE_PDO_SQLITELIB, 1, [Define to 1 if you have the pdo_sqlite extension enabled.])
+-
+-  PHP_CHECK_LIBRARY(sqlite3, sqlite3_close_v2, [
+-    AC_DEFINE(HAVE_SQLITE3_CLOSE_V2, 1, [have sqlite3_close_v2])
+-  ], [], [$PDO_SQLITE_SHARED_LIBADD])
+-
+-  PHP_CHECK_LIBRARY(sqlite3, sqlite3_column_table_name, [
+-    AC_DEFINE(HAVE_SQLITE3_COLUMN_TABLE_NAME, 1, [have sqlite3_column_table_name])
+-  ], [], [$PDO_SQLITE_SHARED_LIBADD])
+-
+-  PHP_SUBST(PDO_SQLITE_SHARED_LIBADD)
+   PHP_NEW_EXTENSION(pdo_sqlite, pdo_sqlite.c sqlite_driver.c sqlite_statement.c,
+-    $ext_shared,,-I$pdo_cv_inc_path)
+-
++   $ext_shared,,-I$pdo_cv_inc_path)
+   PHP_ADD_EXTENSION_DEP(pdo_sqlite, pdo)
+ fi
+diff --git a/php-src/ext/pdo_sqlite/pdo_sqlite.c b/php-src/ext/pdo_sqlite/pdo_sqlite.c
+--- a/php-src/ext/pdo_sqlite/pdo_sqlite.c
++++ b/php-src/ext/pdo_sqlite/pdo_sqlite.c
+@@ -23,8 +23,8 @@
+ #include "php.h"
+ #include "php_ini.h"
+ #include "ext/standard/info.h"
+-#include "pdo/php_pdo.h"
+-#include "pdo/php_pdo_driver.h"
++#include "../pdo/php_pdo.h"
++#include "../pdo/php_pdo_driver.h"
+ #include "php_pdo_sqlite.h"
+ #include "php_pdo_sqlite_int.h"
+ #include "zend_exceptions.h"
+diff --git a/php-src/ext/pdo_sqlite/sqlite_driver.c b/php-src/ext/pdo_sqlite/sqlite_driver.c
+--- a/php-src/ext/pdo_sqlite/sqlite_driver.c
++++ b/php-src/ext/pdo_sqlite/sqlite_driver.c
+@@ -23,8 +23,8 @@
+ #include "php.h"
+ #include "php_ini.h"
+ #include "ext/standard/info.h"
+-#include "pdo/php_pdo.h"
+-#include "pdo/php_pdo_driver.h"
++#include "../pdo/php_pdo.h"
++#include "../pdo/php_pdo_driver.h"
+ #include "php_pdo_sqlite.h"
+ #include "php_pdo_sqlite_int.h"
+ #include "zend_exceptions.h"
+diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/sqlite_statement.c
+--- a/php-src/ext/pdo_sqlite/sqlite_statement.c
++++ b/php-src/ext/pdo_sqlite/sqlite_statement.c
+@@ -23,8 +23,8 @@
+ #include "php.h"
+ #include "php_ini.h"
+ #include "ext/standard/info.h"
+-#include "pdo/php_pdo.h"
+-#include "pdo/php_pdo_driver.h"
++#include "../pdo/php_pdo.h"
++#include "../pdo/php_pdo_driver.h"
+ #include "php_pdo_sqlite.h"
+ #include "php_pdo_sqlite_int.h"
+
+diff --git a/php-src/ext/sqlite3/config0.m4 b/php-src/ext/sqlite3/config0.m4
+--- a/php-src/ext/sqlite3/config0.m4
++++ b/php-src/ext/sqlite3/config0.m4
+@@ -5,26 +5,6 @@ PHP_ARG_WITH([sqlite3],
+   [yes])
+
+ if test $PHP_SQLITE3 != "no"; then
+-  PKG_CHECK_MODULES([SQLITE], [sqlite3 >= 3.7.7])
+-
+-  PHP_EVAL_INCLINE($SQLITE_CFLAGS)
+-  PHP_EVAL_LIBLINE($SQLITE_LIBS, SQLITE3_SHARED_LIBADD)
+-  AC_DEFINE(HAVE_SQLITE3, 1, [Define to 1 if you have the sqlite3 extension enabled.])
+-
+-  PHP_CHECK_LIBRARY(sqlite3, sqlite3_errstr, [
+-    AC_DEFINE(HAVE_SQLITE3_ERRSTR, 1, [have sqlite3_errstr function])
+-  ], [], [$SQLITE3_SHARED_LIBADD])
+-
+-  PHP_CHECK_LIBRARY(sqlite3, sqlite3_expanded_sql, [
+-    AC_DEFINE(HAVE_SQLITE3_EXPANDED_SQL, 1, [have sqlite3_expanded_sql function])
+-  ], [], [$SQLITE3_SHARED_LIBADD])
+-
+-  PHP_CHECK_LIBRARY(sqlite3,sqlite3_load_extension,
+-    [],
+-    [AC_DEFINE(SQLITE_OMIT_LOAD_EXTENSION, 1, [have sqlite3 with extension support])],
+-    [$SQLITE3_SHARED_LIBADD]
+-  )
+-
+   PHP_NEW_EXTENSION(sqlite3, sqlite3.c, $ext_shared,,-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+   PHP_SUBST(SQLITE3_SHARED_LIBADD)
+ fi
+diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
+--- a/php-src/sapi/embed/php_embed.c
++++ b/php-src/sapi/embed/php_embed.c
+@@ -246,8 +246,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
+ 		return FAILURE;
+ 	}
+ 
+-	SG(headers_sent) = 1;
+-	SG(request_info).no_headers = 1;
++	SG(headers_sent) = 0;
++	SG(request_info).no_headers = 0;
+ 	php_register_variable("PHP_SELF", "-", NULL);
+ 
+ 	return SUCCESS;
+
+diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
+--- a/php-src/ext/standard/file.c
++++ b/php-src/ext/standard/file.c
+@@ -1691,18 +1691,32 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+ 	php_stream *srcstream = NULL, *deststream = NULL;
+ 	int ret = FAILURE;
+ 	php_stream_statbuf src_s, dest_s;
+ 
+ 	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
+ 		case -1:
+ 			/* non-statable stream */
+ 			goto safe_to_copy;
+ 			break;
+ 		case 0:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
++			// Problem: Calling copy() on an empty source file crashes the JavaScript
++			//          runtime.
++			// Solution: Avoid copying empty files. Just create create an empty
++			//           destination file and return.
++			if (src_s.sb.st_size == 0) {
++				zend_string *opened_path = zend_string_init("", strlen(""), 0);
++				php_stream *stream = php_stream_open_wrapper(dest, "w", REPORT_ERRORS, &opened_path);
++				if (stream) {
++					php_stream_close(stream);
++					return SUCCESS;
++				}
++				return FAILURE;
++			}
+ 			break;
+ 		default: /* failed to stat file, does not exist? */
+ 			return ret;
+ 	}
+ 	if (S_ISDIR(src_s.sb.st_mode)) {
+ 		php_error_docref(NULL, E_WARNING, "The first argument to copy() function cannot be a directory");
+ 		return FAILURE;
+ 	}

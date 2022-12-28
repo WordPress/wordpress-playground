@@ -193,9 +193,8 @@ export class PHPServer {
 					_COOKIE: request._COOKIE || {},
 					_SESSION: {},
 				})}
-REQUEST,
-        JSON_OBJECT_AS_ARRAY
-      );
+REQUEST
+				, JSON_OBJECT_AS_ARRAY);
 
 			parse_str(substr($request->queryString, 1), $_GET);
 
@@ -241,7 +240,7 @@ REQUEST,
 			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
 			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
 			chdir($docroot);
-			
+
 			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
 		`);
 

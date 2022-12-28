@@ -30,6 +30,7 @@ async function main() {
 			bootProgress,
 			'Preparing WordPress...'
 		),
+		phpVersion: query.get('php') || '8.0',
 		dataModule: query.get('dataset') || 'vanilla',
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';

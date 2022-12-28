@@ -36,7 +36,8 @@ To find out more about each step, refer directly to the [Dockerfile](https://git
 
 ### Building
 
-To build, run `npm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`.
+To build all PHP versions, run `npm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`. To build a specific
+version, run `npm run build:php:web:<VERSION>`, e.g. `npm run build:php:web:8.2`.
 
 ### PHP extensions
 

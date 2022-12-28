@@ -19,6 +19,7 @@ export async function bootWordPress(
 			onDownloadProgress: onWasmDownloadProgress,
 			options: {
 				dataModule: config.dataModule || '',
+				phpVersion: config.phpVersion || '',
 			},
 		}
 	);
@@ -28,6 +29,7 @@ export async function bootWordPress(
 
 export interface BootConfiguration {
 	onWasmDownloadProgress: DownloadProgressCallback;
+	phpVersion?: string;
 	dataModule?: string;
 }
 

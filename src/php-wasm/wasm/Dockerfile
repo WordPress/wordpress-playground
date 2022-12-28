@@ -1,6 +1,8 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
+# ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
+# emscripten/emsdk:3.1.24 supports amd64 only.
+FROM ubuntu:lunar
 
-FROM emscripten/emsdk:3.1.24
 SHELL ["/bin/bash", "-c"]
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -14,8 +16,10 @@ ENV PHP_VERSION ${PHP_VERSION}
 # The PHP extensions to build:
 ARG WITH_VRZNO=yes
 ENV WITH_VRZNO ${WITH_VRZNO}
+
 ARG WITH_LIBXML=no
 ENV WITH_LIBXML ${WITH_LIBXML}
+
 ARG WITH_LIBZIP=yes
 ENV WITH_LIBZIP ${WITH_LIBZIP}
 
@@ -29,7 +33,6 @@ ENV WITH_NODEFS ${WITH_NODEFS}
 ARG EMSCRIPTEN_ENVIRONMENT=web
 ENV EMSCRIPTEN_ENVIRONMENT ${EMSCRIPTEN_ENVIRONMENT}
 
-
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 
@@ -38,22 +41,51 @@ RUN mkdir lib
 
 RUN set -euxo pipefail;\
     apt-get update; \
-    emsdk install latest; \
     apt-get --no-install-recommends -y install \
     build-essential \
-    automake-1.15 \
+    automake \
     autoconf \
     libxml2-dev \
     libtool \
     pkgconf \
-    bison \
     flex \
     make \
     re2c \
     gdb \
     git \
     pv \
-    ca-certificates
+    ca-certificates \
+    curl \
+    wget \
+    unzip \
+    cmake \
+    python3
+
+# PHP <= 7.3 requires Bison 2.7
+# PHP >= 7.4 and Bison 3.0
+COPY ./build-assets/bison27.patch /root/bison27.patch
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+        tar -xvf bison-2.7.tar.gz && \
+        rm bison-2.7.tar.gz && \
+        cd bison-2.7 && \
+        git apply --no-index /root/bison27.patch && \
+        ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
+        make && \
+        make install && \
+        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+    else \
+        apt install -y bison; \
+    fi;
+
+# Install Emscripten from the repository. We'd use the official
+# Docker image, but there is no arm64 image available which makes
+# the build take forever on Apple Silicon.
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN git clone https://github.com/emscripten-core/emsdk.git && \
+    ./emsdk/emsdk install latest && \
+    /root/emsdk/emsdk activate latest
 
 RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
@@ -64,6 +96,7 @@ RUN touch /root/.configure-flags && \
 # Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
+        source /root/emsdk/emsdk_env.sh && \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
             --branch v2.9.10 \
             --single-branch     \
@@ -80,18 +113,36 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
 
+# Get and patch PHP
+RUN git clone https://github.com/php/php-src.git php-src \
+    --branch PHP-$PHP_VERSION   \
+    --single-branch          \
+    --depth 1;
+COPY ./build-assets/php*.patch /root/
+RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
+    mkdir -p php-src/preload/Zend \
+    && cp php-src/Zend/bench.php php-src/preload/Zend \
+    && touch php-src/patched
+
 # Add gzip and libzip if needed
 COPY ./build-assets/zlib /root/zlib
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        source /root/emsdk/emsdk_env.sh && \
         cd /root/zlib && \
         emconfigure ./configure --prefix=/root/lib && \
         # emmake make fails after it built the library files – let's ignore the errors \
         (emmake make || true) && \
         emmake make install && \
+        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+            apt install -y zlib1g zlib1g-dev; \
+            export LIBZIP_VERSION=1.2.0; \
+        else \
+            export LIBZIP_VERSION=1.9.2; \
+        fi; \
         cd /root && \
-        curl -k https://libzip.org/download/libzip-1.9.2.tar.gz -o libzip-1.9.2.tar.gz && \
-        tar -xzf libzip-1.9.2.tar.gz && \
-        mv libzip-1.9.2 libzip && \
+        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
+        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
+        mv libzip-$LIBZIP_VERSION libzip && \
         cd libzip && \
         mkdir build && \
         cd build && \
@@ -99,28 +150,23 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             -DCMAKE_INSTALL_PREFIX=/root/lib \
             -DZLIB_LIBRARY=/root/lib/lib/libz.a \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
-            --prefix=/root/lib/ .. && \
+            .. && \
         emmake make && \
         emmake make install; \
+        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+            echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
+            echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
+            echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+            cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
+            cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
+            echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
+            cp /root/lib/include/*.h /root/php-src; \
+        else \
+            echo -n ' --with-zip' >> /root/.php-configure-flags; \
+            echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
+            echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+        fi; \
     fi
-
-RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        echo -n ' --with-zip' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
-        echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
-    fi
-
-# Get and patch PHP
-# It says php7.4 but it also works with php8
-COPY ./build-assets/php7.4.patch /root/
-RUN git clone https://github.com/php/php-src.git php-src \
-    --branch PHP-$PHP_VERSION   \
-    --single-branch          \
-    --depth 1 \
-    && git apply --no-index /root/php7.4.patch \
-    && mkdir -p php-src/preload/Zend \
-    && cp php-src/Zend/bench.php php-src/preload/Zend \
-    && touch php-src/patched
 
 # Get and patch Sqlite3
 COPY ./build-assets/sqlite3-wasm.patch /root/
@@ -147,9 +193,22 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-
-RUN cd php-src/ && emconfigure ./configure \
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd php-src/ && \
+    emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+    # Fibers are a PHP 8.1+ feature. They are compiled as 
+    # a custom assembly implementation by default. However,
+    # that implementation does not work with emscripten.
+    #
+    # The line below disables it, forcing PHP to use the
+    # C implementation instead.
+    #
+    # See https://github.com/WordPress/wordpress-playground/issues/92
+    # for more context.
+    --disable-fiber-asm \
+    # --enable-json for PHP < 8.0:
+    --enable-json      \
     --enable-embed=static \
     --with-layout=GNU  \
     --disable-cgi      \
@@ -168,40 +227,56 @@ RUN cd php-src/ && emconfigure ./configure \
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
-    --enable-mbstring  \
+    --disable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
     $(cat /root/.php-configure-flags)
 
-RUN cd php-src/ && emmake make -j8
+# PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
+# so we need to force it to be enabled.
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \
+    fi;
+
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd php-src/ && \
+    emmake make -j8
 
 RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
-# Build the higher-level PHP bindings
-RUN cd php-src/ && \
-    emcc -O3 \
-    -I .     \
-    -I ext   \
-    -I ext/pdo_sqlite   \
-    -I Zend  \
-    -I main  \
-    -I TSRM/ \
-    $(cat /root/.emcc-php-wasm-flags) \
-    /root/php_wasm.c \
-    -c -o /root/lib/php_wasm.o 
-
 # Add nodefs when requested
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
     fi
 
+# PHP < 8.0 errors out with "null function or function signature mismatch"
+# unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in
+# the rc_dtor_func which traces back to calling the zend_list_free function.
+# The signatures are the same on the face value, but the wasm runtime is not
+# happy with them. This can probably be patched in PHP, but for now we just
+# enable the flag and pay the price of the additional overhead.
+# https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
+RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
+    echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
+    fi
+
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+RUN source /root/emsdk/emsdk_env.sh && \
+    export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_context", "_phpwasm_run", "_phpwasm_refresh", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    cd php-src/ && \
     emcc -O3 \
+    -I .     \
+    -I ext   \
+    -I ext/pdo_sqlite   \
+    -I ext/json   \
+    -I Zend  \
+    -I main  \
+    -I TSRM/ \
+    $(cat /root/.emcc-php-wasm-flags) \
     -o /root/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
@@ -211,46 +286,72 @@ RUN export EXPORTED_FUNCTIONS='["_phpwasm_init_context", "_phpwasm_destroy_conte
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \
-        /root/lib/php_wasm.o \
+        /root/php_wasm.c \
         $(cat /root/.emcc-php-wasm-sources) \
-    $(cat /root/.emcc-php-wasm-flags) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'"
 
-COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
-
-# On the web, it's useful to add a "cache busting" query string to the .wasm file URL.
-# This tells web browsers it's a new file and they should reload it.
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
-        export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
+# Postprocess the build php.js module:
+# ## Wrap it in an ES module with proper `export` statements.
+# - Export the PHPLoader object as the default export.
+# - Export the cache buster string.
+# - Export the .wasm filename
+# - Rename the output files to reflect the build configuration, e.g. `php-7.4.node.js` or `php-8.0.js`
+RUN \
+    # Figure out the target file names and URLs
+        # The goal:
+            # The .js and .wasm filenames should reflect the build configuration, e.g.:
+            # * `php-7.4.node.js` and `php-7.4.node.wasm`
+            # * `php-8.0.js` and `php-8.0.wasm`
+            # In addition, the `.wasm` file URL should have a "cache busting" query string on the
+            # web, so that web browsers will reload it when the file contents change.
+        # Precompute export variables:
+        export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
+        export FILENAME_PREFIX="php-${PHP_VERSION:0:3}"; \
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT_PREFIX=".node"; \
+        else export EXT_PREFIX=""; fi; \
+        export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
+        export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
+        # Handle cache busting:
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
+            export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
+            export WASM_URL="$WASM_FILENAME?$CACHE_BUSTER"; \
+        else \
+            export WASM_URL="$WASM_FILENAME"; \
+        fi; \
+    # Preprocess the php.js file
+        # php.js relies on a hardcoded "php.wasm" filename. Let's make it
+        # rely on a `dependencyFilename` variable instead.
         cat /root/output/php.js \
-        | sed "s#php\.wasm#/php.wasm?$CACHE_BUSTER#g" \
-        > /tmp/php.js && \
-    mv /tmp/php.js /root/output/php.js; \
-    fi;
+            | sed 's#"php\.wasm"#dependencyFilename#g' \
+            > /tmp/php.js && \
+        mv /tmp/php.js /root/output/php.js && \
+        # Replace the hardcoded ENVIRONMENT variable with a dynamic computation.
+            # The JavaScript code of the web loader and web worker loader is identical,
+            # but Emscripten forces running different code paths by setting
+            #
+            # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
+            #
+            # This project supports both environments and would have to maintain two
+            # separate copies of the code. Instead, we use a dynamic computation of the
+            # environment, based on the `Env` variable, which is an argument to the
+            # wrapper function.
+            cat /root/output/php.js \
+                | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
+                > /tmp/php.js && \
+            mv /tmp/php.js /root/output/php.js && \
+    # Turn the php.js file into an ES module
+        # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
+        # which pollutes the global namespace and does not play well with import() mechanics.
+        echo "export const dependenciesTotalSize = $FILE_SIZE; export const dependencyFilename = '$WASM_URL'; export default function(Env, PHPLoader) {" >> /root/output/php-module.js && \
+        cat /root/output/php.js >> /root/output/php-module.js && \
+        echo " return PHPLoader; }" >> /root/output/php-module.js && \
+        \
+        # Remove the old php.js file
+        rm /root/output/php.js && \
+        \
+        # Rename the build files to their final names
+        mv /root/output/php-module.js "/root/output/$JS_FILENAME" && \
+        mv /root/output/php.wasm "/root/output/$WASM_FILENAME"
 
-# The hardcoded ENVIRONMENT variable isn't very useful.
-# For example, the web and worker loaders only differ by a boolean flag.
-# Let's make it customizable via the wrapper args (see esm-prefix.js).
-RUN cat /root/output/php.js \
-        | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
-        > /tmp/php.js && \
-    mv /tmp/php.js /root/output/php.js;
-
-# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
-# See esm-prefix.js for more details.
-
-# First, Populate the php.js module exports:
-# * Total size of the loaded dependencies – useful for progress bars.
-RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
-    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
-
-# * Filename of the main dependency
-RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    cat /tmp/esm-prefix.js | sed "s#PHP_WASM_FILENAME#'php.wasm'#g" > /root/esm-prefix.js
-
-# Then, produce the final module:
-RUN mv /root/output/php.js /root/output/php.js.tmp && \
-    cat /root/esm-prefix.js /root/output/php.js.tmp /root/esm-suffix.js > /root/output/php.js

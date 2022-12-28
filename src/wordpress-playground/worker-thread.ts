@@ -24,7 +24,7 @@ startWordPress().then((browser) =>
 
 async function startWordPress() {
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
-		import(`/php.js?${phpJsCacheBuster}`),
+		import(`/${getRequestedPHPModule()}?${phpJsCacheBuster}`),
 		import(`/${getRequestedDataModule()}?${wpJsCacheBuster}`),
 	]);
 
@@ -37,8 +37,27 @@ async function startWordPress() {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	});
-
+	
 	return new PHPBrowser(server);
+}
+
+function getRequestedPHPModule() {
+	const phpVersions = {
+		"5.6": 'php-5.6.js',
+		"7.0": 'php-7.0.js',
+		"7.1": 'php-7.1.js',
+		"7.2": 'php-7.2.js',
+		"7.3": 'php-7.3.js',
+		"7.4": 'php-7.4.js',
+		"8.0": 'php-8.0.js',
+		"8.1": 'php-8.1.js',
+		"8.2": 'php-8.2.js',
+	};
+	const requestedVersion = currentBackend.getOptions().phpVersion || '8.0';
+	if (!(requestedVersion in phpVersions)) {
+		throw new Error(`Unsupported PHP version: ${requestedVersion}`);
+	}
+	return phpVersions[requestedVersion];
 }
 
 function getRequestedDataModule() {
@@ -47,9 +66,11 @@ function getRequestedDataModule() {
 		test: 'wp-test-content.js',
 		playground: 'wp-playground-default.js',
 	};
-	const requestedModule = currentBackend.getOptions().dataModule;
-
-	return allowedWpModules[requestedModule] || allowedWpModules.playground;
+	const requestedModule = currentBackend.getOptions().dataModule || 'vanilla';
+	if (!(requestedModule in allowedWpModules)) {
+		throw new Error(`Unsupported WordPress module: ${requestedModule}`);
+	}
+	return allowedWpModules[requestedModule];
 }
 
 function patchWordPressFiles(php) {
