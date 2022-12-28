@@ -36,7 +36,8 @@ To find out more about each step, refer directly to the [Dockerfile](https://git
 
 ### Building
 
-To build, run `npm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`.
+To build all PHP versions, run `npm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`. To build a specific
+version, run `npm run build:php:web:<VERSION>`, e.g. `npm run build:php:web:8.2`.
 
 ### PHP extensions
 
@@ -72,12 +73,6 @@ docker build . --build-arg PHP_VERSION=7.4.0
 -   `WITH_LIBZIP` – `yes` or `no`, default: `yes`. Whether to build with `zlib`, `libzip`, and the `zip` PHP extension (`ZipArchive`).
 -   `WITH_VRZNO` – `yes` or `no`, default: `yes` when PHP_VERSION is 7.\*. Whether to build with [the `vrzno` PHP extension](https://github.com/seanmorris/vrzno/fork) that enables running JavaScript code from PHP.
 -   `WITH_NODEFS` – `yes` or `no`, default: `no`. Whether to include [the Emscripten's NODEFS JavaScript library](https://emscripten.org/docs/api_reference/Filesystem-API.html#filesystem-api-nodefs). It's useful for loading files and mounting directories from the local filesystem when running php.wasm from Node.js.
-
-The `PHP_VERSION` option may be used with the `npm run build:php:web` command as follows:
-
-```
-PHP_VERSION=8.0.24 npm run build:php:web
-```
 
 ### JavaScript module
 

@@ -22,7 +22,7 @@ Here's the full list of supported configuration options:
 * `page=/wp-admin/` – Load the specified initial page displaying WordPress
 * `plugin=coblocks` – Installs the specified plugin. Use the plugin name from the plugins directory URL, e.g. for a URL like `https://wordpress.org/plugins/wp-lazy-loading/`, the plugin name would be `wp-lazy-loading`. You can pre-install multiple plugins by saying `plugin=coblocks&plugin=wp-lazy-loading&…`. Installing a plugin automatically logs the user in as an admin.
 * `theme=disco` – Installs the specified theme. Use the theme name from the themes directory URL, e.g. for a URL like `https://wordpress.org/themes/disco/`, the theme name would be `disco`. Installing a theme automatically logs the user in as an admin.
-* `php=8.1` – Default: 8.0 Loads the specified PHP version. Supported values: `8.0`, `8.1`, `8.2`
+* `php=8.1` – Default: 8.0 Loads the specified PHP version. Supported values: `5.6`, `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`
 * `rpc=1` – Enables the experimental JavaScript API.
 
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin, and opens the post editor:
