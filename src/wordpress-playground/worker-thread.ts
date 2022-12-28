@@ -37,7 +37,7 @@ async function startWordPress() {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	});
-
+	
 	return new PHPBrowser(server);
 }
 

@@ -26,7 +26,16 @@
     "build:php:web:7.1": "PHP_VERSION=7.1.30 gulp buildPHP",
     "build:php:web:7.0": "PHP_VERSION=7.0.33 gulp buildPHP",
     "build:php:web:5.6": "PHP_VERSION=5.6.40 gulp buildPHP",
-    "build:php:node": "PLATFORM=node gulp buildPHP",
+    "build:php:node": "npm-run-all 'build:php:node:*'",
+    "build:php:node:8.2": "PLATFORM=node PHP_VERSION=8.2.0 gulp buildPHP",
+    "build:php:node:8.1": "PLATFORM=node PHP_VERSION=8.1.14 gulp buildPHP",
+    "build:php:node:8.0": "PLATFORM=node PHP_VERSION=8.0.11 gulp buildPHP",
+    "build:php:node:7.4": "PLATFORM=node PHP_VERSION=7.4.33 gulp buildPHP",
+    "build:php:node:7.3": "PLATFORM=node PHP_VERSION=7.3.33 gulp buildPHP",
+    "build:php:node:7.2": "PLATFORM=node PHP_VERSION=7.2.34 gulp buildPHP",
+    "build:php:node:7.1": "PLATFORM=node PHP_VERSION=7.1.30 gulp buildPHP",
+    "build:php:node:7.0": "PLATFORM=node PHP_VERSION=7.0.33 gulp buildPHP",
+    "build:php:node:5.6": "PLATFORM=node PHP_VERSION=5.6.40 gulp buildPHP",
     "build:docs:api": "npm run build:types ; gulp buildApiReference",
     "build:docs:markdown": "node scripts/postprocess-md-docs.js",
     "build:types": "npm run clean:types; npm-run-all --parallel build:types:*",
@@ -70,7 +79,6 @@
     "@types/jest": "^29.2.3",
     "@types/node": "12.20.24",
     "@types/yargs": "^17.0.14",
-    "@wordpress/eslint-plugin": "^13.0.0",
     "babel-plugin-add-import-extension": "^1.6.0",
     "babel-plugin-import-global": "^0.0.6",
     "chokidar-cli": "^3.0.0",
@@ -103,5 +111,8 @@
     "vitepress": "^1.0.0-alpha.26",
     "vue": "^3.2.41",
     "yargs": "^17.6.2"
+  },
+  "devDependencies": {
+    "@wordpress/eslint-plugin": "^13.7.0"
   }
 }
