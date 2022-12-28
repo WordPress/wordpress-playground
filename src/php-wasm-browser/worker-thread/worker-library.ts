@@ -231,7 +231,8 @@ export async function loadPHPWithProgress(
 	const modules = [phpLoaderModule, ...dataDependenciesModules];
 
 	const assetsSizes = modules.reduce((acc, module) => {
-		acc[module.dependencyFilename] = module.dependenciesTotalSize;
+		acc[module.dependencyFilename.split('?')[0]] =
+			module.dependenciesTotalSize;
 		return acc;
 	}, {});
 	const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes);
