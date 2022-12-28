@@ -182,7 +182,7 @@ export class PHPServer {
 			 * Populate the superglobal variables so the requested file
 			 * can read them.
 			 */
-			$request = (object) json_decode(<<<REQUEST
+			$request = (object) json_decode(<<<'REQUEST'
 				${JSON.stringify({
 					path: request.path,
 					method: request.method || 'GET',
@@ -194,7 +194,7 @@ export class PHPServer {
 					_SESSION: {},
 				})}
 REQUEST
-       		, JSON_OBJECT_AS_ARRAY );
+				, JSON_OBJECT_AS_ARRAY);
 
 			parse_str(substr($request->queryString, 1), $_GET);
 
@@ -240,7 +240,6 @@ REQUEST
 			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
 			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
 			chdir($docroot);
-			fwrite($stdErr, json_encode(['c', 'd']) . "\n");
 
 			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
 		`);
