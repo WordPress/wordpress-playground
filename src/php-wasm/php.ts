@@ -234,22 +234,13 @@ session.save_path=/home/web_user
 	 * @returns The PHP process output.
 	 */
 	run(code: string): PHPOutput {
-		let exitCode;
-		try {
-			exitCode = this.#Runtime.ccall(
-				'phpwasm_run',
-				NUM,
-				[STR],
-				[`?>${code}`]
-			);
-			this.#refresh();
-		} catch (e) {
-			console.error(e);
-			console.log({
-				stdout: this.readFileAsBuffer('/tmp/stdout'),
-				stderr: this.readFileAsText('/tmp/stderr').split('\n'),
-			});
-		}
+		const exitCode = this.#Runtime.ccall(
+			'phpwasm_run',
+			NUM,
+			[STR],
+			[`?>${code}`]
+		);
+		this.#refresh();
 		return {
 			exitCode,
 			stdout: this.readFileAsBuffer('/tmp/stdout'),
