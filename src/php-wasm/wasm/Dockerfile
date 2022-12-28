@@ -59,18 +59,23 @@ RUN set -euxo pipefail;\
     cmake \
     python3
 
-# Compile Bison 2.7 – it's required for PHP <= 7.3
+# PHP <= 7.3 requires Bison 2.7
+# PHP >= 7.4 and Bison 3.0
 COPY ./build-assets/bison27.patch /root/bison27.patch
-RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-    tar -xvf bison-2.7.tar.gz && \
-    rm bison-2.7.tar.gz && \
-    cd bison-2.7 && \
-    git apply --no-index /root/bison27.patch && \
-    ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
-    make && \
-    make install && \
-    ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-    ln -s /usr/local/bison/bin/yacc /usr/bin/yacc
+RUN if [ "${PHP_VERSION:0:1}" -le "7" ] && [ "${PHP_VERSION:2:1}" -le "3" ]; then \
+        wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+        tar -xvf bison-2.7.tar.gz && \
+        rm bison-2.7.tar.gz && \
+        cd bison-2.7 && \
+        git apply --no-index /root/bison27.patch && \
+        ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
+        make && \
+        make install && \
+        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+    else \
+        apt install -y bison; \
+    fi;
 
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes
