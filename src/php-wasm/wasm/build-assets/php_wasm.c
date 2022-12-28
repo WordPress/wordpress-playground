@@ -47,9 +47,9 @@
  *
  *   returns: The exit code: 0 on success, -1 on failure.
  */
-int redirect_stream_to_file(FILE *stream, char *file_path)
+int redirect_stream_to_file(FILE *stream, char *file_path, int flags)
 {
-	int out = open(file_path, O_TRUNC | O_WRONLY | O_CREAT, 0600);
+	int out = open(file_path, flags | O_WRONLY | O_CREAT, 0600);
 	if (-1 == out)
 	{
 		return -1;
@@ -97,8 +97,8 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout");
-	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr");
+	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout", O_TRUNC);
+	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr", O_TRUNC);
 	if (stdout_replacement == -1 || stderr_replacement == -1)
 	{
 		return retVal;
@@ -139,7 +139,23 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_context()
 {
-	return php_embed_shutdown();
+	// When ob_start(); is used, the buffer is only flushed in the
+	// shutdown handler. Let's append anything that's left in the buffers
+	// to the files we're redirecting stdout and stderr to.
+	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout", 0);
+	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr", 0);
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return;
+	}
+
+	php_embed_shutdown();
+
+	fflush(stdout);
+	fflush(stderr);
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
 }
 
 /*
