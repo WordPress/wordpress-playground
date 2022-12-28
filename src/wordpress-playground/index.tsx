@@ -33,7 +33,6 @@ async function main() {
 		phpVersion: query.get('php') || '8.0',
 		dataModule: query.get('dataset') || 'vanilla',
 	});
-	workerThread.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ?>');
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
 		setupAddressBar(workerThread);
