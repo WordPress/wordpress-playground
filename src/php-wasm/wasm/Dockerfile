@@ -111,53 +111,6 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
 
-# Add gzip and libzip if needed
-COPY ./build-assets/zlib /root/zlib
-RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        source /root/emsdk/emsdk_env.sh && \
-        if [ "${PHP_VERSION:0:1}" -ge "7" ]; then \
-            cd /root/zlib && \
-            emconfigure ./configure --prefix=/root/lib && \
-            # emmake make fails after it built the library files – let's ignore the errors \
-            (emmake make || true) && \
-            emmake make install && \
-            cd /root && \
-            curl -k https://libzip.org/download/libzip-1.9.2.tar.gz -o libzip-1.9.2.tar.gz && \
-            tar -xzf libzip-1.9.2.tar.gz && \
-            mv libzip-1.9.2 libzip && \
-            cd libzip && \
-            mkdir build && \
-            cd build && \
-            emcmake cmake \
-                -DCMAKE_INSTALL_PREFIX=/root/lib \
-                -DZLIB_LIBRARY=/root/lib/lib/libz.a \
-                -DZLIB_INCLUDE_DIR=/root/lib/include \
-                .. && \
-            emmake make && \
-            emmake make install; \
-        else\
-            cd /root/zlib && \
-            emconfigure ./configure --prefix=/root/lib && \
-            # emmake make fails after it built the library files – let's ignore the errors \
-            (emmake make || true) && \
-            emmake make install && \
-            cd /root && \
-            curl -k https://libzip.org/download/libzip-1.2.0.tar.gz -o libzip-1.2.0.tar.gz && \
-            tar -xzf libzip-1.2.0.tar.gz && \
-            mv libzip-1.2.0 libzip && \
-            cd libzip && \
-            mkdir build && \
-            cd build && \
-            emcmake cmake \
-                -DCMAKE_INSTALL_PREFIX=/root/lib \
-                -DZLIB_LIBRARY=/root/lib/lib/libz.a \
-                -DZLIB_INCLUDE_DIR=/root/lib/include \
-                .. && \
-            emmake make && \
-            emmake make install; \
-        fi\
-    fi
-
 # Get and patch PHP
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
@@ -168,6 +121,50 @@ RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
     mkdir -p php-src/preload/Zend \
     && cp php-src/Zend/bench.php php-src/preload/Zend \
     && touch php-src/patched
+
+# Add gzip and libzip if needed
+COPY ./build-assets/zlib /root/zlib
+RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        source /root/emsdk/emsdk_env.sh && \
+        cd /root/zlib && \
+        emconfigure ./configure --prefix=/root/lib && \
+        # emmake make fails after it built the library files – let's ignore the errors \
+        (emmake make || true) && \
+        emmake make install && \
+        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+            apt install -y zlib1g zlib1g-dev; \
+            export LIBZIP_VERSION=1.2.0; \
+        else \
+            export LIBZIP_VERSION=1.9.2; \
+        fi; \
+        cd /root && \
+        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
+        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
+        mv libzip-$LIBZIP_VERSION libzip && \
+        cd libzip && \
+        mkdir build && \
+        cd build && \
+        emcmake cmake \
+            -DCMAKE_INSTALL_PREFIX=/root/lib \
+            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
+            -DZLIB_INCLUDE_DIR=/root/lib/include \
+            .. && \
+        emmake make && \
+        emmake make install; \
+        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+            echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
+            echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
+            echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+            cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
+            cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
+            echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
+            cp /root/lib/include/*.h /root/php-src; \
+        else \
+            echo -n ' --with-zip' >> /root/.php-configure-flags; \
+            echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
+            echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+        fi; \
+    fi
 
 # Get and patch Sqlite3
 COPY ./build-assets/sqlite3-wasm.patch /root/
@@ -192,22 +189,8 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
         echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
     fi
 
-RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
-            echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
-            cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
-            #echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
-            #echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
-        else \
-            echo -n ' --with-zip' >> /root/.php-configure-flags; \
-            echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
-            echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
-        fi; \
-    fi
-
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-RUN apt install -y zlib1g zlib1g-dev
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
     emconfigure ./configure \
@@ -253,13 +236,6 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
         echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \
     fi;
 
-# RUN cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib/include
-RUN cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
-    echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
-    cp /root/lib/include/*.h /root/php-src;
-
-RUN ls /root/php-src
-#RUN cp /root/lib/lib/libzip/include/zipconf.h /root/php-src/main;
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
     emmake make -j8
@@ -285,8 +261,6 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
     echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
     fi
 
-RUN echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
-    echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources;
 # Build the final .wasm file
 RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
