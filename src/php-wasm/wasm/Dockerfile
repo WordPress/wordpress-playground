@@ -1,4 +1,6 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
+# ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
+# emscripten/emsdk:3.1.24 supports amd64 only.
 FROM ubuntu:lunar
 
 SHELL ["/bin/bash", "-c"]
