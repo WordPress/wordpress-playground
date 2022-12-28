@@ -133,7 +133,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         # emmake make fails after it built the library files – let's ignore the errors \
         (emmake make || true) && \
         emmake make install && \
-        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
             export LIBZIP_VERSION=1.2.0; \
         else \
@@ -153,7 +153,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             .. && \
         emmake make && \
         emmake make install; \
-        if [ "${PHP_VERSION:0:1}" -eq "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
