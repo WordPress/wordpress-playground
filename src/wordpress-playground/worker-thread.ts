@@ -62,6 +62,10 @@ function getRequestedPHPModule() {
 
 function getRequestedDataModule() {
 	const allowedWpModules = {
+		'5.9': 'wp-5.9.js',
+		'6.0': 'wp-6.0.js',
+		'6.1': 'wp-6.1.js',
+		'nightly': 'wp-nightly.js',
 		vanilla: 'wp.js',
 		test: 'wp-test-content.js',
 		playground: 'wp-playground-default.js',

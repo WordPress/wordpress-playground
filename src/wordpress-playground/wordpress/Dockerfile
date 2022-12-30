@@ -7,6 +7,9 @@ WORKDIR /root
 ARG WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip
 ENV WP_ZIP_URL ${WP_ZIP_URL}
 
+ARG OUT_FILENAME=wp
+ENV OUT_FILENAME ${OUT_FILENAME}
+
 RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
@@ -64,8 +67,8 @@ RUN cp -r wordpress wordpress-static && \
 # See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 
 RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
-    gsed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
-    gsed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
+    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
+    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
 
 # Move the static files to the final output directory
 RUN mv wordpress-static/* /root/output
@@ -148,7 +151,8 @@ RUN mv wordpress /wordpress && \
     --export-name="PHPModule" \
     --no-node \
     --preload /wordpress \
-    --js-output=/root/output/wp.js
+    --js-output=/root/output/wp.js && \
+    mv /root/output/wp.data /root/output/$OUT_FILENAME.data
 
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 
@@ -156,7 +160,7 @@ COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 # This tells web browsers it's a new file and they should reload it.
 RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
     cat /root/output/wp.js \
-    | sed "s#wp\.data#/wp.data?$CACHE_BUSTER#g" \
+    | sed "s#wp\.data#/$OUT_FILENAME.data?$CACHE_BUSTER#g" \
     > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 
@@ -166,14 +170,14 @@ RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
 # First, populate the php.js module exports:
 # * Total size of the loaded dependencies – useful for progress bars.
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    export FILE_SIZE=$(stat -c%s "/root/output/wp.data") && \
+    export FILE_SIZE=$(stat -c%s "/root/output/$OUT_FILENAME.data") && \
     cat /tmp/esm-prefix.js | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
 
 # Filename of the main dependency
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    cat /tmp/esm-prefix.js | sed "s#WP_DATA_FILENAME#'wp.data'#g" > /root/esm-prefix.js
+    cat /tmp/esm-prefix.js | sed "s#WP_DATA_FILENAME#'$OUT_FILENAME.data'#g" > /root/esm-prefix.js
 
 # Then, produce the final module:
 RUN mv /root/output/wp.js /tmp/wp.js && \
-    cat /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/wp.js && \
+    cat /root/esm-prefix.js /tmp/wp.js /root/esm-suffix.js > /root/output/$OUT_FILENAME.js && \
     rm /tmp/wp.js
