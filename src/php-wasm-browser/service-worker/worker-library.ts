@@ -60,8 +60,6 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 async function defaultRequestHandler(event) {
 	event.preventDefault();
 	const url = new URL(event.request.url);
-	// When ignoring a scoped request, let's unscope it before
-	// passing it to the browser.
 	const unscopedUrl = removeURLScope(url);
 	if (!seemsLikeAPHPServerPath(unscopedUrl.pathname)) {
 		return fetch(
