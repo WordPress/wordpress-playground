@@ -5,6 +5,7 @@ import {
 	DownloadProgressCallback,
 } from '../php-wasm-browser/index';
 import { wasmWorkerUrl, wasmWorkerBackend, serviceWorkerUrl } from './config';
+import expectedServiceWorkerVersion from './service-worker-version';
 
 export async function bootWordPress(
 	config: BootConfiguration
@@ -23,7 +24,7 @@ export async function bootWordPress(
 			},
 		}
 	);
-	await registerServiceWorker(serviceWorkerUrl);
+	await registerServiceWorker(serviceWorkerUrl, expectedServiceWorkerVersion);
 	return workerThread;
 }
 

@@ -8,8 +8,10 @@ import {
 	broadcastMessageExpectReply,
 } from '../php-wasm-browser/service-worker/worker-library';
 import { isUploadedFilePath } from './worker-utils';
+import serviceWorkerVersion from './service-worker-version';
 
 initializeServiceWorker({
+	version: serviceWorkerVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		const unscopedUrl = removeURLScope(fullUrl);

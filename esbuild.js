@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 const crypto = require('crypto');
+const { EventEmitter } = require('node:events');
+const { version } = require('yargs');
 
 const argv = yargs(process.argv.slice(2))
 	.command('build', 'Builds the project files')
@@ -62,6 +64,78 @@ async function main() {
 		treeShaking: true,
 		minify: true,
 	};
+	// This build step exists solely to compute the hash of service-worker.js.
+	//
+	// The browsers tend to cling to the service worker script even when the
+	// code itself changes. Computing the script hash allows us to compare
+	// the expected and registered service worker versions and force the
+	// invalidation.
+	build({
+		...baseConfig,
+		minify: false,
+		entryPoints: {
+			'service-worker': 'src/wordpress-playground/service-worker.ts',
+		},
+		entryNames: 'sw-mock-to-get-hash.[hash]',
+		plugins: [
+			// Delete the outdated "hashful" service worker builds.
+			cleanup({ pattern: 'sw-mock-to-get-hash.*.js' }),
+			{
+				name: 'import-json-file',
+				setup(currentBuild) {
+					currentBuild.initialOptions.metafile = true;
+
+					// Whenever the build is finished, write the hash to
+					// "service-worker-version.ts" where it can be imported by
+					// both the frontend script and the service worker.
+					currentBuild.onEnd((result) => {
+						const filename = Object.keys(
+							result.metafile.outputs
+						)[0];
+						const hash = filename.split('.')[1];
+						fs.writeFileSync(
+							'src/wordpress-playground/service-worker-version.ts',
+							`/* Automatically refreshed by esbuild.js */ ` +
+								`export default ${JSON.stringify(hash)}; \n`
+						);
+					});
+
+					// Instead of importing the actual service worker version, provide
+					// an empty string to avoid an infinite loop of building the service
+					// worker, refreshing the hash, building a new service worker with the
+					// updated hash, refreshing the hash again, etc.
+					currentBuild.onLoad(
+						{
+							filter: /.*/,
+							namespace: 'service-worker-version',
+						},
+						() => ({
+							contents: `export default ""`,
+							loader: 'ts',
+						})
+					);
+
+					// Make sure the "service-worker-version" import will be handled by
+					// the onLoad call above.
+					currentBuild.onResolve(
+						{ filter: /service-worker-version$/ },
+						(args) => ({
+							path: args.path,
+							namespace: 'service-worker-version',
+						})
+					);
+				},
+			},
+		],
+	});
+	build({
+		...baseConfig,
+		entryPoints: {
+			'service-worker': 'src/wordpress-playground/service-worker.ts',
+			'setup-fast-refresh-runtime':
+				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
+		},
+	});
 	build({
 		...baseConfig,
 		define: {
@@ -86,14 +160,6 @@ async function main() {
 		format: 'esm',
 		metafile: true,
 		plugins: [cleanup({ pattern: 'chunk-*' })],
-	});
-	build({
-		...baseConfig,
-		entryPoints: {
-			'service-worker': 'src/wordpress-playground/service-worker.ts',
-			'setup-fast-refresh-runtime':
-				'src/wordpress-plugin-ide/bundler/react-fast-refresh/setup-react-refresh-runtime.js',
-		},
 	});
 	build({
 		logLevel: 'info',

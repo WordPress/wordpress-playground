@@ -15,7 +15,21 @@ import { getPathQueryFragment } from '../utils';
  * @param  config
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const { handleRequest = defaultRequestHandler } = config;
+	const { version, handleRequest = defaultRequestHandler } = config;
+
+	/**
+	 * Enable the client app to force-update the service worker
+	 * registration.
+	 */
+	self.addEventListener('message', (event) => {
+		if (!event.data) {
+			return;
+		}
+
+		if (event.data === 'skip-waiting') {
+			self.skipWaiting();
+		}
+	});
 
 	/**
 	 * Ensure the client gets claimed by this service worker right after the registration.
@@ -40,6 +54,28 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
 
+		// Provide a custom JSON response in the special /version endpoint
+		// so the frontend app can know whether it's time to update the
+		// service worker registration.
+		if (url.pathname === '/version') {
+			event.preventDefault();
+			event.respondWith(
+				new Response(JSON.stringify({ version }), {
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					status: 200,
+				})
+			);
+			return;
+		}
+
+		// Don't handle requests to the service worker script itself.
+		if (url.pathname.startsWith(self.location.pathname)) {
+			return;
+		}
+
+		// Don't handle any unscoped requests.
 		if (!isURLScoped(url)) {
 			// Otherwise let the browser handle uncoped requests as is.
 			return;
@@ -161,6 +197,13 @@ export async function broadcastMessageExpectReply(message, scope) {
 }
 
 interface ServiceWorkerConfiguration {
+	/**
+	 * The version of the service worker – exposed via the /version endpoint.
+	 *
+	 * This is used by the frontend app to know whether it's time to update
+	 * the service worker registration.
+	 */
+	version: string;
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
 }
 
