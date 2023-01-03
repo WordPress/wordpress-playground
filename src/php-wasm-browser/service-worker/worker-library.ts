@@ -50,7 +50,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 				removeURLScope(url)
 			)}`
 		);
-		return event.respondWith(handleRequest(event));
+		const responsePromise = handleRequest(event);
+		if (responsePromise) {
+			event.respondWith(responsePromise);
+		}
 	});
 }
 
@@ -160,7 +163,7 @@ export async function broadcastMessageExpectReply(message, scope) {
 }
 
 interface ServiceWorkerConfiguration {
-	handleRequest?: (event: FetchEvent) => Promise<Response>;
+	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
 }
 
 /**
