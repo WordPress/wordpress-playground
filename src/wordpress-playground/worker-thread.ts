@@ -19,13 +19,19 @@ const DOCROOT = '/wordpress';
 startWordPress().then((browser) =>
 	initializeWorkerThread({
 		phpBrowser: browser,
+		middleware: (message, next) => {
+			if (message.type === 'getWordPressModule') {
+				return getRequestedDataModule();
+			}
+			return next(message);
+		},
 	})
 );
 
 async function startWordPress() {
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 		import(`/${getRequestedPHPModule()}?${phpJsCacheBuster}`),
-		import(`/${getRequestedDataModule()}?${wpJsCacheBuster}`),
+		import(`/${getRequestedDataModule()}.js?${wpJsCacheBuster}`),
 	]);
 
 	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
@@ -37,21 +43,21 @@ async function startWordPress() {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	});
-	
+
 	return new PHPBrowser(server);
 }
 
 function getRequestedPHPModule() {
 	const phpVersions = {
-		"5.6": 'php-5.6.js',
-		"7.0": 'php-7.0.js',
-		"7.1": 'php-7.1.js',
-		"7.2": 'php-7.2.js',
-		"7.3": 'php-7.3.js',
-		"7.4": 'php-7.4.js',
-		"8.0": 'php-8.0.js',
-		"8.1": 'php-8.1.js',
-		"8.2": 'php-8.2.js',
+		'5.6': 'php-5.6.js',
+		'7.0': 'php-7.0.js',
+		'7.1': 'php-7.1.js',
+		'7.2': 'php-7.2.js',
+		'7.3': 'php-7.3.js',
+		'7.4': 'php-7.4.js',
+		'8.0': 'php-8.0.js',
+		'8.1': 'php-8.1.js',
+		'8.2': 'php-8.2.js',
 	};
 	const requestedVersion = currentBackend.getOptions().phpVersion || '8.0';
 	if (!(requestedVersion in phpVersions)) {
@@ -62,15 +68,16 @@ function getRequestedPHPModule() {
 
 function getRequestedDataModule() {
 	const allowedWpModules = {
-		vanilla: 'wp.js',
-		test: 'wp-test-content.js',
-		playground: 'wp-playground-default.js',
+		'5.9': 'wp-5.9',
+		'6.0': 'wp-6.0',
+		'6.1': 'wp-6.1',
+		nightly: 'wp-nightly',
 	};
-	const requestedModule = currentBackend.getOptions().dataModule || 'vanilla';
-	if (!(requestedModule in allowedWpModules)) {
-		throw new Error(`Unsupported WordPress module: ${requestedModule}`);
+	const requestedDataModule = currentBackend.getOptions().dataModule || '6.1';
+	if (!(requestedDataModule in allowedWpModules)) {
+		throw new Error(`Unsupported WordPress module: ${requestedDataModule}`);
 	}
-	return allowedWpModules[requestedModule];
+	return allowedWpModules[requestedDataModule];
 }
 
 function patchWordPressFiles(php) {
@@ -112,6 +119,8 @@ function patchWordPressFiles(php) {
 		`${DOCROOT}/wp-includes/Requests/Transport/cURL.php`,
 	];
 	for (const transport of transports) {
+		// One of the transports might not exist in the latest WordPress version.
+		if (!php.fileExists(transport)) continue;
 		patchFile(transport, (contents) =>
 			contents.replace(
 				'public static function test',

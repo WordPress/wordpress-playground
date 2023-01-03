@@ -15,7 +15,13 @@ async function buildWordPress() {
 			'--tag=wordpress-playground',
 			'--progress=plain',
 			...(process.env.WP_ZIP_URL
-				? ['--build-arg', `WP_ZIP_URL=${wpZipUrl}`]
+				? ['--build-arg', `WP_ZIP_URL=${process.env.WP_ZIP_URL}`]
+				: []),
+			...(process.env.OUT_FILENAME
+				? ['--build-arg', `OUT_FILENAME=${process.env.OUT_FILENAME}`]
+				: []),
+			...(process.env.KEEP_THEME
+				? ['--build-arg', `KEEP_THEME=${process.env.KEEP_THEME}`]
 				: []),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
