@@ -5,6 +5,9 @@ export const dependenciesTotalSize = WP_DATA_SIZE;
 // The final wp.data filename – populated by the Dockerfile.
 export const dependencyFilename = WP_DATA_FILENAME;
 
+// The default theme name – populated by the Dockerfile.
+export const defaultThemeName = WP_THEME_NAME;
+
 // Prepending this to the built php.js file manually turns it
 // into an ESM module.
 // This replaces the Emscripten's MODULARIZE=1 which pollutes the

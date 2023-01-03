@@ -16,12 +16,15 @@ const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 // Hardcoded in wp.js:
 const DOCROOT = '/wordpress';
 
-startWordPress().then((browser) =>
+startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 	initializeWorkerThread({
 		phpBrowser: browser,
 		middleware: (message, next) => {
-			if (message.type === 'getWordPressModule') {
-				return getRequestedDataModule();
+			if (message.type === 'getWordPressModuleDetails') {
+				return {
+					staticAssetsDirectory,
+					defaultTheme: wpLoaderModule.defaultThemeName,
+				};
 			}
 			return next(message);
 		},
@@ -44,7 +47,11 @@ async function startWordPress() {
 		isStaticFilePath: isUploadedFilePath,
 	});
 
-	return new PHPBrowser(server);
+	return {
+		browser: new PHPBrowser(server),
+		wpLoaderModule,
+		staticAssetsDirectory: getRequestedDataModule()
+	};
 }
 
 function getRequestedPHPModule() {

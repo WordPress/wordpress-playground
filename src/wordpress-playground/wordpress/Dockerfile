@@ -175,7 +175,10 @@ RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
 # * Total size of the loaded dependencies – useful for progress bars.
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
     export FILE_SIZE=$(stat -c%s "/root/output/$OUT_FILENAME.data") && \
-    cat /tmp/esm-prefix.js | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" > /root/esm-prefix.js
+    cat /tmp/esm-prefix.js \
+        | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" \
+        | sed "s#WP_THEME_NAME#'$KEEP_THEME'#g" \
+        > /root/esm-prefix.js
 
 # Filename of the main dependency
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \

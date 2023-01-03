@@ -20,36 +20,56 @@ initializeServiceWorker({
 			return;
 		}
 		event.preventDefault();
-		const isPHPPath =
-			!isReservedUrl &&
-			(seemsLikeAPHPServerPath(unscopedUrl.pathname) ||
-				isUploadedFilePath(unscopedUrl.pathname));
-		if (isPHPPath) {
-			return PHPRequest(event);
+		async function asyncHandler() {
+			const { staticAssetsDirectory, defaultTheme } =
+				await getScopedWpDetails(getURLScope(fullUrl)!);
+			if (
+				(seemsLikeAPHPServerPath(unscopedUrl.pathname) ||
+					isUploadedFilePath(unscopedUrl.pathname)) &&
+				!unscopedUrl.pathname.startsWith(
+					`/wp-content/themes/${defaultTheme}`
+				)
+			) {
+				return PHPRequest(event);
+			}
+			const request = await rewriteRequest(
+				event.request,
+				staticAssetsDirectory
+			);
+			return fetch(request);
 		}
-		return rewriteRequest(event.request).then(fetch);
+		return asyncHandler();
 	},
 });
 
-const scopeToWpModule: Record<string, string> = {};
-async function rewriteRequest(request: Request): Promise<Request> {
+type WPModuleDetails = {
+	staticAssetsDirectory: string;
+	defaultTheme: string;
+};
+
+const scopeToWpModule: Record<string, WPModuleDetails> = {};
+async function rewriteRequest(
+	request: Request,
+	staticAssetsDirectory: string
+): Promise<Request> {
 	const requestedUrl = new URL(request.url);
 
-	const scope = getURLScope(requestedUrl)!;
+	const resolvedUrl = removeURLScope(requestedUrl);
+	resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+	return await cloneRequest(request, {
+		url: resolvedUrl,
+	});
+}
+
+async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{
-				type: 'getWordPressModule',
+				type: 'getWordPressModuleDetails',
 			},
 			scope
 		);
 		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
-	const wpPathPrefix = scopeToWpModule[scope];
-
-	const resolvedUrl = removeURLScope(requestedUrl);
-	resolvedUrl.pathname = `${wpPathPrefix}${resolvedUrl.pathname}`;
-	return await cloneRequest(request, {
-		url: resolvedUrl,
-	});
+	return scopeToWpModule[scope];
 }
