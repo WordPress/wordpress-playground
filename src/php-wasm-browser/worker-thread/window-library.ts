@@ -214,6 +214,14 @@ export class SpawnedWorkerThread {
 		return await this.#rpc('isDir', { path });
 	}
 
+	/**
+	 * @param  path
+	 * @see {PHP.fileExists}
+	 */
+	async fileExists(path: string): Promise<boolean> {
+		return await this.#rpc('fileExists', { path });
+	}
+
 	async #rpc<T>(type: string, args?: Record<string, any>): Promise<T> {
 		return await this.messageChannel.sendMessage({
 			...args,

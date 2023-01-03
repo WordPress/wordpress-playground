@@ -66,13 +66,14 @@ export async function initializeWorkerThread(
 	config: WorkerThreadConfiguration
 ): Promise<any> {
 	const phpBrowser = config.phpBrowser || (await defaultBootBrowser());
+	const middleware = config.middleware || ((message, next) => next(message));
 
 	const absoluteUrl = phpBrowser.server.absoluteUrl;
 	const scope = getURLScope(new URL(absoluteUrl));
 
 	// Handle postMessage communication from the main thread
 	currentBackend.setMessageListener(async (event) => {
-		const result = await handleMessage(event.data);
+		const result = await middleware(event.data, doHandleMessage);
 
 		// When `requestId` is present, the other thread expects a response:
 		if (event.data.requestId) {
@@ -81,7 +82,7 @@ export async function initializeWorkerThread(
 		}
 	});
 
-	async function handleMessage(message) {
+	async function doHandleMessage(message) {
 		console.debug(
 			`[Worker Thread] "${message.type}" message received from a service worker`
 		);
@@ -107,6 +108,8 @@ export async function initializeWorkerThread(
 				message.path,
 				message.contents
 			);
+		} else if (message.type === 'fileExists') {
+			return await phpBrowser.server.php.fileExists(message.path);
 		} else if (message.type === 'run') {
 			return phpBrowser.server.php.run(message.code);
 		} else if (message.type === 'HTTPRequest') {
@@ -134,6 +137,10 @@ interface WorkerThreadConfiguration {
 	 * The PHP browser instance to use.
 	 */
 	phpBrowser?: PHPBrowser;
+	/**
+	 * Middleware to run before handing a message.
+	 */
+	middleware?: (message, next) => Promise<any>;
 }
 
 async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {

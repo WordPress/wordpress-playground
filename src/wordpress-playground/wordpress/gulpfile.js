@@ -20,6 +20,9 @@ async function buildWordPress() {
 			...(process.env.OUT_FILENAME
 				? ['--build-arg', `OUT_FILENAME=${process.env.OUT_FILENAME}`]
 				: []),
+			...(process.env.KEEP_THEME
+				? ['--build-arg', `KEEP_THEME=${process.env.KEEP_THEME}`]
+				: []),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);

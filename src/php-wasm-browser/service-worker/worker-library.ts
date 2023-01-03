@@ -15,12 +15,7 @@ import { getPathQueryFragment } from '../utils';
  * @param  config
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const {
-		shouldForwardRequestToPHPServer = (
-			request: Request,
-			unscopedUrl: URL
-		) => seemsLikeAPHPServerPath(unscopedUrl.pathname),
-	} = config;
+	const { handleRequest = defaultRequestHandler } = config;
 
 	/**
 	 * Ensure the client gets claimed by this service worker right after the registration.
@@ -45,90 +40,78 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
 
-		const unscopedUrl = removeURLScope(url);
-		if (
-			!isURLScoped(url) ||
-			!shouldForwardRequestToPHPServer(event.request, unscopedUrl)
-		) {
-			// When ignoring a scoped request, let's unscope it before
-			// passing it to the browser.
-			if (isURLScoped(url)) {
-				event.preventDefault();
-				return event.respondWith(
-					new Promise(async (accept) => {
-						const newRequest = await cloneRequest(event.request, {
-							url: unscopedUrl,
-						});
-						accept(fetch(newRequest));
-					})
-				);
-			}
-			// Otherwise let the browser handle the request as is.
+		if (!isURLScoped(url)) {
+			// Otherwise let the browser handle uncoped requests as is.
 			return;
 		}
 
-		event.preventDefault();
-		return event.respondWith(
-			new Promise(async (accept) => {
-				console.debug(
-					`[ServiceWorker] Serving request: ${getPathQueryFragment(
-						removeURLScope(url)
-					)}`
-				);
+		console.debug(
+			`[ServiceWorker] Serving request: ${getPathQueryFragment(
+				removeURLScope(url)
+			)}`
+		);
+		return event.respondWith(handleRequest(event));
+	});
+}
 
-				const { post, files } = await parsePost(event.request);
-				const requestHeaders = {};
-				for (const pair of (event.request.headers as any).entries()) {
-					requestHeaders[pair[0]] = pair[1];
-				}
-
-				const requestedPath = getPathQueryFragment(url);
-				let phpResponse;
-				try {
-					const message = {
-						type: 'HTTPRequest',
-
-						/**
-						 * Detect scoped requests – their url starts with `/scope:`
-						 *
-						 * We need this mechanics because this worker broadcasts
-						 * events to all the listeners across all browser tabs. Scopes
-						 * helps WASM workers ignore requests meant for other WASM workers.
-						 */
-						scope: getURLScope(url),
-						request: {
-							path: requestedPath,
-							method: event.request.method,
-							files,
-							_POST: post,
-							headers: requestHeaders,
-						},
-					};
-					console.debug(
-						'[ServiceWorker] Forwarding a request to the Worker Thread',
-						{ message }
-					);
-					const requestId = await broadcastMessageExpectReply(
-						message
-					);
-					phpResponse = await awaitReply(self, requestId);
-					console.debug(
-						'[ServiceWorker] Response received from the main app',
-						{ phpResponse }
-					);
-				} catch (e) {
-					console.error(e, { requestedPath });
-					throw e;
-				}
-
-				accept(
-					new Response(phpResponse.body, {
-						headers: phpResponse.headers,
-						status: phpResponse.statusCode,
-					})
-				);
+async function defaultRequestHandler(event) {
+	event.preventDefault();
+	const url = new URL(event.request.url);
+	// When ignoring a scoped request, let's unscope it before
+	// passing it to the browser.
+	const unscopedUrl = removeURLScope(url);
+	if (!seemsLikeAPHPServerPath(unscopedUrl.pathname)) {
+		return fetch(
+			await cloneRequest(event.request, {
+				url,
 			})
 		);
+	}
+	return PHPRequest(event);
+}
+
+export async function PHPRequest(event) {
+	const url = new URL(event.request.url);
+
+	const { post, files } = await parsePost(event.request);
+	const requestHeaders = {};
+	for (const pair of (event.request.headers as any).entries()) {
+		requestHeaders[pair[0]] = pair[1];
+	}
+
+	const requestedPath = getPathQueryFragment(url);
+	let phpResponse;
+	try {
+		const message = {
+			type: 'HTTPRequest',
+			request: {
+				path: requestedPath,
+				method: event.request.method,
+				files,
+				_POST: post,
+				headers: requestHeaders,
+			},
+		};
+		console.debug(
+			'[ServiceWorker] Forwarding a request to the Worker Thread',
+			{ message }
+		);
+		const requestId = await broadcastMessageExpectReply(
+			message,
+			getURLScope(url)
+		);
+		phpResponse = await awaitReply(self, requestId);
+		console.debug('[ServiceWorker] Response received from the main app', {
+			phpResponse,
+		});
+	} catch (e) {
+		console.error(e, { requestedPath });
+		throw e;
+	}
+
+	return new Response(phpResponse.body, {
+		headers: phpResponse.headers,
+		status: phpResponse.statusCode,
 	});
 }
 
@@ -148,9 +131,10 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
  * what this function uses to broadcast the message.
  *
  * @param  message The message to broadcast.
+ * @param  scope   Target worker thread scope.
  * @returns The request ID to receive the reply.
  */
-async function broadcastMessageExpectReply(message) {
+export async function broadcastMessageExpectReply(message, scope) {
 	const requestId = getNextRequestId();
 	for (const client of await self.clients.matchAll({
 		// Sometimes the client that triggered the current fetch()
@@ -161,6 +145,14 @@ async function broadcastMessageExpectReply(message) {
 	})) {
 		client.postMessage({
 			...message,
+			/**
+			 * Attach the scope with a URL starting with `/scope:` to this message.
+			 *
+			 * We need this mechanics because this worker broadcasts
+			 * events to all the listeners across all browser tabs. Scopes
+			 * helps WASM workers ignore requests meant for other WASM workers.
+			 */
+			scope,
 			requestId,
 		});
 	}
@@ -168,10 +160,7 @@ async function broadcastMessageExpectReply(message) {
 }
 
 interface ServiceWorkerConfiguration {
-	shouldForwardRequestToPHPServer?: (
-		request: Request,
-		unscopedUrl: URL
-	) => boolean;
+	handleRequest?: (event: FetchEvent) => Promise<Response>;
 }
 
 /**
@@ -242,7 +231,7 @@ async function parsePost(request) {
  * @param  overrides
  * @returns The new request.
  */
-async function cloneRequest(
+export async function cloneRequest(
 	request: Request,
 	overrides: Record<string, any>
 ): Promise<Request> {

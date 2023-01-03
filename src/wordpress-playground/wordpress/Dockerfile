@@ -10,6 +10,9 @@ ENV WP_ZIP_URL ${WP_ZIP_URL}
 ARG OUT_FILENAME=wp
 ENV OUT_FILENAME ${OUT_FILENAME}
 
+ARG KEEP_THEME
+ENV KEEP_THEME ${KEEP_THEME}
+
 RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
@@ -71,13 +74,14 @@ RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
     sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
 
 # Move the static files to the final output directory
-RUN mv wordpress-static/* /root/output
+RUN mkdir /root/output/$OUT_FILENAME
+RUN mv wordpress-static/* /root/output/$OUT_FILENAME/
 
 # === Minify WordPress ===
 
 # Remove non-default themes
-RUN cd wordpress && \
-    rm -r wp-content/themes/twentytwentyone wp-content/themes/twentytwentytwo
+RUN cd wordpress/wp-content/themes && \
+    rm -r $(ls | grep -v $KEEP_THEME)
 
 # Remove unused static files
 RUN cd wordpress && \
