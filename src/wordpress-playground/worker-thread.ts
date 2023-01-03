@@ -119,6 +119,8 @@ function patchWordPressFiles(php) {
 		`${DOCROOT}/wp-includes/Requests/Transport/cURL.php`,
 	];
 	for (const transport of transports) {
+		// One of the transports might not exist in the latest WordPress version.
+		if (!php.fileExists(transport)) continue;
 		patchFile(transport, (contents) =>
 			contents.replace(
 				'public static function test',
