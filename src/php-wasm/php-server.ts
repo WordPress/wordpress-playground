@@ -244,12 +244,12 @@ REQUEST
 		require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
 	`,
 			{
-				// requestBody: isPostJson
-				// 	? JSON.stringify(request._POST) || ''
-				// 	: new URLSearchParams(request._POST || {}).toString(),
-				// uploadedFiles: request.files
-				// 	? await this.php.uploadFiles(request.files)
-				// 	: undefined,
+				requestBody: isPostJson
+					? JSON.stringify(request._POST) || ''
+					: new URLSearchParams(request._POST || {}).toString(),
+				uploadedFiles: request.files
+					? await this.php.uploadFiles(request.files)
+					: undefined,
 			}
 		);
 
