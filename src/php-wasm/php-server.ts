@@ -188,8 +188,8 @@ export class PHPServer {
 					method: request.method || 'GET',
 					headers: request.headers || {},
 					queryString: request.queryString || '',
-					_POST: request._POST || {},
-					_FILES,
+					_POST: dictToParseStrFormat(request._POST || {}),
+					_FILES: dictToParseStrFormat(_FILES),
 					_COOKIE: request._COOKIE || {},
 					_SESSION: {},
 				})}
@@ -197,9 +197,8 @@ REQUEST
 				, JSON_OBJECT_AS_ARRAY);
 
 			parse_str(substr($request->queryString, 1), $_GET);
-
-			$_POST = $request->_POST;
-			$_FILES = $request->_FILES;
+			parse_str($request->_POST, $_POST);
+			parse_str($request->_FILES, $_FILES);
 
 			if ( !is_null($request->_COOKIE) ) {
 				foreach ($request->_COOKIE as $key => $value) {
@@ -505,6 +504,41 @@ function inferMimeType(path: string): string {
 		default:
 			return 'application-octet-stream';
 	}
+}
+
+/**
+ * Convert a dictionary to a string in the format
+ * that PHP's `parse_str` function expects.
+ *
+ * @example
+ * ```js
+ * dictToParseStrFormat({ foo: 'bar', baz: 123 })
+ * // foo=bar&baz=123
+ *
+ * dictToParseStrFormat({ foo: { bar: 'baz' } })
+ * // foo[bar]=baz
+ *
+ * dictToParseStrFormat({ 'foo[bar]': { baz: 123 } })
+ * // foo[bar][baz]=123
+ * ```
+ *
+ * @param  dict - The dictionary to convert.
+ * @returns The string in the format that PHP's `parse_str` function expects.
+ */
+function dictToParseStrFormat(
+	dict: Record<string, string | number | _FILE>
+): string {
+	const serializableDict: Record<string, string> = {};
+	for (const key in dict) {
+		if (typeof dict[key] === 'object') {
+			for (const subKey in dict[key] as _FILE) {
+				serializableDict[`${key}[${subKey}]`] = dict[key][subKey];
+			}
+		} else {
+			serializableDict[key] = dict[key] as string;
+		}
+	}
+	return new URLSearchParams(serializableDict).toString();
 }
 
 export interface PHPServerConfigation {
