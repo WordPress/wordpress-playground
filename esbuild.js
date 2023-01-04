@@ -1,13 +1,10 @@
 const { build } = require('esbuild');
 const yargs = require('yargs');
-const { execSync } = require('child_process');
 const chokidar = require('chokidar');
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 const crypto = require('crypto');
-const { EventEmitter } = require('node:events');
-const { version } = require('yargs');
 
 const argv = yargs(process.argv.slice(2))
 	.command('build', 'Builds the project files')
