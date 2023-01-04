@@ -40,6 +40,7 @@ async function startWordPress() {
 	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
 
 	patchWordPressFiles(php);
+	this.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
 
 	const server = new PHPServer(php, {
 		documentRoot: DOCROOT,

@@ -204,7 +204,6 @@ session.save_path=/home/web_user
     `
 		);
 		this.#Runtime.ccall('phpwasm_init_context', NUM, [STR], []);
-		this.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
 	}
 
 	/**
