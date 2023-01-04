@@ -1,4 +1,4 @@
-import * as phpLoaderModule from '../../../build/php.node.js';
+import * as phpLoaderModule from '../../../build/php-5.6.node.js';
 import { startPHP } from '../php';
 
 const { TextEncoder, TextDecoder } = require('util');
@@ -151,3 +151,101 @@ describe('PHP – stdio', () => {
 		});
 	});
 });
+
+describe('PHP Server – requests', () => {
+	beforeAll(() => {
+		// Shim the user agent for the server
+		(global as any).navigator = { userAgent: '' };
+	});
+
+	let php, server;
+	beforeEach(async () => {
+		php = await startPHP(phpLoaderModule, 'NODE');
+		php.mkdirTree('/tests');
+	});
+
+	it('should parse FILES arrays in a PHP way', async () => {
+		const response = php.run(
+			`<?php echo json_encode([
+				'files' => $_FILES,
+				'is_uploaded' => is_uploaded_file($_FILES['file_txt']['first']['tmp_name'])
+			]);`,
+			{
+				method: 'POST',
+				uploadedFiles: await php.uploadFiles({
+					'file_txt[first]': new File(['Hello world'], 'file.txt'),
+				}),
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.stdout);
+		expect(JSON.parse(bodyText)).toEqual({
+			files: {
+				file_txt: {
+					first: {
+						name: 'file.txt',
+						type: 'text/plain',
+						tmp_name: expect.any(String),
+						error: '0',
+						size: '1',
+					},
+				},
+			},
+			is_uploaded: true,
+		});
+	});
+
+	it('Should have access to raw POST data', async () => {
+		const response = await php.run(
+			`<?php
+			$fp = fopen('php://input', 'r');
+			echo fread($fp, 100);
+			fclose($fp);
+			`,
+			{
+				requestBody: '{"foo": "bar"}',
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.stdout);
+		expect(bodyText).toEqual('{"foo": "bar"}');
+	});
+});
+
+// Shim the browser's file class
+class File {
+	data;
+	name;
+
+	constructor(data, name) {
+		this.data = data;
+		this.name = name;
+	}
+
+	get size() {
+		return this.data.length;
+	}
+
+	get type() {
+		return 'text/plain';
+	}
+
+	arrayBuffer() {
+		return new ArrayBuffer(toUint8Array(this.data));
+	}
+}
+
+function toUint8Array(data) {
+	if (typeof data === 'string') {
+		return new TextEncoder().encode(data).buffer;
+	} else if (data instanceof ArrayBuffer) {
+		data = new Uint8Array(data);
+	} else if (Array.isArray(data)) {
+		if (data[0] instanceof Number) {
+			return new Uint8Array(data);
+		}
+		return toUint8Array(data[0]);
+	} else if (data instanceof Uint8Array) {
+		return data.buffer;
+	} else {
+		throw new Error('Unsupported data type');
+	}
+}

@@ -148,105 +148,112 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(request: PHPRequest): Promise<PHPResponse> {
-		const _FILES = await this.#prepare_FILES(request.files);
+		const isPostJson =
+			request.headers?.['content-type'] === 'application/json';
 
-		try {
-			const output = await this.php.run(`<?php
-			/**
-			 * Logs response headers, status code etc to stderr for parseResponse()
-			 * to process.
-			 * 
-			 * This may seem like a weird way of capturing that data, however
-			 * php.run() method only outputs information to either stdout or stderr.
-			 * Stdout is already reserved for the regular output information, which makes
-			 * stderr as the only available output.
-			 */
-			$stdErr = fopen('php://stderr', 'w');
-			$errors = [];
-			register_shutdown_function(function() use($stdErr){
-				fwrite($stdErr, json_encode(['status_code', http_response_code()]) . "\n");
-				fwrite($stdErr, json_encode(['session_id', session_id()]) . "\n");
-				fwrite($stdErr, json_encode(['headers', headers_list()]) . "\n");
-				fwrite($stdErr, json_encode(['errors', error_get_last()]) . "\n");
-				if(isset($_SESSION)) {
-                    fwrite($stdErr, json_encode(['session', $_SESSION]) . "\n");
-                }
-			});
+		const output = await this.php.run(
+			`<?php
+		/**
+		 * Logs response headers, status code etc to stderr for parseResponse()
+		 * to process.
+		 * 
+		 * This may seem like a weird way of capturing that data, however
+		 * php.run() method only outputs information to either stdout or stderr.
+		 * Stdout is already reserved for the regular output information, which makes
+		 * stderr as the only available output.
+		 */
+		$stdErr = fopen('php://stderr', 'w');
+		$errors = [];
+		register_shutdown_function(function() use($stdErr){
+			fwrite($stdErr, json_encode(['status_code', http_response_code()]) . "\n");
+			fwrite($stdErr, json_encode(['session_id', session_id()]) . "\n");
+			fwrite($stdErr, json_encode(['headers', headers_list()]) . "\n");
+			fwrite($stdErr, json_encode(['errors', error_get_last()]) . "\n");
+			if(isset($_SESSION)) {
+				fwrite($stdErr, json_encode(['session', $_SESSION]) . "\n");
+			}
+		});
 
-			set_error_handler(function(...$args) use($stdErr){
-				fwrite($stdErr, print_r($args,1));
-			});
-			error_reporting(E_ALL);
+		set_error_handler(function(...$args) use($stdErr){
+			fwrite($stdErr, print_r($args,1));
+		});
+		error_reporting(E_ALL);
 
-			/**
-			 * Populate the superglobal variables so the requested file
-			 * can read them.
-			 */
-			$request = (object) json_decode(<<<'REQUEST'
-				${JSON.stringify({
-					path: request.path,
-					method: request.method || 'GET',
-					headers: request.headers || {},
-					queryString: request.queryString || '',
-					_POST: dictToParseStrFormat(request._POST || {}),
-					_FILES: dictToParseStrFormat(_FILES),
-					_COOKIE: request._COOKIE || {},
-					_SESSION: {},
-				})}
+		/**
+		 * Populate the superglobal variables so the requested file
+		 * can read them.
+		 */
+		$request = (object) json_decode(<<<'REQUEST'
+			${JSON.stringify({
+				path: request.path,
+				method: request.method || 'GET',
+				headers: request.headers || {},
+				queryString: request.queryString || '',
+				postQueryString: isPostJson
+					? ''
+					: new URLSearchParams(request._POST || {}).toString(),
+				_COOKIE: request._COOKIE || {},
+				_SESSION: {},
+			})}
 REQUEST
-				, JSON_OBJECT_AS_ARRAY);
+			, JSON_OBJECT_AS_ARRAY);
 
-			parse_str(substr($request->queryString, 1), $_GET);
-			parse_str($request->_POST, $_POST);
-			parse_str($request->_FILES, $_FILES);
+		parse_str(substr($request->queryString, 1), $_GET);
+		parse_str($request->postQueryString, $_POST);
 
-			if ( !is_null($request->_COOKIE) ) {
-				foreach ($request->_COOKIE as $key => $value) {
-					fwrite($stdErr, 'Setting Cookie: ' . $key . " => " . $value . "\n");
-					$_COOKIE[$key] = urldecode($value);
-				}
+		if ( !is_null($request->_COOKIE) ) {
+			foreach ($request->_COOKIE as $key => $value) {
+				fwrite($stdErr, 'Setting Cookie: ' . $key . " => " . $value . "\n");
+				$_COOKIE[$key] = urldecode($value);
 			}
-
-			$_SESSION = $request->_SESSION;
-
-			foreach( $request->headers as $name => $value ) {
-				$server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
-				$_SERVER[$server_key] = $value;
-			}
-
-			fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
-
-			$script  = ltrim($request->path, '/');
-
-			$path = $request->path;
-			$path = preg_replace('/^\\/php-wasm/', '', $path);
-
-			$_SERVER['PATH']     = '/';
-			$_SERVER['REQUEST_URI']     = $path . ($request->queryString ?: '');
-			$_SERVER['REQUEST_METHOD']  = $request->method;
-			$_SERVER['REMOTE_ADDR']     = ${JSON.stringify(this.#HOSTNAME)};
-			$_SERVER['SERVER_NAME']     = ${JSON.stringify(this.#ABSOLUTE_URL)};
-			$_SERVER['SERVER_PORT']     = ${JSON.stringify(this.#PORT)};
-			$_SERVER['HTTPS']           = ${JSON.stringify(
-				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
-			)};
-			$_SERVER['HTTP_HOST']       = ${JSON.stringify(this.#HOST)};
-			$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
-			$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
-			$_SERVER['DOCUMENT_ROOT']   = '/';
-			$docroot = ${JSON.stringify(this.#DOCROOT)};
-			$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
-			$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
-			$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
-			chdir($docroot);
-
-			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
-		`);
-
-			return parseResponse(output);
-		} finally {
-			this.#cleanup_FILES(_FILES);
 		}
+
+		$_SESSION = $request->_SESSION;
+
+		foreach( $request->headers as $name => $value ) {
+			$server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+			$_SERVER[$server_key] = $value;
+		}
+
+		fwrite($stdErr, json_encode(['session' => $_SESSION]) . "\n");
+
+		$script  = ltrim($request->path, '/');
+
+		$path = $request->path;
+		$path = preg_replace('/^\\/php-wasm/', '', $path);
+
+		$_SERVER['PATH']     = '/';
+		$_SERVER['REQUEST_URI']     = $path . ($request->queryString ?: '');
+		$_SERVER['REQUEST_METHOD']  = $request->method;
+		$_SERVER['REMOTE_ADDR']     = ${JSON.stringify(this.#HOSTNAME)};
+		$_SERVER['SERVER_NAME']     = ${JSON.stringify(this.#ABSOLUTE_URL)};
+		$_SERVER['SERVER_PORT']     = ${JSON.stringify(this.#PORT)};
+		$_SERVER['HTTPS']           = ${JSON.stringify(
+			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
+		)};
+		$_SERVER['HTTP_HOST']       = ${JSON.stringify(this.#HOST)};
+		$_SERVER['HTTP_USER_AGENT'] = ${JSON.stringify(navigator.userAgent)};
+		$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
+		$_SERVER['DOCUMENT_ROOT']   = '/';
+		$docroot = ${JSON.stringify(this.#DOCROOT)};
+		$_SERVER['SCRIPT_FILENAME'] = $docroot . '/' . $script;
+		$_SERVER['SCRIPT_NAME']     = $docroot . '/' . $script;
+		$_SERVER['PHP_SELF']        = $docroot . '/' . $script;
+		chdir($docroot);
+
+		require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
+	`,
+			{
+				// requestBody: isPostJson
+				// 	? JSON.stringify(request._POST) || ''
+				// 	: new URLSearchParams(request._POST || {}).toString(),
+				// uploadedFiles: request.files
+				// 	? await this.php.uploadFiles(request.files)
+				// 	: undefined,
+			}
+		);
+
+		return parseResponse(output);
 	}
 
 	/**
@@ -307,74 +314,6 @@ REQUEST
 			return requestedPath;
 		}
 		return requestedPath.substr(this.#PATHNAME.length);
-	}
-
-	/**
-	 * Prepares an object like { file1_name: File, ... } for
-	 * being processed as $_FILES in PHP.
-	 *
-	 * In particular:
-	 * * Creates the files in the filesystem
-	 * * Allocates a global PHP rfc1867_uploaded_files HashTable
-	 * * Registers the files in PHP's rfc1867_uploaded_files
-	 * * Converts the JavaScript files object to the $_FILES data format like below
-	 *
-	 * Array(
-	 *    [file1_name] => Array (
-	 *       [name] => file_name.jpg
-	 *       [type] => text/plain
-	 *       [tmp_name] => /tmp/php/php1h4j1o (some path in the filesystem where the tmp file is kept for processing)
-	 *       [error] => UPLOAD_ERR_OK  (= 0)
-	 *       [size] => 123   (the size in bytes)
-	 *    )
-	 *    // ...
-	 * )
-	 *
-	 * @param  files - JavaScript files keyed by their HTTP upload name.
-	 * @returns $_FILES-compatible object.
-	 */
-	async #prepare_FILES(files: Record<string, File> = {}): Promise<_FILES> {
-		if (Object.keys(files).length) {
-			this.php.initUploadedFilesHash();
-		}
-
-		const _FILES: _FILES = {};
-		for (const [key, value] of Object.entries(files)) {
-			const tmpName = Math.random().toFixed(20);
-			const tmpPath = `/tmp/${tmpName}`;
-			// Need to read the blob and store it in the filesystem
-			this.php.writeFile(
-				tmpPath,
-				new Uint8Array(await value.arrayBuffer())
-			);
-			_FILES[key] = {
-				name: value.name,
-				type: value.type,
-				tmp_name: tmpPath,
-				error: 0,
-				size: value.size,
-			};
-			this.php.registerUploadedFile(tmpPath);
-		}
-		return _FILES;
-	}
-
-	/**
-	 * Cleans up after #prepare_FILES:
-	 * * Frees the PHP's rfc1867_uploaded_files HashTable
-	 * * Removes the temporary files from the filesystem
-	 *
-	 * @param  _FILES - $_FILES-compatible object.
-	 */
-	#cleanup_FILES(_FILES: _FILES = {}) {
-		if (Object.keys(_FILES).length) {
-			this.php.destroyUploadedFilesHash();
-		}
-		for (const value of Object.values(_FILES)) {
-			if (this.php.fileExists(value.tmp_name)) {
-				this.php.unlink(value.tmp_name);
-			}
-		}
 	}
 }
 
@@ -506,41 +445,6 @@ function inferMimeType(path: string): string {
 	}
 }
 
-/**
- * Convert a dictionary to a string in the format
- * that PHP's `parse_str` function expects.
- *
- * @example
- * ```js
- * dictToParseStrFormat({ foo: 'bar', baz: 123 })
- * // foo=bar&baz=123
- *
- * dictToParseStrFormat({ foo: { bar: 'baz' } })
- * // foo[bar]=baz
- *
- * dictToParseStrFormat({ 'foo[bar]': { baz: 123 } })
- * // foo[bar][baz]=123
- * ```
- *
- * @param  dict - The dictionary to convert.
- * @returns The string in the format that PHP's `parse_str` function expects.
- */
-function dictToParseStrFormat(
-	dict: Record<string, string | number | _FILE>
-): string {
-	const serializableDict: Record<string, string> = {};
-	for (const key in dict) {
-		if (typeof dict[key] === 'object') {
-			for (const subKey in dict[key] as _FILE) {
-				serializableDict[`${key}[${subKey}]`] = dict[key][subKey];
-			}
-		} else {
-			serializableDict[key] = dict[key] as string;
-		}
-	}
-	return new URLSearchParams(serializableDict).toString();
-}
-
 export interface PHPServerConfigation {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -612,16 +516,6 @@ export interface PHPResponse {
 	 * Lines logged to stderr. Always [''] for static file responses.
 	 */
 	rawError: string[];
-}
-
-type _FILES = Record<string, _FILE>;
-
-interface _FILE {
-	name: string;
-	type: string;
-	tmp_name: string;
-	error: number;
-	size: number;
 }
 
 export default PHPServer;
