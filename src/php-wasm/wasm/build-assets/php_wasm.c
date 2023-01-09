@@ -71,14 +71,124 @@ int redirect_stream_to_file(FILE *stream, char *file_path, int flags)
  *   Restores a stream handler to its original state from before the redirect_stream_to_file
  *   function was called.
  *
- *  stream: The stream to restore, e.g. stdout or stderr.
+ *   stream: The stream to restore, e.g. stdout or stderr.
  *
- *  replacement_stream: The replacement stream returned by the redirect_stream_to_file function.
+ *   replacement_stream: The replacement stream returned by the redirect_stream_to_file function.
  */
 void restore_stream_handler(FILE *original_stream, int replacement_stream)
 {
 	dup2(replacement_stream, fileno(original_stream));
 	close(replacement_stream);
+}
+
+/*
+ * Function: phpwasm_run
+ * ----------------------------
+ *   Runs a PHP script. Writes the output to stdout and stderr,
+ *
+ *   code: The PHP code to run. Must include the `<?php` opener.
+ *
+ *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
+ */
+int EMSCRIPTEN_KEEPALIVE phpwasm_run(char *code)
+{
+	int retVal = 255; // Unknown error.
+
+
+	zend_try
+	{
+		retVal = zend_eval_string(code, NULL, "php-wasm run script");
+
+		if (EG(exception))
+		{
+			zend_exception_error(EG(exception), E_ERROR);
+			retVal = 2;
+		}
+	}
+	zend_catch
+	{
+		retVal = 1; // Code died.
+	}
+
+	zend_end_try();
+
+	return retVal;
+}
+
+int stdout_replacement;
+int stderr_replacement;
+
+char *global_request_body = NULL;
+
+static int php_wasm_read_post_body(char *buffer, uint count_bytes)
+{
+	if(global_request_body == NULL) {
+		return 0;
+	}
+	// batch write global_request_body to buffer
+	int len = strlen(global_request_body);
+	if(len == 0) {
+		return 0;
+	}
+	if(len > count_bytes) {
+		len = count_bytes;
+	}
+	memcpy(buffer, global_request_body, len);
+	free(global_request_body);
+	return len;
+}
+
+/*
+ * Function: phpwasm_init_context
+ * ----------------------------
+ *   Creates a new PHP context.
+ *   This function enables running PHP code, allocating variables, etc.
+ *   It must be called before running any script.
+ * 
+ *   request_body: The raw request body to populate the `php://input` stream.
+ */
+int EMSCRIPTEN_KEEPALIVE phpwasm_init_context(char *request_body)
+{
+	putenv("USE_ZEND_ALLOC=0");
+
+	// Populate php://input {
+	php_embed_module.read_post = *php_wasm_read_post_body;
+	SG(request_info).content_length = strlen(request_body);
+	global_request_body = request_body;
+	// }
+
+	// Write to files instead of stdout and stderr because Emscripten truncates null
+	// bytes from stdout and stderr, and null bytes are a valid output when streaming
+	// binary data.
+	stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout", O_TRUNC);
+	stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr", O_TRUNC);
+	if (stdout_replacement == -1 || stderr_replacement == -1)
+	{
+		return -1;
+	}
+
+	return php_embed_init(0, NULL);
+}
+
+/*
+ * Function: phpwasm_destroy_context
+ * ----------------------------
+ *   Destroy the current PHP context.
+ *   This function trashes the entire memory including all loaded variables,
+ *   functions, classes, etc. It's like the final cleanup after running a script.
+ */
+void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_context()
+{
+	php_embed_shutdown();
+
+	// Let's flush the output buffers. It must happen here because
+	// ob_start() buffers are not flushed until the shutdown handler
+	// runs.
+	fflush(stdout);
+	fflush(stderr);
+
+	restore_stream_handler(stdout, stdout_replacement);
+	restore_stream_handler(stderr, stderr_replacement);
 }
 
 // === FILE UPLOADS SUPPORT ===
@@ -109,7 +219,7 @@ static void free_filename(zval *el)
  *
  *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
  */
-void phpwasm_init_uploaded_files_hash()
+void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 {
 	zend_hash_init(&PG(rfc1867_protected_variables), 8, NULL, NULL, 0);
 
@@ -130,7 +240,7 @@ void phpwasm_init_uploaded_files_hash()
  *
  *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
  */
-void phpwasm_register_uploaded_file(char *tmp_path_char)
+void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
 {
 	#if PHP_MAJOR_VERSION == 5
 		zend_hash_add(SG(rfc1867_uploaded_files), tmp_path_char, strlen(tmp_path_char) + 1, &tmp_path_char, sizeof(char *), NULL);
@@ -138,6 +248,18 @@ void phpwasm_register_uploaded_file(char *tmp_path_char)
 		zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
 		zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
 	#endif
+}
+
+/*
+ * Function: phpwasm_destroy_uploaded_files_hash
+ * ----------------------------
+ *   Destroys the internal hash table to free the memory.
+ *
+ *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
+ */
+void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
+{
+	destroy_uploaded_files_hash();
 }
 
 #ifdef WITH_VRZNO
@@ -173,98 +295,3 @@ int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
 	return vrzno_del_callback(fptr);
 }
 #endif
-
-
-char *global_request_body = NULL;
-
-static int php_wasm_read_post_body(char *buffer, uint count_bytes)
-{
-	if(global_request_body == NULL) {
-		return 0;
-	}
-	// batch write global_request_body to buffer
-	int len = strlen(global_request_body);
-	if(len == 0) {
-		return 0;
-	}
-	if(len > count_bytes) {
-		len = count_bytes;
-	}
-	memcpy(buffer, global_request_body, len);
-	free(global_request_body);
-	return len;
-}
-
-/*
- * Function: phpwasm_request
- * ----------------------------
- */
-int EMSCRIPTEN_KEEPALIVE phpwasm_run(
-	char *php_code,
-	char *request_body,
-	char *uploaded_files_paths
-) {
-	int retVal = 255; // Unknown error.
-
-	// Write to files instead of stdout and stderr because Emscripten truncates null
-	// bytes from stdout and stderr, and null bytes are a valid output when streaming
-	// binary data.
-	int stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout", O_TRUNC);
-	int stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr", O_TRUNC);
-	if (stdout_replacement == -1 || stderr_replacement == -1)
-	{
-		return retVal;
-	}
-	
-	putenv("USE_ZEND_ALLOC=0");
-
-	SG(request_info).content_length = strlen(request_body);
-	global_request_body = request_body;
-	php_embed_module.read_post = *php_wasm_read_post_body;
-
-	if (php_embed_init(0, NULL) != -1)
-	{
-		phpwasm_init_uploaded_files_hash();
-
-		if(strlen(uploaded_files_paths) > 0)
-		{
-			// Split the string by newlines
-			char delim[] = "\n";
-			char *ptr = strtok(uploaded_files_paths, delim);
-
-			// Register each uploaded file
-			while(ptr != NULL)
-			{
-				phpwasm_register_uploaded_file(ptr);
-				ptr = strtok(NULL, delim);
-			}
-		}
-
-		zend_try
-		{
-			retVal = zend_eval_string(php_code, NULL, "php-wasm run script");
-
-			if (EG(exception))
-			{
-				zend_exception_error(EG(exception), E_ERROR);
-				retVal = 2;
-			}
-		}
-		zend_catch
-		{
-			retVal = 1; // Code died.
-		}
-
-		zend_end_try();
-		destroy_uploaded_files_hash();
-		php_embed_shutdown();
-	}
-
-	fflush(stdout);
-	fflush(stderr);
-
-	restore_stream_handler(stdout, stdout_replacement);
-	restore_stream_handler(stderr, stderr_replacement);
-
-	return retVal;
-}

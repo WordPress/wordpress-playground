@@ -181,6 +181,7 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
+	#exitCode;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -196,13 +197,87 @@ export class PHP {
 		this.writeFile(
 			'/usr/local/etc/php.ini',
 			`[PHP]
-error_reporting = E_ERROR | E_PARSE
+error_reporting = E_ALL
 display_errors = 1
 html_errors = 1
 display_startup_errors = On
 session.save_path=/home/web_user
     `
 		);
+	}
+
+	initContext(requestBodyWithoutFiles = '') {
+		this.#Runtime.ccall(
+			'phpwasm_init_context',
+			NUM,
+			[STR],
+			[requestBodyWithoutFiles]
+		);
+		this.run(`<?php
+		$_SESSION = array();
+		$_COOKIES = array();
+		$_SERVER = array();
+		error_reporting(E_ALL);
+		$stdErr = fopen('php://stderr', 'w');
+		set_error_handler(function(...$args) use($stdErr){
+			fwrite($stdErr, print_r($args,1));
+		});
+		`);
+	}
+
+	/**
+	 * Destroys the current PHP context.
+	 * Any variables, functions, classes, etc. defined in the previous
+	 * context will be lost. This methods needs to always be called after
+	 * running PHP code, or else the next call to `run` will be contaminated
+	 * with the previous context.
+	 */
+	destroyContext() {
+		this.#Runtime.ccall('phpwasm_destroy_context', null, [], []);
+	}
+
+	getOutput(): PHPOutput {
+		return {
+			exitCode: this.#exitCode,
+			stdout: this.readFileAsBuffer('/tmp/stdout'),
+			stderr: this.readFileAsText('/tmp/stderr').split('\n'),
+		};
+	}
+
+	populateArray(superglobal, data) {
+		this.run(`<?php
+			$data = (object) json_decode(<<<'DATA'
+				${JSON.stringify(data)}
+DATA
+			, true);
+			foreach($data as $key => $value) {
+				${superglobal}[$key] = $value;
+			}
+			unset($data, $key, $value);
+		`);
+	}
+
+	populateArrayFromRequestData(arrayName, requestData) {
+		this.run(`<?php
+			$request_data = (object) json_decode(<<<'DATA'
+				${JSON.stringify(requestData)}
+DATA
+			, true);
+
+			// $request_data keys could indicate nested arrays,
+			// e.g. files[first]
+			// We need to parse the entire requestData array
+			// as a query string to get the data structure PHP expects.
+			parse_str( http_build_query( $request_data ), $parsed_data );
+			if(!isset(${arrayName})) {
+				${arrayName} = [];
+			}
+			${arrayName} = array_merge_recursive(
+				${arrayName},
+				$parsed_data
+			);
+			unset($request_data, $parsed_data);
+		`);
 	}
 
 	/**
@@ -214,6 +289,13 @@ session.save_path=/home/web_user
 	 * * `stderr` – containing all the errors are logged. It can also be written
 	 *              to explicitly:
 	 *
+	 * @example
+	 * ```js
+	 * const output = php.run('<?php echo "Hello world!";');
+	 * console.log(output.stdout); // "Hello world!"
+	 * ```
+	 *
+	 * @example
 	 * ```js
 	 * console.log(php.run(`<?php
 	 *  $fp = fopen('php://stderr', 'w');
@@ -222,117 +304,15 @@ session.save_path=/home/web_user
 	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
 	 * ```
 	 *
-	 * @example
-	 *
-	 * ```js
-	 * const output = php.run('<?php echo "Hello world!";');
-	 * console.log(output.stdout); // "Hello world!"
-	 * ```
-	 *
-	 * @param  code    - The PHP code to run.
-	 * @param  options - The options object.
-	 * @returns The PHP process output.
+	 * @param  code - The PHP code to run.
 	 */
-	run(code: string, options: PHPRequestOptions = {}): PHPOutput {
-		options = {
-			requestBody: '',
-			...options,
-		};
-
-		const hasUploadedFiles = !!options.uploadedFiles?.filesQueryString;
-		const additionalCode: string[] = [];
-		if (hasUploadedFiles) {
-			additionalCode.push(
-				`<?php
-				$request = (object) json_decode(<<<'REQUEST'
-				${JSON.stringify({
-					_FILES: options.uploadedFiles!.filesQueryString,
-				})}
-REQUEST
-				, JSON_OBJECT_AS_ARRAY);
-				parse_str($request->_FILES, $_FILES);
-				?>`
-			);
-		}
-
-		const exitCode = this.#Runtime.ccall(
+	run(code: string) {
+		this.#exitCode = this.#Runtime.ccall(
 			'phpwasm_run',
 			NUM,
-			[STR, STR, STR],
-			[
-				// char *php_code,
-				`?><?php $_SERVER['PATH'] = '/'; ?>` +
-					`${additionalCode.join('')}${code}`,
-
-				// char *request_body,
-				options.requestBody || '',
-
-				// char *uploaded_files_paths
-				hasUploadedFiles
-					? options.uploadedFiles!.tmpPaths.join('\n')
-					: '/tmp/test',
-			]
+			[STR],
+			[`?>${code}`]
 		);
-
-		// Remove the uploaded files
-		if (hasUploadedFiles) {
-			for (const uploadedFilePath of options.uploadedFiles!.tmpPaths) {
-				if (this.fileExists(uploadedFilePath)) {
-					this.unlink(uploadedFilePath);
-				}
-			}
-		}
-
-		return {
-			exitCode,
-			stdout: this.readFileAsBuffer('/tmp/stdout'),
-			stderr: this.readFileAsText('/tmp/stderr').split('\n'),
-		};
-	}
-
-	/**
-	 * Prepares an object like { file1_name: File, ... } for
-	 * being processed as $_FILES in PHP.
-	 *
-	 * In particular:
-	 * * Creates the files in the filesystem
-	 * * Allocates a global PHP rfc1867_uploaded_files HashTable
-	 * * Registers the files in PHP's rfc1867_uploaded_files
-	 * * Converts the JavaScript files object to the $_FILES data format like below
-	 *
-	 * Array(
-	 *    [file1_name] => Array (
-	 *       [name] => file_name.jpg
-	 *       [type] => text/plain
-	 *       [tmp_name] => /tmp/php/php1h4j1o (some path in the filesystem where the tmp file is kept for processing)
-	 *       [error] => UPLOAD_ERR_OK  (= 0)
-	 *       [size] => 123   (the size in bytes)
-	 *    )
-	 *    // ...
-	 * )
-	 *
-	 * @param  files - JavaScript files keyed by their HTTP upload name.
-	 * @returns $_FILES-compatible object.
-	 */
-	async uploadFiles(files: Record<string, File>): Promise<UploadedFiles> {
-		const tmpPaths: string[] = [];
-		const _FILES: Record<string, string> = {};
-		for (const [key, value] of Object.entries(files)) {
-			const tmpName = Math.random().toFixed(20);
-			const tmpPath = `/tmp/${tmpName}`;
-			// Need to read the blob and store it in the filesystem
-			this.writeFile(tmpPath, new Uint8Array(await value.arrayBuffer()));
-			_FILES[`${key}[name]`] = value.name;
-			_FILES[`${key}[type]`] = value.type;
-			_FILES[`${key}[tmp_name]`] = tmpPath;
-			_FILES[`${key}[error]`] = '0';
-			_FILES[`${key}[size]`] = value.size.toString();
-			tmpPaths.push(tmpPath);
-		}
-		return {
-			tmpPaths,
-			filesQueryString: new URLSearchParams(_FILES).toString(),
-		};
 	}
 
 	/**
@@ -438,16 +418,146 @@ REQUEST
 			return false;
 		}
 	}
-}
 
-export interface PHPRequestOptions {
-	requestBody?: string;
-	uploadedFiles?: UploadedFiles;
-}
+	/**
+	 * Allocates an internal HashTable to keep track of the legitimate uploads.
+	 *
+	 * Supporting file uploads via WebAssembly is a bit tricky.
+	 * Functions like `is_uploaded_file` or `move_uploaded_file` fail to work
+	 * with those $_FILES entries that are not in an internal hash table. This
+	 * is a security feature, see this exceprt from the `is_uploaded_file` documentation:
+	 *
+	 * > is_uploaded_file
+	 * >
+	 * > Returns true if the file named by filename was uploaded via HTTP POST. This is
+	 * > useful to help ensure that a malicious user hasn't tried to trick the script into
+	 * > working on files upon which it should not be working--for instance, /etc/passwd.
+	 * >
+	 * > This sort of check is especially important if there is any chance that anything
+	 * > done with uploaded files could reveal their contents to the user, or even to other
+	 * > users on the same system.
+	 * >
+	 * > For proper working, the function is_uploaded_file() needs an argument like
+	 * > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
+	 * > machine $_FILES['userfile']['name'] does not work.
+	 *
+	 * This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has
+	 * a chance to note which files were actually uploaded. In practice, `is_uploaded_file()`
+	 * always returns false.
+	 *
+	 * `initUploadedFilesHash()`, `registerUploadedFile()`, and `destroyUploadedFilesHash()`
+	 * are a workaround for this problem. They allow you to manually register uploaded
+	 * files in the internal hash table, so that PHP functions like `move_uploaded_file()`
+	 * can recognize them.
+	 *
+	 * Usage:
+	 *
+	 * ```js
+	 * // Create an uploaded file in the PHP filesystem.
+	 * php.writeFile(
+	 *    '/tmp/test.txt',
+	 *    'I am an uploaded file!'
+	 * );
+	 *
+	 * // Allocate the internal hash table.
+	 * php.initUploadedFilesHash();
+	 *
+	 * // Register the uploaded file.
+	 * php.registerUploadedFile('/tmp/test.txt');
+	 *
+	 * // Run PHP code that uses the uploaded file.
+	 * php.run(`<?php
+	 *  _FILES[key] = {
+	 *      name: value.name,
+	 *      type: value.type,
+	 *      tmp_name: tmpPath,
+	 *      error: 0,
+	 *      size: value.size,
+	 *  };
+	 *  var_dump(is_uploaded_file($_FILES["file1"]["tmp_name"]));
+	 *  // true
+	 * `);
+	 *
+	 * // Destroy the internal hash table to free the memory.
+	 * php.destroyUploadedFilesHash();
+	 * ```
+	 */
+	initUploadedFilesHash() {
+		this.#Runtime.ccall('phpwasm_init_uploaded_files_hash', null, [], []);
+	}
 
-export interface UploadedFiles {
-	tmpPaths: string[];
-	filesQueryString: string;
+	async preUploadFiles(files: Record<string, File>): Promise<string[]> {
+		const uploadedFiles: string[] = [];
+		for (const [key, file] of Object.entries(files)) {
+			const tmpPath = this.preUploadFile(
+				key,
+				file.name,
+				file.type,
+				file.size,
+				new Uint8Array(await file.arrayBuffer())
+			);
+			uploadedFiles.push(tmpPath);
+		}
+		return uploadedFiles;
+	}
+
+	/**
+	 * Registers an uploaded file in the internal hash table.
+	 *
+	 * @see initUploadedFilesHash()
+	 * @param  key
+	 * @param  name
+	 * @param  type
+	 * @param  size
+	 * @param  data
+	 * @return The temporary path of the uploaded file.
+	 */
+	preUploadFile(
+		key: string,
+		name: string,
+		type: string,
+		size: number,
+		data: Uint8Array
+	): string {
+		const tmpName = Math.random().toFixed(20);
+		const tmpPath = `/tmp/${tmpName}`;
+
+		this.registerUploadedFile(tmpPath);
+		this.writeFile(tmpPath, data);
+		this.populateArrayFromRequestData('$_FILES', {
+			[key]: { name, type, tmp_name: tmpPath, error: 0, size },
+		});
+		return tmpPath;
+	}
+
+	/**
+	 * Registers an uploaded file in the internal hash table.
+	 *
+	 * @see initUploadedFilesHash()
+	 * @param  tmpPath - The temporary path of the uploaded file.
+	 */
+	registerUploadedFile(tmpPath: string) {
+		this.#Runtime.ccall(
+			'phpwasm_register_uploaded_file',
+			null,
+			[STR],
+			[tmpPath]
+		);
+	}
+
+	/**
+	 * Destroys the internal hash table to free the memory.
+	 *
+	 * @see initUploadedFilesHash()
+	 */
+	destroyUploadedFilesHash() {
+		this.#Runtime.ccall(
+			'phpwasm_destroy_uploaded_files_hash',
+			null,
+			[],
+			[]
+		);
+	}
 }
 
 /**
@@ -471,3 +581,19 @@ export interface PHPOutput {
  * @see https://github.com/emscripten-core/emscripten/blob/main/system/lib/libc/musl/arch/emscripten/bits/errno.h
  */
 export interface ErrnoError extends Error {}
+
+export interface PHPRunOptions {
+	/**
+	 * Raw POST data to populate php://input.
+	 *
+	 * This should *not* contain any uploaded file information.
+	 *
+	 * Files are handled separately via the uploadedFiles option.
+	 */
+	requestBodyWithoutFiles?: string;
+
+	/**
+	 * Files to populate $_FILES.
+	 */
+	uploadedFiles?: Record<string, File>;
+}

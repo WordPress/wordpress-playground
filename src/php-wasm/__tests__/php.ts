@@ -1,14 +1,22 @@
 import * as phpLoaderModule from '../../../build/php-5.6.node.js';
 import { startPHP } from '../php';
+import { File } from './utils';
 
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+function runPHP(php, code) {
+	php.initContext();
+	php.run(code);
+	php.destroyContext();
+	return php.getOutput();
+}
+
 describe('PHP – boot', () => {
 	it('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
-		expect(php.run('<?php echo "1";')).toEqual({
+		expect(runPHP(php, '<?php echo "1";')).toEqual({
 			stdout: new TextEncoder().encode('1'),
 			stderr: [''],
 			exitCode: 0,
@@ -89,21 +97,22 @@ describe('PHP – stdio', () => {
 	});
 
 	it('should output strings (1)', async () => {
-		expect(php.run('<?php echo "Hello world!";')).toEqual({
+		expect(runPHP(php, '<?php echo "Hello world!";')).toEqual({
 			stdout: new TextEncoder().encode('Hello world!'),
 			stderr: [''],
 			exitCode: 0,
 		});
 	});
 	it('should output strings (2) ', async () => {
-		expect(php.run('<?php echo "Hello world!\nI am PHP";')).toEqual({
+		expect(runPHP(php, '<?php echo "Hello world!\nI am PHP";')).toEqual({
 			stdout: new TextEncoder().encode('Hello world!\nI am PHP'),
 			stderr: [''],
 			exitCode: 0,
 		});
 	});
 	it('should output bytes ', async () => {
-		const results = php.run(
+		const results = runPHP(
+			php,
 			'<?php echo chr(1).chr(0).chr(1).chr(0).chr(2);'
 		);
 		expect(results).toEqual({
@@ -113,13 +122,13 @@ describe('PHP – stdio', () => {
 		});
 	});
 	it('should output strings when .run() is called twice', async () => {
-		expect(php.run('<?php echo "Hello world!";')).toEqual({
+		expect(runPHP(php, '<?php echo "Hello world!";')).toEqual({
 			stdout: new TextEncoder().encode('Hello world!'),
 			stderr: [''],
 			exitCode: 0,
 		});
 
-		expect(php.run('<?php echo "Ehlo world!";')).toEqual({
+		expect(runPHP(php, '<?php echo "Ehlo world!";')).toEqual({
 			stdout: new TextEncoder().encode('Ehlo world!'),
 			stderr: [''],
 			exitCode: 0,
@@ -130,7 +139,7 @@ describe('PHP – stdio', () => {
 		$stdErr = fopen('php://stderr', 'w');
 		fwrite($stdErr, "Hello from stderr!");
 		`;
-		expect(php.run(code)).toEqual({
+		expect(runPHP(php, code)).toEqual({
 			stdout: new TextEncoder().encode(''),
 			stderr: ['Hello from stderr!'],
 			exitCode: 0,
@@ -144,7 +153,7 @@ describe('PHP – stdio', () => {
 			fwrite($stdErr, "Hello from stderr!");
 		});
 		`;
-		expect(php.run(code)).toEqual({
+		expect(runPHP(php, code)).toEqual({
 			stdout: new TextEncoder().encode(''),
 			stderr: ['Hello from stderr!'],
 			exitCode: 0,
@@ -152,100 +161,23 @@ describe('PHP – stdio', () => {
 	});
 });
 
-describe('PHP Server – requests', () => {
+describe('PHP – initialization', () => {
 	beforeAll(() => {
 		// Shim the user agent for the server
 		(global as any).navigator = { userAgent: '' };
 	});
 
-	let php, server;
+	let php;
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 		php.mkdirTree('/tests');
 	});
 
-	it('should parse FILES arrays in a PHP way', async () => {
-		const response = php.run(
-			`<?php echo json_encode([
-				'files' => $_FILES,
-				'is_uploaded' => is_uploaded_file($_FILES['file_txt']['first']['tmp_name'])
-			]);`,
-			{
-				method: 'POST',
-				uploadedFiles: await php.uploadFiles({
-					'file_txt[first]': new File(['Hello world'], 'file.txt'),
-				}),
-			}
-		);
-		const bodyText = new TextDecoder().decode(response.stdout);
-		expect(JSON.parse(bodyText)).toEqual({
-			files: {
-				file_txt: {
-					first: {
-						name: 'file.txt',
-						type: 'text/plain',
-						tmp_name: expect.any(String),
-						error: '0',
-						size: '1',
-					},
-				},
-			},
-			is_uploaded: true,
-		});
-	});
-
-	it('Should have access to raw POST data', async () => {
-		const response = await php.run(
-			`<?php
-			$fp = fopen('php://input', 'r');
-			echo fread($fp, 100);
-			fclose($fp);
-			`,
-			{
-				requestBody: '{"foo": "bar"}',
-			}
-		);
-		const bodyText = new TextDecoder().decode(response.stdout);
+	it('Should have access to raw request data via the php://input stream', async () => {
+		php.initContext('{"foo": "bar"}');
+		await php.run(`<?php echo file_get_contents('php://input');`);
+		php.destroyContext();
+		const bodyText = new TextDecoder().decode(php.getOutput().stdout);
 		expect(bodyText).toEqual('{"foo": "bar"}');
 	});
 });
-
-// Shim the browser's file class
-class File {
-	data;
-	name;
-
-	constructor(data, name) {
-		this.data = data;
-		this.name = name;
-	}
-
-	get size() {
-		return this.data.length;
-	}
-
-	get type() {
-		return 'text/plain';
-	}
-
-	arrayBuffer() {
-		return new ArrayBuffer(toUint8Array(this.data));
-	}
-}
-
-function toUint8Array(data) {
-	if (typeof data === 'string') {
-		return new TextEncoder().encode(data).buffer;
-	} else if (data instanceof ArrayBuffer) {
-		data = new Uint8Array(data);
-	} else if (Array.isArray(data)) {
-		if (data[0] instanceof Number) {
-			return new Uint8Array(data);
-		}
-		return toUint8Array(data[0]);
-	} else if (data instanceof Uint8Array) {
-		return data.buffer;
-	} else {
-		throw new Error('Unsupported data type');
-	}
-}
