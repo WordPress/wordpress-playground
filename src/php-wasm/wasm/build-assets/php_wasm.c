@@ -177,7 +177,11 @@ int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
 
 char *global_request_body = NULL;
 
+#if PHP_MAJOR_VERSION == 5
 static int php_wasm_read_post_body(char *buffer, uint count_bytes)
+#else
+static size_t php_wasm_read_post_body(char *buffer, size_t count_bytes)
+#endif
 {
 	if(global_request_body == NULL) {
 		return 0;
@@ -235,8 +239,11 @@ int EMSCRIPTEN_KEEPALIVE phpwasm_run(
 			// Register each uploaded file
 			while(ptr != NULL)
 			{
-				phpwasm_register_uploaded_file(ptr);
-				ptr = strtok(NULL, delim);
+				if(strlen(ptr) > 0)
+				{
+					phpwasm_register_uploaded_file(ptr);
+					ptr = strtok(NULL, delim);
+				}
 			}
 		}
 

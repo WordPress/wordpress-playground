@@ -268,7 +268,7 @@ RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS='["_phpwasm_run" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     cd php-src/ && \
-    emcc -O3 \
+    emcc -O0 -g2 \
     -I .     \
     -I ext   \
     -I ext/pdo_sqlite   \
