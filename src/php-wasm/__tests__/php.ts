@@ -14,13 +14,14 @@ function runPHP(php, code) {
 }
 
 describe('PHP – boot', () => {
-	it('should boot', async () => {
+	it.only('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
-		expect(runPHP(php, '<?php echo "1";')).toEqual({
-			stdout: new TextEncoder().encode('1'),
-			stderr: [''],
-			exitCode: 0,
-		});
+		const server = php.sapi();
+		console.log(server);
+		expect(server).toContain('REQUEST_METHOD');
+		expect(server).toContain('POST');
+		expect(server).toContain('[name] => picture_of_sunset.jp');
+		console.log(php.sapi2());
 	});
 });
 

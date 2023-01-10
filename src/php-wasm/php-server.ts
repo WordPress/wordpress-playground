@@ -139,22 +139,6 @@ export class PHPServer {
 		};
 	}
 
-	async #dispatchToPHP2(
-		request: PHPRequest,
-		middlewares: (php: PHP, request: PHPRequest, next: () => {}) => Promise<PHPResponse | void>[
-	): Promise<PHPResponse> {
-		// Run all the middlewares
-		let i = 0;
-		const next = () => {
-			const middleware = middlewares[i++];
-			if (middleware) {
-				return middleware(this.php, request, next);
-			}
-		};
-		const response = await next();
-		return response;
-	}
-
 	/**
 	 * Runs the requested PHP file with all the request and $_SERVER
 	 * superglobals populated.
@@ -163,134 +147,180 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(request: PHPRequest): Promise<PHPResponse> {
-		const hasUploadedFiles = Object.keys(request.files || {}).length > 0;
+		const middlewares = [
+			this.initPHPContextMiddleware.bind(this, request),
+			this.uploadFilesMiddleware.bind(this, request),
+			this.handleRequestMiddleware.bind(this, request),
+		];
 
-		const normalizedHeaders = {};
+		let response;
+		let i = 0;
+		const next = async () => {
+			const nextMiddleware = middlewares[i++];
+			if (nextMiddleware) {
+				response = await nextMiddleware(next);
+			}
+			if (response) {
+				return response;
+			}
+		};
+		await next();
+
+		return response;
+	}
+
+	async initPHPContextMiddleware(request: PHPRequest, next) {
+		console.log('initPHPContextMiddleware 1')
+		let isPostJson = false;
 		if (request.headers) {
 			for (const [name, value] of Object.entries(request.headers)) {
-				normalizedHeaders[name.toLowerCase()] = value;
+				if (name.toLowerCase() === 'content-type') {
+					isPostJson = value === 'application/json';
+					break;
+				}
 			}
 		}
-
-		let uploadedFiles: string[] = [];
-		const isPostJson =
-			normalizedHeaders?.['content-type'] === 'application/json';
+		const requestBody = isPostJson
+			? JSON.stringify(request._POST) || ''
+			: new URLSearchParams(request._POST || {}).toString();
+		this.php.initContext(requestBody);
 
 		try {
-			const requestBody = isPostJson
-				? JSON.stringify(request._POST) || ''
-				: new URLSearchParams(request._POST || {}).toString();
-			this.php.initContext(requestBody);
-			if (hasUploadedFiles) {
-				this.php.initUploadedFilesHash();
-			}
-			this.php.run(`<?php
-			/**
-			 * Logs response headers, status code etc to stderr for parseResponse()
-			 * to process.
-			 * 
-			 * This may seem like a weird way of capturing that data, however
-			 * php.run() method only outputs information to either stdout or stderr.
-			 * Stdout is already reserved for the regular output information, which makes
-			 * stderr as the only available output.
-			 */
-			register_shutdown_function(function() use($stdErr){
-				$headers = array();
-				$headers_assoc = array();
-				foreach($headers as $line) {
-					$array = explode(':', $line);
-					$headers_assoc[$array[0]] = trim($array[1]);
-				}
-				file_put_contents('/tmp/response.meta.json', json_encode([
-					'statusCode' => http_response_code(),
-					'sessionId' => session_id(),
-					'headers' => $headers_assoc,
-					'session' => $_SESSION
-				]));
-			});
-			`);
-
-			this.php.populateArrayFromRequestData('$_POST', request._POST);
-			this.php.populateArrayFromRequestData(
-				'$_GET',
-				(request.queryString || '').substring(1)
-			);
-			if (hasUploadedFiles) {
-				uploadedFiles = await this.php.preUploadFiles(request.files);
-			}
-			if (request._COOKIE) {
-				const normalizedCookies = {};
-				for (const [name, value] of Object.entries(request._COOKIE)) {
-					normalizedCookies[name] = decodeURI(value);
-				}
-				this.php.populateArrayFromRequestData(
-					'$_COOKIE',
-					normalizedCookies
-				);
-			}
-
-			const requestScript = request.path.replace(/^\/+/, '');
-			const phpSelf = `${this.#DOCROOT}/${requestScript}`;
-			const requestPath = requestScript.replace(/^\/php-wasm/, '');
-
-			const phpServerData = {
-				PATH: '/',
-				REQUEST_URI: requestPath + (request.queryString || ''),
-				REQUEST_METHOD: request.method,
-				REMOTE_ADDR: this.#HOSTNAME,
-				SERVER_NAME: this.#ABSOLUTE_URL,
-				SERVER_PORT: this.#PORT,
-				HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
-				HTTP_HOST: this.#HOST,
-				HTTP_USER_AGENT: navigator?.userAgent || '',
-				SERVER_PROTOCOL: 'HTTP/1.1',
-				DOCUMENT_ROOT: this.#DOCROOT,
-				SCRIPT_FILENAME: phpSelf,
-				SCRIPT_NAME: phpSelf,
-				PHP_SELF: phpSelf,
-			};
-			for (const [name, value] of Object.entries(normalizedHeaders)) {
-				phpServerData[`HTTP_${name.replace('-', '_').toUpperCase()}`] =
-					value;
-			}
-			this.php.populateArray('$_SERVER', phpServerData);
-
-			this.php.run(`<?php
-				chdir($_SERVER['DOCUMENT_ROOT']);
-				require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
-			`);
-			this.php.destroyContext();
-
-			const output = this.php.getOutput() as any;
-			const responseMetaText = this.php.readFileAsText(
-				'/tmp/response.meta.json'
-			);
-			const responseMeta = responseMetaText
-				? JSON.parse(responseMetaText)
-				: {};
-			const response = {
-				body: output.stdout,
-				headers: responseMeta.headers,
-				exitCode: output.exitCode,
-				rawError: output.stderr || [''],
-				statusCode: responseMeta.statusCode,
-			};
-
-			// X-frame-options gets in a way when PHP is
-			// being displayed in an iframe.
-			// @TODO: Make it configurable.
-			delete response.headers['x-frame-options'];
-			return response;
+			return await next();
 		} finally {
-			if (hasUploadedFiles) {
-				this.php.destroyUploadedFilesHash();
-				for (const filePath of uploadedFiles) {
-					if (this.php.fileExists(filePath)) {
-						this.php.unlink(filePath);
-					}
+			console.log('initPHPContextMiddleware 2')
+			this.php.destroyContext();
+			console.log('initPHPContextMiddleware 3')
+		}
+	}
+
+	async uploadFilesMiddleware(request: PHPRequest, next) {
+		console.log('uploadFilesMiddleware 1')
+		const hasUploadedFiles = Object.keys(request.files || {}).length > 0;
+		if (!hasUploadedFiles) {
+			return await next();
+		}
+
+		this.php.initUploadedFilesHash();
+		const uploadedFiles = await this.php.preUploadFiles(request.files!);
+		try {
+			return await next();
+		} finally {
+			console.log('uploadFilesMiddleware 2')
+			this.php.destroyUploadedFilesHash();
+			for (const filePath of uploadedFiles) {
+				if (this.php.fileExists(filePath)) {
+					this.php.unlink(filePath);
 				}
 			}
 		}
+	}
+
+	async handleRequestMiddleware(request: PHPRequest) {
+		console.log('handleRequest 1')
+		this.php.run(`<?php
+		/**
+		 * Logs response headers, status code etc to stderr for parseResponse()
+		 * to process.
+		 * 
+		 * This may seem like a weird way of capturing that data, however
+		 * php.run() method only outputs information to either stdout or stderr.
+		 * Stdout is already reserved for the regular output information, which makes
+		 * stderr as the only available output.
+		 */
+		register_shutdown_function(function() {
+			file_put_contents('/tmp/response.meta.json', '{}');
+			$headers = array();
+			$headers_assoc = array();
+			foreach($headers as $line) {
+				$array = explode(':', $line);
+				$headers_assoc[$array[0]] = trim($array[1]);
+			}
+			file_put_contents('/tmp/response.meta.json', json_encode([
+				'statusCode' => http_response_code(),
+				'sessionId' => session_id(),
+				'headers' => $headers_assoc,
+				'session' => $_SESSION
+			]));
+		});
+		`);
+		console.log('handleRequest 2');
+
+		this.php.populateArrayFromRequestData('$_POST', request._POST);
+		this.php.populateArrayFromRequestData(
+			'$_GET',
+			(request.queryString || '').substring(1)
+		);
+		if (request._COOKIE) {
+			const normalizedCookies = {};
+			for (const [name, value] of Object.entries(request._COOKIE)) {
+				normalizedCookies[name] = decodeURI(value);
+			}
+			this.php.populateArrayFromRequestData(
+				'$_COOKIE',
+				normalizedCookies
+			);
+		}
+
+		const requestScript = request.path.replace(/^\/+/, '');
+		const phpSelf = `${this.#DOCROOT}/${requestScript}`;
+		const requestPath = requestScript.replace(/^\/php-wasm/, '');
+
+		const phpServerData = {
+			PATH: '/',
+			REQUEST_URI: requestPath + (request.queryString || ''),
+			REQUEST_METHOD: request.method,
+			REMOTE_ADDR: this.#HOSTNAME,
+			SERVER_NAME: this.#ABSOLUTE_URL,
+			SERVER_PORT: this.#PORT,
+			HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
+			HTTP_HOST: this.#HOST,
+			HTTP_USER_AGENT: navigator?.userAgent || '',
+			SERVER_PROTOCOL: 'HTTP/1.1',
+			DOCUMENT_ROOT: this.#DOCROOT,
+			SCRIPT_FILENAME: phpSelf,
+			SCRIPT_NAME: phpSelf,
+			PHP_SELF: phpSelf,
+		};
+		for (const [name, value] of Object.entries(request.headers || {})) {
+			phpServerData[`HTTP_${name.replace('-', '_').toUpperCase()}`] =
+				value;
+		}
+		this.php.populateArray('$_SERVER', phpServerData);
+		console.log('handleRequest 3')
+
+		this.php.run(`<?php
+			chdir($_SERVER['DOCUMENT_ROOT']);
+			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
+		`);
+
+		const output = this.php.getOutput() as any;
+		console.log('handleRequest 4', new TextDecoder().decode(output.stdout))
+		const responseMetaText = '';
+		console.log(this.php.fileExists('/tmp/response.meta.json'));
+		// this.php.readFileAsText(
+		// 	'/tmp/response.meta.json'
+		// );
+		console.log('handleRequest 5', responseMetaText)
+		const responseMeta = responseMetaText
+			? JSON.parse(responseMetaText)
+			: {};
+		console.log('handleRequest 6')
+		const response = {
+			body: output.stdout,
+			headers: responseMeta.headers || {},
+			exitCode: output.exitCode,
+			rawError: output.stderr || [''],
+			statusCode: responseMeta.statusCode,
+		};
+
+		console.log('handleRequest 7', response)
+		// X-frame-options gets in a way when PHP is
+		// being displayed in an iframe.
+		// @TODO: Make it configurable.
+		delete response.headers['x-frame-options'];
+		console.log('handleRequest 8')
+		return response;
 	}
 
 	/**
@@ -377,31 +407,6 @@ export class PHPServer {
 	 * @param  files - JavaScript files keyed by their HTTP upload name.
 	 * @returns $_FILES-compatible object.
 	 */
-	async #prepare_FILES(files: Record<string, File> = {}): Promise<_FILES> {
-		if (Object.keys(files).length) {
-			this.php.initUploadedFilesHash();
-		}
-
-		const _FILES: _FILES = {};
-		for (const [key, value] of Object.entries(files)) {
-			const tmpName = Math.random().toFixed(20);
-			const tmpPath = `/tmp/${tmpName}`;
-			// Need to read the blob and store it in the filesystem
-			this.php.writeFile(
-				tmpPath,
-				new Uint8Array(await value.arrayBuffer())
-			);
-			_FILES[key] = {
-				name: value.name,
-				type: value.type,
-				tmp_name: tmpPath,
-				error: 0,
-				size: value.size,
-			};
-			this.php.registerUploadedFile(tmpPath);
-		}
-		return _FILES;
-	}
 
 	/**
 	 * Cleans up after #prepare_FILES:
@@ -410,58 +415,9 @@ export class PHPServer {
 	 *
 	 * @param  _FILES - $_FILES-compatible object.
 	 */
-	#cleanup_FILES(_FILES: _FILES = {}) {
-		if (Object.keys(_FILES).length) {
-			this.php.destroyUploadedFilesHash();
-		}
-		for (const value of Object.values(_FILES)) {
-			if (this.php.fileExists(value.tmp_name)) {
-				this.php.unlink(value.tmp_name);
-			}
-		}
-	}
+
 }
 
-async function PHPContextMiddleware(php: PHP, request: PHPRequest, next) {
-	let isPostJson = false;
-	if (request.headers) {
-		for (const [name, value] of Object.entries(request.headers)) {
-			if (name.toLowerCase() === 'content-type') {
-				isPostJson = value === 'application/json';
-				break;
-			}
-		}
-	}
-	const requestBody = isPostJson
-		? JSON.stringify(request._POST) || ''
-		: new URLSearchParams(request._POST || {}).toString();
-	php.initContext(requestBody);
-
-	await next();
-
-	php.destroyContext();
-}
-
-async function fileUploadMiddleware(php: PHP, request: PHPRequest, next) {
-	const hasUploadedFiles = Object.keys(request.files || {}).length > 0;
-	if (!hasUploadedFiles) {
-		return next();
-	}
-
-	let uploadedFiles: string[] = [];
-	try {
-		php.initUploadedFilesHash();
-		uploadedFiles = await php.preUploadFiles(request.files!);
-		await next();
-	} finally {
-		php.destroyUploadedFilesHash();
-		for (const filePath of uploadedFiles) {
-			if (php.fileExists(filePath)) {
-				php.unlink(filePath);
-			}
-		}
-	}
-}
 
 /**
  * Naively infer a file mime type from its path.

@@ -204,6 +204,120 @@ display_startup_errors = On
 session.save_path=/home/web_user
     `
 		);
+		this.#Runtime.ccall('php_wasm_init', null, [], []);
+	}
+
+	sapi() {
+		this.#Runtime.ccall('wasm_set_query_string', null, [STR], ['a=b&c=d']);
+		this.#Runtime.ccall(
+			'wasm_set_request_body',
+			null,
+			[STR],
+			[
+				`
+
+--12345
+Content-Disposition: form-data; name="sometext"
+
+some text that you wrote in your html form ...
+--12345
+Content-Disposition: form-data; name="name_of_post_request" filename="filename.xyz"
+
+content of filename.xyz that you upload in your form with input[type=file]
+--12345
+Content-Disposition: form-data; name="image"; filename="picture_of_sunset.jpg"
+
+content of picture_of_sunset.jpg ...
+--12345--`,
+			]
+		);
+		this.#Runtime.ccall(
+			'wasm_set_path_translated',
+			null,
+			[STR],
+			['/test/index.php']
+		);
+		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], ['/index.php']);
+		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['POST']);
+		this.#Runtime.ccall(
+			'wasm_set_content_type',
+			null,
+			[STR],
+			// ['application/x-www-form-urlencoded']
+			['multipart/form-data; boundary=12345']
+		);
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			['HTTP_X2_TEST', 'TEST2_PASSED..?!']
+		);
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
+		);
+		this.#Runtime.ccall(
+			'wasm_set_php_code',
+			null,
+			[STR],
+			[
+				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
+			]
+		);
+		const num = this.#Runtime.ccall(
+			'wasm_sapi_handle_request',
+			NUM,
+			[],
+			[]
+		);
+
+		console.log({ num });
+		console.log(this.getOutput().stderr);
+		return new TextDecoder().decode(this.getOutput().stdout);
+	}
+
+	sapi2() {
+		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], ['/index.php']);
+		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['GET']);
+		this.#Runtime.ccall(
+			'wasm_set_content_type',
+			null,
+			[STR],
+			// ['application/x-www-form-urlencoded']
+			['multipart/form-data; boundary=12345']
+		);
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			['HTTP_X2_TEST', 'TEST2_PASSED..?!']
+		);
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
+		);
+		this.#Runtime.ccall(
+			'wasm_set_php_code',
+			null,
+			[STR],
+			[
+				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
+			]
+		);
+		const num = this.#Runtime.ccall(
+			'wasm_sapi_handle_request',
+			NUM,
+			[],
+			[]
+		);
+
+		console.log({ num });
+		console.log(this.getOutput().stderr);
+		return new TextDecoder().decode(this.getOutput().stdout);
 	}
 
 	initContext(requestBodyWithoutFiles = '') {
@@ -220,6 +334,7 @@ session.save_path=/home/web_user
 		error_reporting(E_ALL);
 		$stdErr = fopen('php://stderr', 'w');
 		set_error_handler(function(...$args) use($stdErr){
+			fwrite($stdErr, '___after');
 			fwrite($stdErr, print_r($args,1));
 		});
 		`);
@@ -307,6 +422,7 @@ DATA
 	 * @param  code - The PHP code to run.
 	 */
 	run(code: string) {
+		console.log({ code });
 		this.#exitCode = this.#Runtime.ccall(
 			'phpwasm_run',
 			NUM,
