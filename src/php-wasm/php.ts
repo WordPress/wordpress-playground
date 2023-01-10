@@ -259,11 +259,17 @@ content of picture_of_sunset.jpg ...
 			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
 		);
 		this.#Runtime.ccall(
+			'wasm_set_cookies',
+			null,
+			[STR],
+			['a=b']
+		);
+		this.#Runtime.ccall(
 			'wasm_set_php_code',
 			null,
 			[STR],
 			[
-				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
+				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); print_r($_COOKIE); echo file_get_contents("php://input"); ',
 			]
 		);
 		const num = this.#Runtime.ccall(

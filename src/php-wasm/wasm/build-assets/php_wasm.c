@@ -63,6 +63,7 @@ typedef struct {
 		*content_type,
 		*http_response_code,
 		*request_body,
+		*cookies,
 		*php_code
 	;
 
@@ -84,6 +85,7 @@ void wasm_init_server_context() {
 	wasm_server_context->http_response_code = NULL;
 	wasm_server_context->proto_num = -1;
 	wasm_server_context->request_body = NULL;
+	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
 	wasm_server_context->server_array_entries = NULL;
 }
@@ -96,6 +98,7 @@ void wasm_destroy_server_context() {
 	free(wasm_server_context->content_type);
 	free(wasm_server_context->http_response_code);
 	free(wasm_server_context->request_body);
+	free(wasm_server_context->cookies);
 	free(wasm_server_context->php_code);
 
 	// Free wasm_server_context->server_array_entries
@@ -140,6 +143,9 @@ void wasm_set_http_response_code(char* http_response_code) {
 void wasm_set_request_body(char* request_body) {
 	wasm_server_context->request_body = strdup(request_body);
 	wasm_server_context->content_length = strlen(request_body);
+}
+void wasm_set_cookies(char* cookies) {
+	wasm_server_context->cookies = strdup(cookies);
 }
 void wasm_set_php_code(char* code) {
 	wasm_server_context->php_code = strdup(code);
@@ -234,6 +240,11 @@ static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
 
 int stdout_replacement;
 int stderr_replacement;
+
+static char *wasm_sapi_read_cookies(TSRMLS_D)
+{
+	return wasm_server_context->cookies;
+}
 
 static int wasm_sapi_read_post_body(char *buffer, uint count_bytes)
 {
@@ -472,6 +483,7 @@ int php_wasm_init() {
 	wasm_init_server_context();
 
 	php_embed_module.read_post = *wasm_sapi_read_post_body;
+	php_embed_module.read_cookies = *wasm_sapi_read_cookies;
 	php_embed_module.startup = *wasm_sapi_module_startup;
 	php_embed_module.register_server_variables = *wasm_sapi_register_server_variables;
 	wasm_server_context = malloc(sizeof(wasm_request));
