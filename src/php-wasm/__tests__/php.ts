@@ -21,7 +21,6 @@ describe('PHP – boot', () => {
 		expect(server).toContain('REQUEST_METHOD');
 		expect(server).toContain('POST');
 		expect(server).toContain('[name] => picture_of_sunset.jp');
-		console.log(php.sapi2());
 	});
 });
 

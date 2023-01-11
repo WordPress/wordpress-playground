@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 5354098; export const dependencyFilename = 'php-5.6.wasm?0ba156330ee7952323152118b5512157'; export default function(Env, PHPLoader) {
+export const dependenciesTotalSize = 5362713; export const dependencyFilename = 'php-5.6.wasm?73e918ca47ad0d1b564f0f95eff0d2e5'; export default function(Env, PHPLoader) {
 
 
 // The Module object: Our interface to the outside world. We import
@@ -6393,8 +6393,13 @@ var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _phpwasm_run = Module["_phpwasm_run"] = function() {
-  return (_phpwasm_run = Module["_phpwasm_run"] = Module["asm"]["phpwasm_run"]).apply(null, arguments);
+var _free = Module["_free"] = function() {
+  return (_free = Module["_free"] = Module["asm"]["free"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
+  return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["wasm_add_SERVER_entry"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6403,8 +6408,58 @@ var _malloc = Module["_malloc"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _free = Module["_free"] = function() {
-  return (_free = Module["_free"] = Module["asm"]["free"]).apply(null, arguments);
+var _wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = function() {
+  return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["wasm_add_uploaded_file"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_query_string = Module["_wasm_set_query_string"] = function() {
+  return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["wasm_set_query_string"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = function() {
+  return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["wasm_set_path_translated"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = function() {
+  return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["wasm_set_request_uri"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_request_method = Module["_wasm_set_request_method"] = function() {
+  return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["wasm_set_request_method"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_content_type = Module["_wasm_set_content_type"] = function() {
+  return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["wasm_set_content_type"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_http_response_code = Module["_wasm_set_http_response_code"] = function() {
+  return (_wasm_set_http_response_code = Module["_wasm_set_http_response_code"] = Module["asm"]["wasm_set_http_response_code"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
+  return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["wasm_set_request_body"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_cookies = Module["_wasm_set_cookies"] = function() {
+  return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["wasm_set_cookies"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_php_code = Module["_wasm_set_php_code"] = function() {
+  return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["wasm_set_php_code"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_set_proto_num = Module["_wasm_set_proto_num"] = function() {
+  return (_wasm_set_proto_num = Module["_wasm_set_proto_num"] = Module["asm"]["wasm_set_proto_num"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6418,8 +6473,8 @@ var ___errno_location = Module["___errno_location"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _wasm_init_sapi = Module["_wasm_init_sapi"] = function() {
-  return (_wasm_init_sapi = Module["_wasm_init_sapi"] = Module["asm"]["wasm_init_sapi"]).apply(null, arguments);
+var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
+  return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["phpwasm_init_uploaded_files_hash"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6430,21 +6485,6 @@ var _ntohs = Module["_ntohs"] = function() {
 /** @type {function(...*):?} */
 var _htons = Module["_htons"] = function() {
   return (_htons = Module["_htons"] = Module["asm"]["htons"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _phpwasm_init_context = Module["_phpwasm_init_context"] = function() {
-  return (_phpwasm_init_context = Module["_phpwasm_init_context"] = Module["asm"]["phpwasm_init_context"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _phpwasm_destroy_context = Module["_phpwasm_destroy_context"] = function() {
-  return (_phpwasm_destroy_context = Module["_phpwasm_destroy_context"] = Module["asm"]["phpwasm_destroy_context"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
-  return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["phpwasm_init_uploaded_files_hash"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6460,6 +6500,11 @@ var _phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_fil
 /** @type {function(...*):?} */
 var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function() {
   return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["wasm_sapi_handle_request"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _php_wasm_init = Module["_php_wasm_init"] = function() {
+  return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["php_wasm_init"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6718,6 +6763,17 @@ var dynCall_iidiiii = Module["dynCall_iidiiii"] = function() {
 };
 
 
+function invoke_iii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return dynCall_iii(index,a1,a2);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
   var sp = stackSave();
   try {
@@ -6744,17 +6800,6 @@ function invoke_vii(index,a1,a2) {
   var sp = stackSave();
   try {
     dynCall_vii(index,a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return dynCall_iii(index,a1,a2);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0) throw e;

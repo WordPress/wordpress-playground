@@ -191,61 +191,53 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-
-		this.mkdirTree('/usr/local/etc');
-		// @TODO: make this customizable
-		this.writeFile(
-			'/usr/local/etc/php.ini',
-			`[PHP]
-error_reporting = E_ALL
-display_errors = 1
-html_errors = 1
-display_startup_errors = On
-session.save_path=/home/web_user
-    `
-		);
 		this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
 	sapi() {
 		this.#Runtime.ccall('wasm_set_query_string', null, [STR], ['a=b&c=d']);
-		this.#Runtime.ccall(
-			'wasm_set_request_body',
-			null,
-			[STR],
-			[
-				`
+		// 		this.#Runtime.ccall(
+		// 			'wasm_set_request_body',
+		// 			null,
+		// 			[STR],
+		// 			[
+		// 				`
 
---12345
-Content-Disposition: form-data; name="sometext"
+		// --12345
+		// Content-Disposition: form-data; name="sometext"
 
-some text that you wrote in your html form ...
---12345
-Content-Disposition: form-data; name="name_of_post_request" filename="filename.xyz"
+		// some text that you wrote in your html form ...
+		// --12345
+		// Content-Disposition: form-data; name="name_of_post_request" filename="filename.xyz"
 
-content of filename.xyz that you upload in your form with input[type=file]
---12345
-Content-Disposition: form-data; name="image"; filename="picture_of_sunset.jpg"
+		// content of filename.xyz that you upload in your form with input[type=file]
+		// --12345
+		// Content-Disposition: form-data; name="image"; filename="picture_of_sunset.jpg"
 
-content of picture_of_sunset.jpg ...
---12345--`,
-			]
-		);
+		// content of picture_of_sunset.jpg ...
+		// --12345--`,
+		// 			]
+		// 		);
 		this.#Runtime.ccall(
 			'wasm_set_path_translated',
 			null,
 			[STR],
 			['/test/index.php']
 		);
-		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], ['/index.php']);
-		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['POST']);
 		this.#Runtime.ccall(
-			'wasm_set_content_type',
+			'wasm_set_request_uri',
 			null,
 			[STR],
-			// ['application/x-www-form-urlencoded']
-			['multipart/form-data; boundary=12345']
+			['/index.php']
 		);
+		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['POST']);
+		// this.#Runtime.ccall(
+		// 	'wasm_set_content_type',
+		// 	null,
+		// 	[STR],
+		// 	['application/x-www-form-urlencoded']
+		// 	// ['multipart/form-data; boundary=12345']
+		// );
 		this.#Runtime.ccall(
 			'wasm_add_SERVER_entry',
 			null,
@@ -258,18 +250,35 @@ content of picture_of_sunset.jpg ...
 			[STR, STR],
 			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
 		);
+		this.writeFile('/tmp/8278tgtyv', 'test content');
 		this.#Runtime.ccall(
-			'wasm_set_cookies',
+			'wasm_add_uploaded_file',
 			null,
-			[STR],
-			['a=b']
+			[STR, STR, STR, STR, NUM, NUM],
+			['my_file', 'file.txt', 'text/plain', '/tmp/8278tgtyv', 0, 20]
+		);
+		this.#Runtime.ccall('wasm_set_cookies', null, [STR], ['a=b']);
+		console.log(
+			'file exists in JS before request',
+			this.fileExists('/tmp/8278tgtyv')
 		);
 		this.#Runtime.ccall(
 			'wasm_set_php_code',
 			null,
 			[STR],
 			[
-				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); print_r($_COOKIE); echo file_get_contents("php://input"); ',
+				[
+					'$fp = fopen("php://stderr", "w"); ',
+					'fwrite($fp, "test"); ob_start(); echo "1";',
+					'print_r($_SERVER); print_r($_POST); print_r($_FILES);',
+					'print_r($_COOKIE); echo file_get_contents("php://input");',
+					'ob_end_flush(); print_r($GLOBALS);',
+					'echo "is_uploaded_file in PHP during rqesut: \n"; ',
+					'var_dump(123); ',
+					'var_dump(is_uploaded_file("/tmp/8278tgtyv")); ',
+					'var_dump(is_uploaded_file("/tmp/8278tgtyv2")); ',
+					'var_dump(456); ',
+				].join(''),
 			]
 		);
 		const num = this.#Runtime.ccall(
@@ -280,12 +289,21 @@ content of picture_of_sunset.jpg ...
 		);
 
 		console.log({ num });
-		console.log(this.getOutput().stderr);
+		console.log(this.getOutput());
+		console.log(
+			'file exists in JS after request',
+			this.fileExists('/tmp/8278tgtyv')
+		);
 		return new TextDecoder().decode(this.getOutput().stdout);
 	}
 
 	sapi2() {
-		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], ['/index.php']);
+		this.#Runtime.ccall(
+			'wasm_set_request_uri',
+			null,
+			[STR],
+			['/index.php']
+		);
 		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['GET']);
 		this.#Runtime.ccall(
 			'wasm_set_content_type',

@@ -20,14 +20,22 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-const char WASM_WARDCODED_INI[] =
-	"html_errors=0\n"
-	"register_argc_argv=1\n"
-	"post_max_size=10000M\n"
-	"implicit_flush=1\n"
-	"output_buffering=0\n"
-	"max_execution_time=0\n"
-	"max_input_time=-1\n\0";
+// Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
+const char WASM_HARDCODED_INI[] =
+	"error_reporting = E_ALL\n"
+	"display_errors = 1\n"
+	"html_errors = 1\n"
+	"display_startup_errors = On\n"
+	"log_errors = 1\n"
+	// "error_log = /tmp/stderr\n"
+	"upload_max_filesize = 2000M\n"
+	"post_max_size = 2000M\n"
+	"session.save_path = /home/web_user\n"
+	"implicit_flush = 1\n"
+	"output_buffering = 0\n"
+	"max_execution_time = 0\n"
+	"max_input_time = -1\n\0"
+;
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
@@ -55,6 +63,15 @@ typedef struct wasm_array_entry {
     struct wasm_array_entry *next;
 } wasm_array_entry_t;
 
+typedef struct wasm_uploaded_file {
+	char *key,
+		 *name,
+		 *type,
+		 *tmp_name;
+	int error, size;
+	struct wasm_uploaded_file *next;
+} wasm_uploaded_file_t;
+
 typedef struct {
 	char *query_string,
 		*path_translated,
@@ -68,6 +85,7 @@ typedef struct {
 	;
 
 	struct wasm_array_entry *server_array_entries;
+	struct wasm_uploaded_file *uploaded_files;
 
 	int content_length,
 		proto_num;
@@ -88,38 +106,86 @@ void wasm_init_server_context() {
 	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
 	wasm_server_context->server_array_entries = NULL;
+	wasm_server_context->uploaded_files = NULL;
 }
 
 void wasm_destroy_server_context() {
-	free(wasm_server_context->query_string);
-	free(wasm_server_context->path_translated);
-	free(wasm_server_context->request_uri);
-	free(wasm_server_context->request_method);
-	free(wasm_server_context->content_type);
-	free(wasm_server_context->http_response_code);
-	free(wasm_server_context->request_body);
-	free(wasm_server_context->cookies);
-	free(wasm_server_context->php_code);
+	if(wasm_server_context->query_string != NULL) {
+		free(wasm_server_context->query_string);
+	}
+	if(wasm_server_context->path_translated != NULL) {
+		free(wasm_server_context->path_translated);
+	}
+	if(wasm_server_context->request_uri != NULL) {
+		free(wasm_server_context->request_uri);
+	}
+	if(wasm_server_context->request_method != NULL) {
+		free(wasm_server_context->request_method);
+	}
+	if(wasm_server_context->content_type != NULL) {
+		free(wasm_server_context->content_type);
+	}
+	if(wasm_server_context->http_response_code != NULL) {
+		free(wasm_server_context->http_response_code);
+	}
+	if(wasm_server_context->request_body != NULL) {
+		free(wasm_server_context->request_body);
+	}
+	if(wasm_server_context->cookies != NULL) {
+		free(wasm_server_context->cookies);
+	}
+	if(wasm_server_context->php_code != NULL) {
+		free(wasm_server_context->php_code);
+	}
 
 	// Free wasm_server_context->server_array_entries
-	wasm_array_entry_t *current = wasm_server_context->server_array_entries;
-	while (current != NULL) {
-		wasm_array_entry_t *next = current->next;
-		free(current->key);
-		free(current->value);
-		free(current);
-		current = next;
+	wasm_array_entry_t *current_entry = wasm_server_context->server_array_entries;
+	while (current_entry != NULL) {
+		wasm_array_entry_t *next_entry = current_entry->next;
+		free(current_entry->key);
+		free(current_entry->value);
+		free(current_entry);
+		current_entry = next_entry;
 	}
-	free(wasm_server_context->server_array_entries);
+
+	// Free wasm_server_context->uploaded_files
+	wasm_uploaded_file_t *current_file = wasm_server_context->uploaded_files;
+	while (current_file != NULL) {
+		wasm_uploaded_file_t *next_file = current_file->next;
+		free(current_file->key);
+		free(current_file->name);
+		free(current_file->type);
+		free(current_file->tmp_name);
+		free(current_file);
+		current_file = next_file;
+	}
 }
 
 void wasm_add_SERVER_entry(char *key, char *value) {
 	wasm_array_entry_t *entry = (wasm_array_entry_t*) malloc(sizeof(wasm_array_entry_t));
-	entry->key = key;
 	entry->key = strdup(key);
 	entry->value = strdup(value);
 	entry->next = wasm_server_context->server_array_entries;
 	wasm_server_context->server_array_entries = entry;
+}
+
+void wasm_add_uploaded_file(
+	char *key, 
+	char *name, 
+	char *type, 
+	char *tmp_name,
+	int error,
+	int size
+) {
+	wasm_uploaded_file_t *entry = (wasm_uploaded_file_t*) malloc(sizeof(wasm_uploaded_file_t));
+	entry->key = strdup(key);
+	entry->name = strdup(name);
+	entry->type = strdup(type);
+	entry->tmp_name = strdup(tmp_name);
+	entry->error = error;
+	entry->size = size;
+	entry->next = wasm_server_context->uploaded_files;
+	wasm_server_context->uploaded_files = entry;
 }
 
 void wasm_set_query_string(char* query_string) {
@@ -217,7 +283,6 @@ static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
 {
 	int retVal = 255; // Unknown error.
 
-
 	zend_try
 	{
 		retVal = zend_eval_string(code, NULL, "php-wasm run script");
@@ -290,14 +355,12 @@ static void free_filename(zval *el)
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 {
-	zend_hash_init(&PG(rfc1867_protected_variables), 8, NULL, NULL, 0);
-
 	HashTable *uploaded_files = NULL;
 	ALLOC_HASHTABLE(uploaded_files);
 	#if PHP_MAJOR_VERSION == 5
-	zend_hash_init(uploaded_files, 5, NULL, (dtor_func_t) free_estring, 0);
+		zend_hash_init(uploaded_files, 5, NULL, (dtor_func_t) free_estring, 0);
 	#else
-	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
+		zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
 	#endif
 	SG(rfc1867_uploaded_files) = uploaded_files;
 }
@@ -404,7 +467,8 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 }
 
-int wasm_sapi_request_init() {
+int wasm_sapi_request_init()
+{
 	putenv("USE_ZEND_ALLOC=0");
 
 	// Write to files instead of stdout and stderr because Emscripten truncates null
@@ -442,14 +506,64 @@ int wasm_sapi_request_init() {
 	SG(request_info).no_headers = 1;
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
 
+	// Set $_FILES in case any were passed via the wasm_server_context->uploaded_files
+	// linked list
+	wasm_uploaded_file_t *entry = wasm_server_context->uploaded_files;
+	if (entry != NULL) {
+		phpwasm_init_uploaded_files_hash();
+
+		zval *files = PG(http_globals)[TRACK_VARS_FILES];
+		int max_param_size = strlen(entry->key) + 11 /*[tmp_name]\0*/;
+		char *param;
+		char *value_buf;
+		while (entry != NULL)
+		{
+			phpwasm_register_uploaded_file(estrdup(entry->tmp_name));
+
+			// Set $_FILES['key']['name']
+			param = malloc(max_param_size);
+			snprintf(param, max_param_size, "%s[name]", entry->key);
+			php_register_variable_safe(param, entry->name, strlen(entry->name), files);
+			free(param);
+
+			// Set $_FILES['key']['tmp_name']
+			param = malloc(max_param_size);
+			snprintf(param, max_param_size, "%s[tmp_name]", entry->key);
+			php_register_variable_safe(param, entry->tmp_name, strlen(entry->tmp_name), files);
+			free(param);
+
+			// Set $_FILES['key']['type']
+			param = malloc(max_param_size);
+			snprintf(param, max_param_size, "%s[type]", entry->key);
+			php_register_variable_safe(param, entry->type, strlen(entry->type), files);
+			free(param);
+
+			// Set $_FILES['key']['error']
+			param = malloc(max_param_size);
+			snprintf(param, max_param_size, "%s[error]", entry->key);
+			value_buf = malloc(4);
+			snprintf(value_buf, 4, "%d", entry->error);
+			php_register_variable_safe(param, value_buf, strlen(value_buf), files);
+			free(value_buf);
+			free(param);
+
+			// Set $_FILES['key']['size']
+			param = malloc(max_param_size);
+			snprintf(param, max_param_size, "%s[size]", entry->key);
+			value_buf = malloc(16);
+			snprintf(value_buf, 16, "%d", entry->size);
+			php_register_variable_safe(param, value_buf, strlen(value_buf), files);
+			free(value_buf);
+			free(param);
+
+			entry = entry->next;
+		}
+	}
+
 	return SUCCESS;
 }
 
 void wasm_sapi_request_shutdown() {
-	TSRMLS_FETCH();
-	SG(server_context) = NULL;
-	// php_embed_shutdown();
-
 	// Let's flush the output buffers. It must happen here because
 	// ob_start() buffers are not flushed until the shutdown handler
 	// runs.
@@ -459,6 +573,13 @@ void wasm_sapi_request_shutdown() {
 	// Restore the regular stdout and stderr stream handlers
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
+
+	TSRMLS_FETCH();
+	if(SG(rfc1867_uploaded_files) != NULL) {
+		phpwasm_destroy_uploaded_files_hash();
+	}
+	php_request_shutdown(NULL);
+	SG(server_context) = NULL;
 	
 	// Destroy the old request information and prepare a fresh request
 	// object.
@@ -467,11 +588,12 @@ void wasm_sapi_request_shutdown() {
 }
 
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
-    if (wasm_sapi_request_init() == FAILURE ) {
+	if (wasm_sapi_request_init() == FAILURE)
+	{
 		wasm_sapi_request_shutdown();
-        return -1;
-    }
-	
+	    return -1;
+	}
+
 	TSRMLS_FETCH();
 	int result = run_php(wasm_server_context->php_code);
 	wasm_sapi_request_shutdown();
@@ -495,11 +617,12 @@ int php_wasm_init() {
 	*ptsrm_ls = tsrm_ls;
 #endif
 
-	php_embed_module.ini_entries = malloc(sizeof(WASM_WARDCODED_INI));
-	memcpy(php_embed_module.ini_entries, WASM_WARDCODED_INI, sizeof(WASM_WARDCODED_INI));
+	sapi_startup(&php_embed_module);
+
+	php_embed_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
+	memcpy(php_embed_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
 	php_embed_module.additional_functions = additional_functions;
 
-	sapi_startup(&php_embed_module);
 	if (php_embed_module.startup(&php_embed_module)==FAILURE) {
 		return FAILURE;
 	}
