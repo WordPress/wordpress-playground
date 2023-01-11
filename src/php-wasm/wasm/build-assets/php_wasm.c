@@ -1,8 +1,8 @@
 /**
- * Public API for php.wasm.
+ * PHP WebAssembly SAPI module.
  *
  * This file abstracts the entire PHP API with the minimal set
- * of functions required to run PHP code in JavaScript.
+ * of functions required to run PHP code from JavaScript.
  */
 
 #include <main/php.h>
@@ -32,6 +32,7 @@ const char WASM_HARDCODED_INI[] =
 	"html_errors = 1\n"
 	"display_startup_errors = On\n"
 	"log_errors = 1\n"
+	"always_populate_raw_post_data = -1\n"
 	// "error_log = /tmp/stderr\n"
 	"upload_max_filesize = 2000M\n"
 	"post_max_size = 2000M\n"
@@ -101,16 +102,26 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
 void wasm_sapi_module_shutdown();
 static int wasm_sapi_deactivate(TSRMLS_D);
+#if PHP_MAJOR_VERSION == 5
 static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC);
+static int wasm_sapi_read_post_body(char *buffer, uint count_bytes);
+#else
+static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
+static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
+#endif
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1) || PHP_MAJOR_VERSION >= 8
+static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int);
+#else
+static void wasm_sapi_log_message(char *message TSRMLS_DC);
+#endif
 static void wasm_sapi_flush(void *server_context);
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC);
 static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context TSRMLS_DC);
-static int wasm_sapi_read_post_body(char *buffer, uint count_bytes);
 static char *wasm_sapi_read_cookies(TSRMLS_D);
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
-static void wasm_sapi_log_message(char *message TSRMLS_DC);
 void wasm_init_server_context();
 static char *int_to_string(int i);
+static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",                        /* name */
@@ -252,7 +263,9 @@ void wasm_set_content_type(char* content_type) {
 }
 void wasm_set_request_body(char* request_body) {
 	wasm_server_context->request_body = strdup(request_body);
-	wasm_server_context->content_length = strlen(request_body);
+}
+void wasm_set_content_length(int content_length) {
+	wasm_server_context->content_length = content_length;
 }
 void wasm_set_cookies(char* cookies) {
 	wasm_server_context->cookies = strdup(cookies);
@@ -314,39 +327,6 @@ static void restore_stream_handler(FILE *original_stream, int replacement_stream
 	close(replacement_stream);
 }
 
-/*
- * Function: phpwasm_run
- * ----------------------------
- *   Runs a PHP script. Writes the output to stdout and stderr,
- *
- *   code: The PHP code to run. Must include the `<?php` opener.
- *
- *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
- */
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
-{
-	int retVal = 255; // Unknown error.
-
-	zend_try
-	{
-		retVal = zend_eval_string(code, NULL, "php-wasm run script");
-
-		if (EG(exception))
-		{
-			zend_exception_error(EG(exception), E_ERROR);
-			retVal = 2;
-		}
-	}
-	zend_catch
-	{
-		retVal = 1; // Code died.
-	}
-
-	zend_end_try();
-
-	return retVal;
-}
-
 int stdout_replacement;
 int stderr_replacement;
 
@@ -355,7 +335,11 @@ static char *wasm_sapi_read_cookies(TSRMLS_D)
 	return wasm_server_context->cookies;
 }
 
+#if PHP_MAJOR_VERSION == 5
 static int wasm_sapi_read_post_body(char *buffer, uint count_bytes)
+#else
+static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
+#endif
 {
 	if (wasm_server_context == NULL || wasm_server_context->request_body == NULL)
 	{
@@ -392,10 +376,24 @@ static void free_filename(zval *el)
  *   Allocates an internal HashTable to keep track of the legitimate uploads.
  *
  *   Functions like `is_uploaded_file` or `move_uploaded_file` don't work with
- *   $_FILES entries that are not in an internal hash table. It's a security feature.
+ *   $_FILES entries that are not in an internal hash table – it's a security feature:
+ * 
+ *   > is_uploaded_file
+ *   >
+ *   > Returns true if the file named by filename was uploaded via HTTP POST. This is
+ *   > useful to help ensure that a malicious user hasn't tried to trick the script into
+ *   > working on files upon which it should not be working--for instance, /etc/passwd.
+ *   >
+ *   > This sort of check is especially important if there is any chance that anything
+ *   > done with uploaded files could reveal their contents to the user, or even to other
+ *   > users on the same system.
+ *   >
+ *   > For proper working, the function is_uploaded_file() needs an argument like
+ *   > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
+ *   > machine $_FILES['userfile']['name'] does not work.
+ * 
  *   This function allocates that internal hash table.
- *
- *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
+ * ```
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 {
@@ -414,7 +412,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
  * ----------------------------
  *   Registers an uploaded file in the internal hash table.
  *
- *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
+ *   @see phpwasm_init_uploaded_files_hash
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
 {
@@ -429,9 +427,10 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
 /*
  * Function: phpwasm_destroy_uploaded_files_hash
  * ----------------------------
- *   Destroys the internal hash table to free the memory.
+ *   Destroys the internal hash table to free the memory and
+ *   removes the temporary files from the filesystem.
  *
- *   @see PHP.initUploadedFilesHash in the JavaScript package for more details.
+ *   @see phpwasm_init_uploaded_files_hash
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
 {
@@ -439,14 +438,6 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
 }
 
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
-	SG(server_context) = wasm_server_context;
-	// SG(request_info).query_string = wasm_server_context->query_string;
-	// SG(request_info).path_translated = wasm_server_context->path_translated;
-	// SG(request_info).request_uri = wasm_server_context->request_uri;
-	// SG(request_info).request_method = wasm_server_context->request_method;
-	// SG(request_info).proto_num = wasm_server_context->proto_num;
-	// SG(request_info).content_type = wasm_server_context->content_type;
-	// SG(request_info).content_length = wasm_server_context->content_length;
 	if (php_module_startup(sapi_module, NULL, 0)==FAILURE) {
 		return FAILURE;
 	}
@@ -471,14 +462,6 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	value = SG(request_info).query_string;
 	if (value != NULL)
 		php_register_variable("argv", value, track_vars_array TSRMLS_CC);
-
-	/* SERVER_NAME and HTTP_HOST */
-	// value = lstFset_get(rc->t->req_hdrs, "host");
-	// if (value != NULL) {
-	// 	php_register_variable("HTTP_HOST", value, track_vars_array TSRMLS_CC);
-	// 	/* TODO: This should probably scrub the port value if one is present. */
-	// 	php_register_variable("SERVER_NAME", value, track_vars_array TSRMLS_CC);
-	// }
 
 	/* SERVER_SOFTWARE */
 	php_register_variable("SERVER_SOFTWARE", "PHP.wasm", track_vars_array TSRMLS_CC);
@@ -549,9 +532,15 @@ int wasm_sapi_request_init()
 	// linked list
 	wasm_uploaded_file_t *entry = wasm_server_context->uploaded_files;
 	if (entry != NULL) {
-		phpwasm_init_uploaded_files_hash();
+		if( SG(rfc1867_uploaded_files) == NULL ) {
+			phpwasm_init_uploaded_files_hash();
+		}
 
+		#if PHP_MAJOR_VERSION == 5
 		zval *files = PG(http_globals)[TRACK_VARS_FILES];
+		#else
+		zval *files = &PG(http_globals)[TRACK_VARS_FILES];
+		#endif
 		int max_param_size = strlen(entry->key) + 11 /*[tmp_name]\0*/;
 		char *param;
 		char *value_buf;
@@ -680,7 +669,11 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
 #endif
 }
 
+#if PHP_MAJOR_VERSION == 5
 static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC)
+#else
+static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC)
+#endif
 {
 	const char *ptr = str;
 	uint remaining = str_length;
@@ -720,6 +713,14 @@ static char* int_to_string(int i)
 }
 
 FILE *headers_file;
+/*
+ * Function: wasm_sapi_send_headers
+ * ----------------------------
+ *   Saves the response HTTP status code and the response headers
+ *   to a JSON file located at /tmp/headers.json.
+ * 
+ *   Called by PHP in the request shutdown handler.
+ */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
 	headers_file = fopen("/tmp/headers.json", "w");
@@ -751,6 +752,11 @@ static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 	return SAPI_HEADER_SENT_SUCCESSFULLY;
 }
 
+/*
+ * Function: wasm_sapi_send_header
+ * ----------------------------
+ *   Appends a single header line to the headers JSON file.
+ */
 static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context TSRMLS_DC) {
 	if (sapi_header == NULL)
 	{
@@ -770,12 +776,22 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 }
 
 
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1) || PHP_MAJOR_VERSION >= 8
+static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int)
+#else
 static void wasm_sapi_log_message(char *message TSRMLS_DC)
+#endif
 {
 	fprintf (stderr, "%s\n", message);
 }
 
 
+/*
+ * Function: php_wasm_init
+ * ----------------------------
+ *   Initiates the PHP wasm SAPI. Call this before calling any
+ *   other function.
+ */
 int php_wasm_init() {
 	wasm_init_server_context();
 	wasm_server_context = malloc(sizeof(wasm_request));
@@ -797,6 +813,40 @@ int php_wasm_init() {
 		return FAILURE;
 	}
 	return SUCCESS;
+}
+
+
+/*
+ * Function: phpwasm_run
+ * ----------------------------
+ *   Runs a PHP script. Writes the output to stdout and stderr,
+ *
+ *   code: The PHP code to run.
+ *
+ *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
+ */
+static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
+{
+	int retVal = 255; // Unknown error.
+
+	zend_try
+	{
+		retVal = zend_eval_string(code, NULL, "php-wasm run script");
+
+		if (EG(exception))
+		{
+			zend_exception_error(EG(exception), E_ERROR);
+			retVal = 2;
+		}
+	}
+	zend_catch
+	{
+		retVal = 1; // Code died.
+	}
+
+	zend_end_try();
+
+	return retVal;
 }
 
 #ifdef WITH_VRZNO

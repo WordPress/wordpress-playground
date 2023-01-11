@@ -1,4 +1,4 @@
-import type { PHP, PHPOutput } from './php';
+import type { PHP, PHPRequest, PHPResponse } from './php';
 
 /**
  * A fake PHP server that handles HTTP requests but does not
@@ -96,7 +96,7 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		const serverPath = this.#withoutServerPathname(request.path);
+		const serverPath = this.#withoutServerPathname(request.relativeUri);
 		if (this.#isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
 		}
@@ -116,26 +116,26 @@ export class PHPServer {
 			return {
 				body: new TextEncoder().encode('404 File not found'),
 				headers: {},
-				statusCode: 404,
+				httpStatusCode: 404,
 				exitCode: 0,
-				rawError: [''],
+				errors: '',
 			};
 		}
 		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
 		return {
 			body: arrayBuffer,
 			headers: {
-				'Content-length': `${arrayBuffer.byteLength}`,
+				'content-length': `${arrayBuffer.byteLength}`,
 				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
 				//        The code below won't return the correct mime-type if the extension
 				//        was tampered with.
-				'Content-type': inferMimeType(fsPath),
-				'Accept-Ranges': 'bytes',
-				'Cache-Control': 'public, max-age=0',
+				'content-type': inferMimeType(fsPath),
+				'accept-ranges': 'bytes',
+				'cache-control': 'public, max-age=0',
 			},
-			statusCode: 200,
+			httpStatusCode: 200,
 			exitCode: 0,
-			rawError: [''],
+			errors: '',
 		};
 	}
 
@@ -147,180 +147,25 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(request: PHPRequest): Promise<PHPResponse> {
-		const middlewares = [
-			this.initPHPContextMiddleware.bind(this, request),
-			this.uploadFilesMiddleware.bind(this, request),
-			this.handleRequestMiddleware.bind(this, request),
-		];
-
-		let response;
-		let i = 0;
-		const next = async () => {
-			const nextMiddleware = middlewares[i++];
-			if (nextMiddleware) {
-				response = await nextMiddleware(next);
-			}
-			if (response) {
-				return response;
-			}
-		};
-		await next();
-
-		return response;
-	}
-
-	async initPHPContextMiddleware(request: PHPRequest, next) {
-		console.log('initPHPContextMiddleware 1')
-		let isPostJson = false;
-		if (request.headers) {
-			for (const [name, value] of Object.entries(request.headers)) {
-				if (name.toLowerCase() === 'content-type') {
-					isPostJson = value === 'application/json';
-					break;
-				}
-			}
-		}
-		const requestBody = isPostJson
-			? JSON.stringify(request._POST) || ''
-			: new URLSearchParams(request._POST || {}).toString();
-		this.php.initContext(requestBody);
-
-		try {
-			return await next();
-		} finally {
-			console.log('initPHPContextMiddleware 2')
-			this.php.destroyContext();
-			console.log('initPHPContextMiddleware 3')
-		}
-	}
-
-	async uploadFilesMiddleware(request: PHPRequest, next) {
-		console.log('uploadFilesMiddleware 1')
-		const hasUploadedFiles = Object.keys(request.files || {}).length > 0;
-		if (!hasUploadedFiles) {
-			return await next();
-		}
-
-		this.php.initUploadedFilesHash();
-		const uploadedFiles = await this.php.preUploadFiles(request.files!);
-		try {
-			return await next();
-		} finally {
-			console.log('uploadFilesMiddleware 2')
-			this.php.destroyUploadedFilesHash();
-			for (const filePath of uploadedFiles) {
-				if (this.php.fileExists(filePath)) {
-					this.php.unlink(filePath);
-				}
-			}
-		}
-	}
-
-	async handleRequestMiddleware(request: PHPRequest) {
-		console.log('handleRequest 1')
-		this.php.run(`<?php
-		/**
-		 * Logs response headers, status code etc to stderr for parseResponse()
-		 * to process.
-		 * 
-		 * This may seem like a weird way of capturing that data, however
-		 * php.run() method only outputs information to either stdout or stderr.
-		 * Stdout is already reserved for the regular output information, which makes
-		 * stderr as the only available output.
-		 */
-		register_shutdown_function(function() {
-			file_put_contents('/tmp/response.meta.json', '{}');
-			$headers = array();
-			$headers_assoc = array();
-			foreach($headers as $line) {
-				$array = explode(':', $line);
-				$headers_assoc[$array[0]] = trim($array[1]);
-			}
-			file_put_contents('/tmp/response.meta.json', json_encode([
-				'statusCode' => http_response_code(),
-				'sessionId' => session_id(),
-				'headers' => $headers_assoc,
-				'session' => $_SESSION
-			]));
-		});
-		`);
-		console.log('handleRequest 2');
-
-		this.php.populateArrayFromRequestData('$_POST', request._POST);
-		this.php.populateArrayFromRequestData(
-			'$_GET',
-			(request.queryString || '').substring(1)
+		this.php.addServerGlobalEntry(
+			'PATH_TRANSLATED',
+			this.#resolvePHPFilePath(request.relativeUri)
 		);
-		if (request._COOKIE) {
-			const normalizedCookies = {};
-			for (const [name, value] of Object.entries(request._COOKIE)) {
-				normalizedCookies[name] = decodeURI(value);
-			}
-			this.php.populateArrayFromRequestData(
-				'$_COOKIE',
-				normalizedCookies
-			);
-		}
-
-		const requestScript = request.path.replace(/^\/+/, '');
-		const phpSelf = `${this.#DOCROOT}/${requestScript}`;
-		const requestPath = requestScript.replace(/^\/php-wasm/, '');
-
-		const phpServerData = {
-			PATH: '/',
-			REQUEST_URI: requestPath + (request.queryString || ''),
-			REQUEST_METHOD: request.method,
-			REMOTE_ADDR: this.#HOSTNAME,
-			SERVER_NAME: this.#ABSOLUTE_URL,
-			SERVER_PORT: this.#PORT,
-			HTTPS: this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : '',
-			HTTP_HOST: this.#HOST,
-			HTTP_USER_AGENT: navigator?.userAgent || '',
-			SERVER_PROTOCOL: 'HTTP/1.1',
-			DOCUMENT_ROOT: this.#DOCROOT,
-			SCRIPT_FILENAME: phpSelf,
-			SCRIPT_NAME: phpSelf,
-			PHP_SELF: phpSelf,
-		};
-		for (const [name, value] of Object.entries(request.headers || {})) {
-			phpServerData[`HTTP_${name.replace('-', '_').toUpperCase()}`] =
-				value;
-		}
-		this.php.populateArray('$_SERVER', phpServerData);
-		console.log('handleRequest 3')
-
-		this.php.run(`<?php
+		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
+		this.php.addServerGlobalEntry('SERVER_NAME', this.#ABSOLUTE_URL);
+		this.php.addServerGlobalEntry(
+			'HTTPS',
+			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
+		);
+		return this.php.run(
+			`<?php 
 			chdir($_SERVER['DOCUMENT_ROOT']);
-			require_once ${JSON.stringify(this.#resolvePHPFilePath(request.path))};
-		`);
-
-		const output = this.php.getOutput() as any;
-		console.log('handleRequest 4', new TextDecoder().decode(output.stdout))
-		const responseMetaText = '';
-		console.log(this.php.fileExists('/tmp/response.meta.json'));
-		// this.php.readFileAsText(
-		// 	'/tmp/response.meta.json'
-		// );
-		console.log('handleRequest 5', responseMetaText)
-		const responseMeta = responseMetaText
-			? JSON.parse(responseMetaText)
-			: {};
-		console.log('handleRequest 6')
-		const response = {
-			body: output.stdout,
-			headers: responseMeta.headers || {},
-			exitCode: output.exitCode,
-			rawError: output.stderr || [''],
-			statusCode: responseMeta.statusCode,
-		};
-
-		console.log('handleRequest 7', response)
-		// X-frame-options gets in a way when PHP is
-		// being displayed in an iframe.
-		// @TODO: Make it configurable.
-		delete response.headers['x-frame-options'];
-		console.log('handleRequest 8')
-		return response;
+			require $_SERVER["PATH_TRANSLATED"];`,
+			{
+				...request,
+				port: this.#PORT,
+			}
+		);
 	}
 
 	/**
@@ -382,42 +227,7 @@ export class PHPServer {
 		}
 		return requestedPath.substr(this.#PATHNAME.length);
 	}
-
-	/**
-	 * Prepares an object like { file1_name: File, ... } for
-	 * being processed as $_FILES in PHP.
-	 *
-	 * In particular:
-	 * * Creates the files in the filesystem
-	 * * Allocates a global PHP rfc1867_uploaded_files HashTable
-	 * * Registers the files in PHP's rfc1867_uploaded_files
-	 * * Converts the JavaScript files object to the $_FILES data format like below
-	 *
-	 * Array(
-	 *    [file1_name] => Array (
-	 *       [name] => file_name.jpg
-	 *       [type] => text/plain
-	 *       [tmp_name] => /tmp/php/php1h4j1o (some path in the filesystem where the tmp file is kept for processing)
-	 *       [error] => UPLOAD_ERR_OK  (= 0)
-	 *       [size] => 123   (the size in bytes)
-	 *    )
-	 *    // ...
-	 * )
-	 *
-	 * @param  files - JavaScript files keyed by their HTTP upload name.
-	 * @returns $_FILES-compatible object.
-	 */
-
-	/**
-	 * Cleans up after #prepare_FILES:
-	 * * Frees the PHP's rfc1867_uploaded_files HashTable
-	 * * Removes the temporary files from the filesystem
-	 *
-	 * @param  _FILES - $_FILES-compatible object.
-	 */
-
 }
-
 
 /**
  * Naively infer a file mime type from its path.
@@ -486,72 +296,6 @@ export interface PHPServerConfigation {
 	 * the requested path refers to a PHP file or a static file.
 	 */
 	isStaticFilePath?: (path: string) => boolean;
-}
-
-type PHPHeaders = Record<string, string>;
-
-export interface PHPRequest {
-	/**
-	 * Request path without the query string.
-	 */
-	path: string;
-	/**
-	 * Request query string.
-	 */
-	queryString?: string;
-	/**
-	 * Request method. Default: `GET`.
-	 */
-	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
-	/**
-	 * Request headers.
-	 */
-	headers?: PHPHeaders;
-	/**
-	 * Request files in the `{"filename": File}` format.
-	 */
-	files?: Record<string, File>;
-	/**
-	 * POST data.
-	 */
-	_POST?: Record<string, any>;
-	/**
-	 * Request cookies.
-	 */
-	_COOKIE?: Record<string, string>;
-}
-
-export interface PHPResponse {
-	/**
-	 * Response body.
-	 */
-	body: ArrayBuffer;
-	/**
-	 * Response headers.
-	 */
-	headers: PHPHeaders;
-	/**
-	 * Response HTTP status code, e.g. 200.
-	 */
-	statusCode: number;
-	/**
-	 * PHP exit code. Always 0 for static file responses.
-	 */
-	exitCode: number;
-	/**
-	 * Lines logged to stderr. Always [''] for static file responses.
-	 */
-	rawError: string[];
-}
-
-type _FILES = Record<string, _FILE>;
-
-interface _FILE {
-	name: string;
-	type: string;
-	tmp_name: string;
-	error: number;
-	size: number;
 }
 
 export default PHPServer;

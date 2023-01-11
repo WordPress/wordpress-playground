@@ -14,6 +14,7 @@ import { DEFAULT_BASE_URL } from '../utils';
 import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 import { getURLScope } from '../scope';
+import { FileInfo } from '../../php-wasm/php';
 export * from '../scope';
 
 /**
@@ -121,11 +122,21 @@ export async function initializeWorkerThread(
 	}
 
 	async function renderRequest(request) {
-		const parsedUrl = new URL(request.path, DEFAULT_BASE_URL);
+		const fileInfos: FileInfo[] = [];
+		if (request.files) {
+			for (const key in request.files) {
+				const file: File = request.files[key];
+				fileInfos.push({
+					key,
+					name: file.name,
+					type: file.type,
+					data: new Uint8Array(await file.arrayBuffer()),
+				});
+			}
+		}
 		return await phpBrowser.request({
 			...request,
-			path: parsedUrl.pathname,
-			queryString: parsedUrl.search,
+			files: fileInfos,
 		});
 	}
 

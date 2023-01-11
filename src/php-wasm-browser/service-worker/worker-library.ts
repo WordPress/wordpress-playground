@@ -110,23 +110,26 @@ async function defaultRequestHandler(event) {
 export async function PHPRequest(event) {
 	const url = new URL(event.request.url);
 
-	const { post, files } = await parsePost(event.request);
+	const { body, files, contentType } = await rewritePost(event.request);
 	const requestHeaders = {};
 	for (const pair of (event.request.headers as any).entries()) {
 		requestHeaders[pair[0]] = pair[1];
 	}
 
-	const requestedPath = getPathQueryFragment(url);
+	const relativeUri = getPathQueryFragment(url);
 	let phpResponse;
 	try {
 		const message = {
 			type: 'HTTPRequest',
 			request: {
-				path: requestedPath,
-				method: event.request.method,
+				body,
 				files,
-				_POST: post,
-				headers: requestHeaders,
+				relativeUri,
+				method: event.request.method,
+				headers: {
+					...requestHeaders,
+					'Content-type': contentType,
+				},
 			},
 		};
 		console.debug(
@@ -138,17 +141,22 @@ export async function PHPRequest(event) {
 			getURLScope(url)
 		);
 		phpResponse = await awaitReply(self, requestId);
+
+		// X-frame-options gets in a way when PHP is
+		// being displayed in an iframe.
+		delete phpResponse.headers['x-frame-options'];
+
 		console.debug('[ServiceWorker] Response received from the main app', {
 			phpResponse,
 		});
 	} catch (e) {
-		console.error(e, { requestedPath });
+		console.error(e, { relativeUri });
 		throw e;
 	}
 
 	return new Response(phpResponse.body, {
 		headers: phpResponse.headers,
-		status: phpResponse.statusCode,
+		status: phpResponse.httpStatusCode,
 	});
 }
 
@@ -236,30 +244,50 @@ function seemsLikeADirectoryRoot(path) {
 	return !lastSegment.includes('.');
 }
 
-async function parsePost(request) {
+async function rewritePost(request) {
+	const contentType = request.headers.get('content-type');
 	if (request.method !== 'POST') {
-		return { post: undefined, files: undefined };
+		return {
+			contentType,
+			body: undefined,
+			files: undefined,
+		};
 	}
-	// Try to parse the body as form data
-	try {
-		const formData = await request.clone().formData();
-		const post = {};
-		const files = {};
 
-		for (const key of formData.keys()) {
-			const value = formData.get(key);
-			if (value instanceof File) {
-				files[key] = value;
-			} else {
-				post[key] = value;
+	// If the request contains multipart form data, rewrite it
+	// to a regular form data and handle files separately.
+	const isMultipart = contentType
+		.toLowerCase()
+		.startsWith('multipart/form-data');
+	if (isMultipart) {
+		try {
+			const formData = await request.clone().formData();
+			const post = {};
+			const files = {};
+
+			for (const key of formData.keys()) {
+				const value = formData.get(key);
+				if (value instanceof File) {
+					files[key] = value;
+				} else {
+					post[key] = value;
+				}
 			}
-		}
 
-		return { post, files };
-	} catch (e) {}
+			return {
+				contentType: 'application/x-www-form-urlencoded',
+				body: new URLSearchParams(post).toString(),
+				files,
+			};
+		} catch (e) {}
+	}
 
-	// Try to parse the body as JSON
-	return { post: await request.clone().json(), files: {} };
+	// Otherwise, grab body as literal text
+	return {
+		contentType,
+		body: await request.clone().text(),
+		files: {},
+	};
 }
 
 /**

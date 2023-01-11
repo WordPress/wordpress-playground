@@ -47,7 +47,10 @@ export class PHPBrowser {
 	): Promise<PHPResponse> {
 		const response = await this.server.request({
 			...request,
-			_COOKIE: this.#cookies,
+			headers: {
+				...request.headers,
+				cookie: this.#serializeCookies(),
+			},
 		});
 
 		if (response.headers['set-cookie']) {
@@ -80,13 +83,25 @@ export class PHPBrowser {
 	#setCookies(cookies) {
 		for (const cookie of cookies) {
 			try {
-				const value = cookie.split('=')[1].split(';')[0];
-				const name = cookie.split('=')[0];
+				if (!cookie.includes('=')) {
+					continue;
+				}
+				const equalsIndex = cookie.indexOf('=');
+				const name = cookie.substring(0, equalsIndex);
+				const value = cookie.substring(equalsIndex + 1).split(';')[0];
 				this.#cookies[name] = value;
 			} catch (e) {
 				console.error(e);
 			}
 		}
+	}
+
+	#serializeCookies() {
+		const cookiesArray: string[] = [];
+		for (const name in this.#cookies) {
+			cookiesArray.push(`${name}=${this.#cookies[name]}`);
+		}
+		return cookiesArray.join('; ');
 	}
 }
 

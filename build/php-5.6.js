@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 5362713; export const dependencyFilename = 'php-5.6.wasm?73e918ca47ad0d1b564f0f95eff0d2e5'; export default function(Env, PHPLoader) {
+export const dependenciesTotalSize = 5363466; export const dependencyFilename = 'php-5.6.wasm?90b0d2aeca35db6c538d64ded5bf22f6'; export default function(Env, PHPLoader) {
 
 
 // The Module object: Our interface to the outside world. We import
@@ -6398,13 +6398,33 @@ var _free = Module["_free"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
-  return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["wasm_add_SERVER_entry"]).apply(null, arguments);
+var _malloc = Module["_malloc"] = function() {
+  return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
-var _malloc = Module["_malloc"] = function() {
-  return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments);
+var ___errno_location = Module["___errno_location"] = function() {
+  return (___errno_location = Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _saveSetjmp = Module["_saveSetjmp"] = function() {
+  return (_saveSetjmp = Module["_saveSetjmp"] = Module["asm"]["saveSetjmp"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _ntohs = Module["_ntohs"] = function() {
+  return (_ntohs = Module["_ntohs"] = Module["asm"]["ntohs"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _htons = Module["_htons"] = function() {
+  return (_htons = Module["_htons"] = Module["asm"]["htons"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
+  return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["wasm_add_SERVER_entry"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6438,13 +6458,13 @@ var _wasm_set_content_type = Module["_wasm_set_content_type"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _wasm_set_http_response_code = Module["_wasm_set_http_response_code"] = function() {
-  return (_wasm_set_http_response_code = Module["_wasm_set_http_response_code"] = Module["asm"]["wasm_set_http_response_code"]).apply(null, arguments);
+var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
+  return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["wasm_set_request_body"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
-var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
-  return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["wasm_set_request_body"]).apply(null, arguments);
+var _wasm_set_content_length = Module["_wasm_set_content_length"] = function() {
+  return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["wasm_set_content_length"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6463,28 +6483,8 @@ var _wasm_set_proto_num = Module["_wasm_set_proto_num"] = function() {
 };
 
 /** @type {function(...*):?} */
-var _saveSetjmp = Module["_saveSetjmp"] = function() {
-  return (_saveSetjmp = Module["_saveSetjmp"] = Module["asm"]["saveSetjmp"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var ___errno_location = Module["___errno_location"] = function() {
-  return (___errno_location = Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
 var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
   return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["phpwasm_init_uploaded_files_hash"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _ntohs = Module["_ntohs"] = function() {
-  return (_ntohs = Module["_ntohs"] = Module["asm"]["ntohs"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _htons = Module["_htons"] = function() {
-  return (_htons = Module["_htons"] = Module["asm"]["htons"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -6763,17 +6763,6 @@ var dynCall_iidiiii = Module["dynCall_iidiiii"] = function() {
 };
 
 
-function invoke_iii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return dynCall_iii(index,a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
 function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
   var sp = stackSave();
   try {
@@ -6833,6 +6822,17 @@ function invoke_v(index) {
   var sp = stackSave();
   try {
     dynCall_v(index);
+  } catch(e) {
+    stackRestore(sp);
+    if (e !== e+0) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iii(index,a1,a2) {
+  var sp = stackSave();
+  try {
+    return dynCall_iii(index,a1,a2);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0) throw e;

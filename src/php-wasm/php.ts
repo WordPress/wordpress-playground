@@ -3,6 +3,80 @@ const NUM = 'number';
 
 export type JavascriptRuntime = 'NODE' | 'WEB' | 'WEBWORKER';
 
+type PHPHeaders = Record<string, string>;
+export interface FileInfo {
+	key: string;
+	name: string;
+	type: string;
+	data: Uint8Array;
+}
+export interface PHPRequest {
+	/**
+	 * Request path following the domain:port part.
+	 */
+	relativeUri?: string;
+
+	/**
+	 * Request port. Default: 80.
+	 */
+	port?: number;
+
+	/**
+	 * Request method. Default: `GET`.
+	 */
+	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
+
+	/**
+	 * Request headers.
+	 */
+	headers?: PHPHeaders;
+
+	/**
+	 * Request body without the files.
+	 */
+	body?: string;
+
+	/**
+	 * Uploaded files.
+	 */
+	files?: FileInfo[];
+}
+
+export interface PHPResponse {
+	/**
+	 * The exit code of the script. `0` is a success, while
+	 * `1` and `2` indicate an error.
+	 */
+	exitCode: number;
+	/**
+	 * Response body. Contains the output from `echo`,
+	 * `print`, inline HTML etc.
+	 */
+	body: ArrayBuffer;
+	/**
+	 * PHP errors.
+	 */
+	errors: string;
+	/**
+	 * Response headers.
+	 */
+	headers: PHPHeaders;
+	/**
+	 * Response HTTP status code, e.g. 200.
+	 */
+	httpStatusCode: number;
+}
+
+/**
+ * Path of the executed script in the PHP filesystem.
+ */
+// scriptFilesystemPath: string;
+
+/**
+ */
+// 	pathInfo?: string;
+// DOCUMENT_ROOT
+
 /**
  * Initializes the PHP runtime with the given arguments and data dependencies.
  *
@@ -141,6 +215,8 @@ export async function startPHP(
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
+		print() {},
+		printErr() {},
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
@@ -181,7 +257,6 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
-	#exitCode;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -194,239 +269,8 @@ export class PHP {
 		this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
-	sapi() {
-		this.#Runtime.ccall('wasm_set_query_string', null, [STR], ['a=b&c=d']);
-		// 		this.#Runtime.ccall(
-		// 			'wasm_set_request_body',
-		// 			null,
-		// 			[STR],
-		// 			[
-		// 				`
-
-		// --12345
-		// Content-Disposition: form-data; name="sometext"
-
-		// some text that you wrote in your html form ...
-		// --12345
-		// Content-Disposition: form-data; name="name_of_post_request" filename="filename.xyz"
-
-		// content of filename.xyz that you upload in your form with input[type=file]
-		// --12345
-		// Content-Disposition: form-data; name="image"; filename="picture_of_sunset.jpg"
-
-		// content of picture_of_sunset.jpg ...
-		// --12345--`,
-		// 			]
-		// 		);
-		this.#Runtime.ccall(
-			'wasm_set_path_translated',
-			null,
-			[STR],
-			['/test/index.php']
-		);
-		this.#Runtime.ccall(
-			'wasm_set_request_uri',
-			null,
-			[STR],
-			['/index.php']
-		);
-		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['POST']);
-		// this.#Runtime.ccall(
-		// 	'wasm_set_content_type',
-		// 	null,
-		// 	[STR],
-		// 	['application/x-www-form-urlencoded']
-		// 	// ['multipart/form-data; boundary=12345']
-		// );
-		this.#Runtime.ccall(
-			'wasm_add_SERVER_entry',
-			null,
-			[STR, STR],
-			['HTTP_X2_TEST', 'TEST2_PASSED..?!']
-		);
-		this.#Runtime.ccall(
-			'wasm_add_SERVER_entry',
-			null,
-			[STR, STR],
-			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
-		);
-		this.writeFile('/tmp/8278tgtyv', 'test content');
-		this.#Runtime.ccall(
-			'wasm_add_uploaded_file',
-			null,
-			[STR, STR, STR, STR, NUM, NUM],
-			['my_file', 'file.txt', 'text/plain', '/tmp/8278tgtyv', 0, 20]
-		);
-		this.#Runtime.ccall('wasm_set_cookies', null, [STR], ['a=b']);
-		console.log(
-			'file exists in JS before request',
-			this.fileExists('/tmp/8278tgtyv')
-		);
-		this.#Runtime.ccall(
-			'wasm_set_php_code',
-			null,
-			[STR],
-			[
-				[
-					'$fp = fopen("php://stderr", "w"); ',
-					'fwrite($fp, "test"); ob_start(); echo "1";',
-					'print_r($_SERVER); print_r($_POST); print_r($_FILES);',
-					'print_r($_COOKIE); echo file_get_contents("php://input");',
-					'ob_end_flush(); print_r($GLOBALS);',
-					'echo "is_uploaded_file in PHP during rqesut: \n"; ',
-					'var_dump(123); ',
-					'var_dump(is_uploaded_file("/tmp/8278tgtyv")); ',
-					'var_dump(is_uploaded_file("/tmp/8278tgtyv2")); ',
-					// 'header("json: b\\"a");',
-					'var_dump(456); ',
-				].join(''),
-			]
-		);
-		const num = this.#Runtime.ccall(
-			'wasm_sapi_handle_request',
-			NUM,
-			[],
-			[]
-		);
-
-		console.log({ num });
-		// console.log(this.getOutput());
-		// return this.readFileAsText("/tmp/headers.json");
-		return new TextDecoder().decode(this.getOutput().stdout);
-	}
-
-	sapi2() {
-		this.#Runtime.ccall(
-			'wasm_set_request_uri',
-			null,
-			[STR],
-			['/index.php']
-		);
-		this.#Runtime.ccall('wasm_set_request_method', null, [STR], ['GET']);
-		this.#Runtime.ccall(
-			'wasm_set_content_type',
-			null,
-			[STR],
-			// ['application/x-www-form-urlencoded']
-			['multipart/form-data; boundary=12345']
-		);
-		this.#Runtime.ccall(
-			'wasm_add_SERVER_entry',
-			null,
-			[STR, STR],
-			['HTTP_X2_TEST', 'TEST2_PASSED..?!']
-		);
-		this.#Runtime.ccall(
-			'wasm_add_SERVER_entry',
-			null,
-			[STR, STR],
-			['HTTP_X99999999995_TEST', 'TEST5_PASSED9999991|2|3|4']
-		);
-		this.#Runtime.ccall(
-			'wasm_set_php_code',
-			null,
-			[STR],
-			[
-				' echo "1"; header("json: b\\n\\"a"); print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
-			]
-		);
-		const num = this.#Runtime.ccall(
-			'wasm_sapi_handle_request',
-			NUM,
-			[],
-			[]
-		);
-
-		console.log({ num });
-		console.log(this.getOutput().stderr);
-		console.log("headers json", this.readFileAsText("/tmp/headers.json"));
-		return this.readFileAsText("/tmp/headers.json");
-		return new TextDecoder().decode(this.getOutput().stdout);
-	}
-
-	initContext(requestBodyWithoutFiles = '') {
-		this.#Runtime.ccall(
-			'phpwasm_init_context',
-			NUM,
-			[STR],
-			[requestBodyWithoutFiles]
-		);
-		this.run(`<?php
-		$_SESSION = array();
-		$_COOKIES = array();
-		$_SERVER = array();
-		error_reporting(E_ALL);
-		$stdErr = fopen('php://stderr', 'w');
-		set_error_handler(function(...$args) use($stdErr){
-			fwrite($stdErr, '___after');
-			fwrite($stdErr, print_r($args,1));
-		});
-		`);
-	}
-
 	/**
-	 * Destroys the current PHP context.
-	 * Any variables, functions, classes, etc. defined in the previous
-	 * context will be lost. This methods needs to always be called after
-	 * running PHP code, or else the next call to `run` will be contaminated
-	 * with the previous context.
-	 */
-	destroyContext() {
-		this.#Runtime.ccall('phpwasm_destroy_context', null, [], []);
-	}
-
-	getOutput(): PHPOutput {
-		return {
-			exitCode: this.#exitCode,
-			stdout: this.readFileAsBuffer('/tmp/stdout'),
-			stderr: this.readFileAsText('/tmp/stderr').split('\n'),
-		};
-	}
-
-	populateArray(superglobal, data) {
-		this.run(`<?php
-			$data = (object) json_decode(<<<'DATA'
-				${JSON.stringify(data)}
-DATA
-			, true);
-			foreach($data as $key => $value) {
-				${superglobal}[$key] = $value;
-			}
-			unset($data, $key, $value);
-		`);
-	}
-
-	populateArrayFromRequestData(arrayName, requestData) {
-		this.run(`<?php
-			$request_data = (object) json_decode(<<<'DATA'
-				${JSON.stringify(requestData)}
-DATA
-			, true);
-
-			// $request_data keys could indicate nested arrays,
-			// e.g. files[first]
-			// We need to parse the entire requestData array
-			// as a query string to get the data structure PHP expects.
-			parse_str( http_build_query( $request_data ), $parsed_data );
-			if(!isset(${arrayName})) {
-				${arrayName} = [];
-			}
-			${arrayName} = array_merge_recursive(
-				${arrayName},
-				$parsed_data
-			);
-			unset($request_data, $parsed_data);
-		`);
-	}
-
-	/**
-	 * Runs a PHP script and outputs an object with three properties:
-	 * stdout, stderr, and the exitCode.
-	 *
-	 * * `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error.
-	 * * `stdout` – containing the output from `echo`, `print`, inline HTML etc.
-	 * * `stderr` – containing all the errors are logged. It can also be written
-	 *              to explicitly:
+	 * Runs a PHP code snippet.
 	 *
 	 * @example
 	 * ```js
@@ -443,16 +287,169 @@ DATA
 	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
 	 * ```
 	 *
-	 * @param  code - The PHP code to run.
+	 * @param  code    - The PHP code to run.
+	 * @param  request - Request parameters.
 	 */
-	run(code: string) {
-		console.log({ code });
-		this.#exitCode = this.#Runtime.ccall(
-			'phpwasm_run',
-			NUM,
-			[STR],
-			[`?>${code}`]
+	run(code: string, request: PHPRequest = {}): PHPResponse {
+		this.#setRelativeRequestUri(request.relativeUri || '');
+		this.#setRequestPort(request.port || 80);
+		this.#setRequestMethod(request.method || 'GET');
+		this.#setRequestHeaders(request.headers || {});
+		if (request.body) {
+			this.#setRequestBody(request.body);
+		}
+		if (request.files) {
+			for (const file of request.files) {
+				this.#addUploadedFile(file);
+			}
+		}
+		this.#setPHPCode('?>' + code);
+		return this.#handleRequest();
+	}
+
+	#getResponseHeaders(): { headers: PHPHeaders; httpStatusCode: number } {
+		const headersFilePath = '/tmp/headers.json';
+		if (!this.fileExists(headersFilePath)) {
+			throw new Error(
+				'SAPI Error: Could not find response headers file.'
+			);
+		}
+
+		const headersData = JSON.parse(this.readFileAsText(headersFilePath));
+		const headers = {};
+		for (const line of headersData.headers) {
+			if (!line.includes(': ')) {
+				continue;
+			}
+			const colonIndex = line.indexOf(': ');
+			const headerName = line.substring(0, colonIndex).toLowerCase();
+			const headerValue = line.substring(colonIndex + 2);
+			if (!(headerName in headers)) {
+				headers[headerName] = [];
+			}
+			headers[headerName].push(headerValue);
+		}
+		return {
+			headers,
+			httpStatusCode: headersData.status,
+		};
+	}
+
+	#setRelativeRequestUri(uri: string) {
+		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], [uri]);
+		if (uri.includes('?')) {
+			const queryString = uri.substring(uri.indexOf('?') + 1);
+			this.#Runtime.ccall(
+				'wasm_set_query_string',
+				null,
+				[STR],
+				[queryString]
+			);
+		}
+	}
+
+	#setRequestMethod(method: string) {
+		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
+	}
+
+	#setRequestHeaders(headers: PHPHeaders) {
+		for (const name in headers) {
+			this.#setRequestHeader(name, headers[name]);
+		}
+	}
+
+	#setRequestHeader(name: string, value: string) {
+		const lcName = name.toLowerCase();
+		if (lcName === 'cookie') {
+			this.#Runtime.ccall('wasm_set_cookies', null, [STR], [value]);
+		} else if (lcName === 'content-type') {
+			this.#Runtime.ccall('wasm_set_content_type', null, [STR], [value]);
+		} else if (lcName === 'host') {
+			this.addServerGlobalEntry('SERVER_NAME', value);
+		} else if (lcName === 'content-length') {
+			this.#Runtime.ccall(
+				'wasm_set_content_length',
+				null,
+				[NUM],
+				[parseInt(value, 10)]
+			);
+		}
+
+		this.addServerGlobalEntry(
+			`HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
+			value
 		);
+	}
+
+	#setRequestBody(body: string) {
+		this.#Runtime.ccall('wasm_set_request_body', null, [STR], [body]);
+		this.#Runtime.ccall(
+			'wasm_set_content_length',
+			null,
+			[NUM],
+			[body.length]
+		);
+	}
+
+	#setRequestPort(port: number) {
+		this.#Runtime.ccall('wasm_set_proto_num', null, [NUM], [port]);
+	}
+
+	setScriptPath(path: string) {
+		this.#Runtime.ccall('wasm_set_path_translated', null, [STR], [path]);
+	}
+
+	addServerGlobalEntry(key: string, value: string) {
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			[key, value]
+		);
+	}
+
+	/**
+	 * Adds file information to $_FILES superglobal in PHP.
+	 *
+	 * In particular:
+	 * * Creates the file data in the filesystem
+	 * * Registers the file details in PHP
+	 *
+	 * @param  fileInfo - File details
+	 */
+	#addUploadedFile(fileInfo: FileInfo) {
+		const { key, name, type, data } = fileInfo;
+
+		const tmpPath = `/tmp/${Math.random().toFixed(20)}`;
+		this.writeFile(tmpPath, data);
+
+		const error = 0;
+		this.#Runtime.ccall(
+			'wasm_add_uploaded_file',
+			null,
+			[STR, STR, STR, STR, NUM, NUM],
+			[key, name, type, tmpPath, error, data.byteLength]
+		);
+	}
+
+	#setPHPCode(code: string) {
+		this.#Runtime.ccall('wasm_set_php_code', null, [STR], [code]);
+	}
+
+	#handleRequest(): PHPResponse {
+		const exitCode = this.#Runtime.ccall(
+			'wasm_sapi_handle_request',
+			NUM,
+			[],
+			[]
+		);
+
+		return {
+			exitCode,
+			body: this.readFileAsBuffer('/tmp/stdout'),
+			errors: this.readFileAsText('/tmp/stderr'),
+			...this.#getResponseHeaders(),
+		};
 	}
 
 	/**
@@ -557,146 +554,6 @@ DATA
 		} catch (e) {
 			return false;
 		}
-	}
-
-	/**
-	 * Allocates an internal HashTable to keep track of the legitimate uploads.
-	 *
-	 * Supporting file uploads via WebAssembly is a bit tricky.
-	 * Functions like `is_uploaded_file` or `move_uploaded_file` fail to work
-	 * with those $_FILES entries that are not in an internal hash table. This
-	 * is a security feature, see this exceprt from the `is_uploaded_file` documentation:
-	 *
-	 * > is_uploaded_file
-	 * >
-	 * > Returns true if the file named by filename was uploaded via HTTP POST. This is
-	 * > useful to help ensure that a malicious user hasn't tried to trick the script into
-	 * > working on files upon which it should not be working--for instance, /etc/passwd.
-	 * >
-	 * > This sort of check is especially important if there is any chance that anything
-	 * > done with uploaded files could reveal their contents to the user, or even to other
-	 * > users on the same system.
-	 * >
-	 * > For proper working, the function is_uploaded_file() needs an argument like
-	 * > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
-	 * > machine $_FILES['userfile']['name'] does not work.
-	 *
-	 * This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has
-	 * a chance to note which files were actually uploaded. In practice, `is_uploaded_file()`
-	 * always returns false.
-	 *
-	 * `initUploadedFilesHash()`, `registerUploadedFile()`, and `destroyUploadedFilesHash()`
-	 * are a workaround for this problem. They allow you to manually register uploaded
-	 * files in the internal hash table, so that PHP functions like `move_uploaded_file()`
-	 * can recognize them.
-	 *
-	 * Usage:
-	 *
-	 * ```js
-	 * // Create an uploaded file in the PHP filesystem.
-	 * php.writeFile(
-	 *    '/tmp/test.txt',
-	 *    'I am an uploaded file!'
-	 * );
-	 *
-	 * // Allocate the internal hash table.
-	 * php.initUploadedFilesHash();
-	 *
-	 * // Register the uploaded file.
-	 * php.registerUploadedFile('/tmp/test.txt');
-	 *
-	 * // Run PHP code that uses the uploaded file.
-	 * php.run(`<?php
-	 *  _FILES[key] = {
-	 *      name: value.name,
-	 *      type: value.type,
-	 *      tmp_name: tmpPath,
-	 *      error: 0,
-	 *      size: value.size,
-	 *  };
-	 *  var_dump(is_uploaded_file($_FILES["file1"]["tmp_name"]));
-	 *  // true
-	 * `);
-	 *
-	 * // Destroy the internal hash table to free the memory.
-	 * php.destroyUploadedFilesHash();
-	 * ```
-	 */
-	initUploadedFilesHash() {
-		this.#Runtime.ccall('phpwasm_init_uploaded_files_hash', null, [], []);
-	}
-
-	async preUploadFiles(files: Record<string, File>): Promise<string[]> {
-		const uploadedFiles: string[] = [];
-		for (const [key, file] of Object.entries(files)) {
-			const tmpPath = this.preUploadFile(
-				key,
-				file.name,
-				file.type,
-				file.size,
-				new Uint8Array(await file.arrayBuffer())
-			);
-			uploadedFiles.push(tmpPath);
-		}
-		return uploadedFiles;
-	}
-
-	/**
-	 * Registers an uploaded file in the internal hash table.
-	 *
-	 * @see initUploadedFilesHash()
-	 * @param  key
-	 * @param  name
-	 * @param  type
-	 * @param  size
-	 * @param  data
-	 * @return The temporary path of the uploaded file.
-	 */
-	preUploadFile(
-		key: string,
-		name: string,
-		type: string,
-		size: number,
-		data: Uint8Array
-	): string {
-		const tmpName = Math.random().toFixed(20);
-		const tmpPath = `/tmp/${tmpName}`;
-
-		this.registerUploadedFile(tmpPath);
-		this.writeFile(tmpPath, data);
-		this.populateArrayFromRequestData('$_FILES', {
-			[key]: { name, type, tmp_name: tmpPath, error: 0, size },
-		});
-		return tmpPath;
-	}
-
-	/**
-	 * Registers an uploaded file in the internal hash table.
-	 *
-	 * @see initUploadedFilesHash()
-	 * @param  tmpPath - The temporary path of the uploaded file.
-	 */
-	registerUploadedFile(tmpPath: string) {
-		this.#Runtime.ccall(
-			'phpwasm_register_uploaded_file',
-			null,
-			[STR],
-			[tmpPath]
-		);
-	}
-
-	/**
-	 * Destroys the internal hash table to free the memory.
-	 *
-	 * @see initUploadedFilesHash()
-	 */
-	destroyUploadedFilesHash() {
-		this.#Runtime.ccall(
-			'phpwasm_destroy_uploaded_files_hash',
-			null,
-			[],
-			[]
-		);
 	}
 }
 

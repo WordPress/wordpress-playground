@@ -1,26 +1,14 @@
-import * as phpLoaderModule from '../../../build/php-5.6.node.js';
-import { startPHP } from '../php';
-import { File } from './utils';
+import * as phpLoaderModule from '../../../build/php-7.0.node.js';
+import { PHP, startPHP } from '../php';
 
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
-function runPHP(php, code) {
-	php.initContext();
-	php.run(code);
-	php.destroyContext();
-	return php.getOutput();
-}
-
 describe('PHP – boot', () => {
-	it.only('should boot', async () => {
+	it('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
-		const server = php.sapi();
-		console.log(server);
-		expect(server).toContain('REQUEST_METHOD');
-		expect(server).toContain('POST');
-		expect(server).toContain('[name] => picture_of_sunset.jp');
+		expect(php).toBeTruthy();
 	});
 });
 
@@ -97,87 +85,250 @@ describe('PHP – stdio', () => {
 	});
 
 	it('should output strings (1)', async () => {
-		expect(runPHP(php, '<?php echo "Hello world!";')).toEqual({
-			stdout: new TextEncoder().encode('Hello world!'),
-			stderr: [''],
+		expect(php.run('<?php echo "Hello world!";')).toEqual({
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new TextEncoder().encode('Hello world!'),
+			errors: '',
 			exitCode: 0,
 		});
 	});
 	it('should output strings (2) ', async () => {
-		expect(runPHP(php, '<?php echo "Hello world!\nI am PHP";')).toEqual({
-			stdout: new TextEncoder().encode('Hello world!\nI am PHP'),
-			stderr: [''],
+		expect(php.run('<?php echo "Hello world!\nI am PHP";')).toEqual({
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new TextEncoder().encode('Hello world!\nI am PHP'),
+			errors: '',
 			exitCode: 0,
 		});
 	});
 	it('should output bytes ', async () => {
-		const results = runPHP(
-			php,
+		const results = php.run(
 			'<?php echo chr(1).chr(0).chr(1).chr(0).chr(2);'
 		);
 		expect(results).toEqual({
-			stdout: new Uint8Array([1, 0, 1, 0, 2]),
-			stderr: [''],
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new Uint8Array([1, 0, 1, 0, 2]),
+			errors: '',
 			exitCode: 0,
 		});
 	});
 	it('should output strings when .run() is called twice', async () => {
-		expect(runPHP(php, '<?php echo "Hello world!";')).toEqual({
-			stdout: new TextEncoder().encode('Hello world!'),
-			stderr: [''],
+		expect(php.run('<?php echo "Hello world!";')).toEqual({
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new TextEncoder().encode('Hello world!'),
+			errors: '',
 			exitCode: 0,
 		});
 
-		expect(runPHP(php, '<?php echo "Ehlo world!";')).toEqual({
-			stdout: new TextEncoder().encode('Ehlo world!'),
-			stderr: [''],
+		expect(php.run('<?php echo "Ehlo world!";')).toEqual({
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new TextEncoder().encode('Ehlo world!'),
+			errors: '',
 			exitCode: 0,
 		});
 	});
-	it('should output data to stderr', async () => {
+	it('should capture error data from stderr', async () => {
 		const code = `<?php
 		$stdErr = fopen('php://stderr', 'w');
 		fwrite($stdErr, "Hello from stderr!");
 		`;
-		expect(runPHP(php, code)).toEqual({
-			stdout: new TextEncoder().encode(''),
-			stderr: ['Hello from stderr!'],
-			exitCode: 0,
-		});
-	});
-	it('should output data to stderr in the shutdown handler', async () => {
-		const code = `<?php
-		$stdErr = fopen('php://stderr', 'w');
-		$errors = [];
-		register_shutdown_function(function() use($stdErr){
-			fwrite($stdErr, "Hello from stderr!");
-		});
-		`;
-		expect(runPHP(php, code)).toEqual({
-			stdout: new TextEncoder().encode(''),
-			stderr: ['Hello from stderr!'],
+		expect(php.run(code)).toEqual({
+			headers: expect.any(Object),
+			httpStatusCode: 200,
+			body: new TextEncoder().encode(''),
+			errors: 'Hello from stderr!',
 			exitCode: 0,
 		});
 	});
 });
 
-describe('PHP – initialization', () => {
+describe('PHP – processing request information', () => {
 	beforeAll(() => {
 		// Shim the user agent for the server
 		(global as any).navigator = { userAgent: '' };
 	});
 
-	let php;
+	let php: PHP;
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
-		php.mkdirTree('/tests');
 	});
 
 	it('Should have access to raw request data via the php://input stream', async () => {
-		php.initContext('{"foo": "bar"}');
-		await php.run(`<?php echo file_get_contents('php://input');`);
-		php.destroyContext();
-		const bodyText = new TextDecoder().decode(php.getOutput().stdout);
+		const response = await php.run(
+			`<?php echo file_get_contents('php://input');`,
+			{
+				method: 'POST',
+				body: '{"foo": "bar"}',
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.body);
 		expect(bodyText).toEqual('{"foo": "bar"}');
+	});
+
+	it('Should expose urlencoded POST data in $_POST', async () => {
+		const response = await php.run(`<?php echo json_encode($_POST);`, {
+			method: 'POST',
+			body: 'foo=bar',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(bodyText).toEqual('{"foo":"bar"}');
+	});
+
+	it('Should expose urlencoded POST arrays in $_POST', async () => {
+		const response = await php.run(`<?php echo json_encode($_POST);`, {
+			method: 'POST',
+			body: 'foo[]=bar1&foo[]=bar2&indexed[key]=value',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(bodyText).toEqual(
+			'{"foo":["bar1","bar2"],"indexed":{"key":"value"}}'
+		);
+	});
+
+	it('Should expose multipart POST data in $_POST', async () => {
+		const response = await php.run(`<?php echo json_encode($_POST);`, {
+			method: 'POST',
+			body: `--boundary
+Content-Disposition: form-data; name="foo"
+
+bar`,
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=boundary',
+			},
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(bodyText).toEqual('{"foo":"bar"}');
+	});
+
+	it('Should expose multipart POST files in $_FILES', async () => {
+		const response = await php.run(
+			`<?php echo json_encode(array(
+			"files" => $_FILES,
+			"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
+		));`,
+			{
+				method: 'POST',
+				body: `--boundary
+Content-Disposition: form-data; name="myFile"; filename="text.txt"
+Content-Type: text/plain
+
+bar
+--boundary--`,
+				headers: {
+					'Content-Type': 'multipart/form-data; boundary=boundary',
+				},
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(JSON.parse(bodyText)).toEqual({
+			files: {
+				myFile: {
+					name: 'text.txt',
+					type: 'text/plain',
+					tmp_name: expect.any(String),
+					error: 0,
+					size: 3,
+				},
+			},
+			is_uploaded: true,
+		});
+	});
+
+	it('Should expose uploaded files in $_FILES', async () => {
+		const response = await php.run(
+			`<?php echo json_encode(array(
+			"files" => $_FILES,
+			"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
+		));`,
+			{
+				method: 'POST',
+				files: [
+					{
+						name: 'text.txt',
+						key: 'myFile',
+						data: new TextEncoder().encode('bar'),
+						type: 'text/plain',
+					},
+				],
+				headers: {
+					'Content-Type': 'multipart/form-data; boundary=boundary',
+				},
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(JSON.parse(bodyText)).toEqual({
+			files: {
+				myFile: {
+					name: 'text.txt',
+					type: 'text/plain',
+					tmp_name: expect.any(String),
+					error: '0',
+					size: '3',
+				},
+			},
+			is_uploaded: true,
+		});
+	});
+
+	it('Should expose both the multipart/form-data request body AND uploaded files in $_FILES', async () => {
+		const response = await php.run(
+			`<?php echo json_encode(array(
+			"files" => $_FILES,
+			"is_uploaded1" => is_uploaded_file($_FILES["myFile1"]["tmp_name"]),
+			"is_uploaded2" => is_uploaded_file($_FILES["myFile2"]["tmp_name"])
+		));`,
+			{
+				relativeUri: '/',
+				method: 'POST',
+				body: `--boundary
+Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
+Content-Type: text/plain
+
+bar1
+--boundary--`,
+				files: [
+					{
+						name: 'from_files.txt',
+						key: 'myFile2',
+						data: new TextEncoder().encode('bar2'),
+						type: 'application/json',
+					},
+				],
+				headers: {
+					'Content-Type': 'multipart/form-data; boundary=boundary',
+				},
+			}
+		);
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(JSON.parse(bodyText)).toEqual({
+			files: {
+				myFile1: {
+					name: 'from_body.txt',
+					type: 'text/plain',
+					tmp_name: expect.any(String),
+					error: 0,
+					size: 4,
+				},
+				myFile2: {
+					name: 'from_files.txt',
+					type: 'application/json',
+					tmp_name: expect.any(String),
+					error: '0',
+					size: '4',
+				},
+			},
+			is_uploaded1: true,
+			is_uploaded2: true,
+		});
 	});
 });
