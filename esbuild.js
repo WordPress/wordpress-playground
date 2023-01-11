@@ -252,7 +252,7 @@ function buildHTMLFile(filePath) {
 	const outdir = globalOutDir;
 	let content = fs.readFileSync(filePath).toString();
 	content = content.replace(
-		/(<script[^>]+src=")([^"]+)("><\/script>)/,
+		/(<script[^>]+src=")([^"]+)(" type="module"><\/script>)/,
 		`$1$2?${CACHE_BUSTER}$3`
 	);
 	const filename = filePath.split('/').pop();
