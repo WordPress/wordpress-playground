@@ -25,6 +25,22 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
+#if !defined(TSRMLS_DC)
+#define TSRMLS_DC
+#endif
+#if !defined(TSRMLS_D)
+#define TSRMLS_D
+#endif
+#if !defined(TSRMLS_CC)
+#define TSRMLS_CC
+#endif
+#if !defined(TSRMLS_C)
+#define TSRMLS_C
+#endif
+#if !defined(TSRMLS_FETCH)
+#define TSRMLS_FETCH()
+#endif
+
 // Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
 const char WASM_HARDCODED_INI[] =
 	"error_reporting = E_ALL\n"
@@ -109,10 +125,14 @@ static int wasm_sapi_read_post_body(char *buffer, uint count_bytes);
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
 #endif
-#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1) || PHP_MAJOR_VERSION >= 8
+#if PHP_MAJOR_VERSION >= 8
+static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int);
+#else
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1)
 static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int);
 #else
 static void wasm_sapi_log_message(char *message TSRMLS_DC);
+#endif
 #endif
 static void wasm_sapi_flush(void *server_context);
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC);
@@ -148,6 +168,7 @@ SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	wasm_sapi_read_cookies,        /* read Cookies */
   
 	wasm_sapi_register_server_variables,   /* register server variables */
+
 	wasm_sapi_log_message,          /* Log message */
 	NULL,							/* Get request time */
 	NULL,							/* Child terminate */
@@ -438,7 +459,14 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
 }
 
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
-	if (php_module_startup(sapi_module, NULL, 0)==FAILURE) {
+	// php_module_startup signature changed in:
+	// https://github.com/php/php-src/commit/b5db594fd277464104fce814d22f0b2207d6502d
+#if PHP_MAJOR_VERSION > 8 || (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION >= 2)
+	int startup_result = php_module_startup(sapi_module, NULL);
+#else
+	int startup_result = php_module_startup(sapi_module, NULL, 0);
+#endif
+	if (startup_result==FAILURE) {
 		return FAILURE;
 	}
 	return SUCCESS;
@@ -776,10 +804,14 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 }
 
 
-#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1) || PHP_MAJOR_VERSION >= 8
+#if PHP_MAJOR_VERSION >= 8
+static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int)
+#else
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1)
 static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int)
 #else
 static void wasm_sapi_log_message(char *message TSRMLS_DC)
+#endif
 #endif
 {
 	fprintf (stderr, "%s\n", message);

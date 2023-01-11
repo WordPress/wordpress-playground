@@ -128,6 +128,7 @@ export async function PHPRequest(event) {
 				method: event.request.method,
 				headers: {
 					...requestHeaders,
+					Host: url.host,
 					'Content-type': contentType,
 				},
 			},

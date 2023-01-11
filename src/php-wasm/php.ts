@@ -303,7 +303,7 @@ export class PHP {
 				this.#addUploadedFile(file);
 			}
 		}
-		this.#setPHPCode('?>' + code);
+		this.#setPHPCode(' ?>' + code);
 		return this.#handleRequest();
 	}
 
