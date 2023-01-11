@@ -277,6 +277,7 @@ export class PHP {
 					'var_dump(123); ',
 					'var_dump(is_uploaded_file("/tmp/8278tgtyv")); ',
 					'var_dump(is_uploaded_file("/tmp/8278tgtyv2")); ',
+					// 'header("json: b\\"a");',
 					'var_dump(456); ',
 				].join(''),
 			]
@@ -289,11 +290,8 @@ export class PHP {
 		);
 
 		console.log({ num });
-		console.log(this.getOutput());
-		console.log(
-			'file exists in JS after request',
-			this.fileExists('/tmp/8278tgtyv')
-		);
+		// console.log(this.getOutput());
+		// return this.readFileAsText("/tmp/headers.json");
 		return new TextDecoder().decode(this.getOutput().stdout);
 	}
 
@@ -329,7 +327,7 @@ export class PHP {
 			null,
 			[STR],
 			[
-				' echo "1"; print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
+				' echo "1"; header("json: b\\n\\"a"); print_r($_SERVER); print_r($_POST); print_r($_FILES); echo file_get_contents("php://input"); ',
 			]
 		);
 		const num = this.#Runtime.ccall(
@@ -341,6 +339,8 @@ export class PHP {
 
 		console.log({ num });
 		console.log(this.getOutput().stderr);
+		console.log("headers json", this.readFileAsText("/tmp/headers.json"));
+		return this.readFileAsText("/tmp/headers.json");
 		return new TextDecoder().decode(this.getOutput().stdout);
 	}
 
