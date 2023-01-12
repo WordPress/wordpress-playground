@@ -1,5 +1,6 @@
 import type PHPServer from './php-server';
-import type { PHPRequest, PHPResponse } from './php-server';
+import type { PHPServerRequest } from './php-server';
+import type { PHPResponse } from './php';
 
 /**
  * A fake web browser that handles PHPServer's cookies and redirects
@@ -42,7 +43,7 @@ export class PHPBrowser {
 	 * @returns PHPServer response.
 	 */
 	async request(
-		request: PHPRequest,
+		request: PHPServerRequest,
 		redirects: number = 0
 	): Promise<PHPResponse> {
 		const response = await this.server.request({
@@ -62,15 +63,14 @@ export class PHPBrowser {
 			response.headers.location &&
 			redirects < this.#config.maxRedirects
 		) {
-			const parsedUrl = new URL(
+			const redirectUrl = new URL(
 				response.headers.location[0],
 				this.server.absoluteUrl
 			);
 			return this.request(
 				{
-					path: parsedUrl.pathname,
+					absoluteUrl: redirectUrl.toString(),
 					method: 'GET',
-					queryString: parsedUrl.search,
 					headers: {},
 				},
 				redirects + 1

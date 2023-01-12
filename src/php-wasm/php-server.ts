@@ -1,4 +1,12 @@
+import { getPathQueryFragment } from './utils';
 import type { PHP, PHPRequest, PHPResponse } from './php';
+
+export type PHPServerRequest = Pick<
+	PHPRequest,
+	'method' | 'headers' | 'body' | 'files'
+> & {
+	absoluteUrl: string;
+};
 
 /**
  * A fake PHP server that handles HTTP requests but does not
@@ -95,8 +103,8 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async request(request: PHPRequest): Promise<PHPResponse> {
-		const serverPath = this.#withoutServerPathname(request.relativeUri);
+	async request(request: PHPServerRequest): Promise<PHPResponse> {
+		const serverPath = this.#toUnscopedRelativePath(request.absoluteUrl);
 		if (this.#isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
 		}
@@ -146,26 +154,23 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async #dispatchToPHP(request: PHPRequest): Promise<PHPResponse> {
-		this.php.addServerGlobalEntry(
-			'PATH_TRANSLATED',
-			this.#resolvePHPFilePath(request.relativeUri)
-		);
+	async #dispatchToPHP(request: PHPServerRequest): Promise<PHPResponse> {
 		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
 		this.php.addServerGlobalEntry('SERVER_NAME', this.#ABSOLUTE_URL);
 		this.php.addServerGlobalEntry(
 			'HTTPS',
 			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 		);
-		return this.php.run(
-			`<?php 
-			chdir($_SERVER['DOCUMENT_ROOT']);
-			require $_SERVER["PATH_TRANSLATED"];`,
-			{
-				...request,
-				port: this.#PORT,
-			}
-		);
+		return this.php.run({
+			...request,
+			relativeUri: this.#toUnscopedRelativePath(request.absoluteUrl),
+			scriptPath: this.#resolvePHPFilePath(request.absoluteUrl),
+			port: this.#PORT,
+			headers: {
+				...(request.headers || {}),
+				host: this.#HOST,
+			},
+		});
 	}
 
 	/**
@@ -177,7 +182,7 @@ export class PHPServer {
 	 * @returns The resolved filesystem path.
 	 */
 	#resolvePHPFilePath(requestedPath: string): string {
-		let filePath = this.#withoutServerPathname(requestedPath);
+		let filePath = this.#toUnscopedRelativePath(requestedPath);
 
 		// If the path mentions a .php extension, that's our file's path.
 		if (filePath.includes('.php')) {
@@ -218,14 +223,15 @@ export class PHPServer {
 	 * This way, PHPSerer can resolve just the `/index.php` instead
 	 * of `/subdirectory/index.php` which is likely undesirable.
 	 *
-	 * @param  requestedPath - The requested path.
+	 * @param  absoluteUrl - The requested URL.
 	 * @returns A path with the server prefix removed.
 	 */
-	#withoutServerPathname(requestedPath: string): string {
+	#toUnscopedRelativePath(absoluteUrl: string): string {
+		const relativeUrl = getPathQueryFragment(new URL(absoluteUrl));
 		if (!this.#PATHNAME) {
-			return requestedPath;
+			return relativeUrl;
 		}
-		return requestedPath.substr(this.#PATHNAME.length);
+		return relativeUrl.substr(this.#PATHNAME.length);
 	}
 }
 

@@ -102,6 +102,7 @@ typedef struct {
 		*path_translated,
 		*request_uri,
 		*request_method,
+		*request_host,
 		*content_type,
 		*request_body,
 		*cookies,
@@ -112,7 +113,7 @@ typedef struct {
 	struct wasm_uploaded_file *uploaded_files;
 
 	int content_length,
-		proto_num,
+		request_port,
 		execution_mode;
 } wasm_server_context_t;
 
@@ -185,9 +186,10 @@ void wasm_init_server_context() {
 	wasm_server_context->path_translated = NULL;
 	wasm_server_context->request_uri = NULL;
 	wasm_server_context->request_method = NULL;
+	wasm_server_context->request_host = NULL;
 	wasm_server_context->content_type = NULL;
 	wasm_server_context->content_length = -1;
-	wasm_server_context->proto_num = -1;
+	wasm_server_context->request_port = -1;
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
@@ -208,6 +210,9 @@ void wasm_destroy_server_context() {
 	}
 	if(wasm_server_context->request_method != NULL) {
 		free(wasm_server_context->request_method);
+	}
+	if(wasm_server_context->request_host != NULL) {
+		free(wasm_server_context->request_host);
 	}
 	if(wasm_server_context->content_type != NULL) {
 		free(wasm_server_context->content_type);
@@ -284,6 +289,9 @@ void wasm_set_request_uri(char* request_uri) {
 void wasm_set_request_method(char* request_method) {
 	wasm_server_context->request_method = strdup(request_method);
 }
+void wasm_set_request_host(char* request_host) {
+	wasm_server_context->request_host = strdup(request_host);
+}
 void wasm_set_content_type(char* content_type) {
 	wasm_server_context->content_type = strdup(content_type);
 }
@@ -300,8 +308,8 @@ void wasm_set_php_code(char* code) {
 	wasm_server_context->php_code = strdup(code);
 	wasm_server_context->execution_mode = MODE_EVAL_CODE;
 }
-void wasm_set_proto_num(int proto_num) {
-	wasm_server_context->proto_num = proto_num;
+void wasm_set_request_port(int port) {
+	wasm_server_context->request_port = port;
 }
 
 /*
@@ -503,8 +511,15 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	/* SERVER_PROTOCOL */
 	if(SG(request_info).proto_num != -1) {
 		char* port_str = int_to_string( SG(request_info).proto_num );
-		php_register_variable("SERVER_PROTOCOL", port_str, track_vars_array TSRMLS_CC);
+		php_register_variable("SERVER_PORT", port_str, track_vars_array TSRMLS_CC);
 		free(port_str);
+	}
+
+	/* SERVER_NAME */
+	value = wasm_server_context->request_host;
+	if (value != NULL) {
+		php_register_variable("SERVER_NAME", value, track_vars_array TSRMLS_CC);
+		php_register_variable("HTTP_HOST", value, track_vars_array TSRMLS_CC);
 	}
 
 	/* REQUEST_METHOD */
@@ -556,7 +571,7 @@ int wasm_sapi_request_init()
 	SG(request_info).query_string = wasm_server_context->query_string;
 	SG(request_info).path_translated = wasm_server_context->path_translated;
 	SG(request_info).request_uri = wasm_server_context->request_uri;
-	SG(request_info).proto_num = wasm_server_context->proto_num;
+	SG(request_info).proto_num = wasm_server_context->request_port;
 	SG(request_info).request_method = wasm_server_context->request_method;
 	SG(request_info).content_type = wasm_server_context->content_type;
 	SG(request_info).content_length = wasm_server_context->content_length;

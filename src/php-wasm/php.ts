@@ -303,9 +303,13 @@ export class PHP {
 	run(request: PHPRequest = {}): PHPResponse {
 		this.#setScriptPath(request.scriptPath || '');
 		this.#setRelativeRequestUri(request.relativeUri || '');
-		this.#setRequestPort(request.port || 80);
 		this.#setRequestMethod(request.method || 'GET');
-		this.#setRequestHeaders(request.headers || {});
+		const { host, ...headers } = {
+			host: 'example.com:80',
+			...normalizeHeaders(request.headers || {}),
+		};
+		this.#setRequestHost(host);
+		this.#setRequestHeaders(headers);
 		if (request.body) {
 			this.#setRequestBody(request.body);
 		}
@@ -361,37 +365,48 @@ export class PHP {
 		}
 	}
 
+	#setRequestHost(host: string) {
+		this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
+		const [, portString] = host.split(':');
+		const port = parseInt(portString, 10) || 80;
+		this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
+	}
+
 	#setRequestMethod(method: string) {
 		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
 	}
 
 	#setRequestHeaders(headers: PHPHeaders) {
-		for (const name in headers) {
-			this.#setRequestHeader(name, headers[name]);
+		if (headers.cookie) {
+			this.#Runtime.ccall(
+				'wasm_set_cookies',
+				null,
+				[STR],
+				[headers.cookie]
+			);
 		}
-	}
-
-	#setRequestHeader(name: string, value: string) {
-		const lcName = name.toLowerCase();
-		if (lcName === 'cookie') {
-			this.#Runtime.ccall('wasm_set_cookies', null, [STR], [value]);
-		} else if (lcName === 'content-type') {
-			this.#Runtime.ccall('wasm_set_content_type', null, [STR], [value]);
-		} else if (lcName === 'host') {
-			this.addServerGlobalEntry('SERVER_NAME', value);
-		} else if (lcName === 'content-length') {
+		if (headers['content-type']) {
+			this.#Runtime.ccall(
+				'wasm_set_content_type',
+				null,
+				[STR],
+				[headers['content-type']]
+			);
+		}
+		if (headers['content-length']) {
 			this.#Runtime.ccall(
 				'wasm_set_content_length',
 				null,
 				[NUM],
-				[parseInt(value, 10)]
+				[parseInt(headers['content-length'], 10)]
 			);
 		}
-
-		this.addServerGlobalEntry(
-			`HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
-			value
-		);
+		for (const name in headers) {
+			this.addServerGlobalEntry(
+				`HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
+				headers[name]
+			);
+		}
 	}
 
 	#setRequestBody(body: string) {
@@ -402,10 +417,6 @@ export class PHP {
 			[NUM],
 			[body.length]
 		);
-	}
-
-	#setRequestPort(port: number) {
-		this.#Runtime.ccall('wasm_set_proto_num', null, [NUM], [port]);
 	}
 
 	#setScriptPath(path: string) {
@@ -568,6 +579,14 @@ export class PHP {
 			return false;
 		}
 	}
+}
+
+function normalizeHeaders(headers: PHPHeaders): PHPHeaders {
+	const normalized = {};
+	for (const key in headers) {
+		normalized[key.toLowerCase()] = headers[key];
+	}
+	return normalized;
 }
 
 /**
