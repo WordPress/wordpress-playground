@@ -17,18 +17,6 @@ class Requests_Transport_Dummy implements Requests_Transport
 	{
 	}
 
-	/**
-	 * Delegates PHP HTTP requests to JavaScript synchronous XHR.
-	 *
-	 * @TODO Implement handling for more $options such as cookies, filename, auth, etc.
-	 *
-	 * @param $url
-	 * @param $headers
-	 * @param $data
-	 * @param $options
-	 *
-	 * @return false|string
-	 */
 	public function request($url, $headers = array(), $data = array(), $options = array())
 	{
 		return false;
@@ -37,20 +25,9 @@ class Requests_Transport_Dummy implements Requests_Transport
 	public function request_multiple($requests, $options)
 	{
 		$responses = array();
-		$class     = get_class($this);
 		foreach ($requests as $id => $request) {
-			try {
-				$handler          = new $class();
-				$responses[$id] = $handler->request($request['url'], $request['headers'], $request['data'], $request['options']);
-				$request['options']['hooks']->dispatch('transport.internal.parse_response', array(&$responses[$id], $request));
-			} catch (Requests_Exception $e) {
-				$responses[$id] = $e;
-			}
-			if (!is_string($responses[$id])) {
-				$request['options']['hooks']->dispatch('multiple.request.complete', array(&$responses[$id], $id));
-			}
+			$responses[] = false;
 		}
-
 		return $responses;
 	}
 

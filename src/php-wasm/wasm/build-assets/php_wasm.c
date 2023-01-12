@@ -49,7 +49,6 @@ const char WASM_HARDCODED_INI[] =
 	"display_startup_errors = On\n"
 	"log_errors = 1\n"
 	"always_populate_raw_post_data = -1\n"
-	// "error_log = /tmp/stderr\n"
 	"upload_max_filesize = 2000M\n"
 	"post_max_size = 2000M\n"
 	"session.save_path = /home/web_user\n"

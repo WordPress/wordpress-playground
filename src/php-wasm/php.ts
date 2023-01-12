@@ -73,16 +73,6 @@ export interface PHPResponse {
 }
 
 /**
- * Path of the executed script in the PHP filesystem.
- */
-// scriptFilesystemPath: string;
-
-/**
- */
-// 	pathInfo?: string;
-// DOCUMENT_ROOT
-
-/**
  * Initializes the PHP runtime with the given arguments and data dependencies.
  *
  * This function handles the entire PHP initialization pipeline. In particular, it:
@@ -220,8 +210,6 @@ export async function startPHP(
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
-		print() {},
-		printErr() {},
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
@@ -610,19 +598,3 @@ export interface PHPOutput {
  * @see https://github.com/emscripten-core/emscripten/blob/main/system/lib/libc/musl/arch/emscripten/bits/errno.h
  */
 export interface ErrnoError extends Error {}
-
-export interface PHPRunOptions {
-	/**
-	 * Raw POST data to populate php://input.
-	 *
-	 * This should *not* contain any uploaded file information.
-	 *
-	 * Files are handled separately via the uploadedFiles option.
-	 */
-	requestBodyWithoutFiles?: string;
-
-	/**
-	 * Files to populate $_FILES.
-	 */
-	uploadedFiles?: Record<string, File>;
-}
