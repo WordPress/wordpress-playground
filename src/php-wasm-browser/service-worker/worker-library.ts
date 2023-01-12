@@ -6,7 +6,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from '../messaging';
 import { getURLScope, isURLScoped, removeURLScope } from '../scope';
-import { getPathQueryFragment } from '../utils';
+import { getPathQueryFragment } from '../../php-wasm/utils';
 
 /**
  * Run this function in the service worker to install the required event
@@ -116,7 +116,6 @@ export async function PHPRequest(event) {
 		requestHeaders[pair[0]] = pair[1];
 	}
 
-	const relativeUri = getPathQueryFragment(url);
 	let phpResponse;
 	try {
 		const message = {
@@ -124,7 +123,7 @@ export async function PHPRequest(event) {
 			request: {
 				body,
 				files,
-				relativeUri,
+				absoluteUrl: url.toString(),
 				method: event.request.method,
 				headers: {
 					...requestHeaders,
@@ -151,7 +150,7 @@ export async function PHPRequest(event) {
 			phpResponse,
 		});
 	} catch (e) {
-		console.error(e, { relativeUri });
+		console.error(e, { url: url.toString() });
 		throw e;
 	}
 

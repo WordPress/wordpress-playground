@@ -22,11 +22,6 @@ export interface PHPRequest {
 	scriptPath?: string;
 
 	/**
-	 * Request port. Default: 80.
-	 */
-	port?: number;
-
-	/**
 	 * Request method. Default: `GET`.
 	 */
 	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
@@ -44,7 +39,7 @@ export interface PHPRequest {
 	/**
 	 * Uploaded files.
 	 */
-	files?: FileInfo[];
+	fileInfos?: FileInfo[];
 
 	/**
 	 * The code snippet to eval instead of a php file.
@@ -313,8 +308,8 @@ export class PHP {
 		if (request.body) {
 			this.#setRequestBody(request.body);
 		}
-		if (request.files) {
-			for (const file of request.files) {
+		if (request.fileInfos) {
+			for (const file of request.fileInfos) {
 				this.#addUploadedFile(file);
 			}
 		}
@@ -367,8 +362,13 @@ export class PHP {
 
 	#setRequestHost(host: string) {
 		this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
-		const [, portString] = host.split(':');
-		const port = parseInt(portString, 10) || 80;
+		let port;
+		try {
+			port = parseInt(new URL(host).port, 10);
+		} catch (e) {}
+		if (!port || isNaN(port)) {
+			port = 80;
+		}
 		this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
 	}
 

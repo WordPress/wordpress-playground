@@ -10,7 +10,7 @@ declare const window: any; // For the web backend
 import { startPHP, PHPBrowser, PHPServer } from '../../php-wasm';
 import type { PHP, JavascriptRuntime } from '../../php-wasm';
 import { responseTo } from '../messaging';
-import { DEFAULT_BASE_URL } from '../utils';
+import { DEFAULT_BASE_URL } from '../../php-wasm/utils';
 import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 import { getURLScope } from '../scope';
@@ -114,30 +114,11 @@ export async function initializeWorkerThread(
 		} else if (message.type === 'run') {
 			return phpBrowser.server.php.run(message.code);
 		} else if (message.type === 'HTTPRequest') {
-			return await renderRequest(message.request);
+			return await phpBrowser.request(message.request);
 		}
 		throw new Error(
 			`[Worker Thread] Received unexpected message: "${message.type}"`
 		);
-	}
-
-	async function renderRequest(request) {
-		const fileInfos: FileInfo[] = [];
-		if (request.files) {
-			for (const key in request.files) {
-				const file: File = request.files[key];
-				fileInfos.push({
-					key,
-					name: file.name,
-					type: file.type,
-					data: new Uint8Array(await file.arrayBuffer()),
-				});
-			}
-		}
-		return await phpBrowser.request({
-			...request,
-			files: fileInfos,
-		});
 	}
 
 	return currentBackend;

@@ -1,4 +1,4 @@
-import { DEFAULT_BASE_URL } from './utils';
+import { DEFAULT_BASE_URL } from '../php-wasm/utils';
 
 /*
  * An approximate total file size to use when the actual

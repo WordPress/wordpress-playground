@@ -1,11 +1,12 @@
-import { getPathQueryFragment } from './utils';
-import type { PHP, PHPRequest, PHPResponse } from './php';
+import { ensurePathPrefix, getPathQueryFragment, removePathPrefix } from './utils';
+import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
 
 export type PHPServerRequest = Pick<
 	PHPRequest,
-	'method' | 'headers' | 'body' | 'files'
+	'method' | 'headers' | 'body'
 > & {
 	absoluteUrl: string;
+	files?: Record<string, File>;
 };
 
 /**
@@ -104,7 +105,10 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async request(request: PHPServerRequest): Promise<PHPResponse> {
-		const serverPath = this.#toUnscopedRelativePath(request.absoluteUrl);
+		const serverPath = removePathPrefix(
+			new URL(request.absoluteUrl).pathname,
+			this.#PATHNAME
+		);
 		if (this.#isStaticFilePath(serverPath)) {
 			return this.#serveStaticFile(serverPath);
 		}
@@ -156,16 +160,34 @@ export class PHPServer {
 	 */
 	async #dispatchToPHP(request: PHPServerRequest): Promise<PHPResponse> {
 		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
-		this.php.addServerGlobalEntry('SERVER_NAME', this.#ABSOLUTE_URL);
 		this.php.addServerGlobalEntry(
 			'HTTPS',
 			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 		);
+
+		const fileInfos: FileInfo[] = [];
+		if (request.files) {
+			for (const key in request.files) {
+				const file: File = request.files[key];
+				fileInfos.push({
+					key,
+					name: file.name,
+					type: file.type,
+					data: new Uint8Array(await file.arrayBuffer()),
+				});
+			}
+		}
+
+		const requestedUrl = new URL(request.absoluteUrl);
 		return this.php.run({
-			...request,
-			relativeUri: this.#toUnscopedRelativePath(request.absoluteUrl),
-			scriptPath: this.#resolvePHPFilePath(request.absoluteUrl),
-			port: this.#PORT,
+			relativeUri: ensurePathPrefix(
+				getPathQueryFragment(requestedUrl),
+				this.#PATHNAME
+			),
+			method: request.method,
+			body: request.body,
+			fileInfos,
+			scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
 			headers: {
 				...(request.headers || {}),
 				host: this.#HOST,
@@ -182,7 +204,7 @@ export class PHPServer {
 	 * @returns The resolved filesystem path.
 	 */
 	#resolvePHPFilePath(requestedPath: string): string {
-		let filePath = this.#toUnscopedRelativePath(requestedPath);
+		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
 
 		// If the path mentions a .php extension, that's our file's path.
 		if (filePath.includes('.php')) {
@@ -202,36 +224,6 @@ export class PHPServer {
 			return resolvedFsPath;
 		}
 		return `${this.#DOCROOT}/index.php`;
-	}
-
-	/**
-	 * Remove the server pathname from the requested path.
-	 *
-	 * This method enables including an arbitrary pathname
-	 * in the server's absolute URL.
-	 *
-	 * For example, say the requestedPath is `/subdirectory/index.php`
-	 *
-	 * If the server's absolute URL is something like
-	 * `http://localhost/`, this method returns the unchanged
-	 * requestedPath.
-	 *
-	 * However, if the server's absolute URL is
-	 * `http://localhost/subdirectory`, this method will return
-	 * just `/index.php`.
-	 *
-	 * This way, PHPSerer can resolve just the `/index.php` instead
-	 * of `/subdirectory/index.php` which is likely undesirable.
-	 *
-	 * @param  absoluteUrl - The requested URL.
-	 * @returns A path with the server prefix removed.
-	 */
-	#toUnscopedRelativePath(absoluteUrl: string): string {
-		const relativeUrl = getPathQueryFragment(new URL(absoluteUrl));
-		if (!this.#PATHNAME) {
-			return relativeUrl;
-		}
-		return relativeUrl.substr(this.#PATHNAME.length);
 	}
 }
 

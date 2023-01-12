@@ -1,4 +1,4 @@
-import type { PHPOutput, PHPRequest, PHPResponse } from '../../php-wasm';
+import type { PHPOutput, PHPServerRequest, PHPResponse } from '../../php-wasm';
 import {
 	postMessageExpectReply,
 	awaitReply,
@@ -6,7 +6,7 @@ import {
 	responseTo,
 } from '../messaging';
 import { removeURLScope } from '../scope';
-import { getPathQueryFragment } from '..';
+import { getPathQueryFragment } from '../../php-wasm/utils';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -152,7 +152,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.request}
 	 */
 	async HTTPRequest(
-		request: PHPRequest
+		request: PHPServerRequest
 	): Promise<PHPResponse & { text: string }> {
 		const response = (await this.#rpc('HTTPRequest', {
 			request,

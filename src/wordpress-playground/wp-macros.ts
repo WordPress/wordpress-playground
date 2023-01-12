@@ -1,22 +1,25 @@
 import type { SpawnedWorkerThread } from 'src/php-wasm-browser/index';
 
 export async function login(
-	workerThread,
+	workerThread: SpawnedWorkerThread,
 	user = 'admin',
 	password = 'password'
 ) {
 	await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl('/wp-login.php'),
+		absoluteUrl: workerThread.pathToInternalUrl('/wp-login.php'),
 	});
 
 	await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl('/wp-login.php'),
+		absoluteUrl: workerThread.pathToInternalUrl('/wp-login.php'),
 		method: 'POST',
-		_POST: {
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+		},
+		body: new URLSearchParams({
 			log: user,
 			pwd: password,
 			rememberme: 'forever',
-		},
+		}).toString(),
 	});
 }
 
@@ -29,7 +32,7 @@ export async function installPlugin(
 
 	// Upload it to WordPress
 	const pluginForm = await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.pathToInternalUrl(
 			'/wp-admin/plugin-install.php?tab=upload'
 		),
 	});
@@ -45,11 +48,14 @@ export async function installPlugin(
 	);
 
 	const pluginInstalledResponse = await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.pathToInternalUrl(
 			'/wp-admin/update.php?action=upload-plugin'
 		),
 		method: 'POST',
-		_POST: postData,
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+		},
+		body: new URLSearchParams(postData).toString(),
 		files: { pluginzip: pluginZipFile },
 	});
 
@@ -67,7 +73,7 @@ export async function installPlugin(
 			workerThread.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await workerThread.HTTPRequest({
-			path: activatePluginUrl,
+			absoluteUrl: activatePluginUrl,
 		});
 	}
 
@@ -138,7 +144,9 @@ export async function installTheme(
 
 	// Upload it to WordPress
 	const themeForm = await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl('/wp-admin/theme-install.php'),
+		absoluteUrl: workerThread.pathToInternalUrl(
+			'/wp-admin/theme-install.php'
+		),
 	});
 	const themeFormPage = new DOMParser().parseFromString(
 		themeForm.text,
@@ -152,11 +160,14 @@ export async function installTheme(
 	);
 
 	const themeInstalledResponse = await workerThread.HTTPRequest({
-		path: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.pathToInternalUrl(
 			'/wp-admin/update.php?action=upload-theme'
 		),
 		method: 'POST',
-		_POST: postData,
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+		},
+		body: postData,
 		files: { themezip: themeZipFile },
 	});
 
@@ -195,7 +206,7 @@ export async function installTheme(
 			workerThread.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await workerThread.HTTPRequest({
-			path: activateThemeUrl,
+			absoluteUrl: activateThemeUrl,
 		});
 	}
 }
