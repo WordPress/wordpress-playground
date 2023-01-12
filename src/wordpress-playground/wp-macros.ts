@@ -167,7 +167,7 @@ export async function installTheme(
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
 		},
-		body: postData,
+		body: new URLSearchParams(postData).toString(),
 		files: { themezip: themeZipFile },
 	});
 
