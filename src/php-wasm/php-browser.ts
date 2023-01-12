@@ -1,5 +1,6 @@
 import type PHPServer from './php-server';
-import type { PHPRequest, PHPResponse } from './php-server';
+import type { PHPServerRequest } from './php-server';
+import type { PHPResponse } from './php';
 
 /**
  * A fake web browser that handles PHPServer's cookies and redirects
@@ -42,12 +43,15 @@ export class PHPBrowser {
 	 * @returns PHPServer response.
 	 */
 	async request(
-		request: PHPRequest,
+		request: PHPServerRequest,
 		redirects: number = 0
 	): Promise<PHPResponse> {
 		const response = await this.server.request({
 			...request,
-			_COOKIE: this.#cookies,
+			headers: {
+				...request.headers,
+				cookie: this.#serializeCookies(),
+			},
 		});
 
 		if (response.headers['set-cookie']) {
@@ -59,15 +63,14 @@ export class PHPBrowser {
 			response.headers.location &&
 			redirects < this.#config.maxRedirects
 		) {
-			const parsedUrl = new URL(
+			const redirectUrl = new URL(
 				response.headers.location[0],
 				this.server.absoluteUrl
 			);
 			return this.request(
 				{
-					path: parsedUrl.pathname,
+					absoluteUrl: redirectUrl.toString(),
 					method: 'GET',
-					queryString: parsedUrl.search,
 					headers: {},
 				},
 				redirects + 1
@@ -80,13 +83,25 @@ export class PHPBrowser {
 	#setCookies(cookies) {
 		for (const cookie of cookies) {
 			try {
-				const value = cookie.split('=')[1].split(';')[0];
-				const name = cookie.split('=')[0];
+				if (!cookie.includes('=')) {
+					continue;
+				}
+				const equalsIndex = cookie.indexOf('=');
+				const name = cookie.substring(0, equalsIndex);
+				const value = cookie.substring(equalsIndex + 1).split(';')[0];
 				this.#cookies[name] = value;
 			} catch (e) {
 				console.error(e);
 			}
 		}
+	}
+
+	#serializeCookies() {
+		const cookiesArray: string[] = [];
+		for (const name in this.#cookies) {
+			cookiesArray.push(`${name}=${this.#cookies[name]}`);
+		}
+		return cookiesArray.join('; ');
 	}
 }
 

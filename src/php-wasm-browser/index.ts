@@ -10,4 +10,4 @@ export type {
 	DownloadProgressEvent,
 	DownloadProgressCallback,
 } from './emscripten-download-monitor';
-export { DEFAULT_BASE_URL, getPathQueryFragment } from './utils';
+

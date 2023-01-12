@@ -1,16 +1,20 @@
 export { PHP, startPHP } from './php';
-export type { PHPOutput, JavascriptRuntime, ErrnoError } from './php';
+export type {
+	PHPOutput,
+	PHPRequest,
+	PHPResponse,
+	JavascriptRuntime,
+	ErrnoError,
+} from './php';
 
 import PHPServer from './php-server';
 export { PHPServer };
-export type {
-	PHPRequest,
-	PHPResponse,
-	PHPServerConfigation,
-} from './php-server';
+export type { PHPServerConfigation, PHPServerRequest } from './php-server';
 
 import PHPBrowser from './php-browser';
 export { PHPBrowser };
+
+export { DEFAULT_BASE_URL, getPathQueryFragment } from '../php-wasm/utils';
 
 // Provided by esbuild – see build.js in the repo root.
 declare let PHP_JS_HASH: any;

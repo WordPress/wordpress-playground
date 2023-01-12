@@ -1,13 +1,14 @@
 <?php
 
 /**
- * This mu-plugin delegates PHP HTTP requests to JavaScript synchronous XHR.
+ * This transport delegates PHP HTTP requests to JavaScript synchronous XHR.
  *
  * This file isn't actually used. It's just here for reference and development. The actual
  * PHP code used in WordPress is hardcoded copy residing in wordpress.mjs in the _patchWordPressCode
  * function.
  *
- * @TODO Make the build pipeline use this exact file.
+ * @TODO Make the build pipeline use this exact file instead of creating it
+ *       from within the JavaScript runtime.
  */
 
 class Requests_Transport_Fetch implements Requests_Transport
@@ -141,11 +142,4 @@ JAVASCRIPT;
 
 		return true;
 	}
-}
-
-if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
-	Requests::add_transport('Requests_Transport_Fetch');
-	add_filter('http_request_host_is_external', function ($arg) {
-		return true;
-	});
 }

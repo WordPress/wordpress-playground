@@ -6,6 +6,7 @@
 	"include": [
 		 "src/php-wasm/php.ts",
 		 "src/php-wasm/index.ts",
+		 "src/php-wasm/utils.ts",
 		 "src/php-wasm/php-server.ts",
 		 "src/php-wasm/php-browser.ts",
 		 
