@@ -6,10 +6,14 @@ import {
 } from '../php-wasm-browser/index';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const query = new URL(document.location.href).searchParams as any;
 
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+
+let workerThread;
 
 let isBooted = false;
 
@@ -25,7 +29,7 @@ async function main() {
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
 	const progress = setupProgressBar();
-	const workerThread = await bootWordPress({
+	workerThread = await bootWordPress({
 		onWasmDownloadProgress: progress.partialObserver(
 			bootProgress,
 			'Preparing WordPress...'
@@ -139,7 +143,6 @@ async function main() {
 	}
 
 	if (query.get('rpc')) {
-		console.log('Registering an RPC handler');
 		async function handleMessage(data) {
 			if (data.type === 'rpc') {
 				return await workerThread[data.method](...data.args);
@@ -297,3 +300,98 @@ function zipNameToHumanName(zipName) {
 }
 
 main();
+
+async function overwriteFile() {
+	const targetFile = document.getElementById('target-file').value;
+	const targetContent = document.getElementById('target-content').value;
+	console.log(targetFile);
+	console.log(targetContent);
+	await workerThread.writeFile(targetFile, targetContent);
+}
+
+async function populateZip(zipFile, filePaths) {
+	for (let i = 0; i < filePaths.length; i++) {
+		const path = filePaths[i];
+		const isDir = await workerThread.isDir(path);
+		if (isDir) {
+			const directoryFileNames = await workerThread.listFiles(path);
+			const directoryFilePaths = directoryFileNames.map(
+				(childFilePath) => `${path}/${childFilePath}`
+			);
+			await populateZip(zipFile, directoryFilePaths);
+		} else {
+			const fileContents = await workerThread.readFile(path);
+			zipFile.file(path, fileContents);
+		}
+	}
+}
+
+async function generateZip() {
+	const fileNames = await workerThread.listFiles('/wordpress');
+	const filePaths = fileNames.map((fileName) => `/wordpress/${fileName}`);
+	const zipFile = new JSZip();
+	await populateZip(zipFile, filePaths);
+	zipFile
+		.generateAsync({ type: 'blob' }, function updateCallback(metadata) {
+			let msg = 'progression : ' + metadata.percent.toFixed(2) + ' %';
+			if (metadata.currentFile) {
+				msg += ', current file = ' + metadata.currentFile;
+			}
+			console.log(msg);
+			// updatePercent(metadata.percent | 0);
+		})
+		.then(
+			function callback(blob) {
+				console.log('first part');
+				console.log(blob);
+				// see FileSaver.js
+				saveAs(blob, 'wordpress-playground-export.zip');
+
+				// showMessage('done !');
+			},
+			function (e) {
+				console.log('second part');
+				console.log(e);
+			}
+		);
+}
+
+async function importFile() {
+	const selectedFile = document.getElementById('file-input').files[0];
+
+	JSZip.loadAsync(selectedFile) // 1) read the Blob
+		.then(
+			function (zip) {
+				zip.forEach(async function (relativePath, zipEntry: any) {
+					// 2) print entries
+					if (
+						!zipEntry.dir &&
+						!relativePath.includes('wp-content/database') &&
+						!relativePath.includes('wp-includes')
+					) {
+						console.log(relativePath);
+						const content = new TextDecoder().decode(
+							zipEntry._data.compressedContent
+						);
+						await workerThread.writeFile(relativePath, content);
+					}
+				});
+			},
+			function (e) {}
+		);
+}
+
+const overwriteButton = document.getElementById('overwrite-button');
+if (overwriteButton) {
+	overwriteButton.addEventListener('click', overwriteFile);
+}
+
+const exportButton = document.getElementById('export-button');
+if (exportButton) {
+	exportButton.addEventListener('click', generateZip);
+}
+
+const importButton = document.getElementById('import-button');
+if (importButton) {
+	importButton.addEventListener('click', importFile);
+}
