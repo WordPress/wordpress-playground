@@ -510,7 +510,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 
 	/* SERVER_PROTOCOL */
 	if(SG(request_info).proto_num != -1) {
-		char* port_str = int_to_string( SG(request_info).proto_num );
+		char *port_str = int_to_string(wasm_server_context->request_port);
 		php_register_variable("SERVER_PORT", port_str, track_vars_array TSRMLS_CC);
 		free(port_str);
 	}
@@ -571,10 +571,10 @@ int wasm_sapi_request_init()
 	SG(request_info).query_string = wasm_server_context->query_string;
 	SG(request_info).path_translated = wasm_server_context->path_translated;
 	SG(request_info).request_uri = wasm_server_context->request_uri;
-	SG(request_info).proto_num = wasm_server_context->request_port;
 	SG(request_info).request_method = wasm_server_context->request_method;
 	SG(request_info).content_type = wasm_server_context->content_type;
 	SG(request_info).content_length = wasm_server_context->content_length;
+	SG(request_info).proto_num = 1000; // For HTTP 1.0
 	SG(sapi_headers).http_response_code = 200;
 
 	if (php_request_startup(TSRMLS_C)==FAILURE) {
