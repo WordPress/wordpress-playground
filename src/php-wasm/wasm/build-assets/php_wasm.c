@@ -110,9 +110,9 @@ typedef struct {
 
 	int content_length,
 		proto_num;
-} wasm_request;
+} wasm_server_context_t;
 
-static wasm_request *wasm_server_context;
+static wasm_server_context_t *wasm_server_context;
 
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
@@ -826,7 +826,7 @@ static void wasm_sapi_log_message(char *message TSRMLS_DC)
  */
 int php_wasm_init() {
 	wasm_init_server_context();
-	wasm_server_context = malloc(sizeof(wasm_request));
+	wasm_server_context = malloc(sizeof(wasm_server_context_t));
 
 #ifdef ZTS
 	void ***tsrm_ls = NULL;
