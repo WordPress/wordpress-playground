@@ -249,6 +249,14 @@ void wasm_destroy_server_context() {
 	}
 }
 
+/**
+ * Function: wasm_add_SERVER_entry
+ * ----------------------------
+ *   Adds a new entry to $_SERVER array.
+ * 
+ *   key: the key of the entry
+ *   value: the value of the entry
+ */
 void wasm_add_SERVER_entry(char *key, char *value) {
 	wasm_array_entry_t *entry = (wasm_array_entry_t*) malloc(sizeof(wasm_array_entry_t));
 	entry->key = strdup(key);
@@ -257,6 +265,18 @@ void wasm_add_SERVER_entry(char *key, char *value) {
 	wasm_server_context->server_array_entries = entry;
 }
 
+/**
+ * Function: wasm_add_uploaded_file
+ * ----------------------------
+ *  Adds a new entry to the $_FILES array.
+ * 
+ *  key: the key of the $_FILES entry, e.g. my_file for $_FILES['my_file']
+ *  name: the name of the file, e.g. notes.txt
+ *  type: the type of the file, e.g. text/plain
+ *  tmp_name: the path where the uploaded file is stored, e.g. /tmp/php1234
+ *  error: the error code associated with this file upload
+ *  size: the size of the file in bytes
+ */
 void wasm_add_uploaded_file(
 	char *key, 
 	char *name, 
@@ -276,37 +296,126 @@ void wasm_add_uploaded_file(
 	wasm_server_context->uploaded_files = entry;
 }
 
+/**
+ * Function: wasm_set_query_string
+ * ----------------------------
+ *  Sets the query string for the next request.
+ *  
+ *  query_string: the query string, e.g. "name=John&age=30"
+ */
 void wasm_set_query_string(char* query_string) {
 	wasm_server_context->query_string = strdup(query_string);
 }
+
+/**
+ * Function: wasm_set_path_translated
+ * ----------------------------
+ *  Sets the filesystem path of the PHP script to run during the next request.
+ *  
+ *  path_translated: the script path, e.g. "/var/www/myapp/index.php"
+ */
 void wasm_set_path_translated(char* path_translated) {
 	wasm_server_context->path_translated = strdup(path_translated);
 }
+
+/**
+ * Function: wasm_set_request_uri
+ * ----------------------------
+ *  Sets the request path (without the query string) for the next request.
+ *  
+ *  path_translated: the request path, e.g. "/index.php"
+ */
 void wasm_set_request_uri(char* request_uri) {
 	wasm_server_context->request_uri = strdup(request_uri);
 }
+
+/**
+ * Function: wasm_set_request_method
+ * ----------------------------
+ *  Sets the request method for the next request.
+ *  
+ *  request_method: the request method, e.g. "GET" or "POST"
+ */
 void wasm_set_request_method(char* request_method) {
 	wasm_server_context->request_method = strdup(request_method);
 }
+
+/**
+ * Function: wasm_set_request_host
+ * ----------------------------
+ *  Sets the request host for the next request.
+ *  
+ *  request_host: the request host, e.g. "localhost:8080"
+ */
 void wasm_set_request_host(char* request_host) {
 	wasm_server_context->request_host = strdup(request_host);
 }
+
+/**
+ * Function: wasm_set_content_type
+ * ----------------------------
+ *  Sets the content type associated with the next request.
+ *  
+ *  content_type: the content type, e.g. "application/x-www-form-urlencoded"
+ */
 void wasm_set_content_type(char* content_type) {
 	wasm_server_context->content_type = strdup(content_type);
 }
+
+/**
+ * Function: wasm_set_request_body
+ * ----------------------------
+ *  Sets the request body for the next request.
+ *  
+ *  request_body: the request body, e.g. "name=John&age=30"
+ */
 void wasm_set_request_body(char* request_body) {
 	wasm_server_context->request_body = strdup(request_body);
 }
+
+/**
+ * Function: wasm_set_content_length
+ * ----------------------------
+ *  Sets the content length associated with the next request.
+ *  
+ *  content_length: the content length, e.g. 20
+ */
 void wasm_set_content_length(int content_length) {
 	wasm_server_context->content_length = content_length;
 }
+
+/**
+ * Function: wasm_set_cookies
+ * ----------------------------
+ *  Sets the cookies associated with the next request.
+ *  
+ *  cookies: the cookies, e.g. "name=John; age=30"
+ */
 void wasm_set_cookies(char* cookies) {
 	wasm_server_context->cookies = strdup(cookies);
 }
+
+/**
+ * Function: wasm_set_php_code
+ * ----------------------------
+ *  Sets the PHP code to run during the next request. If set,
+ *  the script at the path specified by wasm_set_path_translated()
+ *  will be represented in $_SERVER but will not be executed.
+ *  
+ *  code: the PHP code, e.g. "echo 'Hello World!';"
+ */
 void wasm_set_php_code(char* code) {
 	wasm_server_context->php_code = strdup(code);
 	wasm_server_context->execution_mode = MODE_EVAL_CODE;
 }
+
+/**
+ * Function: wasm_set_request_port
+ * ----------------------------
+ *  Sets the request port for the next request.
+ *  
+ *  port: the request port, e.g. 8080
+ */
 void wasm_set_request_port(int port) {
 	wasm_server_context->request_port = port;
 }
@@ -364,11 +473,26 @@ static void restore_stream_handler(FILE *original_stream, int replacement_stream
 int stdout_replacement;
 int stderr_replacement;
 
+/*
+ * Function: wasm_sapi_read_cookies
+ * ----------------------------
+ *   Called by PHP to retrieve the cookies associated with the currently
+ *   processed request.
+ */
 static char *wasm_sapi_read_cookies(TSRMLS_D)
 {
 	return wasm_server_context->cookies;
 }
 
+/**
+ * Function: wasm_sapi_read_post_body
+ * ----------------------------
+ *   Called by PHP to retrieve the request body associated with the currently
+ *   processed request.
+ * 
+ *   buffer: the buffer to read the request body into
+ *   count_bytes: the number of bytes to read
+ */
 #if PHP_MAJOR_VERSION == 5
 static int wasm_sapi_read_post_body(char *buffer, uint count_bytes)
 #else
@@ -471,6 +595,13 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
 	destroy_uploaded_files_hash();
 }
 
+/**
+ * Function: wasm_sapi_module_startup
+ * ----------------------------
+ *   Called by PHP to initialize the SAPI module.
+ * 
+ *   sapi_module: the WASM SAPI module struct.
+ */
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
 	// php_module_startup signature changed in:
 	// https://github.com/php/php-src/commit/b5db594fd277464104fce814d22f0b2207d6502d
@@ -485,6 +616,13 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
 	return SUCCESS;
 }
 
+/**
+ * Function: wasm_sapi_register_server_variables
+ * ----------------------------
+ *   Called by PHP to register the $_SERVER variables.
+ * 
+ *   track_vars_array: the array where the $_SERVER keys and values are stored.
+ */
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC)
 {
 	php_import_environment_variables(track_vars_array TSRMLS_CC);
@@ -545,6 +683,12 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 }
 
+/**
+ * Function: wasm_sapi_request_init
+ * ----------------------------
+ *   Initializes the PHP request. This is the first step
+ *   required to run the PHP code.
+ */
 int wasm_sapi_request_init()
 {
 	putenv("USE_ZEND_ALLOC=0");
@@ -646,6 +790,12 @@ int wasm_sapi_request_init()
 	return SUCCESS;
 }
 
+/**
+ * Function: wasm_sapi_request_shutdown
+ * ----------------------------
+ *   Cleans up after the PHP request. This is the last step
+ *   required to run the PHP code.
+ */
 void wasm_sapi_request_shutdown() {
 	// Let's flush the output buffers. It must happen here because
 	// ob_start() buffers are not flushed until the shutdown handler
@@ -670,6 +820,12 @@ void wasm_sapi_request_shutdown() {
 	wasm_init_server_context();
 }
 
+/**
+ * Function: wasm_sapi_handle_request
+ * ----------------------------
+ *   Runs the PHP code snippet set up with wasm_set_php_code or,
+ *   if missing, executes the PHP file set up with wasm_set_path_translated.
+ */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 	int result;
 	if (wasm_sapi_request_init() == FAILURE)
@@ -736,6 +892,12 @@ void wasm_sapi_module_shutdown() {
 	}
 }
 
+/**
+ * Function: wasm_sapi_shutdown_wrapper
+ * ----------------------------
+ *  Cleans up after the WASM SAPI module. Call once you will not want
+ *  to execute any more PHP code.
+ */
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals)
 {
 	TSRMLS_FETCH();
@@ -765,6 +927,14 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
 #endif
 }
 
+/**
+ * Function: wasm_sapi_ub_write
+ * ----------------------------
+ *   Called by PHP to write to stdout.
+ * 
+ *   str: the string to write.
+ *   str_length: the length of the string.
+ */
 #if PHP_MAJOR_VERSION == 5
 static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC)
 #else
