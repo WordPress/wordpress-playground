@@ -148,24 +148,29 @@ describe('PHP – stdio', () => {
 	});
 });
 
-describe('PHP – processing request information', () => {
-	beforeAll(() => {
-		// Shim the user agent for the server
-		(global as any).navigator = { userAgent: '' };
-	});
-
+describe('PHP – startup sequence', () => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 	});
 
-	it('Should run a script when no code is provided', () => {
+	it('Should run a script when no code snippet is provided', () => {
 		php.writeFile('/test.php', '<?php echo "Hello world!"; ?>');
 		const response = php.run({
 			scriptPath: '/test.php',
 		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(bodyText).toEqual('Hello world!');
+	});
+
+	it('Should run a code snippet when provided, even if scriptPath is set', () => {
+		php.writeFile('/test.php', '<?php echo "Hello world!"; ?>');
+		const response = php.run({
+			scriptPath: '/test.php',
+			code: '<?php echo "Hello from a code snippet!";',
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(bodyText).toEqual('Hello from a code snippet!');
 	});
 
 	it('Should have access to raw request data via the php://input stream', () => {
@@ -261,7 +266,7 @@ bar
 					"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
 				));`,
 			method: 'POST',
-			files: [
+			fileInfos: [
 				{
 					name: 'text.txt',
 					key: 'myFile',
@@ -303,7 +308,7 @@ Content-Type: text/plain
 
 bar1
 --boundary--`,
-			files: [
+			fileInfos: [
 				{
 					name: 'from_files.txt',
 					key: 'myFile2',
@@ -336,5 +341,51 @@ bar1
 			is_uploaded1: true,
 			is_uploaded2: true,
 		});
+	});
+
+	it('Should provide the correct $_SERVER information', () => {
+		php.writeFile('/test.php', '<?php echo json_encode($_SERVER); ?>');
+		const response = php.run({
+			scriptPath: '/test.php',
+			relativeUri: '/test.php?a=b',
+			method: 'POST',
+			body: `--boundary
+Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
+Content-Type: text/plain
+
+bar1
+--boundary--`,
+			fileInfos: [
+				{
+					name: 'from_files.txt',
+					key: 'myFile2',
+					data: new TextEncoder().encode('bar2'),
+					type: 'application/json',
+				},
+			],
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=boundary',
+				Host: 'https://example.com:1235',
+				'X-is-ajax': 'true',
+			},
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		const $_SERVER = JSON.parse(bodyText);
+		expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
+		expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');
+		expect($_SERVER).toHaveProperty(
+			'HTTP_CONTENT_TYPE',
+			'multipart/form-data; boundary=boundary'
+		);
+		expect($_SERVER).toHaveProperty(
+			'HTTP_HOST',
+			'https://example.com:1235'
+		);
+		expect($_SERVER).toHaveProperty(
+			'SERVER_NAME',
+			'https://example.com:1235'
+		);
+		expect($_SERVER).toHaveProperty('HTTP_X_IS_AJAX', 'true');
+		expect($_SERVER).toHaveProperty('SERVER_PORT', '1235');
 	});
 });
