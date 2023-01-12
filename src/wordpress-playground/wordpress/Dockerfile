@@ -156,13 +156,15 @@ RUN mv wordpress /wordpress && \
     --no-node \
     --preload /wordpress \
     --js-output=/root/output/wp.js && \
-    mv /root/output/wp.data /root/output/$OUT_FILENAME.data
+    if [ "$OUT_FILENAME" != "wp" ]; then \
+      mv /root/output/wp.data /root/output/$OUT_FILENAME.data; \
+    fi
 
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 
 # It's useful to add a "cache busting" query string to the .data file URL.
 # This tells web browsers it's a new file and they should reload it.
-RUN export CACHE_BUSTER=$(md5sum /root/output/wp.data | awk '{print $1}'); \
+RUN export CACHE_BUSTER=$(md5sum /root/output/$OUT_FILENAME.data | awk '{print $1}'); \
     cat /root/output/wp.js \
     | sed "s#wp\.data#/$OUT_FILENAME.data?$CACHE_BUSTER#g" \
     > /tmp/wp.js && \
