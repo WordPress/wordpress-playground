@@ -94,6 +94,9 @@ typedef struct wasm_uploaded_file {
 	struct wasm_uploaded_file *next;
 } wasm_uploaded_file_t;
 
+const int MODE_EVAL_CODE = 1;
+const int MODE_EXECUTE_SCRIPT = 2;
+
 typedef struct {
 	char *query_string,
 		*path_translated,
@@ -109,7 +112,8 @@ typedef struct {
 	struct wasm_uploaded_file *uploaded_files;
 
 	int content_length,
-		proto_num;
+		proto_num,
+		execution_mode;
 } wasm_server_context_t;
 
 static wasm_server_context_t *wasm_server_context;
@@ -187,6 +191,7 @@ void wasm_init_server_context() {
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
+	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->uploaded_files = NULL;
 }
@@ -293,6 +298,7 @@ void wasm_set_cookies(char* cookies) {
 }
 void wasm_set_php_code(char* code) {
 	wasm_server_context->php_code = strdup(code);
+	wasm_server_context->execution_mode = MODE_EVAL_CODE;
 }
 void wasm_set_proto_num(int proto_num) {
 	wasm_server_context->proto_num = proto_num;
@@ -503,8 +509,14 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 
 	/* REQUEST_METHOD */
 	value = SG(request_info).request_method;
-	if (value != NULL) 
+	if (value != NULL) {
 		php_register_variable("REQUEST_METHOD", value, track_vars_array TSRMLS_CC);
+		if (!strcmp(value, "HEAD")) {
+			SG(request_info).headers_only = 1;
+		} else {
+			SG(request_info).headers_only = 0;
+		}
+	}
 
 	/* QUERY_STRING */
 	value = SG(request_info).query_string;
@@ -540,6 +552,7 @@ int wasm_sapi_request_init()
 	SG(options) |= SAPI_OPTION_NO_CHDIR;
 
 	SG(server_context) = wasm_server_context;
+	
 	SG(request_info).query_string = wasm_server_context->query_string;
 	SG(request_info).path_translated = wasm_server_context->path_translated;
 	SG(request_info).request_uri = wasm_server_context->request_uri;
@@ -638,20 +651,49 @@ void wasm_sapi_request_shutdown() {
 	wasm_destroy_server_context();
 	php_request_shutdown(NULL);
 	SG(server_context) = NULL;
-	
+
 	// Prepare a fresh request context
 	wasm_init_server_context();
 }
 
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
+	int result;
 	if (wasm_sapi_request_init() == FAILURE)
 	{
-		wasm_sapi_request_shutdown();
-	    return -1;
+		result = -1;
+		goto wasm_request_done;
 	}
 
 	TSRMLS_FETCH();
-	int result = run_php(wasm_server_context->php_code);
+	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
+	{
+		zend_file_handle file_handle;
+		file_handle.type = ZEND_HANDLE_FILENAME;
+		file_handle.filename = SG(request_info).path_translated;
+		file_handle.free_filename = 0;
+		file_handle.opened_path = NULL;
+
+		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE) {
+			zend_try {
+				if (errno == EACCES) {
+					SG(sapi_headers).http_response_code = 403;
+					PUTS("Access denied.\n");
+				} else {
+					SG(sapi_headers).http_response_code = 404;
+					PUTS("No input file specified.\n");
+				}
+			} zend_catch {
+			} zend_end_try();
+			goto wasm_request_done;
+		}
+
+		result = php_execute_script(&file_handle TSRMLS_CC);
+	}
+	else
+	{
+		result = run_php(wasm_server_context->php_code);
+	}
+wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;
 }
@@ -825,8 +867,8 @@ static void wasm_sapi_log_message(char *message TSRMLS_DC)
  *   other function.
  */
 int php_wasm_init() {
-	wasm_init_server_context();
 	wasm_server_context = malloc(sizeof(wasm_server_context_t));
+	wasm_init_server_context();
 
 #ifdef ZTS
 	void ***tsrm_ls = NULL;

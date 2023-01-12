@@ -17,6 +17,11 @@ export interface PHPRequest {
 	relativeUri?: string;
 
 	/**
+	 * Path of the .php file to execute.
+	 */
+	scriptPath?: string;
+
+	/**
 	 * Request port. Default: 80.
 	 */
 	port?: number;
@@ -40,6 +45,11 @@ export interface PHPRequest {
 	 * Uploaded files.
 	 */
 	files?: FileInfo[];
+
+	/**
+	 * The code snippet to eval instead of a php file.
+	 */
+	code?: string;
 }
 
 export interface PHPResponse {
@@ -290,7 +300,8 @@ export class PHP {
 	 * @param  code    - The PHP code to run.
 	 * @param  request - Request parameters.
 	 */
-	run(code: string, request: PHPRequest = {}): PHPResponse {
+	run(request: PHPRequest = {}): PHPResponse {
+		this.#setScriptPath(request.scriptPath || '');
 		this.#setRelativeRequestUri(request.relativeUri || '');
 		this.#setRequestPort(request.port || 80);
 		this.#setRequestMethod(request.method || 'GET');
@@ -303,7 +314,9 @@ export class PHP {
 				this.#addUploadedFile(file);
 			}
 		}
-		this.#setPHPCode(' ?>' + code);
+		if (request.code) {
+			this.#setPHPCode(' ?>' + request.code);
+		}
 		return this.#handleRequest();
 	}
 
@@ -395,7 +408,7 @@ export class PHP {
 		this.#Runtime.ccall('wasm_set_proto_num', null, [NUM], [port]);
 	}
 
-	setScriptPath(path: string) {
+	#setScriptPath(path: string) {
 		this.#Runtime.ccall('wasm_set_path_translated', null, [STR], [path]);
 	}
 

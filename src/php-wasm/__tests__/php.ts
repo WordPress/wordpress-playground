@@ -1,4 +1,4 @@
-import * as phpLoaderModule from '../../../build/php-7.0.node.js';
+import * as phpLoaderModule from '../../../build/php-8.0.node.js';
 import { PHP, startPHP } from '../php';
 
 const { TextEncoder, TextDecoder } = require('util');
@@ -84,8 +84,8 @@ describe('PHP – stdio', () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 	});
 
-	it('should output strings (1)', async () => {
-		expect(php.run('<?php echo "Hello world!";')).toEqual({
+	it('should output strings (1)', () => {
+		expect(php.run({ code: '<?php echo "Hello world!";' })).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
 			body: new TextEncoder().encode('Hello world!'),
@@ -93,8 +93,10 @@ describe('PHP – stdio', () => {
 			exitCode: 0,
 		});
 	});
-	it('should output strings (2) ', async () => {
-		expect(php.run('<?php echo "Hello world!\nI am PHP";')).toEqual({
+	it('should output strings (2) ', () => {
+		expect(
+			php.run({ code: '<?php echo "Hello world!\nI am PHP";' })
+		).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
 			body: new TextEncoder().encode('Hello world!\nI am PHP'),
@@ -102,10 +104,10 @@ describe('PHP – stdio', () => {
 			exitCode: 0,
 		});
 	});
-	it('should output bytes ', async () => {
-		const results = php.run(
-			'<?php echo chr(1).chr(0).chr(1).chr(0).chr(2);'
-		);
+	it('should output bytes ', () => {
+		const results = php.run({
+			code: '<?php echo chr(1).chr(0).chr(1).chr(0).chr(2); ',
+		});
 		expect(results).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
@@ -114,8 +116,8 @@ describe('PHP – stdio', () => {
 			exitCode: 0,
 		});
 	});
-	it('should output strings when .run() is called twice', async () => {
-		expect(php.run('<?php echo "Hello world!";')).toEqual({
+	it('should output strings when .run() is called twice', () => {
+		expect(php.run({ code: '<?php echo "Hello world!";' })).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
 			body: new TextEncoder().encode('Hello world!'),
@@ -123,7 +125,7 @@ describe('PHP – stdio', () => {
 			exitCode: 0,
 		});
 
-		expect(php.run('<?php echo "Ehlo world!";')).toEqual({
+		expect(php.run({ code: '<?php echo "Ehlo world!";' })).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
 			body: new TextEncoder().encode('Ehlo world!'),
@@ -131,12 +133,12 @@ describe('PHP – stdio', () => {
 			exitCode: 0,
 		});
 	});
-	it('should capture error data from stderr', async () => {
+	it('should capture error data from stderr', () => {
 		const code = `<?php
 		$stdErr = fopen('php://stderr', 'w');
 		fwrite($stdErr, "Hello from stderr!");
 		`;
-		expect(php.run(code)).toEqual({
+		expect(php.run({ code })).toEqual({
 			headers: expect.any(Object),
 			httpStatusCode: 200,
 			body: new TextEncoder().encode(''),
@@ -157,20 +159,28 @@ describe('PHP – processing request information', () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 	});
 
-	it('Should have access to raw request data via the php://input stream', async () => {
-		const response = await php.run(
-			`<?php echo file_get_contents('php://input');`,
-			{
-				method: 'POST',
-				body: '{"foo": "bar"}',
-			}
-		);
+	it('Should run a script when no code is provided', () => {
+		php.writeFile('/test.php', '<?php echo "Hello world!"; ?>');
+		const response = php.run({
+			scriptPath: '/test.php',
+		});
+		const bodyText = new TextDecoder().decode(response.body);
+		expect(bodyText).toEqual('Hello world!');
+	});
+
+	it('Should have access to raw request data via the php://input stream', () => {
+		const response = php.run({
+			method: 'POST',
+			body: '{"foo": "bar"}',
+			code: `<?php echo file_get_contents('php://input');`,
+		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(bodyText).toEqual('{"foo": "bar"}');
 	});
 
-	it('Should expose urlencoded POST data in $_POST', async () => {
-		const response = await php.run(`<?php echo json_encode($_POST);`, {
+	it('Should expose urlencoded POST data in $_POST', () => {
+		const response = php.run({
+			code: `<?php echo json_encode($_POST);`,
 			method: 'POST',
 			body: 'foo=bar',
 			headers: {
@@ -181,8 +191,9 @@ describe('PHP – processing request information', () => {
 		expect(bodyText).toEqual('{"foo":"bar"}');
 	});
 
-	it('Should expose urlencoded POST arrays in $_POST', async () => {
-		const response = await php.run(`<?php echo json_encode($_POST);`, {
+	it('Should expose urlencoded POST arrays in $_POST', () => {
+		const response = php.run({
+			code: `<?php echo json_encode($_POST);`,
 			method: 'POST',
 			body: 'foo[]=bar1&foo[]=bar2&indexed[key]=value',
 			headers: {
@@ -195,8 +206,9 @@ describe('PHP – processing request information', () => {
 		);
 	});
 
-	it('Should expose multipart POST data in $_POST', async () => {
-		const response = await php.run(`<?php echo json_encode($_POST);`, {
+	it('Should expose multipart POST data in $_POST', () => {
+		const response = php.run({
+			code: `<?php echo json_encode($_POST);`,
 			method: 'POST',
 			body: `--boundary
 Content-Disposition: form-data; name="foo"
@@ -210,25 +222,23 @@ bar`,
 		expect(bodyText).toEqual('{"foo":"bar"}');
 	});
 
-	it('Should expose multipart POST files in $_FILES', async () => {
-		const response = await php.run(
-			`<?php echo json_encode(array(
-			"files" => $_FILES,
-			"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
-		));`,
-			{
-				method: 'POST',
-				body: `--boundary
+	it('Should expose multipart POST files in $_FILES', () => {
+		const response = php.run({
+			code: `<?php echo json_encode(array(
+					"files" => $_FILES,
+					"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
+				));`,
+			method: 'POST',
+			body: `--boundary
 Content-Disposition: form-data; name="myFile"; filename="text.txt"
 Content-Type: text/plain
 
 bar
 --boundary--`,
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
-				},
-			}
-		);
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=boundary',
+			},
+		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(JSON.parse(bodyText)).toEqual({
 			files: {
@@ -244,27 +254,25 @@ bar
 		});
 	});
 
-	it('Should expose uploaded files in $_FILES', async () => {
-		const response = await php.run(
-			`<?php echo json_encode(array(
-			"files" => $_FILES,
-			"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
-		));`,
-			{
-				method: 'POST',
-				files: [
-					{
-						name: 'text.txt',
-						key: 'myFile',
-						data: new TextEncoder().encode('bar'),
-						type: 'text/plain',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
+	it('Should expose uploaded files in $_FILES', () => {
+		const response = php.run({
+			code: `<?php echo json_encode(array(
+					"files" => $_FILES,
+					"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
+				));`,
+			method: 'POST',
+			files: [
+				{
+					name: 'text.txt',
+					key: 'myFile',
+					data: new TextEncoder().encode('bar'),
+					type: 'text/plain',
 				},
-			}
-		);
+			],
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=boundary',
+			},
+		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(JSON.parse(bodyText)).toEqual({
 			files: {
@@ -280,35 +288,33 @@ bar
 		});
 	});
 
-	it('Should expose both the multipart/form-data request body AND uploaded files in $_FILES', async () => {
-		const response = await php.run(
-			`<?php echo json_encode(array(
-			"files" => $_FILES,
-			"is_uploaded1" => is_uploaded_file($_FILES["myFile1"]["tmp_name"]),
-			"is_uploaded2" => is_uploaded_file($_FILES["myFile2"]["tmp_name"])
-		));`,
-			{
-				relativeUri: '/',
-				method: 'POST',
-				body: `--boundary
+	it('Should expose both the multipart/form-data request body AND uploaded files in $_FILES', () => {
+		const response = php.run({
+			code: `<?php echo json_encode(array(
+					"files" => $_FILES,
+					"is_uploaded1" => is_uploaded_file($_FILES["myFile1"]["tmp_name"]),
+					"is_uploaded2" => is_uploaded_file($_FILES["myFile2"]["tmp_name"])
+				));`,
+			relativeUri: '/',
+			method: 'POST',
+			body: `--boundary
 Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
 Content-Type: text/plain
 
 bar1
 --boundary--`,
-				files: [
-					{
-						name: 'from_files.txt',
-						key: 'myFile2',
-						data: new TextEncoder().encode('bar2'),
-						type: 'application/json',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
+			files: [
+				{
+					name: 'from_files.txt',
+					key: 'myFile2',
+					data: new TextEncoder().encode('bar2'),
+					type: 'application/json',
 				},
-			}
-		);
+			],
+			headers: {
+				'Content-Type': 'multipart/form-data; boundary=boundary',
+			},
+		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(JSON.parse(bodyText)).toEqual({
 			files: {
