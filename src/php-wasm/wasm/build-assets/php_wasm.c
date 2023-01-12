@@ -797,6 +797,15 @@ int wasm_sapi_request_init()
  *   required to run the PHP code.
  */
 void wasm_sapi_request_shutdown() {
+	TSRMLS_FETCH();
+	if(SG(rfc1867_uploaded_files) != NULL) {
+		phpwasm_destroy_uploaded_files_hash();
+	}
+	// Destroy the old server context and shutdown the request
+	wasm_destroy_server_context();
+	php_request_shutdown(NULL);
+	SG(server_context) = NULL;
+	
 	// Let's flush the output buffers. It must happen here because
 	// ob_start() buffers are not flushed until the shutdown handler
 	// runs.
@@ -806,15 +815,6 @@ void wasm_sapi_request_shutdown() {
 	// Restore the regular stdout and stderr stream handlers
 	restore_stream_handler(stdout, stdout_replacement);
 	restore_stream_handler(stderr, stderr_replacement);
-
-	TSRMLS_FETCH();
-	if(SG(rfc1867_uploaded_files) != NULL) {
-		phpwasm_destroy_uploaded_files_hash();
-	}
-	// Destroy the old server context and shutdown the request
-	wasm_destroy_server_context();
-	php_request_shutdown(NULL);
-	SG(server_context) = NULL;
 
 	// Prepare a fresh request context
 	wasm_init_server_context();
