@@ -634,12 +634,12 @@ void wasm_sapi_request_shutdown() {
 	if(SG(rfc1867_uploaded_files) != NULL) {
 		phpwasm_destroy_uploaded_files_hash();
 	}
+	// Destroy the old server context and shutdown the request
+	wasm_destroy_server_context();
 	php_request_shutdown(NULL);
 	SG(server_context) = NULL;
 	
-	// Destroy the old request information and prepare a fresh request
-	// object.
-	wasm_destroy_server_context();
+	// Prepare a fresh request context
 	wasm_init_server_context();
 }
 
