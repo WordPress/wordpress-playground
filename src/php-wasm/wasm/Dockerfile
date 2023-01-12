@@ -232,6 +232,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-tokenizer \
     $(cat /root/.php-configure-flags)
 
+# Silence the errors "munmap() failed: [28] Invalid argument"
+# @TODO: Identify the root cause behind these errors and fix them properly
+RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h; 
+
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
