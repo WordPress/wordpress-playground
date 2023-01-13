@@ -22,6 +22,7 @@ async function build() {
 	const withVRZNO = 'no'; //phpVersion.startsWith('7.') ? 'yes' : 'no';
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
 	const withNodeFs = platform === 'node' ? 'yes' : 'no';
+	const withLibxml = process.env.WITH_LIBXML === 'yes' ? 'yes' : 'no';
 
 	// Build PHP
 	await asyncSpawn(
@@ -36,7 +37,7 @@ async function build() {
 			'--build-arg',
 			`WITH_VRZNO=${withVRZNO}`,
 			'--build-arg',
-			`WITH_LIBXML=no`,
+			`WITH_LIBXML=${withLibxml}`,
 			'--build-arg',
 			`WITH_LIBZIP=yes`,
 			'--build-arg',

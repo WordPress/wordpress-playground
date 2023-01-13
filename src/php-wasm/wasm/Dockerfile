@@ -102,11 +102,11 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
             --single-branch     \
             --depth 1 && \
         cd libxml2 && \
-        buildautogen.sh && \
+        ./autogen.sh && \
         emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
         emmake make && \
         emmake make install; \
-        echo -n ' --with-libxml --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
+        echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
         echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
         echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
     else \
