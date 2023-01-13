@@ -1,9 +1,51 @@
 import * as phpLoaderModule from '../../../build/php-8.0.node.js';
+import * as wpLoaderModule from '../../../build/wp-dev.js';
 import { PHP, startPHP } from '../php';
+import { readFileSync } from 'node:fs';
 
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
+
+jest.setTimeout(500000);
+describe('WP PHPUnit', () => {
+	it.only('should run WordPress phpunit tests', async () => {
+		const php = await startPHP(
+			phpLoaderModule,
+			'NODE',
+			{
+				getPreloadedPackage(filename) {
+					return readFileSync(
+						__dirname + '/../../../build/' + filename,
+						null
+					).buffer;
+				},
+			},
+			[wpLoaderModule]
+		);
+		expect(php).toBeTruthy();
+		php.writeFile(
+			'/wordpress/tests.php',
+			`<?php
+			define('STDERR', fopen('php://stderr', 'w'));
+			define('STDOUT', fopen('php://stdout', 'w'));
+			define('STDIN', fopen('php://stdin', 'w'));
+			define('WP_RUN_CORE_TESTS', true);
+			putenv('WP_TESTS_SKIP_INSTALL=1');
+			$_SERVER['argv'] = ['./vendor/bin/phpunit', '-c', './phpunit.xml.dist', '--filter', 'Tests_Canonical'];
+			chdir('/wordpress');
+			require(__DIR__. "/vendor/bin/phpunit");
+			`
+		);
+		const result = php.run({
+			scriptPath: '/wordpress/tests.php',
+		});
+		console.log(result.errors);
+		console.log(
+			new TextDecoder().decode(result.body)
+		);
+	});
+});
 
 describe('PHP – boot', () => {
 	it('should boot', async () => {

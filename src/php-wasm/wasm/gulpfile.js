@@ -20,6 +20,7 @@ async function build() {
 	const phpVersion = process.env.PHP_VERSION || '8.0.24';
 	// VRZNO does not work for most supported PHP versions – let's force disable it for now
 	const withVRZNO = 'no'; //phpVersion.startsWith('7.') ? 'yes' : 'no';
+	const withLibxml = process.env.WITH_LIBXML === 'yes' ? 'yes' : 'no';
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
 	const withNodeFs = platform === 'node' ? 'yes' : 'no';
 
@@ -36,7 +37,7 @@ async function build() {
 			'--build-arg',
 			`WITH_VRZNO=${withVRZNO}`,
 			'--build-arg',
-			`WITH_LIBXML=no`,
+			`WITH_LIBXML=${withLibxml}`,
 			'--build-arg',
 			`WITH_LIBZIP=yes`,
 			'--build-arg',

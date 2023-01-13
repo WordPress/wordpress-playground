@@ -225,6 +225,7 @@ export async function startPHP(
 			}
 		},
 	});
+
 	for (const { default: loadDataModule } of dataDependenciesModules) {
 		loadDataModule(PHPRuntime);
 	}

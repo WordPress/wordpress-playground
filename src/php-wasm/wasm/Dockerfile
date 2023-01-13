@@ -39,18 +39,30 @@ ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
 WORKDIR /root
 RUN mkdir lib
 
+RUN echo '' > /etc/apt/sources.list
+RUN echo 'deb http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar main ' >> /etc/apt/sources.list
+RUN echo 'deb-src http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar main ' >> /etc/apt/sources.list
+RUN echo 'deb http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar restricted ' >> /etc/apt/sources.list
+RUN echo 'deb-src http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar restricted ' >> /etc/apt/sources.list
+RUN echo 'deb http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar universe ' >> /etc/apt/sources.list
+RUN echo 'deb-src http://ftp.tu-chemnitz.de/pub/linux/ubuntu-ports/ lunar universe ' >> /etc/apt/sources.list
+
 RUN set -euxo pipefail;\
-    apt-get update; \
+    apt-get update; 
+
+RUN set -euxo pipefail;\
     apt-get --no-install-recommends -y install \
     build-essential \
     automake \
     autoconf \
-    libxml2-dev \
     libtool \
     pkgconf \
     flex \
     make \
-    re2c \
+    re2c;
+
+RUN set -euxo pipefail;\
+    apt-get --no-install-recommends -y install \
     gdb \
     git \
     pv \
@@ -96,23 +108,23 @@ RUN touch /root/.configure-flags && \
 # Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
+        apt-get --no-install-recommends -y install libxml2-dev libxml2 && \
         source /root/emsdk/emsdk_env.sh && \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
             --branch v2.9.10 \
             --single-branch     \
             --depth 1 && \
         cd libxml2 && \
-        buildautogen.sh && \
+        ./autogen.sh && \
         emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
         emmake make && \
         emmake make install; \
-        echo -n ' --with-libxml --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
-        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
     else \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
-
+RUN echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
+    echo -n ' -I/root/lib/libxml2 ' >> /root/.emcc-php-wasm-flags; \
+    echo -n ' /root/lib/lib/libxml2.a ' >> /root/.emcc-php-wasm-sources;
 # Get and patch PHP
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
