@@ -364,6 +364,15 @@ export class PHP {
 		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
 	}
 
+	setSkipShebang(shouldSkip: boolean) {
+		this.#Runtime.ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUM],
+			[shouldSkip ? 1 : 0]
+		);
+	}
+
 	#setRequestHeaders(headers: PHPHeaders) {
 		if (headers.cookie) {
 			this.#Runtime.ccall(

@@ -33,7 +33,7 @@ describe('PHP – boot', () => {
 			`
 		);
 		const output = php.run({
-			scriptPath: '/wordpress/tests.php',
+			scriptPath: '/wordpress/vendor/bin/phpunit', // '/wordpress/tests.php',
 		});
 		console.log(output);
 		console.log(new TextDecoder().decode(output.body));

@@ -730,15 +730,15 @@ int wasm_sapi_request_init()
 	SG(request_info).proto_num = 1000; // For HTTP 1.0
 	SG(sapi_headers).http_response_code = 200;
 
+	if (php_request_startup(TSRMLS_C)==FAILURE) {
+		wasm_sapi_module_shutdown();
+		return FAILURE;
+	}
+
 	if(wasm_server_context->skip_shebang == 1) {
 		CG(skip_shebang) = 1;
 	} else {
 		CG(skip_shebang) = 0;
-	}
-
-	if (php_request_startup(TSRMLS_C)==FAILURE) {
-		wasm_sapi_module_shutdown();
-		return FAILURE;
 	}
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
@@ -871,6 +871,10 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 		file_handle.opened_path = NULL;
 #endif
 
+		// https://bugs.php.net/bug.php?id=77561
+		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
+		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
+		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
 		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE) {
 			zend_try {
 				if (errno == EACCES) {

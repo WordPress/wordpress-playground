@@ -32,6 +32,7 @@ async function main() {
     require("/wordpress/vendor/bin/phpunit");
     `
 	);
+	php.setSkipShebang(true);
 	const output = php.run({
 		scriptPath: '/wordpress/tests.php',
 	});
