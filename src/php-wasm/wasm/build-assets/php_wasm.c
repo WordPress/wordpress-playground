@@ -25,6 +25,12 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
+#include "sapi/cli/ps_title.h"
+#include "sapi/cli/ps_title.c"
+#include "sapi/cli/php_cli_server.h"
+#include "sapi/cli/php_cli_server.c"
+#include "sapi/cli/php_cli.c"
+
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
 #endif
@@ -58,13 +64,6 @@ const char WASM_HARDCODED_INI[] =
 	"max_input_time = -1\n\0"
 ;
 
-ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
-	ZEND_ARG_INFO(0, extension_filename)
-ZEND_END_ARG_INFO()
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-	{NULL, NULL, NULL}
-};
 
 #if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
 #include "sqlite3.h"
@@ -250,6 +249,19 @@ void wasm_destroy_server_context() {
 		current_file = next_file;
 	}
 }
+
+int cli_argc = 0;
+char *cli_argv[10];
+void wasm_add_cli_arg(char *arg)
+{
+	cli_argv[cli_argc] = strdup(arg);
+	++cli_argc;
+}
+
+int run_cli() {
+	return main(cli_argc, cli_argv);
+}
+
 
 /**
  * Function: wasm_add_SERVER_entry

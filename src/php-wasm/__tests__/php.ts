@@ -1,4 +1,4 @@
-import * as phpLoaderModule from '../../../build/php-8.0.node.js';
+import * as phpLoaderModule from '../../../build/php-7.4.node.js';
 import { PHP, startPHP } from '../php';
 
 const { TextEncoder, TextDecoder } = require('util');
@@ -7,13 +7,21 @@ global.TextDecoder = TextDecoder;
 
 describe('PHP – boot', () => {
 	it.only('should boot', async () => {
-		const php = await startPHP(phpLoaderModule, 'NODE');
+		const php = await startPHP(phpLoaderModule, 'NODE', {
+			print(e) {
+				console.log(e);
+			},
+			printErr(e) {
+				console.error(e);
+			},
+		});
 
 		php.mkdirTree('/wordpress');
 		php.mount({ root: '../../wordpress-develop' }, '/wordpress/');
 		php.writeFile(
 			'/wordpress/tests.php',
 			`<?php
+			file_put_contents('a', 'b');
 			// PHPUnit uses the CLI constants we don't have in WASM SAPI.
 			// No problem – let's define them here:
 			define('STDERR', fopen('php://stderr', 'w'));
@@ -32,9 +40,10 @@ describe('PHP – boot', () => {
 			require("/wordpress/vendor/bin/phpunit");
 			`
 		);
-		const output = php.run({
-			scriptPath: '/wordpress/vendor/bin/phpunit', // '/wordpress/tests.php',
-		});
+		const output = php.main(['php', '/wordpress/tests.php']);
+		// const output = php.run({
+		// 	scriptPath: '/wordpress/vendor/bin/phpunit', // '/wordpress/tests.php',
+		// });
 		console.log(output);
 		console.log(new TextDecoder().decode(output.body));
 

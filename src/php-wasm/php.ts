@@ -259,7 +259,7 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-		this.#Runtime.ccall('php_wasm_init', null, [], []);
+		// this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
 	/**
@@ -305,6 +305,13 @@ export class PHP {
 			this.#setPHPCode(' ?>' + request.code);
 		}
 		return this.#handleRequest();
+	}
+
+	main(argv: string) {
+		for (const arg of argv) {
+			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
+		}
+		return this.#Runtime.ccall('run_cli', null, [], []);
 	}
 
 	#getResponseHeaders(): { headers: PHPHeaders; httpStatusCode: number } {

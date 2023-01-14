@@ -225,11 +225,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-embed=static \
     --with-layout=GNU  \
     --disable-cgi      \
-    --disable-cli      \
+    --enable-cli      \
     --disable-all      \
-    --with-sqlite3     \
-    --enable-pdo       \
-    --with-pdo-sqlite  \
+    # --without-sqlite3     \
+    --disable-pdo       \
+    # --with-pdo-sqlite  \
     --enable-session   \
     --enable-filter    \
     --enable-calendar  \
@@ -250,6 +250,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h; 
+# With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
+RUN echo '#define HAVE_UNISTD_H 0' >> php-src/main/php_config.h; 
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
@@ -285,9 +287,9 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 # Build the final .wasm file
 RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
-    export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    export EXPORTED_FUNCTIONS='["_main", "_run_cli", "_wasm_add_cli_arg", "_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     cd php-src/ && \
-    emcc -O3 \
+    emcc -O0 -g2 \
     -I .     \
     -I ext   \
     -I ext/pdo_sqlite   \
