@@ -39,7 +39,7 @@ async function build() {
 			'--build-arg',
 			`WITH_LIBXML=${withLibxml}`,
 			'--build-arg',
-			`WITH_LIBZIP=yes`,
+			`WITH_LIBZIP=no`,
 			'--build-arg',
 			`WITH_NODEFS=${withNodeFs}`,
 			'--build-arg',

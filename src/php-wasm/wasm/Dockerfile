@@ -1,7 +1,7 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
 # ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
 # emscripten/emsdk:3.1.24 supports amd64 only.
-FROM ubuntu:lunar
+FROM --platform=linux/amd64 ubuntu:lunar
 
 SHELL ["/bin/bash", "-c"]
 # The PHP version to build.
@@ -59,7 +59,14 @@ RUN set -euxo pipefail;\
     wget \
     unzip \
     cmake \
-    python3
+    python3 \
+    python3-pip
+
+# Install wasienv
+RUN pip3 install -U pip
+COPY ./build-assets/install_wasienv.sh /root/install_wasienv.sh
+RUN bash /root/install_wasienv.sh
+RUN cp /root/.wasienv/local/bin/* /root/.wasienv/bin/
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
@@ -82,10 +89,10 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
-RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install latest && \
-    /root/emsdk/emsdk activate latest
+# RUN ln -s /usr/bin/python3 /usr/bin/python
+# RUN git clone https://github.com/emscripten-core/emsdk.git && \
+#     ./emsdk/emsdk install latest && \
+#     /root/emsdk/emsdk activate latest
 
 RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
@@ -98,17 +105,17 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
         source /root/emsdk/emsdk_env.sh && \
         env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
-            --branch v2.9.10 \
+            --branch v2.8.0 \
             --single-branch     \
             --depth 1 && \
         cd libxml2 && \
         ./autogen.sh && \
-        emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
-        emmake make && \
-        emmake make install; \
-        echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
-        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
+        wasiconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
+        wasimake make && \
+        wasimake make install; \
+        echo -n ' --with-libxml --enable-dom --enable-xml --enable-simplexml ' >> /root/.php-configure-flags; \
+        echo -n ' -I /root/libxml2 ' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' /root/lib/lib/libxml2.a ' >> /root/.emcc-php-wasm-sources; \
     else \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
     fi
@@ -126,13 +133,13 @@ RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
 
 # Add gzip and libzip if needed
 COPY ./build-assets/zlib /root/zlib
+RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        source /root/emsdk/emsdk_env.sh && \
         cd /root/zlib && \
-        emconfigure ./configure --prefix=/root/lib && \
+        wasiconfigure ./configure --prefix=/root/lib && \
         # emmake make fails after it built the library files – let's ignore the errors \
-        (emmake make || true) && \
-        emmake make install && \
+        (wasimake make || true) && \
+        wasimake make install && \
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
             export LIBZIP_VERSION=1.2.0; \
@@ -146,13 +153,13 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         cd libzip && \
         mkdir build && \
         cd build && \
-        emcmake cmake \
+        wasicmake cmake \
             -DCMAKE_INSTALL_PREFIX=/root/lib \
             -DZLIB_LIBRARY=/root/lib/lib/libz.a \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
             .. && \
-        emmake make && \
-        emmake make install; \
+        wasimake make && \
+        wasimake make install; \
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
@@ -192,11 +199,13 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
     fi
 
 # Build the patched PHP
-RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN ls -R /root/lib
+
+RUN source /root/.wasienv/wasienv.sh && \
     cd php-src/ && \
-    emconfigure ./configure \
+    wasiconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+    --host=i686-pc-linux-gnu \
     # Fibers are a PHP 8.1+ feature. They are compiled as 
     # a custom assembly implementation by default. However,
     # that implementation does not work with emscripten.
@@ -242,9 +251,13 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
         echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \
     fi;
 
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN git clone https://github.com/WebAssembly/wasi-libc.git wasi-libc
+RUN source /root/.wasienv/wasienv.sh && cd wasi-libc && wasimake make
+RUN source /root/.wasienv/wasienv.sh && cd wasi-libc && wasimake make install
+
+RUN source /root/.wasienv/wasienv.sh && \
     cd php-src/ && \
-    emmake make -j8
+    wasimake make -j8
 
 RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
@@ -269,10 +282,10 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN source /root/.wasienv/wasienv.sh && \
     export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     cd php-src/ && \
-    emcc -O3 \
+    wasicc -O3 \
     -I .     \
     -I ext   \
     -I ext/pdo_sqlite   \
