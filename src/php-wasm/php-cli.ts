@@ -11,6 +11,7 @@ async function main() {
 
 	php.mkdirTree('/wordpress');
 	php.mount({ root: '../../wordpress-develop' }, '/wordpress/');
+	php.addServerGlobalEntry('js_argv', JSON.stringify(process.argv.slice(2)));
 	php.writeFile(
 		'/wordpress/tests.php',
 		`<?php
@@ -25,18 +26,19 @@ async function main() {
     putenv('WP_TESTS_SKIP_INSTALL=1');
 
     // Provide CLI args for PHPUnit:
-    $_SERVER['argv'] = ['./vendor/bin/phpunit', '-c', './phpunit.xml.dist', '--filter', 'Tests_Formatting_Utf8UriEncode'];
+    $_SERVER['argv'] = json_decode($_SERVER['js_argv']);
+    // ['./vendor/bin/phpunit', '-c', './phpunit.xml.dist', '--filter', 'Tests_Formatting_Utf8UriEncode'];
     chdir('/wordpress');
 
     // Let's go!
-    require("/wordpress/vendor/bin/phpunit");
+    require($_SERVER['argv'][0]); //"/wordpress/vendor/bin/phpunit");
     `
 	);
 	php.setSkipShebang(true);
 	const output = php.run({
 		scriptPath: '/wordpress/tests.php',
 	});
-	console.log(output);
+	// console.log(output);
 	console.log(new TextDecoder().decode(output.body));
 }
 main();
