@@ -6,6 +6,40 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 describe('PHP – boot', () => {
+	it.only('should boot', async () => {
+		const php = await startPHP(phpLoaderModule, 'NODE');
+
+		php.mkdirTree('/wordpress');
+		php.mount({ root: '../../wordpress-develop' }, '/wordpress/');
+		php.writeFile(
+			'/wordpress/tests.php',
+			`<?php
+			// PHPUnit uses the CLI constants we don't have in WASM SAPI.
+			// No problem – let's define them here:
+			define('STDERR', fopen('php://stderr', 'w'));
+			define('STDOUT', fopen('php://stdout', 'w'));
+			define('STDIN', fopen('php://stdin', 'w'));
+
+			// Preconfigure WordPress tests:
+			define('WP_RUN_CORE_TESTS', true);
+			putenv('WP_TESTS_SKIP_INSTALL=1');
+
+			// Provide CLI args for PHPUnit:
+			$_SERVER['argv'] = ['./vendor/bin/phpunit', '-c', './phpunit.xml.dist', '--filter', 'Tests_Formatting_Utf8UriEncode'];
+			chdir('/wordpress');
+
+			// Let's go!
+			require("/wordpress/vendor/bin/phpunit");
+			`
+		);
+		const output = php.run({
+			scriptPath: '/wordpress/tests.php',
+		});
+		console.log(output);
+		console.log(new TextDecoder().decode(output.body));
+
+		expect(php).toBeTruthy();
+	});
 	it('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
 		expect(php).toBeTruthy();

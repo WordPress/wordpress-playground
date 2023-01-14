@@ -113,7 +113,8 @@ typedef struct {
 
 	int content_length,
 		request_port,
-		execution_mode;
+		execution_mode,
+		skip_shebang;
 } wasm_server_context_t;
 
 static wasm_server_context_t *wasm_server_context;
@@ -193,6 +194,7 @@ void wasm_init_server_context() {
 	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
 	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
+	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->uploaded_files = NULL;
 }
@@ -316,6 +318,14 @@ void wasm_set_query_string(char* query_string) {
  */
 void wasm_set_path_translated(char* path_translated) {
 	wasm_server_context->path_translated = strdup(path_translated);
+}
+
+/**
+ * Function: wasm_set_skip_shebang
+ * ----------------------------
+ */
+void wasm_set_skip_shebang(int should_skip_shebang) {
+	wasm_server_context->skip_shebang = should_skip_shebang;
 }
 
 /**
@@ -719,6 +729,12 @@ int wasm_sapi_request_init()
 	SG(request_info).content_length = wasm_server_context->content_length;
 	SG(request_info).proto_num = 1000; // For HTTP 1.0
 	SG(sapi_headers).http_response_code = 200;
+
+	if(wasm_server_context->skip_shebang == 1) {
+		CG(skip_shebang) = 1;
+	} else {
+		CG(skip_shebang) = 0;
+	}
 
 	if (php_request_startup(TSRMLS_C)==FAILURE) {
 		wasm_sapi_module_shutdown();

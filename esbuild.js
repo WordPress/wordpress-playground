@@ -165,6 +165,7 @@ async function main() {
 		bundle: true,
 		external: ['@microsoft/*', 'node_modules/*'],
 		entryPoints: [
+			'./src/php-wasm/php-cli.js',
 			'./src/typescript-reference-doc-generator/bin/tsdoc-to-api-markdown.js',
 		],
 		sourcemap: true,

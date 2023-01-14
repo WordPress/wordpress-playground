@@ -106,11 +106,11 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
         emmake make && \
         emmake make install; \
-        echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml' >> /root/.php-configure-flags; \
+        echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlwriter' >> /root/.php-configure-flags; \
         echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
         echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
     else \
-        echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml' >> /root/.php-configure-flags; \
+        echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
     fi
 
 # Get and patch PHP
@@ -191,6 +191,19 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
         echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
     fi
 
+RUN wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz && \
+    tar -xzf libpng-1.6.39.tar.gz;
+    
+RUN cd libpng-1.6.39 && \
+    source /root/emsdk/emsdk_env.sh && \
+    CPPFLAGS="-I/root/lib/include" \
+    LDFLAGS="-L/root/lib/lib" \
+    emconfigure ./configure \
+        PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+        --prefix=/root/lib/ && \
+    emmake make && \
+    emmake make install
+
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 RUN source /root/emsdk/emsdk_env.sh && \
@@ -227,9 +240,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
-    --disable-mbstring  \
+    --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
+    --with-gd \
+    --enable-gd \
     $(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -270,7 +285,7 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 # Build the final .wasm file
 RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
-    export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
     cd php-src/ && \
     emcc -O3 \
     -I .     \

@@ -476,6 +476,21 @@ export class PHP {
 	}
 
 	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  settings - The Node.js filesystem settings.
+	 * @param  path     - The path to mount the filesystem to.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(settings: any, path: string) {
+		this.#Runtime.FS.mount(
+			this.#Runtime.FS.filesystems.NODEFS,
+			settings,
+			path
+		);
+	}
+
+	/**
 	 * Reads a file from the PHP filesystem and returns it as a string.
 	 *
 	 * @throws {@link ErrnoError} – If the file doesn't exist.

@@ -17,12 +17,25 @@ async function cleanBuildDir() {
 }
 
 async function build() {
-	const phpVersion = process.env.PHP_VERSION || '8.0.24';
-	// VRZNO does not work for most supported PHP versions – let's force disable it for now
-	const withVRZNO = 'no'; //phpVersion.startsWith('7.') ? 'yes' : 'no';
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
-	const withNodeFs = platform === 'node' ? 'yes' : 'no';
-	const withLibxml = process.env.WITH_LIBXML === 'yes' ? 'yes' : 'no';
+	const platformDefaults = {
+		web: {
+			withNodeFs: false,
+			withLibxml: false,
+		},
+		node: {
+			withNodeFs: true,
+			withLibxml: true,
+		},
+	}[platform];
+	const buildSettings = {
+		phpVersion: process.env.PHP_VERSION || '8.0.24',
+		// VRZNO does not work for most supported PHP versions – let's force disable it for now
+		withVRZNO: false, // phpVersion.startsWith('7.') ? 'yes' : 'no';
+		...platformDefaults,
+		withLibxml:
+			process.env.WITH_LIBXML === 'yes' || platformDefaults.withLibxml,
+	};
 
 	// Build PHP
 	await asyncSpawn(
@@ -33,15 +46,15 @@ async function build() {
 			'--tag=php-wasm',
 			'--progress=plain',
 			'--build-arg',
-			`PHP_VERSION=${phpVersion}`,
+			`PHP_VERSION=${buildSettings.phpVersion}`,
 			'--build-arg',
-			`WITH_VRZNO=${withVRZNO}`,
+			`WITH_VRZNO=${buildSettings.withVRZNO ? 'yes' : 'no'}`,
 			'--build-arg',
-			`WITH_LIBXML=${withLibxml}`,
+			`WITH_LIBXML=${buildSettings.withLibxml ? 'yes' : 'no'}`,
 			'--build-arg',
 			`WITH_LIBZIP=yes`,
 			'--build-arg',
-			`WITH_NODEFS=${withNodeFs}`,
+			`WITH_NODEFS=${buildSettings.withNodeFs ? 'yes' : 'no'}`,
 			'--build-arg',
 			`EMSCRIPTEN_ENVIRONMENT=${platform}`,
 		],
