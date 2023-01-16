@@ -5,10 +5,8 @@ diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/
  #include "php.h"
  #include "php_ini.h"
  #include "ext/standard/info.h"
--#include "pdo/php_pdo.h"
--#include "pdo/php_pdo_driver.h"
-+#include "../pdo/php_pdo.h"
-+#include "../pdo/php_pdo_driver.h"
+ #include "pdo/php_pdo.h"
+ #include "pdo/php_pdo_driver.h"
  #include "php_pdo_sqlite.h"
  #include "php_pdo_sqlite_int.h"
  
@@ -22,21 +20,6 @@ diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/
  	pdo_sqlite_stmt *S = (pdo_sqlite_stmt*)stmt->driver_data;
  	if (!S->stmt) {
 
-
-diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
---- a/php-src/sapi/embed/php_embed.c
-+++ b/php-src/sapi/embed/php_embed.c
-@@ -212,8 +212,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
- 	  return FAILURE;
-   }
- 
--  SG(headers_sent) = 1;
--  SG(request_info).no_headers = 1;
-+  SG(headers_sent) = 0;
-+  SG(request_info).no_headers = 0;
-   php_register_variable("PHP_SELF", "-", NULL);
- 
-   return SUCCESS;
 
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c

@@ -307,7 +307,7 @@ export class PHP {
 		return this.#handleRequest();
 	}
 
-	main(argv: string) {
+	cli(argv: string) {
 		for (const arg of argv) {
 			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
 		}

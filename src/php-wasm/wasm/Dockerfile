@@ -23,6 +23,18 @@ ENV WITH_LIBXML ${WITH_LIBXML}
 ARG WITH_LIBZIP=yes
 ENV WITH_LIBZIP ${WITH_LIBZIP}
 
+ARG WITH_LIBPNG=no
+ENV WITH_LIBPNG ${WITH_LIBPNG}
+
+ARG WITH_MBSTRING=no
+ENV WITH_MBSTRING ${WITH_MBSTRING}
+
+ARG WITH_CLI_SAPI=no
+ENV WITH_CLI_SAPI ${WITH_CLI_SAPI}
+
+ARG WITH_SQLITE=yes
+ENV WITH_SQLITE ${WITH_SQLITE}
+
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
 # from the local filesystem.
@@ -91,7 +103,7 @@ RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
     touch /root/.emcc-php-wasm-sources && \
     touch /root/.emcc-php-wasm-flags && \
-    touch /root/.EXTRA_EXPORTED_RUNTIME_METHODS
+    touch /root/.EXPORTED_FUNCTIONS
 
 # Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
@@ -168,16 +180,57 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         fi; \
     fi
 
-# Get and patch Sqlite3
-COPY ./build-assets/sqlite3-wasm.patch /root/
-RUN set -euxo pipefail;\
-    wget --no-check-certificate https://sqlite.org/2020/sqlite-amalgamation-3330000.zip; \
-    unzip sqlite-amalgamation-3330000.zip; \
-    rm sqlite-amalgamation-3330000.zip; \
-    mv sqlite-amalgamation-3330000 sqlite3.33-src; \
-    git apply --no-index /root/sqlite3-wasm.patch; \
-    cp -v sqlite3.33-src/sqlite3.h php-src/main/sqlite3.h; \
-    cp -v sqlite3.33-src/sqlite3.c php-src/main/sqlite3.c;
+# Patch emcc to allow skipping flags and passing additional flags using environment variables.
+# 
+# We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix
+# process as we're *not* supposed to link intermediate libraries against their dependencies. Instead,
+# We'll provide all the static libraries in the final linking step.
+# 
+# Unfortunately, most Makefiles stubbornly add -lz, -lxml2, etc. to the intermediate
+# emcc calls, which causes the build to fail. This patch:
+# * Enables force-removing linker options when running emcc
+# * Enables adding -sSIDE_MODULE when running emcc
+#
+# Usage:
+#  EMCC_SKIP="-lz -lxml2" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+#               ↑                            ↑
+#    ┌──────────┴─────────────┐   ┌──────────┴─────────────┐
+#    │  skip those flags when │   │  add these flags when  │
+#    │      calling emcc      │   │    calling emcc        │
+#    └────────────────────────┘   └────────────────────────┘
+RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
+    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
+    echo $'#!/bin/bash\n\
+for arg do shift\n\ 
+    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\ 
+    set -- "$@" "$arg" \n\
+done\n\
+/root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
+    chmod a+x /root/emsdk/upstream/emscripten/emcc
+
+# Install Sqlite3 if needed
+RUN if [ "$WITH_SQLITE" = "yes" ]; \
+    then \
+        set -euxo pipefail &&\
+        wget --no-check-certificate http://www.sqlite.org/sqlite-autoconf-3070603.tar.gz && \
+        tar -xzvf sqlite-autoconf-3070603.tar.gz && \
+        cd sqlite-autoconf-3070603 && \
+        source /root/emsdk/emsdk_env.sh && \
+        emconfigure ./configure \
+            --build aarch64-unknown-linux-gnu \
+            --target wasm32-unknown-emscripten \
+            --prefix=/root/lib/ && \
+        source /root/emsdk/emsdk_env.sh && \
+        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make && \
+        emmake make install && \
+        echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags; \
+        echo -n ' -I ext/pdo_sqlite -lsqlite3 ' >> /root/.emcc-php-wasm-flags;  \
+        if [ "${PHP_VERSION:0:1}" -ge "8" ]; then \
+            # In PHP 8 the final linking step won't work without these files:
+            echo -n ' sqlite_driver.c sqlite_statement.c pdo_sqlite.c ' \
+                >> /root/.emcc-php-wasm-sources; \
+        fi; \
+    fi;
 
 # Add VRZNO if needed
 RUN if [ "$WITH_VRZNO" = "yes" ]; \
@@ -188,21 +241,141 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
             --depth 1; \
         echo -n ' --enable-vrzno' >> /root/.php-configure-flags; \
         echo -n ' -DWITH_VRZNO=1' >> /root/.emcc-php-wasm-flags; \
-        echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXTRA_EXPORTED_FUNCTIONS; \
+        echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXPORTED_FUNCTIONS; \
     fi
 
-RUN wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz && \
-    tar -xzf libpng-1.6.39.tar.gz;
+# Add libpng if needed
+RUN if [ "$WITH_LIBPNG" = "yes" ]; \
+    then \
+        set -euxo pipefail &&\
+        wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz && \
+        tar -xzf libpng-1.6.39.tar.gz && \
+        cd libpng-1.6.39 && \
+        source /root/emsdk/emsdk_env.sh && \
+        CPPFLAGS="-I/root/lib/include " \
+        LDFLAGS="-L/root/lib/lib " \
+        emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --target wasm32-unknown-emscripten \
+            --prefix=/root/lib/ && \
+        EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -g2" emmake make && \
+        emmake make install && \
+        echo -n ' --with-gd --enable-gd' >> /root/.php-configure-flags && \
+        echo -n ' -I /root/zlib -I /root/libpng16 -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
+    fi;
+
+# Add mbstring if needed
+RUN if [ "$WITH_MBSTRING" = "yes" ]; \
+    then \
+        echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
+    else \
+        echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
+    fi;
+
+# RUN wget https://ftp.gnu.org/gnu/termcap/termcap-1.3.1.tar.gz && \
+#     tar -xzf termcap-1.3.1.tar.gz
+
+# RUN set -euxo pipefail && \
+#     cd termcap-1.3.1 && \
+#     source /root/emsdk/emsdk_env.sh && \
+#     CFLAGS="-I/root/lib/include " \
+#     CPPFLAGS="-I/root/lib/include " \
+#     LDFLAGS="-L/root/lib/lib " \
+#     emconfigure ./configure \
+#         PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+#         --build aarch64-unknown-linux-gnu \
+#         --target wasm32-unknown-emscripten \
+#         --prefix=/root/lib/ && \
+#     echo '#define STDC_HEADERS 1' >> config.h && \
+#     echo '#include <unistd.h>' >> config.h && \
+#     EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make CFLAGS="-DHAVE_CONFIG_H=1 -fPIC -Wno-deprecated-non-prototype" && \
+#     emmake make install
+
+RUN     set -euxo pipefail &&\
+        # Install libncurses
+        wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
+        tar -xzf ncurses-6.2.tar.gz
     
-RUN cd libpng-1.6.39 && \
-    source /root/emsdk/emsdk_env.sh && \
-    CPPFLAGS="-I/root/lib/include" \
-    LDFLAGS="-L/root/lib/lib" \
-    emconfigure ./configure \
-        PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-        --prefix=/root/lib/ && \
-    emmake make && \
-    emmake make install
+# https://github.com/jamesbiv/ncurses-emscripten
+# https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
+RUN     cd ncurses-6.2 && \
+        ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib/ \
+            --enable-database && \
+        make
+
+RUN cd ncurses-6.2 && make install
+
+RUN cd ncurses-6.2 && \
+    cd ncurses  && \
+    cp make_hash make_hash_x86  && \
+    cp make_keys make_keys_x86  && \
+    cp report_offsets report_offsets_x86  && \
+    perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' tinfo/MKcaptab.sh && \
+    perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' tinfo/MKuserdefs.sh && \
+    perl -pi.bak -e 's/\.\/make_keys\$\(BUILD_EXEEXT/.\/make_keys_x86\$(BUILD_EXEEXT/g' Makefile.in && \
+    perl -pi.bak -e 's/\.\/report_offsets\$\(BUILD_EXEEXT/.\/report_offsets_x86\$(BUILD_EXEEXT/g' Makefile.in 
+
+COPY ./build-assets/ncurses.patch /root/
+RUN     source /root/emsdk/emsdk_env.sh && \
+        cd ncurses-6.2 && \
+        make clean && \
+        # git apply --no-index /root/ncurses.patch && \
+        emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib \
+            --with-default-terminfo-dir=/root/lib/share
+
+RUN     source /root/emsdk/emsdk_env.sh && \
+        cd ncurses-6.2 && \
+        perl -pi.bak -e 's/^\s+cd man.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd progs.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd test.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
+        emmake make && \
+        emmake make install 
+
+# Install libedit (readline alternative)
+RUN wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+    tar -xzf libedit-20221030-3.1.tar.gz  && \
+        source /root/emsdk/emsdk_env.sh && \
+        cd libedit-20221030-3.1 && \
+        CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+        CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+        LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib/
+
+# Add CLI SAPI if needed
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        set -euxo pipefail &&\
+        source /root/emsdk/emsdk_env.sh && \
+        cd libedit-20221030-3.1 && \
+        # -D__STDC_ISO_10646__=201103L is needed because
+        # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
+        # the case when compiling with musl toolchains.
+        # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
+        # let's define it manually.
+        # Learn more at:
+        # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
+        EMCC_SKIP="-lc -lncurses" EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
+        emmake make install && \
+        # Configure build flags
+        echo -n ' --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
+        echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
+            >> /root/.emcc-php-wasm-sources && \
+        echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
+        echo -n ' -DWITH_CLI_SAPI=1' >> /root/.emcc-php-wasm-flags; \
+    else \
+        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+    fi;
 
 # Build the patched PHP
 RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
@@ -225,11 +398,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-embed=static \
     --with-layout=GNU  \
     --disable-cgi      \
-    --enable-cli      \
     --disable-all      \
-    # --without-sqlite3     \
-    --disable-pdo       \
-    # --with-pdo-sqlite  \
+    --enable-static=yes \
+    --enable-shared=no \
     --enable-session   \
     --enable-filter    \
     --enable-calendar  \
@@ -240,18 +411,29 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
-    --enable-mbstring  \
     --disable-mbregex  \
     --enable-tokenizer \
-    --with-gd \
-    --enable-gd \
     $(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h; 
+# Disable dlopen() in the readline PHP extension
+RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' php-src/main/php_config.h
+RUN echo '#undef COMPILE_DL_READLINE' >> php-src/main/php_config.h
+RUN echo '#if defined(COMPILE_DL_READLINE)' >> php-src/ext/readline/readline_cli.c
+RUN echo 'printf("oops");' >> php-src/ext/readline/readline_cli.c
+RUN echo '#endif' >> php-src/ext/readline/readline_cli.c
+RUN echo '#ifdef COMPILE_DL_READLINE' >> php-src/ext/readline/readline_cli.c
+RUN echo 'printf("oops");' >> php-src/ext/readline/readline_cli.c
+RUN echo '#endif' >> php-src/ext/readline/readline_cli.c
+RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' php-src/ext/readline/readline_cli.c
+RUN perl -pi.bak -e 's/#ifdef COMPILE_DL_READLINE/#if 0 == 1/g' php-src/ext/readline/readline_cli.c
+RUN cat php-src/ext/readline/readline_cli.c
+RUN perl -pi.bak -e 's/-export-dynamic/-all-static/g' php-src/Makefile
+
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
-RUN echo '#define HAVE_UNISTD_H 0' >> php-src/main/php_config.h; 
+RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
@@ -261,6 +443,10 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
+    # We're compiling PHP as emscripten's side module...
+    EMCC_FLAGS=" -sSIDE_MODULE " \
+    # ...which means we must skip all the libraries - they will be provided in the final linking step.
+    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libpng16.so" \
     emmake make -j8
 
 RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -287,16 +473,17 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 # Build the final .wasm file
 RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
-    export EXPORTED_FUNCTIONS='["_main", "_run_cli", "_wasm_add_cli_arg", "_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXTRA_EXPORTED_RUNTIME_METHODS)"']'; \
+    export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
     cd php-src/ && \
-    emcc -O0 -g2 \
+    emcc -O3 \
     -I .     \
     -I ext   \
-    -I ext/pdo_sqlite   \
     -I ext/json   \
     -I Zend  \
     -I main  \
     -I TSRM/ \
+    -lncurses -ledit -lnoderawfs.js \
+    -L/root/lib -L/root/lib/lib/ \
     $(cat /root/.emcc-php-wasm-flags) \
     -o /root/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
@@ -311,8 +498,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
         $(cat /root/.emcc-php-wasm-sources) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1 \
-    -s EXPORT_NAME="'PHPLoader'"
+    -s EXPORT_NAME="'PHPLoader'" 
+    #$(find /root/lib/share/terminfo | sed "s|^/root/lib/share/terminfo||" | sed -E "s|^(.*?)\$|--preload-file /root/lib/share/terminfo\1@/usr/share/terminfo\1|")
 
+# RUN ls -R /lib/terminfo/x
 # Postprocess the build php.js module:
 # ## Wrap it in an ES module with proper `export` statements.
 # - Export the PHPLoader object as the default export.
@@ -376,4 +565,3 @@ RUN \
         # Rename the build files to their final names
         mv /root/output/php-module.js "/root/output/$JS_FILENAME" && \
         mv /root/output/php.wasm "/root/output/$WASM_FILENAME"
-

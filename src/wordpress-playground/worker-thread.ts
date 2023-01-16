@@ -42,6 +42,7 @@ async function startWordPress() {
 
 	new WordPressPatcher(php).patch();
 	php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
+	php.main(['php', '-a']);
 
 	const server = new PHPServer(php, {
 		documentRoot: DOCROOT,
@@ -63,7 +64,7 @@ function getRequestedPHPModule() {
 		'7.1': 'php-7.1.js',
 		'7.2': 'php-7.2.js',
 		'7.3': 'php-7.3.js',
-		'7.4': 'php-7.4.js',
+		'7.4': 'php-7.4.node.js',
 		'8.0': 'php-8.0.js',
 		'8.1': 'php-8.1.js',
 		'8.2': 'php-8.2.js',

@@ -1,0 +1,38 @@
+diff --git a/ncurses/Makefile.in b/ncurses/Makefile.in
+--- a/ncurses/Makefile.in
++++ b/ncurses/Makefile.in
+@@ -235,24 +235,6 @@
+ keys.list :	$(tinfo)/MKkeys_list.sh
+ 	AWK=$(AWK) $(SHELL) $(tinfo)/MKkeys_list.sh $(CAPLIST) | LC_ALL=C sort >$@
+ 
+-make_keys$(BUILD_EXEEXT) : \
+-		build.priv.h \
+-		$(tinfo)/make_keys.c \
+-		names.c
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_keys.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-
+-make_hash$(BUILD_EXEEXT) : \
+-		build.priv.h \
+-		$(tinfo)/make_hash.c \
+-		../include/hashsize.h
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-
+-report_offsets$(BUILD_EXEEXT) : \
+-		$(srcdir)/curses.priv.h \
+-		$(srcdir)/report_offsets.c
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(srcdir)/report_offsets.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-	./report_offsets$(BUILD_EXEEXT)
+-
+ ./expanded.c : $(srcdir)/curses.priv.h $(serial)/MKexpanded.sh
+ 	$(SHELL) -e $(serial)/MKexpanded.sh "$(CPP)" $(CPPFLAGS) > $@
+ 
+@@ -294,9 +276,6 @@
+ 
+ clean :: mostlyclean
+ 	-rm -f $(AUTO_SRC)
+-	-rm -f make_keys$(BUILD_EXEEXT)
+-	-rm -f make_hash$(BUILD_EXEEXT)
+-	-rm -f report_offsets$(BUILD_EXEEXT)
+ 	-rm -rf .libs *.dSYM *.map
+ 
+ distclean :: clean

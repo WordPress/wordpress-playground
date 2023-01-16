@@ -21,15 +21,6 @@ describe('PHP – boot', () => {
 		php.writeFile(
 			'/wordpress/tests.php',
 			`<?php
-			file_put_contents('a', 'b');
-			// PHPUnit uses the CLI constants we don't have in WASM SAPI.
-			// No problem – let's define them here:
-			define('STDERR', fopen('php://stderr', 'w'));
-			define('STDOUT', fopen('php://stdout', 'w'));
-			define('STDIN', fopen('php://stdin', 'w'));
-
-			// Preconfigure WordPress tests:
-			define('WP_RUN_CORE_TESTS', true);
 			putenv('WP_TESTS_SKIP_INSTALL=1');
 
 			// Provide CLI args for PHPUnit:

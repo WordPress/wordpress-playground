@@ -25,11 +25,44 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-#include "sapi/cli/ps_title.h"
-#include "sapi/cli/ps_title.c"
-#include "sapi/cli/php_cli_server.h"
-#include "sapi/cli/php_cli_server.c"
-#include "sapi/cli/php_cli.c"
+
+ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
+	ZEND_ARG_INFO(0, extension_filename)
+ZEND_END_ARG_INFO()
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
+	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
+	{NULL, NULL, NULL}
+};
+int cli_argc = 0;
+char *cli_argv[10];
+void wasm_add_cli_arg(char *arg)
+{
+	cli_argv[cli_argc] = strdup(arg);
+	++cli_argc;
+}
+
+/**
+ * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
+ * The file is provided by the linker and the main() function is not
+ * exported from the final .wasm file at the moment.
+ */
+int main(int argc, char *argv[]);
+int run_cli() {
+	
+	return main(cli_argc, cli_argv);
+}
+
+#else 
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+	{NULL, NULL, NULL}
+};
+#endif
 
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
@@ -65,10 +98,6 @@ const char WASM_HARDCODED_INI[] =
 ;
 
 
-#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
-#include "sqlite3.h"
-#include "sqlite3.c"
-#endif
 #if PHP_MAJOR_VERSION >= 8
 // In PHP 8 the final linking step won't
 // work without these includes:
@@ -248,18 +277,6 @@ void wasm_destroy_server_context() {
 		free(current_file);
 		current_file = next_file;
 	}
-}
-
-int cli_argc = 0;
-char *cli_argv[10];
-void wasm_add_cli_arg(char *arg)
-{
-	cli_argv[cli_argc] = strdup(arg);
-	++cli_argc;
-}
-
-int run_cli() {
-	return main(cli_argc, cli_argv);
 }
 
 
@@ -704,6 +721,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		entry = entry->next;
 	}
 }
+
 
 /**
  * Function: wasm_sapi_request_init
