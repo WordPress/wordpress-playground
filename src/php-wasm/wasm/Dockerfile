@@ -71,6 +71,35 @@ RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-flags && \
     touch /root/.EXPORTED_FUNCTIONS
 
+# Patch emcc to allow skipping flags and passing additional flags using environment variables.
+# 
+# We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix
+# process as we're *not* supposed to link intermediate libraries against their dependencies. Instead,
+# We'll provide all the static libraries in the final linking step.
+# 
+# Unfortunately, most Makefiles stubbornly add -lz, -lxml2, etc. to the intermediate
+# emcc calls, which causes the build to fail. This patch:
+# * Enables force-removing linker options when running emcc
+# * Enables adding -sSIDE_MODULE when running emcc
+#
+# Usage:
+#  EMCC_SKIP="-lz -lxml2" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+#               ↑                            ↑
+#    ┌──────────┴─────────────┐   ┌──────────┴─────────────┐
+#    │  skip those flags when │   │  add these flags when  │
+#    │      calling emcc      │   │    calling emcc        │
+#    └────────────────────────┘   └────────────────────────┘
+RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
+    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
+    echo $'#!/bin/bash\n\
+for arg do shift\n\ 
+    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\ 
+    set -- "$@" "$arg" \n\
+done\n\
+/root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
+    chmod a+x /root/emsdk/upstream/emscripten/emcc
+
+
 # Add CLI SAPI if needed
 COPY ./build-assets/ncurses.patch /root/
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
@@ -112,11 +141,15 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
         emmake make && \
-        emmake make install && \
-        cd /root && \
+        emmake make install; \
+    fi
+
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
         # Install libedit (readline alternative)
         wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
         tar -xzf libedit-20221030-3.1.tar.gz  && \
+        source /root/emsdk/emsdk_env.sh && \
         cd libedit-20221030-3.1 && \
         CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
         CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
@@ -130,7 +163,8 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
         # let's define it manually. Learn more at:
         # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
+        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
+        emmake make && \
         emmake make install && \
         # Configure build flags
         echo -n ' --enable-phar --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
@@ -235,41 +269,13 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         fi; \
     fi
 
-# Patch emcc to allow skipping flags and passing additional flags using environment variables.
-# 
-# We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix
-# process as we're *not* supposed to link intermediate libraries against their dependencies. Instead,
-# We'll provide all the static libraries in the final linking step.
-# 
-# Unfortunately, most Makefiles stubbornly add -lz, -lxml2, etc. to the intermediate
-# emcc calls, which causes the build to fail. This patch:
-# * Enables force-removing linker options when running emcc
-# * Enables adding -sSIDE_MODULE when running emcc
-#
-# Usage:
-#  EMCC_SKIP="-lz -lxml2" EMCC_FLAGS="-sSIDE_MODULE" emmake make
-#               ↑                            ↑
-#    ┌──────────┴─────────────┐   ┌──────────┴─────────────┐
-#    │  skip those flags when │   │  add these flags when  │
-#    │      calling emcc      │   │    calling emcc        │
-#    └────────────────────────┘   └────────────────────────┘
-RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
-    cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
-    echo $'#!/bin/bash\n\
-for arg do shift\n\ 
-    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\ 
-    set -- "$@" "$arg" \n\
-done\n\
-/root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
-    chmod a+x /root/emsdk/upstream/emscripten/emcc
-
 # Install Sqlite3 if needed
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
     then \
         set -euxo pipefail &&\
-        wget --no-check-certificate http://www.sqlite.org/sqlite-autoconf-3070603.tar.gz && \
-        tar -xzvf sqlite-autoconf-3070603.tar.gz && \
-        cd sqlite-autoconf-3070603 && \
+        wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
+        tar -xzvf sqlite-autoconf-3400100.tar.gz && \
+        cd sqlite-autoconf-3400100 && \
         source /root/emsdk/emsdk_env.sh && \
         emconfigure ./configure \
             --build aarch64-unknown-linux-gnu \
@@ -280,11 +286,6 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
         emmake make install && \
         echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags; \
         echo -n ' -I ext/pdo_sqlite -lsqlite3 ' >> /root/.emcc-php-wasm-flags;  \
-        if [ "${PHP_VERSION:0:1}" -ge "8" ]; then \
-            # In PHP 8 the final linking step won't work without these files:
-            echo -n ' sqlite_driver.c sqlite_statement.c pdo_sqlite.c ' \
-                >> /root/.emcc-php-wasm-sources; \
-        fi; \
     fi;
 
 # Add VRZNO if needed
@@ -364,6 +365,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --disable-phpdbg   \
     --without-pear     \
     --with-valgrind=no \
+    --enable-zts\
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
@@ -429,6 +431,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -I Zend  \
     -I main  \
     -I TSRM/ \
+    -I /root/lib/include \
     -L/root/lib -L/root/lib/lib/ \
     $(cat /root/.emcc-php-wasm-flags) \
     -o /root/output/php.js \
