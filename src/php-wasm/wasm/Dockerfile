@@ -96,7 +96,6 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         cd /root/ncurses-6.2 && \
         make clean && \
         git apply --no-index /root/ncurses.patch && \
-        cd ncurses-6.2 && \
         perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKcaptab.sh && \
         perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKuserdefs.sh && \
         perl -pi.bak -e 's/make_hash\$\(BUILD_EXEEXT/make_hash_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
