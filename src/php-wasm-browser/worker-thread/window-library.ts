@@ -175,6 +175,14 @@ export class SpawnedWorkerThread {
 
 	/**
 	 * @param  path
+	 * @see {PHP.readFile}
+	 */
+	async readFileAsBuffer(path: string): Promise<string> {
+		return await this.#rpc('readFileAsBuffer', { path });
+	}
+
+	/**
+	 * @param  path
 	 * @param  contents
 	 * @see {PHP.writeFile}
 	 */

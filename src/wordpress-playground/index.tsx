@@ -309,51 +309,50 @@ async function overwriteFile() {
 	await workerThread.writeFile(targetFile, targetContent);
 }
 
-async function populateZip(zipFile, filePaths) {
-	for (let i = 0; i < filePaths.length; i++) {
-		const path = filePaths[i];
-		const isDir = await workerThread.isDir(path);
-		if (isDir) {
-			const directoryFileNames = await workerThread.listFiles(path);
-			const directoryFilePaths = directoryFileNames.map(
-				(childFilePath) => `${path}/${childFilePath}`
-			);
-			await populateZip(zipFile, directoryFilePaths);
-		} else {
-			const fileContents = await workerThread.readFile(path);
-			zipFile.file(path, fileContents);
-		}
-	}
-}
-
 async function generateZip() {
-	const fileNames = await workerThread.listFiles('/wordpress');
-	const filePaths = fileNames.map((fileName) => `/wordpress/${fileName}`);
-	const zipFile = new JSZip();
-	await populateZip(zipFile, filePaths);
-	zipFile
-		.generateAsync({ type: 'blob' }, function updateCallback(metadata) {
-			let msg = 'progression : ' + metadata.percent.toFixed(2) + ' %';
-			if (metadata.currentFile) {
-				msg += ', current file = ' + metadata.currentFile;
-			}
-			console.log(msg);
-			// updatePercent(metadata.percent | 0);
-		})
-		.then(
-			function callback(blob) {
-				console.log('first part');
-				console.log(blob);
-				// see FileSaver.js
-				saveAs(blob, 'wordpress-playground-export.zip');
+	await workerThread.run(`
+		<?php
+			$zip = new ZipArchive;
+			$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
+			if ($res === TRUE) {
+				$directories = array();
+				$directories[] = '/wordpress/';
 
-				// showMessage('done !');
-			},
-			function (e) {
-				console.log('second part');
-				console.log(e);
+				while(sizeof($directories)) {
+					$dir = array_pop($directories);
+
+					if ($handle = opendir($dir)) {
+
+						while (false !== ($entry = readdir($handle))) {
+							
+							if ($entry == '.' || $entry == '..') {
+								continue;
+							}
+
+							$entry = $dir . $entry;
+
+							if (is_dir($entry)) {
+
+								$directory_path = $entry . '/';
+								array_push($directories, $directory_path);
+
+							} elseif (is_file($entry)) {
+
+								$zip->addFile($entry);
+							}
+						}
+						closedir($handle);
+					}
+				}
+				$zip->close();
 			}
-		);
+		?>
+	`);
+	const fileBuffer = await workerThread.readFileAsBuffer(
+		'/wordpress-playground-export.zip'
+	);
+	const file = new File([fileBuffer], 'wordpress-playground-export.zip');
+	saveAs(file);
 }
 
 async function importFile() {
