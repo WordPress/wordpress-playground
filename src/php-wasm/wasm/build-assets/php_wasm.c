@@ -38,12 +38,21 @@ static const zend_function_entry additional_functions[] = {
 	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
 	{NULL, NULL, NULL}
 };
+
+typedef struct wasm_cli_arg {
+    char *value;
+    struct wasm_cli_arg *next;
+} wasm_cli_arg_t;
+
 int cli_argc = 0;
-char *cli_argv[10];
+wasm_cli_arg_t *cli_argv;
 void wasm_add_cli_arg(char *arg)
 {
-	cli_argv[cli_argc] = strdup(arg);
 	++cli_argc;
+	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t*) malloc(sizeof(wasm_cli_arg_t));
+	ll_entry->value = strdup(arg);
+	ll_entry->next = cli_argv;
+	cli_argv = ll_entry;
 }
 
 /**
@@ -53,8 +62,18 @@ void wasm_add_cli_arg(char *arg)
  */
 int main(int argc, char *argv[]);
 int run_cli() {
-	
-	return main(cli_argc, cli_argv);
+	// Convert the argv linkedlist to an array:
+	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc ));
+	wasm_cli_arg_t *current_arg = cli_argv;
+	int i = 0;
+	while (current_arg != NULL)
+	{
+		cli_argv_array[cli_argc - i - 1] = current_arg->value;
+		++i;
+		current_arg = current_arg->next;
+	}
+
+	return main(cli_argc, cli_argv_array);
 }
 
 #else 
