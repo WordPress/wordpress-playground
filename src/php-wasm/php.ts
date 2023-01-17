@@ -225,6 +225,7 @@ export async function startPHP(
 			}
 		},
 		ENV: {
+			...process.env,
 			TERM: 'xterm',
 			TERMINFO: __dirname + '/terminfo',
 		},

@@ -273,112 +273,89 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
         echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
     fi;
 
-# RUN wget https://ftp.gnu.org/gnu/termcap/termcap-1.3.1.tar.gz && \
-#     tar -xzf termcap-1.3.1.tar.gz
-
-# RUN set -euxo pipefail && \
-#     cd termcap-1.3.1 && \
-#     source /root/emsdk/emsdk_env.sh && \
-#     CFLAGS="-I/root/lib/include " \
-#     CPPFLAGS="-I/root/lib/include " \
-#     LDFLAGS="-L/root/lib/lib " \
-#     emconfigure ./configure \
-#         PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-#         --build aarch64-unknown-linux-gnu \
-#         --target wasm32-unknown-emscripten \
-#         --prefix=/root/lib/ && \
-#     echo '#define STDC_HEADERS 1' >> config.h && \
-#     echo '#include <unistd.h>' >> config.h && \
-#     EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make CFLAGS="-DHAVE_CONFIG_H=1 -fPIC -Wno-deprecated-non-prototype" && \
-#     emmake make install
-
-RUN     set -euxo pipefail &&\
+# Add CLI SAPI if needed
+COPY ./build-assets/ncurses.patch /root/
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        set -euxo pipefail &&\
         # Install libncurses
         wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
-        tar -xzf ncurses-6.2.tar.gz
-    
-# https://github.com/jamesbiv/ncurses-emscripten
-# https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
-RUN     cd ncurses-6.2 && \
+        tar -xzf ncurses-6.2.tar.gz && \
+        # https://github.com/jamesbiv/ncurses-emscripten
+        # https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
+        cd ncurses-6.2 && \
         ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
             --build aarch64-unknown-linux-gnu \
             --prefix=/root/lib/ \
             --enable-database && \
-        make
-
-RUN cd ncurses-6.2 && make install
-
-RUN cd ncurses-6.2 && \
-    cd ncurses  && \
-    cp make_hash make_hash_x86  && \
-    cp make_keys make_keys_x86  && \
-    cp report_offsets report_offsets_x86  && \
-    perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' tinfo/MKcaptab.sh && \
-    perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' tinfo/MKuserdefs.sh && \
-    perl -pi.bak -e 's/\.\/make_keys\$\(BUILD_EXEEXT/.\/make_keys_x86\$(BUILD_EXEEXT/g' Makefile.in && \
-    perl -pi.bak -e 's/\.\/report_offsets\$\(BUILD_EXEEXT/.\/report_offsets_x86\$(BUILD_EXEEXT/g' Makefile.in 
-
-COPY ./build-assets/ncurses.patch /root/
-RUN     source /root/emsdk/emsdk_env.sh && \
-        cd ncurses-6.2 && \
+        make && \
+        make install  && \
+        cd ncurses  && \
+        cp make_hash make_hash_x86  && \
+        cp make_keys make_keys_x86  && \
+        cp report_offsets report_offsets_x86  && \
+        cd /root/ncurses-6.2 && \
         make clean && \
-        # git apply --no-index /root/ncurses.patch && \
+        git apply --no-index /root/ncurses.patch; \
+    fi
+
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        cd ncurses-6.2 && \
+        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKcaptab.sh && \
+        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKuserdefs.sh && \
+        perl -pi.bak -e 's/make_hash\$\(BUILD_EXEEXT/make_hash_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        perl -pi.bak -e 's/make_keys\$\(BUILD_EXEEXT/make_keys_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        perl -pi.bak -e 's/\.\/report_offsets\$\(BUILD_EXEEXT/.\/report_offsets_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        source /root/emsdk/emsdk_env.sh && \
         emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
             --build aarch64-unknown-linux-gnu \
-            --prefix=/root/lib \
-            --with-default-terminfo-dir=/root/lib/share
-
-RUN     source /root/emsdk/emsdk_env.sh && \
-        cd ncurses-6.2 && \
+            --prefix=/root/lib && \
         perl -pi.bak -e 's/^\s+cd man.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd progs.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd test.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
         emmake make && \
-        emmake make install 
-
-# Install libedit (readline alternative)
-RUN wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
-    tar -xzf libedit-20221030-3.1.tar.gz  && \
-        source /root/emsdk/emsdk_env.sh && \
+        emmake make install && \
+        cd /root && \
+        # Install libedit (readline alternative)
+        wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+        tar -xzf libedit-20221030-3.1.tar.gz  && \
         cd libedit-20221030-3.1 && \
         CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
         CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
         LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
             --build aarch64-unknown-linux-gnu \
-            --prefix=/root/lib/
-
-# Add CLI SAPI if needed
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        set -euxo pipefail &&\
-        source /root/emsdk/emsdk_env.sh && \
-        cd libedit-20221030-3.1 && \
+            --prefix=/root/lib/ && \
         # -D__STDC_ISO_10646__=201103L is needed because
         # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
         # the case when compiling with musl toolchains.
         # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
-        # let's define it manually.
-        # Learn more at:
+        # let's define it manually. Learn more at:
         # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses" EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
+        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
         emmake make install && \
         # Configure build flags
-        echo -n ' --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
+        echo -n ' --enable-phar --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-        echo -n ' -DWITH_CLI_SAPI=1' >> /root/.emcc-php-wasm-flags; \
-    else \
-        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
-    fi;
+        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
+else \
+    echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+fi;
 
 # Build the patched PHP
-RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd php-src/ && \
+    perl -pi.bak -e 's/pharcmd=pharcmd/pharcmd=/g' ./configure.ac && \
+    perl -pi.bak -e 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' ./configure.ac
+RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force && \
+    cat ./configure
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
     emconfigure ./configure \
@@ -421,16 +398,8 @@ RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h;
 # Disable dlopen() in the readline PHP extension
 RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' php-src/main/php_config.h
 RUN echo '#undef COMPILE_DL_READLINE' >> php-src/main/php_config.h
-RUN echo '#if defined(COMPILE_DL_READLINE)' >> php-src/ext/readline/readline_cli.c
-RUN echo 'printf("oops");' >> php-src/ext/readline/readline_cli.c
-RUN echo '#endif' >> php-src/ext/readline/readline_cli.c
-RUN echo '#ifdef COMPILE_DL_READLINE' >> php-src/ext/readline/readline_cli.c
-RUN echo 'printf("oops");' >> php-src/ext/readline/readline_cli.c
-RUN echo '#endif' >> php-src/ext/readline/readline_cli.c
 RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' php-src/ext/readline/readline_cli.c
-RUN perl -pi.bak -e 's/#ifdef COMPILE_DL_READLINE/#if 0 == 1/g' php-src/ext/readline/readline_cli.c
-RUN cat php-src/ext/readline/readline_cli.c
-RUN perl -pi.bak -e 's/-export-dynamic/-all-static/g' php-src/Makefile
+#RUN perl -pi.bak -e 's/-export-dynamic/-all-static/g' php-src/Makefile
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
 RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' php-src/main/php_config.h
@@ -456,7 +425,7 @@ COPY ./build-assets/php_wasm.c /root/
 
 # Add nodefs when requested
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-        echo -n ' -lnodefs.js' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -lnoderawfs.js' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
@@ -481,8 +450,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -I ext/json   \
     -I Zend  \
     -I main  \
-    -I TSRM/ \
-    -lncurses -ledit -lnoderawfs.js \
+    -I TSRM/  -lnoderawfs.js \
     -L/root/lib -L/root/lib/lib/ \
     $(cat /root/.emcc-php-wasm-flags) \
     -o /root/output/php.js \
