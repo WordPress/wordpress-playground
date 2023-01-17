@@ -499,9 +499,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'" 
-    #$(find /root/lib/share/terminfo | sed "s|^/root/lib/share/terminfo||" | sed -E "s|^(.*?)\$|--preload-file /root/lib/share/terminfo\1@/usr/share/terminfo\1|")
 
-# RUN ls -R /lib/terminfo/x
+RUN mkdir -p /root/output/terminfo/x && \
+    cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/
+
 # Postprocess the build php.js module:
 # ## Wrap it in an ES module with proper `export` statements.
 # - Export the PHPLoader object as the default export.
@@ -546,16 +547,17 @@ RUN \
             #
             # This project supports both environments and would have to maintain two
             # separate copies of the code. Instead, we use a dynamic computation of the
-            # environment, based on the `Env` variable, which is an argument to the
+            # environment, based on the `RuntimeName` variable, which is an argument to the
             # wrapper function.
             cat /root/output/php.js \
-                | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=Env==="\1"/g' \
+                | sed -E 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=RuntimeName==="\1"/g' \
+                | sed -E 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' \
                 > /tmp/php.js && \
             mv /tmp/php.js /root/output/php.js && \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
-        echo "export const dependenciesTotalSize = $FILE_SIZE; export const dependencyFilename = '$WASM_URL'; export default function(Env, PHPLoader) {" >> /root/output/php-module.js && \
+        echo "export const dependenciesTotalSize = $FILE_SIZE; export const dependencyFilename = '$WASM_URL'; export default function(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
         \

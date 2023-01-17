@@ -224,6 +224,10 @@ export async function startPHP(
 				resolveDepsReady();
 			}
 		},
+		ENV: {
+			TERM: 'xterm',
+			TERMINFO: __dirname + '/terminfo',
+		},
 	});
 	for (const { default: loadDataModule } of dataDependenciesModules) {
 		loadDataModule(PHPRuntime);
