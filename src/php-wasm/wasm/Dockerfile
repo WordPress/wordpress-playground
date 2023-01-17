@@ -167,7 +167,7 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         emmake make && \
         emmake make install && \
         # Configure build flags
-        echo -n ' --enable-phar --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
+        echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=static ' >> /root/.php-configure-flags && \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
@@ -365,7 +365,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --disable-phpdbg   \
     --without-pear     \
     --with-valgrind=no \
-    --enable-zts\
     --without-pcre-jit \
     --enable-bcmath    \
     --enable-ctype     \
