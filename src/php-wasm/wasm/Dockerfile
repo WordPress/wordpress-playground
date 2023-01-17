@@ -11,39 +11,23 @@ SHELL ["/bin/bash", "-c"]
 # For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
 # but just "7" is invalid because there's no branch PHP-7.
 ARG PHP_VERSION=8.0.24
-ENV PHP_VERSION ${PHP_VERSION}
 
 # The PHP extensions to build:
 ARG WITH_VRZNO=yes
-ENV WITH_VRZNO ${WITH_VRZNO}
-
 ARG WITH_LIBXML=no
-ENV WITH_LIBXML ${WITH_LIBXML}
-
 ARG WITH_LIBZIP=yes
-ENV WITH_LIBZIP ${WITH_LIBZIP}
-
 ARG WITH_LIBPNG=no
-ENV WITH_LIBPNG ${WITH_LIBPNG}
-
 ARG WITH_MBSTRING=no
-ENV WITH_MBSTRING ${WITH_MBSTRING}
-
 ARG WITH_CLI_SAPI=no
-ENV WITH_CLI_SAPI ${WITH_CLI_SAPI}
-
 ARG WITH_SQLITE=yes
-ENV WITH_SQLITE ${WITH_SQLITE}
 
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
 # from the local filesystem.
 ARG WITH_NODEFS=no
-ENV WITH_NODEFS ${WITH_NODEFS}
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
-ENV EMSCRIPTEN_ENVIRONMENT ${EMSCRIPTEN_ENVIRONMENT}
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
@@ -73,24 +57,6 @@ RUN set -euxo pipefail;\
     cmake \
     python3
 
-# PHP <= 7.3 requires Bison 2.7
-# PHP >= 7.4 and Bison 3.0
-COPY ./build-assets/bison27.patch /root/bison27.patch
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-        wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-        tar -xvf bison-2.7.tar.gz && \
-        rm bison-2.7.tar.gz && \
-        cd bison-2.7 && \
-        git apply --no-index /root/bison27.patch && \
-        ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
-        make && \
-        make install && \
-        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
-    else \
-        apt install -y bison; \
-    fi;
-
 # Install Emscripten from the repository. We'd use the official
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
@@ -104,6 +70,78 @@ RUN touch /root/.configure-flags && \
     touch /root/.emcc-php-wasm-sources && \
     touch /root/.emcc-php-wasm-flags && \
     touch /root/.EXPORTED_FUNCTIONS
+
+# Add CLI SAPI if needed
+COPY ./build-assets/ncurses.patch /root/
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        set -euxo pipefail &&\
+        # Install libncurses
+        wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
+        tar -xzf ncurses-6.2.tar.gz && \
+        # https://github.com/jamesbiv/ncurses-emscripten
+        # https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
+        cd ncurses-6.2 && \
+        ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib/ \
+            --enable-database && \
+        make && \
+        make install  && \
+        cd ncurses  && \
+        cp make_hash make_hash_x86  && \
+        cp make_keys make_keys_x86  && \
+        cp report_offsets report_offsets_x86  && \
+        cd /root/ncurses-6.2 && \
+        make clean && \
+        git apply --no-index /root/ncurses.patch && \
+        cd ncurses-6.2 && \
+        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKcaptab.sh && \
+        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKuserdefs.sh && \
+        perl -pi.bak -e 's/make_hash\$\(BUILD_EXEEXT/make_hash_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        perl -pi.bak -e 's/make_keys\$\(BUILD_EXEEXT/make_keys_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        perl -pi.bak -e 's/\.\/report_offsets\$\(BUILD_EXEEXT/.\/report_offsets_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
+        source /root/emsdk/emsdk_env.sh && \
+        emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib && \
+        perl -pi.bak -e 's/^\s+cd man.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd progs.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd test.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
+        perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
+        emmake make && \
+        emmake make install && \
+        cd /root && \
+        # Install libedit (readline alternative)
+        wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+        tar -xzf libedit-20221030-3.1.tar.gz  && \
+        cd libedit-20221030-3.1 && \
+        CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+        CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+        LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --prefix=/root/lib/ && \
+        # -D__STDC_ISO_10646__=201103L is needed because
+        # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
+        # the case when compiling with musl toolchains.
+        # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
+        # let's define it manually. Learn more at:
+        # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
+        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
+        emmake make install && \
+        # Configure build flags
+        echo -n ' --enable-phar --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
+        echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
+            >> /root/.emcc-php-wasm-sources && \
+        echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
+        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
+    else \
+        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+    fi;
 
 # Add Libxml2 if needed
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
@@ -124,6 +162,24 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
     else \
         echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
     fi
+
+# PHP <= 7.3 requires Bison 2.7
+# PHP >= 7.4 and Bison 3.0
+COPY ./build-assets/bison27.patch /root/bison27.patch
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+        tar -xvf bison-2.7.tar.gz && \
+        rm bison-2.7.tar.gz && \
+        cd bison-2.7 && \
+        git apply --no-index /root/bison27.patch && \
+        ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
+        make && \
+        make install && \
+        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+    else \
+        apt install -y bison; \
+    fi;
 
 # Get and patch PHP
 RUN git clone https://github.com/php/php-src.git php-src \
@@ -273,89 +329,13 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
         echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
     fi;
 
-# Add CLI SAPI if needed
-COPY ./build-assets/ncurses.patch /root/
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        set -euxo pipefail &&\
-        # Install libncurses
-        wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
-        tar -xzf ncurses-6.2.tar.gz && \
-        # https://github.com/jamesbiv/ncurses-emscripten
-        # https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
-        cd ncurses-6.2 && \
-        ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
-            --prefix=/root/lib/ \
-            --enable-database && \
-        make && \
-        make install  && \
-        cd ncurses  && \
-        cp make_hash make_hash_x86  && \
-        cp make_keys make_keys_x86  && \
-        cp report_offsets report_offsets_x86  && \
-        cd /root/ncurses-6.2 && \
-        make clean && \
-        git apply --no-index /root/ncurses.patch; \
-    fi
-
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        cd ncurses-6.2 && \
-        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKcaptab.sh && \
-        perl -pi.bak -e 's/\.\/make_hash/.\/make_hash_x86/g' ncurses/tinfo/MKuserdefs.sh && \
-        perl -pi.bak -e 's/make_hash\$\(BUILD_EXEEXT/make_hash_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
-        perl -pi.bak -e 's/make_keys\$\(BUILD_EXEEXT/make_keys_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
-        perl -pi.bak -e 's/\.\/report_offsets\$\(BUILD_EXEEXT/.\/report_offsets_x86\$(BUILD_EXEEXT/g' ncurses/Makefile.in && \
-        source /root/emsdk/emsdk_env.sh && \
-        emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
-            --prefix=/root/lib && \
-        perl -pi.bak -e 's/^\s+cd man.*$//g' Makefile && \
-        perl -pi.bak -e 's/^\s+cd progs.*$//g' Makefile && \
-        perl -pi.bak -e 's/^\s+cd test.*$//g' Makefile && \
-        perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
-        perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
-        emmake make && \
-        emmake make install && \
-        cd /root && \
-        # Install libedit (readline alternative)
-        wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
-        tar -xzf libedit-20221030-3.1.tar.gz  && \
-        cd libedit-20221030-3.1 && \
-        CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
-            --prefix=/root/lib/ && \
-        # -D__STDC_ISO_10646__=201103L is needed because
-        # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
-        # the case when compiling with musl toolchains.
-        # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
-        # let's define it manually. Learn more at:
-        # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " emmake make && \
-        emmake make install && \
-        # Configure build flags
-        echo -n ' --enable-phar --enable-cli=static --with-libedit=static ' >> /root/.php-configure-flags && \
-        echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
-            >> /root/.emcc-php-wasm-sources && \
-        echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
-else \
-    echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
-fi;
 
 # Build the patched PHP
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
     perl -pi.bak -e 's/pharcmd=pharcmd/pharcmd=/g' ./configure.ac && \
     perl -pi.bak -e 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' ./configure.ac
-RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force && \
-    cat ./configure
+RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
 RUN source /root/emsdk/emsdk_env.sh && \
     cd php-src/ && \
     emconfigure ./configure \
@@ -399,7 +379,6 @@ RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h;
 RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' php-src/main/php_config.h
 RUN echo '#undef COMPILE_DL_READLINE' >> php-src/main/php_config.h
 RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' php-src/ext/readline/readline_cli.c
-#RUN perl -pi.bak -e 's/-export-dynamic/-all-static/g' php-src/Makefile
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
 RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' php-src/main/php_config.h
@@ -423,9 +402,9 @@ RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
-# Add nodefs when requested
+# Add nodefs when building for node.js
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-        echo -n ' -lnoderawfs.js' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -lnoderawfs.js -s NODERAWFS=1 ' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
@@ -450,7 +429,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -I ext/json   \
     -I Zend  \
     -I main  \
-    -I TSRM/  -lnoderawfs.js \
+    -I TSRM/ \
     -L/root/lib -L/root/lib/lib/ \
     $(cat /root/.emcc-php-wasm-flags) \
     -o /root/output/php.js \
