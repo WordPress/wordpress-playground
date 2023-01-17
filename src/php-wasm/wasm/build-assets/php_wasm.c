@@ -34,8 +34,13 @@ ZEND_END_ARG_INFO()
 #include "sapi/cli/php_cli_process_title.h"
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
+#if PHP_MAJOR_VERSION >= 8
+	PHP_FE(cli_set_process_title,        zif_cli_get_process_title)
+	PHP_FE(cli_get_process_title,        zif_cli_set_process_title)
+#else
 	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
 	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
+#endif
 	{NULL, NULL, NULL}
 };
 
@@ -118,15 +123,6 @@ const char WASM_HARDCODED_INI[] =
 	"max_execution_time = 0\n"
 	"max_input_time = -1\n\0"
 ;
-
-
-#if PHP_MAJOR_VERSION >= 8
-// In PHP 8 the final linking step won't
-// work without these includes:
-#include "sqlite_driver.c"
-#include "sqlite_statement.c"
-#include "pdo_sqlite.c"
-#endif
 
 typedef struct wasm_array_entry {
     char *key;
