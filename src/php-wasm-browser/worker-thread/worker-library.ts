@@ -10,11 +10,9 @@ declare const window: any; // For the web backend
 import { startPHP, PHPBrowser, PHPServer } from '../../php-wasm';
 import type { PHP, JavascriptRuntime } from '../../php-wasm';
 import { responseTo } from '../messaging';
-import { DEFAULT_BASE_URL } from '../../php-wasm/utils';
 import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 import { getURLScope } from '../scope';
-import { FileInfo } from '../../php-wasm/php';
 export * from '../scope';
 
 /**

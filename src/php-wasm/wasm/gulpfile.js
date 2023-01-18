@@ -1,7 +1,4 @@
-const os = require('os');
 const gulp = require('gulp');
-const replace = require('gulp-replace');
-const rename = require('gulp-rename');
 const path = require('path');
 const util = require('util');
 const fs = require('fs');
@@ -101,12 +98,6 @@ async function build() {
 }
 
 exports.build = gulp.series(cleanBuildDir, build);
-
-function asyncPipe(pipe) {
-	return new Promise(async (resolve, reject) => {
-		pipe.on('finish', resolve).on('error', reject);
-	});
-}
 
 function asyncSpawn(...args) {
 	return new Promise((resolve, reject) => {
