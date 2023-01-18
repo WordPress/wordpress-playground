@@ -258,6 +258,7 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
+	#webSapiInitialized = false;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -267,11 +268,11 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-		// this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
 	/**
-	 * Runs a PHP code snippet.
+	 * Dispatches a PHP request.
+	 * Cannot be used in conjunction with `cli()`.
 	 *
 	 * @example
 	 * ```js
@@ -288,10 +289,13 @@ export class PHP {
 	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
 	 * ```
 	 *
-	 * @param  code    - The PHP code to run.
-	 * @param  request - Request parameters.
+	 * @param  request - PHP Request data.
 	 */
 	run(request: PHPRequest = {}): PHPResponse {
+		if (!this.#webSapiInitialized) {
+			this.#Runtime.ccall('php_wasm_init', null, [], []);
+			this.#webSapiInitialized = true;
+		}
 		this.#setScriptPath(request.scriptPath || '');
 		this.#setRelativeRequestUri(request.relativeUri || '');
 		this.#setRequestMethod(request.method || 'GET');
@@ -315,7 +319,16 @@ export class PHP {
 		return this.#handleRequest();
 	}
 
-	cli(argv: string) {
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	cli(argv: string[]): number {
 		for (const arg of argv) {
 			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
 		}
