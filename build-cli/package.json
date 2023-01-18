@@ -1,6 +1,6 @@
 {
     "name": "php-cli",
-    "version": "0.0.1",
+    "version": "0.1.1",
     "description": "PHP CLI via WebAssembly. Part of WordPress Playground.",
     "main": "php-cli.js",
     "author": "The WordPress contributors",
