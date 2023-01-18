@@ -362,6 +362,9 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
         bash /root/copy-lib.sh lib-sqlite3 && \
         echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags; \
         echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
+        if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -le "1" ]] || [ "${PHP_VERSION:0:1}" -le "7" ]; then \
+            echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
+        fi; \
     fi;
 
 # Add libpng if needed
