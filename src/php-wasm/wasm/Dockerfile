@@ -521,8 +521,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'" 
 
-RUN mkdir -p /root/output/terminfo/x && \
-    cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+        mkdir -p /root/output/terminfo/x && \
+        cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/; \
+    fi
 
 # Postprocess the build php.js module:
 # ## Wrap it in an ES module with proper `export` statements.

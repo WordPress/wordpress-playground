@@ -23,11 +23,15 @@ async function build() {
 			withNodeFs: false,
 			withLibxml: false,
 			withCLI: false,
+			withMBString: false,
+			withLibPNG: false,
 		},
 		node: {
 			withNodeFs: true,
 			withLibxml: true,
 			withCLI: true,
+			withMBString: true,
+			withLibPNG: true,
 		},
 	}[platform];
 	const buildSettings = {
@@ -56,9 +60,9 @@ async function build() {
 			'--build-arg',
 			`WITH_LIBZIP=yes`,
 			'--build-arg',
-			`WITH_LIBPNG=yes`,
+			`WITH_LIBPNG=${buildSettings.withLibPNG ? 'yes' : 'no'}`,
 			'--build-arg',
-			`WITH_MBSTRING=yes`,
+			`WITH_MBSTRING=${buildSettings.withMBString ? 'yes' : 'no'}`,
 			'--build-arg',
 			`WITH_SQLITE=yes`,
 			'--build-arg',
@@ -86,7 +90,11 @@ async function build() {
 			// they don't work without running cp through shell.
 			'sh',
 			'-c',
-			`cp /root/output/php* /output && mkdir -p /output/terminfo/x && cp /root/lib/share/terminfo/x/xterm /output/terminfo/x`,
+			`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
+				buildSettings.withCLI
+					? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
+					: ''
+			}`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);

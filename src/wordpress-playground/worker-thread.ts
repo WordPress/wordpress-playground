@@ -42,7 +42,6 @@ async function startWordPress() {
 
 	new WordPressPatcher(php).patch();
 	php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
-	php.main(['php', '-a']);
 
 	const server = new PHPServer(php, {
 		documentRoot: DOCROOT,
