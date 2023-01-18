@@ -210,6 +210,7 @@ export async function startPHP(
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
+		ENV: {},
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
@@ -224,14 +225,6 @@ export async function startPHP(
 				resolveDepsReady();
 			}
 		},
-		ENV:
-			runtime === 'NODE'
-				? {
-						...process.env,
-						TERM: 'xterm',
-						TERMINFO: __dirname + '/terminfo',
-				  }
-				: {},
 	});
 	for (const { default: loadDataModule } of dataDependenciesModules) {
 		loadDataModule(PHPRuntime);

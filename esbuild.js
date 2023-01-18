@@ -45,6 +45,7 @@ if (wasmWorkerBackend === 'iframe') {
 const globalOutDir = 'build';
 
 async function main() {
+	const copyToDist = copyToPath(globalOutDir);
 	const baseConfig = {
 		logLevel: 'info',
 		platform: argv.platform,
@@ -165,12 +166,58 @@ async function main() {
 		bundle: true,
 		external: ['@microsoft/*', 'node_modules/*'],
 		entryPoints: [
-			'./src/php-wasm/php-cli.js',
 			'./src/typescript-reference-doc-generator/bin/tsdoc-to-api-markdown.js',
 		],
 		sourcemap: true,
 		watch: argv.watch,
 	});
+	build({
+		logLevel: 'info',
+		platform: 'node',
+		outdir: './build-cli/',
+		bundle: true,
+		external: ['node_modules/*'],
+		entryNames: '[name]',
+		entryPoints: {
+			'php-cli': './src/php-cli/index.ts',
+			...Object.fromEntries(
+				glob
+					.sync('./build/php-*.node.js')
+					.map((p) => [path.basename(p, '.js'), p])
+			),
+		},
+		watch: argv.watch,
+		plugins: [
+			// Add the required #!/usr/bin/env node to the top of the
+			// built php - cli.js file.
+			{
+				name: 'add-shebang',
+				setup(currentBuild) {
+					currentBuild.onEnd(() => {
+						// Add a shebang to './build-cli/php-cli.js'
+						const phpCliPath = path.join(
+							__dirname,
+							'./build-cli/php-cli.js'
+						);
+						const phpCliContents = fs.readFileSync(
+							phpCliPath,
+							'utf8'
+						);
+						fs.writeFileSync(
+							phpCliPath,
+							`#!/usr/bin/env node
+${phpCliContents}`
+						);
+					});
+				},
+			},
+		],
+	});
+	mapGlob(`./build/php-*.node.wasm`, copyToPath('./build-cli/'));
+	mapGlob(
+		`./src/php-cli/terminfo/x/xterm`,
+		copyToPath('./build-cli/terminfo/x/xterm')
+	);
 
 	console.log('');
 	console.log('Static files copied: ');
@@ -241,12 +288,16 @@ function mapGlob(pattern, mapper) {
 	}
 }
 
-function copyToDist(filePath) {
-	outdir = globalOutDir;
-	const filename = filePath.split('/').pop();
-	const outPath = `${outdir}/${filename}`;
-	fs.copyFileSync(filePath, outPath);
-	return outPath;
+function copyToPath(outdir) {
+	if (!fs.existsSync(outdir)) {
+		fs.mkdirSync(outdir, { recursive: true });
+	}
+	return function (filePath) {
+		const filename = filePath.split('/').pop();
+		const outPath = `${outdir}/${filename}`;
+		fs.copyFileSync(filePath, outPath);
+		return outPath;
+	};
 }
 
 function buildHTMLFile(filePath) {
@@ -265,13 +316,6 @@ function buildHTMLFile(filePath) {
 function logBuiltFile(outPath) {
 	const outPathToLog = outPath.replace(/^\.\//, '');
 	console.log(`  ${outPathToLog}`);
-}
-
-function fileSize(filePath) {
-	if (!fs.existsSync(filePath)) {
-		return 0;
-	}
-	return fs.statSync(filePath).size;
 }
 
 function hashFiles(filePaths) {
