@@ -1,4 +1,4 @@
-import * as phpLoaderModule from '../../build/php-7.4.node.js';
+import * as phpLoaderModule from '../../build/php-5.6.node.js';
 import { startPHP } from './php';
 import type { startPHP } from './php';
 

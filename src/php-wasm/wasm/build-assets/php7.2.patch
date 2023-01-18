@@ -1,15 +1,6 @@
 diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/sqlite_statement.c
 --- a/php-src/ext/pdo_sqlite/sqlite_statement.c
 +++ b/php-src/ext/pdo_sqlite/sqlite_statement.c
-@@ -23,8 +23,8 @@
- #include "php.h"
- #include "php_ini.h"
- #include "ext/standard/info.h"
- #include "pdo/php_pdo.h"
- #include "pdo/php_pdo_driver.h"
- #include "php_pdo_sqlite.h"
- #include "php_pdo_sqlite_int.h"
- 
 @@ -299,7 +299,7 @@ static int pdo_sqlite_stmt_describe(pdo_stmt_t *stmt, int colno)
  	return 1;
  }

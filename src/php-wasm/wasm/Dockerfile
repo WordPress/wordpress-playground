@@ -1,33 +1,9 @@
 # Originally forked from https://github.com/seanmorris/php-wasm
 # ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
 # emscripten/emsdk:3.1.24 supports amd64 only.
-FROM ubuntu:lunar
+FROM ubuntu:lunar as emscripten
 
 SHELL ["/bin/bash", "-c"]
-# The PHP version to build.
-# This value must point to an existing branch of the
-# https://github.com/php/php-src.git repository when prefixed
-# with "PHP-".
-# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
-# but just "7" is invalid because there's no branch PHP-7.
-ARG PHP_VERSION=8.0.24
-
-# The PHP extensions to build:
-ARG WITH_VRZNO=yes
-ARG WITH_LIBXML=no
-ARG WITH_LIBZIP=yes
-ARG WITH_LIBPNG=no
-ARG WITH_MBSTRING=no
-ARG WITH_CLI_SAPI=no
-ARG WITH_SQLITE=yes
-
-# Whether to include the NODEFS JavaScript library.
-# It's useful for loading files and mounting directories
-# from the local filesystem.
-ARG WITH_NODEFS=no
-
-# The platform to build for: web or node
-ARG EMSCRIPTEN_ENVIRONMENT=web
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
@@ -65,11 +41,13 @@ RUN git clone https://github.com/emscripten-core/emsdk.git && \
     ./emsdk/emsdk install latest && \
     /root/emsdk/emsdk activate latest
 
-RUN touch /root/.configure-flags && \
-    touch /root/.emcc-php-wasm-flags && \
-    touch /root/.emcc-php-wasm-sources && \
-    touch /root/.emcc-php-wasm-flags && \
-    touch /root/.EXPORTED_FUNCTIONS
+RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
+RUN echo $'#!/bin/bash\n\
+for dir in $(ls $1); do \n\
+    mkdir -p /root/lib/$dir/ && \n\
+    cp -r /root/$1/$dir/* /root/lib/$dir/; \n\
+    done ' > /root/copy-lib.sh
+RUN chmod a+x /root/copy-lib.sh
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 # 
@@ -99,12 +77,45 @@ done\n\
 /root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
     chmod a+x /root/emsdk/upstream/emscripten/emcc
 
+# Compile libz
+FROM emscripten AS emscripten-libz
+COPY ./build-assets/zlib /root/zlib
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd /root/zlib && \
+    emconfigure ./configure --prefix=/root/lib && \
+    # emmake make fails after it built the library files – let's ignore the errors \
+    (emmake make || true) && \
+    emmake make install
 
-# Add CLI SAPI if needed
+# Compile libzip
+FROM emscripten AS emscripten-libzip
+ARG PHP_VERSION
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
+RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+            export LIBZIP_VERSION=1.2.0; \
+        else \
+            export LIBZIP_VERSION=1.9.2; \
+        fi && \
+        cd /root && \
+        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
+        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
+        mv libzip-$LIBZIP_VERSION libzip;
+RUN mkdir -p libzip/build
+RUN cd libzip/build && \
+        source /root/emsdk/emsdk_env.sh && \
+        emcmake cmake \
+            -DCMAKE_INSTALL_PREFIX=/root/lib \
+            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
+            -DZLIB_INCLUDE_DIR=/root/lib/include \
+            ..
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && emmake make
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && emmake make install
+
+# Compile ncurses
+FROM emscripten AS emscripten-ncurses
 COPY ./build-assets/ncurses.patch /root/
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        set -euxo pipefail &&\
+RUN     set -euxo pipefail &&\
         # Install libncurses
         wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
         tar -xzf ncurses-6.2.tar.gz && \
@@ -141,13 +152,14 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         perl -pi.bak -e 's/^\s+cd misc.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd c\+\+.*$//g' Makefile && \
         emmake make && \
-        emmake make install; \
-    fi
+        emmake make install
 
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        # Install libedit (readline alternative)
-        wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+
+# Compile libedit (readline alternative)
+FROM emscripten AS emscripten-libedit
+COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
+RUN /root/copy-lib.sh lib-ncurses
+RUN     wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
         tar -xzf libedit-20221030-3.1.tar.gz  && \
         source /root/emsdk/emsdk_env.sh && \
         cd libedit-20221030-3.1 && \
@@ -165,96 +177,124 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
         EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
         emmake make && \
-        emmake make install && \
-        # Configure build flags
-        echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=static ' >> /root/.php-configure-flags && \
-        echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
-            >> /root/.emcc-php-wasm-sources && \
-        echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
-    else \
-        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
-    fi;
+        emmake make install
 
-# Add Libxml2 if needed
-RUN if [ "$WITH_LIBXML" = "yes" ]; \
-    then \
-        source /root/emsdk/emsdk_env.sh && \
-        env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
-            --branch v2.9.10 \
-            --single-branch     \
-            --depth 1 && \
-        cd libxml2 && \
-        ./autogen.sh && \
-        emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
-        emmake make && \
-        emmake make install; \
-        echo -n ' --with-libxml=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlwriter' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/libxml2' >> /root/.emcc-php-wasm-flags; \
-        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
-    else \
-        echo -n ' --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
-    fi
+# Compile Libxml2
+FROM emscripten AS emscripten-libxml
+RUN source /root/emsdk/emsdk_env.sh && \
+    env GIT_SSL_NO_VERIFY=true git clone https://gitlab.gnome.org/GNOME/libxml2.git libxml2 \
+        --branch v2.9.10 \
+        --single-branch     \
+        --depth 1 && \
+    cd libxml2 && \
+    ./autogen.sh && \
+    emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
+    EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
+    emmake make install
 
-# PHP <= 7.3 requires Bison 2.7
-# PHP >= 7.4 and Bison 3.0
+# Compile Bison 2.7
+FROM emscripten AS emscripten-bison-2-7
 COPY ./build-assets/bison27.patch /root/bison27.patch
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-        wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-        tar -xvf bison-2.7.tar.gz && \
-        rm bison-2.7.tar.gz && \
-        cd bison-2.7 && \
-        git apply --no-index /root/bison27.patch && \
-        ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
-        make && \
-        make install && \
-        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
-    else \
-        apt install -y bison; \
-    fi;
+RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+    tar -xvf bison-2.7.tar.gz && \
+    rm bison-2.7.tar.gz && \
+    cd bison-2.7 && \
+    git apply --no-index /root/bison27.patch && \
+    ./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
+    make && \
+    make install
 
-# Get and patch PHP
+# Compile Sqlite3
+FROM emscripten AS emscripten-sqlite3
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
+RUN     set -euxo pipefail &&\
+        wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
+        tar -xzvf sqlite-autoconf-3400100.tar.gz && \
+        cd sqlite-autoconf-3400100 && \
+        source /root/emsdk/emsdk_env.sh && \
+        emconfigure ./configure \
+            --build aarch64-unknown-linux-gnu \
+            --target wasm32-unknown-emscripten \
+            --prefix=/root/lib/ && \
+        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make && \
+        emmake make install
+
+# Compile libpng
+FROM emscripten AS emscripten-libpng
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
+RUN     wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz
+RUN tar -xzf libpng-1.6.39.tar.gz 
+WORKDIR /root/libpng-1.6.39
+RUN     source /root/emsdk/emsdk_env.sh && \
+        CPPFLAGS="-I/root/lib/include " \
+        LDFLAGS="-L/root/lib/lib " \
+        emconfigure ./configure \
+            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+            --build aarch64-unknown-linux-gnu \
+            --target wasm32-unknown-emscripten \
+            --prefix=/root/lib/
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -g2" emmake make
+RUN source /root/emsdk/emsdk_env.sh && emmake make install
+
+# Clone PHP
+FROM emscripten AS emscripten-php-src
+ARG PHP_VERSION
 RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
     --depth 1;
-COPY ./build-assets/php*.patch /root/
-RUN git apply --no-index /root/php${PHP_VERSION:0:3}.patch && \
-    mkdir -p php-src/preload/Zend \
-    && cp php-src/Zend/bench.php php-src/preload/Zend \
-    && touch php-src/patched
 
-# Add gzip and libzip if needed
-COPY ./build-assets/zlib /root/zlib
+# Build PHP
+FROM emscripten AS emscripten-php
+
+# The PHP version to build.
+# This value must point to an existing branch of the
+# https://github.com/php/php-src.git repository when prefixed
+# with "PHP-".
+# For example, "7.4.0" is valid because the branch PHP-7.4.0 exists,
+# but just "7" is invalid because there's no branch PHP-7.
+ARG PHP_VERSION
+
+# The PHP extensions to build:
+ARG WITH_VRZNO=yes
+ARG WITH_LIBXML=no
+ARG WITH_LIBZIP=yes
+ARG WITH_LIBPNG=no
+ARG WITH_MBSTRING=no
+ARG WITH_CLI_SAPI=no
+ARG WITH_SQLITE=yes
+
+# Whether to include the NODEFS JavaScript library.
+# It's useful for loading files and mounting directories
+# from the local filesystem.
+ARG WITH_NODEFS=no
+
+# The platform to build for: web or node
+ARG EMSCRIPTEN_ENVIRONMENT=web
+
+RUN touch /root/.configure-flags && \
+    touch /root/.emcc-php-wasm-flags && \
+    touch /root/.emcc-php-wasm-sources && \
+    touch /root/.emcc-php-wasm-flags && \
+    touch /root/.EXPORTED_FUNCTIONS
+
+COPY --from=emscripten-php-src /root/php-src /root/php-src
+RUN cd php-src && ./buildconf --force
+
+# Copy over libz files
+COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        source /root/emsdk/emsdk_env.sh && \
-        cd /root/zlib && \
-        emconfigure ./configure --prefix=/root/lib && \
-        # emmake make fails after it built the library files – let's ignore the errors \
-        (emmake make || true) && \
-        emmake make install && \
+        /root/copy-lib.sh lib-libz; \
+    fi;
+
+# Add libzip if needed
+COPY --from=emscripten-libzip /root/lib /root/lib-libzip
+RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        /root/copy-lib.sh lib-libzip && \
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
-            export LIBZIP_VERSION=1.2.0; \
-        else \
-            export LIBZIP_VERSION=1.9.2; \
-        fi; \
-        cd /root && \
-        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
-        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
-        mv libzip-$LIBZIP_VERSION libzip && \
-        cd libzip && \
-        mkdir build && \
-        cd build && \
-        emcmake cmake \
-            -DCMAKE_INSTALL_PREFIX=/root/lib \
-            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
-            -DZLIB_INCLUDE_DIR=/root/lib/include \
-            .. && \
-        emmake make && \
-        emmake make install; \
-        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
@@ -266,27 +306,97 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             echo -n ' --with-zip' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+        fi && \
+        perl -pi.bak -e 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
+        perl -pi.bak -e 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
+    fi;
+
+# Add ncurses if needed
+COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        /root/copy-lib.sh lib-ncurses; \
+    else \
+        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+    fi;
+
+# Add libedit if needed
+COPY --from=emscripten-libedit /root/lib /root/lib-libedit
+RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+    then \
+        bash /root/copy-lib.sh lib-libedit && \
+        # Configure build flags
+        echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
+        echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
+            >> /root/.emcc-php-wasm-sources && \
+        echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
+        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
+    else \
+        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+    fi;
+
+# Add Libxml2 if needed
+COPY --from=emscripten-libxml /root/lib /root/lib-libxml
+RUN if [ "$WITH_LIBXML" = "yes" ]; \
+    then \
+        bash /root/copy-lib.sh lib-libxml && \
+        echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlwriter' >> /root/.php-configure-flags; \
+        echo -n ' -I /root/libxml2 -lxml2' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
+        # Libxml check is wrong in PHP < 7.4.0.
+        # In the regular cc it's just a warning,
+        # but in the emscripten's emcc that's an error:
+        perl -pi.bak -e "s/char xmlInitParser/void xmlInitParser/g" /root/php-src/configure; \
+        # On PHP < 7.1.0, the dom_iterators.c file implicitly converts *char to const *char causing emcc error
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+            perl -pi.bak -e 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
         fi; \
+    else \
+        echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
     fi
 
-# Install Sqlite3 if needed
+# Add sqlite3 if needed
+COPY --from=emscripten-sqlite3 /root/lib /root/lib-sqlite3
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
     then \
-        set -euxo pipefail &&\
-        wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
-        tar -xzvf sqlite-autoconf-3400100.tar.gz && \
-        cd sqlite-autoconf-3400100 && \
-        source /root/emsdk/emsdk_env.sh && \
-        emconfigure ./configure \
-            --build aarch64-unknown-linux-gnu \
-            --target wasm32-unknown-emscripten \
-            --prefix=/root/lib/ && \
-        source /root/emsdk/emsdk_env.sh && \
-        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make && \
-        emmake make install && \
+        bash /root/copy-lib.sh lib-sqlite3 && \
         echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags; \
-        echo -n ' -I ext/pdo_sqlite -lsqlite3 ' >> /root/.emcc-php-wasm-flags;  \
+        echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
     fi;
+
+# Add libpng if needed
+COPY --from=emscripten-libpng /root/lib /root/lib-libpng
+RUN if [ "$WITH_LIBPNG" = "yes" ]; \
+    then \
+        bash /root/copy-lib.sh lib-libpng && \
+        echo -n ' --with-png-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
+        echo -n ' -I /root/zlib -I /root/libpng16 -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
+    fi;
+
+# PHP <= 7.3 requires Bison 2.7
+# PHP >= 7.4 and Bison 3.0
+COPY --from=emscripten-bison-2-7 /usr/local/bison /root/linked-bison-27
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        mv /root/linked-bison-27 /usr/local/bison && \
+        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+        ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+    else \
+        apt install -y bison; \
+    fi;
+
+# Add mbstring if needed
+RUN if [ "$WITH_MBSTRING" = "yes" ]; \
+    then \
+        echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
+    else \
+        echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
+    fi;
+
+# Get and patch PHP
+COPY ./build-assets/php*.patch /root/
+RUN cd /root && \
+    git apply --no-index /root/php${PHP_VERSION:0:3}.patch -v && \
+    touch php-src/patched
 
 # Add VRZNO if needed
 RUN if [ "$WITH_VRZNO" = "yes" ]; \
@@ -300,44 +410,9 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
         echo -n ', "_exec_callback", "_del_callback"' >> /root/.EXPORTED_FUNCTIONS; \
     fi
 
-# Add libpng if needed
-RUN if [ "$WITH_LIBPNG" = "yes" ]; \
-    then \
-        set -euxo pipefail &&\
-        wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz && \
-        tar -xzf libpng-1.6.39.tar.gz && \
-        cd libpng-1.6.39 && \
-        source /root/emsdk/emsdk_env.sh && \
-        CPPFLAGS="-I/root/lib/include " \
-        LDFLAGS="-L/root/lib/lib " \
-        emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
-            --target wasm32-unknown-emscripten \
-            --prefix=/root/lib/ && \
-        EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -g2" emmake make && \
-        emmake make install && \
-        echo -n ' --with-gd --enable-gd' >> /root/.php-configure-flags && \
-        echo -n ' -I /root/zlib -I /root/libpng16 -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
-    fi;
-
-# Add mbstring if needed
-RUN if [ "$WITH_MBSTRING" = "yes" ]; \
-    then \
-        echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
-    else \
-        echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
-    fi;
-
-
 # Build the patched PHP
+WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-    cd php-src/ && \
-    perl -pi.bak -e 's/pharcmd=pharcmd/pharcmd=/g' ./configure.ac && \
-    perl -pi.bak -e 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' ./configure.ac
-RUN cd php-src/ && PKG_CONFIG_PATH=$PKG_CONFIG_PATH ./buildconf --force
-RUN source /root/emsdk/emsdk_env.sh && \
-    cd php-src/ && \
     emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     # Fibers are a PHP 8.1+ feature. They are compiled as 
@@ -374,31 +449,30 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
-RUN echo '#define ZEND_MM_ERROR 0' >> php-src/main/php_config.h; 
+RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
 # Disable dlopen() in the readline PHP extension
-RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' php-src/main/php_config.h
-RUN echo '#undef COMPILE_DL_READLINE' >> php-src/main/php_config.h
-RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' php-src/ext/readline/readline_cli.c
+RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' /root/php-src/main/php_config.h
+RUN echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h
+RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
-RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' php-src/main/php_config.h
+RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-        echo '#define HAVE_POSIX_READDIR_R 1' >> php-src/main/php_config.h; \
+        echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
     fi;
 
 RUN source /root/emsdk/emsdk_env.sh && \
-    cd php-src/ && \
     # We're compiling PHP as emscripten's side module...
     EMCC_FLAGS=" -sSIDE_MODULE " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
-    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libpng16.so" \
+    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
 
-RUN cp -v php-src/.libs/libphp*.la /root/lib/libphp.la
-RUN cp -v php-src/.libs/libphp*.a /root/lib/libphp.a
+RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
+RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
@@ -422,7 +496,6 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 RUN mkdir /root/output
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    cd php-src/ && \
     emcc -O3 \
     -I .     \
     -I ext   \

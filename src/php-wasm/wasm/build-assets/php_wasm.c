@@ -25,6 +25,13 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
+#if (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION >= 2)
+// In PHP 8.2 the final linking step won't
+// work without these includes:
+#include "sqlite_driver.c"
+#include "sqlite_statement.c"
+#include "pdo_sqlite.c"
+#endif
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
@@ -32,15 +39,14 @@ ZEND_END_ARG_INFO()
 
 #if WITH_CLI_SAPI == 1
 #include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-#if PHP_MAJOR_VERSION >= 8
-	PHP_FE(cli_set_process_title,        zif_cli_get_process_title)
-	PHP_FE(cli_get_process_title,        zif_cli_set_process_title)
-#else
 	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
 	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
-#endif
 	{NULL, NULL, NULL}
 };
 
@@ -783,11 +789,13 @@ int wasm_sapi_request_init()
 		return FAILURE;
 	}
 
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
 	if(wasm_server_context->skip_shebang == 1) {
 		CG(skip_shebang) = 1;
 	} else {
 		CG(skip_shebang) = 0;
 	}
+#endif
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
 
