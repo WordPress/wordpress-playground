@@ -4,6 +4,7 @@
 node_modules
 package-lock.json
 build/*
+build-cli/*
 build-api
 build-wp
 build-php
