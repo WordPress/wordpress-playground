@@ -215,10 +215,7 @@ ${phpCliContents}`
 		],
 	});
 	mapGlob(`./build/php-*.node.wasm`, copyToPath('./build-cli/'));
-	mapGlob(
-		`./src/php-cli/terminfo/x/xterm`,
-		copyToPath('./build-cli/terminfo/x/xterm')
-	);
+	mapGlob(`./src/php-cli/terminfo/x/*`, copyToPath('./build-cli/terminfo/x'));
 
 	console.log('');
 	console.log('Static files copied: ');
