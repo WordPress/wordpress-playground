@@ -360,9 +360,9 @@ COPY --from=emscripten-sqlite3 /root/lib /root/lib-sqlite3
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
     then \
         bash /root/copy-lib.sh lib-sqlite3 && \
-        echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags; \
+        echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite ' >> /root/.php-configure-flags && \
         echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
-        if [[ "${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -le "1" ]] || [ "${PHP_VERSION:0:1}" -le "7" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "4" ]] || [ "${PHP_VERSION:0:1}" -eq "8" ]; then \
             echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
         fi; \
     fi;
@@ -467,9 +467,12 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
         echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
     fi;
 
+RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
+
+
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
-    EMCC_FLAGS=" -sSIDE_MODULE " \
+    EMCC_FLAGS=" -sSIDE_MODULE -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
     EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
@@ -497,9 +500,11 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
+COPY ./build-assets/js-shims.js /root/js-shims.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
     emcc -O3 \
+    --js-library /root/js-shims.js \
     -I .     \
     -I ext   \
     -I ext/json   \

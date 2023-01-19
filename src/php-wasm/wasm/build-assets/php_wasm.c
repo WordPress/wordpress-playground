@@ -4,7 +4,6 @@
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code from JavaScript.
  */
-
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>
@@ -25,13 +24,43 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 
-#if (PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION >= 2)
-// In PHP 8.2 the final linking step won't
-// work without these includes:
-#include "sqlite_driver.c"
-#include "sqlite_statement.c"
-#include "pdo_sqlite.c"
-#endif
+// popen() shim
+// -----------------------------------------------------------
+// emscripten does not support popen() yet, so we use a shim
+// that uses the JS API to run the command.
+//
+// js_popen_to_file is defined in js-shims.js. It runs the cmd
+// command and returns the path to a file that contains the
+// output. The exit code is assigned to the exit_code_ptr.
+//
+// The wasm_popen and wasm_pclose functions are called thanks
+// to -Dpopen=wasm_popen and -Dpclose=wasm_pclose in the Dockerfile.
+
+extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+
+uint8_t last_exit_code;
+FILE *wasm_popen(const char *cmd, const char *mode)
+{
+    FILE *fp;
+    if (*mode == 'r') {
+		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
+		fp = fopen(file_path, mode);
+	} else {
+		errno = EINVAL;
+        fclose(fp);
+		return 0;
+	}
+
+    return fp;
+}
+
+uint8_t wasm_pclose(FILE *stream)
+{
+	fclose(stream);
+    return last_exit_code;
+}
+
+// -----------------------------------------------------------
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
@@ -120,7 +149,7 @@ const char WASM_HARDCODED_INI[] =
 	"always_populate_raw_post_data = -1\n"
 	"upload_max_filesize = 2000M\n"
 	"post_max_size = 2000M\n"
-	"disable_functions = exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec\n"
+	"disable_functions = proc_open,popen,curl_exec,curl_multi_exec\n"
 	"allow_url_fopen = Off\n"
 	"allow_url_include = Off\n"
 	"session.save_path = /home/web_user\n"
