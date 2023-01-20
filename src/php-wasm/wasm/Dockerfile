@@ -468,6 +468,7 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
     fi;
 
 RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
+RUN perl -pi.bak -e 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for\(/g' /root/php-src/main/php_network.h
 
 
 RUN source /root/emsdk/emsdk_env.sh && \
@@ -503,7 +504,8 @@ RUN mkdir /root/output
 COPY ./build-assets/js-shims.js /root/js-shims.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 \
+    emcc -O3 -g2 \
+    -lwebsocket.js \
     --js-library /root/js-shims.js \
     -I .     \
     -I ext   \
@@ -520,6 +522,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=0                  \
+    -s ASYNCIFY=1                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \

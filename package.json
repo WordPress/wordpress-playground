@@ -75,6 +75,7 @@
     "@codemirror/lint": "^6.1.0",
     "@codemirror/view": "^6.6.0",
     "@geist-ui/core": "^2.3.8",
+    "@maximegris/node-websockify": "^1.0.7",
     "@microsoft/api-extractor": "^7.33.5",
     "@microsoft/api-extractor-model": "7.25.2",
     "@microsoft/tsdoc": "^0.14.2",
@@ -113,6 +114,7 @@
     "typescript": "4.8.4",
     "vitepress": "^1.0.0-alpha.26",
     "vue": "^3.2.41",
+    "ws": "^8.12.0",
     "yargs": "^17.6.2"
   },
   "devDependencies": {

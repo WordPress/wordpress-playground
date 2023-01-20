@@ -1,0 +1,3 @@
+//var websockify = require('@maximegris/node-websockify');
+var websockify = require('./proxy2.js');
+websockify({  source: '127.0.0.1:8098', target: '127.0.0.1:8976'});

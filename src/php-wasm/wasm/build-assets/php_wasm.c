@@ -62,6 +62,31 @@ uint8_t wasm_pclose(FILE *stream)
 
 // -----------------------------------------------------------
 
+
+/* hybrid select(2)/poll(2) for a single descriptor.
+ * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
+ * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
+ */
+int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
+{
+	php_pollfd p;
+	int n;
+
+	p.fd = fd;
+	p.events = events;
+	p.revents = 0;
+
+	emscripten_sleep(150);
+	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
+
+	if (n > 0) {
+		return p.revents;
+	}
+
+	return n;
+}
+
+
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()

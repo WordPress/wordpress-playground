@@ -178,7 +178,7 @@ async function main() {
 		bundle: true,
 		external: ['node_modules/*'],
 		entryNames: '[name]',
-		minify: true,
+		// minify: true,
 		entryPoints: {
 			'php-cli': './src/php-cli/index.ts',
 			...Object.fromEntries(

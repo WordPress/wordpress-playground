@@ -2,6 +2,19 @@
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
 import { startPHP } from '../php-wasm/php-node';
+// import { WebSocketServer } from 'ws';
+
+// const wss = new WebSocketServer({
+// 	host: '127.0.0.1',
+// 	port: 8098,
+// });
+// wss.on('connection', function connection(ws) {
+// 	console.log('Connected!');
+// 	ws.send('something');
+// 	ws.on('message', function incoming(message) {
+// 		console.log('received: %s', message);
+// 	});
+// });
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -19,6 +32,10 @@ async function main() {
 			...process.env,
 			TERM: 'xterm',
 			TERMINFO: __dirname + '/terminfo',
+		},
+		websocket: {
+			url: 'ws://127.0.0.1:8098',
+			subprotocol: 'binary',
 		},
 	});
 	setTimeout(() => {
