@@ -6,7 +6,6 @@ import {
 } from '../php-wasm-browser/index';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
-import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
 const query = new URL(document.location.href).searchParams as any;
@@ -310,44 +309,46 @@ async function overwriteFile() {
 }
 
 async function generateZip() {
-	await workerThread.run(`
-		<?php
-			$zip = new ZipArchive;
-			$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
-			if ($res === TRUE) {
-				$directories = array();
-				$directories[] = '/wordpress/';
+	await workerThread.run({
+		code: `
+			<?php
+				$zip = new ZipArchive;
+				$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
+				if ($res === TRUE) {
+					$directories = array();
+					$directories[] = '/wordpress/';
 
-				while(sizeof($directories)) {
-					$dir = array_pop($directories);
+					while(sizeof($directories)) {
+						$dir = array_pop($directories);
 
-					if ($handle = opendir($dir)) {
+						if ($handle = opendir($dir)) {
 
-						while (false !== ($entry = readdir($handle))) {
-							
-							if ($entry == '.' || $entry == '..') {
-								continue;
+							while (false !== ($entry = readdir($handle))) {
+								
+								if ($entry == '.' || $entry == '..') {
+									continue;
+								}
+
+								$entry = $dir . $entry;
+
+								if (is_dir($entry)) {
+
+									$directory_path = $entry . '/';
+									array_push($directories, $directory_path);
+
+								} elseif (is_file($entry)) {
+
+									$zip->addFile($entry);
+								}
 							}
-
-							$entry = $dir . $entry;
-
-							if (is_dir($entry)) {
-
-								$directory_path = $entry . '/';
-								array_push($directories, $directory_path);
-
-							} elseif (is_file($entry)) {
-
-								$zip->addFile($entry);
-							}
+							closedir($handle);
 						}
-						closedir($handle);
 					}
+					$zip->close();
 				}
-				$zip->close();
-			}
-		?>
-	`);
+			?>
+		`,
+	});
 	const fileBuffer = await workerThread.readFileAsBuffer(
 		'/wordpress-playground-export.zip'
 	);
@@ -357,27 +358,32 @@ async function generateZip() {
 
 async function importFile() {
 	const selectedFile = document.getElementById('file-input').files[0];
-
-	JSZip.loadAsync(selectedFile) // 1) read the Blob
-		.then(
-			function (zip) {
-				zip.forEach(async function (relativePath, zipEntry: any) {
-					// 2) print entries
-					if (
-						!zipEntry.dir &&
-						!relativePath.includes('wp-content/database') &&
-						!relativePath.includes('wp-includes')
-					) {
-						console.log(relativePath);
-						const content = new TextDecoder().decode(
-							zipEntry._data.compressedContent
-						);
-						await workerThread.writeFile(relativePath, content);
+	const fileContents = await selectedFile.arrayBuffer();
+	await workerThread.writeFile('/import.zip', new Uint8Array(fileContents));
+	await workerThread.run({
+		code: `
+			<?php
+				$zip = new ZipArchive;
+				$res = $zip->open('/import.zip');
+				if ($res === TRUE) {
+					$counter = 0;
+					while ($zip->statIndex($counter)) {
+						$file = $zip->statIndex($counter);
+						$fileString .= $file['name'] . ',';
+						if (
+							strpos($file['name'], 'wp-content/database') === false &&
+							strpos($file['name'], 'wp-includes') === false
+						) {
+							$overwrite = fopen($file['name'], 'w');
+							fwrite($overwrite, $zip->getFromIndex($counter));
+						}
+						$counter++;
 					}
-				});
-			},
-			function (e) {}
-		);
+					$zip->close();
+				}
+			?>
+		`,
+	});
 }
 
 const overwriteButton = document.getElementById('overwrite-button');
