@@ -225,21 +225,21 @@ RUN     set -euxo pipefail &&\
 
 # Compile OpenSSL
 # Source: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
+#         https://github.com/DigitalArsenal/openssl.js/blob/master/packages/openssl/build.sh
 FROM emscripten AS emscripten-openssl
 RUN     set -euxo pipefail &&\
         source /root/emsdk/emsdk_env.sh && \
         wget https://www.openssl.org/source/openssl-1.1.0h.tar.gz && \
         tar xf openssl-1.1.0h.tar.gz && \
         cd openssl-1.1.0h && \
-        emconfigure ./Configure linux-generic64 no-threads --prefix=/root/lib && \
+        rm crypto/bn/asm/* && \
+        # -bn_obj
+        emconfigure ./Configure debug -no-asm -DBN_ASM= -DSIG_DFL=0 -DSIG_IGN=0 -DOPENSSL_NO_INLINE_ASM=1 -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
         sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-        EMCC_FLAGS=" -sSIDE_MODULE " && emmake make -j 12 build_generated libssl.a libcrypto.a;
-
-RUN source /root/emsdk/emsdk_env.sh && \
-    cd openssl-1.1.0h && \
-    EMCC_FLAGS=" -sSIDE_MODULE " emmake make install && \
-    cp -R include/openssl /root/lib/include && \
-    cp libcrypto.a libssl.a /root/lib/lib
+        EMCC_FLAGS=" -sSIDE_MODULE -DOPENSSL_NO_ASM=1 -DOPENSSL_NO_INLINE_ASM=1 " emmake make -j 12 build_generated libssl.a libcrypto.a && \
+        EMCC_FLAGS=" -sSIDE_MODULE -DOPENSSL_NO_ASM=1 -DOPENSSL_NO_INLINE_ASM=1 " emmake make install && \
+        cp -R include/openssl /root/lib/include && \
+        cp libcrypto.a libssl.a /root/lib/lib
 
 # Compile libcurl
 FROM emscripten AS emscripten-libcurl
@@ -285,6 +285,7 @@ RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
     --depth 1;
+
 
 # Build PHP
 FROM emscripten AS emscripten-php
@@ -572,7 +573,7 @@ RUN mkdir /root/output
 COPY ./build-assets/js-shims.js /root/js-shims.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 -g2 \
+    emcc -O3 \
     -lwebsocket.js \
     --js-library /root/js-shims.js \
     -I .  \
@@ -589,7 +590,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=0                  \
+    -s ASSERTIONS=3                  \
     -s ASYNCIFY=1                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
@@ -600,6 +601,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s FORCE_FILESYSTEM=1 \
     -s EXPORT_NAME="'PHPLoader'" 
 
+RUN ls /root/output/
 # # At the moment terminfo is baked into the repository in
 # # src/php-cli/terminfo, but if we ever need to update it, we can
 # # use the terminfo database produced by the ncurses make script:
@@ -641,11 +643,15 @@ RUN \
         # rely on a `dependencyFilename` variable instead.
         perl -pi.bak -e 's#"php\.wasm"#dependencyFilename#g' /root/output/php.js && \
         perl -pi.bak -e "s#'php\.wasm'#dependencyFilename#g" /root/output/php.js && \
+        # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
+        # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
+        # tolerate a null stream.stream_ops value.
+        perl -pi.bak -e "s#if\s*\(stream\.stream_ops\.poll\)#if (stream.stream_ops?.poll)#g" /root/output/php.js && \
         # Emscripten makes the Websocket proxy connect to a fixed URL.
         # This assumes the traffic is always forwarded to the same target.
         # However, we want to support arbitrary targets, so we need to
         # replace the hardcoded websocket target URL with a dynamic callback.
-        perl -pi.bak -e 's#if\s*\(\s*"string"\s*===\s*typeof Module\["websocket"\]\["url"\]\s*\)#if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])#g' \
+        perl -pi.bak -e $'s#if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)#if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])#g' \
             /root/output/php.js && \
         # Emscripten ignores the flags argument to ___syscall_recvfrom.
         # However, PHP relies on passing the MSG_PEEK (== integer 2) flag when polling
@@ -659,10 +665,6 @@ RUN \
         perl -pi.bak -e 's#sock\.sock_ops\.recvmsg\(sock,\s*len\);#sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);#g' /root/output/php.js && \
         perl -pi.bak -e 's#recvmsg:\s*function\(sock,\s*length\)#recvmsg: function(sock, length, flags)#g' /root/output/php.js && \
         perl -pi.bak -e 's#if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)#if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)#g' /root/output/php.js && \
-        # However, we want to support arbitrary targets, so we need to
-        # replace the hardcoded websocket target URL with a dynamic callback.
-        perl -pi.bak -e 's#if\s*\(\s*"string"\s*===\s*typeof Module\["websocket"\]\["url"\]\s*\)#if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])#g' \
-            /root/output/php.js && \
         # Replace the hardcoded ENVIRONMENT variable with a dynamic computation.
             # The JavaScript code of the web loader and web worker loader is identical,
             # but Emscripten forces running different code paths by setting

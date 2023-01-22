@@ -71,11 +71,8 @@ const newClient = async function (client, req) {
 		}
 	);
 	target.on('data', function (data) {
-		log(`network -> PHP buffer: (${data.length} bytes)`);
-		log(
-			[...data/*.slice(0, 100)*/].map((x) => x.toString(16)).join(', ') +
-				'...'
-		);
+		log('network -> PHP buffer:');
+		log([...data.slice(0, 100)].join(', ')+'...');
 		try {
 			// client.send(data);
 			client.send(data);
@@ -97,10 +94,8 @@ const newClient = async function (client, req) {
 	});
 
 	client.on('message', function (msg) {
-		log(`PHP -> network buffer: (${msg.length} bytes)`);
-		log(
-			[...msg/*.slice(0, 100)*/].map((x) => x.toString(16)).join(', ') + '...'
-		);
+		log('PHP -> network buffer:');
+		log([...msg.slice(0, 100)].join(', ')+'...');
 		target.write(msg);
 	});
 	client.on('close', function (code, reason) {
