@@ -67,7 +67,7 @@ uint8_t wasm_pclose(FILE *stream)
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
  * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
  */
-int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
+inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
 {
 	php_pollfd p;
 	int n;
@@ -76,8 +76,11 @@ int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
 	p.events = events;
 	p.revents = 0;
 
-	emscripten_sleep(150);
 	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
+	if(n == 0) {
+		emscripten_sleep(100); // must yield back to JS event loop to get the network response
+		n = php_poll2(&p, 1, php_tvtoto(timeouttv));
+	}
 
 	if (n > 0) {
 		return p.revents;
@@ -777,7 +780,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 
 	/* REQUEST_METHOD */
-	value = SG(request_info).request_method;
+	value = (char*)SG(request_info).request_method;
 	if (value != NULL) {
 		php_register_variable("REQUEST_METHOD", value, track_vars_array TSRMLS_CC);
 		if (!strcmp(value, "HEAD")) {

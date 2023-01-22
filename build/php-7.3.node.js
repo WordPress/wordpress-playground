@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 14641696; export const dependencyFilename = 'php-7.3.node.wasm'; export default function(RuntimeName, PHPLoader, EnvVariables) {
+export const dependenciesTotalSize = 14606579; export const dependencyFilename = 'php-7.3.node.wasm'; export default function(RuntimeName, PHPLoader, EnvVariables) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
 
 var moduleOverrides = Object.assign({}, Module);
@@ -406,10 +406,10 @@ function createWasm() {
   var exports = instance.exports;
   exports = Asyncify.instrumentWasmExports(exports);
   Module["asm"] = exports;
-  wasmMemory = Module["asm"]["Ra"];
+  wasmMemory = Module["asm"]["Pa"];
   updateGlobalBufferAndViews(wasmMemory.buffer);
-  wasmTable = Module["asm"]["Za"];
-  addOnInit(Module["asm"]["Sa"]);
+  wasmTable = Module["asm"]["Xa"];
+  addOnInit(Module["asm"]["Qa"]);
   removeRunDependency("wasm-instantiate");
  }
  addRunDependency("wasm-instantiate");
@@ -3433,7 +3433,11 @@ var SOCKFS = {
      var runtimeConfig = Module["websocket"] && "object" === typeof Module["websocket"];
      var url = "ws:#".replace("#", "//");
      if (runtimeConfig) {
-      if ("string" === typeof Module["websocket"]["url"]) {
+      if("function"===typeof Module["websocket"]["url"]) {
+url = Module["websocket"]["url"](...arguments);
+}else if("function"===typeof Module["websocket"]["url"]) {
+url = Module["websocket"]["url"](...arguments);
+}else if ("string" === typeof Module["websocket"]["url"]) {
        url = Module["websocket"]["url"];
       }
      }
@@ -3750,7 +3754,7 @@ var SOCKFS = {
     throw new FS.ErrnoError(28);
    }
   },
-  recvmsg: function(sock, length) {
+  recvmsg: function(sock, length, flags) {
    if (sock.type === 1 && sock.server) {
     throw new FS.ErrnoError(53);
    }
@@ -3777,7 +3781,7 @@ var SOCKFS = {
     addr: queued.addr,
     port: queued.port
    };
-   if (sock.type === 1 && bytesRead < queuedLength) {
+   if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength) {
     var bytesRemaining = queuedLength - bytesRead;
     queued.data = new Uint8Array(queuedBuffer, queuedOffset + bytesRead, bytesRemaining);
     sock.recv_queue.unshift(queued);
@@ -4148,16 +4152,6 @@ function ___syscall_faccessat(dirfd, path, amode, flags) {
 function ___syscall_fchmod(fd, mode) {
  try {
   FS.fchmod(fd, mode);
-  return 0;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
-  return -e.errno;
- }
-}
-
-function ___syscall_fchown32(fd, owner, group) {
- try {
-  FS.fchown(fd, owner, group);
   return 0;
  } catch (e) {
   if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
@@ -4738,7 +4732,7 @@ function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
 function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
  try {
   var sock = getSocketFromFD(fd);
-  var msg = sock.sock_ops.recvmsg(sock, len);
+  var msg = sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);
   if (!msg) return 0;
   if (addr) {
    var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(msg.addr), msg.port, addrlen);
@@ -5247,31 +5241,6 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
   HEAP32[newOffset >> 2] = tempI64[0], HEAP32[newOffset + 4 >> 2] = tempI64[1];
   if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
   return 0;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
-  return e.errno;
- }
-}
-
-function _fd_sync(fd) {
- try {
-  var stream = SYSCALLS.getStreamFromFD(fd);
-  return Asyncify.handleSleep(function(wakeUp) {
-   var mount = stream.node.mount;
-   if (!mount.type.syncfs) {
-    wakeUp(0);
-    return;
-   }
-   mount.type.syncfs(mount, false, function(err) {
-    if (err) {
-     wakeUp(function() {
-      return 29;
-     });
-     return;
-    }
-    wakeUp(0);
-   });
-  });
  } catch (e) {
   if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
   return e.errno;
@@ -6548,46 +6517,45 @@ if (ENVIRONMENT_IS_NODE) {
 
 var asmLibraryArg = {
  "j": ___assert_fail,
- "Qa": ___call_sighandler,
- "Pa": ___syscall__newselect,
- "Oa": ___syscall_accept4,
- "Na": ___syscall_bind,
- "Ma": ___syscall_chdir,
- "L": ___syscall_chmod,
- "La": ___syscall_connect,
- "Ka": ___syscall_dup,
- "Ja": ___syscall_dup3,
- "Ia": ___syscall_faccessat,
- "Ha": ___syscall_fchmod,
- "Ga": ___syscall_fchown32,
- "K": ___syscall_fchownat,
+ "Oa": ___call_sighandler,
+ "Na": ___syscall__newselect,
+ "Ma": ___syscall_accept4,
+ "La": ___syscall_bind,
+ "Ka": ___syscall_chdir,
+ "M": ___syscall_chmod,
+ "Ja": ___syscall_connect,
+ "Ia": ___syscall_dup,
+ "Ha": ___syscall_dup3,
+ "Ga": ___syscall_faccessat,
+ "Fa": ___syscall_fchmod,
+ "L": ___syscall_fchownat,
  "o": ___syscall_fcntl64,
- "Fa": ___syscall_fstat64,
- "O": ___syscall_ftruncate64,
- "Ea": ___syscall_getcwd,
- "Da": ___syscall_getdents64,
- "Ca": ___syscall_getpeername,
- "Ba": ___syscall_getsockname,
- "Aa": ___syscall_getsockopt,
- "J": ___syscall_ioctl,
- "za": ___syscall_listen,
- "ya": ___syscall_lstat64,
- "xa": ___syscall_mkdirat,
- "wa": ___syscall_newfstatat,
+ "Ea": ___syscall_fstat64,
+ "P": ___syscall_ftruncate64,
+ "Da": ___syscall_getcwd,
+ "Ca": ___syscall_getdents64,
+ "Ba": ___syscall_getpeername,
+ "Aa": ___syscall_getsockname,
+ "za": ___syscall_getsockopt,
+ "K": ___syscall_ioctl,
+ "ya": ___syscall_listen,
+ "xa": ___syscall_lstat64,
+ "wa": ___syscall_mkdirat,
+ "va": ___syscall_newfstatat,
  "u": ___syscall_openat,
- "va": ___syscall_pipe,
- "ua": ___syscall_poll,
- "ta": ___syscall_readlinkat,
- "sa": ___syscall_recvfrom,
- "ra": ___syscall_renameat,
- "I": ___syscall_rmdir,
- "qa": ___syscall_sendto,
- "H": ___syscall_socket,
- "pa": ___syscall_stat64,
- "oa": ___syscall_statfs64,
- "na": ___syscall_symlink,
+ "ua": ___syscall_pipe,
+ "ta": ___syscall_poll,
+ "sa": ___syscall_readlinkat,
+ "ra": ___syscall_recvfrom,
+ "qa": ___syscall_renameat,
+ "J": ___syscall_rmdir,
+ "pa": ___syscall_sendto,
+ "I": ___syscall_socket,
+ "oa": ___syscall_stat64,
+ "na": ___syscall_statfs64,
+ "ma": ___syscall_symlink,
  "B": ___syscall_unlinkat,
- "ma": ___syscall_utimensat,
+ "la": ___syscall_utimensat,
  "ha": __dlinit,
  "ga": __dlopen_js,
  "fa": __dlsym_js,
@@ -6606,29 +6574,28 @@ var asmLibraryArg = {
  "X": _emscripten_memcpy_big,
  "W": _emscripten_resize_heap,
  "V": _emscripten_sleep,
- "la": _environ_get,
- "ka": _environ_sizes_get,
+ "ka": _environ_get,
+ "ja": _environ_sizes_get,
  "p": _exit,
- "r": _fd_close,
- "G": _fd_fdstat_get,
- "F": _fd_read,
- "N": _fd_seek,
- "ja": _fd_sync,
+ "q": _fd_close,
+ "H": _fd_fdstat_get,
+ "G": _fd_read,
+ "O": _fd_seek,
  "A": _fd_write,
  "U": _getaddrinfo,
- "E": _gethostbyaddr,
- "D": _gethostbyname_r,
+ "F": _gethostbyaddr,
+ "E": _gethostbyname_r,
  "T": _getloadavg,
- "S": _getnameinfo,
- "R": _getprotobyname,
- "Q": _getprotobynumber,
+ "D": _getnameinfo,
+ "S": _getprotobyname,
+ "R": _getprotobynumber,
  "h": invoke_i,
  "d": invoke_ii,
  "b": invoke_iii,
  "f": invoke_iiii,
  "g": invoke_iiiii,
  "s": invoke_iiiiii,
- "q": invoke_iiiiiii,
+ "r": invoke_iiiiiii,
  "t": invoke_iiiiiiii,
  "x": invoke_iiiiiiiiii,
  "e": invoke_v,
@@ -6640,236 +6607,236 @@ var asmLibraryArg = {
  "m": invoke_viiiii,
  "i": invoke_viiiiii,
  "v": invoke_viiiiiiiii,
- "P": _js_popen_to_file,
+ "Q": _js_popen_to_file,
  "ia": _proc_exit,
  "C": _strftime,
- "M": _strptime
+ "N": _strptime
 };
 
 var asm = createWasm();
 
 var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
- return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["Sa"]).apply(null, arguments);
+ return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["Qa"]).apply(null, arguments);
 };
 
 var ___errno_location = Module["___errno_location"] = function() {
- return (___errno_location = Module["___errno_location"] = Module["asm"]["Ta"]).apply(null, arguments);
+ return (___errno_location = Module["___errno_location"] = Module["asm"]["Ra"]).apply(null, arguments);
 };
 
 var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = function() {
- return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["Ua"]).apply(null, arguments);
+ return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["Sa"]).apply(null, arguments);
 };
 
 var _malloc = Module["_malloc"] = function() {
- return (_malloc = Module["_malloc"] = Module["asm"]["Va"]).apply(null, arguments);
+ return (_malloc = Module["_malloc"] = Module["asm"]["Ta"]).apply(null, arguments);
 };
 
 var _run_cli = Module["_run_cli"] = function() {
- return (_run_cli = Module["_run_cli"] = Module["asm"]["Wa"]).apply(null, arguments);
+ return (_run_cli = Module["_run_cli"] = Module["asm"]["Ua"]).apply(null, arguments);
 };
 
 var _free = Module["_free"] = function() {
- return (_free = Module["_free"] = Module["asm"]["Xa"]).apply(null, arguments);
+ return (_free = Module["_free"] = Module["asm"]["Va"]).apply(null, arguments);
 };
 
 var _memcpy = Module["_memcpy"] = function() {
- return (_memcpy = Module["_memcpy"] = Module["asm"]["Ya"]).apply(null, arguments);
+ return (_memcpy = Module["_memcpy"] = Module["asm"]["Wa"]).apply(null, arguments);
 };
 
 var _htons = Module["_htons"] = function() {
- return (_htons = Module["_htons"] = Module["asm"]["_a"]).apply(null, arguments);
+ return (_htons = Module["_htons"] = Module["asm"]["Ya"]).apply(null, arguments);
 };
 
 var _ntohs = Module["_ntohs"] = function() {
- return (_ntohs = Module["_ntohs"] = Module["asm"]["$a"]).apply(null, arguments);
+ return (_ntohs = Module["_ntohs"] = Module["asm"]["Za"]).apply(null, arguments);
 };
 
 var _htonl = Module["_htonl"] = function() {
- return (_htonl = Module["_htonl"] = Module["asm"]["ab"]).apply(null, arguments);
+ return (_htonl = Module["_htonl"] = Module["asm"]["_a"]).apply(null, arguments);
 };
 
 var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
- return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["bb"]).apply(null, arguments);
+ return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["$a"]).apply(null, arguments);
 };
 
 var _wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = function() {
- return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["cb"]).apply(null, arguments);
+ return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["ab"]).apply(null, arguments);
 };
 
 var _wasm_set_query_string = Module["_wasm_set_query_string"] = function() {
- return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["db"]).apply(null, arguments);
+ return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["bb"]).apply(null, arguments);
 };
 
 var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = function() {
- return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["eb"]).apply(null, arguments);
+ return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["cb"]).apply(null, arguments);
 };
 
 var _wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = function() {
- return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["fb"]).apply(null, arguments);
+ return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["db"]).apply(null, arguments);
 };
 
 var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = function() {
- return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["gb"]).apply(null, arguments);
+ return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["eb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_method = Module["_wasm_set_request_method"] = function() {
- return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["hb"]).apply(null, arguments);
+ return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["fb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_host = Module["_wasm_set_request_host"] = function() {
- return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["ib"]).apply(null, arguments);
+ return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["gb"]).apply(null, arguments);
 };
 
 var _wasm_set_content_type = Module["_wasm_set_content_type"] = function() {
- return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["jb"]).apply(null, arguments);
+ return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["hb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
- return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["kb"]).apply(null, arguments);
+ return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["ib"]).apply(null, arguments);
 };
 
 var _wasm_set_content_length = Module["_wasm_set_content_length"] = function() {
- return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["lb"]).apply(null, arguments);
+ return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["jb"]).apply(null, arguments);
 };
 
 var _wasm_set_cookies = Module["_wasm_set_cookies"] = function() {
- return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["mb"]).apply(null, arguments);
+ return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["kb"]).apply(null, arguments);
 };
 
 var _wasm_set_php_code = Module["_wasm_set_php_code"] = function() {
- return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["nb"]).apply(null, arguments);
+ return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["lb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_port = Module["_wasm_set_request_port"] = function() {
- return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["ob"]).apply(null, arguments);
+ return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["mb"]).apply(null, arguments);
 };
 
 var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
- return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["pb"]).apply(null, arguments);
+ return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["nb"]).apply(null, arguments);
 };
 
 var _phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = function() {
- return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["qb"]).apply(null, arguments);
+ return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["ob"]).apply(null, arguments);
 };
 
 var _phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = function() {
- return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["rb"]).apply(null, arguments);
+ return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["pb"]).apply(null, arguments);
 };
 
 var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function() {
- return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["sb"]).apply(null, arguments);
+ return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["qb"]).apply(null, arguments);
 };
 
 var _php_wasm_init = Module["_php_wasm_init"] = function() {
- return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["tb"]).apply(null, arguments);
+ return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["rb"]).apply(null, arguments);
 };
 
 var _emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = function() {
- return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["ub"]).apply(null, arguments);
+ return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["sb"]).apply(null, arguments);
 };
 
 var _setThrew = Module["_setThrew"] = function() {
- return (_setThrew = Module["_setThrew"] = Module["asm"]["vb"]).apply(null, arguments);
+ return (_setThrew = Module["_setThrew"] = Module["asm"]["tb"]).apply(null, arguments);
 };
 
 var stackSave = Module["stackSave"] = function() {
- return (stackSave = Module["stackSave"] = Module["asm"]["wb"]).apply(null, arguments);
+ return (stackSave = Module["stackSave"] = Module["asm"]["ub"]).apply(null, arguments);
 };
 
 var stackRestore = Module["stackRestore"] = function() {
- return (stackRestore = Module["stackRestore"] = Module["asm"]["xb"]).apply(null, arguments);
+ return (stackRestore = Module["stackRestore"] = Module["asm"]["vb"]).apply(null, arguments);
 };
 
 var stackAlloc = Module["stackAlloc"] = function() {
- return (stackAlloc = Module["stackAlloc"] = Module["asm"]["yb"]).apply(null, arguments);
+ return (stackAlloc = Module["stackAlloc"] = Module["asm"]["wb"]).apply(null, arguments);
 };
 
 var dynCall_vi = Module["dynCall_vi"] = function() {
- return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["zb"]).apply(null, arguments);
+ return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["xb"]).apply(null, arguments);
 };
 
 var dynCall_iiii = Module["dynCall_iiii"] = function() {
- return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Ab"]).apply(null, arguments);
+ return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["yb"]).apply(null, arguments);
 };
 
 var dynCall_iii = Module["dynCall_iii"] = function() {
- return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Bb"]).apply(null, arguments);
+ return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["zb"]).apply(null, arguments);
 };
 
 var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
- return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Cb"]).apply(null, arguments);
+ return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Ab"]).apply(null, arguments);
 };
 
 var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
- return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Db"]).apply(null, arguments);
+ return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Bb"]).apply(null, arguments);
 };
 
 var dynCall_ii = Module["dynCall_ii"] = function() {
- return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Eb"]).apply(null, arguments);
+ return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Cb"]).apply(null, arguments);
 };
 
 var dynCall_vii = Module["dynCall_vii"] = function() {
- return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Fb"]).apply(null, arguments);
+ return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Db"]).apply(null, arguments);
 };
 
 var dynCall_viiii = Module["dynCall_viiii"] = function() {
- return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["Gb"]).apply(null, arguments);
+ return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["Eb"]).apply(null, arguments);
 };
 
 var dynCall_viii = Module["dynCall_viii"] = function() {
- return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Hb"]).apply(null, arguments);
+ return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Fb"]).apply(null, arguments);
 };
 
 var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
- return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Ib"]).apply(null, arguments);
+ return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Gb"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = function() {
- return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["Jb"]).apply(null, arguments);
+ return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["Hb"]).apply(null, arguments);
 };
 
 var dynCall_i = Module["dynCall_i"] = function() {
- return (dynCall_i = Module["dynCall_i"] = Module["asm"]["Kb"]).apply(null, arguments);
+ return (dynCall_i = Module["dynCall_i"] = Module["asm"]["Ib"]).apply(null, arguments);
 };
 
 var dynCall_v = Module["dynCall_v"] = function() {
- return (dynCall_v = Module["dynCall_v"] = Module["asm"]["Lb"]).apply(null, arguments);
+ return (dynCall_v = Module["dynCall_v"] = Module["asm"]["Jb"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
- return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["Mb"]).apply(null, arguments);
+ return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["Kb"]).apply(null, arguments);
 };
 
 var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = function() {
- return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["Nb"]).apply(null, arguments);
+ return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["Lb"]).apply(null, arguments);
 };
 
 var dynCall_viiiiii = Module["dynCall_viiiiii"] = function() {
- return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["Ob"]).apply(null, arguments);
+ return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["Mb"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = function() {
- return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["Pb"]).apply(null, arguments);
+ return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["Nb"]).apply(null, arguments);
 };
 
 var dynCall_viidii = Module["dynCall_viidii"] = function() {
- return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["Qb"]).apply(null, arguments);
+ return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["Ob"]).apply(null, arguments);
 };
 
 var _asyncify_start_unwind = Module["_asyncify_start_unwind"] = function() {
- return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["Rb"]).apply(null, arguments);
+ return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["Pb"]).apply(null, arguments);
 };
 
 var _asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = function() {
- return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["Sb"]).apply(null, arguments);
+ return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["Qb"]).apply(null, arguments);
 };
 
 var _asyncify_start_rewind = Module["_asyncify_start_rewind"] = function() {
- return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["Tb"]).apply(null, arguments);
+ return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["Rb"]).apply(null, arguments);
 };
 
 var _asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = function() {
- return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["Ub"]).apply(null, arguments);
+ return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["Sb"]).apply(null, arguments);
 };
 
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {

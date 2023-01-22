@@ -34,7 +34,10 @@ async function main() {
 			TERMINFO: __dirname + '/terminfo',
 		},
 		websocket: {
-			url: 'ws://127.0.0.1:8098',
+			url: (sock, host, port) => {
+				const query = new URLSearchParams({ host, port }).toString();
+				return `ws://127.0.0.1:8098/?${query}`;
+			},
 			subprotocol: 'binary',
 		},
 	});

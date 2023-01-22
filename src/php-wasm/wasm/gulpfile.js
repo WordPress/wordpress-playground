@@ -22,6 +22,7 @@ async function build() {
 			withCLI: false,
 			withMBString: false,
 			withLibPNG: false,
+			withOpenSSL: false,
 		},
 		node: {
 			withNodeFs: true,
@@ -29,6 +30,7 @@ async function build() {
 			withCLI: true,
 			withMBString: true,
 			withLibPNG: true,
+			withOpenSSL: true,
 		},
 	}[platform];
 	const buildSettings = {
@@ -61,9 +63,11 @@ async function build() {
 			'--build-arg',
 			`WITH_MBSTRING=${buildSettings.withMBString ? 'yes' : 'no'}`,
 			'--build-arg',
-			`WITH_SQLITE=yes`,
+			`WITH_SQLITE=no`,
 			'--build-arg',
 			`WITH_CLI_SAPI=${buildSettings.withCLI ? 'yes' : 'no'}`,
+			'--build-arg',
+			`WITH_OPENSSL=${buildSettings.withOpenSSL ? 'yes' : 'no'}`,
 			'--build-arg',
 			`WITH_NODEFS=${buildSettings.withNodeFs ? 'yes' : 'no'}`,
 			'--build-arg',
