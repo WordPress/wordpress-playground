@@ -195,7 +195,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
     emmake make install
 
-# Compile Bison 2.7
+# Compile Bison 2.7 (for PHP  <=7.3)
 FROM emscripten AS emscripten-bison-2-7
 COPY ./build-assets/bison27.patch /root/bison27.patch
 RUN wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
@@ -220,12 +220,11 @@ RUN     set -euxo pipefail &&\
             --build aarch64-unknown-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/ && \
-        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -g2 " emmake make && \
+        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
         emmake make install
 
 # Compile OpenSSL
-# Source: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
-#         https://github.com/DigitalArsenal/openssl.js/blob/master/packages/openssl/build.sh
+# Inspired by: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
 FROM emscripten AS emscripten-openssl
 RUN set -euxo pipefail && \
     source /root/emsdk/emsdk_env.sh && \
@@ -256,7 +255,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --target wasm32-unknown-emscripten \
             --with-openssl \
     --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lssl" EMCC_FLAGS="-sSIDE_MODULE -g2" emmake make
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lssl" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
 
 # Compile libpng
@@ -274,7 +273,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --build aarch64-unknown-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -g2" emmake make
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
 
 # Clone PHP
@@ -429,13 +428,13 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
     fi;
 
 # Add curl if needed
-COPY --from=emscripten-libcurl /root/lib /root/lib-curl
-RUN if [ "$WITH_CURL" = "yes" ]; \
-    then \
-        bash /root/copy-lib.sh lib-curl; \
-        echo -n ' --with-curl ' >> /root/.php-configure-flags && \
-        echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
-    fi;
+# COPY --from=emscripten-libcurl /root/lib /root/lib-curl
+# RUN if [ "$WITH_CURL" = "yes" ]; \
+#     then \
+#         bash /root/copy-lib.sh lib-curl; \
+#         echo -n ' --with-curl ' >> /root/.php-configure-flags && \
+#         echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
+#     fi;
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
@@ -540,7 +539,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
     EMCC_FLAGS=" -sSIDE_MODULE -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
-    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lopenssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
+    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -568,8 +567,27 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 RUN mkdir /root/output
 COPY ./build-assets/js-shims.js /root/js-shims.js
 RUN source /root/emsdk/emsdk_env.sh && \
-    export EXPORTED_FUNCTIONS='["_php_wasm_init", "_wasm_sapi_handle_request", "_wasm_add_uploaded_file", "_wasm_add_SERVER_entry","_wasm_set_query_string","_wasm_set_cookies","_wasm_set_path_translated","_wasm_set_request_uri","_wasm_set_request_method","_wasm_set_content_type","_wasm_set_content_length","_wasm_set_request_body","_wasm_set_php_code","_wasm_set_request_port", "_wasm_set_request_host", "_phpwasm_init_uploaded_files_hash", "_phpwasm_register_uploaded_file", "_phpwasm_destroy_uploaded_files_hash", "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 \
+    export EXPORTED_FUNCTIONS=$'["_php_wasm_init", \n\
+"_phpwasm_destroy_uploaded_files_hash", \n\
+"_phpwasm_init_uploaded_files_hash", \n\
+"_phpwasm_register_uploaded_file", \n\
+"_wasm_add_SERVER_entry", \n\
+"_wasm_add_uploaded_file", \n\
+"_wasm_sapi_handle_request", \n\
+"_wasm_set_content_length", \n\
+"_wasm_set_content_type", \n\
+"_wasm_set_cookies", \n\
+"_wasm_set_path_translated", \n\
+"_wasm_set_php_code", \n\
+"_wasm_set_query_string", \n\
+"_wasm_set_request_body", \n\
+"_wasm_set_request_host", \n\
+"_wasm_set_request_method", \n\
+"_wasm_set_request_port", \n\
+"_wasm_set_request_uri", \n\
+"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
+    emcc -O3 -g2 \
+    # -flto \
     -lwebsocket.js \
     --js-library /root/js-shims.js \
     -I .  \
@@ -587,7 +605,161 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=3                  \
-    -s ASYNCIFY=1                  \
+    -s ASYNCIFY=1                    \
+    -s ASYNCIFY_ONLY=$'["cli",\n\
+"do_cli",\n\
+"dynCall_dd", \n\
+"dynCall_i", \n\
+"dynCall_ii", \n\
+"dynCall_iidiiii", \n\
+"dynCall_iii", \n\
+"dynCall_iiid", \n\
+"dynCall_iiii", \n\
+"dynCall_iiiii", \n\
+"dynCall_iiiiii", \n\
+"dynCall_iiiiiii", \n\
+"dynCall_iiiiiiii", \n\
+"dynCall_iiiiiiiii", \n\
+"dynCall_iiiiiiiiii", \n\
+"dynCall_iiij", \n\
+"dynCall_iiiji", \n\
+"dynCall_ji", \n\
+"dynCall_jii", \n\
+"dynCall_jiiiji", \n\
+"dynCall_jiij", \n\
+"dynCall_jiiji", \n\
+"dynCall_jiji", \n\
+"dynCall_jj", \n\
+"dynCall_v", \n\
+"dynCall_vi", \n\
+"dynCall_vii", \n\
+"dynCall_viidii", \n\
+"dynCall_viii", \n\
+"dynCall_viiii", \n\
+"dynCall_viiiii", \n\
+"dynCall_viiiiiii", \n\
+"dynCall_viiiiiiii", \n\
+"execute_ex", \n\
+"main", \n\
+"zim_PDO___construct", \n\
+"zim_PDO_query", \n\
+"zim_PDO_exec", \n\
+"zim_PDOStatement_execute", \n\
+"zim_PDO_beginTransaction", \n\
+"zim_PDO_rollBack", \n\
+"zim_PDO_commit", \n\
+"zim_PDO_commitTransaction", \n\
+"pdo_mysql_handle_factory", \n\
+"pdo_mysql_stmt_describe", \n\
+"pdo_mysql_stmt_get_col", \n\
+"pdo_mysql_stmt_col_meta", \n\
+"pdo_mysql_stmt_fetch", \n\
+"pdo_mysql_stmt_execute", \n\
+"pdo_mysql_stmt_execute_prepared", \n\
+"php_mysqlnd_greet_read", \n\
+"php_mysqlnd_auth_response_read", \n\
+"php_mysqlnd_rset_header_read", \n\
+"mysql_handle_doer", \n\
+"mysql_handle_closer", \n\
+"mysql_handle_preparer", \n\
+"mysql_handle_quoter", \n\
+"mysql_handle_begin", \n\
+"mysql_handle_commit", \n\
+"mysql_handle_rollback", \n\
+"mysqlnd_query_read_result_set_header", \n\
+"mysqlnd_read_buffer_is_empty", \n\
+"mysqlnd_read_buffer", \n\
+"mysqlnd_connection_connect", \n\
+"mysqlnd_read_header", \n\
+"mysqlnd_read_header_name", \n\
+"mysqlnd_read_body_name", \n\
+"mysqlnd_read_packet_header_and_body", \n\
+"mysqlnd_run_authentication", \n\
+"mysqlnd_mysqlnd_command_handshake_pub", \n\
+"mysqlnd_mysqlnd_command_reap_result_pub", \n\
+"mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub", \n\
+"mysqlnd_mysqlnd_conn_data_query_pub", \n\
+"mysqlnd_mysqlnd_conn_data_reap_query_pub", \n\
+"mysqlnd_mysqlnd_conn_connect_pub", \n\
+"mysqlnd_mysqlnd_conn_data_connect_pub", \n\
+"mysqlnd_mysqlnd_conn_data_connect_handshake_pub", \n\
+"mysqlnd_mysqlnd_pfc_receive_pub", \n\
+"mysqlnd_mysqlnd_vio_network_read_pub", \n\
+"mysqlnd_mysqlnd_vio_connect_pub", \n\
+"mysqlnd_mysqlnd_vio_open_tcp_or_unix_pub", \n\
+"phar_file_get_contents", \n\
+"phar_fopen",\n\
+"php_execute_script", \n\
+"php_fsockopen_stream", \n\
+"php_network_accept_incoming", \n\
+"php_network_connect_socket", \n\
+"php_network_connect_socket", \n\
+"php_openssl_enable_crypto", \n\
+"php_openssl_sockop_close", \n\
+"php_openssl_sockop_io", \n\
+"php_openssl_sockop_read", \n\
+"php_openssl_sockop_set_option", \n\
+"php_openssl_sockop_set_option", \n\
+"php_pollfd_for", \n\
+"php_sock_stream_wait_for_data", \n\
+"php_sockop_read", \n\
+"php_sockop_read_close", \n\
+"php_sockop_set_option", \n\
+"php_sockop_write", \n\
+"_php_stream_copy_to_mem", \n\
+"_php_stream_eof", \n\
+"_php_stream_fill_read_buffer", \n\
+"_php_stream_get_line", \n\
+"_php_stream_open_wrapper_ex", \n\
+"_php_stream_read", \n\
+"php_stream_read_to_str", \n\
+"_php_stream_set_option", \n\
+"php_stream_url_wrap_http", \n\
+"php_stream_url_wrap_http_ex", \n\
+"_php_stream_xport_create", \n\
+"php_stream_xport_crypto_enable", \n\
+"php_tcp_sockop_set_option", \n\
+"readline_shell_run", \n\
+"run_cli", \n\
+"ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER", \n\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER", \n\
+"ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER", \n\
+"ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER", \n\
+"ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER", \n\
+"ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER", \n\
+"ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER", \n\
+"ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER", \n\
+"ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER", \n\
+"zend_eval_stringl", \n\
+"zend_eval_string_ex", \n\
+"zend_execute", \n\
+"zend_execute_scripts", \n\
+"zif_fclose", \n\
+"zif_file_get_contents", \n\
+"zif_fopen", \n\
+"zif_fread", \n\
+"zif_fsockopen"]' \
+    -s ASYNCIFY_IMPORTS=$'["_dlopen_js", \n\
+"invoke_i", \n\
+"invoke_ii", \n\
+"invoke_iii", \n\
+"invoke_iiii", \n\
+"invoke_iiiii", \n\
+"invoke_iiiiii", \n\
+"invoke_iiiiiii", \n\
+"invoke_iiiiiiii", \n\
+"invoke_iiiiiiiiii", \n\
+"invoke_v", \n\
+"invoke_vi", \n\
+"invoke_vii", \n\
+"invoke_viidii", \n\
+"invoke_viii", \n\
+"invoke_viiii", \n\
+"invoke_viiiii", \n\
+"invoke_viiiiii", \n\
+"invoke_viiiiiii", \n\
+"invoke_viiiiiiiii"]' \
+    -s ASYNCIFY_IGNORE_INDIRECT=1                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
         /root/lib/libphp.a \

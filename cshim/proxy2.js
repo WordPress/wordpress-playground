@@ -70,6 +70,8 @@ const newClient = async function (client, req) {
 			}
 		}
 	);
+	target.setKeepAlive(true);
+	target.setNoDelay(true);
 	target.on('data', function (data) {
 		log('network -> PHP buffer:');
 		log([...data.slice(0, 100)].join(', ')+'...');

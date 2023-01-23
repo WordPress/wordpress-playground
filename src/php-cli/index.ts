@@ -16,6 +16,7 @@ import { startPHP } from '../php-wasm/php-node';
 // 	});
 // });
 
+console.time('Starting');
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
@@ -26,7 +27,10 @@ async function main() {
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
 	// as this script.
+	console.time('Importing node...');
 	const phpLoaderModule = await import(`./php-${phpVersion}.node.js`);
+	console.timeEnd('Importing node...');
+	console.time('Starting PHP...');
 	const php = await startPHP(phpLoaderModule.default, 'NODE', {
 		ENV: {
 			...process.env,
@@ -41,12 +45,17 @@ async function main() {
 			subprotocol: 'binary',
 		},
 	});
+	console.timeEnd('Starting PHP...');
+	console.time('Delaying...');
 	setTimeout(() => {
 		const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 		if (!hasMinusCOption) {
 			args.unshift('-c', __dirname + '/php.ini');
 		}
+		console.timeEnd('Delaying...');
+		console.time('Calling CLI...');
 		php.cli(['php', ...args]);
+		console.timeEnd('Calling CLI...');
 	}, 500);
 }
 main();

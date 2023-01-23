@@ -62,6 +62,8 @@ uint8_t wasm_pclose(FILE *stream)
 
 // -----------------------------------------------------------
 
+// sleep for 1ms
+// EM_ASYNC_JS(int, sleep_1ms, (), { await new Promise(resolve => setTimeout(resolve, 1)); });
 
 /* hybrid select(2)/poll(2) for a single descriptor.
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
@@ -78,7 +80,8 @@ inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv
 
 	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
 	if(n == 0) {
-		emscripten_sleep(100); // must yield back to JS event loop to get the network response
+		// printf("php_pollfd_for: %lld", timeouttv->tv_sec);
+		emscripten_sleep(900); // must yield back to JS event loop to get the network response
 		n = php_poll2(&p, 1, php_tvtoto(timeouttv));
 	}
 

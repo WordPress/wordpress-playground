@@ -27,6 +27,7 @@ async function build() {
 			WITH_CLI_SAPI: 'yes',
 			WITH_OPENSSL: 'yes',
 			WITH_NODEFS: 'yes',
+			WITH_MYSQL: 'yes',
 		},
 	};
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
