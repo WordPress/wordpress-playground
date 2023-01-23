@@ -314,13 +314,13 @@ async function generateZip() {
 		absoluteUrl: workerThread.pathToInternalUrl(
 			'/wp-admin/export.php?download=true&&content=all'
 		),
-		method: 'POST',
+		method: 'GET',
 	});
-	const databaseExport = new TextDecoder().decode(
+	const databaseExportContent = new TextDecoder().decode(
 		databaseExportResponse.body
 	);
-	await workerThread.writeFile('/databaseExport.xml', databaseExport);
-	await workerThread.run({
+	await workerThread.writeFile('/databaseExport.xml', databaseExportContent);
+	const exportWriteRequest = await workerThread.run({
 		code: `<?php
 					$zip = new ZipArchive;
 					$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
@@ -362,6 +362,10 @@ async function generateZip() {
 					}
 				`,
 	});
+	if (exportWriteRequest.exitCode !== 0) {
+		throw exportWriteRequest.errors;
+	}
+
 	const fileBuffer = await workerThread.readFileAsBuffer(
 		'/wordpress-playground-export.zip'
 	);
@@ -384,7 +388,7 @@ async function importFile() {
 	await workerThread.writeFile('/import.zip', fileContent);
 
 	// Import the database
-	const databaseFromZipFileResponse = await workerThread.run({
+	const databaseFromZipFileReadRequest = await workerThread.run({
 		code: `<?php
 					$zip = new ZipArchive;
 					$res = $zip->open('/import.zip');
@@ -394,9 +398,12 @@ async function importFile() {
 					}
 				`,
 	});
+	if (databaseFromZipFileReadRequest.exitCode !== 0) {
+		throw databaseFromZipFileReadRequest.errors;
+	}
 
 	const databaseFromZipFileContent = new TextDecoder().decode(
-		databaseFromZipFileResponse.body
+		databaseFromZipFileReadRequest.body
 	);
 
 	const databaseFile = new File(
@@ -469,8 +476,8 @@ async function importFile() {
 		}).toString(),
 	});
 
-	// Import the filesystem
-	await workerThread.run({
+	// Import the file system
+	const importFileSystemRequest = await workerThread.run({
 		code: `<?php
 					$zip = new ZipArchive;
 					$res = $zip->open('/import.zip');
@@ -487,6 +494,9 @@ async function importFile() {
 					}
 				`,
 	});
+	if (importFileSystemRequest.exitCode !== 0) {
+		throw importFileSystemRequest.errors;
+	}
 }
 
 const overwriteButton = document.getElementById('overwrite-button');
