@@ -301,20 +301,31 @@ function zipNameToHumanName(zipName) {
 main();
 
 async function overwriteFile() {
-	const targetFile = document.getElementById('target-file').value;
-	const targetContent = document.getElementById('target-content').value;
+	const targetFile = document.getElementById('target-file')?.value;
+	const targetContent = document.getElementById('target-content')?.value;
 	console.log(targetFile);
 	console.log(targetContent);
 	await workerThread.writeFile(targetFile, targetContent);
 }
 
 async function generateZip() {
+	const databaseExportResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			'/wp-admin/export.php?download=true&&content=all'
+		),
+		method: 'POST',
+	});
+	const databaseExport = new TextDecoder().decode(
+		databaseExportResponse.body
+	);
+	await workerThread.writeFile('/databaseExport.xml', databaseExport);
 	await workerThread.run({
 		code: `
 			<?php
 				$zip = new ZipArchive;
 				$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
 				if ($res === TRUE) {
+					$zip->addFile('/databaseExport.xml');
 					$directories = array();
 					$directories[] = '/wordpress/';
 
@@ -325,16 +336,19 @@ async function generateZip() {
 
 							while (false !== ($entry = readdir($handle))) {
 								
-								if ($entry == '.' || $entry == '..') {
+								if ($entry == '.' ||
+									$entry == '..') {
 									continue;
 								}
 
 								$entry = $dir . $entry;
 
-								if (is_dir($entry)) {
+								if (is_dir($entry) &&
+									strpos($entry, 'wp-content/database') == false &&
+									strpos($entry, 'wp-includes') == false) {
 
-									$directory_path = $entry . '/';
-									array_push($directories, $directory_path);
+										$directory_path = $entry . '/';
+										array_push($directories, $directory_path);
 
 								} elseif (is_file($entry)) {
 
@@ -357,9 +371,108 @@ async function generateZip() {
 }
 
 async function importFile() {
-	const selectedFile = document.getElementById('file-input').files[0];
-	const fileContents = await selectedFile.arrayBuffer();
-	await workerThread.writeFile('/import.zip', new Uint8Array(fileContents));
+	// Write uploaded file to filesystem for processing with PHP
+	const userUploadedFileInput = document.getElementById(
+		'file-input'
+	) as HTMLInputElement;
+	const userUploadedFile = userUploadedFileInput.files
+		? userUploadedFileInput.files[0]
+		: null;
+	if (!userUploadedFile) return;
+
+	const fileArrayBuffer = await userUploadedFile.arrayBuffer();
+	const fileContent = new Uint8Array(fileArrayBuffer);
+	await workerThread.writeFile('/import.zip', fileContent);
+
+	// Import the database
+	const databaseFromZipFileResponse = await workerThread.run({
+		code: `
+				<?php
+					$zip = new ZipArchive;
+					$res = $zip->open('/import.zip');
+					if ($res === TRUE) {
+						$file = $zip->getFromName('/databaseExport.xml');
+						echo $file;
+					}
+				?>
+			`,
+	});
+
+	const databaseFromZipFileContent = new TextDecoder().decode(
+		databaseFromZipFileResponse.body
+	);
+
+	const databaseFile = new File(
+		[databaseFromZipFileContent],
+		'databaseExport.xml'
+	);
+
+	const importerPageOneResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			'/wp-admin/admin.php?import=wordpress'
+		),
+		method: 'GET',
+	});
+
+	const importerPageOneContent = new DOMParser().parseFromString(
+		importerPageOneResponse.text,
+		'text/html'
+	);
+
+	const firstUrlAction = importerPageOneContent
+		.getElementById('import-upload-form')
+		?.getAttribute('action');
+
+	const stepOneResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			`/wp-admin/${firstUrlAction}`
+		),
+		method: 'POST',
+		files: { import: databaseFile },
+	});
+
+	const importerPageTwoContent = new DOMParser().parseFromString(
+		stepOneResponse.text,
+		'text/html'
+	);
+
+	const importerPageTwoForm = importerPageTwoContent.querySelector(
+		'#wpbody-content form'
+	);
+	const secondUrlAction = importerPageTwoForm?.getAttribute('action');
+
+	const nonce = (
+		importerPageTwoForm?.querySelector(
+			"input[name='_wpnonce']"
+		) as HTMLInputElement
+	).value;
+
+	const referrer = (
+		importerPageTwoForm?.querySelector(
+			"input[name='_wp_http_referer']"
+		) as HTMLInputElement
+	).value;
+
+	const importId = (
+		importerPageTwoForm?.querySelector(
+			"input[name='import_id']"
+		) as HTMLInputElement
+	).value;
+
+	await workerThread.HTTPRequest({
+		absoluteUrl: secondUrlAction,
+		method: 'POST',
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+		},
+		body: new URLSearchParams({
+			_wpnonce: nonce,
+			_wp_http_referer: referrer,
+			import_id: importId,
+		}).toString(),
+	});
+
+	// Import the filesystem
 	await workerThread.run({
 		code: `
 			<?php
@@ -370,13 +483,8 @@ async function importFile() {
 					while ($zip->statIndex($counter)) {
 						$file = $zip->statIndex($counter);
 						$fileString .= $file['name'] . ',';
-						if (
-							strpos($file['name'], 'wp-content/database') === false &&
-							strpos($file['name'], 'wp-includes') === false
-						) {
-							$overwrite = fopen($file['name'], 'w');
-							fwrite($overwrite, $zip->getFromIndex($counter));
-						}
+						$overwrite = fopen($file['name'], 'w');
+						fwrite($overwrite, $zip->getFromIndex($counter));
 						$counter++;
 					}
 					$zip->close();
