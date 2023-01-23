@@ -14,33 +14,32 @@ async function cleanBuildDir() {
 }
 
 async function build() {
-	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
 	const platformDefaults = {
-		web: {
-			withNodeFs: false,
-			withLibxml: false,
-			withCLI: false,
-			withMBString: false,
-			withLibPNG: false,
-			withOpenSSL: false,
+		all: {
+			PHP_VERSION: '8.0.24',
+			WITH_LIBZIP: 'yes',
 		},
+		web: {},
 		node: {
-			withNodeFs: true,
-			withLibxml: true,
-			withCLI: true,
-			withMBString: true,
-			withLibPNG: true,
-			withOpenSSL: true,
+			WITH_LIBXML: 'yes',
+			WITH_LIBPNG: 'yes',
+			WITH_MBSTRING: 'yes',
+			WITH_CLI_SAPI: 'yes',
+			WITH_OPENSSL: 'yes',
+			WITH_NODEFS: 'yes',
 		},
-	}[platform];
-	const buildSettings = {
-		phpVersion: process.env.PHP_VERSION || '8.0.24',
-		// VRZNO does not work for most supported PHP versions – let's force disable it for now
-		withVRZNO: false, // phpVersion.startsWith('7.') ? 'yes' : 'no';
-		...platformDefaults,
-		withLibxml:
-			process.env.WITH_LIBXML === 'yes' || platformDefaults.withLibxml,
 	};
+	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
+	/* eslint-disable prettier/prettier */
+	const getArg = (name) => {
+		const value = (
+			name in platformDefaults[platform] ? platformDefaults[platform][name] :
+			name in process.env ? process.env[name] :
+			name in platformDefaults.all ? platformDefaults.all[name] :
+			'no'
+		)
+		return `${name}=${value}`;
+	}
 
 	// Build PHP
 	await asyncSpawn(
@@ -50,31 +49,24 @@ async function build() {
 			'.',
 			'--tag=php-wasm',
 			'--progress=plain',
-			'--build-arg',
-			`PHP_VERSION=${buildSettings.phpVersion}`,
-			'--build-arg',
-			`WITH_VRZNO=${buildSettings.withVRZNO ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_LIBXML=${buildSettings.withLibxml ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_LIBZIP=yes`,
-			'--build-arg',
-			`WITH_LIBPNG=${buildSettings.withLibPNG ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_MBSTRING=${buildSettings.withMBString ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_SQLITE=no`,
-			'--build-arg',
-			`WITH_CLI_SAPI=${buildSettings.withCLI ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_OPENSSL=${buildSettings.withOpenSSL ? 'yes' : 'no'}`,
-			'--build-arg',
-			`WITH_NODEFS=${buildSettings.withNodeFs ? 'yes' : 'no'}`,
-			'--build-arg',
-			`EMSCRIPTEN_ENVIRONMENT=${platform}`,
+			'--build-arg', getArg('PHP_VERSION'),
+			'--build-arg', getArg('WITH_VRZNO'),
+			'--build-arg', getArg('WITH_LIBXML'),
+			'--build-arg', getArg('WITH_LIBZIP'),
+			'--build-arg', getArg('WITH_LIBPNG'),
+			'--build-arg', getArg('WITH_MBSTRING'),
+			'--build-arg', getArg('WITH_SQLITE'),
+			'--build-arg', getArg('WITH_CLI_SAPI'),
+			'--build-arg', getArg('WITH_OPENSSL'),
+			'--build-arg', getArg('WITH_NODEFS'),
+			'--build-arg', getArg('WITH_CURL'),
+			'--build-arg', getArg('WITH_SQLITE'),
+			'--build-arg', getArg('WITH_MYSQL'),
+			'--build-arg', `EMSCRIPTEN_ENVIRONMENT=${platform}`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
+	/* eslint-enable prettier/prettier */
 
 	// Extract the PHP WASM module
 	await asyncSpawn(
@@ -92,7 +84,7 @@ async function build() {
 			'sh',
 			'-c',
 			`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
-				buildSettings.withCLI
+				getArg('WITH_CLI_SAPI') === 'yes'
 					? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
 					: ''
 			}`,
