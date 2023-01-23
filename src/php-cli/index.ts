@@ -43,6 +43,53 @@ async function main() {
 				return `ws://127.0.0.1:8098/?${query}`;
 			},
 			subprotocol: 'binary',
+			decorator: (WebSocketConstructor) => {
+				function prependByte(chunk, byte) {
+					if (typeof chunk === 'string') {
+						chunk = String.fromCharCode(byte) + chunk;
+					} else if (
+						chunk instanceof ArrayBuffer ||
+						chunk instanceof ArrayBuffer
+					) {
+						const buffer = new Uint8Array(chunk.byteLength + 1);
+						buffer[0] = byte;
+						buffer.set(new Uint8Array(chunk), 1);
+						chunk = buffer.buffer;
+					} else {
+						throw new Error('Unsupported chunk type');
+					}
+					return chunk;
+				}
+				const COMMAND_CHUNK = 1;
+				const COMMAND_SET_SOCKETOPT = 2;
+				class PHPWasmWebSocket extends WebSocketConstructor {
+					send(chunk, callback) {
+						return this.sendCommand(COMMAND_CHUNK, chunk, callback);
+					}
+					setSocketOpt(optionClass, optionName, optionValue) {
+						return this.sendCommand(
+							COMMAND_SET_SOCKETOPT,
+							new Uint8Array([
+								optionClass,
+								optionName,
+								optionValue,
+							]).buffer,
+							() => {}
+						);
+					}
+					sendCommand(commandType, chunk, callback) {
+						if (chunk[0] === 0x01 && chunk[1] === 0x01) {
+							process.exit();
+						}
+						return WebSocketConstructor.prototype.send.call(
+							this,
+							prependByte(chunk, commandType),
+							callback
+						);
+					}
+				}
+				return PHPWasmWebSocket;
+			},
 		},
 	});
 	console.timeEnd('Starting PHP...');

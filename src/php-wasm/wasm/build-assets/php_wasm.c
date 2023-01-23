@@ -36,6 +36,7 @@
 // The wasm_popen and wasm_pclose functions are called thanks
 // to -Dpopen=wasm_popen and -Dpclose=wasm_pclose in the Dockerfile.
 
+extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
 
 uint8_t last_exit_code;

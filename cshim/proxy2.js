@@ -70,11 +70,9 @@ const newClient = async function (client, req) {
 			}
 		}
 	);
-	target.setKeepAlive(true);
-	target.setNoDelay(true);
 	target.on('data', function (data) {
 		log('network -> PHP buffer:');
-		log([...data.slice(0, 100)].join(', ')+'...');
+		log([...data.slice(0, 100)].join(', ') + '...');
 		try {
 			// client.send(data);
 			client.send(data);
@@ -97,8 +95,25 @@ const newClient = async function (client, req) {
 
 	client.on('message', function (msg) {
 		log('PHP -> network buffer:');
-		log([...msg.slice(0, 100)].join(', ')+'...');
-		target.write(msg);
+		// target.write(msg);
+		// return;
+		const commandType = msg[0];
+		console.log({ commandType });
+		log([...msg.slice(0, 100)].join(', ') + '...');
+		if (commandType === 0x01) {
+			target.write(msg.slice(1));
+		} else if (commandType === 0x02) {
+			const SOL_SOCKET = 1;
+			const SO_KEEPALIVE = 9;
+
+			const IPPROTO_TCP = 6;
+			const TCP_NODELAY = 1;
+			if (msg[1] === SOL_SOCKET && msg[2] === SO_KEEPALIVE) {
+				target.setKeepAlive(msg[3]);
+			} else if (msg[1] === IPPROTO_TCP && msg[2] === TCP_NODELAY) {
+				target.setNoDelay(msg[3]);
+			}
+		}
 	});
 	client.on('close', function (code, reason) {
 		if (onDisconnectedCallback) {
