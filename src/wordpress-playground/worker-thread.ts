@@ -9,13 +9,16 @@ import {
 	currentBackend,
 	setURLScope,
 } from '../php-wasm-browser/worker-thread/worker-library';
-import { phpJsCacheBuster, wpJsCacheBuster, wordPressSiteUrl } from './config';
+import {
+	DOCROOT,
+	phpJsCacheBuster,
+	wpJsCacheBuster,
+	wordPressSiteUrl,
+} from './config';
 import { isUploadedFilePath } from './worker-utils';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-// Hardcoded in wp.js:
-const DOCROOT = '/wordpress';
 
 startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 	initializeWorkerThread({

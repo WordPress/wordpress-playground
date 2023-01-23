@@ -7,6 +7,7 @@ import {
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 import { saveAs } from 'file-saver';
+import { DOCROOT } from './config';
 
 const query = new URL(document.location.href).searchParams as any;
 
@@ -326,7 +327,7 @@ async function generateZip() {
 					if ($res === TRUE) {
 						$zip->addFile('/databaseExport.xml');
 						$directories = array();
-						$directories[] = '/wordpress/';
+						$directories[] = '${DOCROOT}/';
 
 						while(sizeof($directories)) {
 							$dir = array_pop($directories);
