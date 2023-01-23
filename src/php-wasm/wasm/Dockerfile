@@ -227,19 +227,18 @@ RUN     set -euxo pipefail &&\
 # Source: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
 #         https://github.com/DigitalArsenal/openssl.js/blob/master/packages/openssl/build.sh
 FROM emscripten AS emscripten-openssl
-RUN     set -euxo pipefail &&\
-        source /root/emsdk/emsdk_env.sh && \
-        wget https://www.openssl.org/source/openssl-1.1.0h.tar.gz && \
-        tar xf openssl-1.1.0h.tar.gz && \
-        cd openssl-1.1.0h && \
-        rm crypto/bn/asm/* && \
-        # -bn_obj
-        emconfigure ./Configure debug -no-asm -DBN_ASM= -DSIG_DFL=0 -DSIG_IGN=0 -DOPENSSL_NO_INLINE_ASM=1 -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
-        sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-        EMCC_FLAGS=" -sSIDE_MODULE -DOPENSSL_NO_ASM=1 -DOPENSSL_NO_INLINE_ASM=1 " emmake make -j 12 build_generated libssl.a libcrypto.a && \
-        EMCC_FLAGS=" -sSIDE_MODULE -DOPENSSL_NO_ASM=1 -DOPENSSL_NO_INLINE_ASM=1 " emmake make install && \
-        cp -R include/openssl /root/lib/include && \
-        cp libcrypto.a libssl.a /root/lib/lib
+RUN set -euxo pipefail && \
+    source /root/emsdk/emsdk_env.sh && \
+    wget https://www.openssl.org/source/openssl-1.1.0h.tar.gz && \
+    tar xf openssl-1.1.0h.tar.gz && \
+    cd openssl-1.1.0h && \
+    rm crypto/bn/asm/* && \
+    emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
+    sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
+    EMCC_FLAGS=" -sSIDE_MODULE " emmake make -j 12 build_generated libssl.a libcrypto.a && \
+    EMCC_FLAGS=" -sSIDE_MODULE " emmake make install && \
+    cp -R include/openssl /root/lib/include && \
+    cp libcrypto.a libssl.a /root/lib/lib
 
 # Compile libcurl
 FROM emscripten AS emscripten-libcurl
@@ -299,16 +298,16 @@ FROM emscripten AS emscripten-php
 ARG PHP_VERSION
 
 # The PHP extensions to build:
-ARG WITH_VRZNO=no
-ARG WITH_LIBXML=no
-ARG WITH_LIBZIP=yes
-ARG WITH_LIBPNG=no
-ARG WITH_MBSTRING=no
-ARG WITH_CLI_SAPI=no
-ARG WITH_SQLITE=yes
-ARG WITH_MYSQL=no
-ARG WITH_OPENSSL=no
-ARG WITH_CURL=yes
+ARG WITH_VRZNO
+ARG WITH_LIBXML
+ARG WITH_LIBZIP
+ARG WITH_LIBPNG
+ARG WITH_MBSTRING
+ARG WITH_CLI_SAPI
+ARG WITH_SQLITE
+ARG WITH_MYSQL
+ARG WITH_OPENSSL
+ARG WITH_CURL
 
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
@@ -433,10 +432,9 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 COPY --from=emscripten-libcurl /root/lib /root/lib-curl
 RUN if [ "$WITH_CURL" = "yes" ]; \
     then \
-        # =/root/lib
         bash /root/copy-lib.sh lib-curl; \
-        # echo -n ' --with-curl ' >> /root/.php-configure-flags && \
-        # echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' --with-curl ' >> /root/.php-configure-flags && \
+        echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
     fi;
 
 # PHP <= 7.3 requires Bison 2.7
@@ -452,10 +450,8 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 
 # Add mbstring if needed
 RUN if [ "$WITH_MBSTRING" = "yes" ]; \
-    then \
-        echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
-    else \
-        echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
+    then echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
+    else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
     fi;
 
 # Get and patch PHP
