@@ -320,48 +320,46 @@ async function generateZip() {
 	);
 	await workerThread.writeFile('/databaseExport.xml', databaseExport);
 	await workerThread.run({
-		code: `
-			<?php
-				$zip = new ZipArchive;
-				$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
-				if ($res === TRUE) {
-					$zip->addFile('/databaseExport.xml');
-					$directories = array();
-					$directories[] = '/wordpress/';
+		code: `<?php
+					$zip = new ZipArchive;
+					$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
+					if ($res === TRUE) {
+						$zip->addFile('/databaseExport.xml');
+						$directories = array();
+						$directories[] = '/wordpress/';
 
-					while(sizeof($directories)) {
-						$dir = array_pop($directories);
+						while(sizeof($directories)) {
+							$dir = array_pop($directories);
 
-						if ($handle = opendir($dir)) {
+							if ($handle = opendir($dir)) {
 
-							while (false !== ($entry = readdir($handle))) {
-								
-								if ($entry == '.' ||
-									$entry == '..') {
-									continue;
+								while (false !== ($entry = readdir($handle))) {
+									
+									if ($entry == '.' ||
+										$entry == '..') {
+										continue;
+									}
+
+									$entry = $dir . $entry;
+
+									if (is_dir($entry) &&
+										strpos($entry, 'wp-content/database') == false &&
+										strpos($entry, 'wp-includes') == false) {
+
+											$directory_path = $entry . '/';
+											array_push($directories, $directory_path);
+
+									} elseif (is_file($entry)) {
+
+										$zip->addFile($entry);
+									}
 								}
-
-								$entry = $dir . $entry;
-
-								if (is_dir($entry) &&
-									strpos($entry, 'wp-content/database') == false &&
-									strpos($entry, 'wp-includes') == false) {
-
-										$directory_path = $entry . '/';
-										array_push($directories, $directory_path);
-
-								} elseif (is_file($entry)) {
-
-									$zip->addFile($entry);
-								}
+								closedir($handle);
 							}
-							closedir($handle);
 						}
+						$zip->close();
 					}
-					$zip->close();
-				}
-			?>
-		`,
+				`,
 	});
 	const fileBuffer = await workerThread.readFileAsBuffer(
 		'/wordpress-playground-export.zip'
@@ -386,16 +384,14 @@ async function importFile() {
 
 	// Import the database
 	const databaseFromZipFileResponse = await workerThread.run({
-		code: `
-				<?php
+		code: `<?php
 					$zip = new ZipArchive;
 					$res = $zip->open('/import.zip');
 					if ($res === TRUE) {
 						$file = $zip->getFromName('/databaseExport.xml');
 						echo $file;
 					}
-				?>
-			`,
+				`,
 	});
 
 	const databaseFromZipFileContent = new TextDecoder().decode(
@@ -474,23 +470,21 @@ async function importFile() {
 
 	// Import the filesystem
 	await workerThread.run({
-		code: `
-			<?php
-				$zip = new ZipArchive;
-				$res = $zip->open('/import.zip');
-				if ($res === TRUE) {
-					$counter = 0;
-					while ($zip->statIndex($counter)) {
-						$file = $zip->statIndex($counter);
-						$fileString .= $file['name'] . ',';
-						$overwrite = fopen($file['name'], 'w');
-						fwrite($overwrite, $zip->getFromIndex($counter));
-						$counter++;
+		code: `<?php
+					$zip = new ZipArchive;
+					$res = $zip->open('/import.zip');
+					if ($res === TRUE) {
+						$counter = 0;
+						while ($zip->statIndex($counter)) {
+							$file = $zip->statIndex($counter);
+							$fileString .= $file['name'] . ',';
+							$overwrite = fopen($file['name'], 'w');
+							fwrite($overwrite, $zip->getFromIndex($counter));
+							$counter++;
+						}
+						$zip->close();
 					}
-					$zip->close();
-				}
-			?>
-		`,
+				`,
 	});
 }
 
