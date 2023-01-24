@@ -587,29 +587,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 -g2 \
-    # -flto \
-    -lwebsocket.js \
-    --js-library /root/js-shims.js \
-    -I .  \
-    -I ext   \
-    -I ext/json   \
-    -I Zend  \
-    -I main  \
-    -I TSRM/ \
-    -I /root/lib/include \
-    -L/root/lib -L/root/lib/lib/ \
-    $(cat /root/.emcc-php-wasm-flags) \
-    -o /root/output/php.js \
-    -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
-    -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
-    -s INITIAL_MEMORY=1024MB \
-    -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=3                  \
-    -s ASYNCIFY=1                    \
-    -s ASYNCIFY_ONLY=$'["cli",\n\
-"do_cli",\n\
-"dynCall_dd", \n\
+    export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd", \n\
 "dynCall_i", \n\
 "dynCall_ii", \n\
 "dynCall_iidiiii", \n\
@@ -640,22 +618,72 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "dynCall_viiiii", \n\
 "dynCall_viiiiiii", \n\
 "dynCall_viiiiiiii", \n\
+'; \
+    export ASYNCIFY_ONLY=$'"cli",\n\
+"php_pollfd_for", \n\
+"php_sock_stream_wait_for_data", \n\
+"php_sockop_read", \n\
+"php_openssl_sockop_io", \n\
+"mysqlnd_connection_connect", \n\
+"zim_PDO___construct", \n\
+"zim_PDO_commitTransaction", \n\
+"zim_ReflectionMethod_invoke", \n\
+"php_getimagesize_from_any", \n\
+"zim_ReflectionMethod_invokeArgs", \n\
+"pdo_mysql_stmt_execute_prepared", \n\
+"preg_replace_func_impl", \n\
+"php_replace_in_subject_func", \n\
+"mysqli_common_connect", \n\
+"mysqli_commit_or_rollback_libmysql", \n\
+"_mysqlnd_run_command", \n\
+"mysqlnd_read_buffer_is_empty", \n\
+"mysqlnd_read_buffer", \n\
+"mysqlnd_read_header", \n\
+"mysqlnd_read_header_name", \n\
+"mysqlnd_read_body_name", \n\
+"mysqlnd_read_packet_header_and_body", \n\
+"mysqlnd_run_authentication", \n\
+"php_fsockopen_stream", \n\
+"php_network_accept_incoming", \n\
+"php_network_connect_socket", \n\
+"php_network_connect_socket_to_host", \n\
+"php_tcp_sockop_set_option", \n\
+"php_openssl_enable_crypto", \n\
+"php_sockop_read_close", \n\
+"_php_stream_copy_to_mem", \n\
+"_php_stream_eof", \n\
+"_php_stream_fill_read_buffer", \n\
+"_php_stream_open_wrapper_ex", \n\
+"php_stream_read_to_str", \n\
+"_php_stream_set_option", \n\
+"php_stream_url_wrap_http_ex", \n\
+"_php_stream_xport_create", \n\
+"php_stream_xport_crypto_enable", \n\
+"reflection_method_invoke", \n\
+"zim_reflection_method_invoke", \n\
+"zim_reflection_method_invokeArgs", \n\
+"run_cli", \n\
+"ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER", \n\
+"ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER", \n\
+"ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER", \n\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_HANDLER", \n\
+"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER", \n\
+"zend_call_known_function", \n\
+"zend_call_function", \n\
+"zend_std_call_getter", \n\
+"zif_fopen", \n\
+"do_cli",\n\
 "execute_ex", \n\
 "main", \n\
 "zif_call_user_func", \n\
 "zif_getimagesize", \n\
 "zif_feof", \n\
-"zim_PDO___construct", \n\
 "zim_PDO_query", \n\
 "zim_PDO_exec", \n\
 "zim_PDOStatement_execute", \n\
 "zim_PDO_beginTransaction", \n\
 "zim_PDO_rollBack", \n\
 "zim_PDO_commit", \n\
-"zim_PDO_commitTransaction", \n\
-"zim_ReflectionMethod_invoke", \n\
-"php_getimagesize_from_any", \n\
-"zim_ReflectionMethod_invokeArgs", \n\
 "zif_mysqli_set_charset", \n\
 "zif_mysqli_get_charset", \n\
 "zif_mysqli_real_connect", \n\
@@ -673,13 +701,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "pdo_mysql_stmt_col_meta", \n\
 "pdo_mysql_stmt_fetch", \n\
 "pdo_mysql_stmt_execute", \n\
-"pdo_mysql_stmt_execute_prepared", \n\
 "php_mysqlnd_greet_read", \n\
 "php_mysqlnd_auth_response_read", \n\
 "php_mysqlnd_rset_header_read", \n\
 "php_mysqlnd_ok_read", \n\
-"preg_replace_func_impl", \n\
-"php_replace_in_subject_func", \n\
 "mysql_handle_doer", \n\
 "mysql_handle_closer", \n\
 "mysql_handle_preparer", \n\
@@ -687,17 +712,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "mysql_handle_begin", \n\
 "mysql_handle_commit", \n\
 "mysql_handle_rollback", \n\
-"mysqli_common_connect", \n\
-"mysqli_commit_or_rollback_libmysql", \n\
 "mysqlnd_query_read_result_set_header", \n\
-"mysqlnd_read_buffer_is_empty", \n\
-"mysqlnd_read_buffer", \n\
-"mysqlnd_connection_connect", \n\
-"mysqlnd_read_header", \n\
-"mysqlnd_read_header_name", \n\
-"mysqlnd_read_body_name", \n\
-"mysqlnd_read_packet_header_and_body", \n\
-"mysqlnd_run_authentication", \n\
 "mysqlnd_mysqlnd_command_handshake_pub", \n\
 "mysqlnd_mysqlnd_command_init_db_pub", \n\
 "mysqlnd_mysqlnd_command_reap_result_pub", \n\
@@ -722,73 +737,68 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "phar_file_get_contents", \n\
 "phar_fopen",\n\
 "php_execute_script", \n\
-"php_fsockopen_stream", \n\
 "php_mysqlnd_rowp_read", \n\
-"php_network_accept_incoming", \n\
-"php_network_connect_socket", \n\
-"php_network_connect_socket_to_host", \n\
-"php_openssl_enable_crypto", \n\
 "php_openssl_sockop_close", \n\
-"php_openssl_sockop_io", \n\
 "php_openssl_sockop_read", \n\
 "php_openssl_sockop_set_option", \n\
 "php_openssl_sockop_set_option", \n\
-"php_pollfd_for", \n\
-"php_sock_stream_wait_for_data", \n\
-"php_sockop_read", \n\
-"php_sockop_read_close", \n\
 "php_sockop_set_option", \n\
 "php_sockop_write", \n\
-"_php_stream_copy_to_mem", \n\
-"_php_stream_eof", \n\
-"_php_stream_fill_read_buffer", \n\
 "_php_stream_get_line", \n\
-"_php_stream_open_wrapper_ex", \n\
 "_php_stream_read", \n\
-"php_stream_read_to_str", \n\
-"_php_stream_set_option", \n\
 "php_stream_url_wrap_http", \n\
-"php_stream_url_wrap_http_ex", \n\
-"_php_stream_xport_create", \n\
-"php_stream_xport_crypto_enable", \n\
 "php_tcp_sockop_set_option", \n\
-"reflection_method_invoke", \n\
 "readline_shell_run", \n\
-"run_cli", \n\
 "ZEND_FETCH_OBJ_R_SPEC_CV_CONST_HANDLER", \n\
 "ZEND_FETCH_OBJ_R_SPEC_TMPVAR_CONST_HANDLER", \n\
 "ZEND_FETCH_OBJ_FUNC_ARG_SPEC_CV_CONST_HANDLER", \n\
-"ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER", \n\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER", \n\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER", \n\
-"ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER", \n\
 "ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER", \n\
 "ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER", \n\
 "ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER", \n\
 "ZEND_DO_ICALL_SPEC_RETVAL_USED_HANDLER", \n\
-"ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER", \n\
-"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_HANDLER", \n\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_CONST_HANDLER", \n\
-"ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_CV_TMPVAR_HANDLER", \n\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER", \n\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER", \n\
 "zend_eval_stringl", \n\
 "zend_eval_string_ex", \n\
 "zend_execute", \n\
 "zend_execute_scripts", \n\
-"zend_call_known_function", \n\
-"zend_call_function", \n\
-"zend_std_call_getter", \n\
 "zend_std_has_property", \n\
 "zend_std_read_property", \n\
 "zif_array_reduce", \n\
 "zif_array_map", \n\
 "zif_fclose", \n\
 "zif_file_get_contents", \n\
-"zif_fopen", \n\
 "zif_fread", \n\
 "zif_preg_replace_callback", \n\
-"zif_fsockopen"]' \
+"zif_fsockopen"'; \
+    # If pointer casts are enabled, we need to prefix the asyncify function names
+    if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
+        export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed 's/^"/"byn$fpcast-emu$/g'); \
+    fi; \
+    emcc -O3 -g2 \
+    # -flto \
+    -lwebsocket.js \
+    --js-library /root/js-shims.js \
+    -I .  \
+    -I ext   \
+    -I ext/json   \
+    -I Zend  \
+    -I main  \
+    -I TSRM/ \
+    -I /root/lib/include \
+    -L/root/lib -L/root/lib/lib/ \
+    $(cat /root/.emcc-php-wasm-flags) \
+    -o /root/output/php.js \
+    -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+    -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
+    -s INITIAL_MEMORY=1024MB \
+    -s ALLOW_MEMORY_GROWTH=1         \
+    -s ASSERTIONS=3                  \
+    -s ASYNCIFY=1                    \
+    -s ASYNCIFY_ONLY="[$ASYNCIFY_ONLY_UNPREFIXED $ASYNCIFY_ONLY]" \
     -s ASYNCIFY_IMPORTS=$'["_dlopen_js", \n\
 "invoke_i", \n\
 "invoke_ii", \n\
