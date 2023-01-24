@@ -39,9 +39,63 @@ const newClient = async function (client, req) {
 			client.protocol
 	);
 
+	let target;
+	const recv_queue = [];
+	function processQueue() {
+		// target.write(msg);
+		// return;
+		while (recv_queue.length > 0) {
+			const msg = recv_queue.pop();
+			const commandType = msg[0];
+			console.log('processing', { commandType }, msg);
+			// log([...msg.slice(0, 100)].join(', ') + '...');
+			if (commandType === 0x01) {
+				target.write(msg.slice(1));
+			} else if (commandType === 0x02) {
+				const SOL_SOCKET = 1;
+				const SO_KEEPALIVE = 9;
+
+				const IPPROTO_TCP = 6;
+				const TCP_NODELAY = 1;
+				if (msg[1] === SOL_SOCKET && msg[2] === SO_KEEPALIVE) {
+					target.setKeepAlive(msg[3]);
+				} else if (msg[1] === IPPROTO_TCP && msg[2] === TCP_NODELAY) {
+					target.setNoDelay(msg[3]);
+				}
+			} else {
+				log('Unknown command type: ' + commandType);
+				process.exit
+			}
+		}
+	}
+
+	client.on('message', function (msg) {
+		log('PHP -> network buffer:', msg);
+		recv_queue.unshift(msg);
+		if (target) {
+			processQueue();
+		}
+	});
+	client.on('close', function (code, reason) {
+		if (onDisconnectedCallback) {
+			try {
+				onDisconnectedCallback(client, code, reason);
+			} catch (e) {
+				log('onDisconnectedCallback failed');
+			}
+		}
+
+		log('WebSocket client disconnected: ' + code + ' [' + reason + ']');
+		target.end();
+	});
+	client.on('error', function (a) {
+		log('WebSocket client error: ' + a);
+		target.end();
+	});
+
 	const reqUrl = new URL(`ws://${source_host}:${source_port}` + req.url);
 
-	const reqTargetPort = reqUrl.searchParams.get('port') || target_port;
+	const reqTargetPort = 55001;  //reqUrl.searchParams.get('port') || target_port;
 	const reqTargetHost = reqUrl.searchParams.get('host') || target_host;
 	let reqTargetIp;
 	if (net.isIP(reqTargetHost) === 0) {
@@ -55,11 +109,12 @@ const newClient = async function (client, req) {
 
 	log('Opening a socket connection to ' + reqTargetIp + ':' + reqTargetPort);
 
-	const target = net.createConnection(
+	target = net.createConnection(
 		reqTargetPort,
 		reqTargetIp,
 		function () {
 			log('connected to target');
+			processQueue();
 			if (onConnectedCallback) {
 				try {
 					onConnectedCallback(client, target);
@@ -87,50 +142,12 @@ const newClient = async function (client, req) {
 		log('target disconnected');
 		client.close();
 	});
-	target.on('error', function () {
-		log('target connection error');
+	target.on('error', function (e) {
+		log('target connection error', e);
 		target.end();
-		client.close();
+		client.close(3000);
 	});
 
-	client.on('message', function (msg) {
-		log('PHP -> network buffer:');
-		// target.write(msg);
-		// return;
-		const commandType = msg[0];
-		console.log({ commandType });
-		log([...msg.slice(0, 100)].join(', ') + '...');
-		if (commandType === 0x01) {
-			target.write(msg.slice(1));
-		} else if (commandType === 0x02) {
-			const SOL_SOCKET = 1;
-			const SO_KEEPALIVE = 9;
-
-			const IPPROTO_TCP = 6;
-			const TCP_NODELAY = 1;
-			if (msg[1] === SOL_SOCKET && msg[2] === SO_KEEPALIVE) {
-				target.setKeepAlive(msg[3]);
-			} else if (msg[1] === IPPROTO_TCP && msg[2] === TCP_NODELAY) {
-				target.setNoDelay(msg[3]);
-			}
-		}
-	});
-	client.on('close', function (code, reason) {
-		if (onDisconnectedCallback) {
-			try {
-				onDisconnectedCallback(client, code, reason);
-			} catch (e) {
-				log('onDisconnectedCallback failed');
-			}
-		}
-
-		log('WebSocket client disconnected: ' + code + ' [' + reason + ']');
-		target.end();
-	});
-	client.on('error', function (a) {
-		log('WebSocket client error: ' + a);
-		target.end();
-	});
 };
 
 // Send an HTTP error response

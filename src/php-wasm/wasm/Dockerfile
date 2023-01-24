@@ -307,6 +307,7 @@ ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
 ARG WITH_CURL
+ARG ASYNCIFY_FNS
 
 # Whether to include the NODEFS JavaScript library.
 # It's useful for loading files and mounting directories
@@ -473,7 +474,7 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
 
 # Install Mysql support if needed
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
-        echo -n ' --enable-mysql --enable-pdo --with-pdo-mysql --with-mysqli ' >> /root/.php-configure-flags; \
+        echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
     fi
 
 # Build the patched PHP
@@ -641,6 +642,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "dynCall_viiiiiiii", \n\
 "execute_ex", \n\
 "main", \n\
+"zif_call_user_func", \n\
+"zif_feof", \n\
 "zim_PDO___construct", \n\
 "zim_PDO_query", \n\
 "zim_PDO_exec", \n\
@@ -649,6 +652,16 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "zim_PDO_rollBack", \n\
 "zim_PDO_commit", \n\
 "zim_PDO_commitTransaction", \n\
+"zif_mysqli_set_charset", \n\
+"zif_mysqli_get_charset", \n\
+"zif_mysqli_real_connect", \n\
+"zif_mysqli_query", \n\
+"zif_mysqli_multi_query", \n\
+"zif_mysqli_fetch_object", \n\
+"zif_mysqli_select_db", \n\
+"zif_mysqli_reap_async_query", \n\
+"zif_mysqli_begin_transaction", \n\
+"zif_stream_socket_client", \n\
 "pdo_mysql_handle_factory", \n\
 "pdo_mysql_stmt_describe", \n\
 "pdo_mysql_stmt_get_col", \n\
@@ -659,6 +672,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "php_mysqlnd_greet_read", \n\
 "php_mysqlnd_auth_response_read", \n\
 "php_mysqlnd_rset_header_read", \n\
+"php_mysqlnd_ok_read", \n\
 "mysql_handle_doer", \n\
 "mysql_handle_closer", \n\
 "mysql_handle_preparer", \n\
@@ -666,6 +680,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "mysql_handle_begin", \n\
 "mysql_handle_commit", \n\
 "mysql_handle_rollback", \n\
+"mysqli_common_connect", \n\
+"mysqli_commit_or_rollback_libmysql", \n\
 "mysqlnd_query_read_result_set_header", \n\
 "mysqlnd_read_buffer_is_empty", \n\
 "mysqlnd_read_buffer", \n\
@@ -676,14 +692,22 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "mysqlnd_read_packet_header_and_body", \n\
 "mysqlnd_run_authentication", \n\
 "mysqlnd_mysqlnd_command_handshake_pub", \n\
+"mysqlnd_mysqlnd_command_init_db_pub", \n\
 "mysqlnd_mysqlnd_command_reap_result_pub", \n\
+"mysqlnd_mysqlnd_conn_connect_pub", \n\
+"mysqlnd_mysqlnd_conn_data_store_result_pub", \n\
 "mysqlnd_mysqlnd_conn_data_tx_commit_or_rollback_pub", \n\
 "mysqlnd_mysqlnd_conn_data_query_pub", \n\
 "mysqlnd_mysqlnd_conn_data_reap_query_pub", \n\
-"mysqlnd_mysqlnd_conn_connect_pub", \n\
+"mysqlnd_mysqlnd_conn_data_set_charset_pub", \n\
 "mysqlnd_mysqlnd_conn_data_connect_pub", \n\
 "mysqlnd_mysqlnd_conn_data_connect_handshake_pub", \n\
+"mysqlnd_mysqlnd_conn_data_select_db_pub", \n\
 "mysqlnd_mysqlnd_pfc_receive_pub", \n\
+"mysqlnd_mysqlnd_protocol_send_command_handle_OK_pub", \n\
+"mysqlnd_mysqlnd_protocol_send_command_handle_response_pub", \n\
+"mysqlnd_mysqlnd_res_store_result_fetch_data_pub", \n\
+"mysqlnd_mysqlnd_res_store_result_pub", \n\
 "mysqlnd_mysqlnd_vio_network_read_pub", \n\
 "mysqlnd_mysqlnd_vio_connect_pub", \n\
 "mysqlnd_mysqlnd_vio_open_tcp_or_unix_pub", \n\
@@ -691,9 +715,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "phar_fopen",\n\
 "php_execute_script", \n\
 "php_fsockopen_stream", \n\
+"php_mysqlnd_rowp_read", \n\
 "php_network_accept_incoming", \n\
 "php_network_connect_socket", \n\
-"php_network_connect_socket", \n\
+"php_network_connect_socket_to_host", \n\
 "php_openssl_enable_crypto", \n\
 "php_openssl_sockop_close", \n\
 "php_openssl_sockop_io", \n\
@@ -734,6 +759,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "zend_eval_string_ex", \n\
 "zend_execute", \n\
 "zend_execute_scripts", \n\
+"zend_call_function", \n\
 "zif_fclose", \n\
 "zif_file_get_contents", \n\
 "zif_fopen", \n\
@@ -758,7 +784,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "invoke_viiiii", \n\
 "invoke_viiiiii", \n\
 "invoke_viiiiiii", \n\
-"invoke_viiiiiiiii"]' \
+"invoke_viiiiiiiii", \n\
+"wasm_poll_socket"]' \
     -s ASYNCIFY_IGNORE_INDIRECT=1                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
@@ -767,7 +794,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
         $(cat /root/.emcc-php-wasm-sources) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
     -s FORCE_FILESYSTEM=1 \
-    -s EXPORT_NAME="'PHPLoader'" 
+    -s EXPORT_NAME="'PHPLoader'"
+    # Emscripten complains it can't find some Asyncify functions
+    # listed in ASYNCIFY_IMPORTS. The culprit is those functions
+    # are needed for php_pollfd_for() to work. Just ignore those
+    # errors.
 
 RUN ls /root/output/
 # # At the moment terminfo is baked into the repository in

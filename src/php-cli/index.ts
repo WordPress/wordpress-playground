@@ -16,7 +16,6 @@ import { startPHP } from '../php-wasm/php-node';
 // 	});
 // });
 
-console.time('Starting');
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
@@ -27,10 +26,7 @@ async function main() {
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
 	// as this script.
-	console.time('Importing node...');
 	const phpLoaderModule = await import(`./php-${phpVersion}.node.js`);
-	console.timeEnd('Importing node...');
-	console.time('Starting PHP...');
 	const php = await startPHP(phpLoaderModule.default, 'NODE', {
 		ENV: {
 			...process.env,
@@ -63,6 +59,11 @@ async function main() {
 				const COMMAND_CHUNK = 1;
 				const COMMAND_SET_SOCKETOPT = 2;
 				class PHPWasmWebSocket extends WebSocketConstructor {
+					CONNECTING = 0;
+					OPEN = 1;
+					CLOSING = 2;
+					CLOSED = 3;
+
 					send(chunk, callback) {
 						return this.sendCommand(COMMAND_CHUNK, chunk, callback);
 					}
@@ -78,9 +79,6 @@ async function main() {
 						);
 					}
 					sendCommand(commandType, chunk, callback) {
-						if (chunk[0] === 0x01 && chunk[1] === 0x01) {
-							process.exit();
-						}
 						return WebSocketConstructor.prototype.send.call(
 							this,
 							prependByte(chunk, commandType),
@@ -92,17 +90,10 @@ async function main() {
 			},
 		},
 	});
-	console.timeEnd('Starting PHP...');
-	console.time('Delaying...');
-	setTimeout(() => {
-		const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
-		if (!hasMinusCOption) {
-			args.unshift('-c', __dirname + '/php.ini');
-		}
-		console.timeEnd('Delaying...');
-		console.time('Calling CLI...');
-		php.cli(['php', ...args]);
-		console.timeEnd('Calling CLI...');
-	}, 500);
+	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
+	if (!hasMinusCOption) {
+		args.unshift('-c', __dirname + '/php.ini');
+	}
+	php.cli(['php', ...args]);
 }
 main();

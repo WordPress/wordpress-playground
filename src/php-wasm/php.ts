@@ -205,7 +205,6 @@ export async function startPHP(
 	});
 
 	const loadPHPRuntime = phpLoaderModule.default;
-	console.time('1');
 	const PHPRuntime = loadPHPRuntime(runtime, {
 		onAbort(reason) {
 			console.error('WASM aborted: ');
@@ -234,13 +233,8 @@ export async function startPHP(
 		resolveDepsReady();
 	}
 
-	console.timeEnd('1');
-	console.time('2');
 	await depsReady;
-	console.timeEnd('2');
-	console.time('3');
 	await phpReady;
-	console.timeEnd('3');
 	return new PHP(PHPRuntime);
 }
 

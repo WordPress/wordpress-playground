@@ -47,8 +47,8 @@ FILE *wasm_popen(const char *cmd, const char *mode)
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
 	} else {
+		printf("wasm_popen: mode '%s' not supported (cmd: %s)! \n", mode, cmd);
 		errno = EINVAL;
-        fclose(fp);
 		return 0;
 	}
 
@@ -63,8 +63,8 @@ uint8_t wasm_pclose(FILE *stream)
 
 // -----------------------------------------------------------
 
-// sleep for 1ms
-// EM_ASYNC_JS(int, sleep_1ms, (), { await new Promise(resolve => setTimeout(resolve, 1)); });
+int wasm_socket_has_data(php_socket_t fd);
+int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
 
 /* hybrid select(2)/poll(2) for a single descriptor.
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
@@ -79,12 +79,10 @@ inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv
 	p.events = events;
 	p.revents = 0;
 
+	// must yield back to JS event loop to get the network response:
+	wasm_poll_socket(fd, events, php_tvtoto(timeouttv));
+
 	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
-	if(n == 0) {
-		// printf("php_pollfd_for: %lld", timeouttv->tv_sec);
-		emscripten_sleep(900); // must yield back to JS event loop to get the network response
-		n = php_poll2(&p, 1, php_tvtoto(timeouttv));
-	}
 
 	if (n > 0) {
 		return p.revents;
