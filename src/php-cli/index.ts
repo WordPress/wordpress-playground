@@ -2,7 +2,11 @@
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
 import { startPHP } from '../php-wasm/php-node';
-import { initWsProxyServer } from './node-network-proxy';
+import {
+	initWsProxyServer,
+	COMMAND_CHUNK,
+	COMMAND_SET_SOCKETOPT,
+} from './node-network-proxy';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -69,8 +73,6 @@ async function main() {
 					}
 					return chunk;
 				}
-				const COMMAND_CHUNK = 1;
-				const COMMAND_SET_SOCKETOPT = 2;
 				class PHPWasmWebSocket extends WebSocketConstructor {
 					CONNECTING = 0;
 					OPEN = 1;
