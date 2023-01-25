@@ -18,6 +18,7 @@ async function build() {
 		all: {
 			PHP_VERSION: '8.0.24',
 			WITH_LIBZIP: 'yes',
+			WITH_SQLITE: 'yes',
 		},
 		web: {},
 		node: {
@@ -28,6 +29,7 @@ async function build() {
 			WITH_OPENSSL: 'yes',
 			WITH_NODEFS: 'yes',
 			WITH_MYSQL: 'yes',
+			WITH_WS_NETWORKING_PROXY: 'yes',
 		},
 	};
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
@@ -56,13 +58,13 @@ async function build() {
 			'--build-arg', getArg('WITH_LIBZIP'),
 			'--build-arg', getArg('WITH_LIBPNG'),
 			'--build-arg', getArg('WITH_MBSTRING'),
-			'--build-arg', getArg('WITH_SQLITE'),
 			'--build-arg', getArg('WITH_CLI_SAPI'),
 			'--build-arg', getArg('WITH_OPENSSL'),
 			'--build-arg', getArg('WITH_NODEFS'),
 			'--build-arg', getArg('WITH_CURL'),
 			'--build-arg', getArg('WITH_SQLITE'),
 			'--build-arg', getArg('WITH_MYSQL'),
+			'--build-arg', getArg('WITH_WS_NETWORKING_PROXY'),
 			'--build-arg', `EMSCRIPTEN_ENVIRONMENT=${platform}`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }

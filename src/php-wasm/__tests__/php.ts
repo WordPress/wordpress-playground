@@ -1,9 +1,8 @@
 import * as phpLoaderModule from '../../../build/php-7.4.node.js';
-import { PHP, startPHP } from '../php';
+import { PHP, startPHP } from '../php-node';
+import { existsSync, rmSync } from 'fs';
 
 const { TextEncoder, TextDecoder } = require('util');
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
 
 describe('PHP – boot', () => {
 	it('should boot', async () => {
@@ -12,69 +11,77 @@ describe('PHP – boot', () => {
 	});
 });
 
+const testDirPath = __dirname + '__test987654321';
+const testFilePath = __dirname + '__test987654321.txt';
 describe('PHP – filesystem', () => {
 	let php;
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
+		if (existsSync(testDirPath)) {
+			rmSync(testDirPath, { recursive: true });
+		}
+		if (existsSync(testFilePath)) {
+			rmSync(testFilePath);
+		}
 	});
 
 	// Unit tests for the filesystem methods of the
 	// PHP runtime.
 	it('writeFile() should create a file when it does not exist', () => {
-		php.writeFile('test.txt', 'Hello World!');
-		expect(php.fileExists('test.txt')).toEqual(true);
+		php.writeFile(testFilePath, 'Hello World!');
+		expect(php.fileExists(testFilePath)).toEqual(true);
 	});
 
 	it('writeFile() should overwrite a file when it exists', () => {
-		php.writeFile('test.txt', 'Hello World!');
-		php.writeFile('test.txt', 'New contents');
-		expect(php.readFileAsText('test.txt')).toEqual('New contents');
+		php.writeFile(testFilePath, 'Hello World!');
+		php.writeFile(testFilePath, 'New contents');
+		expect(php.readFileAsText(testFilePath)).toEqual('New contents');
 	});
 
 	it('readFileAsText() should read a file as text', () => {
-		php.writeFile('test.txt', 'Hello World!');
-		expect(php.readFileAsText('test.txt')).toEqual('Hello World!');
+		php.writeFile(testFilePath, 'Hello World!');
+		expect(php.readFileAsText(testFilePath)).toEqual('Hello World!');
 	});
 
 	it('readFileAsBuffer() should read a file as buffer', () => {
-		php.writeFile('test.txt', 'Hello World!');
-		expect(php.readFileAsBuffer('test.txt')).toEqual(
+		php.writeFile(testFilePath, 'Hello World!');
+		expect(php.readFileAsBuffer(testFilePath)).toEqual(
 			new TextEncoder().encode('Hello World!')
 		);
 	});
 
 	it('unlink() should delete a file', () => {
-		php.writeFile('test.txt', 'Hello World!');
-		expect(php.fileExists('test.txt')).toEqual(true);
-		php.unlink('test.txt');
-		expect(php.fileExists('test.txt')).toEqual(false);
+		php.writeFile(testFilePath, 'Hello World!');
+		expect(php.fileExists(testFilePath)).toEqual(true);
+		php.unlink(testFilePath);
+		expect(php.fileExists(testFilePath)).toEqual(false);
 	});
 
 	it('mkdirTree() should create a directory', () => {
-		php.mkdirTree('test');
-		expect(php.fileExists('test')).toEqual(true);
+		php.mkdirTree(testDirPath);
+		expect(php.fileExists(testDirPath)).toEqual(true);
 	});
 
 	it('mkdirTree() should create all nested directories', () => {
-		php.mkdirTree('test/nested/doubly/triply');
-		expect(php.isDir('test/nested/doubly/triply')).toEqual(true);
+		php.mkdirTree(testDirPath + '/nested/doubly/triply');
+		expect(php.isDir(testDirPath + '/nested/doubly/triply')).toEqual(true);
 	});
 
 	it('isDir() should correctly distinguish between a file and a directory', () => {
-		php.mkdirTree('test');
-		expect(php.fileExists('test')).toEqual(true);
-		expect(php.isDir('test')).toEqual(true);
+		php.mkdirTree(testDirPath);
+		expect(php.fileExists(testDirPath)).toEqual(true);
+		expect(php.isDir(testDirPath)).toEqual(true);
 
-		php.writeFile('test.txt', 'Hello World!');
-		expect(php.fileExists('test.txt')).toEqual(true);
-		expect(php.isDir('test.txt')).toEqual(false);
+		php.writeFile(testFilePath, 'Hello World!');
+		expect(php.fileExists(testFilePath)).toEqual(true);
+		expect(php.isDir(testFilePath)).toEqual(false);
 	});
 
 	it('listFiles() should return a list of files in a directory', () => {
-		php.mkdirTree('test');
-		php.writeFile('test/test.txt', 'Hello World!');
-		php.writeFile('test/test2.txt', 'Hello World!');
-		expect(php.listFiles('test')).toEqual(['test.txt', 'test2.txt']);
+		php.mkdirTree(testDirPath);
+		php.writeFile(testDirPath + '/test.txt', 'Hello World!');
+		php.writeFile(testDirPath + '/test2.txt', 'Hello World!');
+		expect(php.listFiles(testDirPath)).toEqual(['test.txt', 'test2.txt']);
 	});
 });
 
@@ -153,20 +160,26 @@ describe('PHP – startup sequence', () => {
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 	});
+	const testScriptPath = __dirname + '/test.php';
+	afterEach(() => {
+		if (existsSync(testScriptPath)) {
+			rmSync(testScriptPath);
+		}
+	});
 
 	it('Should run a script when no code snippet is provided', () => {
-		php.writeFile('/test.php', '<?php echo "Hello world!"; ?>');
+		php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 		const response = php.run({
-			scriptPath: '/test.php',
+			scriptPath: testScriptPath,
 		});
 		const bodyText = new TextDecoder().decode(response.body);
 		expect(bodyText).toEqual('Hello world!');
 	});
 
 	it('Should run a code snippet when provided, even if scriptPath is set', () => {
-		php.writeFile('/test.php', '<?php echo "Hello world!"; ?>');
+		php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 		const response = php.run({
-			scriptPath: '/test.php',
+			scriptPath: testScriptPath,
 			code: '<?php echo "Hello from a code snippet!";',
 		});
 		const bodyText = new TextDecoder().decode(response.body);
@@ -344,9 +357,9 @@ bar1
 	});
 
 	it('Should provide the correct $_SERVER information', () => {
-		php.writeFile('/test.php', '<?php echo json_encode($_SERVER); ?>');
+		php.writeFile(testScriptPath, '<?php echo json_encode($_SERVER); ?>');
 		const response = php.run({
-			scriptPath: '/test.php',
+			scriptPath: testScriptPath,
 			relativeUri: '/test.php?a=b',
 			method: 'POST',
 			body: `--boundary
