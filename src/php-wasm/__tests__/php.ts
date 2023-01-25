@@ -6,40 +6,6 @@ global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
 describe('PHP – boot', () => {
-	it.only('should boot', async () => {
-		const php = await startPHP(phpLoaderModule, 'NODE', {
-			print(e) {
-				console.log(e);
-			},
-			printErr(e) {
-				console.error(e);
-			},
-		});
-
-		php.mkdirTree('/wordpress');
-		php.mount({ root: '../../wordpress-develop' }, '/wordpress/');
-		php.writeFile(
-			'/wordpress/tests.php',
-			`<?php
-			putenv('WP_TESTS_SKIP_INSTALL=1');
-
-			// Provide CLI args for PHPUnit:
-			$_SERVER['argv'] = ['./vendor/bin/phpunit', '-c', './phpunit.xml.dist', '--filter', 'Tests_Formatting_Utf8UriEncode'];
-			chdir('/wordpress');
-
-			// Let's go!
-			require("/wordpress/vendor/bin/phpunit");
-			`
-		);
-		const output = php.main(['php', '/wordpress/tests.php']);
-		// const output = php.run({
-		// 	scriptPath: '/wordpress/vendor/bin/phpunit', // '/wordpress/tests.php',
-		// });
-		console.log(output);
-		console.log(new TextDecoder().decode(output.body));
-
-		expect(php).toBeTruthy();
-	});
 	it('should boot', async () => {
 		const php = await startPHP(phpLoaderModule, 'NODE');
 		expect(php).toBeTruthy();
