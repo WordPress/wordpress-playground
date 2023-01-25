@@ -9,9 +9,17 @@ if (!args.length) {
 	args = ['--help'];
 }
 
+import { writeFileSync, existsSync } from 'fs';
+import { rootCertificates } from 'tls';
+
+// Write the ca-bundle.crt file to disk so that PHP can find it.
+const caBundlePath = __dirname + '/ca-bundle.crt';
+if (!existsSync(caBundlePath)) {
+	writeFileSync(caBundlePath, rootCertificates.join('\n'));
+}
+
 const WS_PROXY_HOST = '127.0.0.1';
 const WS_PROXY_PORT = 41598;
-
 async function main() {
 	const phpVersion = process.env.PHP || '8.2';
 
@@ -99,6 +107,7 @@ async function main() {
 	if (!hasMinusCOption) {
 		args.unshift('-c', __dirname + '/php.ini');
 	}
+	args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 	php.cli(['php', ...args]);
 }
 main();
