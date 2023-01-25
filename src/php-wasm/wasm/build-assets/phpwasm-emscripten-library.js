@@ -1,8 +1,26 @@
-// "use strict";
+/**
+ * This file is an Emscripten "library" file. It is included in the
+ * build "php-8.0.js" file and implements JavaScript functions that
+ * called from C code.
+ * 
+ * @see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/Interacting-with-code.html#implement-a-c-api-in-javascript
+ */
+"use strict";
 
 const LibraryExample = {
-	// Internal functions
+	// Emscripten dependencies:
+	$PHPWASM__deps: ['$allocateUTF8OnStack'],
+
+	// Functions not exposed to C but available in the generated
+	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
+		/**
+		 * A utility function to get Emscripten websocket objects
+		 * from their file descriptor.
+		 * 
+		 * @param {int} socketd Socket descriptor
+		 * @returns {{sock: Socket, ws: WebSocket}}}
+		 */
 		getSocketDetails: function(socketd) {
 			const sock = getSocketFromFD(socketd);
 			if (!sock) {
@@ -16,30 +34,71 @@ const LibraryExample = {
 
 			return { sock: sock, ws: peer.socket };
 		},
+
+		/**
+		 * Waits for inbound data on a websocket.
+		 * 
+		 * @param {*} sock 
+		 * @param {WebSocket} ws Websocket object
+		 * @returns {[Promise, function]} A promise and a function to cancel the promise
+		 */
 		awaitData: function(sock, ws) {
 		  if ((sock.recv_queue || {}).length > 0) {
 			return [Promise.resolve(), PHPWASM.noop];
 		  }
 		  return PHPWASM.awaitWsEvent(sock, ws, "message");
 		},
+
+		/**
+		 * Waits for opening a websocket connection.
+		 * 
+		 * @param {*} sock 
+		 * @param {WebSocket} ws Websocket object
+		 * @returns {[Promise, function]} A promise and a function to cancel the promise
+		 */
 		awaitConnection: function(sock, ws) {
 		  if (ws.OPEN === ws.readyState) {
 			return [Promise.resolve(), PHPWASM.noop];
 		  }
 		  return PHPWASM.awaitWsEvent(sock, ws, "open");
 		},
+
+		/**
+		 * Waits for closing a websocket connection.
+		 * 
+		 * @param {*} sock 
+		 * @param {WebSocket} ws Websocket object
+		 * @returns {[Promise, function]} A promise and a function to cancel the promise
+		 */
 		awaitClose: function(sock, ws) {
 		  if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
 			return [Promise.resolve(), PHPWASM.noop];
 		  }
 		  return PHPWASM.awaitWsEvent(sock, ws, "close");
 		},
+
+		/**
+		 * Waits for an error on a websocket connection.
+		 * 
+		 * @param {*} sock 
+		 * @param {WebSocket} ws Websocket object
+		 * @returns {[Promise, function]} A promise and a function to cancel the promise
+		 */
 		awaitError: function(sock, ws) {
 		  if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
 			return [Promise.resolve(), PHPWASM.noop];
 		  }
 		  return PHPWASM.awaitWsEvent(sock, ws, "error");
 		},
+		
+		/**
+		 * Waits for a websocket-related event.
+		 * 
+		 * @param {*} sock 
+		 * @param {WebSocket} ws Websocket object
+		 * @param {string} event The event to wait for.
+		 * @returns {[Promise, function]} A promise and a function to cancel the promise
+		 */
 		awaitWsEvent: function(sock, ws, event) {
 		  let resolve;
 		  const listener = () => {
@@ -60,13 +119,21 @@ const LibraryExample = {
 		},
 		noop: function() {}
 	},
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
-	wasm_socket_has_data: function (socketd) {
-		const sock = getSocketFromFD(socketd);
-		return sock.recv_queue.length > 0;
-	},
+
+	/**
+	 * Shims poll(2) functionallity for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/poll.2.html
+	 * 
+	 * The semantics don't line up exactly with poll(2) but
+	 * the intent does. This function is called in php_pollfd_for()
+	 * to await a websocket-related event.
+	 * 
+	 * @param {int} socketd The socket descriptor
+	 * @param {int} events  The events to wait for
+	 * @param {int} timeout The timeout in milliseconds
+	 * @returns {int} 1 if any event was triggered, 0 if the timeout expired
+	 */
 	wasm_poll_socket: function (socketd, events, timeout) {
-		// Only support POLLIN, POLLPRI, and POLLOUT
 		const POLLIN = 0x0001;     /* There is data to read */
 		const POLLPRI = 0x0002;    /* There is urgent data to read */
 		const POLLOUT = 0x0004;    /* Writing now will not block */
@@ -109,7 +176,7 @@ const LibraryExample = {
 			
 			let awaken = false;
 			Promise.race(promises).then(function () {
-			  // console.log("A promise won ("+lookingFor.join(', ')+")")
+			  // console.log("A promise was first ("+lookingFor.join(', ')+")")
 			  if (!awaken) {
 				awaken = true;
 				wakeUp(1);
@@ -119,7 +186,7 @@ const LibraryExample = {
 			});
 			
 			const timeoutId = setTimeout(function() {
-			  // console.log("A timeout won ("+lookingFor.join(', ')+")")
+			  // console.log("The timeout was first ("+lookingFor.join(', ')+")")
 			  if (!awaken) {
 				awaken = true;
 				wakeUp(0);
@@ -128,6 +195,22 @@ const LibraryExample = {
 			}, timeout);
 		});
 	},
+
+	/**
+	 * Shims setsockopt(2) functionallity for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/setsockopt.2.html
+	 * The only supported options are SO_KEEPALIVE and TCP_NODELAY.
+	 * 
+	 * Technically these options are propagated to the WebSockets proxy
+	 * server which then sets them on the underlying TCP connection.
+	 * 
+	 * @param {int} socketd Socket descriptor
+	 * @param {int} level  Level at which the option is defined
+	 * @param {int} optionName The option name
+	 * @param {int} optionValuePtr Pointer to the option value
+	 * @param {int} optionLen The length of the option value
+	 * @returns {int} 0 on success, -1 on failure
+	 */
 	wasm_setsockopt: function (socketd, level, optionName, optionValuePtr, optionLen) {
 		const optionValue = HEAPU8[optionValuePtr];
 		const SOL_SOCKET = 1;
@@ -139,10 +222,32 @@ const LibraryExample = {
 		  console.warn(`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`);
 		  return -1;
 		}
-		const peer = Object.values(getSocketFromFD(socketd).peers)[0];
-		peer.socket.setSocketOpt(level, optionName, optionValuePtr);
-		return optionValue;
+		const details = PHPWASM.getSocketDetails(socketd);
+		if (!details.ws) {
+		  return -1;
+		}
+		ws.setSocketOpt(level, optionName, optionValuePtr);
+		return 0;
 	},
+
+	/**
+	 * Shims popen(3) functionallity:
+	 * https://man7.org/linux/man-pages/man3/popen.3.html
+	 * 
+	 * On Node.js, this function is implemented using child_process.spawn().
+	 * 
+	 * In the browser, you must provide a Module['popen_to_file'] function
+	 * that accepts a command string and popen mode (like "r" or "w") and
+	 * returns an object with a 'path' property and an 'exitCode' property:
+	 * * The 'path' property is the path of the file where the output of the
+	 *   command is written.
+	 * * The 'exitCode' property is the exit code of the command.
+	 * 
+	 * @param {int} command Command to execute
+	 * @param {int} mode Mode to open the command in
+	 * @param {int} exitCodePtr Pointer to the exit code
+	 * @returns {int} File descriptor of the command output
+	 */
 	js_popen_to_file: function (command, mode, exitCodePtr) {
 		// Parse args
 		if (!command) return 1; // shell is available
