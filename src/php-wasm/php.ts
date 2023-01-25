@@ -261,54 +261,6 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-// 		console.log(this.run({
-// 			code: `<?php
-
-// $cert = <<<CERT
-// -----BEGIN CERTIFICATE-----
-// MIIGuDCCBaCgAwIBAgIQCYv1RMDGSd5gp0IMdOcFLjANBgkqhkiG9w0BAQsFADBP
-// MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMSkwJwYDVQQDEyBE
-// aWdpQ2VydCBUTFMgUlNBIFNIQTI1NiAyMDIwIENBMTAeFw0yMjExMTYwMDAwMDBa
-// Fw0yMzA1MTQyMzU5NTlaMGcxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDQUxJRk9S
-// TklBMRYwFAYDVQQHEw1TQU4gRlJBTkNJU0NPMRQwEgYDVQQKEwtSZWRkaXQgSW5j
-// LjEVMBMGA1UEAwwMKi5yZWRkaXQuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-// MIIBCgKCAQEAz+maVKOkGuIpLUWBcrOoi0zOK7ui1z2eaWzzMtForAMdGnBV+IZa
-// QtyQ5++Gfv1TbOrAOKUntMp6luNeClruZSCzltfkOpk9eHJ9XWEUPrpFFCLbBVu9
-// 1sl0EYvdWsplUlEgilO1zdDXr0UiyU0ptz14arWfA79ESEjl3EMIcCgfAumn5d9u
-// OQEkbOWAogF0Ed53rsoVVQoW+HVFVqdUlQ0boiQBdec9lKKDB8DbAEfdCC45zVjG
-// zA8Hhw4fmx1l4AlDqP2tLE2qNm2GhXjctrmexVjFG2t4nyihXllf92wvsEEGRZ8X
-// 9pxVJTd/tfteIXPbe+u5DIE1ApPYcpfCBwIDAQABo4IDdjCCA3IwHwYDVR0jBBgw
-// FoAUt2ui6qiqhIx56rTaD5iyxZV2ufQwHQYDVR0OBBYEFHHgUNHngFL7IxRlnUOn
-// jTGqVmkmMCMGA1UdEQQcMBqCDCoucmVkZGl0LmNvbYIKcmVkZGl0LmNvbTAOBgNV
-// HQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMIGPBgNV
-// HR8EgYcwgYQwQKA+oDyGOmh0dHA6Ly9jcmwzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2Vy
-// dFRMU1JTQVNIQTI1NjIwMjBDQTEtNC5jcmwwQKA+oDyGOmh0dHA6Ly9jcmw0LmRp
-// Z2ljZXJ0LmNvbS9EaWdpQ2VydFRMU1JTQVNIQTI1NjIwMjBDQTEtNC5jcmwwPgYD
-// VR0gBDcwNTAzBgZngQwBAgIwKTAnBggrBgEFBQcCARYbaHR0cDovL3d3dy5kaWdp
-// Y2VydC5jb20vQ1BTMH8GCCsGAQUFBwEBBHMwcTAkBggrBgEFBQcwAYYYaHR0cDov
-// L29jc3AuZGlnaWNlcnQuY29tMEkGCCsGAQUFBzAChj1odHRwOi8vY2FjZXJ0cy5k
-// aWdpY2VydC5jb20vRGlnaUNlcnRUTFNSU0FTSEEyNTYyMDIwQ0ExLTEuY3J0MAkG
-// A1UdEwQCMAAwggF8BgorBgEEAdZ5AgQCBIIBbASCAWgBZgB2AOg+0No+9QY1MudX
-// KLyJa8kD08vREWvs62nhd31tBr1uAAABhH+qMZ4AAAQDAEcwRQIhAIm2Q1mGH2Q4
-// m7gO3eoq+pdeGiP/z09H4urgX8kaHwiCAiAw1zu1F4gShIorNDxaae3y5mDL0+L8
-// t/dX1ZEo94TR7QB1ALNzdwfhhFD4Y4bWBancEQlKeS2xZwwLh9zwAw55NqWaAAAB
-// hH+qMisAAAQDAEYwRAIgVce6+2Brme1ZMKpy0ukpbT7bGF2FFrQsXP1LL/TMhlMC
-// IEqu/+RHDknjjVWtFa0MoIBZjxoOSHBWs5zpSnsiIXR/AHUAtz77JN+cTbp18jnF
-// ulj0bF38Qs96nzXEnh0JgSXttJkAAAGEf6oxzQAABAMARjBEAiAZLshvZSfiu1P4
-// g3EI26S1j55//GaUS/fixuS9WnG9ogIgO+FMT+ftEaPfrmMJ22awj45/w2kTr7Tq
-// Vquxlsgf4g4wDQYJKoZIhvcNAQELBQADggEBAGihtf2gcwD4OhRlW2Px2tPfdqc6
-// 5T3cZgagbUrz+fvCvU/3fZJgIotBXF10CMjT9J9xZZ3PafuBcgtafMEAHbFqFbL1
-// SRdUB73ifekIqgkKaS3vuosDwXBHDgHUETn3r9ynWTrNKzDG9izG2Bebkxg0Vltw
-// iPjnMLrcDsgFG4ssz7esO/J3ygxqlWZREK94tD2RbNHgYMmVRD3biguWvLVNOQ0d
-// lGEvSqqm3m46NwOqZEW9VsmVV9YSSWqAWeA0mMaQ4XwQZeGgyzEObpfpI0nK2Wqb
-// pf70B2GsQ3zmClbCKvy7tQyMotjtvHVz8iuHSiNpr7HPcx/jJ2E7eudd4/E=
-// -----END CERTIFICATE-----
-// CERT;
-
-// var_dump(openssl_x509_parse($cert));
-// die();
-// `,
-// 		}));
 	}
 
 	/**
@@ -373,7 +325,7 @@ export class PHP {
 		for (const arg of argv) {
 			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
 		}
-		return this.#Runtime.ccall('run_cli', null, [], [], {async: true});
+		return this.#Runtime.ccall('run_cli', null, [], [], { async: true });
 	}
 
 	#getResponseHeaders(): { headers: PHPHeaders; httpStatusCode: number } {
