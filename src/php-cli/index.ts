@@ -2,32 +2,37 @@
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
 import { startPHP } from '../php-wasm/php-node';
-// import { WebSocketServer } from 'ws';
-
-// const wss = new WebSocketServer({
-// 	host: '127.0.0.1',
-// 	port: 8098,
-// });
-// wss.on('connection', function connection(ws) {
-// 	console.log('Connected!');
-// 	ws.send('something');
-// 	ws.on('message', function incoming(message) {
-// 		console.log('received: %s', message);
-// 	});
-// });
+import { initWsProxyServer } from './node-network-proxy';
 
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
 }
 
+const WS_PROXY_HOST = '127.0.0.1';
+const WS_PROXY_PORT = 41598;
+
 async function main() {
 	const phpVersion = process.env.PHP || '8.2';
+
+	await initWsProxyServer(WS_PROXY_PORT, WS_PROXY_HOST);
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
 	// as this script.
 	const phpLoaderModule = await import(`./php-${phpVersion}.node.js`);
 	const php = await startPHP(phpLoaderModule.default, 'NODE', {
+		printErr: (msg) => {
+			// Emscripten will print this message without exiting when the runtime is
+			// shut down, but we really want to exit.
+			if (
+				msg.includes(
+					'due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)'
+				)
+			) {
+				process.exit(process.exitCode || 0);
+			}
+			console.warn(msg);
+		},
 		ENV: {
 			...process.env,
 			TERM: 'xterm',
@@ -36,7 +41,7 @@ async function main() {
 		websocket: {
 			url: (sock, host, port) => {
 				const query = new URLSearchParams({ host, port }).toString();
-				return `ws://127.0.0.1:8098/?${query}`;
+				return `ws://${WS_PROXY_HOST}:${WS_PROXY_PORT}/?${query}`;
 			},
 			subprotocol: 'binary',
 			decorator: (WebSocketConstructor) => {

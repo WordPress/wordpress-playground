@@ -566,7 +566,7 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 
 # Build the final .wasm file
 RUN mkdir /root/output
-COPY ./build-assets/js-shims.js /root/js-shims.js
+COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS=$'["_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
@@ -781,7 +781,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emcc -O3 -g2 \
     # -flto \
     -lwebsocket.js \
-    --js-library /root/js-shims.js \
+    --js-library /root/phpwasm-emscripten-library.js \
     -I .  \
     -I ext   \
     -I ext/json   \
@@ -820,9 +820,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "invoke_viiiiiii", \n\
 "invoke_viiiiiiiii", \n\
 "wasm_poll_socket"]' \
-    -s ASYNCIFY_IGNORE_INDIRECT=1                  \
+    -s ASYNCIFY_IGNORE_INDIRECT=1    \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
+    -s EXIT_RUNTIME=1                \
         /root/lib/libphp.a \
         /root/php_wasm.c \
         $(cat /root/.emcc-php-wasm-sources) \

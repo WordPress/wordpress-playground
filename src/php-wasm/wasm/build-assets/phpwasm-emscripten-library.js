@@ -90,7 +90,7 @@ const LibraryExample = {
 		  }
 		  return PHPWASM.awaitWsEvent(sock, ws, "error");
 		},
-		
+
 		/**
 		 * Waits for a websocket-related event.
 		 * 
@@ -226,7 +226,7 @@ const LibraryExample = {
 		if (!details.ws) {
 		  return -1;
 		}
-		ws.setSocketOpt(level, optionName, optionValuePtr);
+		details.ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
 	},
 
