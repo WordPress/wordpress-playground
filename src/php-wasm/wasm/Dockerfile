@@ -2,7 +2,6 @@
 # ubuntu:lunar supports amd64 and arm64 (Apple Silicon) while
 # emscripten/emsdk:3.1.24 supports amd64 only.
 FROM ubuntu:lunar as emscripten
-# replace aarch64-unknown-linux-gnu with linux-generic64?
 
 SHELL ["/bin/bash", "-c"]
 
@@ -131,7 +130,7 @@ RUN     set -euxo pipefail &&\
         cd ncurses-6.2 && \
         ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
+            --build i386-pc-linux-gnu \
             --prefix=/root/lib/ \
             --enable-database && \
         make && \
@@ -151,7 +150,7 @@ RUN     set -euxo pipefail &&\
         source /root/emsdk/emsdk_env.sh && \
         emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
+            --build i386-pc-linux-gnu \
             --prefix=/root/lib && \
         perl -pi.bak -e 's/^\s+cd man.*$//g' Makefile && \
         perl -pi.bak -e 's/^\s+cd progs.*$//g' Makefile && \
@@ -174,7 +173,7 @@ RUN     wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
         CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
         LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
+            --build i386-pc-linux-gnu \
             --prefix=/root/lib/ && \
         # -D__STDC_ISO_10646__=201103L is needed because
         # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
@@ -221,7 +220,7 @@ RUN     set -euxo pipefail &&\
         cd sqlite-autoconf-3400100 && \
         source /root/emsdk/emsdk_env.sh && \
         emconfigure ./configure \
-            --build aarch64-unknown-linux-gnu \
+            --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/ && \
         EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
@@ -235,31 +234,16 @@ COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN /root/copy-lib.sh lib-libz
 RUN set -euxo pipefail && \
     source /root/emsdk/emsdk_env.sh && \
-    if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-        export OPENSSL_VERSION=1.0.0h; \
-    else \
-        export OPENSSL_VERSION=1.1.0h; \
-    fi && \
+    export OPENSSL_VERSION=1.1.0h && \
     wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz && \
     tar xf openssl-$OPENSSL_VERSION.tar.gz && \
     cd openssl-$OPENSSL_VERSION && \
-    if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-        emconfigure sh ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
-        sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make; \
-        cp -RL include/openssl /root/lib/include && \
-        cp libcrypto.a libssl.a /root/lib/lib && \
-        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install_sw && \
-        emranlib /root/lib/lib/libcrypto.a && \
-        emranlib /root/lib/lib/libssl.a; \
-    else \
-        emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
-        sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
-        cp -RL include/openssl /root/lib/include && \
-        cp libcrypto.a libssl.a /root/lib/lib && \
-        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install; \
-    fi
+    emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
+    sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
+    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
+    cp -RL include/openssl /root/lib/include && \
+    cp libcrypto.a libssl.a /root/lib/lib && \
+    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install;
 
 # Compile libcurl
 # FROM emscripten AS emscripten-libcurl
@@ -273,7 +257,7 @@ RUN set -euxo pipefail && \
 #         LDFLAGS="-L/root/lib/lib " \
 #         emconfigure ./configure \
 #             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-#             --build aarch64-unknown-linux-gnu \
+#             --build i386-pc-linux-gnu \
 #             --target wasm32-unknown-emscripten \
 #             --with-openssl \
 #     --prefix=/root/lib/
@@ -292,7 +276,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
         LDFLAGS="-L/root/lib/lib " \
         emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
+            --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
@@ -484,7 +468,7 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 # Get and patch PHP
 COPY ./build-assets/php*.patch /root/
 RUN cd /root && \
-    git apply --no-index /root/php${PHP_VERSION:0:3}.patch -v && \
+    git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
     touch php-src/patched
 
 # Add VRZNO if needed
@@ -569,9 +553,12 @@ RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
-# Add nodefs when building for node.js
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+        # Add nodefs when building for node.js
         echo -n ' -lnoderawfs.js -s NODERAWFS=1 ' >> /root/.emcc-php-wasm-flags; \
+        # Preserve symbol names in node.js build – the bundle size doesn't matter as much
+        # as on the web, and this makes debugging **much** easier.
+        echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
@@ -685,8 +672,10 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "reflection_method_invoke",\
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs",\
+"zim_PDO_dbh_constructor",\
 "run_cli",\
 "ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
@@ -730,6 +719,26 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_mysqlnd_auth_response_read",\
 "php_mysqlnd_rset_header_read",\
 "php_mysqlnd_ok_read",\
+"php_mysqlnd_eof_read",\
+"php_mysqlnd_net_connect_ex_pub",\
+"php_mysqlnd_net_open_tcp_or_unix_pub",\
+"php_mysqlnd_net_receive_ex_pub",\
+"php_mysqlnd_net_network_read_ex_pub",\
+"php_mysqlnd_conn_connect_pub",\
+"php_mysqlnd_conn_data_store_result_pub",\
+"php_mysqlnd_conn_data_tx_commit_or_rollback_pub",\
+"php_mysqlnd_conn_data_query_pub",\
+"php_mysqlnd_conn_data_reap_query_pub",\
+"php_mysqlnd_conn_data_set_charset_pub",\
+"php_mysqlnd_conn_data_connect_pub",\
+"php_mysqlnd_conn_data_next_result_pub",\
+"php_mysqlnd_conn_data_connect_handshake_pub",\
+"php_mysqlnd_conn_data_select_db_pub",\
+"php_mysqlnd_rset_field_read",\
+"php_mysqlnd_res_meta_read_metadata_pub",\
+"php_mysqlnd_res_read_result_metadata_pub",\
+"php_mysqlnd_res_store_result_fetch_data_pub",\
+"php_mysqlnd_res_store_result_pub",\
 "mysql_handle_doer",\
 "mysql_handle_closer",\
 "mysql_handle_preparer",\
@@ -737,6 +746,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "mysql_handle_begin",\
 "mysql_handle_commit",\
 "mysql_handle_rollback",\
+"mysqlnd_connect",\
 "mysqlnd_query_read_result_set_header",\
 "mysqlnd_mysqlnd_command_handshake_pub",\
 "mysqlnd_mysqlnd_command_init_db_pub",\
@@ -830,7 +840,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 -g2 \
+    emcc -O3 \
     # -flto \
     --js-library /root/phpwasm-emscripten-library.js \
     -I .  \
@@ -847,7 +857,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=3                  \
+    -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \

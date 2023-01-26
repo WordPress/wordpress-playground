@@ -11,8 +11,8 @@ describe('PHP – boot', () => {
 	});
 });
 
-const testDirPath = __dirname + '__test987654321';
-const testFilePath = __dirname + '__test987654321.txt';
+const testDirPath = __dirname + '/__test987654321';
+const testFilePath = __dirname + '/__test987654321.txt';
 describe('PHP – filesystem', () => {
 	let php;
 	beforeEach(async () => {
