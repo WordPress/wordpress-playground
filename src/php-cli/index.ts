@@ -31,24 +31,13 @@ async function main() {
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
 	// as this script.
+
 	const phpLoaderModule = await import(`./php-${phpVersion}.node.js`);
 	const php = await startPHP(phpLoaderModule.default, 'NODE', {
-		printErr: (msg) => {
-			// Emscripten will print this message without exiting when the runtime is
-			// shut down, but we really want to exit.
-			if (
-				msg.includes(
-					'due to an async operation, so halting execution but not exiting the runtime or preventing further async execution (you can use emscripten_force_exit, if you want to force a true shutdown)'
-				)
-			) {
-				process.exit(process.exitCode || 0);
-			}
-			console.warn(msg);
-		},
 		ENV: {
 			...process.env,
 			TERM: 'xterm',
-			TERMINFO: __dirname + '/terminfo',
+			TERMINFO: '/workdir/terminfo',
 		},
 		websocket: {
 			url: (sock, host, port) => {
@@ -109,6 +98,7 @@ async function main() {
 	if (!hasMinusCOption) {
 		args.unshift('-c', __dirname + '/php.ini');
 	}
+	php.writeFile(caBundlePath, rootCertificates.join('\n'));
 	args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 	php.cli(['php', ...args]);
 }

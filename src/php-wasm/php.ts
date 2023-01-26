@@ -385,6 +385,15 @@ export class PHP {
 		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
 	}
 
+	setSkipShebang(shouldSkip: boolean) {
+		this.#Runtime.ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUM],
+			[shouldSkip ? 1 : 0]
+		);
+	}
+
 	#setRequestHeaders(headers: PHPHeaders) {
 		if (headers.cookie) {
 			this.#Runtime.ccall(
@@ -494,6 +503,21 @@ export class PHP {
 	 */
 	mkdirTree(path: string) {
 		this.#Runtime.FS.mkdirTree(path);
+	}
+
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  settings - The Node.js filesystem settings.
+	 * @param  path     - The path to mount the filesystem to.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(settings: any, path: string) {
+		this.#Runtime.FS.mount(
+			this.#Runtime.FS.filesystems.NODEFS,
+			settings,
+			path
+		);
 	}
 
 	/**

@@ -77,6 +77,10 @@ for arg do shift\n\
     [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\ 
     set -- "$@" "$arg" \n\
 done\n\
+# Passing extra flags breaks the version check \n\
+if [[ "$@" == "-v" ]]; then\n\
+    export EMCC_FLAGS=""\n\
+fi\n\
 /root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
     chmod a+x /root/emsdk/upstream/emscripten/emcc
 
@@ -87,8 +91,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
     cd /root/zlib && \
     emconfigure ./configure --prefix=/root/lib && \
     # emmake make fails after it built the library files – let's ignore the errors \
-    (emmake make || true) && \
-    emmake make install
+    (EMCC_FLAGS="-fPIC" emmake make || true) && \
+    EMCC_FLAGS="-fPIC" emmake make install
 
 # Compile libzip
 FROM emscripten AS emscripten-libzip
@@ -112,8 +116,8 @@ RUN cd libzip/build && \
             -DZLIB_LIBRARY=/root/lib/lib/libz.a \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
             ..
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && emmake make
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && emmake make install
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
 # Compile ncurses
 FROM emscripten AS emscripten-ncurses
@@ -226,37 +230,55 @@ RUN     set -euxo pipefail &&\
 # Compile OpenSSL
 # Inspired by: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
 FROM emscripten AS emscripten-openssl
+ARG PHP_VERSION
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
 RUN set -euxo pipefail && \
     source /root/emsdk/emsdk_env.sh && \
-    wget https://www.openssl.org/source/openssl-1.1.0h.tar.gz && \
-    tar xf openssl-1.1.0h.tar.gz && \
-    cd openssl-1.1.0h && \
-    rm crypto/bn/asm/* && \
-    emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
-    sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-    EMCC_FLAGS=" -sSIDE_MODULE " emmake make -j 12 build_generated libssl.a libcrypto.a && \
-    EMCC_FLAGS=" -sSIDE_MODULE " emmake make install && \
-    cp -R include/openssl /root/lib/include && \
-    cp libcrypto.a libssl.a /root/lib/lib
+    if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        export OPENSSL_VERSION=1.0.0h; \
+    else \
+        export OPENSSL_VERSION=1.1.0h; \
+    fi && \
+    wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz && \
+    tar xf openssl-$OPENSSL_VERSION.tar.gz && \
+    cd openssl-$OPENSSL_VERSION && \
+    if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        emconfigure sh ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
+        sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
+        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make; \
+        cp -RL include/openssl /root/lib/include && \
+        cp libcrypto.a libssl.a /root/lib/lib && \
+        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install_sw && \
+        emranlib /root/lib/lib/libcrypto.a && \
+        emranlib /root/lib/lib/libssl.a; \
+    else \
+        emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
+        sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
+        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
+        cp -RL include/openssl /root/lib/include && \
+        cp libcrypto.a libssl.a /root/lib/lib && \
+        EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install; \
+    fi
 
 # Compile libcurl
-FROM emscripten AS emscripten-libcurl
-COPY --from=emscripten-openssl /root/lib /root/lib-ssl
-RUN /root/copy-lib.sh lib-ssl
-RUN wget https://curl.se/download/curl-7.87.0.tar.gz -O curl-7.87.0.tar.gz
-RUN tar -xzf curl-7.87.0.tar.gz 
-WORKDIR /root/curl-7.87.0
-RUN     source /root/emsdk/emsdk_env.sh && \
-        CPPFLAGS="-I/root/lib/include " \
-        LDFLAGS="-L/root/lib/lib " \
-        emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build aarch64-unknown-linux-gnu \
-            --target wasm32-unknown-emscripten \
-            --with-openssl \
-    --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lssl" EMCC_FLAGS="-sSIDE_MODULE" emmake make
-RUN source /root/emsdk/emsdk_env.sh && emmake make install
+# FROM emscripten AS emscripten-libcurl
+# COPY --from=emscripten-openssl /root/lib /root/lib-ssl
+# RUN /root/copy-lib.sh lib-ssl
+# RUN wget https://curl.se/download/curl-7.87.0.tar.gz -O curl-7.87.0.tar.gz
+# RUN tar -xzf curl-7.87.0.tar.gz 
+# WORKDIR /root/curl-7.87.0
+# RUN     source /root/emsdk/emsdk_env.sh && \
+#         CPPFLAGS="-I/root/lib/include " \
+#         LDFLAGS="-L/root/lib/lib " \
+#         emconfigure ./configure \
+#             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+#             --build aarch64-unknown-linux-gnu \
+#             --target wasm32-unknown-emscripten \
+#             --with-openssl \
+#     --prefix=/root/lib/
+# RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lssl" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+# RUN source /root/emsdk/emsdk_env.sh && emmake make install
 
 # Compile libpng
 FROM emscripten AS emscripten-libpng
@@ -326,19 +348,19 @@ RUN touch /root/.configure-flags && \
 COPY --from=emscripten-php-src /root/php-src /root/php-src
 RUN cd php-src && ./buildconf --force
 
-# Copy over libz files
+# Add libzip and zlib files if needed
 COPY --from=emscripten-libz /root/lib /root/lib-libz
-RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
-        /root/copy-lib.sh lib-libz; \
-    fi;
-
-# Add libzip if needed
 COPY --from=emscripten-libzip /root/lib /root/lib-libzip
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
+        /root/copy-lib.sh lib-libz; \
         /root/copy-lib.sh lib-libzip && \
+        if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+            perl -pi.bak -e 's/ZEND_MODULE_GLOBALS_CTOR_N/(void (*)(void *))ZEND_MODULE_GLOBALS_CTOR_N/g' /root/php-src/ext/zlib/zlib.c; \
+        fi;\
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
-            echo -n ' --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
+            # https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
+            echo -n ' --with-zlib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
             cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
@@ -346,7 +368,8 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
             cp /root/lib/include/*.h /root/php-src; \
         else \
-            echo -n ' --with-zip' >> /root/.php-configure-flags; \
+            # https://www.php.net/manual/en/zlib.installation.php
+            echo -n ' --with-zlib --with-zip' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
         fi && \
@@ -374,6 +397,10 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
         echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
+        # Disable dlopen() in the readline PHP extension
+        perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' /root/php-src/main/php_config.h; \
+        echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h; \
+        perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
     else \
         echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
     fi;
@@ -423,19 +450,19 @@ RUN if [ "$WITH_LIBPNG" = "yes" ]; \
 COPY --from=emscripten-openssl /root/lib /root/lib-openssl
 RUN if [ "$WITH_OPENSSL" = "yes" ]; \
     then \
-        bash /root/copy-lib.sh lib-openssl && \
-        echo -n ' --with-openssl=/root/lib ' >> /root/.php-configure-flags && \
+        bash /root/copy-lib.sh lib-openssl; \
+        echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
         echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
     fi;
 
 # Add curl if needed
-COPY --from=emscripten-libcurl /root/lib /root/lib-curl
-RUN if [ "$WITH_CURL" = "yes" ]; \
-    then \
-        bash /root/copy-lib.sh lib-curl; \
-        echo -n ' --with-curl ' >> /root/.php-configure-flags && \
-        echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
-    fi;
+# COPY --from=emscripten-libcurl /root/lib /root/lib-curl
+# RUN if [ "$WITH_CURL" = "yes" ]; \
+#     then \
+#         bash /root/copy-lib.sh lib-curl; \
+#         echo -n ' --with-curl ' >> /root/.php-configure-flags && \
+#         echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
+#     fi;
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
@@ -480,7 +507,6 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-    export OPENSSL_CFLAGS="-I/root/lib/include" && \
     emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     # Fibers are a PHP 8.1+ feature. They are compiled as 
@@ -513,15 +539,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-ctype     \
     --disable-mbregex  \
     --enable-tokenizer \
-    $(cat /root/.php-configure-flags)
+    $(cat /root/.php-configure-flags) || true && cat config.log
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
-# Disable dlopen() in the readline PHP extension
-RUN perl -pi.bak -e 's/define HAVE_DLOPEN 1/define HAVE_DLOPEN 0/g' /root/php-src/main/php_config.h
-RUN echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h
-RUN perl -pi.bak -e 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
 RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
@@ -532,9 +554,8 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
         echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
     fi;
 
-RUN perl -pi.bak -e 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
+# Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN perl -pi.bak -e 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for\(/g' /root/php-src/main/php_network.h
-# RUN perl -pi.bak -e 's/use_ssl = / use_ssl = 0; \/\//g' /root/php-src/ext/standard/http_fopen_wrapper.c
 
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
@@ -561,7 +582,7 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 # enable the flag and pay the price of the additional overhead.
 # https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
 RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
-    echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -s EMULATE_FUNCTION_POINTER_CASTS=1' >> /root/.emcc-php-wasm-flags; \
     fi
 
 # Add ws networking proxy support if needed
@@ -665,6 +686,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs",\
 "run_cli",\
+"ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_FCALL_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_UCALL_SPEC_OBSERVER_HANDLER",\
@@ -673,6 +695,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zend_call_known_function",\
 "zend_call_function",\
 "zend_std_call_getter",\
+"zend_do_fcall_common_helper_SPEC",\
 "zif_fopen",\
 "do_cli",\
 "execute_ex",\
@@ -756,6 +779,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "ZEND_FETCH_OBJ_FUNC_ARG_SPEC_CV_CONST_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER",\
+"ZEND_DO_ICALL_SPEC_HANDLER",\
 "ZEND_DO_FCALL_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_FCALL_SPEC_RETVAL_USED_HANDLER",\
 "ZEND_DO_ICALL_SPEC_RETVAL_UNUSED_HANDLER",\
@@ -848,42 +872,36 @@ RUN ls /root/output/
 #     fi
 
 # Postprocess the build php.js module:
-# ## Wrap it in an ES module with proper `export` statements.
-# - Export the PHPLoader object as the default export.
-# - Export the cache buster string.
-# - Export the .wasm filename
-# - Rename the output files to reflect the build configuration, e.g. `php-7.4.node.js` or `php-8.0.js`
 RUN \
     # Figure out the target file names and URLs
-        # The goal:
-            # The .js and .wasm filenames should reflect the build configuration, e.g.:
-            # * `php-7.4.node.js` and `php-7.4.node.wasm`
-            # * `php-8.0.js` and `php-8.0.wasm`
-            # In addition, the `.wasm` file URL should have a "cache busting" query string on the
-            # web, so that web browsers will reload it when the file contents change.
-        # Precompute export variables:
+        # The .js and .wasm filenames should reflect the build configuration, e.g.:
+        # * `php-7.4.node.js` and `php-7.4.node.wasm`
+        # * `php-8.0.js` and `php-8.0.wasm`
+        # In addition, the `.wasm` file URL should have a "cache busting" query string on the
+        # web, so that web browsers will reload it when the file contents change.
+    # Precompute export variables:
         export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
         export FILENAME_PREFIX="php-${PHP_VERSION:0:3}"; \
         if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then export EXT_PREFIX=".node"; \
         else export EXT_PREFIX=""; fi; \
         export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
         export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
-        # Handle cache busting:
+    # Handle cache busting:
         if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
             export CACHE_BUSTER=$(md5sum /root/output/php.wasm | awk '{print $1}'); \
             export WASM_URL="$WASM_FILENAME?$CACHE_BUSTER"; \
         else \
             export WASM_URL="$WASM_FILENAME"; \
         fi; \
-    # Preprocess the php.js file
-        # php.js relies on a hardcoded "php.wasm" filename. Let's make it
-        # rely on a `dependencyFilename` variable instead.
+    # Make the php.wasm URL configurable via the dependencyFilename loader argument:
         perl -pi.bak -e 's#"php\.wasm"#dependencyFilename#g' /root/output/php.js && \
         perl -pi.bak -e "s#'php\.wasm'#dependencyFilename#g" /root/output/php.js && \
+    # Patch a "property undefined" error
         # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
         # tolerate a null stream.stream_ops value.
         perl -pi.bak -e "s#if\s*\(stream\.stream_ops\.poll\)#if (stream.stream_ops?.poll)#g" /root/output/php.js && \
+    # Make Emscripten websockets configurable
         # Emscripten makes the Websocket proxy connect to a fixed URL.
         # This assumes the traffic is always forwarded to the same target.
         # However, we want to support arbitrary targets, so we need to
@@ -892,6 +910,8 @@ RUN \
             /root/output/php.js && \
         # Enable custom WebSocket constructors to support socket options.
         perl -pi.bak -e "s#ws = new WebSocketConstructor#if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor#g" /root/output/php.js && \
+    # Add MSG_PEEK flag support in recvfrom
+        #
         # Emscripten ignores the flags argument to ___syscall_recvfrom.
         # However, PHP relies on passing the MSG_PEEK (== integer 2) flag when polling
         # the stream for data.
@@ -904,18 +924,19 @@ RUN \
         perl -pi.bak -e 's#sock\.sock_ops\.recvmsg\(sock,\s*len\);#sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);#g' /root/output/php.js && \
         perl -pi.bak -e 's#recvmsg:\s*function\(sock,\s*length\)#recvmsg: function(sock, length, flags)#g' /root/output/php.js && \
         perl -pi.bak -e 's#if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)#if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)#g' /root/output/php.js && \
-        # Replace the hardcoded ENVIRONMENT variable with a dynamic computation.
-            # The JavaScript code of the web loader and web worker loader is identical,
-            # but Emscripten forces running different code paths by setting
-            #
-            # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
-            #
-            # This project supports both environments and would have to maintain two
-            # separate copies of the code. Instead, we use a dynamic computation of the
-            # environment, based on the `RuntimeName` variable, which is an argument to the
-            # wrapper function.
-            perl -pi.bak -e 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=RuntimeName==="\1"/g' /root/output/php.js && \
-            perl -pi.bak -e 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js && \
+    # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
+        #
+        # The JavaScript code of the web loader and web worker loader is identical,
+        # but Emscripten forces running different code paths by setting
+        #
+        # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
+        #
+        # This project supports both environments and would have to maintain two
+        # separate copies of the code. Instead, we use a dynamic computation of the
+        # environment, based on the `RuntimeName` variable, which is an argument to the
+        # wrapper function.
+        perl -pi.bak -e 's/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_\1=RuntimeName==="\1"/g' /root/output/php.js && \
+        perl -pi.bak -e 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js && \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
