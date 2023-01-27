@@ -45,53 +45,7 @@ async function main() {
 				return `ws://${WS_PROXY_HOST}:${WS_PROXY_PORT}/?${query}`;
 			},
 			subprotocol: 'binary',
-			decorator: (WebSocketConstructor) => {
-				function prependByte(chunk, byte) {
-					if (typeof chunk === 'string') {
-						chunk = String.fromCharCode(byte) + chunk;
-					} else if (
-						chunk instanceof ArrayBuffer ||
-						chunk instanceof ArrayBuffer
-					) {
-						const buffer = new Uint8Array(chunk.byteLength + 1);
-						buffer[0] = byte;
-						buffer.set(new Uint8Array(chunk), 1);
-						chunk = buffer.buffer;
-					} else {
-						throw new Error('Unsupported chunk type');
-					}
-					return chunk;
-				}
-				class PHPWasmWebSocket extends WebSocketConstructor {
-					CONNECTING = 0;
-					OPEN = 1;
-					CLOSING = 2;
-					CLOSED = 3;
-
-					send(chunk, callback) {
-						return this.sendCommand(COMMAND_CHUNK, chunk, callback);
-					}
-					setSocketOpt(optionClass, optionName, optionValue) {
-						return this.sendCommand(
-							COMMAND_SET_SOCKETOPT,
-							new Uint8Array([
-								optionClass,
-								optionName,
-								optionValue,
-							]).buffer,
-							() => {}
-						);
-					}
-					sendCommand(commandType, chunk, callback) {
-						return WebSocketConstructor.prototype.send.call(
-							this,
-							prependByte(chunk, commandType),
-							callback
-						);
-					}
-				}
-				return PHPWasmWebSocket;
-			},
+			decorator: addSocketOptsSupportToWebSocketClass,
 		},
 	});
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
@@ -103,3 +57,58 @@ async function main() {
 	php.cli(['php', ...args]);
 }
 main();
+
+/**
+ * Decorates the WebSocket class to support socket options.
+ * It does so by using a very specific data transmission protocol
+ * supported by the ./node-network-proxy server. The first byte
+ * of every message is a command type, and the remaining bytes
+ * are the actual data. The command types are defined in
+ * ./node-network-proxy.
+ *
+ * @param  WebSocketConstructor
+ * @returns Decorated constructor
+ */
+function addSocketOptsSupportToWebSocketClass(WebSocketConstructor) {
+	function prependByte(chunk, byte) {
+		if (typeof chunk === 'string') {
+			chunk = String.fromCharCode(byte) + chunk;
+		} else if (
+			chunk instanceof ArrayBuffer ||
+			chunk instanceof ArrayBuffer
+		) {
+			const buffer = new Uint8Array(chunk.byteLength + 1);
+			buffer[0] = byte;
+			buffer.set(new Uint8Array(chunk), 1);
+			chunk = buffer.buffer;
+		} else {
+			throw new Error('Unsupported chunk type');
+		}
+		return chunk;
+	}
+	class PHPWasmWebSocketConstructor extends WebSocketConstructor {
+		CONNECTING = 0;
+		OPEN = 1;
+		CLOSING = 2;
+		CLOSED = 3;
+
+		send(chunk, callback) {
+			return this.sendCommand(COMMAND_CHUNK, chunk, callback);
+		}
+		setSocketOpt(optionClass, optionName, optionValue) {
+			return this.sendCommand(
+				COMMAND_SET_SOCKETOPT,
+				new Uint8Array([optionClass, optionName, optionValue]).buffer,
+				() => {}
+			);
+		}
+		sendCommand(commandType, chunk, callback) {
+			return WebSocketConstructor.prototype.send.call(
+				this,
+				prependByte(chunk, commandType),
+				callback
+			);
+		}
+	}
+	return PHPWasmWebSocketConstructor;
+}

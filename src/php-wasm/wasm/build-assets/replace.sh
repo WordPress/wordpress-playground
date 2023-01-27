@@ -1,0 +1,10 @@
+#!/bin/bash 
+
+# This script is used to replace strings in files and exit with a non-zero status if the string is not found.
+# use strict;
+
+perl -pi.bak -e "$1" "$2"
+if cmp --silent -- "$2" "$2.bak"; then
+    echo "No matches found for $1 in file $2 - exiting with non-zero status"
+    exit 1
+fi

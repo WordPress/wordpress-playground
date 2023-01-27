@@ -51,7 +51,7 @@ async function build() {
 			'build',
 			'.',
 			'--tag=php-wasm',
-			'--progress=plain',
+			process.env.DEBUG ? '--progress=plain' : '--progress=auto',
 			'--build-arg', getArg('PHP_VERSION'),
 			'--build-arg', getArg('WITH_VRZNO'),
 			'--build-arg', getArg('WITH_LIBXML'),

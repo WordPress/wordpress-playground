@@ -51,7 +51,8 @@ for dir in $(ls $1); do \n\
     done ' > /root/copy-lib.sh
 RUN chmod a+x /root/copy-lib.sh
 # Script to replace strings in files and exit with a non-zero status if the string is not found.
-COPY ./build-assets/replace.pl /root/replace.pl
+COPY ./build-assets/replace.sh /root/replace.sh
+RUN chmod a+x /root/replace.sh
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
 # 
@@ -150,11 +151,11 @@ RUN     set -euxo pipefail &&\
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
             --build i386-pc-linux-gnu \
             --prefix=/root/lib && \
-        perl /root/replace.pl '^\s+cd man.*$' '' Makefile && \
-        perl /root/replace.pl '^\s+cd progs.*$' '' Makefile && \
-        perl /root/replace.pl '^\s+cd test.*$' '' Makefile && \
-        perl /root/replace.pl '^\s+cd misc.*$' '' Makefile && \
-        perl /root/replace.pl '^\s+cd c\+\+.*$' '' Makefile && \
+        /root/replace.sh $'s/^\s+cd man.*$//g' Makefile && \
+        /root/replace.sh $'s/^\s+cd progs.*$//g' Makefile && \
+        /root/replace.sh $'s/^\s+cd test.*$//g' Makefile && \
+        /root/replace.sh $'s/^\s+cd misc.*$//g' Makefile && \
+        /root/replace.sh $'s/^\s+cd c\+\+.*$//g' Makefile && \
         emmake make && \
         emmake make install
 
@@ -311,7 +312,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         /root/copy-lib.sh lib-libz; \
         /root/copy-lib.sh lib-libzip && \
         if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            perl /root/replace.pl ZEND_MODULE_GLOBALS_CTOR_N '(void (*)(void *))ZEND_MODULE_GLOBALS_CTOR_N' /root/php-src/ext/zlib/zlib.c; \
+            /root/replace.sh 's/ZEND_MODULE_GLOBALS_CTOR_N/(void (*)(void *))ZEND_MODULE_GLOBALS_CTOR_N/g' /root/php-src/ext/zlib/zlib.c; \
         fi;\
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
@@ -329,12 +330,13 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
         fi && \
-        perl /root/replace.pl pharcmd=pharcmd pharcmd= /root/php-src/configure && \
-        perl /root/replace.pl pharcmd_install=install-pharcmd pharcmd_install= /root/php-src/configure; \
+        /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
+        /root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
     fi;
 
 # Add ncurses if needed and libedit if needed
 COPY --from=emscripten-libedit /root/lib /root/lib-libedit
+COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
     then \
         /root/copy-lib.sh lib-ncurses && \
@@ -344,11 +346,10 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags && \
         # Disable dlopen() in the readline PHP extension
-        perl /root/replace.pl '/define HAVE_DLOPEN 1' 'define HAVE_DLOPEN 0' /root/php-src/main/php_config.h; \
-        echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h; \
-        perl /root/replace.pl '/GET_SHELL_CB\(cb\);' '(cb) = php_cli_get_shell_callbacks();' /root/php-src/ext/readline/readline_cli.c; \
+        echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h && \
+        /root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
     else \
         echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
     fi;
@@ -357,17 +358,17 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 COPY --from=emscripten-libxml /root/lib /root/lib-libxml
 RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
+        set -euxo pipefail;\
         bash /root/copy-lib.sh lib-libxml && \
-        echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlwriter' >> /root/.php-configure-flags; \
-        echo -n ' -I /root/libxml2 -lxml2' >> /root/.emcc-php-wasm-flags; \
-        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources; \
+        echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlwriter' >> /root/.php-configure-flags && \
+        echo -n ' -I /root/libxml2 -lxml2' >> /root/.emcc-php-wasm-flags && \
+        echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources && \
         # Libxml check is wrong in PHP < 7.4.0.
-        # In the regular cc it's just a warning,
-        # but in the emscripten's emcc that's an error:
-        perl /root/replace.pl "char xmlInitParser' 'void xmlInitParser" /root/php-src/configure; \
+        # In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
+        perl -pi.bak -e 's/char xmlInitParser/void xmlInitParser/g' /root/php-src/configure; \
         # On PHP < 7.1.0, the dom_iterators.c file implicitly converts *char to const *char causing emcc error
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            perl /root/replace.pl 'xmlHashScan\(ht, itemHashScanner, iter\);' 'xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);' /root/php-src/ext/dom/dom_iterators.c; \
+            /root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
         fi; \
     else \
         echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
@@ -485,7 +486,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
-RUN perl /root/replace.pl 'define HAVE_UNISTD_H 1' 'define HAVE_UNISTD_H 0' /root/php-src/main/php_config.h
+RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
@@ -494,7 +495,7 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
     fi;
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
-RUN perl /root/replace.pl 'static inline int php_pollfd_for\(' 'int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for\(' /root/php-src/main/php_network.h
+RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
 
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
@@ -870,22 +871,21 @@ RUN \
             export WASM_URL="$WASM_FILENAME"; \
         fi; \
     # Make the php.wasm URL configurable via the dependencyFilename loader argument:
-        perl /root/replace.pl '"php\.wasm"' dependencyFilename /root/output/php.js && \
-        perl /root/replace.pl "'php\.wasm'" dependencyFilename /root/output/php.js && \
+        /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js && \
     # Patch a "property undefined" error
         # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
         # tolerate a null stream.stream_ops value.
-        perl /root/replace.pl "if\s*\(stream\.stream_ops\.poll\)" "if (stream.stream_ops?.poll)" /root/output/php.js && \
+        /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js && \
     # Make Emscripten websockets configurable
         # Emscripten makes the Websocket proxy connect to a fixed URL.
         # This assumes the traffic is always forwarded to the same target.
         # However, we want to support arbitrary targets, so we need to
         # replace the hardcoded websocket target URL with a dynamic callback.
-        perl /root/replace.pl $'if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)' $'if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])' \
+        /root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
             /root/output/php.js && \
         # Enable custom WebSocket constructors to support socket options.
-        perl /root/replace.pl "ws = new WebSocketConstructor" "if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor" /root/output/php.js && \
+        /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
     # Add MSG_PEEK flag support in recvfrom
         #
         # Emscripten ignores the flags argument to ___syscall_recvfrom.
@@ -897,9 +897,9 @@ RUN \
         # reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
         # status line.
         # We need to patch the syscall to support the MSG_PEEK flag.
-        perl /root/replace.pl 'sock\.sock_ops\.recvmsg\(sock,\s*len\);' 'sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);' /root/output/php.js && \
-        perl /root/replace.pl 'recvmsg:\s*function\(sock,\s*length\)' 'recvmsg: function(sock, length, flags)' /root/output/php.js && \
-        perl /root/replace.pl 'if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)' 'if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)' /root/output/php.js && \
+        /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js && \
+        /root/replace.sh 's/recvmsg:\s*function\(sock,\s*length\)/recvmsg: function(sock, length, flags)/g' /root/output/php.js && \
+        /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js && \
     # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
         #
         # The JavaScript code of the web loader and web worker loader is identical,
@@ -911,8 +911,8 @@ RUN \
         # separate copies of the code. Instead, we use a dynamic computation of the
         # environment, based on the `RuntimeName` variable, which is an argument to the
         # wrapper function.
-        perl /root/replace.pl 'ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)' 'ENVIRONMENT_IS_\1=RuntimeName==="\1"' /root/output/php.js && \
-        perl /root/replace.pl 'var ENV\s*=\s*\{\}' 'var ENV = PHPLoader.ENV || {}' /root/output/php.js && \
+        /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js && \
+        /root/replace.sh 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js && \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
