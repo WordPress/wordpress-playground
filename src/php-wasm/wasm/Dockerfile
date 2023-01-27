@@ -245,30 +245,11 @@ RUN set -euxo pipefail && \
     cp libcrypto.a libssl.a /root/lib/lib && \
     EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install;
 
-# Compile libcurl
-# FROM emscripten AS emscripten-libcurl
-# COPY --from=emscripten-openssl /root/lib /root/lib-ssl
-# RUN /root/copy-lib.sh lib-ssl
-# RUN wget https://curl.se/download/curl-7.87.0.tar.gz -O curl-7.87.0.tar.gz
-# RUN tar -xzf curl-7.87.0.tar.gz 
-# WORKDIR /root/curl-7.87.0
-# RUN     source /root/emsdk/emsdk_env.sh && \
-#         CPPFLAGS="-I/root/lib/include " \
-#         LDFLAGS="-L/root/lib/lib " \
-#         emconfigure ./configure \
-#             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-#             --build i386-pc-linux-gnu \
-#             --target wasm32-unknown-emscripten \
-#             --with-openssl \
-#     --prefix=/root/lib/
-# RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lssl" EMCC_FLAGS="-sSIDE_MODULE" emmake make
-# RUN source /root/emsdk/emsdk_env.sh && emmake make install
-
 # Compile libpng
 FROM emscripten AS emscripten-libpng
 COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN /root/copy-lib.sh lib-libz
-RUN     wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz
+RUN wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz
 RUN tar -xzf libpng-1.6.39.tar.gz 
 WORKDIR /root/libpng-1.6.39
 RUN     source /root/emsdk/emsdk_env.sh && \
@@ -313,12 +294,6 @@ ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
 ARG WITH_WS_NETWORKING_PROXY
-ARG WITH_CURL
-
-# Whether to include the NODEFS JavaScript library.
-# It's useful for loading files and mounting directories
-# from the local filesystem.
-ARG WITH_NODEFS=no
 
 # The platform to build for: web or node
 ARG EMSCRIPTEN_ENVIRONMENT=web
@@ -361,20 +336,12 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         perl -pi.bak -e 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
     fi;
 
-# Add ncurses if needed
-COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
-    then \
-        /root/copy-lib.sh lib-ncurses; \
-    else \
-        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
-    fi;
-
-# Add libedit if needed
+# Add ncurses if needed and libedit if needed
 COPY --from=emscripten-libedit /root/lib /root/lib-libedit
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
     then \
-        bash /root/copy-lib.sh lib-libedit && \
+        /root/copy-lib.sh lib-ncurses && \
+        /root/copy-lib.sh lib-libedit && \
         # Configure build flags
         echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
@@ -438,15 +405,6 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
         echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
         echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
     fi;
-
-# Add curl if needed
-# COPY --from=emscripten-libcurl /root/lib /root/lib-curl
-# RUN if [ "$WITH_CURL" = "yes" ]; \
-#     then \
-#         bash /root/copy-lib.sh lib-curl; \
-#         echo -n ' --with-curl ' >> /root/.php-configure-flags && \
-#         echo -n ' -lcurl ' >> /root/.emcc-php-wasm-flags; \
-#     fi;
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
@@ -565,7 +523,7 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
 # unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in
 # the rc_dtor_func which traces back to calling the zend_list_free function.
 # The signatures are the same on the face value, but the wasm runtime is not
-# happy with them. This can probably be patched in PHP, but for now we just
+# happy somehow. This can probably be patched in PHP, but for now we just
 # enable the flag and pay the price of the additional overhead.
 # https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
 RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
@@ -576,6 +534,18 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     then \
         echo -n ' -lwebsocket.js -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
+        # Emscripten supports yielding from sync functions to JavaScript event loop, but all
+        # the synchronous functions doing that must be explicitly listed here. This is an
+        # exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
+        # uses networking, observing the error, and listing the missing functions.
+        #
+        # If you a get an error similar to the one below, you need to add the function at
+        # the top of the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
+        # 
+        # RuntimeError: unreachable
+        # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
+        # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
+        # at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
         export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
@@ -810,7 +780,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zif_fread",\
 "zif_preg_replace_callback",\
 "zif_fsockopen"'; \
-    # If pointer casts are enabled, we need to prefix the asyncify function names
+    # If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
     if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
         export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E 's/"([a-zA-Z])/"byn$fpcast-emu$\1/g'); \
     fi; \
@@ -841,7 +811,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
     emcc -O3 \
-    # -flto \
     --js-library /root/phpwasm-emscripten-library.js \
     -I .  \
     -I ext   \
@@ -869,8 +838,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXPORT_NAME="'PHPLoader'"
     # Emscripten complains it can't find some Asyncify functions
     # listed in ASYNCIFY_IMPORTS. The culprit is those functions
-    # are needed for php_pollfd_for() to work. Just ignore those
-    # errors.
+    # are actually used and delisting them breaks php_pollfd_for().
+    # Sooo... just ignore Emscripten's warnings.
 
 RUN ls /root/output/
 # # At the moment terminfo is baked into the repository in
