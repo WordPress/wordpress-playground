@@ -37,7 +37,6 @@ async function main() {
 		ENV: {
 			...process.env,
 			TERM: 'xterm',
-			TERMINFO: '/workdir/terminfo',
 		},
 		websocket: {
 			url: (sock, host, port) => {
