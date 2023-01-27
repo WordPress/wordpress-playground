@@ -344,7 +344,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
             # https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
-            echo -n ' --with-zlib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
+            echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
             cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
@@ -353,7 +353,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             cp /root/lib/include/*.h /root/php-src; \
         else \
             # https://www.php.net/manual/en/zlib.installation.php
-            echo -n ' --with-zlib --with-zip' >> /root/.php-configure-flags; \
+            echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
         fi && \
@@ -523,7 +523,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-ctype     \
     --disable-mbregex  \
     --enable-tokenizer \
-    $(cat /root/.php-configure-flags) || true && cat config.log
+    $(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
