@@ -1,0 +1,84 @@
+diff --git a/ncurses/Makefile.in b/ncurses/Makefile.in
+--- a/ncurses/Makefile.in
++++ b/ncurses/Makefile.in
+@@ -229,42 +229,24 @@
+ ./lib_gen.c : $(base)/MKlib_gen.sh ../include/curses.h
+ 	$(SHELL) -e $(base)/MKlib_gen.sh "$(CPP) $(CPPFLAGS)" "$(AWK)" generated <../include/curses.h >$@
+ 
+-init_keytry.h: make_keys$(BUILD_EXEEXT) keys.list
+-	./make_keys$(BUILD_EXEEXT) keys.list > $@
++init_keytry.h: make_keys_x86$(BUILD_EXEEXT) keys.list
++	./make_keys_x86$(BUILD_EXEEXT) keys.list > $@
+ 
+ keys.list :	$(tinfo)/MKkeys_list.sh
+ 	AWK=$(AWK) $(SHELL) $(tinfo)/MKkeys_list.sh $(CAPLIST) | LC_ALL=C sort >$@
+ 
+-make_keys$(BUILD_EXEEXT) : \
+-		build.priv.h \
+-		$(tinfo)/make_keys.c \
+-		names.c
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_keys.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-
+-make_hash$(BUILD_EXEEXT) : \
+-		build.priv.h \
+-		$(tinfo)/make_hash.c \
+-		../include/hashsize.h
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(tinfo)/make_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-
+-report_offsets$(BUILD_EXEEXT) : \
+-		$(srcdir)/curses.priv.h \
+-		$(srcdir)/report_offsets.c
+-	$(BUILD_CC) -o $@ $(BUILD_CPPFLAGS) $(BUILD_CCFLAGS) $(srcdir)/report_offsets.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+-	./report_offsets$(BUILD_EXEEXT)
+-
+ ./expanded.c : $(srcdir)/curses.priv.h $(serial)/MKexpanded.sh
+ 	$(SHELL) -e $(serial)/MKexpanded.sh "$(CPP)" $(CPPFLAGS) > $@
+ 
+ ./comp_captab.c: \
+-		make_hash$(BUILD_EXEEXT) \
++		make_hash_x86$(BUILD_EXEEXT) \
+ 		../include/hashsize.h \
+ 		$(tinfo)/MKcaptab.sh \
+ 		$(tinfo)/MKcaptab.awk
+ 	$(SHELL) -e $(tinfo)/MKcaptab.sh $(AWK) $(USE_BIG_STRINGS) $(tinfo)/MKcaptab.awk $(CAPLIST) > $@
+ 
+ ./comp_userdefs.c: \
+-		make_hash$(BUILD_EXEEXT) \
++		make_hash_x86$(BUILD_EXEEXT) \
+ 		../include/hashsize.h \
+ 		$(tinfo)/MKuserdefs.sh
+ 	$(SHELL) -e $(tinfo)/MKuserdefs.sh $(AWK) $(USE_BIG_STRINGS) $(CAPLIST) > $@
+@@ -294,9 +276,6 @@
+ 
+ clean :: mostlyclean
+ 	-rm -f $(AUTO_SRC)
+-	-rm -f make_keys$(BUILD_EXEEXT)
+-	-rm -f make_hash$(BUILD_EXEEXT)
+-	-rm -f report_offsets$(BUILD_EXEEXT)
+ 	-rm -rf .libs *.dSYM *.map
+ 
+ distclean :: clean
+--- a/ncurses/tinfo/MKcaptab.sh	2023-01-27 10:29:09.342505012 +0000
++++ b/ncurses/tinfo/MKcaptab.sh	2020-02-02 23:34:34.000000000 +0000
+@@ -71,8 +71,8 @@
+ /* *INDENT-OFF* */
+ EOF
+ 
+-cat "$@" |./make_hash 1 info $OPT1
+-cat "$@" |./make_hash 3 cap  $OPT1
++cat "$@" |./make_hash_x86 1 info $OPT1
++cat "$@" |./make_hash_x86 3 cap  $OPT1
+ 
+ cat "$@" |$AWK -f $OPT2 bigstrings=$OPT1 tablename=capalias
+ 
+--- a/ncurses/tinfo/MKuserdefs.sh	2023-01-27 10:29:59.298519008 +0000
++++ b/ncurses/tinfo/MKuserdefs.sh	2020-02-02 23:34:34.000000000 +0000
+@@ -51,7 +51,7 @@
+ #if NCURSES_XNAMES
+ EOF
+ 
+-cat "$@" | ./make_hash 1 user $OPT1
++cat "$@" | ./make_hash_x86 1 user $OPT1
+ 
+ cat <<EOF
+ 

@@ -1,3 +1,16 @@
+diff --git a/php-src/ext/mbstring/libmbfl/filters/mbfilter_utf8_mobile.c b/php-src/ext/mbstring/libmbfl/filters/mbfilter_utf8_mobile.c
+--- a/php-src/ext/mbstring/libmbfl/filters/mbfilter_utf8_mobile.c	2023-01-18 15:22:55
++++ b/php-src/ext/mbstring/libmbfl/filters/mbfilter_utf8_mobile.c	2023-01-18 15:22:57
+@@ -39,8 +39,9 @@
+ extern int mbfl_filt_ident_utf8(int c, mbfl_identify_filter *filter);
+ extern int mbfl_filt_conv_utf8_wchar_flush(mbfl_convert_filter *filter);
++extern int mbfl_filt_put_invalid_char(int c, mbfl_convert_filter *filter);
+
+ extern const unsigned char mblen_table_utf8[];
+
+ static const char *mbfl_encoding_utf8_docomo_aliases[] = {"UTF-8-DOCOMO", "UTF8-DOCOMO", NULL};
+ static const char *mbfl_encoding_utf8_kddi_a_aliases[] = {NULL};
+ static const char *mbfl_encoding_utf8_kddi_b_aliases[] = {"UTF-8-Mobile#KDDI", "UTF-8-KDDI", "UTF8-KDDI", NULL};
 diff --git a/php-src/ext/pcre/pcrelib/config.h b/php-src/ext/pcre/pcrelib/config.h
 index 0f7a9f73ff..b67dcfa94d 100644
 --- a/php-src/ext/pcre/pcrelib/config.h

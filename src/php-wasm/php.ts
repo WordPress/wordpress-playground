@@ -210,6 +210,7 @@ export async function startPHP(
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
+		ENV: {},
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {
@@ -250,6 +251,7 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
+	#webSapiInitialized = false;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -259,11 +261,11 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
-		this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
 	/**
-	 * Runs a PHP code snippet.
+	 * Dispatches a PHP request.
+	 * Cannot be used in conjunction with `cli()`.
 	 *
 	 * @example
 	 * ```js
@@ -280,10 +282,13 @@ export class PHP {
 	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
 	 * ```
 	 *
-	 * @param  code    - The PHP code to run.
-	 * @param  request - Request parameters.
+	 * @param  request - PHP Request data.
 	 */
 	run(request: PHPRequest = {}): PHPResponse {
+		if (!this.#webSapiInitialized) {
+			this.#Runtime.ccall('php_wasm_init', null, [], []);
+			this.#webSapiInitialized = true;
+		}
 		this.#setScriptPath(request.scriptPath || '');
 		this.#setRelativeRequestUri(request.relativeUri || '');
 		this.#setRequestMethod(request.method || 'GET');
@@ -305,6 +310,22 @@ export class PHP {
 			this.#setPHPCode(' ?>' + request.code);
 		}
 		return this.#handleRequest();
+	}
+
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	cli(argv: string[]): Promise<number> {
+		for (const arg of argv) {
+			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
+		}
+		return this.#Runtime.ccall('run_cli', null, [], [], { async: true });
 	}
 
 	#getResponseHeaders(): { headers: PHPHeaders; httpStatusCode: number } {
@@ -362,6 +383,15 @@ export class PHP {
 
 	#setRequestMethod(method: string) {
 		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
+	}
+
+	setSkipShebang(shouldSkip: boolean) {
+		this.#Runtime.ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUM],
+			[shouldSkip ? 1 : 0]
+		);
 	}
 
 	#setRequestHeaders(headers: PHPHeaders) {
@@ -473,6 +503,21 @@ export class PHP {
 	 */
 	mkdirTree(path: string) {
 		this.#Runtime.FS.mkdirTree(path);
+	}
+
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  settings - The Node.js filesystem settings.
+	 * @param  path     - The path to mount the filesystem to.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(settings: any, path: string) {
+		this.#Runtime.FS.mount(
+			this.#Runtime.FS.filesystems.NODEFS,
+			settings,
+			path
+		);
 	}
 
 	/**

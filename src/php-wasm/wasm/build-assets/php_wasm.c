@@ -4,7 +4,6 @@
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code from JavaScript.
  */
-
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>
@@ -24,6 +23,135 @@
 #include "zend_hash.h"
 #include "rfc1867.h"
 #include "SAPI.h"
+
+// popen() shim
+// -----------------------------------------------------------
+// emscripten does not support popen() yet, so we use a shim
+// that uses the JS API to run the command.
+//
+// js_popen_to_file is defined in js-shims.js. It runs the cmd
+// command and returns the path to a file that contains the
+// output. The exit code is assigned to the exit_code_ptr.
+//
+// The wasm_popen and wasm_pclose functions are called thanks
+// to -Dpopen=wasm_popen and -Dpclose=wasm_pclose in the Dockerfile.
+
+extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
+extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+
+uint8_t last_exit_code;
+FILE *wasm_popen(const char *cmd, const char *mode)
+{
+    FILE *fp;
+    if (*mode == 'r') {
+		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
+		fp = fopen(file_path, mode);
+	} else {
+		printf("wasm_popen: mode '%s' not supported (cmd: %s)! \n", mode, cmd);
+		errno = EINVAL;
+		return 0;
+	}
+
+    return fp;
+}
+
+uint8_t wasm_pclose(FILE *stream)
+{
+	fclose(stream);
+    return last_exit_code;
+}
+
+// -----------------------------------------------------------
+
+int wasm_socket_has_data(php_socket_t fd);
+int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
+
+/* hybrid select(2)/poll(2) for a single descriptor.
+ * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
+ * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
+ */
+inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
+{
+	php_pollfd p;
+	int n;
+
+	p.fd = fd;
+	p.events = events;
+	p.revents = 0;
+
+	// must yield back to JS event loop to get the network response:
+	wasm_poll_socket(fd, events, php_tvtoto(timeouttv));
+
+	n = php_poll2(&p, 1, php_tvtoto(timeouttv));
+
+	if (n > 0) {
+		return p.revents;
+	}
+
+	return n;
+}
+
+
+ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
+	ZEND_ARG_INFO(0, extension_filename)
+ZEND_END_ARG_INFO()
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
+	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
+	{NULL, NULL, NULL}
+};
+
+typedef struct wasm_cli_arg {
+    char *value;
+    struct wasm_cli_arg *next;
+} wasm_cli_arg_t;
+
+int cli_argc = 0;
+wasm_cli_arg_t *cli_argv;
+void wasm_add_cli_arg(char *arg)
+{
+	++cli_argc;
+	wasm_cli_arg_t *ll_entry = (wasm_cli_arg_t*) malloc(sizeof(wasm_cli_arg_t));
+	ll_entry->value = strdup(arg);
+	ll_entry->next = cli_argv;
+	cli_argv = ll_entry;
+}
+
+/**
+ * The main() function comes from PHP CLI SAPI in sapi/cli/php_cli.c
+ * The file is provided by the linker and the main() function is not
+ * exported from the final .wasm file at the moment.
+ */
+int main(int argc, char *argv[]);
+int run_cli() {
+	// Convert the argv linkedlist to an array:
+	char **cli_argv_array = malloc(sizeof(char *) * (cli_argc ));
+	wasm_cli_arg_t *current_arg = cli_argv;
+	int i = 0;
+	while (current_arg != NULL)
+	{
+		cli_argv_array[cli_argc - i - 1] = current_arg->value;
+		++i;
+		current_arg = current_arg->next;
+	}
+
+	return main(cli_argc, cli_argv_array);
+}
+
+#else 
+static const zend_function_entry additional_functions[] = {
+	ZEND_FE(dl, arginfo_dl)
+	{NULL, NULL, NULL}
+};
+#endif
 
 #if !defined(TSRMLS_DC)
 #define TSRMLS_DC
@@ -51,32 +179,15 @@ const char WASM_HARDCODED_INI[] =
 	"always_populate_raw_post_data = -1\n"
 	"upload_max_filesize = 2000M\n"
 	"post_max_size = 2000M\n"
+	"disable_functions = proc_open,popen,curl_exec,curl_multi_exec\n"
+	"allow_url_fopen = Off\n"
+	"allow_url_include = Off\n"
 	"session.save_path = /home/web_user\n"
 	"implicit_flush = 1\n"
 	"output_buffering = 0\n"
 	"max_execution_time = 0\n"
 	"max_input_time = -1\n\0"
 ;
-
-ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
-	ZEND_ARG_INFO(0, extension_filename)
-ZEND_END_ARG_INFO()
-static const zend_function_entry additional_functions[] = {
-	ZEND_FE(dl, arginfo_dl)
-	{NULL, NULL, NULL}
-};
-
-#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
-#include "sqlite3.h"
-#include "sqlite3.c"
-#endif
-#if PHP_MAJOR_VERSION >= 8
-// In PHP 8 the final linking step won't
-// work without these includes:
-#include "sqlite_driver.c"
-#include "sqlite_statement.c"
-#include "pdo_sqlite.c"
-#endif
 
 typedef struct wasm_array_entry {
     char *key;
@@ -113,7 +224,8 @@ typedef struct {
 
 	int content_length,
 		request_port,
-		execution_mode;
+		execution_mode,
+		skip_shebang;
 } wasm_server_context_t;
 
 static wasm_server_context_t *wasm_server_context;
@@ -193,6 +305,7 @@ void wasm_init_server_context() {
 	wasm_server_context->cookies = NULL;
 	wasm_server_context->php_code = NULL;
 	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
+	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->uploaded_files = NULL;
 }
@@ -248,6 +361,7 @@ void wasm_destroy_server_context() {
 		current_file = next_file;
 	}
 }
+
 
 /**
  * Function: wasm_add_SERVER_entry
@@ -316,6 +430,14 @@ void wasm_set_query_string(char* query_string) {
  */
 void wasm_set_path_translated(char* path_translated) {
 	wasm_server_context->path_translated = strdup(path_translated);
+}
+
+/**
+ * Function: wasm_set_skip_shebang
+ * ----------------------------
+ */
+void wasm_set_skip_shebang(int should_skip_shebang) {
+	wasm_server_context->skip_shebang = should_skip_shebang;
 }
 
 /**
@@ -660,7 +782,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 
 	/* REQUEST_METHOD */
-	value = SG(request_info).request_method;
+	value = (char*)SG(request_info).request_method;
 	if (value != NULL) {
 		php_register_variable("REQUEST_METHOD", value, track_vars_array TSRMLS_CC);
 		if (!strcmp(value, "HEAD")) {
@@ -682,6 +804,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		entry = entry->next;
 	}
 }
+
 
 /**
  * Function: wasm_sapi_request_init
@@ -724,6 +847,14 @@ int wasm_sapi_request_init()
 		wasm_sapi_module_shutdown();
 		return FAILURE;
 	}
+
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
+	if(wasm_server_context->skip_shebang == 1) {
+		CG(skip_shebang) = 1;
+	} else {
+		CG(skip_shebang) = 0;
+	}
+#endif
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
 
@@ -855,6 +986,10 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 		file_handle.opened_path = NULL;
 #endif
 
+		// https://bugs.php.net/bug.php?id=77561
+		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
+		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
+		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
 		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE) {
 			zend_try {
 				if (errno == EACCES) {

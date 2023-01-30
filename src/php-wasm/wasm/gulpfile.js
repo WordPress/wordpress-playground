@@ -1,7 +1,4 @@
-const os = require('os');
 const gulp = require('gulp');
-const replace = require('gulp-replace');
-const rename = require('gulp-rename');
 const path = require('path');
 const util = require('util');
 const fs = require('fs');
@@ -17,12 +14,35 @@ async function cleanBuildDir() {
 }
 
 async function build() {
-	const phpVersion = process.env.PHP_VERSION || '8.0.24';
-	// VRZNO does not work for most supported PHP versions – let's force disable it for now
-	const withVRZNO = 'no'; //phpVersion.startsWith('7.') ? 'yes' : 'no';
+	const platformDefaults = {
+		all: {
+			PHP_VERSION: '8.0.24',
+			WITH_LIBZIP: 'yes',
+			WITH_SQLITE: 'yes',
+		},
+		web: {},
+		node: {
+			WITH_LIBXML: 'yes',
+			WITH_LIBPNG: 'yes',
+			WITH_MBSTRING: 'yes',
+			WITH_CLI_SAPI: 'yes',
+			WITH_OPENSSL: 'yes',
+			WITH_NODEFS: 'yes',
+			WITH_MYSQL: 'yes',
+			WITH_WS_NETWORKING_PROXY: 'yes',
+		},
+	};
 	const platform = process.env.PLATFORM === 'node' ? 'node' : 'web';
-	const withNodeFs = platform === 'node' ? 'yes' : 'no';
-	const withLibxml = process.env.WITH_LIBXML === 'yes' ? 'yes' : 'no';
+	/* eslint-disable prettier/prettier */
+	const getArg = (name) => {
+		const value = (
+			name in platformDefaults[platform] ? platformDefaults[platform][name] :
+			name in process.env ? process.env[name] :
+			name in platformDefaults.all ? platformDefaults.all[name] :
+			'no'
+		)
+		return `${name}=${value}`;
+	}
 
 	// Build PHP
 	await asyncSpawn(
@@ -31,22 +51,25 @@ async function build() {
 			'build',
 			'.',
 			'--tag=php-wasm',
-			'--progress=plain',
-			'--build-arg',
-			`PHP_VERSION=${phpVersion}`,
-			'--build-arg',
-			`WITH_VRZNO=${withVRZNO}`,
-			'--build-arg',
-			`WITH_LIBXML=${withLibxml}`,
-			'--build-arg',
-			`WITH_LIBZIP=yes`,
-			'--build-arg',
-			`WITH_NODEFS=${withNodeFs}`,
-			'--build-arg',
-			`EMSCRIPTEN_ENVIRONMENT=${platform}`,
+			process.env.DEBUG ? '--progress=plain' : '--progress=auto',
+			'--build-arg', getArg('PHP_VERSION'),
+			'--build-arg', getArg('WITH_VRZNO'),
+			'--build-arg', getArg('WITH_LIBXML'),
+			'--build-arg', getArg('WITH_LIBZIP'),
+			'--build-arg', getArg('WITH_LIBPNG'),
+			'--build-arg', getArg('WITH_MBSTRING'),
+			'--build-arg', getArg('WITH_CLI_SAPI'),
+			'--build-arg', getArg('WITH_OPENSSL'),
+			'--build-arg', getArg('WITH_NODEFS'),
+			'--build-arg', getArg('WITH_CURL'),
+			'--build-arg', getArg('WITH_SQLITE'),
+			'--build-arg', getArg('WITH_MYSQL'),
+			'--build-arg', getArg('WITH_WS_NETWORKING_PROXY'),
+			'--build-arg', `EMSCRIPTEN_ENVIRONMENT=${platform}`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
+	/* eslint-enable prettier/prettier */
 
 	// Extract the PHP WASM module
 	await asyncSpawn(
@@ -63,7 +86,11 @@ async function build() {
 			// they don't work without running cp through shell.
 			'sh',
 			'-c',
-			`cp /root/output/php* /output`,
+			`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
+				getArg('WITH_CLI_SAPI') === 'yes'
+					? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
+					: ''
+			}`,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -71,13 +98,8 @@ async function build() {
 
 exports.build = gulp.series(cleanBuildDir, build);
 
-function asyncPipe(pipe) {
-	return new Promise(async (resolve, reject) => {
-		pipe.on('finish', resolve).on('error', reject);
-	});
-}
-
 function asyncSpawn(...args) {
+	console.log('Running', args[0], args[1].join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
 
