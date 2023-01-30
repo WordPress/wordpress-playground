@@ -26,10 +26,10 @@ export const COMMAND_SET_SOCKETOPT = 0x02;
 
 export function initWsProxyServer(
 	listenPort,
-	listenHost = '127.0.0.1'
+	listenHost = '127.0.0.1',
 ): Promise<http.Server> {
 	debugLog(`Binding the WebSockets server to ${listenHost}:${listenPort}...`);
-	const webServer = http.createServer((_, response) => {
+	const webServer = http.createServer((request, response) => {
 		response.writeHead(403, { 'Content-Type': 'text/plain' });
 		response.write(
 			'403 Permission Denied\nOnly websockets are allowed here.\n'

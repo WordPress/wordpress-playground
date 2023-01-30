@@ -27,7 +27,15 @@ const LibraryExample = {
 				return {};
 			}
 	
-			const peer = Object.values(sock.peers)[0];
+			let peer;
+			if (sock.server) {
+			  peer = sock.pending[0];
+			  if (peer) {
+				peer = Object.values(peer.peers)[0];
+			  }
+			} else {
+			  peer = Object.values(sock.peers)[0];
+			}
 			if (!peer || !peer.socket) {
 				return {};
 			}
@@ -185,11 +193,12 @@ const LibraryExample = {
 			  }
 			});
 			
+			timeout=100
 			const timeoutId = setTimeout(function() {
 			  // console.log("The timeout was first ("+lookingFor.join(', ')+")")
 			  if (!awaken) {
 				awaken = true;
-				wakeUp(0);
+				wakeUp(1);
 				clearPolling();
 			  }
 			}, timeout);

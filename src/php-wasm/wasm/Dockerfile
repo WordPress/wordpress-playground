@@ -497,6 +497,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
 
+RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
+RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
+
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
     EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
@@ -606,7 +609,12 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zim_PDO___construct",\
 "zim_PDO_commitTransaction",\
 "zim_ReflectionMethod_invoke",\
+"php_cli_server_recv_event_read_request",\
+"php_cli_server_do_event_for_each_fd_callback",\
+"zif_mysqli_connect",\
 "php_getimagesize_from_any",\
+"do_cli_server",\
+"php_cli_server_poller_poll",\
 "zim_ReflectionMethod_invokeArgs",\
 "pdo_mysql_stmt_execute_prepared",\
 "preg_replace_func_impl",\
@@ -825,7 +833,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=0                  \
+    -s ASSERTIONS=3                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \
@@ -887,6 +895,7 @@ RUN \
             /root/output/php.js && \
         # Enable custom WebSocket constructors to support socket options.
         /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
+        /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js && \
     # Add MSG_PEEK flag support in recvfrom
         #
         # Emscripten ignores the flags argument to ___syscall_recvfrom.

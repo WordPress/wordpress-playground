@@ -91,6 +91,22 @@ inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv
 	return n;
 }
 
+int wasm_select(int max_fd, fd_set * read_fds, fd_set * write_fds, fd_set * except_fds, struct timeval * timeouttv) {
+	emscripten_sleep(100); // yield to JS event loop
+	int timeoutms = php_tvtoto(timeouttv);
+	int n = 0;
+	for (int i = 0; i < max_fd; i++)
+	{
+		if (FD_ISSET(i, read_fds)) {
+			n += wasm_poll_socket(i, POLLIN, timeoutms);
+		}
+		if (FD_ISSET(i, write_fds)) {
+			n += wasm_poll_socket(i, POLLOUT, timeoutms);
+		}
+	}
+	printf("wasm_select: max_fd=%d n=%d\n", max_fd, n);
+	return n;
+}
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)

@@ -1,12 +1,15 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
+import net from 'net';
+import http from 'http';
 import { startPHP } from '../php-wasm/php-node';
 import {
 	initWsProxyServer,
 	COMMAND_CHUNK,
 	COMMAND_SET_SOCKETOPT,
 } from './node-network-proxy';
+import { WebSocket } from 'ws';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -45,6 +48,58 @@ async function main() {
 			},
 			subprotocol: 'binary',
 			decorator: addSocketOptsSupportToWebSocketClass,
+			serverDecorator: function httpServerDecorator(WebSocketServer) {
+				console.log("a");
+				class PHPWasmWebSocketServer extends WebSocketServer {
+					constructor(options, callback) {
+						const requestedPort = options.port;
+						const assignedPort = 41599;
+						options.port = assignedPort;
+						// console.log({options})
+						const server = net.createServer();
+						server.on('connection', function handleConnection(conn) {
+							const recv_buffer = [];
+
+							const target = new WebSocket(`ws://${options.host}:${assignedPort}/`);
+							target.binaryType = "arraybuffer";
+							target.on('open', function () {
+								while (recv_buffer.length > 0) {
+									send(recv_buffer.shift());
+								}
+							});
+
+							function send(data) {
+								console.log('sent: ', data.toString())
+								target.send(new Uint8Array(data));
+							}
+
+							conn.on('data', function (data) {
+								console.log("passing data", data.toString());
+								if (target.readyState == 1) {
+									while (recv_buffer.length > 0) {
+										send(recv_buffer.shift());
+									}
+									send(data);
+								} else {
+									recv_buffer.push(data);
+								}
+							});  
+							conn.once('close', function () {
+								console.log("closing");
+								target.close();
+							}); 
+							conn.on('error', function () {
+								target.close();
+							});
+						});
+						server.listen(requestedPort, function () { 
+							console.log("server listening");
+						});
+						super(options, callback);
+					}
+				}
+				return PHPWasmWebSocketServer;
+			}
 		},
 	});
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
@@ -62,6 +117,22 @@ async function main() {
 }
 main();
 
+setTimeout(() => {
+	http.request({
+		host: '127.0.0.1',
+		port: 49870,
+		method: 'GET',
+		path: '/esbuild.js',
+		headers: {
+			'Content-Type': 'text/plain',
+		},
+	}, (res) => {
+		console.log(res.statusCode)
+		res.on('data', (data) => {
+			console.log(data.toString())
+		})
+	}).end();
+}, 1300);
 /**
  * Decorates the WebSocket class to support socket options.
  * It does so by using a very specific data transmission protocol
