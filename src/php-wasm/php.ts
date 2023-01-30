@@ -321,7 +321,7 @@ export class PHP {
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
-	cli(argv: string[]): number {
+	cli(argv: string[]): Promise<number> {
 		for (const arg of argv) {
 			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
 		}
