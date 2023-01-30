@@ -642,6 +642,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zim_reflection_method_invokeArgs",\
 "zim_PDO_dbh_constructor",\
 "run_cli",\
+"ZEND_DO_FCALL_SPEC_HANDLER",\
 "ZEND_DO_FCALL_SPEC_CONST_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
