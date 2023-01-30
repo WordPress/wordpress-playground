@@ -54,8 +54,8 @@ async function main() {
 	php.writeFile(caBundlePath, rootCertificates.join('\n'));
 	args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 	php.cli(['php', ...args]).catch((result) => {
-		if (result.name === 'ExitStatus' && result.status === 0) {
-			process.exit(0);
+		if (result.name === 'ExitStatus') {
+			process.exit(result.status === undefined ? 1 : result.status);
 		}
 		throw result;
 	});
