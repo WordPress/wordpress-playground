@@ -502,7 +502,6 @@ RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_se
 RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
 # Provide a custom implementation of the shutdown() function.
-RUN echo '#define HAVE_SHUTDOWN 1' >> /root/php-src/main/php_config.h; 
 RUN /root/replace.sh $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h; 
 
@@ -608,6 +607,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
     export ASYNCIFY_ONLY=$'"cli",\
+"wasm_select",\
 "php_pollfd_for",\
 "php_sock_stream_wait_for_data",\
 "php_sockop_read",\
@@ -760,7 +760,6 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_openssl_sockop_close",\
 "php_openssl_sockop_read",\
 "php_openssl_sockop_set_option",\
-"php_openssl_sockop_set_option",\
 "php_sockop_set_option",\
 "php_sockop_write",\
 "_php_stream_get_line",\
@@ -840,7 +839,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
-    -s ASSERTIONS=3                  \
+    -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \

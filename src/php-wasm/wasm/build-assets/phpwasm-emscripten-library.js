@@ -157,26 +157,30 @@ const LibraryExample = {
 		const POLLERR = 0x0008; /* Error condition */
 		const POLLHUP = 0x0010; /* Hung up */
 		const POLLNVAL = 0x0020; /* Invalid request: fd not open */
-		const sock = getSocketFromFD(socketd);
-		if (!sock) {
-			return 0;
-		}
-		const polls = [];
-		const lookingFor = new Set();
-
-		if (events & POLLIN || events & POLLPRI) {
-			if (sock.server) {
-				for (const client of sock.pending) {
-					if ((client.recv_queue || []).length > 0) {
-						return 1;
-					}
-				}
-			} else if ((sock.recv_queue || []).length > 0) {
-				return 1;
-			}
-		}
 
 		return Asyncify.handleSleep((wakeUp) => {
+			const sock = getSocketFromFD(socketd);
+			if (!sock) {
+				wakeUp(0);
+				return;
+			}
+			const polls = [];
+			const lookingFor = new Set();
+	
+			if (events & POLLIN || events & POLLPRI) {
+				if (sock.server) {
+					for (const client of sock.pending) {
+						if ((client.recv_queue || []).length > 0) {
+							wakeUp(1);
+							return;
+						}
+					}
+				} else if ((sock.recv_queue || []).length > 0) {
+					wakeUp(1);
+					return;
+				}
+			}
+
 			const webSockets = PHPWASM.getAllWebSockets(sock);
 			if (!webSockets.length) {
 				wakeUp(0);
@@ -230,18 +234,27 @@ const LibraryExample = {
 		});
 	},
 
+	/**
+	 * Shims unix shutdown(2) functionallity for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/shutdown.2.html
+	 * 
+	 * Does not support SHUT_RD or SHUT_WR.
+	 * 
+	 * @param {int} socketd 
+	 * @param {int} how 
+	 * @returns 0 on success, -1 on failure
+	 */
 	wasm_shutdown: function(socketd, how) {
 		const sock = getSocketFromFD(socketd);
 		const peer = Object.values(sock.peers)[0];
 
-		console.log("SHUTTING DOWN A SOCKET")
 		try {
 			peer.socket.close();
 			SOCKFS.websocket_sock_ops.removePeer(sock, peer);
 			return 0;
 		} catch (e) {
-			console.log("SHUTDOWN ERROR", e)
-			return 1;
+			console.log("Socket shutdown error", e)
+			return -1;
 		}
 	},
 
