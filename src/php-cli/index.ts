@@ -67,6 +67,5 @@ async function main() {
 		throw result;
 	});
 }
-main();
 
-// Send a http request to localhost:
+main();
