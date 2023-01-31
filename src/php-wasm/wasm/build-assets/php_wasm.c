@@ -104,7 +104,6 @@ int wasm_select(int max_fd, fd_set * read_fds, fd_set * write_fds, fd_set * exce
 			n += wasm_poll_socket(i, POLLOUT, timeoutms);
 		}
 	}
-	printf("wasm_select: max_fd=%d n=%d\n", max_fd, n);
 	return n;
 }
 

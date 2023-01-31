@@ -2,13 +2,12 @@
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
 import net from 'net';
-import http from 'http';
 import { startPHP } from '../php-wasm/php-node';
 import {
 	initWsProxyServer,
 	COMMAND_CHUNK,
 	COMMAND_SET_SOCKETOPT,
-} from './node-network-proxy';
+} from './outbound-ws-to-tcp-proxy';
 import { WebSocket } from 'ws';
 
 let args = process.argv.slice(2);
@@ -18,6 +17,7 @@ if (!args.length) {
 
 import { writeFileSync, existsSync } from 'fs';
 import { rootCertificates } from 'tls';
+import { listenTCPToWSProxy } from './inbound-tcp-to-ws-proxy';
 
 // Write the ca-bundle.crt file to disk so that PHP can find it.
 const caBundlePath = __dirname + '/ca-bundle.crt';
@@ -27,6 +27,7 @@ if (!existsSync(caBundlePath)) {
 
 const WS_PROXY_HOST = '127.0.0.1';
 const WS_PROXY_PORT = 41598;
+
 async function main() {
 	const phpVersion = process.env.PHP || '8.2';
 
@@ -49,57 +50,20 @@ async function main() {
 			subprotocol: 'binary',
 			decorator: addSocketOptsSupportToWebSocketClass,
 			serverDecorator: function httpServerDecorator(WebSocketServer) {
-				console.log("a");
 				class PHPWasmWebSocketServer extends WebSocketServer {
 					constructor(options, callback) {
 						const requestedPort = options.port;
 						const assignedPort = 41599;
 						options.port = assignedPort;
-						// console.log({options})
-						const server = net.createServer();
-						server.on('connection', function handleConnection(conn) {
-							const recv_buffer = [];
-
-							const target = new WebSocket(`ws://${options.host}:${assignedPort}/`);
-							target.binaryType = "arraybuffer";
-							target.on('open', function () {
-								while (recv_buffer.length > 0) {
-									send(recv_buffer.shift());
-								}
-							});
-
-							function send(data) {
-								console.log('sent: ', data.toString())
-								target.send(new Uint8Array(data));
-							}
-
-							conn.on('data', function (data) {
-								console.log("passing data", data.toString());
-								if (target.readyState == 1) {
-									while (recv_buffer.length > 0) {
-										send(recv_buffer.shift());
-									}
-									send(data);
-								} else {
-									recv_buffer.push(data);
-								}
-							});  
-							conn.once('close', function () {
-								console.log("closing");
-								target.close();
-							}); 
-							conn.on('error', function () {
-								target.close();
-							});
-						});
-						server.listen(requestedPort, function () { 
-							console.log("server listening");
+						listenTCPToWSProxy({
+							tcpListenPort: requestedPort,
+							wsConnectPort: assignedPort,
 						});
 						super(options, callback);
 					}
 				}
 				return PHPWasmWebSocketServer;
-			}
+			},
 		},
 	});
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
@@ -118,20 +82,44 @@ async function main() {
 main();
 
 setTimeout(() => {
-	http.request({
-		host: '127.0.0.1',
-		port: 49870,
-		method: 'GET',
-		path: '/esbuild.js',
-		headers: {
-			'Content-Type': 'text/plain',
-		},
-	}, (res) => {
-		console.log(res.statusCode)
-		res.on('data', (data) => {
-			console.log(data.toString())
-		})
-	}).end();
+	// 	const ws = new WebSocket(`ws://127.0.0.1:49870`);
+	// 	ws.binaryType = 'arraybuffer';
+	// 	ws.on('open', () => {
+	// 		console.log('open');
+	// 		ws.send(
+	// 			new TextEncoder().encode(`GET /esbuild.js HTTP/1.1
+	// Host: 127.0.0.1:49870
+	// Connection: keep-alive
+	// Cache-control: max-age=0
+	// Content-length: 0
+	// User-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
+	// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+	// Accept-encoding: gzip, deflate, br
+	// Accept-language: pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7
+	// \r\n`)
+	// 		);
+	// 	});
+	// 	ws.on('message', (data) => {
+	// 		console.log('message', new TextDecoder().decode(data));
+	// 	});
+	// console.log('request!');
+	// http.request(
+	// 	{
+	// 		host: '127.0.0.1',
+	// 		port: 49810,
+	// 		method: 'GET',
+	// 		path: '/esbuild.js',
+	// 		headers: {
+	// 			'Content-Type': 'text/plain',
+	// 		},
+	// 	},
+	// 	(res) => {
+	// 		console.log(res.statusCode);
+	// 		res.on('data', (data) => {
+	// 			console.log(data.toString());
+	// 		});
+	// 	}
+	// ).end();
 }, 1300);
 /**
  * Decorates the WebSocket class to support socket options.
