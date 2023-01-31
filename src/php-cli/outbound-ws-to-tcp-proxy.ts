@@ -77,7 +77,7 @@ export function addSocketOptionsSupportToWebSocketClass(WebSocketConstructor) {
 	};
 }
 
-export function initWsProxyServer(
+export function initOutboundWebsocketProxyServer(
 	listenPort,
 	listenHost = '127.0.0.1'
 ): Promise<http.Server> {

@@ -7,7 +7,7 @@ import { rootCertificates } from 'tls';
 
 import { startPHP } from '../php-wasm/php-node';
 import {
-	initWsProxyServer,
+	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,
 } from './outbound-ws-to-tcp-proxy';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
@@ -30,7 +30,7 @@ async function main() {
 	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
 		await findFreePorts(2);
 
-	await initWsProxyServer(outboundProxyWsServerPort);
+	await initOutboundWebsocketProxyServer(outboundProxyWsServerPort);
 
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
