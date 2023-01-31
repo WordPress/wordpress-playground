@@ -1,7 +1,6 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-
 import { writeFileSync, existsSync } from 'fs';
 import { rootCertificates } from 'tls';
 
@@ -13,8 +12,6 @@ import {
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
 import { findFreePorts } from './utils';
 
-import http from 'http';
-import { URL } from 'url';
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
