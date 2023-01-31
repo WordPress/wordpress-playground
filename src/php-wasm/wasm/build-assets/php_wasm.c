@@ -103,6 +103,7 @@ ZEND_END_ARG_INFO()
 #endif
 
 extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
 
 /**
  * select(2) shim for PHP dev server.

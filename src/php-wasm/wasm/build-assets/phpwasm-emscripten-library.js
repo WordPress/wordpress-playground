@@ -134,7 +134,31 @@ const LibraryExample = {
 			};
 			return [promise, cancel];
 		},
-		noop: function() {}
+		noop: function () { },
+		
+		/**
+		 * Shims unix shutdown(2) functionallity for asynchronous websockets:
+		 * https://man7.org/linux/man-pages/man2/shutdown.2.html
+		 * 
+		 * Does not support SHUT_RD or SHUT_WR.
+		 * 
+		 * @param {int} socketd 
+		 * @param {int} how 
+		 * @returns 0 on success, -1 on failure
+		 */
+		shutdownSocket: function (socketd, how) {
+			const sock = getSocketFromFD(socketd);
+			const peer = Object.values(sock.peers)[0];
+	
+			try {
+				peer.socket.close();
+				SOCKFS.websocket_sock_ops.removePeer(sock, peer);
+				return 0;
+			} catch (e) {
+				console.log("Socket shutdown error", e)
+				return -1;
+			}
+		}
 	},
 
 	/**
@@ -244,18 +268,19 @@ const LibraryExample = {
 	 * @param {int} how 
 	 * @returns 0 on success, -1 on failure
 	 */
-	wasm_shutdown: function(socketd, how) {
-		const sock = getSocketFromFD(socketd);
-		const peer = Object.values(sock.peers)[0];
+	wasm_shutdown: function (socketd, how) {
+		return PHPWASM.shutdownSocket(socketd, how);
+	},
 
-		try {
-			peer.socket.close();
-			SOCKFS.websocket_sock_ops.removePeer(sock, peer);
-			return 0;
-		} catch (e) {
-			console.log("Socket shutdown error", e)
-			return -1;
-		}
+	/**
+	 * Shims unix close(2) functionallity for asynchronous websockets:
+	 * https://man7.org/linux/man-pages/man2/close.2.html
+	 * 
+	 * @param {int} socketd 
+	 * @returns 0 on success, -1 on failure
+	 */
+	wasm_close: function (socketd) {
+		return PHPWASM.shutdownSocket(socketd, 2);
 	},
 
 	/**
