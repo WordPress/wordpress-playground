@@ -36,7 +36,6 @@
 // The wasm_popen and wasm_pclose functions are called thanks
 // to -Dpopen=wasm_popen and -Dpclose=wasm_pclose in the Dockerfile.
 
-extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
 
 uint8_t last_exit_code;
@@ -65,6 +64,8 @@ uint8_t wasm_pclose(FILE *stream)
 
 int wasm_socket_has_data(php_socket_t fd);
 int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
+extern int wasm_shutdown(int sockfd, int how);
+extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 
 /* hybrid select(2)/poll(2) for a single descriptor.
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
@@ -98,9 +99,8 @@ int wasm_select(int max_fd, fd_set * read_fds, fd_set * write_fds, fd_set * exce
 	for (int i = 0; i < max_fd; i++)
 	{
 		if (FD_ISSET(i, read_fds)) {
-			n += wasm_poll_socket(i, POLLIN, timeoutms);
-		}
-		if (FD_ISSET(i, write_fds)) {
+			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
+		} else if (FD_ISSET(i, write_fds)) {
 			n += wasm_poll_socket(i, POLLOUT, timeoutms);
 		}
 	}

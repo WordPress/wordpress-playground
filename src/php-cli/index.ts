@@ -13,6 +13,8 @@ import {
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
 import { findFreePorts } from './utils';
 
+import http from 'http';
+import { URL } from 'url';
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
@@ -69,3 +71,5 @@ async function main() {
 	});
 }
 main();
+
+// Send a http request to localhost:

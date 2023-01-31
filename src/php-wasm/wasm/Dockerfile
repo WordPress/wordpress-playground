@@ -496,9 +496,15 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
-
 RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
+
+# Provide a custom implementation of the php_select() function.
 RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
+
+# Provide a custom implementation of the shutdown() function.
+RUN echo '#define HAVE_SHUTDOWN 1' >> /root/php-src/main/php_config.h; 
+RUN /root/replace.sh $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
+RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h; 
 
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
@@ -567,7 +573,8 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "invoke_viiiiii",\n\
 "invoke_viiiiiii",\n\
 "invoke_viiiiiiiii",\n\
-"wasm_poll_socket"]'; \
+"wasm_poll_socket",\n\
+"wasm_shutdown"]'; \
         echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
     export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
 "dynCall_i",\
