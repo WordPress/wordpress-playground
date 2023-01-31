@@ -1,58 +1,87 @@
 import net from 'net';
 import { WebSocket } from 'ws';
+import { debugLog } from './utils';
+
+export function addTCPServerToWebSocketServerClass(
+	wsListenPort,
+	WebSocketServer
+) {
+	return class PHPWasmWebSocketServer extends WebSocketServer {
+		constructor(options, callback) {
+			const requestedPort = options.port;
+			options.port = wsListenPort;
+			listenTCPToWSProxy({
+				tcpListenPort: requestedPort,
+				wsConnectPort: wsListenPort,
+			});
+			super(options, callback);
+		}
+	};
+}
+
+function log(...args) {
+	debugLog('[TCP Server]', ...args);
+}
 
 export interface InboundTcpToWsProxyOptions {
-	tcpListenHost?: string;
 	tcpListenPort: number;
 	wsConnectHost?: string;
 	wsConnectPort: number;
 }
 export function listenTCPToWSProxy(options: InboundTcpToWsProxyOptions) {
 	options = {
-		tcpListenHost: '127.0.0.1',
 		wsConnectHost: '127.0.0.1',
 		...options,
 	};
-	const { tcpListenHost, tcpListenPort, wsConnectHost, wsConnectPort } =
-		options;
+	const { tcpListenPort, wsConnectHost, wsConnectPort } = options;
 	const server = net.createServer();
-	server.on('connection', function handleConnection(conn) {
+	server.on('connection', function handleConnection(tcpSource) {
 		const inBuffer: Buffer[] = [];
 
-		const target = new WebSocket(`ws://${wsConnectHost}:${wsConnectPort}/`);
-		target.binaryType = 'arraybuffer';
-		target.addEventListener('open', function () {
-			while (inBuffer.length > 0) {
-				send(inBuffer.shift());
-			}
-		});
-
-		target.addEventListener('message', (e) => {
-			conn.write(Buffer.from(e.data));
-		});
-
-		function send(data) {
-			target.send(new Uint8Array(data));
+		const wsTarget = new WebSocket(
+			`ws://${wsConnectHost}:${wsConnectPort}/`
+		);
+		wsTarget.binaryType = 'arraybuffer';
+		function wsSend(data) {
+			wsTarget.send(new Uint8Array(data));
 		}
 
-		conn.on('data', function (data) {
-			if (target.readyState === WebSocket.OPEN) {
+		wsTarget.addEventListener('open', function () {
+			log('Outbound WebSocket connection established');
+			while (inBuffer.length > 0) {
+				wsSend(inBuffer.shift());
+			}
+		});
+		wsTarget.addEventListener('message', (e) => {
+			log('WS->TCP message:', new TextDecoder().decode(e.data));
+			tcpSource.write(Buffer.from(e.data));
+		});
+		wsTarget.addEventListener('close', () => {
+			log('WebSocket connection closed');
+			tcpSource.end();
+		});
+
+		tcpSource.on('data', function (data) {
+			log('TCP->WS message:', data);
+			if (wsTarget.readyState === WebSocket.OPEN) {
 				while (inBuffer.length > 0) {
-					send(inBuffer.shift());
+					wsSend(inBuffer.shift());
 				}
-				send(data);
+				wsSend(data);
 			} else {
 				inBuffer.push(data);
 			}
 		});
-		conn.once('close', function () {
-			target.close();
+		tcpSource.once('close', function () {
+			log('TCP connection closed');
+			wsTarget.close();
 		});
-		conn.on('error', function () {
-			target.close();
+		tcpSource.on('error', function () {
+			log('TCP connection error');
+			wsTarget.close();
 		});
 	});
-	server.listen(tcpListenPort, tcpListenHost, function () {
-		console.log('TCP server listening');
+	server.listen(tcpListenPort, function () {
+		log('TCP server listening');
 	});
 }

@@ -12,21 +12,74 @@ import util from 'util';
 import net from 'net';
 import http from 'http';
 import { WebSocketServer } from 'ws';
+import { debugLog } from './utils';
 
-const DEBUG = false;
-const debugLog = function (...args) {
-	if (DEBUG) {
-		console.log(...args);
-	}
-};
 const lookup = util.promisify(dns.lookup);
 
+function prependByte(chunk, byte) {
+	if (typeof chunk === 'string') {
+		chunk = String.fromCharCode(byte) + chunk;
+	} else if (chunk instanceof ArrayBuffer) {
+		const buffer = new Uint8Array(chunk.byteLength + 1);
+		buffer[0] = byte;
+		buffer.set(new Uint8Array(chunk), 1);
+		chunk = buffer.buffer;
+	} else {
+		throw new Error('Unsupported chunk type');
+	}
+	return chunk;
+}
+
+/**
+ * Send a chunk of data to the remote server.
+ */
 export const COMMAND_CHUNK = 0x01;
+/**
+ * Set a TCP socket option.
+ */
 export const COMMAND_SET_SOCKETOPT = 0x02;
+
+/**
+ * Adds support for TCP socket options to WebSocket class.
+ *
+ * Socket options are implemented by adopting a specific data transmission
+ * protocol between WS client and WS server The first byte
+ * of every message is a command type, and the remaining bytes
+ * are the actual data.
+ *
+ * @param  WebSocketConstructor
+ * @returns Decorated constructor
+ */
+export function addSocketOptionsSupportToWebSocketClass(WebSocketConstructor) {
+	return class PHPWasmWebSocketConstructor extends WebSocketConstructor {
+		CONNECTING = 0;
+		OPEN = 1;
+		CLOSING = 2;
+		CLOSED = 3;
+
+		send(chunk, callback) {
+			return this.sendCommand(COMMAND_CHUNK, chunk, callback);
+		}
+		setSocketOpt(optionClass, optionName, optionValue) {
+			return this.sendCommand(
+				COMMAND_SET_SOCKETOPT,
+				new Uint8Array([optionClass, optionName, optionValue]).buffer,
+				() => {}
+			);
+		}
+		sendCommand(commandType, chunk, callback) {
+			return WebSocketConstructor.prototype.send.call(
+				this,
+				prependByte(chunk, commandType),
+				callback
+			);
+		}
+	};
+}
 
 export function initWsProxyServer(
 	listenPort,
-	listenHost = '127.0.0.1',
+	listenHost = '127.0.0.1'
 ): Promise<http.Server> {
 	debugLog(`Binding the WebSockets server to ${listenHost}:${listenPort}...`);
 	const webServer = http.createServer((request, response) => {
