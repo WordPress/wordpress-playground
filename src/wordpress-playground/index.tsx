@@ -42,7 +42,12 @@ async function main() {
 		setupAddressBar(workerThread);
 	}
 
-	if (query.get('login') || preinstallPlugins.length || query.get('theme')) {
+	if (
+		!query.get('disableImportExport') ||
+		query.get('login') ||
+		preinstallPlugins.length ||
+		query.get('theme')
+	) {
 		await login(workerThread, 'admin', 'password');
 	}
 
@@ -485,7 +490,6 @@ async function importFile() {
 						$counter = 0;
 						while ($zip->statIndex($counter)) {
 							$file = $zip->statIndex($counter);
-							$fileString .= $file['name'] . ',';
 							$overwrite = fopen($file['name'], 'w');
 							fwrite($overwrite, $zip->getFromIndex($counter));
 							$counter++;
