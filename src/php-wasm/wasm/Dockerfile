@@ -788,6 +788,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zif_array_map",\
 "zif_array_reduce",\
 "zif_call_user_func",\
+"zif_call_user_func_array",\
 "zif_fclose",\
 "zif_feof",\
 "zif_file_get_contents",\
