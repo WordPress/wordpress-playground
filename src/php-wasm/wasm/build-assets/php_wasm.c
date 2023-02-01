@@ -40,7 +40,7 @@ extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval,
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
 
 uint8_t last_exit_code;
-FILE *wasm_popen(const char *cmd, const char *mode)
+EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 {
     FILE *fp;
     if (*mode == 'r') {
@@ -55,7 +55,7 @@ FILE *wasm_popen(const char *cmd, const char *mode)
     return fp;
 }
 
-uint8_t wasm_pclose(FILE *stream)
+EMSCRIPTEN_KEEPALIVE uint8_t wasm_pclose(FILE *stream)
 {
 	fclose(stream);
     return last_exit_code;
@@ -70,7 +70,7 @@ int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
  * Returns 0 on timeout, -1 on error, or the event mask (ala poll(2)).
  */
-inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
+EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
 {
 	php_pollfd p;
 	int n;
@@ -101,6 +101,27 @@ ZEND_END_ARG_INFO()
 #if PHP_MAJOR_VERSION >= 8
 #include "sapi/cli/php_cli_process_title_arginfo.h"
 #endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
+/**
+ * select(2) shim for PHP dev server.
+ */
+EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set * read_fds, fd_set * write_fds, fd_set * except_fds, struct timeval * timeouttv) {
+	emscripten_sleep(0); // always yield to JS event loop
+	int timeoutms = php_tvtoto(timeouttv);
+	int n = 0;
+	for (int i = 0; i < max_fd; i++)
+	{
+		if (FD_ISSET(i, read_fds)) {
+			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
+		} else if (FD_ISSET(i, write_fds)) {
+			n += wasm_poll_socket(i, POLLOUT, timeoutms);
+		}
+	}
+	return n;
+}
 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
