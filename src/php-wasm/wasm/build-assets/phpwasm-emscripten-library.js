@@ -149,7 +149,11 @@ const LibraryExample = {
 		shutdownSocket: function (socketd, how) {
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
-	
+
+			if (!peer) {
+				return -1;
+			}
+			
 			try {
 				peer.socket.close();
 				SOCKFS.websocket_sock_ops.removePeer(sock, peer);

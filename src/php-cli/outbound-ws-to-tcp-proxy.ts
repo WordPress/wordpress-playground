@@ -14,6 +14,10 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils';
 
+function log(...args) {
+	debugLog('[WS Server]', ...args);
+}
+
 const lookup = util.promisify(dns.lookup);
 
 function prependByte(chunk, byte) {
@@ -81,7 +85,7 @@ export function initOutboundWebsocketProxyServer(
 	listenPort,
 	listenHost = '127.0.0.1'
 ): Promise<http.Server> {
-	debugLog(`Binding the WebSockets server to ${listenHost}:${listenPort}...`);
+	log(`Binding the WebSockets server to ${listenHost}:${listenPort}...`);
 	const webServer = http.createServer((request, response) => {
 		response.writeHead(403, { 'Content-Type': 'text/plain' });
 		response.write(
@@ -102,13 +106,14 @@ export function initOutboundWebsocketProxyServer(
 async function onWsConnect(client, request) {
 	const clientAddr = client._socket.remoteAddress;
 	const clientLog = function (...args) {
-		debugLog(' ' + clientAddr + ': ', ...args);
+		log(' ' + clientAddr + ': ', ...args);
 	};
 
 	clientLog(
-		'WebSocket connection from : ' + clientAddr + ' at URL ' + request
-			? request.url
-			: client.upgradeReq.url
+		'WebSocket connection from : ' +
+			clientAddr +
+			' at URL ' +
+			(request ? request.url : client.upgradeReq.url)
 	);
 	clientLog(
 		'Version ' +
@@ -182,7 +187,6 @@ async function onWsConnect(client, request) {
 	} else {
 		reqTargetIp = reqTargetHost;
 	}
-
 	clientLog(
 		'Opening a socket connection to ' + reqTargetIp + ':' + reqTargetPort
 	);
