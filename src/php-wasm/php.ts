@@ -22,6 +22,11 @@ export interface PHPRequest {
 	scriptPath?: string;
 
 	/**
+	 * Request protocol.
+	 */
+	protocol?: string;
+
+	/**
 	 * Request method. Default: `GET`.
 	 */
 	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
@@ -308,10 +313,10 @@ export class PHP {
 		this.#setRelativeRequestUri(request.relativeUri || '');
 		this.#setRequestMethod(request.method || 'GET');
 		const { host, ...headers } = {
-			host: 'example.com:80',
+			host: 'example.com:443',
 			...normalizeHeaders(request.headers || {}),
 		};
-		this.#setRequestHost(host);
+		this.#setRequestHostAndProtocol(host, request.protocol || 'http');
 		this.#setRequestHeaders(headers);
 		if (request.body) {
 			this.#setRequestBody(request.body);
@@ -399,16 +404,22 @@ export class PHP {
 		}
 	}
 
-	#setRequestHost(host: string) {
+	#setRequestHostAndProtocol(host: string, protocol: string) {
 		this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
+
 		let port;
 		try {
 			port = parseInt(new URL(host).port, 10);
 		} catch (e) {}
-		if (!port || isNaN(port)) {
-			port = 80;
+
+		if (!port || isNaN(port) || port === 80) {
+			port = protocol === 'https' ? 443 : 80;
 		}
 		this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
+
+		if (protocol === 'https' || (!protocol && port === 443)) {
+			this.addServerGlobalEntry('HTTPS', 'on');
+		}
 	}
 
 	#setRequestMethod(method: string) {

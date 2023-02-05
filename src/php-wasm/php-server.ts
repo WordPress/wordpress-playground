@@ -1,4 +1,8 @@
-import { ensurePathPrefix, getPathQueryFragment, removePathPrefix } from './utils';
+import {
+	ensurePathPrefix,
+	getPathQueryFragment,
+	removePathPrefix,
+} from './utils';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
 
 export type PHPServerRequest = Pick<
@@ -184,6 +188,7 @@ export class PHPServer {
 				getPathQueryFragment(requestedUrl),
 				this.#PATHNAME
 			),
+			protocol: this.#PROTOCOL,
 			method: request.method,
 			body: request.body,
 			fileInfos,
