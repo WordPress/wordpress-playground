@@ -313,6 +313,20 @@ SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	STANDARD_SAPI_MODULE_PROPERTIES
 };
 
+char *phpini_path_override = NULL;
+void wasm_set_phpini_path(char *path)
+{
+	free(phpini_path_override);
+	phpini_path_override = strdup(path);
+}
+
+char *additional_phpini_entries = NULL;
+void wasm_set_phpini_entries(char *ini_entries)
+{
+	free(additional_phpini_entries);
+	additional_phpini_entries = strdup(ini_entries);
+}
+
 void wasm_init_server_context() {
 	wasm_server_context->query_string = NULL;
 	wasm_server_context->path_translated = NULL;
@@ -1228,13 +1242,27 @@ int php_wasm_init() {
 	tsrm_ls = ts_resource(0);
 	*ptsrm_ls = tsrm_ls;
 #endif
-
 	sapi_startup(&php_wasm_sapi_module);
+	if(phpini_path_override != NULL) {
+		free(php_wasm_sapi_module.php_ini_path_override);
+		php_wasm_sapi_module.php_ini_path_override = phpini_path_override;
+	}
 
-	php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-	memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
+	if(additional_phpini_entries != NULL) {
+		int ini_entries_len = strlen(additional_phpini_entries);
+		additional_phpini_entries = realloc(additional_phpini_entries, ini_entries_len + sizeof(WASM_HARDCODED_INI));
+		memmove(additional_phpini_entries + sizeof(WASM_HARDCODED_INI) - 2, additional_phpini_entries, ini_entries_len + 1);
+		memcpy(additional_phpini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI) - 2);
+		php_wasm_sapi_module.ini_entries = strdup(additional_phpini_entries);
+		free(additional_phpini_entries);
+	}
+	else
+	{
+		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
+		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
+	}
+
 	php_wasm_sapi_module.additional_functions = additional_functions;
-
 	if (php_wasm_sapi_module.startup(&php_wasm_sapi_module)==FAILURE) {
 		return FAILURE;
 	}

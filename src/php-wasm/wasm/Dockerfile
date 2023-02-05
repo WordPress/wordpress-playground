@@ -845,6 +845,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
+"_wasm_set_phpini_path", \n\
+"_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
 "_wasm_add_uploaded_file", \n\
 "_wasm_sapi_handle_request", \n\
@@ -938,7 +940,9 @@ RUN \
             /root/output/php.js && \
         # Enable custom WebSocket constructors to support socket options.
         /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
-        /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js && \
+        if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+            /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+        fi; \
     # Add MSG_PEEK flag support in recvfrom
         #
         # Emscripten ignores the flags argument to ___syscall_recvfrom.
@@ -950,9 +954,11 @@ RUN \
         # reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
         # status line.
         # We need to patch the syscall to support the MSG_PEEK flag.
-        /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js && \
-        /root/replace.sh 's/recvmsg:\s*function\(sock,\s*length\)/recvmsg: function(sock, length, flags)/g' /root/output/php.js && \
-        /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js && \
+        if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+            /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js && \
+            /root/replace.sh 's/recvmsg:\s*function\(sock,\s*length\)/recvmsg: function(sock, length, flags)/g' /root/output/php.js && \
+            /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
+        fi ; \
     # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
         #
         # The JavaScript code of the web loader and web worker loader is identical,

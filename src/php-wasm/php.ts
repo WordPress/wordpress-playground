@@ -251,6 +251,7 @@ export async function startPHP(
  */
 export class PHP {
 	#Runtime;
+	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
 
 	/**
@@ -261,6 +262,20 @@ export class PHP {
 	 */
 	constructor(PHPRuntime: any) {
 		this.#Runtime = PHPRuntime;
+	}
+
+	setPhpIniPath(path: string) {
+		if (this.#webSapiInitialized) {
+			throw new Error('Cannot set PHP ini path after calling run().');
+		}
+		this.#Runtime.ccall('wasm_set_phpini_path', null, ['string'], [path]);
+	}
+
+	setPhpIniEntry(key: string, value: string) {
+		if (this.#webSapiInitialized) {
+			throw new Error('Cannot set PHP ini entries after calling run().');
+		}
+		this.#phpIniOverrides.push([key, value]);
 	}
 
 	/**
@@ -286,7 +301,7 @@ export class PHP {
 	 */
 	run(request: PHPRequest = {}): PHPResponse {
 		if (!this.#webSapiInitialized) {
-			this.#Runtime.ccall('php_wasm_init', null, [], []);
+			this.#initWebRuntime();
 			this.#webSapiInitialized = true;
 		}
 		this.#setScriptPath(request.scriptPath || '');
@@ -310,6 +325,21 @@ export class PHP {
 			this.#setPHPCode(' ?>' + request.code);
 		}
 		return this.#handleRequest();
+	}
+
+	#initWebRuntime() {
+		if (this.#phpIniOverrides.length > 0) {
+			const overridesAsIni = this.#phpIniOverrides
+				.map(([key, value]) => `${key}=${value}`)
+				.join('\n');
+			this.#Runtime.ccall(
+				'wasm_set_phpini_entries',
+				null,
+				[STR],
+				[overridesAsIni]
+			);
+		}
+		this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
 	/**
