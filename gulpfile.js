@@ -14,7 +14,7 @@ const outputDir = path.join(__dirname, 'build');
 console.log('Building the PHP WASM module...');
 
 async function collectBuiltWordPress() {
-	glob.sync(`${outputDir}/wp-*`).map((filePath) =>
+	glob.sync(`${outputDir}/wp-${ process.env.OUT_FILENAME }*`).map((filePath) =>
 		fs.rmSync(filePath, { force: true, recursive: true })
 	);
 	fs.rmSync(`${outputDir}/wp.js`, { force: true });
