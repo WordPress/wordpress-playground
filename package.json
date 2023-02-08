@@ -14,7 +14,6 @@
     "build:all": "npm run clean; gulp buildAll",
     "build:js": "gulp buildJS",
     "build:htaccess": "gulp buildHtaccess",
-    "build:wp": "KEEP_THEME=twentytwentythree gulp buildWordPress",
     "build:wp:nightly": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/nightly-builds/wordpress-latest.zip OUT_FILENAME=wp-nightly gulp buildWordPress",
     "build:wp:6.1": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip OUT_FILENAME=wp-6.1 gulp buildWordPress",
     "build:wp:6.0": "KEEP_THEME=twentytwentytwo WP_ZIP_URL=https://wordpress.org/wordpress-6.0.3.zip OUT_FILENAME=wp-6.0 gulp buildWordPress",
