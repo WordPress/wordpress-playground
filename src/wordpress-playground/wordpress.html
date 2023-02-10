@@ -23,12 +23,50 @@
         background-attachment: fixed;
       }
 
+      .migration-controls {
+        position: absolute;
+        right: 10px;
+      }
+      
+      .btn {
+        cursor: pointer;
+        background: none;
+        border: none;
+      }
+
+      .btn:hover,
+      .btn:active {
+        opacity: 0.8;
+      }
+
+      .btn-close {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+      }
+
+      #overlay {
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 100;
+        background: #1E2327;
+        opacity: 0.8;
+        display: none;
+      }
+
       .full-window {
         width: 100vw;
         height: 100vh;
         border: 0;
         margin: 0;
         padding: 0;
+      }
+
+      .screenreader-text {
+        display: none;
       }
 
       .fake-window-wrapper {
@@ -94,6 +132,7 @@
         height: 50px;
         flex-direction: row;
         align-items: center;
+        position: relative;
       }
 
       .dots {
@@ -304,6 +343,59 @@
       .is-code-mirror .cm-editor .cm-gutters {
         background-color: rgba(255,255,255,0.2);
       }
+
+      .modal {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 400px;
+        background: #fff;
+        border-radius: 6px;
+        z-index: 200;
+        text-align: center;
+        color:#000;
+        border:#000 1px solid;
+        display: none;
+      }
+      
+      .modal-inner {
+        position: relative;
+        padding: 20px;
+      }
+
+      .modal .inputs-container {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+      }
+
+      .modal .inputs-container {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+      }
+
+      .modal .inputs-container .btn {
+        background: #1E2327;
+        color: #fff;
+        height: 40px;
+        border-radius: 6px;
+        margin: 5px 0;
+      }
+
+      .modal .inputs-container .btn[disabled] {
+        opacity: 0.5;
+      }
+
+      .file-input-text {
+        margin-top: 5px;
+        margin-bottom: 15px;
+      }
+
+      .file-input-label .btn {
+        width: 100%;
+      }
     </style>
   </head>
   <body class="is-loading">
@@ -314,6 +406,30 @@
     <div id="test-snippets"></div>
 
     <div id="app-root" class="full-window"></div>
+    <div id="overlay"></div>
+    <div id="import-window" class="modal" aria-hidden="true" aria-describedby='import-window-description'>
+      <div class='screenreader-text' id='import-window-description'>
+        This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called &quot;Import Playground&quot;. Pressing the Close Import Window will close the modal and bring you back to where you were on the page.
+        </div>
+      <div class="modal-inner">
+        <form id="import-playground-form">
+          <button id="import-close-modal--btn" class="btn btn-close" aria-label="Close import window">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true" focusable="false">
+              <path d="M13 11.8l6.1-6.3-1-1-6.1 6.2-6.1-6.2-1 1 6.1 6.3-6.5 6.7 1 1 6.5-6.6 6.5 6.6 1-1z"></path>
+            </svg>
+          </button>
+          <h2 tabindex="0">Import Playground</h2>
+          <div class="inputs-container">
+            <input type="file" id="import-select-file" style="display:none;" accept="application/zip"/>
+            <label for="import-select-file" class="file-input-label">
+              <div id="import-select-file--text" class="file-input-text">No File Selected</div>
+              <button id="import-select-file--btn" class="btn">Choose File</button>
+            </label>
+            <button id="import-submit--btn" disabled="true" class="btn">Import</button>
+          </div>
+        </form>
+      </div>
+    </div>
     <script type="template" id="browser-mode">
       <div class="fake-window-wrapper full-window">
         <div class="fake-window">
@@ -330,6 +446,18 @@
               </div>
               <input type="submit" tabindex="-1" />
             </form>
+            <div class="migration-controls">
+              <button id="export-playground--btn" class="btn" aria-label="Download Playground export as ZIP file">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+                  <path fill="#ffffff" d="M18 11.3l-1-1.1-4 4V3h-1.5v11.3L7 10.2l-1 1.1 6.2 5.8 5.8-5.8zm.5 3.7v3.5h-13V15H4v5h16v-5h-1.5z"></path>
+                </svg>
+              </button>
+              <button id="import-open-modal--btn" class="btn" aria-label="Open Playground import window">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false">
+                  <path fill="#ffffff" d="M18.5 15v3.5H13V6.7l4.5 4.1 1-1.1-6.2-5.8-5.8 5.8 1 1.1 4-4v11.7h-6V15H4v5h16v-5z"></path>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="main-content">
             <div class="progress-bar-overlay">
@@ -355,12 +483,6 @@
           ">
               This is a cool fun experimental WordPress running in your browser :) All your changes are private and gone after a page refresh.
           </div>
-          <input type="text" id="target-file" placeholder="Target file path">
-          <textarea id="target-content" placeholder="Target content"></textarea>
-          <button id="overwrite-button">Overwrite</button>
-          <button id="export-button">Export</button>
-          <input type="file" id="file-input">
-          <button id="import-button">Import</button>
         </div>
       </div>
     </script>

@@ -12,6 +12,35 @@ import { DOCROOT } from './config';
 const query = new URL(document.location.href).searchParams as any;
 
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
+
+// Migration Logic
+const importWindow = document.querySelector('#import-window') as HTMLElement;
+const overlay = document.querySelector('#overlay') as HTMLElement;
+const exportButton = document.querySelector(
+	'#export-playground--btn'
+) as HTMLButtonElement;
+const importOpenModalButton = document.querySelector(
+	'#import-open-modal--btn'
+) as HTMLButtonElement;
+const importPlaygroundForm = document.querySelector(
+	'#import-playground-form'
+) as HTMLFormElement;
+const importSelectFile = document.querySelector(
+	'#import-select-file'
+) as HTMLInputElement;
+const importSelectFileText = document.querySelector(
+	'#import-select-file--text'
+) as HTMLElement;
+const importSelectFileButton = document.querySelector(
+	'#import-select-file--btn'
+) as HTMLButtonElement;
+const importSubmitButton = document.querySelector(
+	'#import-submit--btn'
+) as HTMLButtonElement;
+const importCloseModalButton = document.querySelector(
+	'#import-close-modal--btn'
+) as HTMLButtonElement;
 
 let workerThread;
 
@@ -230,7 +259,6 @@ function toZipName(rawInput) {
 
 function setupAddressBar(wasmWorker) {
 	// Manage the address bar
-	const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 	wpFrame.addEventListener('load', (e: any) => {
 		addressBar.value = wasmWorker.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
@@ -304,16 +332,6 @@ function zipNameToHumanName(zipName) {
 	);
 }
 
-main();
-
-async function overwriteFile() {
-	const targetFile = document.getElementById('target-file')?.value;
-	const targetContent = document.getElementById('target-content')?.value;
-	console.log(targetFile);
-	console.log(targetContent);
-	await workerThread.writeFile(targetFile, targetContent);
-}
-
 async function generateZip() {
 	const databaseExportResponse = await workerThread.HTTPRequest({
 		absoluteUrl: workerThread.pathToInternalUrl(
@@ -379,10 +397,17 @@ async function generateZip() {
 }
 
 async function importFile() {
+	if (
+		// eslint-disable-next-line no-alert
+		!confirm(
+			'Are you sure you want to import this file? Previous data will be lost.'
+		)
+	) {
+		return false;
+	}
+
 	// Write uploaded file to filesystem for processing with PHP
-	const userUploadedFileInput = document.getElementById(
-		'file-input'
-	) as HTMLInputElement;
+	const userUploadedFileInput = importSelectFile as HTMLInputElement;
 	const userUploadedFile = userUploadedFileInput.files
 		? userUploadedFileInput.files[0]
 		: null;
@@ -501,19 +526,84 @@ async function importFile() {
 	if (importFileSystemRequest.exitCode !== 0) {
 		throw importFileSystemRequest.errors;
 	}
+
+	return true;
 }
 
-const overwriteButton = document.getElementById('overwrite-button');
-if (overwriteButton) {
-	overwriteButton.addEventListener('click', overwriteFile);
-}
+if (
+	importWindow &&
+	overlay &&
+	exportButton &&
+	importOpenModalButton &&
+	importPlaygroundForm &&
+	importSelectFileButton &&
+	importSelectFileText &&
+	importSelectFile &&
+	importSubmitButton &&
+	importCloseModalButton
+) {
+	const resetImportWindow = () => {
+		overlay.style.display = 'none';
+		importWindow.style.display = 'none';
+		importPlaygroundForm.reset();
+		importSelectFileText.innerHTML = 'No file selected';
+		importSubmitButton.disabled = true;
+	};
 
-const exportButton = document.getElementById('export-button');
-if (exportButton) {
 	exportButton.addEventListener('click', generateZip);
+
+	importOpenModalButton.addEventListener('click', () => {
+		importWindow.style.display = 'block';
+		overlay.style.display = 'block';
+		importCloseModalButton.focus();
+	});
+
+	importSelectFile.addEventListener('change', (e) => {
+		if (importSelectFile.files === null) return;
+		importSubmitButton.disabled = false;
+		importSelectFileText.innerHTML = importSelectFile.files[0].name;
+	});
+
+	importSelectFileButton.addEventListener('click', (e) => {
+		e.preventDefault();
+		importPlaygroundForm.reset();
+		importSelectFile.click();
+	});
+
+	importSubmitButton.addEventListener('click', async (e) => {
+		e.preventDefault();
+		let uploadAttempt;
+		try {
+			uploadAttempt = await importFile();
+		} catch (error) {
+			console.error(error);
+			importSelectFileText.innerHTML =
+				'<span class="error" style="color: red;">Unable to import file. <br/> Is it a valid WordPress Playground export?</span>';
+		}
+
+		if (uploadAttempt) {
+			// eslint-disable-next-line no-alert
+			alert(
+				'File imported! This Playground instance has been updated. Refreshing now.'
+			);
+			resetImportWindow();
+			wpFrame.src = workerThread.pathToInternalUrl(addressBar.value);
+			addressBar.focus();
+		}
+	});
+
+	importCloseModalButton.addEventListener('click', (e) => {
+		e.preventDefault();
+		resetImportWindow();
+		importOpenModalButton.focus();
+	});
+
+	overlay.addEventListener('click', (e) => {
+		e.preventDefault();
+		resetImportWindow();
+	});
+} else {
+	console.error('Migration user interface elements not found.');
 }
 
-const importButton = document.getElementById('import-button');
-if (importButton) {
-	importButton.addEventListener('click', importFile);
-}
+main();
