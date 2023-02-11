@@ -14,6 +14,8 @@ const query = new URL(document.location.href).searchParams as any;
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 
+let wpVersion;
+
 // Migration Logic
 const importWindow = document.querySelector('#import-window') as HTMLElement;
 const overlay = document.querySelector('#overlay') as HTMLElement;
@@ -52,7 +54,7 @@ async function main() {
 	const queryTheme =
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
 	const preinstallTheme = toZipName(queryTheme);
-
+	wpVersion = query.get('wp') ? query.get('wp') : '6.1';
 	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
@@ -64,7 +66,7 @@ async function main() {
 			'Preparing WordPress...'
 		),
 		phpVersion: query.get('php'),
-		dataModule: query.get('wp'),
+		dataModule: wpVersion,
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -343,10 +345,11 @@ async function generateZip() {
 		databaseExportResponse.body
 	);
 	await workerThread.writeFile('/databaseExport.xml', databaseExportContent);
+	const exportName = `wordpress-playground-export-${wpVersion}.zip`;
 	const exportWriteRequest = await workerThread.run({
 		code: `<?php
 					$zip = new ZipArchive;
-					$res = $zip->open('/wordpress-playground-export.zip', ZipArchive::CREATE);
+					$res = $zip->open('/${exportName}', ZipArchive::CREATE);
 					if ($res === TRUE) {
 						$zip->addFile('/databaseExport.xml');
 						$directories = array();
@@ -389,10 +392,8 @@ async function generateZip() {
 		throw exportWriteRequest.errors;
 	}
 
-	const fileBuffer = await workerThread.readFileAsBuffer(
-		'/wordpress-playground-export.zip'
-	);
-	const file = new File([fileBuffer], 'wordpress-playground-export.zip');
+	const fileBuffer = await workerThread.readFileAsBuffer(exportName);
+	const file = new File([fileBuffer], exportName);
 	saveAs(file);
 }
 
