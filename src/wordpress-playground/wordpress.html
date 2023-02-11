@@ -364,6 +364,15 @@
         padding: 20px;
       }
 
+      .modal-text,
+      .modal-text-list {
+        text-align: left;
+      }
+
+      .modal-text-list {
+        padding-left: 15px;
+      }
+
       .modal .inputs-container {
         display: flex;
         flex-direction: column;
@@ -419,6 +428,16 @@
             </svg>
           </button>
           <h2 tabindex="0">Import Playground</h2>
+          <p class="modal-text">
+            You may import a previously exported WordPress Playground instance here.
+          </p>
+          <p class="modal-text">
+            <strong>Known Limitations</strong><br/>
+            <ul class="modal-text-list">
+              <li>Styling changes may take up to one minute to update.</li><br/>
+              <li>Migrating between different WordPress versions is not supported.</li>
+            </ul>
+          </p>
           <div class="inputs-container">
             <input type="file" id="import-select-file" style="display:none;" accept="application/zip"/>
             <label for="import-select-file" class="file-input-label">
