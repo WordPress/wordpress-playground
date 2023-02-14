@@ -176,6 +176,11 @@ class WordPressPatcher {
 			`${DOCROOT}/wp-content/mu-plugins/add_requests_transport.php`,
 			require('./mu-plugins/add_requests_transport.php')
 		);
+		// Various random hacks
+		this.#php.writeFile(
+			`${DOCROOT}/wp-content/mu-plugins/my-hacks.php`,
+			require('./mu-plugins/my-hacks.php')
+		);
 	}
 	#patchFile(path, callback) {
 		this.#php.writeFile(path, callback(this.#php.readFileAsText(path)));
