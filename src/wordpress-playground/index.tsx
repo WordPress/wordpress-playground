@@ -15,6 +15,7 @@ const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 
 let wpVersion;
+let phpVersion;
 
 // Migration Logic
 const importWindow = document.querySelector('#import-window') as HTMLElement;
@@ -55,6 +56,7 @@ async function main() {
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
 	const preinstallTheme = toZipName(queryTheme);
 	wpVersion = query.get('wp') ? query.get('wp') : '6.1';
+	phpVersion = query.get('php') ? query.get('php') : '8.0';
 	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
@@ -65,7 +67,7 @@ async function main() {
 			bootProgress,
 			'Preparing WordPress...'
 		),
-		phpVersion: query.get('php'),
+		phpVersion,
 		dataModule: wpVersion,
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
@@ -345,11 +347,12 @@ async function generateZip() {
 		databaseExportResponse.body
 	);
 	await workerThread.writeFile('/databaseExport.xml', databaseExportContent);
-	const exportName = `wordpress-playground-export-${wpVersion}.zip`;
+	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
+	const exportPath = `/${exportName}`;
 	const exportWriteRequest = await workerThread.run({
 		code: `<?php
 					$zip = new ZipArchive;
-					$res = $zip->open('/${exportName}', ZipArchive::CREATE);
+					$res = $zip->open('${exportPath}', ZipArchive::CREATE);
 					if ($res === TRUE) {
 						$zip->addFile('/databaseExport.xml');
 						$directories = array();
@@ -385,6 +388,7 @@ async function generateZip() {
 							}
 						}
 						$zip->close();
+						chmod('${exportPath}', 0777);
 					}
 				`,
 	});
@@ -421,6 +425,7 @@ async function importFile() {
 	// Import the database
 	const databaseFromZipFileReadRequest = await workerThread.run({
 		code: `<?php
+					chmod('/import.zip', 0777);
 					$zip = new ZipArchive;
 					$res = $zip->open('/import.zip');
 					if ($res === TRUE) {
