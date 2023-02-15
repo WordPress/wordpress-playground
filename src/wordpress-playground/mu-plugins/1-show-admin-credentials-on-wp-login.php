@@ -1,9 +1,8 @@
 <?php
 /**
- * Various hacks to the WordPress Playground experience.
+ * Add a notice to wp-login.php offering the username and password.
  */
 
-// Add a notice to wp-login.php offering the username and password.
 add_action(
 	'login_message',
 	function() {

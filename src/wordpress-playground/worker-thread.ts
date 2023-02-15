@@ -176,10 +176,10 @@ class WordPressPatcher {
 			`${DOCROOT}/wp-content/mu-plugins/add_requests_transport.php`,
 			require('./mu-plugins/add_requests_transport.php')
 		);
-		// Various random hacks
+		// Various tweaks
 		this.#php.writeFile(
-			`${DOCROOT}/wp-content/mu-plugins/my-hacks.php`,
-			require('./mu-plugins/my-hacks.php')
+			`${DOCROOT}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
+			require('./mu-plugins/1-show-admin-credentials-on-wp-login.php')
 		);
 	}
 	#patchFile(path, callback) {
