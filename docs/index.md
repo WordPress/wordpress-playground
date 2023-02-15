@@ -34,6 +34,8 @@ npm run dev
 
 A browser should open and take you to your very own WordPress Playground at `http://127.0.0.1:8777/wordpress.html`!
 
+Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
+
 ## Architecture overview
 
 Here's a high-level breakdown of how WordPress Playground works:
