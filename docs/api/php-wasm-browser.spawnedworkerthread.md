@@ -20,7 +20,13 @@ Constructs a new instance of the `SpawnedWorkerThread` class
 
 ## Methods
 
-### HTTPRequest<!-- -->(<!-- -->request<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&amp;<!-- -->{<!-- -->text<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->;<!-- -->}<!-- -->&gt;
+### fileExists<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
+
+* `path` – 
+
+
+
+### HTTPRequest<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./php-wasm.phpserverrequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&amp;<!-- -->{<!-- -->text<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->;<!-- -->}<!-- -->&gt;
 
 * `request` – 
 

@@ -6,5 +6,6 @@
 ```typescript
 exitCode: number;
 ```
-PHP exit code. Always 0 for static file responses.
+The exit code of the script. `0` is a success, while
+`1` and `2` indicate an error.
 

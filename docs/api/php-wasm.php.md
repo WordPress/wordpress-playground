@@ -18,11 +18,22 @@ interact with the PHP filesystem.
 
 ## Methods
 
-### destroyUploadedFilesHash<!-- -->(<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### addServerGlobalEntry<!-- -->(<!-- -->key<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, value<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 
 
 
-Destroys the internal hash table to free the memory.
+
+### cli<!-- -->(<!-- -->argv<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->[]<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
+
+* `argv` – The arguments to pass to the CLI.
+* Returns: The exit code of the CLI session.
+
+
+Starts a PHP CLI session with given arguments.
+Can only be used when PHP was compiled with the CLI SAPI.
+Cannot be used in conjunction with `run()`<!-- -->.
+
+
 ### fileExists<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
 * `path` – The file path to check.
@@ -30,72 +41,6 @@ Destroys the internal hash table to free the memory.
 
 
 Checks if a file (or a directory) exists in the PHP filesystem.
-### initUploadedFilesHash<!-- -->(<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
-
-
-
-Allocates an internal HashTable to keep track of the legitimate uploads.
-Supporting file uploads via WebAssembly is a bit tricky.
-Functions like `is_uploaded_file` or `move_uploaded_file` fail to work
-with those $_FILES entries that are not in an internal hash table. This
-is a security feature, see this exceprt from the `is_uploaded_file` documentation:
-
-> is_uploaded_file
->
-> Returns true if the file named by filename was uploaded via HTTP POST. This is
-> useful to help ensure that a malicious user hasn't tried to trick the script into
-> working on files upon which it should not be working--for instance, /etc/passwd.
->
-> This sort of check is especially important if there is any chance that anything
-> done with uploaded files could reveal their contents to the user, or even to other
-> users on the same system.
->
-> For proper working, the function is_uploaded_file() needs an argument like
-> $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
-> machine $_FILES['userfile']['name'] does not work.
-
-This PHP.wasm implementation doesn't run any PHP request machinery, so PHP never has
-a chance to note which files were actually uploaded. In practice, `is_uploaded_file()`
-always returns false.
-
-`initUploadedFilesHash()`<!-- -->, `registerUploadedFile()`<!-- -->, and `destroyUploadedFilesHash()`
-are a workaround for this problem. They allow you to manually register uploaded
-files in the internal hash table, so that PHP functions like `move_uploaded_file()`
-can recognize them.
-
-Usage:
-
-```js
-// Create an uploaded file in the PHP filesystem.
-php.writeFile(
-   '/tmp/test.txt',
-   'I am an uploaded file!'
-);
-
-// Allocate the internal hash table.
-php.initUploadedFilesHash();
-
-// Register the uploaded file.
-php.registerUploadedFile('/tmp/test.txt');
-
-// Run PHP code that uses the uploaded file.
-php.run(`<?php
- _FILES[key] = {
-     name: value.name,
-     type: value.type,
-     tmp_name: tmpPath,
-     error: 0,
-     size: value.size,
- };
- var_dump(is_uploaded_file($_FILES["file1"]["tmp_name"]));
- // true
-`);
-
-// Destroy the internal hash table to free the memory.
-php.destroyUploadedFilesHash();
-```
-
-
 ### isDir<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
 * `path` – – The path to check.
@@ -120,6 +65,13 @@ For example, if the path is `/root/php/data`<!-- -->, and `/root` already exists
 it will create the directories `/root/php` and `/root/php/data`<!-- -->.
 
 
+### mount<!-- -->(<!-- -->settings<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+
+* `settings` – The Node.js filesystem settings.
+* `path` – The path to mount the filesystem to.
+
+
+Mounts a Node.js filesystem to a given path in the PHP filesystem.
 ### readFileAsBuffer<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array)
 
 * `path` – The file path to read.
@@ -138,33 +90,28 @@ Exceptions:
 
 
 Reads a file from the PHP filesystem and returns it as a string.
-### registerUploadedFile<!-- -->(<!-- -->tmpPath<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### run<!-- -->(<!-- -->request?<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->)<!-- -->: [PHPResponse](./php-wasm.phpresponse.md)
 
-* `tmpPath` – The temporary path of the uploaded file.
-
-
-Registers an uploaded file in the internal hash table.
-### run<!-- -->(<!-- -->code<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [PHPOutput](./php-wasm.phpoutput.md)
-
-* `code` – The PHP code to run.
-* Returns: The PHP process output.
+* `request` – Optional. PHP Request data.
 
 
-Runs a PHP script and outputs an object with three properties:
-stdout, stderr, and the exitCode.
+Dispatches a PHP request.
+Cannot be used in conjunction with `cli()`<!-- -->.
 
-* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error.
-* `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc.
-* `stderr` – containing all the errors are logged. It can also be written
-to explicitly:
 
-```js
-console.log(php.run(`<?php
- $fp = fopen('php://stderr', 'w');
- fwrite($fp, "Hello, world!");
-`));
-// {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
-```
+### setPhpIniEntry<!-- -->(<!-- -->key<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, value<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+
+
+
+
+### setPhpIniPath<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+
+
+
+
+### setSkipShebang<!-- -->(<!-- -->shouldSkip<!-- -->: [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+
+
 
 
 ### unlink<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)

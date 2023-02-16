@@ -8,9 +8,15 @@ interface PHPResponse
 ```
 ## Properties
 
-* `body`    [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) – Response body.
-* `exitCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – PHP exit code. Always 0 for static file responses.
+* `body`    [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) – Response body. Contains the output from `echo`<!-- -->,
+`print`<!-- -->, inline HTML etc.
+
+
+* `errors`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – PHP errors.
+* `exitCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The exit code of the script. `0` is a success, while
+`1` and `2` indicate an error.
+
+
 * `headers`    [PHPHeaders](./php-wasm.phpheaders.md) – Response headers.
-* `rawError`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->[] – Lines logged to stderr. Always [''] for static file responses.
-* `statusCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Response HTTP status code, e.g. 200.
+* `httpStatusCode`    [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Response HTTP status code, e.g. 200.
 
