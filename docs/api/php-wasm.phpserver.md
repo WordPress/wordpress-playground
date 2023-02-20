@@ -25,7 +25,7 @@ Constructs a new instance of the `PHPServer` class
 
 ## Methods
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./php-wasm.phpserverrequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&gt;
 
 * `request` – The request.
 * Returns: The response.

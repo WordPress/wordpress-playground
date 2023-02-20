@@ -24,7 +24,7 @@ Constructs a new instance of the `PHPBrowser` class
 
 ## Methods
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPRequest](./php-wasm.phprequest.md)<!-- -->, redirects?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./php-wasm.phpserverrequest.md)<!-- -->, redirects?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./php-wasm.phpresponse.md)<!-- -->&gt;
 
 * `request` – The request.
 * `redirects` – Optional. Internal. The number of redirects handled so far.

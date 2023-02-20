@@ -6,5 +6,6 @@
 ```typescript
 body: ArrayBuffer;
 ```
-Response body.
+Response body. Contains the output from `echo`<!-- -->,
+`print`<!-- -->, inline HTML etc.
 

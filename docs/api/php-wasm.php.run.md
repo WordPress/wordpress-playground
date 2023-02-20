@@ -4,20 +4,23 @@
 <b>Signature:</b>
 
 ```typescript
-run(code: string): PHPOutput;
+run(request?: PHPRequest): PHPResponse;
 ```
 
-* `code` – The PHP code to run.
-* Returns: The PHP process output.
+* `request` – Optional. PHP Request data.
 
 
-Runs a PHP script and outputs an object with three properties:
-stdout, stderr, and the exitCode.
+Dispatches a PHP request.
+Cannot be used in conjunction with `cli()`<!-- -->.
 
-* `exitCode` – the exit code of the script. `0` is a success, while `1` and `2` indicate an error.
-* `stdout` – containing the output from `echo`<!-- -->, `print`<!-- -->, inline HTML etc.
-* `stderr` – containing all the errors are logged. It can also be written
-to explicitly:
+## Example 1
+
+```js
+const output = php.run('<?php echo "Hello world!";');
+console.log(output.stdout); // "Hello world!"
+```
+
+## Example 2
 
 ```js
 console.log(php.run(`<?php
@@ -25,12 +28,5 @@ console.log(php.run(`<?php
  fwrite($fp, "Hello, world!");
 `));
 // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
-```
-
-## Example
-
-```js
-const output = php.run('<?php echo "Hello world!";');
-console.log(output.stdout); // "Hello world!"
 ```
 
