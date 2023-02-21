@@ -8,5 +8,10 @@ interface ServiceWorkerConfiguration
 ```
 ## Properties
 
-* `shouldForwardRequestToPHPServer`    (<!-- -->request<!-- -->:[Request](https://developer.mozilla.org/en-US/docs/Web/API/Request)<!-- -->,<!-- -->unscopedUrl<!-- -->:[URL](https://developer.mozilla.org/en-US/docs/Web/API/URL)<!-- -->)<!-- -->=&gt;[boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b>
+* `handleRequest`    (<!-- -->event<!-- -->:<!-- -->FetchEvent<!-- -->)<!-- -->=&gt;[Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[Response](https://developer.mozilla.org/en-US/docs/Web/API/Response)<!-- -->&gt;<!-- -->|[undefined](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined) – <b>(Optional)</b>
+* `version`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The version of the service worker – exposed via the /version endpoint.
+This is used by the frontend app to know whether it's time to update
+the service worker registration.
+
+
 

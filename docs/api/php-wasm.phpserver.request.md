@@ -4,7 +4,7 @@
 <b>Signature:</b>
 
 ```typescript
-request(request: PHPRequest): Promise<PHPResponse>;
+request(request: PHPServerRequest): Promise<PHPResponse>;
 ```
 
 * `request` – The request.

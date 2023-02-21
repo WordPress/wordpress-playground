@@ -8,13 +8,15 @@
 ## Functions
 
 * [awaitReply](./php-wasm-browser.awaitreply.md)
+* [broadcastMessageExpectReply](./php-wasm-browser.broadcastmessageexpectreply.md)
+* [cloneRequest](./php-wasm-browser.clonerequest.md)
 * [cloneResponseMonitorProgress](./php-wasm-browser.cloneresponsemonitorprogress.md)
-* [getPathQueryFragment](./php-wasm-browser.getpathqueryfragment.md)
 * [getURLScope](./php-wasm-browser.geturlscope.md)
 * [initializeServiceWorker](./php-wasm-browser.initializeserviceworker.md)
 * [initializeWorkerThread](./php-wasm-browser.initializeworkerthread.md)
 * [isURLScoped](./php-wasm-browser.isurlscoped.md)
 * [loadPHPWithProgress](./php-wasm-browser.loadphpwithprogress.md)
+* [PHPRequest](./php-wasm-browser.phprequest.md)
 * [postMessageExpectReply](./php-wasm-browser.postmessageexpectreply.md)
 * [registerServiceWorker](./php-wasm-browser.registerserviceworker.md)
 * [removeURLScope](./php-wasm-browser.removeurlscope.md)
@@ -36,7 +38,6 @@
 ## Variables
 
 * [currentBackend](./php-wasm-browser.currentbackend.md)
-* [DEFAULT_BASE_URL](./php-wasm-browser.default_base_url.md)
 
 ## Type Aliases
 

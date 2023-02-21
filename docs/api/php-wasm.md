@@ -9,11 +9,13 @@
 
 ## Functions
 
+* [getPathQueryFragment](./php-wasm.getpathqueryfragment.md)
 * [startPHP](./php-wasm.startphp.md)
 
 ## Interfaces
 
 * [ErrnoError](./php-wasm.errnoerror.md)
+* [FileInfo](./php-wasm.fileinfo.md)
 * [PHPBrowserConfiguration](./php-wasm.phpbrowserconfiguration.md)
 * [PHPOutput](./php-wasm.phpoutput.md)
 * [PHPRequest](./php-wasm.phprequest.md)
@@ -22,10 +24,12 @@
 
 ## Variables
 
+* [DEFAULT_BASE_URL](./php-wasm.default_base_url.md)
 * [phpJsHash](./php-wasm.phpjshash.md)
 
 ## Type Aliases
 
 * [JavascriptRuntime](./php-wasm.javascriptruntime.md)
 * [PHPHeaders](./php-wasm.phpheaders.md)
+* [PHPServerRequest](./php-wasm.phpserverrequest.md)
 

@@ -8,11 +8,12 @@ interface PHPRequest
 ```
 ## Properties
 
-* `_COOKIE`    [Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->,[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt; – <b>(Optional)</b> Request cookies.
-* `_POST`    [Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->,[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt; – <b>(Optional)</b> POST data.
-* `files`    [Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->,[File](https://developer.mozilla.org/en-US/docs/Web/API/File)<!-- -->&gt; – <b>(Optional)</b> Request files in the `{"filename": File}` format.
+* `body`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request body without the files.
+* `code`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> The code snippet to eval instead of a php file.
+* `fileInfos`    [FileInfo](./php-wasm.fileinfo.md)<!-- -->[] – <b>(Optional)</b> Uploaded files.
 * `headers`    [PHPHeaders](./php-wasm.phpheaders.md) – <b>(Optional)</b> Request headers.
 * `method`    'GET'<!-- -->|<!-- -->'POST'<!-- -->|<!-- -->'HEAD'<!-- -->|<!-- -->'OPTIONS'<!-- -->|<!-- -->'PATCH'<!-- -->|<!-- -->'PUT'<!-- -->|<!-- -->'DELETE' – <b>(Optional)</b> Request method. Default: `GET`<!-- -->.
-* `path`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – Request path without the query string.
-* `queryString`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request query string.
+* `protocol`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request protocol.
+* `relativeUri`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request path following the domain:port part.
+* `scriptPath`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Path of the .php file to execute.
 

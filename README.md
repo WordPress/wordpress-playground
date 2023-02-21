@@ -35,6 +35,8 @@ npm run dev
 
 A browser should open and take you to your very own client-side WordPress at [http://127.0.0.1:8777/wordpress.html](http://127.0.0.1:8777/wordpress.html)!
 
+Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
+
 From here, the [documentation](https://wordpresswasm.readthedocs.io/en/latest/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
 ## Backwards compatibility
