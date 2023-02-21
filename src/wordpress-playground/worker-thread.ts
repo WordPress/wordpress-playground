@@ -176,6 +176,11 @@ class WordPressPatcher {
 			`${DOCROOT}/wp-content/mu-plugins/add_requests_transport.php`,
 			require('./mu-plugins/add_requests_transport.php')
 		);
+		// Various tweaks
+		this.#php.writeFile(
+			`${DOCROOT}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
+			require('./mu-plugins/1-show-admin-credentials-on-wp-login.php')
+		);
 	}
 	#patchFile(path, callback) {
 		this.#php.writeFile(path, callback(this.#php.readFileAsText(path)));
