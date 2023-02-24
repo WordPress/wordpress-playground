@@ -94,6 +94,8 @@ export async function initializeWorkerThread(
 			return scope;
 		} else if (message.type === 'readFile') {
 			return phpBrowser.server.php.readFileAsText(message.path);
+		} else if (message.type === 'readFileAsBuffer') {
+			return phpBrowser.server.php.readFileAsBuffer(message.path);
 		} else if (message.type === 'listFiles') {
 			return phpBrowser.server.php.listFiles(message.path);
 		} else if (message.type === 'unlink') {

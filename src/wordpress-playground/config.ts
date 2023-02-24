@@ -1,5 +1,8 @@
 /* eslint-disable no-undef */
 
+// Hardcoded in wp.js:
+export const DOCROOT = '/wordpress';
+
 // Provided by esbuild – see build.js in the repo root.
 declare let SERVICE_WORKER_URL: any;
 export const serviceWorkerUrl = SERVICE_WORKER_URL;

@@ -6,10 +6,50 @@ import {
 } from '../php-wasm-browser/index';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
+import { saveAs } from 'file-saver';
+import { DOCROOT } from './config';
+import migration from './migration.php';
 
 const query = new URL(document.location.href).searchParams as any;
 
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
+
+let wpVersion;
+let phpVersion;
+
+// Migration Logic
+const importWindow = document.querySelector('#import-window') as HTMLElement;
+const overlay = document.querySelector('#overlay') as HTMLElement;
+const exportButton = document.querySelector(
+	'#export-playground--btn'
+) as HTMLButtonElement;
+const importOpenModalButton = document.querySelector(
+	'#import-open-modal--btn'
+) as HTMLButtonElement;
+const importPlaygroundForm = document.querySelector(
+	'#import-playground-form'
+) as HTMLFormElement;
+const importSelectFile = document.querySelector(
+	'#import-select-file'
+) as HTMLInputElement;
+const importSelectFileText = document.querySelector(
+	'#import-select-file--text'
+) as HTMLElement;
+const importSelectFileButton = document.querySelector(
+	'#import-select-file--btn'
+) as HTMLButtonElement;
+const importSubmitButton = document.querySelector(
+	'#import-submit--btn'
+) as HTMLButtonElement;
+const importCloseModalButton = document.querySelector(
+	'#import-close-modal--btn'
+) as HTMLButtonElement;
+
+const databaseExportName = 'databaseExport.xml';
+const databaseExportPath = '/' + databaseExportName;
+
+let workerThread;
 
 let isBooted = false;
 
@@ -19,26 +59,32 @@ async function main() {
 	const queryTheme =
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
 	const preinstallTheme = toZipName(queryTheme);
-
+	wpVersion = query.get('wp') ? query.get('wp') : '6.1';
+	phpVersion = query.get('php') ? query.get('php') : '8.0';
 	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
 	const progress = setupProgressBar();
-	const workerThread = await bootWordPress({
+	workerThread = await bootWordPress({
 		onWasmDownloadProgress: progress.partialObserver(
 			bootProgress,
 			'Preparing WordPress...'
 		),
-		phpVersion: query.get('php'),
-		dataModule: query.get('wp'),
+		phpVersion,
+		dataModule: wpVersion,
 	});
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
 		setupAddressBar(workerThread);
 	}
 
-	if (query.get('login') || preinstallPlugins.length || query.get('theme')) {
+	if (
+		!query.get('disableImportExport') ||
+		query.get('login') ||
+		preinstallPlugins.length ||
+		query.get('theme')
+	) {
 		await login(workerThread, 'admin', 'password');
 	}
 
@@ -139,7 +185,6 @@ async function main() {
 	}
 
 	if (query.get('rpc')) {
-		console.log('Registering an RPC handler');
 		async function handleMessage(data) {
 			if (data.type === 'rpc') {
 				return await workerThread[data.method](...data.args);
@@ -222,7 +267,6 @@ function toZipName(rawInput) {
 
 function setupAddressBar(wasmWorker) {
 	// Manage the address bar
-	const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 	wpFrame.addEventListener('load', (e: any) => {
 		addressBar.value = wasmWorker.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
@@ -294,6 +338,227 @@ function zipNameToHumanName(zipName) {
 		mixedCaseName.charAt(0).toUpperCase() +
 		mixedCaseName.slice(1).toLowerCase()
 	);
+}
+
+async function generateZip() {
+	const databaseExportResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			'/wp-admin/export.php?download=true&&content=all'
+		),
+		method: 'GET',
+	});
+	const databaseExportContent = new TextDecoder().decode(
+		databaseExportResponse.body
+	);
+	await workerThread.writeFile(databaseExportPath, databaseExportContent);
+	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
+	const exportPath = `/${exportName}`;
+	const exportWriteRequest = await workerThread.run({
+		code:
+			migration +
+			` generateZipFile('${exportPath}', '${databaseExportPath}', '${DOCROOT}');`,
+	});
+	if (exportWriteRequest.exitCode !== 0) {
+		throw exportWriteRequest.errors;
+	}
+
+	const fileBuffer = await workerThread.readFileAsBuffer(exportName);
+	const file = new File([fileBuffer], exportName);
+	saveAs(file);
+}
+
+async function importFile() {
+	if (
+		// eslint-disable-next-line no-alert
+		!confirm(
+			'Are you sure you want to import this file? Previous data will be lost.'
+		)
+	) {
+		return false;
+	}
+
+	// Write uploaded file to filesystem for processing with PHP
+	const userUploadedFileInput = importSelectFile as HTMLInputElement;
+	const userUploadedFile = userUploadedFileInput.files
+		? userUploadedFileInput.files[0]
+		: null;
+	if (!userUploadedFile) return;
+
+	const fileArrayBuffer = await userUploadedFile.arrayBuffer();
+	const fileContent = new Uint8Array(fileArrayBuffer);
+	const importPath = '/import.zip';
+
+	await workerThread.writeFile(importPath, fileContent);
+
+	// Import the database
+	const databaseFromZipFileReadRequest = await workerThread.run({
+		code:
+			migration +
+			` readFileFromZipArchive('${importPath}', '${databaseExportPath}');`,
+	});
+	if (databaseFromZipFileReadRequest.exitCode !== 0) {
+		throw databaseFromZipFileReadRequest.errors;
+	}
+
+	const databaseFromZipFileContent = new TextDecoder().decode(
+		databaseFromZipFileReadRequest.body
+	);
+
+	const databaseFile = new File(
+		[databaseFromZipFileContent],
+		databaseExportName
+	);
+
+	const importerPageOneResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			'/wp-admin/admin.php?import=wordpress'
+		),
+		method: 'GET',
+	});
+
+	const importerPageOneContent = new DOMParser().parseFromString(
+		importerPageOneResponse.text,
+		'text/html'
+	);
+
+	const firstUrlAction = importerPageOneContent
+		.getElementById('import-upload-form')
+		?.getAttribute('action');
+
+	const stepOneResponse = await workerThread.HTTPRequest({
+		absoluteUrl: workerThread.pathToInternalUrl(
+			`/wp-admin/${firstUrlAction}`
+		),
+		method: 'POST',
+		files: { import: databaseFile },
+	});
+
+	const importerPageTwoContent = new DOMParser().parseFromString(
+		stepOneResponse.text,
+		'text/html'
+	);
+
+	const importerPageTwoForm = importerPageTwoContent.querySelector(
+		'#wpbody-content form'
+	);
+	const secondUrlAction = importerPageTwoForm?.getAttribute('action');
+
+	const nonce = (
+		importerPageTwoForm?.querySelector(
+			"input[name='_wpnonce']"
+		) as HTMLInputElement
+	).value;
+
+	const referrer = (
+		importerPageTwoForm?.querySelector(
+			"input[name='_wp_http_referer']"
+		) as HTMLInputElement
+	).value;
+
+	const importId = (
+		importerPageTwoForm?.querySelector(
+			"input[name='import_id']"
+		) as HTMLInputElement
+	).value;
+
+	await workerThread.HTTPRequest({
+		absoluteUrl: secondUrlAction,
+		method: 'POST',
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded',
+		},
+		body: new URLSearchParams({
+			_wpnonce: nonce,
+			_wp_http_referer: referrer,
+			import_id: importId,
+		}).toString(),
+	});
+
+	// Import the file system
+	const importFileSystemRequest = await workerThread.run({
+		code: migration + ` importZipFile('${importPath}');`,
+	});
+	if (importFileSystemRequest.exitCode !== 0) {
+		throw importFileSystemRequest.errors;
+	}
+
+	return true;
+}
+
+if (
+	importWindow &&
+	overlay &&
+	exportButton &&
+	importOpenModalButton &&
+	importPlaygroundForm &&
+	importSelectFileButton &&
+	importSelectFileText &&
+	importSelectFile &&
+	importSubmitButton &&
+	importCloseModalButton
+) {
+	const resetImportWindow = () => {
+		overlay.style.display = 'none';
+		importWindow.style.display = 'none';
+		importPlaygroundForm.reset();
+		importSelectFileText.innerHTML = 'No file selected';
+		importSubmitButton.disabled = true;
+	};
+
+	exportButton.addEventListener('click', generateZip);
+
+	importOpenModalButton.addEventListener('click', () => {
+		importWindow.style.display = 'block';
+		overlay.style.display = 'block';
+		importCloseModalButton.focus();
+	});
+
+	importSelectFile.addEventListener('change', (e) => {
+		if (importSelectFile.files === null) return;
+		importSubmitButton.disabled = false;
+		importSelectFileText.innerHTML = importSelectFile.files[0].name;
+	});
+
+	importSelectFileButton.addEventListener('click', (e) => {
+		e.preventDefault();
+		importPlaygroundForm.reset();
+		importSelectFile.click();
+	});
+
+	importSubmitButton.addEventListener('click', async (e) => {
+		e.preventDefault();
+		let uploadAttempt;
+		try {
+			uploadAttempt = await importFile();
+		} catch (error) {
+			console.error(error);
+			importSelectFileText.innerHTML =
+				'<span class="error" style="color: red;">Unable to import file. <br/> Is it a valid WordPress Playground export?</span>';
+		}
+
+		if (uploadAttempt) {
+			// eslint-disable-next-line no-alert
+			alert(
+				'File imported! This Playground instance has been updated. Refreshing now.'
+			);
+			resetImportWindow();
+			wpFrame.src = workerThread.pathToInternalUrl(addressBar.value);
+			addressBar.focus();
+		}
+	});
+
+	importCloseModalButton.addEventListener('click', (e) => {
+		e.preventDefault();
+		resetImportWindow();
+		importOpenModalButton.focus();
+	});
+
+	overlay.addEventListener('click', (e) => {
+		e.preventDefault();
+		resetImportWindow();
+	});
+} else {
+	console.error('Migration user interface elements not found.');
 }
 
 main();
