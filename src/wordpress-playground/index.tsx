@@ -8,6 +8,7 @@ import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 import { saveAs } from 'file-saver';
 import { DOCROOT } from './config';
+import migration from './migration.php';
 
 const query = new URL(document.location.href).searchParams as any;
 
@@ -346,51 +347,14 @@ async function generateZip() {
 	const databaseExportContent = new TextDecoder().decode(
 		databaseExportResponse.body
 	);
-	await workerThread.writeFile('/databaseExport.xml', databaseExportContent);
+	const databasePath = '/databaseExport.xml';
+	await workerThread.writeFile(databasePath, databaseExportContent);
 	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
 	const exportPath = `/${exportName}`;
 	const exportWriteRequest = await workerThread.run({
-		code: `<?php
-					$zip = new ZipArchive;
-					$res = $zip->open('${exportPath}', ZipArchive::CREATE);
-					if ($res === TRUE) {
-						$zip->addFile('/databaseExport.xml');
-						$directories = array();
-						$directories[] = '${DOCROOT}/';
-
-						while(sizeof($directories)) {
-							$dir = array_pop($directories);
-
-							if ($handle = opendir($dir)) {
-
-								while (false !== ($entry = readdir($handle))) {
-									
-									if ($entry == '.' ||
-										$entry == '..') {
-										continue;
-									}
-
-									$entry = $dir . $entry;
-
-									if (is_dir($entry) &&
-										strpos($entry, 'wp-content/database') == false &&
-										strpos($entry, 'wp-includes') == false) {
-
-											$directory_path = $entry . '/';
-											array_push($directories, $directory_path);
-
-									} elseif (is_file($entry)) {
-
-										$zip->addFile($entry);
-									}
-								}
-								closedir($handle);
-							}
-						}
-						$zip->close();
-						chmod('${exportPath}', 0777);
-					}
-				`,
+		code:
+			migration +
+			` generateZipFile("${exportPath}", "${databasePath}", "${DOCROOT}");`,
 	});
 	if (exportWriteRequest.exitCode !== 0) {
 		throw exportWriteRequest.errors;
