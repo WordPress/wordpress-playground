@@ -41,3 +41,13 @@ function generateZipFile($exportPath, $databasePath, $docRoot) {
         chmod($exportPath, 0777);
     }
 }
+
+function readFileFromZipArchive($pathToZip, $pathToFile) {
+    chmod($pathToZip, 0777);
+    $zip = new ZipArchive;
+    $res = $zip->open($pathToZip);
+    if ($res === TRUE) {
+        $file = $zip->getFromName($pathToFile);
+        echo $file;
+    }
+}

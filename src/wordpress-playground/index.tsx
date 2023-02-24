@@ -46,6 +46,9 @@ const importCloseModalButton = document.querySelector(
 	'#import-close-modal--btn'
 ) as HTMLButtonElement;
 
+const databaseExportName = 'databaseExport.xml';
+const databaseExportPath = '/' + databaseExportName;
+
 let workerThread;
 
 let isBooted = false;
@@ -347,14 +350,13 @@ async function generateZip() {
 	const databaseExportContent = new TextDecoder().decode(
 		databaseExportResponse.body
 	);
-	const databasePath = '/databaseExport.xml';
-	await workerThread.writeFile(databasePath, databaseExportContent);
+	await workerThread.writeFile(databaseExportPath, databaseExportContent);
 	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
 	const exportPath = `/${exportName}`;
 	const exportWriteRequest = await workerThread.run({
 		code:
 			migration +
-			` generateZipFile("${exportPath}", "${databasePath}", "${DOCROOT}");`,
+			` generateZipFile('${exportPath}', '${databaseExportPath}', '${DOCROOT}');`,
 	});
 	if (exportWriteRequest.exitCode !== 0) {
 		throw exportWriteRequest.errors;
@@ -384,19 +386,15 @@ async function importFile() {
 
 	const fileArrayBuffer = await userUploadedFile.arrayBuffer();
 	const fileContent = new Uint8Array(fileArrayBuffer);
-	await workerThread.writeFile('/import.zip', fileContent);
+	const importPath = '/import.zip';
+
+	await workerThread.writeFile(importPath, fileContent);
 
 	// Import the database
 	const databaseFromZipFileReadRequest = await workerThread.run({
-		code: `<?php
-					chmod('/import.zip', 0777);
-					$zip = new ZipArchive;
-					$res = $zip->open('/import.zip');
-					if ($res === TRUE) {
-						$file = $zip->getFromName('/databaseExport.xml');
-						echo $file;
-					}
-				`,
+		code:
+			migration +
+			` readFileFromZipArchive('${importPath}', '${databaseExportPath}');`,
 	});
 	if (databaseFromZipFileReadRequest.exitCode !== 0) {
 		throw databaseFromZipFileReadRequest.errors;
@@ -408,7 +406,7 @@ async function importFile() {
 
 	const databaseFile = new File(
 		[databaseFromZipFileContent],
-		'databaseExport.xml'
+		databaseExportName
 	);
 
 	const importerPageOneResponse = await workerThread.HTTPRequest({
