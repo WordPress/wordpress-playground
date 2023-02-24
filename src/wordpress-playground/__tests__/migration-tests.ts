@@ -259,3 +259,54 @@ describe('readFileFromZipArchive()', () => {
 		});
 	});
 });
+
+describe('importZipFile()', () => {
+	let php;
+
+	beforeAll(async () => {
+		php = await startPHP(phpLoaderModule, 'NODE');
+		if (existsSync(testDirPath)) {
+			rmSync(testDirPath, { recursive: true });
+		}
+		createMockStructure(php);
+	});
+
+	beforeEach(() => {
+		if (existsSync(fileSystemPath)) {
+			rmSync(fileSystemPath, { recursive: true });
+		}
+		const writeFileRequest = php.run({
+			code: migration + ` importZipFile('${exportPath}');`,
+		});
+		if (writeFileRequest.exitCode !== 0) {
+			throw writeFileRequest.errors;
+		}
+	});
+
+	afterAll(() => {
+		if (existsSync(testDirPath)) {
+			rmSync(testDirPath, { recursive: true });
+		}
+	});
+
+	describe('given a path to a generateZipFile() output, it should write ZIP to filesystem', () => {
+		it('filesystem root file', () => {
+			expect(php.readFileAsText(wpImporterOutputPath)).toEqual(
+				wpImporterOutputValue
+			);
+		});
+		it('wp root file', () => {
+			expect(php.readFileAsText(wpDirFilePath)).toEqual(wpDirFileValue);
+		});
+		it('wp admin file', () => {
+			expect(php.readFileAsText(wpAdminFilePath)).toEqual(
+				wpAdminFileValue
+			);
+		});
+		it('wp content file', () => {
+			expect(php.readFileAsText(wpContentFilePath)).toEqual(
+				wpContentFileValue
+			);
+		});
+	});
+});

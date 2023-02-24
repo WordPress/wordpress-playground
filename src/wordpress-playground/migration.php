@@ -51,3 +51,22 @@ function readFileFromZipArchive($pathToZip, $pathToFile) {
         echo $file;
     }
 }
+
+function importZipFile($pathToZip) {
+    $zip = new ZipArchive;
+    $res = $zip->open($pathToZip);
+    if ($res === TRUE) {
+        $counter = 0;
+        while ($zip->statIndex($counter)) {
+            $file = $zip->statIndex($counter);
+            $filePath = $file['name'];
+            if (!file_exists(dirname($filePath))) {
+                mkdir(dirname($filePath), 0777, true);
+            }
+            $overwrite = fopen($filePath, 'w');
+            fwrite($overwrite, $zip->getFromIndex($counter));
+            $counter++;
+        }
+        $zip->close();
+    }
+}

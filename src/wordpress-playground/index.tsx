@@ -476,20 +476,7 @@ async function importFile() {
 
 	// Import the file system
 	const importFileSystemRequest = await workerThread.run({
-		code: `<?php
-					$zip = new ZipArchive;
-					$res = $zip->open('/import.zip');
-					if ($res === TRUE) {
-						$counter = 0;
-						while ($zip->statIndex($counter)) {
-							$file = $zip->statIndex($counter);
-							$overwrite = fopen($file['name'], 'w');
-							fwrite($overwrite, $zip->getFromIndex($counter));
-							$counter++;
-						}
-						$zip->close();
-					}
-				`,
+		code: migration + ` importZipFile('${importPath}');`,
 	});
 	if (importFileSystemRequest.exitCode !== 0) {
 		throw importFileSystemRequest.errors;
