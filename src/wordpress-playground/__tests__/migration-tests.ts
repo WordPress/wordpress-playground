@@ -1,6 +1,6 @@
 import * as phpLoaderModule from '../../../build/php-7.4.node.js';
 import { startPHP } from '../../php-wasm/php-node';
-import { existsSync, rmSync, readFileSync } from 'fs';
+import { existsSync, rmdirSync, readFileSync } from 'fs';
 
 const { TextDecoder } = require('util');
 
@@ -88,14 +88,14 @@ describe('generateZipFile()', () => {
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 		createMockStructure(php);
 	});
 
 	afterAll(() => {
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 	});
 
@@ -177,14 +177,14 @@ describe('readFileFromZipArchive()', () => {
 	beforeEach(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 		createMockStructure(php);
 	});
 
 	afterAll(() => {
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 	});
 
@@ -266,14 +266,14 @@ describe('importZipFile()', () => {
 	beforeAll(async () => {
 		php = await startPHP(phpLoaderModule, 'NODE');
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 		createMockStructure(php);
 	});
 
 	beforeEach(() => {
 		if (existsSync(fileSystemPath)) {
-			rmSync(fileSystemPath, { recursive: true });
+			rmdirSync(fileSystemPath, { recursive: true });
 		}
 		const writeFileRequest = php.run({
 			code: migration + ` importZipFile('${exportPath}');`,
@@ -285,7 +285,7 @@ describe('importZipFile()', () => {
 
 	afterAll(() => {
 		if (existsSync(testDirPath)) {
-			rmSync(testDirPath, { recursive: true });
+			rmdirSync(testDirPath, { recursive: true });
 		}
 	});
 
