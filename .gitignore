@@ -1,8 +1,10 @@
 .DS_Store
 .idea
 .local
+.rollup.cache
 node_modules
 package-lock.json
+packages/*/build
 build/*
 build-cli/*
 build-api

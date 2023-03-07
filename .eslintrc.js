@@ -16,15 +16,18 @@ module.exports = {
 	},
 	extends: [
 		'eslint:recommended',
-		'plugin:@wordpress/eslint-plugin/recommended',
+		// 'plugin:@wordpress/eslint-plugin/recommended',
 		'plugin:react/recommended',
+		'plugin:@typescript-eslint/recommended',
 	],
-	overrides: [],
+	// overrides: [],
+	parser: '@typescript-eslint/parser',
 	parserOptions: {
 		ecmaVersion: 'latest',
 		sourceType: 'module',
 	},
-	plugins: ['react'],
+	root: true,
+	plugins: ['react', '@typescript-eslint'],
 	rules: {
 		'no-inner-declarations': 0,
 		'no-use-before-define': 'off',
@@ -36,5 +39,6 @@ module.exports = {
 		'no-nested-ternary': 0,
 		'jsx-a11y/click-events-have-key-events': 0,
 		'jsx-a11y/no-static-element-interactions': 0,
+		'@typescript-eslint/ban-ts-comment': 0,
 	},
 };

@@ -1,0 +1,58 @@
+{
+  "name": "@wordpress/php-wasm",
+  "version": "0.0.1",
+  "description": "",
+  "main": "build/web/php.js",
+  "files": [
+    "package.json",
+    "build"
+  ],
+  "types": "build/web/types",
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:js dev:types",
+    "dev:js": "node esbuild.mjs --watch",
+    "dev:types": "npm-run-all --parallel \"build:types:* -- --watch\"",
+    "build:js": "rollup -c rollup.config.mjs",
+    "build:types": "npm run clean:types; npm-run-all --parallel \"build:types:*\"",
+    "build:types:general": "tsc -p ./tsconfig.json",
+    "build:types:workers": "tsc -p ./tsconfig.worker.json",
+    "build:php": "npm run build:php:web",
+    "build:php:web": "npm-run-all \"build:php:web:*\"",
+    "build:php:web:8.2": "PHP_VERSION=8.2.0 node ./src/php-build/build.js",
+    "build:php:web:8.1": "PHP_VERSION=8.1.14 node ./src/php-build/build.js",
+    "build:php:web:8.0": "PHP_VERSION=8.0.11 node ./src/php-build/build.js",
+    "build:php:web:7.4": "PHP_VERSION=7.4.33 node ./src/php-build/build.js",
+    "build:php:web:7.3": "PHP_VERSION=7.3.33 node ./src/php-build/build.js",
+    "build:php:web:7.2": "PHP_VERSION=7.2.34 node ./src/php-build/build.js",
+    "build:php:web:7.1": "PHP_VERSION=7.1.30 node ./src/php-build/build.js",
+    "build:php:web:7.0": "PHP_VERSION=7.0.33 node ./src/php-build/build.js",
+    "build:php:web:5.6": "PHP_VERSION=5.6.40 node ./src/php-build/build.js",
+    "build:php:node": "npm-run-all 'build:php:node:*'",
+    "build:php:node:8.2": "PLATFORM=node PHP_VERSION=8.2.0 node ./src/php-build/build.js",
+    "build:php:node:8.1": "PLATFORM=node PHP_VERSION=8.1.14 node ./src/php-build/build.js",
+    "build:php:node:8.0": "PLATFORM=node PHP_VERSION=8.0.11 node ./src/php-build/build.js",
+    "build:php:node:7.4": "PLATFORM=node PHP_VERSION=7.4.33 node ./src/php-build/build.js",
+    "build:php:node:7.3": "PLATFORM=node PHP_VERSION=7.3.33 node ./src/php-build/build.js",
+    "build:php:node:7.2": "PLATFORM=node PHP_VERSION=7.2.34 node ./src/php-build/build.js",
+    "build:php:node:7.1": "PLATFORM=node PHP_VERSION=7.1.30 node ./src/php-build/build.js",
+    "build:php:node:7.0": "PLATFORM=node PHP_VERSION=7.0.33 node ./src/php-build/build.js",
+    "build:php:node:5.6": "PLATFORM=node PHP_VERSION=5.6.40 node ./src/php-build/build.js",
+    "clean": "npm-run-all --parallel clean:*",
+    "clean:all": "rm -rf build/* ./build-*/*",
+    "clean:types": "rm -rf build-types/* *.tsbuildinfo",
+    "test": "jest"
+  },
+  "author": "The WordPress contributors",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "glob": "^9.2.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@rollup/plugin-url": "^8.0.1",
+    "@types/node": "12.20.24",
+    "rollup": "^3.18.0",
+    "typescript": "^4.9.5",
+    "vite-plugin-static-copy": "^0.13.1"
+  }
+}

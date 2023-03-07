@@ -1,0 +1,19 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": [ "dom", "ESNext" ],
+		"declarationDir": "build/web/types",
+		"outDir": "build/web/types"
+	},
+	"include": [ "src/**/*", "src/php/*.js" ],
+	"exclude": [
+		 "src/browser-library/service-worker/worker-library.ts",
+		 "src/browser-library/worker-thread/worker-library.ts",
+		 "src/**/*.node.js", 
+		 "src/**/*.node.ts", 
+		 "src/php-compilation/**/*", 
+		 "src/__tests__/*.ts",
+		 "build/**/*",
+		 "build-*/**/*",
+ 	]
+}
