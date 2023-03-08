@@ -10,7 +10,7 @@
     "dev:js": "node esbuild.js --watch",
     "dev:types": "npm-run-all --parallel 'build:types:* -- --watch'",
     "dev:docs:html": "vitepress dev docs/api",
-    "build": "echo 1",
+    "build": "yarn workspaces foreach -t run build",
     "build:docs:api": "npm run build:types ; bash bin/build-api-docs.sh",
     "build:docs:markdown": "node bin/build-markdown-docs.js",
     "build:types": "npm run clean:types; npm-run-all --parallel build:types:*",

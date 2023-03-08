@@ -13,6 +13,7 @@ export default [
 				'src/webbrowser-toolkit/worker-thread/worker-library.ts',
 			php: 'src/index.ts',
 		},
+		external: [ 'pnpapi' ],
 		output: {
 			dir: 'build/web',
 			format: 'esm',
@@ -94,6 +95,7 @@ export default [
 		input: {
 			php: 'src/index.node.ts',
 		},
+		external: [ 'pnpapi' ],
 		output: {
 			dir: 'build/node',
 			format: 'cjs',
