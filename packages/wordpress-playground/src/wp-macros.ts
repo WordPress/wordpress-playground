@@ -1,4 +1,4 @@
-import type { SpawnedWorkerThread } from 'src/php-wasm-browser/index';
+import type { SpawnedWorkerThread } from '@wordpress/php-wasm';
 
 export async function login(
 	workerThread: SpawnedWorkerThread,

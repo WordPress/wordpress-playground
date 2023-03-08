@@ -10,26 +10,21 @@
   "homepage": "https://developer.wordpress.org/playground",
   "files": [
     "wp",
-    "build",
-    "build-types"
+    "build"
   ],
-  "types": "build-types",
+  "types": "build/types",
   "scripts": {
-    "dev": "npm-run-all --parallel dev:js dev:types",
-    "dev:js": "node esbuild.js --watch",
+    "dev": "npm-run-all --parallel \"dev:*\"",
+    "dev:js": "vite --config=vite.config.ts",
     "dev:types": "npm-run-all --parallel \"build:types:* -- --watch\"",
-    "build": "npm-run-all --parallel \"build:*\"",
-    "build:js": "node esbuild.js",
-    "dev:vite": "vite --config=vite.config.ts",
-    "build:vite": "vite build --config=vite.config.ts",
-    "build:types": "npm run clean:types; tsc -p ./tsconfig.json",
+    "build": "npm-run-all \"build:js\" \"build:types\"",
+    "build:js": "vite build --config=vite.config.ts",
+    "build:types": "rm -rf ./build/types; tsc -p ./tsconfig.json",
     "build:wp:nightly": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/nightly-builds/wordpress-latest.zip OUT_FILENAME=wp-nightly node src/wordpress/build.js",
     "build:wp:6.1": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip OUT_FILENAME=wp-6.1 node src/wordpress/build.js",
     "build:wp:6.0": "KEEP_THEME=twentytwentytwo WP_ZIP_URL=https://wordpress.org/wordpress-6.0.3.zip OUT_FILENAME=wp-6.0 node src/wordpress/build.js",
     "build:wp:5.9": "KEEP_THEME=twentytwentyone WP_ZIP_URL=https://wordpress.org/wordpress-5.9.5.zip OUT_FILENAME=wp-5.9 node src/wordpress/build.js",
-    "clean": "npm-run-all --parallel clean:*",
-    "clean:all": "rm -rf build/* ./build-*/*",
-    "clean:types": "rm -rf build-types/* *.tsbuildinfo",
+    "clean": "rm -rf build/*",
     "test": "jest"
   },
   "author": "The WordPress contributors",
@@ -37,6 +32,8 @@
   "dependencies": {
     "@wordpress/php-wasm": "0.0.1",
     "glob": "^9.2.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "rollup-plugin-ignore-import": "^1.3.2",
     "rollup-pluginutils": "^2.8.2",
     "vite-plugin-external": "^1.2.8",

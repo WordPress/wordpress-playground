@@ -22,15 +22,9 @@
   },
   "types": "build-types",
   "scripts": {
-    "dev": "npm-run-all --parallel dev:js dev:types",
-    "dev:js": "node esbuild.mjs --watch",
-    "dev:types": "npm-run-all --parallel \"build:types:* -- --watch\"",
-    "build": "npm-run-all --parallel \"build:*\"",
-    "build:js": "node esbuild.mjs",
-    "build:types": "npm run clean:types; tsc -p ./tsconfig.json",
-    "clean": "npm-run-all --parallel clean:*",
-    "clean:all": "rm -rf build/* ./build-*/*",
-    "clean:types": "rm -rf build-types/* *.tsbuildinfo",
+    "dev": "node esbuild.mjs --watch",
+    "build": "node esbuild.mjs",
+    "clean": "rm -rf build/*",
     "test": "jest"
   },
   "author": "The WordPress contributors",

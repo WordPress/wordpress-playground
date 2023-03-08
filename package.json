@@ -4,19 +4,17 @@
   "description": "",
   "main": "build/app.js",
   "types": "build-types",
-  "private": "true",
   "workspaces": [
-    "packages/php-wasm",
-    "packages/php-cli",
-    "packages/wordpress-playground"
+    "packages/*"
   ],
   "scripts": {
     "dev": "npm-run-all --parallel dev:js dev:types",
     "dev:js": "node esbuild.js --watch",
     "dev:types": "npm-run-all --parallel 'build:types:* -- --watch'",
     "dev:docs:html": "vitepress dev docs/api",
-    "build:docs:api": "npm run build:types ; gulp buildApiReference",
-    "build:docs:markdown": "node scripts/postprocess-md-docs.js",
+    "build": "echo 1",
+    "build:docs:api": "npm run build:types ; bash bin/build-api-docs.sh",
+    "build:docs:markdown": "node bin/build-markdown-docs.js",
     "build:types": "npm run clean:types; npm-run-all --parallel build:types:*",
     "build:types:general": "tsc -p ./tsconfig.json",
     "build:types:workers": "tsc -p ./tsconfig.worker.json",
@@ -81,5 +79,6 @@
     "@wordpress/eslint-plugin": "^13.7.0",
     "eslint": "^8.35.0",
     "typescript": "^4.9.5"
-  }
+  },
+  "packageManager": "yarn@3.4.1"
 }

@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { globSync } from 'glob';
-import serviceWorkerVersionPlugin from './vite-plugin-sw-version';
 
 const path = (filename) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
@@ -12,11 +11,10 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				app: path`./src/wordpress.html`,
-			},
+			}
 		},
 	},
 	plugins: [
-		serviceWorkerVersionPlugin(),
 		viteStaticCopy({
 			targets: [
 				// Copy the built php wasm files
@@ -41,6 +39,14 @@ export default defineConfig({
                         path`./src/plugin-proxy.php`,
                     ],
 					dest: '',
+				},
+				{
+					src: [
+						path`../wordpress-plugin-ide/build/setup-react-refresh-runtime.js`,
+						path`../wordpress-plugin-ide/build/react.development.js`,
+						path`../wordpress-plugin-ide/build/react-dom.development.js`,
+					],
+					dest: 'assets',
 				},
 			],
 		}),

@@ -1,9 +1,6 @@
 import { bootWordPress } from './boot';
 import { login, installPlugin, installTheme } from './wp-macros';
-import {
-	cloneResponseMonitorProgress,
-	responseTo,
-} from '@wordpress/php-wasm';
+import { cloneResponseMonitorProgress, responseTo } from '@wordpress/php-wasm';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 
@@ -176,36 +173,37 @@ async function main() {
 		});
 	}
 
-	// if (query.has('ide')) {
-	// 	let doneFirstBoot = false;
-	// 	const { WordPressPluginIDE, createBlockPluginFixture } = await import(
-	// 		// eslint-disable-next-line import/no-unresolved
-	// 		'../wordpress-plugin-ide/index.js'
-	// 	);
-	// 	const { default: React } = await import('react');
-	// 	const {
-	// 		default: { render },
-	// 	} = await import('react-dom');
-	// 	render(
-	// 		<WordPressPluginIDE
-	// 			plugin={createBlockPluginFixture}
-	// 			workerThread={workerThread}
-	// 			initialEditedFile="edit.js"
-	// 			onBundleReady={(bundleContents: string) => {
-	// 				if (doneFirstBoot) {
-	// 					(wpFrame.contentWindow as any).eval(bundleContents);
-	// 				} else {
-	// 					doneFirstBoot = true;
-	// 					wpFrame.src = workerThread.pathToInternalUrl(
-	// 						query.get('url') || '/'
-	// 					);
-	// 				}
-	// 			}}
-	// 		/>,
-	// 		document.getElementById('test-snippets')!
-	// 	);
-	// } else
-	{
+	if (query.has('ide')) {
+		let doneFirstBoot = false;
+		const { WordPressPluginIDE, createBlockPluginFixture } = await import(
+			'@wordpress/plugin-ide'
+		);
+		const { default: React } = await import('react');
+		const {
+			default: { render },
+		} = await import('react-dom');
+		render(
+			<WordPressPluginIDE
+				plugin={createBlockPluginFixture}
+				workerThread={workerThread}
+				initialEditedFile="edit.js"
+				reactDevUrl='/assets/react.development.js'
+				reactDomDevUrl='/assets/react-dom.development.js'
+				fastRefreshScriptUrl='/assets/setup-react-refresh-runtime.js'
+				onBundleReady={(bundleContents: string) => {
+					if (doneFirstBoot) {
+						(wpFrame.contentWindow as any).eval(bundleContents);
+					} else {
+						doneFirstBoot = true;
+						wpFrame.src = workerThread.pathToInternalUrl(
+							query.get('url') || '/'
+						);
+					}
+				}}
+			/>,
+			document.getElementById('test-snippets')!
+		);
+	} else {
 		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
 	}
 	isBooted = true;

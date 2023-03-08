@@ -8,8 +8,11 @@ interface Props
 ```
 ## Properties
 
+* `fastRefreshScriptUrl`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 * `initialEditedFile`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 * `onBundleReady`    (<!-- -->code<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->=&gt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 * `plugin`    [Fixture](./wordpress-plugin-ide.fixture.md)
-* `workerThread`    [SpawnedWorkerThread](./php-wasm-browser.spawnedworkerthread.md)
+* `reactDevUrl`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
+* `reactDomDevUrl`    [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
+* `workerThread`    [SpawnedWorkerThread](./php-wasm.spawnedworkerthread.md)
 

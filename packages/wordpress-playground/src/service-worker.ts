@@ -63,7 +63,14 @@ async function rewriteRequest(
 	const requestedUrl = new URL(request.url);
 
 	const resolvedUrl = removeURLScope(requestedUrl);
-	resolvedUrl.pathname = `/assets/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+	if (
+		// Direct asset requests
+		!resolvedUrl.pathname.startsWith('/assets')
+		// Vite dev server requests
+		&& !resolvedUrl.pathname.startsWith('/@fs')
+	) {
+		resolvedUrl.pathname = `/assets/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+	}
 	return await cloneRequest(request, {
 		url: resolvedUrl,
 	});
