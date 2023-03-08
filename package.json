@@ -1,9 +1,7 @@
 {
-  "name": "@wordpress/playground",
+  "name": "@wordpress/playground-root",
   "version": "0.0.1",
   "description": "",
-  "main": "build/app.js",
-  "types": "build-types",
   "workspaces": [
     "packages/*"
   ],
@@ -21,7 +19,7 @@
     "test": "jest"
   },
   "engines": {
-    "npm": ">=8.0.0",
+    "yarn": ">=3.4.0",
     "node": ">=16.0.0"
   },
   "author": "The WordPress contributors",

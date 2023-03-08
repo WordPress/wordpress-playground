@@ -3,7 +3,13 @@
 .local
 .vitepress
 .vite
-.yarn
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 .rollup.cache
 node_modules
 package-lock.json

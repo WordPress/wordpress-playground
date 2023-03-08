@@ -5,10 +5,10 @@
 	"author": "The WordPress Contributors",
 	"license": "Apache-2.0",
 	"scripts": {
-	  "dev": "node esbuild.mjs --watch",
-	  "build": "node esbuild.mjs",
-	  "clean": "rm -rf build/*",
-	  "test": "jest"
+		"dev": "node esbuild.mjs --watch",
+		"build": "node esbuild.mjs",
+		"clean": "rm -rf build/*",
+		"test": "jest"
 	},
 	"keywords": [
 		"wordpress",
