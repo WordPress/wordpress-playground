@@ -85,6 +85,8 @@ import transportFetch from './mu-plugins/includes/requests_transport_fetch.php?r
 import transportDummy from './mu-plugins/includes/requests_transport_dummy.php?raw';
 // @ts-ignore
 import addRequests from './mu-plugins/add_requests_transport.php?raw';
+// @ts-ignore
+import showAdminCredentialsOnWpLogin from './mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 class WordPressPatcher {
 	#php: PHP;
@@ -173,6 +175,12 @@ class WordPressPatcher {
 			`${DOCROOT}/wp-content/mu-plugins/add_requests_transport.php`,
 			addRequests
 		);
+
+		// Various tweaks
+		this.#php.writeFile(
+			`${DOCROOT}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
+			showAdminCredentialsOnWpLogin
+		);		
 	}
 	#patchFile(path, callback) {
 		this.#php.writeFile(path, callback(this.#php.readFileAsText(path)));
