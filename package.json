@@ -1,21 +1,18 @@
 {
-  "name": "@wordpress/playground-root",
+  "name": "@wordpress/root",
   "version": "0.0.1",
   "description": "",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm-run-all --parallel dev:js dev:types",
-    "dev:js": "node esbuild.js --watch",
-    "dev:types": "npm-run-all --parallel 'build:types:* -- --watch'",
+    "dev": "npm-run-all --parallel \"dev:php-wasm\" \"dev:playground\"",
+    "dev:php-wasm": "yarn workspace @wordpress/php-wasm run dev",
+    "dev:playground": "yarn workspace @wordpress/playground run dev",
     "dev:docs:html": "vitepress dev docs/api",
     "build": "yarn workspaces foreach -t run build",
     "build:docs:api": "npm run build:types ; bash bin/build-api-docs.sh",
     "build:docs:markdown": "node bin/build-markdown-docs.js",
-    "build:types": "npm run clean:types; npm-run-all --parallel build:types:*",
-    "build:types:general": "tsc -p ./tsconfig.json",
-    "build:types:workers": "tsc -p ./tsconfig.worker.json",
     "test": "jest"
   },
   "engines": {

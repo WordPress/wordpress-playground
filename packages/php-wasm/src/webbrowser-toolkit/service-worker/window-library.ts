@@ -14,7 +14,6 @@ export async function registerServiceWorker(scriptUrl, expectedVersion) {
 	if (!sw) {
 		throw new Error('Service workers are not supported in this browser.');
 	}
-
 	const registrations = await sw.getRegistrations();
 	if (registrations.length > 0) {
 		const actualVersion = await getRegisteredServiceWorkerVersion();
