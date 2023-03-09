@@ -3,8 +3,7 @@
 export const dependenciesTotalSize = WP_DATA_SIZE;
 
 // The final wp.data filename – populated by Dockerfile.
-import dependencyFilename from WP_DATA_FILENAME;
-export { dependencyFilename };
+export const dependencyFilename = './WP_DATA_FILENAME';
 
 // The default theme name – populated by Dockerfile.
 export const defaultThemeName = WP_THEME_NAME;

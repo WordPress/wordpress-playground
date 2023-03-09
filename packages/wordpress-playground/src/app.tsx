@@ -235,9 +235,9 @@ async function main() {
 				plugin={createBlockPluginFixture}
 				workerThread={workerThread}
 				initialEditedFile="edit.js"
-				reactDevUrl='/assets/react.development.js'
-				reactDomDevUrl='/assets/react-dom.development.js'
-				fastRefreshScriptUrl='/assets/setup-react-refresh-runtime.js'
+				reactDevUrl='/react.development.js'
+				reactDomDevUrl='/react-dom.development.js'
+				fastRefreshScriptUrl='/setup-react-refresh-runtime.js'
 				onBundleReady={(bundleContents: string) => {
 					if (doneFirstBoot) {
 						(wpFrame.contentWindow as any).eval(bundleContents);

@@ -1,6 +1,3 @@
-declare const self: WorkerGlobalScope;
-declare const require: any;
-
 import { PHPServer, PHPBrowser } from '@wordpress/php-wasm';
 import * as phpModulesUrls from '@wordpress/php-wasm/build/web/vite-loaders.js';
 import {
@@ -36,6 +33,7 @@ async function startWordPress() {
 	// parameters names passed to the worker via a query string.
 	const requestedWPVersion = currentBackend.getOptions().dataModule || '6_1';
 	const requestedPHPVersion = currentBackend.getOptions().phpVersion || '8_0';
+
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 		/**
 		 * Vite is extremely stubborn and refuses to load the PHP loader modules
@@ -51,9 +49,7 @@ async function startWordPress() {
 		import(/* @vite-ignore */ getWordPressModuleUrl(requestedWPVersion)),
 	]);
 
-	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule], {
-		locateFile: (file) => `/assets/${file.split('/').pop()}`,
-	});
+	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
 
 	new WordPressPatcher(php).patch();
 	php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');

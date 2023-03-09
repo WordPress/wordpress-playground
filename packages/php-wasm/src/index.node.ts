@@ -1,1 +1,1 @@
-export * from './php-library/index.node';
+export * from './php-library/index-node';

@@ -3,8 +3,7 @@
 export const dependenciesTotalSize = 10410332;
 
 // The final wp.data filename – populated by Dockerfile.
-import dependencyFilename from 'wp-nightly.data';
-export { dependencyFilename };
+export const dependencyFilename = './wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80';
 
 // The default theme name – populated by Dockerfile.
 export const defaultThemeName = 'twentytwentythree';
@@ -34,8 +33,8 @@ export default function(PHPModule) {
         // web worker
         PACKAGE_PATH = encodeURIComponent(location.pathname.toString().substring(0, location.pathname.toString().lastIndexOf('/')) + '/');
       }
-      var PACKAGE_NAME = '/root/output//wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80';
-      var REMOTE_PACKAGE_BASE = '/wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80';
+      var PACKAGE_NAME = dependencyFilename;
+      var REMOTE_PACKAGE_BASE = dependencyFilename;
       if (typeof Module['locateFilePackage'] === 'function' && !Module['locateFile']) {
         Module['locateFile'] = Module['locateFilePackage'];
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
@@ -341,10 +340,10 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
           var files = metadata['files'];
           for (var i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
-          }          Module['removeRunDependency']('datafile_/root/output//wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80');
+          }          Module['removeRunDependency'](dependencyFilename);
 
       };
-      Module['addRunDependency']('datafile_/root/output//wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80');
+      Module['addRunDependency'](dependencyFilename);
 
       if (!Module.preloadResults) Module.preloadResults = {};
 

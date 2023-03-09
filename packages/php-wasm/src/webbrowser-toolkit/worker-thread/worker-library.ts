@@ -229,10 +229,20 @@ export async function loadPHPWithProgress(
 	const modules = [phpLoaderModule, ...dataDependenciesModules];
 
 	const assetsSizes = modules.reduce((acc, module) => {
-		acc[module.dependencyFilename.split('?')[0]] =
-			module.dependenciesTotalSize;
+		if (module.dependenciesTotalSize > 0) {
+			const filename = new URL(
+				module.dependencyFilename,
+				'http://example.com'
+			).pathname
+				.split('/')
+				.pop()!;
+			acc[filename] = Math.max(
+				filename in acc ? acc[filename] : 0,
+				module.dependenciesTotalSize
+			);
+		}
 		return acc;
-	}, {});
+	}, {} as Record<string, number>);
 	const downloadMonitor = new EmscriptenDownloadMonitor(assetsSizes);
 	(downloadMonitor as any).addEventListener(
 		'progress',

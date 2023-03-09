@@ -1,3 +1,5 @@
+declare const self: any;
+
 import { awaitReply, getURLScope, removeURLScope } from '@wordpress/php-wasm';
 import {
 	initializeServiceWorker,
@@ -8,12 +10,21 @@ import {
 } from '@wordpress/php-wasm/build/web/service-worker.js';
 import { isUploadedFilePath } from './worker-utils';
 
+if (!self.document) {
+	// Workaround: vide translates import.meta.url
+	// to document.currentScript which fails inside of 
+	// a service worker because document is undefined
+	// @ts-ignore
+	// eslint-disable-next-line no-global-assign
+	self.document = {};
+}
+
 // @ts-ignore
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
 	// In production, use the service worker path as the version – it will always
 	// contain the latest hash of the service worker script.
-	version: import.meta.env.DEV ? (() => Math.random()) : new URL(import.meta.url).pathname,
+	version: import.meta.env.DEV ? (() => Math.random()) : new URL(self.location).pathname,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
@@ -64,12 +75,10 @@ async function rewriteRequest(
 
 	const resolvedUrl = removeURLScope(requestedUrl);
 	if (
-		// Direct asset requests
-		!resolvedUrl.pathname.startsWith('/assets')
 		// Vite dev server requests
-		&& !resolvedUrl.pathname.startsWith('/@fs')
+		!resolvedUrl.pathname.startsWith('/@fs')
 	) {
-		resolvedUrl.pathname = `/assets/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+		resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 	}
 	return await cloneRequest(request, {
 		url: resolvedUrl,

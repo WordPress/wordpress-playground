@@ -7,6 +7,8 @@ export default defineConfig({
 	root: path`./src`,
 	assetsInclude: ['**/*.php', '**/*.data'],
 	build: {
+		assetsDir: `./`,
+		assetsInlineLimit: 0,
 		outDir: path`./build`,
 		rollupOptions: {
 			input: {
@@ -20,16 +22,20 @@ export default defineConfig({
 				// Copy the built php wasm files
 				{
 					src: globSync(path`../php-wasm/build/web/*.wasm`),
-					dest: 'assets',
+					dest: '',
 				},
 				// Copy the built WordPress assets
 				{
 					src: [
 						...globSync(path`./src/wordpress/wp-[0-9].[0-9]`),
 						path`./src/wordpress/wp-nightly`,
-						...globSync(path`./src/wordpress/wp-*.data`),
+						// Let's manually copy all the data files.
+						// Unfortunately, Vite won't allow us to dynamically
+						// import('wp-5.9.data') in an IIFE worker,
+						// and module workers don't yet work in Firefox.
+						path`./src/wordpress/*.data`,
 					],
-					dest: 'assets',
+					dest: '',
 				},
 				// Copy the .htaccess and plugins-proxy files – both important for deployments
                 // to wordpress.net (and any other apache-based server)
@@ -46,7 +52,7 @@ export default defineConfig({
 						path`../wordpress-plugin-ide/build/react.development.js`,
 						path`../wordpress-plugin-ide/build/react-dom.development.js`,
 					],
-					dest: 'assets',
+					dest: '',
 				},
 			],
 		}),

@@ -7,7 +7,6 @@
 		 "src/service-worker.ts",
 		 "src/worker-thread.ts",
 		 "src/worker-utils.ts",
-		 "src/service-worker-version.ts",
 		 "src/config.ts"
  	]
 }
