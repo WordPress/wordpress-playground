@@ -3,7 +3,8 @@
 export const dependenciesTotalSize = 10428081;
 
 // The final wp.data filename – populated by Dockerfile.
-export const dependencyFilename = './wp-5.9.data?55e76bfd793f016ff8071ed33df6c2ad';
+import dependencyFilename from './wp-5.9.data?url';
+export { dependencyFilename };
 
 // The default theme name – populated by Dockerfile.
 export const defaultThemeName = 'twentytwentyone';

@@ -3,7 +3,8 @@
 export const dependenciesTotalSize = 10410332;
 
 // The final wp.data filename – populated by Dockerfile.
-export const dependencyFilename = './wp-nightly.data?dbf1ca67ddcaba7ab8741ed17d14ae80';
+import dependencyFilename from './wp-nightly.data?url';
+export { dependencyFilename };
 
 // The default theme name – populated by Dockerfile.
 export const defaultThemeName = 'twentytwentythree';

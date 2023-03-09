@@ -6,6 +6,9 @@ const path = (filename) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
 	root: path`./src`,
 	assetsInclude: ['**/*.php', '**/*.data'],
+	worker: {
+		format: 'es',
+	},
 	build: {
 		assetsDir: `./`,
 		assetsInlineLimit: 0,
@@ -13,6 +16,7 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				app: path`./src/wordpress.html`,
+				'iframe-worker': path`./src/iframe-worker.html`,
 			}
 		},
 	},
@@ -28,12 +32,7 @@ export default defineConfig({
 				{
 					src: [
 						...globSync(path`./src/wordpress/wp-[0-9].[0-9]`),
-						path`./src/wordpress/wp-nightly`,
-						// Let's manually copy all the data files.
-						// Unfortunately, Vite won't allow us to dynamically
-						// import('wp-5.9.data') in an IIFE worker,
-						// and module workers don't yet work in Firefox.
-						path`./src/wordpress/*.data`,
+						path`./src/wordpress/wp-nightly`
 					],
 					dest: '',
 				},

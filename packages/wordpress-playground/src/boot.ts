@@ -4,22 +4,35 @@ import {
 	SpawnedWorkerThread,
 	DownloadProgressCallback,
 } from '@wordpress/php-wasm';
-import { wasmWorkerBackend } from './config';
 
-const origin = new URL('/', import.meta.url).origin;
-// @ts-ignore
-import wasmWorkerPath from './worker-thread.ts?worker&url';
-const wasmWorkerUrl = new URL(wasmWorkerPath, origin).toString();
-
-// @ts-ignore
 import serviceWorkerPath from './service-worker.ts?worker&url';
 const serviceWorkerUrl = new URL(serviceWorkerPath, origin)
+
+import workerModulePath from './worker-thread.ts?worker&url';
+// Hardcoded in vite.config.js:
+const workerIframePath = '/iframe-worker.html';
 
 export async function bootWordPress(
 	config: BootConfiguration
 ): Promise<SpawnedWorkerThread> {
 	const { onWasmDownloadProgress } = config;
 	assertNotInfiniteLoadingLoop();
+
+	// Firefox doesn't support module workers with dynamic imports,
+	// let's fall back to iframe workers.
+	// See https://github.com/mdn/content/issues/24402
+	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+	let workerPath: any;
+	let wasmWorkerBackend;
+	if (isFirefox) {
+		wasmWorkerBackend = 'iframe';
+		workerPath = workerIframePath;
+	} else {
+		wasmWorkerBackend = 'webworker';
+		workerPath = workerModulePath;
+	}
+	const origin = new URL('/', import.meta.url).origin;
+	const wasmWorkerUrl = new URL(workerPath, origin).toString();
 
 	const workerThread = await spawnPHPWorkerThread(
 		wasmWorkerBackend,

@@ -191,9 +191,8 @@ RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
         > /root/esm-prefix.js
 
 # Filename of the main dependency
-RUN export CACHE_BUSTER=$(md5sum /root/output/$OUT_FILENAME.data | awk '{print $1}'); \
-    cp /root/esm-prefix.js /tmp/esm-prefix.js && \
-    cat /tmp/esm-prefix.js | sed "s#WP_DATA_FILENAME#$OUT_FILENAME.data?$CACHE_BUSTER#g" > /root/esm-prefix.js
+RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
+    cat /tmp/esm-prefix.js | sed "s#WP_DATA_FILENAME#$OUT_FILENAME.data#g" > /root/esm-prefix.js
 
 # Then, produce the final module:
 RUN mv /root/output/wp.js /tmp/wp.js && \

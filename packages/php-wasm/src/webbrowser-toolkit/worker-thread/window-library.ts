@@ -33,7 +33,7 @@ interface WorkerThreadConfig {
  * @returns  The spawned Worker Thread.
  */
 export async function spawnPHPWorkerThread(
-	backendName: 'webworker' | 'webworker-module' | 'iframe',
+	backendName: 'webworker' | 'iframe',
 	workerScriptUrl: string,
 	config: WorkerThreadConfig
 ): Promise<SpawnedWorkerThread> {
@@ -50,8 +50,6 @@ export async function spawnPHPWorkerThread(
 	}
 
 	if (backendName === 'webworker') {
-		messageChannel = spawnWebWorker(workerScriptUrl);
-	} else if (backendName === 'webworker-module') {
 		messageChannel = spawnWebWorker(workerScriptUrl, { type: 'module' });
 	} else if (backendName === 'iframe') {
 		messageChannel = spawnIframeWorker(workerScriptUrl);

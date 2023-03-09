@@ -8,7 +8,7 @@ import {
 } from '@wordpress/php-wasm/build/web/worker-thread';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
-import { getWordPressModuleUrl } from './wp-modules-urls';
+import { getWordPressModule } from './wp-modules-urls';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
@@ -46,7 +46,7 @@ async function startWordPress() {
 		 * error.
 		 */
 		import(/* @vite-ignore */ getPHPModuleUrl(requestedPHPVersion)),
-		import(/* @vite-ignore */ getWordPressModuleUrl(requestedWPVersion)),
+		getWordPressModule(requestedWPVersion),
 	]);
 
 	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
