@@ -5,7 +5,7 @@ import { globSync } from 'glob';
 const path = (filename) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
 	root: path`./src`,
-	assetsInclude: ['**/*.php'],
+	assetsInclude: ['**/*.php', '**/*.data'],
 	build: {
 		outDir: path`./build`,
 		rollupOptions: {

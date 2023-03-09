@@ -12,6 +12,8 @@
 !.yarn/versions
 .rollup.cache
 node_modules
+/live-code-example
+/testwp
 package-lock.json
 packages/*/build
 testwp

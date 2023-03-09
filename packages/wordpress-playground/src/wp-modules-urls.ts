@@ -8,9 +8,9 @@ import wp61 from './wordpress/wp-6.1.js?url';
 import wpNightly from './wordpress/wp-nightly.js?url';
 
 export const urls = {
-	'5.9': wp59,
-	'6.0': wp60,
-	'6.1': wp61,
+	'5_9': wp59,
+	'6_0': wp60,
+	'6_1': wp61,
 	nightly: wpNightly,
 };
 

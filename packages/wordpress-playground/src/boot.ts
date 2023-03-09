@@ -27,8 +27,11 @@ export async function bootWordPress(
 		{
 			onDownloadProgress: onWasmDownloadProgress,
 			options: {
-				dataModule: config.dataModule || '',
-				phpVersion: config.phpVersion || '',
+				// Vite doesn't deal well with the dot in the parameters name,
+				// passed to the worker via a query string, so we replace
+				// it with an underscore
+				dataModule: (config.dataModule || '').replace('.', '_'),
+				phpVersion: (config.phpVersion || '').replace('.', '_'),
 			},
 		}
 	);

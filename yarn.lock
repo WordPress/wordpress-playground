@@ -3848,6 +3848,7 @@ __metadata:
     "@wordpress/php-wasm": 0.0.1
     esbuild: ^0.15.15
     esbuild-plugin-copy: ^2.0.2
+    file-saver: ^2.0.5
     glob: ^9.2.1
     npm-run-all: ^4.1.5
     react: ^17.0.2
@@ -6949,6 +6950,13 @@ cors@latest:
   dependencies:
     flat-cache: ^3.0.4
   checksum: f49701feaa6314c8127c3c2f6173cfefff17612f5ed2daaafc6da13b5c91fd43e3b2a58fd0d63f9f94478a501b167615931e7200e31485e320f74a33885a9c74
+  languageName: node
+  linkType: hard
+
+"file-saver@npm:^2.0.5":
+  version: 2.0.5
+  resolution: "file-saver@npm:2.0.5"
+  checksum: c62d96e5cebc58b4bdf3ae8a60d5cf9607ad82f75f798c33a4ee63435ac2203002584d5256a2a780eda7feb5e19dc3b6351c2212e58b3f529e63d265a7cc79f7
   languageName: node
   linkType: hard
 

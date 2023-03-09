@@ -9,15 +9,13 @@ import {
 	currentBackend,
 	setURLScope,
 } from '@wordpress/php-wasm/build/web/worker-thread';
-import { wordPressSiteUrl } from './config';
+import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
 import { getWordPressModuleUrl } from './wp-modules-urls';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-// Hardcoded in wp.js:
-const DOCROOT = '/wordpress';
-
+	
 startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 	initializeWorkerThread({
 		phpBrowser: browser,
@@ -34,8 +32,10 @@ startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 );
 
 async function startWordPress() {
-	const requestedWPVersion = currentBackend.getOptions().dataModule || '6.1';
-	const requestedPHPVersion = currentBackend.getOptions().phpVersion || '8.0';
+	// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+	// parameters names passed to the worker via a query string.
+	const requestedWPVersion = currentBackend.getOptions().dataModule || '6_1';
+	const requestedPHPVersion = currentBackend.getOptions().phpVersion || '8_0';
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 		/**
 		 * Vite is extremely stubborn and refuses to load the PHP loader modules
@@ -67,12 +67,12 @@ async function startWordPress() {
 	return {
 		browser: new PHPBrowser(server),
 		wpLoaderModule,
-		staticAssetsDirectory: `wp-${requestedWPVersion}`,
+		staticAssetsDirectory: `wp-${requestedWPVersion.replace('_', '.')}`,
 	};
 }
 
 function getPHPModuleUrl(version) {
-	const key = 'php' + version.replace('.', '_');
+	const key = 'php' + version;
 	if (!(key in phpModulesUrls)) {
 		throw new Error(`Unsupported PHP module: ${version}`);
 	}

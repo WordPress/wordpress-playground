@@ -175,6 +175,14 @@ export class SpawnedWorkerThread {
 
 	/**
 	 * @param  path
+	 * @see {PHP.readFile}
+	 */
+	async readFileAsBuffer(path: string): Promise<string> {
+		return await this.#rpc('readFileAsBuffer', { path });
+	}
+	
+	/**
+	 * @param  path
 	 * @param  contents
 	 * @see {PHP.writeFile}
 	 */
@@ -236,6 +244,7 @@ interface WorkerThreadMessageTarget {
 }
 
 function spawnWebWorker(workerURL: string): WorkerThreadMessageTarget {
+	console.log("Spawning Web Worker", workerURL);
 	const worker = new Worker(workerURL, {
 		type: 'module',
 	});

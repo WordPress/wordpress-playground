@@ -2,7 +2,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const sourceDir = __dirname;
-const buildDir = path.join(__dirname, '..', '..', 'build', 'wp');
+const buildDir = path.join(__dirname, '..', 'wordpress');
 
 async function buildWordPress() {
 	// Build WordPress

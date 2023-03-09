@@ -108,25 +108,13 @@ RUN cd wordpress && \
     # Remove any empty directories
     find . -type d -empty -delete
 
-# Strip whitespaces from PHP files.
-# PHP 7.4 is a safe choice here: `php -w` ran on 7.4
-# produces code compatible with PHP 8+, but the reverse
-# isn't true.
 FROM php:7.4-cli AS php
 WORKDIR /root/
 COPY --from=emscripten /root/wordpress ./wordpress
-RUN cd wordpress && \
-    for phpfile in $(find ./ -type f -name '*.php'); do \
-    # Remove whitespace from PHP files
-    php -w $phpfile > $phpfile.small && \
-    # remove set_time_limit function calls as they invoke the
-    # setitimer system call unsupported by emscripten
-    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
-    rm $phpfile.small; \
-    done
 
 # === Run WordPress Installer ===
-RUN cd wordpress && \
+RUN ls -la && \
+    cd wordpress && \
     nohup bash -c "php -S 127.0.0.1:8000&" && \
     sleep 6; \
     http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
@@ -134,6 +122,29 @@ RUN cd wordpress && \
     cat debug.txt && \
     exit 'WordPress installation failed'; \
     fi
+
+# === Install WP-CLI ===
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar
+
+# === Install WordPress Importer ===
+RUN cd wordpress && \
+    ../wp-cli.phar --allow-root plugin install wordpress-importer && \
+    ../wp-cli.phar --allow-root plugin activate wordpress-importer
+
+# Strip whitespaces from PHP files.
+# PHP 7.4 is a safe choice here: `php -w` ran on 7.4
+# produces code compatible with PHP 8+, but the reverse
+# isn't true.
+RUN cd wordpress && \
+    for phpfile in $(find ./ -type f -name '*.php' -not -path '*wordpress-importer*' ); do \
+    # Remove whitespace from PHP files
+    php -w $phpfile > $phpfile.small && \
+    # remove set_time_limit function calls as they invoke the
+    # setitimer system call unsupported by emscripten
+    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
+    rm $phpfile.small; \
+    done
 
 FROM emscripten as emscripten2
 RUN rm -rf ./wordpress
@@ -160,9 +171,11 @@ RUN mv wordpress /wordpress && \
 
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 
-# Replace wp.data with the actual filename
-RUN cat /root/output/wp.js \
-    | sed "s#wp\.data#/$OUT_FILENAME.data#g" \
+# It's useful to add a "cache busting" query string to the .data file URL.
+# This tells web browsers it's a new file and they should reload it.
+RUN export CACHE_BUSTER=$(md5sum /root/output/$OUT_FILENAME.data | awk '{print $1}'); \
+    cat /root/output/wp.js \
+    | sed "s#wp\.data#/$OUT_FILENAME.data?$CACHE_BUSTER#g" \
     > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 

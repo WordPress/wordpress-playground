@@ -20,10 +20,11 @@
     "build": "npm-run-all \"build:js\" \"build:types\"",
     "build:js": "vite build --config=vite.config.ts",
     "build:types": "rm -rf ./build/types; tsc -p ./tsconfig.json",
-    "build:wp:nightly": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/nightly-builds/wordpress-latest.zip OUT_FILENAME=wp-nightly node src/wordpress/build.js",
-    "build:wp:6.1": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip OUT_FILENAME=wp-6.1 node src/wordpress/build.js",
-    "build:wp:6.0": "KEEP_THEME=twentytwentytwo WP_ZIP_URL=https://wordpress.org/wordpress-6.0.3.zip OUT_FILENAME=wp-6.0 node src/wordpress/build.js",
-    "build:wp:5.9": "KEEP_THEME=twentytwentyone WP_ZIP_URL=https://wordpress.org/wordpress-5.9.5.zip OUT_FILENAME=wp-5.9 node src/wordpress/build.js",
+    "build:wp": "npm-run-all \"build:wp:*\"",
+    "build:wp:nightly": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/nightly-builds/wordpress-latest.zip OUT_FILENAME=wp-nightly node src/wp-build/build.js",
+    "build:wp:6.1": "KEEP_THEME=twentytwentythree WP_ZIP_URL=https://wordpress.org/wordpress-6.1.1.zip OUT_FILENAME=wp-6.1 node src/wp-build/build.js",
+    "build:wp:6.0": "KEEP_THEME=twentytwentytwo WP_ZIP_URL=https://wordpress.org/wordpress-6.0.3.zip OUT_FILENAME=wp-6.0 node src/wp-build/build.js",
+    "build:wp:5.9": "KEEP_THEME=twentytwentyone WP_ZIP_URL=https://wordpress.org/wordpress-5.9.5.zip OUT_FILENAME=wp-5.9 node src/wp-build/build.js",
     "clean": "rm -rf build/*",
     "test": "jest"
   },
@@ -31,6 +32,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@wordpress/php-wasm": "0.0.1",
+    "file-saver": "^2.0.5",
     "glob": "^9.2.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
