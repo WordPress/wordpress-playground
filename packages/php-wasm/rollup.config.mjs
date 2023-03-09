@@ -3,6 +3,7 @@ import { globSync } from 'glob';
 import fs from 'fs';
 import typescript from '@rollup/plugin-typescript';
 import url from '@rollup/plugin-url';
+import copy from 'rollup-plugin-copy';
 
 export default [
 	{
@@ -13,12 +14,15 @@ export default [
 				'src/webbrowser-toolkit/worker-thread/worker-library.ts',
 			php: 'src/index.ts',
 		},
-		external: [ 'pnpapi' ],
+		external: ['pnpapi'],
 		output: {
 			dir: 'build/web',
 			format: 'esm',
 		},
 		plugins: [
+			copy({
+				targets: [{ src: 'src/webbrowser-toolkit/iframe-worker.html', dest: 'build/web' }],
+			}),
 			typescript({
 				compilerOptions: {
 					declarationDir: 'build/web/types',
@@ -41,7 +45,9 @@ export default [
 
 					// Map the PHP files
 					const phpFiles = globSync(`${webDir}/php-*.js`)
-						.filter((path) => path.match(/\/php-\d\.\d-[a-z0-9]+\.js$/))
+						.filter((path) =>
+							path.match(/\/php-\d\.\d-[a-z0-9]+\.js$/)
+						)
 						.map((path) => {
 							const oldFilename = path.split('/').pop();
 							const version = oldFilename
@@ -77,8 +83,9 @@ export default [
 					 * loaders and exports their built URLs.
 					 */
 					const viteExports = phpFiles
-						.map(({ versionSlug, newFilename }) => 
-							`export { default as php${versionSlug} } from './${newFilename}?url';`
+						.map(
+							({ versionSlug, newFilename }) =>
+								`export { default as php${versionSlug} } from './${newFilename}?url';`
 						)
 						.join('\n');
 
@@ -95,7 +102,7 @@ export default [
 		input: {
 			php: 'src/index.node.ts',
 		},
-		external: [ 'pnpapi' ],
+		external: ['pnpapi'],
 		output: {
 			dir: 'build/node',
 			format: 'cjs',

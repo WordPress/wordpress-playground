@@ -38,7 +38,8 @@
   "author": "The WordPress contributors",
   "license": "Apache-2.0",
   "dependencies": {
-    "glob": "^9.2.1"
+    "glob": "^9.2.1",
+    "rollup-plugin-copy": "^3.4.0"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^11.0.0",

@@ -15,8 +15,7 @@ export default defineConfig({
 		outDir: path`./build`,
 		rollupOptions: {
 			input: {
-				app: path`./src/wordpress.html`,
-				'iframe-worker': path`./src/iframe-worker.html`,
+				app: path`./src/wordpress.html`
 			}
 		},
 	},

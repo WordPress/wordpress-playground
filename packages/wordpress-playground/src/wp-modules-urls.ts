@@ -1,10 +1,10 @@
 export function getWordPressModule(version) {
 	switch (version) {
-		case '5_9':
+		case '5.9':
 			return import('./wordpress/wp-5.9.js');
-		case '6_0':
+		case '6.0':
 			return import('./wordpress/wp-6.0.js');
-		case '6_1':
+		case '6.1':
 			return import('./wordpress/wp-6.1.js');
 		case 'nightly':
 			return import('./wordpress/wp-nightly.js');

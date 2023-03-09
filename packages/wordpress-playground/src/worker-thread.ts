@@ -1,5 +1,4 @@
-import { PHPServer, PHPBrowser } from '@wordpress/php-wasm';
-import * as phpModulesUrls from '@wordpress/php-wasm/build/web/vite-loaders.js';
+import { PHPServer, PHPBrowser, getPHPLoaderModule } from '@wordpress/php-wasm';
 import {
 	initializeWorkerThread,
 	loadPHPWithProgress,
@@ -12,7 +11,7 @@ import { getWordPressModule } from './wp-modules-urls';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-	
+
 startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 	initializeWorkerThread({
 		phpBrowser: browser,
@@ -31,8 +30,8 @@ startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
 async function startWordPress() {
 	// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 	// parameters names passed to the worker via a query string.
-	const requestedWPVersion = currentBackend.getOptions().dataModule || '6_1';
-	const requestedPHPVersion = currentBackend.getOptions().phpVersion || '8_0';
+	const requestedWPVersion = (currentBackend.getOptions().dataModule || '6_1').replace('_','.');
+	const requestedPHPVersion = (currentBackend.getOptions().phpVersion || '8_0').replace('_','.');
 
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 		/**
@@ -45,7 +44,7 @@ async function startWordPress() {
 		 * can't find the module. So we have to use @vite-ignore to suppress the
 		 * error.
 		 */
-		import(/* @vite-ignore */ getPHPModuleUrl(requestedPHPVersion)),
+		getPHPLoaderModule(requestedPHPVersion),
 		getWordPressModule(requestedWPVersion),
 	]);
 
