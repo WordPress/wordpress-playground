@@ -28,8 +28,9 @@ Start by creating a local development environment:
 ```js
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
-npm install
-npm run dev
+yarn install
+yarn run build
+yarn run dev
 ```
 
 A browser should open and take you to your very own WordPress Playground at `http://127.0.0.1:8777/wordpress.html`!

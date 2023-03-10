@@ -29,8 +29,9 @@ You also can run WordPress Playground locally as follows:
 ```bash
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
-npm install
-npm run dev
+yarn install
+yarn run build
+yarn run dev
 ```
 
 A browser should open and take you to your very own client-side WordPress at [http://127.0.0.1:8777/wordpress.html](http://127.0.0.1:8777/wordpress.html)!
