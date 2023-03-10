@@ -1,0 +1,44 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"allowSyntheticDefaultImports": true,
+
+		"jsx": "react",
+
+		"target": "esnext",
+		"module": "esnext",
+		"declaration": true,
+		"declarationMap": false,
+		"composite": true,
+		"emitDeclarationOnly": true,
+		"isolatedModules": true,
+		"removeComments": false,
+        "skipLibCheck": true,
+
+		"strict": true,
+
+		"noImplicitAny": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": false,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+
+		"moduleResolution": "nodenext",
+
+		"esModuleInterop": false,
+
+		"rootDir": "src",
+		"declarationDir": "build/types",
+		"outDir": "build/types",
+		"baseUrl": ".",
+		"lib": [ "dom", "ESNext" ]
+	},
+	"references": [],
+	"include": [ "src/**/*" ],
+	"exclude": [
+		 "build/**/*",
+		 "build-*/**/*",
+		 "build-types/**/*"
+ 	]
+}

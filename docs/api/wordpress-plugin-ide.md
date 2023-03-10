@@ -3,6 +3,7 @@
 ## wordpress-plugin-ide package
 ## Functions
 
+* [enableReactFastRefreshPluginFixture](./wordpress-plugin-ide.enablereactfastrefreshpluginfixture.md)
 * [setupFixture](./wordpress-plugin-ide.setupfixture.md)
 * [WordPressPluginIDE](./wordpress-plugin-ide.wordpresspluginide.md)
 
@@ -13,7 +14,6 @@
 ## Variables
 
 * [createBlockPluginFixture](./wordpress-plugin-ide.createblockpluginfixture.md)
-* [enableReactFastRefreshPluginFixture](./wordpress-plugin-ide.enablereactfastrefreshpluginfixture.md)
 
 ## Type Aliases
 

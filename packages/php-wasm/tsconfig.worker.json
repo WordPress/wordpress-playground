@@ -1,0 +1,24 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["WebWorker"],
+		"declarationDir": "build/web/types",
+		"outDir": "build/web/types"
+	},
+	"include": [
+		"src/urls.ts",
+
+		"src/php-library/index.ts",
+		"src/php-library/php.ts",
+		"src/php-library/utils.ts",
+		"src/php-library/php-server.ts",
+		"src/php-library/php-browser.ts",
+		 
+		"src/webbrowser-toolkit/service-worker/worker-library.ts",
+		"src/webbrowser-toolkit/worker-thread/worker-library.ts",
+		"src/webbrowser-toolkit/emscripten-download-monitor.ts",
+		"src/webbrowser-toolkit/messaging.ts",
+		"src/webbrowser-toolkit/scope.ts",
+		"src/webbrowser-toolkit/utils.ts"
+ 	]
+}

@@ -1,0 +1,8 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"declarationDir": "build/node/types",
+		"outDir": "build/node/types",
+	},
+	"include": [ "src/php-library/*", "src/php/*.node.js" ]
+}
