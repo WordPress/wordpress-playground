@@ -3847,6 +3847,7 @@ __metadata:
   dependencies:
     "@types/node": 12.20.24
     "@wordpress/php-wasm": 0.0.1
+    "@wordpress/plugin-ide": 0.1.4
     esbuild: ^0.15.15
     esbuild-plugin-copy: ^2.0.2
     file-saver: ^2.0.5
@@ -3863,7 +3864,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wordpress/plugin-ide@workspace:packages/wordpress-plugin-ide":
+"@wordpress/plugin-ide@0.1.4, @wordpress/plugin-ide@workspace:packages/wordpress-plugin-ide":
   version: 0.0.0-use.local
   resolution: "@wordpress/plugin-ide@workspace:packages/wordpress-plugin-ide"
   dependencies:

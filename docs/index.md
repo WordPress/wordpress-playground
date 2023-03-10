@@ -26,9 +26,14 @@ To customize WordPress Playground and build on top of it, you will need to work 
 Start by creating a local development environment:
 
 ```js
+# Install Yarn if you don't have it:
+npm install -g yarn
+
+# Now you're ready to run Playground:
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
 yarn install
+# An initial build is needed at the moment:
 yarn run build
 yarn run dev
 ```
