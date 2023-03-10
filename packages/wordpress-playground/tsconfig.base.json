@@ -27,7 +27,6 @@
 		"moduleResolution": "bundler",
 
 		"esModuleInterop": false,
-		"resolveJsonModule": true,
 
 		"declarationDir": "build/types",
 		"rootDir": "src",

@@ -5,7 +5,7 @@
 		"declarationDir": "build/web/types",
 		"outDir": "build/web/types"
 	},
-	"include": [ "src/**/*", "src/php/*.js" ],
+	"include": [ "src/**/*" ],
 	"exclude": [
 		 "src/browser-library/service-worker/worker-library.ts",
 		 "src/browser-library/worker-thread/worker-library.ts",

@@ -9,7 +9,9 @@ export default defineConfig({
 	assetsInclude: ['**/*.php', '**/*.data', '**/*.wasm'],
 	resolve: {
 		alias: {
+			crypto: path`../wordpress-plugin-ide/src/bundler/polyfills/crypto.js`,
 			'@wordpress/php-wasm': path`../php-wasm/src`,
+			'@wordpress/plugin-ide': path`../wordpress-plugin-ide/src/index.ts`,
 		},
 	},
 	worker: {
@@ -64,7 +66,7 @@ export default defineConfig({
 						path`../wordpress-plugin-ide/build/react.development.js`,
 						path`../wordpress-plugin-ide/build/react-dom.development.js`,
 					],
-					dest: '',
+					dest: 'assets',
 				},
 			],
 		}),

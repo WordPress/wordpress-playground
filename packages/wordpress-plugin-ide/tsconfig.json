@@ -24,10 +24,9 @@
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
 
-		"moduleResolution": "bundler",
+		"moduleResolution": "nodenext",
 
 		"esModuleInterop": false,
-		"resolveJsonModule": true,
 
 		"rootDir": "src",
 		"declarationDir": "build/types",

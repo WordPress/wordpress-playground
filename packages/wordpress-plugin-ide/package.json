@@ -15,10 +15,10 @@
   "scripts": {
     "dev": "npm-run-all --parallel \"dev:*\"",
     "dev:bundle": "vite",
-    "dev:setup-fast-render": "rollup -c -w",
+    "dev:setup-fast-render": "vite --config=./vite.react-refresh.config.ts",
     "build": "npm-run-all \"build:*\"",
     "build:bundle": "vite build",
-    "build:setup-fast-render": "rollup -c",
+    "build:setup-fast-render": "vite --config=./vite.react-refresh.config.ts build",
     "test": "jest",
     "clean": "rm -rf build/*"
   },

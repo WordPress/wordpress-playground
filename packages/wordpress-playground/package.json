@@ -34,6 +34,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@wordpress/php-wasm": "0.0.1",
+    "@wordpress/plugin-ide": "0.1.4",
     "file-saver": "^2.0.5",
     "glob": "^9.2.1",
     "react": "^17.0.2",

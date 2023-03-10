@@ -34,4 +34,4 @@ function __playground_override_script( $scripts, $handle, $src, $deps = array(),
 		name: 'react-fast-refresh',
 		files: [{ fileName: 'index.php', contents: PLAYGROUND_HMR_PHP }],
 	}
-};
+}

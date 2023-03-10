@@ -27,10 +27,11 @@ export default [
 				],
 			}),
 			typescript({
+				tsconfig: './tsconfig.json',
 				compilerOptions: {
 					declarationDir: 'build/web/types',
 					outDir: 'build/web/types',
-				},
+				}
 			}),
 			url({
 				include: ['**/*.wasm'],
@@ -48,10 +49,11 @@ export default [
 		},
 		plugins: [
 			typescript({
+				tsconfig: './tsconfig.node.json',
 				compilerOptions: {
 					declarationDir: 'build/node/types',
 					outDir: 'build/node/types',
-				},
+				}
 			}),
 			url({
 				include: ['**/*.wasm'],

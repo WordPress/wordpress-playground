@@ -77,6 +77,7 @@ async function rewriteRequest(
 	if (
 		// Vite dev server requests
 		!resolvedUrl.pathname.startsWith('/@fs')
+		&& !resolvedUrl.pathname.startsWith('/assets')
 	) {
 		resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 	}
