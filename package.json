@@ -6,9 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm-run-all --parallel \"dev:php-wasm\" \"dev:playground\"",
-    "dev:php-wasm": "yarn workspace @wordpress/php-wasm run dev",
-    "dev:playground": "yarn workspace @wordpress/playground run dev",
+    "dev": "yarn workspace @wordpress/playground run dev",
+    "preview": "yarn workspace @wordpress/playground run preview",
     "dev:docs:html": "vitepress dev docs/api",
     "build": "yarn workspaces foreach -t run build",
     "build:docs:api": "npm run build:types ; bash bin/build-api-docs.sh",

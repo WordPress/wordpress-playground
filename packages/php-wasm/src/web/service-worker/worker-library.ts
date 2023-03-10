@@ -81,7 +81,9 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 			return;
 		}
 
-		// Don't handle any unscoped requests.
+		// Only handle requests from scoped sites.
+		// So – bale out if the request URL is not scoped and the 
+		// referrer URL is not scoped.
 		if (!isURLScoped(url)) {
 			let referrerUrl;
 			try {
