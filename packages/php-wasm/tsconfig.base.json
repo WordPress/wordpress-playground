@@ -14,6 +14,7 @@
 		"isolatedModules": true,
 		"removeComments": false,
         "skipLibCheck": true,
+		"composite": true,
 
 		"strict": true,
 

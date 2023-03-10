@@ -25,6 +25,7 @@ testwp
 !build/wp.data
 !build/wp.js
 *.tsbuildinfo
+*.d.ts
 tsdoc-metadata.json
 var
 dist.zip

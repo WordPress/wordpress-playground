@@ -35,6 +35,6 @@
 		"baseUrl": "."
 	},
 	"references": [
-		{ "path": "../php-wasm/tsconfig.json" }
+		{ "path": "../wordpress-plugin-ide/tsconfig.json" }
 	],
 }

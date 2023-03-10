@@ -8,5 +8,8 @@
 		 "src/worker-thread.ts",
 		 "src/worker-utils.ts",
 		 "src/config.ts"
- 	]
+ 	],
+	 "references": [
+		 { "path": "../php-wasm/tsconfig.worker.json" }
+	 ]
 }

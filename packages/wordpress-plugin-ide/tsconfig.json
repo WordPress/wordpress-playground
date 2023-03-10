@@ -23,9 +23,8 @@
 		"noUnusedParameters": false,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
-		"importsNotUsedAsValues": "error",
 
-		"moduleResolution": "NodeNext",
+		"moduleResolution": "bundler",
 
 		"esModuleInterop": false,
 		"resolveJsonModule": true,

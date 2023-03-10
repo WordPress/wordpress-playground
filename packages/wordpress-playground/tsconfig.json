@@ -12,5 +12,8 @@
 		 "build/**/*",
 		 "build-*/**/*",
 		 "build-types/**/*"
- 	]
+ 	],
+	"references": [
+		{ "path": "../php-wasm/tsconfig.json" }
+	]
 }
