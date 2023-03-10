@@ -1,3 +1,4 @@
+import type { PHP } from '@wordpress/php-wasm';
 import { PHPServer, PHPBrowser, getPHPLoaderModule } from '@wordpress/php-wasm';
 import {
 	initializeWorkerThread,
@@ -64,14 +65,6 @@ async function startWordPress() {
 		wpLoaderModule,
 		staticAssetsDirectory: `wp-${requestedWPVersion.replace('_', '.')}`,
 	};
-}
-
-function getPHPModuleUrl(version) {
-	const key = 'php' + version;
-	if (!(key in phpModulesUrls)) {
-		throw new Error(`Unsupported PHP module: ${version}`);
-	}
-	return phpModulesUrls[key];
 }
 
 // @ts-ignore
