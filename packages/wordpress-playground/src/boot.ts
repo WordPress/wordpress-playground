@@ -6,10 +6,13 @@ import {
 } from '@wordpress/php-wasm';
 
 const origin = new URL('/', import.meta.url).origin;
+// @ts-ignore
 import serviceWorkerPath from './service-worker.ts?worker&url';
 const serviceWorkerUrl = new URL(serviceWorkerPath, origin)
 
+// @ts-ignore
 import moduleWorkerUrl from './worker-thread.ts?worker&url';
+// @ts-ignore
 import iframeHtmlUrl from '@wordpress/php-wasm/web/iframe-worker.html?url';
 
 export async function bootWordPress(
