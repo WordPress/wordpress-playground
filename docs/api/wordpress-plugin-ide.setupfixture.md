@@ -2,7 +2,7 @@
 
 ## setupFixture() function
 setupFixture<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->workerThread<!-- -->: [SpawnedWorkerThread](./php-wasm-browser.spawnedworkerthread.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->workerThread<!-- -->: [SpawnedWorkerThread](./php-wasm.spawnedworkerthread.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->fixture<!-- -->: [Fixture](./wordpress-plugin-ide.fixture.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->chroot<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;<!-- -->{<!-- -->srcPath<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->;<!-- -->buildPath<!-- -->:[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->;<!-- -->}<!-- -->&gt;

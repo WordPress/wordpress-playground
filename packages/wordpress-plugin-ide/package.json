@@ -1,0 +1,63 @@
+{
+  "name": "@wordpress/plugin-ide",
+  "version": "0.1.4",
+  "description": "WordPress Plugin IDE",
+  "main": "build/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WordPress/wordpress-playground"
+  },
+  "homepage": "https://developer.wordpress.org/playground",
+  "files": [
+    "build"
+  ],
+  "types": "build/types",
+  "scripts": {
+    "dev": "npm-run-all --parallel \"dev:*\"",
+    "dev:bundle": "vite",
+    "dev:setup-fast-render": "vite --config=./vite.react-refresh.config.ts",
+    "build": "npm-run-all \"build:*\"",
+    "build:bundle": "vite build",
+    "build:setup-fast-render": "vite --config=./vite.react-refresh.config.ts build",
+    "test": "jest",
+    "clean": "rm -rf build/*"
+  },
+  "author": "The WordPress contributors",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@babel/standalone": "^7.20.4",
+    "@codemirror/basic-setup": "^0.20.0",
+    "@codemirror/lang-css": "^6.0.1",
+    "@codemirror/lang-html": "^6.1.4",
+    "@codemirror/lang-javascript": "^6.1.1",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.0.5",
+    "@codemirror/lang-php": "^6.0.1",
+    "@codemirror/lint": "^6.1.0",
+    "@codemirror/view": "^6.6.0",
+    "@geist-ui/core": "^2.3.8",
+    "@rollup/browser": "^3.3.0",
+    "@rollup/plugin-alias": "^4.0.3",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@vitejs/plugin-react": "^3.1.0",
+    "@wordpress/php-wasm": "0.0.1",
+    "babel-plugin-add-import-extension": "^1.6.0",
+    "babel-plugin-import-global": "^0.0.6",
+    "colors": "~1.2.1",
+    "estree-walker": "^3.0.1",
+    "is-reference": "^3.0.0",
+    "magic-string": "^0.26.7",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-refresh": "^0.14.0",
+    "rollup": "^3.18.0",
+    "rollup-plugin-copy": "^3.4.0"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "typescript": "beta",
+    "vite": "^4.1.4",
+    "vite-plugin-externalize-deps": "^0.5.0"
+  }
+}

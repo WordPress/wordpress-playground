@@ -26,10 +26,16 @@ To customize WordPress Playground and build on top of it, you will need to work 
 Start by creating a local development environment:
 
 ```js
+# Install Yarn if you don't have it:
+npm install -g yarn
+
+# Now you're ready to run Playground:
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
-npm install
-npm run dev
+yarn install
+# An initial build is needed at the moment:
+yarn run build
+yarn run dev
 ```
 
 A browser should open and take you to your very own WordPress Playground at `http://127.0.0.1:8777/wordpress.html`!

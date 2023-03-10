@@ -1,0 +1,37 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"allowSyntheticDefaultImports": true,
+
+		"jsx": "react",
+
+		"target": "esnext",
+		"module": "esnext",
+		"declaration": true,
+		"declarationMap": false,
+		"emitDeclarationOnly": true,
+		"isolatedModules": true,
+		"removeComments": false,
+        "skipLibCheck": true,
+		"composite": true,
+
+		"strict": true,
+
+		"noImplicitAny": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": false,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+
+		"moduleResolution": "bundler",
+
+		"esModuleInterop": true,
+
+		"declarationDir": "build/types",
+		"rootDir": "src",
+		"outDir": "build/types",
+		"baseUrl": "."
+	},
+	"references": [],
+}

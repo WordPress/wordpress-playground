@@ -2,7 +2,7 @@
 
 ## WordPressPluginIDE() function
 WordPressPluginIDE<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->{ workerThread, plugin, onBundleReady, initialEditedFile, }<!-- -->: [Props](./wordpress-plugin-ide.props.md)\
+&emsp;&emsp;&emsp;<!-- -->{ workerThread, plugin, reactDevUrl, reactDomDevUrl, fastRefreshScriptUrl, onBundleReady, initialEditedFile, }<!-- -->: [Props](./wordpress-plugin-ide.props.md)\
 )<!-- -->: JSX<!-- -->.<!-- -->Element
 
 

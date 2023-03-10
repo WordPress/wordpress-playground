@@ -6,10 +6,10 @@ The [web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/b
 * Reduces the WordPress website size from about 70MB to about 10MB, or 5MB compressed.
 * Runs the WordPress installation wizard.
 
-Build a new bundle with `npm run build:wp:<number>`, e.g.:
+Build a new bundle with `yarn workspace @wordpress/playground run build:wp:<number>`, e.g.:
 
 ```
-npm run build:wp:6.1
+yarn workspace @wordpress/playground run build:wp:6.1
 ```
 
 The bundler outputs:
