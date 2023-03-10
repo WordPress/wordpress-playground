@@ -16,23 +16,25 @@
         "skipLibCheck": true,
 
 		"strict": true,
+        "composite": true,
 
 		"noImplicitAny": false,
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
-		"importsNotUsedAsValues": "error",
 
-		"moduleResolution": "NodeNext",
+		"moduleResolution": "bundler",
 
 		"esModuleInterop": false,
 		"resolveJsonModule": true,
 
-		"rootDir": "src",
 		"declarationDir": "build/types",
+		"rootDir": "src",
 		"outDir": "build/types",
 		"baseUrl": "."
 	},
-	"references": [],
+	"references": [
+		{ "path": "../php-wasm/tsconfig.json" }
+	],
 }

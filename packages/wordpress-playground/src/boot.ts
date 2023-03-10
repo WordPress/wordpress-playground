@@ -10,7 +10,7 @@ import serviceWorkerPath from './service-worker.ts?worker&url';
 const serviceWorkerUrl = new URL(serviceWorkerPath, origin)
 
 import moduleWorkerUrl from './worker-thread.ts?worker&url';
-import iframeHtmlUrl from '@wordpress/php-wasm/build/web/iframe-worker.html?url';
+import iframeHtmlUrl from '@wordpress/php-wasm/web/iframe-worker.html?url';
 
 export async function bootWordPress(
 	config: BootConfiguration
@@ -32,8 +32,6 @@ export async function bootWordPress(
 		wasmWorkerBackend = 'webworker';
 		wasmWorkerUrl = new URL(moduleWorkerUrl, origin);
 	}
-
-	console.log({wasmWorkerUrl})
 
 	const workerThread = await spawnPHPWorkerThread(
 		wasmWorkerBackend,

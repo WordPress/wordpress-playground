@@ -1,5 +1,0 @@
-AddType application/wasm .wasm
-
-<FilesMatch "iframe-worker.html$">
-  Header set Origin-Agent-Cluster: ?1
-</FilesMatch>

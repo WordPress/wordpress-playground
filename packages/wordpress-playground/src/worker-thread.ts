@@ -4,7 +4,7 @@ import {
 	loadPHPWithProgress,
 	currentBackend,
 	setURLScope,
-} from '@wordpress/php-wasm/build/web/worker-thread';
+} from '@wordpress/php-wasm/web/worker-thread';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
 import { getWordPressModule } from './wp-modules-urls';

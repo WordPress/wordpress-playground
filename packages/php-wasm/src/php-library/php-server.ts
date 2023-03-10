@@ -2,7 +2,7 @@ import {
 	ensurePathPrefix,
 	getPathQueryFragment,
 	removePathPrefix,
-} from '../urls';
+} from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
 
 export type PHPServerRequest = Pick<

@@ -1,4 +1,4 @@
-import { startPHP, getPHPLoaderModule } from '@wordpress/php-wasm/build/node/php';
+import { startPHP, getPHPLoaderModule } from '@wordpress/php-wasm/node';
 import { existsSync, rmdirSync, readFileSync } from 'fs';
 
 const { TextDecoder } = require('util');

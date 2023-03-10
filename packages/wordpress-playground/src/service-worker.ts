@@ -7,7 +7,7 @@ import {
 	PHPRequest,
 	cloneRequest,
 	broadcastMessageExpectReply,
-} from '@wordpress/php-wasm/build/web/service-worker.js';
+} from '@wordpress/php-wasm/web/service-worker';
 import { isUploadedFilePath } from './worker-utils';
 
 if (!self.document) {

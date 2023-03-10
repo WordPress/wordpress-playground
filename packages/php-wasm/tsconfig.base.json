@@ -22,15 +22,13 @@
 		"noUnusedParameters": false,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
-		"importsNotUsedAsValues": "error",
 
-		"moduleResolution": "NodeNext",
+		"moduleResolution": "bundler",
 
 		"esModuleInterop": true,
-		"resolveJsonModule": true,
 
-		"rootDir": "src",
 		"declarationDir": "build/types",
+		"rootDir": "src",
 		"outDir": "build/types",
 		"baseUrl": "."
 	},

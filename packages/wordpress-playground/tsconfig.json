@@ -1,13 +1,13 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "dom", "ESNext" ],
+		"lib": [ "dom", "ESNext" ]
 	},
 	"include": [ "src/**/*" ],
 	"exclude": [
 		 "src/service-worker.ts",
 		 "src/worker-thread.ts",
-		 "src/wordpress/**/*",
+		 "src/wordpress/*/**/*",
 		 "src/wp-build/**/*",
 		 "build/**/*",
 		 "build-*/**/*",
