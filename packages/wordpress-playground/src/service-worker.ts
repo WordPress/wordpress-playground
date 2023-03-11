@@ -90,7 +90,7 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{
-				type: 'getWordPressModuleDetails',
+				method: 'getWordPressModuleDetails',
 			},
 			scope
 		);

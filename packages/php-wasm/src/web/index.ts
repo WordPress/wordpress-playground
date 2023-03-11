@@ -1,10 +1,10 @@
-export { setURLScope, getURLScope, isURLScoped, removeURLScope } from './scope';
+export { setURLScope, getURLScope, isURLScoped, removeURLScope } from '../php-library/scope';
 export {
 	spawnPHPWorkerThread,
 	SpawnedWorkerThread,
 } from './worker-thread/window-library';
 export { registerServiceWorker } from './service-worker/window-library';
-export { postMessageExpectReply, awaitReply, responseTo } from './messaging';
+export { postMessageExpectReply, awaitReply, responseTo } from '../php-library/messaging';
 export { cloneResponseMonitorProgress } from './emscripten-download-monitor';
 export type {
 	DownloadProgressEvent,

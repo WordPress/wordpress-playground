@@ -1,9 +1,8 @@
 import type { PHP } from '@wordpress/php-wasm';
-import { PHPServer, PHPBrowser, getPHPLoaderModule } from '@wordpress/php-wasm';
+import { PHPProtocolHandler, PHPServer, PHPBrowser, getPHPLoaderModule } from '@wordpress/php-wasm';
 import {
-	initializeWorkerThread,
-	loadPHPWithProgress,
-	currentBackend,
+	loadPHP,
+	incomingMessageLink,
 	setURLScope,
 } from '@wordpress/php-wasm/web/worker-thread';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -13,46 +12,19 @@ import { getWordPressModule } from './wp-modules-urls';
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 
-startWordPress().then(({ browser, wpLoaderModule, staticAssetsDirectory }) =>
-	initializeWorkerThread({
-		phpBrowser: browser,
-		middleware: (message, next) => {
-			if (message.type === 'getWordPressModuleDetails') {
-				return {
-					staticAssetsDirectory,
-					defaultTheme: wpLoaderModule.defaultThemeName,
-				};
-			}
-			return next(message);
-		},
-	})
-);
-
 async function startWordPress() {
 	// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 	// parameters names passed to the worker via a query string.
-	const requestedWPVersion = (currentBackend.getOptions().dataModule || '6_1').replace('_','.');
-	const requestedPHPVersion = (currentBackend.getOptions().phpVersion || '8_0').replace('_','.');
+	const requestedWPVersion = incomingMessageLink.getOption('dataModule', '6_1').replace('_','.');
+	const requestedPHPVersion = incomingMessageLink.getOption('phpVersion', '8_0').replace('_','.');
 
 	const [phpLoaderModule, wpLoaderModule] = await Promise.all([
-		/**
-		 * Vite is extremely stubborn and refuses to load the PHP loader modules
-		 * when the import path is static. It fails with this error:
-		 *
-		 * [vite:worker] Invalid value "iife" for option "output.format" - UMD and IIFE output formats are not supported for code-splitting builds.
-		 *
-		 * It only works with a dynamic import, but then Vite complains that it
-		 * can't find the module. So we have to use @vite-ignore to suppress the
-		 * error.
-		 */
 		getPHPLoaderModule(requestedPHPVersion),
 		getWordPressModule(requestedWPVersion),
 	]);
 
-	const php = await loadPHPWithProgress(phpLoaderModule, [wpLoaderModule]);
-
-	new WordPressPatcher(php).patch();
-	php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
+	const php = await loadPHP(phpLoaderModule, [wpLoaderModule]);
+	WordPressPatcher.patch(php);
 
 	const server = new PHPServer(php, {
 		documentRoot: DOCROOT,
@@ -60,11 +32,30 @@ async function startWordPress() {
 		isStaticFilePath: isUploadedFilePath,
 	});
 
-	return {
-		browser: new PHPBrowser(server),
-		wpLoaderModule,
+	const browser = new PHPBrowser(server);
+	incomingMessageLink.setHandler(new WordPressProtocolHandler(browser, {
 		staticAssetsDirectory: `wp-${requestedWPVersion.replace('_', '.')}`,
-	};
+		defaultTheme: wpLoaderModule.defaultThemeName,
+	}));
+}
+
+startWordPress();
+
+type WPDetails = {
+	staticAssetsDirectory: string;
+	defaultTheme: string;
+};
+class WordPressProtocolHandler extends PHPProtocolHandler {
+	#wpDetails: WPDetails;
+
+	constructor(phpBrowser: PHPBrowser, wpDetails: WPDetails) {
+		super(phpBrowser);
+		this.#wpDetails = wpDetails;
+	}
+	
+	getWordPressModuleDetails() {
+		return this.#wpDetails;
+	}
 }
 
 // @ts-ignore
@@ -77,10 +68,17 @@ import addRequests from './mu-plugins/add_requests_transport.php?raw';
 import showAdminCredentialsOnWpLogin from './mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 class WordPressPatcher {
+	
+	static patch(php) {
+		php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
+		new WordPressPatcher(php).patch();
+	}
+
 	#php: PHP;
 	constructor(php) {
 		this.#php = php;
 	}
+
 	patch() {
 		this.#adjustPathsAndUrls();
 		this.#disableSiteHealth();

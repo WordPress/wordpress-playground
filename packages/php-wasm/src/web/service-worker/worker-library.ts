@@ -4,13 +4,13 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { awaitReply, getNextRequestId } from '../messaging';
+import { awaitReply, getNextRequestId } from '../../php-library/messaging';
 import {
 	getURLScope,
 	isURLScoped,
 	removeURLScope,
 	setURLScope,
-} from '../scope';
+} from '../../php-library/scope';
 import { getPathQueryFragment } from '../../php-library/urls';
 
 /**
@@ -142,18 +142,20 @@ export async function PHPRequest(event) {
 	let phpResponse;
 	try {
 		const message = {
-			type: 'HTTPRequest',
-			request: {
-				body,
-				files,
-				absoluteUrl: url.toString(),
-				method: event.request.method,
-				headers: {
-					...requestHeaders,
-					Host: url.host,
-					'Content-type': contentType,
+			method: 'HTTPRequest',
+			args: [
+				{
+					body,
+					files,
+					absoluteUrl: url.toString(),
+					method: event.request.method,
+					headers: {
+						...requestHeaders,
+						Host: url.host,
+						'Content-type': contentType,
+					},
 				},
-			},
+			]
 		};
 		console.debug(
 			'[ServiceWorker] Forwarding a request to the Worker Thread',

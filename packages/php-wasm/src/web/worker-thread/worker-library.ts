@@ -8,11 +8,11 @@ declare const window: any; // For the web backend
 
 import { startPHP, PHPBrowser, PHPServer } from '../../php-library/index';
 import type { PHP, JavascriptRuntime } from '../../php-library/index';
-import { responseTo } from '../messaging';
 import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
-import { getURLScope } from '../scope';
-export * from '../scope';
+import { PHPProtocolHandler } from '../../php-library/php-protocol-handler2';
+import { responseTo } from '../../php-library/messaging';
+export * from '../../php-library/scope';
 
 /**
  * Call this in a worker thread script to set the stage for
@@ -62,65 +62,22 @@ export * from '../scope';
  */
 export async function initializeWorkerThread(
 	config: WorkerThreadConfiguration
-): Promise<any> {
-	const phpBrowser = config.phpBrowser || (await defaultBootBrowser());
-	const middleware = config.middleware || ((message, next) => next(message));
+): Promise<IncomingMessageLink> {
+	const HandlerClass = (config.handler || PHPProtocolHandler) as any;
+	const phpBrowser = config.phpBrowser || defaultBootBrowser();
+	const handler = new HandlerClass(phpBrowser);
 
-	const absoluteUrl = phpBrowser.server.absoluteUrl;
-	const scope = getURLScope(new URL(absoluteUrl));
+	incomingMessageLink.setHandler(handler);
+	return incomingMessageLink;
+}
 
-	// Handle postMessage communication from the main thread
-	currentBackend.setMessageListener(async (event) => {
-		const result = await middleware(event.data, doHandleMessage);
-
-		// When `requestId` is present, the other thread expects a response:
-		if (event.data.requestId) {
-			const response = responseTo(event.data.requestId, result);
-			currentBackend.postMessageToParent(response);
-		}
-	});
-
-	async function doHandleMessage(message) {
-		console.debug(
-			`[Worker Thread] "${message.type}" message received from a service worker`
-		);
-
-		if (message.type === 'isAlive') {
-			return true;
-		} else if (message.type === 'getAbsoluteUrl') {
-			return phpBrowser.server.absoluteUrl;
-		} else if (message.type === 'getScope') {
-			return scope;
-		} else if (message.type === 'readFile') {
-			return phpBrowser.server.php.readFileAsText(message.path);
-		} else if (message.type === 'readFileAsBuffer') {
-			return phpBrowser.server.php.readFileAsBuffer(message.path);
-		} else if (message.type === 'listFiles') {
-			return phpBrowser.server.php.listFiles(message.path);
-		} else if (message.type === 'unlink') {
-			return phpBrowser.server.php.unlink(message.path);
-		} else if (message.type === 'isDir') {
-			return phpBrowser.server.php.isDir(message.path);
-		} else if (message.type === 'mkdirTree') {
-			return phpBrowser.server.php.mkdirTree(message.path);
-		} else if (message.type === 'writeFile') {
-			return await phpBrowser.server.php.writeFile(
-				message.path,
-				message.contents
-			);
-		} else if (message.type === 'fileExists') {
-			return await phpBrowser.server.php.fileExists(message.path);
-		} else if (message.type === 'run') {
-			return phpBrowser.server.php.run(message.code);
-		} else if (message.type === 'HTTPRequest') {
-			return await phpBrowser.request(message.request);
-		}
-		throw new Error(
-			`[Worker Thread] Received unexpected message: "${message.type}"`
-		);
-	}
-
-	return currentBackend;
+async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {
+	return new PHPBrowser(
+		new PHPServer(await startPHP('/php.js', incomingMessageLink.jsEnv), {
+			absoluteUrl,
+			documentRoot: '/www',
+		})
+	);
 }
 
 interface WorkerThreadConfiguration {
@@ -129,61 +86,93 @@ interface WorkerThreadConfiguration {
 	 */
 	phpBrowser?: PHPBrowser;
 	/**
-	 * Middleware to run before handing a message.
+	 * Message handler.
 	 */
-	middleware?: (message, next) => Promise<any>;
+	handler?: PHPProtocolHandler;
 }
 
-async function defaultBootBrowser({ absoluteUrl = location.origin } = {}) {
-	return new PHPBrowser(
-		new PHPServer(await startPHP('/php.js', currentBackend.jsEnv), {
-			absoluteUrl,
-			documentRoot: '/www',
-		})
-	);
+type Listener = (e: any) => void;
+abstract class IncomingMessageLink {
+	abstract jsEnv: JavascriptRuntime; // Matches the Env argument in php.js
+	listener: Listener | null = null;
+	#options: Record<string, any> = {};
+
+	constructor() {
+		this.bindEventListener();
+		this.#options = this.parseOptions();
+	}
+
+	setHandler(handler: PHPProtocolHandler) {
+		this.listener = (message) =>
+			handler[message.method](...(message.args || []));
+	}
+
+	protected async handleMessageEvent(
+		event: any,
+		respond: any = this.postMessageToParent
+	) {
+		let result;
+		try {
+			result = await this.listener!(event.data);
+		} catch (error) {
+			result = { error: error || 'Unknown error' };
+		}
+
+		// When `requestId` is present, the other thread expects a response:
+		if (event.data.requestId) {
+			const response = responseTo(event.data.requestId, result);
+			respond(response);
+		}
+	}
+
+	getOption(name, _default?: any) {
+		return this.getOptions()[name] || _default;
+	}
+
+	getOptions() {
+		return this.#options;
+	}
+
+	abstract postMessageToParent(message: any);
+	protected abstract bindEventListener();
+	protected abstract parseOptions(): Record<string, any>;
 }
 
-interface WorkerThreadBackend {
-	jsEnv: JavascriptRuntime;
-	setMessageListener(handler: any);
-	postMessageToParent(message: any);
-	getOptions: () => Record<string, string>;
-}
+class WindowIncomingMessageLink extends IncomingMessageLink {
+	jsEnv = 'WEB' as JavascriptRuntime;
 
-const webBackend: WorkerThreadBackend = {
-	jsEnv: 'WEB' as JavascriptRuntime, // Matches the Env argument in php.js
-	setMessageListener(handler) {
+	bindEventListener() {
 		window.addEventListener(
 			'message',
 			(event) =>
-				handler(event, (response) =>
+				this.handleMessageEvent(event, (response) =>
 					event.source!.postMessage(response, '*' as any)
 				),
 			false
 		);
-	},
+	}
 	postMessageToParent(message) {
 		window.parent.postMessage(message, '*');
-	},
-	getOptions() {
+	}
+	parseOptions() {
 		return searchParamsToObject(new URL(window.location).searchParams);
-	},
-};
+	}
+}
 
-const webWorkerBackend: WorkerThreadBackend = {
-	jsEnv: 'WORKER' as JavascriptRuntime, // Matches the Env argument in php.js
-	setMessageListener(handler) {
-		onmessage = (event) => {
-			handler(event, postMessage);
-		};
-	},
+class WorkerIncomingMessageLink extends IncomingMessageLink {
+	jsEnv = 'WORKER' as JavascriptRuntime;
+	bindEventListener() {
+		onmessage = (event) => this.handleMessageEvent(event);
+	}
+
 	postMessageToParent(message) {
 		postMessage(message);
-	},
-	getOptions() {
+	}
+
+	parseOptions() {
 		return searchParamsToObject(new URL(self.location.href).searchParams);
-	},
-};
+	}
+}
 
 function searchParamsToObject(params: URLSearchParams) {
 	const result: Record<string, string> = {};
@@ -196,15 +185,15 @@ function searchParamsToObject(params: URLSearchParams) {
 /**
  * @returns
  */
-export const currentBackend: WorkerThreadBackend = (function () {
+export const incomingMessageLink: IncomingMessageLink = (function () {
 	/* eslint-disable no-undef */
 	if (typeof window !== 'undefined') {
-		return webBackend;
+		return new WindowIncomingMessageLink();
 	} else if (
 		typeof WorkerGlobalScope !== 'undefined' &&
 		self instanceof WorkerGlobalScope
 	) {
-		return webWorkerBackend;
+		return new WorkerIncomingMessageLink();
 	}
 	throw new Error(`Unsupported environment`);
 
@@ -221,7 +210,7 @@ export const currentBackend: WorkerThreadBackend = (function () {
  * @param  phpModuleArgs           The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
  * @returns PHP instance.
  */
-export async function loadPHPWithProgress(
+export async function loadPHP(
 	phpLoaderModule: any,
 	dataDependenciesModules: any[] = [],
 	phpModuleArgs: any = {}
@@ -246,7 +235,7 @@ export async function loadPHPWithProgress(
 	(downloadMonitor as any).addEventListener(
 		'progress',
 		(e: CustomEvent<DownloadProgressEvent>) =>
-			currentBackend.postMessageToParent({
+			incomingMessageLink.postMessageToParent({
 				type: 'download_progress',
 				...e.detail,
 			})
@@ -254,11 +243,11 @@ export async function loadPHPWithProgress(
 
 	return await startPHP(
 		phpLoaderModule,
-		currentBackend.jsEnv,
+		incomingMessageLink.jsEnv,
 		{
 			// Emscripten sometimes prepends a '/' to the path, which
 			// breaks vite dev mode.
-			locateFile: path => path,
+			locateFile: (path) => path,
 			...phpModuleArgs,
 			...downloadMonitor.phpArgs,
 		},

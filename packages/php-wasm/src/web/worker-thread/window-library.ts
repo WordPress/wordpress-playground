@@ -4,12 +4,12 @@ import {
 	awaitReply,
 	MessageResponse,
 	responseTo,
-} from '../messaging';
-import { removeURLScope } from '../scope';
+} from '../../php-library/messaging';
+import { removeURLScope } from '../../php-library/scope';
 import { getPathQueryFragment } from '../../php-library/urls';
 import type { DownloadProgressEvent } from '../emscripten-download-monitor';
+import { PHPProtocolClient } from '../../php-library/php-protocol-client';
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const noop = () => null;
 
 interface WorkerThreadConfig {
@@ -36,7 +36,7 @@ export async function spawnPHPWorkerThread(
 	backendName: 'webworker' | 'iframe',
 	workerScriptUrl: string,
 	config: WorkerThreadConfig
-): Promise<SpawnedWorkerThread> {
+): Promise<PHPProtocolClient> {
 	const { onDownloadProgress = noop } = config;
 	let messageChannel: WorkerThreadMessageTarget;
 
@@ -56,26 +56,22 @@ export async function spawnPHPWorkerThread(
 	} else {
 		throw new Error(`Unknown backendName: ${backendName}`);
 	}
-
+	
 	messageChannel.setMessageListener((e) => {
 		if (e.data.type === 'download_progress') {
 			onDownloadProgress(e.data);
 		}
 	});
 
+	const client = new PHPProtocolClient(
+		(method, args:any, timeout) => messageChannel.sendMessage({ method, args: args ? Object.values(args):[] }, timeout),		
+	);
+	
 	// Keep asking if the worker is alive until we get a response
-	while (true) {
-		try {
-			await messageChannel.sendMessage({ type: 'isAlive' }, 50);
-			break;
-		} catch (e) {
-			// Ignore timeouts
-		}
-		await sleep(50);
-	}
+	await client.init();
 
 	// Proxy the service worker messages to the worker thread:
-	const scope = await messageChannel.sendMessage({ type: 'getScope' }, 50);
+	const scope = await client.getScope();
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
@@ -100,12 +96,8 @@ export async function spawnPHPWorkerThread(
 			}
 		}
 	);
-
-	const absoluteUrl = await messageChannel.sendMessage({
-		type: 'getAbsoluteUrl',
-	});
-
-	return new SpawnedWorkerThread(messageChannel, absoluteUrl);
+	
+	return client;
 }
 
 export class SpawnedWorkerThread {
@@ -144,7 +136,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.run}
 	 */
 	async run(code: string): Promise<PHPOutput> {
-		return await this.#rpc('run', { code });
+		return await this.rpc('run', { code });
 	}
 
 	/**
@@ -154,7 +146,7 @@ export class SpawnedWorkerThread {
 	async HTTPRequest(
 		request: PHPServerRequest
 	): Promise<PHPResponse & { text: string }> {
-		const response = (await this.#rpc('HTTPRequest', {
+		const response = (await this.rpc('HTTPRequest', {
 			request,
 		})) as PHPResponse;
 		return {
@@ -170,7 +162,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.readFile}
 	 */
 	async readFile(path: string): Promise<string> {
-		return await this.#rpc('readFile', { path });
+		return await this.rpc('readFile', { path });
 	}
 
 	/**
@@ -178,7 +170,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.readFile}
 	 */
 	async readFileAsBuffer(path: string): Promise<string> {
-		return await this.#rpc('readFileAsBuffer', { path });
+		return await this.rpc('readFileAsBuffer', { path });
 	}
 	
 	/**
@@ -187,7 +179,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.writeFile}
 	 */
 	async writeFile(path: string, contents: string): Promise<void> {
-		return await this.#rpc('writeFile', { path, contents });
+		return await this.rpc('writeFile', { path, contents });
 	}
 
 	/**
@@ -195,7 +187,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.unlink}
 	 */
 	async unlink(path: string): Promise<void> {
-		return await this.#rpc('unlink', { path });
+		return await this.rpc('unlink', { path });
 	}
 
 	/**
@@ -203,7 +195,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.mkdirTree}
 	 */
 	async mkdirTree(path: string): Promise<void> {
-		return await this.#rpc('mkdirTree', { path });
+		return await this.rpc('mkdirTree', { path });
 	}
 
 	/**
@@ -211,7 +203,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.listFiles}
 	 */
 	async listFiles(path: string): Promise<string[]> {
-		return await this.#rpc('listFiles', { path });
+		return await this.rpc('listFiles', { path });
 	}
 
 	/**
@@ -219,7 +211,7 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.isDir}
 	 */
 	async isDir(path: string): Promise<boolean> {
-		return await this.#rpc('isDir', { path });
+		return await this.rpc('isDir', { path });
 	}
 
 	/**
@@ -227,10 +219,10 @@ export class SpawnedWorkerThread {
 	 * @see {PHP.fileExists}
 	 */
 	async fileExists(path: string): Promise<boolean> {
-		return await this.#rpc('fileExists', { path });
+		return await this.rpc('fileExists', { path });
 	}
 
-	async #rpc<T>(type: string, args?: Record<string, any>): Promise<T> {
+	async rpc<T>(type: string, args?: Record<string, any>): Promise<T> {
 		return await this.messageChannel.sendMessage({
 			...args,
 			type,

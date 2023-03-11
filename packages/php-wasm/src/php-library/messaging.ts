@@ -81,7 +81,7 @@ export function getNextRequestId() {
  * @returns The reply from the messageTarget.
  */
 export function awaitReply(
-	messageTarget: EventTarget,
+	messageTarget: IsomorphicEventTarget,
 	requestId: number,
 	timeout: number = DEFAULT_RESPONSE_TIMEOUT
 ): Promise<any> {
@@ -134,4 +134,9 @@ export interface MessageResponse<T> {
 
 interface PostMessageTarget {
 	postMessage(message: any, ...args: any[]): void;
+}
+
+interface IsomorphicEventTarget {
+	addEventListener(type: string, listener: (event: any) => void): void;
+	removeEventListener(type: string, listener: (event: any) => void): void;
 }

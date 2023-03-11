@@ -44,7 +44,7 @@ export class PHPBrowser {
 	 */
 	async request(
 		request: PHPServerRequest,
-		redirects: number = 0
+		redirects = 0
 	): Promise<PHPResponse> {
 		const response = await this.server.request({
 			...request,

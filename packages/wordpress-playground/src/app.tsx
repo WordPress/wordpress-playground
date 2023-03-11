@@ -183,7 +183,7 @@ async function main() {
 		});
 	}
 
-	if (query.get('rpc')) {
+	if (0 && query.get('rpc')) {
 		console.log('Registering an RPC handler');
 		async function handleMessage(data) {
 			if (data.type === 'rpc') {

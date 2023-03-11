@@ -63,10 +63,10 @@ export class PHPServer {
 	 * @param  php    - The PHP instance.
 	 * @param  config - Server configuration.
 	 */
-	constructor(php: PHP, config: PHPServerConfigation) {
+	constructor(php: PHP, config: PHPServerConfigation = {}) {
 		const {
-			documentRoot = '/var/www/',
-			absoluteUrl,
+			documentRoot = '/www/',
+			absoluteUrl = location.origin,
 			isStaticFilePath = () => false,
 		} = config;
 		this.php = php;
@@ -289,11 +289,11 @@ export interface PHPServerConfigation {
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
 	 */
-	documentRoot: string;
+	documentRoot?: string;
 	/**
 	 * Server URL. Used to populate $_SERVER details like HTTP_HOST.
 	 */
-	absoluteUrl: string;
+	absoluteUrl?: string;
 	/**
 	 * Callback used by the PHPServer to decide whether
 	 * the requested path refers to a PHP file or a static file.

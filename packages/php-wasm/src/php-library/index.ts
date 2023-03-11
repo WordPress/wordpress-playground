@@ -13,6 +13,8 @@ export type { PHPServerConfigation, PHPServerRequest } from './php-server';
 
 import PHPBrowser from './php-browser';
 export { PHPBrowser };
+    
+export { PHPProtocolHandler } from './php-protocol-handler2';
 
 export async function getPHPLoaderModule(version = '8.2') {
     switch (version) {
