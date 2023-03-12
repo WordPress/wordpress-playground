@@ -1,17 +1,21 @@
 import {
 	ensurePathPrefix,
-	getPathQueryFragment,
+	toRelativeUrl,
 	removePathPrefix,
+	DEFAULT_BASE_URL,
 } from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
 
 export type PHPServerRequest = Pick<
 	PHPRequest,
-	'method' | 'headers' | 'body'
-> & {
-	absoluteUrl: string;
-	files?: Record<string, File>;
-};
+	'method' | 'headers'
+> & { files?: Record<string, File> } & (
+		| { absoluteUrl: string; relativeUrl?: never }
+		| { absoluteUrl?: never; relativeUrl: string }
+	) & (
+	| Pick<PHPRequest, 'body'> & { formData?: never }
+	| { body?: never, formData: Record<string, unknown> }
+	);
 
 /**
  * A fake PHP server that handles HTTP requests but does not
@@ -104,7 +108,7 @@ export class PHPServer {
 	pathToInternalUrl(path: string): string {
 		return `${this.absoluteUrl}${path}`;
 	}
-	
+
 	/**
 	 * Converts an absolute URL based at the PHPServer to a relative path
 	 * without the server pathname and scope.
@@ -117,7 +121,7 @@ export class PHPServer {
 		if (url.pathname.startsWith(this.#PATHNAME)) {
 			url.pathname = url.pathname.slice(this.#PATHNAME.length);
 		}
-		return getPathQueryFragment(url);
+		return toRelativeUrl(url);
 	}
 
 	/**
@@ -135,14 +139,24 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async request(request: PHPServerRequest): Promise<PHPResponse> {
-		const serverPath = removePathPrefix(
-			new URL(request.absoluteUrl).pathname,
+		let requestedUrl;
+		if (request.relativeUrl !== undefined) {
+			requestedUrl = new URL(
+				request.relativeUrl,
+				DEFAULT_BASE_URL
+			);
+		} else {
+			requestedUrl = new URL(request.absoluteUrl);
+		}
+
+		const normalizedRelativeUrl = removePathPrefix(
+			requestedUrl.pathname,
 			this.#PATHNAME
 		);
-		if (this.#isStaticFilePath(serverPath)) {
-			return this.#serveStaticFile(serverPath);
+		if (this.#isStaticFilePath(normalizedRelativeUrl)) {
+			return this.#serveStaticFile(normalizedRelativeUrl);
 		}
-		return await this.#dispatchToPHP(request);
+		return await this.#dispatchToPHP(request, requestedUrl);
 	}
 
 	/**
@@ -188,15 +202,18 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async #dispatchToPHP(request: PHPServerRequest): Promise<PHPResponse> {
+	async #dispatchToPHP(request: PHPServerRequest, requestedUrl: URL): Promise<PHPResponse> {
 		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
 		this.php.addServerGlobalEntry(
 			'HTTPS',
 			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 		);
 
+		let preferredMethod = 'GET';
+
 		const fileInfos: FileInfo[] = [];
 		if (request.files) {
+			preferredMethod = 'POST';
 			for (const key in request.files) {
 				const file: File = request.files[key];
 				fileInfos.push({
@@ -208,20 +225,32 @@ export class PHPServer {
 			}
 		}
 
-		const requestedUrl = new URL(request.absoluteUrl);
+		const defaultHeaders = {
+			host: this.#HOST,
+		};
+
+		let body;
+		if (request.formData !== undefined) {
+			preferredMethod = 'POST';
+			defaultHeaders['content-type'] = 'application/x-www-form-urlencoded';
+			body = new URLSearchParams(request.formData as Record<string, string>).toString();
+		} else {
+			body = request.body;
+		}
+
 		return this.php.run({
 			relativeUri: ensurePathPrefix(
-				getPathQueryFragment(requestedUrl),
+				toRelativeUrl(requestedUrl),
 				this.#PATHNAME
 			),
 			protocol: this.#PROTOCOL,
-			method: request.method,
-			body: request.body,
+			method: request.method || preferredMethod,
+			body,
 			fileInfos,
 			scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
 			headers: {
-				...(request.headers || {}),
-				host: this.#HOST,
+				...defaultHeaders,
+				...(request.headers || {})
 			},
 		});
 	}

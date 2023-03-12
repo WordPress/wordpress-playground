@@ -12,10 +12,12 @@ console.log("Calling is ready")
 await playground.isReady();
 console.log("Called is ready")
 await new Promise((resolve) => setTimeout(resolve, 1000));
-await playground.php.writeFile("/wordpress/test.php", "echo 'Hello World!';");
-console.log(await playground.php.readFileAsText("/wordpress/test.php"));
-console.log(await playground.php.listFiles("/"));
+await playground.writeFile("/wordpress/test.php", "echo 'Hello World!';");
+console.log(await playground.readFileAsText("/wordpress/test.php"));
+console.log(await playground.listFiles("/"));
 console.log("D");
-await playground.wp.login('admin', 'password');
+
+import { login } from './wp-client';
+await login(playground, 'admin', 'password');
 console.log("logged in?");
 

@@ -11,7 +11,7 @@ import {
 	removeURLScope,
 	setURLScope,
 } from '../../php-library/scope';
-import { getPathQueryFragment } from '../../php-library/urls';
+import { toRelativeUrl } from '../../php-library/urls';
 
 /**
  * Run this function in the service worker to install the required event
@@ -98,7 +98,7 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 		}
 
 		console.debug(
-			`[ServiceWorker] Serving request: ${getPathQueryFragment(
+			`[ServiceWorker] Serving request: ${toRelativeUrl(
 				removeURLScope(url)
 			)}`
 		);

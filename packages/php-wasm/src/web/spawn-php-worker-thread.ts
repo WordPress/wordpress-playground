@@ -1,5 +1,3 @@
-import { consumeAPI } from '../php-library/comlink-utils';
-
 export const recommendedWorkerBackend = (function () {
 	// Firefox doesn't support module workers with dynamic imports,
 	// let's fall back to iframe workers.
@@ -18,19 +16,19 @@ export const recommendedWorkerBackend = (function () {
  * @param  workerUrl The absolute URL of the worker script.
  * @param  workerBackend     The Worker Thread backend to use. Either 'webworker' or 'iframe'.
  * @param  config
- * @returns  The spawned Worker Thread.
+ * @returns The spawned Worker Thread.
  */
-export async function spawnPHPWorkerThread(
+export function spawnPHPWorkerThread(
 	workerUrl: string,
 	workerBackend: 'webworker' | 'iframe' = 'webworker',
 	startupOptions: Record<string, string> = {}
-): Promise<any> {
+) {
 	workerUrl = addQueryParams(workerUrl, startupOptions);
 
 	if (workerBackend === 'webworker') {
-		return consumeAPI(new Worker(workerUrl, { type: 'module' }))
+		return new Worker(workerUrl, { type: 'module' });
 	} else if (workerBackend === 'iframe') {
-		return consumeAPI(createIframe(workerUrl).contentWindow!);
+		return createIframe(workerUrl).contentWindow!;
 	} else {
 		throw new Error(`Unknown backendName: ${workerBackend}`);
 	}

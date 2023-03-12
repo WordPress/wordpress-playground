@@ -8,14 +8,14 @@ import iframeHtmlUrl from '@wordpress/php-wasm/web/iframe-worker.html?url';
 import { recommendedWorkerBackend } from '@wordpress/php-wasm';
 
 export const workerBackend = recommendedWorkerBackend;
-export const workerUrl = (function () {
+export const workerUrl: string = (function () {
 	switch (workerBackend) {
 		case 'webworker':
-			return new URL(moduleWorkerUrl, origin);
+			return new URL(moduleWorkerUrl, origin)+'';
 		case 'iframe': {
 			const wasmWorkerUrl = new URL(iframeHtmlUrl, origin);
 			wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
-			return wasmWorkerUrl;
+			return wasmWorkerUrl+'';
 		}
 		default:
 			throw new Error(`Unknown backend: ${workerBackend}`);

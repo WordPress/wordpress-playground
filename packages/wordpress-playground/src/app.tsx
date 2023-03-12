@@ -12,21 +12,46 @@ import {
 	cloneResponseMonitorProgress,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
+	consumeAPI,
 } from '@wordpress/php-wasm';
 
-import { login, installPlugin, installTheme } from './wp-macros';
+import { login, installPlugin, installTheme } from './wp-client';
 import { PromiseQueue } from './promise-queue';
 import { DOCROOT } from './config';
 // @ts-ignore
 import migration from './migration.php?raw';
+import type { InternalWorkerAPI } from './worker-thread';
 
 const query = new URL(document.location.href).searchParams as any;
+assertNotInfiniteLoadingLoop();
+
+const wpVersion = query.get('wp') ? query.get('wp') : '6.1';
+const phpVersion = query.get('php') ? query.get('php') : '8.0';
+const internalApi = consumeAPI<InternalWorkerAPI>(
+	spawnPHPWorkerThread(workerUrl, workerBackend, {
+		// Vite doesn't deal well with the dot in the parameters name,
+		// passed to the worker via a query string, so we replace
+		// it with an underscore
+		wpVersion: wpVersion.replace('.', '_'),
+		phpVersion: phpVersion.replace('.', '_'),
+	})
+);
+
+// If onDownloadProgress is not explicitly re-exposed here,
+// Comlink will throw an error and claim the callback
+// cannot be cloned. Adding a transfer handler for functions
+// doesn't help:
+// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
+// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
+//        the onDownloadProgress method
+const [setAPIReady, playground] = exposeAPI({
+	onDownloadProgress: fn => internalApi.onDownloadProgress(fn),
+}, internalApi);
+
+export type PlaygroundAPI = typeof playground;
 
 const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
-
-let wpVersion;
-let phpVersion;
 
 // Migration Logic
 const importWindow = document.querySelector('#import-window') as HTMLElement;
@@ -59,19 +84,6 @@ const importCloseModalButton = document.querySelector(
 const databaseExportName = 'databaseExport.xml';
 const databaseExportPath = '/' + databaseExportName;
 
-let workerThread;
-let playground;
-
-// If onDownloadProgress is not explicitly re-exposed here,
-// Comlink will throw an error and claim the callback
-// cannot be cloned. Adding a transfer handler for functions
-// doesn't help:
-// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
-// @TODO: Handle the callback conversion automatically and don't explicitly re-expose 
-//        the onDownloadProgress method
-const publicApi = exposeAPI({
-	onDownloadProgress: (fn) => playground.onDownloadProgress(fn)
-});
 
 async function main() {
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
@@ -79,39 +91,24 @@ async function main() {
 	const queryTheme =
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
 	const preinstallTheme = toZipName(queryTheme);
-
-	wpVersion = query.get('wp') ? query.get('wp') : '6.1';
-	phpVersion = query.get('php') ? query.get('php') : '8.0';
-
 	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
 	const installThemeProgress = preinstallTheme ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
 	const progress = setupProgressBar();
-
-	assertNotInfiniteLoadingLoop();
-
-	playground = await spawnPHPWorkerThread(workerUrl, workerBackend, {
-		// Vite doesn't deal well with the dot in the parameters name,
-		// passed to the worker via a query string, so we replace
-		// it with an underscore
-		wpVersion: wpVersion.replace('.', '_'),
-		phpVersion: phpVersion.replace('.', '_'),
-	});
-	publicApi.pipe(playground);
-
 	await playground.onDownloadProgress(
 		progress.partialObserver(bootProgress, 'Preparing WordPress...')
 	);
-	await playground.isReady();
+	await internalApi.isReady();
 	await registerServiceWorker(
-		playground,
+		internalApi,
+		await internalApi.scope,
 		serviceWorkerUrl + '',
 		// @TODO: source the hash of the service worker file in here
 		serviceWorkerUrl.pathname
 	);
 
-	publicApi.setReady();
+	setAPIReady();
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -256,12 +253,12 @@ async function main() {
 				reactDevUrl="/assets/react.development.js"
 				reactDomDevUrl="/assets/react-dom.development.js"
 				fastRefreshScriptUrl="/assets/setup-react-refresh-runtime.js"
-				onBundleReady={(bundleContents: string) => {
+				onBundleReady={async (bundleContents: string) => {
 					if (doneFirstBoot) {
 						(wpFrame.contentWindow as any).eval(bundleContents);
 					} else {
 						doneFirstBoot = true;
-						wpFrame.src = playground.server.pathToInternalUrl(
+						wpFrame.src = await playground.pathToInternalUrl(
 							query.get('url') || '/'
 						);
 					}
@@ -270,7 +267,7 @@ async function main() {
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		wpFrame.src = await playground.server.pathToInternalUrl(
+		wpFrame.src = await playground.pathToInternalUrl(
 			query.get('url') || '/'
 		);
 	}
@@ -286,10 +283,10 @@ function toZipName(rawInput) {
 	return rawInput + '.latest-stable.zip';
 }
 
-function setupAddressBar(wasmWorker) {
+function setupAddressBar(playground: PlaygroundAPI) {
 	// Manage the address bar
 	wpFrame.addEventListener('load', async (e: any) => {
-		addressBar.value = await wasmWorker.server.internalUrlToPath(
+		addressBar.value = await playground.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
 		);
 	});
@@ -304,7 +301,7 @@ function setupAddressBar(wasmWorker) {
 			if (isDirectory && !requestedPath.endsWith('/')) {
 				requestedPath += '/';
 			}
-			wpFrame.src = await wasmWorker.server.pathToInternalUrl(
+			wpFrame.src = await playground.pathToInternalUrl(
 				requestedPath
 			);
 			(
@@ -316,19 +313,16 @@ function setupAddressBar(wasmWorker) {
 }
 
 async function generateZip() {
-	const databaseExportResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/export.php?download=true&&content=all'
-		),
-		method: 'GET',
+	const databaseExportResponse = await playground.request({
+		relativeUrl: '/wp-admin/export.php?download=true&&content=all'
 	});
 	const databaseExportContent = new TextDecoder().decode(
 		databaseExportResponse.body
 	);
-	await workerThread.writeFile(databaseExportPath, databaseExportContent);
+	await playground.writeFile(databaseExportPath, databaseExportContent);
 	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
 	const exportPath = `/${exportName}`;
-	const exportWriteRequest = await workerThread.run({
+	const exportWriteRequest = await playground.run({
 		code:
 			migration +
 			` generateZipFile('${exportPath}', '${databaseExportPath}', '${DOCROOT}');`,
@@ -337,7 +331,7 @@ async function generateZip() {
 		throw exportWriteRequest.errors;
 	}
 
-	const fileBuffer = await workerThread.readFileAsBuffer(exportName);
+	const fileBuffer = await playground.readFileAsBuffer(exportName);
 	const file = new File([fileBuffer], exportName);
 	saveAs(file);
 }
@@ -363,10 +357,10 @@ async function importFile() {
 	const fileContent = new Uint8Array(fileArrayBuffer);
 	const importPath = '/import.zip';
 
-	await workerThread.writeFile(importPath, fileContent);
+	await playground.writeFile(importPath, fileContent);
 
 	// Import the database
-	const databaseFromZipFileReadRequest = await workerThread.run({
+	const databaseFromZipFileReadRequest = await playground.run({
 		code:
 			migration +
 			` readFileFromZipArchive('${importPath}', '${databaseExportPath}');`,
@@ -384,15 +378,12 @@ async function importFile() {
 		databaseExportName
 	);
 
-	const importerPageOneResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/admin.php?import=wordpress'
-		),
-		method: 'GET',
+	const importerPageOneResponse = await playground.request({
+		relativeUrl: '/wp-admin/admin.php?import=wordpress',
 	});
 
 	const importerPageOneContent = new DOMParser().parseFromString(
-		importerPageOneResponse.text,
+		new TextDecoder().decode(importerPageOneResponse.body),
 		'text/html'
 	);
 
@@ -400,23 +391,21 @@ async function importFile() {
 		.getElementById('import-upload-form')
 		?.getAttribute('action');
 
-	const stepOneResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			`/wp-admin/${firstUrlAction}`
-		),
+	const stepOneResponse = await playground.request({
+		relativeUrl: `/wp-admin/${firstUrlAction}`,
 		method: 'POST',
 		files: { import: databaseFile },
 	});
 
 	const importerPageTwoContent = new DOMParser().parseFromString(
-		stepOneResponse.text,
+		new TextDecoder().decode(stepOneResponse.body),
 		'text/html'
 	);
 
 	const importerPageTwoForm = importerPageTwoContent.querySelector(
 		'#wpbody-content form'
 	);
-	const secondUrlAction = importerPageTwoForm?.getAttribute('action');
+	const secondUrlAction = importerPageTwoForm?.getAttribute('action') as string;
 
 	const nonce = (
 		importerPageTwoForm?.querySelector(
@@ -436,21 +425,18 @@ async function importFile() {
 		) as HTMLInputElement
 	).value;
 
-	await workerThread.HTTPRequest({
-		absoluteUrl: secondUrlAction,
+	await playground.request({
+		relativeUrl: secondUrlAction,
 		method: 'POST',
-		headers: {
-			'content-type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams({
+		formData: {
 			_wpnonce: nonce,
 			_wp_http_referer: referrer,
 			import_id: importId,
-		}).toString(),
+		}
 	});
 
 	// Import the file system
-	const importFileSystemRequest = await workerThread.run({
+	const importFileSystemRequest = await playground.run({
 		code: migration + ` importZipFile('${importPath}');`,
 	});
 	if (importFileSystemRequest.exitCode !== 0) {
@@ -517,7 +503,7 @@ if (
 				'File imported! This Playground instance has been updated. Refreshing now.'
 			);
 			resetImportWindow();
-			wpFrame.src = workerThread.server.pathToInternalUrl(
+			wpFrame.src = await playground.pathToInternalUrl(
 				addressBar.value
 			);
 			addressBar.focus();

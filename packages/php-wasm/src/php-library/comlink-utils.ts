@@ -1,87 +1,82 @@
 import * as Comlink from 'comlink';
 
-export function consumeAPI(endpoint: any=null) {
-    setupTransferHandlers();
+export function consumeAPI<APIType>(remote: Worker | Window) {
+	setupTransferHandlers();
 
-    if (!(endpoint instanceof Worker)) {
-        endpoint = Comlink.windowEndpoint(endpoint);
-    }
+	const endpoint =
+		remote instanceof Worker ? remote : Comlink.windowEndpoint(remote);
 
-    return Comlink.wrap<any>(endpoint);
+	return Comlink.wrap<APIType>(endpoint);
 }
 
-export function exposeAPI(apiMethods: any=null) {
-    setupTransferHandlers();
-    
-    let setReady;
-    const ready = new Promise((resolve) => {
-        setReady = resolve;
-    });
+type PublicAPI<Methods, PipedAPI> = Methods & PipedAPI & { isReady: () => Promise<void> };
+export function exposeAPI<Methods, PipedAPI>(apiMethods?: Methods, pipedApi?: PipedAPI):
+    [() => void, PublicAPI<Methods, PipedAPI>]
+{
+	setupTransferHandlers();
 
-    const datasource: any = {
-        root: {
-            isReady: () => ready,
-        },
-        baseApi: {},
-        methods: proxyClone(apiMethods)
-    };
-    const exposedApi = new Proxy(datasource, {
-        get: (target, prop) => {
-            if (prop === 'isReady') {
-                return () => ready;
-            }
-            if (prop in target.methods) {
-                return target.methods[prop];
-            }
-            return target.baseApi![prop];
-        }
-    });
+	let setReady;
+	const ready = new Promise((resolve) => {
+		setReady = resolve;
+	});
 
-    Comlink.expose(
-        exposedApi,
-        typeof window !== 'undefined' ? Comlink.windowEndpoint(self.parent) : undefined
-    );
-    return {
-        exposedApi,
+	const methods = proxyClone(apiMethods);
+	const exposedApi = new Proxy(methods, {
+		get: (target, prop) => {
+			if (prop === 'isReady') {
+				return () => ready;
+			}
+			if (prop in target) {
+				return target[prop];
+			}
+			return pipedApi?.[prop];
+		},
+	}) as unknown as PublicAPI<Methods, PipedAPI>;
+
+	Comlink.expose(
+		exposedApi,
+		typeof window !== 'undefined'
+			? Comlink.windowEndpoint(self.parent)
+			: undefined
+	);
+	return [
         setReady,
-        pipe: (baseApi: any) => {
-            datasource.baseApi = baseApi;
-        }
-    }
+        exposedApi,
+    ];
 }
 
 function setupTransferHandlers() {
-    Comlink.transferHandlers.set('EVENT', {
-        canHandle: ((obj) => obj instanceof CustomEvent) as any,
-        serialize: (ev: CustomEvent) => {
-            return [
-                {
-                    detail: ev.detail,
-                },
-                [],
-            ];
-        },
-        deserialize: (obj) => obj,
-    });
-    Comlink.transferHandlers.set("FUNCTION", {
-        canHandle: obj => typeof obj === "function",
-        serialize(obj) {
-          console.debug("[Comlink][Performance] Proxying a function")
-          const { port1, port2 } = new MessageChannel();
-          Comlink.expose(obj, port1);
-          return [port2, [port2]];
-        },
-        deserialize(port) {
-          port.start();
-          return Comlink.wrap(port);
-        }
-      });
+	Comlink.transferHandlers.set('EVENT', {
+		canHandle: ((obj) => obj instanceof CustomEvent) as any,
+		serialize: (ev: CustomEvent) => {
+			return [
+				{
+					detail: ev.detail,
+				},
+				[],
+			];
+		},
+		deserialize: (obj) => obj,
+	});
+	Comlink.transferHandlers.set('FUNCTION', {
+		canHandle: (obj) => typeof obj === 'function',
+		serialize(obj) {
+			console.debug('[Comlink][Performance] Proxying a function');
+			const { port1, port2 } = new MessageChannel();
+			Comlink.expose(obj, port1);
+			return [port2, [port2]];
+		},
+		deserialize(port) {
+			port.start();
+			return Comlink.wrap(port);
+		},
+	});
 }
 
 function proxyClone(object: any) {
 	return new Proxy(object, {
 		get(target, prop) {
-			switch(typeof target[prop]) {
+			switch (typeof target[prop]) {
 				case 'function':
 					return (...args) => target[prop](...args);
 				case 'object':

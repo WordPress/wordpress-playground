@@ -6,7 +6,6 @@
 	"include": [ "src/**/*" ],
 	"exclude": [
 		 "src/service-worker.ts",
-		 "src/worker-thread.ts",
 		 "src/wordpress/*/**/*",
 		 "src/wp-build/**/*",
 		 "build/**/*",

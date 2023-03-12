@@ -7,16 +7,25 @@
     "build"
   ],
   "exports": {
-    ".": "./build/web/index.js",
-    "./*": "./build/*",
-    "./web": "./build/web/index.js",
-    "./web/*": "./build/web/*",
-    "./node": "./build/node/index.js",
-    "./node/*": "./build/node/*",
-    "./package.json": "./package.json"
+    ".": {
+      "import": "./build/web/index.ts",
+      "types": "./build/web/types/index.d.ts"
+    },
+    "./web/service-worker": {
+      "import": "./build/web/service-worker.js",
+      "types": "./build/web/types/web/service-worker/index.d.ts"
+    },
+    "./node": {
+      "import": "./build/node/index.js",
+      "types": "./build/node/types/index.d.ts"
+    },
+    "./node/*": {
+      "import": "./build/node/*",
+      "types": "./build/node/types/*"
+    }
   },
   "type": "module",
-  "types": "build/web/types",
+  "types": "build/web/types/index.d.ts",
   "scripts": {
     "dev": "rollup -c rollup.config.mjs -w",
     "build": "rollup -c rollup.config.mjs",

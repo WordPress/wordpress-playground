@@ -3,15 +3,16 @@ import {
 	PHP,
 	PHPServer,
 	PHPBrowser,
+	PHPPublicAPI,
 	setURLScope,
 	exposeAPI,
 	getPHPLoaderModule,
 	parseWorkerStartupOptions,
-	EmscriptenDownloadMonitor
+	EmscriptenDownloadMonitor,
 } from '@wordpress/php-wasm';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
-import * as macros from './wp-macros';
+import * as macros from './wp-client';
 import patchWordPress from './wp-patch';
 
 const php = new PHP();
@@ -25,25 +26,32 @@ const server = new PHPServer(php, {
 });
 
 const browser = new PHPBrowser(server);
+const monitor = new EmscriptenDownloadMonitor();
 
-const wp = {};
-for (const macro in macros) {
-	wp[macro] = (...args) => macros[macro](publicApi.exposedApi, ...args);
+class InternalWorkerAPIClass extends PHPPublicAPI {
+	scope: string;
+
+	constructor(
+		browser: PHPBrowser,
+		monitor: EmscriptenDownloadMonitor,
+		scope: string
+	) {
+		super(browser, monitor);
+		this.scope = scope;
+	}
+
+	getWordPressModuleDetails() {
+		return {
+			staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
+			defaultTheme: wpLoaderModule?.defaultThemeName,
+		}
+	}
+
 }
 
-const monitor = new EmscriptenDownloadMonitor();
-const publicApi = exposeAPI({
-	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
-	scope,
-	getWordPressModuleDetails: () => ({
-		staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
-		defaultTheme: wpLoaderModule?.defaultThemeName,
-	}),
-	wp,
-	php,
-	server,
-	browser,
-});
+const [setApiReady, publicApi] = exposeAPI(new InternalWorkerAPIClass(browser, monitor, scope));
+
+export type InternalWorkerAPI = typeof publicApi;
 
 // Load PHP and WordPress modules:
 
@@ -57,14 +65,14 @@ const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 	getWordPressModule(wpVersion),
 ]);
 monitor.setModules([phpLoaderModule, wpLoaderModule]);
-php.initializeRuntime(await loadPHPRuntime(
-	phpLoaderModule,
-	monitor.getEmscriptenArgs(),
-	[wpLoaderModule]
-));
+php.initializeRuntime(
+	await loadPHPRuntime(phpLoaderModule, monitor.getEmscriptenArgs(), [
+		wpLoaderModule,
+	])
+);
 patchWordPress(php, scopedSiteUrl);
 
-publicApi.setReady();
+setApiReady();
 
 export function getWordPressModule(version) {
 	switch (version) {

@@ -25,3 +25,4 @@ export type {
 } from './progress-monitoring/emscripten-download-monitor';
 
 export { ProgressType, ProgressObserver } from './progress-monitoring/progress-observer';
+export { PHPPublicAPI } from './php-public-api';

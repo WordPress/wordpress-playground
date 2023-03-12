@@ -10,13 +10,13 @@ export const DEFAULT_BASE_URL = 'http://example.com';
  * @example
  * ```js
  * const url = new URL('http://example.com/foo/bar?baz=qux#quux');
- * getPathQueryFragment(url); // '/foo/bar?baz=qux#quux'
+ * toRelativeUrl(url); // '/foo/bar?baz=qux#quux'
  * ```
  *
  * @param  url The URL.
  * @returns The path, query, and fragment.
  */
-export function getPathQueryFragment(url: URL): string {
+export function toRelativeUrl(url: URL): string {
 	return url.toString().substring(url.origin.length);
 }
 

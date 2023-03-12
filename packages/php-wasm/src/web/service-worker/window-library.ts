@@ -1,5 +1,7 @@
 /// <reference lib="DOM" />
 
+import type { Remote } from "comlink";
+import { PHPPublicAPI } from "..";
 import { responseTo } from "../../php-library/messaging";
 
 /**
@@ -13,7 +15,8 @@ import { responseTo } from "../../php-library/messaging";
  *                                 will be re-registered.
  */
 export async function registerServiceWorker(
-	workerThread: any,
+	phpApi: Remote<PHPPublicAPI>,
+	scope: string,
 	scriptUrl,
 	expectedVersion
 ) {
@@ -59,8 +62,6 @@ export async function registerServiceWorker(
 	}
 
 	// Proxy the service worker messages to the worker thread:
-	await workerThread.isReady();
-	const scope = await workerThread.scope;
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
@@ -78,12 +79,7 @@ export async function registerServiceWorker(
 
 			const args = event.data.args || [];
 			
-			let result;
-			if (event.data.method === 'request') {
-				result = await workerThread.browser.request(...args);
-			} else {
-				result = await workerThread[event.data.method](...args);
-			}
+			const result = await phpApi[event.data.method](...args);
 			event.source!.postMessage(
 				responseTo(event.data.requestId, result)
 			);

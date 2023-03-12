@@ -4,12 +4,19 @@ export type {
 	PHPRequest,
 	PHPResponse,
 	JavascriptRuntime,
-	ErrnoError,
+    ErrnoError,
+    DataModule,
+    PHPLoaderModule,
+    PHPRuntime,
+    PHPRuntimeId,
+    EmscriptenOptions,
+    MountSettings
 } from './php';
 
-export { getPathQueryFragment } from './urls';
+export { toRelativeUrl } from './urls';
 
 export * from './comlink-utils';
+export type * from './comlink-utils';
 
 import PHPServer from './php-server';
 export { PHPServer };

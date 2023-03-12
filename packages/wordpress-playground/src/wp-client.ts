@@ -1,45 +1,38 @@
-import type { SpawnedWorkerThread } from '@wordpress/php-wasm';
+import { PHPResponse } from '@wordpress/php-wasm';
+import type { PlaygroundAPI } from './app';
 
 export async function login(
-	workerThread: any,
+	playground: PlaygroundAPI,
 	user = 'admin',
 	password = 'password'
 ) {
-	await workerThread.browser.request({
-		absoluteUrl: await workerThread.server.pathToInternalUrl('/wp-login.php'),
+	await playground.request({
+		relativeUrl: '/wp-login.php',
 	});
 
-	await workerThread.browser.request({
-		absoluteUrl: await workerThread.server.pathToInternalUrl('/wp-login.php'),
+	await playground.request({
+		relativeUrl: '/wp-login.php',
 		method: 'POST',
-		headers: {
-			'content-type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams({
+		formData: {
 			log: user,
 			pwd: password,
 			rememberme: 'forever',
-		}).toString(),
+		}
 	});
 }
 
 export async function installPlugin(
-	workerThread: SpawnedWorkerThread,
+	playground: PlaygroundAPI,
 	pluginZipFile: File,
 	options: any = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
 
 	// Upload it to WordPress
-	const pluginForm = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/plugin-install.php?tab=upload'
-		),
+	const pluginForm = await playground.request({
+		relativeUrl: '/wp-admin/plugin-install.php?tab=upload',
 	});
-	const pluginFormPage = new DOMParser().parseFromString(
-		pluginForm.text,
-		'text/html'
-	);
+	const pluginFormPage = asDOM(pluginForm);
 	const pluginFormData = new FormData(
 		pluginFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
 	) as any;
@@ -47,32 +40,24 @@ export async function installPlugin(
 		pluginFormData.entries()
 	);
 
-	const pluginInstalledResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/update.php?action=upload-plugin'
-		),
+	const pluginInstalledResponse = await playground.request({
+		relativeUrl: '/wp-admin/update.php?action=upload-plugin',
 		method: 'POST',
-		headers: {
-			'content-type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams(postData).toString(),
+		formData: postData,
 		files: { pluginzip: pluginZipFile },
 	});
 
 	// Activate if needed
 	if (activate) {
-		const pluginInstalledPage = new DOMParser().parseFromString(
-			pluginInstalledResponse.text,
-			'text/html'
-		)!;
+		const pluginInstalledPage = asDOM(pluginInstalledResponse);
 		const activateButtonHref = pluginInstalledPage
 			.querySelector('#wpbody-content .button.button-primary')!
 			.attributes.getNamedItem('href')!.value;
 		const activatePluginUrl = new URL(
 			activateButtonHref,
-			workerThread.server.pathToInternalUrl('/wp-admin/')
+			await playground.pathToInternalUrl('/wp-admin/')
 		).toString();
-		await workerThread.HTTPRequest({
+		await playground.request({
 			absoluteUrl: activatePluginUrl,
 		});
 	}
@@ -106,16 +91,16 @@ export async function installPlugin(
 	 * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 	 */
 	if (
-		(await workerThread.isDir('/wordpress/wp-content/plugins/gutenberg')) &&
-		!(await workerThread.fileExists('/wordpress/.gutenberg-patched'))
+		(await playground.isDir('/wordpress/wp-content/plugins/gutenberg')) &&
+		!(await playground.fileExists('/wordpress/.gutenberg-patched'))
 	) {
 		async function patchFile(path, callback) {
-			return await workerThread.writeFile(
+			return await playground.writeFile(
 				path,
-				callback(await workerThread.readFile(path))
+				callback(await playground.readFileAsText(path))
 			);
 		}
-		await workerThread.writeFile('/wordpress/.gutenberg-patched', '1');
+		await playground.writeFile('/wordpress/.gutenberg-patched', '1');
 		await patchFile(
 			`/wordpress/wp-content/plugins/gutenberg/build/block-editor/index.js`,
 			(contents) =>
@@ -136,22 +121,17 @@ export async function installPlugin(
 }
 
 export async function installTheme(
-	workerThread: SpawnedWorkerThread,
+	playground: PlaygroundAPI,
 	themeZipFile: File,
 	options: any = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
 
 	// Upload it to WordPress
-	const themeForm = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/theme-install.php'
-		),
+	const themeForm = await playground.request({
+		relativeUrl: '/wp-admin/theme-install.php'
 	});
-	const themeFormPage = new DOMParser().parseFromString(
-		themeForm.text,
-		'text/html'
-	);
+	const themeFormPage = asDOM(themeForm);
 	const themeFormData = new FormData(
 		themeFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
 	) as any;
@@ -159,24 +139,16 @@ export async function installTheme(
 		themeFormData.entries()
 	);
 
-	const themeInstalledResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.server.pathToInternalUrl(
-			'/wp-admin/update.php?action=upload-theme'
-		),
+	const themeInstalledResponse = await playground.request({
+		relativeUrl: '/wp-admin/update.php?action=upload-theme',
 		method: 'POST',
-		headers: {
-			'content-type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams(postData).toString(),
+		formData: postData,
 		files: { themezip: themeZipFile },
 	});
 
 	// Activate if needed
 	if (activate) {
-		const themeInstalledPage = new DOMParser().parseFromString(
-			themeInstalledResponse.text,
-			'text/html'
-		)!;
+		const themeInstalledPage = asDOM(themeInstalledResponse);
 
 		const messageContainer = themeInstalledPage.querySelector(
 			'#wpbody-content > .wrap'
@@ -203,10 +175,21 @@ export async function installTheme(
 			activateButton.attributes.getNamedItem('href')!.value;
 		const activateThemeUrl = new URL(
 			activateButtonHref,
-			workerThread.server.pathToInternalUrl('/wp-admin/')
+			await playground.pathToInternalUrl('/wp-admin/')
 		).toString();
-		await workerThread.HTTPRequest({
+		await playground.request({
 			absoluteUrl: activateThemeUrl,
 		});
 	}
+}
+
+function asDOM(response: PHPResponse) {
+	return new DOMParser().parseFromString(
+		asText(response),
+		'text/html'
+	)!;
+}
+
+function asText(response: PHPResponse) {
+	return new TextDecoder().decode(response.body);
 }

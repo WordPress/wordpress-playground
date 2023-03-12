@@ -77,9 +77,7 @@ export interface PHPResponse {
 	httpStatusCode: number;
 }
 
-type PHPRuntimeId = number;
-type PHPRuntime = any;
-
+export type PHPRuntimeId = number;
 const loadedRuntimes: PHPRuntime[] = [];
 
 /**
@@ -201,9 +199,9 @@ const loadedRuntimes: PHPRuntime[] = [];
  * @returns Loaded runtime id.
  */
 export async function loadPHPRuntime(
-	phpLoaderModule: any,
-	phpModuleArgs: any = {},
-	dataDependenciesModules: any[] = []
+	phpLoaderModule: PHPLoaderModule,
+	phpModuleArgs: EmscriptenOptions = {},
+	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
 	let resolvePhpReady, resolveDepsReady;
 	const depsReady = new Promise((resolve) => {
@@ -265,6 +263,162 @@ const currentJsRuntime = (function () {
 	}
 })();
 
+export interface PHPIni {
+
+	setPhpIniPath(path: string): void;
+	setPhpIniEntry(key: string, value: string): void;
+
+}
+
+export interface CLIHandler {
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	cli(argv: string[]): Promise<number>;
+}
+
+export interface NodeFilesystem {
+
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  settings - The Node.js filesystem settings.
+	 * @param  path     - The path to mount the filesystem to.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(settings: any, path: string);
+}
+
+export interface Filesystem {
+	/**
+	 * Recursively creates a directory with the given path in the PHP filesystem.
+	 * For example, if the path is `/root/php/data`, and `/root` already exists,
+	 * it will create the directories `/root/php` and `/root/php/data`.
+	 *
+	 * @param  path - The directory path to create.
+	 */
+	mkdirTree(path: string): void;
+
+	/**
+	 * Reads a file from the PHP filesystem and returns it as a string.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
+	readFileAsText(path: string): string;
+
+	/**
+	 * Reads a file from the PHP filesystem and returns it as an array buffer.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
+	readFileAsBuffer(path: string): Uint8Array;
+
+	/**
+	 * Overwrites data in a file in the PHP filesystem.
+	 * Creates a new file if one doesn't exist yet.
+	 *
+	 * @param  path - The file path to write to.
+	 * @param  data - The data to write to the file.
+	 */
+	writeFile(path: string, data: string | Uint8Array): void;
+
+	/**
+	 * Removes a file from the PHP filesystem.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to remove.
+	 */
+	unlink(path: string): void;
+
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @returns The list of files and directories in the given directory.
+	 */
+	listFiles(path: string): string[];
+
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	isDir(path: string): boolean;
+
+	/**
+	 * Checks if a file (or a directory) exists in the PHP filesystem.
+	 *
+	 * @param  path - The file path to check.
+	 * @returns True if the file exists, false otherwise.
+	 */
+	fileExists(path: string): boolean;
+}
+
+export interface HandlesRun {
+
+	/**
+	 * Dispatches a PHP request.
+	 * Cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const output = php.run('<?php echo "Hello world!";');
+	 * console.log(output.stdout); // "Hello world!"
+	 * ```
+	 *
+	 * @example
+	 * ```js
+	 * console.log(php.run(`<?php
+	 *  $fp = fopen('php://stderr', 'w');
+	 *  fwrite($fp, "Hello, world!");
+	 * `));
+	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
+	 * ```
+	 *
+	 * @param  request - PHP Request data.
+	 */
+	run(request?: PHPRequest): PHPResponse;
+
+}
+
+export type PHPRuntime = any;
+
+export type PHPLoaderModule = {
+	default: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime
+}
+
+export type DataModule = {
+	default: (phpRuntime: PHPRuntime) => void
+};
+
+export type EmscriptenOptions = {
+	onAbort?: (message: string) => void;
+	ENV?: Record<string, string>;
+	locateFile?: (path: string) => string;
+	noInitialRun?: boolean;
+	dataFileDownloads?: Record<string, number>;
+	print?: (message: string) => void;
+	printErr?: (message: string) => void;
+	onRuntimeInitialized?: () => void;
+	monitorRunDependencies?: (left: number) => void;	
+} & Record<string, any>;
+
+export type MountSettings = {
+	root: string;
+	mountpoint: string;
+};
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that abstracts the super low-level API and provides a more convenient
@@ -276,7 +430,7 @@ const currentJsRuntime = (function () {
  * @public
  * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
-export class PHP {
+export class PHP implements PHPIni, Filesystem, NodeFilesystem, CLIHandler, HandlesRun {
 	#Runtime;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
@@ -317,27 +471,6 @@ export class PHP {
 		this.#phpIniOverrides.push([key, value]);
 	}
 
-	/**
-	 * Dispatches a PHP request.
-	 * Cannot be used in conjunction with `cli()`.
-	 *
-	 * @example
-	 * ```js
-	 * const output = php.run('<?php echo "Hello world!";');
-	 * console.log(output.stdout); // "Hello world!"
-	 * ```
-	 *
-	 * @example
-	 * ```js
-	 * console.log(php.run(`<?php
-	 *  $fp = fopen('php://stderr', 'w');
-	 *  fwrite($fp, "Hello, world!");
-	 * `));
-	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
-	 * ```
-	 *
-	 * @param  request - PHP Request data.
-	 */
 	run(request: PHPRequest = {}): PHPResponse {
 		if (!this.#webSapiInitialized) {
 			this.#initWebRuntime();
@@ -381,15 +514,6 @@ export class PHP {
 		this.#Runtime.ccall('php_wasm_init', null, [], []);
 	}
 
-	/**
-	 * Starts a PHP CLI session with given arguments.
-	 *
-	 * Can only be used when PHP was compiled with the CLI SAPI.
-	 * Cannot be used in conjunction with `run()`.
-	 *
-	 * @param  argv - The arguments to pass to the CLI.
-	 * @returns The exit code of the CLI session.
-	 */
 	cli(argv: string[]): Promise<number> {
 		for (const arg of argv) {
 			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
@@ -569,81 +693,26 @@ export class PHP {
 		};
 	}
 
-	/**
-	 * Recursively creates a directory with the given path in the PHP filesystem.
-	 * For example, if the path is `/root/php/data`, and `/root` already exists,
-	 * it will create the directories `/root/php` and `/root/php/data`.
-	 *
-	 * @param  path - The directory path to create.
-	 */
 	mkdirTree(path: string) {
 		this.#Runtime.FS.mkdirTree(path);
 	}
 
-	/**
-	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
-	 *
-	 * @param  settings - The Node.js filesystem settings.
-	 * @param  path     - The path to mount the filesystem to.
-	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
-	 */
-	mount(settings: any, path: string) {
-		this.#Runtime.FS.mount(
-			this.#Runtime.FS.filesystems.NODEFS,
-			settings,
-			path
-		);
-	}
-
-	/**
-	 * Reads a file from the PHP filesystem and returns it as a string.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to read.
-	 * @returns The file contents.
-	 */
-	readFileAsText(path: string): string {
+	readFileAsText(path: string) {
 		return new TextDecoder().decode(this.readFileAsBuffer(path));
 	}
 
-	/**
-	 * Reads a file from the PHP filesystem and returns it as an array buffer.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to read.
-	 * @returns The file contents.
-	 */
 	readFileAsBuffer(path: string): Uint8Array {
 		return this.#Runtime.FS.readFile(path);
 	}
 
-	/**
-	 * Overwrites data in a file in the PHP filesystem.
-	 * Creates a new file if one doesn't exist yet.
-	 *
-	 * @param  path - The file path to write to.
-	 * @param  data - The data to write to the file.
-	 */
 	writeFile(path: string, data: string | Uint8Array) {
 		this.#Runtime.FS.writeFile(path, data);
 	}
 
-	/**
-	 * Removes a file from the PHP filesystem.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to remove.
-	 */
 	unlink(path: string) {
 		this.#Runtime.FS.unlink(path);
 	}
 
-	/**
-	 * Lists the files and directories in the given directory.
-	 *
-	 * @param  path - The directory path to list.
-	 * @returns The list of files and directories in the given directory.
-	 */
 	listFiles(path: string): string[] {
 		if (!this.fileExists(path)) {
 			return [];
@@ -657,13 +726,7 @@ export class PHP {
 			return [];
 		}
 	}
-
-	/**
-	 * Checks if a directory exists in the PHP filesystem.
-	 *
-	 * @param  path – The path to check.
-	 * @returns True if the path is a directory, false otherwise.
-	 */
+	
 	isDir(path: string): boolean {
 		if (!this.fileExists(path)) {
 			return false;
@@ -673,12 +736,6 @@ export class PHP {
 		);
 	}
 
-	/**
-	 * Checks if a file (or a directory) exists in the PHP filesystem.
-	 *
-	 * @param  path - The file path to check.
-	 * @returns True if the file exists, false otherwise.
-	 */
 	fileExists(path: string): boolean {
 		try {
 			this.#Runtime.FS.lookupPath(path);
@@ -686,6 +743,14 @@ export class PHP {
 		} catch (e) {
 			return false;
 		}
+	}
+
+	mount(settings: MountSettings, path: string) {
+		this.#Runtime.FS.mount(
+			this.#Runtime.FS.filesystems.NODEFS,
+			settings,
+			path
+		);
 	}
 }
 
@@ -717,4 +782,4 @@ export interface PHPOutput {
  * @see https://emscripten.org/docs/api_reference/Filesystem-API.html
  * @see https://github.com/emscripten-core/emscripten/blob/main/system/lib/libc/musl/arch/emscripten/bits/errno.h
  */
-export interface ErrnoError extends Error {}
+export type ErrnoError = Error
