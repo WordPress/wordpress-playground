@@ -1,6 +1,16 @@
 import * as Comlink from 'comlink';
 
-export function exposeComlinkAPI(apiMethods: any=null) {
+export function consumeAPI(endpoint: any=null) {
+    setupTransferHandlers();
+
+    if (!(endpoint instanceof Worker)) {
+        endpoint = Comlink.windowEndpoint(endpoint);
+    }
+
+    return Comlink.wrap<any>(endpoint);
+}
+
+export function exposeAPI(apiMethods: any=null) {
     setupTransferHandlers();
     
     let setReady;
@@ -40,7 +50,7 @@ export function exposeComlinkAPI(apiMethods: any=null) {
     }
 }
 
-export function setupTransferHandlers() {
+function setupTransferHandlers() {
     Comlink.transferHandlers.set('EVENT', {
         canHandle: ((obj) => obj instanceof CustomEvent) as any,
         serialize: (ev: CustomEvent) => {
@@ -53,6 +63,19 @@ export function setupTransferHandlers() {
         },
         deserialize: (obj) => obj,
     });
+    Comlink.transferHandlers.set("FUNCTION", {
+        canHandle: obj => typeof obj === "function",
+        serialize(obj) {
+          console.debug("[Comlink][Performance] Proxying a function")
+          const { port1, port2 } = new MessageChannel();
+          Comlink.expose(obj, port1);
+          return [port2, [port2]];
+        },
+        deserialize(port) {
+          port.start();
+          return Comlink.wrap(port);
+        }
+      });
 }
 
 function proxyClone(object: any) {

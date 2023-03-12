@@ -1,4 +1,3 @@
-import * as Comlink from 'comlink';
 import { saveAs } from 'file-saver';
 import {
 	assertNotInfiniteLoadingLoop,
@@ -7,7 +6,7 @@ import {
 	workerUrl,
 } from './boot';
 import {
-	exposeComlinkAPI,
+	exposeAPI,
 	ProgressObserver,
 	ProgressType,
 	cloneResponseMonitorProgress,
@@ -70,7 +69,7 @@ let playground;
 // https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 // @TODO: Handle the callback conversion automatically and don't explicitly re-expose 
 //        the onDownloadProgress method
-const publicApi = exposeComlinkAPI({
+const publicApi = exposeAPI({
 	onDownloadProgress: (fn) => playground.onDownloadProgress(fn)
 });
 
@@ -102,9 +101,7 @@ async function main() {
 	publicApi.pipe(playground);
 
 	await playground.onDownloadProgress(
-		Comlink.proxy(
-			progress.partialObserver(bootProgress, 'Preparing WordPress...')
-		)
+		progress.partialObserver(bootProgress, 'Preparing WordPress...')
 	);
 	await playground.isReady();
 	await registerServiceWorker(

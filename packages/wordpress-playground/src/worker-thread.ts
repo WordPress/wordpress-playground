@@ -3,7 +3,7 @@ import {
 	PHP,
 	PHPServer,
 	PHPBrowser,
-	exposeComlinkAPI,
+	exposeAPI,
 	getPHPLoaderModule,
 	EmscriptenDownloadMonitor
 } from '@wordpress/php-wasm';
@@ -34,7 +34,7 @@ for (const macro in macros) {
 }
 
 const monitor = new EmscriptenDownloadMonitor();
-const publicApi = exposeComlinkAPI({
+const publicApi = exposeAPI({
 	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
 	scope,
 	getWordPressModuleDetails: () => ({
