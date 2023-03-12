@@ -3,14 +3,12 @@ import {
 	PHP,
 	PHPServer,
 	PHPBrowser,
+	setURLScope,
 	exposeAPI,
 	getPHPLoaderModule,
+	parseWorkerStartupOptions,
 	EmscriptenDownloadMonitor
 } from '@wordpress/php-wasm';
-import {
-	parseStartupOptions,
-	setURLScope,
-} from '@wordpress/php-wasm/worker-library';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
 import * as macros from './wp-macros';
@@ -51,7 +49,7 @@ const publicApi = exposeAPI({
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
-const startupOptions = parseStartupOptions();
+const startupOptions = parseWorkerStartupOptions();
 const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
 const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 const [phpLoaderModule, wpLoaderModule] = await Promise.all([

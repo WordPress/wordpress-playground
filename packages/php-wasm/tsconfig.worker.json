@@ -14,11 +14,11 @@
 		"src/php-library/php-server.ts",
 		"src/php-library/php-browser.ts",
 		 
-		"src/webbrowser-toolkit/service-worker/worker-library.ts",
-		"src/webbrowser-toolkit/worker-thread/worker-library.ts",
-		"src/webbrowser-toolkit/emscripten-download-monitor.ts",
-		"src/webbrowser-toolkit/messaging.ts",
-		"src/webbrowser-toolkit/scope.ts",
-		"src/webbrowser-toolkit/utils.ts"
+		"src/web/service-worker/index.ts",
+		"src/web/service-worker/worker-library.ts",
+		"src/web/emscripten-download-monitor.ts",
+		"src/web/messaging.ts",
+		"src/web/scope.ts",
+		"src/web/utils.ts"
  	]
 }

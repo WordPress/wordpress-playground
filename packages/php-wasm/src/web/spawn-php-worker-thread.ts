@@ -1,5 +1,4 @@
-import * as Comlink from 'comlink';
-import { setupTransferHandlers } from '../php-library/comlink-utils';
+import { consumeAPI } from '../php-library/comlink-utils';
 
 export const recommendedWorkerBackend = (function () {
 	// Firefox doesn't support module workers with dynamic imports,
@@ -26,14 +25,12 @@ export async function spawnPHPWorkerThread(
 	workerBackend: 'webworker' | 'iframe' = 'webworker',
 	startupOptions: Record<string, string> = {}
 ): Promise<any> {
-	setupTransferHandlers()
 	workerUrl = addQueryParams(workerUrl, startupOptions);
 
 	if (workerBackend === 'webworker') {
-		return Comlink.wrap(new Worker(workerUrl, { type: 'module' }))
+		return consumeAPI(new Worker(workerUrl, { type: 'module' }))
 	} else if (workerBackend === 'iframe') {
-		const target = createIframe(workerUrl).contentWindow!;
-		return Comlink.wrap(Comlink.windowEndpoint(target));
+		return consumeAPI(createIframe(workerUrl).contentWindow!);
 	} else {
 		throw new Error(`Unknown backendName: ${workerBackend}`);
 	}

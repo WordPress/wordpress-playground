@@ -50,3 +50,20 @@ export async function getPHPLoaderModule(version = '8.2') {
     }
     throw new Error(`Unsupported PHP version ${version}`);
 }
+
+export type StartupOptions = Record<string, string>;
+export function parseWorkerStartupOptions(): StartupOptions {
+	// Read the query string startup options
+	if (typeof self?.location?.href !== 'undefined') {
+		// Web
+		const startupOptions: StartupOptions = {};
+		const params = new URL(self.location.href).searchParams;
+		params.forEach((value, key) => {
+			startupOptions[key] = value;
+		});
+		return startupOptions;
+	} else {
+		// Node.js
+		return JSON.parse(process.env.WORKER_OPTIONS || '{}');
+	}
+}

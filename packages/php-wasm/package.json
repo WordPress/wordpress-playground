@@ -9,7 +9,6 @@
   "exports": {
     ".": "./build/web/index.js",
     "./*": "./build/*",
-    "./worker-library": "./build/worker-library.js",
     "./web": "./build/web/index.js",
     "./web/*": "./build/web/*",
     "./node": "./build/node/index.js",

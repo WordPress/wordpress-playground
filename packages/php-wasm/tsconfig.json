@@ -7,8 +7,7 @@
 	},
 	"include": [ "src/**/*" ],
 	"exclude": [
-		 "src/browser-library/service-worker/worker-library.ts",
-		 "src/browser-library/worker-thread/worker-library.ts",
+		 "src/web/service-worker/worker-library.ts",
 		 "src/**/*.node.js", 
 		 "src/**/*.node.ts", 
 		 "src/php-compilation/**/*", 

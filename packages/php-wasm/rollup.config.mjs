@@ -38,26 +38,6 @@ export default [
 	},
 	{
 		input: {
-			'worker-library':
-				'src/worker-library.ts'
-		},
-		external: ['pnpapi'],
-		output: {
-			dir: 'build',
-			format: 'esm',
-		},
-		plugins: [
-			typescript({
-				tsconfig: './tsconfig.json',
-				compilerOptions: {
-					declarationDir: 'build/web/types',
-					outDir: 'build/web/types',
-				}
-			})
-		],
-	},
-	{
-		input: {
 			index: 'src/node.ts',
 		},
 		external: ['pnpapi', 'util'],
