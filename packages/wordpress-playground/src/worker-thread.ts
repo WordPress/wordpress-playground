@@ -12,7 +12,6 @@ import {
 } from '@wordpress/php-wasm';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
-import * as macros from './wp-client';
 import patchWordPress from './wp-patch';
 
 const php = new PHP();

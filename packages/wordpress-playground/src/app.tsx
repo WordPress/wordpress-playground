@@ -1,4 +1,3 @@
-import { saveAs } from 'file-saver';
 import {
 	assertNotInfiniteLoadingLoop,
 	serviceWorkerUrl,
@@ -9,18 +8,18 @@ import {
 	exposeAPI,
 	ProgressObserver,
 	ProgressType,
-	cloneResponseMonitorProgress,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
 	consumeAPI,
 } from '@wordpress/php-wasm';
 
-import { login, installPlugin, installTheme } from './wp-client';
-import { PromiseQueue } from './promise-queue';
-import { DOCROOT } from './config';
-// @ts-ignore
-import migration from './migration.php?raw';
 import type { InternalWorkerAPI } from './worker-thread';
+
+import { login } from './features/login';
+import { installPluginsFromDirectory } from './features/install-plugins-from-directory';
+import { installThemeFromDirectory } from './features/install-theme-from-directory';
+import { importFile, exportFile } from './features/import-export';
+import { toZipName } from './features/common';
 
 const query = new URL(document.location.href).searchParams as any;
 assertNotInfiniteLoadingLoop();
@@ -46,6 +45,23 @@ const internalApi = consumeAPI<InternalWorkerAPI>(
 //        the onDownloadProgress method
 const [setAPIReady, playground] = exposeAPI({
 	onDownloadProgress: fn => internalApi.onDownloadProgress(fn),
+	onNavigation: fn => {
+		// Manage the address bar
+		wpFrame.addEventListener('load', async (e: any) => {
+			const path = await playground.internalUrlToPath(
+				e.currentTarget!.contentWindow.location.href
+			);
+			fn(path);
+		});
+	},
+	goTo: async (requestedPath: string) => {
+		wpFrame.src = await playground.pathToInternalUrl(
+			requestedPath
+		);
+	},
+	getCurrentURL: async () => {
+		return await playground.internalUrlToPath(wpFrame.src);
+	}
 }, internalApi);
 
 export type PlaygroundAPI = typeof playground;
@@ -81,18 +97,15 @@ const importCloseModalButton = document.querySelector(
 	'#import-close-modal--btn'
 ) as HTMLButtonElement;
 
-const databaseExportName = 'databaseExport.xml';
-const databaseExportPath = '/' + databaseExportName;
-
 
 async function main() {
-	const preinstallPlugins = query.getAll('plugin').map(toZipName);
+	const pluginsZipNames = query.getAll('plugin').map(toZipName);
 	// Don't preinstall the default theme
 	const queryTheme =
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
-	const preinstallTheme = toZipName(queryTheme);
-	const installPluginProgress = Math.min(preinstallPlugins.length * 15, 45);
-	const installThemeProgress = preinstallTheme ? 20 : 0;
+	const themeZipName = toZipName(queryTheme);
+	const installPluginProgress = Math.min(pluginsZipNames.length * 15, 45);
+	const installThemeProgress = themeZipName ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
 	const progress = setupProgressBar();
@@ -118,122 +131,18 @@ async function main() {
 	if (
 		// !query.get('disableImportExport') ||
 		query.get('login') ||
-		preinstallPlugins.length ||
+		pluginsZipNames.length ||
 		query.get('theme')
 	) {
 		await login(playground, 'admin', 'password');
 	}
 
-	if (preinstallTheme) {
-		// Download the theme file
-		const response = cloneResponseMonitorProgress(
-			await fetch('/plugin-proxy?theme=' + preinstallTheme),
-			progress.partialObserver(
-				installThemeProgress - 10,
-				`Installing ${zipNameToHumanName(preinstallTheme)} theme...`
-			)
-		);
-		progress.slowlyIncrementBy(10);
-
-		if (response.status === 200) {
-			const themeFile = new File(
-				[await response.blob()],
-				preinstallTheme
-			);
-
-			try {
-				await installTheme(playground, themeFile);
-			} catch (error) {
-				console.error(
-					`Proceeding without the ${preinstallTheme} theme. Could not install it in wp-admin. ` +
-						`The original error was: ${error}`
-				);
-				console.error(error);
-			}
-		} else {
-			console.error(
-				`Proceeding without the ${preinstallTheme} theme. Could not download the zip bundle from https://downloads.wordpress.org/themes/${preinstallTheme} – ` +
-					`Is the file name correct?`
-			);
-		}
+	if (themeZipName) {
+		await installThemeFromDirectory(playground, themeZipName, 20, progress);
 	}
 
-	if (preinstallPlugins.length) {
-		const downloads = new PromiseQueue();
-		const installations = new PromiseQueue();
-
-		const progressBudgetPerPlugin =
-			installPluginProgress / preinstallPlugins.length;
-
-		/**
-		 * Install multiple plugins to minimize the processing time.
-		 *
-		 * The downloads are done one after another to get installable
-		 * zip files as soon as possible. Each completed download triggers
-		 * plugin installation without waiting for the next download to
-		 * complete.
-		 */
-		await new Promise((finish) => {
-			for (const preinstallPlugin of preinstallPlugins) {
-				downloads.enqueue(async () => {
-					const response = cloneResponseMonitorProgress(
-						await fetch('/plugin-proxy?plugin=' + preinstallPlugin),
-						progress.partialObserver(
-							progressBudgetPerPlugin * 0.66,
-							`Installing ${zipNameToHumanName(
-								preinstallPlugin
-							)} plugin...`
-						)
-					);
-					if (response.status !== 200) {
-						console.error(
-							`Proceeding without the ${preinstallPlugin} plugin. Could not download the zip bundle from https://downloads.wordpress.org/plugin/${preinstallPlugin} – ` +
-								`Is the file name correct?`
-						);
-						return null;
-					}
-					return new File([await response.blob()], preinstallPlugin);
-				});
-			}
-			downloads.addEventListener('resolved', (e: any) => {
-				installations.enqueue(async () => {
-					if (!e.detail) {
-						return;
-					}
-					progress.slowlyIncrementBy(progressBudgetPerPlugin * 0.33);
-					try {
-						await installPlugin(playground, e.detail as File);
-					} catch (error) {
-						console.error(
-							`Proceeding without the ${e.detail.name} plugin. Could not install it in wp-admin. ` +
-								`The original error was: ${error}`
-						);
-						console.error(error);
-					}
-				});
-			});
-			installations.addEventListener('empty', () => {
-				if (installations.resolved === preinstallPlugins.length) {
-					finish(null);
-				}
-			});
-		});
-	}
-
-	if (query.get('rpc')) {
-		// Notify the parent window about any URL changes in the
-		// WordPress iframe
-		wpFrame.addEventListener('load', (e: any) => {
-			window.parent.postMessage(
-				{
-					type: 'new_path',
-					path: playground.internalUrlToPath(
-						e.currentTarget!.contentWindow.location.href
-					),
-				},
-				'*'
-			);
-		});
+	if (pluginsZipNames.length) {
+		await installPluginsFromDirectory(playground, pluginsZipNames, installPluginProgress, progress);
 	}
 
 	if (query.has('ide')) {
@@ -267,28 +176,16 @@ async function main() {
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		wpFrame.src = await playground.pathToInternalUrl(
+		await playground.goTo(
 			query.get('url') || '/'
 		);
 	}
 }
 
-function toZipName(rawInput) {
-	if (!rawInput) {
-		return rawInput;
-	}
-	if (rawInput.endsWith('.zip')) {
-		return rawInput;
-	}
-	return rawInput + '.latest-stable.zip';
-}
-
 function setupAddressBar(playground: PlaygroundAPI) {
 	// Manage the address bar
-	wpFrame.addEventListener('load', async (e: any) => {
-		addressBar.value = await playground.internalUrlToPath(
-			e.currentTarget!.contentWindow.location.href
-		);
+	playground.onNavigation((path: string) => {
+		addressBar.value = path
 	});
 
 	document
@@ -301,9 +198,7 @@ function setupAddressBar(playground: PlaygroundAPI) {
 			if (isDirectory && !requestedPath.endsWith('/')) {
 				requestedPath += '/';
 			}
-			wpFrame.src = await playground.pathToInternalUrl(
-				requestedPath
-			);
+			await playground.goTo( requestedPath );
 			(
 				document.querySelector(
 					'#url-bar-form input[type="text"]'
@@ -312,139 +207,7 @@ function setupAddressBar(playground: PlaygroundAPI) {
 		});
 }
 
-async function generateZip() {
-	const databaseExportResponse = await playground.request({
-		relativeUrl: '/wp-admin/export.php?download=true&&content=all'
-	});
-	const databaseExportContent = new TextDecoder().decode(
-		databaseExportResponse.body
-	);
-	await playground.writeFile(databaseExportPath, databaseExportContent);
-	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
-	const exportPath = `/${exportName}`;
-	const exportWriteRequest = await playground.run({
-		code:
-			migration +
-			` generateZipFile('${exportPath}', '${databaseExportPath}', '${DOCROOT}');`,
-	});
-	if (exportWriteRequest.exitCode !== 0) {
-		throw exportWriteRequest.errors;
-	}
 
-	const fileBuffer = await playground.readFileAsBuffer(exportName);
-	const file = new File([fileBuffer], exportName);
-	saveAs(file);
-}
-
-async function importFile() {
-	if (
-		// eslint-disable-next-line no-alert
-		!confirm(
-			'Are you sure you want to import this file? Previous data will be lost.'
-		)
-	) {
-		return false;
-	}
-
-	// Write uploaded file to filesystem for processing with PHP
-	const userUploadedFileInput = importSelectFile as HTMLInputElement;
-	const userUploadedFile = userUploadedFileInput.files
-		? userUploadedFileInput.files[0]
-		: null;
-	if (!userUploadedFile) return;
-
-	const fileArrayBuffer = await userUploadedFile.arrayBuffer();
-	const fileContent = new Uint8Array(fileArrayBuffer);
-	const importPath = '/import.zip';
-
-	await playground.writeFile(importPath, fileContent);
-
-	// Import the database
-	const databaseFromZipFileReadRequest = await playground.run({
-		code:
-			migration +
-			` readFileFromZipArchive('${importPath}', '${databaseExportPath}');`,
-	});
-	if (databaseFromZipFileReadRequest.exitCode !== 0) {
-		throw databaseFromZipFileReadRequest.errors;
-	}
-
-	const databaseFromZipFileContent = new TextDecoder().decode(
-		databaseFromZipFileReadRequest.body
-	);
-
-	const databaseFile = new File(
-		[databaseFromZipFileContent],
-		databaseExportName
-	);
-
-	const importerPageOneResponse = await playground.request({
-		relativeUrl: '/wp-admin/admin.php?import=wordpress',
-	});
-
-	const importerPageOneContent = new DOMParser().parseFromString(
-		new TextDecoder().decode(importerPageOneResponse.body),
-		'text/html'
-	);
-
-	const firstUrlAction = importerPageOneContent
-		.getElementById('import-upload-form')
-		?.getAttribute('action');
-
-	const stepOneResponse = await playground.request({
-		relativeUrl: `/wp-admin/${firstUrlAction}`,
-		method: 'POST',
-		files: { import: databaseFile },
-	});
-
-	const importerPageTwoContent = new DOMParser().parseFromString(
-		new TextDecoder().decode(stepOneResponse.body),
-		'text/html'
-	);
-
-	const importerPageTwoForm = importerPageTwoContent.querySelector(
-		'#wpbody-content form'
-	);
-	const secondUrlAction = importerPageTwoForm?.getAttribute('action') as string;
-
-	const nonce = (
-		importerPageTwoForm?.querySelector(
-			"input[name='_wpnonce']"
-		) as HTMLInputElement
-	).value;
-
-	const referrer = (
-		importerPageTwoForm?.querySelector(
-			"input[name='_wp_http_referer']"
-		) as HTMLInputElement
-	).value;
-
-	const importId = (
-		importerPageTwoForm?.querySelector(
-			"input[name='import_id']"
-		) as HTMLInputElement
-	).value;
-
-	await playground.request({
-		relativeUrl: secondUrlAction,
-		method: 'POST',
-		formData: {
-			_wpnonce: nonce,
-			_wp_http_referer: referrer,
-			import_id: importId,
-		}
-	});
-
-	// Import the file system
-	const importFileSystemRequest = await playground.run({
-		code: migration + ` importZipFile('${importPath}');`,
-	});
-	if (importFileSystemRequest.exitCode !== 0) {
-		throw importFileSystemRequest.errors;
-	}
-
-	return true;
-}
 
 if (
 	importWindow &&
@@ -466,7 +229,7 @@ if (
 		importSubmitButton.disabled = true;
 	};
 
-	exportButton.addEventListener('click', generateZip);
+	exportButton.addEventListener('click', () => exportFile(playground, wpVersion, phpVersion));
 
 	importOpenModalButton.addEventListener('click', () => {
 		importWindow.style.display = 'block';
@@ -490,7 +253,12 @@ if (
 		e.preventDefault();
 		let uploadAttempt;
 		try {
-			uploadAttempt = await importFile();
+			const userUploadedFileInput = importSelectFile as HTMLInputElement;
+			const userUploadedFile = userUploadedFileInput.files
+				? userUploadedFileInput.files[0]
+				: null;
+			if (!userUploadedFile) return;
+			uploadAttempt = await importFile(playground, userUploadedFile);
 		} catch (error) {
 			console.error(error);
 			importSelectFileText.innerHTML =
@@ -566,14 +334,6 @@ function setupProgressBar() {
 	);
 
 	return progress;
-}
-
-function zipNameToHumanName(zipName) {
-	const mixedCaseName = zipName.split('.').shift()!.replace('-', ' ');
-	return (
-		mixedCaseName.charAt(0).toUpperCase() +
-		mixedCaseName.slice(1).toLowerCase()
-	);
 }
 
 main();

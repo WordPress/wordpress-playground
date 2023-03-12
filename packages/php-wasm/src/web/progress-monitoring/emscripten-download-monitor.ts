@@ -161,7 +161,7 @@ function sumValues(obj: Record<string, number>) {
 
 export default EmscriptenDownloadMonitor;
 
-export interface DownloadProgressEvent {
+export interface DownloadProgress {
 	/**
 	 * The number of bytes loaded so far.
 	 */
@@ -227,4 +227,4 @@ export function cloneResponseMonitorProgress(
 	);
 }
 
-export type DownloadProgressCallback = (event: DownloadProgressEvent) => void;
+export type DownloadProgressCallback = (progress: DownloadProgress) => void;

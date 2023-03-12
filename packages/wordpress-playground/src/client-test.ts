@@ -1,8 +1,9 @@
 
-import { consumeAPI } from '@wordpress/php-wasm'
+import { connectToPlayground } from './wp-client'
+import { login } from './features/login'
+
 const iframe = document.getElementById('wp') as HTMLIFrameElement;
-iframe.src = "/wordpress.html";
-const playground = consumeAPI(iframe.contentWindow!) as any;
+const playground = connectToPlayground(iframe, '/');
 
 await new Promise((resolve) => iframe.onload = resolve);
 await playground.onDownloadProgress(
@@ -17,7 +18,6 @@ console.log(await playground.readFileAsText("/wordpress/test.php"));
 console.log(await playground.listFiles("/"));
 console.log("D");
 
-import { login } from './wp-client';
 await login(playground, 'admin', 'password');
 console.log("logged in?");
 

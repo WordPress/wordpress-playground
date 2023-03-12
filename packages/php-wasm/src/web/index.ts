@@ -20,7 +20,7 @@ export {
 	cloneResponseMonitorProgress,
 } from './progress-monitoring/emscripten-download-monitor';
 export type {
-	DownloadProgressEvent,
+	DownloadProgress,
 	DownloadProgressCallback,
 } from './progress-monitoring/emscripten-download-monitor';
 

@@ -1,3 +1,5 @@
+import { DownloadProgress } from "./emscripten-download-monitor";
+
 export const enum ProgressType {
 	/**
 	 * Real-time progress is used when we get real-time reports
@@ -28,8 +30,8 @@ export class ProgressObserver {
 	partialObserver(progressBudget, caption = '') {
 		const id = ++this.#lastObserverId;
 		this.#observedProgresses[id] = 0;
-		return (e: CustomEvent<ProgressEvent>) => {
-			const { loaded, total } = e.detail || {};
+		return (progress: DownloadProgress) => {
+			const { loaded, total } = progress || {};
 			this.#observedProgresses[id] = (loaded / total) * progressBudget;
 			this.#onProgress(
 				this.totalProgress,
