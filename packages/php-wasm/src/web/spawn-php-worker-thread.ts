@@ -1,6 +1,6 @@
 import * as Comlink from 'comlink';
 import { PHPProtocolClient } from '../../php-library/php-protocol-client';
-import { setupTransferHandlers } from '../../php-library/transfer-handlers';
+import { setupTransferHandlers } from '../php-library/transfer-handlers';
 
 export const recommendedWorkerBackend = (function () {
 	// Firefox doesn't support module workers with dynamic imports,

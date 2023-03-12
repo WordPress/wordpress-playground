@@ -11,7 +11,7 @@ import {
 	startupOptions,
 	materializedProxy,
 	setURLScope,
-} from '@wordpress/php-wasm/web/worker-thread';
+} from '@wordpress/php-wasm/worker-library';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
 import { getWordPressModule } from './wp-modules-urls';

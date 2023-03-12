@@ -3,20 +3,28 @@
 /// <reference lib="WebWorker" />
 
 declare const self: WorkerGlobalScope;
-declare const window: any; // For the web backend
 /* eslint-disable no-inner-declarations */
 
-export * from '../../php-library/scope';
-import { setupTransferHandlers } from '../../php-library/transfer-handlers';
+export * from './php-library/scope';
+import { setupTransferHandlers } from './php-library/transfer-handlers';
 
 setupTransferHandlers();
 
 // Read the query string startup options
 export const startupOptions: Record<string, string> = {};
-const params = new URL(self.location.href).searchParams;
-params.forEach((value, key) => {
-	startupOptions[key] = value;
-});
+if (typeof self?.location?.href !== 'undefined') {
+	// Web
+	const params = new URL(self.location.href).searchParams;
+	params.forEach((value, key) => {
+		startupOptions[key] = value;
+	});
+} else {
+	// Node.js
+	Object.assign(
+		startupOptions,
+		JSON.parse(process.env.WORKER_OPTIONS || '{}')
+	);
+}
 
 export function materializedProxy(object: any) {
 	const proto = Object.getPrototypeOf(object);

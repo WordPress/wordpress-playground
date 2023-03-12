@@ -10,8 +10,6 @@ export default [
 		input: {
 			'service-worker':
 				'src/web/service-worker/worker-library.ts',
-			'worker-thread':
-				'src/web/worker-thread/worker-library.ts',
 			index: 'src/web.ts',
 		},
 		external: ['pnpapi'],
@@ -35,6 +33,26 @@ export default [
 			}),
 			url({
 				include: ['**/*.wasm'],
+			})
+		],
+	},
+	{
+		input: {
+			'worker-library':
+				'src/php/worker-library.ts'
+		},
+		external: ['pnpapi'],
+		output: {
+			dir: 'build',
+			format: 'esm',
+		},
+		plugins: [
+			typescript({
+				tsconfig: './tsconfig.json',
+				compilerOptions: {
+					declarationDir: 'build/web/types',
+					outDir: 'build/web/types',
+				}
 			})
 		],
 	},
