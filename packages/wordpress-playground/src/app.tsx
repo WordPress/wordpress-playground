@@ -8,13 +8,14 @@ import {
 } from './boot';
 import {
 	exposeComlinkAPI,
+	ProgressObserver,
+	ProgressType,
 	cloneResponseMonitorProgress,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
 } from '@wordpress/php-wasm';
 
 import { login, installPlugin, installTheme } from './wp-macros';
-import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 import { DOCROOT } from './config';
 // @ts-ignore
@@ -88,21 +89,32 @@ async function main() {
 		wpVersion: wpVersion.replace('.', '_'),
 		phpVersion: phpVersion.replace('.', '_'),
 	});
+	api.replace(playground);
+	// If onDownloadProgress is not explicitly re-exposed here,
+	// Comlink will throw an error and claim the callback
+	// cannot be cloned. Adding a transfer handler for functions
+	// doesn't help:
+	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
+	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose 
+	//        the onDownloadProgress method
+	api.extend({
+		onDownloadProgress: (fn) => playground.onDownloadProgress(fn)
+	});
+
 	await playground.onDownloadProgress(
 		Comlink.proxy(
 			progress.partialObserver(bootProgress, 'Preparing WordPress...')
 		)
 	);
 	await playground.isReady();
-	api.replace(playground);
-	api.setReady();
-
 	await registerServiceWorker(
 		playground,
 		serviceWorkerUrl + '',
 		// @TODO: source the hash of the service worker file in here
 		serviceWorkerUrl.pathname
 	);
+
+	api.setReady();
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {

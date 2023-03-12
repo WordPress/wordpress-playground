@@ -6,7 +6,7 @@ declare const self: WorkerGlobalScope;
 /* eslint-disable no-inner-declarations */
 
 export * from './php-library/scope';
-import { setupTransferHandlers } from './php-library/transfer-handlers';
+import { setupTransferHandlers } from './php-library/comlink';
 
 setupTransferHandlers();
 

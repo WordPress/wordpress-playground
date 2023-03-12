@@ -1,4 +1,4 @@
-import { DEFAULT_BASE_URL } from '../php-library/urls';
+import { DEFAULT_BASE_URL } from '../../php-library/urls';
 
 /*
  * An approximate total file size to use when the actual

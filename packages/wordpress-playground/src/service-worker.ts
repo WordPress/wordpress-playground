@@ -11,7 +11,7 @@ import {
 import { isUploadedFilePath } from './worker-utils';
 
 if (!self.document) {
-	// Workaround: vide translates import.meta.url
+	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of 
 	// a service worker because document is undefined
 	// @ts-ignore

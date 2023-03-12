@@ -13,7 +13,6 @@ import {
 } from '@wordpress/php-wasm/worker-library';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './worker-utils';
-import { getWordPressModule } from './wp-modules-urls';
 import * as macros from './wp-macros';
 import patchWordPress from './wp-patch';
 
@@ -66,3 +65,17 @@ api.extend({
 
 patchWordPress(php, scopedSiteUrl);
 api.setReady();
+
+function getWordPressModule(version) {
+	switch (version) {
+		case '5.9':
+			return import('./wordpress/wp-5.9.js');
+		case '6.0':
+			return import('./wordpress/wp-6.0.js');
+		case '6.1':
+			return import('./wordpress/wp-6.1.js');
+		case 'nightly':
+			return import('./wordpress/wp-nightly.js');
+	}
+	throw new Error(`Unsupported WordPress module: ${version}`);
+}

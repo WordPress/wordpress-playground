@@ -1,6 +1,5 @@
 import * as Comlink from 'comlink';
-import { PHPProtocolClient } from '../../php-library/php-protocol-client';
-import { setupTransferHandlers } from '../php-library/transfer-handlers';
+import { setupTransferHandlers } from '../php-library/comlink';
 
 export const recommendedWorkerBackend = (function () {
 	// Firefox doesn't support module workers with dynamic imports,
@@ -26,7 +25,7 @@ export async function spawnPHPWorkerThread(
 	workerUrl: string,
 	workerBackend: 'webworker' | 'iframe' = 'webworker',
 	startupOptions: Record<string, string> = {}
-): Promise<PHPProtocolClient> {
+): Promise<any> {
 	setupTransferHandlers()
 	workerUrl = addQueryParams(workerUrl, startupOptions);
 

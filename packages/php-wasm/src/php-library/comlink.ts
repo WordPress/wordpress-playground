@@ -1,6 +1,21 @@
 import * as Comlink from 'comlink';
 
-export default function exposeComlinkAPI(desiredApi: any=null) {
+export function setupTransferHandlers() {
+    Comlink.transferHandlers.set('EVENT', {
+        canHandle: ((obj) => obj instanceof CustomEvent) as any,
+        serialize: (ev: CustomEvent) => {
+            return [
+                {
+                    detail: ev.detail,
+                },
+                [],
+            ];
+        },
+        deserialize: (obj) => obj,
+    });
+}
+
+export function exposeComlinkAPI(desiredApi: any=null) {
     let setReady;
     const ready = new Promise((resolve) => {
         setReady = resolve;
