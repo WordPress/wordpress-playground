@@ -5,7 +5,7 @@ import {
 	PHPBrowser,
 	startPHP,
 	getPHPLoaderModule,
-	EmscriptenDownloadMonitor,
+	EmscriptenDownloadMonitor
 } from '@wordpress/php-wasm';
 import {
 	startupOptions,
