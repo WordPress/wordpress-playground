@@ -1,9 +1,8 @@
-
-import * as Comlink from 'comlink';
 import {
+	startPHP,
 	PHPServer,
 	PHPBrowser,
-	startPHP,
+	exposeComlinkAPI,
 	getPHPLoaderModule,
 	EmscriptenDownloadMonitor
 } from '@wordpress/php-wasm';
@@ -18,20 +17,10 @@ import { getWordPressModule } from './wp-modules-urls';
 import * as macros from './wp-macros';
 import patchWordPress from './wp-patch';
 
-let readyResolve;
-const ready = new Promise((resolve) => {
-	readyResolve = resolve;
-});
-
 const monitor = new EmscriptenDownloadMonitor();
-const playground: any = {
+const api = exposeComlinkAPI({
 	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
-	isReady: () => ready,
-};
-Comlink.expose(
-	playground,
-	typeof window !== 'undefined' ? Comlink.windowEndpoint(self.parent) : undefined
-);
+});
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
@@ -58,21 +47,22 @@ const server = new PHPServer(php, {
 
 const browser = new PHPBrowser(server);
 
-Object.assign(playground, {
+const wp = {};
+for (const macro in macros) {
+	wp[macro] = (...args) => macros[macro](api.exposed, ...args);
+}
+
+api.extend({
 	scope,
 	getWordPressModuleDetails: () => ({
 		staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
 		defaultTheme: wpLoaderModule?.defaultThemeName,
 	}),
-	isReady: () => ready,
+	wp,
 	php: materializedProxy(php),
 	server: materializedProxy(server),
 	browser: materializedProxy(browser),
-	wp: {}
 });
-for (const macro in macros) {
-	playground.wp[macro] = (...args) => macros[macro](playground, ...args);
-}
 
 patchWordPress(php, scopedSiteUrl);
-readyResolve();
+api.setReady();

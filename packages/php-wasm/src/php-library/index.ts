@@ -9,6 +9,8 @@ export type {
 
 export { getPathQueryFragment } from './urls';
 
+export { default as exposeComlinkAPI } from './expose-comlink-api';
+
 import PHPServer from './php-server';
 export { PHPServer };
 export type { PHPServerConfigation, PHPServerRequest } from './php-server';

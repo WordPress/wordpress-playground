@@ -7,6 +7,7 @@ import {
 	workerUrl,
 } from './boot';
 import {
+	exposeComlinkAPI,
 	cloneResponseMonitorProgress,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
@@ -60,6 +61,8 @@ const databaseExportPath = '/' + databaseExportName;
 
 let workerThread;
 
+const api = exposeComlinkAPI();
+
 async function main() {
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
 	// Don't preinstall the default theme
@@ -91,6 +94,8 @@ async function main() {
 		)
 	);
 	await playground.isReady();
+	api.replace(playground);
+	api.setReady();
 
 	await registerServiceWorker(
 		playground,
@@ -98,8 +103,6 @@ async function main() {
 		// @TODO: source the hash of the service worker file in here
 		serviceWorkerUrl.pathname
 	);
-
-	Comlink.expose(playground, Comlink.windowEndpoint(self.parent));
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
