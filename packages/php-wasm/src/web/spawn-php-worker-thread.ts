@@ -1,5 +1,5 @@
 import * as Comlink from 'comlink';
-import { setupTransferHandlers } from '../php-library/comlink';
+import { setupTransferHandlers } from '../php-library/comlink-utils';
 
 export const recommendedWorkerBackend = (function () {
 	// Firefox doesn't support module workers with dynamic imports,

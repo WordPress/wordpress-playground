@@ -39,7 +39,7 @@ export default [
 	{
 		input: {
 			'worker-library':
-				'src/php/worker-library.ts'
+				'src/worker-library.ts'
 		},
 		external: ['pnpapi'],
 		output: {

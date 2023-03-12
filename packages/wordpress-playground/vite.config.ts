@@ -10,6 +10,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			crypto: path`../wordpress-plugin-ide/src/bundler/polyfills/crypto.js`,
+			'@wordpress/php-wasm/build': path`../php-wasm/build`,
 			'@wordpress/php-wasm': path`../php-wasm/src`,
 			'@wordpress/plugin-ide': path`../wordpress-plugin-ide/src/index.ts`,
 		},

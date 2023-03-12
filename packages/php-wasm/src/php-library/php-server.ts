@@ -4,7 +4,6 @@ import {
 	removePathPrefix,
 } from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
-import { getURLScope, removeURLScope } from './scope';
 
 export type PHPServerRequest = Pick<
 	PHPRequest,

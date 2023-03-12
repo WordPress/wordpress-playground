@@ -13,7 +13,7 @@ export function exposeComlinkAPI(apiMethods: any=null) {
             isReady: () => ready,
         },
         baseApi: {},
-        methods: apiMethods
+        methods: proxyClone(apiMethods)
     };
     const exposedApi = new Proxy(datasource, {
         get: (target, prop) => {
@@ -53,4 +53,26 @@ export function setupTransferHandlers() {
         },
         deserialize: (obj) => obj,
     });
+}
+
+function proxyClone(object: any) {
+	return new Proxy(object, {
+		get(target, prop) {
+			switch(typeof target[prop]) {
+				case 'function':
+					return (...args) => target[prop](...args);
+				case 'object':
+					if (target[prop] === null) {
+						return target[prop];
+					}
+					return proxyClone(target[prop]);
+				case 'undefined':
+				case 'number':
+				case 'string':
+					return target[prop];
+				default:
+					return Comlink.proxy(target[prop]);
+			}
+		},
+	});
 }

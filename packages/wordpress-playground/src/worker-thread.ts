@@ -9,7 +9,6 @@ import {
 } from '@wordpress/php-wasm';
 import {
 	parseStartupOptions,
-	materializedProxy,
 	setURLScope,
 } from '@wordpress/php-wasm/worker-library';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -43,9 +42,9 @@ const publicApi = exposeComlinkAPI({
 		defaultTheme: wpLoaderModule?.defaultThemeName,
 	}),
 	wp,
-	php: materializedProxy(php),
-	server: materializedProxy(server),
-	browser: materializedProxy(browser),
+	php,
+	server,
+	browser,
 });
 
 // Load PHP and WordPress modules:

@@ -23,17 +23,3 @@ export function parseStartupOptions(): StartupOptions {
 		return JSON.parse(process.env.WORKER_OPTIONS || '{}');
 	}
 }
-
-export function materializedProxy(object: any) {
-	const proto = Object.getPrototypeOf(object);
-	const props = Object.getOwnPropertyNames(proto);
-	const proxy = {};
-	for (const prop of props) {
-		if (typeof object[prop] === 'function') {
-			proxy[prop] = (...args) => object[prop](...args);
-		} else {
-			proxy[prop] = object[prop];
-		}
-	}
-	return proxy;
-}

@@ -9,7 +9,7 @@ export type {
 
 export { getPathQueryFragment } from './urls';
 
-export * from './comlink';
+export * from './comlink-utils';
 
 import PHPServer from './php-server';
 export { PHPServer };
@@ -50,4 +50,3 @@ export async function getPHPLoaderModule(version = '8.2') {
     }
     throw new Error(`Unsupported PHP version ${version}`);
 }
-
