@@ -16,6 +16,8 @@ export function setupTransferHandlers() {
 }
 
 export function exposeComlinkAPI(desiredApi: any=null) {
+    setupTransferHandlers();
+    
     let setReady;
     const ready = new Promise((resolve) => {
         setReady = resolve;

@@ -1,4 +1,4 @@
-export { PHP, startPHP } from './php';
+export { PHP, loadPHPRuntime } from './php';
 export type {
 	PHPOutput,
 	PHPRequest,

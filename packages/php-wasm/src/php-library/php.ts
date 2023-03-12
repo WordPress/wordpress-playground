@@ -77,8 +77,13 @@ export interface PHPResponse {
 	httpStatusCode: number;
 }
 
+type PHPRuntimeId = number;
+type PHPRuntime = any;
+
+const loadedRuntimes: PHPRuntime[] = [];
+
 /**
- * Initializes the PHP runtime with the given arguments and data dependencies.
+ * Loads the PHP runtime with the given arguments and data dependencies.
  *
  * This function handles the entire PHP initialization pipeline. In particular, it:
  *
@@ -193,13 +198,13 @@ export interface PHPResponse {
  * @param  runtime                 - The current JavaScript environment. One of: NODE, WEB, or WEBWORKER.
  * @param  phpModuleArgs           - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
  * @param  dataDependenciesModules - A list of the ESM-wrapped Emscripten data dependency modules.
- * @returns PHP instance.
+ * @returns Loaded runtime id.
  */
-export async function startPHP(
+export async function loadPHPRuntime(
 	phpLoaderModule: any,
 	phpModuleArgs: any = {},
 	dataDependenciesModules: any[] = []
-): Promise<PHP> {
+): Promise<number> {
 	let resolvePhpReady, resolveDepsReady;
 	const depsReady = new Promise((resolve) => {
 		resolveDepsReady = resolve;
@@ -242,7 +247,9 @@ export async function startPHP(
 
 	await depsReady;
 	await phpReady;
-	return new PHP(PHPRuntime);
+
+	loadedRuntimes.push(PHPRuntime);
+	return loadedRuntimes.length - 1;
 }
 
 const currentJsRuntime = (function () {
@@ -278,10 +285,22 @@ export class PHP {
 	 * Initializes a PHP runtime.
 	 *
 	 * @internal
-	 * @param  PHPRuntime - PHP Runtime as initialized by startPHP.
+	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
 	 */
-	constructor(PHPRuntime: any) {
-		this.#Runtime = PHPRuntime;
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
+		if (PHPRuntimeId !== undefined) {
+			this.initializeRuntime(PHPRuntimeId);
+		}
+	}
+
+	initializeRuntime(runtimeId: PHPRuntimeId) {
+		if (this.#Runtime) {
+			throw new Error('PHP runtime already initialized.');
+		}
+		if (!loadedRuntimes[runtimeId]) {
+			throw new Error('Invalid PHP runtime id.');
+		}
+		this.#Runtime = loadedRuntimes[runtimeId];
 	}
 
 	setPhpIniPath(path: string) {

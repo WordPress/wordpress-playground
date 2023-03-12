@@ -6,6 +6,7 @@ setupTransferHandlers();
 const iframe = document.getElementById('wp') as HTMLIFrameElement;
 iframe.src = "/wordpress.html";
 const playground = Comlink.wrap(Comlink.windowEndpoint(iframe.contentWindow!)) as any;
+
 await new Promise((resolve) => iframe.onload = resolve);
 await playground.onDownloadProgress(
     Comlink.proxy(x => { console.log('download progress', {x}) })

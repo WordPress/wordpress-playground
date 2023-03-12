@@ -1,5 +1,6 @@
 import {
-	startPHP,
+	loadPHPRuntime,
+	PHP,
 	PHPServer,
 	PHPBrowser,
 	exposeComlinkAPI,
@@ -7,7 +8,7 @@ import {
 	EmscriptenDownloadMonitor
 } from '@wordpress/php-wasm';
 import {
-	startupOptions,
+	parseStartupOptions,
 	materializedProxy,
 	setURLScope,
 } from '@wordpress/php-wasm/worker-library';
@@ -16,25 +17,7 @@ import { isUploadedFilePath } from './worker-utils';
 import * as macros from './wp-macros';
 import patchWordPress from './wp-patch';
 
-const monitor = new EmscriptenDownloadMonitor();
-const api = exposeComlinkAPI({
-	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
-});
-
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
-const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
-const [phpLoaderModule, wpLoaderModule] = await Promise.all([
-	getPHPLoaderModule(phpVersion),
-	getWordPressModule(wpVersion),
-]);
-monitor.setModules([phpLoaderModule, wpLoaderModule]);
-const php = await startPHP(
-	phpLoaderModule,
-	monitor.getEmscriptenArgs(),
-	[wpLoaderModule]
-)
+const php = new PHP();
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
@@ -51,7 +34,9 @@ for (const macro in macros) {
 	wp[macro] = (...args) => macros[macro](api.exposed, ...args);
 }
 
-api.extend({
+const monitor = new EmscriptenDownloadMonitor();
+const api = exposeComlinkAPI({
+	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
 	scope,
 	getWordPressModuleDetails: () => ({
 		staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
@@ -63,10 +48,28 @@ api.extend({
 	browser: materializedProxy(browser),
 });
 
+// Load PHP and WordPress modules:
+
+// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+// parameters names passed to the worker via a query string.
+const startupOptions = parseStartupOptions();
+const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
+const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
+const [phpLoaderModule, wpLoaderModule] = await Promise.all([
+	getPHPLoaderModule(phpVersion),
+	getWordPressModule(wpVersion),
+]);
+monitor.setModules([phpLoaderModule, wpLoaderModule]);
+php.initializeRuntime(await loadPHPRuntime(
+	phpLoaderModule,
+	monitor.getEmscriptenArgs(),
+	[wpLoaderModule]
+));
 patchWordPress(php, scopedSiteUrl);
+
 api.setReady();
 
-function getWordPressModule(version) {
+export function getWordPressModule(version) {
 	switch (version) {
 		case '5.9':
 			return import('./wordpress/wp-5.9.js');
