@@ -3,12 +3,13 @@ import * as Comlink from 'comlink';
 import {
 	PHPServer,
 	PHPBrowser,
+	startPHP,
 	getPHPLoaderModule,
+	EmscriptenDownloadMonitor,
 } from '@wordpress/php-wasm';
 import {
-	loadPHP,
+	jsEnv,
 	startupOptions,
-	addProgressListener,
 	materializedProxy,
 	setURLScope,
 } from '@wordpress/php-wasm/web/worker-thread';
@@ -23,7 +24,7 @@ const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.dataModule || '6_1').replace('_', '.');
+const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
 const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 let readyResolve;
@@ -31,19 +32,25 @@ const ready = new Promise((resolve) => {
 	readyResolve = resolve;
 });
 
+const monitor = new EmscriptenDownloadMonitor();
 const playground: any = {
-	addProgressListener,
-	onReady: () => ready,
+	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
+	isReady: () => ready,
 };
-
 Comlink.expose(playground);
 
 const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 	getPHPLoaderModule(phpVersion),
 	getWordPressModule(wpVersion),
 ]);
+monitor.setModules([phpLoaderModule, wpLoaderModule]);
 
-const php = await loadPHP(phpLoaderModule, [wpLoaderModule]);
+const php = await startPHP(
+	phpLoaderModule,
+	jsEnv,
+	monitor.getEmscriptenArgs(),
+	[wpLoaderModule]
+)
 const server = new PHPServer(php, {
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
@@ -53,12 +60,11 @@ const browser = new PHPBrowser(server);
 
 Object.assign(playground, {
 	scope,
-	addProgressListener,
 	getWordPressModuleDetails: () => ({
 		staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
 		defaultTheme: wpLoaderModule?.defaultThemeName,
 	}),
-	onReady: () => ready,
+	isReady: () => ready,
 	php: materializedProxy(php),
 	server: materializedProxy(server),
 	browser: materializedProxy(browser),

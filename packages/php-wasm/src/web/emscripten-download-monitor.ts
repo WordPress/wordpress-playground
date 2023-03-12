@@ -9,12 +9,17 @@ import { DEFAULT_BASE_URL } from '../php-library/urls';
  *
  * The approximation isn't accurate, but it's better than nothing.
  * It's not about being exact but about giving the user a rough sense
- * of progress.
+ * of #progress.
  */
 const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
 
+interface MonitoredModule {
+	dependencyFilename: string;
+	dependenciesTotalSize: number;
+}
+
 /**
- * Monitors the download progress of Emscripten modules
+ * Monitors the download #progress of Emscripten modules
  *
  * Usage:
  * ```js
@@ -24,18 +29,30 @@ const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
  *       'web',
  *       downloadMonitor.phpArgs
  *   );
- *   downloadMonitor.addEventListener('progress', (e) => {
- *     console.log( e.detail.progress);
+ *   downloadMonitor.addEventListener('#progress', (e) => {
+ *     console.log( e.detail.#progress);
  *   })
  * ```
  */
 export class EmscriptenDownloadMonitor extends EventTarget {
-	assetsSizes: Record<string, number>;
-	progress: Record<string, number>;
-	phpArgs: any;
+	#assetsSizes: Record<string, number> = {};
+	#progress: Record<string, number> = {};
 
-	static forModules(modules: any[]) {
-		const assetsSizes = modules.reduce((acc, module) => {
+	constructor(modules: MonitoredModule[] = []) {
+		super();
+
+		this.setModules(modules);
+		this.#monitorWebAssemblyStreaming();
+	}
+
+	getEmscriptenArgs() {
+		return {
+			dataFileDownloads: this.#createDataFileDownloadsProxy(),
+		}
+	}
+
+	setModules(modules: MonitoredModule[]) {
+		this.#assetsSizes = modules.reduce((acc, module) => {
 			if (module.dependenciesTotalSize > 0) {
 				const url = new URL(
 					module.dependencyFilename,
@@ -49,28 +66,16 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			}
 			return acc;
 		}, {} as Record<string, number>);
-		return new EmscriptenDownloadMonitor(assetsSizes);
-	}
-
-	constructor(assetsSizes: Record<string, number>) {
-		super();
-
-		this.assetsSizes = assetsSizes;
-		this.progress = Object.fromEntries(
-			Object.entries(assetsSizes).map(([name]) => [name, 0])
+		this.#progress = Object.fromEntries(
+			Object.entries(this.#assetsSizes).map(([name]) => [name, 0])
 		);
-		this.#monitorWebAssemblyStreaming();
-		this.phpArgs = {
-			dataFileDownloads: this.#createDataFileDownloadsProxy(),
-		};
 	}
 
 	/**
 	 * Replaces the default WebAssembly.instantiateStreaming with a version
-	 * that monitors the download progress.
+	 * that monitors the download #progress.
 	 */
 	#monitorWebAssemblyStreaming() {
-		const self = this;
 		const instantiateStreaming = WebAssembly.instantiateStreaming;
 		WebAssembly.instantiateStreaming = async (
 			responseOrPromise,
@@ -83,7 +88,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 
 			const reportingResponse = cloneResponseMonitorProgress(
 				response,
-				({ loaded, total }) => self.#notify(file, loaded, total)
+				({ loaded, total }) => this.#notify(file, loaded, total)
 			);
 
 			return instantiateStreaming(reportingResponse, ...args);
@@ -92,13 +97,13 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 
 	/**
 	 * Creates a `dataFileDownloads` Proxy object that can be passed
-	 * to `startPHP` to monitor the download progress of the data
+	 * to `startPHP` to monitor the download #progress of the data
 	 * dependencies.
 	 */
 	#createDataFileDownloadsProxy() {
 		const self = this;
 		const dataFileDownloads = {};
-		// Monitor assignments like dataFileDownloads[file] = progress
+		// Monitor assignments like dataFileDownloads[file] = #progress
 		return new Proxy(dataFileDownloads, {
 			set(obj, file: string, progress) {
 				self.#notify(file, progress.loaded, progress.total);
@@ -117,7 +122,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	}
 
 	/**
-	 * Notifies about the download progress of a file.
+	 * Notifies about the download #progress of a file.
 	 *
 	 * @param  file   The file name.
 	 * @param  loaded The number of bytes of that file loaded so far.
@@ -128,22 +133,22 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			.split('/')
 			.pop()!;
 		if (!fileSize) {
-			fileSize = this.assetsSizes[fileName];
+			fileSize = this.#assetsSizes[fileName];
 		}
-		if (!(fileName in this.progress)) {
+		if (!(fileName in this.#progress)) {
 			console.warn(
-				`Registered a download progress of an unregistered file "${fileName}". ` +
-					`This may cause a sudden **decrease** in the progress percentage as the ` +
+				`Registered a download #progress of an unregistered file "${fileName}". ` +
+					`This may cause a sudden **decrease** in the #progress percentage as the ` +
 					`total number of bytes increases during the download.`
 			);
 		}
 
-		this.progress[file] = loaded;
+		this.#progress[file] = loaded;
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
-					loaded: sumValues(this.progress),
-					total: sumValues(this.assetsSizes),
+					loaded: sumValues(this.#progress),
+					total: sumValues(this.#assetsSizes),
 				},
 			})
 		);
@@ -169,11 +174,11 @@ export interface DownloadProgressEvent {
 
 /**
  * Clones a fetch Response object and returns a version
- * that calls the `onProgress` callback as the progress
+ * that calls the `onProgress` callback as the #progress
  * changes.
  *
  * @param  response   The fetch Response object to clone.
- * @param  onProgress The callback to call when the download progress changes.
+ * @param  onProgress The callback to call when the download #progress changes.
  * @returns The cloned response
  */
 export function cloneResponseMonitorProgress(

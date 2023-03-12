@@ -1,85 +1,31 @@
 import * as Comlink from 'comlink';
-import { responseTo } from '../../php-library/messaging';
-import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 import { PHPProtocolClient } from '../../php-library/php-protocol-client';
-// import { setupTransferHandlers } from '../../php-library/transfer-handlers';
-// setupTransferHandlers()
-const noop = () => null;
-
-interface WorkerThreadConfig {
-	/**
-	 * A function to call when a download progress event is received from the worker
-	 */
-	onDownloadProgress?: (event: DownloadProgressEvent) => void;
-
-	/**
-	 * A record of options to pass to the worker thread.
-	 */
-	options?: Record<string, string>;
-}
+import { setupTransferHandlers } from '../../php-library/transfer-handlers';
 
 /**
  * Spawns a new Worker Thread.
  *
- * @param  backendName     The Worker Thread backend to use. Either 'webworker' or 'iframe'.
- * @param  workerScriptUrl The absolute URL of the worker script.
+ * @param  workerUrl The absolute URL of the worker script.
+ * @param  workerBackend     The Worker Thread backend to use. Either 'webworker' or 'iframe'.
  * @param  config
  * @returns  The spawned Worker Thread.
  */
 export async function spawnPHPWorkerThread(
-	backendName: 'webworker' | 'iframe',
-	workerScriptUrl: string,
-	config: WorkerThreadConfig
+	workerUrl: string,
+	workerBackend: 'webworker' | 'iframe' = 'webworker',
+	startupOptions: Record<string, string> = {}
 ): Promise<PHPProtocolClient> {
-	const { onDownloadProgress = noop } = config;
+	setupTransferHandlers()
+	workerUrl = addQueryParams(workerUrl, startupOptions);
 
-	workerScriptUrl = addQueryParams(workerScriptUrl, config.options || {});
-
-	let remote;
-	if (backendName === 'webworker') {
-		remote = Comlink.wrap(new Worker(workerScriptUrl, { type: 'module' }))
-	} else if (backendName === 'iframe') {
-		const target = createIframe(workerScriptUrl).contentWindow!;
-		remote = Comlink.wrap(Comlink.windowEndpoint(target));
+	if (workerBackend === 'webworker') {
+		return Comlink.wrap(new Worker(workerUrl, { type: 'module' }))
+	} else if (workerBackend === 'iframe') {
+		const target = createIframe(workerUrl).contentWindow!;
+		return Comlink.wrap(Comlink.windowEndpoint(target));
 	} else {
-		throw new Error(`Unknown backendName: ${backendName}`);
+		throw new Error(`Unknown backendName: ${workerBackend}`);
 	}
-
-	console.log({remote, workerScriptUrl})
-
-	await remote.addProgressListener(Comlink.proxy(onDownloadProgress));
-	await remote.onReady();
-
-	// Proxy the service worker messages to the worker thread:
-	const scope = await remote.scope;
-	navigator.serviceWorker.addEventListener(
-		'message',
-		async function onMessage(event) {
-			console.debug('Message from ServiceWorker', event);
-			/**
-			 * Ignore events meant for other PHP instances to
-			 * avoid handling the same event twice.
-			 *
-			 * This is important because the service worker posts the
-			 * same message to all application instances across all browser tabs.
-			 */
-			if (scope && event.data.scope !== scope) {
-				return;
-			}
-
-			let result;
-			if (event.data.method === 'request') {
-				result = await remote.browser.request(...event.data.args);
-			} else if (event.data.method === "getWordPressModuleDetails") {
-				result = await remote.getWordPressModuleDetails();
-			}
-			event.source!.postMessage(
-				responseTo(event.data.requestId, result)
-			);
-		}
-	);
-	
-	return remote;
 }
 
 function addQueryParams(url, searchParams: Record<string, string>) {

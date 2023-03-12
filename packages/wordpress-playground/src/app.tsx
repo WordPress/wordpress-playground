@@ -1,8 +1,18 @@
 import * as Comlink from 'comlink';
 import { saveAs } from 'file-saver';
-import { bootWordPress } from './boot';
+import { assertNotInfiniteLoadingLoop, chooseWorkerThreadBackend } from './boot';
+import {
+	cloneResponseMonitorProgress,
+	registerServiceWorker,
+	spawnPHPWorkerThread,
+} from '@wordpress/php-wasm';
+
+const origin = new URL('/', import.meta.url).origin;
+// @ts-ignore
+import serviceWorkerPath from './service-worker.ts?worker&url';
+const serviceWorkerUrl = new URL(serviceWorkerPath, origin)
+
 import { login, installPlugin, installTheme } from './wp-macros';
-import { cloneResponseMonitorProgress } from '@wordpress/php-wasm';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 import { DOCROOT } from './config';
@@ -66,23 +76,42 @@ async function main() {
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
 	const progress = setupProgressBar();
-	workerThread = await bootWordPress({
-		onWasmDownloadProgress: progress.partialObserver(
-			bootProgress,
-			'Preparing WordPress...'
-		),
-		phpVersion,
-		dataModule: wpVersion,
-	});
+
+	assertNotInfiniteLoadingLoop();
+
+	const { url, backend } = chooseWorkerThreadBackend();
+	const playground = await spawnPHPWorkerThread(
+		url,
+		backend,
+		{
+			// Vite doesn't deal well with the dot in the parameters name,
+			// passed to the worker via a query string, so we replace
+			// it with an underscore
+			wpVersion: (wpVersion).replace('.', '_'),
+			phpVersion: (phpVersion).replace('.', '_'),
+		}
+	);
+	await playground.onDownloadProgress(Comlink.proxy(progress.partialObserver(
+		bootProgress,
+		'Preparing WordPress...'
+	)));
+	await playground.isReady();
+
+	await registerServiceWorker(
+		playground,
+		serviceWorkerUrl + '',
+		// @TODO: source the hash of the service worker file in here
+		serviceWorkerUrl.pathname
+	);
 
 	Comlink.expose(
-		workerThread,
+		playground,
 		Comlink.windowEndpoint(self.parent)
 	);
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
-		setupAddressBar(workerThread);
+		setupAddressBar(playground);
 	}
 
 	if (
@@ -91,7 +120,7 @@ async function main() {
 		preinstallPlugins.length ||
 		query.get('theme')
 	) {
-		await login(workerThread, 'admin', 'password');
+		await login(playground, 'admin', 'password');
 	}
 
 	if (preinstallTheme) {
@@ -112,7 +141,7 @@ async function main() {
 			);
 
 			try {
-				await installTheme(workerThread, themeFile);
+				await installTheme(playground, themeFile);
 			} catch (error) {
 				console.error(
 					`Proceeding without the ${preinstallTheme} theme. Could not install it in wp-admin. ` +
@@ -172,7 +201,7 @@ async function main() {
 					}
 					progress.slowlyIncrementBy(progressBudgetPerPlugin * 0.33);
 					try {
-						await installPlugin(workerThread, e.detail as File);
+						await installPlugin(playground, e.detail as File);
 					} catch (error) {
 						console.error(
 							`Proceeding without the ${e.detail.name} plugin. Could not install it in wp-admin. ` +
@@ -197,7 +226,7 @@ async function main() {
 			window.parent.postMessage(
 				{
 					type: 'new_path',
-					path: workerThread.internalUrlToPath(
+					path: playground.internalUrlToPath(
 						e.currentTarget!.contentWindow.location.href
 					),
 				},
@@ -218,7 +247,7 @@ async function main() {
 		render(
 			<WordPressPluginIDE
 				plugin={createBlockPluginFixture}
-				workerThread={workerThread}
+				workerThread={playground}
 				initialEditedFile="edit.js"
 				reactDevUrl='/assets/react.development.js'
 				reactDomDevUrl='/assets/react-dom.development.js'
@@ -228,7 +257,7 @@ async function main() {
 						(wpFrame.contentWindow as any).eval(bundleContents);
 					} else {
 						doneFirstBoot = true;
-						wpFrame.src = workerThread.server.pathToInternalUrl(
+						wpFrame.src = playground.server.pathToInternalUrl(
 							query.get('url') || '/'
 						);
 					}
@@ -237,7 +266,7 @@ async function main() {
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		wpFrame.src = await workerThread.server.pathToInternalUrl(query.get('url') || '/');
+		wpFrame.src = await playground.server.pathToInternalUrl(query.get('url') || '/');
 	}
 }
 

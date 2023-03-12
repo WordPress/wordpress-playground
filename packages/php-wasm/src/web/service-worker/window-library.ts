@@ -1,4 +1,7 @@
 /// <reference lib="DOM" />
+
+import { responseTo } from "../../php-library/messaging";
+
 /**
  * Run this in the main application to register the service worker or
  * reload the registered worker if the app expects a different version
@@ -9,7 +12,11 @@
  *                                 mismatched with the actual version, the service worker
  *                                 will be re-registered.
  */
-export async function registerServiceWorker(scriptUrl, expectedVersion) {
+export async function registerServiceWorker(
+	workerThread: any,
+	scriptUrl,
+	expectedVersion
+) {
 	const sw = (navigator as any).serviceWorker;
 	if (!sw) {
 		throw new Error('Service workers are not supported in this browser.');
@@ -50,6 +57,38 @@ export async function registerServiceWorker(scriptUrl, expectedVersion) {
 			type: 'module',
 		});
 	}
+
+	// Proxy the service worker messages to the worker thread:
+	await workerThread.isReady();
+	const scope = await workerThread.scope;
+	navigator.serviceWorker.addEventListener(
+		'message',
+		async function onMessage(event) {
+			console.debug('Message from ServiceWorker', event);
+			/**
+			 * Ignore events meant for other PHP instances to
+			 * avoid handling the same event twice.
+			 *
+			 * This is important because the service worker posts the
+			 * same message to all application instances across all browser tabs.
+			 */
+			if (scope && event.data.scope !== scope) {
+				return;
+			}
+
+			const args = event.data.args || [];
+			
+			let result;
+			if (event.data.method === 'request') {
+				result = await workerThread.browser.request(...args);
+			} else {
+				result = await workerThread[event.data.method](...args);
+			}
+			event.source!.postMessage(
+				responseTo(event.data.requestId, result)
+			);
+		}
+	);
 
 	sw.startMessages();
 }

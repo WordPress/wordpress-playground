@@ -6,14 +6,10 @@ declare const self: WorkerGlobalScope;
 declare const window: any; // For the web backend
 /* eslint-disable no-inner-declarations */
 
-import { startPHP } from '../../php-library/index';
-import type { PHP } from '../../php-library/index';
-import EmscriptenDownloadMonitor from '../emscripten-download-monitor';
-import type { DownloadProgressEvent } from '../emscripten-download-monitor';
 export * from '../../php-library/scope';
-// import { setupTransferHandlers } from '../../php-library/transfer-handlers';
+import { setupTransferHandlers } from '../../php-library/transfer-handlers';
 
-// setupTransferHandlers();
+setupTransferHandlers();
 
 export const jsEnv = (function () {
 	if (typeof window !== 'undefined') {
@@ -46,50 +42,4 @@ export function materializedProxy(object: any) {
 		}
 	}
 	return proxy;
-}
-
-
-type ProgressListener = (progressDetails: any) => void;
-const progressListeners: ProgressListener[] = [];
-export function addProgressListener(
-	progressHandler: ProgressListener
-) {
-	progressListeners.push(progressHandler);
-}
-
-/**
- * Call this in a Worker Thread to start load the PHP runtime
- * and post the progress to the main thread.
- *
- * @see startPHP
- * @param  phpLoaderModule         The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
- * @param  dataDependenciesModules A list of the ESM-wrapped Emscripten data dependency modules.
- * @param  phpModuleArgs           The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
- * @returns PHP instance.
- */
-export async function loadPHP(
-	phpLoaderModule: any,
-	dataDependenciesModules: any[] = [],
-	phpModuleArgs: any = {}
-): Promise<PHP> {
-	const downloadMonitor = EmscriptenDownloadMonitor.forModules([
-		phpLoaderModule,
-		...dataDependenciesModules
-	]);
-	(downloadMonitor as any).addEventListener(
-		'progress',
-		(e: CustomEvent<DownloadProgressEvent>) => {
-			progressListeners.forEach((listener) => listener(e.detail));
-		}
-	);
-
-	return await startPHP(
-		phpLoaderModule,
-		jsEnv,
-		{
-			...phpModuleArgs,
-			...downloadMonitor.phpArgs,
-		},
-		dataDependenciesModules
-	);
 }
