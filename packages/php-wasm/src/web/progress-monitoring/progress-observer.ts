@@ -30,8 +30,8 @@ export class ProgressObserver {
 	partialObserver(progressBudget, caption = '') {
 		const id = ++this.#lastObserverId;
 		this.#observedProgresses[id] = 0;
-		return (progress: DownloadProgress) => {
-			const { loaded, total } = progress || {};
+		return (progress: CustomEvent<DownloadProgress>) => {
+			const { loaded, total } = progress?.detail || {};
 			this.#observedProgresses[id] = (loaded / total) * progressBudget;
 			this.#onProgress(
 				this.totalProgress,

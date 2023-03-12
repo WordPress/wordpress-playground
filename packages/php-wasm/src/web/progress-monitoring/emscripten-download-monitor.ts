@@ -48,7 +48,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	getEmscriptenArgs() {
 		return {
 			dataFileDownloads: this.#createDataFileDownloadsProxy(),
-		}
+		};
 	}
 
 	setModules(modules: MonitoredModule[]) {
@@ -88,7 +88,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 
 			const reportingResponse = cloneResponseMonitorProgress(
 				response,
-				({ loaded, total }) => this.#notify(file, loaded, total)
+				({ detail: { loaded, total } }) => this.#notify(file, loaded, total)
 			);
 
 			return instantiateStreaming(reportingResponse, ...args);
@@ -183,10 +183,21 @@ export interface DownloadProgress {
  */
 export function cloneResponseMonitorProgress(
 	response: Response,
-	onProgress: DownloadProgressCallback
+	onProgress: (event: CustomEvent<DownloadProgress>) => void
 ): Response {
 	const contentLength = response.headers.get('content-length') || '';
 	const total = parseInt(contentLength, 10) || FALLBACK_FILE_SIZE;
+
+	function notify(loaded, total) {
+		onProgress(
+			new CustomEvent('progress', {
+				detail: {
+					loaded,
+					total,
+				}
+			})
+		);
+	}
 
 	return new Response(
 		new ReadableStream({
@@ -204,11 +215,11 @@ export function cloneResponseMonitorProgress(
 							loaded += value.byteLength;
 						}
 						if (done) {
-							onProgress({ loaded, total: loaded });
+							notify(loaded, loaded);
 							controller.close();
 							break;
 						} else {
-							onProgress({ loaded, total });
+							notify(loaded, total);
 							controller.enqueue(value);
 						}
 					} catch (e) {

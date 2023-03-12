@@ -209,7 +209,7 @@ export class PHPServer {
 			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 		);
 
-		let preferredMethod = 'GET';
+		let preferredMethod: PHPRequest['method'] = 'GET';
 
 		const fileInfos: FileInfo[] = [];
 		if (request.files) {

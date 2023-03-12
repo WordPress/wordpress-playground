@@ -36,6 +36,8 @@ const internalApi = consumeAPI<InternalWorkerAPI>(
 	})
 );
 
+const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+
 // If onDownloadProgress is not explicitly re-exposed here,
 // Comlink will throw an error and claim the callback
 // cannot be cloned. Adding a transfer handler for functions
@@ -66,37 +68,6 @@ const [setAPIReady, playground] = exposeAPI({
 
 export type PlaygroundAPI = typeof playground;
 
-const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
-
-// Migration Logic
-const importWindow = document.querySelector('#import-window') as HTMLElement;
-const overlay = document.querySelector('#overlay') as HTMLElement;
-const exportButton = document.querySelector(
-	'#export-playground--btn'
-) as HTMLButtonElement;
-const importOpenModalButton = document.querySelector(
-	'#import-open-modal--btn'
-) as HTMLButtonElement;
-const importPlaygroundForm = document.querySelector(
-	'#import-playground-form'
-) as HTMLFormElement;
-const importSelectFile = document.querySelector(
-	'#import-select-file'
-) as HTMLInputElement;
-const importSelectFileText = document.querySelector(
-	'#import-select-file--text'
-) as HTMLElement;
-const importSelectFileButton = document.querySelector(
-	'#import-select-file--btn'
-) as HTMLButtonElement;
-const importSubmitButton = document.querySelector(
-	'#import-submit--btn'
-) as HTMLButtonElement;
-const importCloseModalButton = document.querySelector(
-	'#import-close-modal--btn'
-) as HTMLButtonElement;
-
 
 async function main() {
 	const pluginsZipNames = query.getAll('plugin').map(toZipName);
@@ -104,7 +75,7 @@ async function main() {
 	const queryTheme =
 		query.get('theme') === 'twentytwentythree' ? null : query.get('theme');
 	const themeZipName = toZipName(queryTheme);
-	const installPluginProgress = Math.min(pluginsZipNames.length * 15, 45);
+	const installPluginProgress = Math.min((pluginsZipNames.length || 0) * 15, 45);
 	const installThemeProgress = themeZipName ? 20 : 0;
 	const bootProgress = 100 - installPluginProgress - installThemeProgress;
 
@@ -167,21 +138,18 @@ async function main() {
 						(wpFrame.contentWindow as any).eval(bundleContents);
 					} else {
 						doneFirstBoot = true;
-						wpFrame.src = await playground.pathToInternalUrl(
-							query.get('url') || '/'
-						);
+						await playground.goTo(query.get('url') || '/');
 					}
 				}}
 			/>,
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		await playground.goTo(
-			query.get('url') || '/'
-		);
+		await playground.goTo(query.get('url') || '/');
 	}
 }
 
+const addressBar = document.querySelector('#url-bar')! as HTMLInputElement;
 function setupAddressBar(playground: PlaygroundAPI) {
 	// Manage the address bar
 	playground.onNavigation((path: string) => {
@@ -208,6 +176,34 @@ function setupAddressBar(playground: PlaygroundAPI) {
 }
 
 
+
+// Migration Logic
+const importWindow = document.querySelector('#import-window') as HTMLElement;
+const overlay = document.querySelector('#overlay') as HTMLElement;
+const exportButton = document.querySelector(
+	'#export-playground--btn'
+) as HTMLButtonElement;
+const importOpenModalButton = document.querySelector(
+	'#import-open-modal--btn'
+) as HTMLButtonElement;
+const importPlaygroundForm = document.querySelector(
+	'#import-playground-form'
+) as HTMLFormElement;
+const importSelectFile = document.querySelector(
+	'#import-select-file'
+) as HTMLInputElement;
+const importSelectFileText = document.querySelector(
+	'#import-select-file--text'
+) as HTMLElement;
+const importSelectFileButton = document.querySelector(
+	'#import-select-file--btn'
+) as HTMLButtonElement;
+const importSubmitButton = document.querySelector(
+	'#import-submit--btn'
+) as HTMLButtonElement;
+const importCloseModalButton = document.querySelector(
+	'#import-close-modal--btn'
+) as HTMLButtonElement;
 
 if (
 	importWindow &&
