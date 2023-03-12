@@ -2,6 +2,18 @@ import * as Comlink from 'comlink';
 import { PHPProtocolClient } from '../../php-library/php-protocol-client';
 import { setupTransferHandlers } from '../../php-library/transfer-handlers';
 
+export const recommendedWorkerBackend = (function () {
+	// Firefox doesn't support module workers with dynamic imports,
+	// let's fall back to iframe workers.
+	// See https://github.com/mdn/content/issues/24402
+	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+	if (isFirefox) {
+		return 'iframe';
+	} else {
+		return 'webworker';
+	}
+})();
+
 /**
  * Spawns a new Worker Thread.
  *

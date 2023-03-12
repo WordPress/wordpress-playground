@@ -1,16 +1,16 @@
 import * as Comlink from 'comlink';
 import { saveAs } from 'file-saver';
-import { assertNotInfiniteLoadingLoop, chooseWorkerThreadBackend } from './boot';
+import {
+	assertNotInfiniteLoadingLoop,
+	serviceWorkerUrl,
+	workerBackend,
+	workerUrl,
+} from './boot';
 import {
 	cloneResponseMonitorProgress,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
 } from '@wordpress/php-wasm';
-
-const origin = new URL('/', import.meta.url).origin;
-// @ts-ignore
-import serviceWorkerPath from './service-worker.ts?worker&url';
-const serviceWorkerUrl = new URL(serviceWorkerPath, origin)
 
 import { login, installPlugin, installTheme } from './wp-macros';
 import { ProgressObserver, ProgressType } from './progress-observer';
@@ -61,7 +61,6 @@ const databaseExportPath = '/' + databaseExportName;
 let workerThread;
 
 async function main() {
-	console.log("Main a");
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
 	// Don't preinstall the default theme
 	const queryTheme =
@@ -79,22 +78,18 @@ async function main() {
 
 	assertNotInfiniteLoadingLoop();
 
-	const { url, backend } = chooseWorkerThreadBackend();
-	const playground = await spawnPHPWorkerThread(
-		url,
-		backend,
-		{
-			// Vite doesn't deal well with the dot in the parameters name,
-			// passed to the worker via a query string, so we replace
-			// it with an underscore
-			wpVersion: (wpVersion).replace('.', '_'),
-			phpVersion: (phpVersion).replace('.', '_'),
-		}
+	const playground = await spawnPHPWorkerThread(workerUrl, workerBackend, {
+		// Vite doesn't deal well with the dot in the parameters name,
+		// passed to the worker via a query string, so we replace
+		// it with an underscore
+		wpVersion: wpVersion.replace('.', '_'),
+		phpVersion: phpVersion.replace('.', '_'),
+	});
+	await playground.onDownloadProgress(
+		Comlink.proxy(
+			progress.partialObserver(bootProgress, 'Preparing WordPress...')
+		)
 	);
-	await playground.onDownloadProgress(Comlink.proxy(progress.partialObserver(
-		bootProgress,
-		'Preparing WordPress...'
-	)));
 	await playground.isReady();
 
 	await registerServiceWorker(
@@ -104,10 +99,7 @@ async function main() {
 		serviceWorkerUrl.pathname
 	);
 
-	Comlink.expose(
-		playground,
-		Comlink.windowEndpoint(self.parent)
-	);
+	Comlink.expose(playground, Comlink.windowEndpoint(self.parent));
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
@@ -249,9 +241,9 @@ async function main() {
 				plugin={createBlockPluginFixture}
 				workerThread={playground}
 				initialEditedFile="edit.js"
-				reactDevUrl='/assets/react.development.js'
-				reactDomDevUrl='/assets/react-dom.development.js'
-				fastRefreshScriptUrl='/assets/setup-react-refresh-runtime.js'
+				reactDevUrl="/assets/react.development.js"
+				reactDomDevUrl="/assets/react-dom.development.js"
+				fastRefreshScriptUrl="/assets/setup-react-refresh-runtime.js"
 				onBundleReady={(bundleContents: string) => {
 					if (doneFirstBoot) {
 						(wpFrame.contentWindow as any).eval(bundleContents);
@@ -266,7 +258,9 @@ async function main() {
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		wpFrame.src = await playground.server.pathToInternalUrl(query.get('url') || '/');
+		wpFrame.src = await playground.server.pathToInternalUrl(
+			query.get('url') || '/'
+		);
 	}
 }
 
@@ -288,19 +282,25 @@ function setupAddressBar(wasmWorker) {
 		);
 	});
 
-	document.querySelector('#url-bar-form')!.addEventListener('submit', async (e) => {
-		e.preventDefault();
-		let requestedPath = addressBar.value;
-		// Ensure a trailing slash when requesting directory paths
-		const isDirectory = !requestedPath.split('/').pop()!.includes('.');
-		if (isDirectory && !requestedPath.endsWith('/')) {
-			requestedPath += '/';
-		}
-		wpFrame.src = await wasmWorker.server.pathToInternalUrl(requestedPath);
-		(
-			document.querySelector('#url-bar-form input[type="text"]')! as any
-		).blur();
-	});
+	document
+		.querySelector('#url-bar-form')!
+		.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			let requestedPath = addressBar.value;
+			// Ensure a trailing slash when requesting directory paths
+			const isDirectory = !requestedPath.split('/').pop()!.includes('.');
+			if (isDirectory && !requestedPath.endsWith('/')) {
+				requestedPath += '/';
+			}
+			wpFrame.src = await wasmWorker.server.pathToInternalUrl(
+				requestedPath
+			);
+			(
+				document.querySelector(
+					'#url-bar-form input[type="text"]'
+				)! as any
+			).blur();
+		});
 }
 
 async function generateZip() {
@@ -505,7 +505,9 @@ if (
 				'File imported! This Playground instance has been updated. Refreshing now.'
 			);
 			resetImportWindow();
-			wpFrame.src = workerThread.server.pathToInternalUrl(addressBar.value);
+			wpFrame.src = workerThread.server.pathToInternalUrl(
+				addressBar.value
+			);
 			addressBar.focus();
 		}
 	});

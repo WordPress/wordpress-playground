@@ -11,18 +11,6 @@ import { setupTransferHandlers } from '../../php-library/transfer-handlers';
 
 setupTransferHandlers();
 
-export const jsEnv = (function () {
-	if (typeof window !== 'undefined') {
-		return 'WEB';
-	} else if (
-		typeof WorkerGlobalScope !== 'undefined' &&
-		self instanceof WorkerGlobalScope
-	) {
-		return 'WORKER';
-	}
-	throw new Error(`Unsupported environment`);
-})();
-
 // Read the query string startup options
 export const startupOptions: Record<string, string> = {};
 const params = new URL(self.location.href).searchParams;

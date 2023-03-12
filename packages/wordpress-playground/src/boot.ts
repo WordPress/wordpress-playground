@@ -5,19 +5,26 @@ import moduleWorkerUrl from './worker-thread.ts?worker&url';
 // @ts-ignore
 import iframeHtmlUrl from '@wordpress/php-wasm/web/iframe-worker.html?url';
 
-export function chooseWorkerThreadBackend() {
-	// Firefox doesn't support module workers with dynamic imports,
-	// let's fall back to iframe workers.
-	// See https://github.com/mdn/content/issues/24402
-	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-	if (isFirefox) {
-		const wasmWorkerUrl = new URL(iframeHtmlUrl, origin)
-		wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
-		return { backend: 'iframe', url: wasmWorkerUrl };
-	} else {
-		return { backend: 'webworker', url: new URL(moduleWorkerUrl, origin) };
+import { recommendedWorkerBackend } from '@wordpress/php-wasm';
+
+export const workerBackend = recommendedWorkerBackend;
+export const workerUrl = (function () {
+	switch (workerBackend) {
+		case 'webworker':
+			return new URL(moduleWorkerUrl, origin);
+		case 'iframe': {
+			const wasmWorkerUrl = new URL(iframeHtmlUrl, origin);
+			wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
+			return wasmWorkerUrl;
+		}
+		default:
+			throw new Error(`Unknown backend: ${workerBackend}`);
 	}
-}
+})();
+
+// @ts-ignore
+import serviceWorkerPath from './service-worker.ts?worker&url';
+export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 /**
  * When the service worker fails for any reason, the page displayed inside

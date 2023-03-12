@@ -8,7 +8,6 @@ import {
 	EmscriptenDownloadMonitor,
 } from '@wordpress/php-wasm';
 import {
-	jsEnv,
 	startupOptions,
 	materializedProxy,
 	setURLScope,
@@ -18,14 +17,6 @@ import { isUploadedFilePath } from './worker-utils';
 import { getWordPressModule } from './wp-modules-urls';
 import * as macros from './wp-macros';
 import patchWordPress from './wp-patch';
-
-const scope = Math.random().toFixed(16);
-const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
-const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 let readyResolve;
 const ready = new Promise((resolve) => {
@@ -37,25 +28,34 @@ const playground: any = {
 	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
 	isReady: () => ready,
 };
-Comlink.expose(playground);
+Comlink.expose(
+	playground,
+	typeof window !== 'undefined' ? Comlink.windowEndpoint(self.parent) : undefined
+);
 
+// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+// parameters names passed to the worker via a query string.
+const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
+const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 	getPHPLoaderModule(phpVersion),
 	getWordPressModule(wpVersion),
 ]);
 monitor.setModules([phpLoaderModule, wpLoaderModule]);
-
 const php = await startPHP(
 	phpLoaderModule,
-	jsEnv,
 	monitor.getEmscriptenArgs(),
 	[wpLoaderModule]
 )
+
+const scope = Math.random().toFixed(16);
+const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const server = new PHPServer(php, {
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
 	isStaticFilePath: isUploadedFilePath,
 });
+
 const browser = new PHPBrowser(server);
 
 Object.assign(playground, {

@@ -197,7 +197,6 @@ export interface PHPResponse {
  */
 export async function startPHP(
 	phpLoaderModule: any,
-	runtime: JavascriptRuntime,
 	phpModuleArgs: any = {},
 	dataDependenciesModules: any[] = []
 ): Promise<PHP> {
@@ -209,7 +208,7 @@ export async function startPHP(
 		resolvePhpReady = resolve;
 	});
 
-	const PHPRuntime = phpLoaderModule.default(runtime, {
+	const PHPRuntime = phpLoaderModule.default(currentJsRuntime, {
 		onAbort(reason) {
 			console.error('WASM aborted: ');
 			console.error(reason);
@@ -245,6 +244,19 @@ export async function startPHP(
 	await phpReady;
 	return new PHP(PHPRuntime);
 }
+
+const currentJsRuntime = (function () {
+	if (typeof window !== 'undefined') {
+		return 'WEB';
+	} else if (
+		typeof WorkerGlobalScope !== 'undefined' &&
+		self instanceof WorkerGlobalScope
+	) {
+		return 'WORKER';
+	} else {
+		return 'NODE';
+	}
+})();
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
