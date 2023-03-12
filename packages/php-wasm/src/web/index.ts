@@ -1,8 +1,5 @@
 export { setURLScope, getURLScope, isURLScoped, removeURLScope } from '../php-library/scope';
-export {
-	spawnPHPWorkerThread,
-	SpawnedWorkerThread,
-} from './worker-thread/window-library';
+export { spawnPHPWorkerThread } from './worker-thread/window-library';
 export { registerServiceWorker } from './service-worker/window-library';
 export { postMessageExpectReply, awaitReply, responseTo } from '../php-library/messaging';
 export { cloneResponseMonitorProgress } from './emscripten-download-monitor';

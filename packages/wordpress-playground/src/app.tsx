@@ -1,7 +1,8 @@
+import * as Comlink from 'comlink';
 import { saveAs } from 'file-saver';
 import { bootWordPress } from './boot';
 import { login, installPlugin, installTheme } from './wp-macros';
-import { cloneResponseMonitorProgress, responseTo } from '@wordpress/php-wasm';
+import { cloneResponseMonitorProgress } from '@wordpress/php-wasm';
 import { ProgressObserver, ProgressType } from './progress-observer';
 import { PromiseQueue } from './promise-queue';
 import { DOCROOT } from './config';
@@ -48,9 +49,9 @@ const databaseExportName = 'databaseExport.xml';
 const databaseExportPath = '/' + databaseExportName;
 
 let workerThread;
-let isBooted = false;
 
 async function main() {
+	console.log("Main a");
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
 	// Don't preinstall the default theme
 	const queryTheme =
@@ -73,13 +74,19 @@ async function main() {
 		phpVersion,
 		dataModule: wpVersion,
 	});
+
+	Comlink.expose(
+		workerThread,
+		Comlink.windowEndpoint(self.parent)
+	);
+
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
 		setupAddressBar(workerThread);
 	}
 
 	if (
-		!query.get('disableImportExport') ||
+		// !query.get('disableImportExport') ||
 		query.get('login') ||
 		preinstallPlugins.length ||
 		query.get('theme')
@@ -183,29 +190,7 @@ async function main() {
 		});
 	}
 
-	if (0 && query.get('rpc')) {
-		console.log('Registering an RPC handler');
-		async function handleMessage(data) {
-			if (data.type === 'rpc') {
-				return await workerThread[data.method](...data.args);
-			} else if (data.type === 'go_to') {
-				wpFrame.src = workerThread.pathToInternalUrl(data.path);
-			} else if (data.type === 'is_alive') {
-				return true;
-			} else if (data.type === 'is_booted') {
-				return isBooted;
-			}
-		}
-		window.addEventListener('message', async (event) => {
-			const result = await handleMessage(event.data);
-
-			// When `requestId` is present, the other thread expects a response:
-			if (event.data.requestId) {
-				const response = responseTo(event.data.requestId, result);
-				window.parent.postMessage(response, '*');
-			}
-		});
-
+	if (query.get('rpc')) {
 		// Notify the parent window about any URL changes in the
 		// WordPress iframe
 		wpFrame.addEventListener('load', (e: any) => {
@@ -243,7 +228,7 @@ async function main() {
 						(wpFrame.contentWindow as any).eval(bundleContents);
 					} else {
 						doneFirstBoot = true;
-						wpFrame.src = workerThread.pathToInternalUrl(
+						wpFrame.src = workerThread.server.pathToInternalUrl(
 							query.get('url') || '/'
 						);
 					}
@@ -252,9 +237,8 @@ async function main() {
 			document.getElementById('test-snippets')!
 		);
 	} else {
-		wpFrame.src = workerThread.pathToInternalUrl(query.get('url') || '/');
+		wpFrame.src = await workerThread.server.pathToInternalUrl(query.get('url') || '/');
 	}
-	isBooted = true;
 }
 
 function toZipName(rawInput) {
@@ -269,13 +253,13 @@ function toZipName(rawInput) {
 
 function setupAddressBar(wasmWorker) {
 	// Manage the address bar
-	wpFrame.addEventListener('load', (e: any) => {
-		addressBar.value = wasmWorker.internalUrlToPath(
+	wpFrame.addEventListener('load', async (e: any) => {
+		addressBar.value = await wasmWorker.server.internalUrlToPath(
 			e.currentTarget!.contentWindow.location.href
 		);
 	});
 
-	document.querySelector('#url-bar-form')!.addEventListener('submit', (e) => {
+	document.querySelector('#url-bar-form')!.addEventListener('submit', async (e) => {
 		e.preventDefault();
 		let requestedPath = addressBar.value;
 		// Ensure a trailing slash when requesting directory paths
@@ -283,7 +267,7 @@ function setupAddressBar(wasmWorker) {
 		if (isDirectory && !requestedPath.endsWith('/')) {
 			requestedPath += '/';
 		}
-		wpFrame.src = wasmWorker.pathToInternalUrl(requestedPath);
+		wpFrame.src = await wasmWorker.server.pathToInternalUrl(requestedPath);
 		(
 			document.querySelector('#url-bar-form input[type="text"]')! as any
 		).blur();
@@ -292,7 +276,7 @@ function setupAddressBar(wasmWorker) {
 
 async function generateZip() {
 	const databaseExportResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/export.php?download=true&&content=all'
 		),
 		method: 'GET',
@@ -360,7 +344,7 @@ async function importFile() {
 	);
 
 	const importerPageOneResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/admin.php?import=wordpress'
 		),
 		method: 'GET',
@@ -376,7 +360,7 @@ async function importFile() {
 		?.getAttribute('action');
 
 	const stepOneResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			`/wp-admin/${firstUrlAction}`
 		),
 		method: 'POST',
@@ -492,7 +476,7 @@ if (
 				'File imported! This Playground instance has been updated. Refreshing now.'
 			);
 			resetImportWindow();
-			wpFrame.src = workerThread.pathToInternalUrl(addressBar.value);
+			wpFrame.src = workerThread.server.pathToInternalUrl(addressBar.value);
 			addressBar.focus();
 		}
 	});

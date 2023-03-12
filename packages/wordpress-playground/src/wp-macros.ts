@@ -1,16 +1,16 @@
 import type { SpawnedWorkerThread } from '@wordpress/php-wasm';
 
 export async function login(
-	workerThread: SpawnedWorkerThread,
+	workerThread: any,
 	user = 'admin',
 	password = 'password'
 ) {
-	await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl('/wp-login.php'),
+	await workerThread.browser.request({
+		absoluteUrl: await workerThread.server.pathToInternalUrl('/wp-login.php'),
 	});
 
-	await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl('/wp-login.php'),
+	await workerThread.browser.request({
+		absoluteUrl: await workerThread.server.pathToInternalUrl('/wp-login.php'),
 		method: 'POST',
 		headers: {
 			'content-type': 'application/x-www-form-urlencoded',
@@ -32,7 +32,7 @@ export async function installPlugin(
 
 	// Upload it to WordPress
 	const pluginForm = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/plugin-install.php?tab=upload'
 		),
 	});
@@ -48,7 +48,7 @@ export async function installPlugin(
 	);
 
 	const pluginInstalledResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/update.php?action=upload-plugin'
 		),
 		method: 'POST',
@@ -70,7 +70,7 @@ export async function installPlugin(
 			.attributes.getNamedItem('href')!.value;
 		const activatePluginUrl = new URL(
 			activateButtonHref,
-			workerThread.pathToInternalUrl('/wp-admin/')
+			workerThread.server.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await workerThread.HTTPRequest({
 			absoluteUrl: activatePluginUrl,
@@ -144,7 +144,7 @@ export async function installTheme(
 
 	// Upload it to WordPress
 	const themeForm = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/theme-install.php'
 		),
 	});
@@ -160,7 +160,7 @@ export async function installTheme(
 	);
 
 	const themeInstalledResponse = await workerThread.HTTPRequest({
-		absoluteUrl: workerThread.pathToInternalUrl(
+		absoluteUrl: workerThread.server.pathToInternalUrl(
 			'/wp-admin/update.php?action=upload-theme'
 		),
 		method: 'POST',
@@ -203,7 +203,7 @@ export async function installTheme(
 			activateButton.attributes.getNamedItem('href')!.value;
 		const activateThemeUrl = new URL(
 			activateButtonHref,
-			workerThread.pathToInternalUrl('/wp-admin/')
+			workerThread.server.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await workerThread.HTTPRequest({
 			absoluteUrl: activateThemeUrl,

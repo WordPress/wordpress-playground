@@ -4,6 +4,7 @@ import {
 	removePathPrefix,
 } from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
+import { getURLScope, removeURLScope } from './scope';
 
 export type PHPServerRequest = Pick<
 	PHPRequest,
@@ -92,6 +93,32 @@ export class PHPServer {
 			this.#HOST,
 			this.#PATHNAME,
 		].join('');
+	}
+
+	/**
+	 * Converts a path to an absolute URL based at the PHPServer
+	 * root.
+	 *
+	 * @param  path The server path to convert to an absolute URL.
+	 * @returns The absolute URL.
+	 */
+	pathToInternalUrl(path: string): string {
+		return `${this.absoluteUrl}${path}`;
+	}
+	
+	/**
+	 * Converts an absolute URL based at the PHPServer to a relative path
+	 * without the server pathname and scope.
+	 *
+	 * @param  internalUrl An absolute URL based at the PHPServer root.
+	 * @returns The relative path.
+	 */
+	internalUrlToPath(internalUrl: string): string {
+		const url = new URL(internalUrl);
+		if (url.pathname.startsWith(this.#PATHNAME)) {
+			url.pathname = url.pathname.slice(this.#PATHNAME.length);
+		}
+		return getPathQueryFragment(url);
 	}
 
 	/**

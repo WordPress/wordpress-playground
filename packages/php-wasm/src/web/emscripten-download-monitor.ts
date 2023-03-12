@@ -34,6 +34,24 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	progress: Record<string, number>;
 	phpArgs: any;
 
+	static forModules(modules: any[]) {
+		const assetsSizes = modules.reduce((acc, module) => {
+			if (module.dependenciesTotalSize > 0) {
+				const url = new URL(
+					module.dependencyFilename,
+					'http://example.com'
+				).pathname;
+				const filename = url.split('/').pop()!;
+				acc[filename] = Math.max(
+					filename in acc ? acc[filename] : 0,
+					module.dependenciesTotalSize
+				);
+			}
+			return acc;
+		}, {} as Record<string, number>);
+		return new EmscriptenDownloadMonitor(assetsSizes);
+	}
+
 	constructor(assetsSizes: Record<string, number>) {
 		super();
 

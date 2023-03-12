@@ -1,7 +1,7 @@
 const STR = 'string';
 const NUM = 'number';
 
-export type JavascriptRuntime = 'NODE' | 'WEB' | 'WEBWORKER';
+export type JavascriptRuntime = 'NODE' | 'WEB' | 'WORKER';
 
 type PHPHeaders = Record<string, string>;
 export interface FileInfo {
@@ -209,13 +209,16 @@ export async function startPHP(
 		resolvePhpReady = resolve;
 	});
 
-	const loadPHPRuntime = phpLoaderModule.default;
-	const PHPRuntime = loadPHPRuntime(runtime, {
+	const PHPRuntime = phpLoaderModule.default(runtime, {
 		onAbort(reason) {
 			console.error('WASM aborted: ');
 			console.error(reason);
 		},
 		ENV: {},
+		// Emscripten sometimes prepends a '/' to the path, which
+		// breaks vite dev mode. An identity `locateFile` function
+		// fixes it.
+		locateFile: (path) => path,
 		...phpModuleArgs,
 		noInitialRun: true,
 		onRuntimeInitialized() {

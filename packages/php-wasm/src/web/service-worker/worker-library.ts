@@ -142,7 +142,7 @@ export async function PHPRequest(event) {
 	let phpResponse;
 	try {
 		const message = {
-			method: 'HTTPRequest',
+			method: 'request',
 			args: [
 				{
 					body,

@@ -3832,6 +3832,7 @@ __metadata:
     "@rollup/plugin-typescript": ^11.0.0
     "@rollup/plugin-url": ^8.0.1
     "@types/node": 12.20.24
+    comlink: ^4.4.1
     glob: ^9.2.1
     npm-run-all: ^4.1.5
     rollup: ^3.18.0
@@ -3848,6 +3849,7 @@ __metadata:
     "@types/node": 12.20.24
     "@wordpress/php-wasm": 0.0.1
     "@wordpress/plugin-ide": 0.1.4
+    comlink: ^4.4.1
     esbuild: ^0.15.15
     esbuild-plugin-copy: ^2.0.2
     file-saver: ^2.0.5
@@ -5062,6 +5064,13 @@ __metadata:
   dependencies:
     delayed-stream: ~1.0.0
   checksum: 49fa4aeb4916567e33ea81d088f6584749fc90c7abec76fd516bf1c5aa5c79f3584b5ba3de6b86d26ddd64bae5329c4c7479343250cfe71c75bb366eae53bb7c
+  languageName: node
+  linkType: hard
+
+"comlink@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "comlink@npm:4.4.1"
+  checksum: 16d58a8f590087fc45432e31d6c138308dfd4b75b89aec0b7f7bb97ad33d810381bd2b1e608a1fb2cf05979af9cbfcdcaf1715996d5fcf77aeb013b6da3260af
   languageName: node
   linkType: hard
 

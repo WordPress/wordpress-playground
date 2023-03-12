@@ -15,30 +15,23 @@ import moduleWorkerUrl from './worker-thread.ts?worker&url';
 // @ts-ignore
 import iframeHtmlUrl from '@wordpress/php-wasm/web/iframe-worker.html?url';
 
+export interface BootConfiguration {
+	onWasmDownloadProgress: DownloadProgressCallback;
+	phpVersion?: string;
+	dataModule?: string;
+}
+
 export async function bootWordPress(
 	config: BootConfiguration
 ): Promise<SpawnedWorkerThread> {
 	const { onWasmDownloadProgress } = config;
 	assertNotInfiniteLoadingLoop();
 
-	// Firefox doesn't support module workers with dynamic imports,
-	// let's fall back to iframe workers.
-	// See https://github.com/mdn/content/issues/24402
-	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-	let wasmWorkerBackend;
-	let wasmWorkerUrl;
-	if (isFirefox) {
-		wasmWorkerBackend = 'iframe';
-		wasmWorkerUrl = new URL(iframeHtmlUrl, origin)
-		wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
-	} else {
-		wasmWorkerBackend = 'webworker';
-		wasmWorkerUrl = new URL(moduleWorkerUrl, origin);
-	}
-
+	const { backend, url } = chooseWorkerBackend();
+	console.log("B");
 	const workerThread = await spawnPHPWorkerThread(
-		wasmWorkerBackend,
-		wasmWorkerUrl,
+		backend,
+		url,
 		{
 			onDownloadProgress: onWasmDownloadProgress,
 			options: {
@@ -50,20 +43,28 @@ export async function bootWordPress(
 			},
 		}
 	);
+	console.log("C");
 
 	await registerServiceWorker(
 		serviceWorkerUrl + '',
-		// Use the service worker path as the version – it will always
-		// contain the latest hash of the service worker script.
+		// @TODO: source the hash of the service worker file in here
 		serviceWorkerUrl.pathname
 	);
 	return workerThread;
 }
 
-export interface BootConfiguration {
-	onWasmDownloadProgress: DownloadProgressCallback;
-	phpVersion?: string;
-	dataModule?: string;
+function chooseWorkerBackend() {
+	// Firefox doesn't support module workers with dynamic imports,
+	// let's fall back to iframe workers.
+	// See https://github.com/mdn/content/issues/24402
+	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+	if (isFirefox) {
+		const wasmWorkerUrl = new URL(iframeHtmlUrl, origin)
+		wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
+		return { backend: 'iframe', url: wasmWorkerUrl };
+	} else {
+		return { backend: 'webworker', url: new URL(moduleWorkerUrl, origin) };
+	}
 }
 
 /**

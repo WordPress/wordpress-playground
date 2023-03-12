@@ -7,14 +7,14 @@ export type {
 	ErrnoError,
 } from './php';
 
+export { getPathQueryFragment } from './urls';
+
 import PHPServer from './php-server';
 export { PHPServer };
 export type { PHPServerConfigation, PHPServerRequest } from './php-server';
 
 import PHPBrowser from './php-browser';
 export { PHPBrowser };
-    
-export { PHPProtocolHandler } from './php-protocol-handler2';
 
 export async function getPHPLoaderModule(version = '8.2') {
     switch (version) {
