@@ -31,11 +31,11 @@ const browser = new PHPBrowser(server);
 
 const wp = {};
 for (const macro in macros) {
-	wp[macro] = (...args) => macros[macro](api.exposed, ...args);
+	wp[macro] = (...args) => macros[macro](publicApi.exposedApi, ...args);
 }
 
 const monitor = new EmscriptenDownloadMonitor();
-const api = exposeComlinkAPI({
+const publicApi = exposeComlinkAPI({
 	onDownloadProgress: (cb) => monitor.addEventListener('progress', cb),
 	scope,
 	getWordPressModuleDetails: () => ({
@@ -67,7 +67,7 @@ php.initializeRuntime(await loadPHPRuntime(
 ));
 patchWordPress(php, scopedSiteUrl);
 
-api.setReady();
+publicApi.setReady();
 
 export function getWordPressModule(version) {
 	switch (version) {

@@ -61,8 +61,18 @@ const databaseExportName = 'databaseExport.xml';
 const databaseExportPath = '/' + databaseExportName;
 
 let workerThread;
+let playground;
 
-const api = exposeComlinkAPI();
+// If onDownloadProgress is not explicitly re-exposed here,
+// Comlink will throw an error and claim the callback
+// cannot be cloned. Adding a transfer handler for functions
+// doesn't help:
+// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
+// @TODO: Handle the callback conversion automatically and don't explicitly re-expose 
+//        the onDownloadProgress method
+const publicApi = exposeComlinkAPI({
+	onDownloadProgress: (fn) => playground.onDownloadProgress(fn)
+});
 
 async function main() {
 	const preinstallPlugins = query.getAll('plugin').map(toZipName);
@@ -82,24 +92,14 @@ async function main() {
 
 	assertNotInfiniteLoadingLoop();
 
-	const playground = await spawnPHPWorkerThread(workerUrl, workerBackend, {
+	playground = await spawnPHPWorkerThread(workerUrl, workerBackend, {
 		// Vite doesn't deal well with the dot in the parameters name,
 		// passed to the worker via a query string, so we replace
 		// it with an underscore
 		wpVersion: wpVersion.replace('.', '_'),
 		phpVersion: phpVersion.replace('.', '_'),
 	});
-	api.replace(playground);
-	// If onDownloadProgress is not explicitly re-exposed here,
-	// Comlink will throw an error and claim the callback
-	// cannot be cloned. Adding a transfer handler for functions
-	// doesn't help:
-	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
-	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose 
-	//        the onDownloadProgress method
-	api.extend({
-		onDownloadProgress: (fn) => playground.onDownloadProgress(fn)
-	});
+	publicApi.pipe(playground);
 
 	await playground.onDownloadProgress(
 		Comlink.proxy(
@@ -114,7 +114,7 @@ async function main() {
 		serviceWorkerUrl.pathname
 	);
 
-	api.setReady();
+	publicApi.setReady();
 
 	const appMode = query.get('mode') === 'seamless' ? 'seamless' : 'browser';
 	if (appMode === 'browser') {
