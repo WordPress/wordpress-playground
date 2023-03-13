@@ -3,8 +3,8 @@
  * and re-exports everything from the main PHP module.
  */
 
+import type { PHPLoaderModule } from './php';
 import { TextEncoder, TextDecoder } from 'util';
-import { PHPLoaderModule } from '.';
 global.TextEncoder = TextEncoder as any;
 global.TextDecoder = TextDecoder as any;
 

@@ -1,3 +1,9 @@
+/// <reference lib="esnext" />
+/// <reference lib="WebWorker" />
+
+declare const self: Window | WorkerGlobalScope;
+declare const window: Window | undefined;
+
 import {
 	loadPHPRuntime,
 	PHP,
@@ -45,7 +51,7 @@ class InternalWorkerAPIClass extends PHPPublicAPI {
 		this.phpVersion = phpVersion;
 	}
 
-	getWordPressModuleDetails() {
+	async getWordPressModuleDetails() {
 		return {
 			staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
 			defaultTheme: wpLoaderModule?.defaultThemeName,

@@ -9,7 +9,7 @@ export default [
 	{
 		input: {
 			'service-worker':
-				'src/web/service-worker/worker-library.ts',
+				'src/web/service-worker/index.ts',
 			index: 'src/web.ts',
 		},
 		external: ['pnpapi'],
@@ -28,7 +28,7 @@ export default [
 				tsconfig: './tsconfig.json',
 				compilerOptions: {
 					declarationDir: 'build/web/types',
-					outDir: 'build/web/types',
+					outDir: 'build/web/types'
 				}
 			}),
 			url({
@@ -43,14 +43,15 @@ export default [
 		external: ['pnpapi', 'util'],
 		output: {
 			dir: 'build/node',
-			format: 'esm',
+			format: 'esm'				
 		},
 		plugins: [
 			typescript({
-				tsconfig: './tsconfig.node.json',
+				tsconfig: './tsconfig.json',
 				compilerOptions: {
 					declarationDir: 'build/node/types',
 					outDir: 'build/node/types',
+					lib: []
 				}
 			}),
 			url({

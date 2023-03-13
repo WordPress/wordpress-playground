@@ -61,8 +61,10 @@ const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 //        the onDownloadProgress method
 const [setAPIReady, playground] = exposeAPI(
 	{
-		onDownloadProgress: (fn) => internalApi.onDownloadProgress(fn),
-		onNavigation: (fn) => {
+		async onDownloadProgress(fn) {
+			return internalApi.onDownloadProgress(fn)
+		},
+		async onNavigation(fn) {
 			// Manage the address bar
 			wpFrame.addEventListener('load', async (e: any) => {
 				const path = await playground.internalUrlToPath(
@@ -71,13 +73,13 @@ const [setAPIReady, playground] = exposeAPI(
 				fn(path);
 			});
 		},
-		goTo: async (requestedPath: string) => {
+		async goTo(requestedPath: string) {
 			wpFrame.src = await playground.pathToInternalUrl(requestedPath);
 		},
-		getCurrentURL: async () => {
+		async getCurrentURL() {
 			return await playground.internalUrlToPath(wpFrame.src);
 		},
-		setIframeSandboxFlags: (flags: string[]) => {
+		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute("sandbox", flags.join(" "));
 		}
 	},

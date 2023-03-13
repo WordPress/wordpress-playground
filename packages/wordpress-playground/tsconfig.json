@@ -1,7 +1,37 @@
 {
-	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"allowSyntheticDefaultImports": true,
+
+		"jsx": "react",
 		"lib": [ "dom", "ESNext" ],
+		"target": "esnext",
+		"module": "esnext",
+		"declaration": true,
+		"declarationMap": false,
+		"emitDeclarationOnly": true,
+		"isolatedModules": true,
+		"removeComments": false,
+		"skipLibCheck": true,
+
+		"strict": true,
+		"composite": true,
+
+		"noImplicitAny": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": false,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+
+		"moduleResolution": "bundler",
+
+		"esModuleInterop": false,
+
+		"declarationDir": "build/types",
+		"rootDir": "src",
+		"outDir": "build/types",
+		"baseUrl": ".",
 		"plugins": [{ "name": "typescript-plugin-css-modules" }]
 	},
 	"include": [ 
@@ -11,7 +41,6 @@
 		"src/**/*.module.css",
 	],
 	"exclude": [
-		 "src/service-worker.ts",
 		 "src/wordpress/*/**/*",
 		 "src/wp-build/**/*",
 		 "build/**/*",
@@ -19,6 +48,7 @@
 		 "build-types/**/*"
  	],
 	"references": [
-		{ "path": "../php-wasm/tsconfig.json" }
+		{ "path": "../php-wasm/tsconfig.json" },
+		{ "path": "../wordpress-plugin-ide/tsconfig.json" }
 	]
 }

@@ -1,4 +1,4 @@
-import * as Comlink from 'comlink';
+import Comlink from 'comlink';
 
 export function consumeAPI<APIType>(remote: Worker | Window) {
 	setupTransferHandlers();
@@ -47,7 +47,7 @@ export function exposeAPI<Methods, PipedAPI>(apiMethods?: Methods, pipedApi?: Pi
 
 function setupTransferHandlers() {
 	Comlink.transferHandlers.set('EVENT', {
-		canHandle: ((obj) => obj instanceof CustomEvent) as any,
+		canHandle: (obj): obj is CustomEvent => obj instanceof CustomEvent,
 		serialize: (ev: CustomEvent) => {
 			return [
 				{
@@ -59,14 +59,14 @@ function setupTransferHandlers() {
 		deserialize: (obj) => obj,
 	});
 	Comlink.transferHandlers.set('FUNCTION', {
-		canHandle: (obj) => typeof obj === 'function',
-		serialize(obj) {
+		canHandle: (obj: unknown): obj is Function => typeof obj === 'function',
+		serialize(obj: Function) {
 			console.debug('[Comlink][Performance] Proxying a function');
 			const { port1, port2 } = new MessageChannel();
 			Comlink.expose(obj, port1);
 			return [port2, [port2]];
 		},
-		deserialize(port) {
+		deserialize(port: any) {
 			port.start();
 			return Comlink.wrap(port);
 		},

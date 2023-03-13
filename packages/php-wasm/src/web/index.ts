@@ -7,8 +7,8 @@ export {
 export {
 	spawnPHPWorkerThread,
 	recommendedWorkerBackend,
-} from './spawn-php-worker-thread';
-export { registerServiceWorker } from './service-worker/window-library';
+} from './spawn-worker-thread';
+export { registerServiceWorker } from './register-service-worker';
 export {
 	postMessageExpectReply,
 	awaitReply,

@@ -3,6 +3,9 @@ const NUM = 'number';
 
 export type JavascriptRuntime = 'NODE' | 'WEB' | 'WORKER';
 
+declare const self: WindowOrWorkerGlobalScope;
+declare const WorkerGlobalScope: object | undefined;
+
 type PHPHeaders = Record<string, string>;
 export interface FileInfo {
 	key: string;
@@ -255,7 +258,7 @@ const currentJsRuntime = (function () {
 		return 'WEB';
 	} else if (
 		typeof WorkerGlobalScope !== 'undefined' &&
-		self instanceof WorkerGlobalScope
+		self instanceof (WorkerGlobalScope as any)
 	) {
 		return 'WORKER';
 	} else {

@@ -1,16 +1,18 @@
-declare const self: any;
+/// <reference lib="WebWorker" />
+
+declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getURLScope, removeURLScope } from '@wordpress/php-wasm';
 import {
+	fetchEventToPHPRequest,
 	initializeServiceWorker,
 	seemsLikeAPHPServerPath,
-	PHPRequest,
 	cloneRequest,
 	broadcastMessageExpectReply,
 } from '@wordpress/php-wasm/web/service-worker';
 import { isUploadedFilePath } from './worker-utils';
 
-if (!self.document) {
+if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of 
 	// a service worker because document is undefined
@@ -24,7 +26,7 @@ initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
 	// In production, use the service worker path as the version – it will always
 	// contain the latest hash of the service worker script.
-	version: import.meta.env.DEV ? (() => Math.random()) : new URL(self.location).pathname,
+	version: import.meta.env.DEV ? (() => Math.random()+'') : self.location.pathname,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
@@ -49,7 +51,7 @@ initializeServiceWorker({
 					`/wp-content/themes/${defaultTheme}`
 				)
 			) {
-				return await PHPRequest(event);
+				return await fetchEventToPHPRequest(event);
 			}
 			const request = await rewriteRequest(
 				event.request,

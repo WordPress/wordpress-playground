@@ -1,8 +1,6 @@
-/// <reference lib="DOM" />
-
 import type { Remote } from "comlink";
-import { PHPPublicAPI } from "..";
-import { responseTo } from "../../php-library/messaging";
+import { PHPPublicAPI } from "./php-public-api";
+import { responseTo } from "../php-library/messaging";
 
 /**
  * Run this in the main application to register the service worker or

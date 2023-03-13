@@ -35,10 +35,10 @@
 		"lib": [ "dom", "ESNext" ]
 	},
 	"references": [],
-	"include": [ "src/**/*" ],
+	"include": [ "src" ],
 	"exclude": [
-		 "build/**/*",
-		 "build-*/**/*",
-		 "build-types/**/*"
+		 "build",
+		 "build-*",
+		 "build-types"
  	]
 }
