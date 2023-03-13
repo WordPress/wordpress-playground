@@ -1,7 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { toZipName } from './features/common';
+
 import { ProgressObserver } from '@wordpress/php-wasm';
+
+import { toZipName } from './features/common';
 import { login } from './features/login';
 import { installThemeFromDirectory } from './features/install-theme-from-directory';
 import { installPluginsFromDirectory } from './features/install-plugins-from-directory';
