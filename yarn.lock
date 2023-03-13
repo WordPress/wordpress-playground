@@ -3867,9 +3867,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wordpress/playground@workspace:packages/wordpress-playground":
+"@wordpress/playground@workspace:packages/playground":
   version: 0.0.0-use.local
-  resolution: "@wordpress/playground@workspace:packages/wordpress-playground"
+  resolution: "@wordpress/playground@workspace:packages/playground"
   dependencies:
     "@types/node": 12.20.24
     "@wordpress/php-wasm": 0.0.1

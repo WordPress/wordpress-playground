@@ -17,7 +17,7 @@ import {
 	EmscriptenDownloadMonitor,
 } from '@wordpress/php-wasm';
 import { DOCROOT, wordPressSiteUrl } from './config';
-import { isUploadedFilePath } from './worker-utils';
+import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wp-patch';
 
 const php = new PHP();

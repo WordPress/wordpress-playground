@@ -120,10 +120,10 @@ async function defaultRequestHandler(event) {
 			})
 		);
 	}
-	return fetchEventToPHPRequest(event);
+	return convertFetchEventToPHPRequest(event);
 }
 
-export async function fetchEventToPHPRequest(event) {
+export async function convertFetchEventToPHPRequest(event) {
 	let url = new URL(event.request.url);
 
 	if (!isURLScoped(url)) {

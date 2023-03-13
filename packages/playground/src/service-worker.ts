@@ -4,13 +4,13 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getURLScope, removeURLScope } from '@wordpress/php-wasm';
 import {
-	fetchEventToPHPRequest,
+	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
 	seemsLikeAPHPServerPath,
 	cloneRequest,
 	broadcastMessageExpectReply,
 } from '@wordpress/php-wasm/web/service-worker';
-import { isUploadedFilePath } from './worker-utils';
+import { isUploadedFilePath } from './is-uploaded-file-path';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -51,7 +51,7 @@ initializeServiceWorker({
 					`/wp-content/themes/${defaultTheme}`
 				)
 			) {
-				return await fetchEventToPHPRequest(event);
+				return await convertFetchEventToPHPRequest(event);
 			}
 			const request = await rewriteRequest(
 				event.request,
