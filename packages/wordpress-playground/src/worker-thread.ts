@@ -29,36 +29,44 @@ const monitor = new EmscriptenDownloadMonitor();
 
 class InternalWorkerAPIClass extends PHPPublicAPI {
 	scope: string;
+	wordPressVersion: string;
+	phpVersion: string;
 
 	constructor(
 		browser: PHPBrowser,
 		monitor: EmscriptenDownloadMonitor,
-		scope: string
+		scope: string,
+		wordPressVersion: string,
+		phpVersion: string
 	) {
 		super(browser, monitor);
 		this.scope = scope;
+		this.wordPressVersion = wordPressVersion;
+		this.phpVersion = phpVersion;
 	}
 
 	getWordPressModuleDetails() {
 		return {
 			staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
 			defaultTheme: wpLoaderModule?.defaultThemeName,
-		}
+		};
 	}
-
 }
 
-const [setApiReady, publicApi] = exposeAPI(new InternalWorkerAPIClass(browser, monitor, scope));
+const startupOptions = parseWorkerStartupOptions();
+// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+// parameters names passed to the worker via a query string.
+const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
+const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
+
+const [setApiReady, publicApi] = exposeAPI(
+	new InternalWorkerAPIClass(browser, monitor, scope, wpVersion, phpVersion)
+);
 
 export type InternalWorkerAPI = typeof publicApi;
 
 // Load PHP and WordPress modules:
 
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const startupOptions = parseWorkerStartupOptions();
-const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
-const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 	getPHPLoaderModule(phpVersion),
 	getWordPressModule(wpVersion),

@@ -1,4 +1,4 @@
-import type { PlaygroundAPI } from '../app';
+import type { PlaygroundAPI } from '../boot-playground';
 import { asDOM } from './common';
 
 export async function installTheme(

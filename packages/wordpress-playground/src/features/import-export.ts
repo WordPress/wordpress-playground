@@ -1,7 +1,7 @@
 import { saveAs } from 'file-saver';
 
 import { DOCROOT } from '../config';
-import type { PlaygroundAPI } from '../app';
+import type { PlaygroundAPI } from '../boot-playground';
 
 // @ts-ignore
 import migration from './migration.php?raw';
@@ -9,7 +9,7 @@ import migration from './migration.php?raw';
 const databaseExportName = 'databaseExport.xml';
 const databaseExportPath = '/' + databaseExportName;
 
-export async function exportFile(playground: PlaygroundAPI, wpVersion: string, phpVersion: string) {
+export async function exportFile(playground: PlaygroundAPI) {
 	const databaseExportResponse = await playground.request({
 		relativeUrl: '/wp-admin/export.php?download=true&&content=all'
 	});
@@ -17,6 +17,8 @@ export async function exportFile(playground: PlaygroundAPI, wpVersion: string, p
 		databaseExportResponse.body
 	);
 	await playground.writeFile(databaseExportPath, databaseExportContent);
+	const wpVersion = await playground.wordPressVersion;
+	const phpVersion = await playground.phpVersion;
 	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
 	const exportPath = `/${exportName}`;
 	const exportWriteRequest = await playground.run({

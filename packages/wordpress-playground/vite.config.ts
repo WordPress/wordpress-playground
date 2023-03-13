@@ -15,6 +15,11 @@ export default defineConfig({
 			'@wordpress/plugin-ide': path`../wordpress-plugin-ide/src/index.ts`,
 		},
 	},
+	css: {
+		modules: {
+			localsConvention: 'camelCaseOnly',
+		}
+	},
 	worker: {
 		format: 'es',
 		rollupOptions: {
@@ -35,7 +40,8 @@ export default defineConfig({
 		outDir: path`./build`,
 		rollupOptions: {
 			input: {
-				app: path`./src/wordpress.html`,
+				index: path`./src/index.html`,
+				examples: path`./src/examples.html`,
 			},
 		},
 	},
@@ -73,7 +79,6 @@ export default defineConfig({
 		}),
 	],
 	server: {
-		open: '/wordpress.html',
 		proxy: {
 			'/plugin-proxy': {
 				target: 'https://downloads.wordpress.org',

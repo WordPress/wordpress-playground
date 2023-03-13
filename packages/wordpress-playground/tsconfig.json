@@ -1,9 +1,15 @@
 {
 	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
-		"lib": [ "dom", "ESNext" ]
+		"lib": [ "dom", "ESNext" ],
+		"plugins": [{ "name": "typescript-plugin-css-modules" }]
 	},
-	"include": [ "src/**/*" ],
+	"include": [ 
+		"src/types.d.ts",
+		"src/Globals.d.ts",
+		"src/**/*",
+		"src/**/*.module.css",
+	],
 	"exclude": [
 		 "src/service-worker.ts",
 		 "src/wordpress/*/**/*",

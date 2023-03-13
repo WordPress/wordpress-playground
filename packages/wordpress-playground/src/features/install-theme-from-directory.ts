@@ -5,7 +5,7 @@ import {
 } from '@wordpress/php-wasm';
 
 import { installTheme } from './install-theme';
-import { PlaygroundAPI } from 'src/app';
+import { PlaygroundAPI } from 'src/boot-playground';
 import { zipNameToHumanName } from './common';
 
 export async function installThemeFromDirectory(

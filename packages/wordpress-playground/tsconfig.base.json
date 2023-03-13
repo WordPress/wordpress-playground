@@ -13,10 +13,10 @@
 		"emitDeclarationOnly": true,
 		"isolatedModules": true,
 		"removeComments": false,
-        "skipLibCheck": true,
+		"skipLibCheck": true,
 
 		"strict": true,
-        "composite": true,
+		"composite": true,
 
 		"noImplicitAny": false,
 		"noUnusedLocals": true,
@@ -33,7 +33,5 @@
 		"outDir": "build/types",
 		"baseUrl": "."
 	},
-	"references": [
-		{ "path": "../wordpress-plugin-ide/tsconfig.json" }
-	],
+	"references": [{ "path": "../wordpress-plugin-ide/tsconfig.json" }]
 }

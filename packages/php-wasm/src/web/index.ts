@@ -24,5 +24,6 @@ export type {
 	DownloadProgressCallback,
 } from './progress-monitoring/emscripten-download-monitor';
 
-export { ProgressType, ProgressObserver } from './progress-monitoring/progress-observer';
+export { ProgressObserver } from './progress-monitoring/progress-observer';
+export type { ProgressMode, ProgressObserverEvent } from './progress-monitoring/progress-observer';
 export { PHPPublicAPI } from './php-public-api';

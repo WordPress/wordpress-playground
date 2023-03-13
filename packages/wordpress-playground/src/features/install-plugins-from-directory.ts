@@ -5,7 +5,7 @@ import {
 } from '@wordpress/php-wasm';
 
 import { installPlugin } from './install-plugin';
-import type { PlaygroundAPI } from '../app';
+import type { PlaygroundAPI } from '../boot-playground';
 import { zipNameToHumanName } from './common';
 
 export async function installPluginsFromDirectory(

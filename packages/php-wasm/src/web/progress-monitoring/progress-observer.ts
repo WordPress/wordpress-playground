@@ -1,31 +1,32 @@
 import { DownloadProgress } from "./emscripten-download-monitor";
 
-export const enum ProgressType {
+export type ProgressMode =	
 	/**
 	 * Real-time progress is used when we get real-time reports
 	 * about the progress.
 	 */
-	REAL_TIME = 'REAL_TIME',
+	| 'REAL_TIME'
+
 	/**
 	 * Slowly increment progress is used when we don't know how long
 	 * an operation will take and just want to keep slowly incrementing
 	 * the progress bar.
 	 */
-	SLOWLY_INCREMENT = 'SLOWLY_INCREMENT',
-}
+	| 'SLOWLY_INCREMENT';
 
-export class ProgressObserver {
+export type ProgressObserverEvent = {
+	progress: number;
+	mode: ProgressMode;
+	caption: string;
+};
+
+export class ProgressObserver extends EventTarget {
 	#observedProgresses: Record<number, number> = {};
 	#lastObserverId = 0;
-	#onProgress: (
-		progress: number,
-		mode: ProgressType,
-		caption?: string
-	) => void;
 
-	constructor(onProgress) {
-		this.#onProgress = onProgress;
-	}
+	progress = 0;
+	mode: ProgressMode = 'REAL_TIME';
+	caption = "";
 
 	partialObserver(progressBudget, caption = '') {
 		const id = ++this.#lastObserverId;
@@ -35,7 +36,7 @@ export class ProgressObserver {
 			this.#observedProgresses[id] = (loaded / total) * progressBudget;
 			this.#onProgress(
 				this.totalProgress,
-				ProgressType.REAL_TIME,
+				'REAL_TIME',
 				caption
 			);
 		};
@@ -44,7 +45,7 @@ export class ProgressObserver {
 	slowlyIncrementBy(progress) {
 		const id = ++this.#lastObserverId;
 		this.#observedProgresses[id] = progress;
-		this.#onProgress(this.totalProgress, ProgressType.SLOWLY_INCREMENT);
+		this.#onProgress(this.totalProgress, 'SLOWLY_INCREMENT');
 	}
 
 	get totalProgress() {
@@ -53,4 +54,21 @@ export class ProgressObserver {
 			0
 		);
 	}
+
+	#onProgress(
+		progress: number,
+		mode: ProgressMode,
+		caption?: string
+	) {
+		this.dispatchEvent(
+			new CustomEvent('progress', {
+				detail: {
+					progress,
+					mode,
+					caption,
+				},
+			})
+		);
+	}
+
 }

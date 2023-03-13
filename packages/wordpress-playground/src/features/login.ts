@@ -1,4 +1,4 @@
-import type { PlaygroundAPI } from "../app";
+import type { PlaygroundAPI } from "../boot-playground";
 
 export async function login(
 	playground: PlaygroundAPI,
