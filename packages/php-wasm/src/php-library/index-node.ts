@@ -4,12 +4,13 @@
  */
 
 import { TextEncoder, TextDecoder } from 'util';
+import { PHPLoaderModule } from '.';
 global.TextEncoder = TextEncoder as any;
 global.TextDecoder = TextDecoder as any;
 
 export * from './php';
 
-export async function getPHPLoaderModule(version = '8.2') {
+export async function getPHPLoaderModule(version = '8.2'): Promise<PHPLoaderModule> {
     switch (version) {
         case '8.2':
             // @ts-ignore

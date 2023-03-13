@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import Modal from 'react-modal';
 import css from './style.module.css';
 import { PlaygroundAPI } from '../../boot-playground';
-import { importFile } from '../../features/import-export';
 import ImportForm from '../import-form';
 
 interface ExportButtonProps {

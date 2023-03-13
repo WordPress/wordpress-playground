@@ -23,9 +23,10 @@ export { PHPServer };
 export type { PHPServerConfigation, PHPServerRequest } from './php-server';
 
 import PHPBrowser from './php-browser';
+import { PHPLoaderModule } from './php';
 export { PHPBrowser };
 
-export async function getPHPLoaderModule(version = '8.2') {
+export async function getPHPLoaderModule(version = '8.2'): Promise<PHPLoaderModule> {
     switch (version) {
         case '8.2':
             // @ts-ignore

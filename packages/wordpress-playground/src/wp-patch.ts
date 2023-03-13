@@ -1,13 +1,9 @@
 import type { PHP } from '@wordpress/php-wasm';
 import { DOCROOT } from './config';
 
-// @ts-ignore
 import transportFetch from './mu-plugins/includes/requests_transport_fetch.php?raw';
-// @ts-ignore
 import transportDummy from './mu-plugins/includes/requests_transport_dummy.php?raw';
-// @ts-ignore
 import addRequests from './mu-plugins/add_requests_transport.php?raw';
-// @ts-ignore
 import showAdminCredentialsOnWpLogin from './mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 export default function patchWordPress(php: PHP, scopedSiteUrl: string) {

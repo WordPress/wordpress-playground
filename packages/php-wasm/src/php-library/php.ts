@@ -395,10 +395,14 @@ export interface HandlesRun {
 export type PHPRuntime = any;
 
 export type PHPLoaderModule = {
+	dependencyFilename: string,
+	dependenciesTotalSize: number,
 	default: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime
 }
 
 export type DataModule = {
+	dependencyFilename: string,
+	dependenciesTotalSize: number,
 	default: (phpRuntime: PHPRuntime) => void
 };
 
