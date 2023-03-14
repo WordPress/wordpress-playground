@@ -11,28 +11,23 @@ import dts from 'rollup-plugin-dts';
 const path = (filename) => new URL(filename, import.meta.url).pathname;
 export default [
 	{
-		input: {
-			index: 'src/index.ts',
-		},
+		input: 'src/index.ts',
 		output: {
 			dir: 'build/',
 			format: 'esm',
 		},
 		plugins: [
-			// alias({
-			// 	entries: [
-			// 		{
-			// 			find: '@wordpress/php-wasm',
-			// 			replacement: '../php-wasm/src/index.ts',
-			// 		},
-			// 		{
-			// 			find: '@wordpress/playground',
-			// 			replacement: '../playground/build/index.js',
-			// 		},
-			// 	],
-			// }),
 			typescript({
 				tsconfig: './tsconfig.build.json',
+				emitDeclarationOnly: true,
+				paths: {
+					'@wordpress/php-wasm': [
+						'../php-wasm/build/web/index.js',
+					],
+				}
+			}),
+			url({
+				include: ['**/*.wasm'],
 			}),
 			copy({
 				targets: [

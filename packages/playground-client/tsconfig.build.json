@@ -2,7 +2,11 @@
 	"extends": "../../tsconfig.build.json",
   
 	"compilerOptions": {
-	  "outDir": "./build",
-	  "declarationDir": "./build"
-	}
+		"emitDeclarationOnly": true,
+		"outDir": "./build",
+		"declarationDir": "./build"
+	},
+	"include": [
+	  "src/**/*"
+	]
 }

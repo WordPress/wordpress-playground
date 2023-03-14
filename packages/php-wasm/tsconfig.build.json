@@ -8,5 +8,8 @@
 	"exclude": [
 		 "src/php-build", 
 		 "src/__tests__/*.ts"
- 	]
+ 	],
+	"include": [
+		"src/**/*"
+	]
 }

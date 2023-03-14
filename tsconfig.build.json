@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"allowJs": true,
+		"allowJs": false,
 		"checkJs": false,
 		"allowSyntheticDefaultImports": true,
 
@@ -10,7 +10,7 @@
 		"module": "esnext",
 		"declaration": true,
 		"declarationMap": false,
-		"emitDeclarationOnly": true,
+		"noEmit": false,
 		"isolatedModules": true,
 		"removeComments": false,
 		"skipLibCheck": true,
@@ -29,6 +29,7 @@
 	},
 	"exclude": [
 	  "node_modules",
+	  "**/*.wasm",
 	  "packages/*/build",
 	  "packages/php-wasm/src/php",
 	  "packages/playground/src/wordpress",
