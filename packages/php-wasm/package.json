@@ -7,16 +7,26 @@
     "build"
   ],
   "exports": {
-    ".": "./build/web/index.js",
-    "./*": "./build/*",
-    "./web": "./build/web/index.js",
-    "./web/*": "./build/web/*",
-    "./node": "./build/node/index.js",
-    "./node/*": "./build/node/*",
-    "./package.json": "./package.json"
+    ".": {
+      "import": "./build/web/index.js",
+      "default": "./build/web/index.js",
+      "types": "./build/web/dts/index.d.ts"
+    },
+    "./web/service-worker": {
+      "import": "./build/web/service-worker.js",
+      "types": "./build/web/dts/web/service-worker/index.d.ts"
+    },
+    "./node": {
+      "import": "./build/node/index.js",
+      "types": "./build/node/dts/index.d.ts"
+    },
+    "./node/*": {
+      "import": "./build/node/*",
+      "types": "./build/node/dts/*"
+    }
   },
   "type": "module",
-  "types": "build/web/types",
+  "types": "build/web/dts/index.d.ts",
   "scripts": {
     "dev": "rollup -c rollup.config.mjs -w",
     "build": "rollup -c rollup.config.mjs",
@@ -47,6 +57,7 @@
   "author": "The WordPress contributors",
   "license": "Apache-2.0",
   "dependencies": {
+    "comlink": "^4.4.1",
     "glob": "^9.2.1",
     "rollup-plugin-copy": "^3.4.0"
   },

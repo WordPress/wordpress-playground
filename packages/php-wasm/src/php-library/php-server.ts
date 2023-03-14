@@ -1,17 +1,21 @@
 import {
 	ensurePathPrefix,
-	getPathQueryFragment,
+	toRelativeUrl,
 	removePathPrefix,
+	DEFAULT_BASE_URL,
 } from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
 
 export type PHPServerRequest = Pick<
 	PHPRequest,
-	'method' | 'headers' | 'body'
-> & {
-	absoluteUrl: string;
-	files?: Record<string, File>;
-};
+	'method' | 'headers'
+> & { files?: Record<string, File> } & (
+		| { absoluteUrl: string; relativeUrl?: never }
+		| { absoluteUrl?: never; relativeUrl: string }
+	) & (
+	| Pick<PHPRequest, 'body'> & { formData?: never }
+	| { body?: never, formData: Record<string, unknown> }
+	);
 
 /**
  * A fake PHP server that handles HTTP requests but does not
@@ -63,10 +67,10 @@ export class PHPServer {
 	 * @param  php    - The PHP instance.
 	 * @param  config - Server configuration.
 	 */
-	constructor(php: PHP, config: PHPServerConfigation) {
+	constructor(php: PHP, config: PHPServerConfigation = {}) {
 		const {
-			documentRoot = '/var/www/',
-			absoluteUrl,
+			documentRoot = '/www/',
+			absoluteUrl = location.origin,
 			isStaticFilePath = () => false,
 		} = config;
 		this.php = php;
@@ -95,6 +99,32 @@ export class PHPServer {
 	}
 
 	/**
+	 * Converts a path to an absolute URL based at the PHPServer
+	 * root.
+	 *
+	 * @param  path The server path to convert to an absolute URL.
+	 * @returns The absolute URL.
+	 */
+	pathToInternalUrl(path: string): string {
+		return `${this.absoluteUrl}${path}`;
+	}
+
+	/**
+	 * Converts an absolute URL based at the PHPServer to a relative path
+	 * without the server pathname and scope.
+	 *
+	 * @param  internalUrl An absolute URL based at the PHPServer root.
+	 * @returns The relative path.
+	 */
+	internalUrlToPath(internalUrl: string): string {
+		const url = new URL(internalUrl);
+		if (url.pathname.startsWith(this.#PATHNAME)) {
+			url.pathname = url.pathname.slice(this.#PATHNAME.length);
+		}
+		return toRelativeUrl(url);
+	}
+
+	/**
 	 * The absolute URL of this PHPServer instance.
 	 */
 	get absoluteUrl() {
@@ -109,14 +139,24 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async request(request: PHPServerRequest): Promise<PHPResponse> {
-		const serverPath = removePathPrefix(
-			new URL(request.absoluteUrl).pathname,
+		let requestedUrl;
+		if (request.relativeUrl !== undefined) {
+			requestedUrl = new URL(
+				request.relativeUrl,
+				DEFAULT_BASE_URL
+			);
+		} else {
+			requestedUrl = new URL(request.absoluteUrl);
+		}
+
+		const normalizedRelativeUrl = removePathPrefix(
+			requestedUrl.pathname,
 			this.#PATHNAME
 		);
-		if (this.#isStaticFilePath(serverPath)) {
-			return this.#serveStaticFile(serverPath);
+		if (this.#isStaticFilePath(normalizedRelativeUrl)) {
+			return this.#serveStaticFile(normalizedRelativeUrl);
 		}
-		return await this.#dispatchToPHP(request);
+		return await this.#dispatchToPHP(request, requestedUrl);
 	}
 
 	/**
@@ -162,15 +202,18 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async #dispatchToPHP(request: PHPServerRequest): Promise<PHPResponse> {
+	async #dispatchToPHP(request: PHPServerRequest, requestedUrl: URL): Promise<PHPResponse> {
 		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
 		this.php.addServerGlobalEntry(
 			'HTTPS',
 			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 		);
 
+		let preferredMethod: PHPRequest['method'] = 'GET';
+
 		const fileInfos: FileInfo[] = [];
 		if (request.files) {
+			preferredMethod = 'POST';
 			for (const key in request.files) {
 				const file: File = request.files[key];
 				fileInfos.push({
@@ -182,20 +225,32 @@ export class PHPServer {
 			}
 		}
 
-		const requestedUrl = new URL(request.absoluteUrl);
+		const defaultHeaders = {
+			host: this.#HOST,
+		};
+
+		let body;
+		if (request.formData !== undefined) {
+			preferredMethod = 'POST';
+			defaultHeaders['content-type'] = 'application/x-www-form-urlencoded';
+			body = new URLSearchParams(request.formData as Record<string, string>).toString();
+		} else {
+			body = request.body;
+		}
+
 		return this.php.run({
 			relativeUri: ensurePathPrefix(
-				getPathQueryFragment(requestedUrl),
+				toRelativeUrl(requestedUrl),
 				this.#PATHNAME
 			),
 			protocol: this.#PROTOCOL,
-			method: request.method,
-			body: request.body,
+			method: request.method || preferredMethod,
+			body,
 			fileInfos,
 			scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
 			headers: {
-				...(request.headers || {}),
-				host: this.#HOST,
+				...defaultHeaders,
+				...(request.headers || {})
 			},
 		});
 	}
@@ -289,11 +344,11 @@ export interface PHPServerConfigation {
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
 	 */
-	documentRoot: string;
+	documentRoot?: string;
 	/**
 	 * Server URL. Used to populate $_SERVER details like HTTP_HOST.
 	 */
-	absoluteUrl: string;
+	absoluteUrl?: string;
 	/**
 	 * Callback used by the PHPServer to decide whether
 	 * the requested path refers to a PHP file or a static file.

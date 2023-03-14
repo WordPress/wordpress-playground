@@ -3,13 +3,14 @@
  * and re-exports everything from the main PHP module.
  */
 
+import type { PHPLoaderModule } from './php';
 import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder as any;
 global.TextDecoder = TextDecoder as any;
 
 export * from './php';
 
-export async function getPHPLoaderModule(version = '8.2') {
+export async function getPHPLoaderModule(version = '8.2'): Promise<PHPLoaderModule> {
     switch (version) {
         case '8.2':
             // @ts-ignore

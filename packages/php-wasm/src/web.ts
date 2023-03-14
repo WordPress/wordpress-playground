@@ -1,2 +1,2 @@
-export * from './php-library/index';
-export * from './web/index';
+export * from './php-library/index.ts';
+export * from './web/index.ts';

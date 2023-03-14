@@ -1,4 +1,4 @@
-import { startPHP, getPHPLoaderModule } from '@wordpress/php-wasm/node';
+import { loadPHPRuntime, getPHPLoaderModule } from '@wordpress/php-wasm/node';
 import { existsSync, rmdirSync, readFileSync } from 'fs';
 
 const { TextDecoder } = require('util');
@@ -87,7 +87,7 @@ describe('generateZipFile()', () => {
 	let php;
 
 	beforeEach(async () => {
-		php = await startPHP(phpLoaderModule, 'NODE');
+		php = await loadPHPRuntime(await phpLoaderModule);
 		if (existsSync(testDirPath)) {
 			rmdirSync(testDirPath, { recursive: true });
 		}
@@ -176,7 +176,7 @@ describe('readFileFromZipArchive()', () => {
 	let php;
 
 	beforeEach(async () => {
-		php = await startPHP(phpLoaderModule, 'NODE');
+		php = await loadPHPRuntime(await phpLoaderModule);
 		if (existsSync(testDirPath)) {
 			rmdirSync(testDirPath, { recursive: true });
 		}
@@ -265,7 +265,7 @@ describe('importZipFile()', () => {
 	let php;
 
 	beforeAll(async () => {
-		php = await startPHP(phpLoaderModule, 'NODE');
+		php = await loadPHPRuntime(await phpLoaderModule);
 		if (existsSync(testDirPath)) {
 			rmdirSync(testDirPath, { recursive: true });
 		}

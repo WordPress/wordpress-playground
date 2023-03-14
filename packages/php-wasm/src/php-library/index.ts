@@ -1,20 +1,32 @@
-export { PHP, startPHP } from './php';
+export { PHP, loadPHPRuntime } from './php';
 export type {
 	PHPOutput,
 	PHPRequest,
 	PHPResponse,
 	JavascriptRuntime,
-	ErrnoError,
+    ErrnoError,
+    DataModule,
+    PHPLoaderModule,
+    PHPRuntime,
+    PHPRuntimeId,
+    EmscriptenOptions,
+    MountSettings
 } from './php';
+
+export { toRelativeUrl } from './urls';
+
+export * from './comlink-utils';
+export type * from './comlink-utils';
 
 import PHPServer from './php-server';
 export { PHPServer };
 export type { PHPServerConfigation, PHPServerRequest } from './php-server';
 
 import PHPBrowser from './php-browser';
+import { PHPLoaderModule } from './php';
 export { PHPBrowser };
 
-export async function getPHPLoaderModule(version = '8.2') {
+export async function getPHPLoaderModule(version = '8.2'): Promise<PHPLoaderModule> {
     switch (version) {
         case '8.2':
             // @ts-ignore
@@ -47,3 +59,19 @@ export async function getPHPLoaderModule(version = '8.2') {
     throw new Error(`Unsupported PHP version ${version}`);
 }
 
+export type StartupOptions = Record<string, string>;
+export function parseWorkerStartupOptions(): StartupOptions {
+	// Read the query string startup options
+	if (typeof self?.location?.href !== 'undefined') {
+		// Web
+		const startupOptions: StartupOptions = {};
+		const params = new URL(self.location.href).searchParams;
+		params.forEach((value, key) => {
+			startupOptions[key] = value;
+		});
+		return startupOptions;
+	} else {
+		// Node.js
+		return JSON.parse(process.env.WORKER_OPTIONS || '{}');
+	}
+}

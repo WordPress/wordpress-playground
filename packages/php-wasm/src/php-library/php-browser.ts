@@ -2,13 +2,34 @@ import type PHPServer from './php-server';
 import type { PHPServerRequest } from './php-server';
 import type { PHPResponse } from './php';
 
+export interface HandlesRequest {
+	/**
+	 * Sends the request to the server.
+	 *
+	 * When cookies are present in the response, this method stores
+	 * them and sends them with any subsequent requests.
+	 *
+	 * When a redirection is present in the response, this method
+	 * follows it by discarding a response and sending a subsequent
+	 * request.
+	 *
+	 * @param  request   - The request.
+	 * @param  redirects - Internal. The number of redirects handled so far.
+	 * @returns PHPServer response.
+	 */
+	request(
+		request: PHPServerRequest,
+		redirects?: number
+	): Promise<PHPResponse>;
+}
+
 /**
  * A fake web browser that handles PHPServer's cookies and redirects
  * internally without exposing them to the consumer.
  *
  * @public
  */
-export class PHPBrowser {
+export class PHPBrowser implements HandlesRequest {
 	#cookies;
 	#config;
 
@@ -28,23 +49,9 @@ export class PHPBrowser {
 		};
 	}
 
-	/**
-	 * Sends the request to the server.
-	 *
-	 * When cookies are present in the response, this method stores
-	 * them and sends them with any subsequent requests.
-	 *
-	 * When a redirection is present in the response, this method
-	 * follows it by discarding a response and sending a subsequent
-	 * request.
-	 *
-	 * @param  request   - The request.
-	 * @param  redirects - Internal. The number of redirects handled so far.
-	 * @returns PHPServer response.
-	 */
 	async request(
 		request: PHPServerRequest,
-		redirects: number = 0
+		redirects = 0
 	): Promise<PHPResponse> {
 		const response = await this.server.request({
 			...request,

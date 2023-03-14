@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.build.json",
+  
+	"compilerOptions": {
+	  "outDir": "./build"
+	},
+  
+	"exclude": [
+		 "src/php-build", 
+		 "src/__tests__/*.ts"
+ 	],
+	"include": [
+		"src/**/*"
+	]
+}
