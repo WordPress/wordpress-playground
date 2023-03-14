@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.build.json",
+  
+	"compilerOptions": {
+	  "baseUrl": ".",
+	  "paths": {
+		"@wordpress/php-wasm/*": ["packages/php-wasm/src/*"],
+		"@wordpress/playground/*": ["packages/playground/src/*"]
+	  },
+	  "noEmit": true
+	}
+}

@@ -25,7 +25,7 @@ export default [
 				],
 			}),
 			typescript({
-				tsconfig: './tsconfig.json',
+				tsconfig: './tsconfig.build.json',
 				compilerOptions: {
 					declarationDir: 'build/web/types',
 					outDir: 'build/web/types'
@@ -47,7 +47,7 @@ export default [
 		},
 		plugins: [
 			typescript({
-				tsconfig: './tsconfig.json',
+				tsconfig: './tsconfig.build.json',
 				compilerOptions: {
 					declarationDir: 'build/node/types',
 					outDir: 'build/node/types',
