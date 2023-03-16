@@ -30,10 +30,19 @@ export async function registerServiceWorker<Client extends PHPClient>(
 					`(expected version: ${expectedVersion}, registered version: ${actualVersion})`
 			);
 			for (const registration of registrations) {
-				await registration.update();
+				let unregister = false;
+				try {
+					await registration.update();
+				} catch (e) {
+					// If the worker registration cannot be updated, 
+					// we're probably seeing a blank page in the dev
+					// mode. Let's unregister the worker and reload 
+					// the page.
+					unregister = true;
+				}
 				const waitingWorker =
 					registration.waiting || registration.installing;
-				if (waitingWorker) {
+				if (waitingWorker && !unregister) {
 					if (actualVersion !== null) {
 						// If the worker exposes a version, it supports
 						// a "skip-waiting" message – let's force it to
@@ -43,9 +52,12 @@ export async function registerServiceWorker<Client extends PHPClient>(
 						// If the version is not exposed, we can't force
 						// the worker to skip waiting – let's unregister
 						// and reload the page.
-						await registration.unregister();
-						window.location.reload();
+						unregister = true;
 					}
+				}
+				if (unregister) {
+					await registration.unregister();
+					window.location.reload();
 				}
 			}
 		}
