@@ -1,4 +1,6 @@
 node_modules
+packages/php-wasm/node/public
+packages/php-wasm/web/public
 packages/php-wasm/compile/build-assets
 packages/playground/compile-wordpress/build-assets
 __pycache__
