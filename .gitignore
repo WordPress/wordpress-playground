@@ -36,6 +36,7 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+*.timestamp-1678999213403.mjs
 
 # System Files
 .DS_Store

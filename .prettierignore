@@ -8,3 +8,4 @@
 /packages/playground/compile-wordpress/build-assets
 /packages/playground/remote/src/wordpress
 __pycache__
+*.timestamp-1678999213403.mjs

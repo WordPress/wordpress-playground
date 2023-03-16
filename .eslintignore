@@ -5,3 +5,4 @@ packages/php-wasm/compile/build-assets
 packages/playground/compile-wordpress/build-assets
 __pycache__
 packages/playground/remote/src/wordpress
+*.timestamp-1678999213403.mjs
