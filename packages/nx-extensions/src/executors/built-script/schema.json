@@ -1,0 +1,27 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"version": 2,
+	"cli": "nx",
+	"title": "BuiltScript executor",
+	"description": "",
+	"type": "object",
+	"properties": {
+		"scriptPath": {
+			"type": "string",
+			"description": "Path of the script to run.",
+			"x-prompt": "What script would you like to run?"
+		},
+		"__unparsed__": {
+			"hidden": true,
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"$default": {
+				"$source": "unparsed"
+			},
+			"x-priority": "internal"
+		}
+	},
+	"required": []
+}

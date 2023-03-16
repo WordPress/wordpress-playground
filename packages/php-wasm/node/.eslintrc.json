@@ -1,0 +1,26 @@
+{
+	"extends": ["../../../.eslintrc.json"],
+	"ignorePatterns": ["!**/*"],
+	"overrides": [
+		{
+			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"rules": {
+				"@nrwl/nx/enforce-module-boundaries": [
+					"error",
+					{
+						"enforceBuildableLibDependency": true,
+						"allow": ["@wp-playground/php-wasm-common"]
+					}
+				]
+			}
+		},
+		{
+			"files": ["*.ts", "*.tsx"],
+			"rules": {}
+		},
+		{
+			"files": ["*.js", "*.jsx"],
+			"rules": {}
+		}
+	]
+}

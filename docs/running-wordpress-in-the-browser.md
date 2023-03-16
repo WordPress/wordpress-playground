@@ -1,35 +1,48 @@
 # Running WordPress in the browser
 
+This document is specific to hosting your own Playground. If you only wish to consume the API, use the [`connectPlayground`](./api/playground-client.connectplayground.md) function:
+
+```ts
+const playgroundClient = connectPlayground(
+	iframe,
+	`https://wasm.wordpress.net/wordpress.html`
+);
+```
+
+## Hosting your own Playground
+
 WordPress runs using the framework described in [running PHP apps in the browser](./using-php-in-the-browser.md).
 
 ## WordPress-specific Worker Thread and ServiceWorker setup
 
-The main [`src/wordpress-playground/wordpress.html`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/wordpress.html) application starts the Worker Thread using the `bootWordPress` function:
+The [`playground remote`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/wordpress.html) application starts the Worker Thread using the `bootPlaygroundRemote()` function:
 
 ```js
-import { bootWordPress } from './boot';
-const workerThread = await bootWordPress();
+import { bootPlaygroundRemote() } from './boot-playground-remote';
+const playgroundClient = await bootPlaygroundRemote();
 ```
 
-The `bootWordPress` utility is a thin wrapper over [`spawnPHPWorkerThread`](./api/php-wasm-browser.spawnphpworkerthread.md) and [`registerServiceWorker`](./api/php-wasm-browser/registerServiceWorker). It initializes a [custom Worker Thread](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/worker-thread.ts) and a [custom Service Worker](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/service-worker.ts) and returns a [`SpawnedWorkerThread`](./api/php-wasm-browser.spawnedworkerthread.md) instance.
+The `bootPlaygroundRemote` utility is a thin wrapper over [`consumeAPI`](./api/php-wasm-web.consumeapi.md), [`spawnPHPWorkerThread`](./api/php-wasm-web.spawnphpworkerthread.md), and [`registerServiceWorker`](./api/php-wasm-web.registerserviceworker.md). It initializes a [custom Worker Thread](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/src/lib/worker-thread.ts) and a [custom Service Worker](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/service-worker.ts) and returns a [`PlaygroundClient`](./api/playground-client.php.md) instance.
 
-PHP runtime and WordPress files are initialized in the [Worker Thread script](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/worker-thread.ts), which itself is a thin wrapper over the [`initializeWorkerThread`](./api/php-wasm-browser.initializeworkerthread.md) function.
+PHP runtime and WordPress files are initialized in the Worker Thread script.
 
-Once `bootWordPress` finishes, you can use the [`SpawnedWorkerThread`](./api/php-wasm-browser.spawnedworkerthread.md) it returned to interact with PHP and WordPress.
+Once `bootPlaygroundRemote` finishes, you can use the [`PlaygroundClient`](./api/playground-client.php.md) it returned to interact with PHP and WordPress.
 
 For example, you can run PHP code using the `run` method:
 
 ```js
-const result = await workerThread.run(`<?php echo "Hello, world!";`);
+const result = await playgroundClient.run({
+	code: `<?php echo "Hello, world!";`,
+});
 console.log(result);
-// { stdout: "Hello, world!", stderr: [''], exitCode: 0 }
+// { stdout: Uint8Array(["Hello, world!"]), stderr: [''], exitCode: 0 }
 ```
 
 You can also dispatch HTTP requests to WordPress as follows:
 
 ```js
-const response = await workerThread.HTTPRequest({
-	path: workerThread.pathToInternalUrl('/wp-login.php'),
+const response = await playgroundClient.request({
+	relativeUrl: '/wp-login.php',
 	method: 'GET',
 });
 console.log(response.statusCode);
@@ -38,29 +51,29 @@ console.log(response.body);
 // ... the rendered wp-login.php page ...
 ```
 
-For more details see the [`SpawnedWorkerThread`](./api/php-wasm-browser.spawnedworkerthread.md) and the [running PHP apps in the browser](./using-php-in-the-browser.md) documentation pages.
+For more details see the [`PlaygroundClient`](./api/playground-client.php.md) and the [running PHP apps in the browser](./using-php-in-the-browser.md) documentation pages.
 
 ## WordPress automations
 
-The `src/wordpress-playground` module provides helpers for automating common tasks.
+The `@wp-playground/client` module provides helpers for common tasks.
 
 ### Logging the user in
 
 ```js
-import { login } from 'src/wordpress-playground/macros';
+import { login } from '@wp-playground/client';
 
 // Authenticate the user by sending a POST request to
 // /wp-login.php (via workerThread.HTTPRequest()):
-await login(workerThread, 'admin', 'password');
+await login(playgroundClient, 'admin', 'password');
 ```
 
 ### Installing plugins
 
 ```js
-import { login, installPlugin } from 'src/wordpress-playground/macros';
+import { login, installPlugin } from '@wp-playground/client';
 
 // Login as an admin first
-await login(workerThread, 'admin', 'password');
+await login(playgroundClient, 'admin', 'password');
 
 // Download the plugin file
 const pluginResponse = await fetch('/my-plugin.zip');
@@ -69,9 +82,9 @@ const pluginFile = new File([blob], 'my-plugin.zip);
 
 // Install the plugin by uploading the zip file to
 // /wp-admin/plugin-install.php?tab=upload
-await installPlugin(workerThread, pluginFile);
+await installPlugin(playgroundClient, pluginFile);
 ```
 
 ### Installing plugins and themes from the WordPress.org directory with a PHP proxy
 
-The browser cannot simply download a WordPress theme or plugin zip file from the wordpress.org directory because of the cross-origin request policy restrictions. This repository provides a [PHP proxy script](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/plugin-proxy.php) that exposes plugins and themes on the same domain where WordPress Playground is hosted.
+The browser cannot simply download a WordPress theme or plugin zip file from the wordpress.org directory because of the cross-origin request policy restrictions. This repository provides a [PHP proxy script](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/website/plugin-proxy.php) that exposes plugins and themes on the same domain where the WordPress Playground website is hosted.

@@ -1,0 +1,78 @@
+{
+	"name": "playground-client",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/client/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:bundle", "build:rollup-declarations"]
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx dts-bundle-generator -o packages/playground/client/src/rollup.d.ts -- packages/playground/client/src/index.ts",
+					"rimraf dist/packages/playground/client/lib/*.d.ts",
+					"rimraf dist/packages/playground/client/*.d.ts",
+					"mv packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:bundle": {
+			"executor": "@nrwl/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/playground/client",
+				"main": "packages/playground/client/index.html",
+				"tsConfig": "packages/playground/client/tsconfig.lib.json",
+				"assets": ["packages/playground/client/*.md"],
+				"minify": true
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
+			}
+		},
+		"dev": {
+			"executor": "@nrwl/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-client:build",
+				"tsConfig": "packages/playground/client/tsconfig.lib.json",
+				"assets": ["packages/playground/client/*.md"]
+			}
+		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/publish.mjs playground {args.ver} {args.tag}",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/playground/client/**/*.ts"]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/vite:test",
+			"outputs": ["coverage/packages/playground/client"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/client"
+			}
+		}
+	},
+	"tags": []
+}

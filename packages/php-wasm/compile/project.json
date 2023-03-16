@@ -1,0 +1,14 @@
+{
+	"name": "php-wasm-compile",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"targets": {
+		"compile": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["node packages/php-wasm/compile/build.js"],
+				"parallel": false
+			}
+		}
+	},
+	"tags": []
+}

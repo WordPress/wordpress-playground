@@ -12,8 +12,8 @@ You can embed WordPress Playground using an iframe. **Note this is an experiment
 
 ```html
 <iframe
-    style="width: 800px; height: 500px;"
-    src="https://wasm.wordpress.net/wordpress.html?mode=seamless"
+	style="width: 800px; height: 500px;"
+	src="https://wasm.wordpress.net/wordpress.html?mode=seamless"
 ></iframe>
 ```
 
@@ -33,8 +33,6 @@ npm install -g yarn
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
 yarn install
-# An initial build is needed at the moment:
-yarn run build
 yarn run dev
 ```
 
@@ -46,10 +44,10 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 Here's a high-level breakdown of how WordPress Playground works:
 
-* `wordpress.html` starts a Worker Thread and a ServiceWorker
-* The Worker Thread starts PHP and populates the filesystem with a WordPress patched to run on SQLite
-* The ServiceWorker starts intercepting all HTTP requests and forwarding them to the Worker Thread
-* `wordpress.html` creates an `<iframe src="/index.php">` where the WordPress homepage is rendered
+-   `wordpress.html` starts a Worker Thread and a ServiceWorker
+-   The Worker Thread starts PHP and populates the filesystem with a WordPress patched to run on SQLite
+-   The ServiceWorker starts intercepting all HTTP requests and forwarding them to the Worker Thread
+-   `wordpress.html` creates an `<iframe src="/index.php">` where the WordPress homepage is rendered
 
 Visually, it looks like this:
 
@@ -59,9 +57,9 @@ Visually, it looks like this:
 
 Dig into the specific parts of the project:
 
-* [Compiling PHP to WebAssembly and using it in JavaScript](./using-php-in-javascript.md)
-* [Running PHP apps in the browser with ServiceWorkers and Worker Threads](./using-php-in-the-browser.md)
-* [Bundling WordPress for the browser](./bundling-wordpress-for-the-browser.md)
-* [Running WordPress in the browser](./running-wordpress-in-the-browser.md)
-* [Embedding WordPress Playground on other websites](./embedding-wordpress-playground-on-other-websites.md)
-* [Implementing a live WordPress code editor](./wordpress-plugin-ide.md)
+-   [Compiling PHP to WebAssembly and using it in JavaScript](./using-php-in-javascript.md)
+-   [Running PHP apps in the browser with ServiceWorkers and Worker Threads](./using-php-in-the-browser.md)
+-   [Bundling WordPress for the browser](./bundling-wordpress-for-the-browser.md)
+-   [Running WordPress in the browser](./running-wordpress-in-the-browser.md)
+-   [Embedding WordPress Playground on other websites](./embedding-wordpress-playground-on-other-websites.md)
+-   [Implementing a live WordPress code editor](./wordpress-plugin-ide.md)

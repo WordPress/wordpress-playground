@@ -1,6 +1,6 @@
 # WordPress Playground
 
-[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation and API Reference](https://wordpresswasm.readthedocs.io/en/latest/) 
+[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/wordpress.html) | [Documentation and API Reference](https://wordpresswasm.readthedocs.io/en/latest/)
 
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
@@ -34,8 +34,6 @@ npm install -g yarn
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
 yarn install
-# An initial build is needed at the moment:
-yarn run build
 yarn run dev
 ```
 
