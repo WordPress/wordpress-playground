@@ -7,6 +7,7 @@
 /packages/php-wasm/compile/build-assets
 /packages/playground/compile-wordpress/build-assets
 /packages/playground/remote/src/wordpress
+/packages/playground/remote/public/
 __pycache__
 *.timestamp-1678999213403.mjs
 .local
