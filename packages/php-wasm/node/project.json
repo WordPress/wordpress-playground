@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:package-json", "build:rollup-declarations"]
+			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
 			"executor": "@wp-playground/nx-extensions:package-json",
@@ -78,7 +78,7 @@
 				],
 				"parallel": false
 			},
-			"dependsOn": ["build:bundle"]
+			"dependsOn": ["build:package-json"]
 		},
 		"recompile-php": {
 			"executor": "nx:run-commands",
