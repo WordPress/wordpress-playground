@@ -36,7 +36,8 @@
         "production": {
           "mode": "production"
         }
-      }
+      },
+      "dependsOn": ["^build"]
     },
     "dev": {
       "executor": "nx:run-commands",

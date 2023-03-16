@@ -124,7 +124,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
    * @param  fileSize  The total number of bytes in the loaded file.
    */
   #notify(file: string, loaded: number, fileSize: number) {
-    const fileName = new URL(file).pathname.split('/').pop()!;
+    const fileName = new URL(file, 'http://example.com').pathname.split('/').pop()!;
     if (!fileSize) {
       fileSize = this.#assetsSizes[fileName];
     }

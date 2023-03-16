@@ -4,3 +4,5 @@
 /node_modules
 /packages/php-wasm/compile/build-assets
 /packages/playground/compile-wordpress/build-assets
+/packages/playground/remote/src/wordpress
+__pycache__

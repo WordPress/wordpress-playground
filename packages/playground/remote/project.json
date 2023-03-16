@@ -40,7 +40,7 @@
     "recompile-wordpress": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node packages/playground/compile-wordpress/build.js --preset={args.preset} --output-dir=packages/playground/remote/public",
+        "command": "node packages/playground/compile-wordpress/build.js --preset={args.preset} --output-dir=packages/playground/remote/src/wordpress",
         "parallel": false
       }
     },
@@ -48,10 +48,10 @@
       "executor": "nx:run-commands",
       "options": {
         "commands": [
-          "node packages/playground/compile-wordpress/build.js --preset=5.9 --output-dir=packages/playground/remote/public",
-          "node packages/playground/compile-wordpress/build.js --preset=6.0 --output-dir=packages/playground/remote/public",
-          "node packages/playground/compile-wordpress/build.js --preset=6.1 --output-dir=packages/playground/remote/public",
-          "node packages/playground/compile-wordpress/build.js --preset=nightly --output-dir=packages/playground/remote/public"
+          "node packages/playground/compile-wordpress/build.js --preset=5.9 --output-dir=packages/playground/remote/src/wordpress",
+          "node packages/playground/compile-wordpress/build.js --preset=6.0 --output-dir=packages/playground/remote/src/wordpress",
+          "node packages/playground/compile-wordpress/build.js --preset=6.1 --output-dir=packages/playground/remote/src/wordpress",
+          "node packages/playground/compile-wordpress/build.js --preset=nightly --output-dir=packages/playground/remote/src/wordpress"
         ],
         "parallel": false
       }

@@ -22,7 +22,7 @@ import { bootPlaygroundRemote() } from './boot-playground-remote';
 const playgroundClient = await bootPlaygroundRemote();
 ```
 
-The `bootPlaygroundRemote` utility is a thin wrapper over [`consumeAPI`](./api/php-wasm-web.consumeapi.md), [`spawnPHPWorkerThread`](./api/php-wasm-browser.spawnphpworkerthread.md), and [`registerServiceWorker`](./api/php-wasm-browser/registerServiceWorker). It initializes a [custom Worker Thread](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/src/lib/worker-thread.ts) and a [custom Service Worker](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/service-worker.ts) and returns a [`PlaygroundClient`](./api/playground-client.php.md) instance.
+The `bootPlaygroundRemote` utility is a thin wrapper over [`consumeAPI`](./api/php-wasm-web.consumeapi.md), [`spawnPHPWorkerThread`](./api/php-wasm-web.spawnphpworkerthread.md), and [`registerServiceWorker`](./api/php-wasm-web.registerserviceworker.md). It initializes a [custom Worker Thread](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/src/lib/worker-thread.ts) and a [custom Service Worker](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/service-worker.ts) and returns a [`PlaygroundClient`](./api/playground-client.php.md) instance.
 
 PHP runtime and WordPress files are initialized in the Worker Thread script.
 

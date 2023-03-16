@@ -11,7 +11,8 @@ import {
   remoteDevServerHost,
   remoteDevServerPort,
 } from '../build-config';
-import virtualModule from './vite-virtual-module';
+// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+import virtualModule from '../vite-virtual-module';
 
 const proxy = {
   '/plugin-proxy': {

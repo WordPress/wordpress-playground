@@ -6,6 +6,7 @@ tmp
 var
 /out-tsc
 .vitepress
+__pycache__
 
 # dependencies
 node_modules

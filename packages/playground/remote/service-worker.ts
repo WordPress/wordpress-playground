@@ -13,6 +13,9 @@ import {
 } from '@wp-playground/php-wasm-web-service-worker';
 import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
+// @ts-ignore
+import { serviceWorkerVersion } from 'virtual:service-worker-version';
+
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of 
@@ -25,9 +28,7 @@ if (!(self as any).document) {
 // @ts-ignore
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
-	// In production, use the service worker path as the version – it will always
-	// contain the latest hash of the service worker script.
-	version: import.meta.env.DEV ? (() => Math.random()+'') : self.location.pathname,
+	version: import.meta.env.DEV ? (() => Math.random()+'') : serviceWorkerVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);

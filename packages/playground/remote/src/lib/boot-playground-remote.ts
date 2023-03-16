@@ -3,6 +3,8 @@ import {
   spawnPHPWorkerThread,
 } from '@wp-playground/php-wasm-web';
 import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@wp-playground/php-wasm-web';
+// @ts-ignore
+import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 import type { PlaygroundWorkerClient } from './worker-thread';
 import type {
@@ -96,8 +98,7 @@ export async function bootPlaygroundRemote() {
     workerApi,
     await workerApi.scope,
     serviceWorkerUrl + '',
-    // @TODO: source the hash of the service worker file in here
-    serviceWorkerUrl.pathname
+    serviceWorkerVersion
   );
   wpFrame.src = await playground.pathToInternalUrl('/');
 
