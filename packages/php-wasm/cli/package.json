@@ -1,0 +1,21 @@
+{
+  "name": "@wordpress/php-wasm-cli",
+  "version": "0.0.1",
+  "description": "PHP.wasm CLI for node.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WordPress/wordpress-playground"
+  },
+  "homepage": "https://developer.wordpress.org/playground",
+  "author": "The WordPress contributors",
+  "contributors": [
+    {
+      "name": "Adam Zielinski",
+      "email": "adam@adamziel.com",
+      "url": "https://github.com/adamziel"
+    }
+  ],
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "main.js"
+}

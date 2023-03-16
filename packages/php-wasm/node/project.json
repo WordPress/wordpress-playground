@@ -1,0 +1,139 @@
+{
+  "name": "php-wasm-node",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/php-wasm/node/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:noop",
+      "dependsOn": ["build:package-json", "build:rollup-declarations"]
+    },
+    "build:package-json": {
+      "executor": "@wordpress/nx-extensions:package-json",
+      "options": {
+        "tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
+        "outputPath": "dist/packages/php-wasm/node",
+        "buildTarget": "php-wasm-node:build:bundle:production"
+      }
+    },
+    "build:bundle": {
+      "executor": "@nrwl/esbuild:esbuild",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "main": "packages/php-wasm/node/src/index.ts",
+        "outputPath": "dist/packages/php-wasm/node",
+        "additionalEntryPoints": ["packages/php-wasm/node/src/noop.ts"],
+        "tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
+        "project": "packages/php-wasm/node/package.json",
+        "assets": [
+          {
+            "glob": "packages/php-wasm/node/README.md",
+            "input": ".",
+            "output": "."
+          }
+        ],
+        "bundle": true,
+        "esbuildOptions": {
+          "outdir": "{options.outputPath}",
+          "packages": "external",
+          "platform": "node",
+          "bundle": true,
+          "treeShaking": true,
+          "assetNames": "[name]",
+          "chunkNames": "[name]",
+          "format": ["esm"],
+          "logOverride": {
+            "commonjs-variable-in-esm": "silent"
+          },
+          "splitting": true,
+          "loader": {
+            ".php": "text",
+            ".ini": "file",
+            ".wasm": "file"
+          },
+          "banner": {
+            "js": "import { createRequire } from 'module';const real_require = createRequire(import.meta.url); function require(id) { let resolved = real_require(id); if(id === 'path') {return {...resolved,normalize: function(path) {return new URL(resolved.normalize(path), import.meta.url).href.replace(/^(file:\\/\\/)?/, '');}};} return resolved;} const __dirname = new URL(import.meta.url).href;"
+          }
+        }
+      },
+      "configurations": {
+        "development": {
+          "minify": false
+        },
+        "production": {
+          "minify": true
+        }
+      }
+    },
+    "build:rollup-declarations": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
+          "rimraf dist/packages/php-wasm/node/lib/*.d.ts",
+          "rimraf dist/packages/php-wasm/node/*.d.ts",
+          "mv packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
+        ],
+        "parallel": false
+      },
+      "dependsOn": ["build:bundle"]
+    },
+    "recompile-php": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION={args.PHP_VERSION} --output-dir=packages/php-wasm/node/public",
+        "parallel": false
+      }
+    },
+    "recompile-php:all": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=5.6 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.0 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.1 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.2 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.3 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.4 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.0 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.1 --output-dir=packages/php-wasm/node/public",
+          "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=8.2 --output-dir=packages/php-wasm/node/public"
+        ],
+        "parallel": false
+      }
+    },
+    "package-json": {
+      "executor": "@wordpress/nx-extensions:package-json",
+      "options": {
+        "tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
+        "outputPath": "dist/packages/php-wasm/node",
+        "buildTarget": "php-wasm-node:build:production"
+      }
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/scripts/publish.mjs php-wasm-node {args.ver} {args.tag}",
+        "parallel": false
+      },
+      "dependsOn": ["build"]
+    },
+    "test": {
+      "executor": "@nrwl/vite:test",
+      "outputs": ["coverage/packages/php-wasm/node"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../coverage/packages/php-wasm/node"
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/php-wasm/node/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

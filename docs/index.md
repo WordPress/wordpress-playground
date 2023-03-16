@@ -33,8 +33,6 @@ npm install -g yarn
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
 yarn install
-# An initial build is needed at the moment:
-yarn run build
 yarn run dev
 ```
 
