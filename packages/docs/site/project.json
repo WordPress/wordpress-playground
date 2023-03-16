@@ -23,7 +23,7 @@
 		"build:api-reference": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": [
+				"commands": [
 					"npx nx start docs-ts-api-doc-generator -e dist/packages/php-wasm/node/index.d.ts -e dist/packages/php-wasm/web/index.d.ts -e dist/packages/php-wasm/progress/index.d.ts -e dist/packages/php-wasm/scopes/index.d.ts -e dist/packages/php-wasm/web-service-worker/src/index.d.ts -e dist/packages/playground/client/index.d.ts -o docs/api",
 					"npx nx format"
 				],

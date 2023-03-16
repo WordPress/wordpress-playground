@@ -200,7 +200,7 @@ be quite inconvenient. Fortunately, Emscripten provides a "data dependencies"
 feature.
 
 Data dependencies consist of a `dependency.data` file and a `dependency.js` loader and
-can be packaged with the [file_packager.py tool](api/php-wasm-web.loadphpruntime.md).
+can be packaged with the [file_packager.py tool](https://emscripten.org/docs/porting/files/packaging_files.html#packaging-using-the-file-packager-tool).
 This project requires wrapping the Emscripten-generated `dependency.js` file in an ES
 module as follows:
 
