@@ -9,7 +9,8 @@
 		"php-wasm-progress",
 		"php-wasm-scopes",
 		"php-wasm-web-service-worker",
-		"playground-client"
+		"playground-client",
+		"docs-ts-api-doc-generator"
 	],
 	"targets": {
 		"build": {
