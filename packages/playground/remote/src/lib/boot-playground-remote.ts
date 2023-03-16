@@ -100,7 +100,7 @@ export async function bootPlaygroundRemote() {
 		serviceWorkerUrl + '',
 		serviceWorkerVersion
 	);
-  wpFrame.src = await playground.pathToInternalUrl('/');
+	wpFrame.src = await playground.pathToInternalUrl('/');
 
 	setAPIReady();
 
