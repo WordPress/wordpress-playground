@@ -10,7 +10,7 @@ import {
 } from './lib/outbound-ws-to-tcp-proxy.js';
 import { addTCPServerToWebSocketServerClass } from './lib/inbound-tcp-to-ws-proxy.js';
 import { findFreePorts } from './lib/utils.js';
-import { PHP, loadPHPRuntime, getPHPLoaderModule } from '@wordpress/php-wasm-node';
+import { PHP, loadPHPRuntime, getPHPLoaderModule } from '@wp-playground/php-wasm-node';
 
 let args = process.argv.slice(2);
 if (!args.length) {

@@ -1,10 +1,10 @@
-import type { PlaygroundClient } from '@wordpress/playground-client';
+import type { PlaygroundClient } from '@wp-playground/playground-client';
 
 import React, { ReactElement, Ref, useMemo } from 'react';
 import type {
   ProgressObserver,
   ProgressObserverEvent,
-} from '@wordpress/php-wasm-progress';
+} from '@wp-playground/php-wasm-progress';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';

@@ -5,7 +5,7 @@
   "projectType": "library",
   "targets": {
     "build": {
-      "executor": "@wordpress/nx-extensions:package-json",
+      "executor": "@wp-playground/nx-extensions:package-json",
       "options": {
         "tsConfig": "packages/php-wasm/progress/tsconfig.lib.json",
         "outputPath": "dist/packages/php-wasm/progress",

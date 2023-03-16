@@ -1,7 +1,7 @@
 import {
   ProgressObserver,
   cloneResponseMonitorProgress,
-} from '@wordpress/php-wasm-progress';
+} from '@wp-playground/php-wasm-progress';
 import type { PlaygroundClient } from '../';
 
 import { installPlugin } from './install-plugin';

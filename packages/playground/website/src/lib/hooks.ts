@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ProgressObserver,
   ProgressObserverEvent,
-} from '@wordpress/php-wasm-progress';
-import { connectPlayground } from '@wordpress/playground-client';
-import type { PlaygroundClient } from '@wordpress/playground-client';
+} from '@wp-playground/php-wasm-progress';
+import { connectPlayground } from '@wp-playground/playground-client';
+import type { PlaygroundClient } from '@wp-playground/playground-client';
 import { remotePlaygroundOrigin } from './config';
 
 export function useRerender() {

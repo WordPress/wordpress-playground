@@ -1,4 +1,4 @@
-import type { PlaygroundClient } from '@wordpress/playground-client';
+import type { PlaygroundClient } from '@wp-playground/playground-client';
 
 import { useState } from 'react';
 import Modal from 'react-modal';

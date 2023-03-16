@@ -1,8 +1,8 @@
 import {
   registerServiceWorker,
   spawnPHPWorkerThread,
-} from '@wordpress/php-wasm-web';
-import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@wordpress/php-wasm-web';
+} from '@wp-playground/php-wasm-web';
+import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@wp-playground/php-wasm-web';
 
 import type { PlaygroundWorkerClient } from './worker-thread';
 import type {
@@ -19,7 +19,7 @@ const origin = new URL('/', (import.meta || {}).url).origin;
 import moduleWorkerUrl from './worker-thread?worker&url';
 // @ts-ignore
 // @TODO
-// import iframeHtmlUrl from '@wordpress/php-wasm-web/src/lib/worker-thread/iframe-worker.html?url';
+// import iframeHtmlUrl from '@wp-playground/php-wasm-web/src/lib/worker-thread/iframe-worker.html?url';
 const iframeHtmlUrl = '';
 
 export const workerBackend = recommendedWorkerBackend;

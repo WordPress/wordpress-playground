@@ -4,7 +4,7 @@ global.TextDecoder = TextDecoder as any;
 
 export * from './lib';
 
-export { PHP, PHPServer, PHPBrowser, loadPHPRuntime } from '@wordpress/php-wasm-common';
+export { PHP, PHPServer, PHPBrowser, loadPHPRuntime } from '@wp-playground/php-wasm-common';
 
 // Wildcard re-export is unfortunately not supported by TypeScript.
 export type { 
@@ -25,4 +25,4 @@ export type {
     PHPServerConfigation,
     PHPServerRequest,
     WorkerStartupOptions
-} from '@wordpress/php-wasm-common';
+} from '@wp-playground/php-wasm-common';

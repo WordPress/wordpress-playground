@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/php-wasm-common",
+  "name": "@wp-playground/php-wasm-common",
   "version": "0.0.1",
   "description": "PHP.wasm – emscripten bindings for PHP",
   "repository": {

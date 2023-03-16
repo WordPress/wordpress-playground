@@ -1,4 +1,4 @@
-import type { PHPLoaderModule } from '@wordpress/php-wasm-common';
+import type { PHPLoaderModule } from '@wp-playground/php-wasm-common';
 
 export async function getPHPLoaderModule(
   version = '8.2'

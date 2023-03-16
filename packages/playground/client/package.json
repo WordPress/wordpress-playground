@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/playground-client",
+  "name": "@wp-playground/playground-client",
   "version": "0.0.1",
   "description": "WordPress Playground client",
   "repository": {
@@ -21,6 +21,6 @@
   "types": "index.d.ts",
   "dependencies": {
     "comlink": "4.4.1",
-    "@wordpress/php-wasm-progress": "0.0.1"
+    "@wp-playground/php-wasm-progress": "0.0.1"
   }
 }

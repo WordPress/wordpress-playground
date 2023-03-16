@@ -9,9 +9,9 @@ import type {
   PHPResponse,
   HandlesRun,
   HandlesRequest,
-} from '@wordpress/php-wasm-common';
+} from '@wp-playground/php-wasm-common';
 import type { Remote } from 'comlink';
-import { EmscriptenDownloadMonitor } from '@wordpress/php-wasm-progress';
+import { EmscriptenDownloadMonitor } from '@wp-playground/php-wasm-progress';
 
 export type Promisify<T> = {
   [P in keyof T]: T[P] extends (...args: infer A) => infer R

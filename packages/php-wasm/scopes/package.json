@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/php-wasm-scopes",
+  "name": "@wp-playground/php-wasm-scopes",
   "version": "0.0.1",
   "description": "PHP.wasm – scoped URLs utils",
   "repository": {

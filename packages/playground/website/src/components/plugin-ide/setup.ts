@@ -1,7 +1,7 @@
 // if (query.has('ide')) {
 // 	let doneFirstBoot = false;
 // 	const { WordPressPluginIDE, createBlockPluginFixture } = await import(
-// 		'@wordpress/plugin-ide'
+// 		'@wp-playground/plugin-ide'
 // 	);
 // 	const { default: React } = await import('react');
 // 	const {

@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/playground-compile-wordpress",
+  "name": "@wp-playground/playground-compile-wordpress",
   "version": "0.0.1",
   "description": "WordPress Compilation Pipeline for the WordPress Playground",
   "repository": {

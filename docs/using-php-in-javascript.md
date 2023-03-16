@@ -36,8 +36,8 @@ To find out more about each step, refer directly to the [Dockerfile](https://git
 
 ### Building
 
-To build all PHP versions, run `yarn workspace @wordpress/php-wasm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`. To build a specific
-version, run `yarn workspace @wordpress/php-wasm run build:php:web:<VERSION>`, e.g. `yarn workspace @wordpress/php-wasm run build:php:web:8.2`.
+To build all PHP versions, run `yarn workspace @wp-playground/php-wasm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`. To build a specific
+version, run `yarn workspace @wp-playground/php-wasm run build:php:web:<VERSION>`, e.g. `yarn workspace @wp-playground/php-wasm run build:php:web:8.2`.
 
 ### PHP extensions
 
@@ -59,7 +59,7 @@ Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress
 
 ### Build configuration
 
-The build is configurable via the [Docker `--build-arg` feature](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). Currently it's not possible to specify these options via `yarn workspace @wordpress/php-wasm run build:php:web` so you'll need to run `docker build` manually. For example, to change the PHP version, specify the `PHP_VERSION` option during the build:
+The build is configurable via the [Docker `--build-arg` feature](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). Currently it's not possible to specify these options via `yarn workspace @wp-playground/php-wasm run build:php:web` so you'll need to run `docker build` manually. For example, to change the PHP version, specify the `PHP_VERSION` option during the build:
 
 ```sh
 docker build . --build-arg PHP_VERSION=7.4.0
@@ -102,7 +102,7 @@ module. It lives in the `src` directory and consists of:
 
 ### Building
 
-To build the JavaScript API, run `yarn workspace @wordpress/php-wasm run build`. 
+To build the JavaScript API, run `yarn workspace @wp-playground/php-wasm run build`. 
 
 ## API
 

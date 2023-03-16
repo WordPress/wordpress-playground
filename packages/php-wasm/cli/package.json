@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/php-wasm-cli",
+  "name": "@wp-playground/php-wasm-cli",
   "version": "0.0.1",
   "description": "PHP.wasm CLI for node.js",
   "repository": {

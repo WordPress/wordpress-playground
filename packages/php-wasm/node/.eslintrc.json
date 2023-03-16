@@ -10,7 +10,7 @@
           {
             "enforceBuildableLibDependency": true,
             "allow": [
-              "@wordpress/php-wasm-common"
+              "@wp-playground/php-wasm-common"
             ]
           }
         ]

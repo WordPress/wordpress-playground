@@ -66,7 +66,7 @@ export default async function (
     sourceRoot: `${normalizedOptions.projectRoot}/src`,
     targets: {
       build: {
-        executor: '@wordpress/nx-extensions:build',
+        executor: '@wp-playground/nx-extensions:build',
       },
     },
     tags: normalizedOptions.parsedTags,

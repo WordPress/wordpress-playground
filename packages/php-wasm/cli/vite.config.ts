@@ -20,7 +20,7 @@ export default defineConfig(() => {
       target: 'es2020',
       rollupOptions: {
         external: [
-          '@wordpress/php-wasm-node',
+          '@wp-playground/php-wasm-node',
           'net',
           'fs',
           'path',

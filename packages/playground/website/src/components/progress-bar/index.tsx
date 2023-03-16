@@ -1,4 +1,4 @@
-import type { ProgressMode } from '@wordpress/php-wasm-progress';
+import type { ProgressMode } from '@wp-playground/php-wasm-progress';
 import classNames from 'classnames';
 import React from 'react';
 import css from './style.module.css';

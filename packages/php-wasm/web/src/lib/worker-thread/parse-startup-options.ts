@@ -1,4 +1,4 @@
-import type { WorkerStartupOptions } from '@wordpress/php-wasm-common';
+import type { WorkerStartupOptions } from '@wp-playground/php-wasm-common';
 
 export function parseWorkerStartupOptions<T extends Record<string, string>>(): WorkerStartupOptions<T> {
     const startupOptions: any = {};

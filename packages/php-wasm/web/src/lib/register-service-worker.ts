@@ -1,5 +1,5 @@
 import type { PHPClient } from './php-client';
-import { responseTo } from '@wordpress/php-wasm-web-service-worker';
+import { responseTo } from '@wp-playground/php-wasm-web-service-worker';
 
 /**
  * Run this in the main application to register the service worker or

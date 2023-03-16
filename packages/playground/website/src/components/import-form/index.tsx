@@ -1,8 +1,8 @@
 import { useRef } from 'react';
-import type { PlaygroundClient } from '@wordpress/playground-client';
+import type { PlaygroundClient } from '@wp-playground/playground-client';
 
 import css from './style.module.css';
-import { importFile } from '@wordpress/playground-client';
+import { importFile } from '@wp-playground/playground-client';
 
 interface ImportFormProps {
   playground: PlaygroundClient;

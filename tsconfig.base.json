@@ -15,22 +15,22 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@wordpress/nx-extensions": ["packages/nx-extensions/src/index.ts"],
-      "@wordpress/php-wasm-common": ["packages/php-wasm/common/src/index.ts"],
-      "@wordpress/php-wasm-node": ["packages/php-wasm/node/src/index.ts"],
-      "@wordpress/php-wasm-progress": [
+      "@wp-playground/nx-extensions": ["packages/nx-extensions/src/index.ts"],
+      "@wp-playground/php-wasm-common": ["packages/php-wasm/common/src/index.ts"],
+      "@wp-playground/php-wasm-node": ["packages/php-wasm/node/src/index.ts"],
+      "@wp-playground/php-wasm-progress": [
         "packages/php-wasm/progress/src/index.ts"
       ],
-      "@wordpress/php-wasm-scopes": ["packages/php-wasm/scopes/src/index.ts"],
-      "@wordpress/php-wasm-web": ["packages/php-wasm/web/src/index.ts"],
-      "@wordpress/php-wasm-web-service-worker": [
+      "@wp-playground/php-wasm-scopes": ["packages/php-wasm/scopes/src/index.ts"],
+      "@wp-playground/php-wasm-web": ["packages/php-wasm/web/src/index.ts"],
+      "@wp-playground/php-wasm-web-service-worker": [
         "packages/php-wasm/web-service-worker/src/index.ts"
       ],
-      "@wordpress/php-wasm-cli": ["packages/php-wasm/cli/src/main.ts"],
-      "@wordpress/playground-client": [
+      "@wp-playground/php-wasm-cli": ["packages/php-wasm/cli/src/main.ts"],
+      "@wp-playground/playground-client": [
         "packages/playground/client/src/index.ts"
       ],
-      "@wordpress/playground-remote": [
+      "@wp-playground/playground-remote": [
         "packages/playground/remote/src/index.ts"
       ]
     }

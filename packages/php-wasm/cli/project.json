@@ -5,7 +5,7 @@
   "projectType": "library",
   "targets": {
     "build": {
-      "executor": "@wordpress/nx-extensions:package-json",
+      "executor": "@wp-playground/nx-extensions:package-json",
       "options": {
         "tsConfig": "packages/php-wasm/cli/tsconfig.lib.json",
         "outputPath": "dist/packages/php-wasm/cli",
@@ -30,7 +30,7 @@
       }
     },
     "start": {
-      "executor": "@wordpress/nx-extensions:built-script",
+      "executor": "@wp-playground/nx-extensions:built-script",
       "options": {
         "scriptPath": "dist/packages/php-wasm/cli/main.js"
       },

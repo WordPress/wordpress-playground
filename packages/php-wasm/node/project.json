@@ -9,7 +9,7 @@
       "dependsOn": ["build:package-json", "build:rollup-declarations"]
     },
     "build:package-json": {
-      "executor": "@wordpress/nx-extensions:package-json",
+      "executor": "@wp-playground/nx-extensions:package-json",
       "options": {
         "tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
         "outputPath": "dist/packages/php-wasm/node",
@@ -104,7 +104,7 @@
       }
     },
     "package-json": {
-      "executor": "@wordpress/nx-extensions:package-json",
+      "executor": "@wp-playground/nx-extensions:package-json",
       "options": {
         "tsConfig": "packages/php-wasm/node/tsconfig.lib.json",
         "outputPath": "dist/packages/php-wasm/node",

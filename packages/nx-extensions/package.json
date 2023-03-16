@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/nx-extensions",
+  "name": "@wp-playground/nx-extensions",
   "version": "0.0.1",
   "main": "src/index.js",
   "generators": "./generators.json",

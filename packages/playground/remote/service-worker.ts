@@ -2,7 +2,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope } from '@wordpress/php-wasm-scopes';
+import { getURLScope, removeURLScope } from '@wp-playground/php-wasm-scopes';
 import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
@@ -10,7 +10,7 @@ import {
 	seemsLikeAPHPServerPath,
 	cloneRequest,
 	broadcastMessageExpectReply,
-} from '@wordpress/php-wasm-web-service-worker';
+} from '@wp-playground/php-wasm-web-service-worker';
 import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
 if (!(self as any).document) {

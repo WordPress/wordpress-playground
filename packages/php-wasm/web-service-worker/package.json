@@ -1,5 +1,5 @@
 {
-  "name": "@wordpress/php-wasm-web-service-worker",
+  "name": "@wp-playground/php-wasm-web-service-worker",
   "version": "0.0.1",
   "description": "PHP.wasm – service worker utils",
   "repository": {
