@@ -33,7 +33,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 	);
 };
 
-const Progress = ({ mode, percentFull }) => {
+const Progress = ({ mode, percentFull }: any) => {
 	const classes = classNames([css.progressBar, css.isDefinite], {
 		[css.slowlyIncrementing]: mode === 'slowly-increment',
 	});

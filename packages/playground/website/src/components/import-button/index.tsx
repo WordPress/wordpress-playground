@@ -6,7 +6,7 @@ import css from './style.module.css';
 import ImportForm from '../import-form';
 
 interface ExportButtonProps {
-	playground?: PlaygroundClient;
+	playground: PlaygroundClient;
 }
 Modal.setAppElement('#root');
 export default function ImportButton({ playground }: ExportButtonProps) {
@@ -19,7 +19,7 @@ export default function ImportButton({ playground }: ExportButtonProps) {
 			'File imported! This Playground instance has been updated. Refreshing now.'
 		);
 		closeModal();
-		playground?.goTo('/');
+		playground.goTo('/');
 	}
 	return (
 		<>

@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import React from 'react';
+import { useRef, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/playground-client';
 
 import css from './style.module.css';
@@ -17,18 +18,20 @@ export default function ImportForm({
 }: ImportFormProps) {
 	const form = useRef<any>();
 	const fileInputRef = useRef<any>();
-	const [file, setFile] = React.useState<File | null>(null);
-	const [error, setError] = React.useState<string>('');
-	function handleSelectFile(e) {
-		setFile(e.target.files[0]);
+	const [file, setFile] = useState<File | null>(null);
+	const [error, setError] = useState<string>('');
+	function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
+		setFile(e.target.files![0]);
 	}
-	function handleImportSelectFileClick(e) {
+	function handleImportSelectFileClick(
+		e: React.MouseEvent<HTMLLabelElement>
+	) {
 		e.preventDefault();
 		form.current?.reset();
 		fileInputRef.current?.click();
 	}
 
-	async function handleSubmit(e) {
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		if (!file) {
 			return;
@@ -77,23 +80,23 @@ export default function ImportForm({
 				</p>
 				<p className={css.modalText}>
 					<strong>Known Limitations</strong>
-					<br />
-					<ul className={css.modalTextList}>
-						<li>
-							Styling changes may take up to one minute to update.
-						</li>
-						<br />
-						<li>
-							Migrating between different WordPress versions is
-							not supported.
-						</li>
-						<br />
-						<li>
-							Media files, options/users, and plugin state will
-							not be included.
-						</li>
-					</ul>
 				</p>
+				<br />
+				<ul className={css.modalTextList}>
+					<li>
+						Styling changes may take up to one minute to update.
+					</li>
+					<br />
+					<li>
+						Migrating between different WordPress versions is not
+						supported.
+					</li>
+					<br />
+					<li>
+						Media files, options/users, and plugin state will not be
+						included.
+					</li>
+				</ul>
 				<div className={css.inputsContainer}>
 					<input
 						type="file"
