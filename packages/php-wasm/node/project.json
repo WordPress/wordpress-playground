@@ -7,6 +7,19 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
+			"dependsOn": ["build:rollup-declarations"]
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
+					"rimraf dist/packages/php-wasm/node/lib/*.d.ts",
+					"rimraf dist/packages/php-wasm/node/*.d.ts",
+					"mv packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
+				],
+				"parallel": false
+			},
 			"dependsOn": ["build:package-json"]
 		},
 		"build:package-json": {
@@ -66,19 +79,6 @@
 					"minify": true
 				}
 			}
-		},
-		"build:rollup-declarations": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
-					"rimraf dist/packages/php-wasm/node/lib/*.d.ts",
-					"rimraf dist/packages/php-wasm/node/*.d.ts",
-					"mv packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:package-json"]
 		},
 		"recompile-php": {
 			"executor": "nx:run-commands",

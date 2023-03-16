@@ -31,29 +31,38 @@ export default function tsDocToApiJson(config: TsDocToApiJsonConfig): string[] {
 			if (!tsconfig || !fs.existsSync(tsconfig)) {
 				throw new Error('Could not find tsconfig.json');
 			}
-			const extractorConfig = ExtractorConfig.prepare({
-				configObject: prepareApiExtractorConfig(
-					entrypoint,
-					path.join(
-						process.cwd(),
-						path.join(config.outdir, outFilename)
+			try {
+				return ExtractorConfig.prepare({
+					configObject: prepareApiExtractorConfig(
+						entrypoint,
+						path.join(
+							process.cwd(),
+							path.join(config.outdir, outFilename)
+						),
+						tsconfig
 					),
-					tsconfig
-				),
-				packageJsonFullPath: findNearestFile(
-					'package.json',
-					entrypoint
-				),
-			} as any);
-
-			return extractorConfig;
+					packageJsonFullPath: findNearestFile(
+						'package.json',
+						entrypoint
+					),
+				} as any);
+			} catch (e) {
+				console.log('File: ' + entrypoint);
+				throw e;
+			}
 		})
 		.map((extractorConfig) => {
-			const extractorResult = Extractor.invoke(extractorConfig, {
-				localBuild: true,
-				showVerboseMessages: true,
-				showDiagnostics: false,
-			});
+			let extractorResult: any;
+			try {
+				extractorResult = Extractor.invoke(extractorConfig, {
+					localBuild: true,
+					showVerboseMessages: true,
+					showDiagnostics: false,
+				});
+			} catch (e) {
+				console.log('File: ' + extractorConfig.mainEntryPointFilePath);
+				throw e;
+			}
 
 			if (extractorResult.errorCount > 0) {
 				throw new Error('API Extractor completed with errors');
