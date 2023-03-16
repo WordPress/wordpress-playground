@@ -24,7 +24,10 @@
 		</style>
 	</head>
 	<body class="is-loading">
-		<iframe id="wp"></iframe>
+		<iframe
+			id="wp"
+			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
+		></iframe>
 		<script type="module">
 			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');

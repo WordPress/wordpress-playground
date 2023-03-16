@@ -92,6 +92,7 @@ export async function bootPlaygroundRemote() {
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
 	const [setAPIReady, playground] = exposeAPI(webApi, workerApi);
+
 	await workerApi.isReady();
 	await registerServiceWorker(
 		workerApi,
@@ -99,7 +100,7 @@ export async function bootPlaygroundRemote() {
 		serviceWorkerUrl + '',
 		serviceWorkerVersion
 	);
-	wpFrame.src = await playground.pathToInternalUrl('/');
+  wpFrame.src = await playground.pathToInternalUrl('/');
 
 	setAPIReady();
 

@@ -27,6 +27,7 @@ export async function spawnPHPWorkerThread(
 	startupOptions: Record<string, string> = {}
 ) {
 	workerUrl = addQueryParams(workerUrl, startupOptions);
+
 	if (workerBackend === 'webworker') {
 		return new Worker(workerUrl, { type: 'module' });
 	} else if (workerBackend === 'iframe') {

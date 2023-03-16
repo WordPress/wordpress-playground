@@ -69,7 +69,7 @@ export function usePlayground({
 
 		let timeoutHandle: any;
 		if (onConnectionTimeout) {
-			// timeoutHandle = setTimeout(onConnectionTimeout, timeout);
+			timeoutHandle = setTimeout(onConnectionTimeout, timeout);
 		}
 
 		connectPlayground(
