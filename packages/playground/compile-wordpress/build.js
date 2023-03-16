@@ -45,9 +45,14 @@ const parser = yargs(process.argv.slice(2))
 			type: 'string',
 			description: 'Name of the theme to keep',
 		},
-		['output-dir']: {
+		['output-js']: {
 			type: 'string',
-			description: 'The output directory',
+			description: 'wp.js and wp.data output directory',
+			required: true,
+		},
+		['output-assets']: {
+			type: 'string',
+			description: 'WordPress static files output directory',
 			required: true,
 		},
 	});
@@ -69,7 +74,8 @@ function getArg(name) {
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
-const outputDir = path.resolve(process.cwd(), args.outputDir);
+const outputAssetsDir = path.resolve(process.cwd(), args.outputAssets);
+const outputJsDir = path.resolve(process.cwd(), args.outputJs);
 
 // Build WordPress
 await asyncSpawn(
@@ -92,7 +98,7 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
-// Extract the built WordPress files
+// Extract the WordPress static root with wp-includes/ etc
 await asyncSpawn(
 	'docker',
 	[
@@ -101,13 +107,33 @@ await asyncSpawn(
 		'wordpress-playground-tmp',
 		'--rm',
 		'-v',
-		`${outputDir}:/output`,
+		`${outputAssetsDir}:/output`,
 		'wordpress-playground',
 		// Use sh -c because wildcards are a shell feature and
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp -r /root/output/* /output/`,
+		`cp -r /root/output/${getArg('OUT_FILENAME')} /output/`,
+	],
+	{ cwd: sourceDir, stdio: 'inherit' }
+);
+
+// Extract wp.js and wp.data
+await asyncSpawn(
+	'docker',
+	[
+		'run',
+		'--name',
+		'wordpress-playground-tmp',
+		'--rm',
+		'-v',
+		`${outputJsDir}:/output`,
+		'wordpress-playground',
+		// Use sh -c because wildcards are a shell feature and
+		// they don't work without running cp through shell.
+		'sh',
+		'-c',
+		`cp -r /root/output/*.js /root/output/*.data /output/`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
