@@ -16,7 +16,8 @@
 					"rimraf --no-preserve-root ./wasm-wordpress-net",
 					"mkdir ./wasm-wordpress-net",
 					"cp -r ./remote/* ./wasm-wordpress-net/",
-					"cp -r ./website/* ./wasm-wordpress-net/"
+					"cp -r ./website/* ./wasm-wordpress-net/",
+					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess"
 				],
 				"cwd": "dist/packages/playground",
 				"parallel": false
