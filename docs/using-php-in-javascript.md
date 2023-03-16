@@ -36,8 +36,7 @@ To find out more about each step, refer directly to the [Dockerfile](https://git
 
 ### Building
 
-To build all PHP versions, run `yarn workspace @wp-playground/php-wasm run build:php:web` in the repository root. You'll find the output files in `src/php-wasm/build-wasm`. To build a specific
-version, run `yarn workspace @wp-playground/php-wasm run build:php:web:<VERSION>`, e.g. `yarn workspace @wp-playground/php-wasm run build:php:web:8.2`.
+To build all PHP versions, run `nx recompile-php:all php-wasm-web` (or php-wasm-node) in the repository root. You'll find the output files in `packages/php-wasm/php-web/public`. To build a specific version, run `nx recompile-php:all php-wasm-node --PHP_VERSION=8.0`.
 
 ### PHP extensions
 
@@ -59,10 +58,10 @@ Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress
 
 ### Build configuration
 
-The build is configurable via the [Docker `--build-arg` feature](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). Currently it's not possible to specify these options via `yarn workspace @wp-playground/php-wasm run build:php:web` so you'll need to run `docker build` manually. For example, to change the PHP version, specify the `PHP_VERSION` option during the build:
+The build is configurable via the [Docker `--build-arg` feature](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg). You can set them up through the `build.js` script, just run this command to get the usage message:
 
 ```sh
-docker build . --build-arg PHP_VERSION=7.4.0
+nx recompile-php php-wasm-web
 ```
 
 **Supported build options:**
@@ -102,22 +101,22 @@ module. It lives in the `src` directory and consists of:
 
 ### Building
 
-To build the JavaScript API, run `yarn workspace @wp-playground/php-wasm run build`. 
+To build the JavaScript API, just build the entire project with `yarn run build:all`. 
 
 ## API
 
 Below you'll find a few especially relevant parts of the API. Consult the [php-wasm API reference page](api/php-wasm.md) to learn about the rest of it.
 
-### startPHP
+### loadPHPRuntime
 
-<!-- include /docs/api/php-wasm.startphp.md#startPHP() function -->
+<!-- include /docs/api/php-wasm.loadphpruntime.md#loadPHPRuntime() function -->
 
-startPHP<!-- -->(\
+loadPHPRuntime<!-- -->(\
 &emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->runtime<!-- -->: [JavascriptRuntime](api/php-wasm.startphp.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->runtime<!-- -->: [JavascriptRuntime](api/php-wasm.loadphpruntime.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->[]\
-)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHP](api/php-wasm.startphp.md)<!-- -->&gt;
+)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHP](api/php-wasm.loadphpruntime.md)<!-- -->&gt;
 
 * `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
 * `runtime` – The current JavaScript environment. One of: NODE, WEB, or WEBWORKER.
@@ -139,7 +138,7 @@ Basic usage:
 
 ```js
  const phpLoaderModule = await import("/php.js");
- const php = await startPHP(phpLoaderModule, "web");
+ const php = await loadPHPRuntime(phpLoaderModule);
  console.log(php.run(`<?php echo "Hello, world!"; `));
  // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
@@ -229,7 +228,7 @@ Once it's ready, you can load PHP and your data dependencies as follows:
    import("/php.js"),
    import("/wp.js")
  ]);
- const php = await startPHP(phpLoaderModule, "web", {}, [wordPressLoaderModule]);
+ const php = await startPHP(phpLoaderModule, {}, [wordPressLoaderModule]);
 ```
 
 <!-- /include /docs/api/php-wasm.startphp.md#startPHP() function -->

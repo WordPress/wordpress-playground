@@ -82,7 +82,7 @@
     "recompile-php": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION={args.PHP_VERSION} --output-dir=packages/php-wasm/node/public",
+        "command": "node packages/php-wasm/compile/build.js --PLATFORM=node --output-dir=packages/php-wasm/node/public",
         "parallel": false
       }
     },
