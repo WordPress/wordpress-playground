@@ -10,7 +10,7 @@
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/playground/remote",
-				"main": "packages/playground/remote/wordpress.html",
+				"main": "packages/playground/remote/remote.html",
 				"tsConfig": "packages/playground/remote/tsconfig.lib.json",
 				"assets": ["packages/playground/remote/*.md"]
 			}

@@ -5,7 +5,7 @@ This document is specific to hosting your own Playground. If you only wish to co
 ```ts
 const playgroundClient = connectPlayground(
 	iframe,
-	`https://wasm.wordpress.net/wordpress.html`
+	`https://wasm.wordpress.net/remote.html`
 );
 ```
 
@@ -15,7 +15,7 @@ WordPress runs using the framework described in [running PHP apps in the browser
 
 ## WordPress-specific Worker Thread and ServiceWorker setup
 
-The [`playground remote`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/wordpress.html) application starts the Worker Thread using the `bootPlaygroundRemote()` function:
+The [`playground remote`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/remote/remote.html) application starts the Worker Thread using the `bootPlaygroundRemote()` function:
 
 ```js
 import { bootPlaygroundRemote() } from './boot-playground-remote';

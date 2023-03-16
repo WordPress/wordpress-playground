@@ -74,7 +74,7 @@ export function usePlayground({
 
 		connectPlayground(
 			iframe!,
-			`${remotePlaygroundOrigin}/wordpress.html`
+			`${remotePlaygroundOrigin}/remote.html`
 		).then(async (api) => {
 			if (timeoutHandle) {
 				clearTimeout(timeoutHandle);

@@ -22,14 +22,19 @@ RUN wget -O wp.zip $WP_ZIP_URL && \
     unzip -q wp.zip && \
     rm wp.zip
 
-# Patch WordPress with sqlite support
-# https://github.com/aaemnnosttv/wp-sqlite-integration
-# https://github.com/aaemnnosttv/wp-sqlite-db
-RUN curl https://raw.githubusercontent.com/aaemnnosttv/wp-sqlite-db/master/src/db.php \
-    | sed 's/$exploded_parts = $values_data;/$exploded_parts = array( $values_data );/g' \
-    > wordpress/wp-content/db.php && \
-    # Required by the drop-in SQLite integration plugin:
-    cp wordpress/wp-config-sample.php wordpress/wp-config.php 
+# Enable the SQLite support:
+# https://github.com/WordPress/sqlite-database-integration
+RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
+    wordpress/wp-content/plugins/sqlite-database-integration \
+    --branch main   \
+    --single-branch \
+    --depth 1 &&    \
+    cat wordpress/wp-content/plugins/sqlite-database-integration/db.copy \
+        | sed 's#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#'`pwd`'/wordpress/wp-content/plugins/sqlite-database-integration#g' \
+        | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
+        > wordpress/wp-content/db.php && \
+    # Required by the SQLite integration plugin:
+    cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
@@ -166,7 +171,7 @@ RUN mv wordpress /wordpress && \
     --preload /wordpress \
     --js-output=/root/output/wp.js && \
     if [ "$OUT_FILENAME" != "wp" ]; then \
-      mv /root/output/wp.data /root/output/$OUT_FILENAME.data; \
+    mv /root/output/wp.data /root/output/$OUT_FILENAME.data; \
     fi
 
 COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
@@ -186,9 +191,9 @@ RUN cat /root/output/wp.js \
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
     export FILE_SIZE=$(stat -c%s "/root/output/$OUT_FILENAME.data") && \
     cat /tmp/esm-prefix.js \
-        | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" \
-        | sed "s#WP_THEME_NAME#'$KEEP_THEME'#g" \
-        > /root/esm-prefix.js
+    | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" \
+    | sed "s#WP_THEME_NAME#'$KEEP_THEME'#g" \
+    > /root/esm-prefix.js
 
 # Filename of the main dependency
 RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \

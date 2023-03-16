@@ -66,7 +66,7 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: {
-				wordpress: path('/wordpress.html'),
+				wordpress: path('/remote.html'),
 				'iframe-worker': path('/iframe-worker.html'),
 			},
 		},

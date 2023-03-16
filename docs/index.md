@@ -13,7 +13,7 @@ You can embed WordPress Playground using an iframe. **Note this is an experiment
 ```html
 <iframe
 	style="width: 800px; height: 500px;"
-	src="https://wasm.wordpress.net/wordpress.html?mode=seamless"
+	src="https://wasm.wordpress.net/?mode=seamless"
 ></iframe>
 ```
 
@@ -36,7 +36,7 @@ yarn install
 yarn run dev
 ```
 
-A browser should open and take you to your very own WordPress Playground at `http://127.0.0.1:8777/wordpress.html`!
+A browser should open and take you to your very own WordPress Playground at `http://127.0.0.1:5400/`!
 
 Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
 
@@ -44,10 +44,11 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 Here's a high-level breakdown of how WordPress Playground works:
 
--   `wordpress.html` starts a Worker Thread and a ServiceWorker
+-   `index.html` from Playgrounf website connects to `remote.html` via an `<iframe src="/remote.html">`
+-   `remote.html` starts a Worker Thread and a ServiceWorker and sends back the download progress information
 -   The Worker Thread starts PHP and populates the filesystem with a WordPress patched to run on SQLite
 -   The ServiceWorker starts intercepting all HTTP requests and forwarding them to the Worker Thread
--   `wordpress.html` creates an `<iframe src="/index.php">` where the WordPress homepage is rendered
+-   `remote.html` creates an `<iframe src="/index.php">` where the WordPress homepage is rendered
 
 Visually, it looks like this:
 
