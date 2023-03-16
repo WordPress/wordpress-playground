@@ -20,7 +20,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": ["build:standalone"]
+			"dependsOn": ["build:standalone", "^playground-remote:build"]
 		},
 		"build:standalone": {
 			"executor": "@nrwl/vite:build",
