@@ -38,6 +38,7 @@ export default defineConfig({
 		assetsDir: `./`,
 		assetsInlineLimit: 0,
 		outDir: path`./build`,
+		target: 'web',
 		rollupOptions: {
 			input: {
 				index: path`./src/index.html`,
