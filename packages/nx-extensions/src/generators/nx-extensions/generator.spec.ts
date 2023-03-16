@@ -5,16 +5,16 @@ import generator from './generator';
 import { NxExtensionsGeneratorSchema } from './schema';
 
 describe('nx-extensions generator', () => {
-  let appTree: Tree;
-  const options: NxExtensionsGeneratorSchema = { name: 'test' };
+	let appTree: Tree;
+	const options: NxExtensionsGeneratorSchema = { name: 'test' };
 
-  beforeEach(() => {
-    appTree = createTreeWithEmptyWorkspace({ layout: 'apps-libs' });
-  });
+	beforeEach(() => {
+		appTree = createTreeWithEmptyWorkspace({ layout: 'apps-libs' });
+	});
 
-  it('should run successfully', async () => {
-    await generator(appTree, options);
-    const config = readProjectConfiguration(appTree, 'test');
-    expect(config).toBeDefined();
-  });
+	it('should run successfully', async () => {
+		await generator(appTree, options);
+		const config = readProjectConfiguration(appTree, 'test');
+		expect(config).toBeDefined();
+	});
 });

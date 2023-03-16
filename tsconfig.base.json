@@ -15,6 +15,7 @@
 		"skipDefaultLibCheck": true,
 		"baseUrl": ".",
 		"paths": {
+			"@wp-playground/docs-site": ["packages/docs/site/src/index.ts"],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],
@@ -44,9 +45,6 @@
 			],
 			"@wp-playground/playground-remote": [
 				"packages/playground/remote/src/index.ts"
-			],
-			"@wp-playground/docs-site": [
-				"packages/docs/site/src/index.ts"
 			],
 			"@wp-playground/ts-api-doc-generator": [
 				"packages/docs/ts-api-doc-generator/src/index.ts"

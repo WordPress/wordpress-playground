@@ -17,7 +17,7 @@ export const DEFAULT_BASE_URL = 'http://example.com';
  * @returns The path, query, and fragment.
  */
 export function toRelativeUrl(url: URL): string {
-  return url.toString().substring(url.origin.length);
+	return url.toString().substring(url.origin.length);
 }
 
 /**
@@ -34,10 +34,10 @@ export function toRelativeUrl(url: URL): string {
  * @returns Path with the prefix removed.
  */
 export function removePathPrefix(path: string, prefix: string): string {
-  if (!prefix || !path.startsWith(prefix)) {
-    return path;
-  }
-  return path.substring(prefix.length);
+	if (!prefix || !path.startsWith(prefix)) {
+		return path;
+	}
+	return path.substring(prefix.length);
 }
 
 /**
@@ -54,8 +54,8 @@ export function removePathPrefix(path: string, prefix: string): string {
  * @returns Path with the prefix added.
  */
 export function ensurePathPrefix(path: string, prefix: string): string {
-  if (!prefix || path.startsWith(prefix)) {
-    return path;
-  }
-  return prefix + path;
+	if (!prefix || path.startsWith(prefix)) {
+		return path;
+	}
+	return prefix + path;
 }

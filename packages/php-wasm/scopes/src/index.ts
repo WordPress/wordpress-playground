@@ -28,7 +28,7 @@
  * @returns `true` if the URL contains scope information, `false` otherwise.
  */
 export function isURLScoped(url: URL): boolean {
-  return url.pathname.startsWith(`/scope:`);
+	return url.pathname.startsWith(`/scope:`);
 }
 
 /**
@@ -47,10 +47,10 @@ export function isURLScoped(url: URL): boolean {
  * @returns The scope if the URL contains a scope, `null` otherwise.
  */
 export function getURLScope(url: URL): string | null {
-  if (isURLScoped(url)) {
-    return url.pathname.split('/')[1].split(':')[1];
-  }
-  return null;
+	if (isURLScoped(url)) {
+		return url.pathname.split('/')[1].split(':')[1];
+	}
+	return null;
 }
 
 /**
@@ -73,22 +73,22 @@ export function getURLScope(url: URL): string | null {
  * @returns A new URL with the scope information in it.
  */
 export function setURLScope(url: URL | string, scope: string | null): URL {
-  let newUrl = new URL(url);
+	let newUrl = new URL(url);
 
-  if (isURLScoped(newUrl)) {
-    if (scope) {
-      const parts = newUrl.pathname.split('/');
-      parts[1] = `scope:${scope}`;
-      newUrl.pathname = parts.join('/');
-    } else {
-      newUrl = removeURLScope(newUrl);
-    }
-  } else if (scope) {
-    const suffix = newUrl.pathname === '/' ? '' : newUrl.pathname;
-    newUrl.pathname = `/scope:${scope}${suffix}`;
-  }
+	if (isURLScoped(newUrl)) {
+		if (scope) {
+			const parts = newUrl.pathname.split('/');
+			parts[1] = `scope:${scope}`;
+			newUrl.pathname = parts.join('/');
+		} else {
+			newUrl = removeURLScope(newUrl);
+		}
+	} else if (scope) {
+		const suffix = newUrl.pathname === '/' ? '' : newUrl.pathname;
+		newUrl.pathname = `/scope:${scope}${suffix}`;
+	}
 
-  return newUrl;
+	return newUrl;
 }
 
 /**
@@ -107,11 +107,11 @@ export function setURLScope(url: URL | string, scope: string | null): URL {
  * @returns A new URL without the scope information.
  */
 export function removeURLScope(url: URL): URL {
-  if (!isURLScoped(url)) {
-    return url;
-  }
-  const newUrl = new URL(url);
-  const parts = newUrl.pathname.split('/');
-  newUrl.pathname = '/' + parts.slice(2).join('/');
-  return newUrl;
+	if (!isURLScoped(url)) {
+		return url;
+	}
+	const newUrl = new URL(url);
+	const parts = newUrl.pathname.split('/');
+	newUrl.pathname = '/' + parts.slice(2).join('/');
+	return newUrl;
 }

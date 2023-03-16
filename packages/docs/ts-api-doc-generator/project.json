@@ -51,7 +51,9 @@
 			"executor": "@nrwl/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/docs/ts-api-doc-generator/**/*.ts"]
+				"lintFilePatterns": [
+					"packages/docs/ts-api-doc-generator/**/*.ts"
+				]
 			}
 		},
 		"test": {

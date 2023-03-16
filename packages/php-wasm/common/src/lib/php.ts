@@ -8,76 +8,76 @@ declare const WorkerGlobalScope: object | undefined;
 
 type PHPRequestHeaders = Record<string, string>;
 export interface FileInfo {
-  key: string;
-  name: string;
-  type: string;
-  data: Uint8Array;
+	key: string;
+	name: string;
+	type: string;
+	data: Uint8Array;
 }
 export interface PHPRequest {
-  /**
-   * Request path following the domain:port part.
-   */
-  relativeUri?: string;
+	/**
+	 * Request path following the domain:port part.
+	 */
+	relativeUri?: string;
 
-  /**
-   * Path of the .php file to execute.
-   */
-  scriptPath?: string;
+	/**
+	 * Path of the .php file to execute.
+	 */
+	scriptPath?: string;
 
-  /**
-   * Request protocol.
-   */
-  protocol?: string;
+	/**
+	 * Request protocol.
+	 */
+	protocol?: string;
 
-  /**
-   * Request method. Default: `GET`.
-   */
-  method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
+	/**
+	 * Request method. Default: `GET`.
+	 */
+	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
 
-  /**
-   * Request headers.
-   */
-  headers?: PHPRequestHeaders;
+	/**
+	 * Request headers.
+	 */
+	headers?: PHPRequestHeaders;
 
-  /**
-   * Request body without the files.
-   */
-  body?: string;
+	/**
+	 * Request body without the files.
+	 */
+	body?: string;
 
-  /**
-   * Uploaded files.
-   */
-  fileInfos?: FileInfo[];
+	/**
+	 * Uploaded files.
+	 */
+	fileInfos?: FileInfo[];
 
-  /**
-   * The code snippet to eval instead of a php file.
-   */
-  code?: string;
+	/**
+	 * The code snippet to eval instead of a php file.
+	 */
+	code?: string;
 }
 
 export interface PHPResponse {
-  /**
-   * The exit code of the script. `0` is a success, while
-   * `1` and `2` indicate an error.
-   */
-  exitCode: number;
-  /**
-   * Response body. Contains the output from `echo`,
-   * `print`, inline HTML etc.
-   */
-  body: ArrayBuffer;
-  /**
-   * PHP errors.
-   */
-  errors: string;
-  /**
-   * Response headers.
-   */
-  headers: Record<string, string[]>;
-  /**
-   * Response HTTP status code, e.g. 200.
-   */
-  httpStatusCode: number;
+	/**
+	 * The exit code of the script. `0` is a success, while
+	 * `1` and `2` indicate an error.
+	 */
+	exitCode: number;
+	/**
+	 * Response body. Contains the output from `echo`,
+	 * `print`, inline HTML etc.
+	 */
+	body: ArrayBuffer;
+	/**
+	 * PHP errors.
+	 */
+	errors: string;
+	/**
+	 * Response headers.
+	 */
+	headers: Record<string, string[]>;
+	/**
+	 * Response HTTP status code, e.g. 200.
+	 */
+	httpStatusCode: number;
 }
 
 export type PHPRuntimeId = number;
@@ -201,223 +201,223 @@ const loadedRuntimes: PHPRuntime[] = [];
  * @returns Loaded runtime id.
  */
 export async function loadPHPRuntime(
-  phpLoaderModule: PHPLoaderModule,
-  phpModuleArgs: EmscriptenOptions = {},
-  dataDependenciesModules: DataModule[] = []
+	phpLoaderModule: PHPLoaderModule,
+	phpModuleArgs: EmscriptenOptions = {},
+	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-  let resolvePhpReady: any, resolveDepsReady: any;
-  const depsReady = new Promise((resolve) => {
-    resolveDepsReady = resolve;
-  });
-  const phpReady = new Promise((resolve) => {
-    resolvePhpReady = resolve;
-  });
+	let resolvePhpReady: any, resolveDepsReady: any;
+	const depsReady = new Promise((resolve) => {
+		resolveDepsReady = resolve;
+	});
+	const phpReady = new Promise((resolve) => {
+		resolvePhpReady = resolve;
+	});
 
-  const PHPRuntime = phpLoaderModule.default(currentJsRuntime, {
-    onAbort(reason) {
-      console.error('WASM aborted: ');
-      console.error(reason);
-    },
-    ENV: {},
-    // Emscripten sometimes prepends a '/' to the path, which
-    // breaks vite dev mode. An identity `locateFile` function
-    // fixes it.
-    locateFile: (path) => path,
-    ...phpModuleArgs,
-    noInitialRun: true,
-    onRuntimeInitialized() {
-      if (phpModuleArgs.onRuntimeInitialized) {
-        phpModuleArgs.onRuntimeInitialized();
-      }
-      resolvePhpReady();
-    },
-    monitorRunDependencies(nbLeft) {
-      if (nbLeft === 0) {
-        delete PHPRuntime.monitorRunDependencies;
-        resolveDepsReady();
-      }
-    },
-  });
-  for (const { default: loadDataModule } of dataDependenciesModules) {
-    loadDataModule(PHPRuntime);
-  }
-  if (!dataDependenciesModules.length) {
-    resolveDepsReady();
-  }
+	const PHPRuntime = phpLoaderModule.default(currentJsRuntime, {
+		onAbort(reason) {
+			console.error('WASM aborted: ');
+			console.error(reason);
+		},
+		ENV: {},
+		// Emscripten sometimes prepends a '/' to the path, which
+		// breaks vite dev mode. An identity `locateFile` function
+		// fixes it.
+		locateFile: (path) => path,
+		...phpModuleArgs,
+		noInitialRun: true,
+		onRuntimeInitialized() {
+			if (phpModuleArgs.onRuntimeInitialized) {
+				phpModuleArgs.onRuntimeInitialized();
+			}
+			resolvePhpReady();
+		},
+		monitorRunDependencies(nbLeft) {
+			if (nbLeft === 0) {
+				delete PHPRuntime.monitorRunDependencies;
+				resolveDepsReady();
+			}
+		},
+	});
+	for (const { default: loadDataModule } of dataDependenciesModules) {
+		loadDataModule(PHPRuntime);
+	}
+	if (!dataDependenciesModules.length) {
+		resolveDepsReady();
+	}
 
-  await depsReady;
-  await phpReady;
+	await depsReady;
+	await phpReady;
 
-  loadedRuntimes.push(PHPRuntime);
-  return loadedRuntimes.length - 1;
+	loadedRuntimes.push(PHPRuntime);
+	return loadedRuntimes.length - 1;
 }
 
 const currentJsRuntime = (function () {
-  if (typeof window !== 'undefined') {
-    return 'WEB';
-  } else if (
-    typeof WorkerGlobalScope !== 'undefined' &&
-    self instanceof (WorkerGlobalScope as any)
-  ) {
-    return 'WORKER';
-  } else {
-    return 'NODE';
-  }
+	if (typeof window !== 'undefined') {
+		return 'WEB';
+	} else if (
+		typeof WorkerGlobalScope !== 'undefined' &&
+		self instanceof (WorkerGlobalScope as any)
+	) {
+		return 'WORKER';
+	} else {
+		return 'NODE';
+	}
 })();
 
 export interface WithPHPIniBindings {
-  setPhpIniPath(path: string): void;
-  setPhpIniEntry(key: string, value: string): void;
+	setPhpIniPath(path: string): void;
+	setPhpIniEntry(key: string, value: string): void;
 }
 
 export interface WithCLI {
-  /**
-   * Starts a PHP CLI session with given arguments.
-   *
-   * Can only be used when PHP was compiled with the CLI SAPI.
-   * Cannot be used in conjunction with `run()`.
-   *
-   * @param  argv - The arguments to pass to the CLI.
-   * @returns The exit code of the CLI session.
-   */
-  cli(argv: string[]): Promise<number>;
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	cli(argv: string[]): Promise<number>;
 }
 
 export interface WithNodeFilesystem {
-  /**
-   * Mounts a Node.js filesystem to a given path in the PHP filesystem.
-   *
-   * @param  settings - The Node.js filesystem settings.
-   * @param  path     - The path to mount the filesystem to.
-   * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
-   */
-  mount(settings: any, path: string): void;
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  settings - The Node.js filesystem settings.
+	 * @param  path     - The path to mount the filesystem to.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(settings: any, path: string): void;
 }
 
 export interface WithFilesystem {
-  /**
-   * Recursively creates a directory with the given path in the PHP filesystem.
-   * For example, if the path is `/root/php/data`, and `/root` already exists,
-   * it will create the directories `/root/php` and `/root/php/data`.
-   *
-   * @param  path - The directory path to create.
-   */
-  mkdirTree(path: string): void;
+	/**
+	 * Recursively creates a directory with the given path in the PHP filesystem.
+	 * For example, if the path is `/root/php/data`, and `/root` already exists,
+	 * it will create the directories `/root/php` and `/root/php/data`.
+	 *
+	 * @param  path - The directory path to create.
+	 */
+	mkdirTree(path: string): void;
 
-  /**
-   * Reads a file from the PHP filesystem and returns it as a string.
-   *
-   * @throws {@link ErrnoError} – If the file doesn't exist.
-   * @param  path - The file path to read.
-   * @returns The file contents.
-   */
-  readFileAsText(path: string): string;
+	/**
+	 * Reads a file from the PHP filesystem and returns it as a string.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
+	readFileAsText(path: string): string;
 
-  /**
-   * Reads a file from the PHP filesystem and returns it as an array buffer.
-   *
-   * @throws {@link ErrnoError} – If the file doesn't exist.
-   * @param  path - The file path to read.
-   * @returns The file contents.
-   */
-  readFileAsBuffer(path: string): Uint8Array;
+	/**
+	 * Reads a file from the PHP filesystem and returns it as an array buffer.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to read.
+	 * @returns The file contents.
+	 */
+	readFileAsBuffer(path: string): Uint8Array;
 
-  /**
-   * Overwrites data in a file in the PHP filesystem.
-   * Creates a new file if one doesn't exist yet.
-   *
-   * @param  path - The file path to write to.
-   * @param  data - The data to write to the file.
-   */
-  writeFile(path: string, data: string | Uint8Array): void;
+	/**
+	 * Overwrites data in a file in the PHP filesystem.
+	 * Creates a new file if one doesn't exist yet.
+	 *
+	 * @param  path - The file path to write to.
+	 * @param  data - The data to write to the file.
+	 */
+	writeFile(path: string, data: string | Uint8Array): void;
 
-  /**
-   * Removes a file from the PHP filesystem.
-   *
-   * @throws {@link ErrnoError} – If the file doesn't exist.
-   * @param  path - The file path to remove.
-   */
-  unlink(path: string): void;
+	/**
+	 * Removes a file from the PHP filesystem.
+	 *
+	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @param  path - The file path to remove.
+	 */
+	unlink(path: string): void;
 
-  /**
-   * Lists the files and directories in the given directory.
-   *
-   * @param  path - The directory path to list.
-   * @returns The list of files and directories in the given directory.
-   */
-  listFiles(path: string): string[];
+	/**
+	 * Lists the files and directories in the given directory.
+	 *
+	 * @param  path - The directory path to list.
+	 * @returns The list of files and directories in the given directory.
+	 */
+	listFiles(path: string): string[];
 
-  /**
-   * Checks if a directory exists in the PHP filesystem.
-   *
-   * @param  path – The path to check.
-   * @returns True if the path is a directory, false otherwise.
-   */
-  isDir(path: string): boolean;
+	/**
+	 * Checks if a directory exists in the PHP filesystem.
+	 *
+	 * @param  path – The path to check.
+	 * @returns True if the path is a directory, false otherwise.
+	 */
+	isDir(path: string): boolean;
 
-  /**
-   * Checks if a file (or a directory) exists in the PHP filesystem.
-   *
-   * @param  path - The file path to check.
-   * @returns True if the file exists, false otherwise.
-   */
-  fileExists(path: string): boolean;
+	/**
+	 * Checks if a file (or a directory) exists in the PHP filesystem.
+	 *
+	 * @param  path - The file path to check.
+	 * @returns True if the file exists, false otherwise.
+	 */
+	fileExists(path: string): boolean;
 }
 
 export interface WithRun {
-  /**
-   * Dispatches a PHP request.
-   * Cannot be used in conjunction with `cli()`.
-   *
-   * @example
-   * ```js
-   * const output = php.run('<?php echo "Hello world!";');
-   * console.log(output.stdout); // "Hello world!"
-   * ```
-   *
-   * @example
-   * ```js
-   * console.log(php.run(`<?php
-   *  $fp = fopen('php://stderr', 'w');
-   *  fwrite($fp, "Hello, world!");
-   * `));
-   * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
-   * ```
-   *
-   * @param  request - PHP Request data.
-   */
-  run(request?: PHPRequest): PHPResponse;
+	/**
+	 * Dispatches a PHP request.
+	 * Cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const output = php.run('<?php echo "Hello world!";');
+	 * console.log(output.stdout); // "Hello world!"
+	 * ```
+	 *
+	 * @example
+	 * ```js
+	 * console.log(php.run(`<?php
+	 *  $fp = fopen('php://stderr', 'w');
+	 *  fwrite($fp, "Hello, world!");
+	 * `));
+	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
+	 * ```
+	 *
+	 * @param  request - PHP Request data.
+	 */
+	run(request?: PHPRequest): PHPResponse;
 }
 
 export type PHPRuntime = any;
 
 export type PHPLoaderModule = {
-  dependencyFilename: string;
-  dependenciesTotalSize: number;
-  default: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
+	dependencyFilename: string;
+	dependenciesTotalSize: number;
+	default: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
 };
 
 export type DataModule = {
-  dependencyFilename: string;
-  dependenciesTotalSize: number;
-  default: (phpRuntime: PHPRuntime) => void;
+	dependencyFilename: string;
+	dependenciesTotalSize: number;
+	default: (phpRuntime: PHPRuntime) => void;
 };
 
 export type EmscriptenOptions = {
-  onAbort?: (message: string) => void;
-  ENV?: Record<string, string>;
-  locateFile?: (path: string) => string;
-  noInitialRun?: boolean;
-  dataFileDownloads?: Record<string, number>;
-  print?: (message: string) => void;
-  printErr?: (message: string) => void;
-  onRuntimeInitialized?: () => void;
-  monitorRunDependencies?: (left: number) => void;
+	onAbort?: (message: string) => void;
+	ENV?: Record<string, string>;
+	locateFile?: (path: string) => string;
+	noInitialRun?: boolean;
+	dataFileDownloads?: Record<string, number>;
+	print?: (message: string) => void;
+	printErr?: (message: string) => void;
+	onRuntimeInitialized?: () => void;
+	monitorRunDependencies?: (left: number) => void;
 } & Record<string, any>;
 
 export type MountSettings = {
-  root: string;
-  mountpoint: string;
+	root: string;
+	mountpoint: string;
 };
 
 /**
@@ -432,330 +432,363 @@ export type MountSettings = {
  * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
 export class PHP
-  implements WithPHPIniBindings, WithFilesystem, WithNodeFilesystem, WithCLI, WithRun
+	implements
+		WithPHPIniBindings,
+		WithFilesystem,
+		WithNodeFilesystem,
+		WithCLI,
+		WithRun
 {
-  #Runtime: any;
-  #phpIniOverrides: [string, string][] = [];
-  #webSapiInitialized = false;
+	#Runtime: any;
+	#phpIniOverrides: [string, string][] = [];
+	#webSapiInitialized = false;
 
-  /**
-   * Initializes a PHP runtime.
-   *
-   * @internal
-   * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
-   */
-  constructor(PHPRuntimeId?: PHPRuntimeId) {
-    if (PHPRuntimeId !== undefined) {
-      this.initializeRuntime(PHPRuntimeId);
-    }
-  }
+	/**
+	 * Initializes a PHP runtime.
+	 *
+	 * @internal
+	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
+	 */
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
+		if (PHPRuntimeId !== undefined) {
+			this.initializeRuntime(PHPRuntimeId);
+		}
+	}
 
-  initializeRuntime(runtimeId: PHPRuntimeId) {
-    if (this.#Runtime) {
-      throw new Error('PHP runtime already initialized.');
-    }
-    if (!loadedRuntimes[runtimeId]) {
-      throw new Error('Invalid PHP runtime id.');
-    }
-    this.#Runtime = loadedRuntimes[runtimeId];
-  }
+	initializeRuntime(runtimeId: PHPRuntimeId) {
+		if (this.#Runtime) {
+			throw new Error('PHP runtime already initialized.');
+		}
+		if (!loadedRuntimes[runtimeId]) {
+			throw new Error('Invalid PHP runtime id.');
+		}
+		this.#Runtime = loadedRuntimes[runtimeId];
+	}
 
-  setPhpIniPath(path: string) {
-    if (this.#webSapiInitialized) {
-      throw new Error('Cannot set PHP ini path after calling run().');
-    }
-    this.#Runtime.ccall('wasm_set_phpini_path', null, ['string'], [path]);
-  }
+	setPhpIniPath(path: string) {
+		if (this.#webSapiInitialized) {
+			throw new Error('Cannot set PHP ini path after calling run().');
+		}
+		this.#Runtime.ccall('wasm_set_phpini_path', null, ['string'], [path]);
+	}
 
-  setPhpIniEntry(key: string, value: string) {
-    if (this.#webSapiInitialized) {
-      throw new Error('Cannot set PHP ini entries after calling run().');
-    }
-    this.#phpIniOverrides.push([key, value]);
-  }
+	setPhpIniEntry(key: string, value: string) {
+		if (this.#webSapiInitialized) {
+			throw new Error('Cannot set PHP ini entries after calling run().');
+		}
+		this.#phpIniOverrides.push([key, value]);
+	}
 
-  run(request: PHPRequest = {}): PHPResponse {
-    if (!this.#webSapiInitialized) {
-      this.#initWebRuntime();
-      this.#webSapiInitialized = true;
-    }
-    this.#setScriptPath(request.scriptPath || '');
-    this.#setRelativeRequestUri(request.relativeUri || '');
-    this.#setRequestMethod(request.method || 'GET');
-    const { host, ...headers } = {
-      host: 'example.com:443',
-      ...normalizeHeaders(request.headers || {}),
-    };
-    this.#setRequestHostAndProtocol(host, request.protocol || 'http');
-    this.#setRequestHeaders(headers);
-    if (request.body) {
-      this.#setRequestBody(request.body);
-    }
-    if (request.fileInfos) {
-      for (const file of request.fileInfos) {
-        this.#addUploadedFile(file);
-      }
-    }
-    if (request.code) {
-      this.#setPHPCode(' ?>' + request.code);
-    }
-    return this.#handleRequest();
-  }
+	run(request: PHPRequest = {}): PHPResponse {
+		if (!this.#webSapiInitialized) {
+			this.#initWebRuntime();
+			this.#webSapiInitialized = true;
+		}
+		this.#setScriptPath(request.scriptPath || '');
+		this.#setRelativeRequestUri(request.relativeUri || '');
+		this.#setRequestMethod(request.method || 'GET');
+		const { host, ...headers } = {
+			host: 'example.com:443',
+			...normalizeHeaders(request.headers || {}),
+		};
+		this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+		this.#setRequestHeaders(headers);
+		if (request.body) {
+			this.#setRequestBody(request.body);
+		}
+		if (request.fileInfos) {
+			for (const file of request.fileInfos) {
+				this.#addUploadedFile(file);
+			}
+		}
+		if (request.code) {
+			this.#setPHPCode(' ?>' + request.code);
+		}
+		return this.#handleRequest();
+	}
 
-  #initWebRuntime() {
-    if (this.#phpIniOverrides.length > 0) {
-      const overridesAsIni = this.#phpIniOverrides
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
-      this.#Runtime.ccall(
-        'wasm_set_phpini_entries',
-        null,
-        [STR],
-        [overridesAsIni]
-      );
-    }
-    this.#Runtime.ccall('php_wasm_init', null, [], []);
-  }
+	#initWebRuntime() {
+		if (this.#phpIniOverrides.length > 0) {
+			const overridesAsIni = this.#phpIniOverrides
+				.map(([key, value]) => `${key}=${value}`)
+				.join('\n');
+			this.#Runtime.ccall(
+				'wasm_set_phpini_entries',
+				null,
+				[STR],
+				[overridesAsIni]
+			);
+		}
+		this.#Runtime.ccall('php_wasm_init', null, [], []);
+	}
 
-  cli(argv: string[]): Promise<number> {
-    for (const arg of argv) {
-      this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
-    }
-    return this.#Runtime.ccall('run_cli', null, [], [], { async: true });
-  }
+	cli(argv: string[]): Promise<number> {
+		for (const arg of argv) {
+			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
+		}
+		return this.#Runtime.ccall('run_cli', null, [], [], { async: true });
+	}
 
-  #getResponseHeaders(): { headers: PHPResponse['headers']; httpStatusCode: number } {
-    const headersFilePath = '/tmp/headers.json';
-    if (!this.fileExists(headersFilePath)) {
-      throw new Error('SAPI Error: Could not find response headers file.');
-    }
+	#getResponseHeaders(): {
+		headers: PHPResponse['headers'];
+		httpStatusCode: number;
+	} {
+		const headersFilePath = '/tmp/headers.json';
+		if (!this.fileExists(headersFilePath)) {
+			throw new Error(
+				'SAPI Error: Could not find response headers file.'
+			);
+		}
 
-    const headersData = JSON.parse(this.readFileAsText(headersFilePath));
-    const headers: PHPResponse['headers'] = {};
-    for (const line of headersData.headers) {
-      if (!line.includes(': ')) {
-        continue;
-      }
-      const colonIndex = line.indexOf(': ');
-      const headerName = line.substring(0, colonIndex).toLowerCase();
-      const headerValue = line.substring(colonIndex + 2);
-      if (!(headerName in headers)) {
-        headers[headerName] = [] as string[];
-      }
-      headers[headerName].push(headerValue);
-    }
-    return {
-      headers,
-      httpStatusCode: headersData.status,
-    };
-  }
+		const headersData = JSON.parse(this.readFileAsText(headersFilePath));
+		const headers: PHPResponse['headers'] = {};
+		for (const line of headersData.headers) {
+			if (!line.includes(': ')) {
+				continue;
+			}
+			const colonIndex = line.indexOf(': ');
+			const headerName = line.substring(0, colonIndex).toLowerCase();
+			const headerValue = line.substring(colonIndex + 2);
+			if (!(headerName in headers)) {
+				headers[headerName] = [] as string[];
+			}
+			headers[headerName].push(headerValue);
+		}
+		return {
+			headers,
+			httpStatusCode: headersData.status,
+		};
+	}
 
-  #setRelativeRequestUri(uri: string) {
-    this.#Runtime.ccall('wasm_set_request_uri', null, [STR], [uri]);
-    if (uri.includes('?')) {
-      const queryString = uri.substring(uri.indexOf('?') + 1);
-      this.#Runtime.ccall('wasm_set_query_string', null, [STR], [queryString]);
-    }
-  }
+	#setRelativeRequestUri(uri: string) {
+		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], [uri]);
+		if (uri.includes('?')) {
+			const queryString = uri.substring(uri.indexOf('?') + 1);
+			this.#Runtime.ccall(
+				'wasm_set_query_string',
+				null,
+				[STR],
+				[queryString]
+			);
+		}
+	}
 
-  #setRequestHostAndProtocol(host: string, protocol: string) {
-    this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
+	#setRequestHostAndProtocol(host: string, protocol: string) {
+		this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
 
-    let port;
-    try {
-      port = parseInt(new URL(host).port, 10);
-    } catch (e) {
-      // ignore
-    }
+		let port;
+		try {
+			port = parseInt(new URL(host).port, 10);
+		} catch (e) {
+			// ignore
+		}
 
-    if (!port || isNaN(port) || port === 80) {
-      port = protocol === 'https' ? 443 : 80;
-    }
-    this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
+		if (!port || isNaN(port) || port === 80) {
+			port = protocol === 'https' ? 443 : 80;
+		}
+		this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
 
-    if (protocol === 'https' || (!protocol && port === 443)) {
-      this.addServerGlobalEntry('HTTPS', 'on');
-    }
-  }
+		if (protocol === 'https' || (!protocol && port === 443)) {
+			this.addServerGlobalEntry('HTTPS', 'on');
+		}
+	}
 
-  #setRequestMethod(method: string) {
-    this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
-  }
+	#setRequestMethod(method: string) {
+		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
+	}
 
-  setSkipShebang(shouldSkip: boolean) {
-    this.#Runtime.ccall(
-      'wasm_set_skip_shebang',
-      null,
-      [NUM],
-      [shouldSkip ? 1 : 0]
-    );
-  }
+	setSkipShebang(shouldSkip: boolean) {
+		this.#Runtime.ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUM],
+			[shouldSkip ? 1 : 0]
+		);
+	}
 
-  #setRequestHeaders(headers: PHPRequestHeaders) {
-    if (headers['cookie']) {
-      this.#Runtime.ccall('wasm_set_cookies', null, [STR], [headers['cookie']]);
-    }
-    if (headers['content-type']) {
-      this.#Runtime.ccall(
-        'wasm_set_content_type',
-        null,
-        [STR],
-        [headers['content-type']]
-      );
-    }
-    if (headers['content-length']) {
-      this.#Runtime.ccall(
-        'wasm_set_content_length',
-        null,
-        [NUM],
-        [parseInt(headers['content-length'], 10)]
-      );
-    }
-    for (const name in headers) {
-      this.addServerGlobalEntry(
-        `HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
-        headers[name]
-      );
-    }
-  }
+	#setRequestHeaders(headers: PHPRequestHeaders) {
+		if (headers['cookie']) {
+			this.#Runtime.ccall(
+				'wasm_set_cookies',
+				null,
+				[STR],
+				[headers['cookie']]
+			);
+		}
+		if (headers['content-type']) {
+			this.#Runtime.ccall(
+				'wasm_set_content_type',
+				null,
+				[STR],
+				[headers['content-type']]
+			);
+		}
+		if (headers['content-length']) {
+			this.#Runtime.ccall(
+				'wasm_set_content_length',
+				null,
+				[NUM],
+				[parseInt(headers['content-length'], 10)]
+			);
+		}
+		for (const name in headers) {
+			this.addServerGlobalEntry(
+				`HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
+				headers[name]
+			);
+		}
+	}
 
-  #setRequestBody(body: string) {
-    this.#Runtime.ccall('wasm_set_request_body', null, [STR], [body]);
-    this.#Runtime.ccall('wasm_set_content_length', null, [NUM], [body.length]);
-  }
+	#setRequestBody(body: string) {
+		this.#Runtime.ccall('wasm_set_request_body', null, [STR], [body]);
+		this.#Runtime.ccall(
+			'wasm_set_content_length',
+			null,
+			[NUM],
+			[body.length]
+		);
+	}
 
-  #setScriptPath(path: string) {
-    this.#Runtime.ccall('wasm_set_path_translated', null, [STR], [path]);
-  }
+	#setScriptPath(path: string) {
+		this.#Runtime.ccall('wasm_set_path_translated', null, [STR], [path]);
+	}
 
-  addServerGlobalEntry(key: string, value: string) {
-    this.#Runtime.ccall(
-      'wasm_add_SERVER_entry',
-      null,
-      [STR, STR],
-      [key, value]
-    );
-  }
+	addServerGlobalEntry(key: string, value: string) {
+		this.#Runtime.ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STR, STR],
+			[key, value]
+		);
+	}
 
-  /**
-   * Adds file information to $_FILES superglobal in PHP.
-   *
-   * In particular:
-   * * Creates the file data in the filesystem
-   * * Registers the file details in PHP
-   *
-   * @param  fileInfo - File details
-   */
-  #addUploadedFile(fileInfo: FileInfo) {
-    const { key, name, type, data } = fileInfo;
+	/**
+	 * Adds file information to $_FILES superglobal in PHP.
+	 *
+	 * In particular:
+	 * * Creates the file data in the filesystem
+	 * * Registers the file details in PHP
+	 *
+	 * @param  fileInfo - File details
+	 */
+	#addUploadedFile(fileInfo: FileInfo) {
+		const { key, name, type, data } = fileInfo;
 
-    const tmpPath = `/tmp/${Math.random().toFixed(20)}`;
-    this.writeFile(tmpPath, data);
+		const tmpPath = `/tmp/${Math.random().toFixed(20)}`;
+		this.writeFile(tmpPath, data);
 
-    const error = 0;
-    this.#Runtime.ccall(
-      'wasm_add_uploaded_file',
-      null,
-      [STR, STR, STR, STR, NUM, NUM],
-      [key, name, type, tmpPath, error, data.byteLength]
-    );
-  }
+		const error = 0;
+		this.#Runtime.ccall(
+			'wasm_add_uploaded_file',
+			null,
+			[STR, STR, STR, STR, NUM, NUM],
+			[key, name, type, tmpPath, error, data.byteLength]
+		);
+	}
 
-  #setPHPCode(code: string) {
-    this.#Runtime.ccall('wasm_set_php_code', null, [STR], [code]);
-  }
+	#setPHPCode(code: string) {
+		this.#Runtime.ccall('wasm_set_php_code', null, [STR], [code]);
+	}
 
-  #handleRequest(): PHPResponse {
-    const exitCode = this.#Runtime.ccall(
-      'wasm_sapi_handle_request',
-      NUM,
-      [],
-      []
-    );
+	#handleRequest(): PHPResponse {
+		const exitCode = this.#Runtime.ccall(
+			'wasm_sapi_handle_request',
+			NUM,
+			[],
+			[]
+		);
 
-    return {
-      exitCode,
-      body: this.readFileAsBuffer('/tmp/stdout'),
-      errors: this.readFileAsText('/tmp/stderr'),
-      ...this.#getResponseHeaders(),
-    };
-  }
+		return {
+			exitCode,
+			body: this.readFileAsBuffer('/tmp/stdout'),
+			errors: this.readFileAsText('/tmp/stderr'),
+			...this.#getResponseHeaders(),
+		};
+	}
 
-  mkdirTree(path: string) {
-    this.#Runtime.FS.mkdirTree(path);
-  }
+	mkdirTree(path: string) {
+		this.#Runtime.FS.mkdirTree(path);
+	}
 
-  readFileAsText(path: string) {
-    return new TextDecoder().decode(this.readFileAsBuffer(path));
-  }
+	readFileAsText(path: string) {
+		return new TextDecoder().decode(this.readFileAsBuffer(path));
+	}
 
-  readFileAsBuffer(path: string): Uint8Array {
-    return this.#Runtime.FS.readFile(path);
-  }
+	readFileAsBuffer(path: string): Uint8Array {
+		return this.#Runtime.FS.readFile(path);
+	}
 
-  writeFile(path: string, data: string | Uint8Array) {
-    this.#Runtime.FS.writeFile(path, data);
-  }
+	writeFile(path: string, data: string | Uint8Array) {
+		this.#Runtime.FS.writeFile(path, data);
+	}
 
-  unlink(path: string) {
-    this.#Runtime.FS.unlink(path);
-  }
+	unlink(path: string) {
+		this.#Runtime.FS.unlink(path);
+	}
 
-  listFiles(path: string): string[] {
-    if (!this.fileExists(path)) {
-      return [];
-    }
-    try {
-      return this.#Runtime.FS.readdir(path).filter(
-        (name: string) => name !== '.' && name !== '..'
-      );
-    } catch (e) {
-      console.error(e, { path });
-      return [];
-    }
-  }
+	listFiles(path: string): string[] {
+		if (!this.fileExists(path)) {
+			return [];
+		}
+		try {
+			return this.#Runtime.FS.readdir(path).filter(
+				(name: string) => name !== '.' && name !== '..'
+			);
+		} catch (e) {
+			console.error(e, { path });
+			return [];
+		}
+	}
 
-  isDir(path: string): boolean {
-    if (!this.fileExists(path)) {
-      return false;
-    }
-    return this.#Runtime.FS.isDir(this.#Runtime.FS.lookupPath(path).node.mode);
-  }
+	isDir(path: string): boolean {
+		if (!this.fileExists(path)) {
+			return false;
+		}
+		return this.#Runtime.FS.isDir(
+			this.#Runtime.FS.lookupPath(path).node.mode
+		);
+	}
 
-  fileExists(path: string): boolean {
-    try {
-      this.#Runtime.FS.lookupPath(path);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
+	fileExists(path: string): boolean {
+		try {
+			this.#Runtime.FS.lookupPath(path);
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
 
-  mount(settings: MountSettings, path: string) {
-    this.#Runtime.FS.mount(this.#Runtime.FS.filesystems.NODEFS, settings, path);
-  }
+	mount(settings: MountSettings, path: string) {
+		this.#Runtime.FS.mount(
+			this.#Runtime.FS.filesystems.NODEFS,
+			settings,
+			path
+		);
+	}
 }
 
-function normalizeHeaders(headers: PHPRequest['headers']): PHPRequest['headers'] {
-  const normalized: PHPRequest['headers'] = {};
-  for (const key in headers) {
-    normalized[key.toLowerCase()] = headers[key];
-  }
-  return normalized;
+function normalizeHeaders(
+	headers: PHPRequest['headers']
+): PHPRequest['headers'] {
+	const normalized: PHPRequest['headers'] = {};
+	for (const key in headers) {
+		normalized[key.toLowerCase()] = headers[key];
+	}
+	return normalized;
 }
 
 /**
  * Output of the PHP.wasm runtime.
  */
 export interface PHPOutput {
-  /** Exit code of the PHP process. 0 means success, 1 and 2 mean error. */
-  exitCode: number;
+	/** Exit code of the PHP process. 0 means success, 1 and 2 mean error. */
+	exitCode: number;
 
-  /** Stdout data */
-  stdout: ArrayBuffer;
+	/** Stdout data */
+	stdout: ArrayBuffer;
 
-  /** Stderr lines */
-  stderr: string[];
+	/** Stderr lines */
+	stderr: string[];
 }
 
 /**

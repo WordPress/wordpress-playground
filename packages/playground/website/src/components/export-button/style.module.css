@@ -1,10 +1,10 @@
 .btn {
-  cursor: pointer;
-  background: none;
-  border: none;
+	cursor: pointer;
+	background: none;
+	border: none;
 }
 
 .btn:hover,
 .btn:active {
-  opacity: 0.8;
+	opacity: 0.8;
 }

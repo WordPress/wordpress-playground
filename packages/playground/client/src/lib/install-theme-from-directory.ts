@@ -1,6 +1,6 @@
 import {
-  ProgressObserver,
-  cloneResponseMonitorProgress,
+	ProgressObserver,
+	cloneResponseMonitorProgress,
 } from '@wp-playground/php-wasm-progress';
 import type { PlaygroundClient } from '../';
 
@@ -8,40 +8,40 @@ import { installTheme } from './install-theme';
 import { zipNameToHumanName } from './common';
 
 export async function installThemeFromDirectory(
-  playground: PlaygroundClient,
-  themeZipName: string,
-  progressBudget = 0,
-  progress?: ProgressObserver
+	playground: PlaygroundClient,
+	themeZipName: string,
+	progressBudget = 0,
+	progress?: ProgressObserver
 ) {
-  // Download the theme file
-  let response = await fetch('/plugin-proxy?theme=' + themeZipName);
-  if (progress) {
-    response = cloneResponseMonitorProgress(
-      response,
-      progress.partialObserver(
-        progressBudget / 2,
-        `Installing ${zipNameToHumanName(themeZipName)} theme...`
-      )
-    );
-    progress.slowlyIncrementBy(progressBudget / 2);
-  }
+	// Download the theme file
+	let response = await fetch('/plugin-proxy?theme=' + themeZipName);
+	if (progress) {
+		response = cloneResponseMonitorProgress(
+			response,
+			progress.partialObserver(
+				progressBudget / 2,
+				`Installing ${zipNameToHumanName(themeZipName)} theme...`
+			)
+		);
+		progress.slowlyIncrementBy(progressBudget / 2);
+	}
 
-  if (response.status === 200) {
-    const themeFile = new File([await response.blob()], themeZipName);
+	if (response.status === 200) {
+		const themeFile = new File([await response.blob()], themeZipName);
 
-    try {
-      await installTheme(playground, themeFile);
-    } catch (error) {
-      console.error(
-        `Proceeding without the ${themeZipName} theme. Could not install it in wp-admin. ` +
-          `The original error was: ${error}`
-      );
-      console.error(error);
-    }
-  } else {
-    console.error(
-      `Proceeding without the ${themeZipName} theme. Could not download the zip bundle from https://downloads.wordpress.org/themes/${themeZipName} – ` +
-        `Is the file name correct?`
-    );
-  }
+		try {
+			await installTheme(playground, themeFile);
+		} catch (error) {
+			console.error(
+				`Proceeding without the ${themeZipName} theme. Could not install it in wp-admin. ` +
+					`The original error was: ${error}`
+			);
+			console.error(error);
+		}
+	} else {
+		console.error(
+			`Proceeding without the ${themeZipName} theme. Could not download the zip bundle from https://downloads.wordpress.org/themes/${themeZipName} – ` +
+				`Is the file name correct?`
+		);
+	}
 }

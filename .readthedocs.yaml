@@ -12,10 +12,9 @@ version: 2
 #     python: "3.10"
 
 mkdocs:
-  configuration: mkdocs.yml
+    configuration: mkdocs.yml
 
 # Optionally declare the Python requirements required to build your docs
 python:
-   install:
-   - requirements: docs/requirements.txt
-
+    install:
+        - requirements: docs/requirements.txt

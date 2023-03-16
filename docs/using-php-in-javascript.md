@@ -3,7 +3,11 @@
 The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web) and [`php-wasm-node`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/node) modules bring PHP into JavaScript as a WebAssembly module:
 
 ```js
-import { PHP, getPHPLoaderModule, loadPHPRuntime } from '@wp-playground/php-wasm-web';
+import {
+	PHP,
+	getPHPLoaderModule,
+	loadPHPRuntime,
+} from '@wp-playground/php-wasm-web';
 
 const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
 const php = new PHP(runtime);
@@ -101,7 +105,7 @@ export default function (jsEnv, emscriptenModuleArgs) {}
 
 ### Building
 
-To build the JavaScript API, just build the entire project with `yarn run build:all`. 
+To build the JavaScript API, just build the entire project with `yarn run build:all`.
 
 ## API
 
@@ -117,29 +121,29 @@ loadPHPRuntime<!-- -->(\
 &emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [DataModule](api/php-wasm-web.loadphpruntime.md)<!-- -->[]\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
 
-* `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
-* `phpModuleArgs` – Optional. The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
-* `dataDependenciesModules` – Optional. A list of the ESM-wrapped Emscripten data dependency modules.
-* Returns: Loaded runtime id.
-
+-   `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
+-   `phpModuleArgs` – Optional. The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
+-   `dataDependenciesModules` – Optional. A list of the ESM-wrapped Emscripten data dependency modules.
+-   Returns: Loaded runtime id.
 
 Loads the PHP runtime with the given arguments and data dependencies.
 
 This function handles the entire PHP initialization pipeline. In particular, it:
 
-* Instantiates the Emscripten PHP module
-* Wires it together with the data dependencies and loads them
-* Ensures is all happens in a correct order
-* Waits until the entire loading sequence is finished
+-   Instantiates the Emscripten PHP module
+-   Wires it together with the data dependencies and loads them
+-   Ensures is all happens in a correct order
+-   Waits until the entire loading sequence is finished
 
 Basic usage:
 
 ```js
- const phpLoaderModule = await getPHPLoaderModule("7.4");
- const php = await loadPHPRuntime( phpLoaderModule );
- console.log(php.run(`<?php echo "Hello, world!"; `));
- // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
+const phpLoaderModule = await getPHPLoaderModule('7.4');
+const php = await loadPHPRuntime(phpLoaderModule);
+console.log(php.run(`<?php echo "Hello, world!"; `));
+// { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
+
 **The PHP loader module:**
 
 In the basic usage example, `phpLoaderModule` is **not** a vanilla Emscripten module. Instead,
@@ -155,8 +159,9 @@ export const dependenciesTotalSize = 5644199;
 export const dependencyFilename = 'php.wasm';
 
 // Run Emscripten's generated module:
-export default function(jsEnv, emscriptenModuleArgs) {}
+export default function (jsEnv, emscriptenModuleArgs) {}
 ```
+
 **PHP Filesystem:**
 
 Once initialized, the PHP has its own filesystem separate from the project
@@ -185,6 +190,7 @@ console.log(php.readFile('/var/www/file.txt'));
 // Delete the file:
 php.unlink('/var/www/file.txt');
 ```
+
 For more details consult the PHP class directly.
 
 **Data dependencies:**
@@ -210,23 +216,25 @@ You want the final output to look as follows:
 ```js
 export const dependenciesTotalSize = 5644199;
 export const dependencyFilename = 'dependency.data';
-export default function(emscriptenPHPModule) {
-   // Emscripten-generated code:
-   var Module = typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
-   // ... the rest of it ...
+export default function (emscriptenPHPModule) {
+	// Emscripten-generated code:
+	var Module =
+		typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
+	// ... the rest of it ...
 }
 ```
+
 Such a constructions enables loading the `dependency.js` as an ES Module using
 `import("/dependency.js")`<!-- -->.
 
 Once it's ready, you can load PHP and your data dependencies as follows:
 
 ```js
- const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
-   getPHPLoaderModule("7.4"),
-   import("/wp.js")
- ]);
- const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
+const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
+	getPHPLoaderModule('7.4'),
+	import('/wp.js'),
+]);
+const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
 ```
 
 <!-- /include /docs/api/php-wasm-web.loadphpruntime.md#loadPHPRuntime() function -->
@@ -238,8 +246,9 @@ Once it's ready, you can load PHP and your data dependencies as follows:
 <b>Signature:</b>
 
 ```typescript
-class PHPServer 
+class PHPServer
 ```
+
 A fake PHP server that handles HTTP requests but does not
 bind to any port.
 
@@ -247,73 +256,66 @@ bind to any port.
 
 ### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](api/php-wasm-web.phpserver.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](api/php-wasm-web.phpserver.md)<!-- -->)
 
-* `php` – The PHP instance.
-* `config` – Optional. Server configuration.
+-   `php` – The PHP instance.
+-   `config` – Optional. Server configuration.
 
 Constructs a new instance of the `PHPServer` class
 
 ## Properties
 
-* `absoluteUrl`   readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
-* `documentRoot`   readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
-* `php`    [PHP](api/php-wasm-web.phpserver.md) – The PHP instance
+-   `absoluteUrl` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
+-   `documentRoot` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
+-   `php` [PHP](api/php-wasm-web.phpserver.md) – The PHP instance
 
 ## Methods
 
 ### internalUrlToPath<!-- -->(<!-- -->internalUrl<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
-* `internalUrl` – An absolute URL based at the PHPServer root.
-* Returns: The relative path.
-
+-   `internalUrl` – An absolute URL based at the PHPServer root.
+-   Returns: The relative path.
 
 Converts an absolute URL based at the PHPServer to a relative path
 without the server pathname and scope.
 
-
 ### pathToInternalUrl<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
-* `path` – The server path to convert to an absolute URL.
-* Returns: The absolute URL.
-
+-   `path` – The server path to convert to an absolute URL.
+-   Returns: The absolute URL.
 
 Converts a path to an absolute URL based at the PHPServer
 root.
 
-
 ### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](api/php-wasm-web.phpserver.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](api/php-wasm-web.phpserver.md)<!-- -->&gt;
 
-* `request` – The request.
-* Returns: The response.
-
+-   `request` – The request.
+-   Returns: The response.
 
 Serves the request – either by serving a static file, or by
 dispatching it to the PHP runtime.
-
-
 
 ## Example
 
 ```js
 import {
-  loadPHPRuntime,
-  PHP,
-  PHPServer,
-  PHPBrowser,
-  getPHPLoaderModule,
+	loadPHPRuntime,
+	PHP,
+	PHPServer,
+	PHPBrowser,
+	getPHPLoaderModule,
 } from '@wp-playground/php-wasm-web';
 
-const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
-const php = new PHP( runtime );
+const runtime = await loadPHPRuntime(await getPHPLoaderModule('7.4'));
+const php = new PHP(runtime);
 
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
 const server = new PHPServer(php, {
-    // PHP FS path to serve the files from:
-    documentRoot: '/www',
+	// PHP FS path to serve the files from:
+	documentRoot: '/www',
 
-    // Used to populate $_SERVER['SERVER_NAME'] etc.:
-    absoluteUrl: 'http://127.0.0.1'
+	// Used to populate $_SERVER['SERVER_NAME'] etc.:
+	absoluteUrl: 'http://127.0.0.1',
 });
 
 const output = server.request({ path: '/index.php' }).body;

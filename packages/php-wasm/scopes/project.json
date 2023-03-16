@@ -1,39 +1,39 @@
 {
-  "name": "php-wasm-scopes",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "packages/php-wasm/scopes/src",
-  "projectType": "library",
-  "targets": {
-    "build": {
-      "executor": "@wp-playground/nx-extensions:package-json",
-      "options": {
-        "tsConfig": "packages/php-wasm/scopes/tsconfig.lib.json",
-        "outputPath": "dist/packages/php-wasm/scopes",
-        "buildTarget": "php-wasm-scopes:build:bundle:production"
-      }
-    },
-    "build:bundle": {
-      "executor": "@nrwl/vite:build",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "outputPath": "dist/packages/php-wasm/scopes"
-      }
-    },
-    "lint": {
-      "executor": "@nrwl/linter:eslint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["packages/php-wasm/scopes/**/*.ts"]
-      }
-    },
-    "test": {
-      "executor": "@nrwl/vite:test",
-      "outputs": ["coverage/packages/php-wasm/scopes"],
-      "options": {
-        "passWithNoTests": true,
-        "reportsDirectory": "../../../coverage/packages/php-wasm/scopes"
-      }
-    }
-  },
-  "tags": []
+	"name": "php-wasm-scopes",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/scopes/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/php-wasm/scopes/tsconfig.lib.json",
+				"outputPath": "dist/packages/php-wasm/scopes",
+				"buildTarget": "php-wasm-scopes:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nrwl/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/scopes"
+			}
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/php-wasm/scopes/**/*.ts"]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/vite:test",
+			"outputs": ["coverage/packages/php-wasm/scopes"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/scopes"
+			}
+		}
+	},
+	"tags": []
 }

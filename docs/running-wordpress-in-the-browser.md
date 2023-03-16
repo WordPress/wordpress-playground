@@ -31,7 +31,9 @@ Once `bootPlaygroundRemote` finishes, you can use the [`PlaygroundClient`](./api
 For example, you can run PHP code using the `run` method:
 
 ```js
-const result = await playgroundClient.run({ code: `<?php echo "Hello, world!";` });
+const result = await playgroundClient.run({
+	code: `<?php echo "Hello, world!";`,
+});
 console.log(result);
 // { stdout: Uint8Array(["Hello, world!"]), stderr: [''], exitCode: 0 }
 ```

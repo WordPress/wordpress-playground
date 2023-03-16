@@ -64,7 +64,13 @@ const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
 const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 const [setApiReady, publicApi] = exposeAPI(
-	new PlaygroundWorkerClientClass(browser, monitor, scope, wpVersion, phpVersion)
+	new PlaygroundWorkerClientClass(
+		browser,
+		monitor,
+		scope,
+		wpVersion,
+		phpVersion
+	)
 );
 
 export type PlaygroundWorkerClient = typeof publicApi;

@@ -19,7 +19,7 @@ export default function tsDocToApiMarkdown(config: TsDocToApiMarkdownConfig) {
 			),
 			outdir: fs.mkdtempSync(path.join(os.tmpdir(), 'api-json')),
 			repoUrl: config.repoUrl,
-			tsconfig: config.tsconfig
+			tsconfig: config.tsconfig,
 		}),
 		config.outdir
 	);

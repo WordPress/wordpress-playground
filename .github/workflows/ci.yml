@@ -1,25 +1,25 @@
 name: CI
 on:
-  push:
-    branches:
-      - trunk
-  pull_request:
+    push:
+        branches:
+            - trunk
+    pull_request:
 
 jobs:
-  main:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - uses: nrwl/nx-set-shas@v3
-        with:
-          main-branch-name: 'trunk'
-      - run: npm install -g yarn nx
-      - run: yarn install --frozen-lockfile
+    main:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
+            - uses: nrwl/nx-set-shas@v3
+              with:
+                  main-branch-name: 'trunk'
+            - run: npm install -g yarn nx
+            - run: yarn install --frozen-lockfile
 
-      - run: nx format:check
-      - run: nx affected --target=lint --parallel=3
-      # No test setup yet
-      # - run: nx affected --target=test --parallel=3 --configuration=ci
-      - run: nx affected --target=build --parallel=3
+            - run: nx format:check
+            - run: nx affected --target=lint --parallel=3
+            # No test setup yet
+            # - run: nx affected --target=test --parallel=3 --configuration=ci
+            - run: nx affected --target=build --parallel=3

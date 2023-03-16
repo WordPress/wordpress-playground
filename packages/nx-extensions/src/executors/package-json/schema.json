@@ -1,30 +1,30 @@
 {
-  "$schema": "http://json-schema.org/schema",
-  "version": 2,
-  "cli": "nx",
-  "title": "PackageJson executor",
-  "description": "",
-  "type": "object",
-  "properties": {
-    "tsConfig": {
-      "type": "string",
-      "description": "Path of the related tsconfig.json file.",
-      "x-prompt": "Which tsconfig would you like to use?"
-    },
-    "outputPath": {
-      "type": "string",
-      "description": "The 'main' file for the generated package.json file.",
-      "x-prompt": "Which file should be marked as 'main' in 'the generated package.json?"
-    },
-    "buildTarget": {
-      "type": "string",
-      "description": "The target to run to build you the app."
-    },
-    "buildTargetOptions": {
-      "type": "object",
-      "description": "Additional options to pass into the build target.",
-      "default": {}
-    }
-  },
-  "required": ["buildTarget"]
+	"$schema": "http://json-schema.org/schema",
+	"version": 2,
+	"cli": "nx",
+	"title": "PackageJson executor",
+	"description": "",
+	"type": "object",
+	"properties": {
+		"tsConfig": {
+			"type": "string",
+			"description": "Path of the related tsconfig.json file.",
+			"x-prompt": "Which tsconfig would you like to use?"
+		},
+		"outputPath": {
+			"type": "string",
+			"description": "The 'main' file for the generated package.json file.",
+			"x-prompt": "Which file should be marked as 'main' in 'the generated package.json?"
+		},
+		"buildTarget": {
+			"type": "string",
+			"description": "The target to run to build you the app."
+		},
+		"buildTargetOptions": {
+			"type": "object",
+			"description": "Additional options to pass into the build target.",
+			"default": {}
+		}
+	},
+	"required": ["buildTarget"]
 }

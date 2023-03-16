@@ -10,14 +10,14 @@
  * dependent packages.
  */
 export default () => ({
-  name: 'ignore-wasm-imports',
+	name: 'ignore-wasm-imports',
 
-  load(id: string): any {
-    if (id?.endsWith('.wasm')) {
-      return {
-        code: 'export default {}',
-        map: null,
-      };
-    }
-  },
+	load(id: string): any {
+		if (id?.endsWith('.wasm')) {
+			return {
+				code: 'export default {}',
+				map: null,
+			};
+		}
+	},
 });

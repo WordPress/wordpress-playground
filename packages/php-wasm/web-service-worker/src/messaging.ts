@@ -49,23 +49,23 @@ let lastRequestId = 0;
  * @returns The message ID for awaitReply().
  */
 export function postMessageExpectReply(
-  target: PostMessageTarget,
-  message: Record<string, any>,
-  ...postMessageArgs: any[]
+	target: PostMessageTarget,
+	message: Record<string, any>,
+	...postMessageArgs: any[]
 ): number {
-  const requestId = getNextRequestId();
-  target.postMessage(
-    {
-      ...message,
-      requestId,
-    },
-    ...postMessageArgs
-  );
-  return requestId;
+	const requestId = getNextRequestId();
+	target.postMessage(
+		{
+			...message,
+			requestId,
+		},
+		...postMessageArgs
+	);
+	return requestId;
 }
 
 export function getNextRequestId() {
-  return ++lastRequestId;
+	return ++lastRequestId;
 }
 
 /**
@@ -81,29 +81,29 @@ export function getNextRequestId() {
  * @returns The reply from the messageTarget.
  */
 export function awaitReply(
-  messageTarget: IsomorphicEventTarget,
-  requestId: number,
-  timeout: number = DEFAULT_RESPONSE_TIMEOUT
+	messageTarget: IsomorphicEventTarget,
+	requestId: number,
+	timeout: number = DEFAULT_RESPONSE_TIMEOUT
 ): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const responseHandler = (event: MessageEvent) => {
-      if (
-        event.data.type === 'response' &&
-        event.data.requestId === requestId
-      ) {
-        messageTarget.removeEventListener('message', responseHandler);
-        clearTimeout(failOntimeout);
-        resolve(event.data.response);
-      }
-    };
+	return new Promise((resolve, reject) => {
+		const responseHandler = (event: MessageEvent) => {
+			if (
+				event.data.type === 'response' &&
+				event.data.requestId === requestId
+			) {
+				messageTarget.removeEventListener('message', responseHandler);
+				clearTimeout(failOntimeout);
+				resolve(event.data.response);
+			}
+		};
 
-    const failOntimeout = setTimeout(() => {
-      reject(new Error('Request timed out'));
-      messageTarget.removeEventListener('message', responseHandler);
-    }, timeout);
+		const failOntimeout = setTimeout(() => {
+			reject(new Error('Request timed out'));
+			messageTarget.removeEventListener('message', responseHandler);
+		}, timeout);
 
-    messageTarget.addEventListener('message', responseHandler);
-  });
+		messageTarget.addEventListener('message', responseHandler);
+	});
 }
 
 /**
@@ -116,27 +116,27 @@ export function awaitReply(
  * @returns A message object that can be sent back to the other thread.
  */
 export function responseTo<T>(
-  requestId: number,
-  response: T
+	requestId: number,
+	response: T
 ): MessageResponse<T> {
-  return {
-    type: 'response',
-    requestId,
-    response,
-  };
+	return {
+		type: 'response',
+		requestId,
+		response,
+	};
 }
 
 export interface MessageResponse<T> {
-  type: 'response';
-  requestId: number;
-  response: T;
+	type: 'response';
+	requestId: number;
+	response: T;
 }
 
 interface PostMessageTarget {
-  postMessage(message: any, ...args: any[]): void;
+	postMessage(message: any, ...args: any[]): void;
 }
 
 interface IsomorphicEventTarget {
-  addEventListener(type: string, listener: (event: any) => void): void;
-  removeEventListener(type: string, listener: (event: any) => void): void;
+	addEventListener(type: string, listener: (event: any) => void): void;
+	removeEventListener(type: string, listener: (event: any) => void): void;
 }

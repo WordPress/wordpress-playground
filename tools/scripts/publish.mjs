@@ -13,10 +13,10 @@ import { readFileSync, writeFileSync } from 'fs';
 import chalk from 'chalk';
 
 function invariant(condition, message) {
-  if (!condition) {
-    console.error(chalk.bold.red(message));
-    process.exit(1);
-  }
+	if (!condition) {
+		console.error(chalk.bold.red(message));
+		process.exit(1);
+	}
 }
 
 // Executing publish script: node path/to/publish.mjs {name} --version {version} --tag {tag}
@@ -26,35 +26,37 @@ const [, , name, version, tag = 'next'] = process.argv;
 // A simple SemVer validation to validate the version
 const validVersion = /^\d+\.\d+\.\d+(-\w+\.\d+)?/;
 invariant(
-  version && validVersion.test(version),
-  `No version provided or version did not match Semantic Versioning, expected: #.#.#-tag.# or #.#.#, got ${version}.`
+	version && validVersion.test(version),
+	`No version provided or version did not match Semantic Versioning, expected: #.#.#-tag.# or #.#.#, got ${version}.`
 );
 
 const graph = readCachedProjectGraph();
 const project = graph.nodes[name];
 
 invariant(
-  project,
-  `Could not find project "${name}" in the workspace. Is the project.json configured correctly?`
+	project,
+	`Could not find project "${name}" in the workspace. Is the project.json configured correctly?`
 );
 
 const outputPath = project.data?.targets?.build?.options?.outputPath;
 invariant(
-  outputPath,
-  `Could not find "build.options.outputPath" of project "${name}". Is project.json configured  correctly?`
+	outputPath,
+	`Could not find "build.options.outputPath" of project "${name}". Is project.json configured  correctly?`
 );
 
 process.chdir(outputPath);
 
 // Updating the version in "package.json" before publishing
 try {
-  const json = JSON.parse(readFileSync(`package.json`).toString());
-  json.version = version;
-  writeFileSync(`package.json`, JSON.stringify(json, null, 2));
+	const json = JSON.parse(readFileSync(`package.json`).toString());
+	json.version = version;
+	writeFileSync(`package.json`, JSON.stringify(json, null, 2));
 } catch (e) {
-  console.error(
-    chalk.bold.red(`Error reading package.json file from library build output.`)
-  );
+	console.error(
+		chalk.bold.red(
+			`Error reading package.json file from library build output.`
+		)
+	);
 }
 
 // Execute "npm publish" to publish

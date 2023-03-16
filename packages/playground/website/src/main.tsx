@@ -11,12 +11,12 @@ const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
-  <PlaygroundViewport
-    isSeamless={isSeamless}
-    setupPlayground={setupPlayground}
-    toolbarButtons={[
-      <ImportButton key="export" />,
-      <ExportButton key="export" />,
-    ]}
-  />
+	<PlaygroundViewport
+		isSeamless={isSeamless}
+		setupPlayground={setupPlayground}
+		toolbarButtons={[
+			<ImportButton key="export" />,
+			<ExportButton key="export" />,
+		]}
+	/>
 );

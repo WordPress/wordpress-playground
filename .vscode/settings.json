@@ -1,4 +1,4 @@
 {
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "eslint.validate": ["json"]
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"eslint.validate": ["json"]
 }

@@ -15,7 +15,6 @@ nav:
     - Implementing a live WordPress code editor: wordpress-plugin-ide.md
     - API Reference: api/index.md
 
-
 # markdown_extensions:
 #     - meta
 #     - toc

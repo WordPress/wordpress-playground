@@ -64,13 +64,13 @@ function handleIncludes(filePath, content) {
 		const absoluteIncludePath = path.join(TARGET_DIR, relativeIncludePath);
 		if (!fs.existsSync(absoluteIncludePath)) {
 			throw new Error(
-				`File ${includePath} included in ${path.relative(REPO_ROOT_PATH, filePath)} does not exist`
+				`File ${includePath} included in ${path.relative(
+					REPO_ROOT_PATH,
+					filePath
+				)} does not exist`
 			);
 		}
-		const includeContents = fs.readFileSync(
-			absoluteIncludePath,
-			'utf8'
-		);
+		const includeContents = fs.readFileSync(absoluteIncludePath, 'utf8');
 		const sectionContents = getMarkdownSectionContents(
 			includeContents,
 			headerText

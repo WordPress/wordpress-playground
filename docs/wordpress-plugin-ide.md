@@ -1,6 +1,6 @@
 ## This code has not been ported to the nx build system yet
 
-You can browse it in the (previous trunk version)[https://github.com/WordPress/wordpress-playground/tree/5da9aa0ac0acaeba6055a1de3b8a1ed286fb216f/packages/wordpress-plugin-ide], but you 
+You can browse it in the (previous trunk version)[https://github.com/WordPress/wordpress-playground/tree/5da9aa0ac0acaeba6055a1de3b8a1ed286fb216f/packages/wordpress-plugin-ide], but you
 cannot import it or use it at the moment.
 
 ## WordPress code editor

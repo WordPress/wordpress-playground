@@ -24,9 +24,11 @@ export default function tsDocToApiJson(config: TsDocToApiJsonConfig): string[] {
 					.replace(/[/#.-]+/g, '-')
 					.replace('.d.ts', '')
 					.replace(/^-+/, '') + '.api.json';
-			const tsconfig = config.tsconfig ??
-				findNearestFile('tsconfig.json', entrypoint) ?? findNearestFile('tsconfig.base.json', entrypoint);
-				if (!tsconfig || !fs.existsSync(tsconfig)) {
+			const tsconfig =
+				config.tsconfig ??
+				findNearestFile('tsconfig.json', entrypoint) ??
+				findNearestFile('tsconfig.base.json', entrypoint);
+			if (!tsconfig || !fs.existsSync(tsconfig)) {
 				throw new Error('Could not find tsconfig.json');
 			}
 			const extractorConfig = ExtractorConfig.prepare({

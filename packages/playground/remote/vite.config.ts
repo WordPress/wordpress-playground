@@ -10,73 +10,73 @@ import virtualModule from '../vite-virtual-module';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
-  viteTsConfigPaths({
-    root: '../../../',
-  }),
-  dts({
-    entryRoot: 'src',
-    tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
-    skipDiagnostics: true,
-  }),
-  virtualModule({
-    name: 'service-worker-version',
-    // @TODO: compute a hash of the service worker chunk instead of using the build timestamp
-    content: `export const serviceWorkerVersion = '${Date.now()}';`,
-  })  
+	viteTsConfigPaths({
+		root: '../../../',
+	}),
+	dts({
+		entryRoot: 'src',
+		tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
+		skipDiagnostics: true,
+	}),
+	virtualModule({
+		name: 'service-worker-version',
+		// @TODO: compute a hash of the service worker chunk instead of using the build timestamp
+		content: `export const serviceWorkerVersion = '${Date.now()}';`,
+	}),
 ];
 export default defineConfig({
-  assetsInclude: ['**/*.wasm', '*.data'],
-  cacheDir: '../../../node_modules/.vite/playground',
+	assetsInclude: ['**/*.wasm', '*.data'],
+	cacheDir: '../../../node_modules/.vite/playground',
 
-  preview: {
-    port: remoteDevServerPort,
-    host: remoteDevServerHost,
-  },
+	preview: {
+		port: remoteDevServerPort,
+		host: remoteDevServerHost,
+	},
 
-  server: {
-    port: remoteDevServerPort,
-    host: remoteDevServerHost,
-    fs: {
-      // Allow serving files from one level up to the project root
-      allow: ['./'],
-    },
-  },
+	server: {
+		port: remoteDevServerPort,
+		host: remoteDevServerHost,
+		fs: {
+			// Allow serving files from one level up to the project root
+			allow: ['./'],
+		},
+	},
 
-  plugins,
+	plugins,
 
-  worker: {
-    format: 'es',
-    plugins,
-    rollupOptions: {
-      output: {
-        // Ensure the service worker always has the same name
-        entryFileNames: (chunkInfo: any) => {
-          if (chunkInfo.name === 'service-worker') {
-            return 'sw.js';
-          }
-          return '[name]-[hash].js';
-        },
-      },
-    },
-  },
+	worker: {
+		format: 'es',
+		plugins,
+		rollupOptions: {
+			output: {
+				// Ensure the service worker always has the same name
+				entryFileNames: (chunkInfo: any) => {
+					if (chunkInfo.name === 'service-worker') {
+						return 'sw.js';
+					}
+					return '[name]-[hash].js';
+				},
+			},
+		},
+	},
 
-  // Configuration for building your library.
-  // See: https://vitejs.dev/guide/build.html#library-mode
-  build: {
-    assetsInlineLimit: 0,
-    rollupOptions: {
-      input: {
-        wordpress: path('/wordpress.html'),
-      }
-    },
-  },
+	// Configuration for building your library.
+	// See: https://vitejs.dev/guide/build.html#library-mode
+	build: {
+		assetsInlineLimit: 0,
+		rollupOptions: {
+			input: {
+				wordpress: path('/wordpress.html'),
+			},
+		},
+	},
 
-  test: {
-    globals: true,
-    cache: {
-      dir: '../../../node_modules/.vitest',
-    },
-    environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-  }
+	test: {
+		globals: true,
+		cache: {
+			dir: '../../../node_modules/.vitest',
+		},
+		environment: 'jsdom',
+		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+	},
 });

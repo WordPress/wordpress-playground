@@ -1,51 +1,51 @@
 {
-  "root": true,
-  "ignorePatterns": ["**/*"],
-  "plugins": ["@nrwl/nx"],
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
-      "rules": {
-        "@nrwl/nx/enforce-module-boundaries": [
-          "error",
-          {
-            "enforceBuildableLibDependency": true,
-            "allow": [],
-            "depConstraints": []
-          }
-        ],
-        "no-inner-declarations": 0,
-        "no-use-before-define": "off",
-        "react/prop-types": 0,
-        "no-console": 0,
-        "no-empty": 0,
-        "no-async-promise-executor": 0,
-        "no-constant-condition": 0,
-        "no-nested-ternary": 0,
-        "jsx-a11y/click-events-have-key-events": 0,
-        "jsx-a11y/no-static-element-interactions": 0
-      }
-    },
-    {
-      "files": ["*.ts", "*.tsx"],
-      "extends": ["plugin:@nrwl/nx/typescript"],
-      "rules": {
-        "@typescript-eslint/ban-ts-comment": 0,
-        "@typescript-eslint/ban-types": 0,
-        "@typescript-eslint/no-non-null-assertion": 0,
-        "@typescript-eslint/no-explicit-any": 0,
-        "no-constant-condition": 0
-      }
-    },
-    {
-      "files": ["*.js", "*.jsx"],
-      "extends": ["plugin:@nrwl/nx/javascript"],
-      "rules": {}
-    },
-    {
-      "files": "*.json",
-      "parser": "jsonc-eslint-parser",
-      "rules": {}
-    }
-  ]
+	"root": true,
+	"ignorePatterns": ["**/*"],
+	"plugins": ["@nrwl/nx"],
+	"overrides": [
+		{
+			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"rules": {
+				"@nrwl/nx/enforce-module-boundaries": [
+					"error",
+					{
+						"enforceBuildableLibDependency": true,
+						"allow": [],
+						"depConstraints": []
+					}
+				],
+				"no-inner-declarations": 0,
+				"no-use-before-define": "off",
+				"react/prop-types": 0,
+				"no-console": 0,
+				"no-empty": 0,
+				"no-async-promise-executor": 0,
+				"no-constant-condition": 0,
+				"no-nested-ternary": 0,
+				"jsx-a11y/click-events-have-key-events": 0,
+				"jsx-a11y/no-static-element-interactions": 0
+			}
+		},
+		{
+			"files": ["*.ts", "*.tsx"],
+			"extends": ["plugin:@nrwl/nx/typescript"],
+			"rules": {
+				"@typescript-eslint/ban-ts-comment": 0,
+				"@typescript-eslint/ban-types": 0,
+				"@typescript-eslint/no-non-null-assertion": 0,
+				"@typescript-eslint/no-explicit-any": 0,
+				"no-constant-condition": 0
+			}
+		},
+		{
+			"files": ["*.js", "*.jsx"],
+			"extends": ["plugin:@nrwl/nx/javascript"],
+			"rules": {}
+		},
+		{
+			"files": "*.json",
+			"parser": "jsonc-eslint-parser",
+			"rules": {}
+		}
+	]
 }

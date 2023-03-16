@@ -18,7 +18,7 @@ import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
-	// to document.currentScript which fails inside of 
+	// to document.currentScript which fails inside of
 	// a service worker because document is undefined
 	// @ts-ignore
 	// eslint-disable-next-line no-global-assign
@@ -28,13 +28,15 @@ if (!(self as any).document) {
 // @ts-ignore
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
-	version: import.meta.env.DEV ? (() => Math.random()+'') : serviceWorkerVersion,
+	version: import.meta.env.DEV
+		? () => Math.random() + ''
+		: serviceWorkerVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
 		if (!scope) {
 			try {
-				scope = getURLScope(new URL(event.request.referrer))
+				scope = getURLScope(new URL(event.request.referrer));
 			} catch (e) {
 				// Ignore
 			}
@@ -82,8 +84,8 @@ async function rewriteRequest(
 	const resolvedUrl = removeURLScope(requestedUrl);
 	if (
 		// Vite dev server requests
-		!resolvedUrl.pathname.startsWith('/@fs')
-		&& !resolvedUrl.pathname.startsWith('/assets')
+		!resolvedUrl.pathname.startsWith('/@fs') &&
+		!resolvedUrl.pathname.startsWith('/assets')
 	) {
 		resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 	}
