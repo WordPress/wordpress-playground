@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHPBrowser implements HandlesRequest 
+class PHPBrowser implements WithRequest 
 ```
 
-<b>Implements:</b> [HandlesRequest](./php-wasm-web.handlesrequest.md)
+<b>Implements:</b> [WithRequest](./php-wasm-web.withrequest.md)
 
 A fake web browser that handles PHPServer's cookies and redirects
 internally without exposing them to the consumer.

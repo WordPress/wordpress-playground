@@ -14,10 +14,10 @@ export default async function runExecutor(
     options.scriptPath,
     ...(options.__unparsed__ || []),
   ]
-  spawnSync('node', args, {
+  const result = spawnSync('node', args, {
     stdio: 'inherit',
   });
   return {
-    success: true
+    success: result.status === 0
   };
 }

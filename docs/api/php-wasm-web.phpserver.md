@@ -60,16 +60,20 @@ dispatching it to the PHP runtime.
 ## Example
 
 ```js
-import { createPHP, PHPServer } from 'php-wasm';
+import {
+  loadPHPRuntime,
+  PHP,
+  PHPServer,
+  PHPBrowser,
+  getPHPLoaderModule,
+} from '@wp-playground/php-wasm-web';
 
-const PHPLoaderModule = await import('/php.js');
-const php = await createPHP(PHPLoaderModule);
+const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
+const php = new PHP( runtime );
 
-// Create a file to serve:
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
-// Create a server instance:
 const server = new PHPServer(php, {
     // PHP FS path to serve the files from:
     documentRoot: '/www',
@@ -78,9 +82,8 @@ const server = new PHPServer(php, {
     absoluteUrl: 'http://127.0.0.1'
 });
 
-console.log(
-   server.request({ path: '/index.php' }).body
-);
-// Output: "Hi from PHP!"
+const output = server.request({ path: '/index.php' }).body;
+console.log(new TextDecoder().decode(output));
+// "Hi from PHP!"
 ```
 

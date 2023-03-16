@@ -1,7 +1,10 @@
+/**
+ * Recommended Worker Thread backend.
+ * It's typically "webworker", but in Firefox it's "iframe"
+ * because Firefox doesn't support module workers with dynamic imports.
+ * See https://github.com/mdn/content/issues/24402
+ */
 export const recommendedWorkerBackend = (function () {
-  // Firefox doesn't support module workers with dynamic imports,
-  // let's fall back to iframe workers.
-  // See https://github.com/mdn/content/issues/24402
   const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
   if (isFirefox) {
     return 'iframe';

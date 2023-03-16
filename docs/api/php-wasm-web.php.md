@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHP implements PHPIni, Filesystem, NodeFilesystem, CLIHandler, HandlesRun 
+class PHP implements WithPHPIniBindings, WithFilesystem, WithNodeFilesystem, WithCLI, WithRun 
 ```
 
-<b>Implements:</b> [PHPIni](./php-wasm-web.phpini.md)<!-- -->, [Filesystem](./php-wasm-web.filesystem.md)<!-- -->, [NodeFilesystem](./php-wasm-web.nodefilesystem.md)<!-- -->, [CLIHandler](./php-wasm-web.clihandler.md)<!-- -->, [HandlesRun](./php-wasm-web.handlesrun.md)
+<b>Implements:</b> [WithPHPIniBindings](./php-wasm-web.withphpinibindings.md)<!-- -->, [WithFilesystem](./php-wasm-web.withfilesystem.md)<!-- -->, [WithNodeFilesystem](./php-wasm-web.withnodefilesystem.md)<!-- -->, [WithCLI](./php-wasm-web.withcli.md)<!-- -->, [WithRun](./php-wasm-web.withrun.md)
 
 ## Remarks
 The constructor for this class is marked as internal. Third-party code should not call the constructor directly or create subclasses that extend the `PHP` class.

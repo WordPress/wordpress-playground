@@ -1,14 +1,14 @@
 import type {
-  Filesystem,
+  WithFilesystem,
   PHP,
   PHPBrowser,
   PHPServer,
   PHPServerRequest,
-  PHPIni,
+  WithPHPIniBindings,
   PHPRequest,
   PHPResponse,
-  HandlesRun,
-  HandlesRequest,
+  WithRun,
+  WithRequest,
 } from '@wp-playground/php-wasm-common';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@wp-playground/php-wasm-progress';
@@ -55,10 +55,10 @@ const _private = new WeakMap<
 export class PHPClient
   implements
     Promisify<
-      HandlesRequest &
-      PHPIni &
-      Filesystem &
-      HandlesRun &
+      WithRequest &
+      WithPHPIniBindings &
+      WithFilesystem &
+      WithRun &
       WithProgress &
       WithPathConversion
     >

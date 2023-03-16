@@ -3,6 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/php-wasm/node/src",
   "projectType": "library",
+  "implicitDependencies": ["php-wasm-compile"],
   "targets": {
     "build": {
       "executor": "nx:noop",

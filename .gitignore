@@ -3,6 +3,7 @@
 # compiled output
 dist
 tmp
+var
 /out-tsc
 
 # dependencies

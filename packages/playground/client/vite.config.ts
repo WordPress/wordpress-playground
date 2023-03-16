@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 import dts from "vite-plugin-dts";
 import { join } from 'path';
+// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 
 export default defineConfig({

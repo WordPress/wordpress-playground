@@ -15,18 +15,18 @@
 
 ## Interfaces
 
-* [CLIHandler](./php-wasm-node.clihandler.md)
 * [FileInfo](./php-wasm-node.fileinfo.md)
-* [Filesystem](./php-wasm-node.filesystem.md)
-* [HandlesRequest](./php-wasm-node.handlesrequest.md)
-* [HandlesRun](./php-wasm-node.handlesrun.md)
-* [NodeFilesystem](./php-wasm-node.nodefilesystem.md)
 * [PHPBrowserConfiguration](./php-wasm-node.phpbrowserconfiguration.md)
-* [PHPIni](./php-wasm-node.phpini.md)
 * [PHPOutput](./php-wasm-node.phpoutput.md)
 * [PHPRequest](./php-wasm-node.phprequest.md)
 * [PHPResponse](./php-wasm-node.phpresponse.md)
 * [PHPServerConfigation](./php-wasm-node.phpserverconfigation.md)
+* [WithCLI](./php-wasm-node.withcli.md)
+* [WithFilesystem](./php-wasm-node.withfilesystem.md)
+* [WithNodeFilesystem](./php-wasm-node.withnodefilesystem.md)
+* [WithPHPIniBindings](./php-wasm-node.withphpinibindings.md)
+* [WithRequest](./php-wasm-node.withrequest.md)
+* [WithRun](./php-wasm-node.withrun.md)
 
 ## Type Aliases
 

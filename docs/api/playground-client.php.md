@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHP implements PHPIni, Filesystem, NodeFilesystem, CLIHandler, HandlesRun 
+class PHP implements WithPHPIniBindings, WithFilesystem, WithNodeFilesystem, WithCLI, WithRun 
 ```
 
-<b>Implements:</b> [PHPIni](./playground-client.phpini.md)<!-- -->, [Filesystem](./playground-client.filesystem.md)<!-- -->, [NodeFilesystem](./playground-client.nodefilesystem.md)<!-- -->, [CLIHandler](./playground-client.clihandler.md)<!-- -->, [HandlesRun](./playground-client.handlesrun.md)
+<b>Implements:</b> [WithPHPIniBindings](./playground-client.withphpinibindings.md)<!-- -->, [WithFilesystem](./playground-client.withfilesystem.md)<!-- -->, [WithNodeFilesystem](./playground-client.withnodefilesystem.md)<!-- -->, [WithCLI](./playground-client.withcli.md)<!-- -->, [WithRun](./playground-client.withrun.md)
 
 ## Remarks
 The constructor for this class is marked as internal. Third-party code should not call the constructor directly or create subclasses that extend the `PHP` class.

@@ -1,0 +1,48 @@
+{
+	"name": "docs-site",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/docs/site/src",
+	"projectType": "library",
+	"implicitDependencies": [
+		"php-wasm-node",
+		"php-wasm-web",
+		"php-wasm-progress",
+		"php-wasm-scopes",
+		"php-wasm-web-service-worker",
+		"playground-client"
+	],
+	"targets": {
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/docs/site/src/build-markdown-docs.js",
+				"parallel": false
+			},
+			"dependsOn": ["build:api-reference"]
+		},
+		"build:api-reference": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "npx nx start docs-ts-api-doc-generator -e dist/packages/php-wasm/node/index.d.ts -e dist/packages/php-wasm/web/index.d.ts -e dist/packages/php-wasm/progress/index.d.ts -e dist/packages/php-wasm/scopes/index.d.ts -e dist/packages/php-wasm/web-service-worker/src/index.d.ts -e dist/packages/playground/client/index.d.ts -o docs/api",
+				"parallel": false
+			},
+			"dependsOn": ["^build"]
+		},
+		"test": {
+			"executor": "@nrwl/vite:test",
+			"outputs": ["coverage/packages/docs/site"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/docs/site"
+			}
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/docs/site/**/*.ts"]
+			}
+		}
+	},
+	"tags": []
+}

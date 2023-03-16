@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHPClient implements Promisify<HandlesRequest & PHPIni & Filesystem & HandlesRun & WithProgress & WithPathConversion> 
+class PHPClient implements Promisify<WithRequest & WithPHPIniBindings & WithFilesystem & WithRun & WithProgress & WithPathConversion> 
 ```
 
-<b>Implements:</b> [Promisify](./playground-client.promisify.md)<!-- -->&lt;[HandlesRequest](./playground-client.handlesrequest.md)<!-- -->&amp;[PHPIni](./playground-client.phpini.md)<!-- -->&amp;[Filesystem](./playground-client.filesystem.md)<!-- -->&amp;[HandlesRun](./playground-client.handlesrun.md)<!-- -->&amp;[WithProgress](./playground-client.withprogress.md)<!-- -->&amp;[WithPathConversion](./playground-client.withpathconversion.md)<!-- -->&gt;
+<b>Implements:</b> [Promisify](./playground-client.promisify.md)<!-- -->&lt;[WithRequest](./playground-client.withrequest.md)<!-- -->&amp;[WithPHPIniBindings](./playground-client.withphpinibindings.md)<!-- -->&amp;[WithFilesystem](./playground-client.withfilesystem.md)<!-- -->&amp;[WithRun](./playground-client.withrun.md)<!-- -->&amp;[WithProgress](./playground-client.withprogress.md)<!-- -->&amp;[WithPathConversion](./playground-client.withpathconversion.md)<!-- -->&gt;
 
 ## Constructors
 

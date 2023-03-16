@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 import { join } from 'path';
 import dts from 'vite-plugin-dts';
+// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;

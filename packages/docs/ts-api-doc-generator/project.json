@@ -1,0 +1,73 @@
+{
+	"name": "docs-ts-api-doc-generator",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/docs/ts-api-doc-generator/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nrwl/esbuild:esbuild",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "development",
+			"options": {
+				"main": "packages/docs/ts-api-doc-generator/src/main.ts",
+				"outputPath": "dist/packages/docs/ts-api-doc-generator",
+				"tsConfig": "packages/docs/ts-api-doc-generator/tsconfig.lib.json",
+				"project": "packages/docs/ts-api-doc-generator/package.json",
+				"assets": [
+					{
+						"glob": "packages/docs/ts-api-doc-generator/README.md",
+						"input": ".",
+						"output": "."
+					}
+				],
+				"bundle": true,
+				"platform": "node",
+				"external": ["@microsoft/*", "node_modules/*"],
+				"treeShaking": false,
+				"splitting": false,
+				"format": ["cjs"],
+				"esbuildOptions": {
+					"assetNames": "[name]",
+					"chunkNames": "[name]"
+				}
+			},
+			"configurations": {
+				"development": {
+					"minify": false
+				},
+				"production": {
+					"minify": true
+				}
+			}
+		},
+		"start": {
+			"executor": "@wp-playground/nx-extensions:built-script",
+			"options": {
+				"scriptPath": "dist/packages/docs/ts-api-doc-generator/main.cjs"
+			},
+			"dependsOn": ["build"]
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/docs/ts-api-doc-generator/**/*.ts"]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/jest:jest",
+			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"options": {
+				"jestConfig": "packages/docs/ts-api-doc-generator/jest.config.ts",
+				"passWithNoTests": true
+			},
+			"configurations": {
+				"ci": {
+					"ci": true,
+					"codeCoverage": true
+				}
+			}
+		}
+	},
+	"tags": []
+}

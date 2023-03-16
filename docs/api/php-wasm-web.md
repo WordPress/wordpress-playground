@@ -21,21 +21,21 @@
 
 ## Interfaces
 
-* [CLIHandler](./php-wasm-web.clihandler.md)
 * [FileInfo](./php-wasm-web.fileinfo.md)
-* [Filesystem](./php-wasm-web.filesystem.md)
-* [HandlesRequest](./php-wasm-web.handlesrequest.md)
-* [HandlesRun](./php-wasm-web.handlesrun.md)
 * [MonitoredModule](./php-wasm-web.monitoredmodule.md)
-* [NodeFilesystem](./php-wasm-web.nodefilesystem.md)
 * [PHPBrowserConfiguration](./php-wasm-web.phpbrowserconfiguration.md)
-* [PHPIni](./php-wasm-web.phpini.md)
 * [PHPOutput](./php-wasm-web.phpoutput.md)
 * [PHPRequest](./php-wasm-web.phprequest.md)
 * [PHPResponse](./php-wasm-web.phpresponse.md)
 * [PHPServerConfigation](./php-wasm-web.phpserverconfigation.md)
+* [WithCLI](./php-wasm-web.withcli.md)
+* [WithFilesystem](./php-wasm-web.withfilesystem.md)
+* [WithNodeFilesystem](./php-wasm-web.withnodefilesystem.md)
 * [WithPathConversion](./php-wasm-web.withpathconversion.md)
+* [WithPHPIniBindings](./php-wasm-web.withphpinibindings.md)
 * [WithProgress](./php-wasm-web.withprogress.md)
+* [WithRequest](./php-wasm-web.withrequest.md)
+* [WithRun](./php-wasm-web.withrun.md)
 
 ## Variables
 

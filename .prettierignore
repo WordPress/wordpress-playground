@@ -1,5 +1,6 @@
 # Add files here to ignore them from prettier formatting
-
 /dist
 /coverage
 /node_modules
+/packages/php-wasm/compile/build-assets
+/packages/playground/compile-wordpress/build-assets

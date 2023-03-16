@@ -6,3 +6,8 @@
 ```typescript
 recommendedWorkerBackend: string
 ```
+Recommended Worker Thread backend.
+It's typically "webworker", but in Firefox it's "iframe"
+because Firefox doesn't support module workers with dynamic imports.
+See https://github.com/mdn/content/issues/24402
+

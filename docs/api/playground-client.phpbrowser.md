@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHPBrowser implements HandlesRequest 
+class PHPBrowser implements WithRequest 
 ```
 
-<b>Implements:</b> [HandlesRequest](./playground-client.handlesrequest.md)
+<b>Implements:</b> [WithRequest](./playground-client.withrequest.md)
 
 ## Constructors
 

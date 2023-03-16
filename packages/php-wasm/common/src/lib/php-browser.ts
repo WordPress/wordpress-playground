@@ -2,7 +2,7 @@ import type PHPServer from './php-server';
 import type { PHPServerRequest } from './php-server';
 import type { PHPResponse } from './php';
 
-export interface HandlesRequest {
+export interface WithRequest {
   /**
    * Sends the request to the server.
    *
@@ -26,7 +26,7 @@ export interface HandlesRequest {
  *
  * @public
  */
-export class PHPBrowser implements HandlesRequest {
+export class PHPBrowser implements WithRequest {
   #cookies: Record<string, string>;
   #config;
 

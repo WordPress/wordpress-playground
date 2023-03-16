@@ -2,7 +2,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
+// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import {
   websiteDevServerHost,
   websiteDevServerPort,

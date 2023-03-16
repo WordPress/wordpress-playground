@@ -24,22 +24,22 @@
 
 ## Interfaces
 
-* [CLIHandler](./playground-client.clihandler.md)
 * [DownloadProgress](./playground-client.downloadprogress.md)
 * [FileInfo](./playground-client.fileinfo.md)
-* [Filesystem](./playground-client.filesystem.md)
-* [HandlesRequest](./playground-client.handlesrequest.md)
-* [HandlesRun](./playground-client.handlesrun.md)
 * [MonitoredModule](./playground-client.monitoredmodule.md)
-* [NodeFilesystem](./playground-client.nodefilesystem.md)
 * [PHPBrowserConfiguration](./playground-client.phpbrowserconfiguration.md)
-* [PHPIni](./playground-client.phpini.md)
 * [PHPRequest](./playground-client.phprequest.md)
 * [PHPResponse](./playground-client.phpresponse.md)
 * [PHPServerConfigation](./playground-client.phpserverconfigation.md)
 * [WebClientMixin](./playground-client.webclientmixin.md)
+* [WithCLI](./playground-client.withcli.md)
+* [WithFilesystem](./playground-client.withfilesystem.md)
+* [WithNodeFilesystem](./playground-client.withnodefilesystem.md)
 * [WithPathConversion](./playground-client.withpathconversion.md)
+* [WithPHPIniBindings](./playground-client.withphpinibindings.md)
 * [WithProgress](./playground-client.withprogress.md)
+* [WithRequest](./playground-client.withrequest.md)
+* [WithRun](./playground-client.withrun.md)
 
 ## Variables
 

@@ -4,10 +4,10 @@
 <b>Signature:</b>
 
 ```typescript
-class PHPClient implements Promisify<HandlesRequest & PHPIni & Filesystem & HandlesRun & WithProgress & WithPathConversion> 
+class PHPClient implements Promisify<WithRequest & WithPHPIniBindings & WithFilesystem & WithRun & WithProgress & WithPathConversion> 
 ```
 
-<b>Implements:</b> [Promisify](./php-wasm-web.promisify.md)<!-- -->&lt;[HandlesRequest](./php-wasm-web.handlesrequest.md)<!-- -->&amp;[PHPIni](./php-wasm-web.phpini.md)<!-- -->&amp;[Filesystem](./php-wasm-web.filesystem.md)<!-- -->&amp;[HandlesRun](./php-wasm-web.handlesrun.md)<!-- -->&amp;[WithProgress](./php-wasm-web.withprogress.md)<!-- -->&amp;[WithPathConversion](./php-wasm-web.withpathconversion.md)<!-- -->&gt;
+<b>Implements:</b> [Promisify](./php-wasm-web.promisify.md)<!-- -->&lt;[WithRequest](./php-wasm-web.withrequest.md)<!-- -->&amp;[WithPHPIniBindings](./php-wasm-web.withphpinibindings.md)<!-- -->&amp;[WithFilesystem](./php-wasm-web.withfilesystem.md)<!-- -->&amp;[WithRun](./php-wasm-web.withrun.md)<!-- -->&amp;[WithProgress](./php-wasm-web.withprogress.md)<!-- -->&amp;[WithPathConversion](./php-wasm-web.withpathconversion.md)<!-- -->&gt;
 
 A PHP client that can be used to run PHP code in the browser.
 
