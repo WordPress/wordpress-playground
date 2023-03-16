@@ -1,12 +1,13 @@
 # Compiling PHP to WebAssembly and using it in JavaScript
 
-The [`src/php-wasm`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/) module brings PHP into JavaScript as a WebAssembly module:
+The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web) and [`php-wasm-node`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/node) modules bring PHP into JavaScript as a WebAssembly module:
 
 ```js
-import { createPHP } from 'php-wasm';
+import { PHP, getPHPLoaderModule, loadPHPRuntime } from '@wp-playground/php-wasm-web';
 
-const PHPLoaderModule = await import('/php.js');
-const php = await createPHP(PHPLoaderModule);
+const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
+const php = new PHP(runtime);
+
 console.log(php.run(`<?php echo "Hello from PHP!";`).stdout);
 // Output: "Hello from PHP!"
 ```
@@ -16,11 +17,11 @@ It consists of two major building blocks:
 -   [PHP to WebAssembly build pipeline](#php-to-webassembly-build-pipeline)
 -   [JavaScript bindings for the WebAssembly PHP](#javascript-bindings-for-the-webassembly-php)
 
-See also the [API Reference](api/php-wasm.md).
+See also the [API Reference](api/php-wasm-web.md).
 
 ## PHP to WebAssembly build pipeline
 
-The pipeline lives in [`wasm/Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/wasm/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
+The pipeline lives in a [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/Dockerfile). It was originally forked from [seanmorris/php-wasm](https://github.com/seanmorris/php-wasm)
 
 In broad strokes, that `Dockerfile`:
 
@@ -32,7 +33,7 @@ In broad strokes, that `Dockerfile`:
 -   Outputs a `php.wasm` file and one or more JavaScript loaders, depending on the configuration.
 -   Transforms the Emscripten's default `php.js` output into an ESM module with additional features.
 
-To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/wasm/Dockerfile).
+To find out more about each step, refer directly to the [Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/Dockerfile).
 
 ### Building
 
@@ -40,7 +41,7 @@ To build all PHP versions, run `nx recompile-php:all php-wasm-web` (or php-wasm-
 
 ### PHP extensions
 
-PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/wasm/Dockerfile).
+PHP is built with several extensions listed in the [`Dockerfile`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/Dockerfile).
 
 Some extensions, like `zip`, can be turned on or off during the build. Others, like `sqlite3`, are hardcoded.
 
@@ -48,13 +49,13 @@ If you need to turn off one of the hardcoded extensions, feel free to open an is
 
 ### C API exposed to JavaScript
 
-The C API exposed to JavaScript lives in the [`wasm/build-assets/php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/wasm/build-assets/php_wasm.c) file. The most important functions are:
+The C API exposed to JavaScript lives in the [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) file. The most important functions are:
 
 -   `void phpwasm_init()` – It creates a new PHP context and must be called before running any PHP code.
 -   `int phpwasm_run(char *code)` – Runs a PHP script and writes the output to /tmp/stdout and /tmp/stderr. Returns the exit code.
 -   `void phpwasm_refresh()` – Destroy the current PHP context and starts a new one. Call it after running one PHP script and before running another.
 
-Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm/wasm/build-assets/php_wasm.c) to learn more.
+Refer to the inline documentation in [`php_wasm.c`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/php-wasm/compile/build-assets/php_wasm.c) to learn more.
 
 ### Build configuration
 
@@ -92,8 +93,7 @@ export default function (jsEnv, emscriptenModuleArgs) {}
 
 ## JavaScript bindings for the WebAssembly PHP
 
-`php-wasm` provides a JavaScript API to interact with the WebAssembly
-module. It lives in the `src` directory and consists of:
+`php-wasm-web` provides a stack of APIs to interact with the WebAssembly module:
 
 -   A `PHP` class to directly interface with the WebAssembly module.
 -   A `PHPServer` class to use PHP for handling HTTP requests.
@@ -105,27 +105,25 @@ To build the JavaScript API, just build the entire project with `yarn run build:
 
 ## API
 
-Below you'll find a few especially relevant parts of the API. Consult the [php-wasm API reference page](api/php-wasm.md) to learn about the rest of it.
+Below you'll find a few especially relevant parts of the API. Consult the [php-wasm-web API reference page](api/php-wasm-web.md) to learn about the rest of it.
 
 ### loadPHPRuntime
 
-<!-- include /docs/api/php-wasm.loadphpruntime.md#loadPHPRuntime() function -->
+<!-- include /docs/api/php-wasm-web.loadphpruntime.md#loadPHPRuntime() function -->
 
 loadPHPRuntime<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->runtime<!-- -->: [JavascriptRuntime](api/php-wasm.loadphpruntime.md)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->[]\
-)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHP](api/php-wasm.loadphpruntime.md)<!-- -->&gt;
+&emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [PHPLoaderModule](api/php-wasm-web.loadphpruntime.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [EmscriptenOptions](api/php-wasm-web.loadphpruntime.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [DataModule](api/php-wasm-web.loadphpruntime.md)<!-- -->[]\
+)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
 
 * `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
-* `runtime` – The current JavaScript environment. One of: NODE, WEB, or WEBWORKER.
 * `phpModuleArgs` – Optional. The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
 * `dataDependenciesModules` – Optional. A list of the ESM-wrapped Emscripten data dependency modules.
-* Returns: PHP instance.
+* Returns: Loaded runtime id.
 
 
-Initializes the PHP runtime with the given arguments and data dependencies.
+Loads the PHP runtime with the given arguments and data dependencies.
 
 This function handles the entire PHP initialization pipeline. In particular, it:
 
@@ -138,7 +136,7 @@ Basic usage:
 
 ```js
  const phpLoaderModule = await import("/php.js");
- const php = await loadPHPRuntime(phpLoaderModule);
+ const php = await startPHP(phpLoaderModule, "web");
  console.log(php.run(`<?php echo "Hello, world!"; `));
  // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
@@ -196,7 +194,7 @@ be quite inconvenient. Fortunately, Emscripten provides a "data dependencies"
 feature.
 
 Data dependencies consist of a `dependency.data` file and a `dependency.js` loader and
-can be packaged with the [file_packager.py tool](api/php-wasm.startphp.md).
+can be packaged with the [file_packager.py tool](api/php-wasm-web.loadphpruntime.md).
 This project requires wrapping the Emscripten-generated `dependency.js` file in an ES
 module as follows:
 
@@ -228,14 +226,14 @@ Once it's ready, you can load PHP and your data dependencies as follows:
    import("/php.js"),
    import("/wp.js")
  ]);
- const php = await startPHP(phpLoaderModule, {}, [wordPressLoaderModule]);
+ const php = await startPHP(phpLoaderModule, "web", {}, [wordPressLoaderModule]);
 ```
 
-<!-- /include /docs/api/php-wasm.startphp.md#startPHP() function -->
+<!-- /include /docs/api/php-wasm-web.loadphpruntime.md#loadPHPRuntime() function -->
 
 ### php-server.js
 
-<!-- include /docs/api/php-wasm.phpserver.md#PHPServer class -->
+<!-- include /docs/api/php-wasm-web.phpserver.md#PHPServer class -->
 
 <b>Signature:</b>
 
@@ -247,21 +245,42 @@ bind to any port.
 
 ## Constructors
 
-### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](api/php-wasm.phpserver.md)<!-- -->, config<!-- -->: [PHPServerConfigation](api/php-wasm.phpserver.md)<!-- -->)
+### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](api/php-wasm-web.phpserver.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](api/php-wasm-web.phpserver.md)<!-- -->)
 
 * `php` – The PHP instance.
-* `config` – Server configuration.
+* `config` – Optional. Server configuration.
 
 Constructs a new instance of the `PHPServer` class
 
 ## Properties
 
 * `absoluteUrl`   readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
-* `php`    [PHP](api/php-wasm.phpserver.md) – The PHP instance
+* `documentRoot`   readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
+* `php`    [PHP](api/php-wasm-web.phpserver.md) – The PHP instance
 
 ## Methods
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](api/php-wasm.phpserver.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](api/php-wasm.phpserver.md)<!-- -->&gt;
+### internalUrlToPath<!-- -->(<!-- -->internalUrl<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
+
+* `internalUrl` – An absolute URL based at the PHPServer root.
+* Returns: The relative path.
+
+
+Converts an absolute URL based at the PHPServer to a relative path
+without the server pathname and scope.
+
+
+### pathToInternalUrl<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
+
+* `path` – The server path to convert to an absolute URL.
+* Returns: The absolute URL.
+
+
+Converts a path to an absolute URL based at the PHPServer
+root.
+
+
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](api/php-wasm-web.phpserver.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](api/php-wasm-web.phpserver.md)<!-- -->&gt;
 
 * `request` – The request.
 * Returns: The response.
@@ -299,4 +318,4 @@ console.log(
 // Output: "Hi from PHP!"
 ```
 
-<!-- /include /docs/api/php-wasm.phpserver.md#PHPServer class -->
+<!-- /include /docs/api/php-wasm-web.phpserver.md#PHPServer class -->

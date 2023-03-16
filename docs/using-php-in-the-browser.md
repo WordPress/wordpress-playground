@@ -1,13 +1,13 @@
 # Running PHP apps in the browser with ServiceWorkers and Worker Threads
 
-The [`src/php-wasm-browser`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm-browser/) module provides a framework for running real PHP applications inside the web browser:
+The [`src/php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm-web/) module provides a framework for running real PHP applications inside the web browser:
 
 -   **Browser tab orchestrates everything** – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
 -   **Iframe-based rendering** – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
 -   **PHP Worker Thread** – The PHP server is slow and must run in a worker thread, otherwise handling requests freezes the website UI.
 -   **Service Worker routing** – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.
 
-See also the [API Reference](api/php-wasm-browser.md)
+See also the [API Reference](api/php-wasm-web.md)
 
 ## Browser tab orchestrates the execution
 
@@ -28,37 +28,49 @@ Here's what that boot sequence looks like in code:
 **/index.html**:
 
 ```js
-<script src="/app.js"></script>
+<script src="/app.ts"></script>
 <iframe id="my-app"></iframe>
 ```
 
-**/app.js**:
+**/app.ts**:
 
-```js
+```ts
 import {
+	consumeAPI,
+	PHPClient,
+	recommendedWorkerBackend,
 	registerServiceWorker,
-	spawnPHPWorkerThread,
-	getWorkerThreadFrontend,
-} from 'php-wasm-browser'
+	spawnPHPWorkerThread
+} from '@wp-playground/php-wasm-web'
+
+const workerUrl = "/worker-thread.js";
 
 export async function startApp() {
-	const workerThread = await spawnPHPWorkerThread(
-		// Worker Thread backend – either 'iframe' or 'webworker'
-		'webworker',
-		// Must point to a valid worker thread script:
-		'/worker-thread.js'
-	)
+	const phpClient = consumeAPI<PHPClient>(
+		spawnPHPWorkerThread(
+			"/worker-thread.js",      // Valid Worker script URL
+			recommendedWorkerBackend, // "webworker" or "iframe", see the docstring
+			{ phpVersion: '7.4', }    // Startup options
+		)
+	);
+
+	// Await the two-way communication channel
+	await phpClient.isReady();
+
 	// Must point to a valid Service Worker script:
-	await registerServiceWorker('/service-worker.js')
+	await registerServiceWorker(
+		phpClient,
+		"default", // PHP instance scope, keep reading to learn more.
+		"/sw.js",  // Valid Service Worker script URL.
+		"1"        // Service worker version, used for reloading the script.
+	);
 
 	// Create a few PHP files to browse:
-	await workerThread.run(`<?php
-        file_put_contents('index.php', '<a href="page.php">Go to page.php</a>');
-        file_put_contents('page.php', '<?php echo "Hello from PHP!"; ?>');
-    `)
+	await workerThread.writeFile('/index.php', '<a href="page.php">Go to page.php</a>');
+	await workerThread.writeFile('/page.php', '<?php echo "Hello from PHP!"; ?>');
 
 	// Navigate to index.php:
-	document.getElementById('my-app').src = '/index.php'
+	document.getElementById('my-app').src = playground.pathToInternalUrl('/index.php');
 }
 startApp()
 ```
@@ -66,18 +78,47 @@ startApp()
 **/worker-thread.js**:
 
 ```js
-import { initializeWorkerThread } from 'php-wasm-browser'
+import {
+	PHP,
+	PHPServer,
+	PHPBrowser,
+	PHPClient,
+	setURLScope,
+	exposeAPI,
+	getPHPLoaderModule,
+	loadPHPRuntime,
+	parseWorkerStartupOptions,
+} from '@wp-playground/php-wasm-web';
 
-// Loads /php.js and /php.wasm provided by php-wasm,
-// Listens to commands issued by the main app and
+// Random scope
+const scope = Math.random().toFixed(16);
+const scopedSiteUrl = setURLScope(import.meta.url, scope).toString();
+
+const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
+const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
+const browser = (
+	new PHPBrowser(
+		new PHPServer(
+			new PHP(runtime),
+			{
+				documentRoot: '/',
+				absoluteUrl: scopedSiteUrl
+			}
+		)
+	)
+);
+
+// Expose the API to app.ts:
+// It will listens to commands issued by the main app and
 // the requests from the Service Worker.
-initializeWorkerThread()
+const [setApiReady, ] = exposeAPI( new PHPClient( browser ) );
+setApiReady();
 ```
 
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from 'php-wasm-browser'
+import { initializeServiceWorker } from '@wp-playground/php-wasm-web'
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
@@ -96,7 +137,7 @@ A step-by-step breakown:
 
 1.  The request is intercepted by the Service Worker
 2.  The Service Worker passes it to the Worker Thread
-3.  The Worker Thread uses the `PHPServer` to convert that request to a response
+3.  The Worker Thread uses the PHP stack of `PHPBrowser` -> `PHPServer` -> `PHP` to convert that request to a response
 4.  The Worker Thread passes the response to the Service Worker
 5.  The Service Worker provides the browser with a response
 
@@ -120,7 +161,7 @@ Now, consider an iframe with the same link in it:
 <iframe srcdoc='<a href="page.php">Go to page.php</a>'></iframe>
 ```
 
-This time, clicking the link the browser to load `page.php` **inside the iframe**. The top-level index.html where the PHP application runs remains unaffected. This is why iframes are a crucial part of the `php-wasm-browser` setup.
+This time, clicking the link the browser to load `page.php` **inside the iframe**. The top-level index.html where the PHP application runs remains unaffected. This is why iframes are a crucial part of the `@wp-playground/php-wasm-web` setup.
 
 ### Iframes caveats
 
@@ -145,18 +186,17 @@ As soon as you click that button the browser will freeze and you won't be able t
 Worker threads are separate programs that can process heavy tasks outside of the main application. They must be initiated by the main JavaScript program living in the browser tab. Here's how:
 
 ```js
-const workerThread = await spawnPHPWorkerThread(
-	// Worker Thread backend – either 'iframe' or 'webworker'
-	'webworker',
-	// Must point to a valid worker thread script:
-	'/worker-thread.js'
-)
-workerThread.run(`<?php
-    echo "Hello from the thread!";
-`)
+const phpClient = consumeAPI<PHPClient>(
+	spawnPHPWorkerThread(
+		"/worker-thread.js",      // Valid Worker script URL
+		recommendedWorkerBackend // "webworker" or "iframe", see the docstring
+	)
+);
+await phpClient.isReady();
+await phpClient.run({ code: `<?php echo "Hello from the thread!";` });
 ```
 
-Worker threads can use any multiprocessing technique like an iframe, WebWorker, or a SharedWorker. See the next sections to learn more about the supported backends.
+Worker threads can use any multiprocessing technique like an iframe, WebWorker, or a SharedWorker (not implemented). See the next sections to learn more about the supported backends.
 
 ### Controlling the worker thread
 
@@ -164,74 +204,7 @@ The main application controls the worker thread by sending and receiving message
 
 Exchanging messages is the only way to control the worker threads. Remember – it is separate programs. The main app cannot access any functions or variables defined inside of the worker thread.
 
-Conveniently, [spawnPHPWorkerThread](api/php-wasm-browser.spawnphpworkerthread.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
-
-### Worker thread implementation
-
-A worker thread must live in a separate JavaScript file. Here's what a minimal implementation of that file looks like:
-
-```js
-import { initializeWorkerThread } from 'php-wasm-browser'
-initializeWorkerThread()
-```
-
-It may not seem like much, but `initializeWorkerThread()` does a lot of
-the heavy lifting. Here's its documentation:
-
-#### initializeWorkerThread()
-
-<!-- include /docs/api/php-wasm-browser.initializeworkerthread.md#initializeWorkerThread() function -->
-
-initializeWorkerThread<!-- -->(<!-- -->config<!-- -->: [WorkerThreadConfiguration](api/php-wasm-browser.initializeworkerthread.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;
-
-* `config` – The worker thread configuration.
- The backend object to communicate with the parent thread.
-
-
-
-
-Call this in a worker thread script to set the stage for
-offloading the PHP processing. This function:
-
-* Initializes the PHP runtime
-* Starts PHPServer and PHPBrowser
-* Lets the main app know when its ready
-* Listens for messages from the main app
-* Runs the requested operations (like `run_php`<!-- -->)
-* Replies to the main app with the results using the [request/reply protocol](api/php-wasm-browser.initializeworkerthread.md)
-
-Remember: The worker thread code must live in a separate JavaScript file.
-
-A minimal worker thread script looks like this:
-
-```js
-import { initializeWorkerThread } from 'php-wasm-browser';
-initializeWorkerThread();
-```
-You can customize the PHP loading flow via the first argument:
-
-```js
-import { initializeWorkerThread, loadPHPWithProgress } from 'php-wasm-browser';
-initializeWorkerThread( bootBrowser );
-
-async function bootBrowser({ absoluteUrl }) {
-    const [phpLoaderModule, myDependencyLoaderModule] = await Promise.all([
-        import(`/php.js`),
-        import(`/wp.js`)
-    ]);
-
-    const php = await loadPHPWithProgress(phpLoaderModule, [myDependencyLoaderModule]);
-
-    const server = new PHPServer(php, {
-        documentRoot: '/www',
-        absoluteUrl: absoluteUrl
-    });
-
-    return new PHPBrowser(server);
-}
-```
-
-<!-- /include /docs/api/php-wasm-browser.initializeworkerthread.md#initializeWorkerThread() function -->
+Conveniently, [consumeAPI](api/php-wasm-web.consumeapi.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
 
 ### Worker thread backends
 
@@ -239,24 +212,17 @@ Worker threads can use any multiprocessing technique like an iframe, WebWorker, 
 
 #### `webworker`
 
-Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend only exists due to a Google Chrome bug that makes web workers prone to crashes when they're running WebAssembly. See [WASM file crashes Google Chrome](https://github.com/WordPress/wordpress-playground/issues/1) to learn more details.
+Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend is handy to work around webworkers limitations in the browsers. For example, [FireFox does not support module workers](https://github.com/mdn/content/issues/24402) and [WASM used to crash webworkers in Chrome](https://github.com/WordPress/wordpress-playground/issues/1).
 
 Example usage:
 
-**/app.js**:
-
 ```js
-const workerThread = await spawnPHPWorkerThread(
-	'webworker',
-	'/worker-thread.js'
-)
-```
-
-**/worker-thread.js**:
-
-```js
-import { initializeWorkerThread } from 'php-wasm-browser'
-initializeWorkerThread()
+const phpClient = consumeAPI<PHPClient>(
+	spawnPHPWorkerThread(
+		"/worker-thread.js",
+		'webworker'
+	)
+);
 ```
 
 #### `iframe`
@@ -270,28 +236,39 @@ The browser will **typically** run an iframe in a separate thread in one of the 
 
 Pick your favorite option and make sure to use it for serving the `iframe-worker.html`.
 
-Example usage of the iframe backend:
+Example usage:
 
 **/app.js**:
 
 ```js
-const workerThread = await spawnPHPWorkerThread(
-	'iframe',
-	'http://another-domain.com/iframe-worker.html'
-)
+const phpClient = consumeAPI<PHPClient>(
+	spawnPHPWorkerThread(
+		"/iframe-worker.html?script=/worker-thread.js",
+		'iframe'
+	)
+);
 ```
 
-**/iframe-worker.html** (provided in this package):
+**/iframe-worker.html** (Also provided in `@wp-playground/php-wasm-web` package):
 
 ```js
-<script src="/worker-thread.js"></script>
-```
+<!DOCTYPE html>
+<html>
+  <head></head>
+  <body style="padding: 0; margin: 0">
+    <script>
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = getEscapeScriptName();
+      document.body.appendChild(script);
 
-**/worker-thread.js**:
+	  function getEscapeScriptName() {
+		// Grab ?script= query parameter and securely escape it
+	  }
+    </script>
+  </body>
+</html>
 
-```js
-import { initializeWorkerThread } from 'php-wasm-browser'
-initializeWorkerThread()
 ```
 
 ## Service Workers
@@ -326,11 +303,16 @@ Here's the minimal setup:
 **/app.js:**
 
 ```js
-import { registerServiceWorker } from 'php-wasm-browser';
+import { registerServiceWorker } from '@wp-playground/php-wasm-web';
 
 function main() {
-    // Must point to a valid Service Worker implementation:
-	await registerServiceWorker( '/service-worker.js' );
+	await registerServiceWorker(
+		phpClient,
+		"default", // PHP instance scope
+		"/sw.js",  // Must point to a valid Service Worker implementation.
+		"1"        // Service worker version, used for reloading the script.
+	);
+
 }
 ```
 
@@ -339,7 +321,7 @@ You will also need a separate `/service-worker.js` file that actually intercepts
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from 'php-wasm-browser'
+import { initializeServiceWorker } from '@wp-playground/php-wasm-web'
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
@@ -348,49 +330,46 @@ initializeServiceWorker()
 
 ## Cross-process communication
 
-`php-wasm-browser` implements request/response dynamics on top of JavaScript's `postMessage`.
+`@wp-playground/php-wasm-web` uses the [Comlink](https://github.com/GoogleChromeLabs/comlink) library to turns the one-way `postMessage` available in JavaScript into a two-way communication channel.
 
 If `postMessage` sounds unfamiliar, it's what JavaScript threads use to communicate. Please review the [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage) before continuing.
 
 By default, `postMessage` does not offer any request/response mechanics. You may send messages to another thread and you may independently receive messages from it, but you can't send a message and await a response to that specific message.
 
-The idea is to include a unique `requestId` in every message sent, and then wait for a message referring to the same `requestId`. See the example below.
+To quote the [Comlink](https://github.com/GoogleChromeLabs/comlink) library documentation:
 
-<!-- include /docs/api/php-wasm-browser.postmessageexpectreply.md#Example -->
-
-In the main app:
+**main.js**
 
 ```js
-import { postMessageExpectReply, awaitReply } from 'php-wasm-browser';
-const iframeWindow = iframe.contentWindow;
-const requestId = postMessageExpectReply(iframeWindow, {
-   type: "get_php_version"
-});
-const response = await awaitReply(iframeWindow, requestId);
-console.log(response);
-// "8.0.24"
+import * as Comlink from "https://unpkg.com/comlink/dist/esm/comlink.mjs";
+async function init() {
+  const worker = new Worker("worker.js");
+  // WebWorkers use `postMessage` and therefore work with Comlink.
+  const obj = Comlink.wrap(worker);
+  alert(`Counter: ${await obj.counter}`);
+  await obj.inc();
+  alert(`Counter: ${await obj.counter}`);
+}
+init();
 ```
-In the iframe:
+
+**worker.js**
 
 ```js
-import { responseTo } from 'php-wasm-browser';
-window.addEventListener('message', (event) => {
-   let response = '8.0.24';
-   if(event.data.type === 'get_php_version') {
-      response = '8.0.24';
-   } else {
-      throw new Error(`Unexpected message type: ${event.data.type}`);
-   }
+importScripts("https://unpkg.com/comlink/dist/umd/comlink.js");
+// importScripts("../../../dist/umd/comlink.js");
 
-   // When `requestId` is present, the other thread expects a response:
-   if (event.data.requestId) {
-      const response = responseTo(event.data.requestId, response);
-      window.parent.postMessage(response, event.origin);
-   }
-});
+const obj = {
+  counter: 0,
+  inc() {
+    this.counter++;
+  },
+};
+
+Comlink.expose(obj);
 ```
 
-<!-- /include /docs/api/php-wasm-browser.postmessageexpectreply.md#Example -->
+In our case, the exposed object is the [PHPClient](/docs/api/php-wasm-web.phpclient.md) instance.
 
 ## Scopes
 
@@ -415,29 +394,40 @@ The service worker is aware of this concept and will attach the `/scope:` found 
 To use scopes, initiate the worker thread with a scoped `absoluteUrl`:
 
 ```js
-import { startPHP, PHPServer, PHPBrowser } from 'php-wasm'
-import { initializeWorkerThread } from 'php-wasm-browser'
-import { setURLScope } from 'php-wasm-browser'
+import {
+	PHP,
+	PHPServer,
+	PHPBrowser,
+	PHPClient,
+	setURLScope,
+	exposeAPI,
+	getPHPLoaderModule,
+	loadPHPRuntime,
+	parseWorkerStartupOptions,
+} from '@wp-playground/php-wasm-web';
 
-async function main() {
-	const php = await startPHP(import('/php.js'))
+// Don't use the absoluteURL directly:
+const absoluteURL = 'http://127.0.0.1'
 
-	// Don't use the absoluteURL directly:
-	const absoluteURL = 'http://127.0.0.1'
+// Instead, set the scope first:
+const scope = Math.random().toFixed(16)
+const scopedURL = setURLScope(absoluteURL, scope).toString()
 
-	// Instead, set the scope first:
-	const scope = Math.random().toFixed(16)
-	const scopedURL = setURLScope(absoluteURL, scope).toString()
+const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
+const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
+const browser = (
+	new PHPBrowser(
+		new PHPServer(
+			new PHP(runtime),
+			{
+				documentRoot: '/',
+				absoluteUrl: scopedURL
+			}
+		)
+	)
+);
 
-	const server = new PHPServer(php, {
-		documentRoot: '/var/www',
-		absoluteUrl: scopedURL,
-	})
-
-	const browser = await new PHPBrowser(server)
-
-	await initializeWorkerThread({
-		phpBrowser: browser,
-	})
-}
+// Expose the API to app.ts:
+const [setApiReady, ] = exposeAPI( new PHPClient( browser ) );
+setApiReady();
 ```
