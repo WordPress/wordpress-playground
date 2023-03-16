@@ -25,9 +25,9 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-// @ts-ignore
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
+	// @ts-ignore
 	version: import.meta.env.DEV
 		? () => Math.random() + ''
 		: serviceWorkerVersion,

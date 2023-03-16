@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/website/src",
 	"projectType": "application",
+	"implicitDependencies": ["playground-remote"],
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -20,7 +21,7 @@
 				"cwd": "dist/packages/playground",
 				"parallel": false
 			},
-			"dependsOn": ["build:standalone", "^playground-remote:build"]
+			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
 			"executor": "@nrwl/vite:build",

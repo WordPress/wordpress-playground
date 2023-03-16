@@ -21,17 +21,16 @@ export const recommendedWorkerBackend = (function () {
  * @param  config
  * @returns The spawned Worker Thread.
  */
-export function spawnPHPWorkerThread(
+export async function spawnPHPWorkerThread(
 	workerUrl: string,
 	workerBackend: 'webworker' | 'iframe' = 'webworker',
 	startupOptions: Record<string, string> = {}
 ) {
 	workerUrl = addQueryParams(workerUrl, startupOptions);
-
 	if (workerBackend === 'webworker') {
 		return new Worker(workerUrl, { type: 'module' });
 	} else if (workerBackend === 'iframe') {
-		return createIframe(workerUrl).contentWindow!;
+		return (await createIframe(workerUrl)).contentWindow!;
 	} else {
 		throw new Error(`Unknown backendName: ${workerBackend}`);
 	}
@@ -51,10 +50,14 @@ function addQueryParams(
 	return urlWithOptions.toString();
 }
 
-function createIframe(workerDocumentURL: string) {
+async function createIframe(workerDocumentURL: string) {
 	const iframe = document.createElement('iframe');
-	iframe.src = workerDocumentURL;
+	const relativeUrl = '/' + workerDocumentURL.split('/').slice(-1)[0];
+	iframe.src = relativeUrl;
 	iframe.style.display = 'none';
 	document.body.appendChild(iframe);
+	await new Promise((resolve) => {
+		iframe.addEventListener('load', resolve);
+	});
 	return iframe;
 }

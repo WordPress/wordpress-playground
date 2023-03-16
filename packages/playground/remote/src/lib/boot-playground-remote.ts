@@ -20,10 +20,9 @@ const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
 import moduleWorkerUrl from './worker-thread?worker&url';
+// Hardcoded for now, this file lives in the /public folder
 // @ts-ignore
-// @TODO
-// import iframeHtmlUrl from '@wp-playground/php-wasm-web/src/lib/worker-thread/iframe-worker.html?url';
-const iframeHtmlUrl = '';
+const iframeHtmlUrl = '/iframe-worker.html';
 
 export const workerBackend = recommendedWorkerBackend;
 export const workerUrl: string = (function () {
@@ -51,7 +50,7 @@ export async function bootPlaygroundRemote() {
 	const wpVersion = query.get('wp') ? query.get('wp') : '6.1';
 	const phpVersion = query.get('php') ? query.get('php') : '8.0';
 	const workerApi = consumeAPI<PlaygroundWorkerClient>(
-		spawnPHPWorkerThread(workerUrl, workerBackend, {
+		await spawnPHPWorkerThread(workerUrl, workerBackend, {
 			// Vite doesn't deal well with the dot in the parameters name,
 			// passed to the worker via a query string, so we replace
 			// it with an underscore
@@ -93,7 +92,6 @@ export async function bootPlaygroundRemote() {
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
 	const [setAPIReady, playground] = exposeAPI(webApi, workerApi);
-
 	await workerApi.isReady();
 	await registerServiceWorker(
 		workerApi,

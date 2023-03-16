@@ -24,13 +24,11 @@
 		</style>
 	</head>
 	<body class="is-loading">
-		<iframe
-			id="wp"
-			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
-		></iframe>
+		<iframe id="wp"></iframe>
 		<script type="module">
-			if (window.top != window.self)
+			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');
+			}
 			import { bootPlaygroundRemote } from './src/index';
 			bootPlaygroundRemote();
 		</script>

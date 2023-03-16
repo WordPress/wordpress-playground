@@ -67,6 +67,7 @@ export default defineConfig({
 		rollupOptions: {
 			input: {
 				wordpress: path('/wordpress.html'),
+				'iframe-worker': path('/iframe-worker.html'),
 			},
 		},
 	},
