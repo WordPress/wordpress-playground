@@ -9,3 +9,5 @@
 /packages/playground/remote/src/wordpress
 __pycache__
 *.timestamp-1678999213403.mjs
+.local
+.vscode
