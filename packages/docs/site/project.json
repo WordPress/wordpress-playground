@@ -28,6 +28,13 @@
 			},
 			"dependsOn": ["^build"]
 		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vitepress dev docs/api",
+				"parallel": false
+			}
+		},
 		"test": {
 			"executor": "@nrwl/vite:test",
 			"outputs": ["coverage/packages/docs/site"],

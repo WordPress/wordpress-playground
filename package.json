@@ -70,8 +70,8 @@
 		"rollup-plugin-dts": "^5.2.0",
 		"rollup-plugin-ts": "^3.2.0",
 		"ts-jest": "^29.0.5",
-		"tslib": "^2.3.0",
 		"ts-node": "10.9.1",
+		"tslib": "^2.3.0",
 		"typescript": "~4.9.5",
 		"vite": "^4.0.1",
 		"vite-plugin-dts": "~1.7.1",
@@ -79,6 +79,7 @@
 		"vite-plugin-static-copy": "^0.13.1",
 		"vite-plugin-wasm": "^3.2.2",
 		"vite-tsconfig-paths": "^4.0.2",
+		"vitepress": "1.0.0-alpha.60",
 		"vitest": "^0.25.8",
 		"yargs": "^17.7.1"
 	}

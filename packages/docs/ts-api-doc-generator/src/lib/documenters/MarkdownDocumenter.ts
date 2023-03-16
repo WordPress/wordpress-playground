@@ -1404,7 +1404,11 @@ export class MarkdownDocumenter {
 		console.log('Deleting old output from ' + this._outputFolder);
 
 		fs.readdirSync(this._outputFolder).forEach((file) => {
-			fs.unlinkSync(path.join(this._outputFolder, file));
+			try {
+				fs.unlinkSync(path.join(this._outputFolder, file));
+			} catch (e) {
+				// Ignore errors for now
+			}
 		});
 	}
 

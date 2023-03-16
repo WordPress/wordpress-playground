@@ -5,6 +5,7 @@ dist
 tmp
 var
 /out-tsc
+.vitepress
 
 # dependencies
 node_modules
