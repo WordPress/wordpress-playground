@@ -34,9 +34,9 @@ export async function registerServiceWorker<Client extends PHPClient>(
 				try {
 					await registration.update();
 				} catch (e) {
-					// If the worker registration cannot be updated, 
+					// If the worker registration cannot be updated,
 					// we're probably seeing a blank page in the dev
-					// mode. Let's unregister the worker and reload 
+					// mode. Let's unregister the worker and reload
 					// the page.
 					unregister = true;
 				}
