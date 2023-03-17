@@ -5,6 +5,7 @@ import {
 	PHPBrowser,
 	PHPClient,
 	exposeAPI,
+	PublicAPI,
 	getPHPLoaderModule,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
@@ -13,7 +14,6 @@ import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';
-import { PublicAPI } from '@php-wasm/common';
 
 const php = new PHP();
 
