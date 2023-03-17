@@ -69,6 +69,10 @@ export async function setupPlayground(
 			progressObserver
 		);
 	}
+
+	if (config.initialUrl) {
+		await playground.goTo(config.initialUrl);
+	}
 }
 
 function sumValues(obj: Record<string, number>) {
