@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/php-wasm-web",
+	"name": "@php-wasm/web",
 	"version": "0.0.1",
 	"description": "PHP.wasm for the web",
 	"repository": {
