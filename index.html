@@ -1,0 +1,107 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>wp-playground</title><meta name="description" content="Documentation for wp-playground"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><link rel="stylesheet" href="assets/custom.css"/><script async src="assets/search.js" id="search-script"></script><link rel="stylesheet" href="assets/pages.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container">
+<div class="table-cell" id="tsd-search" data-base=".">
+<div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.7824 13.833L12.6666 10.7177C12.5259 10.5771 12.3353 10.499 12.1353 10.499H11.6259C12.4884 9.39596 13.001 8.00859 13.001 6.49937C13.001 2.90909 10.0914 0 6.50048 0C2.90959 0 0 2.90909 0 6.49937C0 10.0896 2.90959 12.9987 6.50048 12.9987C8.00996 12.9987 9.39756 12.4863 10.5008 11.6239V12.1332C10.5008 12.3332 10.5789 12.5238 10.7195 12.6644L13.8354 15.7797C14.1292 16.0734 14.6042 16.0734 14.8948 15.7797L15.7793 14.8954C16.0731 14.6017 16.0731 14.1267 15.7824 13.833ZM6.50048 10.499C4.29094 10.499 2.50018 8.71165 2.50018 6.49937C2.50018 4.29021 4.28781 2.49976 6.50048 2.49976C8.71001 2.49976 10.5008 4.28708 10.5008 6.49937C10.5008 8.70852 8.71314 10.499 6.50048 10.499Z" fill="var(--color-text)"></path></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div>
+<div class="field">
+<div id="tsd-toolbar-links"></div></div>
+<ul class="results">
+<li class="state loading">Preparing search index...</li>
+<li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">wp-playground</a></div>
+<div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="2" fill="var(--color-text)"></rect><rect x="1" y="7" width="14" height="2" fill="var(--color-text)"></rect><rect x="1" y="11" width="14" height="2" fill="var(--color-text)"></rect></svg></a></div></div></header>
+<div class="container container-main">
+<div class="col-8 col-content">
+<div class="tsd-page-title">
+<h2>wp-playground</h2></div>
+<div class="tsd-panel tsd-typography">
+<a href="#wordpress-playground" id="wordpress-playground" style="color: inherit; text-decoration: none;">
+  <h1>WordPress Playground</h1>
+</a>
+<p><a href="https://developer.wordpress.org/playground/">Project Page</a> | <a href="https://wasm.wordpress.net/">Live demo</a> | <a href="https://wordpresswasm.readthedocs.io/en/latest/">Documentation and API Reference</a></p>
+<p><a href="./docs/index.md">test </a></p>
+<p><a href="https://github.com/WordPress/wordpress-playground">WordPress Playground</a> is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.</p>
+<p><img src="https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/demo.png" alt=""></p>
+
+<a href="#why-is-wordpress-playground-useful" id="why-is-wordpress-playground-useful" style="color: inherit; text-decoration: none;">
+  <h2>Why is WordPress Playground useful?</h2>
+</a>
+<p>WordPress Playground is a building block that can power apps like:</p>
+<ul>
+<li>Runnable code snippets in your documentation or course</li>
+<li>Plugin and theme demos in a private WordPress instance where the user is already logged in as an admin</li>
+<li>Easily switching PHP and WordPress version when testing</li>
+<li>Replaying and fixing the failed CI tests right in the browser</li>
+</ul>
+<p>See
+<a href="https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/">the WordPress.org announcement post</a> to learn more about the vision.</p>
+
+<a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
+  <h2>Getting started</h2>
+</a>
+<p>WordPress Playground has a <a href="https://developer.wordpress.org/playground/demo/">live demo</a> available.</p>
+<p>You can embed WordPress Playground in your project via an <code>&lt;iframe&gt;</code> – find out how in the <a href="https://wordpresswasm.readthedocs.io/en/latest/">documentation</a>. <strong>Note the embed is experimental and may break or change without a warning.</strong></p>
+<p>You can connect to the Playground instance using the JavaScript client:</p>
+<pre><code class="language-js"><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">connectPlayground</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&#39;@wp-playground/client&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">client</span><span class="hl-1"> = </span><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-6">connectPlayground</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-2">document</span><span class="hl-1">.</span><span class="hl-6">getElementById</span><span class="hl-1">(</span><span class="hl-3">&#39;wp&#39;</span><span class="hl-1">)! </span><span class="hl-0">as</span><span class="hl-1"> </span><span class="hl-7">HTMLIFrameElement</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-3">`https://wasm.wordpress.net/remote.html`</span><br/><span class="hl-1">);</span><br/><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-6">isReady</span><span class="hl-1">();</span><br/><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-6">goTo</span><span class="hl-1">(</span><span class="hl-3">&#39;/wp-admin/&#39;</span><span class="hl-1">);</span><br/><br/><span class="hl-4">const</span><span class="hl-1"> </span><span class="hl-5">result</span><span class="hl-1"> = </span><span class="hl-0">await</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1">.</span><span class="hl-6">run</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-2">code:</span><span class="hl-1"> </span><span class="hl-3">&#39;&lt;?php echo &quot;Hi!&quot;; &#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><span class="hl-2">console</span><span class="hl-1">.</span><span class="hl-6">log</span><span class="hl-1">(</span><span class="hl-4">new</span><span class="hl-1"> </span><span class="hl-6">TextDecoder</span><span class="hl-1">().</span><span class="hl-6">decode</span><span class="hl-1">(</span><span class="hl-2">result</span><span class="hl-1">.</span><span class="hl-2">body</span><span class="hl-1">));</span>
+</code></pre>
+<p>You also can run WordPress Playground locally as follows:</p>
+<pre><code class="language-bash"><span class="hl-8"># Install Yarn if you don&#39;t have it:</span><br/><span class="hl-1">npm </span><span class="hl-3">install</span><span class="hl-1"> </span><span class="hl-3">-g</span><span class="hl-1"> </span><span class="hl-3">yarn</span><br/><br/><span class="hl-8"># Now you&#39;re ready to run Playground:</span><br/><span class="hl-1">git </span><span class="hl-3">clone</span><span class="hl-1"> </span><span class="hl-3">https://github.com/WordPress/wordpress-playground</span><br/><span class="hl-6">cd</span><span class="hl-1"> </span><span class="hl-3">wordpress-playground</span><br/><span class="hl-1">yarn </span><span class="hl-3">install</span><br/><span class="hl-1">yarn </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">dev</span>
+</code></pre>
+<p>A browser should open and take you to your very own client-side WordPress at <a href="http://127.0.0.1:5400/">http://127.0.0.1:5400/</a>!</p>
+<p>Any changes you make to <code>.ts</code> files will be live-reloaded. Changes to <code>Dockerfile</code> require a full rebuild.</p>
+<p>From here, the <a href="https://wordpresswasm.readthedocs.io/en/latest/">documentation</a> will help you learn how WordPress Playground works and how to use it to build amazing things!</p>
+<p>And here&#39;s a few more interesting CLI:</p>
+<pre><code class="language-bash"><span class="hl-8"># Build and run PHP.wasm CLI</span><br/><span class="hl-1">nx </span><span class="hl-3">start</span><span class="hl-1"> </span><span class="hl-3">php-wasm-cli</span><br/><br/><span class="hl-8"># Build latest WordPress releases</span><br/><span class="hl-1">nx </span><span class="hl-3">recompile-wordpress:all</span><span class="hl-1"> </span><span class="hl-3">playground-remote</span><br/><br/><span class="hl-8"># Recompile PHP 5.6 - 8.2 releases to .wasm for web</span><br/><span class="hl-1">nx </span><span class="hl-3">recompile-php:all</span><span class="hl-1"> </span><span class="hl-3">php-wasm-web</span><br/><br/><span class="hl-8"># Recompile PHP 5.6 - 8.2 releases to .wasm for node</span><br/><span class="hl-1">nx </span><span class="hl-3">recompile-php:all</span><span class="hl-1"> </span><span class="hl-3">php-wasm-node</span><br/><br/><span class="hl-8"># Builds markdown files for readthedocs site</span><br/><span class="hl-1">nx </span><span class="hl-3">build</span><span class="hl-1"> </span><span class="hl-3">docs-site</span><br/><br/><span class="hl-8"># Builds the Playground Client npm package</span><br/><span class="hl-1">nx </span><span class="hl-3">build</span><span class="hl-1"> </span><span class="hl-3">playground-client</span><br/><br/><span class="hl-8"># Bonus: Run PHP.wasm in your local CLI:</span><br/><span class="hl-1">npx </span><span class="hl-3">@php-wasm/cli</span><span class="hl-1"> </span><span class="hl-3">-v</span><br/><span class="hl-2">PHP</span><span class="hl-1">=</span><span class="hl-9">7.4</span><span class="hl-1"> npx @php-wasm/cli -v</span><br/><span class="hl-1">npx </span><span class="hl-3">@php-wasm/cli</span><span class="hl-1"> </span><span class="hl-3">phpcbf</span>
+</code></pre>
+
+<a href="#backwards-compatibility" id="backwards-compatibility" style="color: inherit; text-decoration: none;">
+  <h2>Backwards compatibility</h2>
+</a>
+<p>This experimental software may break or change without a warning. Releasing a stable API is an important future milestone that will be reached once the codebase is mature enough.</p>
+
+<a href="#prior-art" id="prior-art" style="color: inherit; text-decoration: none;">
+  <h2>Prior art</h2>
+</a>
+<p>WordPress Playground forked the original PHP to WebAssembly build published in <a href="https://github.com/oraoto/pib">https://github.com/oraoto/pib</a> and modified later in <a href="https://github.com/seanmorris/php-wasm">https://github.com/seanmorris/php-wasm</a>.</p>
+<p>Another strong inspiration was the <a href="https://seanmorris.github.io/php-wasm/?autorun=0&persist=0&single-expression=0&code=%253C%253Fphp%250Aini_set%28%27session.save_path%27%252C%2520%27%252Fhome%252Fweb_user%27%29%253B%250A%250A%2524stdErr%2520%253D%2520fopen%28%27php%253A%252F%252Fstderr%27%252C%2520%27w%27%29%253B%250A%2524errors%2520%253D%2520%255B%255D%253B%250A%250Aregister_shutdown_function%28function%28%29%2520use%28%2524stdErr%252C%2520%2526%2524errors%29%257B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27session_id%27%2520%253D%253E%2520session_id%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27headers%27%253D%253Eheaders_list%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%2520%2520%2520%2520fwrite%28%2524stdErr%252C%2520json_encode%28%255B%27errors%27%2520%253D%253E%2520error_get_last%28%29%255D%29%2520.%2520%2522%255Cn%2522%29%253B%250A%257D%29%253B%250A%250Aset_error_handler%28function%28...%2524args%29%2520use%28%2524stdErr%252C%2520%2526%2524errors%29%257B%250A%2509fwrite%28%2524stdErr%252C%2520print_r%28%2524args%252C1%29%29%253B%250A%257D%29%253B%250A%250A%2524docroot%2520%253D%2520%27%252Fpreload%252Fdrupal-7.59%27%253B%250A%2524path%2520%2520%2520%2520%253D%2520%27%252F%27%253B%250A%2524script%2520%2520%253D%2520%27index.php%27%253B%250A%250A%2524_SERVER%255B%27REQUEST_URI%27%255D%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%2524path%253B%250A%2524_SERVER%255B%27REMOTE_ADDR%27%255D%2520%2520%2520%2520%2520%253D%2520%27127.0.0.1%27%253B%250A%2524_SERVER%255B%27SERVER_NAME%27%255D%2520%2520%2520%2520%2520%253D%2520%27localhost%27%253B%250A%2524_SERVER%255B%27SERVER_PORT%27%255D%2520%2520%2520%2520%2520%253D%25203333%253B%250A%2524_SERVER%255B%27REQUEST_METHOD%27%255D%2520%2520%253D%2520%27GET%27%253B%250A%2524_SERVER%255B%27SCRIPT_FILENAME%27%255D%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%2524_SERVER%255B%27SCRIPT_NAME%27%255D%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%2524_SERVER%255B%27PHP_SELF%27%255D%2520%2520%2520%2520%2520%2520%2520%2520%253D%2520%2524docroot%2520.%2520%27%252F%27%2520.%2520%2524script%253B%250A%250Achdir%28%2524docroot%29%253B%250A%250Aob_start%28%29%253B%250A%250Adefine%28%27DRUPAL_ROOT%27%252C%2520getcwd%28%29%29%253B%250A%250Arequire_once%2520DRUPAL_ROOT%2520.%2520%27%252Fincludes%252Fbootstrap.inc%27%253B%250Adrupal_bootstrap%28DRUPAL_BOOTSTRAP_FULL%29%253B%250A%250A%2524uid%2520%2520%2520%2520%2520%253D%25201%253B%250A%2524user%2520%2520%2520%2520%253D%2520user_load%28%2524uid%29%253B%250A%2524account%2520%253D%2520array%28%27uid%27%2520%253D%253E%2520%2524user-%253Euid%29%253B%250Auser_login_submit%28array%28%29%252C%2520%2524account%29%253B%250A%250A%2524itemPath%2520%253D%2520%2524path%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%255C%252Fpreload%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%255C%252Fdrupal-7.59%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%2524itemPath%2520%253D%2520preg_replace%28%27%252F%255E%255C%252F%252F%27%252C%2520%27%27%252C%2520%2524itemPath%29%253B%250A%250Aif%28%2524itemPath%29%250A%257B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520%2524router_item%2520%253D%2520menu_get_item%28%2524itemPath%29%253B%250A%2520%2520%2520%2520%2524router_item%255B%27access_callback%27%255D%2520%253D%2520true%253B%250A%2520%2520%2520%2520%2524router_item%255B%27access%27%255D%2520%253D%2520true%253B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520if%2520%28%2524router_item%255B%27include_file%27%255D%29%2520%257B%250A%2520%2520%2520%2520%2520%2520require_once%2520DRUPAL_ROOT%2520.%2520%27%252F%27%2520.%2520%2524router_item%255B%27include_file%27%255D%253B%250A%2520%2520%2520%2520%257D%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520%2524page_callback_result%2520%253D%2520call_user_func_array%28%2524router_item%255B%27page_callback%27%255D%252C%2520unserialize%28%2524router_item%255B%27page_arguments%27%255D%29%29%253B%250A%2520%2520%2520%2520%250A%2520%2520%2520%2520drupal_deliver_page%28%2524page_callback_result%29%253B%250A%257D%250Aelse%250A%257B%250A%2520%2520%2520%2520menu_execute_active_handler%28%29%253B%250A%257D&render-as=html">Drupal in the browser demo</a> which proved you can run non-trivial PHP software in the browser.</p>
+<p>A worthy mention is Wasm Labs’s closed-source <a href="https://wordpress.wasmlabs.dev/">WordPress in the browser</a> shared before this project was first published. There is no public repository available, but their <a href="https://wasmlabs.dev/articles/wordpress-in-the-browser/">technical overview</a> gives a breakdown of the technical decisions that project took. WordPress Playground draws inspiration from the same PHP in the browser projects and makes similar technical choices.</p>
+
+<a href="#contributing" id="contributing" style="color: inherit; text-decoration: none;">
+  <h2>Contributing</h2>
+</a>
+<p>WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.</p>
+</div></div>
+<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+<div class="tsd-navigation settings">
+<details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
+<h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-text)"></path></svg> Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility">
+<h4 class="uppercase">Member Visibility</h4><form>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-private" name="private"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Private</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></form></div>
+<div class="tsd-theme-toggle">
+<h4 class="uppercase">Theme</h4><select id="theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<nav class="tsd-navigation primary">
+<details class="tsd-index-accordion" open><summary class="tsd-accordion-summary">
+<h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-text)"></path></svg> Modules</h3></summary>
+<div class="tsd-accordion-details">
+<ul>
+<li class="current selected"><a href="modules.html">wp-<wbr/>playground</a>
+<ul>
+<li class="pages-entry pages-entry-menu pages-entry-depth-1"><a>Playground</a>
+<ul>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/index.html">Start here</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/embedding-wordpress-playground-on-other-websites.html">Embedding <wbr/>Word<wbr/>Press playground-<wbr/>on other websites</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/using-php-in-javascript.html">Using PHP in <wbr/>Java<wbr/>Script</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/using-php-in-the-browser.html">Using PHP in the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/bundling-wordpress-for-the-browser.html">Bundling <wbr/>Word<wbr/>Press for the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/running-wordpress-in-the-browser.html">Running <wbr/>Word<wbr/>Press in the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/service-worker.html">Service workers</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="pages/wordpress-plugin-ide.html">Word<wbr/>Press plugin IDE</a></li></ul></li>
+<li class="tsd-kind-module"><a href="modules/_php_wasm_progress.html">@php-<wbr/>wasm/progress</a></li>
+<li class="tsd-kind-module"><a href="modules/_php_wasm_web.html">@php-<wbr/>wasm/web</a></li>
+<li class="tsd-kind-module"><a href="modules/_wp_playground_client.html">@wp-<wbr/>playground/client</a></li></ul></li></ul></div></details></nav></div></div>
+<div class="container tsd-generator">
+<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
+<div class="overlay"></div><script src="assets/main.js"></script></body></html>
