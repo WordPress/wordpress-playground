@@ -8,4 +8,4 @@
 type PlaygroundWorkerClient = typeof publicApi;
 ```
 
-<b>References:</b> [publicApi](./playground-client.publicapi.md)
+<b>References:</b> [publicApi](./client.publicapi.md)

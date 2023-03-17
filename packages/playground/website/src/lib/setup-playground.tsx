@@ -1,11 +1,11 @@
 import { ProgressObserver } from '@wp-playground/php-wasm-progress';
-import type { PlaygroundClient } from '@wp-playground/playground-client';
+import type { PlaygroundClient } from '@wp-playground/client';
 
 import {
 	login,
 	installThemeFromDirectory,
 	installPluginsFromDirectory,
-} from '@wp-playground/playground-client';
+} from '@wp-playground/client';
 
 const query = new URL(document.location.href).searchParams;
 

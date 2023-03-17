@@ -28,4 +28,4 @@ type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
 	);
 ```
 
-<b>References:</b> [PHPRequest](./playground-client.phprequest.md)
+<b>References:</b> [PHPRequest](./client.phprequest.md)

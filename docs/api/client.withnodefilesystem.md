@@ -10,4 +10,4 @@ interface WithNodeFilesystem
 
 ## Methods
 
--   [mount(settings, path)](./playground-client.withnodefilesystem.mount.md)Mounts a Node.js filesystem to a given path in the PHP filesystem.
+-   [mount(settings, path)](./client.withnodefilesystem.mount.md)Mounts a Node.js filesystem to a given path in the PHP filesystem.

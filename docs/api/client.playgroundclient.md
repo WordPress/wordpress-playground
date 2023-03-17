@@ -8,4 +8,4 @@
 type PlaygroundClient = WebClientMixin & PlaygroundWorkerClient;
 ```
 
-<b>References:</b> [WebClientMixin](./playground-client.webclientmixin.md)<!-- -->, [PlaygroundWorkerClient](./playground-client.playgroundworkerclient.md)
+<b>References:</b> [WebClientMixin](./client.webclientmixin.md)<!-- -->, [PlaygroundWorkerClient](./client.playgroundworkerclient.md)

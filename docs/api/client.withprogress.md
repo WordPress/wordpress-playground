@@ -10,4 +10,4 @@ interface WithProgress
 
 ## Methods
 
--   [onDownloadProgress(callback)](./playground-client.withprogress.ondownloadprogress.md)
+-   [onDownloadProgress(callback)](./client.withprogress.ondownloadprogress.md)

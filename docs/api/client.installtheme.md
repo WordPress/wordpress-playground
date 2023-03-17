@@ -3,7 +3,7 @@
 ## installTheme() function
 
 installTheme<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./playground-client.playgroundclient.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./client.playgroundclient.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->themeZipFile<!-- -->: [File](https://developer.mozilla.org/en-US/docs/Web/API/File)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->options?<!-- -->: [any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)<!-- -->&gt;

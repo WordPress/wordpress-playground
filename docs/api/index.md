@@ -6,9 +6,9 @@
 
 | Package                                                                        | Description |
 | ------------------------------------------------------------------------------ | ----------- |
+| [@wp-playground/client](./client.md)                                           |             |
 | [@wp-playground/php-wasm-node](./php-wasm-node.md)                             |             |
 | [@wp-playground/php-wasm-progress](./php-wasm-progress.md)                     |             |
 | [@wp-playground/php-wasm-scopes](./php-wasm-scopes.md)                         |             |
 | [@wp-playground/php-wasm-web](./php-wasm-web.md)                               |             |
 | [@wp-playground/php-wasm-web-service-worker](./php-wasm-web-service-worker.md) |             |
-| [@wp-playground/playground-client](./playground-client.md)                     |             |

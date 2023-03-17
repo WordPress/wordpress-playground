@@ -1,6 +1,6 @@
 import css from './style.module.css';
-import type { PlaygroundClient } from '@wp-playground/playground-client';
-import { exportFile } from '@wp-playground/playground-client';
+import type { PlaygroundClient } from '@wp-playground/client';
+import { exportFile } from '@wp-playground/client';
 
 interface ExportButtonProps {
 	playground?: PlaygroundClient;

@@ -3,10 +3,10 @@
 ## installPluginsFromDirectory() function
 
 installPluginsFromDirectory<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./playground-client.playgroundclient.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./client.playgroundclient.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->pluginsZipNames<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->[]<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->progressBudget?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->progress?<!-- -->: [ProgressObserver](./playground-client.progressobserver.md)\
+&emsp;&emsp;&emsp;<!-- -->progress?<!-- -->: [ProgressObserver](./client.progressobserver.md)\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)<!-- -->&gt;
 
 -   `progressBudget` – Optional.

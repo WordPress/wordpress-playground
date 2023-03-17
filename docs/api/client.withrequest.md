@@ -10,7 +10,7 @@ interface WithRequest
 
 ## Methods
 
--   [request(request, redirects)](./playground-client.withrequest.request.md)Sends the request to the server.
+-   [request(request, redirects)](./client.withrequest.request.md)Sends the request to the server.
     When cookies are present in the response, this method stores
     them and sends them with any subsequent requests.
 

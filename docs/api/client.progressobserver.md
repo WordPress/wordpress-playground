@@ -13,13 +13,13 @@ class ProgressObserver extends EventTarget
 ## Properties
 
 -   `caption` [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
--   `mode` [ProgressMode](./playground-client.progressmode.md)
+-   `mode` [ProgressMode](./client.progressmode.md)
 -   `progress` [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 -   `totalProgress` readonly [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
 ## Methods
 
-### partialObserver<!-- -->(<!-- -->progressBudget<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, caption?<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: (<!-- -->progress<!-- -->:<!-- -->CustomEvent<!-- -->&lt;[DownloadProgress](./playground-client.downloadprogress.md)<!-- -->&gt;<!-- -->)<!-- -->=&gt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### partialObserver<!-- -->(<!-- -->progressBudget<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, caption?<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: (<!-- -->progress<!-- -->:<!-- -->CustomEvent<!-- -->&lt;[DownloadProgress](./client.downloadprogress.md)<!-- -->&gt;<!-- -->)<!-- -->=&gt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 
 -   `caption` – Optional.
 

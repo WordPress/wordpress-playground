@@ -8,7 +8,7 @@
 class PHP implements WithPHPIniBindings, WithFilesystem, WithNodeFilesystem, WithCLI, WithRun
 ```
 
-<b>Implements:</b> [WithPHPIniBindings](./playground-client.withphpinibindings.md)<!-- -->, [WithFilesystem](./playground-client.withfilesystem.md)<!-- -->, [WithNodeFilesystem](./playground-client.withnodefilesystem.md)<!-- -->, [WithCLI](./playground-client.withcli.md)<!-- -->, [WithRun](./playground-client.withrun.md)
+<b>Implements:</b> [WithPHPIniBindings](./client.withphpinibindings.md)<!-- -->, [WithFilesystem](./client.withfilesystem.md)<!-- -->, [WithNodeFilesystem](./client.withnodefilesystem.md)<!-- -->, [WithCLI](./client.withcli.md)<!-- -->, [WithRun](./client.withrun.md)
 
 ## Remarks
 
@@ -22,7 +22,7 @@ The constructor for this class is marked as internal. Third-party code should no
 
 ### fileExists<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
-### initializeRuntime<!-- -->(<!-- -->runtimeId<!-- -->: [PHPRuntimeId](./playground-client.phpruntimeid.md)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### initializeRuntime<!-- -->(<!-- -->runtimeId<!-- -->: [PHPRuntimeId](./client.phpruntimeid.md)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 
 ### isDir<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [boolean](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
@@ -30,13 +30,13 @@ The constructor for this class is marked as internal. Third-party code should no
 
 ### mkdirTree<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 
-### mount<!-- -->(<!-- -->settings<!-- -->: [MountSettings](./playground-client.mountsettings.md)<!-- -->, path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### mount<!-- -->(<!-- -->settings<!-- -->: [MountSettings](./client.mountsettings.md)<!-- -->, path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
 
 ### readFileAsBuffer<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array)
 
 ### readFileAsText<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)
 
-### run<!-- -->(<!-- -->request?<!-- -->: [PHPRequest](./playground-client.phprequest.md)<!-- -->)<!-- -->: [PHPResponse](./playground-client.phpresponse.md)
+### run<!-- -->(<!-- -->request?<!-- -->: [PHPRequest](./client.phprequest.md)<!-- -->)<!-- -->: [PHPResponse](./client.phpresponse.md)
 
 -   `request` – Optional.
 

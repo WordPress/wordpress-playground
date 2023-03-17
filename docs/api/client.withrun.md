@@ -10,5 +10,5 @@ interface WithRun
 
 ## Methods
 
--   [run(request)](./playground-client.withrun.run.md)Dispatches a PHP request.
+-   [run(request)](./client.withrun.run.md)Dispatches a PHP request.
     Cannot be used in conjunction with `cli()`<!-- -->.

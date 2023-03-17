@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/playground-client",
+	"name": "@wp-playground/client",
 	"version": "0.0.1",
 	"description": "WordPress Playground client",
 	"repository": {

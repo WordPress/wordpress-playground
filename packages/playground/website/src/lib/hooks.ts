@@ -3,8 +3,8 @@ import {
 	ProgressObserver,
 	ProgressObserverEvent,
 } from '@wp-playground/php-wasm-progress';
-import { connectPlayground } from '@wp-playground/playground-client';
-import type { PlaygroundClient } from '@wp-playground/playground-client';
+import { connectPlayground } from '@wp-playground/client';
+import type { PlaygroundClient } from '@wp-playground/client';
 import { remotePlaygroundOrigin } from './config';
 
 export function useRerender() {

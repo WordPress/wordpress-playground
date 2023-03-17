@@ -1,6 +1,6 @@
 # Running PHP apps in the browser with ServiceWorkers and Worker Threads
 
-The [`src/php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/php-wasm-web/) module provides a framework for running real PHP applications inside the web browser:
+The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web/) module provides a framework for running real PHP applications inside the web browser:
 
 -   **Browser tab orchestrates everything** – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
 -   **Iframe-based rendering** – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
@@ -220,7 +220,7 @@ Worker threads can use any multiprocessing technique like an iframe, WebWorker, 
 
 #### `webworker`
 
-Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend is handy to work around webworkers limitations in the browsers. For example, [FireFox does not support module workers](https://github.com/mdn/content/issues/24402) and [WASM used to crash webworkers in Chrome](https://github.com/WordPress/wordpress-playground/issues/1).
+Spins a new `Worker` instance with the given Worker Thread script. This is the classic solution for multiprocessing in the browser and it almost became the only, non-configurable backend. The `iframe` backend is handy to work around webworkers limitations in the browsers. For example, [Firefox does not support module workers](https://github.com/mdn/content/issues/24402) and [WASM used to crash webworkers in Chrome](https://github.com/WordPress/wordpress-playground/issues/1).
 
 Example usage:
 

@@ -44,7 +44,7 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 Here's a high-level breakdown of how WordPress Playground works:
 
--   `index.html` from Playgrounf website connects to `remote.html` via an `<iframe src="/remote.html">`
+-   `index.html` from Playground website connects to `remote.html` via an `<iframe src="/remote.html">`
 -   `remote.html` starts a Worker Thread and a ServiceWorker and sends back the download progress information
 -   The Worker Thread starts PHP and populates the filesystem with a WordPress patched to run on SQLite
 -   The ServiceWorker starts intercepting all HTTP requests and forwarding them to the Worker Thread

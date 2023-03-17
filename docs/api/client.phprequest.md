@@ -12,8 +12,8 @@ interface PHPRequest
 
 -   `body` [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request body without the files.
 -   `code` [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> The code snippet to eval instead of a php file.
--   `fileInfos` [FileInfo](./playground-client.fileinfo.md)<!-- -->[] – <b>(Optional)</b> Uploaded files.
--   `headers` [PHPRequestHeaders](./playground-client.phprequestheaders.md) – <b>(Optional)</b> Request headers.
+-   `fileInfos` [FileInfo](./client.fileinfo.md)<!-- -->[] – <b>(Optional)</b> Uploaded files.
+-   `headers` [PHPRequestHeaders](./client.phprequestheaders.md) – <b>(Optional)</b> Request headers.
 -   `method` "GET"<!-- -->|<!-- -->"POST"<!-- -->|<!-- -->"HEAD"<!-- -->|<!-- -->"OPTIONS"<!-- -->|<!-- -->"PATCH"<!-- -->|<!-- -->"PUT"<!-- -->|<!-- -->"DELETE" – <b>(Optional)</b> Request method. Default: `GET`<!-- -->.
 -   `protocol` [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request protocol.
 -   `relativeUri` [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – <b>(Optional)</b> Request path following the domain:port part.

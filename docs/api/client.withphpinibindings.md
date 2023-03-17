@@ -10,5 +10,5 @@ interface WithPHPIniBindings
 
 ## Methods
 
--   [setPhpIniEntry(key, value)](./playground-client.withphpinibindings.setphpinientry.md)
--   [setPhpIniPath(path)](./playground-client.withphpinibindings.setphpinipath.md)
+-   [setPhpIniEntry(key, value)](./client.withphpinibindings.setphpinientry.md)
+-   [setPhpIniPath(path)](./client.withphpinibindings.setphpinipath.md)

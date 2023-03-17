@@ -12,7 +12,7 @@ class EmscriptenDownloadMonitor extends EventTarget
 
 ## Constructors
 
-### EmscriptenDownloadMonitor<!-- -->(<!-- -->modules?<!-- -->: [MonitoredModule](./playground-client.monitoredmodule.md)<!-- -->[]<!-- -->)
+### EmscriptenDownloadMonitor<!-- -->(<!-- -->modules?<!-- -->: [MonitoredModule](./client.monitoredmodule.md)<!-- -->[]<!-- -->)
 
 -   `modules` – Optional.
 
@@ -22,4 +22,4 @@ Constructs a new instance of the `EmscriptenDownloadMonitor` class
 
 ### getEmscriptenArgs<!-- -->(<!-- -->)<!-- -->: {<!-- -->dataFileDownloads<!-- -->:[Record](https://www.typescriptlang.org/docs/handbook/utility-types.html#recordkeys-type)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->,[any](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#any)<!-- -->&gt;<!-- -->;<!-- -->}
 
-### setModules<!-- -->(<!-- -->modules<!-- -->: [MonitoredModule](./playground-client.monitoredmodule.md)<!-- -->[]<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)
+### setModules<!-- -->(<!-- -->modules<!-- -->: [MonitoredModule](./client.monitoredmodule.md)<!-- -->[]<!-- -->)<!-- -->: [void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)

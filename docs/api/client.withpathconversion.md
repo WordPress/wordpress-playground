@@ -10,5 +10,5 @@ interface WithPathConversion
 
 ## Methods
 
--   [internalUrlToPath(internalUrl)](./playground-client.withpathconversion.internalurltopath.md)
--   [pathToInternalUrl(path)](./playground-client.withpathconversion.pathtointernalurl.md)
+-   [internalUrlToPath(internalUrl)](./client.withpathconversion.internalurltopath.md)
+-   [pathToInternalUrl(path)](./client.withpathconversion.pathtointernalurl.md)

@@ -10,7 +10,7 @@ class PHPServer
 
 ## Constructors
 
-### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](./playground-client.php.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](./playground-client.phpserverconfigation.md)<!-- -->)
+### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](./client.php.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](./client.phpserverconfigation.md)<!-- -->)
 
 -   `php` – The PHP instance.
 -   `config` – Optional. Server configuration.
@@ -21,7 +21,7 @@ Constructs a new instance of the `PHPServer` class
 
 -   `absoluteUrl` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
 -   `documentRoot` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
--   `php` [PHP](./playground-client.php.md) – The PHP instance
+-   `php` [PHP](./client.php.md) – The PHP instance
 
 ## Methods
 
@@ -41,7 +41,7 @@ without the server pathname and scope.
 Converts a path to an absolute URL based at the PHPServer
 root.
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./playground-client.phpserverrequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./playground-client.phpresponse.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./client.phpserverrequest.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./client.phpresponse.md)<!-- -->&gt;
 
 -   `request` – The request.
 -   Returns: The response.

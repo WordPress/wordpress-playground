@@ -1,9 +1,9 @@
 import React from 'react';
 import { useRef, useState } from 'react';
-import type { PlaygroundClient } from '@wp-playground/playground-client';
+import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
-import { importFile } from '@wp-playground/playground-client';
+import { importFile } from '@wp-playground/client';
 
 interface ImportFormProps {
 	playground: PlaygroundClient;

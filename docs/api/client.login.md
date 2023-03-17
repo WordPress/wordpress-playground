@@ -3,7 +3,7 @@
 ## login() function
 
 login<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./playground-client.playgroundclient.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->playground<!-- -->: [PlaygroundClient](./client.playgroundclient.md)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->user?<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, \
 &emsp;&emsp;&emsp;<!-- -->password?<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[void](https://www.typescriptlang.org/docs/handbook/2/functions.html#void)<!-- -->&gt;

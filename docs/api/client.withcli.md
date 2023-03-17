@@ -10,6 +10,6 @@ interface WithCLI
 
 ## Methods
 
--   [cli(argv)](./playground-client.withcli.cli.md)Starts a PHP CLI session with given arguments.
+-   [cli(argv)](./client.withcli.cli.md)Starts a PHP CLI session with given arguments.
     Can only be used when PHP was compiled with the CLI SAPI.
     Cannot be used in conjunction with `run()`<!-- -->.

@@ -8,11 +8,11 @@
 class PlaygroundWorkerClientClass extends PHPClient
 ```
 
-<b>Extends:</b> [PHPClient](./playground-client.phpclient.md)
+<b>Extends:</b> [PHPClient](./client.phpclient.md)
 
 ## Constructors
 
-### PlaygroundWorkerClientClass<!-- -->(<!-- -->browser<!-- -->: [PHPBrowser](./playground-client.phpbrowser.md)<!-- -->, monitor<!-- -->: [EmscriptenDownloadMonitor](./playground-client.emscriptendownloadmonitor.md)<!-- -->, scope<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, wordPressVersion<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, phpVersion<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)
+### PlaygroundWorkerClientClass<!-- -->(<!-- -->browser<!-- -->: [PHPBrowser](./client.phpbrowser.md)<!-- -->, monitor<!-- -->: [EmscriptenDownloadMonitor](./client.emscriptendownloadmonitor.md)<!-- -->, scope<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, wordPressVersion<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->, phpVersion<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)
 
 Constructs a new instance of the `PlaygroundWorkerClientClass` class
 

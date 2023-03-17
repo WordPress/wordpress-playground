@@ -8,11 +8,11 @@
 class PHPClient implements Promisify<WithRequest & WithPHPIniBindings & WithFilesystem & WithRun & WithProgress & WithPathConversion>
 ```
 
-<b>Implements:</b> [Promisify](./playground-client.promisify.md)<!-- -->&lt;[WithRequest](./playground-client.withrequest.md)<!-- -->&amp;[WithPHPIniBindings](./playground-client.withphpinibindings.md)<!-- -->&amp;[WithFilesystem](./playground-client.withfilesystem.md)<!-- -->&amp;[WithRun](./playground-client.withrun.md)<!-- -->&amp;[WithProgress](./playground-client.withprogress.md)<!-- -->&amp;[WithPathConversion](./playground-client.withpathconversion.md)<!-- -->&gt;
+<b>Implements:</b> [Promisify](./client.promisify.md)<!-- -->&lt;[WithRequest](./client.withrequest.md)<!-- -->&amp;[WithPHPIniBindings](./client.withphpinibindings.md)<!-- -->&amp;[WithFilesystem](./client.withfilesystem.md)<!-- -->&amp;[WithRun](./client.withrun.md)<!-- -->&amp;[WithProgress](./client.withprogress.md)<!-- -->&amp;[WithPathConversion](./client.withpathconversion.md)<!-- -->&gt;
 
 ## Constructors
 
-### PHPClient<!-- -->(<!-- -->browser<!-- -->: [PHPBrowser](./playground-client.phpbrowser.md)<!-- -->, monitor?<!-- -->: [EmscriptenDownloadMonitor](./playground-client.emscriptendownloadmonitor.md)<!-- -->)
+### PHPClient<!-- -->(<!-- -->browser<!-- -->: [PHPBrowser](./client.phpbrowser.md)<!-- -->, monitor?<!-- -->: [EmscriptenDownloadMonitor](./client.emscriptendownloadmonitor.md)<!-- -->)
 
 -   `monitor` – Optional.
 
@@ -43,11 +43,11 @@ Constructs a new instance of the `PHPClient` class
 
 ### readFileAsText<!-- -->(<!-- -->path<!-- -->: [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./playground-client.phpserverrequest.md)<!-- -->, redirects?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./playground-client.phpresponse.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](./client.phpserverrequest.md)<!-- -->, redirects?<!-- -->: [number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./client.phpresponse.md)<!-- -->&gt;
 
 -   `redirects` – Optional.
 
-### run<!-- -->(<!-- -->request?<!-- -->: [PHPRequest](./playground-client.phprequest.md)<!-- -->|[undefined](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./playground-client.phpresponse.md)<!-- -->&gt;
+### run<!-- -->(<!-- -->request?<!-- -->: [PHPRequest](./client.phprequest.md)<!-- -->|[undefined](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](./client.phpresponse.md)<!-- -->&gt;
 
 -   `request` – Optional.
 
