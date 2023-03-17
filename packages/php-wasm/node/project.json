@@ -50,17 +50,13 @@
 				"bundle": true,
 				"esbuildOptions": {
 					"outdir": "{options.outputPath}",
-					"packages": "external",
 					"platform": "node",
-					"bundle": true,
-					"treeShaking": true,
 					"assetNames": "[name]",
 					"chunkNames": "[name]",
 					"format": ["esm"],
 					"logOverride": {
 						"commonjs-variable-in-esm": "silent"
 					},
-					"splitting": true,
 					"loader": {
 						".php": "text",
 						".ini": "file",

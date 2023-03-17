@@ -7,8 +7,9 @@
  * You might need to authenticate with NPM before running this script.
  */
 
-import { readCachedProjectGraph } from '@nrwl/devkit';
-import { execSync } from 'child_process';
+import devkit from '@nrwl/devkit';
+const { readCachedProjectGraph } = devkit;
+import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import chalk from 'chalk';
 
@@ -38,7 +39,9 @@ invariant(
 	`Could not find project "${name}" in the workspace. Is the project.json configured correctly?`
 );
 
-const outputPath = project.data?.targets?.build?.options?.outputPath;
+const outputPath =
+	project.data?.targets?.build?.options?.outputPath ||
+	project.data?.targets?.['build:bundle']?.options?.outputPath;
 invariant(
 	outputPath,
 	`Could not find "build.options.outputPath" of project "${name}". Is project.json configured  correctly?`
@@ -60,4 +63,10 @@ try {
 }
 
 // Execute "npm publish" to publish
-execSync(`npm publish --access public --tag ${tag}`);
+spawnSync('npm', ['publish', '--access', 'public', tag ? `--tag ${tag}` : ''], {
+	stdio: [
+		'inherit', // stdin: changed from the default `pipe`
+		'pipe', // stdout
+		'inherit', // stderr: changed from the default `pipe`
+	],
+});
