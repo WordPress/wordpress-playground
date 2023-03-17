@@ -33,6 +33,15 @@
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/scopes"
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/php-wasm/scopes/tsconfig.lib.json --noEmit",
+					"yarn tsc -p packages/php-wasm/scopes/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []

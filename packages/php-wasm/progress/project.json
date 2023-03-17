@@ -41,6 +41,15 @@
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/progress/**/*.ts"]
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/php-wasm/progress/tsconfig.lib.json --noEmit",
+					"yarn tsc -p packages/php-wasm/progress/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []

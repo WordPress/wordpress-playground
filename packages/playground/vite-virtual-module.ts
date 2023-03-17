@@ -12,12 +12,12 @@ export default function virtualModule({
 
 	return {
 		name: name, // required, will show up in warnings and errors
-		resolveId(id) {
+		resolveId(id): any {
 			if (id === virtualModuleId) {
 				return resolvedVirtualModuleId;
 			}
 		},
-		load(id) {
+		load(id): any {
 			if (id === resolvedVirtualModuleId) {
 				return content;
 			}

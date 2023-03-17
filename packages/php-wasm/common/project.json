@@ -26,5 +26,14 @@
 				"lintFilePatterns": ["packages/php-wasm/common/**/*.ts"]
 			}
 		}
+	},
+	"typecheck": {
+		"executor": "@nrwl/workspace:run-commands",
+		"options": {
+			"commands": [
+				"yarn tsc -p packages/php-wasm/common/tsconfig.lib.json --noEmit",
+				"yarn tsc -p packages/php-wasm/common/tsconfig.spec.json --noEmit"
+			]
+		}
 	}
 }

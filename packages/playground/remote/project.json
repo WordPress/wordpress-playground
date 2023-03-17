@@ -93,6 +93,15 @@
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/remote"
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/playground/remote/tsconfig.spec.json --noEmit",
+					"yarn tsc -p packages/playground/remote/tsconfig.lib.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []
