@@ -16,7 +16,6 @@ module.exports = {
 		'WithPathConversion',
 		'PHPRequestHeaders',
 		'WithProgress',
-		'PublicAPI',
 		'FileInfo',
 		'PHPBrowserConfiguration',
 	],

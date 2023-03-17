@@ -36,6 +36,7 @@
 		"@nrwl/react": "^15.8.6",
 		"@nrwl/rollup": "15.8.6",
 		"@nrwl/vite": "15.8.6",
+		"@nrwl/web": "15.8.7",
 		"@nrwl/webpack": "15.8.6",
 		"@nrwl/workspace": "15.8.6",
 		"@rollup/plugin-url": "^8.0.1",

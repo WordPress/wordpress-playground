@@ -19,10 +19,10 @@
 			}
 		},
 		"preview": {
-			"executor": "nx:run-commands",
+			"executor": "@nrwl/web:file-server",
 			"options": {
-				"command": "vitepress dev dist/docs",
-				"parallel": false
+				"buildTarget": "docs-site:build",
+				"staticFilePath": "dist/docs"
 			}
 		},
 		"test": {
