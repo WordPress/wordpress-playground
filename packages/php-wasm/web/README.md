@@ -1,6 +1,6 @@
 # php-wasm-web
 
-This library was generated with [Nx](https://nx.dev).
+PHP.wasm for the web
 
 ## Building
 

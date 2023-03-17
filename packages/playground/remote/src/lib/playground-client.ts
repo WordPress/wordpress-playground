@@ -8,4 +8,9 @@ export interface WebClientMixin {
 	onDownloadProgress: PlaygroundWorkerClient['onDownloadProgress'];
 }
 
-export type PlaygroundClient = WebClientMixin & PlaygroundWorkerClient;
+/**
+ * @inheritDoc
+ */
+export interface PlaygroundClient
+	extends WebClientMixin,
+		PlaygroundWorkerClient {}

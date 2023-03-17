@@ -2,6 +2,8 @@
 
 [Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/) | [Documentation and API Reference](https://wordpresswasm.readthedocs.io/en/latest/)
 
+[test ](./docs/index.md)
+
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
 ![](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/demo.png)

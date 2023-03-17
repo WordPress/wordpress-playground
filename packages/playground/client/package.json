@@ -15,6 +15,12 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+    "typedoc": {
+        "entryPoint": "./src/index.ts",
+        "readmeFile": "./README.md",
+        "displayName": "@wp-playground/client",
+        "tsconfig": "./tsconfig.lib.json"
+    },
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "index.js",

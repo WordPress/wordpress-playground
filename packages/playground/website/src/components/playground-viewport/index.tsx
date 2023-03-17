@@ -22,6 +22,7 @@ interface PlaygroundViewportProps {
 
 // Reload the page when the connection to the playground times out in the dev mode.
 // There's a chance website server was booted faster than the playground server.
+// @ts-ignore
 const onConnectionTimeout = import.meta.env.DEV
 	? () => window.location.reload()
 	: undefined;

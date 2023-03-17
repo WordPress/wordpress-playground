@@ -1,12 +1,14 @@
 {
 	"compileOnSave": false,
 	"compilerOptions": {
+		"jsx": "react-jsx",
 		"rootDir": ".",
 		"sourceMap": true,
 		"declaration": false,
 		"moduleResolution": "node",
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
 		"importHelpers": true,
 		"target": "ES2021",
 		"module": "esnext",
@@ -32,9 +34,6 @@
 			],
 			"@wp-playground/playground-remote": [
 				"packages/playground/remote/src/index.ts"
-			],
-			"@wp-playground/ts-api-doc-generator": [
-				"packages/docs/ts-api-doc-generator/src/index.ts"
 			]
 		}
 	},

@@ -11,7 +11,7 @@
  */
 const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
 
-interface MonitoredModule {
+export interface MonitoredModule {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
 }
@@ -20,6 +20,7 @@ interface MonitoredModule {
  * Monitors the download #progress of Emscripten modules
  *
  * Usage:
+ * 
  * ```js
  *   const downloadMonitor = new EmscriptenDownloadMonitor();
  * 	 const php = await startPHP(

@@ -25,7 +25,7 @@ export { PHPServer } from './php-server';
 export type { WithRequest } from './php-browser';
 export { PHPBrowser } from './php-browser';
 
-export type { WorkerStartupOptions } from './api';
+export type { WorkerStartupOptions, PublicAPI } from './api';
 export { consumeAPI, exposeAPI } from './api';
 
 export {

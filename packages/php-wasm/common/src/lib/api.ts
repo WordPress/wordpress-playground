@@ -13,7 +13,7 @@ export function consumeAPI<APIType>(remote: Worker | Window) {
 	return Comlink.wrap<APIType>(endpoint);
 }
 
-type PublicAPI<Methods, PipedAPI> = Methods &
+export type PublicAPI<Methods, PipedAPI = unknown> = Methods &
 	PipedAPI & { isReady: () => Promise<void> };
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,

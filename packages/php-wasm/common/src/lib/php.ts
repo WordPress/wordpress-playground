@@ -429,7 +429,6 @@ export type MountSettings = {
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  *
- * @public
  * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
 export class PHP
@@ -466,6 +465,7 @@ export class PHP
 		this.#Runtime = loadedRuntimes[runtimeId];
 	}
 
+	/** @inheritDoc */
 	setPhpIniPath(path: string) {
 		if (this.#webSapiInitialized) {
 			throw new Error('Cannot set PHP ini path after calling run().');
@@ -473,6 +473,7 @@ export class PHP
 		this.#Runtime.ccall('wasm_set_phpini_path', null, ['string'], [path]);
 	}
 
+	/** @inheritDoc */
 	setPhpIniEntry(key: string, value: string) {
 		if (this.#webSapiInitialized) {
 			throw new Error('Cannot set PHP ini entries after calling run().');
@@ -480,6 +481,7 @@ export class PHP
 		this.#phpIniOverrides.push([key, value]);
 	}
 
+	/** @inheritDoc */
 	run(request: PHPRequest = {}): PHPResponse {
 		if (!this.#webSapiInitialized) {
 			this.#initWebRuntime();
@@ -715,18 +717,22 @@ export class PHP
 		return new TextDecoder().decode(this.readFileAsBuffer(path));
 	}
 
+	/** @inheritDoc */
 	readFileAsBuffer(path: string): Uint8Array {
 		return this.#Runtime.FS.readFile(path);
 	}
 
+	/** @inheritDoc */
 	writeFile(path: string, data: string | Uint8Array) {
 		this.#Runtime.FS.writeFile(path, data);
 	}
 
+	/** @inheritDoc */
 	unlink(path: string) {
 		this.#Runtime.FS.unlink(path);
 	}
 
+	/** @inheritDoc */
 	listFiles(path: string): string[] {
 		if (!this.fileExists(path)) {
 			return [];
