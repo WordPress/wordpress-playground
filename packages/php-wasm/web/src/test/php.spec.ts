@@ -1,5 +1,5 @@
 import { getPHPLoaderModule } from '..';
-import { PHP, loadPHPRuntime } from '@wp-playground/php-wasm-common';
+import { PHP, loadPHPRuntime } from '@php-wasm/common';
 import { existsSync, rmSync } from 'fs';
 
 const phpLoaderModule = getPHPLoaderModule('7.4');

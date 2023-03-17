@@ -7,9 +7,9 @@ import {
 	exposeAPI,
 	getPHPLoaderModule,
 	parseWorkerStartupOptions,
-} from '@wp-playground/php-wasm-web';
-import { EmscriptenDownloadMonitor } from '@wp-playground/php-wasm-progress';
-import { setURLScope } from '@wp-playground/php-wasm-scopes';
+} from '@php-wasm/web';
+import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';

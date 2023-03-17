@@ -1,4 +1,4 @@
-export { PHP, loadPHPRuntime } from '@wp-playground/php-wasm-common';
+export { PHP, loadPHPRuntime } from '@php-wasm/common';
 export type {
 	PHPOutput,
 	PHPRequest,
@@ -11,7 +11,7 @@ export type {
 	PHPRuntimeId,
 	EmscriptenOptions,
 	MountSettings,
-} from '@wp-playground/php-wasm-common';
+} from '@php-wasm/common';
 
 export * from './php-client';
 

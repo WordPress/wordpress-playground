@@ -4,11 +4,11 @@
 
 ## Packages
 
-| Package                                                                        | Description |
-| ------------------------------------------------------------------------------ | ----------- |
-| [@wp-playground/client](./client.md)                                           |             |
-| [@wp-playground/php-wasm-node](./php-wasm-node.md)                             |             |
-| [@wp-playground/php-wasm-progress](./php-wasm-progress.md)                     |             |
-| [@wp-playground/php-wasm-scopes](./php-wasm-scopes.md)                         |             |
-| [@wp-playground/php-wasm-web](./php-wasm-web.md)                               |             |
-| [@wp-playground/php-wasm-web-service-worker](./php-wasm-web-service-worker.md) |             |
+| Package                                                 | Description |
+| ------------------------------------------------------- | ----------- |
+| [@php-wasm/node](./node.md)                             |             |
+| [@php-wasm/progress](./progress.md)                     |             |
+| [@php-wasm/scopes](./scopes.md)                         |             |
+| [@php-wasm/web](./web.md)                               |             |
+| [@php-wasm/web-service-worker](./web-service-worker.md) |             |
+| [@wp-playground/client](./client.md)                    |             |

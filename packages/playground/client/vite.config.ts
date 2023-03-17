@@ -32,7 +32,7 @@ export default defineConfig({
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
-			external: ['comlink', '@wp-playground/php-wasm-progress'],
+			external: ['comlink', '@php-wasm/progress'],
 		},
 	},
 

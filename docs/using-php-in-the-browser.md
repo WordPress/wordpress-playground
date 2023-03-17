@@ -7,7 +7,7 @@ The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trun
 -   **PHP Worker Thread** – The PHP server is slow and must run in a worker thread, otherwise handling requests freezes the website UI.
 -   **Service Worker routing** – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.
 
-See also the [API Reference](api/php-wasm-web.md)
+See also the [API Reference](api/web.md)
 
 ## Browser tab orchestrates the execution
 
@@ -41,7 +41,7 @@ import {
 	recommendedWorkerBackend,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
-} from '@wp-playground/php-wasm-web';
+} from '@php-wasm/web';
 
 const workerUrl = '/worker-thread.js';
 
@@ -95,7 +95,7 @@ import {
 	getPHPLoaderModule,
 	loadPHPRuntime,
 	parseWorkerStartupOptions,
-} from '@wp-playground/php-wasm-web';
+} from '@php-wasm/web';
 
 // Random scope
 const scope = Math.random().toFixed(16);
@@ -125,7 +125,7 @@ setApiReady();
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from '@wp-playground/php-wasm-web';
+import { initializeServiceWorker } from '@php-wasm/web';
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
@@ -168,7 +168,7 @@ Now, consider an iframe with the same link in it:
 <iframe srcdoc='<a href="page.php">Go to page.php</a>'></iframe>
 ```
 
-This time, clicking the link the browser to load `page.php` **inside the iframe**. The top-level index.html where the PHP application runs remains unaffected. This is why iframes are a crucial part of the `@wp-playground/php-wasm-web` setup.
+This time, clicking the link the browser to load `page.php` **inside the iframe**. The top-level index.html where the PHP application runs remains unaffected. This is why iframes are a crucial part of the `@php-wasm/web` setup.
 
 ### Iframes caveats
 
@@ -212,7 +212,7 @@ The main application controls the worker thread by sending and receiving message
 
 Exchanging messages is the only way to control the worker threads. Remember – it is separate programs. The main app cannot access any functions or variables defined inside of the worker thread.
 
-Conveniently, [consumeAPI](api/php-wasm-web.consumeapi.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
+Conveniently, [consumeAPI](api/web.consumeapi.md) returns an easy-to-use API object that exposes specific worker thread features and handles the message exchange internally.
 
 ### Worker thread backends
 
@@ -256,7 +256,7 @@ const phpClient =
 	);
 ```
 
-**/iframe-worker.html** (Also provided in `@wp-playground/php-wasm-web` package):
+**/iframe-worker.html** (Also provided in `@php-wasm/web` package):
 
 ```js
 <!DOCTYPE html>
@@ -310,7 +310,7 @@ Here's the minimal setup:
 **/app.js:**
 
 ```js
-import { registerServiceWorker } from '@wp-playground/php-wasm-web';
+import { registerServiceWorker } from '@php-wasm/web';
 
 function main() {
 	await registerServiceWorker(
@@ -328,7 +328,7 @@ You will also need a separate `/service-worker.js` file that actually intercepts
 **/service-worker.js**:
 
 ```js
-import { initializeServiceWorker } from '@wp-playground/php-wasm-web';
+import { initializeServiceWorker } from '@php-wasm/web';
 
 // Intercepts all HTTP traffic on the current domain and
 // passes it to the Worker Thread.
@@ -337,7 +337,7 @@ initializeServiceWorker();
 
 ## Cross-process communication
 
-`@wp-playground/php-wasm-web` uses the [Comlink](https://github.com/GoogleChromeLabs/comlink) library to turns the one-way `postMessage` available in JavaScript into a two-way communication channel.
+`@php-wasm/web` uses the [Comlink](https://github.com/GoogleChromeLabs/comlink) library to turns the one-way `postMessage` available in JavaScript into a two-way communication channel.
 
 If `postMessage` sounds unfamiliar, it's what JavaScript threads use to communicate. Please review the [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage) before continuing.
 
@@ -376,7 +376,7 @@ const obj = {
 Comlink.expose(obj);
 ```
 
-In our case, the exposed object is the [PHPClient](/docs/api/php-wasm-web.phpclient.md) instance.
+In our case, the exposed object is the [PHPClient](/docs/api/web.phpclient.md) instance.
 
 ## Scopes
 
@@ -411,7 +411,7 @@ import {
 	getPHPLoaderModule,
 	loadPHPRuntime,
 	parseWorkerStartupOptions,
-} from '@wp-playground/php-wasm-web';
+} from '@php-wasm/web';
 
 // Don't use the absoluteURL directly:
 const absoluteURL = 'http://127.0.0.1'

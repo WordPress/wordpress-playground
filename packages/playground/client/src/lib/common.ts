@@ -1,4 +1,4 @@
-import type { PHPResponse } from '@wp-playground/php-wasm-web';
+import type { PHPResponse } from '@php-wasm/web';
 
 export function asDOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(asText(response), 'text/html')!;

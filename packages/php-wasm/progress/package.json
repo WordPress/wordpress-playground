@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/php-wasm-progress",
+	"name": "@php-wasm/progress",
 	"version": "0.0.1",
 	"description": "PHP.wasm – loading progress monitoring",
 	"repository": {

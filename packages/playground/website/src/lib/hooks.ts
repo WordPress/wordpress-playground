@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-	ProgressObserver,
-	ProgressObserverEvent,
-} from '@wp-playground/php-wasm-progress';
+import { ProgressObserver, ProgressObserverEvent } from '@php-wasm/progress';
 import { connectPlayground } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { remotePlaygroundOrigin } from './config';
