@@ -253,7 +253,8 @@ export async function loadPHPRuntime(
 }
 
 const currentJsRuntime = (function () {
-	if (typeof window !== 'undefined' && !import.meta.env['TEST']) {
+	// @ts-ignore
+	if (typeof window !== 'undefined' && !import.meta.env.TEST) {
 		return 'WEB';
 	} else if (
 		typeof WorkerGlobalScope !== 'undefined' &&
