@@ -7,6 +7,8 @@ var
 /out-tsc
 .vitepress
 __pycache__
+packages/php-wasm/node/src/test/__test*
+dist.zip
 
 # dependencies
 node_modules
