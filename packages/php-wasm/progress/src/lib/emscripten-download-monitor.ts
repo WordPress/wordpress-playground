@@ -20,7 +20,7 @@ export interface MonitoredModule {
  * Monitors the download #progress of Emscripten modules
  *
  * Usage:
- * 
+ *
  * ```js
  *   const downloadMonitor = new EmscriptenDownloadMonitor();
  * 	 const php = await startPHP(

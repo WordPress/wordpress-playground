@@ -117,18 +117,18 @@ Loads the PHP runtime with the given arguments and data dependencies.
 
 This function handles the entire PHP initialization pipeline. In particular, it:
 
-* Instantiates the Emscripten PHP module
-* Wires it together with the data dependencies and loads them
-* Ensures is all happens in a correct order
-* Waits until the entire loading sequence is finished
+-   Instantiates the Emscripten PHP module
+-   Wires it together with the data dependencies and loads them
+-   Ensures is all happens in a correct order
+-   Waits until the entire loading sequence is finished
 
 Basic usage:
 
 ```js
- const phpLoaderModule = await getPHPLoaderModule("7.4");
- const php = await loadPHPRuntime( phpLoaderModule );
- console.log(php.run(`<?php echo "Hello, world!"; `));
- // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
+const phpLoaderModule = await getPHPLoaderModule('7.4');
+const php = await loadPHPRuntime(phpLoaderModule);
+console.log(php.run(`<?php echo "Hello, world!"; `));
+// { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
 ```
 
 **The PHP loader module:**
@@ -146,7 +146,7 @@ export const dependenciesTotalSize = 5644199;
 export const dependencyFilename = 'php.wasm';
 
 // Run Emscripten's generated module:
-export default function(jsEnv, emscriptenModuleArgs) {}
+export default function (jsEnv, emscriptenModuleArgs) {}
 ```
 
 **PHP Filesystem:**
@@ -203,10 +203,11 @@ You want the final output to look as follows:
 ```js
 export const dependenciesTotalSize = 5644199;
 export const dependencyFilename = 'dependency.data';
-export default function(emscriptenPHPModule) {
-   // Emscripten-generated code:
-   var Module = typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
-   // ... the rest of it ...
+export default function (emscriptenPHPModule) {
+	// Emscripten-generated code:
+	var Module =
+		typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
+	// ... the rest of it ...
 }
 ```
 
@@ -216,11 +217,11 @@ Such a constructions enables loading the `dependency.js` as an ES Module using
 Once it's ready, you can load PHP and your data dependencies as follows:
 
 ```js
- const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
-   getPHPLoaderModule("7.4"),
-   import("/wp.js")
- ]);
- const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
+const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
+	getPHPLoaderModule('7.4'),
+	import('/wp.js'),
+]);
+const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
 ```
 
 <!-- /include /docs/api/modules/php_wasm_web.md#loadPHPRuntime -->
@@ -238,25 +239,25 @@ bind to any port.
 
 ```js
 import {
-  loadPHPRuntime,
-  PHP,
-  PHPServer,
-  PHPBrowser,
-  getPHPLoaderModule,
+	loadPHPRuntime,
+	PHP,
+	PHPServer,
+	PHPBrowser,
+	getPHPLoaderModule,
 } from '@php-wasm/web';
 
-const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
-const php = new PHP( runtime );
+const runtime = await loadPHPRuntime(await getPHPLoaderModule('7.4'));
+const php = new PHP(runtime);
 
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
 const server = new PHPServer(php, {
-    // PHP FS path to serve the files from:
-    documentRoot: '/www',
+	// PHP FS path to serve the files from:
+	documentRoot: '/www',
 
-    // Used to populate $_SERVER['SERVER_NAME'] etc.:
-    absoluteUrl: 'http://127.0.0.1'
+	// Used to populate $_SERVER['SERVER_NAME'] etc.:
+	absoluteUrl: 'http://127.0.0.1',
 });
 
 const output = server.request({ path: '/index.php' }).body;
