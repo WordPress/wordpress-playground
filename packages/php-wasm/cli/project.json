@@ -63,6 +63,15 @@
 					"codeCoverage": true
 				}
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/php-wasm/cli/tsconfig.lib.json --noEmit",
+					"yarn tsc -p packages/php-wasm/cli/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": ["scope:php-wasm-public"]

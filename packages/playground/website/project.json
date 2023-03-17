@@ -93,6 +93,15 @@
 					"packages/playground/website/**/*.{ts,tsx,js,jsx}"
 				]
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/playground/website/tsconfig.spec.json --noEmit",
+					"yarn tsc -p packages/playground/website/tsconfig.app.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []

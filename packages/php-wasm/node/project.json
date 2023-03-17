@@ -130,6 +130,15 @@
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/node/**/*.ts"]
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/php-wasm/node/tsconfig.lib.json --noEmit",
+					"yarn tsc -p packages/php-wasm/node/tsconfig.spec.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []

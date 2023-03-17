@@ -7,6 +7,7 @@
 		"build": "nx build playground-website",
 		"preview": "nx preview playground-website",
 		"lint": "nx run-many --all --target=lint",
+		"typecheck": "nx run-many --all --target=typecheck",
 		"build:all": "nx run-many --all --target=build"
 	},
 	"private": true,

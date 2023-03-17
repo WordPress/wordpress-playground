@@ -69,6 +69,15 @@
 					"codeCoverage": true
 				}
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/docs/ts-api-doc-generator/tsconfig.spec.json --noEmit",
+					"yarn tsc -p packages/docs/ts-api-doc-generator/tsconfig.lib.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []
