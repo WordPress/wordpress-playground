@@ -10,6 +10,14 @@ export default defineConfig(() => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
+			{
+				name: 'resolve-wasm-path',
+				load(id): any {
+					if (id.endsWith('.wasm')) {
+						return `export default ${JSON.stringify(id)}`;
+					}
+				},
+			},
 		],
 
 		// Configuration for building your library.
@@ -50,6 +58,10 @@ export default defineConfig(() => {
 			},
 			environment: 'jsdom',
 			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+		},
+
+		define: {
+			TEST: JSON.stringify(true),
 		},
 	};
 });

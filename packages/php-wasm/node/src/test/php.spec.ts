@@ -2,21 +2,21 @@ import { getPHPLoaderModule } from '..';
 import { PHP, loadPHPRuntime } from '@php-wasm/common';
 import { existsSync, rmSync } from 'fs';
 
-const phpLoaderModule = getPHPLoaderModule('7.4');
+// @TODO use fresh runtime for each test
+const phpLoaderModule = await getPHPLoaderModule('7.4');
+const runtimeId = await loadPHPRuntime(phpLoaderModule);
+const php = new PHP(runtimeId);
 
 describe('PHP – boot', () => {
 	it('should boot', async () => {
-		const php = await loadPHPRuntime(await phpLoaderModule);
-		expect(php).toBeTruthy();
+		expect(runtimeId).toBe(0);
 	});
 });
 
 const testDirPath = __dirname + '/__test987654321';
 const testFilePath = __dirname + '/__test987654321.txt';
 describe('PHP – filesystem', () => {
-	let php: PHP;
 	beforeEach(async () => {
-		php = new PHP(await loadPHPRuntime(await phpLoaderModule));
 		if (existsSync(testDirPath)) {
 			rmSync(testDirPath, { recursive: true });
 		}
@@ -86,11 +86,6 @@ describe('PHP – filesystem', () => {
 });
 
 describe('PHP – stdio', () => {
-	let php: PHP;
-	beforeEach(async () => {
-		php = new PHP(await loadPHPRuntime(await phpLoaderModule));
-	});
-
 	it('should output strings (1)', () => {
 		expect(php.run({ code: '<?php echo "Hello world!";' })).toEqual({
 			headers: expect.any(Object),
@@ -156,10 +151,6 @@ describe('PHP – stdio', () => {
 });
 
 describe('PHP – startup sequence', () => {
-	let php: PHP;
-	beforeEach(async () => {
-		php = new PHP(await loadPHPRuntime(await phpLoaderModule));
-	});
 	const testScriptPath = __dirname + '/test.php';
 	afterEach(() => {
 		if (existsSync(testScriptPath)) {
