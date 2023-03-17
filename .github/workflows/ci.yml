@@ -19,7 +19,7 @@ jobs:
             - run: yarn install --frozen-lockfile
 
             - run: nx format:check
-            - run: nx affected typecheck --target=typecheck
+            - run: nx affected --target=typecheck
             - run: nx affected --target=lint --parallel=3
             # No test setup yet
             # - run: nx affected --target=test --parallel=3 --configuration=ci
