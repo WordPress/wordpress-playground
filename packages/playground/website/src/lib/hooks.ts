@@ -40,11 +40,15 @@ interface UsePlaygroundOptions {
 	onConnected?: (playground: PlaygroundClient) => Promise<void>;
 	onConnectionTimeout?: () => void;
 	timeout?: number;
+	php?: string;
+	wp?: string;
 }
 export function usePlayground({
 	onConnected,
 	onConnectionTimeout,
 	timeout = 1000,
+	php,
+	wp,
 }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
@@ -72,9 +76,18 @@ export function usePlayground({
 			timeoutHandle = setTimeout(onConnectionTimeout, timeout);
 		}
 
+		const inputQuery = new URL(document.location.href).searchParams as any;
+		const params: Record<string, string> = {};
+		if (inputQuery.has('php')) {
+			params['php'] = inputQuery.get('php');
+		}
+		if (inputQuery.has('wp')) {
+			params['wp'] = inputQuery.get('wp');
+		}
+		const qs = new URLSearchParams(params);
 		connectPlayground(
 			iframe!,
-			`${remotePlaygroundOrigin}/remote.html`
+			`${remotePlaygroundOrigin}/remote.html?${qs}`
 		).then(async (api) => {
 			if (timeoutHandle) {
 				clearTimeout(timeoutHandle);
