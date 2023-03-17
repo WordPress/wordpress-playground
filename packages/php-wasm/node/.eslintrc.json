@@ -9,7 +9,7 @@
 					"error",
 					{
 						"enforceBuildableLibDependency": true,
-						"allow": ["@wp-playground/php-wasm-common"]
+						"allow": ["@php-wasm/common"]
 					}
 				]
 			}

@@ -1,4 +1,4 @@
-import { ProgressObserver } from '@wp-playground/php-wasm-progress';
+import { ProgressObserver } from '@php-wasm/progress';
 import type { PlaygroundClient } from '@wp-playground/client';
 
 import {

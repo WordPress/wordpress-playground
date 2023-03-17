@@ -3,11 +3,7 @@
 The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web) and [`php-wasm-node`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/node) modules bring PHP into JavaScript as a WebAssembly module:
 
 ```js
-import {
-	PHP,
-	getPHPLoaderModule,
-	loadPHPRuntime,
-} from '@wp-playground/php-wasm-web';
+import { PHP, getPHPLoaderModule, loadPHPRuntime } from '@php-wasm/web';
 
 const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
 const php = new PHP(runtime);
@@ -21,7 +17,7 @@ It consists of two major building blocks:
 -   [PHP to WebAssembly build pipeline](#php-to-webassembly-build-pipeline)
 -   [JavaScript bindings for the WebAssembly PHP](#javascript-bindings-for-the-webassembly-php)
 
-See also the [API Reference](api/php-wasm-web.md).
+See also the [API Reference](api/web.md).
 
 ## PHP to WebAssembly build pipeline
 
@@ -109,16 +105,16 @@ To build the JavaScript API, just build the entire project with `yarn run build:
 
 ## API
 
-Below you'll find a few especially relevant parts of the API. Consult the [php-wasm-web API reference page](api/php-wasm-web.md) to learn about the rest of it.
+Below you'll find a few especially relevant parts of the API. Consult the [php-wasm-web API reference page](api/web.md) to learn about the rest of it.
 
 ### loadPHPRuntime
 
-<!-- include /docs/api/php-wasm-web.loadphpruntime.md#loadPHPRuntime() function -->
+<!-- include /docs/api/web.loadphpruntime.md#loadPHPRuntime() function -->
 
 loadPHPRuntime<!-- -->(\
-&emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [PHPLoaderModule](api/php-wasm-web.loadphpruntime.md)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [EmscriptenOptions](api/php-wasm-web.loadphpruntime.md)<!-- -->, \
-&emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [DataModule](api/php-wasm-web.loadphpruntime.md)<!-- -->[]\
+&emsp;&emsp;&emsp;<!-- -->phpLoaderModule<!-- -->: [PHPLoaderModule](api/web.loadphpruntime.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->phpModuleArgs?<!-- -->: [EmscriptenOptions](api/web.loadphpruntime.md)<!-- -->, \
+&emsp;&emsp;&emsp;<!-- -->dataDependenciesModules?<!-- -->: [DataModule](api/web.loadphpruntime.md)<!-- -->[]\
 )<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[number](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean)<!-- -->&gt;
 
 -   `phpLoaderModule` – The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
@@ -237,11 +233,11 @@ const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
 const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
 ```
 
-<!-- /include /docs/api/php-wasm-web.loadphpruntime.md#loadPHPRuntime() function -->
+<!-- /include /docs/api/web.loadphpruntime.md#loadPHPRuntime() function -->
 
 ### php-server.js
 
-<!-- include /docs/api/php-wasm-web.phpserver.md#PHPServer class -->
+<!-- include /docs/api/web.phpserver.md#PHPServer class -->
 
 <b>Signature:</b>
 
@@ -254,7 +250,7 @@ bind to any port.
 
 ## Constructors
 
-### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](api/php-wasm-web.phpserver.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](api/php-wasm-web.phpserver.md)<!-- -->)
+### PHPServer<!-- -->(<!-- -->php<!-- -->: [PHP](api/web.phpserver.md)<!-- -->, config?<!-- -->: [PHPServerConfigation](api/web.phpserver.md)<!-- -->)
 
 -   `php` – The PHP instance.
 -   `config` – Optional. Server configuration.
@@ -265,7 +261,7 @@ Constructs a new instance of the `PHPServer` class
 
 -   `absoluteUrl` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
 -   `documentRoot` readonly [string](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean) – The absolute URL of this PHPServer instance.
--   `php` [PHP](api/php-wasm-web.phpserver.md) – The PHP instance
+-   `php` [PHP](api/web.phpserver.md) – The PHP instance
 
 ## Methods
 
@@ -285,7 +281,7 @@ without the server pathname and scope.
 Converts a path to an absolute URL based at the PHPServer
 root.
 
-### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](api/php-wasm-web.phpserver.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](api/php-wasm-web.phpserver.md)<!-- -->&gt;
+### request<!-- -->(<!-- -->request<!-- -->: [PHPServerRequest](api/web.phpserver.md)<!-- -->)<!-- -->: [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)<!-- -->&lt;[PHPResponse](api/web.phpserver.md)<!-- -->&gt;
 
 -   `request` – The request.
 -   Returns: The response.
@@ -302,7 +298,7 @@ import {
 	PHPServer,
 	PHPBrowser,
 	getPHPLoaderModule,
-} from '@wp-playground/php-wasm-web';
+} from '@php-wasm/web';
 
 const runtime = await loadPHPRuntime(await getPHPLoaderModule('7.4'));
 const php = new PHP(runtime);
@@ -323,4 +319,4 @@ console.log(new TextDecoder().decode(output));
 // "Hi from PHP!"
 ```
 
-<!-- /include /docs/api/php-wasm-web.phpserver.md#PHPServer class -->
+<!-- /include /docs/api/web.phpserver.md#PHPServer class -->

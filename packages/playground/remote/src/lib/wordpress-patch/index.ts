@@ -1,4 +1,4 @@
-import type { PHP } from '@wp-playground/php-wasm-web';
+import type { PHP } from '@php-wasm/web';
 import { DOCROOT } from '../config';
 
 /** @ts-ignore */

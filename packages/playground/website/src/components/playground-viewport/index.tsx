@@ -4,7 +4,7 @@ import React, { ReactElement, Ref, useMemo } from 'react';
 import type {
 	ProgressObserver,
 	ProgressObserverEvent,
-} from '@wp-playground/php-wasm-progress';
+} from '@php-wasm/progress';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';

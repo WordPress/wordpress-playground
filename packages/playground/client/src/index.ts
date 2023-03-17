@@ -1,6 +1,6 @@
 import type { Remote } from 'comlink';
 import type { PlaygroundClient } from '@wp-playground/playground-remote';
-import { consumeAPI } from '@wp-playground/php-wasm-web';
+import { consumeAPI } from '@php-wasm/web';
 export * from './lib';
 
 export type { PlaygroundClient };

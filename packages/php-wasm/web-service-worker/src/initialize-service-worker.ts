@@ -7,7 +7,7 @@ import {
 	isURLScoped,
 	removeURLScope,
 	setURLScope,
-} from '@wp-playground/php-wasm-scopes';
+} from '@php-wasm/scopes';
 
 /**
  * Run this function in the service worker to install the required event

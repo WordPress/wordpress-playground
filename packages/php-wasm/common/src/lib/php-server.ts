@@ -30,7 +30,7 @@ export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
  *   PHPServer,
  *   PHPBrowser,
  *   getPHPLoaderModule,
- * } from '@wp-playground/php-wasm-web';
+ * } from '@php-wasm/web';
  *
  * const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
  * const php = new PHP( runtime );
