@@ -29,10 +29,11 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     --branch main   \
     --single-branch \
     --depth 1 &&    \
+    rm -rf wordpress/wp-content/plugins/sqlite-database-integration/.git && \
     cat wordpress/wp-content/plugins/sqlite-database-integration/db.copy \
-        | sed 's#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#'`pwd`'/wordpress/wp-content/plugins/sqlite-database-integration#g' \
-        | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
-        > wordpress/wp-content/db.php && \
+    | sed "s#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#' . __DIR__ . '/plugins/sqlite-database-integration#g" \
+    | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
+    > wordpress/wp-content/db.php && \
     # Required by the SQLite integration plugin:
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
