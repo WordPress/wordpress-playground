@@ -24,6 +24,24 @@ WordPress Playground has a [live demo](https://developer.wordpress.org/playgroun
 
 You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpresswasm.readthedocs.io/en/latest/). **Note the embed is experimental and may break or change without a warning.**
 
+You can connect to the Playground instance using the JavaScript client:
+
+```js
+import { connectPlayground } from '@wp-playground/client';
+
+const client = await connectPlayground(
+    document.getElementById('wp')! as HTMLIFrameElement,
+    `https://wasm.wordpress.net/remote.html`
+);
+await client.isReady();
+await client.goTo('/wp-admin/');
+
+const result = await client.run({
+    code: '<?php echo "Hi!"; ',
+});
+console.log(new TextDecoder().decode(result.body));
+```
+
 You also can run WordPress Playground locally as follows:
 
 ```bash
@@ -42,6 +60,33 @@ A browser should open and take you to your very own client-side WordPress at [ht
 Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
 
 From here, the [documentation](https://wordpresswasm.readthedocs.io/en/latest/) will help you learn how WordPress Playground works and how to use it to build amazing things!
+
+And here's a few more interesting CLI:
+
+```bash
+# Build and run PHP.wasm CLI
+nx start php-wasm-cli
+
+# Build latest WordPress releases
+nx recompile-wordpress:all playground-remote
+
+# Recompile PHP 5.6 - 8.2 releases to .wasm for web
+nx recompile-php:all php-wasm-web
+
+# Recompile PHP 5.6 - 8.2 releases to .wasm for node
+nx recompile-php:all php-wasm-node
+
+# Builds markdown files for readthedocs site
+nx build docs-site
+
+# Builds the Playground Client npm package
+nx build playground-client
+
+# Bonus: Run PHP.wasm in your local CLI:
+npx @php-wasm/cli -v
+PHP=7.4 npx @php-wasm/cli -v
+npx @php-wasm/cli phpcbf
+```
 
 ## Backwards compatibility
 
