@@ -39,7 +39,7 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
 
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
-    cd wordpress-static && \ 
+    cd wordpress-static && \
     find ./ -name '*.php' -delete && \
     # Keep only the static files inside the directories like wp-admin or wp-content:
     find . -maxdepth 1 -type f -delete && \
@@ -47,30 +47,30 @@ RUN cp -r wordpress wordpress-static && \
     find . -type d -empty -delete
 
 # Pair the site editor's nested iframe to the Service Worker.
-# 
+#
 # Without the patch below, the site editor initiates network requests that
 # aren't routed through the service worker. That's a known browser issue:
-# 
+#
 # * https://bugs.chromium.org/p/chromium/issues/detail?id=880768
 # * https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
 # * https://github.com/w3c/ServiceWorker/issues/765
-# 
+#
 # The problem with iframes using srcDoc and src="about:blank" as they
 # fail to inherit the root site's service worker.
-# 
+#
 # Gutenberg loads the site editor using <iframe srcDoc="<!doctype html">
 # to force the standards mode and not the quirks mode:
-# 
+#
 # https://github.com/WordPress/gutenberg/pull/38855
-# 
+#
 # This commit patches the site editor to achieve the same result via
 # <iframe src="/doctype.html"> and a doctype.html file containing just
 # `<!doctype html>`. This allows the iframe to inherit the service worker
 # and correctly load all the css, js, fonts, images, and other assets.
-# 
+#
 # Ideally this issue would be fixed directly in Gutenberg and the patch
 # below would be removed.
-# 
+#
 # See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 
 RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
@@ -152,6 +152,9 @@ RUN cd wordpress && \
     rm $phpfile.small; \
     done
 
+# Add wp-cli.phar to the files we pack
+RUN mv wp-cli.phar wordpress/
+
 FROM emscripten as emscripten2
 RUN rm -rf ./wordpress
 COPY --from=php /root/wordpress ./wordpress
@@ -163,7 +166,7 @@ RUN cd wordpress && \
     sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
     mv wp-config.php.new wp-config.php
 
-# Bundle the .data file using Emscripten 
+# Bundle the .data file using Emscripten
 RUN mv wordpress /wordpress && \
     /emsdk/upstream/emscripten/tools/file_packager.py \
     /root/output/wp.data \
