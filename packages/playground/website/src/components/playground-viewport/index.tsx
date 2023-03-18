@@ -75,6 +75,10 @@ export default function PlaygroundViewport({
       case 'clear':
         terminalRef.current?.clear();
         break;
+      case 'cat':
+        let file = await playground?.readFileAsText(args[0]);
+        terminalRef.current?.writeln(file);
+
       case 'wp':
 
     }
