@@ -11,7 +11,7 @@
 		"typecheck": "nx run-many --all --target=typecheck",
 		"build:all": "nx run-many --all --target=build",
 		"predeploy": "nx build docs-site",
-		"deploy": "gh-pages -d dist/docs"
+		"deploy": "gh-pages -d dist/docs -t true"
 	},
 	"private": true,
 	"dependencies": {
