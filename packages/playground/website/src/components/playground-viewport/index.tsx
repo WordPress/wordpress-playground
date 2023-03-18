@@ -75,13 +75,14 @@ export default function PlaygroundViewport({
       const printable = !evt.altKey && !evt.ctrlKey && !evt.metaKey;
 
       if (evt.keyCode === 8) {
-        // Do not delete the prompt
-        term.write('\b \b');
-        command = command.slice(0, command.length - 1);
+        if (command.length) {
+          // Do not delete the prompt
+          term.write('\b \b');
+          command = command.slice(0, command.length - 1);
+        }
       } else if (printable) {
         if (key === '\r') {
-          term.write('\n$ ');
-          term.write(`Sending command: ${command}\n$ `);
+          term.write(`\nSending command: ${command}\n$ `);
           command = '';
         } else {
           term.write(evt.key);

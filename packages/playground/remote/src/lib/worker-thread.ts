@@ -92,6 +92,10 @@ php.initializeRuntime(
 );
 patchWordPress(php, scopedSiteUrl);
 
+php.writeFile('/wp-cli.phar', new Uint8Array(await (await fetch('/wp-cli.phar')).arrayBuffer()));
+
+console.log(php.listFiles('/'));
+
 setApiReady();
 
 export function getWordPressModule(version: string) {
