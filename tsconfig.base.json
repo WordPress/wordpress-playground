@@ -32,9 +32,6 @@
 			],
 			"@wp-playground/playground-remote": [
 				"packages/playground/remote/src/index.ts"
-			],
-			"@wp-playground/ts-api-doc-generator": [
-				"packages/docs/ts-api-doc-generator/src/index.ts"
 			]
 		}
 	},

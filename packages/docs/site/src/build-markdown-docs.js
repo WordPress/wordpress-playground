@@ -73,13 +73,15 @@ function handleIncludes(filePath, content) {
 		const includeContents = fs.readFileSync(absoluteIncludePath, 'utf8');
 		const sectionContents = getMarkdownSectionContents(
 			includeContents,
-			headerText
+			headerText,
+			true
 		).replace(/\]\(([^)]+)\)/g, (_, link) => {
 			if (link.startsWith('https://')) {
 				return `](${link})`;
 			}
 			return `](${relativeIncludePath})`;
 		});
+		// console.log(sectionContents);
 		if (!sectionContents) {
 			throw new Error(
 				`Section "${headerText}" not found in the file ${includePath} (included in ${filePath})`
@@ -96,12 +98,25 @@ function handleIncludes(filePath, content) {
  *
  * @param {string} content
  * @param {string} header
+ * @param {boolean} stopAtFirstHeader
  */
-function getMarkdownSectionContents(content, header) {
-	const regex = new RegExp(
-		`^(#+)\\s*${escapeRegExp(header)}\\s*\\n(.*)(^\\1|$)`,
-		'ms'
-	);
+function getMarkdownSectionContents(
+	content,
+	header,
+	stopAtFirstHeader = false
+) {
+	let regex;
+	if (stopAtFirstHeader) {
+		regex = new RegExp(
+			`^(#+)\\s*${escapeRegExp(header)}\\s*\\n(.*?)(^#)`,
+			'ms'
+		);
+	} else {
+		regex = new RegExp(
+			`^(#+)\\s*${escapeRegExp(header)}\\s*\\n(.*)(^\\1)`,
+			'ms'
+		);
+	}
 	const match = content.match(regex);
 	if (match) {
 		return match[2].trim();

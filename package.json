@@ -9,7 +9,9 @@
 		"lint": "nx run-many --all --target=lint",
 		"test": "nx run-many --all --target=test",
 		"typecheck": "nx run-many --all --target=typecheck",
-		"build:all": "nx run-many --all --target=build"
+		"build:all": "nx run-many --all --target=build",
+		"predeploy": "nx build docs-site",
+		"deploy": "gh-pages -d dist/docs -t true"
 	},
 	"private": true,
 	"dependencies": {
@@ -21,6 +23,8 @@
 		"react-modal": "^3.16.1"
 	},
 	"devDependencies": {
+		"@convex-dev/typedoc-plugin-markdown": "3.14.0",
+		"@knodes/typedoc-plugin-pages": "0.23.1",
 		"@nrwl/devkit": "^15.8.6",
 		"@nrwl/esbuild": "^15.8.6",
 		"@nrwl/eslint-plugin-nx": "^15.8.6",
@@ -32,6 +36,7 @@
 		"@nrwl/react": "^15.8.6",
 		"@nrwl/rollup": "15.8.6",
 		"@nrwl/vite": "15.8.6",
+		"@nrwl/web": "15.8.7",
 		"@nrwl/webpack": "15.8.6",
 		"@nrwl/workspace": "15.8.6",
 		"@rollup/plugin-url": "^8.0.1",
@@ -59,6 +64,7 @@
 		"eslint-plugin-jsx-a11y": "6.7.1",
 		"eslint-plugin-react": "7.32.2",
 		"eslint-plugin-react-hooks": "4.6.0",
+		"gh-pages": "5.0.0",
 		"glob": "^9.3.0",
 		"jest": "^29.4.1",
 		"jest-environment-jsdom": "^29.4.1",
@@ -74,6 +80,9 @@
 		"ts-jest": "^29.0.5",
 		"ts-node": "10.9.1",
 		"tslib": "^2.3.0",
+		"typedoc": "0.23.27",
+		"typedoc-plugin-mdn-links": "3.0.3",
+		"typedoc-plugin-resolve-crossmodule-references": "0.3.3",
 		"typescript": "~4.9.5",
 		"vite": "^4.0.1",
 		"vite-plugin-dts": "~1.7.1",

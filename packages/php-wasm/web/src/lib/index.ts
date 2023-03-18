@@ -1,6 +1,8 @@
 export { PHP, loadPHPRuntime } from '@php-wasm/common';
 export type {
 	PHPOutput,
+	PHPServer,
+	PHPServerRequest,
 	PHPRequest,
 	PHPResponse,
 	JavascriptRuntime,

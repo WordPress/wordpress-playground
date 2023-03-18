@@ -1,2 +1,0 @@
-mkdocs==1.4.2
-beautifulsoup4==4.9.3

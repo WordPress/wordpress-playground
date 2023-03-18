@@ -1,6 +1,6 @@
 # WordPress Playground
 
-[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/) | [Documentation and API Reference](https://wordpresswasm.readthedocs.io/en/latest/)
+[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/) | [Documentation and API Reference](https://wordpress.github.io/wordpress-playground/)
 
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
@@ -22,7 +22,7 @@ See
 
 WordPress Playground has a [live demo](https://developer.wordpress.org/playground/demo/) available.
 
-You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpresswasm.readthedocs.io/en/latest/). **Note the embed is experimental and may break or change without a warning.**
+You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without a warning.**
 
 You can connect to the Playground instance using the JavaScript client:
 
@@ -59,7 +59,7 @@ A browser should open and take you to your very own client-side WordPress at [ht
 
 Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfile` require a full rebuild.
 
-From here, the [documentation](https://wordpresswasm.readthedocs.io/en/latest/) will help you learn how WordPress Playground works and how to use it to build amazing things!
+From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
 And here's a few more interesting CLI:
 
@@ -76,7 +76,7 @@ nx recompile-php:all php-wasm-web
 # Recompile PHP 5.6 - 8.2 releases to .wasm for node
 nx recompile-php:all php-wasm-node
 
-# Builds markdown files for readthedocs site
+# Builds the documentation site
 nx build docs-site
 
 # Builds the Playground Client npm package

@@ -23,6 +23,7 @@ export type {
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
+	PublicAPI,
 	PHPServerConfigation,
 	PHPServerRequest,
 	WorkerStartupOptions,

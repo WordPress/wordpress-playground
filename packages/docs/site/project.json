@@ -3,40 +3,27 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/docs/site/src",
 	"projectType": "library",
-	"implicitDependencies": [
-		"php-wasm-node",
-		"php-wasm-web",
-		"php-wasm-progress",
-		"php-wasm-scopes",
-		"php-wasm-web-service-worker",
-		"playground-client",
-		"docs-ts-api-doc-generator"
-	],
+	"implicitDependencies": ["php-wasm-web", "playground-client"],
 	"targets": {
 		"build": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/docs/site/src/build-markdown-docs.js",
-				"parallel": false
-			},
-			"dependsOn": ["build:api-reference"]
-		},
-		"build:api-reference": {
-			"executor": "nx:run-commands",
-			"options": {
 				"commands": [
-					"npx nx start docs-ts-api-doc-generator -e dist/packages/php-wasm/node/index.d.ts -e dist/packages/php-wasm/web/index.d.ts -e dist/packages/php-wasm/progress/index.d.ts -e dist/packages/php-wasm/scopes/index.d.ts -e dist/packages/php-wasm/web-service-worker/src/index.d.ts -e dist/packages/playground/client/index.d.ts -o docs/api",
-					"npx nx format"
+					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
+					"node packages/docs/site/src/build-markdown-docs.js",
+					"rimraf pages/api",
+
+					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
+					"node packages/docs/site/src/build-markdown-docs.js"
 				],
 				"parallel": false
-			},
-			"dependsOn": ["^build"]
+			}
 		},
 		"preview": {
-			"executor": "nx:run-commands",
+			"executor": "@nrwl/web:file-server",
 			"options": {
-				"command": "vitepress dev docs/api",
-				"parallel": false
+				"buildTarget": "docs-site:build",
+				"staticFilePath": "dist/docs"
 			}
 		},
 		"test": {

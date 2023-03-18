@@ -1,6 +1,6 @@
 # php-wasm-progress
 
-This library was generated with [Nx](https://nx.dev).
+PHP.wasm – loading progress monitoring utilities.
 
 ## Building
 

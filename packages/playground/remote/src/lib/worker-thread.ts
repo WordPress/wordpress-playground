@@ -5,6 +5,7 @@ import {
 	PHPBrowser,
 	PHPClient,
 	exposeAPI,
+	PublicAPI,
 	getPHPLoaderModule,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
@@ -27,7 +28,8 @@ const server = new PHPServer(php, {
 const browser = new PHPBrowser(server);
 const monitor = new EmscriptenDownloadMonitor();
 
-class PlaygroundWorkerClientClass extends PHPClient {
+/** @inheritDoc PHPClient */
+export class PlaygroundWorkerClientClass extends PHPClient {
 	scope: Promise<string>;
 	wordPressVersion: Promise<string>;
 	phpVersion: Promise<string>;
@@ -63,7 +65,11 @@ const startupOptions = parseWorkerStartupOptions<PlaygroundStartupOptions>();
 const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
 const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
-const [setApiReady, publicApi] = exposeAPI(
+/** @inheritDoc PlaygroundWorkerClientClass */
+export interface PlaygroundWorkerClient
+	extends PublicAPI<PlaygroundWorkerClientClass> {}
+
+const [setApiReady]: [() => void, PlaygroundWorkerClient] = exposeAPI(
 	new PlaygroundWorkerClientClass(
 		browser,
 		monitor,
@@ -73,10 +79,7 @@ const [setApiReady, publicApi] = exposeAPI(
 	)
 );
 
-export type PlaygroundWorkerClient = typeof publicApi;
-
 // Load PHP and WordPress modules:
-
 const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 	getPHPLoaderModule(phpVersion),
 	getWordPressModule(wpVersion),
