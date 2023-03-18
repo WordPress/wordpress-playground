@@ -522,7 +522,7 @@ COPY ./build-assets/php_wasm.c /root/
 
 RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         # Add nodefs when building for node.js
-        echo -n ' -lnoderawfs.js -s NODERAWFS=1 ' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
         # Preserve symbol names in node.js build – the bundle size doesn't matter as much
         # as on the web, and this makes debugging **much** easier.
         echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
