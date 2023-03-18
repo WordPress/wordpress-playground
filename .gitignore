@@ -12,6 +12,8 @@ dist.zip
 
 # dependencies
 node_modules
+/.yarn
+.rollup.cache
 
 # IDEs and editors
 /.idea

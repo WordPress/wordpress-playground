@@ -1,0 +1,14 @@
+export { PHP, loadPHPRuntime } from './php';
+export type { PHPOutput, PHPRequest, PHPResponse, JavascriptRuntime, ErrnoError, DataModule, PHPLoaderModule, PHPRuntime, PHPRuntimeId, EmscriptenOptions, MountSettings } from './php';
+export { toRelativeUrl } from './urls';
+export * from './comlink-utils';
+export type * from './comlink-utils';
+import PHPServer from './php-server';
+export { PHPServer };
+export type { PHPServerConfigation, PHPServerRequest } from './php-server';
+import PHPBrowser from './php-browser';
+import { PHPLoaderModule } from './php';
+export { PHPBrowser };
+export declare function getPHPLoaderModule(version?: string): Promise<PHPLoaderModule>;
+export type StartupOptions = Record<string, string>;
+export declare function parseWorkerStartupOptions(): StartupOptions;
