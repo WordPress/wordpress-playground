@@ -79,6 +79,8 @@ export default function PlaygroundViewport({
 
     }
 
+    terminalRef.current?.write('$ ');
+
     isRunningCommand.current = false;
   }
 
@@ -124,7 +126,7 @@ export default function PlaygroundViewport({
 
     let command = '';
 
-    term.onKey(({key, domEvent: evt }) => {
+    term.onKey(async ({key, domEvent: evt }) => {
       if (isRunningCommand.current) {
         return;
       }
@@ -139,7 +141,9 @@ export default function PlaygroundViewport({
         }
       } else if (printable) {
         if (key === '\r') {
-          term.write(`\nSending command: ${command}\n$ `);
+          term.write('\n');
+          console.log(`Sending command: ${command}`);
+          await runCommand(command);
           command = '';
         } else {
           term.write(evt.key);
