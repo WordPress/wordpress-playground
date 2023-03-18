@@ -2,7 +2,7 @@ import type { PlaygroundClient } from '@wp-playground/client';
 
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
-import React, {ReactElement, Ref, useMemo, Fragment, useRef, useEffect} from 'react';
+import React, {ReactElement, Ref, useMemo, Fragment, useRef, useEffect, useState} from 'react';
 import type {
 	ProgressObserver,
 	ProgressObserverEvent,
@@ -57,10 +57,64 @@ export default function PlaygroundViewport({
   const terminalContainer = useRef<HTMLDivElement>();
   const terminalRef = useRef<Terminal>();
 
+  const isRunningCommand = useRef<boolean>(false);
+
+  async function runCommand(command: string) {
+    isRunningCommand.current = true;
+
+    const args = command.split(' ');
+    const cmd = args.shift();
+
+    switch (cmd) {
+      case 'ls':
+        // TODO:
+        (await playground?.listFiles(args[0]) || []).forEach(line => {
+          terminalRef.current?.writeln(line);
+        });
+        break;
+      case 'clear':
+        terminalRef.current?.clear();
+        break;
+      case 'wp':
+
+    }
+
+    isRunningCommand.current = false;
+  }
+
   useEffect(() => {
     if (!terminalContainer.current) {
       return;
     }
+
+    console.log(playground);
+
+    (async () => {
+      if (playground) {
+        try {
+
+          console.log(await playground.listFiles('/'));
+          console.log(await playground.fileExists('/wp-cli.phar'));
+          console.log('before cli');
+          // DEF
+          const output = await playground.run({
+            code: '<?php var_dump( defined( "PHP_SAPI"), PHP_SAPI ); ?>'
+          });
+          console.log(new TextDecoder().decode(output.body));
+          // console.log(await playground.cli('/wp-cli.phar cli version'));
+          console.log('between cli');
+          console.log('after cli');
+          // playground.run({
+          //
+          // });
+        } catch(err) {
+          console.error(err);
+        } finally {
+          console.log(await playground.readFileAsText('/tmp/stdout'));
+          console.log(await playground.readFileAsText('/tmp/stderr'));
+        }
+      }
+    })();
 
     const term = new Terminal({ convertEol: true });
     terminalRef.current = term;
@@ -71,6 +125,9 @@ export default function PlaygroundViewport({
     let command = '';
 
     term.onKey(({key, domEvent: evt }) => {
+      if (isRunningCommand.current) {
+        return;
+      }
       console.log(key, evt.keyCode, evt.key);
       const printable = !evt.altKey && !evt.ctrlKey && !evt.metaKey;
 
@@ -105,7 +162,7 @@ export default function PlaygroundViewport({
     return () => {
       term.dispose();
     }
-  }, [])
+  }, [playground])
 
 	if (isSeamless) {
 		return (
