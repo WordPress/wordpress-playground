@@ -184,6 +184,10 @@ export class PHPClient
 	async fileExists(path: string): Promise<boolean> {
 		return _private.get(this)!.php.fileExists(path);
 	}
+
+	async cli(command: string): Promise<number> {
+		return _private.get(this)!.php.cli(['php', '-f', '/wp-cli.phar']);
+	}
 }
 
 // An asssertion to make sure Playground Client is compatible

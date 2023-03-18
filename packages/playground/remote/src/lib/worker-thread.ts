@@ -86,15 +86,20 @@ const [phpLoaderModule, wpLoaderModule] = await Promise.all([
 ]);
 monitor.setModules([phpLoaderModule, wpLoaderModule]);
 php.initializeRuntime(
-	await loadPHPRuntime(phpLoaderModule, monitor.getEmscriptenArgs(), [
-		wpLoaderModule,
-	])
+  await loadPHPRuntime(phpLoaderModule, {
+    ...monitor.getEmscriptenArgs(), 'print': function (text) {
+      console.log('stdout: ' + text)
+    },
+    'printErr': function (text) {
+      console.log('stderr: ' + text)
+    }
+  }, [
+    wpLoaderModule,
+  ])
 );
 patchWordPress(php, scopedSiteUrl);
 
 php.writeFile('/wp-cli.phar', new Uint8Array(await (await fetch('/wp-cli.phar')).arrayBuffer()));
-
-console.log(php.listFiles('/'));
 
 setApiReady();
 
