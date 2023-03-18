@@ -185,7 +185,7 @@ export class PHPClient
 		return _private.get(this)!.php.fileExists(path);
 	}
 
-	async cli(command: string): Promise<number> {
+	async cli(command: string): Promise<string> {
 		return _private.get(this)!.php.cli(['php', '-f', '/wp-cli.phar']);
 	}
 }
