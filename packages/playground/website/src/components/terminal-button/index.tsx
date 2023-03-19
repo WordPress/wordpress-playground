@@ -63,7 +63,7 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
             `<?php
             $GLOBALS['argv'] = [
               "/wordpress/wp-cli.phar",
-              "--path=/wordpress",
+              "--path=/wordpress/build",
               ${wpCliArgs.join('\n')}
             ];
 
@@ -104,7 +104,7 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
             `<?php
             namespace {
               $_SERVER['argv'] = [
-                '../wordpress-develop/vendor/phpunit/phpunit/phpunit',
+                '/wordpress/vendor/phpunit/phpunit/phpunit',
                 '-c',
                 'wordpress-develop/phpunit.xml.dist',
                 ${phpunitArgs.join('\n')}
@@ -124,7 +124,7 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
             }
 
             namespace Composer {
-              require( "../wordpress-develop/vendor/phpunit/phpunit/phpunit" );
+              require( __DIR__ . "/vendor/phpunit/phpunit/phpunit" );
             }
             `
           );
