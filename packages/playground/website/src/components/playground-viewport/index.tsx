@@ -196,13 +196,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once ABSPATH . 'wp-settings.php';`);
 
           const wpCliArgs = args.map(arg => `"${arg.replaceAll('"', '\\"')}",`)
-          console.log(wpCliArgs);
 
+          await playground?.writeFile('/tmp/stdout', '');
           await playground?.writeFile('/tmp/stderror', '');
           await playground?.writeFile('/wordpress/run-cli.php',
             `<?php
             $GLOBALS['argv'] = [
-              "/wp-cli.phar",
+              "/wordpress/wp-cli.phar",
               "--path=/wordpress",
               ${wpCliArgs.join('\n')}
             ];
@@ -214,7 +214,7 @@ require_once ABSPATH . 'wp-settings.php';`);
             define('STDOUT', fopen('php://stdout', 'wb'));
             define('STDERR', fopen('/tmp/stderr', 'wb'));
 
-            require( "/wp-cli.phar" );
+            require( "/wordpress/wp-cli.phar" );
             `
           );
 
@@ -232,6 +232,63 @@ require_once ABSPATH . 'wp-settings.php';`);
             terminalRef.current?.writeln(line);
           });
         }
+        break;
+
+      case 'phpunit':
+        if (playground) {
+          const phpunitArgs = args.map(arg => `"${arg.replaceAll('"', '\\"')}",`)
+
+          await playground?.writeFile('/tmp/stderror', '');
+
+          await playground?.writeFile('/wordpress/run-tests.php',
+            `<?php
+            namespace {
+              $_SERVER['argv'] = [
+                '../wordpress-develop/vendor/phpunit/phpunit/phpunit',
+                '-c',
+                'wordpress-develop/phpunit.xml.dist',
+                ${phpunitArgs.join('\n')}
+              ];
+
+              function iconv_substr($str, $from, $to = 1) { return substr($str, $from, $to); }
+              function iconv_strlen($str) { return strlen($str); }
+
+              function proc_open( $command, $descriptor_spec, $pipes ) { return false; }
+
+              define('STDIN', fopen('php://stdin', 'rb'));
+              define('STDOUT', fopen('php://stdout', 'wb'));
+              define('STDERR', fopen('/tmp/stderr', 'wb'));
+
+              define('WP_RUN_CORE_TESTS', true);
+              putenv('WP_TESTS_SKIP_INSTALL=1');
+            }
+
+            namespace Composer {
+              require( "../wordpress-develop/vendor/phpunit/phpunit/phpunit" );
+            }
+            `
+          );
+
+          try {
+          const output = await playground.run({
+            scriptPath: '/wordpress/run-tests.php'
+          });
+
+
+          const decodedOutput = new TextDecoder().decode(output.body);
+          decodedOutput.split('\n').slice(1, decodedOutput.length).forEach(line => {
+            terminalRef.current?.writeln(line);
+          });
+          } catch (err) {
+            console.log(err);
+          }
+
+          const stderr = await playground?.readFileAsText('/tmp/stderr');
+          stderr.split('\n').forEach(line => {
+            terminalRef.current?.writeln(line);
+          });
+        }
+
         break;
 
       default:

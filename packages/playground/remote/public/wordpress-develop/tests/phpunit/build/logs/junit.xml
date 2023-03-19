@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="" tests="2" assertions="4" errors="0" warnings="2" failures="0" skipped="0" time="0.022132">
+    <testsuite name="default" tests="2" assertions="4" errors="0" warnings="2" failures="0" skipped="0" time="0.022132">
+      <testsuite name="Tests_Admin_IncludesPost" file="/Users/pascalb/Workspace/WordPress/wordpress-playground/packages/playground/remote/public/wordpress-develop/tests/phpunit/tests/admin/includesPost.php" tests="2" assertions="4" errors="0" warnings="2" failures="0" skipped="0" time="0.022132">
+        <testcase name="test_post_exists_should_support_post_type" class="Tests_Admin_IncludesPost" classname="Tests_Admin_IncludesPost" file="/Users/pascalb/Workspace/WordPress/wordpress-playground/packages/playground/remote/public/wordpress-develop/tests/phpunit/tests/admin/includesPost.php" line="882" assertions="2" time="0.006682">
+          <warning type="PHPUnit\Framework\Warning">Tests_Admin_IncludesPost::test_post_exists_should_support_post_type
+Expecting E_DEPRECATED and E_USER_DEPRECATED is deprecated and will no longer be possible in PHPUnit 10.</warning>
+        </testcase>
+        <testcase name="test_post_exists_should_support_post_type_status_combined" class="Tests_Admin_IncludesPost" classname="Tests_Admin_IncludesPost" file="/Users/pascalb/Workspace/WordPress/wordpress-playground/packages/playground/remote/public/wordpress-develop/tests/phpunit/tests/admin/includesPost.php" line="966" assertions="2" time="0.015451">
+          <warning type="PHPUnit\Framework\Warning">Tests_Admin_IncludesPost::test_post_exists_should_support_post_type_status_combined
+Expecting E_DEPRECATED and E_USER_DEPRECATED is deprecated and will no longer be possible in PHPUnit 10.</warning>
+        </testcase>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

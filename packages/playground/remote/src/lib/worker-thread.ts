@@ -15,6 +15,9 @@ import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';
 
+// @ts-ignore
+import migration from './migration.php?raw';
+
 const php = new PHP();
 
 const scope = Math.random().toFixed(16);
@@ -99,6 +102,12 @@ php.initializeRuntime(
 );
 patchWordPress(php, scopedSiteUrl);
 
+php.writeFile('/wordpress-develop.zip', new Uint8Array(await (await fetch('/wordpress-develop.zip')).arrayBuffer()));
+const exportWriteRequest = await php.run({
+  code:
+    migration +
+    ` importZipFile('wordpress-develop.zip');`,
+});
 
 setApiReady();
 

@@ -1,0 +1,77 @@
+{
+    "name": "yoast/phpunit-polyfills",
+    "description": "Set of polyfills for changed PHPUnit functionality to allow for creating PHPUnit cross-version compatible tests",
+    "type": "library",
+    "keywords": [ "phpunit", "polyfill", "testing" ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://github.com/Yoast/PHPUnit-Polyfills",
+    "authors": [
+        {
+            "name"    : "Team Yoast",
+            "email"   : "support@yoast.com",
+            "homepage": "https://yoast.com"
+        },
+        {
+            "name"    : "Contributors",
+            "homepage": "https://github.com/Yoast/PHPUnit-Polyfills/graphs/contributors"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/Yoast/PHPUnit-Polyfills/issues",
+        "source": "https://github.com/Yoast/PHPUnit-Polyfills"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=5.4",
+        "phpunit/phpunit": "^4.8.36 || ^5.7.21 || ^6.0 || ^7.0 || ^8.0 || ^9.0"
+    },
+    "require-dev": {
+        "yoast/yoastcs": "^2.2.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "autoload": {
+        "files": ["phpunitpolyfills-autoload.php"]
+    },
+    "autoload-dev" : {
+        "psr-4": {
+            "Yoast\\PHPUnitPolyfills\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.x-dev",
+            "dev-develop": "1.x-dev"
+        }
+    },
+    "scripts": {
+        "lint7": [
+            "@php ./vendor/php-parallel-lint/php-parallel-lint/parallel-lint . -e php --show-deprecated --exclude vendor --exclude .git --exclude src/Exceptions/Error.php --exclude src/Exceptions/TypeError.php --exclude tests/Polyfills/Fixtures/ValueObjectUnion.php --exclude tests/Polyfills/Fixtures/ValueObjectUnionNoReturnType.php"
+        ],
+        "lint-lt70": [
+            "@php ./vendor/php-parallel-lint/php-parallel-lint/parallel-lint . -e php --show-deprecated --exclude vendor --exclude .git --exclude src/TestCases/TestCasePHPUnitGte8.php --exclude src/TestListeners/TestListenerDefaultImplementationPHPUnitGte7.php --exclude tests/Polyfills/Fixtures/ChildValueObject.php --exclude tests/Polyfills/Fixtures/ValueObject.php --exclude tests/Polyfills/Fixtures/ValueObjectUnion.php --exclude tests/Polyfills/Fixtures/ValueObjectUnionNoReturnType.php"
+        ],
+        "lint-gte80": [
+            "@php ./vendor/php-parallel-lint/php-parallel-lint/parallel-lint . -e php --show-deprecated --exclude vendor --exclude .git"
+        ],
+        "check-cs": [
+            "@php ./vendor/squizlabs/php_codesniffer/bin/phpcs --runtime-set testVersion 5.4-"
+        ],
+        "fix-cs": [
+            "@php ./vendor/squizlabs/php_codesniffer/bin/phpcbf"
+        ],
+        "test": [
+            "@php ./vendor/phpunit/phpunit/phpunit --no-coverage"
+        ],
+        "coverage": [
+            "@php ./vendor/phpunit/phpunit/phpunit"
+        ],
+        "coverage-local": [
+            "@php ./vendor/phpunit/phpunit/phpunit --coverage-html ./build/coverage-html"
+        ]
+    }
+}
