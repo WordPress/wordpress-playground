@@ -57,7 +57,10 @@ initializeServiceWorker({
 					`/wp-content/themes/${defaultTheme}`
 				)
 			) {
-				return await convertFetchEventToPHPRequest(event);
+				const response = await convertFetchEventToPHPRequest(event);
+				response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+				response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
+				return response;
 			}
 			const request = await rewriteRequest(
 				event.request,
