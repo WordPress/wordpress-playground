@@ -6,3 +6,11 @@
 	margin: 0;
 	padding: 0;
 }
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 55px 60px;
+}

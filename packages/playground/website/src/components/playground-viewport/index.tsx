@@ -324,7 +324,7 @@ require_once ABSPATH . 'wp-settings.php';`);
 				iframeRef={iframeRef}
 			/>
 		</BrowserChrome>
-    <div ref={terminalContainer} />
+    <div className={css.terminal} ref={terminalContainer} />
     </Fragment>
 	);
 }
