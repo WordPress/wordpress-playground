@@ -43,7 +43,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 
 **index.ts**:
 
-```js
+```ts
 import { connectPlayground } from '@wp-playground/client';
 
 const client = await connectPlayground(
