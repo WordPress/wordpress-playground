@@ -24,7 +24,24 @@ WordPress Playground has a [live demo](https://developer.wordpress.org/playgroun
 
 You can embed WordPress Playground in your project via an `<iframe>` – find out how in the [documentation](https://wordpress.github.io/wordpress-playground/). **Note the embed is experimental and may break or change without a warning.**
 
-You can connect to the Playground instance using the JavaScript client:
+You can connect to the Playground using the JavaScript client. Here's an example of how to do it in the browser using an `iframe` HTML element and the `connectPlayground` function from the `@wp-playground/client` package.
+
+**index.html**:
+
+```html
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WordPress Playground</title>
+    </head>
+    <body>
+        <iframe id="wp" style="width: 1200px; height: 800px;"></iframe>
+        <script src="./index.js"></script>
+    </body>
+</html>
+```
+
+**index.ts**:
 
 ```js
 import { connectPlayground } from '@wp-playground/client';
@@ -41,6 +58,8 @@ const result = await client.run({
 });
 console.log(new TextDecoder().decode(result.body));
 ```
+
+## Contributing
 
 You also can run WordPress Playground locally as follows:
 
