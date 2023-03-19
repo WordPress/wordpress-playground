@@ -52,12 +52,16 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
     useImperativeHandle(ref, () => ({
       setFile,
     }));
+
+    const [counter, setCounter]= useState(0);
+
     const view = useMemo(() => {
       if (!codeMirrorRef.current) {
+        setCounter((v) => v+1);
         return null;
       }
 
-      const fileSpecificExtensions = {
+      const extensions = {
         js: () => [javascript({ jsx: true })],
         ts: () => [
           javascript({ typescript: true, jsx: true }),
@@ -71,7 +75,10 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
         css: () => [css()],
         md: () => [markdown()],
         php: () => [php()],
-      }[file.fileName.split('.').pop()!]();
+      }
+
+      const fileExtension = file.fileName.split('.').pop();
+      const fileSpecificExtensions = ( fileExtension && Object.hasOwn(extensions, fileExtension) ) ? extensions[fileExtension]() : [];
 
       const themeOptions = EditorView.theme({
         '&': {

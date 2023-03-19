@@ -8,3 +8,11 @@
 .btn:active {
 	opacity: 0.8;
 }
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 55px 60px;
+}

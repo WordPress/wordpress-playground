@@ -1,0 +1,22 @@
+.btn {
+	cursor: pointer;
+	background: none;
+	border: none;
+}
+
+.btn:hover,
+.btn:active {
+	opacity: 0.8;
+}
+
+.editor {
+  display: flex;
+  flex-direction: row;
+  margin: 0 auto;
+  max-width: 1200px;
+}
+
+.editor > :first-child {
+  max-width: 250px;
+  background: #414141;
+}

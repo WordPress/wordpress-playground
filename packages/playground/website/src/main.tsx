@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client';
 
 import PlaygroundViewport from './components/playground-viewport';
-import ExportButton from './components/export-button';
-import ImportButton from './components/import-button';
+import EditorButton from './components/editor-button';
+import TerminalButton from './components/terminal-button';
 
 import { setupPlayground } from './lib/setup-playground';
 
@@ -15,8 +15,8 @@ root.render(
 		isSeamless={isSeamless}
 		setupPlayground={setupPlayground}
 		toolbarButtons={[
-			<ImportButton key="export" />,
-			<ExportButton key="export" />,
+			<EditorButton key="editor" />,
+			<TerminalButton key="terminal" />,
 		]}
 	/>
 );
