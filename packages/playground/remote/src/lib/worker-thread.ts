@@ -99,7 +99,6 @@ php.initializeRuntime(
 );
 patchWordPress(php, scopedSiteUrl);
 
-php.writeFile('/wp-cli.phar', new Uint8Array(await (await fetch('/wp-cli.phar')).arrayBuffer()));
 
 setApiReady();
 
