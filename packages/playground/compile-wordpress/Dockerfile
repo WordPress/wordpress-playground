@@ -139,9 +139,9 @@ RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar
     mv behat.phar wordpress/behat.phar
 
 # === Install PHPUnit ===
-RUN curl -OL https://phar.phpunit.de/phpunit-10.phar && \
-    chmod +x phpunit-10.phar && \
-    mv phpunit-10.phar wordpress/phpunit.phar
+RUN curl -OL https://phar.phpunit.de/phpunit-9.phar && \
+    chmod +x phpunit-9.phar && \
+    mv phpunit-9.phar wordpress/phpunit.phar
 
 # === Install WordPress Importer ===
 RUN cd wordpress && \
