@@ -22,6 +22,13 @@ RUN wget -O wp.zip $WP_ZIP_URL && \
     unzip -q wp.zip && \
     rm wp.zip
 
+# Run extra steps for the develop branch
+RUN if [[ -d wordpress-develop-trunk ]] ; then cd wordpress-develop-trunk && npm install; fi
+
+# Run extra steps for the develop branch
+RUN if [[ -d wordpress-develop-trunk ]] ; then cd wordpress-develop-trunk && npm run build; fi
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then mv wordpress-develop-trunk/build wordpress; fi
 # Enable the SQLite support:
 # https://github.com/WordPress/sqlite-database-integration
 RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
@@ -132,18 +139,17 @@ RUN ls -la && \
 # === Install WP-CLI ===
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar  && \
-    sed '1d' wp-cli.phar > wordpress/wp-cli.phar
+    cp  wp-cli.phar wordpress/wp-cli.phar
 
 # === Install Behat ===
 RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar && \
     chmod +x behat.phar && \
-    sed '1d' behat.phar > wordpress/behat.phar
-
+    mv behat.phar wordpress/behat.phar
 
 # === Install PHPUnit ===
 RUN curl -OL https://phar.phpunit.de/phpunit-9.phar && \
     chmod +x phpunit-9.phar && \
-    sed '1d' phpunit-9.phar >  wordpress/phpunit.phar
+    mv phpunit-9.phar  wordpress/phpunit.phar
 
 # === Install WordPress Importer ===
 RUN cd wordpress && \
@@ -175,6 +181,21 @@ COPY --from=php /root/wordpress ./wordpress
 RUN cd wordpress && \
     sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
     mv wp-config.php.new wp-config.php
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then \
+    cp wordpress-develop-trunk/wp-tests-config-sample.php wordpress-develop-trunk/wp-tests-config.php && \
+    mv wordpress wordpress-develop-trunk/build && \
+    mv wordpress-develop-trunk wordpress && \
+    rm -rf wordpress/node_modules/ wordpress/vendor/ && \
+    rm -rf wordpress/src/js/_enqueues && \
+    cd wordpress/src && find ./ -type f \( \
+    -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
+    -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
+    -o -name '*.scss' -o -name '*.stylelintignore' -o -name '*.svg' \
+    -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
+    -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
+    \) -delete; \
+    fi
 
 # Bundle the .data file using Emscripten
 RUN mv wordpress /wordpress && \

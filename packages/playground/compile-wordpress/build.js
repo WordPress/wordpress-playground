@@ -3,6 +3,11 @@ import { spawn } from 'child_process';
 import yargs from 'yargs';
 
 const presets = {
+  develop: {
+    KEEP_THEME: 'twentytwentythree',
+    WP_ZIP_URL: 'https://github.com/WordPress/wordpress-develop/archive/refs/heads/trunk.zip',
+    OUT_FILENAME: 'wp-develop',
+  },
 	6.1: {
 		KEEP_THEME: 'twentytwentythree',
 		WP_ZIP_URL: 'https://wordpress.org/wordpress-6.1.1.zip',
