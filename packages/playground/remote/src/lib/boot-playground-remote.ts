@@ -60,10 +60,18 @@ export async function bootPlaygroundRemote() {
 		async onNavigation(fn) {
 			// Manage the address bar
 			wpFrame.addEventListener('load', async (e: any) => {
-				const path = await playground.internalUrlToPath(
-					e.currentTarget!.contentWindow.location.href
-				);
-				fn(path);
+				try {
+					const path = await playground.internalUrlToPath(
+						e.currentTarget!.contentWindow.location.href
+					);
+					fn(path);
+				} catch (e) {
+					// @TODO: The above call can fail if the remote iframe
+					// is embedded in StackBlitz, or presumably, any other
+					// environment with restrictive CSP. Any error thrown
+					// due to CORS-related stuff crashes the entire remote
+					// so let's ignore it for now and find a correct fix in time.
+				}
 			});
 		},
 		async goTo(requestedPath: string) {
