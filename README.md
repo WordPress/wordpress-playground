@@ -31,13 +31,13 @@ You can connect to the Playground using the JavaScript client. Here's an example
 ```html
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>WordPress Playground</title>
-    </head>
-    <body>
-        <iframe id="wp" style="width: 1200px; height: 800px;"></iframe>
-        <script src="./index.js"></script>
-    </body>
+	<head>
+		<title>WordPress Playground</title>
+	</head>
+	<body>
+		<iframe id="wp" style="width: 1200px; height: 800px;"></iframe>
+		<script src="./index.js"></script>
+	</body>
 </html>
 ```
 
@@ -47,14 +47,14 @@ You can connect to the Playground using the JavaScript client. Here's an example
 import { connectPlayground } from '@wp-playground/client';
 
 const client = await connectPlayground(
-    document.getElementById('wp')! as HTMLIFrameElement,
-    `https://wasm.wordpress.net/remote.html`
+	document.getElementById('wp')! as HTMLIFrameElement,
+	`https://wasm.wordpress.net/remote.html`
 );
 await client.isReady();
 await client.goTo('/wp-admin/');
 
 const result = await client.run({
-    code: '<?php echo "Hi!"; ',
+	code: '<?php echo "Hi!"; ',
 });
 console.log(new TextDecoder().decode(result.body));
 ```
