@@ -118,7 +118,7 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp -r /root/output/${getArg('OUT_FILENAME')} /output/`,
+		`cp -r /root/output/${getArg('OUT_FILENAME')} /output/wp-develop`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

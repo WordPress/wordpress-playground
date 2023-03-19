@@ -57,7 +57,7 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
         return null;
       }
 
-      const fileSpecificExtensions = {
+      const extensions = {
         js: () => [javascript({ jsx: true })],
         ts: () => [
           javascript({ typescript: true, jsx: true }),
@@ -71,7 +71,10 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
         css: () => [css()],
         md: () => [markdown()],
         php: () => [php()],
-      }[file.fileName.split('.').pop()!]();
+      }
+
+      const fileExtension = file.fileName.split('.').pop();
+      const fileSpecificExtensions = ( fileExtension && Object.hasOwn(extensions, fileExtension) ) ? extensions[fileExtension]() : [];
 
       const themeOptions = EditorView.theme({
         '&': {
