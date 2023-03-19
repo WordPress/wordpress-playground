@@ -34,8 +34,9 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
         terminalRef.current?.clear();
         break;
       case 'cat':
-        let file = await playground?.readFileAsText(args[0]);
-        terminalRef.current?.writeln(file);
+        // eslint-disable-next-line no-case-declarations
+        const file = await playground?.readFileAsText(args[0]);
+        terminalRef.current?.writeln(file || '');
         break;
 
       case 'php':
