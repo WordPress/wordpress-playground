@@ -107,7 +107,7 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
               $_SERVER['argv'] = [
                 '/wordpress/vendor/phpunit/phpunit/phpunit',
                 '-c',
-                'wordpress-develop/phpunit.xml.dist',
+                'wordpress/phpunit.xml.dist',
                 ${phpunitArgs.join('\n')}
               ];
 
