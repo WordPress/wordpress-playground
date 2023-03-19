@@ -15,9 +15,6 @@ import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';
 
-// @ts-ignore
-import migration from './migration.php?raw';
-
 type PlaygroundStartupOptions = {
   wpVersion?: string;
   phpVersion?: string;
@@ -103,15 +100,14 @@ php.initializeRuntime(
 );
 patchWordPress(php, scopedSiteUrl);
 
-php.writeFile('/wordpress-develop.zip', new Uint8Array(await (await fetch('/wordpress-develop.zip')).arrayBuffer()));
-await php.run({
-  code:
-    migration +
-    ` importZipFile('wordpress-develop.zip');`,
-});
 
 php.writeFile(
-  '/wordpress/wp-config.php',
+  '/wordpress/tests/phpunit/includes/bootstrap.php',
+  php.readFileAsText('/wordpress/tests/phpunit/includes/bootstrap.php').replace("'gd',", '')
+);
+
+php.writeFile(
+  '/wordpress/build/wp-config.php',
   `<?php
 /**
  * The base configuration for WordPress

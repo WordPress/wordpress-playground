@@ -34,8 +34,9 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
         terminalRef.current?.clear();
         break;
       case 'cat':
-        let file = await playground?.readFileAsText(args[0]);
-        terminalRef.current?.writeln(file);
+        // eslint-disable-next-line no-case-declarations
+        const file = await playground?.readFileAsText(args[0]);
+        terminalRef.current?.writeln(file || '');
         break;
 
       case 'php':
@@ -84,11 +85,18 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
 
           const stderr = await playground?.readFileAsText('/tmp/stderr');
           stderr.split('\n').forEach(line => {
+            if (line.includes('Warning')) {
+              return;
+            }
             terminalRef.current?.writeln(line);
           });
 
           const decodedOutput = new TextDecoder().decode(output.body);
           decodedOutput.split('\n').slice(1, decodedOutput.length).forEach(line => {
+            if (line.includes('Warning') || line.includes('<br />')) {
+              return;
+            }
+            console.log(line);
             terminalRef.current?.writeln(line);
           });
         }
@@ -106,7 +114,7 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
               $_SERVER['argv'] = [
                 '/wordpress/vendor/phpunit/phpunit/phpunit',
                 '-c',
-                'wordpress-develop/phpunit.xml.dist',
+                'wordpress/phpunit.xml.dist',
                 ${phpunitArgs.join('\n')}
               ];
 

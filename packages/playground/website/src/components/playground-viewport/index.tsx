@@ -1,8 +1,7 @@
 import type { PlaygroundClient } from '@wp-playground/client';
 
-import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
-import React, {ReactElement, Ref, useMemo, Fragment, useRef, useEffect, useState, useCallback} from 'react';
+import React, {ReactElement, Ref, useMemo, Fragment} from 'react';
 import type {
 	ProgressObserver,
 	ProgressObserverEvent,
@@ -12,9 +11,6 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import ProgressBar from '../progress-bar';
 import { usePlayground, useProgressObserver } from '../../lib/hooks';
-import FilesExplorer from './FilesExplorer';
-import CodeMirror, {MemFile} from './CodeMirror';
-import type { CodeMirrorRef } from './CodeMirror';
 
 interface PlaygroundViewportProps {
 	isSeamless?: boolean;
@@ -70,8 +66,7 @@ export default function PlaygroundViewport({
 	}
 
 	return (
-    <Fragment>
-      <BrowserChrome
+    <BrowserChrome
         showAddressBar={!!playground}
         url={url}
         toolbarButtons={updatedToolbarButtons}
@@ -83,7 +78,6 @@ export default function PlaygroundViewport({
           iframeRef={iframeRef}
         />
       </BrowserChrome>
-    </Fragment>
 	);
 }
 
