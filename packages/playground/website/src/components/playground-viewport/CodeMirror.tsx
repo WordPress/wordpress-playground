@@ -52,8 +52,12 @@ export default React.forwardRef<CodeMirrorRef, CodeMirrorProps>(
     useImperativeHandle(ref, () => ({
       setFile,
     }));
+
+    const [counter, setCounter]= useState(0);
+
     const view = useMemo(() => {
       if (!codeMirrorRef.current) {
+        setCounter((v) => v+1);
         return null;
       }
 

@@ -9,10 +9,14 @@
 	opacity: 0.8;
 }
 
-.terminal {
+.editor {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   margin: 0 auto;
   max-width: 1200px;
-  padding: 55px 60px;
+}
+
+.editor > :first-child {
+  max-width: 250px;
+  background: #414141;
 }
