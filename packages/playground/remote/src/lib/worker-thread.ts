@@ -101,7 +101,7 @@ php.initializeRuntime(
 patchWordPress(php, scopedSiteUrl);
 
 php.writeFile(
-  '/wordpress/wp-config.php',
+  '/wordpress/build/wp-config.php',
   `<?php
 /**
  * The base configuration for WordPress
