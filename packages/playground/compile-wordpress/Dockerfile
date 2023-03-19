@@ -131,17 +131,19 @@ RUN ls -la && \
 
 # === Install WP-CLI ===
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x wp-cli.phar
+    chmod +x wp-cli.phar  && \
+    sed '1d' wp-cli.phar > wordpress/wp-cli.phar
 
 # === Install Behat ===
 RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar && \
     chmod +x behat.phar && \
-    mv behat.phar wordpress/behat.phar
+    sed '1d' behat.phar > wordpress/behat.phar
+
 
 # === Install PHPUnit ===
 RUN curl -OL https://phar.phpunit.de/phpunit-9.phar && \
     chmod +x phpunit-9.phar && \
-    mv phpunit-9.phar wordpress/phpunit.phar
+    sed '1d' phpunit-9.phar >  wordpress/phpunit.phar
 
 # === Install WordPress Importer ===
 RUN cd wordpress && \
@@ -162,8 +164,6 @@ RUN cd wordpress && \
     rm $phpfile.small; \
     done
 
-# Add wp-cli.phar to the files we pack
-RUN mv wp-cli.phar wordpress/
 
 FROM emscripten as emscripten2
 RUN rm -rf ./wordpress
