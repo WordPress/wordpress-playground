@@ -113,10 +113,10 @@ const platform = args.PLATFORM === 'node' ? 'node' : 'web';
 /* eslint-disable prettier/prettier */
 const getArg = (name) => {
 	let value =
-		name in platformDefaults[platform]
-			? platformDefaults[platform][name]
-			: name in args
+		name in args
 			? args[name]
+			: name in platformDefaults[platform]
+			? platformDefaults[platform][name]
 			: name in platformDefaults.all
 			? platformDefaults.all[name]
 			: 'no';
