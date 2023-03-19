@@ -100,6 +100,12 @@ php.initializeRuntime(
 );
 patchWordPress(php, scopedSiteUrl);
 
+
+php.writeFile(
+  '/wordpress/tests/phpunit/includes/bootstrap.php',
+  php.readFileAsText('/wordpress/tests/phpunit/includes/bootstrap.php').replace("'gd',", '')
+);
+
 php.writeFile(
   '/wordpress/build/wp-config.php',
   `<?php
