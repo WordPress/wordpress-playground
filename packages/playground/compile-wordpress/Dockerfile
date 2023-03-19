@@ -63,6 +63,23 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     # Required by the SQLite integration plugin:
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
+# Enable the SQLite support for the src folder in wordpress-develop:
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then \
+    git clone https://github.com/WordPress/sqlite-database-integration.git \
+    wordpress-develop-trunk/src/wp-content/plugins/sqlite-database-integration \
+    --branch main   \
+    --single-branch \
+    --depth 1 &&    \
+    rm -rf wordpress-develop-trunk/src/wp-content/plugins/sqlite-database-integration/.git && \
+    cat wordpress-develop-trunk/src/wp-content/plugins/sqlite-database-integration/db.copy \
+    | sed "s#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#' . __DIR__ . '/plugins/sqlite-database-integration#g" \
+    | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
+    > wordpress-develop-trunk/src/wp-content/db.php && \
+    # Required by the SQLite integration plugin:
+    cp wordpress-develop-trunk/wp-config-sample.php wordpress/wp-config.php \
+    ; fi
+
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
     cd wordpress-static && \
