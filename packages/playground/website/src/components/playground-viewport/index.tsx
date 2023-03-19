@@ -277,7 +277,6 @@ require_once ABSPATH . 'wp-settings.php';`);
             scriptPath: '/wordpress/run-tests.php'
           });
 
-
           const decodedOutput = new TextDecoder().decode(output.body);
           decodedOutput.split('\n').slice(1, decodedOutput.length).forEach(line => {
             terminalRef.current?.writeln(line);

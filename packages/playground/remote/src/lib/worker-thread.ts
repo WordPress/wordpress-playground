@@ -18,12 +18,23 @@ import patchWordPress from './wordpress-patch';
 // @ts-ignore
 import migration from './migration.php?raw';
 
+type PlaygroundStartupOptions = {
+  wpVersion?: string;
+  phpVersion?: string;
+};
+const startupOptions = parseWorkerStartupOptions<PlaygroundStartupOptions>();
+
+// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+// parameters names passed to the worker via a query string.
+const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
+const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
+
 const php = new PHP();
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const server = new PHPServer(php, {
-	documentRoot: DOCROOT,
+	documentRoot: wpVersion === 'develop' ? `${DOCROOT}/build` : DOCROOT,
 	absoluteUrl: scopedSiteUrl,
 	isStaticFilePath: isUploadedFilePath,
 });
@@ -57,16 +68,6 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 		};
 	}
 }
-
-type PlaygroundStartupOptions = {
-	wpVersion?: string;
-	phpVersion?: string;
-};
-const startupOptions = parseWorkerStartupOptions<PlaygroundStartupOptions>();
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
-const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 /** @inheritDoc PlaygroundWorkerClientClass */
 export interface PlaygroundWorkerClient
@@ -103,7 +104,7 @@ php.initializeRuntime(
 patchWordPress(php, scopedSiteUrl);
 
 php.writeFile('/wordpress-develop.zip', new Uint8Array(await (await fetch('/wordpress-develop.zip')).arrayBuffer()));
-const exportWriteRequest = await php.run({
+await php.run({
   code:
     migration +
     ` importZipFile('wordpress-develop.zip');`,
