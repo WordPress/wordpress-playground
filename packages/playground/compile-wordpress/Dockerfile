@@ -24,11 +24,30 @@ RUN wget -O wp.zip $WP_ZIP_URL && \
 
 # Run extra steps for the develop branch
 RUN if [[ -d wordpress-develop-trunk ]] ; then cd wordpress-develop-trunk && npm install; fi
-
-# Run extra steps for the develop branch
 RUN if [[ -d wordpress-develop-trunk ]] ; then cd wordpress-develop-trunk && npm run build; fi
 
+FROM php:7.4-cli AS php
+SHELL ["/bin/bash", "-c"]
+WORKDIR /root/
+COPY --from=emscripten /root /root/
+RUN apt-get update
+RUN apt-get install -y \
+        libzip-dev \
+        zip \
+  && docker-php-ext-install zip
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then curl -O https://getcomposer.org/installer; fi
+RUN ls /root/
+RUN if [[ -d wordpress-develop-trunk ]] ; then php /root/installer; fi
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then cd wordpress-develop-trunk && COMPOSER_ALLOW_SUPERUSER=1  ../composer.phar install; fi
+
+FROM emscripten as emscripten2
+COPY --from=php /root /root/
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then  sed -i  's/declare(strict_types=1);//' wordpress-develop-trunk/vendor/phpunit/phpunit/phpunit; fi
 RUN if [[ -d wordpress-develop-trunk ]] ; then mv wordpress-develop-trunk/build wordpress; fi
+
 # Enable the SQLite support:
 # https://github.com/WordPress/sqlite-database-integration
 RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
@@ -121,13 +140,15 @@ RUN cd wordpress && \
     # Remove any empty directories
     find . -type d -empty -delete
 
-FROM php:7.4-cli AS php
-WORKDIR /root/
-COPY --from=emscripten /root/wordpress ./wordpress
+RUN ls /root/
+FROM php:7.4-cli AS php2
+WORKDIR /root
+SHELL ["/bin/bash", "-c"]
+COPY --from=emscripten2 /root/ /root
 
 # === Run WordPress Installer ===
 RUN ls -la && \
-    cd wordpress && \
+    cd /root/wordpress && \
     nohup bash -c "php -S 127.0.0.1:8000&" && \
     sleep 6; \
     http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
@@ -142,14 +163,14 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
     cp  wp-cli.phar wordpress/wp-cli.phar
 
 # === Install Behat ===
-RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar && \
-    chmod +x behat.phar && \
-    mv behat.phar wordpress/behat.phar
+#RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar && \
+#    chmod +x behat.phar && \
+#    mv behat.phar wordpress/behat.phar
 
 # === Install PHPUnit ===
-RUN curl -OL https://phar.phpunit.de/phpunit-9.phar && \
-    chmod +x phpunit-9.phar && \
-    mv phpunit-9.phar  wordpress/phpunit.phar
+#RUN curl -OL https://phar.phpunit.de/phpunit-9.phar && \
+#    chmod +x phpunit-9.phar && \
+#    mv phpunit-9.phar  wordpress/phpunit.phar
 
 # === Install WordPress Importer ===
 RUN cd wordpress && \
@@ -171,23 +192,28 @@ RUN cd wordpress && \
     done
 
 
-FROM emscripten as emscripten2
+FROM emscripten as emscripten3
 RUN rm -rf ./wordpress
-COPY --from=php /root/wordpress ./wordpress
+COPY --from=php2 /root /root/
 
 # === Postprocess WordPress ===
 
 # Disable load-scripts.php
-RUN cd wordpress && \
+RUN cd /root/wordpress && \
     sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
     mv wp-config.php.new wp-config.php
 
+RUN ls /root/
 RUN if [[ -d wordpress-develop-trunk ]] ; then \
     cp wordpress-develop-trunk/wp-tests-config-sample.php wordpress-develop-trunk/wp-tests-config.php && \
+    rm -rf wordpress-develop-trunk/build && \
     mv wordpress wordpress-develop-trunk/build && \
     mv wordpress-develop-trunk wordpress && \
-    rm -rf wordpress/node_modules/ wordpress/vendor/ && \
-    rm -rf wordpress/src/js/_enqueues && \
+    mv /root/wp-cli.phar wordpress/wp-cli.phar && \
+    rm -rf wordpress/node_modules/ && \
+    rm -rf wordpress/src/js/_enqueues &&  \
+    rm -rf wordpress/vendor/{dealerdirect,doctrine,wp-coding-standards,phar-io,squizlabs} &&  \
+    rm -rf wordpress/test/{qunit,visual-regression,e2e,gutenberg} && \
     cd wordpress/src && find ./ -type f \( \
     -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
     -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
