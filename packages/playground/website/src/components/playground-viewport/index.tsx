@@ -2,7 +2,7 @@ import type { PlaygroundClient } from '@wp-playground/client';
 
 import { Terminal } from 'xterm';
 import 'xterm/css/xterm.css';
-import React, {ReactElement, Ref, useMemo, Fragment, useRef, useEffect, useState} from 'react';
+import React, {ReactElement, Ref, useMemo, Fragment, useRef, useEffect, useState, useCallback} from 'react';
 import type {
 	ProgressObserver,
 	ProgressObserverEvent,
@@ -12,6 +12,9 @@ import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import ProgressBar from '../progress-bar';
 import { usePlayground, useProgressObserver } from '../../lib/hooks';
+import FilesExplorer from './FilesExplorer';
+import CodeMirror, {MemFile} from './CodeMirror';
+import type { CodeMirrorRef } from './CodeMirror';
 
 interface PlaygroundViewportProps {
 	isSeamless?: boolean;
@@ -354,7 +357,51 @@ require_once ABSPATH . 'wp-settings.php';`);
     return () => {
       term.dispose();
     }
-  }, [playground])
+  }, [playground, runCommand])
+
+  const editorRef = useRef<CodeMirrorRef>(null);
+  const [editedFile, setEditedFile] = useState<string | undefined>();
+
+  const onFileChange = useMemo(
+    () =>
+    {
+      return (async ({ fileName, contents }) => {
+        if (!playground) {
+          return;
+        }
+        await playground.writeFile(fileName, contents);
+      });
+    },
+    [playground]
+  );
+
+  const [initialFile, setInitialFile] = useState<MemFile | undefined>();
+
+  useEffect(() => {
+    if (initialFile || !playground) {
+      return;
+    }
+
+    (async() => {
+      setInitialFile({
+        fileName: 'readme.html',
+        contents: await playground?.readFileAsText('/wordpress/readme.html') || '',
+      });
+    })();
+  }, [playground, initialFile]);
+
+  const selectFile = useCallback(
+    (fileName: string) => {
+      setEditedFile(fileName);
+      playground?.readFileAsText(fileName).then((contents) =>
+        editorRef.current!.setFile({
+          fileName,
+          contents,
+        })
+      );
+    },
+    [playground]
+  );
 
 	if (isSeamless) {
 		return (
@@ -381,6 +428,22 @@ require_once ABSPATH . 'wp-settings.php';`);
 				iframeRef={iframeRef}
 			/>
 		</BrowserChrome>
+      {initialFile && (
+      <div className={css.editor}>
+        <FilesExplorer
+          chroot={'/wordpress'}
+          fileSystem={playground!}
+          onSelectFile={selectFile}
+          className="ide-panel is-files-explorer"
+        />
+        <CodeMirror
+          onChange={onFileChange}
+          ref={editorRef}
+          className="ide-panel is-code-mirror"
+          initialFile={initialFile}
+        />
+      </div>
+      )}
     <div className={css.terminal} ref={terminalContainer} />
     </Fragment>
 	);
