@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/playground-remote",
+	"name": "@wp-playground/remote",
 	"version": "0.0.1",
 	"description": "WordPress Playground remote host",
 	"repository": {
