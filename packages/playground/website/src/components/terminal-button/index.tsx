@@ -85,11 +85,18 @@ export default function TerminalButton({ playground }: EditorButtonProps) {
 
           const stderr = await playground?.readFileAsText('/tmp/stderr');
           stderr.split('\n').forEach(line => {
+            if (line.includes('Warning')) {
+              return;
+            }
             terminalRef.current?.writeln(line);
           });
 
           const decodedOutput = new TextDecoder().decode(output.body);
           decodedOutput.split('\n').slice(1, decodedOutput.length).forEach(line => {
+            if (line.includes('Warning') || line.includes('<br />')) {
+              return;
+            }
+            console.log(line);
             terminalRef.current?.writeln(line);
           });
         }
