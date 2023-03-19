@@ -133,11 +133,15 @@ RUN ls -la && \
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar
 
+# === Install Behat ===
+RUN curl -OL https://github.com/Behat/Behat/releases/download/v3.12.0/behat.phar && \
+    chmod +x behat.phar && \
+    mv behat.phar wordpress/behat.phar
+
 # === Install PHPUnit ===
-RUN curl -O https://phar.phpunit.de/phpunit-10.phar && \
+RUN curl -OL https://phar.phpunit.de/phpunit-10.phar && \
     chmod +x phpunit-10.phar && \
     mv phpunit-10.phar wordpress/phpunit.phar
-
 
 # === Install WordPress Importer ===
 RUN cd wordpress && \
