@@ -133,6 +133,12 @@ RUN ls -la && \
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar
 
+# === Install PHPUnit ===
+RUN curl -O https://phar.phpunit.de/phpunit-10.phar && \
+    chmod +x phpunit-10.phar && \
+    mv phpunit-10.phar wordpress/phpunit.phar
+
+
 # === Install WordPress Importer ===
 RUN cd wordpress && \
     ../wp-cli.phar --allow-root plugin install wordpress-importer && \
