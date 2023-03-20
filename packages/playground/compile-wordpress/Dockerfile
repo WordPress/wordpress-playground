@@ -177,9 +177,9 @@ RUN ls -la && \
 # === Run WordPress Installer  for the src install ===
 RUN if [[ -d wordpress-develop-trunk ]] ; then \
     cd /root/wordpress-develop-trunk/src/ && \
-    nohup bash -c "php -S 127.0.0.1:8000&" && \
+    nohup bash -c "php -S 127.0.0.1:8001&" && \
     sleep 6; \
-    http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
+    http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8001/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
     if [ "$http_response" != "200" ]; then \
     cat debug.txt && \
     exit 'WordPress installation failed'; \
@@ -205,6 +205,12 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
 RUN cd wordpress && \
     ../wp-cli.phar --allow-root plugin install wordpress-importer && \
     ../wp-cli.phar --allow-root plugin activate wordpress-importer
+
+RUN if [[ -d wordpress-develop-trunk ]] ; then \
+    cd wordpress-develop-trunk/src && \
+    ../../wp-cli.phar --allow-root plugin install wordpress-importer && \
+    ../../wp-cli.phar --allow-root plugin activate wordpress-importer;\
+    fi
 
 # Strip whitespaces from PHP files.
 # PHP 7.4 is a safe choice here: `php -w` ran on 7.4
@@ -243,6 +249,7 @@ RUN if [[ -d wordpress-develop-trunk ]] ; then \
     rm -rf wordpress/src/js/_enqueues &&  \
     rm -rf wordpress/vendor/{dealerdirect,doctrine,wp-coding-standards,phar-io,squizlabs} &&  \
     rm -rf wordpress/test/{qunit,visual-regression,e2e,gutenberg} && \
+    cp wordpress/build/wp-config.php wordpress/src/ && \
     cd wordpress/src && find ./ -type f \( \
     -name '*.eot' -o -name '*.gif' -o -name '*.htaccess' \
     -o -name '*.md' -o -name '*.mp4' -o -name '*.png' \
