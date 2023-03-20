@@ -77,7 +77,7 @@ RUN if [[ -d wordpress-develop-trunk ]] ; then \
     | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
     > wordpress-develop-trunk/src/wp-content/db.php && \
     # Required by the SQLite integration plugin:
-    cp wordpress-develop-trunk/wp-config-sample.php wordpress/wp-config.php \
+    cp wordpress-develop-trunk/wp-config-sample.php wordpress-develop-trunk/src/wp-config.php \
     ; fi
 
 # Separate WordPress static files
@@ -172,6 +172,18 @@ RUN ls -la && \
     if [ "$http_response" != "200" ]; then \
     cat debug.txt && \
     exit 'WordPress installation failed'; \
+    fi
+
+# === Run WordPress Installer  for the src install ===
+RUN if [[ -d wordpress-develop-trunk ]] ; then \
+    cd /root/wordpress-develop-trunk/src/ && \
+    nohup bash -c "php -S 127.0.0.1:8000&" && \
+    sleep 6; \
+    http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8000/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
+    if [ "$http_response" != "200" ]; then \
+    cat debug.txt && \
+    exit 'WordPress installation failed'; \
+    fi; \
     fi
 
 # === Install WP-CLI ===
