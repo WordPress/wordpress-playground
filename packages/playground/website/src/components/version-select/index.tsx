@@ -5,7 +5,7 @@ type SelectorProps = {
 	versions: string[];
 };
 
-export default function PHPSelector(props: SelectorProps) {
+export default function VersionSelector(props: SelectorProps) {
 	return (
 		<select
 			id={props.name + '-version'}
@@ -24,7 +24,7 @@ export default function PHPSelector(props: SelectorProps) {
 					}
 					value={value}
 				>
-					{props.name.toString() + ' ' + value}
+					{props.name.toString().toUpperCase() + ' ' + value}
 				</option>
 			))}
 		</select>
