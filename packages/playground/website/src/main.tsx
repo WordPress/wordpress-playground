@@ -14,18 +14,15 @@ const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
-	<>
-		<div className="versionSelector">
-			<VersionSelector name="php" versions={phpVersions} />
-			<VersionSelector name="wp" versions={wpVersions} />
-		</div>
+
 		<PlaygroundViewport
 			isSeamless={isSeamless}
 			setupPlayground={setupPlayground}
 			toolbarButtons={[
+				<VersionSelector name="php" versions={phpVersions} />,
+				<VersionSelector name="wp" versions={wpVersions} />,
 				<ImportButton key="export" />,
 				<ExportButton key="export" />,
 			]}
 		/>
-	</>
 );
