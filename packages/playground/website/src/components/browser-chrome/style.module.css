@@ -75,15 +75,16 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .toolbar-buttons {
-	position: absolute;
-	right: 10px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
 .address-bar-slot {
 	margin-right: auto;
-	margin-left: auto;
+	margin-left: 100px;
 	min-width: 200px;
-	width: 60%;
+	width: 50%;
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
 }

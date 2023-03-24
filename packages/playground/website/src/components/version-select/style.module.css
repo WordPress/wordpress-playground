@@ -1,7 +1,13 @@
-.btn {
-	cursor: pointer;
-	border: none;
-	margin: 0px 5px;
-	box-shadow: 0px 0px 10px -4px rgba(0, 0, 0, 0.75);
-	border-radius: 6px;
+.select {
+	flex-grow: 1;
+	padding: 0px 10px;
+	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	font-weight: 50;
+	height: 26px;
+	border: 0;
+	background: #40464d;
+	border-radius: 8px;
+	color: #a5afbc;
+	transition: color 0.5s ease;
 }

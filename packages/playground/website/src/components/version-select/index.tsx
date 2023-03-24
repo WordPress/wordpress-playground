@@ -7,13 +7,13 @@ type SelectorProps = {
 };
 
 export default function VersionSelector(props: SelectorProps) {
-	const selectedVersion = new URL(window.location.toString()).searchParams.get(
-		props.name
-	);
+	const selectedVersion = new URL(
+		window.location.toString()
+	).searchParams.get(props.name);
 	return (
 		<select
-			className={css.btn}
-			defaultValue={selectedVersion ? selectedVersion : props.versions[0] }
+			className={css.select}
+			defaultValue={selectedVersion ? selectedVersion : props.versions[0]}
 			id={props.name + '-version'}
 			onChange={(event) => {
 				const url = new URL(window.location.toString());
@@ -22,10 +22,7 @@ export default function VersionSelector(props: SelectorProps) {
 			}}
 		>
 			{props.versions.map((value) => (
-				<option
-					value={value}
-					key={value}
-				>
+				<option value={value} key={value}>
 					{props.name.toString().toUpperCase() + ' ' + value}
 				</option>
 			))}
