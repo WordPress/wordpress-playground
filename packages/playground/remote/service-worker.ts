@@ -15,6 +15,7 @@ import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
 // @ts-ignore
 import { serviceWorkerVersion } from 'virtual:service-worker-version';
+import { Semaphore } from './Semaphore';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -24,6 +25,22 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+const CACHE_NAME = 'cache-v1';
+const MAX_CONCURRENT_REQUESTS = 15;
+const ONE_DAY = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+const resourcesToCache =
+	/\/(wp-content|wp-admin|wp-includes)\/.*\.(css|js|png|jpg|gif|woff|woff2|ttf|svg)$/;
+
+self.addEventListener('install', (event) => {
+	event.waitUntil(
+		caches.open(CACHE_NAME).then(() => {
+			console.debug('[Service Worker] Cache opened');
+		})
+	);
+});
+
+const requestSemaphore = new Semaphore(MAX_CONCURRENT_REQUESTS);
 
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
@@ -72,11 +89,69 @@ initializeServiceWorker({
 				event.request,
 				staticAssetsDirectory
 			);
-			return fetch(request);
+
+			const cached = await getFromCache(request);
+			if (cached) {
+				return cached;
+			}
+
+			return await fetchAndCache(request);
 		}
 		return asyncHandler();
 	},
 });
+
+async function fetchAndCache(request: Request): Promise<Response> {
+	await requestSemaphore.acquire();
+	try {
+		const url = new URL(request.url);
+		let networkResponse;
+		try {
+			networkResponse = await fetch(request);
+			// Retry once on failure
+			if (networkResponse.status === 403) {
+				networkResponse = await fetch(request);
+			}
+		} catch (e) {
+			// Retry once on failure
+			networkResponse = await fetch(request);
+		}
+		
+		if (networkResponse.status >= 200 && networkResponse.status < 299 && resourcesToCache.test(url.pathname)) {
+			const cache = await caches.open(CACHE_NAME);
+			await cache.put(request, networkResponse.clone());
+			console.debug('[Service Worker] Resource cached', request.url);
+		}
+
+		return networkResponse;
+	} finally {
+		requestSemaphore.release();
+	}
+}
+
+async function getFromCache(request: Request): Promise<Response | undefined> {
+	const url = new URL(request.url);
+	if (resourcesToCache.test(url.pathname)) {
+		const cache = await caches.open(CACHE_NAME);
+		const cachedResponse = await cache.match(request);
+
+		if (cachedResponse) {
+			const now = Date.now();
+			const cachedTime = new Date(
+				cachedResponse.headers.get('date')!
+			).getTime();
+
+			if (now - cachedTime < ONE_DAY) {
+				console.debug(
+					'[Service Worker] Serving cached resource',
+					request.url
+				);
+				return cachedResponse;
+			}
+		}
+	}
+	return;
+}
 
 type WPModuleDetails = {
 	staticAssetsDirectory: string;
