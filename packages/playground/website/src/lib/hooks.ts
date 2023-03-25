@@ -37,15 +37,11 @@ interface UsePlaygroundOptions {
 	onConnected?: (playground: PlaygroundClient) => Promise<void>;
 	onConnectionTimeout?: () => void;
 	timeout?: number;
-	php?: string;
-	wp?: string;
 }
 export function usePlayground({
 	onConnected,
 	onConnectionTimeout,
 	timeout = 1000,
-	php,
-	wp,
 }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;

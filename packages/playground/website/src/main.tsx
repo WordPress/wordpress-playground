@@ -1,6 +1,5 @@
 import { createRoot } from 'react-dom/client';
 import PlaygroundViewport from './components/playground-viewport';
-import EditorButton from './components/editor-button';
 import TerminalButton from './components/terminal-button';
 import ExportButton from './components/export-button';
 import ImportButton from './components/import-button';
@@ -40,7 +39,6 @@ root.render(
 			<VersionSelector name="wp" versions={wpVersions} />,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,
-			<EditorButton key="editor" />,
 			<TerminalButton key="terminal" />,
 		]}
 	/>
