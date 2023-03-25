@@ -10,6 +10,7 @@ __pycache__
 packages/php-wasm/node/src/test/__test*
 dist.zip
 tsconfig.buildinfo
+packages/*/build
 
 # dependencies
 node_modules
