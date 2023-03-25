@@ -1,7 +1,7 @@
 {
 	"name": "wp-playground",
 	"version": "0.0.0",
-	"license": "MIT",
+	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"scripts": {
 		"dev": "nx dev playground-website",
 		"build": "nx build playground-website",

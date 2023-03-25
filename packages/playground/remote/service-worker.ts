@@ -58,8 +58,14 @@ initializeServiceWorker({
 				)
 			) {
 				const response = await convertFetchEventToPHPRequest(event);
-				response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
-				response.headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
+				response.headers.set(
+					'Cross-Origin-Resource-Policy',
+					'cross-origin'
+				);
+				response.headers.set(
+					'Cross-Origin-Embedder-Policy',
+					'credentialless'
+				);
 				return response;
 			}
 			const request = await rewriteRequest(

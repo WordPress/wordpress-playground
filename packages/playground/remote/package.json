@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/playground-remote",
+	"name": "@wp-playground/remote",
 	"version": "0.0.1",
 	"description": "WordPress Playground remote host",
 	"repository": {
@@ -15,6 +15,6 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"license": "Apache-2.0",
+	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"type": "module"
 }

@@ -38,7 +38,7 @@ export default defineConfig({
 		host: remoteDevServerHost,
 		headers: {
 			'Cross-Origin-Resource-Policy': 'cross-origin',
-			'Cross-Origin-Embedder-Policy': 'credentialless'
+			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},
 		fs: {
 			// Allow serving files from one level up to the project root

@@ -1,9 +1,9 @@
 import { getPHPLoaderModule } from '..';
 import { PHP, loadPHPRuntime } from '@php-wasm/common';
-import { existsSync, rmSync } from 'fs';
+import { existsSync, rmSync, readFileSync } from 'fs';
 
 // @TODO use fresh runtime for each test
-const phpLoaderModule = await getPHPLoaderModule('7.4');
+const phpLoaderModule = await getPHPLoaderModule('8.0');
 const runtimeId = await loadPHPRuntime(phpLoaderModule);
 const php = new PHP(runtimeId);
 
@@ -156,6 +156,32 @@ describe('PHP – startup sequence', () => {
 		if (existsSync(testScriptPath)) {
 			rmSync(testScriptPath);
 		}
+	});
+
+	/**
+	 * Issue https://github.com/WordPress/wordpress-playground/issues/169
+	 */
+	it('Should work with long POST body', () => {
+		php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
+		const body =
+			readFileSync(
+				new URL('./test-data/long-post-body.txt', import.meta.url)
+					.pathname,
+				'utf8'
+			) + '';
+		// 0x4000 is SAPI_POST_BLOCK_SIZE
+		expect(body.length).toBeGreaterThan(0x4000);
+		expect(() => {
+			php.run({
+				code: 'echo "A";',
+				relativeUri: '/test.php?a=b',
+				body,
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+			});
+		}).not.toThrowError();
 	});
 
 	it('Should run a script when no code snippet is provided', () => {

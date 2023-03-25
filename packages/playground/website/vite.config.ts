@@ -52,7 +52,7 @@ export default defineConfig(({ command }) => {
 			host: websiteDevServerHost,
 			headers: {
 				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless'
+				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
 			proxy,
 		},
@@ -62,7 +62,7 @@ export default defineConfig(({ command }) => {
 			host: websiteDevServerHost,
 			headers: {
 				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless'
+				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
 			proxy,
 		},
