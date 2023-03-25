@@ -1,0 +1,87 @@
+name: PHP WASM Recompile and Release
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - 'packages/php-wasm/compile/**'
+  pull_request:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - build_php.yml
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: 14
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Recompile PHP WASM
+      run: |
+        nx recompile-php:all php-wasm-web
+        nx recompile-php:all php-wasm-node
+
+    - name: Upload web artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: php-wasm-web-artifacts
+        path: |
+          packages/php-wasm/web/public/*.js
+          packages/php-wasm/web/public/*.wasm
+
+    - name: Upload node artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: php-wasm-node-artifacts
+        path: |
+          packages/php-wasm/node/public/*.js
+          packages/php-wasm/node/public/*.wasm
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download web artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: php-wasm-web-artifacts
+
+    - name: Download node artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: php-wasm-node-artifacts
+
+    - name: Install GitHub CLI
+      run: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+        sudo apt-add-repository https://cli.github.com/packages
+        sudo apt update
+        sudo apt install gh
+
+    - name: Authenticate with GitHub CLI
+      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+
+    - name: Create Web Release
+      id: create_web_release
+      run: |
+        gh release create "web-php-wasm-${{ github.sha }}" "php-wasm-web-artifacts/*" --title "Web PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Web PHP WASM artifacts"
+
+    - name: Create Node Release
+      id: create_node_release
+      run: |
+        gh release create "node-php-wasm-${{ github.sha }}" "php-wasm-node-artifacts/*" --title "Node PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Node PHP WASM artifacts"
