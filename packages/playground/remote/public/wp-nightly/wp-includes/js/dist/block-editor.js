@@ -8853,14 +8853,14 @@ function __unstableHasActiveBlockOverlayActive(state, clientId) {
   return shouldEnableIfUnselected && !isBlockSelected(state, clientId) && !hasSelectedInnerBlock(state, clientId, true);
 }
 function __unstableIsWithinBlockOverlay(state, clientId) {
-  let parent = state.blocks.parents.get(clientId);
+  let parent = state.blocks.parents[clientId];
 
   while (!!parent) {
     if (__unstableHasActiveBlockOverlayActive(state, parent)) {
       return true;
     }
 
-    parent = state.blocks.parents.get(parent);
+    parent = state.blocks.parents[parent];
   }
 
   return false;
@@ -16538,7 +16538,6 @@ function BlockInvalidWarning(_ref) {
     block
   } = _ref;
   const hasHTMLBlock = !!(0,external_wp_blocks_namespaceObject.getBlockType)('core/html');
-  const hasClassicBlock = !!(0,external_wp_blocks_namespaceObject.getBlockType)('core/freeform');
   const [compare, setCompare] = (0,external_wp_element_namespaceObject.useState)(false);
   const onCompare = (0,external_wp_element_namespaceObject.useCallback)(() => setCompare(true), []);
   const onCompareClose = (0,external_wp_element_namespaceObject.useCallback)(() => setCompare(false), []); // We memo the array here to prevent the children components from being updated unexpectedly.
@@ -16550,10 +16549,10 @@ function BlockInvalidWarning(_ref) {
   }, hasHTMLBlock && {
     title: (0,external_wp_i18n_namespaceObject.__)('Convert to HTML'),
     onClick: convertToHTML
-  }, hasClassicBlock && {
+  }, {
     title: (0,external_wp_i18n_namespaceObject.__)('Convert to Classic Block'),
     onClick: convertToClassic
-  }].filter(Boolean), [onCompare, hasHTMLBlock, convertToHTML, hasClassicBlock, convertToClassic]);
+  }].filter(Boolean), [onCompare, convertToHTML, convertToClassic]);
   return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)(warning, {
     actions: [(0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
       key: "recover",
@@ -57238,7 +57237,6 @@ const off_canvas_editor_BLOCK_LIST_ITEM_HEIGHT = 36;
  *
  * @param {Object}  props                 Components props.
  * @param {string}  props.id              An HTML element id for the root element of ListView.
- * @param {string}  props.parentClientId  The client id of the parent block.
  * @param {Array}   props.blocks          Custom subset of block client IDs to be used instead of the default hierarchy.
  * @param {boolean} props.showBlockMovers Flag to enable block movers
  * @param {boolean} props.isExpanded      Flag to determine whether nested levels are expanded by default.
@@ -57252,7 +57250,6 @@ const off_canvas_editor_BLOCK_LIST_ITEM_HEIGHT = 36;
 function OffCanvasEditor(_ref, ref) {
   let {
     id,
-    parentClientId,
     blocks,
     showBlockMovers = false,
     isExpanded = false,
@@ -57384,7 +57381,6 @@ function OffCanvasEditor(_ref, ref) {
   }, (0,external_wp_element_namespaceObject.createElement)(context_ListViewContext.Provider, {
     value: contextValue
   }, (0,external_wp_element_namespaceObject.createElement)(off_canvas_editor_branch, {
-    parentId: parentClientId,
     blocks: clientIdsTree,
     selectBlock: selectEditorBlock,
     showBlockMovers: showBlockMovers,

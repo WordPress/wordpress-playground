@@ -175,16 +175,16 @@ RUN ls -la && \
     fi
 
 # === Run WordPress Installer  for the src install ===
-RUN if [[ -d wordpress-develop-trunk ]] ; then \
-    cd /root/wordpress-develop-trunk/src/ && \
-    nohup bash -c "php -S 127.0.0.1:8001&" && \
-    sleep 6; \
-    http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8001/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
-    if [ "$http_response" != "200" ]; then \
-    cat debug.txt && \
-    exit 'WordPress installation failed'; \
-    fi; \
-    fi
+#RUN if [[ -d wordpress-develop-trunk ]] ; then \
+#    cd /root/wordpress-develop-trunk/src/ && \
+#    nohup bash -c "php -S 127.0.0.1:8001&" && \
+#    sleep 6; \
+#    http_response=$(curl -o ./debug.txt -s -w "%{http_code}\n" -XPOST http://127.0.0.1:8001/wp-admin/install.php\?step\=2 --data "language=en&prefix=wp_&weblog_title=My WordPress Website&user_name=admin&admin_password=password&admin_password2=password&Submit=Install WordPress&pw_weak=1&admin_email=admin@localhost.com") && \
+#    if [ "$http_response" != "200" ]; then \
+#    cat debug.txt && \
+#    exit 'WordPress installation failed'; \
+#    fi; \
+#    fi
 
 # === Install WP-CLI ===
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
