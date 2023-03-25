@@ -663,7 +663,7 @@ static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
 
 	count_bytes = MIN(count_bytes, SG(request_info).content_length - SG(read_post_bytes));
 	if(count_bytes > 0) {
-		memcpy(buffer + SG(read_post_bytes), wasm_server_context->request_body + SG(read_post_bytes), count_bytes);
+		memcpy(buffer, wasm_server_context->request_body + SG(read_post_bytes), count_bytes);
 	}
 	return count_bytes;
 }
