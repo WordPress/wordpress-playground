@@ -1,4 +1,5 @@
 AddType application/wasm .wasm
+AddType	application/octet-stream .data
 
 <FilesMatch "iframe-worker.html$">
   Header set Origin-Agent-Cluster: ?1
