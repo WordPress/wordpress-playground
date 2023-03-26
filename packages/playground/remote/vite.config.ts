@@ -7,6 +7,7 @@ import dts from 'vite-plugin-dts';
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import virtualModule from '../vite-virtual-module';
+import viteRateLimit from '../vite-rate-limiter';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
@@ -22,6 +23,10 @@ const plugins = [
 		name: 'service-worker-version',
 		// @TODO: compute a hash of the service worker chunk instead of using the build timestamp
 		content: `export const serviceWorkerVersion = '${Date.now()}';`,
+	}),
+	viteRateLimit({
+		shouldCountRequest: (req) =>
+			!!req.headers['referer']?.includes('/scope:'),
 	}),
 ];
 export default defineConfig({
