@@ -28,9 +28,9 @@ if (!(self as any).document) {
 
 // Rate-limiting:
 const requestSemaphore = new Semaphore({
-	concurrency: 30,
-	requestsPerInterval: 40,
-	intervalMs: 500,
+	concurrency: 20,
+	requestsPerInterval: 35,
+	intervalMs: 1000,
 });
 
 initializeServiceWorker({
@@ -83,7 +83,24 @@ initializeServiceWorker({
 
 			const release = await requestSemaphore.acquire();
 			try {
-				return await fetch(request);
+				let response;
+				try {
+					response = await fetch(request.clone());
+				} catch (e) {
+					// Network error – sometimes happens due to
+					// rate-limiting. Let's wait a moment and
+					// retry the request once.
+					await sleep(300);
+					response = await fetch(request.clone());
+				}
+				if (response.status === 403) {
+					// If the request was forbidden, it might be because the
+					// request was rate-limited. So we'll wait a bit and retry
+					// the request one last time.
+					await sleep(300);
+					response = await fetch(request.clone());
+				}
+				return response;
 			} finally {
 				release();
 			}
@@ -128,4 +145,8 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
 	return scopeToWpModule[scope];
+}
+
+async function sleep(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
