@@ -26,23 +26,10 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-const CACHE_NAME = 'cache-v2';
-const ONE_DAY = 24 * 60 * 60 * 1000; // 1 day in milliseconds
-const resourcesToCache =
-	/\/(wp-content|wp-admin|wp-includes)\/.*\.(css|js|png|jpg|gif|woff|woff2|ttf|svg)$/;
-
-self.addEventListener('install', (event) => {
-	event.waitUntil(
-		caches.open(CACHE_NAME).then(() => {
-			console.debug('[Service Worker] Cache opened');
-		})
-	);
-});
-
 // Rate-limiting:
 const requestSemaphore = new Semaphore({
 	concurrency: 30,
-	requestsPerInterval: 50,
+	requestsPerInterval: 40,
 	intervalMs: 500,
 });
 
@@ -94,63 +81,16 @@ initializeServiceWorker({
 				staticAssetsDirectory
 			);
 
-			const cached = await getFromCache(request);
-			if (cached) {
-				return cached;
+			const release = await requestSemaphore.acquire();
+			try {
+				return await fetch(request);
+			} finally {
+				release();
 			}
-
-			return await fetchAndCache(request);
 		}
 		return asyncHandler();
 	},
 });
-
-async function fetchAndCache(request: Request): Promise<Response> {
-	const release = await requestSemaphore.acquire();
-	try {
-		const url = new URL(request.url);
-		const networkResponse = await fetch(request);
-
-		if (
-			false &&
-			networkResponse.status >= 200 &&
-			networkResponse.status < 299 &&
-			resourcesToCache.test(url.pathname)
-		) {
-			const cache = await caches.open(CACHE_NAME);
-			await cache.put(request, networkResponse.clone());
-			console.debug('[Service Worker] Resource cached', request.url);
-		}
-
-		return networkResponse;
-	} finally {
-		release();
-	}
-}
-
-async function getFromCache(request: Request): Promise<Response | undefined> {
-	const url = new URL(request.url);
-	if (resourcesToCache.test(url.pathname)) {
-		const cache = await caches.open(CACHE_NAME);
-		const cachedResponse = await cache.match(request);
-
-		if (cachedResponse) {
-			const now = Date.now();
-			const cachedTime = new Date(
-				cachedResponse.headers.get('date')!
-			).getTime();
-
-			if (now - cachedTime < ONE_DAY) {
-				console.debug(
-					'[Service Worker] Serving cached resource',
-					request.url
-				);
-				return cachedResponse;
-			}
-		}
-	}
-	return;
-}
 
 type WPModuleDetails = {
 	staticAssetsDirectory: string;

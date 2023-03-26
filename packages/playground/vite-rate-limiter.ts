@@ -3,17 +3,21 @@ import { IncomingMessage, ServerResponse } from 'http';
 
 interface ViteRateLimitOptions {
 	shouldCountRequest?: (request: IncomingMessage) => boolean;
+	windowMs: number;
+	max: number;
 }
 export default function viteRateLimit({
 	shouldCountRequest = () => true,
+	windowMs,
+	max,
 }: ViteRateLimitOptions) {
 	return {
 		name: 'vite-rate-limiter',
 		configureServer(server: any) {
 			server.middlewares.use(
 				rateLimit({
-					windowMs: 500,
-					max: 50,
+					windowMs,
+					max,
 					standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
 					legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 					keyGenerator: (request: IncomingMessage) => {

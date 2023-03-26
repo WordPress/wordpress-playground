@@ -24,9 +24,19 @@ const plugins = [
 		// @TODO: compute a hash of the service worker chunk instead of using the build timestamp
 		content: `export const serviceWorkerVersion = '${Date.now()}';`,
 	}),
+	/**
+	 * wasm.wordpress.net has a rate limiting mechanism in place, which
+	 * breaks rendering when too many scripts are loaded in a short period
+	 * of time. This plugin mimics this behavior in the local development
+	 * environment to enforce working with this constraint in mind.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/174
+	 */
 	viteRateLimit({
 		shouldCountRequest: (req) =>
 			!!req.headers['referer']?.includes('/scope:'),
+		windowMs: 500,
+		max: 50,
 	}),
 ];
 export default defineConfig({

@@ -64,5 +64,4 @@ describe('RequestsPerIntervaledSemaphore', () => {
 
 		expect(requestsPerIntervaledCount).toBe(requestsPerInterval);
 	});
-
 });
