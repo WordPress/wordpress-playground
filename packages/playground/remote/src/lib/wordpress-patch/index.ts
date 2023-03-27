@@ -32,12 +32,15 @@ class WordPressPatcher {
 				return contents.replace(
 					'if ( false === strtotime( $value ) )',
 					'if ( $value === "0000-00-00 00:00:00" || false === strtotime( $value ) )'
-				)
+				);
 			}
 		);
-		
+
 		this.#php.mkdirTree(`${DOCROOT}/wp-admin/images`);
-		this.#php.writeFile(`${DOCROOT}/wp-admin/images/about-header-about.svg`, '');
+		this.#php.writeFile(
+			`${DOCROOT}/wp-admin/images/about-header-about.svg`,
+			''
+		);
 		this.#adjustPathsAndUrls();
 		this.#disableSiteHealth();
 		this.#disableWpNewBlogNotification();
