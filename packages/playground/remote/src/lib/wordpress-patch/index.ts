@@ -24,7 +24,23 @@ class WordPressPatcher {
 	}
 
 	patch() {
-		this.#php.writeFile('/wordpress/phpinfo.php', '<?php phpinfo(); ');
+		this.#php.writeFile(`${DOCROOT}/phpinfo.php`, '<?php phpinfo(); ');
+		// Upstream change proposed in https://github.com/WordPress/sqlite-database-integration/pull/28:
+		this.#patchFile(
+			`/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php`,
+			(contents) => {
+				return contents.replace(
+					'if ( false === strtotime( $value ) )',
+					'if ( $value === "0000-00-00 00:00:00" || false === strtotime( $value ) )'
+				);
+			}
+		);
+
+		this.#php.mkdirTree(`${DOCROOT}/wp-admin/images`);
+		this.#php.writeFile(
+			`${DOCROOT}/wp-admin/images/about-header-about.svg`,
+			''
+		);
 		this.#adjustPathsAndUrls();
 		this.#disableSiteHealth();
 		this.#disableWpNewBlogNotification();

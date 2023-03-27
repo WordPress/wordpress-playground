@@ -150,6 +150,9 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 					headers: {
 						...requestHeaders,
 						Host: url.host,
+						// Safari and Firefox don't make the User-Agent header
+						// available in the fetch event. Let's add it manually:
+						'User-agent': self.navigator.userAgent,
 						'Content-type': contentType,
 					},
 				},
