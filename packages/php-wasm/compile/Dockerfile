@@ -164,25 +164,25 @@ RUN     set -euxo pipefail &&\
 FROM emscripten AS emscripten-libedit
 COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
 RUN /root/copy-lib.sh lib-ncurses
-RUN     curl -L https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz > libedit-20221030-3.1.tar.gz && \
-        tar -xzf libedit-20221030-3.1.tar.gz  && \
-        source /root/emsdk/emsdk_env.sh && \
-        cd libedit-20221030-3.1 && \
-        CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build i386-pc-linux-gnu \
-            --prefix=/root/lib/ && \
-        # -D__STDC_ISO_10646__=201103L is needed because
-        # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
-        # the case when compiling with musl toolchains.
-        # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
-        # let's define it manually. Learn more at:
-        # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
-        emmake make && \
-        emmake make install
+RUN wget --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+    tar -xzf libedit-20221030-3.1.tar.gz  && \
+    source /root/emsdk/emsdk_env.sh && \
+    cd libedit-20221030-3.1 && \
+    CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+    CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
+    LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
+        PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+        --build i386-pc-linux-gnu \
+        --prefix=/root/lib/ && \
+    # -D__STDC_ISO_10646__=201103L is needed because
+    # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
+    # the case when compiling with musl toolchains.
+    # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
+    # let's define it manually. Learn more at:
+    # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
+    EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
+    emmake make && \
+    emmake make install
 
 # Compile Libxml2
 FROM emscripten AS emscripten-libxml
