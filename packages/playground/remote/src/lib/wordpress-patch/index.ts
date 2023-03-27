@@ -25,6 +25,7 @@ class WordPressPatcher {
 
 	patch() {
 		this.#php.writeFile(`${DOCROOT}/phpinfo.php`, '<?php phpinfo(); ');
+		// Upstream change proposed in https://github.com/WordPress/sqlite-database-integration/pull/28:
 		this.#patchFile(
 			`/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php`,
 			(contents) => {
