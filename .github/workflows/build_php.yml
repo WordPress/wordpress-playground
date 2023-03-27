@@ -1,89 +1,85 @@
 name: PHP WASM Recompile and Release
 
 on:
-  push:
-    branches:
-      - trunk
-    paths:
-      - 'packages/php-wasm/compile/**'
-  pull_request:
-  workflow_dispatch:
-  workflow_run:
-    workflows:
-      - build_php.yml
-    types:
-      - completed
+    push:
+        branches:
+            - trunk
+        paths:
+            - 'packages/php-wasm/compile/**'
+    pull_request:
+    workflow_dispatch:
+    workflow_run:
+        workflows:
+            - build_php.yml
+        types:
+            - completed
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  fetch-depth: 0
+            - uses: nrwl/nx-set-shas@v3
+              with:
+                  main-branch-name: 'trunk'
+            - run: npm install -g yarn nx
+            - run: yarn install --frozen-lockfile
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: 14
+            - name: Recompile PHP WASM
+              run: |
+                  nx recompile-php:all php-wasm-web
+                  nx recompile-php:all php-wasm-node
 
-    - name: Install dependencies
-      run: |
-        npm install -g yarn nx
-        yarn install --frozen-lockfile
+            - name: Upload web artifacts
+              uses: actions/upload-artifact@v2
+              with:
+                  name: php-wasm-web-artifacts
+                  path: |
+                      packages/php-wasm/web/public/*.js
+                      packages/php-wasm/web/public/*.wasm
 
-    - name: Recompile PHP WASM
-      run: |
-        nx recompile-php:all php-wasm-web
-        nx recompile-php:all php-wasm-node
+            - name: Upload node artifacts
+              uses: actions/upload-artifact@v2
+              with:
+                  name: php-wasm-node-artifacts
+                  path: |
+                      packages/php-wasm/node/public/*.js
+                      packages/php-wasm/node/public/*.wasm
 
-    - name: Upload web artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: php-wasm-web-artifacts
-        path: |
-          packages/php-wasm/web/public/*.js
-          packages/php-wasm/web/public/*.wasm
+    release:
+        needs: build
+        runs-on: ubuntu-latest
 
-    - name: Upload node artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: php-wasm-node-artifacts
-        path: |
-          packages/php-wasm/node/public/*.js
-          packages/php-wasm/node/public/*.wasm
+        steps:
+            - name: Download web artifacts
+              uses: actions/download-artifact@v2
+              with:
+                  name: php-wasm-web-artifacts
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
+            - name: Download node artifacts
+              uses: actions/download-artifact@v2
+              with:
+                  name: php-wasm-node-artifacts
 
-    steps:
-    - name: Download web artifacts
-      uses: actions/download-artifact@v2
-      with:
-        name: php-wasm-web-artifacts
+            - name: Install GitHub CLI
+              run: |
+                  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+                  sudo apt-add-repository https://cli.github.com/packages
+                  sudo apt update
+                  sudo apt install gh
 
-    - name: Download node artifacts
-      uses: actions/download-artifact@v2
-      with:
-        name: php-wasm-node-artifacts
+            - name: Authenticate with GitHub CLI
+              run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
 
-    - name: Install GitHub CLI
-      run: |
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
-        sudo apt-add-repository https://cli.github.com/packages
-        sudo apt update
-        sudo apt install gh
+            - name: Create Web Release
+              id: create_web_release
+              run: |
+                  gh release create "web-php-wasm-${{ github.sha }}" "php-wasm-web-artifacts/*" --title "Web PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Web PHP WASM artifacts"
 
-    - name: Authenticate with GitHub CLI
-      run: echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-
-    - name: Create Web Release
-      id: create_web_release
-      run: |
-        gh release create "web-php-wasm-${{ github.sha }}" "php-wasm-web-artifacts/*" --title "Web PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Web PHP WASM artifacts"
-
-    - name: Create Node Release
-      id: create_node_release
-      run: |
-        gh release create "node-php-wasm-${{ github.sha }}" "php-wasm-node-artifacts/*" --title "Node PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Node PHP WASM artifacts"
+            - name: Create Node Release
+              id: create_node_release
+              run: |
+                  gh release create "node-php-wasm-${{ github.sha }}" "php-wasm-node-artifacts/*" --title "Node PHP WASM Release ${{ github.sha }}" --repo ${{ github.repository }} --notes "Node PHP WASM artifacts"
