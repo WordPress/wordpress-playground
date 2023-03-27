@@ -73,3 +73,80 @@ index 0603a7212b..2c191bc8be 100644
  }
  # endif
  
+diff --git a/php-src/ext/date/lib/timelib_structs.h b/php-src/ext/date/lib/timelib_structs.h
+index 91fcac9119..12cd932f7f 100644
+--- a/php-src/ext/date/lib/timelib_structs.h
++++ b/php-src/ext/date/lib/timelib_structs.h
+@@ -125,7 +125,7 @@ typedef unsigned __int64  uint64_t;
+ #include <strings.h>
+ #endif
+ 
+-#if (defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64)) && !defined(TIMELIB_FORCE_LONG32)
++#if true
+ typedef int64_t timelib_long;
+ typedef uint64_t timelib_ulong;
+ # define TIMELIB_LONG_MAX INT64_MAX
+@@ -143,10 +143,10 @@ typedef uint32_t timelib_ulong;
+ # define TIMELIB_ULONG_FMT "%" PRIu32
+ #endif
+ 
+-#if defined(_MSC_VER)
++#if true
+ typedef uint64_t timelib_ull;
+ typedef int64_t timelib_sll;
+-# define TIMELIB_LL_CONST(n) n ## i64
++# define TIMELIB_LL_CONST(n) n ## ll
+ #else
+ typedef unsigned long long timelib_ull;
+ typedef signed long long timelib_sll;
+diff --git a/php-src/ext/date/php_date.c b/php-src/ext/date/php_date.c
+index 801208d714..640b8a8c33 100644
+--- a/php-src/ext/date/php_date.c
++++ b/php-src/ext/date/php_date.c
+@@ -1454,9 +1454,11 @@ PHP_FUNCTION(strtotime)
+ 	char *times, *initial_ts;
+ 	int   time_len, error1, error2;
+ 	struct timelib_error_container *error;
+-	long  preset_ts = 0, ts;
++	long  preset_ts = 0;
++	double ts;
++	double t;
+ 
+-	timelib_time *t, *now;
++	timelib_time *now;
+ 	timelib_tzinfo *tzi;
+ 
+ 	tzi = get_timezone_info(TSRMLS_C);
+@@ -1467,7 +1469,7 @@ PHP_FUNCTION(strtotime)
+ 
+ 		initial_ts = emalloc(25);
+ 		snprintf(initial_ts, 24, "@%ld UTC", preset_ts);
+-		t = timelib_strtotime(initial_ts, strlen(initial_ts), NULL, DATE_TIMEZONEDB, php_date_parse_tzfile_wrapper); /* we ignore the error here, as this should never fail */
++		t = (double)timelib_strtotime(initial_ts, strlen(initial_ts), NULL, DATE_TIMEZONEDB, php_date_parse_tzfile_wrapper); /* we ignore the error here, as this should never fail */
+ 		timelib_update_ts(t, tzi);
+ 		now->tz_info = tzi;
+ 		now->zone_type = TIMELIB_ZONETYPE_ID;
+@@ -1489,12 +1491,12 @@ PHP_FUNCTION(strtotime)
+ 		RETURN_FALSE;
+ 	}
+ 
+-	t = timelib_strtotime(times, time_len, &error, DATE_TIMEZONEDB, php_date_parse_tzfile_wrapper);
++	t = (double)timelib_strtotime(times, time_len, &error, DATE_TIMEZONEDB, php_date_parse_tzfile_wrapper);
+ 	error1 = error->error_count;
+ 	timelib_error_container_dtor(error);
+ 	timelib_fill_holes(t, now, TIMELIB_NO_CLONE);
+ 	timelib_update_ts(t, tzi);
+-	ts = timelib_date_to_int(t, &error2);
++	ts = (double)timelib_date_to_int(t, &error2);
+ 
+ 	timelib_time_dtor(now);
+ 	timelib_time_dtor(t);
+@@ -1502,7 +1504,7 @@ PHP_FUNCTION(strtotime)
+ 	if (error1 || error2) {
+ 		RETURN_FALSE;
+ 	} else {
+-		RETURN_LONG(ts);
++		RETURN_DOUBLE(ts);
+ 	}
+ }
+ /* }}} */

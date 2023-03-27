@@ -36,3 +36,61 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  	}
  
  	switch (php_stream_stat_path_ex(dest, PHP_STREAM_URL_STAT_QUIET | PHP_STREAM_URL_STAT_NOCACHE, &dest_s, ctx)) {
+diff --git a/php-src/ext/date/lib/timelib.h b/php-src/ext/date/lib/timelib.h
+index 29e95e5e87..4328aa81d5 100644
+--- a/php-src/ext/date/lib/timelib.h
++++ b/php-src/ext/date/lib/timelib.h
+@@ -105,7 +105,7 @@ typedef unsigned __int64  uint64_t;
+ # endif
+ #endif
+ 
+-#if (defined(__x86_64__) || defined(__LP64__) || defined(_LP64) || defined(_WIN64)) && !defined(TIMELIB_FORCE_LONG32)
++#if true
+ typedef int64_t timelib_long;
+ typedef uint64_t timelib_ulong;
+ # define TIMELIB_LONG_MAX INT64_MAX
+@@ -123,10 +123,10 @@ typedef uint32_t timelib_ulong;
+ # define TIMELIB_ULONG_FMT "%" PRIu32
+ #endif
+ 
+-#if defined(_MSC_VER)
++#if true
+ typedef uint64_t timelib_ull;
+ typedef int64_t timelib_sll;
+-# define TIMELIB_LL_CONST(n) n ## i64
++# define TIMELIB_LL_CONST(n) n ## ll
+ #else
+ typedef unsigned long long timelib_ull;
+ typedef signed long long timelib_sll;
+diff --git a/php-src/ext/date/php_date.c b/php-src/ext/date/php_date.c
+index e1a427c5ca..cd48ff2633 100644
+--- a/php-src/ext/date/php_date.c
++++ b/php-src/ext/date/php_date.c
+@@ -1509,7 +1509,8 @@ PHP_FUNCTION(strtotime)
+ 	zend_string *times;
+ 	int error1, error2;
+ 	timelib_error_container *error;
+-	zend_long preset_ts = 0, ts;
++	zend_long preset_ts = 0;
++	double ts;
+ 	timelib_time *t, *now;
+ 	timelib_tzinfo *tzi;
+ 
+@@ -1533,7 +1534,7 @@ PHP_FUNCTION(strtotime)
+ 	timelib_error_container_dtor(error);
+ 	timelib_fill_holes(t, now, TIMELIB_NO_CLONE);
+ 	timelib_update_ts(t, tzi);
+-	ts = timelib_date_to_int(t, &error2);
++	ts = (double)timelib_date_to_int(t, &error2);
+ 
+ 	timelib_time_dtor(now);
+ 	timelib_time_dtor(t);
+@@ -1541,7 +1542,7 @@ PHP_FUNCTION(strtotime)
+ 	if (error1 || error2) {
+ 		RETURN_FALSE;
+ 	} else {
+-		RETURN_LONG(ts);
++		RETURN_DOUBLE(ts);
+ 	}
+ }
+ /* }}} */

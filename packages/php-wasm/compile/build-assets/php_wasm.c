@@ -206,6 +206,7 @@ const char WASM_HARDCODED_INI[] =
 	"session.save_path = /home/web_user\n"
 	"implicit_flush = 1\n"
 	"output_buffering = 0\n"
+	"date.timezone = UTC\n"
 	"max_execution_time = 0\n"
 	"max_input_time = -1\n\0"
 ;
