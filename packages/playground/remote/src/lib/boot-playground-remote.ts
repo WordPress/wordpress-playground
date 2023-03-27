@@ -1,7 +1,6 @@
 import { registerServiceWorker, spawnPHPWorkerThread } from '@php-wasm/web';
 import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@php-wasm/web';
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
+import { serviceWorkerVersion } from 'virtual:service-worker-config';
 
 import type { PlaygroundWorkerClient } from './worker-thread';
 import type { PlaygroundClient, WebClientMixin } from './playground-client';

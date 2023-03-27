@@ -13,8 +13,10 @@ import {
 } from '@php-wasm/web-service-worker';
 import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
+import {
+	serviceWorkerVersion,
+	fetchRateLimiting,
+} from 'virtual:service-worker-config';
 import Semaphore from './src/lib/Semaphore';
 
 if (!(self as any).document) {
@@ -26,12 +28,7 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-// Rate-limiting:
-const requestSemaphore = new Semaphore({
-	concurrency: 20,
-	requestsPerInterval: 35,
-	intervalMs: 1000,
-});
+const fetchHandler = fetchRateLimiting ? fetchRateLimited : fetch;
 
 initializeServiceWorker({
 	// Always use a random version in development to avoid caching issues.
@@ -80,34 +77,44 @@ initializeServiceWorker({
 				event.request,
 				staticAssetsDirectory
 			);
-
-			const release = await requestSemaphore.acquire();
-			try {
-				let response;
-				try {
-					response = await fetch(request.clone());
-				} catch (e) {
-					// Network error – sometimes happens due to
-					// rate-limiting. Let's wait a moment and
-					// retry the request once.
-					await sleep(300);
-					response = await fetch(request.clone());
-				}
-				if (response.status === 403) {
-					// If the request was forbidden, it might be because the
-					// request was rate-limited. So we'll wait a bit and retry
-					// the request one last time.
-					await sleep(300);
-					response = await fetch(request.clone());
-				}
-				return response;
-			} finally {
-				release();
-			}
+			return await fetchHandler(request);
 		}
 		return asyncHandler();
 	},
 });
+
+// Rate-limiting:
+const requestSemaphore = new Semaphore({
+	concurrency: 20,
+	requestsPerInterval: 35,
+	intervalMs: 1000,
+});
+
+async function fetchRateLimited(request: Request) {
+	const release = await requestSemaphore.acquire();
+	try {
+		let response;
+		try {
+			response = await fetch(request.clone());
+		} catch (e) {
+			// Network error – sometimes happens due to
+			// rate-limiting. Let's wait a moment and
+			// retry the request once.
+			await sleep(300);
+			response = await fetch(request.clone());
+		}
+		if (response.status === 403) {
+			// If the request was forbidden, it might be because the
+			// request was rate-limited. So we'll wait a bit and retry
+			// the request one last time.
+			await sleep(300);
+			response = await fetch(request.clone());
+		}
+		return response;
+	} finally {
+		release();
+	}
+}
 
 type WPModuleDetails = {
 	staticAssetsDirectory: string;

@@ -20,9 +20,14 @@ const plugins = [
 		skipDiagnostics: true,
 	}),
 	virtualModule({
-		name: 'service-worker-version',
+		name: 'service-worker-config',
 		// @TODO: compute a hash of the service worker chunk instead of using the build timestamp
-		content: `export const serviceWorkerVersion = '${Date.now()}';`,
+		content: `
+		export const serviceWorkerVersion = '${Date.now()}';
+		export const fetchRateLimiting = ${JSON.stringify(
+			process.env?.['FETCH_RATE_LIMITING'] === 'true'
+		)};
+		`,
 	}),
 	/**
 	 * wasm.wordpress.net has a rate limiting mechanism in place, which
