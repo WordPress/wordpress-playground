@@ -164,7 +164,7 @@ RUN     set -euxo pipefail &&\
 FROM emscripten AS emscripten-libedit
 COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
 RUN /root/copy-lib.sh lib-ncurses
-RUN     wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
+RUN     curl -L https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz > libedit-20221030-3.1.tar.gz && \
         tar -xzf libedit-20221030-3.1.tar.gz  && \
         source /root/emsdk/emsdk_env.sh && \
         cd libedit-20221030-3.1 && \
