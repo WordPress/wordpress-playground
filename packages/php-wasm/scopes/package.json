@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/scopes",
-	"version": "0.0.1",
+	"version": "0.1.5",
 	"description": "PHP.wasm – scoped URLs utils",
 	"repository": {
 		"type": "git",
@@ -15,8 +15,13 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/scopes"
+	},
 	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"type": "module",
 	"main": "index.js",
-	"types": "index.d.ts"
+	"types": "index.d.ts",
+	"gitHead": "ac5bf6b09cb425d650bc57eff03eac6417cccd49"
 }
