@@ -19,7 +19,7 @@
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/node"
 	},
-	"license": "GPL-2.0-or-later",
+	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"type": "module",
 	"gitHead": "ac5bf6b09cb425d650bc57eff03eac6417cccd49"
 }

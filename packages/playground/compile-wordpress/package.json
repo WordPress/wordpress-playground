@@ -1,5 +1,5 @@
 {
-	"name": "@wp-playground/playground-compile-wordpress",
+	"name": "@wp-playground/compile-wordpress",
 	"version": "0.0.1",
 	"description": "WordPress Compilation Pipeline for the WordPress Playground",
 	"repository": {
@@ -16,5 +16,6 @@
 		}
 	],
 	"license": "(GPL-2.0-or-later OR MPL-2.0)",
-	"type": "module"
+	"type": "module",
+	"private": true
 }

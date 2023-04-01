@@ -1,5 +1,5 @@
 {
-	"name": "@playground/compile-wordpress",
+	"name": "@php-wasm/compile",
 	"version": "0.1.2",
 	"description": "PHP.wasm – compilation pipeline",
 	"repository": {
@@ -15,7 +15,8 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"license": "GPL-2.0-or-later",
+	"private": true,
+	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"type": "module",
-	"gitHead": "eb0404cb59d670e4c0eb769021e510412b6232e9"
+	"gitHead": "a0eeb66fd5386bb56715fca2b89e9669a5b8618b"
 }
