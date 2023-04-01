@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/compile",
-	"version": "0.1.2",
+	"version": "0.1.5",
 	"description": "PHP.wasm – compilation pipeline",
 	"repository": {
 		"type": "git",
