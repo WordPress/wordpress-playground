@@ -29,7 +29,7 @@ export default defineConfig({
 			name: 'playground-client',
 			fileName: 'index',
 			formats: ['es'],
-		}
+		},
 	},
 
 	test: {
