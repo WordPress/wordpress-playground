@@ -99,6 +99,6 @@
 	"workspaces": [
 		"packages/nx-extensions",
 		"packages/php-wasm/*",
-		"packages/wp-playground/*"
+		"packages/playground/*"
 	]
 }
