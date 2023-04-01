@@ -29,11 +29,7 @@ export default defineConfig({
 			name: 'playground-client',
 			fileName: 'index',
 			formats: ['es'],
-		},
-		rollupOptions: {
-			// External packages that should not be bundled into your library.
-			external: ['comlink', '@php-wasm/progress'],
-		},
+		}
 	},
 
 	test: {

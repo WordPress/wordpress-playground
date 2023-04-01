@@ -29,9 +29,5 @@
 	"type": "module",
 	"main": "index.js",
 	"types": "index.d.ts",
-	"dependencies": {
-		"@php-wasm/progress": "0.0.1",
-		"comlink": "4.4.1"
-	},
 	"gitHead": "ac5bf6b09cb425d650bc57eff03eac6417cccd49"
 }
