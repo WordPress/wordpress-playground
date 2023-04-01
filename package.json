@@ -71,6 +71,7 @@
 		"jest-environment-node": "^29.4.1",
 		"jsdom": "~20.0.3",
 		"jsonc-eslint-parser": "^2.1.0",
+		"lerna": "6.6.1",
 		"nx": "15.8.6",
 		"prettier": "^2.6.2",
 		"react-test-renderer": "18.2.0",
@@ -93,5 +94,10 @@
 		"vitepress": "1.0.0-alpha.60",
 		"vitest": "^0.25.8",
 		"yargs": "^17.7.1"
-	}
+	},
+	"workspaces": [
+		"packages/nx-extensions",
+		"packages/php-wasm/*",
+		"packages/wp-playground/*"
+	]
 }
