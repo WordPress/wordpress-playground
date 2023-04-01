@@ -1,8 +1,9 @@
 {
 	"name": "@wp-playground/nx-extensions",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"main": "src/index.js",
 	"generators": "./generators.json",
 	"executors": "./executors.json",
-	"type": "module"
+	"type": "module",
+	"private": true
 }

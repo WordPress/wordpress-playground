@@ -3,15 +3,17 @@
 	"version": "0.0.0",
 	"license": "(GPL-2.0-or-later OR MPL-2.0)",
 	"scripts": {
+		"build": "nx run-many --all --target=build",
+		"build:website": "nx build playground-website",
+		"deploy": "gh-pages -d dist/docs -t true",
 		"dev": "nx dev playground-website",
-		"build": "nx build playground-website",
-		"preview": "nx preview playground-website",
 		"lint": "nx run-many --all --target=lint",
-		"test": "nx run-many --all --target=test",
-		"typecheck": "nx run-many --all --target=typecheck",
-		"build:all": "nx run-many --all --target=build",
 		"predeploy": "nx build docs-site",
-		"deploy": "gh-pages -d dist/docs -t true"
+		"prepublishOnly": "npm run build",
+		"preview": "nx preview playground-website",
+		"release": "lerna publish patch --yes --no-private --loglevel=verbose",
+		"test": "nx run-many --all --target=test",
+		"typecheck": "nx run-many --all --target=typecheck"
 	},
 	"private": true,
 	"dependencies": {
@@ -71,6 +73,7 @@
 		"jest-environment-node": "^29.4.1",
 		"jsdom": "~20.0.3",
 		"jsonc-eslint-parser": "^2.1.0",
+		"lerna": "6.6.1",
 		"nx": "15.8.6",
 		"prettier": "^2.6.2",
 		"react-test-renderer": "18.2.0",
@@ -93,5 +96,10 @@
 		"vitepress": "1.0.0-alpha.60",
 		"vitest": "^0.25.8",
 		"yargs": "^17.7.1"
-	}
+	},
+	"workspaces": [
+		"packages/nx-extensions",
+		"packages/php-wasm/*",
+		"packages/playground/*"
+	]
 }
