@@ -16,7 +16,7 @@ export async function connectPlayground(
 	const comlinkClient: Remote<PlaygroundClient> =
 		consumeAPI<PlaygroundClient>(iframe.contentWindow!);
 
-	// Wait for any response from the playground to ensure the comlink
+	// Wait for any response from the Playground to ensure the comlink
 	// handler on the other side is ready:
 	await comlinkClient.absoluteUrl;
 
