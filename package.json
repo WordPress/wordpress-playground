@@ -5,13 +5,13 @@
 	"scripts": {
 		"dev": "nx dev playground-website",
 		"build": "nx build playground-website",
+		"build:all": "nx run-many --all --target=build",
 		"preview": "nx preview playground-website",
 		"lint": "nx run-many --all --target=lint",
 		"release": "lerna publish patch --yes --no-private --loglevel=verbose",
 		"test": "nx run-many --all --target=test",
 		"typecheck": "nx run-many --all --target=typecheck",
-		"build:all": "nx run-many --all --target=build",
-		"prepublishOnly": "npm run build",
+		"prepublishOnly": "npm run build:all",
 		"predeploy": "nx build docs-site",
 		"deploy": "gh-pages -d dist/docs -t true"
 	},
