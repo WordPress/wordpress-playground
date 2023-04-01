@@ -7,7 +7,7 @@
 		"build": "nx build playground-website",
 		"preview": "nx preview playground-website",
 		"lint": "nx run-many --all --target=lint",
-		"release": "git stash && lerna version patch && (git commit -a || 1) && npm run build && lerna publish from-package --no-git-tag-version --no-push --yes --force-publish=* --no-private",
+		"release": "git stash && lerna version patch && (git commit -a || true) && npm run build && lerna publish from-package --no-git-tag-version --no-push --yes --force-publish=* --no-private",
 		"test": "nx run-many --all --target=test",
 		"typecheck": "nx run-many --all --target=typecheck",
 		"build:all": "nx run-many --all --target=build",
