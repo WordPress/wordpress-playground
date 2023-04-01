@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "PHP.wasm for Node.js",
 	"repository": {
 		"type": "git",
@@ -15,6 +15,6 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module"
 }

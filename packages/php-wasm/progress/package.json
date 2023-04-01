@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/progress",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "PHP.wasm – loading progress monitoring",
 	"repository": {
 		"type": "git",
@@ -21,7 +21,7 @@
 		"displayName": "@php-wasm/progress",
 		"tsconfig": "./tsconfig.lib.json"
 	},
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"main": "index.js",
 	"types": "index.d.ts"
