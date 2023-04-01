@@ -1,5 +1,6 @@
 {
-	"name": "@wp-playground/site/docs-site",
+	"name": "@wp-playground/docs-site",
 	"version": "0.0.1",
-	"type": "commonjs"
+	"type": "commonjs",
+	"private": true
 }
