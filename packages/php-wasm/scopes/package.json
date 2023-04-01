@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/scopes",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "PHP.wasm – scoped URLs utils",
 	"repository": {
 		"type": "git",
@@ -18,5 +18,6 @@
 	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"main": "index.js",
-	"types": "index.d.ts"
+	"types": "index.d.ts",
+	"gitHead": "eb0404cb59d670e4c0eb769021e510412b6232e9"
 }
