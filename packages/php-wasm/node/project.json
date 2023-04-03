@@ -7,6 +7,15 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
+			"dependsOn": ["build:README"]
+		},
+		"build:README": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
+				]
+			},
 			"dependsOn": ["build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {

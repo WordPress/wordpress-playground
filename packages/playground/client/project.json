@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:bundle", "build:rollup-declarations"]
+			"dependsOn": ["build:README", "build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",
@@ -18,6 +18,15 @@
 					"mv packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
 				],
 				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:README": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/playground/client/README.md dist/packages/playground/client"
+				]
 			},
 			"dependsOn": ["build:bundle"]
 		},
