@@ -4,12 +4,12 @@ The easiest way to integrate is to [link to the demo](https://developer.wordpres
 
 **These features described in this document are experimental and may break or change without a warning.**
 
-The latest build available at [https://wasm.wordpress.net/](https://wasm.wordpress.net/) may be embedded using the `<iframe>` HTML tag:
+The latest build available at [https://playground.wordpress.net/](https://playground.wordpress.net/) may be embedded using the `<iframe>` HTML tag:
 
 ```html
 <iframe
 	style="width: 800px; height: 500px;"
-	src="https://wasm.wordpress.net/?mode=seamless"
+	src="https://playground.wordpress.net/?mode=seamless"
 ></iframe>
 ```
 
@@ -31,7 +31,7 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 ```html
 <iframe
 	style="width: 800px; height: 500px;"
-	src="https://wasm.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"
+	src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"
 ></iframe>
 ```
 
@@ -44,7 +44,7 @@ Use the [`connectPlayground`](/functions/_wp_playground_client.connectPlayground
 ```ts
 const playgroundClient = connectPlayground(
 	iframe,
-	`https://wasm.wordpress.net/remote.html`
+	`https://playground.wordpress.net/remote.html`
 );
 
 const output = await playgroundClient.run({

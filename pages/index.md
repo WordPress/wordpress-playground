@@ -13,7 +13,7 @@ You can embed WordPress Playground using an iframe. **Note this is an experiment
 ```html
 <iframe
 	style="width: 800px; height: 500px;"
-	src="https://wasm.wordpress.net/?mode=seamless"
+	src="https://playground.wordpress.net/?mode=seamless"
 ></iframe>
 ```
 

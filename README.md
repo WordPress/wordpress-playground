@@ -1,6 +1,6 @@
 # WordPress Playground and PHP WASM (WebAssembly)
 
-[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://wasm.wordpress.net/) | [Documentation and API Reference](https://wordpress.github.io/wordpress-playground/)
+[Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://playground.wordpress.net/) | [Documentation and API Reference](https://wordpress.github.io/wordpress-playground/)
 
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
@@ -48,7 +48,7 @@ import { connectPlayground } from '@wp-playground/client';
 
 const client = await connectPlayground(
 	document.getElementById('wp')! as HTMLIFrameElement,
-	`https://wasm.wordpress.net/remote.html`
+	`https://playground.wordpress.net/remote.html`
 );
 await client.isReady();
 await client.goTo('/wp-admin/');

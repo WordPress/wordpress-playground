@@ -5,7 +5,7 @@ This document is specific to hosting your own Playground. If you only wish to co
 ```ts
 const playgroundClient = connectPlayground(
 	iframe,
-	`https://wasm.wordpress.net/remote.html`
+	`https://playground.wordpress.net/remote.html`
 );
 ```
 
