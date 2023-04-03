@@ -1,4 +1,6 @@
-export const dependenciesTotalSize = 10024669; import dependencyFilename from './php_8_1.wasm'; export { dependencyFilename }; export default function(RuntimeName, PHPLoader, EnvVariables) {
+export const dependenciesTotalSize = 9887266; 
+const dependencyFilename = __dirname + '/php_8_1.wasm'; 
+ export { dependencyFilename }; export default function(RuntimeName, PHPLoader, EnvVariables) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
 
 var moduleOverrides = Object.assign({}, Module);
@@ -418,7 +420,6 @@ function createWasm() {
  };
  function receiveInstance(instance, module) {
   var exports = instance.exports;
-  exports = Asyncify.instrumentWasmExports(exports);
   Module["asm"] = exports;
   wasmMemory = Module["asm"]["_a"];
   updateGlobalBufferAndViews(wasmMemory.buffer);
@@ -459,7 +460,6 @@ function createWasm() {
  if (Module["instantiateWasm"]) {
   try {
    var exports = Module["instantiateWasm"](info, receiveInstance);
-   exports = Asyncify.instrumentWasmExports(exports);
    return exports;
   } catch (e) {
    err("Module.instantiateWasm callback failed with error: " + e);
@@ -486,13 +486,6 @@ function callRuntimeCallbacks(callbacks) {
  }
 }
 
-function handleException(e) {
- if (e instanceof ExitStatus || e == "unwind") {
-  return EXITSTATUS;
- }
- quit_(1, e);
-}
-
 function writeArrayToMemory(array, buffer) {
  HEAP8.set(array, buffer);
 }
@@ -501,10 +494,19 @@ function ___assert_fail(condition, filename, line, func) {
  abort("Assertion failed: " + UTF8ToString(condition) + ", at: " + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
 }
 
+var wasmTableMirror = [];
+
+function getWasmTableEntry(funcPtr) {
+ var func = wasmTableMirror[funcPtr];
+ if (!func) {
+  if (funcPtr >= wasmTableMirror.length) wasmTableMirror.length = funcPtr + 1;
+  wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
+ }
+ return func;
+}
+
 function ___call_sighandler(fp, sig) {
- (function(a1) {
-  dynCall_vi.apply(null, [ fp, a1 ]);
- })(sig);
+ getWasmTableEntry(fp)(sig);
 }
 
 var PATH = {
@@ -1405,236 +1407,6 @@ var NODEFS = {
    NODEFS.stream_ops.write(stream, buffer, 0, length, offset, false);
    return 0;
   }
- }
-};
-
-var NODERAWFS = {
- lookup: function(parent, name) {
-  return FS.lookupPath(parent.path + "/" + name).node;
- },
- lookupPath: function(path, opts) {
-  opts = opts || {};
-  if (opts.parent) {
-   path = nodePath.dirname(path);
-  }
-  var st = fs.lstatSync(path);
-  var mode = NODEFS.getMode(path);
-  return {
-   path: path,
-   node: {
-    id: st.ino,
-    mode: mode,
-    node_ops: NODERAWFS,
-    path: path
-   }
-  };
- },
- createStandardStreams: function() {
-  FS.streams[0] = FS.createStream({
-   nfd: 0,
-   position: 0,
-   path: "",
-   flags: 0,
-   tty: true,
-   seekable: false
-  }, 0, 0);
-  for (var i = 1; i < 3; i++) {
-   FS.streams[i] = FS.createStream({
-    nfd: i,
-    position: 0,
-    path: "",
-    flags: 577,
-    tty: true,
-    seekable: false
-   }, i, i);
-  }
- },
- cwd: function() {
-  return process.cwd();
- },
- chdir: function() {
-  process.chdir.apply(void 0, arguments);
- },
- mknod: function(path, mode) {
-  if (FS.isDir(path)) {
-   fs.mkdirSync(path, mode);
-  } else {
-   fs.writeFileSync(path, "", {
-    mode: mode
-   });
-  }
- },
- mkdir: function() {
-  fs.mkdirSync.apply(void 0, arguments);
- },
- symlink: function() {
-  fs.symlinkSync.apply(void 0, arguments);
- },
- rename: function() {
-  fs.renameSync.apply(void 0, arguments);
- },
- rmdir: function() {
-  fs.rmdirSync.apply(void 0, arguments);
- },
- readdir: function() {
-  return [ ".", ".." ].concat(fs.readdirSync.apply(void 0, arguments));
- },
- unlink: function() {
-  fs.unlinkSync.apply(void 0, arguments);
- },
- readlink: function() {
-  return fs.readlinkSync.apply(void 0, arguments);
- },
- stat: function() {
-  return fs.statSync.apply(void 0, arguments);
- },
- lstat: function() {
-  return fs.lstatSync.apply(void 0, arguments);
- },
- chmod: function() {
-  fs.chmodSync.apply(void 0, arguments);
- },
- fchmod: function() {
-  fs.fchmodSync.apply(void 0, arguments);
- },
- chown: function() {
-  fs.chownSync.apply(void 0, arguments);
- },
- fchown: function() {
-  fs.fchownSync.apply(void 0, arguments);
- },
- truncate: function() {
-  fs.truncateSync.apply(void 0, arguments);
- },
- ftruncate: function(fd, len) {
-  if (len < 0) {
-   throw new FS.ErrnoError(28);
-  }
-  fs.ftruncateSync.apply(void 0, arguments);
- },
- utime: function(path, atime, mtime) {
-  fs.utimesSync(path, atime / 1e3, mtime / 1e3);
- },
- open: function(path, flags, mode, suggestFD) {
-  if (typeof flags == "string") {
-   flags = VFS.modeStringToFlags(flags);
-  }
-  var pathTruncated = path.split("/").map(function(s) {
-   return s.substr(0, 255);
-  }).join("/");
-  var nfd = fs.openSync(pathTruncated, NODEFS.flagsForNode(flags), mode);
-  var st = fs.fstatSync(nfd);
-  if (flags & 65536 && !st.isDirectory()) {
-   fs.closeSync(nfd);
-   throw new FS.ErrnoError(ERRNO_CODES.ENOTDIR);
-  }
-  var newMode = NODEFS.getMode(pathTruncated);
-  var fd = suggestFD != null ? suggestFD : FS.nextfd(nfd);
-  var node = {
-   id: st.ino,
-   mode: newMode,
-   node_ops: NODERAWFS,
-   path: path
-  };
-  var stream = FS.createStream({
-   nfd: nfd,
-   position: 0,
-   path: path,
-   flags: flags,
-   node: node,
-   seekable: true
-  }, fd, fd);
-  FS.streams[fd] = stream;
-  return stream;
- },
- createStream: function(stream, fd_start, fd_end) {
-  var rtn = VFS.createStream(stream, fd_start, fd_end);
-  if (typeof rtn.shared.refcnt == "undefined") {
-   rtn.shared.refcnt = 1;
-  } else {
-   rtn.shared.refcnt++;
-  }
-  return rtn;
- },
- closeStream: function(fd) {
-  if (FS.streams[fd]) {
-   FS.streams[fd].shared.refcnt--;
-  }
-  VFS.closeStream(fd);
- },
- close: function(stream) {
-  FS.closeStream(stream.fd);
-  if (!stream.stream_ops && stream.shared.refcnt === 0) {
-   fs.closeSync(stream.nfd);
-  }
- },
- llseek: function(stream, offset, whence) {
-  if (stream.stream_ops) {
-   return VFS.llseek(stream, offset, whence);
-  }
-  var position = offset;
-  if (whence === 1) {
-   position += stream.position;
-  } else if (whence === 2) {
-   position += fs.fstatSync(stream.nfd).size;
-  } else if (whence !== 0) {
-   throw new FS.ErrnoError(28);
-  }
-  if (position < 0) {
-   throw new FS.ErrnoError(28);
-  }
-  stream.position = position;
-  return position;
- },
- read: function(stream, buffer, offset, length, position) {
-  if (stream.stream_ops) {
-   return VFS.read(stream, buffer, offset, length, position);
-  }
-  var seeking = typeof position != "undefined";
-  if (!seeking && stream.seekable) position = stream.position;
-  var bytesRead = fs.readSync(stream.nfd, Buffer.from(buffer.buffer), offset, length, position);
-  if (!seeking) stream.position += bytesRead;
-  return bytesRead;
- },
- write: function(stream, buffer, offset, length, position) {
-  if (stream.stream_ops) {
-   return VFS.write(stream, buffer, offset, length, position);
-  }
-  if (stream.flags & +"1024") {
-   FS.llseek(stream, 0, +"2");
-  }
-  var seeking = typeof position != "undefined";
-  if (!seeking && stream.seekable) position = stream.position;
-  var bytesWritten = fs.writeSync(stream.nfd, Buffer.from(buffer.buffer), offset, length, position);
-  if (!seeking) stream.position += bytesWritten;
-  return bytesWritten;
- },
- allocate: function() {
-  throw new FS.ErrnoError(138);
- },
- mmap: function(stream, length, position, prot, flags) {
-  if (stream.stream_ops) {
-   return VFS.mmap(stream, length, position, prot, flags);
-  }
-  var ptr = mmapAlloc(length);
-  FS.read(stream, HEAP8, ptr, length, position);
-  return {
-   ptr: ptr,
-   allocated: true
-  };
- },
- msync: function(stream, buffer, offset, length, mmapFlags) {
-  if (stream.stream_ops) {
-   return VFS.msync(stream, buffer, offset, length, mmapFlags);
-  }
-  FS.write(stream, buffer, 0, length, offset);
-  return 0;
- },
- munmap: function() {
-  return 0;
- },
- ioctl: function() {
-  throw new FS.ErrnoError(59);
  }
 };
 
@@ -3672,7 +3444,7 @@ url = Module["websocket"]["url"](...arguments);
    }
    var WebSocketServer = require("ws").Server;
    var host = sock.saddr;
-   if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer({
+   sock.server = new WebSocketServer({
     host: host,
     port: sock.sport
    });
@@ -3767,7 +3539,7 @@ url = Module["websocket"]["url"](...arguments);
     throw new FS.ErrnoError(28);
    }
   },
-  recvmsg: function(sock, length, flags) {
+  recvmsg: function(sock, length) {
    if (sock.type === 1 && sock.server) {
     throw new FS.ErrnoError(53);
    }
@@ -3794,7 +3566,7 @@ url = Module["websocket"]["url"](...arguments);
     addr: queued.addr,
     port: queued.port
    };
-   if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength) {
+   if (sock.type === 1 && bytesRead < queuedLength) {
     var bytesRemaining = queuedLength - bytesRead;
     queued.data = new Uint8Array(queuedBuffer, queuedOffset + bytesRead, bytesRemaining);
     sock.recv_queue.unshift(queued);
@@ -4780,7 +4552,7 @@ function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
 function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
  try {
   var sock = getSocketFromFD(fd);
-  var msg = sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);
+  var msg = sock.sock_ops.recvmsg(sock, len);
   if (!msg) return 0;
   if (addr) {
    var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(msg.addr), msg.port, addrlen);
@@ -5134,65 +4906,8 @@ function _emscripten_resize_heap(requestedSize) {
  return false;
 }
 
-function _proc_exit(code) {
- EXITSTATUS = code;
- if (!keepRuntimeAlive()) {
-  if (Module["onExit"]) Module["onExit"](code);
-  ABORT = true;
- }
- quit_(code, new ExitStatus(code));
-}
-
-function exitJS(status, implicit) {
- EXITSTATUS = status;
- if (!keepRuntimeAlive()) {
-  exitRuntime();
- }
- _proc_exit(status);
-}
-
-var _exit = exitJS;
-
-function maybeExit() {
- if (!keepRuntimeAlive()) {
-  try {
-   _exit(EXITSTATUS);
-  } catch (e) {
-   handleException(e);
-  }
- }
-}
-
-function callUserCallback(func) {
- if (runtimeExited || ABORT) {
-  return;
- }
- try {
-  func();
-  maybeExit();
- } catch (e) {
-  handleException(e);
- }
-}
-
-function runtimeKeepalivePush() {
- runtimeKeepaliveCounter += 1;
-}
-
-function runtimeKeepalivePop() {
- runtimeKeepaliveCounter -= 1;
-}
-
-function safeSetTimeout(func, timeout) {
- runtimeKeepalivePush();
- return setTimeout(function() {
-  runtimeKeepalivePop();
-  callUserCallback(func);
- }, timeout);
-}
-
-function _emscripten_sleep(ms) {
- return Asyncify.handleSleep(wakeUp => safeSetTimeout(wakeUp, ms));
+function _emscripten_sleep() {
+ throw "Please compile your program with async support in order to use asynchronous operations like emscripten_sleep";
 }
 
 var ENV = PHPLoader.ENV || {};
@@ -5253,6 +4968,25 @@ function _environ_sizes_get(penviron_count, penviron_buf_size) {
  HEAPU32[penviron_buf_size >> 2] = bufSize;
  return 0;
 }
+
+function _proc_exit(code) {
+ EXITSTATUS = code;
+ if (!keepRuntimeAlive()) {
+  if (Module["onExit"]) Module["onExit"](code);
+  ABORT = true;
+ }
+ quit_(code, new ExitStatus(code));
+}
+
+function exitJS(status, implicit) {
+ EXITSTATUS = status;
+ if (!keepRuntimeAlive()) {
+  exitRuntime();
+ }
+ _proc_exit(status);
+}
+
+var _exit = exitJS;
 
 function _fd_close(fd) {
  try {
@@ -5322,22 +5056,10 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
 function _fd_sync(fd) {
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
-  return Asyncify.handleSleep(function(wakeUp) {
-   var mount = stream.node.mount;
-   if (!mount.type.syncfs) {
-    wakeUp(0);
-    return;
-   }
-   mount.type.syncfs(mount, false, function(err) {
-    if (err) {
-     wakeUp(function() {
-      return 29;
-     });
-     return;
-    }
-    wakeUp(0);
-   });
-  });
+  if (stream.stream_ops && stream.stream_ops.fsync) {
+   return stream.stream_ops.fsync(stream);
+  }
+  return 0;
  } catch (e) {
   if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
   return e.errno;
@@ -6246,6 +5968,9 @@ function _wasm_close(socketd) {
 }
 
 function _wasm_poll_socket(socketd, events, timeout) {
+ if (typeof Asyncify === "undefined") {
+  return 0;
+ }
  const POLLIN = 1;
  const POLLPRI = 2;
  const POLLOUT = 4;
@@ -6347,185 +6072,6 @@ function _wasm_shutdown(socketd, how) {
  return PHPWASM.shutdownSocket(socketd, how);
 }
 
-function runAndAbortIfError(func) {
- try {
-  return func();
- } catch (e) {
-  abort(e);
- }
-}
-
-var Asyncify = {
- State: {
-  Normal: 0,
-  Unwinding: 1,
-  Rewinding: 2,
-  Disabled: 3
- },
- state: 0,
- StackSize: 4096,
- currData: null,
- handleSleepReturnValue: 0,
- exportCallStack: [],
- callStackNameToId: {},
- callStackIdToName: {},
- callStackId: 0,
- asyncPromiseHandlers: null,
- sleepCallbacks: [],
- getCallStackId: function(funcName) {
-  var id = Asyncify.callStackNameToId[funcName];
-  if (id === undefined) {
-   id = Asyncify.callStackId++;
-   Asyncify.callStackNameToId[funcName] = id;
-   Asyncify.callStackIdToName[id] = funcName;
-  }
-  return id;
- },
- instrumentWasmImports: function(imports) {
-  var ASYNCIFY_IMPORTS = [ "env._dlopen_js", "env.invoke_i", "env.invoke_ii", "env.invoke_iii", "env.invoke_iiii", "env.invoke_iiiii", "env.invoke_iiiiii", "env.invoke_iiiiiii", "env.invoke_iiiiiiii", "env.invoke_iiiiiiiiii", "env.invoke_v", "env.invoke_vi", "env.invoke_vii", "env.invoke_viidii", "env.invoke_viii", "env.invoke_viiii", "env.invoke_viiiii", "env.invoke_viiiiii", "env.invoke_viiiiiii", "env.invoke_viiiiiiiii", "env.wasm_poll_socket", "env.wasm_shutdown", "env.emscripten_sleep", "env.emscripten_wget", "env.emscripten_wget_data", "env.emscripten_idb_load", "env.emscripten_idb_store", "env.emscripten_idb_delete", "env.emscripten_idb_exists", "env.emscripten_idb_load_blob", "env.emscripten_idb_store_blob", "env.SDL_Delay", "env.emscripten_scan_registers", "env.emscripten_lazy_load_code", "env.emscripten_fiber_swap", "wasi_snapshot_preview1.fd_sync", "env.__wasi_fd_sync", "env._emval_await", "env._dlopen_js", "env.__asyncjs__*" ].map(x => x.split(".")[1]);
-  for (var x in imports) {
-   (function(x) {
-    var original = imports[x];
-    var sig = original.sig;
-    if (typeof original == "function") {
-     var isAsyncifyImport = ASYNCIFY_IMPORTS.indexOf(x) >= 0 || x.startsWith("__asyncjs__");
-    }
-   })(x);
-  }
- },
- instrumentWasmExports: function(exports) {
-  var ret = {};
-  for (var x in exports) {
-   (function(x) {
-    var original = exports[x];
-    if (typeof original == "function") {
-     ret[x] = function() {
-      Asyncify.exportCallStack.push(x);
-      try {
-       return original.apply(null, arguments);
-      } finally {
-       if (!ABORT) {
-        var y = Asyncify.exportCallStack.pop();
-        assert(y === x);
-        Asyncify.maybeStopUnwind();
-       }
-      }
-     };
-    } else {
-     ret[x] = original;
-    }
-   })(x);
-  }
-  return ret;
- },
- maybeStopUnwind: function() {
-  if (Asyncify.currData && Asyncify.state === Asyncify.State.Unwinding && Asyncify.exportCallStack.length === 0) {
-   Asyncify.state = Asyncify.State.Normal;
-   runtimeKeepalivePush();
-   runAndAbortIfError(_asyncify_stop_unwind);
-   if (typeof Fibers != "undefined") {
-    Fibers.trampoline();
-   }
-  }
- },
- whenDone: function() {
-  return new Promise((resolve, reject) => {
-   Asyncify.asyncPromiseHandlers = {
-    resolve: resolve,
-    reject: reject
-   };
-  });
- },
- allocateData: function() {
-  var ptr = _malloc(12 + Asyncify.StackSize);
-  Asyncify.setDataHeader(ptr, ptr + 12, Asyncify.StackSize);
-  Asyncify.setDataRewindFunc(ptr);
-  return ptr;
- },
- setDataHeader: function(ptr, stack, stackSize) {
-  HEAP32[ptr >> 2] = stack;
-  HEAP32[ptr + 4 >> 2] = stack + stackSize;
- },
- setDataRewindFunc: function(ptr) {
-  var bottomOfCallStack = Asyncify.exportCallStack[0];
-  var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
-  HEAP32[ptr + 8 >> 2] = rewindId;
- },
- getDataRewindFunc: function(ptr) {
-  var id = HEAP32[ptr + 8 >> 2];
-  var name = Asyncify.callStackIdToName[id];
-  var func = Module["asm"][name];
-  return func;
- },
- doRewind: function(ptr) {
-  var start = Asyncify.getDataRewindFunc(ptr);
-  runtimeKeepalivePop();
-  return start();
- },
- handleSleep: function(startAsync) {
-  if (ABORT) return;
-  if (Asyncify.state === Asyncify.State.Normal) {
-   var reachedCallback = false;
-   var reachedAfterCallback = false;
-   startAsync(handleSleepReturnValue => {
-    if (ABORT) return;
-    Asyncify.handleSleepReturnValue = handleSleepReturnValue || 0;
-    reachedCallback = true;
-    if (!reachedAfterCallback) {
-     return;
-    }
-    Asyncify.state = Asyncify.State.Rewinding;
-    runAndAbortIfError(() => _asyncify_start_rewind(Asyncify.currData));
-    if (typeof Browser != "undefined" && Browser.mainLoop.func) {
-     Browser.mainLoop.resume();
-    }
-    var asyncWasmReturnValue, isError = false;
-    try {
-     asyncWasmReturnValue = Asyncify.doRewind(Asyncify.currData);
-    } catch (err) {
-     asyncWasmReturnValue = err;
-     isError = true;
-    }
-    var handled = false;
-    if (!Asyncify.currData) {
-     var asyncPromiseHandlers = Asyncify.asyncPromiseHandlers;
-     if (asyncPromiseHandlers) {
-      Asyncify.asyncPromiseHandlers = null;
-      (isError ? asyncPromiseHandlers.reject : asyncPromiseHandlers.resolve)(asyncWasmReturnValue);
-      handled = true;
-     }
-    }
-    if (isError && !handled) {
-     throw asyncWasmReturnValue;
-    }
-   });
-   reachedAfterCallback = true;
-   if (!reachedCallback) {
-    Asyncify.state = Asyncify.State.Unwinding;
-    Asyncify.currData = Asyncify.allocateData();
-    if (typeof Browser != "undefined" && Browser.mainLoop.func) {
-     Browser.mainLoop.pause();
-    }
-    runAndAbortIfError(() => _asyncify_start_unwind(Asyncify.currData));
-   }
-  } else if (Asyncify.state === Asyncify.State.Rewinding) {
-   Asyncify.state = Asyncify.State.Normal;
-   runAndAbortIfError(_asyncify_stop_rewind);
-   _free(Asyncify.currData);
-   Asyncify.currData = null;
-   Asyncify.sleepCallbacks.forEach(func => callUserCallback(func));
-  } else {
-   abort("invalid state: " + Asyncify.state);
-  }
-  return Asyncify.handleSleepReturnValue;
- },
- handleAsync: function(startAsync) {
-  return Asyncify.handleSleep(wakeUp => {
-   startAsync().then(wakeUp);
-  });
- }
-};
-
 function getCFunc(ident) {
  var func = Module["_" + ident];
  return func;
@@ -6569,20 +6115,12 @@ function ccall(ident, returnType, argTypes, args, opts) {
    }
   }
  }
- var previousAsync = Asyncify.currData;
  var ret = func.apply(null, cArgs);
  function onDone(ret) {
-  runtimeKeepalivePop();
   if (stack !== 0) stackRestore(stack);
   return convertReturnValue(ret);
  }
- runtimeKeepalivePush();
- var asyncMode = opts && opts.async;
- if (Asyncify.currData != previousAsync) {
-  return Asyncify.whenDone().then(onDone);
- }
  ret = onDone(ret);
- if (asyncMode) return Promise.resolve(ret);
  return ret;
 }
 
@@ -6778,27 +6316,6 @@ ERRNO_CODES = {
  "EOWNERDEAD": 62,
  "ESTRPIPE": 135
 };
-
-if (ENVIRONMENT_IS_NODE) {
- var _wrapNodeError = function(func) {
-  return function() {
-   try {
-    return func.apply(this, arguments);
-   } catch (e) {
-    if (e.code) {
-     throw new FS.ErrnoError(ERRNO_CODES[e.code]);
-    }
-    throw e;
-   }
-  };
- };
- var VFS = Object.assign({}, FS);
- for (var _key in NODERAWFS) {
-  FS[_key] = _wrapNodeError(NODERAWFS[_key]);
- }
-} else {
- throw new Error("NODERAWFS is currently only supported on Node.js environment.");
-}
 
 var asmLibraryArg = {
  "l": ___assert_fail,
@@ -7079,102 +6596,10 @@ var stackAlloc = Module["stackAlloc"] = function() {
  return (stackAlloc = Module["stackAlloc"] = Module["asm"]["Pb"]).apply(null, arguments);
 };
 
-var dynCall_vii = Module["dynCall_vii"] = function() {
- return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Qb"]).apply(null, arguments);
-};
-
-var dynCall_vi = Module["dynCall_vi"] = function() {
- return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Rb"]).apply(null, arguments);
-};
-
-var dynCall_iii = Module["dynCall_iii"] = function() {
- return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Sb"]).apply(null, arguments);
-};
-
-var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
- return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Tb"]).apply(null, arguments);
-};
-
-var dynCall_iiii = Module["dynCall_iiii"] = function() {
- return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Ub"]).apply(null, arguments);
-};
-
-var dynCall_ii = Module["dynCall_ii"] = function() {
- return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Vb"]).apply(null, arguments);
-};
-
-var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
- return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Wb"]).apply(null, arguments);
-};
-
-var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
- return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Xb"]).apply(null, arguments);
-};
-
-var dynCall_viii = Module["dynCall_viii"] = function() {
- return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Yb"]).apply(null, arguments);
-};
-
-var dynCall_v = Module["dynCall_v"] = function() {
- return (dynCall_v = Module["dynCall_v"] = Module["asm"]["Zb"]).apply(null, arguments);
-};
-
-var dynCall_i = Module["dynCall_i"] = function() {
- return (dynCall_i = Module["dynCall_i"] = Module["asm"]["_b"]).apply(null, arguments);
-};
-
-var dynCall_viiii = Module["dynCall_viiii"] = function() {
- return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["$b"]).apply(null, arguments);
-};
-
-var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = function() {
- return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["ac"]).apply(null, arguments);
-};
-
-var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
- return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["bc"]).apply(null, arguments);
-};
-
-var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = function() {
- return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["cc"]).apply(null, arguments);
-};
-
-var dynCall_viiiiiii = Module["dynCall_viiiiiii"] = function() {
- return (dynCall_viiiiiii = Module["dynCall_viiiiiii"] = Module["asm"]["dc"]).apply(null, arguments);
-};
-
-var dynCall_viiiiii = Module["dynCall_viiiiii"] = function() {
- return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["ec"]).apply(null, arguments);
-};
-
-var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = function() {
- return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["fc"]).apply(null, arguments);
-};
-
-var dynCall_viidii = Module["dynCall_viidii"] = function() {
- return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["gc"]).apply(null, arguments);
-};
-
-var _asyncify_start_unwind = Module["_asyncify_start_unwind"] = function() {
- return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["hc"]).apply(null, arguments);
-};
-
-var _asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = function() {
- return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["ic"]).apply(null, arguments);
-};
-
-var _asyncify_start_rewind = Module["_asyncify_start_rewind"] = function() {
- return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["jc"]).apply(null, arguments);
-};
-
-var _asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = function() {
- return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["kc"]).apply(null, arguments);
-};
-
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();
  try {
-  return dynCall_iiiiiii(index, a1, a2, a3, a4, a5, a6);
+  return getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7185,7 +6610,7 @@ function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
 function invoke_vi(index, a1) {
  var sp = stackSave();
  try {
-  dynCall_vi(index, a1);
+  getWasmTableEntry(index)(a1);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7196,7 +6621,7 @@ function invoke_vi(index, a1) {
 function invoke_iiii(index, a1, a2, a3) {
  var sp = stackSave();
  try {
-  return dynCall_iiii(index, a1, a2, a3);
+  return getWasmTableEntry(index)(a1, a2, a3);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7207,7 +6632,7 @@ function invoke_iiii(index, a1, a2, a3) {
 function invoke_iii(index, a1, a2) {
  var sp = stackSave();
  try {
-  return dynCall_iii(index, a1, a2);
+  return getWasmTableEntry(index)(a1, a2);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7218,7 +6643,7 @@ function invoke_iii(index, a1, a2) {
 function invoke_vii(index, a1, a2) {
  var sp = stackSave();
  try {
-  dynCall_vii(index, a1, a2);
+  getWasmTableEntry(index)(a1, a2);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7229,7 +6654,7 @@ function invoke_vii(index, a1, a2) {
 function invoke_ii(index, a1) {
  var sp = stackSave();
  try {
-  return dynCall_ii(index, a1);
+  return getWasmTableEntry(index)(a1);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7240,7 +6665,7 @@ function invoke_ii(index, a1) {
 function invoke_viii(index, a1, a2, a3) {
  var sp = stackSave();
  try {
-  dynCall_viii(index, a1, a2, a3);
+  getWasmTableEntry(index)(a1, a2, a3);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7251,7 +6676,7 @@ function invoke_viii(index, a1, a2, a3) {
 function invoke_v(index) {
  var sp = stackSave();
  try {
-  dynCall_v(index);
+  getWasmTableEntry(index)();
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7262,7 +6687,7 @@ function invoke_v(index) {
 function invoke_i(index) {
  var sp = stackSave();
  try {
-  return dynCall_i(index);
+  return getWasmTableEntry(index)();
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7273,7 +6698,7 @@ function invoke_i(index) {
 function invoke_viiii(index, a1, a2, a3, a4) {
  var sp = stackSave();
  try {
-  dynCall_viiii(index, a1, a2, a3, a4);
+  getWasmTableEntry(index)(a1, a2, a3, a4);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7284,7 +6709,7 @@ function invoke_viiii(index, a1, a2, a3, a4) {
 function invoke_viiiii(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
-  dynCall_viiiii(index, a1, a2, a3, a4, a5);
+  getWasmTableEntry(index)(a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7295,7 +6720,7 @@ function invoke_viiiii(index, a1, a2, a3, a4, a5) {
 function invoke_iiiii(index, a1, a2, a3, a4) {
  var sp = stackSave();
  try {
-  return dynCall_iiiii(index, a1, a2, a3, a4);
+  return getWasmTableEntry(index)(a1, a2, a3, a4);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7306,7 +6731,7 @@ function invoke_iiiii(index, a1, a2, a3, a4) {
 function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
-  return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
+  return getWasmTableEntry(index)(a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7317,7 +6742,7 @@ function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
 function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
  var sp = stackSave();
  try {
-  return dynCall_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+  return getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7328,7 +6753,7 @@ function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
 function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();
  try {
-  dynCall_viiiiii(index, a1, a2, a3, a4, a5, a6);
+  getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7339,7 +6764,7 @@ function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
 function invoke_viidii(index, a1, a2, a3, a4, a5) {
  var sp = stackSave();
  try {
-  dynCall_viidii(index, a1, a2, a3, a4, a5);
+  getWasmTableEntry(index)(a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7350,7 +6775,7 @@ function invoke_viidii(index, a1, a2, a3, a4, a5) {
 function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
  var sp = stackSave();
  try {
-  dynCall_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+  getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7361,7 +6786,7 @@ function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
 function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
  var sp = stackSave();
  try {
-  return dynCall_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7);
+  return getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6, a7);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7372,7 +6797,7 @@ function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
 function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
  var sp = stackSave();
  try {
-  dynCall_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7);
+  getWasmTableEntry(index)(a1, a2, a3, a4, a5, a6, a7);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;

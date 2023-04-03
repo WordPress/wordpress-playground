@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README"]
+			"dependsOn": ["build:README", "build:copy-wasms"]
 		},
 		"build:README": {
 			"executor": "@nrwl/workspace:run-commands",
@@ -15,6 +15,16 @@
 				"commands": [
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
 				]
+			},
+			"dependsOn": ["build:rollup-declarations"]
+		},
+		"build:copy-wasms": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"cp packages/php-wasm/node/public/*.wasm dist/packages/php-wasm/node"
+				],
+				"parallel": false
 			},
 			"dependsOn": ["build:rollup-declarations"]
 		},
@@ -57,12 +67,14 @@
 					}
 				],
 				"bundle": true,
+				"format": [
+					"cjs"
+				],
 				"esbuildOptions": {
 					"outdir": "{options.outputPath}",
 					"platform": "node",
 					"assetNames": "[name]",
 					"chunkNames": "[name]",
-					"format": ["esm"],
 					"logOverride": {
 						"commonjs-variable-in-esm": "silent"
 					},
@@ -70,9 +82,6 @@
 						".php": "text",
 						".ini": "file",
 						".wasm": "file"
-					},
-					"banner": {
-						"js": "import { createRequire } from 'module';const real_require = createRequire(import.meta.url); function require(id) { let resolved = real_require(id); if(id === 'path') {return {...resolved,normalize: function(path) {return new URL(resolved.normalize(path), import.meta.url).href.replace(/^(file:\\/\\/)?/, '');}};} return resolved;} const __dirname = new URL(import.meta.url).href;"
 					}
 				}
 			},

@@ -418,7 +418,7 @@ export type EmscriptenOptions = {
 
 export type MountSettings = {
 	root: string;
-	mountpoint: string;
+	mountpoint?: string;
 };
 
 /**
@@ -479,6 +479,10 @@ export class PHP
 			throw new Error('Cannot set PHP ini entries after calling run().');
 		}
 		this.#phpIniOverrides.push([key, value]);
+	}
+
+	chdir(path: string) {
+		this.#Runtime.FS.chdir(path);
 	}
 
 	/** @inheritDoc */

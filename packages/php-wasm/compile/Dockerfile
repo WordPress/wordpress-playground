@@ -634,6 +634,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
 "cli",\
+"_call_user_function_impl",\
 "_mysqlnd_run_command",\
 "_php_stream_copy_to_mem",\
 "_php_stream_eof",\
@@ -710,6 +711,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "pdo_mysql_stmt_get_col",\
 "phar_file_get_contents",\
 "phar_fopen",\
+"php_call_shutdown_functions",\
 "php_cli_server_do_event_for_each_fd_callback",\
 "php_cli_server_poller_poll",\
 "php_cli_server_recv_event_read_request",\
@@ -775,6 +777,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
+"user_shutdown_function_call",\
 "wasm_select",\
 "zend_call_function",\
 "zend_call_known_function",\
@@ -783,6 +786,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zend_eval_stringl",\
 "zend_execute",\
 "zend_execute_scripts",\
+"zend_hash_apply",\
 "zend_std_call_getter",\
 "zend_std_has_property",\
 "zend_std_read_property",\
@@ -969,7 +973,13 @@ RUN \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
-        echo "export const dependenciesTotalSize = $FILE_SIZE; import dependencyFilename from './$WASM_FILENAME'; export { dependencyFilename }; export default function(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
+        echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+            echo "const dependencyFilename = __dirname + '/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+        else \
+            echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
+        fi; \
+        echo " export { dependencyFilename }; export default function(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
         \
