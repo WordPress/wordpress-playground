@@ -23,5 +23,5 @@
 	"type": "module",
 	"main": "main.js",
 	"bin": "cli.js",
-	"gitHead": "ac5bf6b09cb425d650bc57eff03eac6417cccd49"
+	"gitHead": "e6a7ed1b4e3e804590a5d9c40d95dfb9e6281e1a"
 }
