@@ -52,7 +52,7 @@ Here's a high-level breakdown of how WordPress Playground works:
 
 Visually, it looks like this:
 
-![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/architecture-overview.png)
+![Architecture overview](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/pages/architecture-overview.png)
 
 ## Next steps
 

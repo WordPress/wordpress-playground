@@ -3,7 +3,7 @@ const path = require('path');
 const { globSync } = require('glob');
 
 const DOCS_ABSOLUTE_URL =
-	'https://github.com/WordPress/wordpress-playground/tree/trunk/docs/';
+	'https://github.com/WordPress/wordpress-playground/tree/trunk/pages/';
 
 const REPO_ROOT_PATH = process.cwd();
 const TARGET_DIR = path.join(REPO_ROOT_PATH, 'docs');
