@@ -1,11 +1,39 @@
-# php-wasm-node
+# WebAssembly PHP for Node.js
 
-This library was generated with [Nx](https://nx.dev).
+This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It comes with the following PHP extensions:
 
-## Building
+-   SQLite
+-   Libzip
+-   Libpng
+-   CLI
+-   OpenSSL
+-   MySQL
 
-Run `nx build php-wasm-node` to build the library.
+It uses the host filesystem directly and can access the network if you plug in a custom
+WS proxy.
 
-## Running unit tests
+Here's how to use it:
 
-Run `nx test php-wasm-node` to execute the unit tests via [Jest](https://jestjs.io).
+```js
+import {
+	loadPHPRuntime,
+	getPHPLoaderModule,
+	PHP,
+	PHPServer,
+} from '@php-wasm/node';
+const php = new PHP(await loadPHPRuntime(await getPHPLoaderModule('8.0')));
+
+// Create and run a script directly
+php.writeFile('./index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
+php.run({ scriptPath: './index.php' });
+
+// Or use the familiar HTTP concepts:
+const server = new PHPServer(php, {
+	documentRoot: new URL('./', import.meta.url).pathname,
+});
+const response = server.request({
+	method: 'POST',
+	relativeUrl: '/index.php',
+	data: { name: 'John' },
+});
+```

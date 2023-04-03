@@ -1,13 +1,14 @@
 # Playground Client
 
-You can connect to the Playground instance using the JavaScript client:
+Provides a WordPress Playground client you can bind to a Playground iframe 
+to control the embedded WordPress site. Here's how to use it:
 
 ```ts
 import { connectPlayground } from '@wp-playground/client';
 
 const client = await connectPlayground(
-	document.getElementById('wp')! as HTMLIFrameElement,
-	`https://wasm.wordpress.net/remote.html`
+	// An iframe pointing to https://playground.wordpress.net/remote.html
+	document.getElementById('wp')! as HTMLIFrameElement
 );
 await client.isReady();
 await client.goTo('/wp-admin/');
@@ -17,11 +18,3 @@ const result = await client.run({
 });
 console.log(new TextDecoder().decode(result.body));
 ```
-
-## Building
-
-Run `nx build playground-client` to build the library.
-
-## Running unit tests
-
-Run `nx test playground-client` to execute the unit tests via [Jest](https://jestjs.io).
