@@ -61,11 +61,6 @@ export function addSocketOptionsSupportToWebSocketClass(
 	WebSocketConstructor: typeof WebSocket
 ) {
 	return class PHPWasmWebSocketConstructor extends WebSocketConstructor {
-		override CONNECTING = 0;
-		override OPEN = 1;
-		override CLOSING = 2;
-		override CLOSED = 3;
-
 		// @ts-ignore
 		send(chunk: any, callback: any) {
 			return this.sendCommand(COMMAND_CHUNK, chunk, callback);
