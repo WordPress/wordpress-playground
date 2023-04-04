@@ -67,9 +67,7 @@
 					}
 				],
 				"bundle": true,
-				"format": [
-					"cjs"
-				],
+				"format": ["cjs"],
 				"esbuildOptions": {
 					"outdir": "{options.outputPath}",
 					"platform": "node",

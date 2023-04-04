@@ -61,7 +61,7 @@ async function main() {
 		args.unshift('-c', defaultPhpIniPath);
 	}
 	const php = new PHP(loaderId);
-	
+
 	// Mount all the root directories
 	const dirs = readdirSync('/')
 		.map((file) => `/${file}`)
