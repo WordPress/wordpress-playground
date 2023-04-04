@@ -43,8 +43,8 @@ Use the [`connectPlayground`](/functions/_wp_playground_client.connectPlayground
 
 ```ts
 const playgroundClient = connectPlayground(
-	iframe,
-	`https://playground.wordpress.net/remote.html`
+	// An iframe pointing to https://playground.wordpress.net/remote.html
+	iframe
 );
 
 const output = await playgroundClient.run({

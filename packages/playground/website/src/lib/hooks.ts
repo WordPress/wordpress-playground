@@ -82,10 +82,9 @@ export function usePlayground({
 			params['wp'] = inputQuery.get('wp');
 		}
 		const qs = new URLSearchParams(params);
-		connectPlayground(
-			iframe!,
-			`${remotePlaygroundOrigin}/remote.html?${qs}`
-		).then(async (api) => {
+		connectPlayground(iframe!, {
+			loadRemote: `${remotePlaygroundOrigin}/remote.html?${qs}`,
+		}).then(async (api) => {
 			if (timeoutHandle) {
 				clearTimeout(timeoutHandle);
 			}

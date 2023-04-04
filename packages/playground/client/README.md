@@ -1,6 +1,6 @@
 # Playground Client
 
-Provides a WordPress Playground client you can bind to a Playground iframe 
+Provides a WordPress Playground client you can bind to a Playground iframe
 to control the embedded WordPress site. Here's how to use it:
 
 ```ts

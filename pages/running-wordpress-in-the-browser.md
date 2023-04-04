@@ -4,8 +4,8 @@ This document is specific to hosting your own Playground. If you only wish to co
 
 ```ts
 const playgroundClient = connectPlayground(
-	iframe,
-	`https://playground.wordpress.net/remote.html`
+	// An iframe pointing to https://playground.wordpress.net/remote.html
+	iframe
 );
 ```
 
