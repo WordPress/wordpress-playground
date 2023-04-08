@@ -213,7 +213,7 @@ export async function loadPHPRuntime(
 		resolvePhpReady = resolve;
 	});
 
-	const PHPRuntime = phpLoaderModule.default(currentJsRuntime, {
+	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
 			console.error('WASM aborted: ');
 			console.error(reason);
@@ -405,7 +405,7 @@ export type PHPRuntime = any;
 export type PHPLoaderModule = {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
-	default: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
+	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
 };
 
 export type DataModule = {

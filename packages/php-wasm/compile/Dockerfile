@@ -987,7 +987,7 @@ RUN \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
-        echo "export const dependenciesTotalSize = $FILE_SIZE; import dependencyFilename from './$WASM_FILENAME'; export { dependencyFilename }; export default function(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
+        echo "export const dependenciesTotalSize = $FILE_SIZE; import dependencyFilename from './$WASM_FILENAME'; export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
         \
