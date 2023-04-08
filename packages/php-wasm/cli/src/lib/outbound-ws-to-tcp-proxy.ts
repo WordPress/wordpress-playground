@@ -26,13 +26,17 @@ function prependByte(
 ) {
 	if (typeof chunk === 'string') {
 		chunk = String.fromCharCode(byte) + chunk;
-	} else if (chunk instanceof ArrayBuffer) {
-		const buffer = new Uint8Array(chunk.byteLength + 1);
+	} else if (
+		chunk instanceof ArrayBuffer ||
+		'byteLength' in chunk /* for Node.js */
+	) {
+		const buffer = new Uint8Array((chunk as ArrayBuffer).byteLength + 1);
 		buffer[0] = byte;
 		buffer.set(new Uint8Array(chunk), 1);
 		chunk = buffer.buffer;
 	} else {
-		throw new Error('Unsupported chunk type');
+		console.log({ chunk });
+		throw new Error('Unsupported chunk type: ' + typeof chunk);
 	}
 	return chunk;
 }
