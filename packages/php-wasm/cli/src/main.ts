@@ -1,7 +1,7 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync } from 'fs';
+import { writeFileSync, existsSync, readdirSync, lstatSync } from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -61,6 +61,19 @@ async function main() {
 		args.unshift('-c', defaultPhpIniPath);
 	}
 	const php = new PHP(loaderId);
+
+	// Mount all the root directories
+	const dirs = readdirSync('/')
+		.map((file) => `/${file}`)
+		.filter((file) => lstatSync(file).isDirectory());
+	for (const dir of dirs) {
+		if (!php.fileExists(dir)) {
+			php.mkdirTree(dir);
+		}
+		php.mount({ root: dir }, dir);
+	}
+	php.chdir(process.cwd());
+
 	php.writeFile(caBundlePath, rootCertificates.join('\n'));
 	args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 	php.cli(['php', ...args]).catch((result) => {

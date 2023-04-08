@@ -363,6 +363,16 @@ export interface WithFilesystem {
 	 * @returns True if the file exists, false otherwise.
 	 */
 	fileExists(path: string): boolean;
+
+	/**
+	 * Changes the current working directory in the PHP filesystem.
+	 * This is the directory that will be used as the base for relative paths.
+	 * For example, if the current working directory is `/root/php`, and the
+	 * path is `data`, the absolute path will be `/root/php/data`.
+	 *
+	 * @param  path - The new working directory.
+	 */
+	chdir(path: string): void;
 }
 
 export interface WithRun {
@@ -418,7 +428,6 @@ export type EmscriptenOptions = {
 
 export type MountSettings = {
 	root: string;
-	mountpoint: string;
 };
 
 /**
@@ -479,6 +488,11 @@ export class PHP
 			throw new Error('Cannot set PHP ini entries after calling run().');
 		}
 		this.#phpIniOverrides.push([key, value]);
+	}
+
+	/** @inheritDoc */
+	chdir(path: string) {
+		this.#Runtime.FS.chdir(path);
 	}
 
 	/** @inheritDoc */
