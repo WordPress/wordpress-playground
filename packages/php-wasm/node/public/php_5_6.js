@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 9962024; import dependencyFilename from './php_5_6.wasm'; export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {
+export const dependenciesTotalSize = 9962024; const dependencyFilename = __dirname + '/php_5_6.wasm'; export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
 
 var moduleOverrides = Object.assign({}, Module);
