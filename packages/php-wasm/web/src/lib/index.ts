@@ -17,7 +17,7 @@ export type {
 
 export * from './php-client';
 
-export { getPHPLoaderModule } from './get-php-loader-module';
+export { PHP_VERSIONS, getPHPLoaderModule } from './get-php-loader-module';
 
 export { parseWorkerStartupOptions } from './worker-thread/parse-startup-options';
 export {
