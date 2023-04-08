@@ -25,7 +25,7 @@ if (!existsSync(caBundlePath)) {
 
 async function main() {
 	// @ts-ignore
-	const defaultPhpIniPath = await import('./lib/php.ini');
+	const defaultPhpIniPath = await import('./php.ini');
 
 	const phpVersion = process.env['PHP'] || '8.2';
 
