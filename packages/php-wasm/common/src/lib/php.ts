@@ -397,7 +397,7 @@ export interface WithRun {
 	 *
 	 * @param  request - PHP Request data.
 	 */
-	run(request?: PHPRequest): PHPResponse;
+	run(request?: PHPRequest): Promise<PHPResponse>;
 }
 
 export type PHPRuntime = any;
@@ -490,13 +490,12 @@ export class PHP
 		this.#phpIniOverrides.push([key, value]);
 	}
 
-	/** @inheritDoc */
 	chdir(path: string) {
 		this.#Runtime.FS.chdir(path);
 	}
 
 	/** @inheritDoc */
-	run(request: PHPRequest = {}): PHPResponse {
+	async run(request: PHPRequest = {}): Promise<PHPResponse> {
 		if (!this.#webSapiInitialized) {
 			this.#initWebRuntime();
 			this.#webSapiInitialized = true;
@@ -521,14 +520,15 @@ export class PHP
 		if (request.code) {
 			this.#setPHPCode(' ?>' + request.code);
 		}
-		return this.#handleRequest();
+		return await this.#handleRequest();
 	}
 
 	#initWebRuntime() {
 		if (this.#phpIniOverrides.length > 0) {
-			const overridesAsIni = this.#phpIniOverrides
-				.map(([key, value]) => `${key}=${value}`)
-				.join('\n');
+			const overridesAsIni =
+				this.#phpIniOverrides
+					.map(([key, value]) => `${key}=${value}`)
+					.join('\n') + '\n\n';
 			this.#Runtime.ccall(
 				'wasm_set_phpini_entries',
 				null,
@@ -707,8 +707,14 @@ export class PHP
 		this.#Runtime.ccall('wasm_set_php_code', null, [STR], [code]);
 	}
 
-	#handleRequest(): PHPResponse {
-		const exitCode = this.#Runtime.ccall(
+	async #handleRequest(): Promise<PHPResponse> {
+		/**
+		 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
+		 * Promise<Promise<number>>.
+		 *
+		 * @TODO: Determine if this is a bug in emscripten.
+		 */
+		const exitCode = await await this.#Runtime.ccall(
 			'wasm_sapi_handle_request',
 			NUM,
 			[],

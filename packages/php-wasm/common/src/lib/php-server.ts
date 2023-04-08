@@ -5,6 +5,7 @@ import {
 	DEFAULT_BASE_URL,
 } from './urls';
 import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
+import Semaphore from './semaphore';
 
 export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
 	files?: Record<string, File>;
@@ -59,6 +60,7 @@ export class PHPServer {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
+	#semaphore: Semaphore;
 
 	/**
 	 * The PHP instance
@@ -71,6 +73,7 @@ export class PHPServer {
 	 * @param  config - Server configuration.
 	 */
 	constructor(php: PHP, config: PHPServerConfigation = {}) {
+		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = location.origin,
@@ -125,6 +128,10 @@ export class PHPServer {
 			url.pathname = url.pathname.slice(this.#PATHNAME.length);
 		}
 		return toRelativeUrl(url);
+	}
+
+	get isRequestRunning() {
+		return this.#semaphore.running > 0;
 	}
 
 	/**
@@ -213,59 +220,70 @@ export class PHPServer {
 		request: PHPServerRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
-		this.php.addServerGlobalEntry(
-			'HTTPS',
-			this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
-		);
+		/*
+		 * Prevent multiple requests from running at the same time.
+		 * For example, if a request is made to a PHP file that
+		 * requests another PHP file, the second request may
+		 * be dispatched before the first one is finished.
+		 */
+		const release = await this.#semaphore.acquire();
+		try {
+			this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
+			this.php.addServerGlobalEntry(
+				'HTTPS',
+				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
+			);
 
-		let preferredMethod: PHPRequest['method'] = 'GET';
+			let preferredMethod: PHPRequest['method'] = 'GET';
 
-		const fileInfos: FileInfo[] = [];
-		if (request.files) {
-			preferredMethod = 'POST';
-			for (const key in request.files) {
-				const file: File = request.files[key];
-				fileInfos.push({
-					key,
-					name: file.name,
-					type: file.type,
-					data: new Uint8Array(await file.arrayBuffer()),
-				});
+			const fileInfos: FileInfo[] = [];
+			if (request.files) {
+				preferredMethod = 'POST';
+				for (const key in request.files) {
+					const file: File = request.files[key];
+					fileInfos.push({
+						key,
+						name: file.name,
+						type: file.type,
+						data: new Uint8Array(await file.arrayBuffer()),
+					});
+				}
 			}
+
+			const defaultHeaders: Record<string, string> = {
+				host: this.#HOST,
+			};
+
+			let body;
+			if (request.formData !== undefined) {
+				preferredMethod = 'POST';
+				defaultHeaders['content-type'] =
+					'application/x-www-form-urlencoded';
+				body = new URLSearchParams(
+					request.formData as Record<string, string>
+				).toString();
+			} else {
+				body = request.body;
+			}
+
+			return await this.php.run({
+				relativeUri: ensurePathPrefix(
+					toRelativeUrl(requestedUrl),
+					this.#PATHNAME
+				),
+				protocol: this.#PROTOCOL,
+				method: request.method || preferredMethod,
+				body,
+				fileInfos,
+				scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
+				headers: {
+					...defaultHeaders,
+					...(request.headers || {}),
+				},
+			});
+		} finally {
+			release();
 		}
-
-		const defaultHeaders: Record<string, string> = {
-			host: this.#HOST,
-		};
-
-		let body;
-		if (request.formData !== undefined) {
-			preferredMethod = 'POST';
-			defaultHeaders['content-type'] =
-				'application/x-www-form-urlencoded';
-			body = new URLSearchParams(
-				request.formData as Record<string, string>
-			).toString();
-		} else {
-			body = request.body;
-		}
-
-		return this.php.run({
-			relativeUri: ensurePathPrefix(
-				toRelativeUrl(requestedUrl),
-				this.#PATHNAME
-			),
-			protocol: this.#PROTOCOL,
-			method: request.method || preferredMethod,
-			body,
-			fileInfos,
-			scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
-			headers: {
-				...defaultHeaders,
-				...(request.headers || {}),
-			},
-		});
 	}
 
 	/**

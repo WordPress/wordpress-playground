@@ -4,12 +4,6 @@
 import { writeFileSync, existsSync, readdirSync, lstatSync } from 'fs';
 import { rootCertificates } from 'tls';
 
-import {
-	initOutboundWebsocketProxyServer,
-	addSocketOptionsSupportToWebSocketClass,
-} from './lib/outbound-ws-to-tcp-proxy.js';
-import { addTCPServerToWebSocketServerClass } from './lib/inbound-tcp-to-ws-proxy.js';
-import { findFreePorts } from './lib/utils.js';
 import { PHP, loadPHPRuntime, getPHPLoaderModule } from '@php-wasm/node';
 
 let args = process.argv.slice(2);
@@ -29,11 +23,6 @@ async function main() {
 
 	const phpVersion = process.env['PHP'] || '8.2';
 
-	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
-		await findFreePorts(2);
-
-	await initOutboundWebsocketProxyServer(outboundProxyWsServerPort);
-
 	// This dynamic import only works after the build step
 	// when the PHP files are present in the same directory
 	// as this script.
@@ -42,18 +31,6 @@ async function main() {
 		ENV: {
 			...process.env,
 			TERM: 'xterm',
-		},
-		websocket: {
-			url: (_: any, host: string, port: string) => {
-				const query = new URLSearchParams({ host, port }).toString();
-				return `ws://127.0.0.1:${outboundProxyWsServerPort}/?${query}`;
-			},
-			subprotocol: 'binary',
-			decorator: addSocketOptionsSupportToWebSocketClass,
-			serverDecorator: addTCPServerToWebSocketServerClass.bind(
-				null,
-				inboundProxyWsServerPort
-			),
 		},
 	});
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
