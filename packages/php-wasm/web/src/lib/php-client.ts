@@ -135,6 +135,11 @@ export class PHPClient
 		return _private.get(this)!.php.run(request);
 	}
 
+	/** @inheritDoc @php-wasm/web!PHP.chdir */
+	chdir(path: string): void {
+		return _private.get(this)!.php.chdir(path);
+	}
+
 	/** @inheritDoc @php-wasm/web!PHP.setPhpIniPath */
 	setPhpIniPath(path: string): void {
 		return _private.get(this)!.php.setPhpIniPath(path);
