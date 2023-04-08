@@ -1,7 +1,7 @@
 import * as net from 'net';
 
 export function debugLog(...args: any[]) {
-	if (process.env['DEV']) {
+	if (process.env['DEV'] && !process.env['TEST']) {
 		console.log(...args);
 	}
 }
