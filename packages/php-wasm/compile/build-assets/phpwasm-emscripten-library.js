@@ -179,6 +179,10 @@ const LibraryExample = {
 	 * @returns {int} 1 if any event was triggered, 0 if the timeout expired
 	 */
 	wasm_poll_socket: function(socketd, events, timeout) {
+		if (typeof Asyncify === 'undefined') {
+			return 0;
+		}
+		
 		const POLLIN = 0x0001; /* There is data to read */
 		const POLLPRI = 0x0002; /* There is urgent data to read */
 		const POLLOUT = 0x0004; /* Writing now will not block */
