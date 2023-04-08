@@ -490,6 +490,7 @@ export class PHP
 		this.#phpIniOverrides.push([key, value]);
 	}
 
+	/** @inheritDoc */
 	chdir(path: string) {
 		this.#Runtime.FS.chdir(path);
 	}
