@@ -468,8 +468,6 @@ export type MountSettings = {
  *
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
- *
- * @see {startPHP} This class is not meant to be used directly. Use `startPHP` instead.
  */
 export class PHP
 	implements
