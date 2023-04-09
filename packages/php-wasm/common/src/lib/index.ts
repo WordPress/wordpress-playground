@@ -7,22 +7,24 @@ export type {
 	MountSettings,
 	PHPLoaderModule,
 	PHPOutput,
-	PHPRequest,
+	PHPRunOptions as PHPRequest,
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
 	WithCLI,
 	WithFilesystem,
 	WithRun,
+	WithRequestHandler,
 	WithNodeFilesystem,
 	WithPHPIniBindings,
 } from './php';
 export { loadPHPRuntime, PHP } from './php';
 
-export type { PHPServerConfigation, PHPServerRequest } from './php-server';
-export { PHPServer } from './php-server';
-
-export type { WithRequest } from './php-browser';
+export type {
+	PHPServerConfiguration,
+	PHPRequest as PHPServerRequest,
+} from './php-request-handler';
+export { PHPRequestHandler } from './php-request-handler';
 export { PHPBrowser } from './php-browser';
 
 export type { WorkerStartupOptions, PublicAPI } from './api';

@@ -53,12 +53,12 @@ const output = await playgroundClient.run({
 console.log(output);
 
 const response = await playgroundClient.request({
-	relativeUrl: '/wp-login.php',
+	url: '/wp-login.php',
 	method: 'GET',
 });
 console.log(response);
 
-await playgroundClient.goTo({ relativeUrl: '/wp-admin' });
+await playgroundClient.goTo({ url: '/wp-admin' });
 ```
 
 For more details see the [`PlaygroundClient`](/interfaces/_wp_playground_client.PlaygroundClient.html) and read the [`playground website source code`](https://github.com/WordPress/wordpress-playground/blob/trunk/src/packages/playground/website).

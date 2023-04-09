@@ -2,7 +2,7 @@ export * from './lib';
 
 export {
 	PHP,
-	PHPServer,
+	PHPRequestHandler,
 	PHPBrowser,
 	exposeAPI,
 	consumeAPI,
@@ -24,7 +24,7 @@ export type {
 	PHPRuntime,
 	PHPRuntimeId,
 	PublicAPI,
-	PHPServerConfigation,
+	PHPServerConfiguration,
 	PHPServerRequest,
 	WorkerStartupOptions,
 } from '@php-wasm/common';

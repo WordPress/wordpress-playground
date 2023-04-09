@@ -4,17 +4,14 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
+import type { FileInfo, PHP, PHPRunOptions, PHPResponse } from './php';
 import Semaphore from './semaphore';
 
-export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
+export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
+	url: string;
 	files?: Record<string, File>;
 } & (
-		| { absoluteUrl: string; relativeUrl?: never }
-		| { absoluteUrl?: never; relativeUrl: string }
-	) &
-	(
-		| (Pick<PHPRequest, 'body'> & { formData?: never })
+		| (Pick<PHPRunOptions, 'body'> & { formData?: never })
 		| { body?: never; formData: Record<string, unknown> }
 	);
 
@@ -23,13 +20,37 @@ export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
  * bind to any port.
  *
  * @public
- * @example
+ * @example Use PHPServer implicitly with a new PHP instance:
+ * ```js
+ * import {
+ *   loadPHPRuntime,
+ *   PHP,
+ *   getPHPLoaderModule,
+ * } from '@php-wasm/web';
+ *
+ * const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
+ * const php = new PHP( runtime, {
+ *     // PHP FS path to serve the files from:
+ *     documentRoot: '/www',
+ *
+ *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *     absoluteUrl: 'http://127.0.0.1'
+ * } );
+ *
+ * php.mkdirTree('/www');
+ * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+ *
+ * const output = (await php.request({ path: '/index.php' })).body;
+ * console.log(new TextDecoder().decode(output));
+ * // "Hi from PHP!"
+ * ```
+ *
+ * @example Explicitly create a PHPServer instance and run a PHP script:
  * ```js
  * import {
  *   loadPHPRuntime,
  *   PHP,
  *   PHPServer,
- *   PHPBrowser,
  *   getPHPLoaderModule,
  * } from '@php-wasm/web';
  *
@@ -52,7 +73,7 @@ export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
  * // "Hi from PHP!"
  * ```
  */
-export class PHPServer {
+export class PHPRequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -72,7 +93,7 @@ export class PHPServer {
 	 * @param  php    - The PHP instance.
 	 * @param  config - Server configuration.
 	 */
-	constructor(php: PHP, config: PHPServerConfigation = {}) {
+	constructor(php: PHP, config: PHPServerConfiguration = {}) {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
@@ -155,13 +176,14 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async request(request: PHPServerRequest): Promise<PHPResponse> {
-		let requestedUrl;
-		if (request.relativeUrl !== undefined) {
-			requestedUrl = new URL(request.relativeUrl, DEFAULT_BASE_URL);
-		} else {
-			requestedUrl = new URL(request.absoluteUrl);
-		}
+	async request(request: PHPRequest): Promise<PHPResponse> {
+		const isAbsolute =
+			request.url.startsWith('http://') ||
+			request.url.startsWith('https://');
+		const requestedUrl = new URL(
+			request.url,
+			isAbsolute ? undefined : DEFAULT_BASE_URL
+		);
 
 		const normalizedRelativeUrl = removePathPrefix(
 			requestedUrl.pathname,
@@ -217,7 +239,7 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(
-		request: PHPServerRequest,
+		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
 		/*
@@ -234,7 +256,7 @@ export class PHPServer {
 				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 			);
 
-			let preferredMethod: PHPRequest['method'] = 'GET';
+			let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 			const fileInfos: FileInfo[] = [];
 			if (request.files) {
@@ -370,7 +392,7 @@ function inferMimeType(path: string): string {
 	}
 }
 
-export interface PHPServerConfigation {
+export interface PHPServerConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
@@ -387,4 +409,4 @@ export interface PHPServerConfigation {
 	isStaticFilePath?: (path: string) => boolean;
 }
 
-export default PHPServer;
+export default PHPRequestHandler;

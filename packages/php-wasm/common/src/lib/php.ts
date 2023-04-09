@@ -1,3 +1,9 @@
+import PHPBrowser from './php-browser';
+import PHPRequestHandler, {
+	PHPRequest,
+	PHPServerConfiguration,
+} from './php-request-handler';
+
 const STR = 'string';
 const NUM = 'number';
 
@@ -13,7 +19,7 @@ export interface FileInfo {
 	type: string;
 	data: Uint8Array;
 }
-export interface PHPRequest {
+export interface PHPRunOptions {
 	/**
 	 * Request path following the domain:port part.
 	 */
@@ -377,18 +383,18 @@ export interface WithFilesystem {
 
 export interface WithRun {
 	/**
-	 * Dispatches a PHP request.
+	 * Runs PHP code.
 	 * Cannot be used in conjunction with `cli()`.
 	 *
 	 * @example
 	 * ```js
-	 * const output = php.run('<?php echo "Hello world!";');
+	 * const output = await php.run('<?php echo "Hello world!";');
 	 * console.log(output.stdout); // "Hello world!"
 	 * ```
 	 *
 	 * @example
 	 * ```js
-	 * console.log(php.run(`<?php
+	 * console.log(await php.run(`<?php
 	 *  $fp = fopen('php://stderr', 'w');
 	 *  fwrite($fp, "Hello, world!");
 	 * `));
@@ -397,7 +403,32 @@ export interface WithRun {
 	 *
 	 * @param  request - PHP Request data.
 	 */
-	run(request?: PHPRequest): Promise<PHPResponse>;
+	run(request?: PHPRunOptions): Promise<PHPResponse>;
+}
+
+export interface WithRequestHandler {
+	/**
+	 * Dispatches a HTTP request using PHP as a backend.
+	 * Cannot be used in conjunction with `cli()`.
+	 *
+	 * @example
+	 * ```js
+	 * const output = await php.request({
+	 * 	method: 'GET',
+	 * 	url: '/index.php',
+	 * 	headers: {
+	 * 		'X-foo': 'bar',
+	 * 	},
+	 * 	formData: {
+	 * 		foo: 'bar',
+	 * 	},
+	 * });
+	 * console.log(output.stdout); // "Hello world!"
+	 * ```
+	 *
+	 * @param  request - PHP Request data.
+	 */
+	request(request?: PHPRequest): Promise<PHPResponse>;
 }
 
 export type PHPRuntime = any;
@@ -446,11 +477,13 @@ export class PHP
 		WithFilesystem,
 		WithNodeFilesystem,
 		WithCLI,
+		WithRequestHandler,
 		WithRun
 {
 	#Runtime: any;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
+	requestHandler?: PHPBrowser;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -458,9 +491,17 @@ export class PHP
 	 * @internal
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
 	 */
-	constructor(PHPRuntimeId?: PHPRuntimeId) {
+	constructor(
+		PHPRuntimeId?: PHPRuntimeId,
+		serverOptions?: PHPServerConfiguration
+	) {
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
+		}
+		if (serverOptions) {
+			this.requestHandler = new PHPBrowser(
+				new PHPRequestHandler(this, serverOptions)
+			);
 		}
 	}
 
@@ -496,7 +537,18 @@ export class PHP
 	}
 
 	/** @inheritDoc */
-	async run(request: PHPRequest = {}): Promise<PHPResponse> {
+	async request(
+		request: PHPRequest,
+		maxRedirects?: number
+	): Promise<PHPResponse> {
+		if (!this.requestHandler) {
+			throw new Error('No request handler available.');
+		}
+		return this.requestHandler.request(request, maxRedirects);
+	}
+
+	/** @inheritDoc */
+	async run(request: PHPRunOptions = {}): Promise<PHPResponse> {
 		if (!this.#webSapiInitialized) {
 			this.#initWebRuntime();
 			this.#webSapiInitialized = true;
@@ -796,9 +848,9 @@ export class PHP
 }
 
 function normalizeHeaders(
-	headers: PHPRequest['headers']
-): PHPRequest['headers'] {
-	const normalized: PHPRequest['headers'] = {};
+	headers: PHPRunOptions['headers']
+): PHPRunOptions['headers'] {
+	const normalized: PHPRunOptions['headers'] = {};
 	for (const key in headers) {
 		normalized[key.toLowerCase()] = headers[key];
 	}

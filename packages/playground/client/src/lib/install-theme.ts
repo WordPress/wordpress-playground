@@ -26,7 +26,7 @@ export async function installTheme(
 
 	// Upload it to WordPress
 	const themeForm = await playground.request({
-		relativeUrl: '/wp-admin/theme-install.php',
+		url: '/wp-admin/theme-install.php',
 	});
 	const themeFormPage = asDOM(themeForm);
 	const themeFormData = new FormData(
@@ -38,7 +38,7 @@ export async function installTheme(
 	);
 
 	const themeInstalledResponse = await playground.request({
-		relativeUrl: '/wp-admin/update.php?action=upload-theme',
+		url: '/wp-admin/update.php?action=upload-theme',
 		method: 'POST',
 		formData: postData,
 		files: { themezip: themeZipFile },
@@ -76,7 +76,7 @@ export async function installTheme(
 			await playground.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await playground.request({
-			absoluteUrl: activateThemeUrl,
+			url: activateThemeUrl,
 		});
 	}
 }

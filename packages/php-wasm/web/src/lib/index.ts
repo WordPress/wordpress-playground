@@ -1,7 +1,7 @@
 export { PHP, loadPHPRuntime } from '@php-wasm/common';
 export type {
 	PHPOutput,
-	PHPServer,
+	PHPRequestHandler,
 	PHPServerRequest,
 	PHPRequest,
 	PHPResponse,

@@ -26,7 +26,7 @@ export async function installPlugin(
 
 	// Upload it to WordPress
 	const pluginForm = await playground.request({
-		relativeUrl: '/wp-admin/plugin-install.php?tab=upload',
+		url: '/wp-admin/plugin-install.php?tab=upload',
 	});
 	const pluginFormPage = asDOM(pluginForm);
 	const pluginFormData = new FormData(
@@ -38,7 +38,7 @@ export async function installPlugin(
 	);
 
 	const pluginInstalledResponse = await playground.request({
-		relativeUrl: '/wp-admin/update.php?action=upload-plugin',
+		url: '/wp-admin/update.php?action=upload-plugin',
 		method: 'POST',
 		formData: postData,
 		files: { pluginzip: pluginZipFile },
@@ -55,7 +55,7 @@ export async function installPlugin(
 			await playground.pathToInternalUrl('/wp-admin/')
 		).toString();
 		await playground.request({
-			absoluteUrl: activatePluginUrl,
+			url: activatePluginUrl,
 		});
 	}
 

@@ -32,7 +32,7 @@ client.run({
 console.log(client.readFileAsText('/index.php'));
 
 client.request({
-	relativeUrl: '/index.php',
+	url: '/index.php',
 	method: 'POST',
 	formData: {
 		foo: 'bar',

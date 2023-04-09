@@ -1,7 +1,6 @@
 import {
 	loadPHPRuntime,
 	PHP,
-	PHPServer,
 	PHPBrowser,
 	PHPClient,
 	exposeAPI,
@@ -15,17 +14,14 @@ import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';
 
-const php = new PHP();
-
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-const server = new PHPServer(php, {
+const php = new PHP(undefined, {
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
 	isStaticFilePath: isUploadedFilePath,
 });
 
-const browser = new PHPBrowser(server);
 const monitor = new EmscriptenDownloadMonitor();
 
 /** @inheritDoc PHPClient */
@@ -35,13 +31,13 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 	phpVersion: Promise<string>;
 
 	constructor(
-		browser: PHPBrowser,
+		php: PHP,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string,
 		phpVersion: string
 	) {
-		super(browser, monitor);
+		super(php, monitor);
 		this.scope = Promise.resolve(scope);
 		this.wordPressVersion = Promise.resolve(wordPressVersion);
 		this.phpVersion = Promise.resolve(phpVersion);
@@ -70,13 +66,7 @@ export interface PlaygroundWorkerClient
 	extends PublicAPI<PlaygroundWorkerClientClass> {}
 
 const [setApiReady]: [() => void, PlaygroundWorkerClient] = exposeAPI(
-	new PlaygroundWorkerClientClass(
-		browser,
-		monitor,
-		scope,
-		wpVersion,
-		phpVersion
-	)
+	new PlaygroundWorkerClientClass(php, monitor, scope, wpVersion, phpVersion)
 );
 
 // Load PHP and WordPress modules:

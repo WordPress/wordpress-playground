@@ -242,7 +242,6 @@ import {
 	loadPHPRuntime,
 	PHP,
 	PHPServer,
-	PHPBrowser,
 	getPHPLoaderModule,
 } from '@php-wasm/web';
 
@@ -257,7 +256,7 @@ const server = new PHPServer(php, {
 	documentRoot: '/www',
 
 	// Used to populate $_SERVER['SERVER_NAME'] etc.:
-	absoluteUrl: 'http://127.0.0.1',
+	url: 'http://127.0.0.1',
 });
 
 const output = server.request({ path: '/index.php' }).body;

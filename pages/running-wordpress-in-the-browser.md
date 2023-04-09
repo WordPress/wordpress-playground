@@ -42,7 +42,7 @@ You can also dispatch HTTP requests to WordPress as follows:
 
 ```js
 const response = await playgroundClient.request({
-	relativeUrl: '/wp-login.php',
+	url: '/wp-login.php',
 	method: 'GET',
 });
 console.log(response.statusCode);

@@ -1,14 +1,12 @@
 import type {
 	WithFilesystem,
 	PHP,
-	PHPBrowser,
-	PHPServer,
 	PHPServerRequest,
 	WithPHPIniBindings,
 	PHPRequest,
 	PHPResponse,
 	WithRun,
-	WithRequest,
+	WithRequestHandler,
 } from '@php-wasm/common';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -37,8 +35,6 @@ const _private = new WeakMap<
 	PHPClient,
 	{
 		php: PHP;
-		phpServer: PHPServer;
-		phpBrowser: PHPBrowser;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -56,10 +52,10 @@ const _private = new WeakMap<
 export class PHPClient
 	implements
 		Promisify<
-			WithRequest &
-				WithPHPIniBindings &
+			WithPHPIniBindings &
 				WithFilesystem &
 				WithRun &
+				WithRequestHandler &
 				WithProgress &
 				WithPathConversion
 		>
@@ -70,7 +66,7 @@ export class PHPClient
 	documentRoot: Promise<string>;
 
 	/** @inheritDoc */
-	constructor(browser: PHPBrowser, monitor?: EmscriptenDownloadMonitor) {
+	constructor(php: PHP, monitor?: EmscriptenDownloadMonitor) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -95,23 +91,29 @@ export class PHPClient
 		 * ```
 		 */
 		_private.set(this, {
-			php: browser.server.php,
-			phpServer: browser.server,
-			phpBrowser: browser,
+			php,
 			monitor,
 		});
-		this.absoluteUrl = Promise.resolve(browser.server.absoluteUrl);
-		this.documentRoot = Promise.resolve(browser.server.documentRoot);
+		this.absoluteUrl = Promise.resolve(
+			php.requestHandler!.server.absoluteUrl
+		);
+		this.documentRoot = Promise.resolve(
+			php.requestHandler!.server.documentRoot
+		);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPServer.pathToInternalUrl */
 	async pathToInternalUrl(path: string): Promise<string> {
-		return _private.get(this)!.phpServer.pathToInternalUrl(path);
+		return _private
+			.get(this)!
+			.php.requestHandler!.server.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPServer.internalUrlToPath */
 	async internalUrlToPath(internalUrl: string): Promise<string> {
-		return _private.get(this)!.phpServer.internalUrlToPath(internalUrl);
+		return _private
+			.get(this)!
+			.php.requestHandler!.server.internalUrlToPath(internalUrl);
 	}
 
 	async onDownloadProgress(
@@ -127,7 +129,7 @@ export class PHPClient
 		request: PHPServerRequest,
 		redirects?: number
 	): Promise<PHPResponse> {
-		return _private.get(this)!.phpBrowser.request(request, redirects);
+		return _private.get(this)!.php.request(request, redirects);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.run */

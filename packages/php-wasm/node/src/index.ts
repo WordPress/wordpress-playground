@@ -4,7 +4,7 @@ global.TextDecoder = TextDecoder as any;
 
 export * from './lib';
 
-export { PHP, PHPServer, PHPBrowser } from '@php-wasm/common';
+export { PHP, PHPRequestHandler, PHPBrowser } from '@php-wasm/common';
 import {
 	DataModule,
 	EmscriptenOptions,
@@ -69,7 +69,7 @@ export type {
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
-	PHPServerConfigation,
+	PHPServerConfiguration,
 	PHPServerRequest,
 	WorkerStartupOptions,
 } from '@php-wasm/common';

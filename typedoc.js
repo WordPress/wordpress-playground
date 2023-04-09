@@ -11,7 +11,7 @@ module.exports = {
 		'WithCLI',
 		'WithNodeFilesystem',
 		'WithRun',
-		'WithRequest',
+		'WithRequestHandler',
 		'Promisify',
 		'WithPathConversion',
 		'PHPRequestHeaders',

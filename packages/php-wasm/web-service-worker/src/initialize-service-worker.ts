@@ -145,7 +145,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				{
 					body,
 					files,
-					absoluteUrl: url.toString(),
+					url: url.toString(),
 					method: event.request.method,
 					headers: {
 						...requestHeaders,

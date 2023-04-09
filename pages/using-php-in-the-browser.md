@@ -87,8 +87,6 @@ startApp();
 ```js
 import {
 	PHP,
-	PHPServer,
-	PHPBrowser,
 	PHPClient,
 	setURLScope,
 	exposeAPI,
@@ -103,22 +101,18 @@ const scopedSiteUrl = setURLScope(import.meta.url, scope).toString();
 
 const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
 const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
-const browser = (
-	new PHPBrowser(
-		new PHPServer(
-			new PHP(runtime),
-			{
-				documentRoot: '/',
-				absoluteUrl: scopedSiteUrl
-			}
-		)
-	)
+const php = new PHP(
+	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
+	{
+		documentRoot: '/',
+		absoluteUrl: scopedSiteUrl
+	}
 );
 
 // Expose the API to app.ts:
 // It will listens to commands issued by the main app and
 // the requests from the Service Worker.
-const [setApiReady, ] = exposeAPI( new PHPClient( browser ) );
+const [setApiReady, ] = exposeAPI( new PHPClient( php ) );
 setApiReady();
 ```
 
@@ -144,7 +138,7 @@ A step-by-step breakown:
 
 1.  The request is intercepted by the Service Worker
 2.  The Service Worker passes it to the Worker Thread
-3.  The Worker Thread uses the PHP stack of `PHPBrowser` -> `PHPServer` -> `PHP` to convert that request to a response
+3.  The Worker Thread calls `PHP.request` to convert that request to a response
 4.  The Worker Thread passes the response to the Service Worker
 5.  The Service Worker provides the browser with a response
 
@@ -403,9 +397,6 @@ To use scopes, initiate the worker thread with a scoped `absoluteUrl`:
 ```js
 import {
 	PHP,
-	PHPServer,
-	PHPBrowser,
-	PHPClient,
 	setURLScope,
 	exposeAPI,
 	getPHPLoaderModule,
@@ -422,19 +413,15 @@ const scopedURL = setURLScope(absoluteURL, scope).toString()
 
 const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
 const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
-const browser = (
-	new PHPBrowser(
-		new PHPServer(
-			new PHP(runtime),
-			{
-				documentRoot: '/',
-				absoluteUrl: scopedURL
-			}
-		)
-	)
+const php = new PHP(
+	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
+	{
+		documentRoot: '/',
+		absoluteUrl: scopedSiteUrl
+	}
 );
 
 // Expose the API to app.ts:
-const [setApiReady, ] = exposeAPI( new PHPClient( browser ) );
+const [setApiReady, ] = exposeAPI( php );
 setApiReady();
 ```

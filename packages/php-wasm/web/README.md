@@ -15,19 +15,19 @@ const php = new PHP(
 	// getPHPLoaderModule() calls import('php.wasm') internally
 	// Your bundler must resolve import('php.wasm') as a static file URL.
 	// If you use Webpack, you can use the file-loader to do so.
-	await loadPHPRuntime(await getPHPLoaderModule('8.0'))
+	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
+	{ documentRoot: '/www' }
 );
 
 // Create and run a script directly
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
-php.run({ scriptPath: '/www/index.php' });
+await php.run({ scriptPath: './index.php' });
 
 // Or use the familiar HTTP concepts:
-const server = new PHPServer(php, { documentRoot: '/www' });
-const response = server.request({
+const response = await php.request({
 	method: 'POST',
-	relativeUrl: '/index.php',
+	url: '/index.php',
 	data: { name: 'John' },
 });
 ```
