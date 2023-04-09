@@ -18,7 +18,7 @@ const phpVersions = [
 	'7.0',
 	'5.6',
 ];
-const wpVersions = ['6.1', '6.0', '5.9'];
+const wpVersions = ['6.2', '6.1', '6.0', '5.9'];
 const query = new URL(document.location.href).searchParams;
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 

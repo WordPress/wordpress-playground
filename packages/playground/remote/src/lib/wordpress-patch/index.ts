@@ -37,10 +37,13 @@ class WordPressPatcher {
 		);
 
 		this.#php.mkdirTree(`${DOCROOT}/wp-admin/images`);
-		this.#php.writeFile(
+		const missingSvgs = [
 			`${DOCROOT}/wp-admin/images/about-header-about.svg`,
-			''
-		);
+			`${DOCROOT}/wp-admin/images/dashboard-background.svg`,
+		];
+		for (const missingSvg of missingSvgs) {
+			this.#php.writeFile(missingSvg, '');
+		}
 		this.#adjustPathsAndUrls();
 		this.#disableSiteHealth();
 		this.#disableWpNewBlogNotification();

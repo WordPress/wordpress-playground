@@ -62,7 +62,7 @@ type PlaygroundStartupOptions = {
 const startupOptions = parseWorkerStartupOptions<PlaygroundStartupOptions>();
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.wpVersion || '6_1').replace('_', '.');
+const wpVersion = (startupOptions.wpVersion || '6_2').replace('_', '.');
 const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 /** @inheritDoc PlaygroundWorkerClientClass */
@@ -105,6 +105,9 @@ export function getWordPressModule(version: string) {
 		case '6.1':
 			/** @ts-ignore */
 			return import('../wordpress/wp-6.1.js');
+		case '6.2':
+			/** @ts-ignore */
+			return import('../wordpress/wp-6.2.js');
 		case 'nightly':
 			/** @ts-ignore */
 			return import('../wordpress/wp-nightly.js');

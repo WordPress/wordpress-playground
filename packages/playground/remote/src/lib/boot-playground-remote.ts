@@ -40,7 +40,7 @@ export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
 	const query = new URL(document.location.href).searchParams as any;
-	const wpVersion = query.get('wp') ? query.get('wp') : '6.1';
+	const wpVersion = query.get('wp') ? query.get('wp') : '6.2';
 	const phpVersion = query.get('php') ? query.get('php') : '8.0';
 	const workerApi = consumeAPI<PlaygroundWorkerClient>(
 		await spawnPHPWorkerThread(workerUrl, workerBackend, {
