@@ -21,6 +21,27 @@ console.log(new TextDecoder().decode(result.body));
 
 Using TypeScript is highly recommended as this package ships with comprehensive types – hit ctrl+space in your IDE after `client.` and you'll see all the available methods.
 
+Once you have a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/interfaces/_wp_playground_client.PlaygroundClient.html) instance, you can use it to control the playground:
+
+```ts
+client.writeFile('/index.php', '<?php echo "Hi!"; ');
+client.run({
+	scriptPath: '/index.php',
+});
+
+console.log(client.readFileAsText('/index.php'));
+
+client.request({
+	relativeUrl: '/index.php',
+	method: 'POST',
+	formData: {
+		foo: 'bar',
+	},
+});
+```
+
+To see all the available methods, check out the [PlaygroundClient](https://wordpress.github.io/wordpress-playground/interfaces/_wp_playground_client.PlaygroundClient.html) interface.
+
 ## Helpers
 
 The `@wp-playground/client` package also provides a few helpers:
