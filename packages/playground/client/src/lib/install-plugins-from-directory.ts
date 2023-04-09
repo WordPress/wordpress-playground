@@ -7,16 +7,29 @@ import type { PlaygroundClient } from '../';
 import { installPlugin } from './install-plugin';
 import { zipNameToHumanName } from './common';
 
+/**
+ * Downloads and installs multiple plugins from the WordPress.org plugin directory.
+ * Under the hood, it downloads the plugins through a proxy endpoint
+ * and installs then one after another using the installPlugin function.
+ *
+ * @see installPlugin
+ * @param playground The playground client.
+ * @param pluginsZipNames The plugin zip file names. For example, set this parameter
+ *                        to ["gutenberg.15.5.0.zip"] to download the Gutenberg plugin
+ *                        from https://downloads.wordpress.org/plugin/gutenberg.15.5.0.zip.
+ * @param maxProgress Optional. The maximum progress value to use. Defaults to 100.
+ * @param progress Optional. The progress observer that will be notified of the progress.
+ */
 export async function installPluginsFromDirectory(
 	playground: PlaygroundClient,
 	pluginsZipNames: string[],
-	progressBudget = 0,
+	maxProgress = 100,
 	progress?: ProgressObserver
 ) {
 	const downloads = new PromiseQueue();
 	const installations = new PromiseQueue();
 
-	const progressBudgetPerPlugin = progressBudget / pluginsZipNames.length;
+	const progressBudgetPerPlugin = maxProgress / pluginsZipNames.length;
 
 	/**
 	 * Install multiple plugins to minimize the processing time.

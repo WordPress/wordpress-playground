@@ -1,10 +1,26 @@
 import type { PlaygroundClient } from '../';
 import { asDOM } from './common';
 
+interface InstallThemeOptions {
+	/**
+	 * Whether to activate the theme after installing it.
+	 */
+	activate?: boolean;
+}
+
+/**
+ * Installs a WordPress theme in the Playground.
+ * Technically, it uses the same theme upload form as a WordPress user
+ * would, and then activates the theme if needed.
+ *
+ * @param playground The playground client.
+ * @param themeZipFile The theme zip file.
+ * @param options Optional. Set `activate` to false if you don't want to activate the theme.
+ */
 export async function installTheme(
 	playground: PlaygroundClient,
 	themeZipFile: File,
-	options: any = {}
+	options: InstallThemeOptions = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
 

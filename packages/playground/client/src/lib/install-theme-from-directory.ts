@@ -7,10 +7,24 @@ import type { PlaygroundClient } from '../';
 import { installTheme } from './install-theme';
 import { zipNameToHumanName } from './common';
 
+/**
+ * Downloads and installs a theme from the WordPress.org theme directory.
+ * Under the hood, it downloads the themes through a proxy endpoint
+ * and installs then one after another using the installTheme function.
+ *
+ * @see installPlugin
+ * @param playground The playground client.
+ * @param themeZipName The theme zip file name. For example, set this parameter
+ *                     to "twentytwentythree.1.1.zip" to download the Twenty Twenty Three theme
+ *                     from https://downloads.wordpress.org/theme/twentytwentythree.1.1.zip.
+ *
+ * @param maxProgress Optional. The maximum progress value to use. Defaults to 100.
+ * @param progress Optional. The progress observer that will be notified of the progress.
+ */
 export async function installThemeFromDirectory(
 	playground: PlaygroundClient,
 	themeZipName: string,
-	progressBudget = 0,
+	progressBudget = 100,
 	progress?: ProgressObserver
 ) {
 	// Download the theme file

@@ -1,6 +1,12 @@
 import type { PlaygroundClient } from '../';
 import { asDOM } from './common';
 
+/**
+ * Activates a WordPress plugin in the Playground.
+ *
+ * @param playground The playground client.
+ * @param plugin The plugin slug.
+ */
 export async function activatePlugin(
 	playground: PlaygroundClient,
 	plugin: string

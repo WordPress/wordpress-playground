@@ -1,10 +1,26 @@
 import { asDOM } from './common';
 import type { PlaygroundClient } from '../';
 
+interface InstallPluginOptions {
+	/**
+	 * Whether to activate the plugin after installing it.
+	 */
+	activate?: boolean;
+}
+
+/**
+ * Installs a WordPress plugin in the Playground.
+ * Technically, it uses the same plugin upload form as a WordPress user
+ * would, and then activates the plugin if needed.
+ *
+ * @param playground The playground client.
+ * @param pluginZipFile The plugin zip file.
+ * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
+ */
 export async function installPlugin(
 	playground: PlaygroundClient,
 	pluginZipFile: File,
-	options: any = {}
+	options: InstallPluginOptions = {}
 ) {
 	const activate = 'activate' in options ? options.activate : true;
 

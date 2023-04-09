@@ -10,6 +10,15 @@ export interface ConnectPlaygroundOptions {
 	loadRemote?: string;
 }
 
+/**
+ * Connects to a playground iframe and returns a PlaygroundClient instance.
+ *
+ * @param iframe Any iframe with Playground's remote.html loaded.
+ * @param options Optional. If `loadRemote` is set, the iframe's `src` will be set to that URL.
+ *                In other words, use this option if your iframe doesn't have remote.html already
+ * 				  loaded.
+ * @returns A PlaygroundClient instance.
+ */
 export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: ConnectPlaygroundOptions
@@ -23,8 +32,10 @@ export async function connectPlayground(
 	const comlinkClient: Remote<PlaygroundClient> =
 		consumeAPI<PlaygroundClient>(iframe.contentWindow!);
 
-	// Wait for any response from the playground to ensure the comlink
-	// handler on the other side is ready:
+	/*
+	 * Wait for any response from the playground to ensure the comlink
+	 * handler on the other side is ready:
+	 */
 	await comlinkClient.absoluteUrl;
 
 	/*
