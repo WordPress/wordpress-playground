@@ -37,7 +37,7 @@ const php = await PHP.load(phpVersion, {
 			...process.env,
 			TERM: 'xterm',
 		},
-	}
+	},
 });
 php.useHostFilesystem();
 
