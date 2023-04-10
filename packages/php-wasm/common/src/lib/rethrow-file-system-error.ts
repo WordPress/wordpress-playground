@@ -104,13 +104,15 @@ export function rethrowFileSystemError(messagePrefix = '') {
 			try {
 				return method.apply(this, args);
 			} catch (e) {
-				const errno = typeof e === 'object' ? ((e as any)?.errno as any) : null;
+				const errno =
+					typeof e === 'object' ? ((e as any)?.errno as any) : null;
 				if (errno in FileErrorCodes) {
 					const errmsg = FileErrorCodes[errno];
 					const path = typeof args[0] === 'string' ? args[0] : null;
-					const formattedPrefix = path !== null
-						? messagePrefix.replaceAll('{path}', path)
-						: messagePrefix;
+					const formattedPrefix =
+						path !== null
+							? messagePrefix.replaceAll('{path}', path)
+							: messagePrefix;
 					console.log(`${formattedPrefix}: ${errmsg}.`);
 					throw new Error(`${formattedPrefix}: ${errmsg}`, {
 						cause: e,

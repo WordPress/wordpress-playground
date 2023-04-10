@@ -1,4 +1,4 @@
-import { getPHPLoaderModule, PHP,  } from '..';
+import { getPHPLoaderModule, PHP } from '..';
 import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/common';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
