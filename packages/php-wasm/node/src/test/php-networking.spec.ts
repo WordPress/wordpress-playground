@@ -1,7 +1,7 @@
 import express from 'express';
 import { PHP, SupportedPHPVersions } from '..';
 
-describe.each([SupportedPHPVersions])(
+describe.each(SupportedPHPVersions)(
 	'PHP %s',
 	(phpVersion) => {
 		it('should be able to make a request to a server', async () => {
