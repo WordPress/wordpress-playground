@@ -1,11 +1,11 @@
-import { getPHPLoaderModule, PHP, SupportedPHPVersions } from '..';
-import { LatestSupportedPHPVersion, loadPHPRuntime } from '@php-wasm/common';
+import { getPHPLoaderModule, PHP,  } from '..';
+import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/common';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each([LatestSupportedPHPVersion])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {
 		php = await PHP.load(phpVersion);
