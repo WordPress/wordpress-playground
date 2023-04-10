@@ -109,7 +109,7 @@ async function defaultRequestHandler(event: FetchEvent) {
 	event.preventDefault();
 	const url = new URL(event.request.url);
 	const unscopedUrl = removeURLScope(url);
-	if (!seemsLikeAPHPServerPath(unscopedUrl.pathname)) {
+	if (!seemsLikeAPHPRequestHandlerPath(unscopedUrl.pathname)) {
 		return fetch(
 			await cloneRequest(event.request, {
 				url,
@@ -251,18 +251,18 @@ interface ServiceWorkerConfiguration {
  *
  * @example
  * ```js
- * seemsLikeAPHPServerPath('/index.php') // true
- * seemsLikeAPHPServerPath('/index.php') // true
- * seemsLikeAPHPServerPath('/index.php/foo/bar') // true
- * seemsLikeAPHPServerPath('/index.html') // false
- * seemsLikeAPHPServerPath('/index.html/foo/bar') // false
- * seemsLikeAPHPServerPath('/') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
+ * seemsLikeAPHPRequestHandlerPath('/index.html') // false
+ * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
+ * seemsLikeAPHPRequestHandlerPath('/') // true
  * ```
  *
  * @param  path The path to check.
  * @returns Whether the path seems like a PHP server path.
  */
-export function seemsLikeAPHPServerPath(path: string): boolean {
+export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
 	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
 }
 

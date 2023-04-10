@@ -4,7 +4,7 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { FileInfo, PHP, PHPRunOptions, PHPResponse } from './php';
+import type { FileInfo, BasePHP, PHPRunOptions, PHPResponse } from './php';
 import Semaphore from './semaphore';
 
 export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
@@ -15,26 +15,40 @@ export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
 		| { body?: never; formData: Record<string, unknown> }
 	);
 
+export interface PHPRequestHandlerConfiguration {
+	/**
+	 * The directory in the PHP filesystem where the server will look
+	 * for the files to serve. Default: `/var/www`.
+	 */
+	documentRoot?: string;
+	/**
+	 * Request Handler URL. Used to populate $_SERVER details like HTTP_HOST.
+	 */
+	absoluteUrl?: string;
+	/**
+	 * Callback used by the PHPRequestHandler to decide whether
+	 * the requested path refers to a PHP file or a static file.
+	 */
+	isStaticFilePath?: (path: string) => boolean;
+}
+
 /**
  * A fake PHP server that handles HTTP requests but does not
  * bind to any port.
  *
  * @public
- * @example Use PHPServer implicitly with a new PHP instance:
+ * @example Use PHPRequestHandler implicitly with a new PHP instance:
  * ```js
- * import {
- *   loadPHPRuntime,
- *   PHP,
- *   getPHPLoaderModule,
- * } from '@php-wasm/web';
+ * import { PHP } from '@php-wasm/web';
  *
- * const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
- * const php = new PHP( runtime, {
- *     // PHP FS path to serve the files from:
- *     documentRoot: '/www',
+ * const php = await PHP.load( '7.4', {
+ *     requestHandler: {
+ *         // PHP FS path to serve the files from:
+ *         documentRoot: '/www',
  *
- *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
- *     absoluteUrl: 'http://127.0.0.1'
+ *         // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *         absoluteUrl: 'http://127.0.0.1'
+ *     }
  * } );
  *
  * php.mkdirTree('/www');
@@ -45,12 +59,12 @@ export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
  * // "Hi from PHP!"
  * ```
  *
- * @example Explicitly create a PHPServer instance and run a PHP script:
+ * @example Explicitly create a PHPRequestHandler instance and run a PHP script:
  * ```js
  * import {
  *   loadPHPRuntime,
  *   PHP,
- *   PHPServer,
+ *   PHPRequestHandler,
  *   getPHPLoaderModule,
  * } from '@php-wasm/web';
  *
@@ -60,7 +74,7 @@ export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
  * php.mkdirTree('/www');
  * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
  *
- * const server = new PHPServer(php, {
+ * const server = new PHPRequestHandler(php, {
  *     // PHP FS path to serve the files from:
  *     documentRoot: '/www',
  *
@@ -86,14 +100,14 @@ export class PHPRequestHandler {
 	/**
 	 * The PHP instance
 	 */
-	php: PHP;
+	php: BasePHP;
 	#isStaticFilePath: (path: string) => boolean;
 
 	/**
 	 * @param  php    - The PHP instance.
-	 * @param  config - Server configuration.
+	 * @param  config - Request Handler configuration.
 	 */
-	constructor(php: PHP, config: PHPServerConfiguration = {}) {
+	constructor(php: BasePHP, config: PHPRequestHandlerConfiguration = {}) {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
@@ -126,7 +140,7 @@ export class PHPRequestHandler {
 	}
 
 	/**
-	 * Converts a path to an absolute URL based at the PHPServer
+	 * Converts a path to an absolute URL based at the PHPRequestHandler
 	 * root.
 	 *
 	 * @param  path The server path to convert to an absolute URL.
@@ -137,10 +151,10 @@ export class PHPRequestHandler {
 	}
 
 	/**
-	 * Converts an absolute URL based at the PHPServer to a relative path
+	 * Converts an absolute URL based at the PHPRequestHandler to a relative path
 	 * without the server pathname and scope.
 	 *
-	 * @param  internalUrl An absolute URL based at the PHPServer root.
+	 * @param  internalUrl An absolute URL based at the PHPRequestHandler root.
 	 * @returns The relative path.
 	 */
 	internalUrlToPath(internalUrl: string): string {
@@ -156,14 +170,14 @@ export class PHPRequestHandler {
 	}
 
 	/**
-	 * The absolute URL of this PHPServer instance.
+	 * The absolute URL of this PHPRequestHandler instance.
 	 */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
 
 	/**
-	 * The absolute URL of this PHPServer instance.
+	 * The absolute URL of this PHPRequestHandler instance.
 	 */
 	get documentRoot() {
 		return this.#DOCROOT;
@@ -390,23 +404,6 @@ function inferMimeType(path: string): string {
 		default:
 			return 'application-octet-stream';
 	}
-}
-
-export interface PHPServerConfiguration {
-	/**
-	 * The directory in the PHP filesystem where the server will look
-	 * for the files to serve. Default: `/var/www`.
-	 */
-	documentRoot?: string;
-	/**
-	 * Server URL. Used to populate $_SERVER details like HTTP_HOST.
-	 */
-	absoluteUrl?: string;
-	/**
-	 * Callback used by the PHPServer to decide whether
-	 * the requested path refers to a PHP file or a static file.
-	 */
-	isStaticFilePath?: (path: string) => boolean;
 }
 
 export default PHPRequestHandler;

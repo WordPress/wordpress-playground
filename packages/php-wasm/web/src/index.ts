@@ -1,11 +1,14 @@
 export * from './lib';
 
+export type { SupportedPHPVersion } from '@php-wasm/common';
 export {
-	PHP,
 	PHPRequestHandler,
 	PHPBrowser,
 	exposeAPI,
 	consumeAPI,
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
+	LatestSupportedPHPVersion,
 } from '@php-wasm/common';
 
 // Wildcard re-export is unfortunately not supported by TypeScript.
@@ -15,16 +18,15 @@ export type {
 	ErrnoError,
 	FileInfo,
 	WithFilesystem,
-	JavascriptRuntime,
+	RuntimeType,
 	WithPHPIniBindings,
 	PHPLoaderModule,
 	PHPOutput,
-	PHPRequest,
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
 	PublicAPI,
-	PHPServerConfiguration,
-	PHPServerRequest,
+	PHPRequestHandlerConfiguration,
+	PHPRequest,
 	WorkerStartupOptions,
 } from '@php-wasm/common';

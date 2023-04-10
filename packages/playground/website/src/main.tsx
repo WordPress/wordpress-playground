@@ -6,21 +6,11 @@ import VersionSelector from './components/version-select';
 import './styles.css';
 
 import { setupPlayground } from './lib/setup-playground';
+import { SupportedPHPVersionsList } from '@php-wasm/common';
 
-const phpVersions = [
-	'8.2',
-	'8.1',
-	'8.0',
-	'7.4',
-	'7.3',
-	'7.2',
-	'7.1',
-	'7.0',
-	'5.6',
-];
-const wpVersions = ['6.2', '6.1', '6.0', '5.9'];
 const query = new URL(document.location.href).searchParams;
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
+const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
@@ -28,8 +18,11 @@ root.render(
 		isSeamless={isSeamless}
 		setupPlayground={setupPlayground}
 		toolbarButtons={[
-			<VersionSelector name="php" versions={phpVersions} />,
-			<VersionSelector name="wp" versions={wpVersions} />,
+			<VersionSelector name="php" versions={SupportedPHPVersionsList} />,
+			<VersionSelector
+				name="wp"
+				versions={SupportedWordPressVersionsList}
+			/>,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,
 		]}

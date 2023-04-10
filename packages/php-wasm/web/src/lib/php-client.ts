@@ -1,9 +1,8 @@
 import type {
 	WithFilesystem,
-	PHP,
-	PHPServerRequest,
-	WithPHPIniBindings,
+	BasePHP,
 	PHPRequest,
+	WithPHPIniBindings,
 	PHPResponse,
 	WithRun,
 	WithRequestHandler,
@@ -34,7 +33,7 @@ interface WithProgress {
 const _private = new WeakMap<
 	PHPClient,
 	{
-		php: PHP;
+		php: BasePHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -60,13 +59,13 @@ export class PHPClient
 				WithPathConversion
 		>
 {
-	/** @inheritDoc @php-wasm/web!PHPServer.absoluteUrl */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
 	absoluteUrl: Promise<string>;
-	/** @inheritDoc @php-wasm/web!PHPServer.documentRoot */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
 	documentRoot: Promise<string>;
 
 	/** @inheritDoc */
-	constructor(php: PHP, monitor?: EmscriptenDownloadMonitor) {
+	constructor(php: BasePHP, monitor?: EmscriptenDownloadMonitor) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -102,14 +101,14 @@ export class PHPClient
 		);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.pathToInternalUrl */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
 	async pathToInternalUrl(path: string): Promise<string> {
 		return _private
 			.get(this)!
 			.php.requestHandler!.server.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.internalUrlToPath */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
 	async internalUrlToPath(internalUrl: string): Promise<string> {
 		return _private
 			.get(this)!
@@ -124,11 +123,8 @@ export class PHPClient
 			.monitor?.addEventListener('progress', callback as any);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.request */
-	request(
-		request: PHPServerRequest,
-		redirects?: number
-	): Promise<PHPResponse> {
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.request */
+	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
 		return _private.get(this)!.php.request(request, redirects);
 	}
 

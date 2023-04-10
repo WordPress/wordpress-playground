@@ -1,19 +1,8 @@
-import type { PHPLoaderModule } from '@php-wasm/common';
-
-export const PHP_VERSIONS = [
-	'8.2',
-	'8.1',
-	'8.0',
-	'7.4',
-	'7.3',
-	'7.2',
-	'7.1',
-	'7.0',
-	'5.6',
-] as const;
+import { LatestSupportedPHPVersion } from '@php-wasm/common';
+import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/common';
 
 export async function getPHPLoaderModule(
-	version = '8.2'
+	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	switch (version) {
 		case '8.2':

@@ -1,6 +1,6 @@
-import { PHP_VERSIONS, getPHPLoaderModule } from '..';
-import { PHP, loadPHPRuntime, PHPRequestHandler } from '@php-wasm/common';
-describe.each(PHP_VERSIONS)(
+import { PHP, SupportedPHPVersions, getPHPLoaderModule } from '..';
+import { loadPHPRuntime, PHPRequestHandler } from '@php-wasm/common';
+describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
 		let php: PHP;

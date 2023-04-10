@@ -44,7 +44,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 		this.#monitorWebAssemblyStreaming();
 	}
 
-	getEmscriptenArgs() {
+	getEmscriptenOptions() {
 		return {
 			dataFileDownloads: this.#createDataFileDownloadsProxy(),
 		};

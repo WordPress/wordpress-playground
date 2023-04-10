@@ -90,8 +90,6 @@ import {
 	PHPClient,
 	setURLScope,
 	exposeAPI,
-	getPHPLoaderModule,
-	loadPHPRuntime,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
 
@@ -100,14 +98,12 @@ const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(import.meta.url, scope).toString();
 
 const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
-const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
-const php = new PHP(
-	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
-	{
+const php = await PHP.load('8.0', {
+	requestHandler: {
 		documentRoot: '/',
 		absoluteUrl: scopedSiteUrl
 	}
-);
+});
 
 // Expose the API to app.ts:
 // It will listens to commands issued by the main app and
@@ -142,11 +138,11 @@ A step-by-step breakown:
 4.  The Worker Thread passes the response to the Service Worker
 5.  The Service Worker provides the browser with a response
 
-At this point, if the request was triggered by user clicking on a link, the browser will render PHPServer's response inside the iframe.
+At this point, if the request was triggered by user clicking on a link, the browser will render PHPRequestHandler's response inside the iframe.
 
 ## Iframe-based rendering
 
-All the PHPServer responses must be rendered in an iframe to avoid reloading the page. Remember, the entire setup only lives as long as the main `index.html`. We want to avoid reloading the main app at all cost.
+All the PHPRequestHandler responses must be rendered in an iframe to avoid reloading the page. Remember, the entire setup only lives as long as the main `index.html`. We want to avoid reloading the main app at all cost.
 
 In our app example above, `index.php` renders the following HTML:
 
@@ -154,7 +150,7 @@ In our app example above, `index.php` renders the following HTML:
 <a href="page.php">Go to page.php</a>
 ```
 
-Imagine our `index.html` rendered it in a `<div>` instead of an `<iframe>`. As soon as you clicked on that link, the browser would try to navigate from `index.html` to `page.php`. However, `index.html` runs the entire PHP app including the Worker Thread, the PHPServer, and the traffic control connecting them to the Service Worker. Navigating away from it would destroy the app.
+Imagine our `index.html` rendered it in a `<div>` instead of an `<iframe>`. As soon as you clicked on that link, the browser would try to navigate from `index.html` to `page.php`. However, `index.html` runs the entire PHP app including the Worker Thread, the PHPRequestHandler, and the traffic control connecting them to the Service Worker. Navigating away from it would destroy the app.
 
 Now, consider an iframe with the same link in it:
 
@@ -171,7 +167,7 @@ This time, clicking the link the browser to load `page.php` **inside the iframe*
 
 ## PHP Worker Threads
 
-The PHP Server is always ran in a separate thread we'll call a "Worker Thread." This happens to ensure the PHP runtime doesn't slow down the website.
+PHP is always ran in a separate thread we'll call a "Worker Thread." This happens to ensure the PHP runtime doesn't slow down the website.
 
 Imagine the following code:
 
@@ -227,7 +223,7 @@ const phpClient =
 
 #### `iframe`
 
-Loads the PHPServer in a new iframe to avoid crashes in browsers based on Google Chrome.
+Loads the PHPRequestHandler in a new iframe to avoid crashes in browsers based on Google Chrome.
 
 The browser will **typically** run an iframe in a separate thread in one of the two cases:
 
@@ -274,7 +270,7 @@ const phpClient =
 
 ## Service Workers
 
-[A Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) is used to handle the HTTP traffic using the in-browser PHPServer.
+[A Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) is used to handle the HTTP traffic using the in-browser PHPRequestHandler.
 
 Imagine your PHP script renders the following page [in the iframe viewport](#iframe-based-rendering):
 
@@ -376,7 +372,7 @@ In our case, the exposed object is the [PHPClient](/docs/api/web.phpclient.html)
 
 Scopes keep your app working when you open it in two different different browser tabs.
 
-The Service Worker passes the intercepted HTTP requests to the PHPServer for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
+The Service Worker passes the intercepted HTTP requests to the PHPRequestHandler for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
 
 Unfortunately, the Service Worker cannot directly communicate with the relevant Worker Thread – see [PR #31](https://github.com/WordPress/wordpress-playground/pull/31) and [issue #9](https://github.com/WordPress/wordpress-playground/issues/9) for more details.
 
@@ -385,7 +381,7 @@ Scopes enable each browser tab to:
 -   Brand the outgoing HTTP requests with a unique tab id
 -   Ignore any `BroadcastChannel` messages with a different id
 
-Technically, a scope is a string included in the `PHPServer.absoluteUrl`. For example:
+Technically, a scope is a string included in the `PHPRequestHandler.absoluteUrl`. For example:
 
 -   In an **unscoped app**, `/index.php` would be available at `http://localhost:8778/wp-login.php`
 -   In an **scoped app**, `/index.php` would be available at `http://localhost:8778/scope:96253/wp-login.php`
@@ -399,8 +395,6 @@ import {
 	PHP,
 	setURLScope,
 	exposeAPI,
-	getPHPLoaderModule,
-	loadPHPRuntime,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
 
@@ -412,14 +406,12 @@ const scope = Math.random().toFixed(16)
 const scopedURL = setURLScope(absoluteURL, scope).toString()
 
 const { phpVersion } = parseWorkerStartupOptions<{ phpVersion?: string }>();
-const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
-const php = new PHP(
-	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
-	{
+const php = await PHP.load('8.0', {
+	requestHandler: {
 		documentRoot: '/',
 		absoluteUrl: scopedSiteUrl
 	}
-);
+});
 
 // Expose the API to app.ts:
 const [setApiReady, ] = exposeAPI( php );

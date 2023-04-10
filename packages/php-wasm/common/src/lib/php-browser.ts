@@ -2,8 +2,20 @@ import type PHPRequestHandler from './php-request-handler';
 import type { PHPRequest } from './php-request-handler';
 import type { PHPResponse, WithRequestHandler } from './php';
 
+export interface PHPBrowserConfiguration {
+	/**
+	 * Should handle redirects internally?
+	 */
+	handleRedirects?: boolean;
+	/**
+	 * The maximum number of redirects to follow internally. Once
+	 * exceeded, request() will return the redirecting response.
+	 */
+	maxRedirects?: number;
+}
+
 /**
- * A fake web browser that handles PHPServer's cookies and redirects
+ * A fake web browser that handles PHPRequestHandler's cookies and redirects
  * internally without exposing them to the consumer.
  *
  * @public
@@ -43,7 +55,7 @@ export class PHPBrowser implements WithRequestHandler {
 	 *
 	 * @param  request   - The request.
 	 * @param  redirects - Internal. The number of redirects handled so far.
-	 * @returns PHPServer response.
+	 * @returns PHPRequestHandler response.
 	 */
 	async request(request: PHPRequest, redirects = 0): Promise<PHPResponse> {
 		const response = await this.server.request({
@@ -103,18 +115,6 @@ export class PHPBrowser implements WithRequestHandler {
 		}
 		return cookiesArray.join('; ');
 	}
-}
-
-interface PHPBrowserConfiguration {
-	/**
-	 * Should handle redirects internally?
-	 */
-	handleRedirects?: boolean;
-	/**
-	 * The maximum number of redirects to follow internally. Once
-	 * exceeded, request() will return the redirecting response.
-	 */
-	maxRedirects?: number;
 }
 
 export default PHPBrowser;

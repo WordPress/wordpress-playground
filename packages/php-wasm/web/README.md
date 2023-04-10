@@ -5,19 +5,16 @@ This package ships WebAssembly PHP binaries and the JavaScript API optimized for
 Here's how to use it:
 
 ```js
-import {
-	loadPHPRuntime,
-	getPHPLoaderModule,
-	PHP,
-	PHPServer,
-} from '@php-wasm/web';
-const php = new PHP(
-	// getPHPLoaderModule() calls import('php.wasm') internally
-	// Your bundler must resolve import('php.wasm') as a static file URL.
-	// If you use Webpack, you can use the file-loader to do so.
-	await loadPHPRuntime(await getPHPLoaderModule('8.0')),
-	{ documentRoot: '/www' }
-);
+import { PHP } from '@php-wasm/web';
+
+// PHP.load() calls import('php.wasm') internally
+// Your bundler must resolve import('php.wasm') as a static file URL.
+// If you use Webpack, you can use the file-loader to do so.
+const php = await PHP.load('8.0', {
+	requestHandler: {
+		documentRoot: '/www',
+	},
+});
 
 // Create and run a script directly
 php.mkdirTree('/www');

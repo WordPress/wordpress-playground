@@ -3,11 +3,11 @@ export type {
 	EmscriptenOptions,
 	ErrnoError,
 	FileInfo,
-	JavascriptRuntime,
+	RuntimeType,
 	MountSettings,
 	PHPLoaderModule,
 	PHPOutput,
-	PHPRunOptions as PHPRequest,
+	PHPRunOptions,
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
@@ -18,13 +18,21 @@ export type {
 	WithNodeFilesystem,
 	WithPHPIniBindings,
 } from './php';
-export { loadPHPRuntime, PHP } from './php';
+
+export {
+	LatestSupportedPHPVersion,
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
+} from './supported-php-versions';
+export type { SupportedPHPVersion } from './supported-php-versions';
+export { BasePHP, loadPHPRuntime } from './php';
 
 export type {
-	PHPServerConfiguration,
-	PHPRequest as PHPServerRequest,
+	PHPRequestHandlerConfiguration,
+	PHPRequest,
 } from './php-request-handler';
 export { PHPRequestHandler } from './php-request-handler';
+export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
 
 export type { WorkerStartupOptions, PublicAPI } from './api';

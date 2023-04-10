@@ -1,10 +1,15 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync, readdirSync, lstatSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import { rootCertificates } from 'tls';
 
-import { PHP, loadPHPRuntime, getPHPLoaderModule } from '@php-wasm/node';
+import {
+	LatestSupportedPHPVersion,
+	PHP,
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/node';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -16,49 +21,34 @@ const caBundlePath = new URL('ca-bundle.crt', (import.meta || {}).url).pathname;
 if (!existsSync(caBundlePath)) {
 	writeFileSync(caBundlePath, rootCertificates.join('\n'));
 }
+args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 
-async function main() {
-	// @ts-ignore
-	const defaultPhpIniPath = await import('./php.ini');
+// @ts-ignore
+const defaultPhpIniPath = await import('./php.ini');
+const phpVersion = (process.env['PHP'] ||
+	LatestSupportedPHPVersion) as SupportedPHPVersion;
+if (!SupportedPHPVersionsList.includes(phpVersion)) {
+	throw new Error(`Unsupported PHP version ${phpVersion}`);
+}
 
-	const phpVersion = process.env['PHP'] || '8.2';
-
-	// This dynamic import only works after the build step
-	// when the PHP files are present in the same directory
-	// as this script.
-	const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-	const loaderId = await loadPHPRuntime(phpLoaderModule, {
+const php = await PHP.load(phpVersion, {
+	emscriptenOptions: {
 		ENV: {
 			...process.env,
 			TERM: 'xterm',
 		},
-	});
-	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
-	if (!hasMinusCOption) {
-		args.unshift('-c', defaultPhpIniPath);
 	}
-	const php = new PHP(loaderId);
+});
+php.useHostFilesystem();
 
-	// Mount all the root directories
-	const dirs = readdirSync('/')
-		.map((file) => `/${file}`)
-		.filter((file) => lstatSync(file).isDirectory());
-	for (const dir of dirs) {
-		if (!php.fileExists(dir)) {
-			php.mkdirTree(dir);
-		}
-		php.mount({ root: dir }, dir);
-	}
-	php.chdir(process.cwd());
-
-	php.writeFile(caBundlePath, rootCertificates.join('\n'));
-	args.unshift('-d', `openssl.cafile=${caBundlePath}`);
-	php.cli(['php', ...args]).catch((result) => {
-		if (result.name === 'ExitStatus') {
-			process.exit(result.status === undefined ? 1 : result.status);
-		}
-		throw result;
-	});
+const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
+if (!hasMinusCOption) {
+	args.unshift('-c', defaultPhpIniPath);
 }
 
-main();
+php.cli(['php', ...args]).catch((result) => {
+	if (result.name === 'ExitStatus') {
+		process.exit(result.status === undefined ? 1 : result.status);
+	}
+	throw result;
+});

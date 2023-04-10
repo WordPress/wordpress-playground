@@ -4,7 +4,7 @@
  * main thread distinguish between the relevant and irrelevant
  * messages received from the Service Worker.
  *
- * Scopes are included in the `PHPServer.absoluteUrl` as follows:
+ * Scopes are included in the `PHPRequestHandler.absoluteUrl` as follows:
  *
  * An **unscoped** URL: http://localhost:8778/wp-login.php
  * A **scoped** URL:    http://localhost:8778/scope:96253/wp-login.php

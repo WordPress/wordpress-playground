@@ -1,28 +1,56 @@
 import {
-	loadPHPRuntime,
 	PHP,
-	PHPBrowser,
 	PHPClient,
 	exposeAPI,
 	PublicAPI,
-	getPHPLoaderModule,
 	parseWorkerStartupOptions,
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import patchWordPress from './wordpress-patch';
+import {
+	getWordPressModule,
+	LatestSupportedWordPressVersion,
+	SupportedWordPressVersion,
+	SupportedWordPressVersionsList,
+} from './get-wordpress-module';
+
+const startupOptions = parseWorkerStartupOptions<{
+	wpVersion?: string;
+	phpVersion?: string;
+}>();
+
+// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
+// parameters names passed to the worker via a query string.
+const requestedWPVersion = (startupOptions.wpVersion || '').replace('_', '.');
+const wpVersion: SupportedWordPressVersion =
+	SupportedWordPressVersionsList.includes(requestedWPVersion)
+		? (requestedWPVersion as SupportedWordPressVersion)
+		: LatestSupportedWordPressVersion;
+
+const requestedPhpVersion = (startupOptions.phpVersion || '').replace('_', '.');
+const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
+	requestedPhpVersion
+)
+	? (requestedPhpVersion as SupportedPHPVersion)
+	: '8.0';
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-const php = new PHP(undefined, {
-	documentRoot: DOCROOT,
-	absoluteUrl: scopedSiteUrl,
-	isStaticFilePath: isUploadedFilePath,
-});
-
 const monitor = new EmscriptenDownloadMonitor();
+const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
+	downloadMonitor: monitor,
+	requestHandler: {
+		documentRoot: DOCROOT,
+		absoluteUrl: scopedSiteUrl,
+		isStaticFilePath: isUploadedFilePath,
+	},
+	dataModules: [getWordPressModule(wpVersion)],
+});
 
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerClientClass extends PHPClient {
@@ -44,22 +72,13 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 	}
 
 	async getWordPressModuleDetails() {
+		const version = await this.wordPressVersion;
 		return {
-			staticAssetsDirectory: `wp-${wpVersion.replace('_', '.')}`,
+			staticAssetsDirectory: `wp-${version.replace('_', '.')}`,
 			defaultTheme: wpLoaderModule?.defaultThemeName,
 		};
 	}
 }
-
-type PlaygroundStartupOptions = {
-	wpVersion?: string;
-	phpVersion?: string;
-};
-const startupOptions = parseWorkerStartupOptions<PlaygroundStartupOptions>();
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const wpVersion = (startupOptions.wpVersion || '6_2').replace('_', '.');
-const phpVersion = (startupOptions.phpVersion || '8_0').replace('_', '.');
 
 /** @inheritDoc PlaygroundWorkerClientClass */
 export interface PlaygroundWorkerClient
@@ -69,38 +88,7 @@ const [setApiReady]: [() => void, PlaygroundWorkerClient] = exposeAPI(
 	new PlaygroundWorkerClientClass(php, monitor, scope, wpVersion, phpVersion)
 );
 
-// Load PHP and WordPress modules:
-const [phpLoaderModule, wpLoaderModule] = await Promise.all([
-	getPHPLoaderModule(phpVersion),
-	getWordPressModule(wpVersion),
-]);
-monitor.setModules([phpLoaderModule, wpLoaderModule]);
-php.initializeRuntime(
-	await loadPHPRuntime(phpLoaderModule, monitor.getEmscriptenArgs(), [
-		wpLoaderModule,
-	])
-);
+await phpReady;
+const wpLoaderModule = (await dataModules)[0] as any;
 patchWordPress(php, scopedSiteUrl);
-
 setApiReady();
-
-export function getWordPressModule(version: string) {
-	switch (version) {
-		case '5.9':
-			/** @ts-ignore */
-			return import('../wordpress/wp-5.9.js');
-		case '6.0':
-			/** @ts-ignore */
-			return import('../wordpress/wp-6.0.js');
-		case '6.1':
-			/** @ts-ignore */
-			return import('../wordpress/wp-6.1.js');
-		case '6.2':
-			/** @ts-ignore */
-			return import('../wordpress/wp-6.2.js');
-		case 'nightly':
-			/** @ts-ignore */
-			return import('../wordpress/wp-nightly.js');
-	}
-	throw new Error(`Unsupported WordPress module: ${version}`);
-}
