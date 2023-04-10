@@ -6,6 +6,7 @@ import type {
 	PHPResponse,
 	WithRun,
 	WithRequestHandler,
+	PHPRunOptions,
 } from '@php-wasm/common';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -129,7 +130,7 @@ export class PHPClient
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.run */
-	async run(request?: PHPRequest | undefined): Promise<PHPResponse> {
+	async run(request?: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
 	}
 
