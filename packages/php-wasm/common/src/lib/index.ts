@@ -3,26 +3,36 @@ export type {
 	EmscriptenOptions,
 	ErrnoError,
 	FileInfo,
-	JavascriptRuntime,
+	RuntimeType,
 	MountSettings,
 	PHPLoaderModule,
 	PHPOutput,
-	PHPRequest,
+	PHPRunOptions,
 	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
 	WithCLI,
 	WithFilesystem,
 	WithRun,
+	WithRequestHandler,
 	WithNodeFilesystem,
 	WithPHPIniBindings,
 } from './php';
-export { loadPHPRuntime, PHP } from './php';
 
-export type { PHPServerConfigation, PHPServerRequest } from './php-server';
-export { PHPServer } from './php-server';
+export {
+	LatestSupportedPHPVersion,
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
+} from './supported-php-versions';
+export type { SupportedPHPVersion } from './supported-php-versions';
+export { BasePHP, loadPHPRuntime } from './php';
 
-export type { WithRequest } from './php-browser';
+export type {
+	PHPRequestHandlerConfiguration,
+	PHPRequest,
+} from './php-request-handler';
+export { PHPRequestHandler } from './php-request-handler';
+export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
 
 export type { WorkerStartupOptions, PublicAPI } from './api';

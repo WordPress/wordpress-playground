@@ -1,12 +1,12 @@
 import express from 'express';
-import { getPHPLoaderModule, loadPHPRuntime, PHP, PHP_VERSIONS } from '..';
+import { PHP, SupportedPHPVersions } from '..';
 
-describe.each(PHP_VERSIONS)(
+describe.each(SupportedPHPVersions)(
 	'PHP %s',
 	(phpVersion) => {
 		it('should be able to make a request to a server', async () => {
 			const serverUrl = await startServer();
-			const php = await startPHP(phpVersion);
+			const php = await PHP.load(phpVersion);
 			php.setPhpIniEntry('allow_url_fopen', '1');
 			php.writeFile(
 				'/tmp/test.php',
@@ -36,10 +36,4 @@ async function startServer() {
 		});
 	});
 	return 'http://127.0.0.1:' + server.address().port;
-}
-
-async function startPHP(version: string) {
-	const phpLoaderModule = await getPHPLoaderModule(version);
-	const runtimeId = await loadPHPRuntime(phpLoaderModule);
-	return new PHP(runtimeId);
 }

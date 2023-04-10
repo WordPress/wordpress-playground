@@ -15,11 +15,11 @@ export async function login(
 	password = 'password'
 ) {
 	await playground.request({
-		relativeUrl: '/wp-login.php',
+		url: '/wp-login.php',
 	});
 
 	await playground.request({
-		relativeUrl: '/wp-login.php',
+		url: '/wp-login.php',
 		method: 'POST',
 		formData: {
 			log: user,

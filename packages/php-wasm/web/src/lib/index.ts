@@ -1,30 +1,28 @@
-export { PHP, loadPHPRuntime } from '@php-wasm/common';
+export { loadPHPRuntime } from '@php-wasm/common';
 export type {
-	PHPOutput,
-	PHPServer,
-	PHPServerRequest,
-	PHPRequest,
-	PHPResponse,
-	JavascriptRuntime,
-	ErrnoError,
 	DataModule,
+	EmscriptenOptions,
+	ErrnoError,
+	MountSettings,
 	PHPLoaderModule,
 	PHPRuntime,
 	PHPRuntimeId,
-	EmscriptenOptions,
-	MountSettings,
+	PHPRequestHandler,
+	PHPRequest,
+	PHPResponse,
+	PHPOutput,
+	RuntimeType,
 } from '@php-wasm/common';
 
-export * from './php-client';
+export type { PHPWebLoaderOptions } from './php';
 
-export { PHP_VERSIONS, getPHPLoaderModule } from './get-php-loader-module';
+export { PHP } from './php';
+export { PHPClient } from './php-client';
+export { getPHPLoaderModule } from './get-php-loader-module';
+export { registerServiceWorker } from './register-service-worker';
 
 export { parseWorkerStartupOptions } from './worker-thread/parse-startup-options';
 export {
 	spawnPHPWorkerThread,
 	recommendedWorkerBackend,
 } from './worker-thread/spawn-php-worker-thread';
-
-export { registerServiceWorker } from './register-service-worker';
-
-export { PHPClient } from './php-client';

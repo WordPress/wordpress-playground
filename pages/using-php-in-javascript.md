@@ -3,10 +3,9 @@
 The [`php-wasm-web`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/web) and [`php-wasm-node`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/php-wasm/node) modules bring PHP into JavaScript as a WebAssembly module:
 
 ```js
-import { PHP, getPHPLoaderModule, loadPHPRuntime } from '@php-wasm/web';
+import { PHP } from '@php-wasm/web';
 
-const runtime = await loadPHPRuntime(await getPHPLoaderModule(phpVersion));
-const php = new PHP(runtime);
+const php = await PHP.load(phpVersion);
 
 console.log(php.run(`<?php echo "Hello from PHP!";`).stdout);
 // Output: "Hello from PHP!"
@@ -96,8 +95,8 @@ export default function (jsEnv, emscriptenModuleArgs) {}
 `php-wasm-web` provides a stack of APIs to interact with the WebAssembly module:
 
 -   A `PHP` class to directly interface with the WebAssembly module.
--   A `PHPServer` class to use PHP for handling HTTP requests.
--   A `PHPBrowser` class to handle cookies and redirects emitted by `PHPServer`
+-   A `PHPRequestHandler` class to use PHP for handling HTTP requests.
+-   A `PHPBrowser` class to handle cookies and redirects emitted by `PHPRequestHandler`
 
 ### Building
 
@@ -228,9 +227,9 @@ const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
 
 ### php-server.js
 
-<!-- include /docs/api/classes/php_wasm_web.PHPServer.md#Class: PHPServer -->
+<!-- include /docs/api/classes/php_wasm_web.PHPRequestHandler.md#Class: PHPRequestHandler -->
 
-[@php-wasm/web](api/classes/php_wasm_web.PHPServer.html).PHPServer
+[@php-wasm/web](api/classes/php_wasm_web.PHPRequestHandler.html).PHPRequestHandler
 
 A fake PHP server that handles HTTP requests but does not
 bind to any port.
@@ -241,8 +240,7 @@ bind to any port.
 import {
 	loadPHPRuntime,
 	PHP,
-	PHPServer,
-	PHPBrowser,
+	PHPRequestHandler,
 	getPHPLoaderModule,
 } from '@php-wasm/web';
 
@@ -252,12 +250,12 @@ const php = new PHP(runtime);
 php.mkdirTree('/www');
 php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
 
-const server = new PHPServer(php, {
+const server = new PHPRequestHandler(php, {
 	// PHP FS path to serve the files from:
 	documentRoot: '/www',
 
 	// Used to populate $_SERVER['SERVER_NAME'] etc.:
-	absoluteUrl: 'http://127.0.0.1',
+	url: 'http://127.0.0.1',
 });
 
 const output = server.request({ path: '/index.php' }).body;
@@ -265,4 +263,4 @@ console.log(new TextDecoder().decode(output));
 // "Hi from PHP!"
 ```
 
-<!-- /include /docs/api/classes/php_wasm_web.PHPServer.md#Class: PHPServer -->
+<!-- /include /docs/api/classes/php_wasm_web.PHPRequestHandler.md#Class: PHPRequestHandler -->

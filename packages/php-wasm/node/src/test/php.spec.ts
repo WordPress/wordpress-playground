@@ -1,16 +1,14 @@
-import { PHP_VERSIONS, getPHPLoaderModule } from '..';
-import { PHP, loadPHPRuntime } from '@php-wasm/common';
+import { getPHPLoaderModule, PHP, SupportedPHPVersions } from '..';
+import { loadPHPRuntime } from '@php-wasm/common';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {
-		const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-		const runtimeId = await loadPHPRuntime(phpLoaderModule);
-		php = new PHP(runtimeId);
+		php = await PHP.load(phpVersion);
 	});
 
 	describe('Filesystem', () => {
@@ -433,6 +431,7 @@ bar1
 				},
 			});
 			const bodyText = new TextDecoder().decode(response.body);
+			console.log(bodyText);
 			const $_SERVER = JSON.parse(bodyText);
 			expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
 			expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');

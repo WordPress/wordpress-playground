@@ -15,25 +15,21 @@ WS proxy.
 Here's how to use it:
 
 ```js
-import {
-	loadPHPRuntime,
-	getPHPLoaderModule,
-	PHP,
-	PHPServer,
-} from '@php-wasm/node';
-const php = new PHP(await loadPHPRuntime(await getPHPLoaderModule('8.0')));
+import { PHP } from '@php-wasm/node';
+const php = PHP.load('8.0', {
+	requestHandler: {
+		documentRoot: new URL('./', import.meta.url).pathname,
+	},
+});
 
 // Create and run a script directly
 php.writeFile('./index.php', `<?php echo "Hello " . $_POST['name']; ?>`);
-php.run({ scriptPath: './index.php' });
+await php.run({ scriptPath: './index.php' });
 
 // Or use the familiar HTTP concepts:
-const server = new PHPServer(php, {
-	documentRoot: new URL('./', import.meta.url).pathname,
-});
-const response = server.request({
+const response = await php.request({
 	method: 'POST',
-	relativeUrl: '/index.php',
+	url: '/index.php',
 	data: { name: 'John' },
 });
 ```

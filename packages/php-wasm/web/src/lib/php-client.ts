@@ -1,14 +1,12 @@
 import type {
 	WithFilesystem,
-	PHP,
-	PHPBrowser,
-	PHPServer,
-	PHPServerRequest,
-	WithPHPIniBindings,
+	BasePHP,
 	PHPRequest,
+	WithPHPIniBindings,
 	PHPResponse,
 	WithRun,
-	WithRequest,
+	WithRequestHandler,
+	PHPRunOptions,
 } from '@php-wasm/common';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -36,9 +34,7 @@ interface WithProgress {
 const _private = new WeakMap<
 	PHPClient,
 	{
-		php: PHP;
-		phpServer: PHPServer;
-		phpBrowser: PHPBrowser;
+		php: BasePHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -56,21 +52,21 @@ const _private = new WeakMap<
 export class PHPClient
 	implements
 		Promisify<
-			WithRequest &
-				WithPHPIniBindings &
+			WithPHPIniBindings &
 				WithFilesystem &
 				WithRun &
+				WithRequestHandler &
 				WithProgress &
 				WithPathConversion
 		>
 {
-	/** @inheritDoc @php-wasm/web!PHPServer.absoluteUrl */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
 	absoluteUrl: Promise<string>;
-	/** @inheritDoc @php-wasm/web!PHPServer.documentRoot */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
 	documentRoot: Promise<string>;
 
 	/** @inheritDoc */
-	constructor(browser: PHPBrowser, monitor?: EmscriptenDownloadMonitor) {
+	constructor(php: BasePHP, monitor?: EmscriptenDownloadMonitor) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -95,23 +91,29 @@ export class PHPClient
 		 * ```
 		 */
 		_private.set(this, {
-			php: browser.server.php,
-			phpServer: browser.server,
-			phpBrowser: browser,
+			php,
 			monitor,
 		});
-		this.absoluteUrl = Promise.resolve(browser.server.absoluteUrl);
-		this.documentRoot = Promise.resolve(browser.server.documentRoot);
+		this.absoluteUrl = Promise.resolve(
+			php.requestHandler!.server.absoluteUrl
+		);
+		this.documentRoot = Promise.resolve(
+			php.requestHandler!.server.documentRoot
+		);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.pathToInternalUrl */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
 	async pathToInternalUrl(path: string): Promise<string> {
-		return _private.get(this)!.phpServer.pathToInternalUrl(path);
+		return _private
+			.get(this)!
+			.php.requestHandler!.server.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.internalUrlToPath */
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
 	async internalUrlToPath(internalUrl: string): Promise<string> {
-		return _private.get(this)!.phpServer.internalUrlToPath(internalUrl);
+		return _private
+			.get(this)!
+			.php.requestHandler!.server.internalUrlToPath(internalUrl);
 	}
 
 	async onDownloadProgress(
@@ -122,16 +124,13 @@ export class PHPClient
 			.monitor?.addEventListener('progress', callback as any);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPServer.request */
-	request(
-		request: PHPServerRequest,
-		redirects?: number
-	): Promise<PHPResponse> {
-		return _private.get(this)!.phpBrowser.request(request, redirects);
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.request */
+	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
+		return _private.get(this)!.php.request(request, redirects);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.run */
-	async run(request?: PHPRequest | undefined): Promise<PHPResponse> {
+	async run(request?: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
 	}
 

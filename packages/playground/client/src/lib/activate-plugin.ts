@@ -13,7 +13,7 @@ export async function activatePlugin(
 ) {
 	const pluginsPage = asDOM(
 		await playground.request({
-			relativeUrl: '/wp-admin/plugins.php',
+			url: '/wp-admin/plugins.php',
 		})
 	);
 
@@ -23,6 +23,6 @@ export async function activatePlugin(
 	const href = link.attributes.getNamedItem('href')!.value;
 
 	await playground.request({
-		relativeUrl: '/wp-admin/' + href,
+		url: '/wp-admin/' + href,
 	});
 }

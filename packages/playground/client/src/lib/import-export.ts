@@ -9,7 +9,7 @@ const databaseExportPath = '/' + databaseExportName;
 
 export async function exportFile(playground: PlaygroundClient) {
 	const databaseExportResponse = await playground.request({
-		relativeUrl: '/wp-admin/export.php?download=true&&content=all',
+		url: '/wp-admin/export.php?download=true&&content=all',
 	});
 	const databaseExportContent = new TextDecoder().decode(
 		databaseExportResponse.body
@@ -71,7 +71,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 	);
 
 	const importerPageOneResponse = await playground.request({
-		relativeUrl: '/wp-admin/admin.php?import=wordpress',
+		url: '/wp-admin/admin.php?import=wordpress',
 	});
 
 	const importerPageOneContent = new DOMParser().parseFromString(
@@ -84,7 +84,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 		?.getAttribute('action');
 
 	const stepOneResponse = await playground.request({
-		relativeUrl: `/wp-admin/${firstUrlAction}`,
+		url: `/wp-admin/${firstUrlAction}`,
 		method: 'POST',
 		files: { import: databaseFile },
 	});
@@ -120,7 +120,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 	).value;
 
 	await playground.request({
-		relativeUrl: secondUrlAction,
+		url: secondUrlAction,
 		method: 'POST',
 		formData: {
 			_wpnonce: nonce,

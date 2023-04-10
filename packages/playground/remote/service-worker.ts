@@ -7,7 +7,7 @@ import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
-	seemsLikeAPHPServerPath,
+	seemsLikeAPHPRequestHandlerPath,
 	cloneRequest,
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
@@ -51,7 +51,7 @@ initializeServiceWorker({
 			const { staticAssetsDirectory, defaultTheme } =
 				await getScopedWpDetails(scope!);
 			if (
-				(seemsLikeAPHPServerPath(unscopedUrl.pathname) ||
+				(seemsLikeAPHPRequestHandlerPath(unscopedUrl.pathname) ||
 					isUploadedFilePath(unscopedUrl.pathname)) &&
 				!unscopedUrl.pathname.startsWith(
 					`/wp-content/themes/${defaultTheme}`
