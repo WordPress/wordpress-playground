@@ -1,11 +1,7 @@
 import type { PHPResponse } from '@php-wasm/web';
 
 export function asDOM(response: PHPResponse) {
-	return new DOMParser().parseFromString(asText(response), 'text/html')!;
-}
-
-export function asText(response: PHPResponse) {
-	return new TextDecoder().decode(response.bytes);
+	return new DOMParser().parseFromString(response.text, 'text/html')!;
 }
 
 export function zipNameToHumanName(zipName: string) {

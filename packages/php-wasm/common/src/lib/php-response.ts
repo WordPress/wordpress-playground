@@ -7,20 +7,24 @@ export class PHPResponse {
 	 * Response headers.
 	 */
 	readonly headers: Record<string, string[]>;
+
 	/**
 	 * Response body. Contains the output from `echo`,
 	 * `print`, inline HTML etc.
 	 */
 	private readonly body: ArrayBuffer;
+
 	/**
-	 * PHP errors.
+	 * Stderr contents, if any.
 	 */
 	readonly errors: string;
+
 	/**
 	 * The exit code of the script. `0` is a success, while
 	 * `1` and `2` indicate an error.
 	 */
 	readonly exitCode: number;
+
 	/**
 	 * Response HTTP status code, e.g. 200.
 	 */

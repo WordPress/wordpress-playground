@@ -258,8 +258,8 @@ const server = new PHPRequestHandler(php, {
 	url: 'http://127.0.0.1',
 });
 
-const output = server.request({ path: '/index.php' }).body;
-console.log(new TextDecoder().decode(output));
+const response = server.request({ path: '/index.php' });
+console.log(response.text);
 // "Hi from PHP!"
 ```
 

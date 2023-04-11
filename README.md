@@ -53,10 +53,10 @@ const client = await connectPlayground(
 await client.isReady();
 await client.goTo('/wp-admin/');
 
-const result = await client.run({
+const response = await client.run({
 	code: '<?php echo "Hi!"; ',
 });
-console.log(new TextDecoder().decode(result.body));
+console.log(response.text);
 ```
 
 ## Contributing

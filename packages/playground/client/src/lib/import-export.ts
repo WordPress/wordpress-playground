@@ -9,11 +9,9 @@ const databaseExportPath = '/' + databaseExportName;
 
 export async function exportFile(playground: PlaygroundClient) {
 	const databaseExportResponse = await playground.request({
-		url: '/wp-admin/export.php?download=true&&content=all',
+		url: '/wp-admin/export.php?download=true&content=all',
 	});
-	const databaseExportContent = new TextDecoder().decode(
-		databaseExportResponse.body
-	);
+	const databaseExportContent = databaseExportResponse.text;
 	await playground.writeFile(databaseExportPath, databaseExportContent);
 	const wpVersion = await playground.wordPressVersion;
 	const phpVersion = await playground.phpVersion;
@@ -62,7 +60,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 	}
 
 	const databaseFromZipFileContent = new TextDecoder().decode(
-		databaseFromZipFileReadRequest.body
+		databaseFromZipFileReadRequest.bytes
 	);
 
 	const databaseFile = new File(
@@ -75,7 +73,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 	});
 
 	const importerPageOneContent = new DOMParser().parseFromString(
-		new TextDecoder().decode(importerPageOneResponse.body),
+		importerPageOneResponse.text,
 		'text/html'
 	);
 
@@ -90,7 +88,7 @@ export async function importFile(playground: PlaygroundClient, file: File) {
 	});
 
 	const importerPageTwoContent = new DOMParser().parseFromString(
-		new TextDecoder().decode(stepOneResponse.body),
+		stepOneResponse.text,
 		'text/html'
 	);
 

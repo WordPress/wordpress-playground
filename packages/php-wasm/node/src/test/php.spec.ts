@@ -173,6 +173,20 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				exitCode: 0,
 			});
 		});
+		it('should provide response text through .text', async () => {
+			const code = `<?php
+			echo "Hello world!";
+			`;
+			const response = await php.run({ code });
+			expect(response.text).toEqual('Hello world!');
+		});
+		it('should provide response JSON through .json', async () => {
+			const code = `<?php
+			echo json_encode(["hello" => "world"]);
+			`;
+			const response = await php.run({ code });
+			expect(response.json).toEqual({ hello: 'world' });
+		});
 	});
 
 	describe('Startup sequence – basics', () => {
@@ -458,7 +472,6 @@ bar1
 				},
 			});
 			const bodyText = new TextDecoder().decode(response.bytes);
-			console.log(bodyText);
 			const $_SERVER = JSON.parse(bodyText);
 			expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
 			expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');

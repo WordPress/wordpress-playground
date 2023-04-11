@@ -55,8 +55,8 @@ export interface PHPRequestHandlerConfiguration {
  * php.mkdirTree('/www');
  * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
  *
- * const output = (await php.request({ path: '/index.php' })).body;
- * console.log(new TextDecoder().decode(output));
+ * const response = await php.request({ path: '/index.php' });
+ * console.log(response.text);
  * // "Hi from PHP!"
  * ```
  *
@@ -83,8 +83,8 @@ export interface PHPRequestHandlerConfiguration {
  *     absoluteUrl: 'http://127.0.0.1'
  * });
  *
- * const output = server.request({ path: '/index.php' }).body;
- * console.log(new TextDecoder().decode(output));
+ * const response = server.request({ path: '/index.php' });
+ * console.log(response.text);
  * // "Hi from PHP!"
  * ```
  */
@@ -238,7 +238,7 @@ export class PHPRequestHandler {
 				'accept-ranges': ['bytes'],
 				'cache-control': ['public, max-age=0'],
 			},
-			this.php.readFileAsBuffer('/tmp/stdout')
+			arrayBuffer
 		);
 	}
 

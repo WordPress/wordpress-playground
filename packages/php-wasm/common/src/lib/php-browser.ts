@@ -1,6 +1,7 @@
 import type PHPRequestHandler from './php-request-handler';
 import type { PHPRequest } from './php-request-handler';
-import type { PHPResponse, WithRequestHandler } from './php';
+import type { WithRequestHandler } from './php';
+import type { PHPResponse } from './php-response';
 
 export interface PHPBrowserConfiguration {
 	/**

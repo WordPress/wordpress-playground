@@ -14,10 +14,9 @@ describe.each(SupportedPHPVersions)(
             echo file_get_contents("${serverUrl}");
             `
 			);
-			const result = await php.run({
+			const { text } = await php.run({
 				scriptPath: '/tmp/test.php',
 			});
-			const text = new TextDecoder().decode(result.body);
 			expect(text).toEqual('response from express');
 		});
 	},
