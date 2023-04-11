@@ -32,4 +32,5 @@ const response = await php.request({
 	url: '/index.php',
 	data: { name: 'John' },
 });
+console.log(response.text);
 ```
