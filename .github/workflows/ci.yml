@@ -18,7 +18,7 @@ jobs:
             - run: npm install -g yarn nx
             - run: yarn install --frozen-lockfile
 
-            - run: nx format:check
+            - run: nx format:check || npx prettier --check .
             - run: nx affected --target=typecheck
             - run: nx affected --target=lint --parallel=3
             - run: nx affected --target=test --parallel=3 --configuration=ci
