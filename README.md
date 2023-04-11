@@ -35,28 +35,32 @@ You can connect to the Playground using the JavaScript client. Here's an example
 		<title>WordPress Playground</title>
 	</head>
 	<body>
-		<iframe id="wp" style="width: 1200px; height: 800px;"></iframe>
-		<script src="./index.js"></script>
+		<iframe id="wp" style="width: 1200px; height: 800px"></iframe>
+		<script type="importmap">
+			{
+				"imports": {
+					"@wp-playground/client": "https://unpkg.com/@wp-playground/client/index.js"
+				}
+			}
+		</script>
+		<script type="module">
+			import { connectPlayground, login } from '@wp-playground/client';
+
+			const client = await connectPlayground(
+				document.getElementById('wp'),
+				{ loadRemote: 'https://playground.wordpress.net/remote.html' }
+			);
+			await client.isReady();
+			await login(client, 'admin', 'password');
+			await client.goTo('/wp-admin/post-new.php');
+
+			const response = await client.run({
+				code: '<?php echo "Hi!"; ',
+			});
+			console.log(response.text);
+		</script>
 	</body>
 </html>
-```
-
-**index.ts**:
-
-```ts
-import { connectPlayground } from '@wp-playground/client';
-
-const client = await connectPlayground(
-	// An iframe pointing to https://playground.wordpress.net
-	document.getElementById('wp')! as HTMLIFrameElement
-);
-await client.isReady();
-await client.goTo('/wp-admin/');
-
-const response = await client.run({
-	code: '<?php echo "Hi!"; ',
-});
-console.log(response.text);
 ```
 
 ## Contributing
