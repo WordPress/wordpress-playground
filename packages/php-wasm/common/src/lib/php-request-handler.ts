@@ -146,7 +146,7 @@ export class PHPRequestHandler {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
-			absoluteUrl = location.origin,
+			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			isStaticFilePath = () => false,
 		} = config;
 		this.php = php;
