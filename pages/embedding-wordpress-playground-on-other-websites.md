@@ -7,7 +7,10 @@ The easiest way to integrate is to [link to the demo](https://developer.wordpres
 The latest build available at [https://playground.wordpress.net/](https://playground.wordpress.net/) may be embedded using the `<iframe>` HTML tag:
 
 ```html
-<iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?mode=seamless"></iframe>
+<iframe
+	style="width: 800px; height: 500px;"
+	src="https://playground.wordpress.net/?mode=seamless"
+></iframe>
 ```
 
 Notice how the URL says `mode=seamless`. This is a configuration option that turns off the "browser UI" and gives WordPress the entire available space.
@@ -26,7 +29,10 @@ Here's the full list of supported configuration options:
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin, and opens the post editor:
 
 ```html
-<iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"></iframe>
+<iframe
+	style="width: 800px; height: 500px;"
+	src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"
+></iframe>
 ```
 
 ## Controlling the embedded WordPress Playground via JavaScript API

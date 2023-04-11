@@ -46,7 +46,10 @@ You can connect to the Playground using the JavaScript client. Here's an example
 		<script type="module">
 			import { connectPlayground, login } from '@wp-playground/client';
 
-			const client = await connectPlayground(document.getElementById('wp'), { loadRemote: 'https://playground.wordpress.net/remote.html' });
+			const client = await connectPlayground(
+				document.getElementById('wp'),
+				{ loadRemote: 'https://playground.wordpress.net/remote.html' }
+			);
 			await client.isReady();
 			await login(client, 'admin', 'password');
 			await client.goTo('/wp-admin/post-new.php');

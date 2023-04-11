@@ -11,7 +11,10 @@ WordPress Playground is a WordPress running in the browser without a PHP server.
 You can embed WordPress Playground using an iframe. **Note this is an experimental feature that may break or change without a warning.**
 
 ```html
-<iframe style="width: 800px; height: 500px;" src="https://playground.wordpress.net/?mode=seamless"></iframe>
+<iframe
+	style="width: 800px; height: 500px;"
+	src="https://playground.wordpress.net/?mode=seamless"
+></iframe>
 ```
 
 Learn more about the configuration options and JavaScript API at [embedding WordPress Playground on other websites](./embedding-wordpress-playground-on-other-websites.html).
