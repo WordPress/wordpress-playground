@@ -103,11 +103,11 @@ export interface WithNodeFilesystem {
 	/**
 	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
 	 *
-	 * @param  settings - The Node.js filesystem settings.
-	 * @param  path     - The path to mount the filesystem to.
+	 * @param  localPath - The path of a real local directory you want to mount.
+	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
 	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
 	 */
-	mount(settings: any, path: string): void;
+	mount(localPath: string | MountSettings, virtualFSPath: string): void;
 }
 
 export interface WithFilesystem {
@@ -662,11 +662,11 @@ export abstract class BasePHP
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not mount a directory')
-	mount(settings: MountSettings, path: string) {
+	mount(localPath: string | MountSettings, virtualFSPath: string) {
 		this.#Runtime.FS.mount(
 			this.#Runtime.FS.filesystems.NODEFS,
-			settings,
-			path
+			typeof localPath === 'object' ? localPath : { root: localPath },
+			virtualFSPath
 		);
 	}
 }

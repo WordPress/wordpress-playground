@@ -35,13 +35,7 @@ Here's what that boot sequence looks like in code:
 **/app.ts**:
 
 ```ts
-import {
-	consumeAPI,
-	PHPClient,
-	recommendedWorkerBackend,
-	registerServiceWorker,
-	spawnPHPWorkerThread,
-} from '@php-wasm/web';
+import { consumeAPI, PHPClient, recommendedWorkerBackend, registerServiceWorker, spawnPHPWorkerThread } from '@php-wasm/web';
 
 const workerUrl = '/worker-thread.js';
 
@@ -66,18 +60,11 @@ export async function startApp() {
 	);
 
 	// Create a few PHP files to browse:
-	await workerThread.writeFile(
-		'/index.php',
-		'<a href="page.php">Go to page.php</a>'
-	);
-	await workerThread.writeFile(
-		'/page.php',
-		'<?php echo "Hello from PHP!"; ?>'
-	);
+	await workerThread.writeFile('/index.php', '<a href="page.php">Go to page.php</a>');
+	await workerThread.writeFile('/page.php', '<?php echo "Hello from PHP!"; ?>');
 
 	// Navigate to index.php:
-	document.getElementById('my-app').src =
-		playground.pathToInternalUrl('/index.php');
+	document.getElementById('my-app').src = playground.pathToInternalUrl('/index.php');
 }
 startApp();
 ```
@@ -182,14 +169,13 @@ As soon as you click that button the browser will freeze and you won't be able t
 
 Worker threads are separate programs that can process heavy tasks outside of the main application. They must be initiated by the main JavaScript program living in the browser tab. Here's how:
 
-```js
-const phpClient =
-	consumeAPI <
-	PHPClient >
+```ts
+const phpClient = consumeAPI<PHPClient>(
 	spawnPHPWorkerThread(
 		'/worker-thread.js', // Valid Worker script URL
 		recommendedWorkerBackend // "webworker" or "iframe", see the docstring
-	);
+	)
+);
 await phpClient.isReady();
 await phpClient.run({ code: `<?php echo "Hello from the thread!";` });
 ```
@@ -214,11 +200,8 @@ Spins a new `Worker` instance with the given Worker Thread script. This is the c
 
 Example usage:
 
-```js
-const phpClient =
-	consumeAPI <
-	PHPClient >
-	spawnPHPWorkerThread('/worker-thread.js', 'webworker');
+```ts
+const phpClient = consumeAPI<PHPClient>(spawnPHPWorkerThread('/worker-thread.js', 'webworker'));
 ```
 
 #### `iframe`
@@ -236,14 +219,8 @@ Example usage:
 
 **/app.js**:
 
-```js
-const phpClient =
-	consumeAPI <
-	PHPClient >
-	spawnPHPWorkerThread(
-		'/iframe-worker.html?script=/worker-thread.js',
-		'iframe'
-	);
+```ts
+const phpClient = consumeAPI<PHPClient>(spawnPHPWorkerThread('/iframe-worker.html?script=/worker-thread.js', 'iframe'));
 ```
 
 **/iframe-worker.html** (Also provided in `@php-wasm/web` package):
