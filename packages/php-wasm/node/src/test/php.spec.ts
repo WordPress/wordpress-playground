@@ -75,7 +75,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 		});
 
-		it.only('unlink() should throw a useful error when parent directory does not exist', () => {
+		it('unlink() should throw a useful error when parent directory does not exist', () => {
 			expect(() => {
 				php.unlink('/a/b/c/d/e/f');
 			}).toThrowError(
