@@ -1,5 +1,5 @@
-import { getPHPLoaderModule, PHP, SupportedPHPVersions } from '..';
-import { loadPHPRuntime } from '@php-wasm/common';
+import { getPHPLoaderModule, PHP } from '..';
+import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/common';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
@@ -17,6 +17,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('writeFile() should create a file when it does not exist', () => {
 			php.writeFile(testFilePath, 'Hello World!');
 			expect(php.fileExists(testFilePath)).toEqual(true);
+		});
+
+		it('writeFile() should throw a useful error when parent directory does not exist', () => {
+			expect(() => {
+				php.writeFile('/a/b/c/d/e/f', 'Hello World!');
+			}).toThrowError(
+				'Could not write to "/a/b/c/d/e/f": There is no such file or directory OR the parent directory does not exist.'
+			);
+		});
+
+		it('writeFile() should throw a useful error when the specified path is a directory', () => {
+			php.mkdirTree('/dir');
+			expect(() => {
+				php.writeFile('/dir', 'Hello World!');
+			}).toThrowError(
+				new Error(
+					`Could not write to "/dir": There is a directory under that path.`
+				)
+			);
 		});
 
 		it('writeFile() should overwrite a file when it exists', () => {
@@ -53,6 +72,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			php.mkdirTree(testDirPath + '/nested/doubly/triply');
 			expect(php.isDir(testDirPath + '/nested/doubly/triply')).toEqual(
 				true
+			);
+		});
+
+		it('unlink() should throw a useful error when parent directory does not exist', () => {
+			expect(() => {
+				php.unlink('/a/b/c/d/e/f');
+			}).toThrowError(
+				'Could not unlink "/a/b/c/d/e/f": There is no such file or directory OR the parent directory does not exist.'
 			);
 		});
 

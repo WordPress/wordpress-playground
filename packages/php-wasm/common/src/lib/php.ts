@@ -3,6 +3,7 @@ import PHPRequestHandler, {
 	PHPRequest,
 	PHPRequestHandlerConfiguration,
 } from './php-request-handler';
+import { rethrowFileSystemError } from './rethrow-file-system-error';
 
 const STR = 'string';
 const NUM = 'number';
@@ -612,30 +613,38 @@ export abstract class BasePHP
 		};
 	}
 
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdirTree(path: string) {
 		this.#Runtime.FS.mkdirTree(path);
 	}
 
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsText(path: string) {
 		return new TextDecoder().decode(this.readFileAsBuffer(path));
 	}
 
 	/** @inheritDoc */
+	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsBuffer(path: string): Uint8Array {
 		return this.#Runtime.FS.readFile(path);
 	}
 
 	/** @inheritDoc */
+	@rethrowFileSystemError('Could not write to "{path}"')
 	writeFile(path: string, data: string | Uint8Array) {
 		this.#Runtime.FS.writeFile(path, data);
 	}
 
 	/** @inheritDoc */
+	@rethrowFileSystemError('Could not unlink "{path}"')
 	unlink(path: string) {
 		this.#Runtime.FS.unlink(path);
 	}
 
 	/** @inheritDoc */
+	@rethrowFileSystemError('Could not list files in "{path}"')
 	listFiles(path: string): string[] {
 		if (!this.fileExists(path)) {
 			return [];
@@ -650,6 +659,8 @@ export abstract class BasePHP
 		}
 	}
 
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not stat "{path}"')
 	isDir(path: string): boolean {
 		if (!this.fileExists(path)) {
 			return false;
@@ -659,6 +670,8 @@ export abstract class BasePHP
 		);
 	}
 
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not stat "{path}"')
 	fileExists(path: string): boolean {
 		try {
 			this.#Runtime.FS.lookupPath(path);
@@ -668,6 +681,8 @@ export abstract class BasePHP
 		}
 	}
 
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not mount a directory')
 	mount(settings: MountSettings, path: string) {
 		this.#Runtime.FS.mount(
 			this.#Runtime.FS.filesystems.NODEFS,
@@ -700,14 +715,6 @@ export interface PHPOutput {
 	/** Stderr lines */
 	stderr: string[];
 }
-
-/**
- * Emscripten's filesystem-related Exception.
- *
- * @see https://emscripten.org/docs/api_reference/Filesystem-API.html
- * @see https://github.com/emscripten-core/emscripten/blob/main/system/lib/libc/musl/arch/emscripten/bits/errno.h
- */
-export type ErrnoError = Error;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.

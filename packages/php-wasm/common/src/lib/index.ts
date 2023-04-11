@@ -1,7 +1,6 @@
 export type {
 	DataModule,
 	EmscriptenOptions,
-	ErrnoError,
 	FileInfo,
 	RuntimeType,
 	MountSettings,
@@ -18,6 +17,8 @@ export type {
 	WithNodeFilesystem,
 	WithPHPIniBindings,
 } from './php';
+
+export type { ErrnoError } from './rethrow-file-system-error';
 
 export {
 	LatestSupportedPHPVersion,
