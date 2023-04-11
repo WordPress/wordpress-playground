@@ -25,6 +25,7 @@ export type {
 	PHPRequestHandler,
 	PHPRequestHeaders,
 	PHPResponse,
+	PHPRunOptions,
 	PHPRuntime,
 	PHPRuntimeId,
 	PHPRequestHandlerConfiguration,

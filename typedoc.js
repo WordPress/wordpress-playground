@@ -3,13 +3,13 @@ module.exports = {
 	entryPointStrategy: 'packages',
 	entryPoints: [
 		'./packages/php-wasm/web',
+		'./packages/php-wasm/node',
 		'./packages/php-wasm/progress',
 		'./packages/playground/client',
 	],
 	out: './dist/docs',
 	intentionallyNotExported: [
-		'WithCLI',
-		'WithNodeFilesystem',
+		'BasePHP',
 		'WithRun',
 		'WithRequestHandler',
 		'Promisify',

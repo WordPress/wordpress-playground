@@ -41,7 +41,6 @@ export class PHP extends BasePHP {
 	 * resolves when the PHP instance is ready.
 	 *
 	 * @see load
-	 * @inheritdoc load
 	 */
 	static loadSync(
 		phpVersion: SupportedPHPVersion,
