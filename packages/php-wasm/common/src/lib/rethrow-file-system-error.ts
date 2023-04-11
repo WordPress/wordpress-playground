@@ -46,7 +46,7 @@ const FileErrorCodes = {
 	28: 'Invalid argument.',
 	29: 'I/O error.',
 	30: 'Socket is connected.',
-	31: 'There is a directory under that path',
+	31: 'There is a directory under that path.',
 	32: 'Too many levels of symbolic links.',
 	33: 'File descriptor value too large.',
 	34: 'Too many links.',
