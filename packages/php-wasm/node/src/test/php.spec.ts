@@ -28,7 +28,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('writeFile() should throw a useful error when the specified path is a directory', () => {
-			php.mkdirTree('/dir');
+			php.mkdir('/dir');
 			expect(() => {
 				php.writeFile('/dir', 'Hello World!');
 			}).toThrowError(
@@ -63,13 +63,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(php.fileExists(testFilePath)).toEqual(false);
 		});
 
-		it('mkdirTree() should create a directory', () => {
-			php.mkdirTree(testDirPath);
+		it('mkdir() should create a directory', () => {
+			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
 		});
 
-		it('mkdirTree() should create all nested directories', () => {
-			php.mkdirTree(testDirPath + '/nested/doubly/triply');
+		it('mkdir() should create all nested directories', () => {
+			php.mkdir(testDirPath + '/nested/doubly/triply');
 			expect(php.isDir(testDirPath + '/nested/doubly/triply')).toEqual(
 				true
 			);
@@ -84,7 +84,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('isDir() should correctly distinguish between a file and a directory', () => {
-			php.mkdirTree(testDirPath);
+			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
 			expect(php.isDir(testDirPath)).toEqual(true);
 
@@ -94,7 +94,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('listFiles() should return a list of files in a directory', () => {
-			php.mkdirTree(testDirPath);
+			php.mkdir(testDirPath);
 			php.writeFile(testDirPath + '/test.txt', 'Hello World!');
 			php.writeFile(testDirPath + '/test2.txt', 'Hello World!');
 			expect(php.listFiles(testDirPath)).toEqual([

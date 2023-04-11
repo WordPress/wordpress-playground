@@ -118,6 +118,11 @@ export interface WithFilesystem {
 	 *
 	 * @param  path - The directory path to create.
 	 */
+	mkdir(path: string): void;
+
+	/**
+	 * @inheritDoc mkdir
+	 */
 	mkdirTree(path: string): void;
 
 	/**
@@ -594,8 +599,17 @@ export abstract class BasePHP
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not create directory "{path}"')
-	mkdirTree(path: string) {
+	mkdir(path: string) {
 		this.#Runtime.FS.mkdirTree(path);
+	}
+
+	/**
+	 * @inheritDoc
+	 * @deprecated
+	 */
+	@rethrowFileSystemError('Could not create directory "{path}"')
+	mkdirTree(path: string) {
+		this.mkdir(path);
 	}
 
 	/** @inheritDoc */
