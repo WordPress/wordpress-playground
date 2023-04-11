@@ -111,7 +111,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!'),
+				bytes: new TextEncoder().encode('Hello world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -122,7 +122,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!\nI am PHP'),
+				bytes: new TextEncoder().encode('Hello world!\nI am PHP'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -134,7 +134,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(results).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new Uint8Array([1, 0, 1, 0, 2]),
+				bytes: new Uint8Array([1, 0, 1, 0, 2]),
 				errors: '',
 				exitCode: 0,
 			});
@@ -145,7 +145,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!'),
+				bytes: new TextEncoder().encode('Hello world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -155,7 +155,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Ehlo world!'),
+				bytes: new TextEncoder().encode('Ehlo world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -168,7 +168,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(await php.run({ code })).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode(''),
+				bytes: new TextEncoder().encode(''),
 				errors: 'Hello from stderr!',
 				exitCode: 0,
 			});

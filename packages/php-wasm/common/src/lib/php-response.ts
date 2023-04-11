@@ -1,8 +1,8 @@
-/**
- * PHP response. Body is an `ArrayBuffer` because it can
- * contain binary data.
+/*
+ * This type is used in Comlink.transferHandlers.set('PHPResponse', { ... })
+ * so be sure to update that if you change this type.
  */
-export class PHPResponse {
+export interface PHPResponseData {
 	/**
 	 * Response headers.
 	 */
@@ -12,7 +12,7 @@ export class PHPResponse {
 	 * Response body. Contains the output from `echo`,
 	 * `print`, inline HTML etc.
 	 */
-	private readonly body: ArrayBuffer;
+	readonly bytes: ArrayBuffer;
 
 	/**
 	 * Stderr contents, if any.
@@ -29,6 +29,30 @@ export class PHPResponse {
 	 * Response HTTP status code, e.g. 200.
 	 */
 	readonly httpStatusCode: number;
+}
+
+/**
+ * PHP response. Body is an `ArrayBuffer` because it can
+ * contain binary data.
+ *
+ * This type is used in Comlink.transferHandlers.set('PHPResponse', { ... })
+ * so be sure to update that if you change this type.
+ */
+export class PHPResponse implements PHPResponseData {
+	/** @inheritDoc */
+	readonly headers: Record<string, string[]>;
+
+	/** @inheritDoc */
+	readonly bytes: ArrayBuffer;
+
+	/** @inheritDoc */
+	readonly errors: string;
+
+	/** @inheritDoc */
+	readonly exitCode: number;
+
+	/** @inheritDoc */
+	readonly httpStatusCode: number;
 
 	constructor(
 		httpStatusCode: number,
@@ -39,9 +63,29 @@ export class PHPResponse {
 	) {
 		this.httpStatusCode = httpStatusCode;
 		this.headers = headers;
-		this.body = body;
+		this.bytes = body;
 		this.exitCode = exitCode;
 		this.errors = errors;
+	}
+
+	static fromRawData(data: PHPResponseData): PHPResponse {
+		return new PHPResponse(
+			data.httpStatusCode,
+			data.headers,
+			data.bytes,
+			data.errors,
+			data.exitCode
+		);
+	}
+
+	toRawData(): PHPResponseData {
+		return {
+			headers: this.headers,
+			bytes: this.bytes,
+			errors: this.errors,
+			exitCode: this.exitCode,
+			httpStatusCode: this.httpStatusCode,
+		};
 	}
 
 	/**
@@ -55,13 +99,6 @@ export class PHPResponse {
 	 * Response body as text.
 	 */
 	get text() {
-		return new TextDecoder().decode(this.body);
-	}
-
-	/**
-	 * Response body as bytes.
-	 */
-	get bytes() {
-		return this.body;
+		return new TextDecoder().decode(this.bytes);
 	}
 }

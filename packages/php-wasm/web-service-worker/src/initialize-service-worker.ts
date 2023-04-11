@@ -185,7 +185,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		throw e;
 	}
 
-	return new Response(phpResponse.body, {
+	return new Response(phpResponse.bytes, {
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});

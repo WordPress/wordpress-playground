@@ -1,4 +1,5 @@
 import * as Comlink from 'comlink';
+import { PHPResponse, PHPResponseData } from './php-response';
 
 export type WorkerStartupOptions<
 	T extends Record<string, string> = Record<string, string>
@@ -72,6 +73,22 @@ function setupTransferHandlers() {
 		deserialize(port: any) {
 			port.start();
 			return Comlink.wrap(port);
+		},
+	});
+	Comlink.transferHandlers.set('PHPResponse', {
+		canHandle: (obj: unknown): obj is PHPResponseData =>
+			typeof obj === 'object' &&
+			obj !== null &&
+			'headers' in obj &&
+			'bytes' in obj &&
+			'errors' in obj &&
+			'exitCode' in obj &&
+			'httpStatusCode' in obj,
+		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
+			return [obj.toRawData(), []];
+		},
+		deserialize(responseData: PHPResponseData): PHPResponse {
+			return PHPResponse.fromRawData(responseData);
 		},
 	});
 }

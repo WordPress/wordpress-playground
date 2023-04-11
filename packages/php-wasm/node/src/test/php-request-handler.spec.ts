@@ -26,7 +26,7 @@ describe.each(SupportedPHPVersions)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				body: new TextEncoder().encode('Hello World'),
+				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
 				exitCode: 1, // @TODO This should be 0
 			});
@@ -46,7 +46,7 @@ describe.each(SupportedPHPVersions)(
 					'cache-control': ['public, max-age=0'],
 					'content-length': ['11'],
 				},
-				body: new TextEncoder().encode('Hello World'),
+				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -86,7 +86,7 @@ describe.each(SupportedPHPVersions)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				body: new TextEncoder().encode('Hello World'),
+				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
 				exitCode: 1, // @TODO This should be 0
 			});
@@ -96,7 +96,7 @@ describe.each(SupportedPHPVersions)(
 					'content-type': ['text/html; charset=UTF-8'],
 					'x-powered-by': [expect.any(String)],
 				},
-				body: new TextEncoder().encode('Hello World'),
+				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
 				exitCode: 1, // @TODO This should be 0
 			});
