@@ -4,8 +4,9 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { FileInfo, BasePHP, PHPRunOptions, PHPResponse } from './php';
+import type { FileInfo, BasePHP, PHPRunOptions } from './php';
 import Semaphore from './semaphore';
+import { PHPResponse } from './php-response';
 
 export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
 	url: string;
@@ -219,18 +220,16 @@ export class PHPRequestHandler {
 		const fsPath = `${this.#DOCROOT}${path}`;
 
 		if (!this.php.fileExists(fsPath)) {
-			return {
-				body: new TextEncoder().encode('404 File not found'),
-				headers: {},
-				httpStatusCode: 404,
-				exitCode: 0,
-				errors: '',
-			};
+			return new PHPResponse(
+				404,
+				{},
+				new TextEncoder().encode('404 File not found')
+			);
 		}
 		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
-		return {
-			body: arrayBuffer,
-			headers: {
+		return new PHPResponse(
+			200,
+			{
 				'content-length': [`${arrayBuffer.byteLength}`],
 				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
 				//        The code below won't return the correct mime-type if the extension
@@ -239,10 +238,8 @@ export class PHPRequestHandler {
 				'accept-ranges': ['bytes'],
 				'cache-control': ['public, max-age=0'],
 			},
-			httpStatusCode: 200,
-			exitCode: 0,
-			errors: '',
-		};
+			this.php.readFileAsBuffer('/tmp/stdout')
+		);
 	}
 
 	/**

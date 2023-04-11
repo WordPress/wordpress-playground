@@ -5,7 +5,7 @@ export function asDOM(response: PHPResponse) {
 }
 
 export function asText(response: PHPResponse) {
-	return new TextDecoder().decode(response.body);
+	return new TextDecoder().decode(response.bytes);
 }
 
 export function zipNameToHumanName(zipName: string) {
