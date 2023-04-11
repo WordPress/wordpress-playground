@@ -149,6 +149,11 @@ export class PHPClient
 		_private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
+	/** @inheritDoc @php-wasm/web!PHP.mkdir */
+	mkdir(path: string): void {
+		_private.get(this)!.php.mkdir(path);
+	}
+
 	/** @inheritDoc @php-wasm/web!PHP.mkdirTree */
 	mkdirTree(path: string): void {
 		_private.get(this)!.php.mkdirTree(path);

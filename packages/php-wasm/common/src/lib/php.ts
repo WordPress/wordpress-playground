@@ -121,7 +121,7 @@ export interface WithFilesystem {
 	mkdir(path: string): void;
 
 	/**
-	 * @inheritDoc mkdir
+	 * @deprecated Use mkdir instead.
 	 */
 	mkdirTree(path: string): void;
 
@@ -603,10 +603,7 @@ export abstract class BasePHP
 		this.#Runtime.FS.mkdirTree(path);
 	}
 
-	/**
-	 * @inheritDoc
-	 * @deprecated
-	 */
+	/** @inheritDoc */
 	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdirTree(path: string) {
 		this.mkdir(path);
