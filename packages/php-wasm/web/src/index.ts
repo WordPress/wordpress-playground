@@ -23,6 +23,7 @@ export type {
 	PHPLoaderModule,
 	PHPOutput,
 	PHPResponse,
+	PHPRunOptions,
 	PHPRuntime,
 	PHPRuntimeId,
 	PublicAPI,

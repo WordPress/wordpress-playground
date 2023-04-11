@@ -8,13 +8,47 @@ import type { FileInfo, BasePHP, PHPRunOptions } from './php';
 import Semaphore from './semaphore';
 import { PHPResponse } from './php-response';
 
-export type PHPRequest = Pick<PHPRunOptions, 'method' | 'headers'> & {
+export type HTTPMethod =
+	| 'GET'
+	| 'POST'
+	| 'HEAD'
+	| 'OPTIONS'
+	| 'PATCH'
+	| 'PUT'
+	| 'DELETE';
+export type PHPRequestHeaders = Record<string, string>;
+export interface PHPRequest {
+	/**
+	 * Request method. Default: `GET`.
+	 */
+	method?: HTTPMethod;
+
+	/**
+	 * Request path or absolute URL.
+	 */
 	url: string;
+
+	/**
+	 * Request headers.
+	 */
+	headers?: PHPRequestHeaders;
+
+	/**
+	 * Uploaded files
+	 */
 	files?: Record<string, File>;
-} & (
-		| (Pick<PHPRunOptions, 'body'> & { formData?: never })
-		| { body?: never; formData: Record<string, unknown> }
-	);
+
+	/**
+	 * Request body without the files.
+	 */
+	body?: string;
+
+	/**
+	 * Form data. If set, the request body will be ignored and
+	 * the content-type header will be set to `application/x-www-form-urlencoded`.
+	 */
+	formData?: Record<string, unknown>;
+}
 
 export interface PHPRequestHandlerConfiguration {
 	/**

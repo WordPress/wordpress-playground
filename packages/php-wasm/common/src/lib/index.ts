@@ -29,8 +29,10 @@ export type { SupportedPHPVersion } from './supported-php-versions';
 export { BasePHP, loadPHPRuntime } from './php';
 
 export type {
-	PHPRequestHandlerConfiguration,
+	HTTPMethod,
 	PHPRequest,
+	PHPRequestHeaders,
+	PHPRequestHandlerConfiguration,
 } from './php-request-handler';
 export { PHPRequestHandler } from './php-request-handler';
 export type { PHPBrowserConfiguration } from './php-browser';

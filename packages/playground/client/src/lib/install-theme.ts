@@ -1,7 +1,7 @@
 import type { PlaygroundClient } from '../';
 import { asDOM } from './common';
 
-interface InstallThemeOptions {
+export interface InstallThemeOptions {
 	/**
 	 * Whether to activate the theme after installing it.
 	 */

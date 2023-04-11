@@ -1,7 +1,7 @@
 import { asDOM } from './common';
 import type { PlaygroundClient } from '../';
 
-interface InstallPluginOptions {
+export interface InstallPluginOptions {
 	/**
 	 * Whether to activate the plugin after installing it.
 	 */

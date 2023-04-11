@@ -1,7 +1,9 @@
 import PHPBrowser from './php-browser';
 import PHPRequestHandler, {
+	HTTPMethod,
 	PHPRequest,
 	PHPRequestHandlerConfiguration,
+	PHPRequestHeaders,
 } from './php-request-handler';
 import { PHPResponse } from './php-response';
 import { rethrowFileSystemError } from './rethrow-file-system-error';
@@ -14,7 +16,6 @@ export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
 declare const self: WindowOrWorkerGlobalScope;
 declare const WorkerGlobalScope: object | undefined;
 
-type PHPRequestHeaders = Record<string, string>;
 export interface FileInfo {
 	key: string;
 	name: string;
@@ -40,7 +41,7 @@ export interface PHPRunOptions {
 	/**
 	 * Request method. Default: `GET`.
 	 */
-	method?: 'GET' | 'POST' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'PUT' | 'DELETE';
+	method?: HTTPMethod;
 
 	/**
 	 * Request headers.
