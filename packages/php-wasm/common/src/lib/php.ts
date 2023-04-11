@@ -3,6 +3,7 @@ import PHPRequestHandler, {
 	PHPRequest,
 	PHPRequestHandlerConfiguration,
 } from './php-request-handler';
+import { PHPResponse } from './php-response';
 import { rethrowFileSystemError } from './rethrow-file-system-error';
 
 const STR = 'string';
@@ -60,31 +61,6 @@ export interface PHPRunOptions {
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;
-}
-
-export interface PHPResponse {
-	/**
-	 * The exit code of the script. `0` is a success, while
-	 * `1` and `2` indicate an error.
-	 */
-	exitCode: number;
-	/**
-	 * Response body. Contains the output from `echo`,
-	 * `print`, inline HTML etc.
-	 */
-	body: ArrayBuffer;
-	/**
-	 * PHP errors.
-	 */
-	errors: string;
-	/**
-	 * Response headers.
-	 */
-	headers: Record<string, string[]>;
-	/**
-	 * Response HTTP status code, e.g. 200.
-	 */
-	httpStatusCode: number;
 }
 
 export type PHPRuntimeId = number;
@@ -605,12 +581,14 @@ export abstract class BasePHP
 			[]
 		);
 
-		return {
-			exitCode,
-			body: this.readFileAsBuffer('/tmp/stdout'),
-			errors: this.readFileAsText('/tmp/stderr'),
-			...this.#getResponseHeaders(),
-		};
+		const { headers, httpStatusCode } = this.#getResponseHeaders();
+		return new PHPResponse(
+			httpStatusCode,
+			headers,
+			this.readFileAsBuffer('/tmp/stdout'),
+			this.readFileAsText('/tmp/stderr'),
+			exitCode
+		);
 	}
 
 	/** @inheritDoc */

@@ -173,6 +173,20 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				exitCode: 0,
 			});
 		});
+		it('should provide response text through .text', async () => {
+			const code = `<?php
+			echo "Hello world!";
+			`;
+			const response = await php.run({ code });
+			expect(response.text).toEqual('Hello world!');
+		});
+		it('should provide response JSON through .json', async () => {
+			const code = `<?php
+			echo json_encode(["hello" => "world"]);
+			`;
+			const response = await php.run({ code });
+			expect(response.json).toEqual({ hello: 'world' });
+		});
 	});
 
 	describe('Startup sequence – basics', () => {
@@ -235,7 +249,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				scriptPath: testScriptPath,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('Hello world!');
 		});
 
@@ -245,7 +259,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				scriptPath: testScriptPath,
 				code: '<?php echo "Hello from a code snippet!";',
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('Hello from a code snippet!');
 		});
 
@@ -255,7 +269,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				body: '{"foo": "bar"}',
 				code: `<?php echo file_get_contents('php://input');`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo": "bar"}');
 		});
 
@@ -268,7 +282,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo":"bar"}');
 		});
 
@@ -281,7 +295,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual(
 				'{"foo":["bar1","bar2"],"indexed":{"key":"value"}}'
 			);
@@ -299,7 +313,7 @@ bar`,
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo":"bar"}');
 		});
 
@@ -320,7 +334,7 @@ bar
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const expectedResult = {
 				files: {
 					myFile: {
@@ -358,7 +372,7 @@ bar
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual({
 				files: {
 					myFile: {
@@ -400,7 +414,7 @@ bar1
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const expectedResult = {
 				files: {
 					myFile1: {
@@ -457,8 +471,7 @@ bar1
 					'X-is-ajax': 'true',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
-			console.log(bodyText);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const $_SERVER = JSON.parse(bodyText);
 			expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
 			expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');
@@ -495,7 +508,7 @@ bar1
 					echo json_encode($rows);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
 		});
 
@@ -512,7 +525,7 @@ bar1
 					echo json_encode($rows);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
 		});
 	});
@@ -532,7 +545,7 @@ bar1
 					]);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual({
 				md5: '098f6bcd4621d373cade4e832627b4f6',
 				sha1: 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3',

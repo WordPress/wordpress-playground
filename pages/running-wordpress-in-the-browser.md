@@ -47,7 +47,7 @@ const response = await playgroundClient.request({
 });
 console.log(response.statusCode);
 // 200
-console.log(response.body);
+console.log(response.text);
 // ... the rendered wp-login.php page ...
 ```
 

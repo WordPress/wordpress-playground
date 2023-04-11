@@ -113,7 +113,6 @@ export function rethrowFileSystemError(messagePrefix = '') {
 						path !== null
 							? messagePrefix.replaceAll('{path}', path)
 							: messagePrefix;
-					console.log(`${formattedPrefix}: ${errmsg}.`);
 					throw new Error(`${formattedPrefix}: ${errmsg}`, {
 						cause: e,
 					});

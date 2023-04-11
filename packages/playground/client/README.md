@@ -13,10 +13,10 @@ const client = await connectPlayground(
 await client.isReady();
 await client.goTo('/wp-admin/');
 
-const result = await client.run({
+const response = await client.run({
 	code: '<?php echo "Hi!"; ',
 });
-console.log(new TextDecoder().decode(result.body));
+console.log(response.text);
 ```
 
 Using TypeScript is highly recommended as this package ships with comprehensive types – hit ctrl+space in your IDE after `client.` and you'll see all the available methods.

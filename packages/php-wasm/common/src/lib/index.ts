@@ -7,7 +7,6 @@ export type {
 	PHPLoaderModule,
 	PHPOutput,
 	PHPRunOptions,
-	PHPResponse,
 	PHPRuntime,
 	PHPRuntimeId,
 	WithCLI,
@@ -18,6 +17,7 @@ export type {
 	WithPHPIniBindings,
 } from './php';
 
+export type { PHPResponse } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 
 export {
