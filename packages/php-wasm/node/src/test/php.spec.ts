@@ -1,16 +1,14 @@
-import { PHP_VERSIONS, getPHPLoaderModule } from '..';
-import { PHP, loadPHPRuntime } from '@php-wasm/common';
+import { getPHPLoaderModule, PHP } from '..';
+import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/common';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: PHP;
 	beforeEach(async () => {
-		const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-		const runtimeId = await loadPHPRuntime(phpLoaderModule);
-		php = new PHP(runtimeId);
+		php = await PHP.load(phpVersion);
 	});
 
 	describe('Filesystem', () => {
@@ -19,6 +17,25 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 		it('writeFile() should create a file when it does not exist', () => {
 			php.writeFile(testFilePath, 'Hello World!');
 			expect(php.fileExists(testFilePath)).toEqual(true);
+		});
+
+		it('writeFile() should throw a useful error when parent directory does not exist', () => {
+			expect(() => {
+				php.writeFile('/a/b/c/d/e/f', 'Hello World!');
+			}).toThrowError(
+				'Could not write to "/a/b/c/d/e/f": There is no such file or directory OR the parent directory does not exist.'
+			);
+		});
+
+		it('writeFile() should throw a useful error when the specified path is a directory', () => {
+			php.mkdir('/dir');
+			expect(() => {
+				php.writeFile('/dir', 'Hello World!');
+			}).toThrowError(
+				new Error(
+					`Could not write to "/dir": There is a directory under that path.`
+				)
+			);
 		});
 
 		it('writeFile() should overwrite a file when it exists', () => {
@@ -46,20 +63,28 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			expect(php.fileExists(testFilePath)).toEqual(false);
 		});
 
-		it('mkdirTree() should create a directory', () => {
-			php.mkdirTree(testDirPath);
+		it('mkdir() should create a directory', () => {
+			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
 		});
 
-		it('mkdirTree() should create all nested directories', () => {
-			php.mkdirTree(testDirPath + '/nested/doubly/triply');
+		it('mkdir() should create all nested directories', () => {
+			php.mkdir(testDirPath + '/nested/doubly/triply');
 			expect(php.isDir(testDirPath + '/nested/doubly/triply')).toEqual(
 				true
 			);
 		});
 
+		it('unlink() should throw a useful error when parent directory does not exist', () => {
+			expect(() => {
+				php.unlink('/a/b/c/d/e/f');
+			}).toThrowError(
+				'Could not unlink "/a/b/c/d/e/f": There is no such file or directory OR the parent directory does not exist.'
+			);
+		});
+
 		it('isDir() should correctly distinguish between a file and a directory', () => {
-			php.mkdirTree(testDirPath);
+			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
 			expect(php.isDir(testDirPath)).toEqual(true);
 
@@ -69,7 +94,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 		});
 
 		it('listFiles() should return a list of files in a directory', () => {
-			php.mkdirTree(testDirPath);
+			php.mkdir(testDirPath);
 			php.writeFile(testDirPath + '/test.txt', 'Hello World!');
 			php.writeFile(testDirPath + '/test2.txt', 'Hello World!');
 			expect(php.listFiles(testDirPath)).toEqual([
@@ -86,7 +111,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!'),
+				bytes: new TextEncoder().encode('Hello world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -97,7 +122,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!\nI am PHP'),
+				bytes: new TextEncoder().encode('Hello world!\nI am PHP'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -109,7 +134,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			expect(results).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new Uint8Array([1, 0, 1, 0, 2]),
+				bytes: new Uint8Array([1, 0, 1, 0, 2]),
 				errors: '',
 				exitCode: 0,
 			});
@@ -120,7 +145,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Hello world!'),
+				bytes: new TextEncoder().encode('Hello world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -130,7 +155,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode('Ehlo world!'),
+				bytes: new TextEncoder().encode('Ehlo world!'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -143,10 +168,24 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			expect(await php.run({ code })).toEqual({
 				headers: expect.any(Object),
 				httpStatusCode: 200,
-				body: new TextEncoder().encode(''),
+				bytes: new TextEncoder().encode(''),
 				errors: 'Hello from stderr!',
 				exitCode: 0,
 			});
+		});
+		it('should provide response text through .text', async () => {
+			const code = `<?php
+			echo "Hello world!";
+			`;
+			const response = await php.run({ code });
+			expect(response.text).toEqual('Hello world!');
+		});
+		it('should provide response JSON through .json', async () => {
+			const code = `<?php
+			echo json_encode(["hello" => "world"]);
+			`;
+			const response = await php.run({ code });
+			expect(response.json).toEqual({ hello: 'world' });
 		});
 	});
 
@@ -210,7 +249,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				scriptPath: testScriptPath,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('Hello world!');
 		});
 
@@ -220,7 +259,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 				scriptPath: testScriptPath,
 				code: '<?php echo "Hello from a code snippet!";',
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('Hello from a code snippet!');
 		});
 
@@ -230,7 +269,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 				body: '{"foo": "bar"}',
 				code: `<?php echo file_get_contents('php://input');`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo": "bar"}');
 		});
 
@@ -243,7 +282,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo":"bar"}');
 		});
 
@@ -256,7 +295,7 @@ describe.each(PHP_VERSIONS)('PHP %s', (phpVersion) => {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual(
 				'{"foo":["bar1","bar2"],"indexed":{"key":"value"}}'
 			);
@@ -274,7 +313,7 @@ bar`,
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(bodyText).toEqual('{"foo":"bar"}');
 		});
 
@@ -295,7 +334,7 @@ bar
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const expectedResult = {
 				files: {
 					myFile: {
@@ -333,7 +372,7 @@ bar
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual({
 				files: {
 					myFile: {
@@ -375,7 +414,7 @@ bar1
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const expectedResult = {
 				files: {
 					myFile1: {
@@ -432,7 +471,7 @@ bar1
 					'X-is-ajax': 'true',
 				},
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			const $_SERVER = JSON.parse(bodyText);
 			expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
 			expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');
@@ -469,7 +508,7 @@ bar1
 					echo json_encode($rows);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
 		});
 
@@ -486,7 +525,7 @@ bar1
 					echo json_encode($rows);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual(['This is a test']);
 		});
 	});
@@ -506,7 +545,7 @@ bar1
 					]);
 				?>`,
 			});
-			const bodyText = new TextDecoder().decode(response.body);
+			const bodyText = new TextDecoder().decode(response.bytes);
 			expect(JSON.parse(bodyText)).toEqual({
 				md5: '098f6bcd4621d373cade4e832627b4f6',
 				sha1: 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3',

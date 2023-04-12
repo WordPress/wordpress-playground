@@ -3,7 +3,11 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/docs/site/src",
 	"projectType": "library",
-	"implicitDependencies": ["php-wasm-web", "playground-client"],
+	"implicitDependencies": [
+		"php-wasm-web",
+		"php-wasm-node",
+		"playground-client"
+	],
 	"targets": {
 		"build": {
 			"executor": "nx:run-commands",

@@ -1,8 +1,49 @@
-import type PHPServer from './php-server';
-import type { PHPServerRequest } from './php-server';
-import type { PHPResponse } from './php';
+import type PHPRequestHandler from './php-request-handler';
+import type { PHPRequest } from './php-request-handler';
+import type { WithRequestHandler } from './php';
+import type { PHPResponse } from './php-response';
 
-export interface WithRequest {
+export interface PHPBrowserConfiguration {
+	/**
+	 * Should handle redirects internally?
+	 */
+	handleRedirects?: boolean;
+	/**
+	 * The maximum number of redirects to follow internally. Once
+	 * exceeded, request() will return the redirecting response.
+	 */
+	maxRedirects?: number;
+}
+
+/**
+ * A fake web browser that handles PHPRequestHandler's cookies and redirects
+ * internally without exposing them to the consumer.
+ *
+ * @public
+ */
+export class PHPBrowser implements WithRequestHandler {
+	#cookies: Record<string, string>;
+	#config;
+
+	server: PHPRequestHandler;
+
+	/**
+	 * @param  server - The PHP server to browse.
+	 * @param  config - The browser configuration.
+	 */
+	constructor(
+		server: PHPRequestHandler,
+		config: PHPBrowserConfiguration = {}
+	) {
+		this.server = server;
+		this.#cookies = {};
+		this.#config = {
+			handleRedirects: false,
+			maxRedirects: 4,
+			...config,
+		};
+	}
+
 	/**
 	 * Sends the request to the server.
 	 *
@@ -15,44 +56,9 @@ export interface WithRequest {
 	 *
 	 * @param  request   - The request.
 	 * @param  redirects - Internal. The number of redirects handled so far.
-	 * @returns PHPServer response.
+	 * @returns PHPRequestHandler response.
 	 */
-	request(
-		request: PHPServerRequest,
-		redirects?: number
-	): Promise<PHPResponse>;
-}
-
-/**
- * A fake web browser that handles PHPServer's cookies and redirects
- * internally without exposing them to the consumer.
- *
- * @public
- */
-export class PHPBrowser implements WithRequest {
-	#cookies: Record<string, string>;
-	#config;
-
-	server: PHPServer;
-
-	/**
-	 * @param  server - The PHP server to browse.
-	 * @param  config - The browser configuration.
-	 */
-	constructor(server: PHPServer, config: PHPBrowserConfiguration = {}) {
-		this.server = server;
-		this.#cookies = {};
-		this.#config = {
-			handleRedirects: false,
-			maxRedirects: 4,
-			...config,
-		};
-	}
-
-	async request(
-		request: PHPServerRequest,
-		redirects = 0
-	): Promise<PHPResponse> {
+	async request(request: PHPRequest, redirects = 0): Promise<PHPResponse> {
 		const response = await this.server.request({
 			...request,
 			headers: {
@@ -76,7 +82,7 @@ export class PHPBrowser implements WithRequest {
 			);
 			return this.request(
 				{
-					absoluteUrl: redirectUrl.toString(),
+					url: redirectUrl.toString(),
 					method: 'GET',
 					headers: {},
 				},
@@ -110,18 +116,6 @@ export class PHPBrowser implements WithRequest {
 		}
 		return cookiesArray.join('; ');
 	}
-}
-
-interface PHPBrowserConfiguration {
-	/**
-	 * Should handle redirects internally?
-	 */
-	handleRedirects?: boolean;
-	/**
-	 * The maximum number of redirects to follow internally. Once
-	 * exceeded, request() will return the redirecting response.
-	 */
-	maxRedirects?: number;
 }
 
 export default PHPBrowser;

@@ -4,32 +4,102 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { FileInfo, PHP, PHPRequest, PHPResponse } from './php';
+import type { FileInfo, BasePHP, PHPRunOptions } from './php';
 import Semaphore from './semaphore';
+import { PHPResponse } from './php-response';
 
-export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
+export type HTTPMethod =
+	| 'GET'
+	| 'POST'
+	| 'HEAD'
+	| 'OPTIONS'
+	| 'PATCH'
+	| 'PUT'
+	| 'DELETE';
+export type PHPRequestHeaders = Record<string, string>;
+export interface PHPRequest {
+	/**
+	 * Request method. Default: `GET`.
+	 */
+	method?: HTTPMethod;
+
+	/**
+	 * Request path or absolute URL.
+	 */
+	url: string;
+
+	/**
+	 * Request headers.
+	 */
+	headers?: PHPRequestHeaders;
+
+	/**
+	 * Uploaded files
+	 */
 	files?: Record<string, File>;
-} & (
-		| { absoluteUrl: string; relativeUrl?: never }
-		| { absoluteUrl?: never; relativeUrl: string }
-	) &
-	(
-		| (Pick<PHPRequest, 'body'> & { formData?: never })
-		| { body?: never; formData: Record<string, unknown> }
-	);
+
+	/**
+	 * Request body without the files.
+	 */
+	body?: string;
+
+	/**
+	 * Form data. If set, the request body will be ignored and
+	 * the content-type header will be set to `application/x-www-form-urlencoded`.
+	 */
+	formData?: Record<string, unknown>;
+}
+
+export interface PHPRequestHandlerConfiguration {
+	/**
+	 * The directory in the PHP filesystem where the server will look
+	 * for the files to serve. Default: `/var/www`.
+	 */
+	documentRoot?: string;
+	/**
+	 * Request Handler URL. Used to populate $_SERVER details like HTTP_HOST.
+	 */
+	absoluteUrl?: string;
+	/**
+	 * Callback used by the PHPRequestHandler to decide whether
+	 * the requested path refers to a PHP file or a static file.
+	 */
+	isStaticFilePath?: (path: string) => boolean;
+}
 
 /**
  * A fake PHP server that handles HTTP requests but does not
  * bind to any port.
  *
  * @public
- * @example
+ * @example Use PHPRequestHandler implicitly with a new PHP instance:
+ * ```js
+ * import { PHP } from '@php-wasm/web';
+ *
+ * const php = await PHP.load( '7.4', {
+ *     requestHandler: {
+ *         // PHP FS path to serve the files from:
+ *         documentRoot: '/www',
+ *
+ *         // Used to populate $_SERVER['SERVER_NAME'] etc.:
+ *         absoluteUrl: 'http://127.0.0.1'
+ *     }
+ * } );
+ *
+ * php.mkdirTree('/www');
+ * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
+ *
+ * const response = await php.request({ path: '/index.php' });
+ * console.log(response.text);
+ * // "Hi from PHP!"
+ * ```
+ *
+ * @example Explicitly create a PHPRequestHandler instance and run a PHP script:
  * ```js
  * import {
  *   loadPHPRuntime,
  *   PHP,
- *   PHPServer,
- *   PHPBrowser,
+ *   PHPRequestHandler,
  *   getPHPLoaderModule,
  * } from '@php-wasm/web';
  *
@@ -39,7 +109,7 @@ export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
  * php.mkdirTree('/www');
  * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
  *
- * const server = new PHPServer(php, {
+ * const server = new PHPRequestHandler(php, {
  *     // PHP FS path to serve the files from:
  *     documentRoot: '/www',
  *
@@ -47,12 +117,12 @@ export type PHPServerRequest = Pick<PHPRequest, 'method' | 'headers'> & {
  *     absoluteUrl: 'http://127.0.0.1'
  * });
  *
- * const output = server.request({ path: '/index.php' }).body;
- * console.log(new TextDecoder().decode(output));
+ * const response = server.request({ path: '/index.php' });
+ * console.log(response.text);
  * // "Hi from PHP!"
  * ```
  */
-export class PHPServer {
+export class PHPRequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -65,18 +135,18 @@ export class PHPServer {
 	/**
 	 * The PHP instance
 	 */
-	php: PHP;
+	php: BasePHP;
 	#isStaticFilePath: (path: string) => boolean;
 
 	/**
 	 * @param  php    - The PHP instance.
-	 * @param  config - Server configuration.
+	 * @param  config - Request Handler configuration.
 	 */
-	constructor(php: PHP, config: PHPServerConfigation = {}) {
+	constructor(php: BasePHP, config: PHPRequestHandlerConfiguration = {}) {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
-			absoluteUrl = location.origin,
+			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			isStaticFilePath = () => false,
 		} = config;
 		this.php = php;
@@ -105,7 +175,7 @@ export class PHPServer {
 	}
 
 	/**
-	 * Converts a path to an absolute URL based at the PHPServer
+	 * Converts a path to an absolute URL based at the PHPRequestHandler
 	 * root.
 	 *
 	 * @param  path The server path to convert to an absolute URL.
@@ -116,10 +186,10 @@ export class PHPServer {
 	}
 
 	/**
-	 * Converts an absolute URL based at the PHPServer to a relative path
+	 * Converts an absolute URL based at the PHPRequestHandler to a relative path
 	 * without the server pathname and scope.
 	 *
-	 * @param  internalUrl An absolute URL based at the PHPServer root.
+	 * @param  internalUrl An absolute URL based at the PHPRequestHandler root.
 	 * @returns The relative path.
 	 */
 	internalUrlToPath(internalUrl: string): string {
@@ -135,14 +205,14 @@ export class PHPServer {
 	}
 
 	/**
-	 * The absolute URL of this PHPServer instance.
+	 * The absolute URL of this PHPRequestHandler instance.
 	 */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
 
 	/**
-	 * The absolute URL of this PHPServer instance.
+	 * The absolute URL of this PHPRequestHandler instance.
 	 */
 	get documentRoot() {
 		return this.#DOCROOT;
@@ -155,13 +225,14 @@ export class PHPServer {
 	 * @param  request - The request.
 	 * @returns The response.
 	 */
-	async request(request: PHPServerRequest): Promise<PHPResponse> {
-		let requestedUrl;
-		if (request.relativeUrl !== undefined) {
-			requestedUrl = new URL(request.relativeUrl, DEFAULT_BASE_URL);
-		} else {
-			requestedUrl = new URL(request.absoluteUrl);
-		}
+	async request(request: PHPRequest): Promise<PHPResponse> {
+		const isAbsolute =
+			request.url.startsWith('http://') ||
+			request.url.startsWith('https://');
+		const requestedUrl = new URL(
+			request.url,
+			isAbsolute ? undefined : DEFAULT_BASE_URL
+		);
 
 		const normalizedRelativeUrl = removePathPrefix(
 			requestedUrl.pathname,
@@ -183,18 +254,16 @@ export class PHPServer {
 		const fsPath = `${this.#DOCROOT}${path}`;
 
 		if (!this.php.fileExists(fsPath)) {
-			return {
-				body: new TextEncoder().encode('404 File not found'),
-				headers: {},
-				httpStatusCode: 404,
-				exitCode: 0,
-				errors: '',
-			};
+			return new PHPResponse(
+				404,
+				{},
+				new TextEncoder().encode('404 File not found')
+			);
 		}
 		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
-		return {
-			body: arrayBuffer,
-			headers: {
+		return new PHPResponse(
+			200,
+			{
 				'content-length': [`${arrayBuffer.byteLength}`],
 				// @TODO: Infer the content-type from the arrayBuffer instead of the file path.
 				//        The code below won't return the correct mime-type if the extension
@@ -203,10 +272,8 @@ export class PHPServer {
 				'accept-ranges': ['bytes'],
 				'cache-control': ['public, max-age=0'],
 			},
-			httpStatusCode: 200,
-			exitCode: 0,
-			errors: '',
-		};
+			arrayBuffer
+		);
 	}
 
 	/**
@@ -217,7 +284,7 @@ export class PHPServer {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(
-		request: PHPServerRequest,
+		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
 		/*
@@ -234,7 +301,7 @@ export class PHPServer {
 				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
 			);
 
-			let preferredMethod: PHPRequest['method'] = 'GET';
+			let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 			const fileInfos: FileInfo[] = [];
 			if (request.files) {
@@ -370,21 +437,4 @@ function inferMimeType(path: string): string {
 	}
 }
 
-export interface PHPServerConfigation {
-	/**
-	 * The directory in the PHP filesystem where the server will look
-	 * for the files to serve. Default: `/var/www`.
-	 */
-	documentRoot?: string;
-	/**
-	 * Server URL. Used to populate $_SERVER details like HTTP_HOST.
-	 */
-	absoluteUrl?: string;
-	/**
-	 * Callback used by the PHPServer to decide whether
-	 * the requested path refers to a PHP file or a static file.
-	 */
-	isStaticFilePath?: (path: string) => boolean;
-}
-
-export default PHPServer;
+export default PHPRequestHandler;
