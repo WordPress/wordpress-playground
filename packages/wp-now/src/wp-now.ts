@@ -62,14 +62,6 @@ export default class WPNow {
     return safeHeaders
   }
 
-  async runFile(path) {
-    const result = await this.php.request({
-      url: path,
-    })
-    console.log(result.text)
-    return result
-  }
-
   async runCode(code) {
     const result = await this.php.run({
       code,
