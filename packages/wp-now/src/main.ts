@@ -9,7 +9,7 @@ const PORT = 8881;
 async function startServer() {
   const wpNow = await WPNow.create()
   await downloadWordPress()
-
+  wpNow.mountWordpress()
   const listener = http.createServer(async (req, res) => {
     try {
       const result = await wpNow.php.request({
@@ -23,7 +23,7 @@ async function startServer() {
         method: req.method,
         result: result.text
       })
-      res.writeHead(result.httpStatusCode, result.headers);
+      res.writeHead(result.httpStatusCode, wpNow.cleanHeaders(result.headers));
       res.end(result.text);
     } catch (error) {
       console.log(error)

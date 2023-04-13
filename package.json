@@ -43,7 +43,8 @@
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"react-modal": "^3.16.1",
-		"request": "2.88.2"
+		"request": "2.88.2",
+		"unzipper": "0.10.11"
 	},
 	"devDependencies": {
 		"@convex-dev/typedoc-plugin-markdown": "3.14.0",

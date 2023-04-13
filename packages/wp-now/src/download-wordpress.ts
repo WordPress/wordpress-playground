@@ -1,9 +1,9 @@
 import request from 'request';
 import fs from 'fs-extra';
-import path from 'path';
-import { WP_DOWNLOAD_URL, WP_NOW_DIRECTORY } from './constants';
+import unzipper from 'unzipper';
 
-const WORDPRESS_ZIPS_FOLDER = path.join(WP_NOW_DIRECTORY, 'wordpress');
+import path from 'path';
+import { WORDPRESS_VERSIONS_PATH, WORDPRESS_ZIPS_PATH, WP_DOWNLOAD_URL } from './constants';
 
 async function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -20,15 +20,21 @@ async function downloadFile(url: string, dest: string): Promise<void> {
   });
 }
 
-export async function downloadWordPress(fileName = 'latest.zip') {
+export async function downloadWordPress(fileName = 'latest') {
   // Check if the WordPress folder exists, if not, download and unzip
-  const zipPath = path.join(WORDPRESS_ZIPS_FOLDER, fileName)
-  if (!fs.existsSync(zipPath)) {
+  const zipPath = path.join(WORDPRESS_ZIPS_PATH, `${fileName}.zip`)
+  const unzipPath = path.join(WORDPRESS_VERSIONS_PATH, fileName)
+  if (!fs.existsSync(unzipPath)) {
     try {
-      fs.ensureDirSync(WORDPRESS_ZIPS_FOLDER);
+      fs.ensureDirSync(WORDPRESS_ZIPS_PATH);
       console.log('Downloading WordPress...');
       await downloadFile(WP_DOWNLOAD_URL, zipPath);
       console.log('Download complete.');
+      // unzip the file
+      console.log('Unzipping WordPress...');
+      await fs.createReadStream(zipPath).pipe(unzipper.Extract({ path: unzipPath })).promise();
+      console.log('Unzipping complete.');
+
     } catch (err) {
       console.error('Error:', err);
     }
