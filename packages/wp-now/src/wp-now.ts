@@ -6,6 +6,7 @@ interface WPNowOptions {
   absoluteUrl?: string
 }
 
+const WP_NOW_FOLDER = '~/.wp-now'
 
 export default class WPNow {
   php: PHP
@@ -29,6 +30,7 @@ export default class WPNow {
       }
     })
     this.php.mkdirTree(documentRoot)
+    this.php.writeFile(`${documentRoot}/index.php`, `<?php echo 'Hello wp-now!';`)
   }
 
   async runFile(path) {
