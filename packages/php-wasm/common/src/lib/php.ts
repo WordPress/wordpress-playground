@@ -682,7 +682,7 @@ export abstract class BasePHP
 	}
 }
 
-function normalizeHeaders(
+export function normalizeHeaders(
 	headers: PHPRunOptions['headers']
 ): PHPRunOptions['headers'] {
 	const normalized: PHPRunOptions['headers'] = {};

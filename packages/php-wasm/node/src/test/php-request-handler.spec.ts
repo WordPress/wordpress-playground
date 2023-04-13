@@ -101,5 +101,55 @@ describe.each(SupportedPHPVersions)(
 				exitCode: 1, // @TODO This should be 0
 			});
 		});
+
+		it('Should not crash on move_uploaded_file', async () => {
+			/**
+			 * Tests against calling phpwasm_init_uploaded_files_hash() when
+			 * the Content-type header is set to multipart/form-data. See the
+			 * phpwasm_init_uploaded_files_hash() docstring for more info.
+			 */
+			await php.writeFile(
+				'/index.php',
+				`<?php 
+				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
+				echo json_encode(file_exists('/tmp/moved.txt'));`
+			);
+			const response = await handler.request({
+				url: '/index.php',
+				method: 'POST',
+				files: {
+					myFile: {
+						name: 'text.txt',
+						async arrayBuffer() {
+							return new TextEncoder().encode('Hello World')
+								.buffer;
+						},
+						type: 'text/plain',
+					} as any,
+				},
+				headers: {
+					'Content-Type': 'multipart/form-data; boundary=boundary',
+				},
+			});
+			expect(response.text).toEqual('true');
+		});
+
+		it('Should handle an empty file object and post data', async () => {
+			await php.writeFile(
+				'/index.php',
+				`<?php 
+				echo json_encode($_POST);`
+			);
+			const response = await handler.request({
+				url: '/index.php',
+				method: 'POST',
+				files: {},
+				body: 'foo=bar',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+			});
+			expect(response.json).toEqual({ foo: 'bar' });
+		});
 	}
 );

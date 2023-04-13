@@ -4,7 +4,7 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import type { FileInfo, BasePHP, PHPRunOptions } from './php';
+import { FileInfo, BasePHP, PHPRunOptions, normalizeHeaders } from './php';
 import Semaphore from './semaphore';
 import { PHPResponse } from './php-response';
 
@@ -303,8 +303,12 @@ export class PHPRequestHandler {
 
 			let preferredMethod: PHPRunOptions['method'] = 'GET';
 
+			const headers: Record<string, string> = {
+				host: this.#HOST,
+				...normalizeHeaders(request.headers || {}),
+			};
 			const fileInfos: FileInfo[] = [];
-			if (request.files) {
+			if (request.files && Object.keys(request.files).length) {
 				preferredMethod = 'POST';
 				for (const key in request.files) {
 					const file: File = request.files[key];
@@ -315,16 +319,30 @@ export class PHPRequestHandler {
 						data: new Uint8Array(await file.arrayBuffer()),
 					});
 				}
-			}
 
-			const defaultHeaders: Record<string, string> = {
-				host: this.#HOST,
-			};
+				/**
+				 * When the files are present, we can't use the multipart/form-data
+				 * Content-type header. Instead, we rewrite the request body
+				 * to application/x-www-form-urlencoded.
+				 * See the phpwasm_init_uploaded_files_hash() docstring for more details.
+				 */
+				if (
+					headers['content-type']?.startsWith('multipart/form-data')
+				) {
+					request.formData = parseMultipartFormDataString(
+						request.body || ''
+					);
+					headers['content-type'] =
+						'application/x-www-form-urlencoded';
+					delete request.body;
+				}
+			}
 
 			let body;
 			if (request.formData !== undefined) {
 				preferredMethod = 'POST';
-				defaultHeaders['content-type'] =
+				headers['content-type'] =
+					headers['content-type'] ||
 					'application/x-www-form-urlencoded';
 				body = new URLSearchParams(
 					request.formData as Record<string, string>
@@ -343,10 +361,7 @@ export class PHPRequestHandler {
 				body,
 				fileInfos,
 				scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
-				headers: {
-					...defaultHeaders,
-					...(request.headers || {}),
-				},
+				headers,
 			});
 		} finally {
 			release();
@@ -383,6 +398,46 @@ export class PHPRequestHandler {
 		}
 		return `${this.#DOCROOT}/index.php`;
 	}
+}
+
+/**
+ * Parses a multipart/form-data string into a key-value object.
+ *
+ * @param multipartString
+ * @returns
+ */
+function parseMultipartFormDataString(multipartString: string) {
+	const parsedData: Record<string, string> = {};
+
+	// Extract the boundary from the string
+	const boundaryMatch = multipartString.match(/--(.*)\r\n/);
+	if (!boundaryMatch) {
+		return parsedData;
+	}
+
+	const boundary = boundaryMatch[1];
+
+	// Split the string into parts
+	const parts = multipartString.split(`--${boundary}`);
+
+	// Remove the first and the last part, which are just boundary markers
+	parts.shift();
+	parts.pop();
+
+	// Process each part
+	parts.forEach((part: string) => {
+		const headerBodySplit = part.indexOf('\r\n\r\n');
+		const headers = part.substring(0, headerBodySplit).trim();
+		const body = part.substring(headerBodySplit + 4).trim();
+
+		const nameMatch = headers.match(/name="([^"]+)"/);
+		if (nameMatch) {
+			const name = nameMatch[1];
+			parsedData[name] = body;
+		}
+	});
+
+	return parsedData;
 }
 
 /**

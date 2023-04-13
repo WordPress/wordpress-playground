@@ -708,7 +708,19 @@ static void free_filename(zval *el)
  *   > machine $_FILES['userfile']['name'] does not work.
  * 
  *   This function allocates that internal hash table.
- * ```
+ *   It must not be called when the Content-type header is
+ *   set to multipart/form-data, because then the hash table
+ *   will be also initialized by the rfc1867_post_handler. If
+ *   both code paths are triggered, PHP will crash with the 
+ *   following error:
+ *   
+ *   Trace: RuntimeError: unreachable
+ *   at zend_mm_panic (wasm://wasm/029f4afa:wasm-function[1027]:0x9c52c)
+ *   at _efree (wasm://wasm/029f4afa:wasm-function[102]:0xa53a)
+ *   at str_dtor (wasm://wasm/029f4afa:wasm-function[9113]:0x533be1)
+ *   at byn$fpcast-emu$str_dtor (wasm://wasm/029f4afa:wasm-function[5714]:0x3ff0fe)
+ *   at zend_hash_str_del (wasm://wasm/029f4afa:wasm-function[410]:0x304a9)
+ *   at zif_move_uploaded_file (wasm://wasm/029f4afa:wasm-function[7700]:0x4bd986)
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 {
