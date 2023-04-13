@@ -35,11 +35,11 @@ if (process.argv.includes('@knodes/typedoc-plugin-pages')) {
 					},
 					{
 						title: 'Embedding WordPress playground-on other websites',
-						source: 'public-api/embedding-wordpress-playground-on-other-websites.md',
+						source: 'embedding-wordpress-playground-on-other-websites.md',
 					},
 					{
 						title: 'Comparing remote.html and index.html',
-						source: 'public-api/index-html-vs-remote-html.md',
+						source: 'index-html-vs-remote-html.md',
 					},
 					{
 						title: 'Using PHP in JavaScript',
