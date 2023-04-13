@@ -6,6 +6,7 @@
  */
 export const recommendedWorkerBackend = (function () {
 	const isFirefox =
+		typeof navigator !== 'undefined' &&
 		navigator?.userAgent?.toLowerCase().indexOf('firefox') > -1;
 	if (isFirefox) {
 		return 'iframe';
