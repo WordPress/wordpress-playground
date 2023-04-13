@@ -1,7 +1,6 @@
-import { PHP, PHPResponse, SupportedPHPVersion } from '@php-wasm/node'
+import { PHP, SupportedPHPVersion } from '@php-wasm/node'
 import path from 'path'
 import { WORDPRESS_VERSIONS_PATH } from './constants'
-import { isArray } from 'util'
 
 interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
