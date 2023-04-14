@@ -1,6 +1,7 @@
 import { PHP, SupportedPHPVersion } from '@php-wasm/node'
 import path from 'path'
 import { SQLITE_URL, WORDPRESS_VERSIONS_PATH } from './constants'
+import { writeFile, writeFileSync } from 'fs'
 
 interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
@@ -86,6 +87,21 @@ export default class WPNow {
           define('WP_SITEURL', "${this.options.absoluteUrl}");
           ?>${contents}`
   );
+  this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
+  this.php.writeFile(
+      `${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
+      `<?php
+      // Needed because gethostbyname( 'wordpress.org' ) returns
+      // a private network IP address for some reason.
+      add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
+          return array(
+              'wordpress.org',
+              'api.wordpress.org',
+              'downloads.wordpress.org',
+          );
+      } );`
+  );
+    this.php.cli
   }
 
   async runCode(code) {
@@ -119,7 +135,6 @@ export default class WPNow {
   rename('${documentRoot}/wp-content/plugins/sqlite-database-integration-main', '${documentRoot}/wp-content/plugins/sqlite-database-integration');
   `
     });
-    console.log('--->', results)
     this.php.writeFile(
       `${documentRoot}/wp-content/db.php`,
       this.php.readFileAsText(`${documentRoot}/wp-content/plugins/sqlite-database-integration/db.copy`)
@@ -145,7 +160,18 @@ export default class WPNow {
       }
     });
 
-    // const { login } = await import('@wp-playground/client');
-    // await login(this.php as any, 'admin', 'password');
+    await this.php.request({
+      url: '/wp-login.php',
+    });
+
+    await this.php.request({
+      url: '/wp-login.php',
+      method: 'POST',
+      formData: {
+        log: 'admin',
+        pwd: 'password',
+        rememberme: 'forever',
+      },
+    });
   }
 }
