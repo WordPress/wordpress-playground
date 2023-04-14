@@ -10,12 +10,14 @@ async function startServer() {
   const wpNow = await WPNow.create()
   await downloadWordPress()
   wpNow.mountWordpress()
+  await wpNow.downloadSqlite()
+  await wpNow.activateSqlite()
   const listener = http.createServer(async (req, res) => {
     try {
       const result = await wpNow.php.request({
         url: req.url,
         method: req.method as HTTPMethod,
-        headers: req.headers as PHPRequestHeaders
+        headers: req.headers as PHPRequestHeaders,
       });
 
       console.log({

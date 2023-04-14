@@ -1,6 +1,6 @@
 import { PHP, SupportedPHPVersion } from '@php-wasm/node'
 import path from 'path'
-import { WORDPRESS_VERSIONS_PATH } from './constants'
+import { SQLITE_URL, WORDPRESS_VERSIONS_PATH } from './constants'
 
 interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
@@ -11,11 +11,18 @@ interface WPNowOptions {
 const DEFAULT_OPTIONS: WPNowOptions = {
   phpVersion: '8.0',
   documentRoot: '/var/www/html',
-  absoluteUrl: 'http://localhost:8881',
+  absoluteUrl: 'http://127.0.0.1:8881',
 }
 
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
+}
+
+async function fetchAsUint8Array(url) {
+	const fetchModule = await import('node-fetch');
+	const fetch = fetchModule.default;
+	const response = await fetch(url);
+	return new Uint8Array(await response.arrayBuffer());
 }
 
 export default class WPNow {
@@ -81,19 +88,6 @@ export default class WPNow {
   );
   }
 
-  cleanHeaders(headers: Record<string, string | string[]>) {
-    // fix the location header
-    // [ 'http://localhost:8881var/www/html/wp-admin/setup-config.php' ]
-    let safeHeaders = headers
-    if (Array.isArray(headers.location)) {
-      safeHeaders = {
-        ...headers,
-        location: headers.location.map(url => url.replace(`${this.options.absoluteUrl}${this.options.documentRoot.slice(1)}`, this.options.absoluteUrl)),
-      }
-    }
-    return safeHeaders
-  }
-
   async runCode(code) {
     const result = await this.php.run({
       code,
@@ -105,5 +99,53 @@ export default class WPNow {
   async start() {
     console.log('start')
     return null
+  }
+
+  async downloadSqlite() {
+    const { documentRoot } = this.options
+    const sqliteZip = await fetchAsUint8Array(SQLITE_URL)
+    this.php.writeFile('/sqlite-database-integration.zip', sqliteZip);
+    const results = await this.php.run({
+      code: `<?php
+  function extractZip($zipPath, $destination) {
+      $zip = new ZipArchive;
+      $res = $zip->open($zipPath);
+      if ($res === TRUE) {
+          $zip->extractTo($destination);
+          $zip->close();
+      }
+  }
+  extractZip('/sqlite-database-integration.zip', '${documentRoot}/wp-content/plugins/');
+  rename('${documentRoot}/wp-content/plugins/sqlite-database-integration-main', '${documentRoot}/wp-content/plugins/sqlite-database-integration');
+  `
+    });
+    console.log('--->', results)
+    this.php.writeFile(
+      `${documentRoot}/wp-content/db.php`,
+      this.php.readFileAsText(`${documentRoot}/wp-content/plugins/sqlite-database-integration/db.copy`)
+        .replace(/\{SQLITE_IMPLEMENTATION_FOLDER_PATH\}/g, `${documentRoot}/wp-content/plugins/sqlite-database-integration`)
+        .replace(/\{SQLITE_PLUGIN\}/g, 'sqlite-database-integration')
+    )
+  }
+
+  async activateSqlite() {
+    await this.php.request({
+      url: '/wp-admin/install.php?step=2',
+      method: 'POST',
+      formData: {
+        language: 'en',
+        prefix: 'wp_',
+        weblog_title: 'My WordPress Website',
+        user_name: 'admin',
+        admin_password: 'password',
+        admin_password2: 'password',
+        Submit: 'Install WordPress',
+        pw_weak: '1',
+        admin_email: 'admin@localhost.com'
+      }
+    });
+
+    // const { login } = await import('@wp-playground/client');
+    // await login(this.php as any, 'admin', 'password');
   }
 }
