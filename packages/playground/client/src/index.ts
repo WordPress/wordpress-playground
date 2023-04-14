@@ -38,8 +38,8 @@ export async function connectPlayground(
 		consumeAPI<PlaygroundClient>(iframe.contentWindow!);
 
 	/*
-	 * Wait for any response from the playground to ensure the comlink
-	 * handler on the other side is ready:
+	 * Wait for any response from the playground to ensure the
+	 * comlink handler on the other side is ready:
 	 */
 	await comlinkClient.absoluteUrl;
 

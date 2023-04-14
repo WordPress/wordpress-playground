@@ -5,7 +5,9 @@
  * See https://github.com/mdn/content/issues/24402
  */
 export const recommendedWorkerBackend = (function () {
-	const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+	const isFirefox =
+		typeof navigator !== 'undefined' &&
+		navigator?.userAgent?.toLowerCase().indexOf('firefox') > -1;
 	if (isFirefox) {
 		return 'iframe';
 	} else {
