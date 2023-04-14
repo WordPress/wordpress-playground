@@ -10,8 +10,12 @@ interface WPNowOptions {
 
 const DEFAULT_OPTIONS: WPNowOptions = {
   phpVersion: '8.0',
-  documentRoot: '/wp-now',
+  documentRoot: '/var/www/html',
   absoluteUrl: 'http://localhost:8881',
+}
+
+function seemsLikeAPHPFile(path) {
+	return path.endsWith('.php') || path.includes('.php/');
 }
 
 export default class WPNow {
@@ -24,6 +28,10 @@ export default class WPNow {
     return instance;
   }
 
+  patchFile = (path, callback) => {
+    this.php.writeFile(path, callback(this.php.readFileAsText(path)));
+  }
+
   async setup(options: WPNowOptions = {}) {
     this.options = {
       ...this.options,
@@ -34,6 +42,18 @@ export default class WPNow {
       requestHandler: {
         documentRoot,
         absoluteUrl,
+        isStaticFilePath: (path) => {
+          try {
+              const fullPath = this.options.documentRoot + path;
+              return this.php.fileExists(fullPath)
+                  && !this.php.isDir(fullPath)
+                  && !seemsLikeAPHPFile(fullPath);
+          } catch (e) {
+              console.error(e);
+              return false;
+          }
+        },
+
       }
     })
     this.php.mkdirTree(documentRoot)
@@ -42,10 +62,23 @@ export default class WPNow {
   }
 
   mountWordpress(fileName = 'latest') {
+    const { documentRoot } = this.options
     const root = path.join(WORDPRESS_VERSIONS_PATH, fileName, 'wordpress')
     this.php.mount({
       root,
-    }, this.options.documentRoot)
+    }, documentRoot)
+    this.php.writeFile(
+      `${documentRoot}/wp-config.php`,
+      this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
+  );
+  this.patchFile(
+      `${documentRoot}/wp-config.php`,
+      (contents) =>
+          `<?php
+          define('WP_HOME', "${this.options.absoluteUrl}");
+          define('WP_SITEURL', "${this.options.absoluteUrl}");
+          ?>${contents}`
+  );
   }
 
   cleanHeaders(headers: Record<string, string | string[]>) {

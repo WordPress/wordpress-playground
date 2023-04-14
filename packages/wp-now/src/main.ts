@@ -21,13 +21,14 @@ async function startServer() {
       console.log({
         path: req.url,
         method: req.method,
-        result: result.text
+        resultHeaders: result.headers,
+        // result: result.text
       })
-      res.writeHead(result.httpStatusCode, wpNow.cleanHeaders(result.headers));
+      res.writeHead(result.httpStatusCode, result.headers);
       res.end(result.text);
     } catch (error) {
       console.log(error)
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.writeHead(500, { 'Content-Type': 'text/html' });
       res.end(error.message);
     }
   }).listen(PORT);
