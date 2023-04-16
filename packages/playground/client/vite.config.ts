@@ -28,7 +28,7 @@ export default defineConfig({
 			entry: './src/index.ts',
 			name: 'playground-client',
 			fileName: 'index',
-			formats: ['es'],
+			formats: ['es', 'cjs'],
 		},
 	},
 
