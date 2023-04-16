@@ -74,7 +74,22 @@
 				"lintFilePatterns": ["packages/playground/client/**/*.ts"]
 			}
 		},
+
 		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite", "test:esmcjs"]
+		},
+		"test:esmcjs": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"bash packages/playground/client/test/esm_cjs/test.sh"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"test:vite": {
 			"executor": "@nrwl/vite:test",
 			"outputs": ["coverage/packages/playground/client"],
 			"options": {
