@@ -5,6 +5,7 @@ global.TextDecoder = TextDecoder as any;
 export * from './lib';
 
 export {
+	jsToPHPTranslator,
 	LatestSupportedPHPVersion,
 	PHPBrowser,
 	SupportedPHPVersions,

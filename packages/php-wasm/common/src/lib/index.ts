@@ -17,6 +17,7 @@ export type {
 	WithPHPIniBindings,
 } from './php';
 
+export { jsToPHPTranslator } from './js-to-php-translator';
 export type { PHPResponse } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 
