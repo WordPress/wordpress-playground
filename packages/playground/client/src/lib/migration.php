@@ -1,14 +1,17 @@
 <?php
 
-function generateZipFile($exportPath, $databasePath, $docRoot) {
+function zipDir($dir, $output, $additionalFiles = array())
+{
     $zip = new ZipArchive;
-    $res = $zip->open($exportPath, ZipArchive::CREATE);
+    $res = $zip->open($output, ZipArchive::CREATE);
     if ($res === TRUE) {
-        $zip->addFile($databasePath);
-        $directories = array();
-        $directories[] = $docRoot . '/';
-
-        while(sizeof($directories)) {
+        foreach ($additionalFiles as $file) {
+            $zip->addFile($file);
+        }
+        $directories = array(
+            rtrim($dir, '/') . '/'
+        );
+        while (sizeof($directories)) {
             $dir = array_pop($directories);
 
             if ($handle = opendir($dir)) {
@@ -19,13 +22,9 @@ function generateZipFile($exportPath, $databasePath, $docRoot) {
 
                     $entry = $dir . $entry;
 
-                    if (
-                        is_dir($entry) &&
-                        strpos($entry, 'wp-content/database') == false &&
-                        strpos($entry, 'wp-includes') == false
-                    ) {
-                            $directory_path = $entry . '/';
-                            array_push($directories, $directory_path);
+                    if (is_dir($entry)) {
+                        $directory_path = $entry . '/';
+                        array_push($directories, $directory_path);
                     } else if (is_file($entry)) {
                         $zip->addFile($entry);
                     }
@@ -34,35 +33,30 @@ function generateZipFile($exportPath, $databasePath, $docRoot) {
             }
         }
         $zip->close();
-        chmod($exportPath, 0777);
+        chmod($output, 0777);
     }
 }
 
-function readFileFromZipArchive($pathToZip, $pathToFile) {
-    chmod($pathToZip, 0777);
-    $zip = new ZipArchive;
-    $res = $zip->open($pathToZip);
-    if ($res === TRUE) {
-        $file = $zip->getFromName($pathToFile);
-        echo $file;
+function unzip($zipPath, $extractTo, $overwrite = true)
+{
+    if(!is_dir($extractTo)) {
+        mkdir($extractTo, 0777, true);
     }
-}
-
-function importZipFile($pathToZip) {
     $zip = new ZipArchive;
-    $res = $zip->open($pathToZip);
+    $res = $zip->open($zipPath);
     if ($res === TRUE) {
-        $counter = 0;
-        while ($zip->statIndex($counter)) {
-            $file = $zip->statIndex($counter);
-            $filePath = $file['name'];
-            if (!file_exists(dirname($filePath))) {
-                mkdir(dirname($filePath), 0777, true);
-            }
-            $overwrite = fopen($filePath, 'w');
-            fwrite($overwrite, $zip->getFromIndex($counter));
-            $counter++;
-        }
+        $zip->extractTo($extractTo);
         $zip->close();
+        chmod($extractTo, 0777);
     }
+}
+
+
+function delTree($dir)
+{
+    $files = array_diff(scandir($dir), array('.', '..'));
+    foreach ($files as $file) {
+        (is_dir("$dir/$file")) ? delTree("$dir/$file") : unlink("$dir/$file");
+    }
+    return rmdir($dir);
 }
