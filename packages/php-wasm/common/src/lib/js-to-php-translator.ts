@@ -56,14 +56,14 @@ const handler: ProxyHandler<any> = {
  * Creates a new JS to PHP translator.
  *
  * A translator is an object where PHP functions are accessible as properties.
- * 
+ *
  * @example
  * ```js
  * const t = jsToPHPTranslator();
  * const code = t.echo('Hello, World!');
  * // code is echo("Hello, World!")
  * ```
- * 
+ *
  * @example
  * ```js
  * const t = jsToPHPTranslator();
