@@ -1,4 +1,10 @@
-export { importFullSiteZip, exportFullSiteZip } from './import-export';
+export {
+	zipEntireSite,
+	exportWXR,
+	exportWXZ,
+	replaceSite,
+	submitImporterForm,
+} from './import-export';
 export { login } from './login';
 export { installTheme } from './install-theme';
 export type { InstallThemeOptions } from './install-theme';
