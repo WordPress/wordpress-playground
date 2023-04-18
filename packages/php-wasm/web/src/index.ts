@@ -6,6 +6,7 @@ export {
 	PHPBrowser,
 	exposeAPI,
 	consumeAPI,
+	jsToPHPTranslator,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
