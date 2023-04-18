@@ -1,5 +1,4 @@
-export { exportFile } from './import-export';
-export { importFile } from './import-export';
+export { importFullSiteZip, exportFullSiteZip } from './import-export';
 export { login } from './login';
 export { installTheme } from './install-theme';
 export type { InstallThemeOptions } from './install-theme';

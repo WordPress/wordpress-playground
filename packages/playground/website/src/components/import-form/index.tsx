@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
-import { importFile } from '@wp-playground/client';
+import { importFullSiteZip } from '@wp-playground/client';
 
 interface ImportFormProps {
 	playground: PlaygroundClient;
@@ -38,7 +38,7 @@ export default function ImportForm({
 		}
 
 		try {
-			await importFile(playground, file);
+			await importFullSiteZip(playground, file);
 		} catch (error) {
 			setError(
 				'Unable to import file. Is it a valid WordPress Playground export?'
@@ -90,11 +90,6 @@ export default function ImportForm({
 					<li>
 						Migrating between different WordPress versions is not
 						supported.
-					</li>
-					<br />
-					<li>
-						Media files, options/users, and plugin state will not be
-						included.
 					</li>
 				</ul>
 				<div className={css.inputsContainer}>
