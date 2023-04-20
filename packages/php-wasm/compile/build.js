@@ -96,6 +96,7 @@ const platformDefaults = {
 		PHP_VERSION: '8.0.24',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
+		WITH_MBSTRING: 'yes',
 	},
 	web: {},
 	node: {
