@@ -7,6 +7,7 @@ import type {
 	WithRun,
 	WithRequestHandler,
 	PHPRunOptions,
+	RmDirOptions,
 } from '@php-wasm/abstract';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -60,6 +61,12 @@ export class PHPClient
 				WithPathConversion
 		>
 {
+	/**
+	 * A dummy promise that resolves immediately.
+	 * Used to assert that the PHPClient is ready for communication.
+	 */
+	connected: Promise<void> = Promise.resolve();
+
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
 	absoluteUrl: Promise<string>;
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
@@ -122,6 +129,16 @@ export class PHPClient
 		_private
 			.get(this)!
 			.monitor?.addEventListener('progress', callback as any);
+	}
+
+	/** @inheritDoc */
+	mv(fromPath: string, toPath: string) {
+		return _private.get(this)!.php.mv(fromPath, toPath);
+	}
+
+	/** @inheritDoc */
+	rmdir(path: string, options?: RmDirOptions) {
+		return _private.get(this)!.php.rmdir(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.request */
