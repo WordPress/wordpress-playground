@@ -48,11 +48,7 @@
 	width: 0;
 	background: #3858e9;
 	border-radius: 2px;
-	transition: opacity linear 0.25s, width ease-in 0.5s;
-}
-
-.progress-bar.slowly-incrementing {
-	transition: opacity linear 0.25s, width ease-in 4s;
+	transition: opacity linear 0.2s, width ease-in 0.2s;
 }
 
 .progress-bar.is-indefinite {
