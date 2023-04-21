@@ -13,3 +13,5 @@ export type { InstallPluginOptions } from './install-plugin';
 export { activatePlugin } from './activate-plugin';
 export { installThemeFromDirectory } from './install-theme-from-directory';
 export { installPluginsFromDirectory } from './install-plugins-from-directory';
+export { setSiteOptions, updateUserMeta } from './site-data';
+
