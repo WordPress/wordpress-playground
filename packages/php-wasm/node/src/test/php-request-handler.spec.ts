@@ -1,5 +1,5 @@
 import { PHP, SupportedPHPVersions, getPHPLoaderModule } from '..';
-import { loadPHPRuntime, PHPRequestHandler } from '@php-wasm/common';
+import { loadPHPRuntime, PHPRequestHandler } from '@php-wasm/abstract';
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {

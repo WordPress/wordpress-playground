@@ -7,7 +7,7 @@ import type {
 	WithRun,
 	WithRequestHandler,
 	PHPRunOptions,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 

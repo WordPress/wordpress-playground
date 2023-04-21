@@ -110,6 +110,14 @@ export interface WithNodeFilesystem {
 	mount(localPath: string | MountSettings, virtualFSPath: string): void;
 }
 
+export interface RmDirOptions {
+	/**
+	 * If true, recursively removes the directory and all its contents.
+	 * Default: true.
+	 */
+	recursive?: boolean;
+}
+
 export interface WithFilesystem {
 	/**
 	 * Recursively creates a directory with the given path in the PHP filesystem.
@@ -631,6 +639,28 @@ export abstract class BasePHP
 	@rethrowFileSystemError('Could not unlink "{path}"')
 	unlink(path: string) {
 		this.#Runtime.FS.unlink(path);
+	}
+
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not move "{path}"')
+	mv(fromPath: string, toPath: string) {
+		this.#Runtime.FS.mv(fromPath, toPath);
+	}
+
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not remove directory "{path}"')
+	rmdir(path: string, options: RmDirOptions = { recursive: true }) {
+		if (options?.recursive) {
+			this.listFiles(path).forEach((file) => {
+				const filePath = `${path}/${file}`;
+				if (this.isDir(filePath)) {
+					this.rmdir(filePath, options);
+				} else {
+					this.unlink(filePath);
+				}
+			});
+		}
+		this.#Runtime.FS.rmdir(path);
 	}
 
 	/** @inheritDoc */

@@ -6,7 +6,7 @@ import dts from 'vite-plugin-dts';
 import { join } from 'path';
 
 export default defineConfig({
-	cacheDir: '../../../node_modules/.vite/php-wasm-common',
+	cacheDir: '../../../node_modules/.vite/php-wasm-abstract',
 
 	plugins: [
 		dts({
@@ -26,7 +26,7 @@ export default defineConfig({
 		lib: {
 			// Could also be a dictionary or array of multiple entry points.
 			entry: 'src/index.ts',
-			name: 'php-wasm-common',
+			name: 'php-wasm-abstract',
 			fileName: 'index',
 			formats: ['es'],
 		},

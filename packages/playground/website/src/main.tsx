@@ -6,7 +6,7 @@ import VersionSelector from './components/version-select';
 import './styles.css';
 
 import { setupPlayground } from './lib/setup-playground';
-import { SupportedPHPVersionsList } from '@php-wasm/common';
+import { SupportedPHPVersionsList } from '@php-wasm/abstract';
 
 const query = new URL(document.location.href).searchParams;
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';

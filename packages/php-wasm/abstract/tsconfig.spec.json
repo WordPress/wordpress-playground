@@ -15,6 +15,6 @@
 		"src/**/*.test.jsx",
 		"src/**/*.spec.jsx",
 		"src/**/*.d.ts",
-		"src/lib/js-to-php-translator.ts"
+		"src/lib/php-vars.ts"
 	]
 }

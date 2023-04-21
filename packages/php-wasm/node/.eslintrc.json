@@ -9,7 +9,7 @@
 					"error",
 					{
 						"enforceBuildableLibDependency": true,
-						"allow": ["@php-wasm/common"]
+						"allow": ["@php-wasm/abstract"]
 					}
 				]
 			}

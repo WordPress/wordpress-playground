@@ -2,7 +2,7 @@ import {
 	LatestSupportedPHPVersion,
 	PHPLoaderModule,
 	SupportedPHPVersion,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 
 export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion

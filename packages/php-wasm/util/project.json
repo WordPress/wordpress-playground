@@ -1,0 +1,41 @@
+{
+	"name": "php-wasm-util",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/util/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nrwl/esbuild:esbuild",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/util",
+				"main": "packages/php-wasm/util/src/index.ts",
+				"tsConfig": "packages/php-wasm/util/tsconfig.lib.json",
+				"assets": ["packages/php-wasm/util/*.md"]
+			}
+		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/publish.mjs php-wasm-util {args.ver} {args.tag}"
+			},
+			"dependsOn": ["build"]
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/php-wasm/util/**/*.ts"]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/vite:test",
+			"outputs": ["coverage/packages/php-wasm/util"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/util"
+			}
+		}
+	},
+	"tags": []
+}

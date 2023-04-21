@@ -1,10 +1,7 @@
 import type { PHPResponse, PlaygroundClient } from '../';
-import { jsToPHPTranslator } from '@php-wasm/web';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';
-
-const t = jsToPHPTranslator();
 
 /**
  * Full site export support:
@@ -22,7 +19,7 @@ export async function zipEntireSite(playground: PlaygroundClient) {
 	const zipPath = `/${zipName}`;
 
 	const documentRoot = await playground.documentRoot;
-	await phpMigration(playground, t.zipDir(documentRoot, zipPath));
+	await phpMigration(playground, `zipDir("${documentRoot}", "${zipPath}");`);
 
 	const fileBuffer = await playground.readFileAsBuffer(zipPath);
 	playground.unlink(zipPath);
@@ -51,8 +48,8 @@ export async function replaceSite(
 
 	await phpMigration(
 		playground,
-		`${t.delTree(documentRoot)};
-		 ${t.unzip(zipPath, '/')};`
+		`delTree("${documentRoot}"};
+		 unzip(zipPath, '/');`
 	);
 
 	await patchFile(
@@ -61,8 +58,8 @@ export async function replaceSite(
 		(contents) =>
 			`<?php
 			if(!defined('WP_HOME')) {
-				${t.define('WP_HOME', absoluteUrl)};
-				${t.define('WP_SITEURL', absoluteUrl)};
+				define('WP_HOME', "${absoluteUrl}"};
+				define('WP_SITEURL', "${absoluteUrl}"};
 			}
 			?>${contents}`
 	);

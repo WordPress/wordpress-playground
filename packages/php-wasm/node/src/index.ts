@@ -5,12 +5,11 @@ global.TextDecoder = TextDecoder as any;
 export * from './lib';
 
 export {
-	jsToPHPTranslator,
 	LatestSupportedPHPVersion,
 	PHPBrowser,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 
 // Wildcard re-export of type is unfortunately unsupported by TypeScript.
 export type {
@@ -35,4 +34,4 @@ export type {
 	WithFilesystem,
 	WithPHPIniBindings,
 	WorkerStartupOptions,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';

@@ -1,3 +1,4 @@
+import { Semaphore } from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -5,7 +6,6 @@ import {
 	DEFAULT_BASE_URL,
 } from './urls';
 import { FileInfo, BasePHP, PHPRunOptions, normalizeHeaders } from './php';
-import Semaphore from './semaphore';
 import { PHPResponse } from './php-response';
 
 export type HTTPMethod =
