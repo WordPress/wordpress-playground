@@ -169,6 +169,23 @@ export interface WithFilesystem {
 	unlink(path: string): void;
 
 	/**
+	 * Moves a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param oldPath The path to rename.
+	 * @param newPath The new path.
+	 */
+	mv(oldPath: string, newPath: string): void;
+
+	/**
+	 * Removes a directory from the PHP filesystem.
+	 *
+	 * @param path The directory path to remove.
+	 * @param options Options for the removal.
+	 */
+	rmdir(path: string, options?: RmDirOptions): void;
+
+	/**
 	 * Lists the files and directories in the given directory.
 	 *
 	 * @param  path - The directory path to list.
