@@ -1,4 +1,5 @@
 import type { PHPResponse, PlaygroundClient } from '../';
+import { phpVars } from '@php-wasm/util';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';
@@ -18,8 +19,14 @@ export async function zipEntireSite(playground: PlaygroundClient) {
 	const zipName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
 	const zipPath = `/${zipName}`;
 
-	const documentRoot = await playground.documentRoot;
-	await phpMigration(playground, `zipDir("${documentRoot}", "${zipPath}");`);
+	const js = phpVars({
+		zipPath,
+		documentRoot: await playground.documentRoot,
+	});
+	await phpMigration(
+		playground,
+		`zipDir(${js.documentRoot}, ${js.zipPath});`
+	);
 
 	const fileBuffer = await playground.readFileAsBuffer(zipPath);
 	playground.unlink(zipPath);
@@ -46,23 +53,40 @@ export async function replaceSite(
 	const absoluteUrl = await playground.absoluteUrl;
 	const documentRoot = await playground.documentRoot;
 
-	await phpMigration(
-		playground,
-		`delTree("${documentRoot}"};
-		 unzip(zipPath, '/');`
-	);
+	await playground.rmdir(documentRoot);
+	await unzip(playground, zipPath, '/');
 
+	const js = phpVars({ absoluteUrl });
 	await patchFile(
 		playground,
 		`${documentRoot}/wp-config.php`,
 		(contents) =>
 			`<?php
 			if(!defined('WP_HOME')) {
-				define('WP_HOME', "${absoluteUrl}"};
-				define('WP_SITEURL', "${absoluteUrl}"};
+				define('WP_HOME', ${js.absoluteUrl});
+				define('WP_SITEURL', ${js.absoluteUrl});
 			}
 			?>${contents}`
 	);
+}
+
+/**
+ * Unzip a zip file.
+ *
+ * @param playground Playground client.
+ * @param zipPath The zip file to unzip.
+ * @param extractTo The directory to extract the zip file to.
+ */
+export async function unzip(
+	playground: PlaygroundClient,
+	zipPath: string,
+	extractTo: string
+) {
+	const js = phpVars({
+		zipPath,
+		extractTo,
+	});
+	await phpMigration(playground, `unzip(${js.zipPath}, ${js.extractTo});`);
 }
 
 /**
@@ -175,6 +199,8 @@ async function phpMigration(playground: PlaygroundClient, code: string) {
 		code: migrationsPHPCode + code,
 	});
 	if (result.exitCode !== 0) {
+		console.log(migrationsPHPCode + code);
+		console.log(code + '');
 		console.log(result.errors);
 		throw result.errors;
 	}
