@@ -1,43 +1,24 @@
-import type { PlaygroundClient } from '@wp-playground/client';
+import type { Blueprint } from '@wp-playground/client';
 
 import React, { ReactElement, Ref, useMemo } from 'react';
-import type {
-	ProgressObserver,
-	ProgressObserverEvent,
-} from '@php-wasm/progress';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
-import ProgressBar from '../progress-bar';
-import { usePlayground, useProgressObserver } from '../../lib/hooks';
+import { usePlayground } from '../../lib/hooks';
 
 interface PlaygroundViewportProps {
 	isSeamless?: boolean;
-	setupPlayground: (
-		playground: PlaygroundClient,
-		observer: ProgressObserver
-	) => Promise<void>;
+	blueprint?: Blueprint;
 	toolbarButtons?: React.ReactElement[];
 }
 
-// Reload the page when the connection to the playground times out in the dev mode.
-// There's a chance website server was booted faster than the playground server.
-// @ts-ignore
-const onConnectionTimeout = import.meta.env.DEV
-	? undefined // () => window.location.reload()
-	: undefined;
-
 export default function PlaygroundViewport({
+	blueprint,
 	isSeamless,
-	setupPlayground,
 	toolbarButtons,
 }: PlaygroundViewportProps) {
-	const { observer, progress } = useProgressObserver();
 	const { playground, url, iframeRef } = usePlayground({
-		async onConnected(api) {
-			await setupPlayground(api, observer);
-		},
-		onConnectionTimeout,
+		blueprint,
 	});
 
 	const updatedToolbarButtons = useMemo(() => {
@@ -53,13 +34,7 @@ export default function PlaygroundViewport({
 	}, [isSeamless, playground, toolbarButtons]);
 
 	if (isSeamless) {
-		return (
-			<ViewportWithLoading
-				ready={!!playground}
-				loadingProgress={progress}
-				iframeRef={iframeRef}
-			/>
-		);
+		return <JustViewport iframeRef={iframeRef} />;
 	}
 
 	return (
@@ -69,34 +44,20 @@ export default function PlaygroundViewport({
 			toolbarButtons={updatedToolbarButtons}
 			onUrlChange={(url) => playground?.goTo(url)}
 		>
-			<ViewportWithLoading
-				ready={!!playground}
-				loadingProgress={progress}
-				iframeRef={iframeRef}
-			/>
+			<JustViewport iframeRef={iframeRef} />
 		</BrowserChrome>
 	);
 }
 
-interface ViewportWithLoadingProps {
+interface JustViewportProps {
 	iframeRef: Ref<HTMLIFrameElement>;
-	loadingProgress: ProgressObserverEvent;
-	ready: boolean;
 }
 
-const ViewportWithLoading = function LoadedViewportComponent({
+const JustViewport = function LoadedViewportComponent({
 	iframeRef,
-	loadingProgress,
-	ready,
-}: ViewportWithLoadingProps) {
+}: JustViewportProps) {
 	return (
 		<div className={css.fullSize}>
-			<ProgressBar
-				caption={loadingProgress.caption || 'Preparing WordPress...'}
-				mode={loadingProgress.mode}
-				percentFull={loadingProgress.progress}
-				visible={!ready}
-			/>
 			<iframe
 				title="Playground Viewport"
 				className={css.fullSize}

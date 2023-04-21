@@ -15,6 +15,15 @@ import {
 import virtualModule from '../vite-virtual-module';
 
 const proxy = {
+	'^/plugin-proxy.*glotpress-local.*': {
+		target: 'https://github.com',
+		changeOrigin: true,
+		secure: true,
+		followRedirects: true,
+		rewrite: (path: string) => {
+			return '/GlotPress/GlotPress/archive/refs/heads/local-wasm.zip';
+		},
+	},
 	'/plugin-proxy': {
 		target: 'https://downloads.wordpress.org',
 		changeOrigin: true,
@@ -25,6 +34,20 @@ const proxy = {
 				return `/plugin/${url.searchParams.get('plugin')}`;
 			} else if (url.searchParams.has('theme')) {
 				return `/theme/${url.searchParams.get('theme')}`;
+			}
+			throw new Error('Invalid request');
+		},
+	},
+	'/translate-proxy': {
+		target: 'https://translate.wordpress.org',
+		changeOrigin: true,
+		secure: true,
+		followRedirects: true,
+		rewrite: (path: string) => {
+			const url = new URL(path, 'http://example.com');
+			if (url.searchParams.has('url')) {
+				const url2 = new URL(url.searchParams.get('url')!);
+				return url2.toString();
 			}
 			throw new Error('Invalid request');
 		},
