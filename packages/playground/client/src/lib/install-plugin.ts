@@ -1,5 +1,5 @@
+import { UniversalPHP } from '@php-wasm/web';
 import { asDOM } from './common';
-import type { PlaygroundClient } from '../';
 
 export interface InstallPluginOptions {
 	/**
@@ -18,7 +18,7 @@ export interface InstallPluginOptions {
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
 export async function installPlugin(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	pluginZipFile: File,
 	options: InstallPluginOptions = {}
 ) {

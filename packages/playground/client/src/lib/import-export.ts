@@ -1,5 +1,5 @@
-import type { PHPResponse, PlaygroundClient } from '../';
 import { phpVars } from '@php-wasm/util';
+import { PHPResponse, UniversalPHP } from '@php-wasm/web';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';
@@ -13,10 +13,8 @@ import migrationsPHPCode from './migration.php?raw';
  *
  * @param playground Playground client.
  */
-export async function zipEntireSite(playground: PlaygroundClient) {
-	const wpVersion = await playground.wordPressVersion;
-	const phpVersion = await playground.phpVersion;
-	const zipName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
+export async function zipEntireSite(playground: UniversalPHP) {
+	const zipName = `wordpress-playground.zip`;
 	const zipPath = `/${zipName}`;
 
 	const js = phpVars({
@@ -40,10 +38,7 @@ export async function zipEntireSite(playground: PlaygroundClient) {
  * @param playground Playground client.
  * @param fullSiteZip Zipped WordPress site.
  */
-export async function replaceSite(
-	playground: PlaygroundClient,
-	fullSiteZip: File
-) {
+export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,
@@ -78,7 +73,7 @@ export async function replaceSite(
  * @param extractTo The directory to extract the zip file to.
  */
 export async function unzip(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	zipPath: string,
 	extractTo: string
 ) {
@@ -100,7 +95,7 @@ export async function unzip(
  * @param playground Playground client
  * @returns WXR file
  */
-export async function exportWXR(playground: PlaygroundClient) {
+export async function exportWXR(playground: UniversalPHP) {
 	const databaseExportResponse = await playground.request({
 		url: '/wp-admin/export.php?download=true&content=all',
 	});
@@ -114,7 +109,7 @@ export async function exportWXR(playground: PlaygroundClient) {
  * @param playground Playground client
  * @returns WXZ file
  */
-export async function exportWXZ(playground: PlaygroundClient) {
+export async function exportWXZ(playground: UniversalPHP) {
 	const databaseExportResponse = await playground.request({
 		url: '/wp-admin/export.php?download=true&content=all&export_wxz=1',
 	});
@@ -129,10 +124,7 @@ export async function exportWXZ(playground: PlaygroundClient) {
  * @param playground Playground client.
  * @param file The file to import.
  */
-export async function submitImporterForm(
-	playground: PlaygroundClient,
-	file: File
-) {
+export async function submitImporterForm(playground: UniversalPHP, file: File) {
 	const importerPageOneResponse = await playground.request({
 		url: '/wp-admin/admin.php?import=wordpress',
 	});
@@ -184,7 +176,7 @@ function getFormData(form: HTMLFormElement): Record<string, unknown> {
 }
 
 async function patchFile(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	path: string,
 	callback: (contents: string) => string
 ) {
@@ -194,7 +186,7 @@ async function patchFile(
 	);
 }
 
-async function phpMigration(playground: PlaygroundClient, code: string) {
+async function phpMigration(playground: UniversalPHP, code: string) {
 	const result = await playground.run({
 		code: migrationsPHPCode + code,
 	});

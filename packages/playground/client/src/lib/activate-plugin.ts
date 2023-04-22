@@ -1,4 +1,4 @@
-import type { PlaygroundClient } from '../';
+import { UniversalPHP } from '@php-wasm/web';
 import { asDOM } from './common';
 
 /**
@@ -8,7 +8,7 @@ import { asDOM } from './common';
  * @param plugin The plugin slug.
  */
 export async function activatePlugin(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	plugin: string
 ) {
 	const pluginsPage = asDOM(

@@ -1,4 +1,4 @@
-import type { PlaygroundClient } from '../';
+import { UniversalPHP } from '@php-wasm/web';
 import { asDOM } from './common';
 
 export interface InstallThemeOptions {
@@ -18,7 +18,7 @@ export interface InstallThemeOptions {
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
 export async function installTheme(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	themeZipFile: File,
 	options: InstallThemeOptions = {}
 ) {

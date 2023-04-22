@@ -29,5 +29,6 @@ export type {
 	PublicAPI,
 	PHPRequestHandlerConfiguration,
 	PHPRequest,
+	UniversalPHP,
 	WorkerStartupOptions,
 } from '@php-wasm/abstract';

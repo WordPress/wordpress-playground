@@ -9,6 +9,7 @@ export type {
 	PHPRunOptions,
 	PHPRuntime,
 	PHPRuntimeId,
+	UniversalPHP,
 	RmDirOptions,
 	WithCLI,
 	WithFilesystem,

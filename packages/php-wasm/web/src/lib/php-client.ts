@@ -1,31 +1,13 @@
 import type {
-	WithFilesystem,
 	BasePHP,
 	PHPRequest,
-	WithPHPIniBindings,
 	PHPResponse,
-	WithRun,
-	WithRequestHandler,
 	PHPRunOptions,
 	RmDirOptions,
+	UniversalPHP,
 } from '@php-wasm/abstract';
 import type { Remote } from 'comlink';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-
-/** @inheritdoc T */
-type Promisify<T> = {
-	[P in keyof T]: T[P] extends (...args: infer A) => infer R
-		? R extends void | Promise<any>
-			? T[P]
-			: (...args: A) => Promise<ReturnType<T[P]>>
-		: Promise<T[P]>;
-};
-
-interface WithPathConversion {
-	pathToInternalUrl(path: string): Promise<string>;
-	internalUrlToPath(internalUrl: string): Promise<string>;
-}
-
 interface WithProgress {
 	onDownloadProgress(
 		callback: (progress: CustomEvent<ProgressEvent>) => void
@@ -50,17 +32,7 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class PHPClient
-	implements
-		Promisify<
-			WithPHPIniBindings &
-				WithFilesystem &
-				WithRun &
-				WithRequestHandler &
-				WithProgress &
-				WithPathConversion
-		>
-{
+export class PHPClient implements UniversalPHP, WithProgress {
 	/**
 	 * A dummy promise that resolves immediately.
 	 * Used to assert that the PHPClient is ready for communication.
@@ -101,26 +73,18 @@ export class PHPClient
 			php,
 			monitor,
 		});
-		this.absoluteUrl = Promise.resolve(
-			php.requestHandler!.server.absoluteUrl
-		);
-		this.documentRoot = Promise.resolve(
-			php.requestHandler!.server.documentRoot
-		);
+		this.absoluteUrl = php.absoluteUrl;
+		this.documentRoot = php.documentRoot;
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
 	async pathToInternalUrl(path: string): Promise<string> {
-		return _private
-			.get(this)!
-			.php.requestHandler!.server.pathToInternalUrl(path);
+		return _private.get(this)!.php.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
 	async internalUrlToPath(internalUrl: string): Promise<string> {
-		return _private
-			.get(this)!
-			.php.requestHandler!.server.internalUrlToPath(internalUrl);
+		return _private.get(this)!.php.internalUrlToPath(internalUrl);
 	}
 
 	async onDownloadProgress(

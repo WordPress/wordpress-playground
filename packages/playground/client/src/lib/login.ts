@@ -1,4 +1,4 @@
-import type { PlaygroundClient } from '../';
+import { UniversalPHP } from '@php-wasm/web';
 
 /**
  * Logs in to the Playground.
@@ -10,7 +10,7 @@ import type { PlaygroundClient } from '../';
  * @param password The password to log in with. Defaults to 'password'.
  */
 export async function login(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	user = 'admin',
 	password = 'password'
 ) {

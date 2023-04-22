@@ -1,5 +1,6 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
+import { UniversalPHP } from '@php-wasm/web';
 import {
 	activatePlugin,
 	Blueprint,
@@ -43,7 +44,7 @@ export async function runBlueprint(
 }
 
 async function runBlueprintStep(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	step: CompiledStep
 ) {
 	step.progress.fillSlowly();
@@ -128,7 +129,7 @@ async function runBlueprintStep(
 			await updateUserMeta(playground, args.meta, args.userId);
 			break;
 		case 'request':
-			await playground.request(args.request, args.maxRedirects);
+			await playground.request(args.request);
 			break;
 		case 'runPHP': {
 			await playground.run({

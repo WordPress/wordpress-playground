@@ -268,6 +268,17 @@ export interface WithRequestHandler {
 	 * @param  request - PHP Request data.
 	 */
 	request(request?: PHPRequest): Promise<PHPResponse>;
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
+	pathToInternalUrl(path: string): Promise<string>;
+
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
+	internalUrlToPath(internalUrl: string): Promise<string>;
+
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
+	absoluteUrl: Promise<string>;
+
+	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
+	documentRoot: Promise<string>;
 }
 
 export type PHPRuntime = any;
@@ -300,6 +311,21 @@ export type MountSettings = {
 	root: string;
 };
 
+/** @inheritdoc T */
+type Promisify<T> = {
+	[P in keyof T]: T[P] extends (...args: infer A) => infer R
+		? R extends void | Promise<any>
+			? T[P]
+			: (...args: A) => ReturnType<T[P]> | Promise<ReturnType<T[P]>>
+		: T[P] | Promise<T[P]>;
+};
+
+type _UniversalPHP = WithPHPIniBindings &
+	WithFilesystem &
+	WithRequestHandler &
+	WithRun;
+export type UniversalPHP = Promisify<_UniversalPHP>;
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that abstracts the super low-level API and provides a more convenient
@@ -309,13 +335,7 @@ export type MountSettings = {
  * interact with the PHP filesystem.
  */
 export abstract class BasePHP
-	implements
-		WithPHPIniBindings,
-		WithFilesystem,
-		WithNodeFilesystem,
-		WithCLI,
-		WithRequestHandler,
-		WithRun
+	implements _UniversalPHP, WithNodeFilesystem, WithCLI
 {
 	#Runtime: any;
 	#phpIniOverrides: [string, string][] = [];
@@ -341,6 +361,26 @@ export abstract class BasePHP
 				new PHPRequestHandler(this, serverOptions)
 			);
 		}
+	}
+
+	/** @inheritDoc */
+	get absoluteUrl() {
+		return Promise.resolve(this.requestHandler!.server.absoluteUrl);
+	}
+
+	/** @inheritDoc */
+	get documentRoot() {
+		return Promise.resolve(this.requestHandler!.server.absoluteUrl);
+	}
+
+	/** @inheritDoc */
+	async pathToInternalUrl(path: string): Promise<string> {
+		return this.requestHandler!.server.pathToInternalUrl(path);
+	}
+
+	/** @inheritDoc */
+	async internalUrlToPath(internalUrl: string): Promise<string> {
+		return this.requestHandler!.server.internalUrlToPath(internalUrl);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {

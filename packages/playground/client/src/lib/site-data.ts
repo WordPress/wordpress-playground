@@ -1,11 +1,10 @@
-import { PHPResponse } from '@php-wasm/web';
+import { PHPResponse, UniversalPHP } from '@php-wasm/web';
 import { phpVar } from '@php-wasm/util';
-import { PlaygroundClient } from '..';
 
 export type SiteOptions = Record<string, unknown>;
 
 export async function setSiteOptions(
-	client: PlaygroundClient,
+	client: UniversalPHP,
 	options: SiteOptions
 ) {
 	const result = await client.run({
@@ -23,7 +22,7 @@ export async function setSiteOptions(
 
 export type UserMeta = Record<string, unknown>;
 export async function updateUserMeta(
-	client: PlaygroundClient,
+	client: UniversalPHP,
 	meta: UserMeta,
 	userId: number
 ) {

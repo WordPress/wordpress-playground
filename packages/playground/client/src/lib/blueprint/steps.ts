@@ -61,7 +61,6 @@ export type Step<ResourceType> = (
 	| {
 			step: 'request';
 			request: PHPRequest;
-			maxRedirects?: number;
 	  }
 	| {
 			step: 'cp';
