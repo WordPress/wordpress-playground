@@ -14,10 +14,8 @@ export { activatePlugin } from './activate-plugin';
 export { setSiteOptions, updateUserMeta } from './site-data';
 export { defineSiteUrl } from './define-site-url';
 export { applyWordPressPatches } from './apply-wordpress-patches';
-export {
-	runWpInstallationWizard,
-	WordPressInstallationOptions,
-} from './run-wp-installation-wizard';
+export { runWpInstallationWizard } from './run-wp-installation-wizard';
+export type { WordPressInstallationOptions } from './run-wp-installation-wizard';
 
 import { PHPRequest, PHPRunOptions } from '@php-wasm/universal';
 import { InstallPluginOptions } from './install-plugin';

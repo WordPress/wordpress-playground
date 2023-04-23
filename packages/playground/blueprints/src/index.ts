@@ -1,4 +1,8 @@
 export * from './lib/steps';
-export { runBlueprint } from './lib/run';
-export { compileBlueprint as parseBlueprint } from './lib/compile';
-export type { Blueprint, StepDefinition } from './lib/compile';
+export { runBlueprintSteps } from './lib/run';
+export { compileBlueprint } from './lib/compile';
+export type {
+	Blueprint,
+	StepDefinition,
+	CompiledBlueprint,
+} from './lib/compile';

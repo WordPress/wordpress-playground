@@ -19,6 +19,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import { applyWebWordPressPatches } from './web-wordpress-patches';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -87,8 +88,6 @@ const [setApiReady] = exposeAPI(
 
 await phpReady;
 const wpLoaderModule = (await dataModules)[0] as any;
-applyWordPressPatches(php, {
-	siteUrl: scopedSiteUrl,
-	wordpressPath: DOCROOT,
-});
+applyWebWordPressPatches(php, scopedSiteUrl);
+
 setApiReady();

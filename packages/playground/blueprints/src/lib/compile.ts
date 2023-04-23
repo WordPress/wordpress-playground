@@ -4,7 +4,6 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
-	UniversalPHP,
 } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step } from './steps';
@@ -73,11 +72,10 @@ interface CompileBlueprintOptions {
  * @returns The compiled blueprint
  */
 export function compileBlueprint(
-	playground: UniversalPHP,
 	blueprint: Blueprint,
 	{
 		progress = new ProgressTracker(),
-		semaphore,
+		semaphore = new Semaphore({ concurrency: 3 }),
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	const steps = (blueprint.steps || []).filter(isStepDefinition);
@@ -87,7 +85,7 @@ export function compileBlueprint(
 		0
 	);
 	const compiledSteps = steps.map((step) =>
-		compileStep(playground, step, {
+		compileStep(step, {
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
@@ -161,7 +159,6 @@ interface CompileStepArgsOptions {
  * @returns The compiled step
  */
 function compileStep(
-	playground: UniversalPHP,
 	step: StepDefinition,
 	{
 		semaphore,
@@ -178,7 +175,6 @@ function compileStep(
 		let value = (step as any)[key];
 		if (isFileReference(value)) {
 			value = Resource.create(value, {
-				playground,
 				semaphore,
 			});
 		}

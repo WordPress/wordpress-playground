@@ -1,5 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
-import { runBlueprint } from './run';
+import { compileBlueprint } from './compile';
+import { runBlueprintSteps } from './run';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -14,15 +15,18 @@ describe('Blueprints', () => {
 	});
 
 	it('should run a basic blueprint', async () => {
-		await runBlueprint(php, {
-			steps: [
-				{
-					step: 'writeFile',
-					path: '/index.php',
-					data: `<?php echo 'Hello World';`,
-				},
-			],
-		});
+		await runBlueprintSteps(
+			compileBlueprint({
+				steps: [
+					{
+						step: 'writeFile',
+						path: '/index.php',
+						data: `<?php echo 'Hello World';`,
+					},
+				],
+			}),
+			php
+		);
 		expect(php.fileExists('/index.php')).toBe(true);
 		expect(php.readFileAsText('/index.php')).toBe(
 			`<?php echo 'Hello World';`

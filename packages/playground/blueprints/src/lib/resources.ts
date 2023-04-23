@@ -67,7 +67,6 @@ export function isFileReference(ref: any): ref is FileReference {
 interface ResourceOptions {
 	/** Optional semaphore to limit concurrent downloads */
 	semaphore?: Semaphore;
-	playground: UniversalPHP;
 	progress?: ProgressTracker;
 }
 export abstract class Resource {
@@ -75,6 +74,8 @@ export abstract class Resource {
 	public abstract progress?: ProgressTracker;
 	/** A Promise that resolves to the file contents */
 	protected promise?: Promise<File>;
+
+	protected playground?: UniversalPHP;
 
 	/**
 	 * Creates a new Resource based on the given file reference
@@ -85,12 +86,12 @@ export abstract class Resource {
 	 */
 	static create(
 		ref: FileReference,
-		{ semaphore, playground, progress }: ResourceOptions
+		{ semaphore, progress }: ResourceOptions
 	): Resource {
 		let resource: Resource;
 		switch (ref.resource) {
 			case 'vfs':
-				resource = new VFSResource(playground, ref, progress);
+				resource = new VFSResource(ref, progress);
 				break;
 			case 'literal':
 				resource = new LiteralResource(ref, progress);
@@ -114,6 +115,10 @@ export abstract class Resource {
 		}
 
 		return resource;
+	}
+
+	setPlayground(playground: UniversalPHP) {
+		this.playground = playground;
 	}
 
 	/**
@@ -141,7 +146,6 @@ export class VFSResource extends Resource {
 	 * @param progress The progress tracker.
 	 */
 	constructor(
-		private playground: UniversalPHP,
 		private resource: VFSReference,
 		public override progress?: ProgressTracker
 	) {
@@ -150,7 +154,7 @@ export class VFSResource extends Resource {
 
 	/** @inheritDoc */
 	async resolve() {
-		const buffer = await this.playground.readFileAsBuffer(
+		const buffer = await this.playground!.readFileAsBuffer(
 			this.resource.path
 		);
 		this.progress?.set(100);

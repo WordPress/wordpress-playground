@@ -1,6 +1,4 @@
-import { ProgressTracker } from '@php-wasm/progress';
-import { Semaphore } from '@php-wasm/util';
-import { BasePHP, UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP } from '@php-wasm/universal';
 import {
 	activatePlugin,
 	installPlugin,
@@ -13,46 +11,25 @@ import {
 } from './steps';
 import { zipNameToHumanName } from './steps/common';
 import { unzip } from './steps/import-export';
-import { Blueprint, compileBlueprint, CompiledStep } from './compile';
+import { CompiledBlueprint, CompiledStep } from './compile';
 import { Resource } from './resources';
-import { PlaygroundClient } from '@wp-playground/client';
 
-export async function runBlueprint(
-	playground: UniversalPHP,
-	blueprint: Blueprint,
-	progress: ProgressTracker = new ProgressTracker()
+export async function runBlueprintSteps(
+	compiledBlueprint: CompiledBlueprint,
+	playground: UniversalPHP
 ) {
-	const parsed = compileBlueprint(playground, blueprint, {
-		progress,
-		semaphore: new Semaphore({ concurrency: 3 }),
-	});
-
-	progress.setCaption('Preparing WordPress');
-
 	// Start fetching resources early
-	for (const { resource } of parsed.resources) {
+	for (const { resource } of compiledBlueprint.resources) {
 		resource.resolve();
 	}
 
 	// Run all parsed steps
-	for (const step of parsed.steps) {
-		await runBlueprintStep(playground, step);
-	}
-
-	if (isRemoteClient(playground)) {
-		await playground.goTo(parsed.landingPage);
+	for (const step of compiledBlueprint.steps) {
+		await runBlueprintStep(step, playground);
 	}
 }
 
-function isRemoteClient(php: UniversalPHP): php is PlaygroundClient {
-	return (
-		!(php instanceof BasePHP) &&
-		'goTo' in php &&
-		typeof php.goTo === 'function'
-	);
-}
-
-async function runBlueprintStep(playground: UniversalPHP, step: CompiledStep) {
+async function runBlueprintStep(step: CompiledStep, playground: UniversalPHP) {
 	step.progress.fillSlowly();
 
 	const args = step.args;

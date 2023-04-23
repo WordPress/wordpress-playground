@@ -1,7 +1,11 @@
-import { PlaygroundClient } from '@wp-playground/remote';
-import { Blueprint, runBlueprint } from '@wp-playground/blueprints';
+import {
+	Blueprint,
+	compileBlueprint,
+	runBlueprintSteps,
+} from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
+import { PlaygroundClient } from '@wp-playground/remote';
 
 export * from '@wp-playground/blueprints';
 
@@ -13,7 +17,7 @@ export type {
 } from '@php-wasm/universal';
 
 export type { PlaygroundClient };
-export interface ConnectPlaygroundOptions {
+export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
@@ -32,61 +36,78 @@ const officialRemoteOrigin = 'https://playground.wordpress.net';
  * @returns A PlaygroundClient instance.
  */
 export async function startPlayground(
-	options: ConnectPlaygroundOptions
+	options: StartPlaygroundOptions
 ): Promise<PlaygroundClient> {
-	/*
-	 * Load a fresh playground remote and wait until
-	 * the iframe is ready for communication:
-	 */
+	const blueprint: Blueprint = {
+		...(options.blueprint || {}),
+		preferredVersions: {
+			php: '8.0',
+			wp: 'latest',
+			...(options.blueprint?.preferredVersions || {}),
+		},
+	};
+	const tracker = options.progressTracker || new ProgressTracker();
+	tracker.setCaption('Preparing WordPress');
+
+	const compiled = compileBlueprint(blueprint, {
+		progress: tracker.stage(0.5),
+	});
+
+	// Load playground in an iframe
 	await new Promise((resolve) => {
-		const remoteUrl = new URL(options.remoteUrl);
-		if (
-			remoteUrl.origin === officialRemoteOrigin &&
-			remoteUrl.pathname !== '/remote.html'
-		) {
-			throw new Error(
-				`Invalid remote URL: ${remoteUrl}. ` +
-					`Expected origin to be ${officialRemoteOrigin}/remote.html.`
-			);
-		}
-
-		const qs = new URLSearchParams({
-			php: options.blueprint?.preferredVersions?.php || 'latest',
-			wp: options.blueprint?.preferredVersions?.wp || 'latest',
-		});
-		if (!options.disableProgressBar) {
-			qs.set('progressbar', '1');
-		}
-		remoteUrl.search = qs.toString();
-
-		options.iframe.src = remoteUrl.toString();
+		options.iframe.src = remoteURL(
+			options.remoteUrl,
+			compiled?.versions.php,
+			compiled?.versions.wp,
+			options.disableProgressBar
+		);
 		options.iframe.addEventListener('load', resolve, false);
 	});
 
+	// Connect the Comlink client
 	const playground = createClient(options.iframe);
 	await playground.connected;
 
-	const tracker = options.progressTracker || new ProgressTracker();
-	tracker.addProgressReceiver(playground);
-	const downloadWeight = options.blueprint ? 0.5 : 1;
-	await playground.onDownloadProgress(
-		tracker.stage(downloadWeight, 'Preparing WordPress').loadingListener
-	);
-
-	/**
-	 * Wait until WordPress and PHP are loaded.
-	 */
+	// Wait for playground to be ready and display the progress
+	tracker.pipe(playground);
+	const downloadTracker = compiled.steps.length
+		? tracker.stage(0.5)
+		: tracker;
+	await playground.onDownloadProgress(downloadTracker.loadingListener);
 	await playground.isReady();
 
-	if (options.blueprint) {
-		await runBlueprint(
-			playground,
-			options.blueprint,
-			tracker.stage(1 - downloadWeight)
+	await runBlueprintSteps(compiled, playground);
+	await playground.goTo(compiled.landingPage);
+
+	return playground;
+}
+
+function remoteURL(
+	remoteHtmlUrl: string,
+	php: string,
+	wp: string,
+	disableProgressBar = false
+) {
+	const url = new URL(remoteHtmlUrl);
+	if (
+		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
+		url.pathname !== '/remote.html'
+	) {
+		throw new Error(
+			`Invalid remote URL: ${url}. ` +
+				`Expected origin to be ${officialRemoteOrigin}/remote.html.`
 		);
 	}
 
-	return playground;
+	const qs = new URLSearchParams({
+		php,
+		wp,
+	});
+	if (!disableProgressBar) {
+		qs.set('progressbar', '1');
+	}
+	url.search = qs.toString();
+	return url.toString();
 }
 
 /**

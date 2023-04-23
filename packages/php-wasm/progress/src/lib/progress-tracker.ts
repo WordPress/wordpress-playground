@@ -278,7 +278,7 @@ export class ProgressTracker extends EventTarget {
 		return this._loadingListener;
 	}
 
-	addProgressReceiver(receiver: ProgressReceiver) {
+	pipe(receiver: ProgressReceiver) {
 		this.addEventListener('progress', (event: ProgressTrackerEvent) => {
 			receiver.setProgress({
 				progress: event.detail.progress,
