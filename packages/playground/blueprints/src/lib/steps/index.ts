@@ -12,10 +12,16 @@ export { installPlugin } from './install-plugin';
 export type { InstallPluginOptions } from './install-plugin';
 export { activatePlugin } from './activate-plugin';
 export { setSiteOptions, updateUserMeta } from './site-data';
+export { defineSiteUrl } from './define-site-url';
+export {
+	runWpInstallationWizard,
+	WordPressInstallationOptions,
+} from './run-wp-installation-wizard';
 
 import { PHPRequest, PHPRunOptions } from '@php-wasm/universal';
 import { InstallPluginOptions } from './install-plugin';
 import { InstallThemeOptions } from './install-theme';
+import { WordPressInstallationOptions } from './run-wp-installation-wizard';
 import { SiteOptions, UserMeta } from './site-data';
 
 export type Step<ResourceType> = (
@@ -50,6 +56,14 @@ export type Step<ResourceType> = (
 			step: 'unzip';
 			zipPath: string;
 			extractToPath: string;
+	  }
+	| {
+			step: 'defineSiteUrl';
+			siteUrl: string;
+	  }
+	| {
+			step: 'runWpInstallationWizard';
+			options: WordPressInstallationOptions;
 	  }
 	| {
 			step: 'setSiteOptions';

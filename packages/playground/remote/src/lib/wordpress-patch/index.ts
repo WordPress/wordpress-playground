@@ -48,6 +48,7 @@ class WordPressPatcher {
 		this.#disableSiteHealth();
 		this.#disableWpNewBlogNotification();
 		this.#replaceRequestsTransports();
+		this.#allowWpOrgHosts();
 	}
 	patchSiteUrl() {
 		this.#patchFile(
@@ -120,6 +121,22 @@ class WordPressPatcher {
 		this.#php.writeFile(
 			`${DOCROOT}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
 			showAdminCredentialsOnWpLogin
+		);
+	}
+	#allowWpOrgHosts() {
+		this.#php.mkdirTree('/wordpress/wp-content/mu-plugins');
+		this.#php.writeFile(
+			'/wordpress/wp-content/mu-plugins/0-allow-wp-org.php',
+			`<?php
+			// Needed because gethostbyname( 'wordpress.org' ) returns
+			// a private network IP address for some reason.
+			add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
+				return array( 
+					'wordpress.org',
+					'api.wordpress.org',
+					'downloads.wordpress.org',
+				);
+			} );`
 		);
 	}
 	#patchFile(path: string, callback: (contents: string) => string) {
