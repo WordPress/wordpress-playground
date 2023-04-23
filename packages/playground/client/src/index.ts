@@ -1,7 +1,9 @@
 import { PlaygroundClient } from '@wp-playground/remote';
+import { Blueprint, runBlueprint } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
-import { Blueprint, runBlueprint } from './lib';
+
+export * from '@wp-playground/blueprints';
 
 export type {
 	HTTPMethod,
@@ -9,7 +11,6 @@ export type {
 	PHPRequest,
 	PHPResponse,
 } from '@php-wasm/universal';
-export * from './lib';
 
 export type { PlaygroundClient };
 export interface ConnectPlaygroundOptions {

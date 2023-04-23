@@ -4,7 +4,7 @@ import {
 } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
-import { zipNameToHumanName } from '../common';
+import { zipNameToHumanName } from './steps/common';
 const ResourceTypes = [
 	'vfs',
 	'literal',

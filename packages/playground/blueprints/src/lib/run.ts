@@ -3,25 +3,24 @@ import { Semaphore } from '@php-wasm/util';
 import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import {
 	activatePlugin,
-	Blueprint,
 	installPlugin,
 	installTheme,
 	login,
-	PlaygroundClient,
 	replaceSite,
 	setSiteOptions,
 	submitImporterForm,
 	updateUserMeta,
-} from '../..';
-import { zipNameToHumanName } from '../common';
-import { unzip } from '../import-export';
-import { compileBlueprint, CompiledStep } from './compile';
+} from './steps';
+import { zipNameToHumanName } from './steps/common';
+import { unzip } from './steps/import-export';
+import { Blueprint, compileBlueprint, CompiledStep } from './compile';
 import { Resource } from './resources';
+import { PlaygroundClient } from '@wp-playground/client';
 
 export async function runBlueprint(
 	playground: UniversalPHP,
 	blueprint: Blueprint,
-	progress: ProgressTracker
+	progress: ProgressTracker = new ProgressTracker()
 ) {
 	const parsed = compileBlueprint(playground, blueprint, {
 		progress,
