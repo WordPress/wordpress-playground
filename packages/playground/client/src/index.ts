@@ -8,7 +8,7 @@ export type {
 	PHPRunOptions,
 	PHPRequest,
 	PHPResponse,
-} from '@php-wasm/web';
+} from '@php-wasm/universal';
 export * from './lib';
 
 export type { PlaygroundClient };

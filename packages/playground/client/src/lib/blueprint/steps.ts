@@ -51,7 +51,7 @@ export type Step<ResourceType> = (
 	  }
 	| {
 			step: 'runPHPWithOptions';
-			options?: PHPRunOptions;
+			options: PHPRunOptions;
 	  }
 	| {
 			step: 'setPhpIniEntry';

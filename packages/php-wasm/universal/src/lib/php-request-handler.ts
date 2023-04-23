@@ -5,7 +5,7 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { FileInfo, BasePHP, PHPRunOptions, normalizeHeaders } from './php';
+import { FileInfo, BasePHP, PHPRunOptions, normalizeHeaders } from './base-php';
 import { PHPResponse } from './php-response';
 
 export type HTTPMethod =

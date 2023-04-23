@@ -1,4 +1,4 @@
-import { PHPResponse, UniversalPHP } from '@php-wasm/web';
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
 
 export type SiteOptions = Record<string, unknown>;

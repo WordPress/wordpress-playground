@@ -1,5 +1,6 @@
-import type { PHPClient } from './php-client';
+import type { WebPHP } from './php-client';
 import { responseTo } from '@php-wasm/web-service-worker';
+import { Remote } from 'comlink';
 
 /**
  * Run this in the main application to register the service worker or
@@ -11,7 +12,7 @@ import { responseTo } from '@php-wasm/web-service-worker';
  *                                 mismatched with the actual version, the service worker
  *                                 will be re-registered.
  */
-export async function registerServiceWorker<Client extends PHPClient>(
+export async function registerServiceWorker<Client extends Remote<WebPHP>>(
 	phpApi: Client,
 	scope: string,
 	scriptUrl: string,

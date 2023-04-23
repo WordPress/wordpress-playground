@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/web';
+import { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * Logs in to the Playground.

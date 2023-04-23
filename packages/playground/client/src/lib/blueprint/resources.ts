@@ -2,8 +2,8 @@ import {
 	cloneResponseMonitorProgress,
 	ProgressTracker,
 } from '@php-wasm/progress';
+import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
-import { PlaygroundClient } from '../..';
 import { zipNameToHumanName } from '../common';
 const ResourceTypes = [
 	'vfs',
@@ -67,7 +67,7 @@ export function isFileReference(ref: any): ref is FileReference {
 interface ResourceOptions {
 	/** Optional semaphore to limit concurrent downloads */
 	semaphore?: Semaphore;
-	playground: PlaygroundClient;
+	playground: UniversalPHP;
 	progress?: ProgressTracker;
 }
 export abstract class Resource {
@@ -141,7 +141,7 @@ export class VFSResource extends Resource {
 	 * @param progress The progress tracker.
 	 */
 	constructor(
-		private playground: PlaygroundClient,
+		private playground: UniversalPHP,
 		private resource: VFSReference,
 		public override progress?: ProgressTracker
 	) {

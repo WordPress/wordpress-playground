@@ -1,11 +1,9 @@
 import {
 	PHP,
-	PHPClient,
+	WebPHP,
 	exposeAPI,
 	PublicAPI,
 	parseWorkerStartupOptions,
-	SupportedPHPVersion,
-	SupportedPHPVersionsList,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
@@ -18,6 +16,10 @@ import {
 	SupportedWordPressVersion,
 	SupportedWordPressVersionsList,
 } from './get-wordpress-module';
+import {
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/universal';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -53,10 +55,10 @@ const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
 });
 
 /** @inheritDoc PHPClient */
-export class PlaygroundWorkerClientClass extends PHPClient {
-	scope: Promise<string>;
-	wordPressVersion: Promise<string>;
-	phpVersion: Promise<string>;
+export class WebWorkerPHP extends WebPHP {
+	scope: string;
+	wordPressVersion: string;
+	phpVersion: string;
 
 	constructor(
 		php: PHP,
@@ -66,9 +68,9 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 		phpVersion: string
 	) {
 		super(php, monitor);
-		this.scope = Promise.resolve(scope);
-		this.wordPressVersion = Promise.resolve(wordPressVersion);
-		this.phpVersion = Promise.resolve(phpVersion);
+		this.scope = scope;
+		this.wordPressVersion = wordPressVersion;
+		this.phpVersion = phpVersion;
 	}
 
 	async getWordPressModuleDetails() {
@@ -80,12 +82,8 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 	}
 }
 
-/** @inheritDoc PlaygroundWorkerClientClass */
-export interface PlaygroundWorkerClient
-	extends PublicAPI<PlaygroundWorkerClientClass> {}
-
-const [setApiReady]: [() => void, PlaygroundWorkerClient] = exposeAPI(
-	new PlaygroundWorkerClientClass(php, monitor, scope, wpVersion, phpVersion)
+const [setApiReady] = exposeAPI(
+	new WebWorkerPHP(php, monitor, scope, wpVersion, phpVersion)
 );
 
 await phpReady;

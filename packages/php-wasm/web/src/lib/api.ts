@@ -1,21 +1,26 @@
+import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
 import * as Comlink from 'comlink';
-import { PHPResponse, PHPResponseData } from './php-response';
 
-export type WorkerStartupOptions<
-	T extends Record<string, string> = Record<string, string>
-> = T;
+type WithIsReady = {
+	/** Resolves to true when the remote API is ready to be used */
+	isReady: () => Promise<void>;
+};
+export type RemoteAPI<T> = Comlink.Remote<T & WithIsReady>;
 
-export function consumeAPI<APIType>(remote: Worker | Window) {
+export function consumeAPI<APIType>(
+	remote: Worker | Window
+): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
 	const endpoint =
 		remote instanceof Worker ? remote : Comlink.windowEndpoint(remote);
 
-	return Comlink.wrap<APIType>(endpoint);
+	return Comlink.wrap<APIType & WithIsReady>(endpoint);
 }
 
-export type PublicAPI<Methods, PipedAPI = unknown> = Methods &
-	PipedAPI & { isReady: () => Promise<void> };
+export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
+	Methods & PipedAPI
+>;
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI

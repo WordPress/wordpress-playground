@@ -1,6 +1,6 @@
 import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
-import { UniversalPHP } from '@php-wasm/web';
+import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import {
 	activatePlugin,
 	Blueprint,
@@ -19,7 +19,7 @@ import { compileBlueprint, CompiledStep } from './compile';
 import { Resource } from './resources';
 
 export async function runBlueprint(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	blueprint: Blueprint,
 	progress: ProgressTracker
 ) {
@@ -40,13 +40,20 @@ export async function runBlueprint(
 		await runBlueprintStep(playground, step);
 	}
 
-	await playground.goTo(parsed.landingPage);
+	if (isRemoteClient(playground)) {
+		await playground.goTo(parsed.landingPage);
+	}
 }
 
-async function runBlueprintStep(
-	playground: UniversalPHP,
-	step: CompiledStep
-) {
+function isRemoteClient(php: UniversalPHP): php is PlaygroundClient {
+	return (
+		!(php instanceof BasePHP) &&
+		'goTo' in php &&
+		typeof php.goTo === 'function'
+	);
+}
+
+async function runBlueprintStep(playground: UniversalPHP, step: CompiledStep) {
 	step.progress.fillSlowly();
 
 	const args = step.args;

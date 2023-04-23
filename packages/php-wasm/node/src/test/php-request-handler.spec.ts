@@ -1,14 +1,18 @@
-import { PHP, SupportedPHPVersions, getPHPLoaderModule } from '..';
-import { loadPHPRuntime, PHPRequestHandler } from '@php-wasm/abstract';
+import { NodePHP, getPHPLoaderModule } from '..';
+import {
+	loadPHPRuntime,
+	PHPRequestHandler,
+	SupportedPHPVersions,
+} from '@php-wasm/universal';
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
-		let php: PHP;
+		let php: NodePHP;
 		let handler: PHPRequestHandler;
 		beforeEach(async () => {
 			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 			const runtimeId = await loadPHPRuntime(phpLoaderModule);
-			php = new PHP(runtimeId);
+			php = new NodePHP(runtimeId);
 			handler = new PHPRequestHandler(php, {
 				documentRoot: '/',
 				isStaticFilePath: (path) => !path.endsWith('.php'),

@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/web';
+import { UniversalPHP } from '@php-wasm/universal';
 import { asDOM } from './common';
 
 /**
@@ -7,10 +7,7 @@ import { asDOM } from './common';
  * @param playground The playground client.
  * @param plugin The plugin slug.
  */
-export async function activatePlugin(
-	playground: UniversalPHP,
-	plugin: string
-) {
+export async function activatePlugin(playground: UniversalPHP, plugin: string) {
 	const pluginsPage = asDOM(
 		await playground.request({
 			url: '/wp-admin/plugins.php',

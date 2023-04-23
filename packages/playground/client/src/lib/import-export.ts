@@ -1,5 +1,5 @@
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
-import { PHPResponse, UniversalPHP } from '@php-wasm/web';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';

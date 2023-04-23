@@ -3,7 +3,8 @@ export type {
 	EmscriptenOptions,
 	FileInfo,
 	RuntimeType,
-	MountSettings,
+	IsomorphicLocalPHP,
+	IsomorphicRemotePHP,
 	PHPLoaderModule,
 	PHPOutput,
 	PHPRunOptions,
@@ -11,15 +12,14 @@ export type {
 	PHPRuntimeId,
 	UniversalPHP,
 	RmDirOptions,
-	WithCLI,
 	WithFilesystem,
 	WithRun,
 	WithRequestHandler,
-	WithNodeFilesystem,
 	WithPHPIniBindings,
-} from './php';
+} from './base-php';
 
-export type { PHPResponse } from './php-response';
+export { PHPResponse } from './php-response';
+export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
 export {
 	LatestSupportedPHPVersion,
@@ -27,7 +27,8 @@ export {
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
 export type { SupportedPHPVersion } from './supported-php-versions';
-export { BasePHP, loadPHPRuntime } from './php';
+export { BasePHP, loadPHPRuntime, __private__dont__use } from './base-php';
+export { rethrowFileSystemError } from './rethrow-file-system-error';
 
 export type {
 	HTTPMethod,
@@ -38,9 +39,6 @@ export type {
 export { PHPRequestHandler } from './php-request-handler';
 export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
-
-export type { WorkerStartupOptions, PublicAPI } from './api';
-export { consumeAPI, exposeAPI } from './api';
 
 export {
 	DEFAULT_BASE_URL,

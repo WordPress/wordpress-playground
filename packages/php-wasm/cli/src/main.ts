@@ -6,10 +6,11 @@ import { rootCertificates } from 'tls';
 
 import {
 	LatestSupportedPHPVersion,
-	PHP,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
-} from '@php-wasm/node';
+} from '@php-wasm/universal';
+
+import { NodePHP } from '@php-wasm/node';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -31,7 +32,7 @@ if (!SupportedPHPVersionsList.includes(phpVersion)) {
 	throw new Error(`Unsupported PHP version ${phpVersion}`);
 }
 
-const php = await PHP.load(phpVersion, {
+const php = await NodePHP.load(phpVersion, {
 	emscriptenOptions: {
 		ENV: {
 			...process.env,

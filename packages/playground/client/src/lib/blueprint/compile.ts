@@ -4,8 +4,8 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
-} from '@php-wasm/web';
-import { PlaygroundClient } from '../..';
+	UniversalPHP,
+} from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step } from './steps';
 
@@ -73,7 +73,7 @@ interface CompileBlueprintOptions {
  * @returns The compiled blueprint
  */
 export function compileBlueprint(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	blueprint: Blueprint,
 	{
 		progress = new ProgressTracker(),
@@ -161,7 +161,7 @@ interface CompileStepArgsOptions {
  * @returns The compiled step
  */
 function compileStep(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	step: StepDefinition,
 	{
 		semaphore,

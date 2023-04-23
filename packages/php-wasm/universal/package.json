@@ -1,5 +1,5 @@
 {
-	"name": "@php-wasm/abstract",
+	"name": "@php-wasm/universal",
 	"version": "0.1.0",
 	"description": "PHP.wasm – emscripten bindings for PHP",
 	"repository": {

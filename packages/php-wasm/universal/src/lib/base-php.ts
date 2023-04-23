@@ -1,3 +1,4 @@
+import { Remote } from 'comlink';
 import PHPBrowser from './php-browser';
 import PHPRequestHandler, {
 	HTTPMethod,
@@ -84,30 +85,6 @@ export const currentJsRuntime = (function () {
 export interface WithPHPIniBindings {
 	setPhpIniPath(path: string): void;
 	setPhpIniEntry(key: string, value: string): void;
-}
-
-export interface WithCLI {
-	/**
-	 * Starts a PHP CLI session with given arguments.
-	 *
-	 * Can only be used when PHP was compiled with the CLI SAPI.
-	 * Cannot be used in conjunction with `run()`.
-	 *
-	 * @param  argv - The arguments to pass to the CLI.
-	 * @returns The exit code of the CLI session.
-	 */
-	cli(argv: string[]): Promise<number>;
-}
-
-export interface WithNodeFilesystem {
-	/**
-	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
-	 *
-	 * @param  localPath - The path of a real local directory you want to mount.
-	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
-	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
-	 */
-	mount(localPath: string | MountSettings, virtualFSPath: string): void;
 }
 
 export interface RmDirOptions {
@@ -240,9 +217,9 @@ export interface WithRun {
 	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
 	 * ```
 	 *
-	 * @param  request - PHP Request data.
+	 * @param  options - PHP run options.
 	 */
-	run(request?: PHPRunOptions): Promise<PHPResponse>;
+	run(options: PHPRunOptions): Promise<PHPResponse>;
 }
 
 export interface WithRequestHandler {
@@ -267,18 +244,19 @@ export interface WithRequestHandler {
 	 *
 	 * @param  request - PHP Request data.
 	 */
-	request(request?: PHPRequest): Promise<PHPResponse>;
+	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
+
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
-	pathToInternalUrl(path: string): Promise<string>;
+	pathToInternalUrl(path: string): string;
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
-	internalUrlToPath(internalUrl: string): Promise<string>;
+	internalUrlToPath(internalUrl: string): string;
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
-	absoluteUrl: Promise<string>;
+	absoluteUrl: string;
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
-	documentRoot: Promise<string>;
+	documentRoot: string;
 }
 
 export type PHPRuntime = any;
@@ -307,37 +285,37 @@ export type EmscriptenOptions = {
 	monitorRunDependencies?: (left: number) => void;
 } & Record<string, any>;
 
-export type MountSettings = {
-	root: string;
-};
-
-/** @inheritdoc T */
-type Promisify<T> = {
-	[P in keyof T]: T[P] extends (...args: infer A) => infer R
-		? R extends void | Promise<any>
-			? T[P]
-			: (...args: A) => ReturnType<T[P]> | Promise<ReturnType<T[P]>>
-		: T[P] | Promise<T[P]>;
-};
-
-type _UniversalPHP = WithPHPIniBindings &
+export type IsomorphicLocalPHP = WithPHPIniBindings &
 	WithFilesystem &
 	WithRequestHandler &
 	WithRun;
-export type UniversalPHP = Promisify<_UniversalPHP>;
+export type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
+export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
+
+export const __private__dont__use = Symbol('__private__dont__use');
+
+export function isLocalPHP(
+	playground: UniversalPHP
+): playground is IsomorphicLocalPHP {
+	return !(playground instanceof BasePHP);
+}
+
+export function isRemotePHP(
+	playground: UniversalPHP
+): playground is IsomorphicRemotePHP {
+	return !isLocalPHP(playground);
+}
 
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
- * that abstracts the super low-level API and provides a more convenient
+ * that universals the super low-level API and provides a more convenient
  * higher-level API.
  *
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP
-	implements _UniversalPHP, WithNodeFilesystem, WithCLI
-{
-	#Runtime: any;
+export class BasePHP implements IsomorphicLocalPHP {
+	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
 	requestHandler?: PHPBrowser;
@@ -365,32 +343,32 @@ export abstract class BasePHP
 
 	/** @inheritDoc */
 	get absoluteUrl() {
-		return Promise.resolve(this.requestHandler!.server.absoluteUrl);
+		return this.requestHandler!.server.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return Promise.resolve(this.requestHandler!.server.absoluteUrl);
+		return this.requestHandler!.server.absoluteUrl;
 	}
 
 	/** @inheritDoc */
-	async pathToInternalUrl(path: string): Promise<string> {
-		return this.requestHandler!.server.pathToInternalUrl(path);
+	pathToInternalUrl(path: string): string {
+		return this.requestHandler!.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc */
-	async internalUrlToPath(internalUrl: string): Promise<string> {
-		return this.requestHandler!.server.internalUrlToPath(internalUrl);
+	internalUrlToPath(internalUrl: string): string {
+		return this.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
-		if (this.#Runtime) {
+		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
 		if (!loadedRuntimes[runtimeId]) {
 			throw new Error('Invalid PHP runtime id.');
 		}
-		this.#Runtime = loadedRuntimes[runtimeId];
+		this[__private__dont__use] = loadedRuntimes[runtimeId];
 	}
 
 	/** @inheritDoc */
@@ -398,7 +376,12 @@ export abstract class BasePHP
 		if (this.#webSapiInitialized) {
 			throw new Error('Cannot set PHP ini path after calling run().');
 		}
-		this.#Runtime.ccall('wasm_set_phpini_path', null, ['string'], [path]);
+		this[__private__dont__use].ccall(
+			'wasm_set_phpini_path',
+			null,
+			['string'],
+			[path]
+		);
 	}
 
 	/** @inheritDoc */
@@ -411,7 +394,7 @@ export abstract class BasePHP
 
 	/** @inheritDoc */
 	chdir(path: string) {
-		this.#Runtime.FS.chdir(path);
+		this[__private__dont__use].FS.chdir(path);
 	}
 
 	/** @inheritDoc */
@@ -426,7 +409,7 @@ export abstract class BasePHP
 	}
 
 	/** @inheritDoc */
-	async run(request: PHPRunOptions = {}): Promise<PHPResponse> {
+	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		if (!this.#webSapiInitialized) {
 			this.#initWebRuntime();
 			this.#webSapiInitialized = true;
@@ -460,21 +443,14 @@ export abstract class BasePHP
 				this.#phpIniOverrides
 					.map(([key, value]) => `${key}=${value}`)
 					.join('\n') + '\n\n';
-			this.#Runtime.ccall(
+			this[__private__dont__use].ccall(
 				'wasm_set_phpini_entries',
 				null,
 				[STR],
 				[overridesAsIni]
 			);
 		}
-		this.#Runtime.ccall('php_wasm_init', null, [], []);
-	}
-
-	cli(argv: string[]): Promise<number> {
-		for (const arg of argv) {
-			this.#Runtime.ccall('wasm_add_cli_arg', null, [STR], [arg]);
-		}
-		return this.#Runtime.ccall('run_cli', null, [], [], { async: true });
+		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
 	}
 
 	#getResponseHeaders(): {
@@ -509,10 +485,15 @@ export abstract class BasePHP
 	}
 
 	#setRelativeRequestUri(uri: string) {
-		this.#Runtime.ccall('wasm_set_request_uri', null, [STR], [uri]);
+		this[__private__dont__use].ccall(
+			'wasm_set_request_uri',
+			null,
+			[STR],
+			[uri]
+		);
 		if (uri.includes('?')) {
 			const queryString = uri.substring(uri.indexOf('?') + 1);
-			this.#Runtime.ccall(
+			this[__private__dont__use].ccall(
 				'wasm_set_query_string',
 				null,
 				[STR],
@@ -522,7 +503,12 @@ export abstract class BasePHP
 	}
 
 	#setRequestHostAndProtocol(host: string, protocol: string) {
-		this.#Runtime.ccall('wasm_set_request_host', null, [STR], [host]);
+		this[__private__dont__use].ccall(
+			'wasm_set_request_host',
+			null,
+			[STR],
+			[host]
+		);
 
 		let port;
 		try {
@@ -534,7 +520,12 @@ export abstract class BasePHP
 		if (!port || isNaN(port) || port === 80) {
 			port = protocol === 'https' ? 443 : 80;
 		}
-		this.#Runtime.ccall('wasm_set_request_port', null, [NUM], [port]);
+		this[__private__dont__use].ccall(
+			'wasm_set_request_port',
+			null,
+			[NUM],
+			[port]
+		);
 
 		if (protocol === 'https' || (!protocol && port === 443)) {
 			this.addServerGlobalEntry('HTTPS', 'on');
@@ -542,21 +533,17 @@ export abstract class BasePHP
 	}
 
 	#setRequestMethod(method: string) {
-		this.#Runtime.ccall('wasm_set_request_method', null, [STR], [method]);
-	}
-
-	setSkipShebang(shouldSkip: boolean) {
-		this.#Runtime.ccall(
-			'wasm_set_skip_shebang',
+		this[__private__dont__use].ccall(
+			'wasm_set_request_method',
 			null,
-			[NUM],
-			[shouldSkip ? 1 : 0]
+			[STR],
+			[method]
 		);
 	}
 
 	#setRequestHeaders(headers: PHPRequestHeaders) {
 		if (headers['cookie']) {
-			this.#Runtime.ccall(
+			this[__private__dont__use].ccall(
 				'wasm_set_cookies',
 				null,
 				[STR],
@@ -564,7 +551,7 @@ export abstract class BasePHP
 			);
 		}
 		if (headers['content-type']) {
-			this.#Runtime.ccall(
+			this[__private__dont__use].ccall(
 				'wasm_set_content_type',
 				null,
 				[STR],
@@ -572,7 +559,7 @@ export abstract class BasePHP
 			);
 		}
 		if (headers['content-length']) {
-			this.#Runtime.ccall(
+			this[__private__dont__use].ccall(
 				'wasm_set_content_length',
 				null,
 				[NUM],
@@ -588,8 +575,13 @@ export abstract class BasePHP
 	}
 
 	#setRequestBody(body: string) {
-		this.#Runtime.ccall('wasm_set_request_body', null, [STR], [body]);
-		this.#Runtime.ccall(
+		this[__private__dont__use].ccall(
+			'wasm_set_request_body',
+			null,
+			[STR],
+			[body]
+		);
+		this[__private__dont__use].ccall(
 			'wasm_set_content_length',
 			null,
 			[NUM],
@@ -598,11 +590,16 @@ export abstract class BasePHP
 	}
 
 	#setScriptPath(path: string) {
-		this.#Runtime.ccall('wasm_set_path_translated', null, [STR], [path]);
+		this[__private__dont__use].ccall(
+			'wasm_set_path_translated',
+			null,
+			[STR],
+			[path]
+		);
 	}
 
 	addServerGlobalEntry(key: string, value: string) {
-		this.#Runtime.ccall(
+		this[__private__dont__use].ccall(
 			'wasm_add_SERVER_entry',
 			null,
 			[STR, STR],
@@ -626,7 +623,7 @@ export abstract class BasePHP
 		this.writeFile(tmpPath, data);
 
 		const error = 0;
-		this.#Runtime.ccall(
+		this[__private__dont__use].ccall(
 			'wasm_add_uploaded_file',
 			null,
 			[STR, STR, STR, STR, NUM, NUM],
@@ -635,7 +632,12 @@ export abstract class BasePHP
 	}
 
 	#setPHPCode(code: string) {
-		this.#Runtime.ccall('wasm_set_php_code', null, [STR], [code]);
+		this[__private__dont__use].ccall(
+			'wasm_set_php_code',
+			null,
+			[STR],
+			[code]
+		);
 	}
 
 	async #handleRequest(): Promise<PHPResponse> {
@@ -645,7 +647,7 @@ export abstract class BasePHP
 		 *
 		 * @TODO: Determine if this is a bug in emscripten.
 		 */
-		const exitCode = await await this.#Runtime.ccall(
+		const exitCode = await await this[__private__dont__use].ccall(
 			'wasm_sapi_handle_request',
 			NUM,
 			[],
@@ -665,7 +667,7 @@ export abstract class BasePHP
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not create directory "{path}"')
 	mkdir(path: string) {
-		this.#Runtime.FS.mkdirTree(path);
+		this[__private__dont__use].FS.mkdirTree(path);
 	}
 
 	/** @inheritDoc */
@@ -683,25 +685,25 @@ export abstract class BasePHP
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not read "{path}"')
 	readFileAsBuffer(path: string): Uint8Array {
-		return this.#Runtime.FS.readFile(path);
+		return this[__private__dont__use].FS.readFile(path);
 	}
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not write to "{path}"')
 	writeFile(path: string, data: string | Uint8Array) {
-		this.#Runtime.FS.writeFile(path, data);
+		this[__private__dont__use].FS.writeFile(path, data);
 	}
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not unlink "{path}"')
 	unlink(path: string) {
-		this.#Runtime.FS.unlink(path);
+		this[__private__dont__use].FS.unlink(path);
 	}
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not move "{path}"')
 	mv(fromPath: string, toPath: string) {
-		this.#Runtime.FS.mv(fromPath, toPath);
+		this[__private__dont__use].FS.mv(fromPath, toPath);
 	}
 
 	/** @inheritDoc */
@@ -717,7 +719,7 @@ export abstract class BasePHP
 				}
 			});
 		}
-		this.#Runtime.FS.rmdir(path);
+		this[__private__dont__use].FS.rmdir(path);
 	}
 
 	/** @inheritDoc */
@@ -727,7 +729,7 @@ export abstract class BasePHP
 			return [];
 		}
 		try {
-			return this.#Runtime.FS.readdir(path).filter(
+			return this[__private__dont__use].FS.readdir(path).filter(
 				(name: string) => name !== '.' && name !== '..'
 			);
 		} catch (e) {
@@ -742,8 +744,8 @@ export abstract class BasePHP
 		if (!this.fileExists(path)) {
 			return false;
 		}
-		return this.#Runtime.FS.isDir(
-			this.#Runtime.FS.lookupPath(path).node.mode
+		return this[__private__dont__use].FS.isDir(
+			this[__private__dont__use].FS.lookupPath(path).node.mode
 		);
 	}
 
@@ -751,21 +753,11 @@ export abstract class BasePHP
 	@rethrowFileSystemError('Could not stat "{path}"')
 	fileExists(path: string): boolean {
 		try {
-			this.#Runtime.FS.lookupPath(path);
+			this[__private__dont__use].FS.lookupPath(path);
 			return true;
 		} catch (e) {
 			return false;
 		}
-	}
-
-	/** @inheritDoc */
-	@rethrowFileSystemError('Could not mount a directory')
-	mount(localPath: string | MountSettings, virtualFSPath: string) {
-		this.#Runtime.FS.mount(
-			this.#Runtime.FS.filesystems.NODEFS,
-			typeof localPath === 'object' ? localPath : { root: localPath },
-			virtualFSPath
-		);
 	}
 }
 
@@ -835,7 +827,7 @@ export interface PHPOutput {
  * Once initialized, the PHP has its own filesystem separate from the project
  * files. It's provided by [Emscripten and uses its FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html).
  *
- * The API exposed to you via the PHP class is succinct and abstracts
+ * The API exposed to you via the PHP class is succinct and universals
  * await certain unintuitive parts of low-level FS interactions.
  *
  * Here's how to use it:

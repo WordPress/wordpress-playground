@@ -4,7 +4,9 @@ import {
 	EmscriptenOptions,
 	PHPRequestHandlerConfiguration,
 	BasePHP,
-} from '@php-wasm/abstract';
+	rethrowFileSystemError,
+	__private__dont__use,
+} from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
 import { getPHPLoaderModule } from './';
@@ -15,7 +17,38 @@ export interface PHPLoaderOptions {
 	requestHandler?: PHPRequestHandlerConfiguration;
 }
 
-export class PHP extends BasePHP {
+export interface WithCLI {
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
+	cli(argv: string[]): Promise<number>;
+}
+
+export interface WithNodeFilesystem {
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  localPath - The path of a real local directory you want to mount.
+	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	mount(localPath: string | MountSettings, virtualFSPath: string): void;
+}
+
+export type MountSettings = {
+	root: string;
+};
+
+const STR = 'string';
+const NUM = 'number';
+
+export class NodePHP extends BasePHP {
 	/**
 	 * Creates a new PHP instance.
 	 *
@@ -32,7 +65,7 @@ export class PHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return await PHP.loadSync(phpVersion, options).phpReady;
+		return await NodePHP.loadSync(phpVersion, options).phpReady;
 	}
 
 	/**
@@ -50,7 +83,7 @@ export class PHP extends BasePHP {
 		 * Keep any changes to the signature of this method in sync with the
 		 * `PHP.load` method in the @php-wasm/node package.
 		 */
-		const php = new PHP(undefined, options.requestHandler);
+		const php = new NodePHP(undefined, options.requestHandler);
 
 		const doLoad = async () => {
 			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
@@ -90,5 +123,38 @@ export class PHP extends BasePHP {
 			this.mount({ root: dir }, dir);
 		}
 		this.chdir(process.cwd());
+	}
+
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not mount a directory')
+	mount(localPath: string | MountSettings, virtualFSPath: string) {
+		this[__private__dont__use].FS.mount(
+			this[__private__dont__use].FS.filesystems.NODEFS,
+			typeof localPath === 'object' ? localPath : { root: localPath },
+			virtualFSPath
+		);
+	}
+
+	cli(argv: string[]): Promise<number> {
+		for (const arg of argv) {
+			this[__private__dont__use].ccall(
+				'wasm_add_cli_arg',
+				null,
+				[STR],
+				[arg]
+			);
+		}
+		return this[__private__dont__use].ccall('run_cli', null, [], [], {
+			async: true,
+		});
+	}
+
+	setSkipShebang(shouldSkip: boolean) {
+		this[__private__dont__use].ccall(
+			'wasm_set_skip_shebang',
+			null,
+			[NUM],
+			[shouldSkip ? 1 : 0]
+		);
 	}
 }

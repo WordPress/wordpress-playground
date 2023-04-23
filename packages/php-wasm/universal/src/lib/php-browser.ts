@@ -1,6 +1,6 @@
 import type PHPRequestHandler from './php-request-handler';
 import type { PHPRequest } from './php-request-handler';
-import type { WithRequestHandler } from './php';
+import type { WithRequestHandler } from './base-php';
 import type { PHPResponse } from './php-response';
 
 export interface PHPBrowserConfiguration {
@@ -42,6 +42,26 @@ export class PHPBrowser implements WithRequestHandler {
 			maxRedirects: 4,
 			...config,
 		};
+	}
+
+	/** @inheritDoc */
+	pathToInternalUrl(path: string) {
+		return this.server.pathToInternalUrl(path);
+	}
+
+	/** @inheritDoc */
+	internalUrlToPath(internalUrl: string) {
+		return this.server.internalUrlToPath(internalUrl);
+	}
+
+	/** @inheritdoc */
+	get absoluteUrl() {
+		return this.server.absoluteUrl;
+	}
+
+	/** @inheritDoc */
+	get documentRoot() {
+		return this.server.documentRoot;
 	}
 
 	/**

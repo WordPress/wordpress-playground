@@ -1,6 +1,6 @@
-import type { PHPResponse } from '@php-wasm/web';
+import type { PHPResponse } from '@php-wasm/universal';
 
-export function asDOM(response: UniversalPHPResponse) {
+export function asDOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(response.text, 'text/html')!;
 }
 

@@ -1,29 +1,29 @@
 {
-	"name": "php-wasm-abstract",
+	"name": "php-wasm-universal",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "packages/php-wasm/abstract/src",
+	"sourceRoot": "packages/php-wasm/universal/src",
 	"projectType": "library",
 	"targets": {
 		"build-for-cli-run": {
 			"executor": "@nrwl/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"outputPath": "dist/packages/php-wasm/abstract"
+				"outputPath": "dist/packages/php-wasm/universal"
 			}
 		},
 		"test": {
 			"executor": "@nrwl/vite:test",
-			"outputs": ["coverage/packages/php-wasm/abstract"],
+			"outputs": ["coverage/packages/php-wasm/universal"],
 			"options": {
 				"passWithNoTests": true,
-				"reportsDirectory": "../../../coverage/packages/php-wasm/abstract"
+				"reportsDirectory": "../../../coverage/packages/php-wasm/universal"
 			}
 		},
 		"lint": {
 			"executor": "@nrwl/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": ["packages/php-wasm/abstract/**/*.ts"]
+				"lintFilePatterns": ["packages/php-wasm/universal/**/*.ts"]
 			}
 		}
 	},
@@ -31,8 +31,8 @@
 		"executor": "@nrwl/workspace:run-commands",
 		"options": {
 			"commands": [
-				"yarn tsc -p packages/php-wasm/abstract/tsconfig.lib.json --noEmit",
-				"yarn tsc -p packages/php-wasm/abstract/tsconfig.spec.json --noEmit"
+				"yarn tsc -p packages/php-wasm/universal/tsconfig.lib.json --noEmit",
+				"yarn tsc -p packages/php-wasm/universal/tsconfig.spec.json --noEmit"
 			]
 		}
 	}

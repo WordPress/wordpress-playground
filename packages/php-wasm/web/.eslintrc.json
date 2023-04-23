@@ -8,7 +8,7 @@
 				"@nrwl/nx/enforce-module-boundaries": [
 					"error",
 					{
-						"allow": ["php-wasm-abstract"]
+						"allow": ["php-wasm-universal"]
 					}
 				]
 			}

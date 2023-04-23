@@ -5,7 +5,7 @@ import {
 	loadPHPRuntime,
 	PHPRequestHandlerConfiguration,
 	SupportedPHPVersion,
-} from '@php-wasm/abstract';
+} from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { getPHPLoaderModule } from './get-php-loader-module';
 

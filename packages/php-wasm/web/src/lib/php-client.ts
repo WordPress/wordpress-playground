@@ -1,12 +1,11 @@
 import type {
 	BasePHP,
+	IsomorphicLocalPHP,
 	PHPRequest,
 	PHPResponse,
 	PHPRunOptions,
 	RmDirOptions,
-	UniversalPHP,
-} from '@php-wasm/abstract';
-import type { Remote } from 'comlink';
+} from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 interface WithProgress {
 	onDownloadProgress(
@@ -15,7 +14,7 @@ interface WithProgress {
 }
 
 const _private = new WeakMap<
-	PHPClient,
+	WebPHP,
 	{
 		php: BasePHP;
 		monitor?: EmscriptenDownloadMonitor;
@@ -32,7 +31,7 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class PHPClient implements UniversalPHP, WithProgress {
+export class WebPHP implements IsomorphicLocalPHP, WithProgress {
 	/**
 	 * A dummy promise that resolves immediately.
 	 * Used to assert that the PHPClient is ready for communication.
@@ -40,9 +39,9 @@ export class PHPClient implements UniversalPHP, WithProgress {
 	connected: Promise<void> = Promise.resolve();
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
-	absoluteUrl: Promise<string>;
+	absoluteUrl: string;
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
-	documentRoot: Promise<string>;
+	documentRoot: string;
 
 	/** @inheritDoc */
 	constructor(php: BasePHP, monitor?: EmscriptenDownloadMonitor) {
@@ -78,12 +77,12 @@ export class PHPClient implements UniversalPHP, WithProgress {
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
-	async pathToInternalUrl(path: string): Promise<string> {
+	pathToInternalUrl(path: string): string {
 		return _private.get(this)!.php.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
-	async internalUrlToPath(internalUrl: string): Promise<string> {
+	internalUrlToPath(internalUrl: string): string {
 		return _private.get(this)!.php.internalUrlToPath(internalUrl);
 	}
 
@@ -111,7 +110,7 @@ export class PHPClient implements UniversalPHP, WithProgress {
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.run */
-	async run(request?: PHPRunOptions): Promise<PHPResponse> {
+	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
 	}
 
@@ -141,12 +140,12 @@ export class PHPClient implements UniversalPHP, WithProgress {
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.readFileAsText */
-	async readFileAsText(path: string): Promise<string> {
+	readFileAsText(path: string): string {
 		return _private.get(this)!.php.readFileAsText(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.readFileAsBuffer */
-	async readFileAsBuffer(path: string): Promise<Uint8Array> {
+	readFileAsBuffer(path: string): Uint8Array {
 		return _private.get(this)!.php.readFileAsBuffer(path);
 	}
 
@@ -161,22 +160,17 @@ export class PHPClient implements UniversalPHP, WithProgress {
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.listFiles */
-	async listFiles(path: string): Promise<string[]> {
+	listFiles(path: string): string[] {
 		return _private.get(this)!.php.listFiles(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.isDir */
-	async isDir(path: string): Promise<boolean> {
+	isDir(path: string): boolean {
 		return _private.get(this)!.php.isDir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!PHP.fileExists */
-	async fileExists(path: string): Promise<boolean> {
+	fileExists(path: string): boolean {
 		return _private.get(this)!.php.fileExists(path);
 	}
 }
-
-// An asssertion to make sure Playground Client is compatible
-// with Remote<PlaygroundClient>
-export const isAssignableToRemoteClient: PHPClient =
-	{} as any as Remote<PHPClient>;

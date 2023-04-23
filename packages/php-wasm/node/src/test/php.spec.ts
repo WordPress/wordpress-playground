@@ -1,14 +1,14 @@
-import { getPHPLoaderModule, PHP } from '..';
-import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/abstract';
+import { getPHPLoaderModule, NodePHP } from '..';
+import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-	let php: PHP;
+	let php: NodePHP;
 	beforeEach(async () => {
-		php = await PHP.load(phpVersion);
+		php = await NodePHP.load(phpVersion);
 	});
 
 	describe('Filesystem', () => {
