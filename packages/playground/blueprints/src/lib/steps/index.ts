@@ -13,6 +13,7 @@ export type { InstallPluginOptions } from './install-plugin';
 export { activatePlugin } from './activate-plugin';
 export { setSiteOptions, updateUserMeta } from './site-data';
 export { defineSiteUrl } from './define-site-url';
+export { applyWordPressPatches } from './apply-wordpress-patches';
 export {
 	runWpInstallationWizard,
 	WordPressInstallationOptions,
@@ -60,6 +61,10 @@ export type Step<ResourceType> = (
 	| {
 			step: 'defineSiteUrl';
 			siteUrl: string;
+	  }
+	| {
+			step: 'applyWordPressPatches';
+			wordpressPath: string;
 	  }
 	| {
 			step: 'runWpInstallationWizard';

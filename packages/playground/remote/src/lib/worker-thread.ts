@@ -2,14 +2,13 @@ import {
 	PHP,
 	WebPHP,
 	exposeAPI,
-	PublicAPI,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
+import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
-import patchWordPress from './wordpress-patch';
 import {
 	getWordPressModule,
 	LatestSupportedWordPressVersion,
@@ -88,5 +87,8 @@ const [setApiReady] = exposeAPI(
 
 await phpReady;
 const wpLoaderModule = (await dataModules)[0] as any;
-patchWordPress(php, scopedSiteUrl);
+applyWordPressPatches(php, {
+	siteUrl: scopedSiteUrl,
+	wordpressPath: DOCROOT,
+});
 setApiReady();

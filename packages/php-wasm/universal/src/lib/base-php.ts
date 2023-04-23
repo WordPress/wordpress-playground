@@ -314,7 +314,7 @@ export function isRemotePHP(
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export class BasePHP implements IsomorphicLocalPHP {
+export abstract class BasePHP implements IsomorphicLocalPHP {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
