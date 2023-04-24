@@ -8,3 +8,4 @@ export const SQLITE_FILENAME = 'sqlite-database-integration';
 export const SQLITE_PATH = path.join(SQLITE_ZIP_PATH, `${SQLITE_FILENAME}-main`);
 export const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip'
 export const SQLITE_URL = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip'
+export const DEFAULT_PORT = 8881;
