@@ -153,7 +153,10 @@ export class ProgressTracker extends EventTarget {
 	 * subTracker1.set(100);
 	 * ```
 	 */
-	stage(weight: number, caption = ''): ProgressTracker {
+	stage(weight?: number, caption = ''): ProgressTracker {
+		if (!weight) {
+			weight = this._selfWeight;
+		}
 		if (this._selfWeight - weight < -Number.EPSILON) {
 			throw new Error(
 				`Cannot add a stage with weight ${weight} as the total weight of registered stages would exceed 1.`

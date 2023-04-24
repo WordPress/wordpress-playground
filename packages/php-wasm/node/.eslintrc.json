@@ -4,15 +4,7 @@
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
-			"rules": {
-				"@nrwl/nx/enforce-module-boundaries": [
-					"error",
-					{
-						"enforceBuildableLibDependency": true,
-						"allow": ["@php-wasm/universal"]
-					}
-				]
-			}
+			"rules": {}
 		},
 		{
 			"files": ["*.ts", "*.tsx"],

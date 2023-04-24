@@ -9,8 +9,6 @@ export interface PatchOptions {
 	patchSiteUrl?: boolean;
 	disableSiteHealth?: boolean;
 	disableWpNewBlogNotification?: boolean;
-	replaceRequestsTransports?: boolean;
-	allowWpOrgHosts?: boolean;
 }
 
 export async function applyWordPressPatches(
@@ -37,9 +35,6 @@ export async function applyWordPressPatches(
 	}
 	if (options.disableWpNewBlogNotification !== false) {
 		await patch.disableWpNewBlogNotification();
-	}
-	if (options.allowWpOrgHosts !== false) {
-		await patch.allowWpOrgHosts();
 	}
 }
 
@@ -78,6 +73,7 @@ class WordPressPatcher {
 			'<?php phpinfo(); '
 		);
 	}
+
 	async patchSiteUrl() {
 		await patchFile(
 			this.php,
@@ -91,6 +87,7 @@ class WordPressPatcher {
 				?>${contents}`
 		);
 	}
+
 	async disableSiteHealth() {
 		await patchFile(
 			this.php,
@@ -102,30 +99,14 @@ class WordPressPatcher {
 				)
 		);
 	}
+
 	async disableWpNewBlogNotification() {
 		await patchFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
-			// The original version of this function crashes WASM WordPress, let's define an empty one instead.
+			// The original version of this function crashes WASM PHP, let's define an empty one instead.
 			(contents) =>
 				`${contents} function wp_new_blog_notification(...$args){} `
-		);
-	}
-
-	async allowWpOrgHosts() {
-		await this.php.mkdirTree(`${this.wordpressPath}/wp-content/mu-plugins`);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/0-allow-wp-org.php`,
-			`<?php
-			// Needed because gethostbyname( 'wordpress.org' ) returns
-			// a private network IP address for some reason.
-			add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-				return array( 
-					'wordpress.org',
-					'api.wordpress.org',
-					'downloads.wordpress.org',
-				);
-			} );`
 		);
 	}
 }
