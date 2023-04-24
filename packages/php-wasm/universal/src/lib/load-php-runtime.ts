@@ -40,8 +40,8 @@
  * Once initialized, the PHP has its own filesystem separate from the project
  * files. It's provided by [Emscripten and uses its FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html).
  *
- * The API exposed to you via the PHP class is succinct and universals
- * await certain unintuitive parts of low-level FS interactions.
+ * The API exposed to you via the PHP class is succinct and abstracts
+ * certain unintuitive parts of low-level filesystem interactions.
  *
  * Here's how to use it:
  *
