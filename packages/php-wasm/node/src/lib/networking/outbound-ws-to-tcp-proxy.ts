@@ -57,7 +57,7 @@ export const COMMAND_SET_SOCKETOPT = 0x02;
  * @returns - A new WebSocket class with additional methods for setting socket options and sending
  *            data with the COMMAND_CHUNK command type.
  */
-export function withSocketOptionsSupport(
+export function addSocketOptionsSupportToWebSocketClass(
 	WebSocketConstructor: typeof WebSocket
 ) {
 	return class PHPWasmWebSocketConstructor extends WebSocketConstructor {

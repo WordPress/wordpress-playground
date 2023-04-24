@@ -1,7 +1,7 @@
 import { EmscriptenOptions } from '@php-wasm/universal';
 import {
 	initOutboundWebsocketProxyServer,
-	withSocketOptionsSupport,
+	addSocketOptionsSupportToWebSocketClass,
 } from './outbound-ws-to-tcp-proxy.js';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy.js';
 import { findFreePorts } from './utils.js';
@@ -26,7 +26,7 @@ export async function withNetworking(
 				return `ws://127.0.0.1:${outboundProxyWsServerPort}/?${query}`;
 			},
 			subprotocol: 'binary',
-			decorator: withSocketOptionsSupport,
+			decorator: addSocketOptionsSupportToWebSocketClass,
 			serverDecorator: addTCPServerToWebSocketServerClass.bind(
 				null,
 				inboundProxyWsServerPort
