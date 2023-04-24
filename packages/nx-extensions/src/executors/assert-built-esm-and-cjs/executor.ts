@@ -1,5 +1,5 @@
 import { ExecutorContext } from '@nrwl/devkit';
-import { spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import { mkdirSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { AssertBuiltEsmAndCjsExecutorSchema } from './schema';
@@ -27,28 +27,29 @@ export default async function runExecutor(
 		path.join(testsPath, 'test-cjs.cjs'),
 		`require('../../${options.outputPath}');`
 	);
-	writeFileSync(
-		path.join(testsPath, 'ensure-both-outputs-run-in-node.sh'),
-		`#!/bin/sh
-set -e
-node test-esm.mjs;
-node test-cjs.cjs;
-echo Success;`
-	);
+	const checkForSuccess = (scriptName) =>
+		new Promise((resolve, reject) => {
+			const test = spawn('node', [scriptName], {
+				cwd: testsPath,
+				stdio: 'pipe',
+			});
 
-	const test = spawnSync('sh', ['ensure-both-outputs-run-in-node.sh'], {
-		cwd: testsPath,
-		stdio: 'pipe',
-		encoding: 'utf-8',
-	});
-	// Trim spaces and newlines
-	const stdout = test.output.toString();
-	const success =
-		test.status === 0 && stdout.replace(/[^A-Za-z]/g, '') === 'Success';
-	if (!success) {
-		throw `${context.targetName} could not be imported as both ESM and CJS: ${stdout}`;
-	}
-	return {
-		success,
-	};
+			let stdout = '';
+			test.stdout!.on('data', (chunk) => (stdout += chunk));
+
+			let stderr = '';
+			test.stderr!.on('data', (chunk) => (stderr += chunk));
+
+			test.on('close', (statusCode) => {
+				return statusCode === 0
+					? resolve(stdout)
+					: reject(
+							`${context.targetName} could not be imported as both ESM and CJS: ${stdout} ${stderr}`
+					  );
+			});
+		});
+
+	await checkForSuccess('test-esm.mjs');
+	await checkForSuccess('test-cjs.cjs');
+	return { success: true };
 }
