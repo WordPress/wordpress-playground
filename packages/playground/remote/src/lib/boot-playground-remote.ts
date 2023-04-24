@@ -105,6 +105,14 @@ export async function bootPlaygroundRemote() {
 			});
 		},
 		async goTo(requestedPath: string) {
+			/**
+			 * People often forget to type the trailing slash at the end of
+			 * /wp-admin/ URL and end up with wrong relative hrefs. Let's
+			 * fix it for them.
+			 */
+			if (requestedPath === '/wp-admin') {
+				requestedPath = '/wp-admin/';
+			}
 			wpFrame.src = await playground.pathToInternalUrl(requestedPath);
 		},
 		async getCurrentURL() {
