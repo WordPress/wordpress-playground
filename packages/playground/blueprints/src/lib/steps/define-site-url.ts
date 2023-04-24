@@ -11,11 +11,14 @@ export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
 	await updateFile(
 		playground,
 		`/wordpress/wp-config.php`,
-		// @TODO: Remove any existing define('WP_HOME') and define('WP_SITEURL') lines.
 		(contents) =>
 			`<?php 
-            define('WP_HOME', "${siteUrl}");
-            define('WP_SITEURL', "${siteUrl}");
+			if ( ! defined( 'WP_HOME' ) ) {
+            	define('WP_HOME', "${siteUrl}");
+			}
+			if ( ! defined( 'WP_SITEURL' ) ) {
+            	define('WP_SITEURL', "${siteUrl}");
+			}
             ?>${contents}`
 	);
 }
