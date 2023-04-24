@@ -28,6 +28,9 @@
 		},
 		"./package.json": "./package.json"
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",

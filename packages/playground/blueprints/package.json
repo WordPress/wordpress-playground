@@ -16,5 +16,8 @@
 		"readmeFile": "./README.md",
 		"displayName": "@wp-playground/blueprints",
 		"tsconfig": "./tsconfig.lib.json"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }
