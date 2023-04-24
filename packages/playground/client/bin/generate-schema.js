@@ -11,6 +11,7 @@ const config = {
 const output_path = 'dist/packages/playground/client/blueprint.schema.json';
 
 const schema = tsj.createGenerator(config).createSchema(config.type);
+schema.$schema = 'https://playground.wordpress.net/blueprint.schema.json';
 schema.definitions.Blueprint.properties.$schema = {
 	type: 'string',
 };
