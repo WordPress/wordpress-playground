@@ -1,6 +1,6 @@
 import { ExecutorContext } from '@nrwl/devkit';
 import { spawnSync } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import * as path from 'path';
 import { AssertBuiltEsmAndCjsExecutorSchema } from './schema';
 
@@ -17,9 +17,7 @@ export default async function runExecutor(
 ) {
 	const buildDir = options.outputPath.split('/')[0];
 	const testsPath = path.join(context.root, buildDir, 'test-esm-cjs');
-	if (!existsSync(testsPath)) {
-		mkdirSync(testsPath);
-	}
+	mkdirSync(testsPath, { recursive: true });
 
 	writeFileSync(
 		path.join(testsPath, 'test-esm.mjs'),
