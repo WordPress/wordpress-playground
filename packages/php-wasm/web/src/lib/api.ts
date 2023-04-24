@@ -1,7 +1,7 @@
 import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
 import * as Comlink from 'comlink';
 
-type WithIsReady = {
+export type WithIsReady = {
 	/** Resolves to true when the remote API is ready to be used */
 	isReady: () => Promise<void>;
 };

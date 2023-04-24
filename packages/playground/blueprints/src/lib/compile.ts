@@ -56,7 +56,7 @@ export interface CompiledBlueprint {
 	resources: Array<{ resource: Resource; step: CompiledStep }>;
 }
 
-interface CompileBlueprintOptions {
+export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
 	progress?: ProgressTracker;
 	/** Optional semaphore to control access to a shared resource */

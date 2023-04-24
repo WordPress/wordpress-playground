@@ -12,8 +12,10 @@ export { installPlugin } from './install-plugin';
 export type { InstallPluginOptions } from './install-plugin';
 export { activatePlugin } from './activate-plugin';
 export { setSiteOptions, updateUserMeta } from './site-data';
+export type { SiteOptions, UserMeta } from './site-data';
 export { defineSiteUrl } from './define-site-url';
 export { applyWordPressPatches } from './apply-wordpress-patches';
+export type { PatchOptions } from './apply-wordpress-patches';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export type { WordPressInstallationOptions } from './run-wp-installation-wizard';
 

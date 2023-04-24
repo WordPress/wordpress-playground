@@ -5,7 +5,8 @@ import {
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './steps/common';
-const ResourceTypes = [
+
+export const ResourceTypes = [
 	'vfs',
 	'literal',
 	'wordpress.org/themes',
@@ -13,13 +14,13 @@ const ResourceTypes = [
 	'url',
 ] as const;
 
-type VFSReference = {
+export type VFSReference = {
 	/** Identifies the file resource as Virtual File System (VFS) */
 	resource: 'vfs';
 	/** The path to the file in the VFS */
 	path: string;
 };
-type LiteralReference = {
+export type LiteralReference = {
 	/** Identifies the file resource as a literal file */
 	resource: 'literal';
 	/** The name of the file */
@@ -27,19 +28,19 @@ type LiteralReference = {
 	/** The contents of the file */
 	contents: string | Uint8Array;
 };
-type CoreThemeReference = {
+export type CoreThemeReference = {
 	/** Identifies the file resource as a WordPress Core theme */
 	resource: 'wordpress.org/themes';
 	/** The slug of the WordPress Core theme */
 	slug: string;
 };
-type CorePluginReference = {
+export type CorePluginReference = {
 	/** Identifies the file resource as a WordPress Core plugin */
 	resource: 'wordpress.org/plugins';
 	/** The slug of the WordPress Core plugin */
 	slug: string;
 };
-type UrlReference = {
+export type UrlReference = {
 	/** Identifies the file resource as a URL */
 	resource: 'url';
 	/** The URL of the file */
@@ -64,7 +65,7 @@ export function isFileReference(ref: any): ref is FileReference {
 	);
 }
 
-interface ResourceOptions {
+export interface ResourceOptions {
 	/** Optional semaphore to limit concurrent downloads */
 	semaphore?: Semaphore;
 	progress?: ProgressTracker;

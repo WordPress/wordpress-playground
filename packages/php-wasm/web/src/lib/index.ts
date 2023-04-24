@@ -1,4 +1,5 @@
 export * from './api';
+export type { WithIsReady } from './api';
 export type { PHPWebLoaderOptions } from './web-php';
 
 export { WebPHP } from './web-php';

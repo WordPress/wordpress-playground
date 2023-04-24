@@ -102,7 +102,7 @@ export class PHPBrowser implements RequestHandler {
 		return this.requestHandler.internalUrlToPath(internalUrl);
 	}
 
-	/** @inheritdoc */
+	/** @inheritDoc */
 	get absoluteUrl() {
 		return this.requestHandler.absoluteUrl;
 	}

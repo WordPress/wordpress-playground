@@ -1,3 +1,33 @@
+export * from '@wp-playground/blueprints';
+
+export type {
+	HTTPMethod,
+	PHPRunOptions,
+	PHPRequest,
+	PHPResponse,
+	UniversalPHP,
+	IsomorphicRemotePHP,
+	PHPOutput,
+	PHPResponseData,
+	ErrnoError,
+	PHPBrowser,
+	PHPRequestHandler,
+	PHPRequestHandlerConfiguration,
+	PHPRequestHeaders,
+	PHPBrowserConfiguration,
+	SupportedPHPVersion,
+	FileInfo,
+	RmDirOptions,
+	RequestHandler,
+	RuntimeType,
+} from '@php-wasm/universal';
+export {
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
+	LatestSupportedPHPVersion,
+} from '@php-wasm/universal';
+export type { PlaygroundClient } from '@wp-playground/remote';
+
 import {
 	Blueprint,
 	compileBlueprint,
@@ -6,17 +36,6 @@ import {
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import { PlaygroundClient } from '@wp-playground/remote';
-
-export * from '@wp-playground/blueprints';
-
-export type {
-	HTTPMethod,
-	PHPRunOptions,
-	PHPRequest,
-	PHPResponse,
-} from '@php-wasm/universal';
-
-export type { PlaygroundClient };
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;

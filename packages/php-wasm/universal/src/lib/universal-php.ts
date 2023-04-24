@@ -129,7 +129,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
 	 * Reads a file from the PHP filesystem and returns it as a string.
 	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
 	 * @param  path - The file path to read.
 	 * @returns The file contents.
 	 */
@@ -138,7 +138,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
 	 * Reads a file from the PHP filesystem and returns it as an array buffer.
 	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
 	 * @param  path - The file path to read.
 	 * @returns The file contents.
 	 */
@@ -156,7 +156,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
 	 * Removes a file from the PHP filesystem.
 	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
+	 * @throws {@link @php-wasm/universal:ErrnoError} – If the file doesn't exist.
 	 * @param  path - The file path to remove.
 	 */
 	unlink(path: string): void;

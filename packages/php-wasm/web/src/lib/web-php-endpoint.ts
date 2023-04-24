@@ -26,9 +26,9 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	 */
 	connected: Promise<void> = Promise.resolve();
 
-	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.absoluteUrl */
+	/** @inheritDoc */
 	absoluteUrl: string;
-	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.documentRoot */
+	/** @inheritDoc */
 	documentRoot: string;
 
 	/** @inheritDoc */
@@ -64,12 +64,12 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		this.documentRoot = php.documentRoot;
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.pathToInternalUrl */
+	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
 		return _private.get(this)!.php.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.internalUrlToPath */
+	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
 		return _private.get(this)!.php.internalUrlToPath(internalUrl);
 	}
@@ -92,7 +92,7 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.rmdir(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.request */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
 	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
 		return _private.get(this)!.php.request(request, redirects);
 	}

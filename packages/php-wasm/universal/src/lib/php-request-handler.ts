@@ -7,7 +7,12 @@ import {
 } from './urls';
 import { BasePHP, normalizeHeaders } from './base-php';
 import { PHPResponse } from './php-response';
-import { FileInfo, PHPRequest, PHPRunOptions } from './universal-php';
+import {
+	FileInfo,
+	PHPRequest,
+	PHPRunOptions,
+	RequestHandler,
+} from './universal-php';
 
 export interface PHPRequestHandlerConfiguration {
 	/**
@@ -26,8 +31,8 @@ export interface PHPRequestHandlerConfiguration {
 	isStaticFilePath?: (path: string) => boolean;
 }
 
-/** @inheritDoc @php-wasm/universal!RequestHandler */
-export class PHPRequestHandler {
+/** @inheritDoc */
+export class PHPRequestHandler implements RequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -79,12 +84,12 @@ export class PHPRequestHandler {
 		].join('');
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl */
+	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
 		return `${this.absoluteUrl}${path}`;
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath */
+	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
 		const url = new URL(internalUrl);
 		if (url.pathname.startsWith(this.#PATHNAME)) {
@@ -97,17 +102,17 @@ export class PHPRequestHandler {
 		return this.#semaphore.running > 0;
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl */
+	/** @inheritDoc */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot */
+	/** @inheritDoc */
 	get documentRoot() {
 		return this.#DOCROOT;
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
+	/** @inheritDoc */
 	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute =
 			request.url.startsWith('http://') ||

@@ -35,7 +35,7 @@ export interface PHPResponseData {
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
  *
- * This type is used in Comlink.transferHandlers.set('PHPResponse', { ... })
+ * This type is used in Comlink.transferHandlers.set('PHPResponse', \{ ... \})
  * so be sure to update that if you change this type.
  */
 export class PHPResponse implements PHPResponseData {
