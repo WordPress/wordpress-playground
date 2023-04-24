@@ -1,7 +1,6 @@
 import type PHPRequestHandler from './php-request-handler';
-import type { PHPRequest } from './php-request-handler';
-import type { WithRequestHandler } from './base-php';
 import type { PHPResponse } from './php-response';
+import { PHPRequest, RequestHandler } from './universal-php';
 
 export interface PHPBrowserConfiguration {
 	/**
@@ -21,47 +20,27 @@ export interface PHPBrowserConfiguration {
  *
  * @public
  */
-export class PHPBrowser implements WithRequestHandler {
+export class PHPBrowser implements RequestHandler {
 	#cookies: Record<string, string>;
 	#config;
 
-	server: PHPRequestHandler;
+	requestHandler: PHPRequestHandler;
 
 	/**
 	 * @param  server - The PHP server to browse.
 	 * @param  config - The browser configuration.
 	 */
 	constructor(
-		server: PHPRequestHandler,
+		requestHandler: PHPRequestHandler,
 		config: PHPBrowserConfiguration = {}
 	) {
-		this.server = server;
+		this.requestHandler = requestHandler;
 		this.#cookies = {};
 		this.#config = {
 			handleRedirects: false,
 			maxRedirects: 4,
 			...config,
 		};
-	}
-
-	/** @inheritDoc */
-	pathToInternalUrl(path: string) {
-		return this.server.pathToInternalUrl(path);
-	}
-
-	/** @inheritDoc */
-	internalUrlToPath(internalUrl: string) {
-		return this.server.internalUrlToPath(internalUrl);
-	}
-
-	/** @inheritdoc */
-	get absoluteUrl() {
-		return this.server.absoluteUrl;
-	}
-
-	/** @inheritDoc */
-	get documentRoot() {
-		return this.server.documentRoot;
 	}
 
 	/**
@@ -79,7 +58,7 @@ export class PHPBrowser implements WithRequestHandler {
 	 * @returns PHPRequestHandler response.
 	 */
 	async request(request: PHPRequest, redirects = 0): Promise<PHPResponse> {
-		const response = await this.server.request({
+		const response = await this.requestHandler.request({
 			...request,
 			headers: {
 				...request.headers,
@@ -98,7 +77,7 @@ export class PHPBrowser implements WithRequestHandler {
 		) {
 			const redirectUrl = new URL(
 				response.headers['location'][0],
-				this.server.absoluteUrl
+				this.requestHandler.absoluteUrl
 			);
 			return this.request(
 				{
@@ -113,6 +92,25 @@ export class PHPBrowser implements WithRequestHandler {
 		return response;
 	}
 
+	/** @inheritDoc */
+	pathToInternalUrl(path: string) {
+		return this.requestHandler.pathToInternalUrl(path);
+	}
+
+	/** @inheritDoc */
+	internalUrlToPath(internalUrl: string) {
+		return this.requestHandler.internalUrlToPath(internalUrl);
+	}
+
+	/** @inheritdoc */
+	get absoluteUrl() {
+		return this.requestHandler.absoluteUrl;
+	}
+
+	/** @inheritDoc */
+	get documentRoot() {
+		return this.requestHandler.documentRoot;
+	}
 	#setCookies(cookies: string[]) {
 		for (const cookie of cookies) {
 			try {

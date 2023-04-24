@@ -31,9 +31,9 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP, WithProgress {
 	 */
 	connected: Promise<void> = Promise.resolve();
 
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
+	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.absoluteUrl */
 	absoluteUrl: string;
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
+	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.documentRoot */
 	documentRoot: string;
 
 	/** @inheritDoc */
@@ -69,12 +69,12 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP, WithProgress {
 		this.documentRoot = php.documentRoot;
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
+	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.pathToInternalUrl */
 	pathToInternalUrl(path: string): string {
 		return _private.get(this)!.php.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
+	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.internalUrlToPath */
 	internalUrlToPath(internalUrl: string): string {
 		return _private.get(this)!.php.internalUrlToPath(internalUrl);
 	}
@@ -97,72 +97,72 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP, WithProgress {
 		return _private.get(this)!.php.rmdir(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.request */
+	/** @inheritDoc @php-wasm/web!WebPHPRequestHandler.request */
 	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
 		return _private.get(this)!.php.request(request, redirects);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.run */
+	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.chdir */
+	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.setPhpIniPath */
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
 	setPhpIniPath(path: string): void {
 		return _private.get(this)!.php.setPhpIniPath(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.setPhpIniEntry */
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
 	setPhpIniEntry(key: string, value: string): void {
 		_private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.mkdir */
+	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
 	mkdir(path: string): void {
 		_private.get(this)!.php.mkdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.mkdirTree */
+	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
 	mkdirTree(path: string): void {
 		_private.get(this)!.php.mkdirTree(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.readFileAsText */
+	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
 	readFileAsText(path: string): string {
 		return _private.get(this)!.php.readFileAsText(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.readFileAsBuffer */
+	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
 		return _private.get(this)!.php.readFileAsBuffer(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.writeFile */
+	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
 		_private.get(this)!.php.writeFile(path, data);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.unlink */
+	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
 	unlink(path: string): void {
 		_private.get(this)!.php.unlink(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.listFiles */
+	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
 	listFiles(path: string): string[] {
 		return _private.get(this)!.php.listFiles(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.isDir */
+	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
 	isDir(path: string): boolean {
 		return _private.get(this)!.php.isDir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!PHP.fileExists */
+	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php.fileExists(path);
 	}

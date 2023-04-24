@@ -5,50 +5,9 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { FileInfo, BasePHP, PHPRunOptions, normalizeHeaders } from './base-php';
+import { BasePHP, normalizeHeaders } from './base-php';
 import { PHPResponse } from './php-response';
-
-export type HTTPMethod =
-	| 'GET'
-	| 'POST'
-	| 'HEAD'
-	| 'OPTIONS'
-	| 'PATCH'
-	| 'PUT'
-	| 'DELETE';
-export type PHPRequestHeaders = Record<string, string>;
-export interface PHPRequest {
-	/**
-	 * Request method. Default: `GET`.
-	 */
-	method?: HTTPMethod;
-
-	/**
-	 * Request path or absolute URL.
-	 */
-	url: string;
-
-	/**
-	 * Request headers.
-	 */
-	headers?: PHPRequestHeaders;
-
-	/**
-	 * Uploaded files
-	 */
-	files?: Record<string, File>;
-
-	/**
-	 * Request body without the files.
-	 */
-	body?: string;
-
-	/**
-	 * Form data. If set, the request body will be ignored and
-	 * the content-type header will be set to `application/x-www-form-urlencoded`.
-	 */
-	formData?: Record<string, unknown>;
-}
+import { FileInfo, PHPRequest, PHPRunOptions } from './universal-php';
 
 export interface PHPRequestHandlerConfiguration {
 	/**
@@ -67,61 +26,7 @@ export interface PHPRequestHandlerConfiguration {
 	isStaticFilePath?: (path: string) => boolean;
 }
 
-/**
- * A fake PHP server that handles HTTP requests but does not
- * bind to any port.
- *
- * @public
- * @example Use PHPRequestHandler implicitly with a new PHP instance:
- * ```js
- * import { PHP } from '@php-wasm/web';
- *
- * const php = await PHP.load( '7.4', {
- *     requestHandler: {
- *         // PHP FS path to serve the files from:
- *         documentRoot: '/www',
- *
- *         // Used to populate $_SERVER['SERVER_NAME'] etc.:
- *         absoluteUrl: 'http://127.0.0.1'
- *     }
- * } );
- *
- * php.mkdirTree('/www');
- * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
- *
- * const response = await php.request({ path: '/index.php' });
- * console.log(response.text);
- * // "Hi from PHP!"
- * ```
- *
- * @example Explicitly create a PHPRequestHandler instance and run a PHP script:
- * ```js
- * import {
- *   loadPHPRuntime,
- *   PHP,
- *   PHPRequestHandler,
- *   getPHPLoaderModule,
- * } from '@php-wasm/web';
- *
- * const runtime = await loadPHPRuntime( await getPHPLoaderModule('7.4') );
- * const php = new PHP( runtime );
- *
- * php.mkdirTree('/www');
- * php.writeFile('/www/index.php', '<?php echo "Hi from PHP!"; ');
- *
- * const server = new PHPRequestHandler(php, {
- *     // PHP FS path to serve the files from:
- *     documentRoot: '/www',
- *
- *     // Used to populate $_SERVER['SERVER_NAME'] etc.:
- *     absoluteUrl: 'http://127.0.0.1'
- * });
- *
- * const response = server.request({ path: '/index.php' });
- * console.log(response.text);
- * // "Hi from PHP!"
- * ```
- */
+/** @inheritDoc @php-wasm/universal!RequestHandler */
 export class PHPRequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
@@ -174,24 +79,12 @@ export class PHPRequestHandler {
 		].join('');
 	}
 
-	/**
-	 * Converts a path to an absolute URL based at the PHPRequestHandler
-	 * root.
-	 *
-	 * @param  path The server path to convert to an absolute URL.
-	 * @returns The absolute URL.
-	 */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl */
 	pathToInternalUrl(path: string): string {
 		return `${this.absoluteUrl}${path}`;
 	}
 
-	/**
-	 * Converts an absolute URL based at the PHPRequestHandler to a relative path
-	 * without the server pathname and scope.
-	 *
-	 * @param  internalUrl An absolute URL based at the PHPRequestHandler root.
-	 * @returns The relative path.
-	 */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath */
 	internalUrlToPath(internalUrl: string): string {
 		const url = new URL(internalUrl);
 		if (url.pathname.startsWith(this.#PATHNAME)) {
@@ -204,27 +97,17 @@ export class PHPRequestHandler {
 		return this.#semaphore.running > 0;
 	}
 
-	/**
-	 * The absolute URL of this PHPRequestHandler instance.
-	 */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl */
 	get absoluteUrl() {
 		return this.#ABSOLUTE_URL;
 	}
 
-	/**
-	 * The absolute URL of this PHPRequestHandler instance.
-	 */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot */
 	get documentRoot() {
 		return this.#DOCROOT;
 	}
 
-	/**
-	 * Serves the request – either by serving a static file, or by
-	 * dispatching it to the PHP runtime.
-	 *
-	 * @param  request - The request.
-	 * @returns The response.
-	 */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
 	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute =
 			request.url.startsWith('http://') ||

@@ -17,36 +17,12 @@ export interface PHPLoaderOptions {
 	requestHandler?: PHPRequestHandlerConfiguration;
 }
 
-export interface WithCLI {
-	/**
-	 * Starts a PHP CLI session with given arguments.
-	 *
-	 * Can only be used when PHP was compiled with the CLI SAPI.
-	 * Cannot be used in conjunction with `run()`.
-	 *
-	 * @param  argv - The arguments to pass to the CLI.
-	 * @returns The exit code of the CLI session.
-	 */
-	cli(argv: string[]): Promise<number>;
-}
-
-export interface WithNodeFilesystem {
-	/**
-	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
-	 *
-	 * @param  localPath - The path of a real local directory you want to mount.
-	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
-	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
-	 */
-	mount(localPath: string | MountSettings, virtualFSPath: string): void;
-}
-
 export type MountSettings = {
 	root: string;
 };
 
-const STR = 'string';
-const NUM = 'number';
+const STRING = 'string';
+const NUMBER = 'number';
 
 export class NodePHP extends BasePHP {
 	/**
@@ -125,7 +101,13 @@ export class NodePHP extends BasePHP {
 		this.chdir(process.cwd());
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  localPath - The path of a real local directory you want to mount.
+	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
 	@rethrowFileSystemError('Could not mount a directory')
 	mount(localPath: string | MountSettings, virtualFSPath: string) {
 		this[__private__dont__use].FS.mount(
@@ -135,12 +117,21 @@ export class NodePHP extends BasePHP {
 		);
 	}
 
+	/**
+	 * Starts a PHP CLI session with given arguments.
+	 *
+	 * Can only be used when PHP was compiled with the CLI SAPI.
+	 * Cannot be used in conjunction with `run()`.
+	 *
+	 * @param  argv - The arguments to pass to the CLI.
+	 * @returns The exit code of the CLI session.
+	 */
 	cli(argv: string[]): Promise<number> {
 		for (const arg of argv) {
 			this[__private__dont__use].ccall(
 				'wasm_add_cli_arg',
 				null,
-				[STR],
+				[STRING],
 				[arg]
 			);
 		}
@@ -153,7 +144,7 @@ export class NodePHP extends BasePHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_skip_shebang',
 			null,
-			[NUM],
+			[NUMBER],
 			[shouldSkip ? 1 : 0]
 		);
 	}

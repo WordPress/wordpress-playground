@@ -1,311 +1,24 @@
-import { Remote } from 'comlink';
 import PHPBrowser from './php-browser';
 import PHPRequestHandler, {
-	HTTPMethod,
-	PHPRequest,
 	PHPRequestHandlerConfiguration,
-	PHPRequestHeaders,
 } from './php-request-handler';
 import { PHPResponse } from './php-response';
 import { rethrowFileSystemError } from './rethrow-file-system-error';
+import { getLoadedRuntime } from './load-php-runtime';
+import type { PHPRuntimeId } from './load-php-runtime';
+import {
+	FileInfo,
+	IsomorphicLocalPHP,
+	PHPRequest,
+	PHPRequestHeaders,
+	PHPRunOptions,
+	RmDirOptions,
+} from './universal-php';
 
-const STR = 'string';
-const NUM = 'number';
-
-export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
-
-declare const self: WindowOrWorkerGlobalScope;
-declare const WorkerGlobalScope: object | undefined;
-
-export interface FileInfo {
-	key: string;
-	name: string;
-	type: string;
-	data: Uint8Array;
-}
-export interface PHPRunOptions {
-	/**
-	 * Request path following the domain:port part.
-	 */
-	relativeUri?: string;
-
-	/**
-	 * Path of the .php file to execute.
-	 */
-	scriptPath?: string;
-
-	/**
-	 * Request protocol.
-	 */
-	protocol?: string;
-
-	/**
-	 * Request method. Default: `GET`.
-	 */
-	method?: HTTPMethod;
-
-	/**
-	 * Request headers.
-	 */
-	headers?: PHPRequestHeaders;
-
-	/**
-	 * Request body without the files.
-	 */
-	body?: string;
-
-	/**
-	 * Uploaded files.
-	 */
-	fileInfos?: FileInfo[];
-
-	/**
-	 * The code snippet to eval instead of a php file.
-	 */
-	code?: string;
-}
-
-export type PHPRuntimeId = number;
-const loadedRuntimes: PHPRuntime[] = [];
-
-export const currentJsRuntime = (function () {
-	// @ts-ignore
-	if (typeof window !== 'undefined' && !import.meta.env.TEST) {
-		return 'WEB';
-	} else if (
-		typeof WorkerGlobalScope !== 'undefined' &&
-		self instanceof (WorkerGlobalScope as any)
-	) {
-		return 'WORKER';
-	} else {
-		return 'NODE';
-	}
-})();
-
-export interface WithPHPIniBindings {
-	setPhpIniPath(path: string): void;
-	setPhpIniEntry(key: string, value: string): void;
-}
-
-export interface RmDirOptions {
-	/**
-	 * If true, recursively removes the directory and all its contents.
-	 * Default: true.
-	 */
-	recursive?: boolean;
-}
-
-export interface WithFilesystem {
-	/**
-	 * Recursively creates a directory with the given path in the PHP filesystem.
-	 * For example, if the path is `/root/php/data`, and `/root` already exists,
-	 * it will create the directories `/root/php` and `/root/php/data`.
-	 *
-	 * @param  path - The directory path to create.
-	 */
-	mkdir(path: string): void;
-
-	/**
-	 * @deprecated Use mkdir instead.
-	 */
-	mkdirTree(path: string): void;
-
-	/**
-	 * Reads a file from the PHP filesystem and returns it as a string.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to read.
-	 * @returns The file contents.
-	 */
-	readFileAsText(path: string): string;
-
-	/**
-	 * Reads a file from the PHP filesystem and returns it as an array buffer.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to read.
-	 * @returns The file contents.
-	 */
-	readFileAsBuffer(path: string): Uint8Array;
-
-	/**
-	 * Overwrites data in a file in the PHP filesystem.
-	 * Creates a new file if one doesn't exist yet.
-	 *
-	 * @param  path - The file path to write to.
-	 * @param  data - The data to write to the file.
-	 */
-	writeFile(path: string, data: string | Uint8Array): void;
-
-	/**
-	 * Removes a file from the PHP filesystem.
-	 *
-	 * @throws {@link ErrnoError} – If the file doesn't exist.
-	 * @param  path - The file path to remove.
-	 */
-	unlink(path: string): void;
-
-	/**
-	 * Moves a file or directory in the PHP filesystem to a
-	 * new location.
-	 *
-	 * @param oldPath The path to rename.
-	 * @param newPath The new path.
-	 */
-	mv(oldPath: string, newPath: string): void;
-
-	/**
-	 * Removes a directory from the PHP filesystem.
-	 *
-	 * @param path The directory path to remove.
-	 * @param options Options for the removal.
-	 */
-	rmdir(path: string, options?: RmDirOptions): void;
-
-	/**
-	 * Lists the files and directories in the given directory.
-	 *
-	 * @param  path - The directory path to list.
-	 * @returns The list of files and directories in the given directory.
-	 */
-	listFiles(path: string): string[];
-
-	/**
-	 * Checks if a directory exists in the PHP filesystem.
-	 *
-	 * @param  path – The path to check.
-	 * @returns True if the path is a directory, false otherwise.
-	 */
-	isDir(path: string): boolean;
-
-	/**
-	 * Checks if a file (or a directory) exists in the PHP filesystem.
-	 *
-	 * @param  path - The file path to check.
-	 * @returns True if the file exists, false otherwise.
-	 */
-	fileExists(path: string): boolean;
-
-	/**
-	 * Changes the current working directory in the PHP filesystem.
-	 * This is the directory that will be used as the base for relative paths.
-	 * For example, if the current working directory is `/root/php`, and the
-	 * path is `data`, the absolute path will be `/root/php/data`.
-	 *
-	 * @param  path - The new working directory.
-	 */
-	chdir(path: string): void;
-}
-
-export interface WithRun {
-	/**
-	 * Runs PHP code.
-	 * Cannot be used in conjunction with `cli()`.
-	 *
-	 * @example
-	 * ```js
-	 * const output = await php.run('<?php echo "Hello world!";');
-	 * console.log(output.stdout); // "Hello world!"
-	 * ```
-	 *
-	 * @example
-	 * ```js
-	 * console.log(await php.run(`<?php
-	 *  $fp = fopen('php://stderr', 'w');
-	 *  fwrite($fp, "Hello, world!");
-	 * `));
-	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
-	 * ```
-	 *
-	 * @param  options - PHP run options.
-	 */
-	run(options: PHPRunOptions): Promise<PHPResponse>;
-}
-
-export interface WithRequestHandler {
-	/**
-	 * Dispatches a HTTP request using PHP as a backend.
-	 * Cannot be used in conjunction with `cli()`.
-	 *
-	 * @example
-	 * ```js
-	 * const output = await php.request({
-	 * 	method: 'GET',
-	 * 	url: '/index.php',
-	 * 	headers: {
-	 * 		'X-foo': 'bar',
-	 * 	},
-	 * 	formData: {
-	 * 		foo: 'bar',
-	 * 	},
-	 * });
-	 * console.log(output.stdout); // "Hello world!"
-	 * ```
-	 *
-	 * @param  request - PHP Request data.
-	 */
-	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
-
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.pathToInternalUrl */
-	pathToInternalUrl(path: string): string;
-
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.internalUrlToPath */
-	internalUrlToPath(internalUrl: string): string;
-
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.absoluteUrl */
-	absoluteUrl: string;
-
-	/** @inheritDoc @php-wasm/web!PHPRequestHandler.documentRoot */
-	documentRoot: string;
-}
-
-export type PHPRuntime = any;
-
-export type PHPLoaderModule = {
-	dependencyFilename: string;
-	dependenciesTotalSize: number;
-	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
-};
-
-export type DataModule = {
-	dependencyFilename: string;
-	dependenciesTotalSize: number;
-	default: (phpRuntime: PHPRuntime) => void;
-};
-
-export type EmscriptenOptions = {
-	onAbort?: (message: string) => void;
-	ENV?: Record<string, string>;
-	locateFile?: (path: string) => string;
-	noInitialRun?: boolean;
-	dataFileDownloads?: Record<string, number>;
-	print?: (message: string) => void;
-	printErr?: (message: string) => void;
-	onRuntimeInitialized?: () => void;
-	monitorRunDependencies?: (left: number) => void;
-} & Record<string, any>;
-
-export type IsomorphicLocalPHP = WithPHPIniBindings &
-	WithFilesystem &
-	WithRequestHandler &
-	WithRun;
-export type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
-export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
+const STRING = 'string';
+const NUMBER = 'number';
 
 export const __private__dont__use = Symbol('__private__dont__use');
-
-export function isLocalPHP(
-	playground: UniversalPHP
-): playground is IsomorphicLocalPHP {
-	return !(playground instanceof BasePHP);
-}
-
-export function isRemotePHP(
-	playground: UniversalPHP
-): playground is IsomorphicRemotePHP {
-	return !isLocalPHP(playground);
-}
-
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that universals the super low-level API and provides a more convenient
@@ -343,32 +56,35 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	get absoluteUrl() {
-		return this.requestHandler!.server.absoluteUrl;
+		return this.requestHandler!.requestHandler.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return this.requestHandler!.server.absoluteUrl;
+		return this.requestHandler!.requestHandler.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
-		return this.requestHandler!.pathToInternalUrl(path);
+		return this.requestHandler!.requestHandler.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
-		return this.requestHandler!.internalUrlToPath(internalUrl);
+		return this.requestHandler!.requestHandler.internalUrlToPath(
+			internalUrl
+		);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
 		if (this[__private__dont__use]) {
 			throw new Error('PHP runtime already initialized.');
 		}
-		if (!loadedRuntimes[runtimeId]) {
+		const runtime = getLoadedRuntime(runtimeId);
+		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
-		this[__private__dont__use] = loadedRuntimes[runtimeId];
+		this[__private__dont__use] = runtime;
 	}
 
 	/** @inheritDoc */
@@ -446,7 +162,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this[__private__dont__use].ccall(
 				'wasm_set_phpini_entries',
 				null,
-				[STR],
+				[STRING],
 				[overridesAsIni]
 			);
 		}
@@ -488,7 +204,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_uri',
 			null,
-			[STR],
+			[STRING],
 			[uri]
 		);
 		if (uri.includes('?')) {
@@ -496,7 +212,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this[__private__dont__use].ccall(
 				'wasm_set_query_string',
 				null,
-				[STR],
+				[STRING],
 				[queryString]
 			);
 		}
@@ -506,7 +222,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_host',
 			null,
-			[STR],
+			[STRING],
 			[host]
 		);
 
@@ -523,7 +239,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_port',
 			null,
-			[NUM],
+			[NUMBER],
 			[port]
 		);
 
@@ -536,7 +252,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_method',
 			null,
-			[STR],
+			[STRING],
 			[method]
 		);
 	}
@@ -546,7 +262,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this[__private__dont__use].ccall(
 				'wasm_set_cookies',
 				null,
-				[STR],
+				[STRING],
 				[headers['cookie']]
 			);
 		}
@@ -554,7 +270,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this[__private__dont__use].ccall(
 				'wasm_set_content_type',
 				null,
-				[STR],
+				[STRING],
 				[headers['content-type']]
 			);
 		}
@@ -562,7 +278,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this[__private__dont__use].ccall(
 				'wasm_set_content_length',
 				null,
-				[NUM],
+				[NUMBER],
 				[parseInt(headers['content-length'], 10)]
 			);
 		}
@@ -578,13 +294,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_body',
 			null,
-			[STR],
+			[STRING],
 			[body]
 		);
 		this[__private__dont__use].ccall(
 			'wasm_set_content_length',
 			null,
-			[NUM],
+			[NUMBER],
 			[body.length]
 		);
 	}
@@ -593,7 +309,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_path_translated',
 			null,
-			[STR],
+			[STRING],
 			[path]
 		);
 	}
@@ -602,7 +318,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_add_SERVER_entry',
 			null,
-			[STR, STR],
+			[STRING, STRING],
 			[key, value]
 		);
 	}
@@ -626,7 +342,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_add_uploaded_file',
 			null,
-			[STR, STR, STR, STR, NUM, NUM],
+			[STRING, STRING, STRING, STRING, NUMBER, NUMBER],
 			[key, name, type, tmpPath, error, data.byteLength]
 		);
 	}
@@ -635,7 +351,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].ccall(
 			'wasm_set_php_code',
 			null,
-			[STR],
+			[STRING],
 			[code]
 		);
 	}
@@ -649,7 +365,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 */
 		const exitCode = await await this[__private__dont__use].ccall(
 			'wasm_sapi_handle_request',
-			NUM,
+			NUMBER,
 			[],
 			[]
 		);
@@ -769,188 +485,4 @@ export function normalizeHeaders(
 		normalized[key.toLowerCase()] = headers[key];
 	}
 	return normalized;
-}
-
-/**
- * Output of the PHP.wasm runtime.
- */
-export interface PHPOutput {
-	/** Exit code of the PHP process. 0 means success, 1 and 2 mean error. */
-	exitCode: number;
-
-	/** Stdout data */
-	stdout: ArrayBuffer;
-
-	/** Stderr lines */
-	stderr: string[];
-}
-
-/**
- * Loads the PHP runtime with the given arguments and data dependencies.
- *
- * This function handles the entire PHP initialization pipeline. In particular, it:
- *
- * * Instantiates the Emscripten PHP module
- * * Wires it together with the data dependencies and loads them
- * * Ensures is all happens in a correct order
- * * Waits until the entire loading sequence is finished
- *
- * Basic usage:
- *
- * ```js
- *  const phpLoaderModule = await getPHPLoaderModule("7.4");
- *  const php = await loadPHPRuntime( phpLoaderModule );
- *  console.log(php.run(`<?php echo "Hello, world!"; `));
- *  // { stdout: ArrayBuffer containing the string "Hello, world!", stderr: [''], exitCode: 0 }
- * ```
- *
- * **The PHP loader module:**
- *
- * In the basic usage example, `phpLoaderModule` is **not** a vanilla Emscripten module. Instead,
- * it's an ESM module that wraps the regular Emscripten output and adds some
- * extra functionality. It's generated by the Dockerfile shipped with this repo.
- * Here's the API it provides:
- *
- * ```js
- * // php.wasm size in bytes:
- * export const dependenciesTotalSize = 5644199;
- *
- * // php.wasm filename:
- * export const dependencyFilename = 'php.wasm';
- *
- * // Run Emscripten's generated module:
- * export default function(jsEnv, emscriptenModuleArgs) {}
- * ```
- *
- * **PHP Filesystem:**
- *
- * Once initialized, the PHP has its own filesystem separate from the project
- * files. It's provided by [Emscripten and uses its FS library](https://emscripten.org/docs/api_reference/Filesystem-API.html).
- *
- * The API exposed to you via the PHP class is succinct and universals
- * await certain unintuitive parts of low-level FS interactions.
- *
- * Here's how to use it:
- *
- * ```js
- * // Recursively create a /var/www directory
- * php.mkdirTree('/var/www');
- *
- * console.log(php.fileExists('/var/www/file.txt'));
- * // false
- *
- * php.writeFile('/var/www/file.txt', 'Hello from the filesystem!');
- *
- * console.log(php.fileExists('/var/www/file.txt'));
- * // true
- *
- * console.log(php.readFile('/var/www/file.txt'));
- * // "Hello from the filesystem!
- *
- * // Delete the file:
- * php.unlink('/var/www/file.txt');
- * ```
- *
- * For more details consult the PHP class directly.
- *
- * **Data dependencies:**
- *
- * Using existing PHP packages by manually recreating them file-by-file would
- * be quite inconvenient. Fortunately, Emscripten provides a "data dependencies"
- * feature.
- *
- * Data dependencies consist of a `dependency.data` file and a `dependency.js` loader and
- * can be packaged with the [file_packager.py tool]( https://emscripten.org/docs/porting/files/packaging_files.html#packaging-using-the-file-packager-tool).
- * This project requires wrapping the Emscripten-generated `dependency.js` file in an ES
- * module as follows:
- *
- * 1. Prepend `export default function(emscriptenPHPModule) {'; `
- * 2. Prepend `export const dependencyFilename = '<DATA FILE NAME>'; `
- * 3. Prepend `export const dependenciesTotalSize = <DATA FILE SIZE>;`
- * 4. Append `}`
- *
- * Be sure to use the `--export-name="emscriptenPHPModule"` file_packager.py option.
- *
- * You want the final output to look as follows:
- *
- * ```js
- * export const dependenciesTotalSize = 5644199;
- * export const dependencyFilename = 'dependency.data';
- * export default function(emscriptenPHPModule) {
- *    // Emscripten-generated code:
- *    var Module = typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
- *    // ... the rest of it ...
- * }
- * ```
- *
- * Such a constructions enables loading the `dependency.js` as an ES Module using
- * `import("/dependency.js")`.
- *
- * Once it's ready, you can load PHP and your data dependencies as follows:
- *
- * ```js
- *  const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
- *    getPHPLoaderModule("7.4"),
- *    import("/wp.js")
- *  ]);
- *  const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
- * ```
- *
- * @public
- * @param  phpLoaderModule         - The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
- * @param  phpModuleArgs           - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
- * @param  dataDependenciesModules - A list of the ESM-wrapped Emscripten data dependency modules.
- * @returns Loaded runtime id.
- */
-
-export async function loadPHPRuntime(
-	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {},
-	dataDependenciesModules: DataModule[] = []
-): Promise<number> {
-	let resolvePhpReady: any, resolveDepsReady: any;
-	const depsReady = new Promise((resolve) => {
-		resolveDepsReady = resolve;
-	});
-	const phpReady = new Promise((resolve) => {
-		resolvePhpReady = resolve;
-	});
-
-	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
-		onAbort(reason) {
-			console.error('WASM aborted: ');
-			console.error(reason);
-		},
-		ENV: {},
-		// Emscripten sometimes prepends a '/' to the path, which
-		// breaks vite dev mode. An identity `locateFile` function
-		// fixes it.
-		locateFile: (path) => path,
-		...phpModuleArgs,
-		noInitialRun: true,
-		onRuntimeInitialized() {
-			if (phpModuleArgs.onRuntimeInitialized) {
-				phpModuleArgs.onRuntimeInitialized();
-			}
-			resolvePhpReady();
-		},
-		monitorRunDependencies(nbLeft) {
-			if (nbLeft === 0) {
-				delete PHPRuntime.monitorRunDependencies;
-				resolveDepsReady();
-			}
-		},
-	});
-	for (const { default: loadDataModule } of dataDependenciesModules) {
-		loadDataModule(PHPRuntime);
-	}
-	if (!dataDependenciesModules.length) {
-		resolveDepsReady();
-	}
-
-	await depsReady;
-	await phpReady;
-
-	loadedRuntimes.push(PHPRuntime);
-	return loadedRuntimes.length - 1;
 }
