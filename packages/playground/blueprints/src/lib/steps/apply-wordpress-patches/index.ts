@@ -1,5 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '..';
 import { updateFile } from '../common';
+
+export interface ApplyWordPressPatchesStep extends BaseStep {
+	step: 'applyWordPressPatches';
+	wordpressPath: string;
+}
 
 export interface PatchOptions {
 	siteUrl: string;

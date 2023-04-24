@@ -1,7 +1,19 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
+import { BaseStep } from '.';
 
 export type SiteOptions = Record<string, unknown>;
+
+export interface SetSiteOptionsStep extends BaseStep {
+	step: 'setSiteOptions';
+	options: SiteOptions;
+}
+
+export interface UpdateUserMetaStep extends BaseStep {
+	step: 'updateUserMeta';
+	meta: UserMeta;
+	userId: number;
+}
 
 export async function setSiteOptions(
 	client: UniversalPHP,

@@ -1,4 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
+
+export interface LoginStep extends BaseStep {
+	step: 'login';
+	username?: string;
+	password?: string;
+}
 
 /**
  * Logs in to the Playground.

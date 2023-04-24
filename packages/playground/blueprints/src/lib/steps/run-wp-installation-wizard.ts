@@ -1,4 +1,10 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
+
+export interface RunWpInstallationWizardStep extends BaseStep {
+	step: 'runWpInstallationWizard';
+	options: WordPressInstallationOptions;
+}
 
 export interface WordPressInstallationOptions {
 	adminUsername?: string;

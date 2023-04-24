@@ -1,5 +1,12 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
 import { asDOM } from './common';
+
+export interface InstallPluginStep<ResourceType> extends BaseStep {
+	step: 'installPlugin';
+	pluginZipFile: ResourceType;
+	options?: InstallPluginOptions;
+}
 
 export interface InstallPluginOptions {
 	/**

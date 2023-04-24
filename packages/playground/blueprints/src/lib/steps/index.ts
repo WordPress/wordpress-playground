@@ -19,118 +19,55 @@ export type { PatchOptions } from './apply-wordpress-patches';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export type { WordPressInstallationOptions } from './run-wp-installation-wizard';
 
-import { PHPRequest, PHPRunOptions } from '@php-wasm/universal';
-import { InstallPluginOptions } from './install-plugin';
-import { InstallThemeOptions } from './install-theme';
-import { WordPressInstallationOptions } from './run-wp-installation-wizard';
-import { SiteOptions, UserMeta } from './site-data';
-
-export type Step<ResourceType> = (
-	| {
-			step: 'installPlugin';
-			pluginZipFile: ResourceType;
-			options?: InstallPluginOptions;
-	  }
-	| {
-			step: 'installTheme';
-			themeZipFile: ResourceType;
-			options?: InstallThemeOptions;
-	  }
-	| {
-			step: 'login';
-			username?: string;
-			password?: string;
-	  }
-	| {
-			step: 'importFile';
-			file: ResourceType;
-	  }
-	| {
-			step: 'activatePlugin';
-			plugin: string;
-	  }
-	| {
-			step: 'replaceSite';
-			fullSiteZip: ResourceType;
-	  }
-	| {
-			step: 'unzip';
-			zipPath: string;
-			extractToPath: string;
-	  }
-	| {
-			step: 'defineSiteUrl';
-			siteUrl: string;
-	  }
-	| {
-			step: 'applyWordPressPatches';
-			wordpressPath: string;
-	  }
-	| {
-			step: 'runWpInstallationWizard';
-			options: WordPressInstallationOptions;
-	  }
-	| {
-			step: 'setSiteOptions';
-			options: SiteOptions;
-	  }
-	| {
-			step: 'updateUserMeta';
-			meta: UserMeta;
-			userId: number;
-	  }
-	| {
-			step: 'runPHP';
-			code: string;
-	  }
-	| {
-			step: 'runPHPWithOptions';
-			options: PHPRunOptions;
-	  }
-	| {
-			step: 'setPhpIniEntry';
-			key: string;
-			value: string;
-	  }
-	| {
-			step: 'request';
-			request: PHPRequest;
-	  }
-	| {
-			step: 'cp';
-			fromPath: string;
-			toPath: string;
-	  }
-	| {
-			step: 'mv';
-			fromPath: string;
-			toPath: string;
-	  }
-	| {
-			step: 'mkdir';
-			path: string;
-	  }
-	| {
-			step: 'rm';
-			path: string;
-	  }
-	| {
-			step: 'rmdir';
-			path: string;
-	  }
-	| {
-			step: 'fetch';
-			url: string;
-			path: string;
-	  }
-	| {
-			step: 'writeFile';
-			path: string;
-			data: ResourceType | string | Uint8Array;
-	  }
-) & {
+import { ActivatePluginStep } from './activate-plugin';
+import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
+import {
+	RunPHPStep,
+	RunPHPWithOptionsStep,
+	SetPhpIniEntryStep,
+	RequestStep,
+	CpStep,
+	RmStep,
+	RmdirStep,
+	MvStep,
+	MkdirStep,
+	WriteFileStep,
+} from './client-methods';
+import { DefineSiteUrlStep } from './define-site-url';
+import { ImportFileStep, ReplaceSiteStep, UnzipStep } from './import-export';
+import { InstallPluginStep } from './install-plugin';
+import { InstallThemeStep } from './install-theme';
+import { LoginStep } from './login';
+import { RunWpInstallationWizardStep } from './run-wp-installation-wizard';
+import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
+export interface BaseStep {
+	step: string;
 	progress?: {
 		weight?: number;
 		caption?: string;
 	};
-};
+}
+
+export type Step<ResourceType> =
+	| InstallPluginStep<ResourceType>
+	| InstallThemeStep<ResourceType>
+	| LoginStep
+	| ImportFileStep<ResourceType>
+	| ActivatePluginStep
+	| ReplaceSiteStep<ResourceType>
+	| UnzipStep
+	| DefineSiteUrlStep
+	| ApplyWordPressPatchesStep
+	| RunWpInstallationWizardStep
+	| SetSiteOptionsStep
+	| UpdateUserMetaStep
+	| RunPHPStep
+	| RunPHPWithOptionsStep
+	| SetPhpIniEntryStep
+	| RequestStep
+	| CpStep
+	| RmStep
+	| RmdirStep
+	| MvStep
+	| MkdirStep
+	| WriteFileStep<ResourceType>;

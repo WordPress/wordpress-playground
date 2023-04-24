@@ -1,5 +1,6 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
+import { BaseStep } from '.';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';
@@ -7,6 +8,17 @@ import migrationsPHPCode from './migration.php?raw';
 /**
  * Full site export support:
  */
+
+export interface ReplaceSiteStep<ResourceType> extends BaseStep {
+	step: 'replaceSite';
+	fullSiteZip: ResourceType;
+}
+
+export interface UnzipStep extends BaseStep {
+	step: 'unzip';
+	zipPath: string;
+	extractToPath: string;
+}
 
 /**
  * Export the current site as a zip file.
@@ -114,6 +126,11 @@ export async function exportWXZ(playground: UniversalPHP) {
 		url: '/wp-admin/export.php?download=true&content=all&export_wxz=1',
 	});
 	return new File([databaseExportResponse.bytes], 'export.wxz');
+}
+
+export interface ImportFileStep<ResourceType> extends BaseStep {
+	step: 'importFile';
+	file: ResourceType;
 }
 
 /**

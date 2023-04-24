@@ -1,5 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
 import { asDOM } from './common';
+
+export interface ActivatePluginStep extends BaseStep {
+	step: 'activatePlugin';
+	plugin: string;
+}
 
 /**
  * Activates a WordPress plugin in the Playground.

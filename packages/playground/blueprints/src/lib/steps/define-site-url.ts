@@ -1,5 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
 import { updateFile } from './common';
+
+export interface DefineSiteUrlStep extends BaseStep {
+	step: 'defineSiteUrl';
+	siteUrl: string;
+}
 
 /**
  * Sets site URL of the WordPress installation.

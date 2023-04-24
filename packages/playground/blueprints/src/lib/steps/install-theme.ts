@@ -1,5 +1,12 @@
 import { UniversalPHP } from '@php-wasm/universal';
+import { BaseStep } from '.';
 import { asDOM } from './common';
+
+export interface InstallThemeStep<ResourceType> extends BaseStep {
+	step: 'installTheme';
+	themeZipFile: ResourceType;
+	options?: InstallThemeOptions;
+}
 
 export interface InstallThemeOptions {
 	/**
