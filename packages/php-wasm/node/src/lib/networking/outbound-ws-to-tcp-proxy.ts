@@ -41,21 +41,25 @@ function prependByte(
 	return chunk;
 }
 
+/**
+ * Send a chunk of data to the remote server.
+ */
 export const COMMAND_CHUNK = 0x01;
+/**
+ * Set a TCP socket option.
+ */
 export const COMMAND_SET_SOCKETOPT = 0x02;
 
 /**
- * Add socket options support to a WebSocket class. This function takes a WebSocket class and
- * extends it with new methods for setting socket options. The resulting class has an additional
- * 'setSocketOpt' method for setting socket options, and an overridden 'send' method that sends
- * data with the COMMAND_CHUNK command type.
+ * Adds support for TCP socket options to WebSocket class.
  *
- * @example
- * const WebSocketWithOptions = addSocketOptionsSupportToWebSocketClass(WebSocket);
+ * Socket options are implemented by adopting a specific data transmission
+ * protocol between WS client and WS server The first byte
+ * of every message is a command type, and the remaining bytes
+ * are the actual data.
  *
- * @param WebSocketConstructor - The WebSocket class to extend.
- * @returns - A new WebSocket class with additional methods for setting socket options and sending
- *            data with the COMMAND_CHUNK command type.
+ * @param  WebSocketConstructor
+ * @returns Decorated constructor
  */
 export function addSocketOptionsSupportToWebSocketClass(
 	WebSocketConstructor: typeof WebSocket
