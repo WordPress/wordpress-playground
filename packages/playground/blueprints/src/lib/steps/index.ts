@@ -71,3 +71,28 @@ export type Step<ResourceType> =
 	| MvStep
 	| MkdirStep
 	| WriteFileStep<ResourceType>;
+
+export type {
+	InstallPluginStep,
+	InstallThemeStep,
+	LoginStep,
+	ImportFileStep,
+	ActivatePluginStep,
+	ReplaceSiteStep,
+	UnzipStep,
+	DefineSiteUrlStep,
+	ApplyWordPressPatchesStep,
+	RunWpInstallationWizardStep,
+	SetSiteOptionsStep,
+	UpdateUserMetaStep,
+	RunPHPStep,
+	RunPHPWithOptionsStep,
+	SetPhpIniEntryStep,
+	RequestStep,
+	CpStep,
+	RmStep,
+	RmdirStep,
+	MvStep,
+	MkdirStep,
+	WriteFileStep,
+};
