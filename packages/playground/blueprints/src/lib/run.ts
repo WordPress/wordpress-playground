@@ -4,6 +4,7 @@ import {
 	installPlugin,
 	installTheme,
 	login,
+	ProgressArgs,
 	replaceSite,
 	setSiteOptions,
 	submitImporterForm,
@@ -32,6 +33,10 @@ export async function runBlueprintSteps(
 async function runBlueprintStep(step: CompiledStep, playground: UniversalPHP) {
 	step.progress.fillSlowly();
 
+	const progressArgs: ProgressArgs = {
+		tracker: step.progress,
+		initialCaption: step.progress.caption,
+	};
 	const args = step.args;
 	switch (args.step) {
 		case 'installPlugin': {
@@ -71,10 +76,7 @@ async function runBlueprintStep(step: CompiledStep, playground: UniversalPHP) {
 			break;
 		}
 		case 'login':
-			step.progress.setCaption(
-				`Logging in${args.username ? ' as ' + args.username : ''}`
-			);
-			await login(playground, args.username, args.password);
+			await login(playground, args, progressArgs);
 			break;
 		case 'activatePlugin':
 			step.progress.setCaption(`Activating ${args.plugin}`);

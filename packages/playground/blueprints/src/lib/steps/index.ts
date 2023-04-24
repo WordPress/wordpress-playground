@@ -19,6 +19,8 @@ export type { PatchOptions } from './apply-wordpress-patches';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export type { WordPressInstallationOptions } from './run-wp-installation-wizard';
 
+import { ProgressTracker } from '@php-wasm/progress';
+import { UniversalPHP } from '@php-wasm/universal';
 import { ActivatePluginStep } from './activate-plugin';
 import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
 import {
@@ -40,6 +42,22 @@ import { InstallThemeStep } from './install-theme';
 import { LoginStep } from './login';
 import { RunWpInstallationWizardStep } from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
+
+export type StepDeclaration<Name, Args> = {
+	step: Name;
+} & Args;
+
+export type ProgressArgs = {
+	tracker: ProgressTracker;
+	initialCaption: string;
+};
+
+export type StepImplementation<Args> = (
+	php: UniversalPHP,
+	args: Args,
+	progressArgs: ProgressArgs
+) => Promise<void> | void;
+
 export interface BaseStep {
 	step: string;
 	progress?: {
