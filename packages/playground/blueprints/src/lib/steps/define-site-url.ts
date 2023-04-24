@@ -1,5 +1,5 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { patchFile } from './common';
+import { updateFile } from './common';
 
 /**
  * Sets site URL of the WordPress installation.
@@ -8,7 +8,7 @@ import { patchFile } from './common';
  * @param siteUrl
  */
 export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
-	await patchFile(
+	await updateFile(
 		playground,
 		`/wordpress/wp-config.php`,
 		// @TODO: Remove any existing define('WP_HOME') and define('WP_SITEURL') lines.

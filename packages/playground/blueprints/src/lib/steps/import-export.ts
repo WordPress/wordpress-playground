@@ -52,7 +52,7 @@ export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
 	await unzip(playground, zipPath, '/');
 
 	const js = phpVars({ absoluteUrl });
-	await patchFile(
+	await updateFile(
 		playground,
 		`${documentRoot}/wp-config.php`,
 		(contents) =>
@@ -175,7 +175,7 @@ function getFormData(form: HTMLFormElement): Record<string, unknown> {
 	return Object.fromEntries((new FormData(form) as any).entries());
 }
 
-async function patchFile(
+async function updateFile(
 	playground: UniversalPHP,
 	path: string,
 	callback: (contents: string) => string

@@ -1,5 +1,5 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { patchFile } from '../common';
+import { updateFile } from '../common';
 
 export interface PatchOptions {
 	siteUrl: string;
@@ -55,7 +55,7 @@ class WordPressPatcher {
 
 	async patchSqlitePlugin() {
 		// Upstream change proposed in https://github.com/WordPress/sqlite-database-integration/pull/28:
-		await patchFile(
+		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php`,
 			(contents) => {
@@ -75,7 +75,7 @@ class WordPressPatcher {
 	}
 
 	async patchSiteUrl() {
-		await patchFile(
+		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
 			(contents) =>
@@ -89,7 +89,7 @@ class WordPressPatcher {
 	}
 
 	async disableSiteHealth() {
-		await patchFile(
+		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-includes/default-filters.php`,
 			(contents) =>
@@ -101,7 +101,7 @@ class WordPressPatcher {
 	}
 
 	async disableWpNewBlogNotification() {
-		await patchFile(
+		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
 			// The original version of this function crashes WASM PHP, let's define an empty one instead.

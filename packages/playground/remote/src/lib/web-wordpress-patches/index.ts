@@ -40,7 +40,7 @@ class WordPressPatcher {
 	}
 
 	async replaceRequestsTransports() {
-		await patchFile(
+		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
 			(contents) => `${contents} define('USE_FETCH_FOR_REQUESTS', false);`
@@ -56,7 +56,7 @@ class WordPressPatcher {
 			if (!(await this.php.fileExists(transport))) {
 				continue;
 			}
-			await patchFile(this.php, transport, (contents) =>
+			await updateFile(this.php, transport, (contents) =>
 				contents.replace(
 					'public static function test',
 					'public static function test( $capabilities = array() ) { return false; } public static function test2'
@@ -105,7 +105,7 @@ class WordPressPatcher {
 }
 
 type PatchFileCallback = (contents: string) => string | Uint8Array;
-export async function patchFile(
+export async function updateFile(
 	php: UniversalPHP,
 	path: string,
 	callback: PatchFileCallback

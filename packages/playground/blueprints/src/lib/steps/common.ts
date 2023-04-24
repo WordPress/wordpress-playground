@@ -13,7 +13,7 @@ export function zipNameToHumanName(zipName: string) {
 }
 
 type PatchFileCallback = (contents: string) => string | Uint8Array;
-export async function patchFile(
+export async function updateFile(
 	php: UniversalPHP,
 	path: string,
 	callback: PatchFileCallback

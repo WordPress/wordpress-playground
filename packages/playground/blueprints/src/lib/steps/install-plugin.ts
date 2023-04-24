@@ -87,7 +87,7 @@ export async function installPlugin(
 	 *
 	 * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 	 */
-	async function patchFile(
+	async function updateFile(
 		path: string,
 		callback: (contents: string) => string
 	) {
@@ -101,7 +101,7 @@ export async function installPlugin(
 		!(await playground.fileExists('/wordpress/.gutenberg-patched'))
 	) {
 		await playground.writeFile('/wordpress/.gutenberg-patched', '1');
-		await patchFile(
+		await updateFile(
 			`/wordpress/wp-content/plugins/gutenberg/build/block-editor/index.js`,
 			(contents) =>
 				contents.replace(
@@ -109,7 +109,7 @@ export async function installPlugin(
 					'src:"/wp-includes/empty.html"'
 				)
 		);
-		await patchFile(
+		await updateFile(
 			`/wordpress/wp-content/plugins/gutenberg/build/block-editor/index.min.js`,
 			(contents) =>
 				contents.replace(
