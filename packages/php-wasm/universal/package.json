@@ -15,7 +15,15 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
 	"type": "module",
-	"private": true
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"license": "(GPL-2.0-or-later OR MPL-2.0)"
 }

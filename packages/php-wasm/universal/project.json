@@ -12,6 +12,17 @@
 			}
 		},
 		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite", "test:esmcjs"]
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/php-wasm/universal"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:vite": {
 			"executor": "@nrwl/vite:test",
 			"outputs": ["coverage/packages/php-wasm/universal"],
 			"options": {

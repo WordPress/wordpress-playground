@@ -15,6 +15,11 @@
 			"implementation": "./src/executors/package-json/executor",
 			"schema": "./src/executors/package-json/schema.json",
 			"description": "package-json executor"
+		},
+		"assert-built-esm-and-cjs": {
+			"implementation": "./src/executors/assert-built-esm-and-cjs/executor",
+			"schema": "./src/executors/assert-built-esm-and-cjs/schema.json",
+			"description": "assert-built-esm-and-cjs executor"
 		}
 	}
 }

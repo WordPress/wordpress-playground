@@ -28,7 +28,7 @@ export default defineConfig({
 			entry: 'src/index.ts',
 			name: 'php-wasm-universal',
 			fileName: 'index',
-			formats: ['es'],
+			formats: ['es', 'cjs'],
 		},
 		rollupOptions: {
 			// External packages that should not be bundled into your library.
