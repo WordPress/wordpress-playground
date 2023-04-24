@@ -2,7 +2,7 @@ import { ProgressReceiver } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { RemoteAPI } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
-import type { WebWorkerPHP } from './worker-thread';
+import type { PlaygroundWorkerEndpoint } from './worker-thread';
 
 export interface WebClientMixin extends ProgressReceiver {
 	setProgress(options: ProgressBarOptions): Promise<void>;
@@ -12,13 +12,15 @@ export interface WebClientMixin extends ProgressReceiver {
 	goTo(requestedPath: string): Promise<void>;
 	getCurrentURL(): Promise<string>;
 	setIframeSandboxFlags(flags: string[]): Promise<void>;
-	onDownloadProgress: WebWorkerPHP['onDownloadProgress'];
+	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
 }
 
 /**
  * @inheritDoc
  */
-export type PlaygroundClient = RemoteAPI<WebWorkerPHP & WebClientMixin>;
+export type PlaygroundClient = RemoteAPI<
+	PlaygroundWorkerEndpoint & WebClientMixin
+>;
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

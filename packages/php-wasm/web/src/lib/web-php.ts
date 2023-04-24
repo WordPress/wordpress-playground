@@ -16,7 +16,7 @@ export interface PHPWebLoaderOptions {
 	dataModules?: Array<DataModule | Promise<DataModule>>;
 }
 
-export class PHP extends BasePHP {
+export class WebPHP extends BasePHP {
 	/**
 	 * Creates a new PHP instance.
 	 *
@@ -33,7 +33,7 @@ export class PHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPWebLoaderOptions = {}
 	) {
-		return await PHP.loadSync(phpVersion, options).phpReady;
+		return await WebPHP.loadSync(phpVersion, options).phpReady;
 	}
 
 	/**
@@ -51,7 +51,7 @@ export class PHP extends BasePHP {
 		 * Keep any changes to the signature of this method in sync with the
 		 * `PHP.load` method in the @php-wasm/node package.
 		 */
-		const php = new PHP(undefined, options.requestHandler);
+		const php = new WebPHP(undefined, options.requestHandler);
 
 		const doLoad = async () => {
 			const allModules = await Promise.all([

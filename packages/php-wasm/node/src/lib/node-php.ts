@@ -9,7 +9,7 @@ import {
 } from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
-import { getPHPLoaderModule } from './';
+import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
 
 export interface PHPLoaderOptions {

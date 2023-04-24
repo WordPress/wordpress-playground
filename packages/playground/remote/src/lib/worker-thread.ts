@@ -1,12 +1,11 @@
 import {
-	PHP,
 	WebPHP,
+	WebPHPEndpoint,
 	exposeAPI,
 	parseWorkerStartupOptions,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
 import {
@@ -44,7 +43,7 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
+const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
 		documentRoot: DOCROOT,
@@ -55,13 +54,13 @@ const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
 });
 
 /** @inheritDoc PHPClient */
-export class WebWorkerPHP extends WebPHP {
+export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	scope: string;
 	wordPressVersion: string;
 	phpVersion: string;
 
 	constructor(
-		php: PHP,
+		php: WebPHP,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string,
@@ -83,7 +82,7 @@ export class WebWorkerPHP extends WebPHP {
 }
 
 const [setApiReady] = exposeAPI(
-	new WebWorkerPHP(php, monitor, scope, wpVersion, phpVersion)
+	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
 
 await phpReady;

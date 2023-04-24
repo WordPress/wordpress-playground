@@ -9,7 +9,7 @@ import {
 // @ts-ignore
 import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
-import type { WebWorkerPHP } from './worker-thread';
+import type { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WebClientMixin } from './playground-client';
 import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
@@ -63,7 +63,7 @@ export async function bootPlaygroundRemote() {
 		query.get('php'),
 		LatestSupportedPHPVersion
 	);
-	const workerApi = consumeAPI<WebWorkerPHP>(
+	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, workerBackend, {
 			wpVersion,
 			phpVersion,

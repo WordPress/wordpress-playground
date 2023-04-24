@@ -1,8 +1,8 @@
 export * from './api';
-export type { PHPWebLoaderOptions } from './php';
+export type { PHPWebLoaderOptions } from './web-php';
 
-export { PHP } from './php';
-export { WebPHP } from './php-client';
+export { WebPHP } from './web-php';
+export { WebPHPEndpoint } from './web-php-endpoint';
 export { getPHPLoaderModule } from './get-php-loader-module';
 export { registerServiceWorker } from './register-service-worker';
 

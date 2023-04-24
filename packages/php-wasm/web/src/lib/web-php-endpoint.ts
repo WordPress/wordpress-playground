@@ -14,24 +14,17 @@ interface WithProgress {
 }
 
 const _private = new WeakMap<
-	WebPHP,
+	WebPHPEndpoint,
 	{
 		php: BasePHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
 
-/*
- * All the Promise<> wraping is to make this class interchangeable
- * for the Remote<PHPClient> type that will be typically consumed.
- * This way, all the code working with same-thread PHPClient can
- * also work with the remote PHPClient.
- */
-
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHP implements IsomorphicLocalPHP, WithProgress {
+export class WebPHPEndpoint implements IsomorphicLocalPHP, WithProgress {
 	/**
 	 * A dummy promise that resolves immediately.
 	 * Used to assert that the PHPClient is ready for communication.
