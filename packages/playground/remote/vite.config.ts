@@ -28,6 +28,12 @@ export default defineConfig({
 	assetsInclude: ['**/*.wasm', '*.data'],
 	cacheDir: '../../../node_modules/.vite/playground',
 
+	css: {
+		modules: {
+			localsConvention: 'camelCaseOnly',
+		},
+	},
+
 	preview: {
 		port: remoteDevServerPort,
 		host: remoteDevServerHost,

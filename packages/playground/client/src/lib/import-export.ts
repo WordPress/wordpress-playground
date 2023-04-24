@@ -1,139 +1,208 @@
-import { saveAs } from 'file-saver';
-import type { PlaygroundClient } from '../';
+import type { PHPResponse, PlaygroundClient } from '../';
+import { phpVars } from '@php-wasm/util';
 
 // @ts-ignore
-import migration from './migration.php?raw';
+import migrationsPHPCode from './migration.php?raw';
 
-const databaseExportName = 'databaseExport.xml';
-const databaseExportPath = '/' + databaseExportName;
+/**
+ * Full site export support:
+ */
 
-export async function exportFile(playground: PlaygroundClient) {
+/**
+ * Export the current site as a zip file.
+ *
+ * @param playground Playground client.
+ */
+export async function zipEntireSite(playground: PlaygroundClient) {
+	const wpVersion = await playground.wordPressVersion;
+	const phpVersion = await playground.phpVersion;
+	const zipName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
+	const zipPath = `/${zipName}`;
+
+	const js = phpVars({
+		zipPath,
+		documentRoot: await playground.documentRoot,
+	});
+	await phpMigration(
+		playground,
+		`zipDir(${js.documentRoot}, ${js.zipPath});`
+	);
+
+	const fileBuffer = await playground.readFileAsBuffer(zipPath);
+	playground.unlink(zipPath);
+
+	return new File([fileBuffer], zipName);
+}
+
+/**
+ * Replace the current site with the contents of a full site zip file.
+ *
+ * @param playground Playground client.
+ * @param fullSiteZip Zipped WordPress site.
+ */
+export async function replaceSite(
+	playground: PlaygroundClient,
+	fullSiteZip: File
+) {
+	const zipPath = '/import.zip';
+	await playground.writeFile(
+		zipPath,
+		new Uint8Array(await fullSiteZip.arrayBuffer())
+	);
+
+	const absoluteUrl = await playground.absoluteUrl;
+	const documentRoot = await playground.documentRoot;
+
+	await playground.rmdir(documentRoot);
+	await unzip(playground, zipPath, '/');
+
+	const js = phpVars({ absoluteUrl });
+	await patchFile(
+		playground,
+		`${documentRoot}/wp-config.php`,
+		(contents) =>
+			`<?php
+			if(!defined('WP_HOME')) {
+				define('WP_HOME', ${js.absoluteUrl});
+				define('WP_SITEURL', ${js.absoluteUrl});
+			}
+			?>${contents}`
+	);
+}
+
+/**
+ * Unzip a zip file.
+ *
+ * @param playground Playground client.
+ * @param zipPath The zip file to unzip.
+ * @param extractTo The directory to extract the zip file to.
+ */
+export async function unzip(
+	playground: PlaygroundClient,
+	zipPath: string,
+	extractTo: string
+) {
+	const js = phpVars({
+		zipPath,
+		extractTo,
+	});
+	await phpMigration(playground, `unzip(${js.zipPath}, ${js.extractTo});`);
+}
+
+/**
+ * WXR and WXZ files support:
+ */
+
+/**
+ * Exports the WordPress database as a WXR file using
+ * the core WordPress export tool.
+ *
+ * @param playground Playground client
+ * @returns WXR file
+ */
+export async function exportWXR(playground: PlaygroundClient) {
 	const databaseExportResponse = await playground.request({
 		url: '/wp-admin/export.php?download=true&content=all',
 	});
-	const databaseExportContent = databaseExportResponse.text;
-	await playground.writeFile(databaseExportPath, databaseExportContent);
-	const wpVersion = await playground.wordPressVersion;
-	const phpVersion = await playground.phpVersion;
-	const documentRoot = await playground.documentRoot;
-	const exportName = `wordpress-playground--wp${wpVersion}--php${phpVersion}.zip`;
-	const exportPath = `/${exportName}`;
-	const exportWriteRequest = await playground.run({
-		code:
-			migration +
-			` generateZipFile('${exportPath}', '${databaseExportPath}', '${documentRoot}');`,
-	});
-	if (exportWriteRequest.exitCode !== 0) {
-		throw exportWriteRequest.errors;
-	}
-
-	const fileBuffer = await playground.readFileAsBuffer(exportName);
-	const file = new File([fileBuffer], exportName);
-	saveAs(file);
+	return new File([databaseExportResponse.bytes], 'export.xml');
 }
 
-export async function importFile(playground: PlaygroundClient, file: File) {
-	if (
-		// eslint-disable-next-line no-alert
-		!confirm(
-			'Are you sure you want to import this file? Previous data will be lost.'
-		)
-	) {
-		return false;
-	}
-
-	// Write uploaded file to filesystem for processing with PHP
-	const fileArrayBuffer = await file.arrayBuffer();
-	const fileContent = new Uint8Array(fileArrayBuffer);
-	const importPath = '/import.zip';
-
-	await playground.writeFile(importPath, fileContent);
-
-	// Import the database
-	const databaseFromZipFileReadRequest = await playground.run({
-		code:
-			migration +
-			` readFileFromZipArchive('${importPath}', '${databaseExportPath}');`,
+/**
+ * Exports the WordPress database as a WXZ file using
+ * the export-wxz plugin from https://github.com/akirk/export-wxz.
+ *
+ * @param playground Playground client
+ * @returns WXZ file
+ */
+export async function exportWXZ(playground: PlaygroundClient) {
+	const databaseExportResponse = await playground.request({
+		url: '/wp-admin/export.php?download=true&content=all&export_wxz=1',
 	});
-	if (databaseFromZipFileReadRequest.exitCode !== 0) {
-		throw databaseFromZipFileReadRequest.errors;
-	}
+	return new File([databaseExportResponse.bytes], 'export.wxz');
+}
 
-	const databaseFromZipFileContent = new TextDecoder().decode(
-		databaseFromZipFileReadRequest.bytes
-	);
-
-	const databaseFile = new File(
-		[databaseFromZipFileContent],
-		databaseExportName
-	);
-
+/**
+ * Uploads a file to the WordPress importer and returns the response.
+ * Supports both WXR and WXZ files.
+ *
+ * @see https://github.com/WordPress/wordpress-importer/compare/master...akirk:wordpress-importer:import-wxz.patch
+ * @param playground Playground client.
+ * @param file The file to import.
+ */
+export async function submitImporterForm(
+	playground: PlaygroundClient,
+	file: File
+) {
 	const importerPageOneResponse = await playground.request({
 		url: '/wp-admin/admin.php?import=wordpress',
 	});
 
-	const importerPageOneContent = new DOMParser().parseFromString(
-		importerPageOneResponse.text,
-		'text/html'
-	);
-
-	const firstUrlAction = importerPageOneContent
+	const firstUrlAction = DOM(importerPageOneResponse)
 		.getElementById('import-upload-form')
 		?.getAttribute('action');
 
 	const stepOneResponse = await playground.request({
 		url: `/wp-admin/${firstUrlAction}`,
 		method: 'POST',
-		files: { import: databaseFile },
+		files: { import: file },
 	});
 
-	const importerPageTwoContent = new DOMParser().parseFromString(
-		stepOneResponse.text,
-		'text/html'
-	);
-
-	const importerPageTwoForm = importerPageTwoContent.querySelector(
+	// Map authors of imported posts to existing users
+	const importForm = DOM(stepOneResponse).querySelector(
 		'#wpbody-content form'
-	);
-	const secondUrlAction = importerPageTwoForm?.getAttribute(
-		'action'
-	) as string;
+	) as HTMLFormElement;
 
-	const nonce = (
-		importerPageTwoForm?.querySelector(
-			"input[name='_wpnonce']"
-		) as HTMLInputElement
-	).value;
-
-	const referrer = (
-		importerPageTwoForm?.querySelector(
-			"input[name='_wp_http_referer']"
-		) as HTMLInputElement
-	).value;
-
-	const importId = (
-		importerPageTwoForm?.querySelector(
-			"input[name='import_id']"
-		) as HTMLInputElement
-	).value;
-
-	await playground.request({
-		url: secondUrlAction,
-		method: 'POST',
-		formData: {
-			_wpnonce: nonce,
-			_wp_http_referer: referrer,
-			import_id: importId,
-		},
-	});
-
-	// Import the file system
-	const importFileSystemRequest = await playground.run({
-		code: migration + ` importZipFile('${importPath}');`,
-	});
-	if (importFileSystemRequest.exitCode !== 0) {
-		throw importFileSystemRequest.errors;
+	if (!importForm) {
+		console.log(stepOneResponse.text);
+		throw new Error(
+			'Could not find an importer form in response. See the response text above for details.'
+		);
 	}
 
-	return true;
+	const data = getFormData(importForm);
+	data['fetch_attachments'] = '1';
+	for (const key in data) {
+		if (key.startsWith('user_map[')) {
+			const newKey = 'user_new[' + key.slice(9, -1) + ']';
+			data[newKey] = '1'; // Hardcoded admin ID for now
+		}
+	}
+
+	return await playground.request({
+		url: importForm.action,
+		method: 'POST',
+		formData: data,
+	});
+}
+
+function DOM(response: PHPResponse) {
+	return new DOMParser().parseFromString(response.text, 'text/html');
+}
+
+function getFormData(form: HTMLFormElement): Record<string, unknown> {
+	return Object.fromEntries((new FormData(form) as any).entries());
+}
+
+async function patchFile(
+	playground: PlaygroundClient,
+	path: string,
+	callback: (contents: string) => string
+) {
+	await playground.writeFile(
+		path,
+		callback(await playground.readFileAsText(path))
+	);
+}
+
+async function phpMigration(playground: PlaygroundClient, code: string) {
+	const result = await playground.run({
+		code: migrationsPHPCode + code,
+	});
+	if (result.exitCode !== 0) {
+		console.log(migrationsPHPCode + code);
+		console.log(code + '');
+		console.log(result.errors);
+		throw result.errors;
+	}
+	return result;
 }

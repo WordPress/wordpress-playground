@@ -1,4 +1,4 @@
-import type { WorkerStartupOptions } from '@php-wasm/common';
+import type { WorkerStartupOptions } from '@php-wasm/abstract';
 
 export function parseWorkerStartupOptions<
 	T extends Record<string, string>

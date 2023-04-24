@@ -9,6 +9,7 @@ export type {
 	PHPRunOptions,
 	PHPRuntime,
 	PHPRuntimeId,
+	RmDirOptions,
 	WithCLI,
 	WithFilesystem,
 	WithRun,
@@ -19,7 +20,6 @@ export type {
 
 export type { PHPResponse } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';
-
 export {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersions,

@@ -1,6 +1,6 @@
 export * from './lib';
 
-export type { SupportedPHPVersion } from '@php-wasm/common';
+export type { SupportedPHPVersion } from '@php-wasm/abstract';
 export {
 	PHPRequestHandler,
 	PHPBrowser,
@@ -9,7 +9,7 @@ export {
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 
 // Wildcard re-export is unfortunately not supported by TypeScript.
 export type {
@@ -30,4 +30,4 @@ export type {
 	PHPRequestHandlerConfiguration,
 	PHPRequest,
 	WorkerStartupOptions,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';

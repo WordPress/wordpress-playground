@@ -44,31 +44,21 @@ class WordPressPatcher {
 		for (const missingSvg of missingSvgs) {
 			this.#php.writeFile(missingSvg, '');
 		}
-		this.#adjustPathsAndUrls();
+		this.patchSiteUrl();
 		this.#disableSiteHealth();
 		this.#disableWpNewBlogNotification();
 		this.#replaceRequestsTransports();
 	}
-	#adjustPathsAndUrls() {
+	patchSiteUrl() {
 		this.#patchFile(
 			`${DOCROOT}/wp-config.php`,
 			(contents) =>
-				`${contents} define('WP_HOME', '${JSON.stringify(DOCROOT)}');`
-		);
-
-		// Force the site URL to be $scopedSiteUrl:
-		// Interestingly, it doesn't work when put in a mu-plugin.
-		this.#patchFile(
-			`${DOCROOT}/wp-includes/plugin.php`,
-			(contents) =>
-				contents +
-				`
-				function _wasm_wp_force_site_url() {
-					return ${JSON.stringify(this.#scopedSiteUrl)};
+				`<?php
+				if(!defined('WP_HOME')) {
+					define('WP_HOME', "${this.#scopedSiteUrl}");
+					define('WP_SITEURL', "${this.#scopedSiteUrl}");
 				}
-				add_filter( "option_home", '_wasm_wp_force_site_url', 10000 );
-				add_filter( "option_siteurl", '_wasm_wp_force_site_url', 10000 );
-			`
+				?>${contents}`
 		);
 	}
 	#disableSiteHealth() {

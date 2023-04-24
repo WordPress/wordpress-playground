@@ -1,4 +1,4 @@
-import { EmscriptenOptions } from '@php-wasm/common';
+import { EmscriptenOptions } from '@php-wasm/abstract';
 import {
 	initOutboundWebsocketProxyServer,
 	addSocketOptionsSupportToWebSocketClass,

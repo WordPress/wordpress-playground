@@ -1,6 +1,7 @@
+import { saveAs } from 'file-saver';
 import css from './style.module.css';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { exportFile } from '@wp-playground/client';
+import { zipEntireSite } from '@wp-playground/client';
 
 interface ExportButtonProps {
 	playground?: PlaygroundClient;
@@ -12,7 +13,7 @@ export default function ExportButton({ playground }: ExportButtonProps) {
 			id="export-playground--btn"
 			className={css.btn}
 			aria-label="Download Playground export as ZIP file"
-			onClick={() => playground && exportFile(playground)}
+			onClick={() => playground && startDownload(playground)}
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -29,4 +30,8 @@ export default function ExportButton({ playground }: ExportButtonProps) {
 			</svg>
 		</button>
 	);
+}
+
+async function startDownload(playground: PlaygroundClient) {
+	saveAs(await zipEntireSite(playground));
 }

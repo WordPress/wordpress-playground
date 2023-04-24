@@ -1,4 +1,4 @@
-export { loadPHPRuntime } from '@php-wasm/common';
+export { loadPHPRuntime } from '@php-wasm/abstract';
 export type {
 	DataModule,
 	EmscriptenOptions,
@@ -15,7 +15,7 @@ export type {
 	PHPResponse,
 	PHPOutput,
 	RuntimeType,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 
 export type { PHPWebLoaderOptions } from './php';
 

@@ -15,7 +15,7 @@ RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
     apt-get update; \
-    emsdk install latest
+    emsdk install latest;
 
 # Download specific version of WordPress
 RUN wget -O wp.zip $WP_ZIP_URL && \
@@ -117,6 +117,7 @@ RUN cd wordpress && \
 FROM php:7.4-cli AS php
 WORKDIR /root/
 COPY --from=emscripten /root/wordpress ./wordpress
+RUN apt update && apt install unzip
 
 # === Run WordPress Installer ===
 RUN ls -la && \
@@ -129,14 +130,30 @@ RUN ls -la && \
     exit 'WordPress installation failed'; \
     fi
 
+# === Create the mu-plugins directory ===
+RUN mkdir wordpress/wp-content/mu-plugins
+
 # === Install WP-CLI ===
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar
 
 # === Install WordPress Importer ===
-RUN cd wordpress && \
-    ../wp-cli.phar --allow-root plugin install wordpress-importer && \
+COPY ./build-assets/import-wxz.patch /root/
+RUN cd wordpress/wp-content/plugins && \
+    curl -L $(curl -s https://api.github.com/repos/WordPress/wordpress-importer/releases/latest | grep zip | cut -d '"' -f 4) > out && \
+    unzip out && \
+    rm out && \
+    mv WordPress-* wordpress-importer && \
+    cd wordpress-importer && \
+    # Patch the WordPress Importer to support .wxz files
+    patch -p1 < /root/import-wxz.patch && \
+    cd ../../../ && \
     ../wp-cli.phar --allow-root plugin activate wordpress-importer
+
+# === Install WordPress WXZ Exporter ===
+COPY ./build-assets/export-wxz.php /root/
+RUN cd wordpress && \
+    cp /root/export-wxz.php wp-content/mu-plugins/export-wxz.php
 
 # Strip whitespaces from PHP files.
 # PHP 7.4 is a safe choice here: `php -w` ran on 7.4

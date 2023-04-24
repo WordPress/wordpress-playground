@@ -1,5 +1,5 @@
 import { getPHPLoaderModule, PHP } from '..';
-import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/common';
+import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/abstract';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';

@@ -1,10 +1,15 @@
-import { registerServiceWorker, spawnPHPWorkerThread } from '@php-wasm/web';
+import {
+	LatestSupportedPHPVersion,
+	registerServiceWorker,
+	spawnPHPWorkerThread,
+} from '@php-wasm/web';
 import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@php-wasm/web';
 // @ts-ignore
 import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 import type { PlaygroundWorkerClient } from './worker-thread';
 import type { PlaygroundClient, WebClientMixin } from './playground-client';
+import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -34,21 +39,32 @@ export const workerUrl: string = (function () {
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
+import { LatestSupportedWordPressVersion } from './get-wordpress-module';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
+const query = new URL(document.location.href).searchParams as any;
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
-	const query = new URL(document.location.href).searchParams as any;
-	const wpVersion = query.get('wp') ? query.get('wp') : '6.2';
-	const phpVersion = query.get('php') ? query.get('php') : '8.0';
+	const hasProgressBar = query.has('progressbar');
+	let bar: ProgressBar | undefined;
+	if (hasProgressBar) {
+		bar = new ProgressBar();
+		document.body.prepend(bar.element);
+	}
+
+	const wpVersion = parseVersion(
+		query.get('wp'),
+		LatestSupportedWordPressVersion
+	);
+	const phpVersion = parseVersion(
+		query.get('php'),
+		LatestSupportedPHPVersion
+	);
 	const workerApi = consumeAPI<PlaygroundWorkerClient>(
 		await spawnPHPWorkerThread(workerUrl, workerBackend, {
-			// Vite doesn't deal well with the dot in the parameters name,
-			// passed to the worker via a query string, so we replace
-			// it with an underscore
-			wpVersion: wpVersion.replace('.', '_'),
-			phpVersion: phpVersion.replace('.', '_'),
+			wpVersion,
+			phpVersion,
 		})
 	);
 
@@ -56,6 +72,18 @@ export async function bootPlaygroundRemote() {
 	const webApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
+		},
+		async setProgress(options: ProgressBarOptions) {
+			if (!bar) {
+				throw new Error('Progress bar not available');
+			}
+			bar.setOptions(options);
+		},
+		async setLoaded() {
+			if (!bar) {
+				throw new Error('Progress bar not available');
+			}
+			bar.destroy();
 		},
 		async onNavigation(fn) {
 			// Manage the address bar
@@ -105,9 +133,23 @@ export async function bootPlaygroundRemote() {
 
 	setAPIReady();
 
-	// An asssertion to make sure Playground Client is compatible
-	// with Remote<PlaygroundClient>
+	/*
+	 * An asssertion to make sure Playground Client is compatible
+	 * with Remote<PlaygroundClient>
+	 */
 	return playground as PlaygroundClient;
+}
+
+function parseVersion<T>(value: string | undefined | null, latest: T) {
+	if (!value || value === 'latest') {
+		return (latest as string).replace('.', '_');
+	}
+	/*
+	 * Vite doesn't deal well with the dot in the parameters name,
+	 * passed to the worker via a query string, so we replace
+	 * it with an underscore
+	 */
+	return value.replace('.', '_');
 }
 
 /**

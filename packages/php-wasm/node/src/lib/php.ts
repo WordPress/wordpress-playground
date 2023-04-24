@@ -4,7 +4,7 @@ import {
 	EmscriptenOptions,
 	PHPRequestHandlerConfiguration,
 	BasePHP,
-} from '@php-wasm/common';
+} from '@php-wasm/abstract';
 
 import { lstatSync, readdirSync } from 'node:fs';
 import { getPHPLoaderModule } from './';

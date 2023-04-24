@@ -6,7 +6,21 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README", "build:rollup-declarations"]
+			"dependsOn": [
+				"build:README",
+				"build:blueprint-schema",
+				"build:rollup-declarations"
+			]
+		},
+		"build:blueprint-schema": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/client/bin/generate-schema.js"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",
@@ -74,7 +88,22 @@
 				"lintFilePatterns": ["packages/playground/client/**/*.ts"]
 			}
 		},
+
 		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite", "test:esmcjs"]
+		},
+		"test:esmcjs": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"bash packages/playground/client/test/esm_cjs/test.sh"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"test:vite": {
 			"executor": "@nrwl/vite:test",
 			"outputs": ["coverage/packages/playground/client"],
 			"options": {
