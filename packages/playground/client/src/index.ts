@@ -28,6 +28,8 @@ export {
 } from '@php-wasm/universal';
 export type { PlaygroundClient } from '@wp-playground/remote';
 
+export { phpVar, phpVars } from '@php-wasm/util';
+
 import {
 	Blueprint,
 	compileBlueprint,
