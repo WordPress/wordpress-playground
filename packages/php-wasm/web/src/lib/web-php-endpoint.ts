@@ -7,11 +7,6 @@ import type {
 	RmDirOptions,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-interface WithProgress {
-	onDownloadProgress(
-		callback: (progress: CustomEvent<ProgressEvent>) => void
-	): Promise<void>;
-}
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
@@ -24,7 +19,7 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHPEndpoint implements IsomorphicLocalPHP, WithProgress {
+export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	/**
 	 * A dummy promise that resolves immediately.
 	 * Used to assert that the PHPClient is ready for communication.

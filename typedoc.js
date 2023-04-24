@@ -8,17 +8,7 @@ module.exports = {
 		'./packages/playground/client',
 	],
 	out: './dist/docs',
-	intentionallyNotExported: [
-		'BasePHP',
-		'WithRun',
-		'WithRequestHandler',
-		'Promisify',
-		'WithPathConversion',
-		'PHPRequestHeaders',
-		'WithProgress',
-		'FileInfo',
-		'PHPBrowserConfiguration',
-	],
+	intentionallyNotExported: ['PHPBrowserConfiguration'],
 	excludeExternals: true,
 	customCss: './pages/style.css',
 };
