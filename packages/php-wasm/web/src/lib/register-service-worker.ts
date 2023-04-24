@@ -1,5 +1,6 @@
-import type { PHPClient } from './php-client';
+import type { WebPHPEndpoint } from './web-php-endpoint';
 import { responseTo } from '@php-wasm/web-service-worker';
+import { Remote } from 'comlink';
 
 /**
  * Run this in the main application to register the service worker or
@@ -11,12 +12,9 @@ import { responseTo } from '@php-wasm/web-service-worker';
  *                                 mismatched with the actual version, the service worker
  *                                 will be re-registered.
  */
-export async function registerServiceWorker<Client extends PHPClient>(
-	phpApi: Client,
-	scope: string,
-	scriptUrl: string,
-	expectedVersion: string
-) {
+export async function registerServiceWorker<
+	Client extends Remote<WebPHPEndpoint>
+>(phpApi: Client, scope: string, scriptUrl: string, expectedVersion: string) {
 	const sw = (navigator as any).serviceWorker;
 	if (!sw) {
 		throw new Error('Service workers are not supported in this browser.');

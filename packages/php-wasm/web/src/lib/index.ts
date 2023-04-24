@@ -1,26 +1,9 @@
-export { loadPHPRuntime } from '@php-wasm/abstract';
-export type {
-	DataModule,
-	EmscriptenOptions,
-	ErrnoError,
-	MountSettings,
-	HTTPMethod,
-	PHPLoaderModule,
-	PHPRuntime,
-	PHPRuntimeId,
-	PHPRequestHandler,
-	PHPRequest,
-	PHPRequestHeaders,
-	PHPRequestHandlerConfiguration,
-	PHPResponse,
-	PHPOutput,
-	RuntimeType,
-} from '@php-wasm/abstract';
+export * from './api';
+export type { WithIsReady } from './api';
+export type { PHPWebLoaderOptions } from './web-php';
 
-export type { PHPWebLoaderOptions } from './php';
-
-export { PHP } from './php';
-export { PHPClient } from './php-client';
+export { WebPHP } from './web-php';
+export { WebPHPEndpoint } from './web-php-endpoint';
 export { getPHPLoaderModule } from './get-php-loader-module';
 export { registerServiceWorker } from './register-service-worker';
 

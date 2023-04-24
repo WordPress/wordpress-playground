@@ -4,7 +4,21 @@
 	"overrides": [
 		{
 			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
-			"rules": {}
+			"rules": {
+				"@nrwl/nx/enforce-module-boundaries": [
+					"error",
+					{
+						"enforceBuildableLibDependency": true,
+						"allow": ["@wp-playground/client"],
+						"depConstraints": [
+							{
+								"sourceTag": "*",
+								"notDependOnLibsWithTags": ["scope:web-client"]
+							}
+						]
+					}
+				]
+			}
 		},
 		{
 			"files": ["*.ts", "*.tsx"],

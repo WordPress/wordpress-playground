@@ -1,18 +1,42 @@
-import { PlaygroundClient } from '@wp-playground/remote';
-import { consumeAPI } from '@php-wasm/web';
-import { ProgressTracker } from '@php-wasm/progress';
-import { Blueprint, runBlueprint } from './lib';
+export * from '@wp-playground/blueprints';
 
 export type {
 	HTTPMethod,
 	PHPRunOptions,
 	PHPRequest,
 	PHPResponse,
-} from '@php-wasm/web';
-export * from './lib';
+	UniversalPHP,
+	IsomorphicRemotePHP,
+	PHPOutput,
+	PHPResponseData,
+	ErrnoError,
+	PHPBrowser,
+	PHPRequestHandler,
+	PHPRequestHandlerConfiguration,
+	PHPRequestHeaders,
+	PHPBrowserConfiguration,
+	SupportedPHPVersion,
+	FileInfo,
+	RmDirOptions,
+	RequestHandler,
+	RuntimeType,
+} from '@php-wasm/universal';
+export {
+	SupportedPHPVersions,
+	SupportedPHPVersionsList,
+	LatestSupportedPHPVersion,
+} from '@php-wasm/universal';
+export type { PlaygroundClient } from '@wp-playground/remote';
 
-export type { PlaygroundClient };
-export interface ConnectPlaygroundOptions {
+import {
+	Blueprint,
+	compileBlueprint,
+	runBlueprintSteps,
+} from '@wp-playground/blueprints';
+import { consumeAPI } from '@php-wasm/web';
+import { ProgressTracker } from '@php-wasm/progress';
+import { PlaygroundClient } from '@wp-playground/remote';
+export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	progressTracker?: ProgressTracker;
@@ -20,76 +44,105 @@ export interface ConnectPlaygroundOptions {
 	blueprint?: Blueprint;
 }
 
-const officialRemoteOrigin = 'https://playground.wordpress.net';
-
 /**
  * Loads playground in iframe and returns a PlaygroundClient instance.
- * Optionally
  *
  * @param iframe Any iframe with Playground's remote.html loaded.
  * @param options Options for loading the playground.
  * @returns A PlaygroundClient instance.
  */
-export async function startPlayground(
-	options: ConnectPlaygroundOptions
-): Promise<PlaygroundClient> {
-	/*
-	 * Load a fresh playground remote and wait until
-	 * the iframe is ready for communication:
-	 */
-	await new Promise((resolve) => {
-		const remoteUrl = new URL(options.remoteUrl);
-		if (
-			remoteUrl.origin === officialRemoteOrigin &&
-			remoteUrl.pathname !== '/remote.html'
-		) {
-			throw new Error(
-				`Invalid remote URL: ${remoteUrl}. ` +
-					`Expected origin to be ${officialRemoteOrigin}/remote.html.`
-			);
-		}
-
-		const qs = new URLSearchParams({
-			php: options.blueprint?.preferredVersions?.php || 'latest',
-			wp: options.blueprint?.preferredVersions?.wp || 'latest',
-		});
-		if (!options.disableProgressBar) {
-			qs.set('progressbar', '1');
-		}
-		remoteUrl.search = qs.toString();
-
-		options.iframe.src = remoteUrl.toString();
-		options.iframe.addEventListener('load', resolve, false);
+export async function startPlaygroundWeb({
+	iframe,
+	blueprint,
+	remoteUrl,
+	progressTracker = new ProgressTracker(),
+	disableProgressBar,
+}: StartPlaygroundOptions): Promise<PlaygroundClient> {
+	assertValidRemote(remoteUrl);
+	remoteUrl = setQueryParams(remoteUrl, {
+		progressbar: !disableProgressBar,
 	});
-
-	const playground = createClient(options.iframe);
-	await playground.connected;
-
-	const tracker = options.progressTracker || new ProgressTracker();
-	tracker.addProgressReceiver(playground);
-	const downloadWeight = options.blueprint ? 0.5 : 1;
-	await playground.onDownloadProgress(
-		tracker.stage(downloadWeight, 'Preparing WordPress').loadingListener
-	);
-
-	/**
-	 * Wait until WordPress and PHP are loaded.
-	 */
-	await playground.isReady();
-
-	if (options.blueprint) {
-		await runBlueprint(
-			playground,
-			options.blueprint,
-			tracker.stage(1 - downloadWeight)
-		);
+	progressTracker.setCaption('Preparing WordPress');
+	if (!blueprint) {
+		return doStartPlaygroundWeb(iframe, remoteUrl, progressTracker);
 	}
 
+	const compiled = compileBlueprint(blueprint, {
+		progress: progressTracker.stage(0.5),
+	});
+	const playground = await doStartPlaygroundWeb(
+		iframe,
+		setQueryParams(remoteUrl, {
+			php: compiled.versions.php,
+			wp: compiled.versions.wp,
+		}),
+		progressTracker
+	);
+	await runBlueprintSteps(compiled, playground);
+	await playground.goTo(compiled.landingPage);
 	return playground;
 }
 
 /**
- * @deprecated Use `loadPlayground` instead.
+ * Internal function to connect an iframe to the playground remote.
+ *
+ * @param iframe
+ * @param remoteUrl
+ * @param progressTracker
+ * @returns
+ */
+async function doStartPlaygroundWeb(
+	iframe: HTMLIFrameElement,
+	remoteUrl: string,
+	progressTracker: ProgressTracker
+) {
+	await new Promise((resolve) => {
+		iframe.src = remoteUrl;
+		iframe.addEventListener('load', resolve, false);
+	});
+
+	// Connect the Comlink client and wait until the
+	// playground is ready.
+	const playground = consumeAPI<PlaygroundClient>(
+		iframe.contentWindow!
+	) as PlaygroundClient;
+	await playground.connected;
+	progressTracker.pipe(playground);
+	await playground.onDownloadProgress(
+		progressTracker.stage().loadingListener
+	);
+	await playground.isReady();
+	return playground;
+}
+
+const officialRemoteOrigin = 'https://playground.wordpress.net';
+function assertValidRemote(remoteHtmlUrl: string) {
+	const url = new URL(remoteHtmlUrl);
+	if (
+		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
+		url.pathname !== '/remote.html'
+	) {
+		throw new Error(
+			`Invalid remote URL: ${url}. ` +
+				`Expected origin to be ${officialRemoteOrigin}/remote.html.`
+		);
+	}
+}
+
+function setQueryParams(url: string, params: Record<string, unknown>) {
+	const urlObject = new URL(url);
+	const qs = new URLSearchParams(urlObject.search);
+	for (const [key, value] of Object.entries(params)) {
+		if (value !== undefined && value !== null && value !== false) {
+			qs.set(key, value.toString());
+		}
+	}
+	urlObject.search = qs.toString();
+	return urlObject.toString();
+}
+
+/**
+ * @deprecated Use `startPlayground` instead.
  *
  * @param iframe Any iframe with Playground's remote.html loaded.
  * @param options Optional. If `loadRemote` is set, the iframe's `src` will be set to that URL.
@@ -100,24 +153,18 @@ export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: { loadRemote?: string }
 ): Promise<PlaygroundClient> {
+	console.warn(
+		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
+	);
 	if (options?.loadRemote) {
-		return startPlayground({
+		return startPlaygroundWeb({
 			iframe,
 			remoteUrl: options.loadRemote,
 		});
 	}
-	const client = createClient(iframe);
+	const client = consumeAPI<PlaygroundClient>(
+		iframe.contentWindow!
+	) as PlaygroundClient;
 	await client.connected;
 	return client;
-}
-
-export function createClient(iframe: HTMLIFrameElement): PlaygroundClient {
-	const client = consumeAPI<PlaygroundClient>(iframe.contentWindow!);
-
-	/*
-	 * consumeAPI returns Remote<PlaygroundClient>. However,
-	 * PlaygroundClient is has a better DX while still being
-	 * compatible with Remote<PlaygroundClient>. Let's typecast:
-	 */
-	return client as PlaygroundClient;
 }

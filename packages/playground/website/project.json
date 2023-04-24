@@ -104,5 +104,5 @@
 			}
 		}
 	},
-	"tags": []
+	"tags": ["scope:web-client"]
 }

@@ -1,20 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Blueprint, startPlayground } from '@wp-playground/client';
+import { useEffect, useRef, useState } from 'react';
+import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { remotePlaygroundOrigin } from './config';
 
-export function useRerender() {
-	const [, setTick] = useState(0);
-	const tick = useCallback(() => {
-		setTick((tick) => tick + 1);
-	}, []);
-	return tick;
-}
-
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	php?: string;
-	wp?: string;
 }
 export function usePlayground({ blueprint }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -38,7 +28,7 @@ export function usePlayground({ blueprint }: UsePlaygroundOptions) {
 		}
 		started.current = true;
 
-		startPlayground({
+		startPlaygroundWeb({
 			iframe,
 			remoteUrl: `${remotePlaygroundOrigin}/remote.html`,
 			blueprint,

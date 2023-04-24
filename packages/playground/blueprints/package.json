@@ -1,0 +1,20 @@
+{
+	"name": "@wp-playground/blueprints",
+	"version": "0.0.1",
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"typedoc": {
+		"entryPoint": "./src/index.ts",
+		"readmeFile": "./README.md",
+		"displayName": "@wp-playground/blueprints",
+		"tsconfig": "./tsconfig.lib.json"
+	}
+}
