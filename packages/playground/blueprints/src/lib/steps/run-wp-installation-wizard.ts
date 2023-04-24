@@ -30,6 +30,7 @@ export async function runWpInstallationWizard(
 			weblog_title: 'My WordPress Website',
 			user_name: options.adminPassword || 'admin',
 			admin_password: options.adminPassword || 'password',
+			// The installation wizard demands typing the same password twice
 			admin_password2: options.adminPassword || 'password',
 			Submit: 'Install WordPress',
 			pw_weak: '1',
