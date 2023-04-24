@@ -30,7 +30,7 @@ export default async function runExecutor(
 		`require('../../${options.outputPath}');`
 	);
 	writeFileSync(
-		path.join(testsPath, 'test.sh'),
+		path.join(testsPath, 'ensure-both-outputs-run-in-node.sh'),
 		`#!/bin/sh
 set -e
 node test-esm.mjs;
@@ -38,8 +38,7 @@ node test-cjs.cjs;
 echo Success;`
 	);
 
-	// Run test.sh and check exit code:
-	const test = spawnSync('sh', ['test.sh'], {
+	const test = spawnSync('sh', ['ensure-both-outputs-run-in-node.sh'], {
 		cwd: testsPath,
 		stdio: 'pipe',
 		encoding: 'utf-8',
