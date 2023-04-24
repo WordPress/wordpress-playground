@@ -54,6 +54,7 @@ export interface CompiledBlueprint {
 	steps: Array<CompiledStep>;
 	/** The resources used by the compiled steps */
 	resources: Array<{ resource: Resource; step: CompiledStep }>;
+	progressTracker: ProgressTracker;
 }
 
 export interface CompileBlueprintOptions {
@@ -107,6 +108,7 @@ export function compileBlueprint(
 		},
 		steps: compiledSteps,
 		resources: getResources(compiledSteps),
+		progressTracker: progress,
 	};
 }
 

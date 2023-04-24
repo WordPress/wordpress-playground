@@ -71,7 +71,9 @@ async function runBlueprintStep(step: CompiledStep, playground: UniversalPHP) {
 			break;
 		}
 		case 'login':
-			step.progress.setCaption(`Logging in as ${args.username}`);
+			step.progress.setCaption(
+				`Logging in${args.username ? ' as ' + args.username : ''}`
+			);
 			await login(playground, args.username, args.password);
 			break;
 		case 'activatePlugin':
