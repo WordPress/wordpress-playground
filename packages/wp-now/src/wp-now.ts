@@ -1,7 +1,7 @@
 import { PHP, SupportedPHPVersion } from '@php-wasm/node'
 import path from 'path'
-import { SQLITE_URL, WORDPRESS_VERSIONS_PATH } from './constants'
-import { writeFile, writeFileSync } from 'fs'
+import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH } from './constants'
+import { downloadSqlite, downloadWordPress } from './download'
 
 interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
@@ -17,13 +17,6 @@ const DEFAULT_OPTIONS: WPNowOptions = {
 
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
-}
-
-async function fetchAsUint8Array(url) {
-	const fetchModule = await import('node-fetch');
-	const fetch = fetchModule.default;
-	const response = await fetch(url);
-	return new Uint8Array(await response.arrayBuffer());
 }
 
 export default class WPNow {
@@ -71,7 +64,7 @@ export default class WPNow {
 
   mountWordpress(fileName = 'latest') {
     const { documentRoot } = this.options
-    const root = path.join(WORDPRESS_VERSIONS_PATH, fileName, 'wordpress')
+    const root = path.join(WORDPRESS_ZIPS_PATH, fileName, 'wordpress')
     this.php.mount({
       root,
     }, documentRoot)
@@ -112,39 +105,26 @@ export default class WPNow {
     return result
   }
 
-  async start() {
-    console.log('start')
-    return null
-  }
-
-  async downloadSqlite() {
+  async mountSqlite() {
     const { documentRoot } = this.options
-    const sqliteZip = await fetchAsUint8Array(SQLITE_URL)
-    this.php.writeFile('/sqlite-database-integration.zip', sqliteZip);
-    const results = await this.php.run({
-      code: `<?php
-  function extractZip($zipPath, $destination) {
-      $zip = new ZipArchive;
-      $res = $zip->open($zipPath);
-      if ($res === TRUE) {
-          $zip->extractTo($destination);
-          $zip->close();
-      }
-  }
-  extractZip('/sqlite-database-integration.zip', '${documentRoot}/wp-content/plugins/');
-  rename('${documentRoot}/wp-content/plugins/sqlite-database-integration-main', '${documentRoot}/wp-content/plugins/sqlite-database-integration');
-  `
-    });
+    const sqlitePluginPath = `${documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`
+    this.php.mkdirTree(sqlitePluginPath)
+    this.php.mount(SQLITE_PATH, sqlitePluginPath)
     this.php.writeFile(
       `${documentRoot}/wp-content/db.php`,
-      this.php.readFileAsText(`${documentRoot}/wp-content/plugins/sqlite-database-integration/db.copy`)
-        .replace(/\{SQLITE_IMPLEMENTATION_FOLDER_PATH\}/g, `${documentRoot}/wp-content/plugins/sqlite-database-integration`)
-        .replace(/\{SQLITE_PLUGIN\}/g, 'sqlite-database-integration')
+      this.php.readFileAsText(`${sqlitePluginPath}/db.copy`)
+        .replace(/\{SQLITE_IMPLEMENTATION_FOLDER_PATH\}/g, `${documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`)
+        .replace(/\{SQLITE_PLUGIN\}/g, SQLITE_FILENAME)
     )
   }
 
-  async activateSqlite() {
-    await this.php.request({
+  mount() {
+    this.mountWordpress()
+    this.mountSqlite()
+  }
+
+  async registerUser() {
+    return this.php.request({
       url: '/wp-admin/install.php?step=2',
       method: 'POST',
       formData: {
@@ -159,7 +139,9 @@ export default class WPNow {
         admin_email: 'admin@localhost.com'
       }
     });
+  }
 
+  async autoLogin() {
     await this.php.request({
       url: '/wp-login.php',
     });
@@ -174,4 +156,13 @@ export default class WPNow {
       },
     });
   }
+
+  async start() {
+    await downloadWordPress()
+    await downloadSqlite()
+    this.mount()
+    await this.registerUser()
+    await this.autoLogin()
+  }
+
 }

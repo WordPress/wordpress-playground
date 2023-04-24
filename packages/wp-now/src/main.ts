@@ -1,6 +1,5 @@
 import WPNow from "./wp-now"
 import { HTTPMethod } from '@php-wasm/common';
-import { downloadWordPress } from './download-wordpress';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 
@@ -36,9 +35,7 @@ const app = express();
 app.use(fileUpload());
 async function startServer() {
   const wpNow = await WPNow.create()
-  await downloadWordPress()
-  wpNow.mountWordpress()
-  await wpNow.downloadSqlite()
+  await wpNow.start()
 
   app.use('/', async (req, res) => {
     console.log('request>', req.url, req.method, req.headers['content-type'])
