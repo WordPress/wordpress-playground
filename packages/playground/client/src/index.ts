@@ -122,7 +122,7 @@ async function doStartPlaygroundWeb(
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
 function assertValidRemote(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl);
+	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
 	if (
 		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
 		url.pathname !== '/remote.html'
