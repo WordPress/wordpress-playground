@@ -7,33 +7,9 @@ import {
 	UniversalPHP,
 } from '@php-wasm/universal';
 import { isFileReference, Resource } from './resources';
-import { StepDefinition, stepHandlers } from './steps';
-
-export interface Blueprint {
-	/**
-	 * The URL to navigate to after the blueprint has been run.
-	 */
-	landingPage?: string;
-	/**
-	 * The preferred PHP and WordPress versions to use.
-	 */
-	preferredVersions?: {
-		/**
-		 * The preferred PHP version to use.
-		 * If not specified, the latest supported version will be used
-		 */
-		php: SupportedPHPVersion | 'latest';
-		/**
-		 * The preferred WordPress version to use.
-		 * If not specified, the latest supported version will be used
-		 */
-		wp: string | 'latest';
-	};
-	/**
-	 * The steps to run.
-	 */
-	steps?: Array<StepDefinition | string | undefined | false | null>;
-}
+import { Step, StepDefinition } from './steps';
+import * as stepHandlers from './steps/handlers';
+import { Blueprint } from './blueprint';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -143,7 +119,7 @@ function compileVersion<T>(
  * @returns Whether the object is a StepDefinition
  */
 function isStepDefinition(
-	step: StepDefinition | string | undefined | false | null
+	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);
 }
@@ -165,8 +141,8 @@ interface CompileStepArgsOptions {
  * @param options Additional options for the compilation
  * @returns The compiled step
  */
-function compileStep<Step extends StepDefinition>(
-	step: Step,
+function compileStep<S extends StepDefinition>(
+	step: S,
 	{
 		semaphore,
 		rootProgressTracker,
@@ -222,7 +198,7 @@ function compileStep<Step extends StepDefinition>(
  * @param step The compiled step
  * @returns The resources used by the compiled step
  */
-function getResources<Step extends StepDefinition>(step: Step) {
+function getResources<S extends StepDefinition>(step: S) {
 	const result: Resource[] = [];
 	for (const argName in step) {
 		const resourceMaybe = (step as any)[argName];
@@ -250,6 +226,13 @@ async function resolveResources<T extends Record<string, unknown>>(args: T) {
 		}
 	}
 	return resolved;
+}
+
+export async function runBlueprintSteps(
+	compiledBlueprint: CompiledBlueprint,
+	playground: UniversalPHP
+) {
+	await compiledBlueprint.run(playground);
 }
 
 // function fileToUint8Array(file: File) {

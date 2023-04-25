@@ -1,7 +1,8 @@
 import { StepHandler } from '.';
 import { asDOM } from './common';
 
-export interface ActivatePluginArgs {
+export interface ActivatePluginStep {
+	step: 'activatePlugin';
 	plugin: string;
 }
 
@@ -11,7 +12,7 @@ export interface ActivatePluginArgs {
  * @param playground The playground client.
  * @param plugin The plugin slug.
  */
-export const activatePlugin: StepHandler<ActivatePluginArgs> = async (
+export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	playground,
 	{ plugin },
 	progress

@@ -1,9 +1,8 @@
 export * from './lib/steps';
-export type {} from './lib/steps';
-export { runBlueprintSteps } from './lib/run';
-export { compileBlueprint } from './lib/compile';
+export * from './lib/steps/handlers';
+export { runBlueprintSteps, compileBlueprint } from './lib/compile';
+export type { Blueprint } from './lib/blueprint';
 export type {
-	Blueprint,
 	CompiledStep,
 	CompiledBlueprint,
 	CompileBlueprintOptions,

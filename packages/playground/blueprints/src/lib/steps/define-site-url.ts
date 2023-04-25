@@ -1,7 +1,8 @@
 import { StepHandler } from '.';
 import { updateFile } from './common';
 
-export interface DefineSiteUrlArgs {
+export interface DefineSiteUrlStep {
+	step: 'defineSiteUrl';
 	siteUrl: string;
 }
 
@@ -11,7 +12,7 @@ export interface DefineSiteUrlArgs {
  * @param playground The playground client.
  * @param siteUrl
  */
-export const defineSiteUrl: StepHandler<DefineSiteUrlArgs> = async (
+export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {

@@ -1,54 +1,60 @@
 import { PHPRunOptions, PHPRequest } from '@php-wasm/universal';
 import { StepHandler } from '.';
+import { fileToUint8Array } from './common';
 
-export interface RunPHPArgs {
+export interface RunPHPStep {
+	step: 'runPHP';
 	code: string;
 }
 
-export const runPHP: StepHandler<RunPHPArgs> = async (playground, { code }) => {
+export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
 	await playground.run({ code });
 };
 
-export interface RunPHPWithOptionsArgs {
+export interface RunPHPWithOptionsStep {
+	step: 'runPHPWithOptions';
 	options: PHPRunOptions;
 }
 
-export const runPHPWithOptions: StepHandler<RunPHPWithOptionsArgs> = async (
+export const runPHPWithOptions: StepHandler<RunPHPWithOptionsStep> = async (
 	playground,
 	{ options }
 ) => {
 	await playground.run(options);
 };
 
-export interface SetPhpIniEntryArgs {
+export interface SetPhpIniEntryStep {
+	step: 'setPhpIniEntry';
 	key: string;
 	value: string;
 }
 
-export const setPhpIniEntry: StepHandler<SetPhpIniEntryArgs> = async (
+export const setPhpIniEntry: StepHandler<SetPhpIniEntryStep> = async (
 	playground,
 	{ key, value }
 ) => {
 	await playground.setPhpIniEntry(key, value);
 };
 
-export interface RequestArgs {
+export interface RequestStep {
+	step: 'request';
 	request: PHPRequest;
 }
 
-export const request: StepHandler<RequestArgs> = async (
+export const request: StepHandler<RequestStep> = async (
 	playground,
 	{ request }
 ) => {
 	await playground.request(request);
 };
 
-export interface CpArgs {
+export interface CpStep {
+	step: 'cp';
 	fromPath: string;
 	toPath: string;
 }
 
-export const cp: StepHandler<CpArgs> = async (
+export const cp: StepHandler<CpStep> = async (
 	playground,
 	{ fromPath, toPath }
 ) => {
@@ -58,50 +64,58 @@ export const cp: StepHandler<CpArgs> = async (
 	);
 };
 
-export interface MvArgs {
+export interface MvStep {
+	step: 'mv';
 	fromPath: string;
 	toPath: string;
 }
 
-export const mv: StepHandler<MvArgs> = async (
+export const mv: StepHandler<MvStep> = async (
 	playground,
 	{ fromPath, toPath }
 ) => {
 	await playground.mv(fromPath, toPath);
 };
 
-export interface MkdirArgs {
+export interface MkdirStep {
+	step: 'mkdir';
 	path: string;
 }
 
-export const mkdir: StepHandler<MkdirArgs> = async (playground, { path }) => {
+export const mkdir: StepHandler<MkdirStep> = async (playground, { path }) => {
 	await playground.mkdir(path);
 };
 
-export interface RmArgs {
+export interface RmStep {
+	step: 'rm';
 	path: string;
 }
 
-export const rm: StepHandler<RmArgs> = async (playground, { path }) => {
+export const rm: StepHandler<RmStep> = async (playground, { path }) => {
 	await playground.unlink(path);
 };
 
-export interface RmdirArgs {
+export interface RmdirStep {
+	step: 'rmdir';
 	path: string;
 }
 
-export const rmdir: StepHandler<RmdirArgs> = async (playground, { path }) => {
+export const rmdir: StepHandler<RmdirStep> = async (playground, { path }) => {
 	await playground.rmdir(path);
 };
 
-export interface WriteFileArgs<ResourceType> {
+export interface WriteFileStep<ResourceType> {
+	step: 'writeFile';
 	path: string;
 	data: ResourceType | string | Uint8Array;
 }
 
-export const writeFile: StepHandler<WriteFileArgs<any>> = async (
+export const writeFile: StepHandler<WriteFileStep<File>> = async (
 	playground,
 	{ path, data }
 ) => {
+	if (data instanceof File) {
+		data = await fileToUint8Array(data);
+	}
 	await playground.writeFile(path, data);
 };

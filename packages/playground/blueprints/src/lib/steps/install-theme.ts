@@ -1,7 +1,8 @@
 import { StepHandler } from '.';
 import { asDOM, zipNameToHumanName } from './common';
 
-export interface InstallThemeArgs<ResourceType> {
+export interface InstallThemeStep<ResourceType> {
+	step: 'installTheme';
 	themeZipFile: ResourceType;
 	options?: InstallThemeOptions;
 }
@@ -22,7 +23,7 @@ export interface InstallThemeOptions {
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
-export const installTheme: StepHandler<InstallThemeArgs<File>> = async (
+export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	playground,
 	{ themeZipFile, options = {} },
 	progress

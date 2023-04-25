@@ -2,7 +2,8 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '..';
 import { updateFile } from '../common';
 
-export interface ApplyWordPressPatchesArgs {
+export interface ApplyWordPressPatchesStep {
+	step: 'applyWordPressPatches';
 	siteUrl: string;
 	wordpressPath?: string;
 	patchSqlitePlugin?: boolean;
@@ -13,7 +14,7 @@ export interface ApplyWordPressPatchesArgs {
 }
 
 export const applyWordPressPatches: StepHandler<
-	ApplyWordPressPatchesArgs
+	ApplyWordPressPatchesStep
 > = async (php, options) => {
 	const patch = new WordPressPatcher(
 		php,

@@ -33,7 +33,8 @@ export async function zipEntireSite(playground: UniversalPHP) {
 	return new File([fileBuffer], zipName);
 }
 
-export interface ReplaceSiteArgs<ResourceType> {
+export interface ReplaceSiteStep<ResourceType> {
+	step: 'replaceSite';
 	fullSiteZip: ResourceType;
 }
 
@@ -43,7 +44,7 @@ export interface ReplaceSiteArgs<ResourceType> {
  * @param playground Playground client.
  * @param fullSiteZip Zipped WordPress site.
  */
-export const replaceSite: StepHandler<ReplaceSiteArgs<File>> = async (
+export const replaceSite: StepHandler<ReplaceSiteStep<File>> = async (
 	playground,
 	{ fullSiteZip }
 ) => {
@@ -73,7 +74,8 @@ export const replaceSite: StepHandler<ReplaceSiteArgs<File>> = async (
 	);
 };
 
-export interface UnzipArgs {
+export interface UnzipStep {
+	step: 'unzip';
 	zipPath: string;
 	extractToPath: string;
 }
@@ -85,7 +87,7 @@ export interface UnzipArgs {
  * @param zipPath The zip file to unzip.
  * @param extractTo The directory to extract the zip file to.
  */
-export const unzip: StepHandler<UnzipArgs> = async (
+export const unzip: StepHandler<UnzipStep> = async (
 	playground,
 	{ zipPath, extractToPath }
 ) => {
@@ -131,7 +133,8 @@ export async function exportWXZ(playground: UniversalPHP) {
 	return new File([databaseExportResponse.bytes], 'export.wxz');
 }
 
-export interface ImportFileArgs<ResourceType> {
+export interface ImportFileStep<ResourceType> {
+	step: 'importFile';
 	file: ResourceType;
 }
 
@@ -143,7 +146,7 @@ export interface ImportFileArgs<ResourceType> {
  * @param playground Playground client.
  * @param file The file to import.
  */
-export const importFile: StepHandler<ImportFileArgs<File>> = async (
+export const importFile: StepHandler<ImportFileStep<File>> = async (
 	playground,
 	{ file }
 ) => {

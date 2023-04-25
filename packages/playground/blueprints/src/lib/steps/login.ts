@@ -1,6 +1,7 @@
 import { StepHandler } from '.';
 
-export type LoginArgs = {
+export type LoginStep = {
+	step: 'login';
 	username?: string;
 	password?: string;
 };
@@ -14,7 +15,7 @@ export type LoginArgs = {
  * @param user The user to log in as. Defaults to 'admin'.
  * @param password The password to log in with. Defaults to 'password'.
  */
-export const login: StepHandler<LoginArgs> = async (
+export const login: StepHandler<LoginStep> = async (
 	playground,
 	{ username = 'admin', password = 'password' } = {},
 	progress

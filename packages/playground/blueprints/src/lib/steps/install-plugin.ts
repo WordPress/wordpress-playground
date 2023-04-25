@@ -2,7 +2,8 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { asDOM, zipNameToHumanName } from './common';
 
-export interface InstallPluginArgs<ResourceType> {
+export interface InstallPluginStep<ResourceType> {
+	step: 'installPlugin';
 	pluginZipFile: ResourceType;
 	options?: InstallPluginOptions;
 }
@@ -23,7 +24,7 @@ export interface InstallPluginOptions {
  * @param pluginZipFile The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
-export const installPlugin: StepHandler<InstallPluginArgs<File>> = async (
+export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	playground,
 	{ pluginZipFile, options = {} },
 	progress?

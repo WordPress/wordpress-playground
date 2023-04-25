@@ -2,11 +2,12 @@ import { PHPResponse } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 
-export type SetSiteOptionsArgs = {
+export type SetSiteOptionsStep = {
+	step: 'setSiteOptions';
 	options: Record<string, unknown>;
 };
 
-export const setSiteOptions: StepHandler<SetSiteOptionsArgs> = async (
+export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 	client,
 	options
 ) => {
@@ -23,11 +24,12 @@ export const setSiteOptions: StepHandler<SetSiteOptionsArgs> = async (
 	assertSuccess(result);
 };
 
-export interface UpdateUserMetaArgs {
+export interface UpdateUserMetaStep {
+	step: 'updateUserMeta';
 	meta: Record<string, unknown>;
 	userId: number;
 }
-export const updateUserMeta: StepHandler<UpdateUserMetaArgs> = async (
+export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
 	client,
 	{ meta, userId }
 ) => {
