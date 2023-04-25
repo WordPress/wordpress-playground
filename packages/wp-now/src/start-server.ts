@@ -1,5 +1,5 @@
 import WPNow from "./wp-now"
-import { HTTPMethod } from "@php-wasm/node";
+import { HTTPMethod } from "@php-wasm/universal";
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { DEFAULT_PORT } from "./constants";

@@ -1,4 +1,5 @@
-import { PHP, SupportedPHPVersion } from '@php-wasm/node'
+import { NodePHP } from '@php-wasm/node'
+import { SupportedPHPVersion } from '@php-wasm/universal'
 import path from 'path'
 import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH } from './constants'
 import { downloadSqlite, downloadWordPress } from './download'
@@ -20,7 +21,7 @@ function seemsLikeAPHPFile(path) {
 }
 
 export default class WPNow {
-  php: PHP
+  php: NodePHP
   options: WPNowOptions = DEFAULT_OPTIONS
 
   static async create(options: WPNowOptions = {}): Promise<WPNow> {
@@ -39,7 +40,7 @@ export default class WPNow {
       ...options,
     }
     const { phpVersion, documentRoot, absoluteUrl } = this.options
-    this.php = await PHP.load(phpVersion, {
+    this.php = await NodePHP.load(phpVersion, {
       requestHandler: {
         documentRoot,
         absoluteUrl,
