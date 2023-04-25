@@ -94,7 +94,6 @@ export default class WPNow {
           );
       } );`
   );
-    this.php.cli
   }
 
   async runCode(code) {
