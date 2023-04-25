@@ -135,7 +135,7 @@ function assertValidRemote(remoteHtmlUrl: string) {
 }
 
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url);
+	const urlObject = new URL(url, officialRemoteOrigin);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {
