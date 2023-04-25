@@ -25,11 +25,15 @@ export interface CompiledBlueprint {
 	run: (playground: UniversalPHP) => Promise<void>;
 }
 
+export type OnStepCompleted = (output: any, step: StepDefinition) => any;
+
 export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
 	progress?: ProgressTracker;
 	/** Optional semaphore to control access to a shared resource */
 	semaphore?: Semaphore;
+	/** Optional callback with step output */
+	onStepCompleted?: OnStepCompleted;
 }
 
 /**
@@ -45,6 +49,7 @@ export function compileBlueprint(
 	{
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
+		onStepCompleted = () => {},
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	const steps = (blueprint.steps || []).filter(isStepDefinition);
@@ -53,17 +58,13 @@ export function compileBlueprint(
 		(total, step) => total + (step.progress?.weight || 1),
 		0
 	);
-	const compiledSteps: CompiledStep[] = [];
-	const resources: Resource[] = [];
-	for (const step of steps) {
-		const compiled = compileStep(step, {
+	const compiled = steps.map((step) =>
+		compileStep(step, {
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
-		});
-		compiledSteps.push(compiled.compiledStep);
-		resources.push(...compiled.asyncResources);
-	}
+		})
+	);
 
 	return {
 		versions: {
@@ -79,16 +80,26 @@ export function compileBlueprint(
 			),
 		},
 		run: async (playground: UniversalPHP) => {
-			for (const resource of resources) {
-				await resource.resolve();
+			try {
+				// Start resolving resources early
+				for (const { asyncResources } of compiled) {
+					for (const resource of asyncResources) {
+						resource.resolve();
+					}
+				}
+
+				for (const { run, step } of compiled) {
+					const result = await run(playground);
+					onStepCompleted(result, step);
+				}
+				if ('goTo' in playground) {
+					await (playground as any).goTo(
+						blueprint.landingPage || '/'
+					);
+				}
+			} finally {
+				progress.finish();
 			}
-			for (const step of compiledSteps) {
-				await step(playground);
-			}
-			if ('goTo' in playground) {
-				await (playground as any).goTo(blueprint.landingPage || '/');
-			}
-			progress.finish();
 		},
 	};
 }
@@ -148,7 +159,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { compiledStep: CompiledStep; asyncResources: Array<Resource> } {
+): { run: CompiledStep; step: S; asyncResources: Array<Resource> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -164,17 +175,20 @@ function compileStep<S extends StepDefinition>(
 		args[key] = value;
 	}
 
-	const compiledStep = async (playground: UniversalPHP) => {
-		stepProgress.fillSlowly();
-		await stepHandlers[step.step](
-			playground,
-			await resolveArguments(args),
-			{
-				tracker: stepProgress,
-				initialCaption: step.progress?.caption,
-			}
-		);
-		stepProgress.finish();
+	const run = async (playground: UniversalPHP) => {
+		try {
+			stepProgress.fillSlowly();
+			return await stepHandlers[step.step](
+				playground,
+				await resolveArguments(args),
+				{
+					tracker: stepProgress,
+					initialCaption: step.progress?.caption,
+				}
+			);
+		} finally {
+			stepProgress.finish();
+		}
 	};
 
 	/**
@@ -189,7 +203,7 @@ function compileStep<S extends StepDefinition>(
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return { compiledStep, asyncResources };
+	return { run, step, asyncResources };
 }
 
 /**

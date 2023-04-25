@@ -62,4 +62,4 @@ export type StepHandler<S extends GenericStep<File>> = (
 		tracker: ProgressTracker;
 		initialCaption?: string;
 	}
-) => Promise<void> | void;
+) => any;

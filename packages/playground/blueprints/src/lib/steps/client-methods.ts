@@ -8,7 +8,7 @@ export interface RunPHPStep {
 }
 
 export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
-	await playground.run({ code });
+	return await playground.run({ code });
 };
 
 export interface RunPHPWithOptionsStep {
@@ -20,7 +20,7 @@ export const runPHPWithOptions: StepHandler<RunPHPWithOptionsStep> = async (
 	playground,
 	{ options }
 ) => {
-	await playground.run(options);
+	return await playground.run(options);
 };
 
 export interface SetPhpIniEntryStep {
@@ -45,7 +45,7 @@ export const request: StepHandler<RequestStep> = async (
 	playground,
 	{ request }
 ) => {
-	await playground.request(request);
+	return await playground.request(request);
 };
 
 export interface CpStep {

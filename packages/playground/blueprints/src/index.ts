@@ -6,6 +6,7 @@ export type {
 	CompiledStep,
 	CompiledBlueprint,
 	CompileBlueprintOptions,
+	OnStepCompleted,
 } from './lib/compile';
 export type {
 	CachedResource,
