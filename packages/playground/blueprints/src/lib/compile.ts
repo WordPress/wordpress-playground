@@ -195,9 +195,10 @@ function compileStep<S extends StepDefinition>(
 	 * The weight of each async resource is the same, and is the same as the
 	 * weight of the step itself.
 	 */
-	const asyncResources = getResources(step).filter(
+	const asyncResources = getResources(args).filter(
 		(resource) => resource.isAsync
 	);
+
 	const evenWeight = 1 / (asyncResources.length + 1);
 	for (const resource of asyncResources) {
 		resource.progress = stepProgress.stage(evenWeight);
@@ -212,10 +213,10 @@ function compileStep<S extends StepDefinition>(
  * @param step The compiled step
  * @returns The resources used by the compiled step
  */
-function getResources<S extends StepDefinition>(step: S) {
+function getResources<S extends StepDefinition>(args: S) {
 	const result: Resource[] = [];
-	for (const argName in step) {
-		const resourceMaybe = (step as any)[argName];
+	for (const argName in args) {
+		const resourceMaybe = (args as any)[argName];
 		if (resourceMaybe instanceof Resource) {
 			result.push(resourceMaybe);
 		}
