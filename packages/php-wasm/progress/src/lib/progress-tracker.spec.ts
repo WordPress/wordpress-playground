@@ -10,9 +10,9 @@ describe('Tracks total progress', () => {
 
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		// Should not get to 100% unless we explicitly set it
-		expect(tracker.progress).toBe(99);
+		expect(tracker.progress).toBeCloseTo(99);
 		tracker.finish();
-		expect(tracker.progress).toBe(100);
+		expect(tracker.progress).toBeCloseTo(100);
 	});
 	it('A single ProgressTracker populated via fillSlowly (stopBeforeFinishing=false)', async () => {
 		const tracker = new ProgressTracker({
@@ -21,14 +21,14 @@ describe('Tracks total progress', () => {
 		tracker.fillSlowly({ stopBeforeFinishing: false });
 
 		await new Promise((resolve) => setTimeout(resolve, 200));
-		expect(tracker.progress).toBe(100);
+		expect(tracker.progress).toBeCloseTo(100);
 	});
 
 	it('A single ProgressTracker populated via set', () => {
 		const tracker = new ProgressTracker();
 		tracker.set(50);
 
-		expect(tracker.progress).toBe(50);
+		expect(tracker.progress).toBeCloseTo(50);
 	});
 
 	it('Equally-weighted subtrackers should sum to 100 total progress after completion', () => {
@@ -55,13 +55,13 @@ describe('Tracks total progress', () => {
 		const partial3 = tracker.stage(0.5, 'Part 3');
 
 		partial1.set(100);
-		expect(tracker.progress).toBe(20);
+		expect(tracker.progress).toBeCloseTo(20);
 
 		partial2.set(100);
-		expect(tracker.progress).toBe(50);
+		expect(tracker.progress).toBeCloseTo(50);
 
 		partial3.set(100);
-		expect(tracker.progress).toBe(100);
+		expect(tracker.progress).toBeCloseTo(100);
 	});
 
 	describe('Subtrackers should sum to 100 total progress after completion even if the top-level tracker also has self-progress', () => {
@@ -108,7 +108,7 @@ describe('Tracks total progress', () => {
 		expect(tracker.progress).toBeCloseTo(88, 2);
 
 		level2B2.set(100);
-		expect(tracker.progress).toBe(100);
+		expect(tracker.progress).toBeCloseTo(100);
 	});
 });
 
@@ -139,7 +139,7 @@ describe('Events', () => {
 
 		tracker.set(50);
 
-		expect(eventProgress).toBe(50);
+		expect(eventProgress).toBeCloseTo(50);
 	});
 
 	it('Progress event emitted when setting caption', () => {
@@ -166,7 +166,7 @@ describe('Events', () => {
 
 		partial1.set(100);
 
-		expect(eventProgress).toBe(50);
+		expect(eventProgress).toBeCloseTo(50);
 	});
 });
 

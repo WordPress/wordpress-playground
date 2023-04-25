@@ -261,12 +261,11 @@ export class ProgressTracker extends EventTarget {
 	}
 
 	get progress(): number {
-		return (
-			this._subTrackers.reduce(
-				(sum, tracker) => sum + tracker.progress * tracker.weight,
-				this._selfProgress * this._selfWeight
-			) + PROGRESS_EPSILON
+		const sum = this._subTrackers.reduce(
+			(sum, tracker) => sum + tracker.progress * tracker.weight,
+			this._selfProgress * this._selfWeight
 		);
+		return Math.round(sum * 10000) / 10000;
 	}
 
 	get weight(): number {
