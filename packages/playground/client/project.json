@@ -94,14 +94,11 @@
 			"dependsOn": ["test:vite", "test:esmcjs"]
 		},
 		"test:esmcjs": {
-			"executor": "nx:run-commands",
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
 			"options": {
-				"commands": [
-					"bash packages/playground/client/test/esm_cjs/test.sh"
-				],
-				"parallel": false
+				"outputPath": "dist/packages/playground/client"
 			},
-			"dependsOn": ["build:bundle"]
+			"dependsOn": ["build"]
 		},
 		"test:vite": {
 			"executor": "@nrwl/vite:test",
@@ -121,5 +118,5 @@
 			}
 		}
 	},
-	"tags": []
+	"tags": ["scope:web-client"]
 }

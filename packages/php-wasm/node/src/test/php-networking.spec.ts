@@ -1,12 +1,13 @@
+import { SupportedPHPVersions } from '@php-wasm/universal';
 import express from 'express';
-import { PHP, SupportedPHPVersions } from '..';
+import { NodePHP } from '..';
 
 describe.each(SupportedPHPVersions)(
 	'PHP %s',
 	(phpVersion) => {
 		it('should be able to make a request to a server', async () => {
 			const serverUrl = await startServer();
-			const php = await PHP.load(phpVersion);
+			const php = await NodePHP.load(phpVersion);
 			php.setPhpIniEntry('allow_url_fopen', '1');
 			php.writeFile(
 				'/tmp/test.php',

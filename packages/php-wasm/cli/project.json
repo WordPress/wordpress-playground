@@ -34,7 +34,7 @@
 			"options": {
 				"scriptPath": "dist/packages/php-wasm/cli/main.js"
 			},
-			"dependsOn": ["build", "^build-for-cli-run"]
+			"dependsOn": ["build"]
 		},
 		"publish": {
 			"executor": "nx:run-commands",

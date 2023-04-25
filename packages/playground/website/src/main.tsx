@@ -9,7 +9,7 @@ import { makeBlueprint } from './lib/make-blueprint';
 import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersionsList,
-} from '@php-wasm/abstract';
+} from '@php-wasm/universal';
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = makeBlueprint({

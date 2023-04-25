@@ -1,0 +1,15 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"version": 2,
+	"cli": "nx",
+	"title": "AssertBuiltEsmAndCjs executor",
+	"description": "",
+	"type": "object",
+	"properties": {
+		"outputPath": {
+			"type": "string",
+			"description": "The path to the built module"
+		}
+	},
+	"required": ["outputPath"]
+}

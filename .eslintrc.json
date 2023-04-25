@@ -11,7 +11,12 @@
 					{
 						"enforceBuildableLibDependency": true,
 						"allow": [],
-						"depConstraints": []
+						"depConstraints": [
+							{
+								"sourceTag": "*",
+								"notDependOnLibsWithTags": ["scope:web-client"]
+							}
+						]
 					}
 				],
 				"no-inner-declarations": 0,

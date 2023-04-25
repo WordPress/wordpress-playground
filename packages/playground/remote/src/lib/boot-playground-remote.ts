@@ -1,14 +1,16 @@
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 import {
-	LatestSupportedPHPVersion,
 	registerServiceWorker,
 	spawnPHPWorkerThread,
+	exposeAPI,
+	consumeAPI,
+	recommendedWorkerBackend,
 } from '@php-wasm/web';
-import { exposeAPI, consumeAPI, recommendedWorkerBackend } from '@php-wasm/web';
 // @ts-ignore
 import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
-import type { PlaygroundWorkerClient } from './worker-thread';
-import type { PlaygroundClient, WebClientMixin } from './playground-client';
+import type { PlaygroundWorkerEndpoint } from './worker-thread';
+import type { WebClientMixin } from './playground-client';
 import ProgressBar, { ProgressBarOptions } from './progress-bar';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
@@ -61,7 +63,7 @@ export async function bootPlaygroundRemote() {
 		query.get('php'),
 		LatestSupportedPHPVersion
 	);
-	const workerApi = consumeAPI<PlaygroundWorkerClient>(
+	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, workerBackend, {
 			wpVersion,
 			phpVersion,
@@ -103,6 +105,14 @@ export async function bootPlaygroundRemote() {
 			});
 		},
 		async goTo(requestedPath: string) {
+			/**
+			 * People often forget to type the trailing slash at the end of
+			 * /wp-admin/ URL and end up with wrong relative hrefs. Let's
+			 * fix it for them.
+			 */
+			if (requestedPath === '/wp-admin') {
+				requestedPath = '/wp-admin/';
+			}
 			wpFrame.src = await playground.pathToInternalUrl(requestedPath);
 		},
 		async getCurrentURL() {
@@ -137,7 +147,7 @@ export async function bootPlaygroundRemote() {
 	 * An asssertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
 	 */
-	return playground as PlaygroundClient;
+	return playground;
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {

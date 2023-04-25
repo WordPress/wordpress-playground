@@ -1,23 +1,24 @@
 import {
-	PHP,
-	PHPClient,
+	WebPHP,
+	WebPHPEndpoint,
 	exposeAPI,
-	PublicAPI,
 	parseWorkerStartupOptions,
-	SupportedPHPVersion,
-	SupportedPHPVersionsList,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import { isUploadedFilePath } from './is-uploaded-file-path';
-import patchWordPress from './wordpress-patch';
 import {
 	getWordPressModule,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersion,
 	SupportedWordPressVersionsList,
 } from './get-wordpress-module';
+import {
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/universal';
+import { applyWebWordPressPatches } from './web-wordpress-patches';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -42,7 +43,7 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
+const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
 		documentRoot: DOCROOT,
@@ -53,22 +54,22 @@ const { php, phpReady, dataModules } = PHP.loadSync(phpVersion, {
 });
 
 /** @inheritDoc PHPClient */
-export class PlaygroundWorkerClientClass extends PHPClient {
-	scope: Promise<string>;
-	wordPressVersion: Promise<string>;
-	phpVersion: Promise<string>;
+export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
+	scope: string;
+	wordPressVersion: string;
+	phpVersion: string;
 
 	constructor(
-		php: PHP,
+		php: WebPHP,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string,
 		phpVersion: string
 	) {
 		super(php, monitor);
-		this.scope = Promise.resolve(scope);
-		this.wordPressVersion = Promise.resolve(wordPressVersion);
-		this.phpVersion = Promise.resolve(phpVersion);
+		this.scope = scope;
+		this.wordPressVersion = wordPressVersion;
+		this.phpVersion = phpVersion;
 	}
 
 	async getWordPressModuleDetails() {
@@ -80,15 +81,12 @@ export class PlaygroundWorkerClientClass extends PHPClient {
 	}
 }
 
-/** @inheritDoc PlaygroundWorkerClientClass */
-export interface PlaygroundWorkerClient
-	extends PublicAPI<PlaygroundWorkerClientClass> {}
-
-const [setApiReady]: [() => void, PlaygroundWorkerClient] = exposeAPI(
-	new PlaygroundWorkerClientClass(php, monitor, scope, wpVersion, phpVersion)
+const [setApiReady] = exposeAPI(
+	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
 
 await phpReady;
 const wpLoaderModule = (await dataModules)[0] as any;
-patchWordPress(php, scopedSiteUrl);
+applyWebWordPressPatches(php, scopedSiteUrl);
+
 setApiReady();

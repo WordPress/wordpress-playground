@@ -52,4 +52,6 @@ foreach ($received_headers as $received_header) {
     }
 }
 
+header('Access-Control-Allow-Origin: *');
+
 echo $bytes;

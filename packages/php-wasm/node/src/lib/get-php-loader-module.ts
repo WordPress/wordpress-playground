@@ -1,5 +1,5 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/abstract';
-import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/abstract';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import type { PHPLoaderModule, SupportedPHPVersion } from '@php-wasm/universal';
 
 export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
