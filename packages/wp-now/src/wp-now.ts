@@ -105,7 +105,7 @@ export default class WPNow {
     return result
   }
 
-  async mountSqlite() {
+  mountSqlite() {
     const { documentRoot } = this.options
     const sqlitePluginPath = `${documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`
     this.php.mkdirTree(sqlitePluginPath)
