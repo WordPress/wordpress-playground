@@ -345,6 +345,11 @@ export class DecoratedResource<T extends Resource> extends Resource {
 	}
 
 	/** @inheritDoc */
+	override async setPlayground(playground: UniversalPHP) {
+		return this.resource.setPlayground(playground);
+	}
+
+	/** @inheritDoc */
 	get progress() {
 		return this.resource.progress;
 	}

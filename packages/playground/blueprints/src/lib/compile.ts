@@ -82,9 +82,12 @@ export function compileBlueprint(
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
-				for (const { asyncResources } of compiled) {
-					for (const resource of asyncResources) {
-						resource.resolve();
+				for (const { resources } of compiled) {
+					for (const resource of resources) {
+						resource.setPlayground(playground);
+						if (resource.isAsync) {
+							resource.resolve();
+						}
 					}
 				}
 
@@ -159,7 +162,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { run: CompiledStep; step: S; asyncResources: Array<Resource> } {
+): { run: CompiledStep; step: S; resources: Array<Resource> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -195,6 +198,7 @@ function compileStep<S extends StepDefinition>(
 	 * The weight of each async resource is the same, and is the same as the
 	 * weight of the step itself.
 	 */
+	const resources = getResources(args);
 	const asyncResources = getResources(args).filter(
 		(resource) => resource.isAsync
 	);
@@ -204,7 +208,7 @@ function compileStep<S extends StepDefinition>(
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return { run, step, asyncResources };
+	return { run, step, resources };
 }
 
 /**
