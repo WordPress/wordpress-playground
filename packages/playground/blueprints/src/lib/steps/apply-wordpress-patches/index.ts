@@ -1,13 +1,8 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { BaseStep } from '..';
+import { StepHandler } from '..';
 import { updateFile } from '../common';
 
-export interface ApplyWordPressPatchesStep extends BaseStep {
-	step: 'applyWordPressPatches';
-	wordpressPath: string;
-}
-
-export interface PatchOptions {
+export interface ApplyWordPressPatchesArgs {
 	siteUrl: string;
 	wordpressPath?: string;
 	patchSqlitePlugin?: boolean;
@@ -17,10 +12,9 @@ export interface PatchOptions {
 	disableWpNewBlogNotification?: boolean;
 }
 
-export async function applyWordPressPatches(
-	php: UniversalPHP,
-	options: PatchOptions
-) {
+export const applyWordPressPatches: StepHandler<
+	ApplyWordPressPatchesArgs
+> = async (php, options) => {
 	const patch = new WordPressPatcher(
 		php,
 		options.siteUrl,
@@ -42,7 +36,7 @@ export async function applyWordPressPatches(
 	if (options.disableWpNewBlogNotification !== false) {
 		await patch.disableWpNewBlogNotification();
 	}
-}
+};
 
 class WordPressPatcher {
 	php: UniversalPHP;

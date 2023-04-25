@@ -1,15 +1,15 @@
-import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { PHPResponse } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import { BaseStep, StepImplementation } from '.';
+import { StepHandler } from '.';
 
-export type SiteOptions = Record<string, unknown>;
-export type SetSiteOptionsStepArgs = {
-	options: SiteOptions;
+export type SetSiteOptionsArgs = {
+	options: Record<string, unknown>;
 };
 
-export const setSiteOptions: StepImplementation<
-	SetSiteOptionsStepArgs
-> = async (client, options) => {
+export const setSiteOptions: StepHandler<SetSiteOptionsArgs> = async (
+	client,
+	options
+) => {
 	const result = await client.run({
 		code: `<?php
 	include 'wordpress/wp-load.php';
@@ -23,24 +23,14 @@ export const setSiteOptions: StepImplementation<
 	assertSuccess(result);
 };
 
-export function registerSetSiteOptionsStep() {
-	return {
-		step: 'setSiteOptions',
-		implementation: setSiteOptions,
-	};
-}
-
-export interface UpdateUserMetaStep extends BaseStep {
-	step: 'updateUserMeta';
-	meta: UserMeta;
+export interface UpdateUserMetaArgs {
+	meta: Record<string, unknown>;
 	userId: number;
 }
-export type UserMeta = Record<string, unknown>;
-export async function updateUserMeta(
-	client: UniversalPHP,
-	meta: UserMeta,
-	userId: number
-) {
+export const updateUserMeta: StepHandler<UpdateUserMetaArgs> = async (
+	client,
+	{ meta, userId }
+) => {
 	const result = await client.run({
 		code: `<?php
 	include 'wordpress/wp-load.php';
@@ -52,18 +42,11 @@ export async function updateUserMeta(
 	`,
 	});
 	assertSuccess(result);
-}
+};
 
 async function assertSuccess(result: PHPResponse) {
 	if (result.text !== 'Success') {
 		console.log(result);
 		throw new Error(`Failed to run code: ${result.text} ${result.errors}`);
 	}
-}
-
-export function registerUpdateUserMetaStep() {
-	return {
-		step: 'updateUserMeta',
-		implementation: updateUserMeta,
-	};
 }

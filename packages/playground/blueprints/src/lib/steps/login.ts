@@ -1,6 +1,6 @@
-import { StepImplementation } from '.';
+import { StepHandler } from '.';
 
-export type LoginStepArgs = {
+export type LoginArgs = {
 	username?: string;
 	password?: string;
 };
@@ -14,12 +14,12 @@ export type LoginStepArgs = {
  * @param user The user to log in as. Defaults to 'admin'.
  * @param password The password to log in with. Defaults to 'password'.
  */
-export const login: StepImplementation<LoginStepArgs> = async (
+export const login: StepHandler<LoginArgs> = async (
 	playground,
 	{ username = 'admin', password = 'password' } = {},
-	{ tracker, initialCaption = 'Logging in' }
+	progress
 ) => {
-	tracker.setCaption(initialCaption);
+	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 	await playground.request({
 		url: '/wp-login.php',
 	});
@@ -34,10 +34,3 @@ export const login: StepImplementation<LoginStepArgs> = async (
 		},
 	});
 };
-
-export function registerLoginStep() {
-	return {
-		step: 'login',
-		implementation: login,
-	};
-}

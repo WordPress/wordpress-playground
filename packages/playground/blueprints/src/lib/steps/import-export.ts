@@ -1,6 +1,6 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 
 // @ts-ignore
 import migrationsPHPCode from './migration.php?raw';
@@ -8,17 +8,6 @@ import migrationsPHPCode from './migration.php?raw';
 /**
  * Full site export support:
  */
-
-export interface ReplaceSiteStep<ResourceType> extends BaseStep {
-	step: 'replaceSite';
-	fullSiteZip: ResourceType;
-}
-
-export interface UnzipStep extends BaseStep {
-	step: 'unzip';
-	zipPath: string;
-	extractToPath: string;
-}
 
 /**
  * Export the current site as a zip file.
@@ -44,13 +33,20 @@ export async function zipEntireSite(playground: UniversalPHP) {
 	return new File([fileBuffer], zipName);
 }
 
+export interface ReplaceSiteArgs<ResourceType> {
+	fullSiteZip: ResourceType;
+}
+
 /**
  * Replace the current site with the contents of a full site zip file.
  *
  * @param playground Playground client.
  * @param fullSiteZip Zipped WordPress site.
  */
-export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
+export const replaceSite: StepHandler<ReplaceSiteArgs<File>> = async (
+	playground,
+	{ fullSiteZip }
+) => {
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,
@@ -61,7 +57,7 @@ export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
 	const documentRoot = await playground.documentRoot;
 
 	await playground.rmdir(documentRoot);
-	await unzip(playground, zipPath, '/');
+	await unzip(playground, { zipPath, extractToPath: '/' });
 
 	const js = phpVars({ absoluteUrl });
 	await updateFile(
@@ -75,6 +71,11 @@ export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
 			}
 			?>${contents}`
 	);
+};
+
+export interface UnzipArgs {
+	zipPath: string;
+	extractToPath: string;
 }
 
 /**
@@ -84,17 +85,19 @@ export async function replaceSite(playground: UniversalPHP, fullSiteZip: File) {
  * @param zipPath The zip file to unzip.
  * @param extractTo The directory to extract the zip file to.
  */
-export async function unzip(
-	playground: UniversalPHP,
-	zipPath: string,
-	extractTo: string
-) {
+export const unzip: StepHandler<UnzipArgs> = async (
+	playground,
+	{ zipPath, extractToPath }
+) => {
 	const js = phpVars({
 		zipPath,
-		extractTo,
+		extractToPath,
 	});
-	await phpMigration(playground, `unzip(${js.zipPath}, ${js.extractTo});`);
-}
+	await phpMigration(
+		playground,
+		`unzip(${js.zipPath}, ${js.extractToPath});`
+	);
+};
 
 /**
  * WXR and WXZ files support:
@@ -128,8 +131,7 @@ export async function exportWXZ(playground: UniversalPHP) {
 	return new File([databaseExportResponse.bytes], 'export.wxz');
 }
 
-export interface ImportFileStep<ResourceType> extends BaseStep {
-	step: 'importFile';
+export interface ImportFileArgs<ResourceType> {
 	file: ResourceType;
 }
 
@@ -141,7 +143,10 @@ export interface ImportFileStep<ResourceType> extends BaseStep {
  * @param playground Playground client.
  * @param file The file to import.
  */
-export async function submitImporterForm(playground: UniversalPHP, file: File) {
+export const importFile: StepHandler<ImportFileArgs<File>> = async (
+	playground,
+	{ file }
+) => {
 	const importerPageOneResponse = await playground.request({
 		url: '/wp-admin/admin.php?import=wordpress',
 	});
@@ -177,12 +182,12 @@ export async function submitImporterForm(playground: UniversalPHP, file: File) {
 		}
 	}
 
-	return await playground.request({
+	await playground.request({
 		url: importForm.action,
 		method: 'POST',
 		formData: data,
 	});
-}
+};
 
 function DOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(response.text, 'text/html');

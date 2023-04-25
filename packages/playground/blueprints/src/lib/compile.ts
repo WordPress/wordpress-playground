@@ -4,15 +4,10 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
+	UniversalPHP,
 } from '@php-wasm/universal';
-import { FileReference, isFileReference, Resource } from './resources';
-import { Step } from './steps';
-
-export type StepDefinition = Step<FileReference>;
-export type CompiledStep = {
-	args: Step<Resource>;
-	progress: ProgressTracker;
-};
+import { isFileReference, Resource } from './resources';
+import { StepDefinition, stepHandlers } from './steps';
 
 export interface Blueprint {
 	/**
@@ -40,21 +35,18 @@ export interface Blueprint {
 	steps?: Array<StepDefinition | string | undefined | false | null>;
 }
 
+export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
+
 const supportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
 type supportedWordPressVersion = (typeof supportedWordPressVersions)[number];
 export interface CompiledBlueprint {
-	/** The URL of the landing page for the blueprint */
-	landingPage: string;
-	/** The preferred versions of PHP and WordPress for the blueprint */
+	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
 		wp: supportedWordPressVersion;
 	};
 	/** The compiled steps for the blueprint */
-	steps: Array<CompiledStep>;
-	/** The resources used by the compiled steps */
-	resources: Array<{ resource: Resource; step: CompiledStep }>;
-	progressTracker: ProgressTracker;
+	run: (playground: UniversalPHP) => Promise<void>;
 }
 
 export interface CompileBlueprintOptions {
@@ -85,15 +77,19 @@ export function compileBlueprint(
 		(total, step) => total + (step.progress?.weight || 1),
 		0
 	);
-	const compiledSteps = steps.map((step) =>
-		compileStep(step, {
+	const compiledSteps: CompiledStep[] = [];
+	const resources: Resource[] = [];
+	for (const step of steps) {
+		const r = compileStep(step, {
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
-		})
-	);
+		});
+		compiledSteps.push(r.compiledStep);
+		resources.push(...r.resources);
+	}
+
 	return {
-		landingPage: blueprint.landingPage || '/',
 		versions: {
 			php: compileVersion(
 				blueprint.preferredVersions?.php,
@@ -106,9 +102,18 @@ export function compileBlueprint(
 				'6.2'
 			),
 		},
-		steps: compiledSteps,
-		resources: getResources(compiledSteps),
-		progressTracker: progress,
+		run: async (playground: UniversalPHP) => {
+			for (const resource of resources) {
+				await resource.resolve();
+			}
+			for (const step of compiledSteps) {
+				await step(playground);
+			}
+			if ('goTo' in playground) {
+				await (playground as any).goTo(blueprint.landingPage || '/');
+			}
+			progress.finish();
+		},
 	};
 }
 
@@ -160,14 +165,14 @@ interface CompileStepArgsOptions {
  * @param options Additional options for the compilation
  * @returns The compiled step
  */
-function compileStep(
-	step: StepDefinition,
+function compileStep<Step extends StepDefinition>(
+	step: Step,
 	{
 		semaphore,
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): CompiledStep {
+): { compiledStep: CompiledStep; resources: Array<Resource> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -183,14 +188,21 @@ function compileStep(
 		args[key] = value;
 	}
 
-	const compiledStep = {
-		args: args as CompiledStep['args'],
-		progress: stepProgress,
+	const compiledStep = async (playground: UniversalPHP) => {
+		stepProgress.fillSlowly();
+		await stepHandlers[step.step](
+			playground,
+			await resolveResources(args),
+			{
+				tracker: stepProgress,
+				initialCaption: step.progress?.caption,
+			}
+		);
+		stepProgress.finish();
 	};
 
-	const asyncResources = getResourcesFromStep(compiledStep).filter(
-		(resource) => resource.isAsync
-	);
+	const resources = getResources(step);
+	const asyncResources = resources.filter((resource) => resource.isAsync);
 
 	/**
 	 * The weight of each async resource is the same, and is the same as the
@@ -201,21 +213,22 @@ function compileStep(
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return compiledStep;
+	return { compiledStep, resources: asyncResources };
 }
 
 /**
- * Gets all the resources used by compiled steps
+ * Gets the resources used by a specific compiled step
  *
- * @param steps The list of compiled steps
- * @returns The resources used by the compiled steps
+ * @param step The compiled step
+ * @returns The resources used by the compiled step
  */
-function getResources(steps: CompiledStep[]) {
-	let result: { resource: Resource; step: CompiledStep }[] = [];
-	for (const step of steps) {
-		result = result.concat(
-			getResourcesFromStep(step).map((resource) => ({ resource, step }))
-		);
+function getResources<Step extends StepDefinition>(step: Step) {
+	const result: Resource[] = [];
+	for (const argName in step) {
+		const resourceMaybe = (step as any)[argName];
+		if (resourceMaybe instanceof Resource) {
+			result.push(resourceMaybe);
+		}
 	}
 	return result;
 }
@@ -226,13 +239,26 @@ function getResources(steps: CompiledStep[]) {
  * @param step The compiled step
  * @returns The resources used by the compiled step
  */
-function getResourcesFromStep(step: CompiledStep) {
-	const result: Resource[] = [];
-	for (const argName in step.args) {
-		const resourceMaybe = (step.args as any)[argName];
+async function resolveResources<T extends Record<string, unknown>>(args: T) {
+	const resolved: any = {};
+	for (const argName in args) {
+		const resourceMaybe = (args as any)[argName];
 		if (resourceMaybe instanceof Resource) {
-			result.push(resourceMaybe);
+			resolved[argName] = await resourceMaybe.resolve();
+		} else {
+			resolved[argName] = resourceMaybe;
 		}
 	}
-	return result;
+	return resolved;
 }
+
+// function fileToUint8Array(file: File) {
+// 	return new Promise<Uint8Array>((resolve, reject) => {
+// 		const reader = new FileReader();
+// 		reader.onload = () => {
+// 			resolve(new Uint8Array(reader.result as ArrayBuffer));
+// 		};
+// 		reader.onerror = reject;
+// 		reader.readAsArrayBuffer(file);
+// 	});
+// }

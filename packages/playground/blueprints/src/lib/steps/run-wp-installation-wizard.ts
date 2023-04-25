@@ -1,8 +1,6 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 
-export interface RunWpInstallationWizardStep extends BaseStep {
-	step: 'runWpInstallationWizard';
+export interface RunWpInstallationWizardArgs {
 	options: WordPressInstallationOptions;
 }
 
@@ -17,10 +15,9 @@ export interface WordPressInstallationOptions {
  * @param playground The playground client.
  * @param options Installation options.
  */
-export async function runWpInstallationWizard(
-	playground: UniversalPHP,
-	options: WordPressInstallationOptions
-) {
+export const runWpInstallationWizard: StepHandler<
+	RunWpInstallationWizardArgs
+> = async (playground, { options }) => {
 	await playground.request({
 		url: '/wp-admin/install.php?step=2',
 		method: 'POST',
@@ -37,4 +34,4 @@ export async function runWpInstallationWizard(
 			admin_email: 'admin@localhost.com',
 		},
 	});
-}
+};
