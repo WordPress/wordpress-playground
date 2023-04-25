@@ -61,6 +61,14 @@ export interface ProgressReceiver {
 	setLoaded(): any;
 }
 
+/*
+ * Like Number.EPSILON, but better tuned to tracking progress.
+ *
+ * With Number.EPSILON, progress like 99.99999999999997 is still
+ * considered to be below 100 – this is highly undeisrable.
+ */
+const PROGRESS_EPSILON = 0.00001;
+
 /**
  * The ProgressTracker class is a tool for tracking progress in an operation that is
  * divided into multiple stages. It allows you to create sub-trackers for each stage,
@@ -157,7 +165,7 @@ export class ProgressTracker extends EventTarget {
 		if (!weight) {
 			weight = this._selfWeight;
 		}
-		if (this._selfWeight - weight < -Number.EPSILON) {
+		if (this._selfWeight - weight < -PROGRESS_EPSILON) {
 			throw new Error(
 				`Cannot add a stage with weight ${weight} as the total weight of registered stages would exceed 1.`
 			);
@@ -215,7 +223,7 @@ export class ProgressTracker extends EventTarget {
 	set(value: number): void {
 		this._selfProgress = Math.min(value, 100);
 		this.notifyProgress();
-		if (this._selfProgress + Number.EPSILON >= 100) {
+		if (this._selfProgress + PROGRESS_EPSILON >= 100) {
 			this.finish();
 		}
 	}
@@ -249,13 +257,15 @@ export class ProgressTracker extends EventTarget {
 	}
 
 	get done(): boolean {
-		return this.progress + Number.EPSILON >= 100;
+		return this.progress + PROGRESS_EPSILON >= 100;
 	}
 
 	get progress(): number {
-		return this._subTrackers.reduce(
-			(sum, tracker) => sum + tracker.progress * tracker.weight,
-			this._selfProgress * this._selfWeight
+		return (
+			this._subTrackers.reduce(
+				(sum, tracker) => sum + tracker.progress * tracker.weight,
+				this._selfProgress * this._selfWeight
+			) + PROGRESS_EPSILON
 		);
 	}
 
