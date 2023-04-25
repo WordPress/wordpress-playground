@@ -1,5 +1,5 @@
 import { SupportedPHPVersion } from '@php-wasm/universal';
-import { Step } from './steps';
+import { StepDefinition } from './steps';
 
 export interface Blueprint {
 	/**
@@ -24,5 +24,5 @@ export interface Blueprint {
 	/**
 	 * The steps to run.
 	 */
-	steps?: Array<Step | string | undefined | false | null>;
+	steps?: Array<StepDefinition | string | undefined | false | null>;
 }
