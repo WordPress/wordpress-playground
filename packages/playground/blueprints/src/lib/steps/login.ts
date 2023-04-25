@@ -1,11 +1,10 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 
-export interface LoginStep extends BaseStep {
+export type LoginStep = {
 	step: 'login';
 	username?: string;
 	password?: string;
-}
+};
 
 /**
  * Logs in to the Playground.
@@ -16,11 +15,12 @@ export interface LoginStep extends BaseStep {
  * @param user The user to log in as. Defaults to 'admin'.
  * @param password The password to log in with. Defaults to 'password'.
  */
-export async function login(
-	playground: UniversalPHP,
-	user = 'admin',
-	password = 'password'
-) {
+export const login: StepHandler<LoginStep> = async (
+	playground,
+	{ username = 'admin', password = 'password' } = {},
+	progress
+) => {
+	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 	await playground.request({
 		url: '/wp-login.php',
 	});
@@ -29,9 +29,9 @@ export async function login(
 		url: '/wp-login.php',
 		method: 'POST',
 		formData: {
-			log: user,
+			log: username,
 			pwd: password,
 			rememberme: 'forever',
 		},
 	});
-}
+};

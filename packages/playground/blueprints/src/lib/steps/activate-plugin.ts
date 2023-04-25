@@ -1,8 +1,7 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 import { asDOM } from './common';
 
-export interface ActivatePluginStep extends BaseStep {
+export interface ActivatePluginStep {
 	step: 'activatePlugin';
 	plugin: string;
 }
@@ -13,7 +12,12 @@ export interface ActivatePluginStep extends BaseStep {
  * @param playground The playground client.
  * @param plugin The plugin slug.
  */
-export async function activatePlugin(playground: UniversalPHP, plugin: string) {
+export const activatePlugin: StepHandler<ActivatePluginStep> = async (
+	playground,
+	{ plugin },
+	progress
+) => {
+	progress?.tracker.setCaption(`Activating ${plugin}`);
 	const pluginsPage = asDOM(
 		await playground.request({
 			url: '/wp-admin/plugins.php',
@@ -28,4 +32,4 @@ export async function activatePlugin(playground: UniversalPHP, plugin: string) {
 	await playground.request({
 		url: '/wp-admin/' + href,
 	});
-}
+};

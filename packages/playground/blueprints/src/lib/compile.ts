@@ -4,57 +4,25 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
+	UniversalPHP,
 } from '@php-wasm/universal';
-import { FileReference, isFileReference, Resource } from './resources';
-import { Step } from './steps';
+import { isFileReference, Resource } from './resources';
+import { Step, StepDefinition } from './steps';
+import * as stepHandlers from './steps/handlers';
+import { Blueprint } from './blueprint';
 
-export type StepDefinition = Step<FileReference>;
-export type CompiledStep = {
-	args: Step<Resource>;
-	progress: ProgressTracker;
-};
-
-export interface Blueprint {
-	/**
-	 * The URL to navigate to after the blueprint has been run.
-	 */
-	landingPage?: string;
-	/**
-	 * The preferred PHP and WordPress versions to use.
-	 */
-	preferredVersions?: {
-		/**
-		 * The preferred PHP version to use.
-		 * If not specified, the latest supported version will be used
-		 */
-		php: SupportedPHPVersion | 'latest';
-		/**
-		 * The preferred WordPress version to use.
-		 * If not specified, the latest supported version will be used
-		 */
-		wp: string | 'latest';
-	};
-	/**
-	 * The steps to run.
-	 */
-	steps?: Array<StepDefinition | string | undefined | false | null>;
-}
+export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
 const supportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
 type supportedWordPressVersion = (typeof supportedWordPressVersions)[number];
 export interface CompiledBlueprint {
-	/** The URL of the landing page for the blueprint */
-	landingPage: string;
-	/** The preferred versions of PHP and WordPress for the blueprint */
+	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
 		wp: supportedWordPressVersion;
 	};
 	/** The compiled steps for the blueprint */
-	steps: Array<CompiledStep>;
-	/** The resources used by the compiled steps */
-	resources: Array<{ resource: Resource; step: CompiledStep }>;
-	progressTracker: ProgressTracker;
+	run: (playground: UniversalPHP) => Promise<void>;
 }
 
 export interface CompileBlueprintOptions {
@@ -85,15 +53,19 @@ export function compileBlueprint(
 		(total, step) => total + (step.progress?.weight || 1),
 		0
 	);
-	const compiledSteps = steps.map((step) =>
-		compileStep(step, {
+	const compiledSteps: CompiledStep[] = [];
+	const resources: Resource[] = [];
+	for (const step of steps) {
+		const compiled = compileStep(step, {
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
-		})
-	);
+		});
+		compiledSteps.push(compiled.compiledStep);
+		resources.push(...compiled.asyncResources);
+	}
+
 	return {
-		landingPage: blueprint.landingPage || '/',
 		versions: {
 			php: compileVersion(
 				blueprint.preferredVersions?.php,
@@ -106,9 +78,18 @@ export function compileBlueprint(
 				'6.2'
 			),
 		},
-		steps: compiledSteps,
-		resources: getResources(compiledSteps),
-		progressTracker: progress,
+		run: async (playground: UniversalPHP) => {
+			for (const resource of resources) {
+				await resource.resolve();
+			}
+			for (const step of compiledSteps) {
+				await step(playground);
+			}
+			if ('goTo' in playground) {
+				await (playground as any).goTo(blueprint.landingPage || '/');
+			}
+			progress.finish();
+		},
 	};
 }
 
@@ -138,7 +119,7 @@ function compileVersion<T>(
  * @returns Whether the object is a StepDefinition
  */
 function isStepDefinition(
-	step: StepDefinition | string | undefined | false | null
+	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);
 }
@@ -160,14 +141,14 @@ interface CompileStepArgsOptions {
  * @param options Additional options for the compilation
  * @returns The compiled step
  */
-function compileStep(
-	step: StepDefinition,
+function compileStep<S extends StepDefinition>(
+	step: S,
 	{
 		semaphore,
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): CompiledStep {
+): { compiledStep: CompiledStep; asyncResources: Array<Resource> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -183,41 +164,32 @@ function compileStep(
 		args[key] = value;
 	}
 
-	const compiledStep = {
-		args: args as CompiledStep['args'],
-		progress: stepProgress,
+	const compiledStep = async (playground: UniversalPHP) => {
+		stepProgress.fillSlowly();
+		await stepHandlers[step.step](
+			playground,
+			await resolveArguments(args),
+			{
+				tracker: stepProgress,
+				initialCaption: step.progress?.caption,
+			}
+		);
+		stepProgress.finish();
 	};
-
-	const asyncResources = getResourcesFromStep(compiledStep).filter(
-		(resource) => resource.isAsync
-	);
 
 	/**
 	 * The weight of each async resource is the same, and is the same as the
 	 * weight of the step itself.
 	 */
+	const asyncResources = getResources(step).filter(
+		(resource) => resource.isAsync
+	);
 	const evenWeight = 1 / (asyncResources.length + 1);
 	for (const resource of asyncResources) {
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return compiledStep;
-}
-
-/**
- * Gets all the resources used by compiled steps
- *
- * @param steps The list of compiled steps
- * @returns The resources used by the compiled steps
- */
-function getResources(steps: CompiledStep[]) {
-	let result: { resource: Resource; step: CompiledStep }[] = [];
-	for (const step of steps) {
-		result = result.concat(
-			getResourcesFromStep(step).map((resource) => ({ resource, step }))
-		);
-	}
-	return result;
+	return { compiledStep, asyncResources };
 }
 
 /**
@@ -226,13 +198,39 @@ function getResources(steps: CompiledStep[]) {
  * @param step The compiled step
  * @returns The resources used by the compiled step
  */
-function getResourcesFromStep(step: CompiledStep) {
+function getResources<S extends StepDefinition>(step: S) {
 	const result: Resource[] = [];
-	for (const argName in step.args) {
-		const resourceMaybe = (step.args as any)[argName];
+	for (const argName in step) {
+		const resourceMaybe = (step as any)[argName];
 		if (resourceMaybe instanceof Resource) {
 			result.push(resourceMaybe);
 		}
 	}
 	return result;
+}
+
+/**
+ * Replaces Resource objects with their resolved values
+ *
+ * @param step The compiled step
+ * @returns The resources used by the compiled step
+ */
+async function resolveArguments<T extends Record<string, unknown>>(args: T) {
+	const resolved: any = {};
+	for (const argName in args) {
+		const resourceMaybe = (args as any)[argName];
+		if (resourceMaybe instanceof Resource) {
+			resolved[argName] = await resourceMaybe.resolve();
+		} else {
+			resolved[argName] = resourceMaybe;
+		}
+	}
+	return resolved;
+}
+
+export async function runBlueprintSteps(
+	compiledBlueprint: CompiledBlueprint,
+	playground: UniversalPHP
+) {
+	await compiledBlueprint.run(playground);
 }

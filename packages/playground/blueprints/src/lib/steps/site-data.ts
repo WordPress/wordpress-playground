@@ -1,24 +1,16 @@
-import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { PHPResponse } from '@php-wasm/universal';
 import { phpVar } from '@php-wasm/util';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 
-export type SiteOptions = Record<string, unknown>;
-
-export interface SetSiteOptionsStep extends BaseStep {
+export type SetSiteOptionsStep = {
 	step: 'setSiteOptions';
-	options: SiteOptions;
-}
+	options: Record<string, unknown>;
+};
 
-export interface UpdateUserMetaStep extends BaseStep {
-	step: 'updateUserMeta';
-	meta: UserMeta;
-	userId: number;
-}
-
-export async function setSiteOptions(
-	client: UniversalPHP,
-	options: SiteOptions
-) {
+export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
+	client,
+	options
+) => {
 	const result = await client.run({
 		code: `<?php
 	include 'wordpress/wp-load.php';
@@ -30,14 +22,17 @@ export async function setSiteOptions(
 	`,
 	});
 	assertSuccess(result);
-}
+};
 
-export type UserMeta = Record<string, unknown>;
-export async function updateUserMeta(
-	client: UniversalPHP,
-	meta: UserMeta,
-	userId: number
-) {
+export interface UpdateUserMetaStep {
+	step: 'updateUserMeta';
+	meta: Record<string, unknown>;
+	userId: number;
+}
+export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
+	client,
+	{ meta, userId }
+) => {
 	const result = await client.run({
 		code: `<?php
 	include 'wordpress/wp-load.php';
@@ -49,7 +44,7 @@ export async function updateUserMeta(
 	`,
 	});
 	assertSuccess(result);
-}
+};
 
 async function assertSuccess(result: PHPResponse) {
 	if (result.text !== 'Success') {

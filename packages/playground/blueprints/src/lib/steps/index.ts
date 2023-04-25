@@ -1,38 +1,8 @@
-export {
-	zipEntireSite,
-	exportWXR,
-	exportWXZ,
-	replaceSite,
-	submitImporterForm,
-} from './import-export';
-export { login } from './login';
-export { installTheme } from './install-theme';
-export type { InstallThemeOptions } from './install-theme';
-export { installPlugin } from './install-plugin';
-export type { InstallPluginOptions } from './install-plugin';
-export { activatePlugin } from './activate-plugin';
-export { setSiteOptions, updateUserMeta } from './site-data';
-export type { SiteOptions, UserMeta } from './site-data';
-export { defineSiteUrl } from './define-site-url';
-export { applyWordPressPatches } from './apply-wordpress-patches';
-export type { PatchOptions } from './apply-wordpress-patches';
-export { runWpInstallationWizard } from './run-wp-installation-wizard';
-export type { WordPressInstallationOptions } from './run-wp-installation-wizard';
-
+import { ProgressTracker } from '@php-wasm/progress';
+import { UniversalPHP } from '@php-wasm/universal';
+import { FileReference } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
 import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
-import {
-	RunPHPStep,
-	RunPHPWithOptionsStep,
-	SetPhpIniEntryStep,
-	RequestStep,
-	CpStep,
-	RmStep,
-	RmdirStep,
-	MvStep,
-	MkdirStep,
-	WriteFileStep,
-} from './client-methods';
 import { DefineSiteUrlStep } from './define-site-url';
 import { ImportFileStep, ReplaceSiteStep, UnzipStep } from './import-export';
 import { InstallPluginStep } from './install-plugin';
@@ -40,59 +10,56 @@ import { InstallThemeStep } from './install-theme';
 import { LoginStep } from './login';
 import { RunWpInstallationWizardStep } from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
-export interface BaseStep {
-	step: string;
+import {
+	RmStep,
+	CpStep,
+	MkdirStep,
+	RmdirStep,
+	MvStep,
+	SetPhpIniEntryStep,
+	RunPHPStep,
+	RunPHPWithOptionsStep,
+	RequestStep,
+	WriteFileStep,
+} from './client-methods';
+
+export type Step = GenericStep<FileReference>;
+export type StepDefinition = Step & {
 	progress?: {
 		weight?: number;
 		caption?: string;
 	};
-}
+};
 
-export type Step<ResourceType> =
-	| InstallPluginStep<ResourceType>
-	| InstallThemeStep<ResourceType>
-	| LoginStep
-	| ImportFileStep<ResourceType>
+export type GenericStep<Resource> =
 	| ActivatePluginStep
-	| ReplaceSiteStep<ResourceType>
-	| UnzipStep
-	| DefineSiteUrlStep
 	| ApplyWordPressPatchesStep
-	| RunWpInstallationWizardStep
-	| SetSiteOptionsStep
-	| UpdateUserMetaStep
-	| RunPHPStep
-	| RunPHPWithOptionsStep
-	| SetPhpIniEntryStep
-	| RequestStep
 	| CpStep
+	| DefineSiteUrlStep
+	| ImportFileStep<Resource>
+	| InstallPluginStep<Resource>
+	| InstallThemeStep<Resource>
+	| LoginStep
+	| MkdirStep
+	| MvStep
+	| RequestStep
+	| ReplaceSiteStep<Resource>
 	| RmStep
 	| RmdirStep
-	| MvStep
-	| MkdirStep
-	| WriteFileStep<ResourceType>;
+	| RunPHPStep
+	| RunPHPWithOptionsStep
+	| RunWpInstallationWizardStep
+	| SetPhpIniEntryStep
+	| SetSiteOptionsStep
+	| UnzipStep
+	| UpdateUserMetaStep
+	| WriteFileStep<Resource>;
 
-export type {
-	InstallPluginStep,
-	InstallThemeStep,
-	LoginStep,
-	ImportFileStep,
-	ActivatePluginStep,
-	ReplaceSiteStep,
-	UnzipStep,
-	DefineSiteUrlStep,
-	ApplyWordPressPatchesStep,
-	RunWpInstallationWizardStep,
-	SetSiteOptionsStep,
-	UpdateUserMetaStep,
-	RunPHPStep,
-	RunPHPWithOptionsStep,
-	SetPhpIniEntryStep,
-	RequestStep,
-	CpStep,
-	RmStep,
-	RmdirStep,
-	MvStep,
-	MkdirStep,
-	WriteFileStep,
-};
+export type StepHandler<S extends GenericStep<File>> = (
+	php: UniversalPHP,
+	args: Omit<S, 'step'>,
+	progressArgs?: {
+		tracker: ProgressTracker;
+		initialCaption?: string;
+	}
+) => Promise<void> | void;

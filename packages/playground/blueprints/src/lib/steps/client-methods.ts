@@ -1,56 +1,121 @@
 import { PHPRunOptions, PHPRequest } from '@php-wasm/universal';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
+import { fileToUint8Array } from './common';
 
-export interface RunPHPStep extends BaseStep {
+export interface RunPHPStep {
 	step: 'runPHP';
 	code: string;
 }
 
-export interface RunPHPWithOptionsStep extends BaseStep {
+export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
+	await playground.run({ code });
+};
+
+export interface RunPHPWithOptionsStep {
 	step: 'runPHPWithOptions';
 	options: PHPRunOptions;
 }
 
-export interface SetPhpIniEntryStep extends BaseStep {
+export const runPHPWithOptions: StepHandler<RunPHPWithOptionsStep> = async (
+	playground,
+	{ options }
+) => {
+	await playground.run(options);
+};
+
+export interface SetPhpIniEntryStep {
 	step: 'setPhpIniEntry';
 	key: string;
 	value: string;
 }
 
-export interface RequestStep extends BaseStep {
+export const setPhpIniEntry: StepHandler<SetPhpIniEntryStep> = async (
+	playground,
+	{ key, value }
+) => {
+	await playground.setPhpIniEntry(key, value);
+};
+
+export interface RequestStep {
 	step: 'request';
 	request: PHPRequest;
 }
 
-export interface CpStep extends BaseStep {
+export const request: StepHandler<RequestStep> = async (
+	playground,
+	{ request }
+) => {
+	await playground.request(request);
+};
+
+export interface CpStep {
 	step: 'cp';
 	fromPath: string;
 	toPath: string;
 }
 
-export interface MvStep extends BaseStep {
+export const cp: StepHandler<CpStep> = async (
+	playground,
+	{ fromPath, toPath }
+) => {
+	await playground.writeFile(
+		toPath,
+		await playground.readFileAsBuffer(fromPath)
+	);
+};
+
+export interface MvStep {
 	step: 'mv';
 	fromPath: string;
 	toPath: string;
 }
 
-export interface MkdirStep extends BaseStep {
+export const mv: StepHandler<MvStep> = async (
+	playground,
+	{ fromPath, toPath }
+) => {
+	await playground.mv(fromPath, toPath);
+};
+
+export interface MkdirStep {
 	step: 'mkdir';
 	path: string;
 }
 
-export interface RmStep extends BaseStep {
+export const mkdir: StepHandler<MkdirStep> = async (playground, { path }) => {
+	await playground.mkdir(path);
+};
+
+export interface RmStep {
 	step: 'rm';
 	path: string;
 }
 
-export interface RmdirStep extends BaseStep {
+export const rm: StepHandler<RmStep> = async (playground, { path }) => {
+	await playground.unlink(path);
+};
+
+export interface RmdirStep {
 	step: 'rmdir';
 	path: string;
 }
 
-export interface WriteFileStep<ResourceType> extends BaseStep {
+export const rmdir: StepHandler<RmdirStep> = async (playground, { path }) => {
+	await playground.rmdir(path);
+};
+
+export interface WriteFileStep<ResourceType> {
 	step: 'writeFile';
 	path: string;
 	data: ResourceType | string | Uint8Array;
 }
+
+export const writeFile: StepHandler<WriteFileStep<File>> = async (
+	playground,
+	{ path, data }
+) => {
+	if (data instanceof File) {
+		data = await fileToUint8Array(data);
+	}
+	await playground.writeFile(path, data);
+};

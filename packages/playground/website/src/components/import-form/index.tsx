@@ -38,7 +38,7 @@ export default function ImportForm({
 		}
 
 		try {
-			await replaceSite(playground, file);
+			await replaceSite(playground, { fullSiteZip: file });
 		} catch (error) {
 			setError(
 				'Unable to import file. Is it a valid WordPress Playground export?'
