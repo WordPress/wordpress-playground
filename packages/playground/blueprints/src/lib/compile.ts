@@ -234,14 +234,3 @@ export async function runBlueprintSteps(
 ) {
 	await compiledBlueprint.run(playground);
 }
-
-// function fileToUint8Array(file: File) {
-// 	return new Promise<Uint8Array>((resolve, reject) => {
-// 		const reader = new FileReader();
-// 		reader.onload = () => {
-// 			resolve(new Uint8Array(reader.result as ArrayBuffer));
-// 		};
-// 		reader.onerror = reject;
-// 		reader.readAsArrayBuffer(file);
-// 	});
-// }
