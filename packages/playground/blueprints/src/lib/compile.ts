@@ -56,13 +56,13 @@ export function compileBlueprint(
 	const compiledSteps: CompiledStep[] = [];
 	const resources: Resource[] = [];
 	for (const step of steps) {
-		const r = compileStep(step, {
+		const compiled = compileStep(step, {
 			semaphore,
 			rootProgressTracker: progress,
 			totalProgressWeight,
 		});
-		compiledSteps.push(r.compiledStep);
-		resources.push(...r.resources);
+		compiledSteps.push(compiled.compiledStep);
+		resources.push(...compiled.asyncResources);
 	}
 
 	return {
@@ -148,7 +148,7 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { compiledStep: CompiledStep; resources: Array<Resource> } {
+): { compiledStep: CompiledStep; asyncResources: Array<Resource> } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -168,7 +168,7 @@ function compileStep<S extends StepDefinition>(
 		stepProgress.fillSlowly();
 		await stepHandlers[step.step](
 			playground,
-			await resolveResources(args),
+			await resolveArguments(args),
 			{
 				tracker: stepProgress,
 				initialCaption: step.progress?.caption,
@@ -177,19 +177,19 @@ function compileStep<S extends StepDefinition>(
 		stepProgress.finish();
 	};
 
-	const resources = getResources(step);
-	const asyncResources = resources.filter((resource) => resource.isAsync);
-
 	/**
 	 * The weight of each async resource is the same, and is the same as the
 	 * weight of the step itself.
 	 */
+	const asyncResources = getResources(step).filter(
+		(resource) => resource.isAsync
+	);
 	const evenWeight = 1 / (asyncResources.length + 1);
 	for (const resource of asyncResources) {
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return { compiledStep, resources: asyncResources };
+	return { compiledStep, asyncResources };
 }
 
 /**
@@ -210,12 +210,12 @@ function getResources<S extends StepDefinition>(step: S) {
 }
 
 /**
- * Gets the resources used by a specific compiled step
+ * Replaces Resource objects with their resolved values
  *
  * @param step The compiled step
  * @returns The resources used by the compiled step
  */
-async function resolveResources<T extends Record<string, unknown>>(args: T) {
+async function resolveArguments<T extends Record<string, unknown>>(args: T) {
 	const resolved: any = {};
 	for (const argName in args) {
 		const resourceMaybe = (args as any)[argName];
