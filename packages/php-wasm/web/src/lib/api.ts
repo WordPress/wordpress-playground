@@ -1,11 +1,19 @@
 import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
 import * as Comlink from 'comlink';
 
-export type WithIsReady = {
-	/** Resolves to true when the remote API is ready to be used */
+export type WithAPIState = {
+	/**
+	 * Resolves to true when the remote API is ready for
+	 * Comlink communication, but not necessarily fully initialized yet.
+	 */
+	isConnected: () => Promise<void>;
+	/**
+	 * Resolves to true when the remote API is declares it's
+	 * fully loaded and ready to be used.
+	 */
 	isReady: () => Promise<void>;
 };
-export type RemoteAPI<T> = Comlink.Remote<T & WithIsReady>;
+export type RemoteAPI<T> = Comlink.Remote<T & WithAPIState>;
 
 export function consumeAPI<APIType>(
 	remote: Worker | Window
@@ -15,7 +23,7 @@ export function consumeAPI<APIType>(
 	const endpoint =
 		remote instanceof Worker ? remote : Comlink.windowEndpoint(remote);
 
-	return Comlink.wrap<APIType & WithIsReady>(endpoint);
+	return Comlink.wrap<APIType & WithAPIState>(endpoint);
 }
 
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
@@ -27,6 +35,8 @@ export function exposeAPI<Methods, PipedAPI>(
 ): [() => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
+	const connected = Promise.resolve();
+
 	let setReady: any;
 	const ready = new Promise((resolve) => {
 		setReady = resolve;
@@ -35,10 +45,11 @@ export function exposeAPI<Methods, PipedAPI>(
 	const methods = proxyClone(apiMethods);
 	const exposedApi = new Proxy(methods, {
 		get: (target, prop) => {
-			if (prop === 'isReady') {
+			if (prop === 'isConnected') {
+				return () => connected;
+			} else if (prop === 'isReady') {
 				return () => ready;
-			}
-			if (prop in target) {
+			} else if (prop in target) {
 				return target[prop];
 			}
 			return (pipedApi as any)?.[prop];

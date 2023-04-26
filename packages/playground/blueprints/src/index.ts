@@ -1,13 +1,12 @@
 export * from './lib/steps';
-export type { Step } from './lib/steps';
-export { runBlueprintSteps } from './lib/run';
-export { compileBlueprint } from './lib/compile';
+export * from './lib/steps/handlers';
+export { runBlueprintSteps, compileBlueprint } from './lib/compile';
+export type { Blueprint } from './lib/blueprint';
 export type {
-	Blueprint,
-	StepDefinition,
 	CompiledStep,
 	CompiledBlueprint,
 	CompileBlueprintOptions,
+	OnStepCompleted,
 } from './lib/compile';
 export type {
 	CachedResource,

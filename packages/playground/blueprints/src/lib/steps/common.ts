@@ -20,3 +20,7 @@ export async function updateFile(
 ) {
 	await php.writeFile(path, callback(await php.readFileAsText(path)));
 }
+
+export async function fileToUint8Array(file: File) {
+	return new Uint8Array(await file.arrayBuffer());
+}

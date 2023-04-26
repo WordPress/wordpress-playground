@@ -15,6 +15,11 @@ import {
 import virtualModule from '../vite-virtual-module';
 
 const proxy = {
+	'^/plugin-proxy.*&artifact=.*': {
+		target: 'https://playground.wordpress.net',
+		changeOrigin: true,
+		secure: true,
+	},
 	'/plugin-proxy': {
 		target: 'https://downloads.wordpress.org',
 		changeOrigin: true,

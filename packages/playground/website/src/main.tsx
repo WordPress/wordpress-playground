@@ -18,6 +18,9 @@ const blueprint = makeBlueprint({
 	theme: query.get('theme') || undefined,
 	plugins: query.getAll('plugin'),
 	landingPage: query.get('url') || undefined,
+	gutenbergPR: query.has('gutenberg-pr')
+		? Number(query.get('gutenberg-pr'))
+		: undefined,
 });
 
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';

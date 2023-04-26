@@ -1,8 +1,7 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { BaseStep } from '.';
+import { StepHandler } from '.';
 import { updateFile } from './common';
 
-export interface DefineSiteUrlStep extends BaseStep {
+export interface DefineSiteUrlStep {
 	step: 'defineSiteUrl';
 	siteUrl: string;
 }
@@ -13,12 +12,16 @@ export interface DefineSiteUrlStep extends BaseStep {
  * @param playground The playground client.
  * @param siteUrl
  */
-export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
+export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
+	playground,
+	{ siteUrl }
+) => {
+	const documentRoot = await playground.documentRoot;
 	await updateFile(
 		playground,
-		`/wordpress/wp-config.php`,
+		`${documentRoot}/wp-config.php`,
 		(contents) =>
-			`<?php 
+			`<?php
 			if ( ! defined( 'WP_HOME' ) ) {
             	define('WP_HOME', "${siteUrl}");
 			}
@@ -27,4 +30,4 @@ export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
 			}
             ?>${contents}`
 	);
-}
+};

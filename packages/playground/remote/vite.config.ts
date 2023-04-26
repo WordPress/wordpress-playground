@@ -35,7 +35,7 @@ export default defineConfig({
 	},
 
 	preview: {
-		port: remoteDevServerPort,
+		port: remoteDevServerPort - 100,
 		host: remoteDevServerHost,
 	},
 
