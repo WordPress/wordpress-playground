@@ -33,6 +33,7 @@ export { phpVar, phpVars } from '@php-wasm/util';
 import {
 	Blueprint,
 	compileBlueprint,
+	OnStepCompleted,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
@@ -44,6 +45,7 @@ export interface StartPlaygroundOptions {
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
+	onBlueprintStepCompleted?: OnStepCompleted;
 }
 
 /**
@@ -59,6 +61,7 @@ export async function startPlaygroundWeb({
 	remoteUrl,
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
+	onBlueprintStepCompleted,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	remoteUrl = setQueryParams(remoteUrl, {
@@ -71,6 +74,7 @@ export async function startPlaygroundWeb({
 
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
+		onStepCompleted: onBlueprintStepCompleted,
 	});
 	const playground = await doStartPlaygroundWeb(
 		iframe,
@@ -81,8 +85,6 @@ export async function startPlaygroundWeb({
 		progressTracker
 	);
 	await runBlueprintSteps(compiled, playground);
-	await playground.goTo(compiled.landingPage);
-	compiled.progressTracker.finish();
 	return playground;
 }
 
@@ -120,7 +122,7 @@ async function doStartPlaygroundWeb(
 
 const officialRemoteOrigin = 'https://playground.wordpress.net';
 function assertValidRemote(remoteHtmlUrl: string) {
-	const url = new URL(remoteHtmlUrl);
+	const url = new URL(remoteHtmlUrl, officialRemoteOrigin);
 	if (
 		(url.origin === officialRemoteOrigin || url.hostname === 'localhost') &&
 		url.pathname !== '/remote.html'
@@ -133,7 +135,7 @@ function assertValidRemote(remoteHtmlUrl: string) {
 }
 
 function setQueryParams(url: string, params: Record<string, unknown>) {
-	const urlObject = new URL(url);
+	const urlObject = new URL(url, officialRemoteOrigin);
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {

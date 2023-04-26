@@ -1,6 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { compileBlueprint } from './compile';
-import { runBlueprintSteps } from './run';
+import { compileBlueprint, runBlueprintSteps } from './compile';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {

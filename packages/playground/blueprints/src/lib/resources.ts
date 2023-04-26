@@ -159,7 +159,7 @@ export class VFSResource extends Resource {
 			this.resource.path
 		);
 		this.progress?.set(100);
-		return new File([buffer], this.resource.path);
+		return new File([buffer], this.name);
 	}
 
 	/** @inheritDoc */
@@ -220,7 +220,7 @@ export abstract class FetchResource extends Resource {
 		if (response.status !== 200) {
 			throw new Error(`Could not download "${url}"`);
 		}
-		return new File([await response.blob()], url);
+		return new File([await response.blob()], this.name);
 	}
 
 	/**
@@ -342,6 +342,11 @@ export class DecoratedResource<T extends Resource> extends Resource {
 	/** @inheritDoc */
 	async resolve() {
 		return this.resource.resolve();
+	}
+
+	/** @inheritDoc */
+	override async setPlayground(playground: UniversalPHP) {
+		return this.resource.setPlayground(playground);
 	}
 
 	/** @inheritDoc */
