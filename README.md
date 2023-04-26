@@ -44,7 +44,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 			}
 		</script>
 		<script type="module">
-			import { startPlayground } from '@wp-playground/client';
+			import { startPlaygroundWeb } from '@wp-playground/client';
 
 			const client = await startPlayground({
 				iframe,
