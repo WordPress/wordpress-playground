@@ -144,7 +144,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			);
 		}
 
-		this.#progress[file] = loaded;
+		this.#progress[fileName] = loaded;
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
