@@ -14,9 +14,10 @@ export interface DefineSiteUrlStep extends BaseStep {
  * @param siteUrl
  */
 export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
+  const documentRoot = await playground.documentRoot;
 	await updateFile(
 		playground,
-		`${playground.documentRoot}/wp-config.php`,
+		`${documentRoot}/wp-config.php`,
 		(contents) =>
 			`<?php 
 			if ( ! defined( 'WP_HOME' ) ) {
