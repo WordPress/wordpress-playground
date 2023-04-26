@@ -123,6 +123,8 @@ export async function bootPlaygroundRemote() {
 		},
 	};
 
+	await workerApi.isConnected;
+
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
 	// cannot be cloned. Adding a transfer handler for functions
