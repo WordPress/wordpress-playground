@@ -275,7 +275,7 @@ export class UrlResource extends FetchResource {
 	}
 }
 
-let pluginProxyURL = '/plugin-proxy';
+let pluginProxyURL = 'https://playground.wordpress.net/plugin-proxy';
 export function setPluginProxyURL(url: string) {
 	pluginProxyURL = url;
 }
