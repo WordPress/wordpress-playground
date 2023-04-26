@@ -141,6 +141,7 @@ export async function bootPlaygroundRemote() {
 		serviceWorkerUrl + '',
 		serviceWorkerVersion
 	);
+	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 	wpFrame.src = await playground.pathToInternalUrl('/');
 
 	setAPIReady();
@@ -150,6 +151,31 @@ export async function bootPlaygroundRemote() {
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
+}
+
+function getOrigin(url: string) {
+	return new URL(url, 'https://example.com').origin;
+}
+
+function setupPostMessageRelay(
+	wpFrame: HTMLIFrameElement,
+	expectedOrigin: string
+) {
+	window.addEventListener('message', (event) => {
+		if (event.source !== wpFrame.contentWindow) {
+			return;
+		}
+
+		if (event.origin !== expectedOrigin) {
+			return;
+		}
+
+		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+			return;
+		}
+
+		window.parent.postMessage(event.data, '*');
+	});
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
