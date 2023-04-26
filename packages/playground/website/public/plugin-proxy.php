@@ -2,8 +2,11 @@
 
 ini_set('display_errors', 0);
 
-class ApiException extends Exception {}
-class PluginDownloader {
+class ApiException extends Exception
+{
+}
+class PluginDownloader
+{
 
     private $githubToken;
 
@@ -35,67 +38,68 @@ class PluginDownloader {
         }
     }
 
-    public function streamFromGithubPR($organization, $repo, $pr, $workflow_name, $artifact_name) {
+    public function streamFromGithubPR($organization, $repo, $pr, $workflow_name, $artifact_name)
+    {
         $prDetails = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/pulls/$pr")['body'];
-        if(!$prDetails) {
+        if (!$prDetails) {
             throw new ApiException('Invalid PR number');
         }
         $branchName = $prDetails->head->ref;
         $ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
-        if(!$ciRuns) {
+        if (!$ciRuns) {
             throw new ApiException('No CI runs found');
         }
 
         $artifactsUrls = [];
-        foreach($ciRuns->workflow_runs as $run) {
-            if($run->name === $workflow_name) {
+        foreach ($ciRuns->workflow_runs as $run) {
+            if ($run->name === $workflow_name) {
                 $artifactsUrls[] = $run->artifacts_url;
             }
         }
-        if(!$artifactsUrls) {
+        if (!$artifactsUrls) {
             throw new ApiException('No artifact URL found');
         }
 
-        foreach($artifactsUrls as $artifactsUrl) {
+        foreach ($artifactsUrls as $artifactsUrl) {
             $zip_download_api_endpoint = $zip_url = null;
 
             $artifacts = $this->gitHubRequest($artifactsUrl)['body'];
-            if(!$artifacts) {
+            if (!$artifacts) {
                 continue;
             }
-            
-            foreach($artifacts->artifacts as $artifact) {
-                if($artifact->name === $artifact_name) {
+
+            foreach ($artifacts->artifacts as $artifact) {
+                if ($artifact->name === $artifact_name) {
                     $zip_download_api_endpoint = $artifact->archive_download_url;
                     break;
                 }
             }
-            if(!$zip_download_api_endpoint) {
+            if (!$zip_download_api_endpoint) {
                 continue;
             }
 
             $zip_download_headers = $this->gitHubRequest($zip_download_api_endpoint, true)['headers'];
             // Find the location header and store it in $zip_url
-            foreach($zip_download_headers as $header) {
-                if(substr(strtolower($header), 0, 10) === 'location: ') {
+            foreach ($zip_download_headers as $header) {
+                if (substr(strtolower($header), 0, 10) === 'location: ') {
                     $zip_url = substr($header, 10);
                     break;
                 }
             }
-            if(!$zip_url) {
+            if (!$zip_url) {
                 continue;
             }
             $this->streamHttpResponse($zip_url, [], [
-                'Content-Length: '.$artifact->size_in_bytes
+                'Content-Length: ' . $artifact->size_in_bytes
             ]);
         }
-        if(!$artifacts) {
+        if (!$artifacts) {
             throw new ApiException('No artifacts found under the URL');
         }
-        if(!$zip_download_api_endpoint) {
+        if (!$zip_download_api_endpoint) {
             throw new ApiException('No artifact download URL found with the name');
         }
-        if(!$zip_url) {
+        if (!$zip_url) {
             throw new ApiException('No zip location returned by the artifact download API');
         }
     }
@@ -111,7 +115,7 @@ class PluginDownloader {
             ]
         ]);
         $response = file_get_contents($url, false, $context);
-        if($response === false) {
+        if ($response === false) {
             throw new ApiException('Request failed');
         }
         return [
@@ -120,36 +124,42 @@ class PluginDownloader {
         ];
     }
 
-    private function streamHttpResponse($url, $allowed_headers=[], $default_headers=[]) {
+    private function streamHttpResponse($url, $allowed_headers = [], $default_headers = [])
+    {
         $default_headers = array_merge([
             'Content-Type: application/zip',
             'Content-Disposition: attachment; filename="plugin.zip"',
         ], $default_headers);
         $ch = curl_init($url);
-		curl_setopt_array($ch,
-			[
-				CURLOPT_RETURNTRANSFER => true,
-				CURLOPT_CONNECTTIMEOUT => 30,
+        curl_setopt_array(
+            $ch,
+            [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 30,
                 CURLOPT_FAILONERROR => true,
                 CURLOPT_FOLLOWLOCATION => true,
-			]
-		);
-		
+            ]
+        );
+
         $seen_headers = [];
-		curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header_line) use($seen_headers, $allowed_headers)
-			{
+        curl_setopt(
+            $ch,
+            CURLOPT_HEADERFUNCTION,
+            function ($curl, $header_line) use ($seen_headers, $allowed_headers) {
                 $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
                 $seen_headers[$header_name] = true;
-                if(in_array($header_name, $allowed_headers)) {
-    				header($header_line);
+                if (in_array($header_name, $allowed_headers)) {
+                    header($header_line);
                 }
                 return strlen($header_line);
-			}
-		);
+            }
+        );
         $extra_headers_sent = false;
-		curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $body) use(&$extra_headers_sent, $default_headers)
-			{
-                if(!$extra_headers_sent) {
+        curl_setopt(
+            $ch,
+            CURLOPT_WRITEFUNCTION,
+            function ($curl, $body) use (&$extra_headers_sent, $default_headers) {
+                if (!$extra_headers_sent) {
                     foreach ($default_headers as $header_line) {
                         $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
                         if (!isset($seen_headers[strtolower($header_name)])) {
@@ -158,15 +168,15 @@ class PluginDownloader {
                     }
                     $extra_headers_sent = true;
                 }
-				echo $body;
+                echo $body;
                 flush();
-				return strlen($body);
-			}
-		);
-		curl_exec($ch);
+                return strlen($body);
+            }
+        );
+        curl_exec($ch);
         $info = curl_getinfo($ch);
-		curl_close($ch);
-        if($info['http_code'] > 299 || $info['http_code'] < 200) {
+        curl_close($ch);
+        if ($info['http_code'] > 299 || $info['http_code'] < 200) {
             throw new ApiException('Request failed');
         }
     }
@@ -227,7 +237,7 @@ try {
     }
 } catch (ApiException $e) {
     header('HTTP/1.1 400 Invalid request');
-    if(!headers_sent()) {
+    if (!headers_sent()) {
         header('Content-Type: application/json');
     }
     die(json_encode(['error' => $e->getMessage()]));
