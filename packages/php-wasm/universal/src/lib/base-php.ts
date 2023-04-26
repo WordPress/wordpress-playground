@@ -61,7 +61,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return this.requestHandler!.requestHandler.absoluteUrl;
+		return this.requestHandler!.requestHandler.documentRoot;
 	}
 
 	/** @inheritDoc */

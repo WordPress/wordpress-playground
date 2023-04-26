@@ -16,11 +16,12 @@ export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {
+	const documentRoot = await playground.documentRoot;
 	await updateFile(
 		playground,
-		`/wordpress/wp-config.php`,
+		`${documentRoot}/wp-config.php`,
 		(contents) =>
-			`<?php 
+			`<?php
 			if ( ! defined( 'WP_HOME' ) ) {
             	define('WP_HOME', "${siteUrl}");
 			}
