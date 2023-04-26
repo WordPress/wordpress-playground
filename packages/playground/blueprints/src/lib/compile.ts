@@ -100,7 +100,12 @@ export function compileBlueprint(
 						blueprint.landingPage || '/'
 					);
 				} catch (e) {
-					// NodePHP exposes no goTo method.
+					/*
+					 * NodePHP exposes no goTo method.
+					 * We can't use `goto` in playground here,
+					 * because it may be a Comlink proxy object
+					 * with no such method.
+					 */
 				}
 			} finally {
 				progress.finish();
