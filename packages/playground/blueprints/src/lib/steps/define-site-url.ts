@@ -13,14 +13,10 @@ export interface DefineSiteUrlStep extends BaseStep {
  * @param playground The playground client.
  * @param siteUrl
  */
-export async function defineSiteUrl(
-	playground: UniversalPHP,
-	siteUrl: string,
-	documentRoot = '/wordpress'
-) {
+export async function defineSiteUrl(playground: UniversalPHP, siteUrl: string) {
 	await updateFile(
 		playground,
-		`${documentRoot}/wp-config.php`,
+		`${playground.documentRoot}/wp-config.php`,
 		(contents) =>
 			`<?php 
 			if ( ! defined( 'WP_HOME' ) ) {
