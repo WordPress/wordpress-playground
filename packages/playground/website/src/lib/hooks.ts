@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
+import {
+	Blueprint,
+	startPlaygroundWeb,
+	setPluginProxyURL,
+} from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { remotePlaygroundOrigin } from './config';
 

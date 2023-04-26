@@ -275,6 +275,11 @@ export class UrlResource extends FetchResource {
 	}
 }
 
+let pluginProxyURL = '/plugin-proxy';
+export function setPluginProxyURL(url: string) {
+	pluginProxyURL = url;
+}
+
 /**
  * A `Resource` that represents a WordPress core theme.
  */
@@ -290,9 +295,10 @@ export class CoreThemeResource extends FetchResource {
 	}
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
-		return '/plugin-proxy?theme=' + zipName;
+		return `${pluginProxyURL}?theme=` + zipName;
 	}
 }
+
 /**
  * A resource that fetches a WordPress plugin from wordpress.org.
  */
@@ -312,7 +318,7 @@ export class CorePluginResource extends FetchResource {
 	/** @inheritDoc */
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
-		return '/plugin-proxy?plugin=' + zipName;
+		return `${pluginProxyURL}?plugin=` + zipName;
 	}
 }
 
