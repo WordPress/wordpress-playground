@@ -20,12 +20,6 @@ const _private = new WeakMap<
  * A PHP client that can be used to run PHP code in the browser.
  */
 export class WebPHPEndpoint implements IsomorphicLocalPHP {
-	/**
-	 * A dummy promise that resolves immediately.
-	 * Used to assert that the PHPClient is ready for communication.
-	 */
-	connected: Promise<void> = Promise.resolve();
-
 	/** @inheritDoc */
 	absoluteUrl: string;
 	/** @inheritDoc */
@@ -77,7 +71,7 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	async onDownloadProgress(
 		callback: (progress: CustomEvent<ProgressEvent>) => void
 	): Promise<void> {
-		_private
+		return _private
 			.get(this)!
 			.monitor?.addEventListener('progress', callback as any);
 	}
@@ -114,17 +108,17 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
 	setPhpIniEntry(key: string, value: string): void {
-		_private.get(this)!.php.setPhpIniEntry(key, value);
+		return _private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
 	mkdir(path: string): void {
-		_private.get(this)!.php.mkdir(path);
+		return _private.get(this)!.php.mkdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
 	mkdirTree(path: string): void {
-		_private.get(this)!.php.mkdirTree(path);
+		return _private.get(this)!.php.mkdirTree(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
@@ -139,12 +133,12 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
-		_private.get(this)!.php.writeFile(path, data);
+		return _private.get(this)!.php.writeFile(path, data);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
 	unlink(path: string): void {
-		_private.get(this)!.php.unlink(path);
+		return _private.get(this)!.php.unlink(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */

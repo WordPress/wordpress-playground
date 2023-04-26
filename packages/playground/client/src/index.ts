@@ -111,7 +111,7 @@ async function doStartPlaygroundWeb(
 	const playground = consumeAPI<PlaygroundClient>(
 		iframe.contentWindow!
 	) as PlaygroundClient;
-	await playground.connected;
+	await playground.isConnected();
 	progressTracker.pipe(playground);
 	await playground.onDownloadProgress(
 		progressTracker.stage().loadingListener
@@ -170,6 +170,6 @@ export async function connectPlayground(
 	const client = consumeAPI<PlaygroundClient>(
 		iframe.contentWindow!
 	) as PlaygroundClient;
-	await client.connected;
+	await client.isConnected();
 	return client;
 }
