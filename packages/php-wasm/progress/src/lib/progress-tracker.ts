@@ -105,6 +105,7 @@ const PROGRESS_EPSILON = 0.00001;
  */
 export class ProgressTracker extends EventTarget {
 	private _selfWeight = 1;
+	private _selfDone = false;
 	private _selfProgress = 0;
 	private _selfCaption = '';
 	private _weight: number;
@@ -232,6 +233,7 @@ export class ProgressTracker extends EventTarget {
 		if (this._fillInterval) {
 			clearInterval(this._fillInterval);
 		}
+		this._selfDone = true;
 		this._selfProgress = 100;
 		this._isFilling = false;
 		this._fillInterval = undefined;
@@ -261,6 +263,9 @@ export class ProgressTracker extends EventTarget {
 	}
 
 	get progress(): number {
+		if (this._selfDone) {
+			return 100;
+		}
 		const sum = this._subTrackers.reduce(
 			(sum, tracker) => sum + tracker.progress * tracker.weight,
 			this._selfProgress * this._selfWeight
@@ -291,6 +296,10 @@ export class ProgressTracker extends EventTarget {
 	}
 
 	pipe(receiver: ProgressReceiver) {
+		receiver.setProgress({
+			progress: this.progress,
+			caption: this.caption,
+		});
 		this.addEventListener('progress', (event: ProgressTrackerEvent) => {
 			receiver.setProgress({
 				progress: event.detail.progress,
