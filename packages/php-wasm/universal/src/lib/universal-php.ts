@@ -104,7 +104,7 @@ export interface RequestHandler {
 	absoluteUrl: string;
 
 	/**
-   * The directory in the PHP filesystem where the server will look
+	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
 	 */
 	documentRoot: string;

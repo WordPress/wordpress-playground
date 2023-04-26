@@ -16,7 +16,7 @@ export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {
-  const documentRoot = await playground.documentRoot;
+	const documentRoot = await playground.documentRoot;
 	await updateFile(
 		playground,
 		`${documentRoot}/wp-config.php`,
