@@ -46,7 +46,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 		<script type="module">
 			import { startPlayground } from '@wp-playground/client';
 
-			const client = await loadPlayground({
+			const client = await startPlayground({
 				iframe,
 				remoteUrl: `https://playground.wordpress.net/remote.html`,
 				blueprint: {
