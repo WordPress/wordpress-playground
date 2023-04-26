@@ -95,10 +95,12 @@ export function compileBlueprint(
 					const result = await run(playground);
 					onStepCompleted(result, step);
 				}
-				if ('goTo' in playground) {
+				try {
 					await (playground as any).goTo(
 						blueprint.landingPage || '/'
 					);
+				} catch (e) {
+					// NodePHP exposes no goTo method.
 				}
 			} finally {
 				progress.finish();
