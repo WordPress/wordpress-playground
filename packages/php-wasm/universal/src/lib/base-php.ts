@@ -1,6 +1,6 @@
-import {PHPBrowser} from './php-browser';
+import { PHPBrowser } from './php-browser';
 import {
-  PHPRequestHandler,
+	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 } from './php-request-handler';
 import { PHPResponse } from './php-response';

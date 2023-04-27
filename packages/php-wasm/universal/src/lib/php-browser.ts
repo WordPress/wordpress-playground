@@ -1,4 +1,4 @@
-import type {PHPRequestHandler} from './php-request-handler';
+import type { PHPRequestHandler } from './php-request-handler';
 import type { PHPResponse } from './php-response';
 import { PHPRequest, RequestHandler } from './universal-php';
 
