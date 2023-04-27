@@ -5,16 +5,12 @@ import { startServer } from './start-server';
 import { DEFAULT_PORT } from './constants';
 
 function startSpinner(message: string) {
-  process.stdout.write(`${message}...`);
+  process.stdout.write(`${message}...\n`);
   return {
     succeed: (text: string) => {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
       console.log(`${text}`);
     },
     fail: (text: string) => {
-      process.stdout.clearLine(0);
-      process.stdout.cursorTo(0);
       console.error(`${text}`);
     },
   };
