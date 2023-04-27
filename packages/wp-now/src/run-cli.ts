@@ -31,11 +31,19 @@ export async function runCli() {
         type: 'number',
         default: port,
       });
+      yargs.option('path', {
+        describe: 'Path to the WordPress project. Defaults to the current working directory.',
+        type: 'string',
+        default: process.cwd(),
+      });
     },
     async (argv) => {
       const spinner = startSpinner('Starting the server...');
       try {
         portFinder.setPort(argv.port as number);
+        process.chdir(argv.path as string);
+        // print current directory
+        console.log(`Current directory: ${process.cwd()}`);
         await startServer();
         spinner.succeed(`Server started on port ${argv.port}.`);
       } catch (error) {
