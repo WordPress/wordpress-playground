@@ -2,42 +2,40 @@
 	"name": "wp-now",
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/wp-now/src",
-	"projectType": "application",
-	"targets": {
-		"build": {
-			"executor": "@nrwl/esbuild:esbuild",
-			"outputs": ["{options.outputPath}"],
-			"defaultConfiguration": "production",
-			"options": {
-				"platform": "node",
-				"outputPath": "dist/packages/wp-now",
-				"format": ["cjs"],
-				"bundle": false,
-				"main": "packages/wp-now/src/main.ts",
-				"tsConfig": "packages/wp-now/tsconfig.app.json",
-				"assets": ["packages/wp-now/src/assets"],
-				"esbuildOptions": {
-					"sourcemap": true,
-					"outExtension": {
-						".js": ".js"
-					}
-				}
-			},
-			"configurations": {
-				"development": {},
-				"production": {
-					"esbuildOptions": {
-						"sourcemap": false,
-						"outExtension": {
-							".js": ".js"
-						}
-					}
-				}
-			}
-		},
-		"serve": {
-			"executor": "@nrwl/js:node",
-			"defaultConfiguration": "development",
+  "projectType": "application",
+  "targets": {
+    "build": {
+     "executor": "nx:noop",
+     "dependsOn": ["build:package-json", "build:bundle"]
+   },
+   "build:package-json": {
+     "executor": "@wp-playground/nx-extensions:package-json",
+      "options": {
+       "tsConfig": "packages/wp-now/tsconfig.lib.json",
+        "outputPath": "dist/packages/wp-now",
+       "buildTarget": "wp-now:build:bundle"
+      },
+     "dependsOn": ["build:bundle"]
+   },
+   "build:bundle": {
+     "executor": "@nrwl/workspace:run-commands",
+     "options": {
+       "commands": [
+         "node packages/wp-now/esbuild.mjs",
+         "cp packages/wp-now/package.json dist/packages/wp-now"
+       ]
+      }
+    },
+   "preview": {
+     "executor": "@wp-playground/nx-extensions:built-script",
+     "options": {
+       "scriptPath": "dist/packages/wp-now/main.js"
+     },
+     "dependsOn": ["build"]
+   },
+    "serve": {
+      "executor": "@nrwl/js:node",
+      "defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "wp-now:build"
 			},
