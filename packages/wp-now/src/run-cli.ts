@@ -2,7 +2,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startServer } from './start-server';
-import { DEFAULT_PORT } from './constants';
+import { portFinder } from './port-finder';
 
 function startSpinner(message: string) {
   process.stdout.write(`${message}...\n`);
@@ -17,7 +17,8 @@ function startSpinner(message: string) {
 }
 
 
-export function runCli() {
+export async function runCli() {
+  const port = await portFinder.getOpenPort();
   return yargs(hideBin(process.argv))
   .scriptName('wp-now')
   .usage('$0 <cmd> [args]')
@@ -28,13 +29,14 @@ export function runCli() {
       yargs.option('port', {
         describe: 'Server port',
         type: 'number',
-        default: DEFAULT_PORT,
+        default: port,
       });
     },
     async (argv) => {
       const spinner = startSpinner('Starting the server...');
       try {
-        await startServer(argv.port as number);
+        portFinder.setPort(argv.port as number);
+        await startServer();
         spinner.succeed(`Server started on port ${argv.port}.`);
       } catch (error) {
         spinner.fail(`Failed to start the server: ${(error as Error).message}`);

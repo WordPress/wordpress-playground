@@ -2,8 +2,7 @@ import WPNow from "./wp-now"
 import { HTTPMethod } from "@php-wasm/universal";
 import express from 'express';
 import fileUpload from 'express-fileupload';
-import { DEFAULT_PORT } from "./constants";
-
+import { portFinder } from "./port-finder";
 
 function generateMultipartFormDataString(json, boundary) {
   let multipartData = '';
@@ -33,7 +32,8 @@ const requestBodyToString = async (req) => await new Promise((resolve) => {
 const app = express();
 app.use(fileUpload());
 
-export async function startServer(port:number = DEFAULT_PORT) {
+export async function startServer() {
+  const port = await portFinder.getOpenPort()
   const wpNow = await WPNow.create()
   await wpNow.start()
 

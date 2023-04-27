@@ -3,6 +3,7 @@ import { SupportedPHPVersion } from '@php-wasm/universal'
 import path from 'path'
 import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH } from './constants'
 import { downloadSqlite, downloadWordPress } from './download'
+import { portFinder } from './port-finder'
 
 interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
@@ -13,7 +14,10 @@ interface WPNowOptions {
 const DEFAULT_OPTIONS: WPNowOptions = {
   phpVersion: '8.0',
   documentRoot: '/var/www/html',
-  absoluteUrl: 'http://127.0.0.1:8881',
+}
+async function getAbsoluteURL() {
+  const port = await portFinder.getOpenPort()
+  return `http://127.0.0.1:${port}`
 }
 
 function seemsLikeAPHPFile(path) {
@@ -24,9 +28,14 @@ export default class WPNow {
   php: NodePHP
   options: WPNowOptions = DEFAULT_OPTIONS
 
+
   static async create(options: WPNowOptions = {}): Promise<WPNow> {
     const instance = new WPNow();
-    await instance.setup(options);
+    const absoluteUrl = await getAbsoluteURL();
+    await instance.#setup({
+      ...options,
+      absoluteUrl,
+    });
     return instance;
   }
 
@@ -34,7 +43,7 @@ export default class WPNow {
     this.php.writeFile(path, callback(this.php.readFileAsText(path)));
   }
 
-  async setup(options: WPNowOptions = {}) {
+  async #setup(options: WPNowOptions = {}) {
     this.options = {
       ...this.options,
       ...options,
