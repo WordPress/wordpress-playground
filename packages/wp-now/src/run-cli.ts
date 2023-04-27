@@ -44,7 +44,7 @@ export async function runCli() {
         process.chdir(argv.path as string);
         // print current directory
         console.log(`Current directory: ${process.cwd()}`);
-        await startServer();
+        await startServer({mode: 'plugin'});
         spinner.succeed(`Server started on port ${argv.port}.`);
       } catch (error) {
         spinner.fail(`Failed to start the server: ${(error as Error).message}`);

@@ -1,4 +1,4 @@
-import WPNow from "./wp-now"
+import WPNow, { WPNowOptions } from "./wp-now"
 import { HTTPMethod } from "@php-wasm/universal";
 import express from 'express';
 import fileUpload from 'express-fileupload';
@@ -32,9 +32,9 @@ const requestBodyToString = async (req) => await new Promise((resolve) => {
 const app = express();
 app.use(fileUpload());
 
-export async function startServer() {
+export async function startServer(options:WPNowOptions={}) {
   const port = await portFinder.getOpenPort()
-  const wpNow = await WPNow.create()
+  const wpNow = await WPNow.create(options)
   await wpNow.start()
 
   app.use('/', async (req, res) => {

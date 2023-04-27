@@ -1,19 +1,23 @@
+import fs from 'fs-extra';
 import { NodePHP } from '@php-wasm/node'
 import { SupportedPHPVersion } from '@php-wasm/universal'
 import path from 'path'
-import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH } from './constants'
+import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH, WP_NOW_HIDDEN_FOLDER } from './constants'
 import { downloadSqlite, downloadWordPress } from './download'
 import { portFinder } from './port-finder'
 
-interface WPNowOptions {
+export interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
   documentRoot?: string
   absoluteUrl?: string
+  mode?: 'plugin' | 'theme' | 'core' | 'index'
+  projectPath?: string
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
   phpVersion: '8.0',
   documentRoot: '/var/www/html',
+  mode: 'index',
 }
 async function getAbsoluteURL() {
   const port = await portFinder.getOpenPort()
@@ -32,9 +36,11 @@ export default class WPNow {
   static async create(options: WPNowOptions = {}): Promise<WPNow> {
     const instance = new WPNow();
     const absoluteUrl = await getAbsoluteURL();
+    const projectPath = process.cwd()
     await instance.#setup({
-      ...options,
       absoluteUrl,
+      projectPath,
+      ...options,
     });
     return instance;
   }
@@ -128,7 +134,24 @@ export default class WPNow {
   }
 
   mount() {
+    if (this.options.mode === 'index') {
+      this.php.mount(this.options.projectPath, this.options.documentRoot)
+      return
+    }
+    // Mode core, plugin or theme
     this.mountWordpress()
+    // Copy wp-content to local hidden folder
+    const wpContentPath = path.join(this.options.projectPath, WP_NOW_HIDDEN_FOLDER, 'wp-content')
+    fs.ensureDirSync(wpContentPath);
+    fs.copySync(path.join(WORDPRESS_ZIPS_PATH, 'latest', 'wordpress', 'wp-content'), wpContentPath)
+    this.php.mount(wpContentPath, `${this.options.documentRoot}/wp-content`)
+
+    if (this.options.mode === 'plugin' || this.options.mode === 'theme') {
+      const folderName = path.basename(this.options.projectPath)
+      const partialPath = this.options.mode === 'plugin' ? 'plugins' : 'themes'
+      fs.ensureDirSync(path.join(wpContentPath, partialPath, folderName));
+      this.php.mount(this.options.projectPath, `${this.options.documentRoot}/wp-content/${partialPath}/${folderName}`)
+    }
     this.mountSqlite()
   }
 
