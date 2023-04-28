@@ -48,7 +48,7 @@ export default class WPNow {
     return instance;
   }
 
-  patchFile = (path, callback) => {
+  updateFile = (path, callback) => {
     this.php.writeFile(path, callback(this.php.readFileAsText(path)));
   }
 
@@ -91,7 +91,7 @@ export default class WPNow {
       `${documentRoot}/wp-config.php`,
       this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
   );
-  this.patchFile(
+  this.updateFile(
       `${documentRoot}/wp-config.php`,
       (contents) =>
           `<?php
