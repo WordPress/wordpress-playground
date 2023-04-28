@@ -42,11 +42,11 @@ export async function runCli() {
       try {
         portFinder.setPort(argv.port as number);
         process.chdir(argv.path as string);
-        // print current directory
-        console.log(`Current directory: ${process.cwd()}`);
-        await startServer({mode: 'plugin'});
+        console.log(`Project directory: ${process.cwd()}`);
+        await startServer();
         spinner.succeed(`Server started on port ${argv.port}.`);
       } catch (error) {
+        console.error(error);
         spinner.fail(`Failed to start the server: ${(error as Error).message}`);
       }
     }

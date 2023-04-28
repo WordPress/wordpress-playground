@@ -38,9 +38,11 @@ export default class WPNow {
     const instance = new WPNow();
     const absoluteUrl = await getAbsoluteURL();
     const projectPath = process.cwd()
+    const mode = this.#inferMode(projectPath);
     await instance.#setup({
       absoluteUrl,
       projectPath,
+      mode,
       ...options,
     });
     return instance;
@@ -160,17 +162,13 @@ export default class WPNow {
     return styleCSS.includes('Theme Name:')
   }
 
-  #inferMode(): Exclude<WPNowMode, 'auto'> {
-    const { mode } = this.options
-    if (mode !== 'auto') {
-      return mode
-    }
-    const hasIndexPhp = fs.existsSync(path.join(this.options.projectPath, 'index.php'))
-    const hasWpContentFolder = fs.existsSync(path.join(this.options.projectPath, 'wp-content'))
+  static #inferMode(directory: string): Exclude<WPNowMode, 'auto'> {
+    const hasIndexPhp = fs.existsSync(path.join(directory, 'index.php'))
+    const hasWpContentFolder = fs.existsSync(path.join(directory, 'wp-content'))
 
-    if (WPNow.#isPluginDirectory(this.options.projectPath)) {
+    if (WPNow.#isPluginDirectory(directory)) {
       return 'plugin'
-    } else if (WPNow.#isThemeDirectory(this.options.projectPath)) {
+    } else if (WPNow.#isThemeDirectory(directory)) {
       return 'theme'
     } else if (!hasIndexPhp && hasWpContentFolder) {
       return 'core'
@@ -181,8 +179,7 @@ export default class WPNow {
   }
 
   mount() {
-    const mode = this.#inferMode()
-
+    const { mode } = this.options
     if (mode === 'index') {
       this.php.mount(this.options.projectPath, this.options.documentRoot)
       return
@@ -239,6 +236,11 @@ export default class WPNow {
   }
 
   async start() {
+    console.log(`Mode: ${this.options.mode}`)
+    if (this.options.mode === 'index') {
+      this.mount()
+      return
+    }
     await downloadWordPress()
     await downloadSqlite()
     this.mount()
