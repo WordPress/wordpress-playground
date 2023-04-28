@@ -78,20 +78,28 @@ class PluginDownloader
                 continue;
             }
 
-            $zip_download_headers = $this->gitHubRequest($zip_download_api_endpoint, true)['headers'];
-            // Find the location header and store it in $zip_url
-            foreach ($zip_download_headers as $header) {
-                if (substr(strtolower($header), 0, 10) === 'location: ') {
-                    $zip_url = substr($header, 10);
-                    break;
+            $allowed_headers = array(
+                'content-length',
+                'content-disposition',
+                'x-frame-options',
+                'last-modified',
+                'etag',
+                'date',
+                'age',
+                'vary',
+                'cache-Control'
+            );
+            $artifact = $this->gitHubRequest($zip_download_api_endpoint, false);
+            foreach ($artifact['headers'] as $header_line) {
+                $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+                if (in_array($header_name, $allowed_headers)) {
+                    header($header_line);
                 }
             }
-            if (!$zip_url) {
-                continue;
-            }
-            $this->streamHttpResponse($zip_url, [], [
-                'Content-Length: ' . $artifact->size_in_bytes
-            ]);
+            echo $artifact['body'];
+            ob_flush();
+            flush();
+            return;
         }
         if (!$artifacts) {
             throw new ApiException('No artifacts found under the URL');
@@ -104,7 +112,7 @@ class PluginDownloader
         }
     }
 
-    protected function gitHubRequest($url)
+    protected function gitHubRequest($url, $decode = true)
     {
         $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36';
         $headers[] = 'Authorization: Bearer ' . $this->githubToken;
@@ -118,9 +126,16 @@ class PluginDownloader
         if ($response === false) {
             throw new ApiException('Request failed');
         }
+        // Find the last index of "HTTP/1.1 200 OK" in $http_response_header array
+        for ($i = count($http_response_header) - 1; $i >= 0; $i--) {
+            if (substr($http_response_header[$i], 0, 12) === 'HTTP/1.1 200') {
+                break;
+            }
+        }
+        $headers = array_map('trim', array_slice($http_response_header, $i + 1));
         return [
-            'body' => json_decode($response),
-            'headers' => array_map('trim', array_slice($http_response_header, 1))
+            'body' => $decode ? json_decode($response) : $response,
+            'headers' => $headers
         ];
     }
 
