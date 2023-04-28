@@ -1,27 +1,27 @@
 {
-  "name": "wp-now",
-  "version": "0.0.0",
-  "description": "WordPress Playground CLI",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/WordPress/wordpress-playground"
-  },
-  "homepage": "https://developer.wordpress.org/playground",
-  "author": "The WordPress contributors",
-  "contributors": [
-    {
-      "name": "Antonio Sejas",
-      "email": "antonio@sejas.es",
-      "url": "https://github.com/sejas"
-    }
-  ],
-  "publishConfig": {
-    "access": "public",
-    "directory": "../../../dist/packages/wp-now"
-  },
-  "license": "(GPL-2.0-or-later OR MPL-2.0)",
-  "type": "module",
-  "main": "main.js",
-  "bin": "main.js",
-  "gitHead": "e6a7ed1b4e3e804590a5d9c40d95dfb9e6281e1a"
+	"name": "wp-now",
+	"version": "0.0.0",
+	"description": "WordPress Playground CLI",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Antonio Sejas",
+			"email": "antonio@sejas.es",
+			"url": "https://github.com/sejas"
+		}
+	],
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/wp-now"
+	},
+	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"type": "module",
+	"main": "main.js",
+	"bin": "main.js",
+	"gitHead": "e6a7ed1b4e3e804590a5d9c40d95dfb9e6281e1a"
 }

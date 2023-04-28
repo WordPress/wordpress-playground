@@ -29,12 +29,13 @@ export const SQLITE_PATH = path.join(WP_NOW_PATH, `${SQLITE_FILENAME}-main`);
 /**
  * The URL for downloading the latest version of WordPress.
  */
-export const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip'
+export const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip';
 
 /**
  * The URL for downloading the SQLite database integration WordPress Plugin.
  */
-export const SQLITE_URL = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip'
+export const SQLITE_URL =
+	'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip';
 
 /**
  * The default starting port for running the WP Now server.

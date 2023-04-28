@@ -5,64 +5,68 @@ import { startServer } from './start-server';
 import { portFinder } from './port-finder';
 
 function startSpinner(message: string) {
-  process.stdout.write(`${message}...\n`);
-  return {
-    succeed: (text: string) => {
-      console.log(`${text}`);
-    },
-    fail: (text: string) => {
-      console.error(`${text}`);
-    },
-  };
+	process.stdout.write(`${message}...\n`);
+	return {
+		succeed: (text: string) => {
+			console.log(`${text}`);
+		},
+		fail: (text: string) => {
+			console.error(`${text}`);
+		},
+	};
 }
 
-
 export async function runCli() {
-  const port = await portFinder.getOpenPort();
-  return yargs(hideBin(process.argv))
-  .scriptName('wp-now')
-  .usage('$0 <cmd> [args]')
-  .command(
-    'start',
-    'Start the server',
-    (yargs) => {
-      yargs.option('port', {
-        describe: 'Server port',
-        type: 'number',
-        default: port,
-      });
-      yargs.option('path', {
-        describe: 'Path to the PHP or WordPress project. Defaults to the current working directory.',
-        type: 'string',
-        default: process.cwd(),
-      });
-      yargs.option('wp-content', {
-        describe: 'Path to the wp-content directory. Defaults to .wp-now/projects/ inside the home directory.',
-        type: 'string',
-        default: '',
-      });
-    },
-    async (argv) => {
-      const spinner = startSpinner('Starting the server...');
-      try {
-        portFinder.setPort(argv.port as number);
-        const options = {
-          projectPath: argv.path as string,
-        };
-        if (argv['wp-content']) {
-          options['wpContentPath'] = argv['wp-content'] as string;
-        }
-        await startServer(options);
-        spinner.succeed(`Server started on port ${argv.port}.`);
-      } catch (error) {
-        console.error(error);
-        spinner.fail(`Failed to start the server: ${(error as Error).message}`);
-      }
-    }
-  )
-  .demandCommand(1, 'You must provide a valid command')
-  .help()
-  .alias('h', 'help')
-  .strict()
-  .argv;
+	const port = await portFinder.getOpenPort();
+	return yargs(hideBin(process.argv))
+		.scriptName('wp-now')
+		.usage('$0 <cmd> [args]')
+		.command(
+			'start',
+			'Start the server',
+			(yargs) => {
+				yargs.option('port', {
+					describe: 'Server port',
+					type: 'number',
+					default: port,
+				});
+				yargs.option('path', {
+					describe:
+						'Path to the PHP or WordPress project. Defaults to the current working directory.',
+					type: 'string',
+					default: process.cwd(),
+				});
+				yargs.option('wp-content', {
+					describe:
+						'Path to the wp-content directory. Defaults to .wp-now/projects/ inside the home directory.',
+					type: 'string',
+					default: '',
+				});
+			},
+			async (argv) => {
+				const spinner = startSpinner('Starting the server...');
+				try {
+					portFinder.setPort(argv.port as number);
+					const options = {
+						projectPath: argv.path as string,
+					};
+					if (argv['wp-content']) {
+						options['wpContentPath'] = argv['wp-content'] as string;
+					}
+					await startServer(options);
+					spinner.succeed(`Server started on port ${argv.port}.`);
+				} catch (error) {
+					console.error(error);
+					spinner.fail(
+						`Failed to start the server: ${
+							(error as Error).message
+						}`
+					);
+				}
+			}
+		)
+		.demandCommand(1, 'You must provide a valid command')
+		.help()
+		.alias('h', 'help')
+		.strict().argv;
 }
