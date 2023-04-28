@@ -6,18 +6,19 @@ import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH, WP_NOW_HIDDEN_FOLDER
 import { downloadSqlite, downloadWordPress } from './download'
 import { portFinder } from './port-finder'
 
+type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto'
 export interface WPNowOptions {
   phpVersion?: SupportedPHPVersion
   documentRoot?: string
   absoluteUrl?: string
-  mode?: 'plugin' | 'theme' | 'core' | 'index'
+  mode?: WPNowMode
   projectPath?: string
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
   phpVersion: '8.0',
   documentRoot: '/var/www/html',
-  mode: 'index',
+  mode: 'auto',
 }
 async function getAbsoluteURL() {
   const port = await portFinder.getOpenPort()
@@ -133,25 +134,73 @@ export default class WPNow {
     )
   }
 
+  #getWpContentInternalPath() {
+    return path.join(this.options.projectPath, WP_NOW_HIDDEN_FOLDER, 'wp-content')
+  }
+
+  static #isPluginDirectory(directory: string): Boolean {
+    const files = fs.readdirSync(directory);
+    for (const file of files) {
+      if (file.endsWith('.php')) {
+        const fileContent = fs.readFileSync(path.join(directory, file), 'utf8');
+        if (fileContent.includes('Plugin Name:')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  static #isThemeDirectory(directory: string): Boolean {
+    const styleCSSExists = fs.existsSync(path.join(directory, 'style.css'))
+    if (!styleCSSExists) {
+      return false
+    }
+    const styleCSS = fs.readFileSync(path.join(directory, 'style.css'), 'utf-8')
+    return styleCSS.includes('Theme Name:')
+  }
+
+  #inferMode(): Exclude<WPNowMode, 'auto'> {
+    const { mode } = this.options
+    if (mode !== 'auto') {
+      return mode
+    }
+    const hasIndexPhp = fs.existsSync(path.join(this.options.projectPath, 'index.php'))
+    const hasWpContentFolder = fs.existsSync(path.join(this.options.projectPath, 'wp-content'))
+
+    if (WPNow.#isPluginDirectory(this.options.projectPath)) {
+      return 'plugin'
+    } else if (WPNow.#isThemeDirectory(this.options.projectPath)) {
+      return 'theme'
+    } else if (!hasIndexPhp && hasWpContentFolder) {
+      return 'core'
+    } else if (hasIndexPhp && !hasWpContentFolder) {
+      return 'index'
+    }
+    throw new Error('Could not infer mode. Please specify it manually.')
+  }
+
   mount() {
-    if (this.options.mode === 'index') {
+    const mode = this.#inferMode()
+
+    if (mode === 'index') {
       this.php.mount(this.options.projectPath, this.options.documentRoot)
       return
     }
-    // Mode core, plugin or theme
+    // Mode: core, plugin or theme
     this.mountWordpress()
-    // Copy wp-content to local hidden folder
-    const wpContentPath = path.join(this.options.projectPath, WP_NOW_HIDDEN_FOLDER, 'wp-content')
+    const wpContentPath = this.#getWpContentInternalPath()
     fs.ensureDirSync(wpContentPath);
     fs.copySync(path.join(WORDPRESS_ZIPS_PATH, 'latest', 'wordpress', 'wp-content'), wpContentPath)
     this.php.mount(wpContentPath, `${this.options.documentRoot}/wp-content`)
 
-    if (this.options.mode === 'plugin' || this.options.mode === 'theme') {
+    if (mode === 'plugin' || mode === 'theme') {
       const folderName = path.basename(this.options.projectPath)
-      const partialPath = this.options.mode === 'plugin' ? 'plugins' : 'themes'
+      const partialPath = mode === 'plugin' ? 'plugins' : 'themes'
       fs.ensureDirSync(path.join(wpContentPath, partialPath, folderName));
       this.php.mount(this.options.projectPath, `${this.options.documentRoot}/wp-content/${partialPath}/${folderName}`)
     }
+
     this.mountSqlite()
   }
 
