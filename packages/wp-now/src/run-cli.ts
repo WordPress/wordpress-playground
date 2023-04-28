@@ -32,18 +32,27 @@ export async function runCli() {
         default: port,
       });
       yargs.option('path', {
-        describe: 'Path to the WordPress project. Defaults to the current working directory.',
+        describe: 'Path to the PHP or WordPress project. Defaults to the current working directory.',
         type: 'string',
         default: process.cwd(),
+      });
+      yargs.option('wp-content', {
+        describe: 'Path to the wp-content directory. Defaults to .wp-now/projects/ inside the home directory.',
+        type: 'string',
+        default: '',
       });
     },
     async (argv) => {
       const spinner = startSpinner('Starting the server...');
       try {
         portFinder.setPort(argv.port as number);
-        process.chdir(argv.path as string);
-        console.log(`Project directory: ${process.cwd()}`);
-        await startServer();
+        const options = {
+          projectPath: argv.path as string,
+        };
+        if (argv['wp-content']) {
+          options['wpContentPath'] = argv['wp-content'] as string;
+        }
+        await startServer(options);
         spinner.succeed(`Server started on port ${argv.port}.`);
       } catch (error) {
         console.error(error);

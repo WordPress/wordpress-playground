@@ -1,8 +1,9 @@
 import fs from 'fs-extra';
+import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node'
 import { SupportedPHPVersion } from '@php-wasm/universal'
 import path from 'path'
-import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH, WP_NOW_HIDDEN_FOLDER } from './constants'
+import { SQLITE_FILENAME, SQLITE_PATH, WORDPRESS_ZIPS_PATH, WP_NOW_PATH } from './constants'
 import { downloadSqlite, downloadWordPress } from './download'
 import { portFinder } from './port-finder'
 
@@ -13,6 +14,7 @@ export interface WPNowOptions {
   absoluteUrl?: string
   mode?: WPNowMode
   projectPath?: string
+  wpContentPath?: string
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
@@ -37,11 +39,13 @@ export default class WPNow {
   static async create(options: WPNowOptions = {}): Promise<WPNow> {
     const instance = new WPNow();
     const absoluteUrl = await getAbsoluteURL();
-    const projectPath = process.cwd()
+    const projectPath =  options.projectPath || process.cwd()
+    const wpContentPath = this.#getWpContentHomePath(projectPath);
     const mode = this.#inferMode(projectPath);
     await instance.#setup({
       absoluteUrl,
       projectPath,
+      wpContentPath,
       mode,
       ...options,
     });
@@ -136,15 +140,17 @@ export default class WPNow {
     )
   }
 
-  #getWpContentInternalPath() {
-    return path.join(this.options.projectPath, WP_NOW_HIDDEN_FOLDER, 'wp-content')
+  static #getWpContentHomePath(projectPath: string) {
+    const basename = path.basename(projectPath)
+    const directoryHash = crypto.createHash('sha1').update(projectPath).digest('hex')
+    return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`)
   }
 
-  static #isPluginDirectory(directory: string): Boolean {
-    const files = fs.readdirSync(directory);
+  static #isPluginDirectory(projectPath: string): Boolean {
+    const files = fs.readdirSync(projectPath);
     for (const file of files) {
       if (file.endsWith('.php')) {
-        const fileContent = fs.readFileSync(path.join(directory, file), 'utf8');
+        const fileContent = fs.readFileSync(path.join(projectPath, file), 'utf8');
         if (fileContent.includes('Plugin Name:')) {
           return true;
         }
@@ -153,22 +159,22 @@ export default class WPNow {
     return false;
   }
 
-  static #isThemeDirectory(directory: string): Boolean {
-    const styleCSSExists = fs.existsSync(path.join(directory, 'style.css'))
+  static #isThemeDirectory(projectPath: string): Boolean {
+    const styleCSSExists = fs.existsSync(path.join(projectPath, 'style.css'))
     if (!styleCSSExists) {
       return false
     }
-    const styleCSS = fs.readFileSync(path.join(directory, 'style.css'), 'utf-8')
+    const styleCSS = fs.readFileSync(path.join(projectPath, 'style.css'), 'utf-8')
     return styleCSS.includes('Theme Name:')
   }
 
-  static #inferMode(directory: string): Exclude<WPNowMode, 'auto'> {
-    const hasIndexPhp = fs.existsSync(path.join(directory, 'index.php'))
-    const hasWpContentFolder = fs.existsSync(path.join(directory, 'wp-content'))
+  static #inferMode(projectPath: string): Exclude<WPNowMode, 'auto'> {
+    const hasIndexPhp = fs.existsSync(path.join(projectPath, 'index.php'))
+    const hasWpContentFolder = fs.existsSync(path.join(projectPath, 'wp-content'))
 
-    if (WPNow.#isPluginDirectory(directory)) {
+    if (WPNow.#isPluginDirectory(projectPath)) {
       return 'plugin'
-    } else if (WPNow.#isThemeDirectory(directory)) {
+    } else if (WPNow.#isThemeDirectory(projectPath)) {
       return 'theme'
     } else if (!hasIndexPhp && hasWpContentFolder) {
       return 'core'
@@ -186,7 +192,7 @@ export default class WPNow {
     }
     // Mode: core, plugin or theme
     this.mountWordpress()
-    const wpContentPath = this.#getWpContentInternalPath()
+    const { wpContentPath } = this.options
     fs.ensureDirSync(wpContentPath);
     fs.copySync(path.join(WORDPRESS_ZIPS_PATH, 'latest', 'wordpress', 'wp-content'), wpContentPath)
     this.php.mount(wpContentPath, `${this.options.documentRoot}/wp-content`)
@@ -236,6 +242,8 @@ export default class WPNow {
   }
 
   async start() {
+    console.log(`Project directory: ${this.options.projectPath}`);
+    console.log(`wp-content directory: ${this.options.wpContentPath}`);
     console.log(`Mode: ${this.options.mode}`)
     if (this.options.mode === 'index') {
       this.mount()
