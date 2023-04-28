@@ -379,5 +379,3 @@ function inferMimeType(path: string): string {
 			return 'application-octet-stream';
 	}
 }
-
-export default PHPRequestHandler;

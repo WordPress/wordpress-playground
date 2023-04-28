@@ -11,7 +11,7 @@ class PluginDownloader
     private $githubToken;
 
     public const PLUGINS = 'plugins';
-    public const THEMES = 'themes';
+    public const THEMES = 'theme';
 
     public function __construct($githubToken)
     {
@@ -194,7 +194,7 @@ try {
     if (isset($_GET['plugin'])) {
         $downloader->streamFromDirectory($_GET['plugin'], PluginDownloader::PLUGINS);
     } else if (isset($_GET['theme'])) {
-        $downloader->streamFromDirectory($_GET['plugin'], PluginDownloader::THEMES);
+        $downloader->streamFromDirectory($_GET['theme'], PluginDownloader::THEMES);
     } else if (isset($_GET['org']) && isset($_GET['repo']) && isset($_GET['workflow']) && isset($_GET['pr']) && isset($_GET['artifact'])) {
         $allowedInputs = [
             [

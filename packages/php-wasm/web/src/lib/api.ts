@@ -23,7 +23,25 @@ export function consumeAPI<APIType>(
 	const endpoint =
 		remote instanceof Worker ? remote : Comlink.windowEndpoint(remote);
 
-	return Comlink.wrap<APIType & WithAPIState>(endpoint);
+	/**
+	 * This shouldn't be necessary, but Comlink doesn't seem to
+	 * handle the initial isConnected() call correctly unless it's
+	 * explicitly provided here. This is especially weird
+	 * since the only thing this proxy does is to call the
+	 * isConnected() method on the remote API.
+	 *
+	 * @TODO: Remove this workaround.
+	 */
+	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
+	const methods = proxyClone(api);
+	return new Proxy(methods, {
+		get: (target, prop) => {
+			if (prop === 'isConnected') {
+				return () => api.isConnected();
+			}
+			return (api as any)[prop];
+		},
+	}) as unknown as RemoteAPI<APIType>;
 }
 
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
@@ -65,7 +83,12 @@ export function exposeAPI<Methods, PipedAPI>(
 	return [setReady, exposedApi];
 }
 
+let isTransferHandlersSetup = false;
 function setupTransferHandlers() {
+	if (isTransferHandlersSetup) {
+		return;
+	}
+	isTransferHandlersSetup = true;
 	Comlink.transferHandlers.set('EVENT', {
 		canHandle: (obj): obj is CustomEvent => obj instanceof CustomEvent,
 		serialize: (ev: CustomEvent) => {

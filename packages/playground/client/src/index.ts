@@ -71,7 +71,6 @@ export async function startPlaygroundWeb({
 	if (!blueprint) {
 		return doStartPlaygroundWeb(iframe, remoteUrl, progressTracker);
 	}
-
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
@@ -85,6 +84,7 @@ export async function startPlaygroundWeb({
 		progressTracker
 	);
 	await runBlueprintSteps(compiled, playground);
+	progressTracker.finish();
 	return playground;
 }
 
@@ -113,10 +113,10 @@ async function doStartPlaygroundWeb(
 	) as PlaygroundClient;
 	await playground.isConnected();
 	progressTracker.pipe(playground);
-	await playground.onDownloadProgress(
-		progressTracker.stage().loadingListener
-	);
+	const downloadPHPandWP = progressTracker.stage();
+	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
 	await playground.isReady();
+	downloadPHPandWP.finish();
 	return playground;
 }
 
