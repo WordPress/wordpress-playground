@@ -1,9 +1,8 @@
 import request from 'request';
 import fs from 'fs-extra';
 import unzipper from 'unzipper';
-
 import path from 'path';
-import { SQLITE_FILENAME, SQLITE_URL, SQLITE_ZIP_PATH, WORDPRESS_ZIPS_PATH, WP_DOWNLOAD_URL } from './constants';
+import { SQLITE_FILENAME, SQLITE_PATH, SQLITE_URL, WORDPRESS_ZIPS_PATH, WP_DOWNLOAD_URL, WP_NOW_PATH } from './constants';
 
 async function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -20,17 +19,17 @@ async function downloadFile(url: string, dest: string): Promise<void> {
   });
 }
 
-async function downloadFileAndUnzip(url, zipPath, unzipPath, itemName) {
-  if (!fs.existsSync(unzipPath)) {
+async function downloadFileAndUnzip({ url, zipPath, unzipPath, checkFinalPath, itemName }) {
+  if (!fs.existsSync(checkFinalPath)) {
     try {
       fs.ensureDirSync(path.dirname(zipPath));
       console.log(`Downloading ${itemName}...`);
       await downloadFile(url, zipPath);
-      console.log('Download complete.');
       // unzip the file
       console.log(`Unzipping ${itemName}...`);
       await fs.createReadStream(zipPath).pipe(unzipper.Extract({ path: unzipPath })).promise();
-      console.log('Unzipping complete.');
+      console.log('Removing Zip.');
+      await fs.remove(zipPath);
     } catch (err) {
       console.error(`Error downloading or unzipping ${itemName}:`, err);
     }
@@ -41,16 +40,22 @@ async function downloadFileAndUnzip(url, zipPath, unzipPath, itemName) {
 
 export async function downloadWordPress(fileName = 'latest') {
   return downloadFileAndUnzip(
-    WP_DOWNLOAD_URL,
-    path.join(WORDPRESS_ZIPS_PATH, `${fileName}.zip`),
-    path.join(WORDPRESS_ZIPS_PATH, fileName),
-    `WordPress ${fileName}`);
+    {
+      url: WP_DOWNLOAD_URL,
+      zipPath: path.join(WORDPRESS_ZIPS_PATH, `${fileName}.zip`),
+      unzipPath: path.join(WORDPRESS_ZIPS_PATH, fileName),
+      checkFinalPath: path.join(WORDPRESS_ZIPS_PATH, fileName),
+      itemName: `WordPress ${fileName}`
+    });
 }
 
 export async function downloadSqlite() {
   return downloadFileAndUnzip(
-    SQLITE_URL,
-    path.join(SQLITE_ZIP_PATH, `${SQLITE_FILENAME}.zip`),
-    SQLITE_ZIP_PATH,
-    'Sqlite');
+    {
+      url: SQLITE_URL,
+      zipPath: path.join(WP_NOW_PATH, `${SQLITE_FILENAME}.zip`),
+      unzipPath: WP_NOW_PATH,
+      checkFinalPath: SQLITE_PATH,
+      itemName: 'Sqlite'
+    });
 }
