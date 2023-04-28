@@ -54,7 +54,6 @@ export async function runCli() {
 						options['wpContentPath'] = argv['wp-content'] as string;
 					}
 					await startServer(options);
-					spinner.succeed(`Server started on port ${argv.port}.`);
 				} catch (error) {
 					console.error(error);
 					spinner.fail(
