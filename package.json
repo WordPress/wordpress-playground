@@ -7,7 +7,7 @@
 		"build:website": "nx build playground-website",
 		"deploy": "gh-pages -d dist/docs -t true",
 		"dev": "nx dev playground-website",
-		"dev:editor": "nx dev interactive-block-playground",
+		"dev:interactivity": "nx dev interactive-block-playground",
 		"lint": "nx run-many --all --target=lint",
 		"predeploy": "nx build docs-site",
 		"prepublishOnly": "npm run build",
