@@ -1,9 +1,9 @@
 import {
-	connectPlayground,
 	installPlugin,
 	login,
 	PHPResponse,
 	PlaygroundClient,
+	startPlaygroundWeb,
 } from '@wp-playground/client';
 
 function asDOM(response: PHPResponse) {
@@ -77,13 +77,17 @@ store({
 });`;
 
 (async () => {
-	const playground = document.querySelector('#playground');
-	const client = await connectPlayground(playground, {
-		loadRemote: 'https://playground.wordpress.net/remote.html',
+	const playground = document.querySelector(
+		'#playground'
+	) as HTMLIFrameElement;
+
+	const client = await startPlaygroundWeb({
+		iframe: playground,
+		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
 
 	await client.isReady();
-	await login(client, 'admin', 'password');
+	await login(client, { username: 'admin', password: 'password' });
 
 	const plugins = [
 		'gutenberg.zip',
@@ -95,7 +99,7 @@ store({
 		const pluginResponse = await fetch(`zips/${plugin}`);
 		const blob = await pluginResponse.blob();
 		const pluginFile = new File([blob], plugin);
-		await installPlugin(client, pluginFile);
+		await installPlugin(client, { pluginZipFile: pluginFile });
 	}
 
 	const data = await createNewPost(
