@@ -36,8 +36,7 @@
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],
-			"@wp-playground/remote": ["packages/playground/remote/src/index.ts"],
-			"@wp-playground/interactive-block-playground": ["packages/playground/interactive-block-playground/src/index.ts"]
+			"@wp-playground/remote": ["packages/playground/remote/src/index.ts"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]
