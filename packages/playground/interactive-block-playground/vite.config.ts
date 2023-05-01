@@ -44,7 +44,8 @@ export default defineConfig(({ command }) => {
 			: // In dev, the website and the playground are served from different domains.
 			  `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 	return {
-		cacheDir: '../../../node_modules/.vite/packages-playground-website',
+		cacheDir:
+			'../../../node_modules/.vite/packages-interactive-block-playground',
 
 		css: {
 			modules: {
