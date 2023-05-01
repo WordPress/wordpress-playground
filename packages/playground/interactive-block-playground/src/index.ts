@@ -1,6 +1,5 @@
 import {
 	installPlugin,
-	login,
 	PHPResponse,
 	PlaygroundClient,
 	startPlaygroundWeb,
