@@ -2,12 +2,8 @@
 	"name": "interactive-block-playground",
 	"version": "1.0.0",
 	"description": "",
-	"main": "index.js",
 	"scripts": {
-		"start": "concurrently 'npm:compile-ts' 'npm:build-zips' 'npm:start-server'",
-		"compile-ts": "tsc -w -p tsconfig.json",
-		"build-zips": "node build-zips.js",
-		"start-server": "http-server"
+		"build-zips": "node build-zips.js"
 	},
 	"author": "The WordPress Contributors",
 	"license": "GPL-2.0-or-later",
