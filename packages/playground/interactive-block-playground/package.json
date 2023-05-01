@@ -11,5 +11,6 @@
 	},
 	"author": "The WordPress Contributors",
 	"license": "ISC",
-	"type": "module"
+	"type": "module",
+	"private": "true"
 }
