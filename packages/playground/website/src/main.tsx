@@ -16,7 +16,7 @@ const query = new URL(document.location.href).searchParams;
 
 /*
  * Support passing blueprints in the URI frament, e.g.:
- * /{"landingPage": "/?p=4"}
+ * /#{"landingPage": "/?p=4"}
  */
 const fragment = decodeURI(document.location.hash || '#').substring(1);
 let blueprint: Blueprint;
