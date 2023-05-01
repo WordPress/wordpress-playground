@@ -1,47 +1,17 @@
 .editors {
-  display: grid;
-  grid-template-rows: 35px 2fr;
-  grid-auto-flow: column;
-  grid-gap: 20px;
-  justify-content: start;
+	display: grid;
+	grid-template-rows: 35px 2fr;
+	grid-auto-flow: column;
+	grid-gap: 20px;
+	justify-content: start;
 }
 
 textarea {
-  width: 387px;
-  height: 240px;
-  font-family: monospace;
+	width: 387px;
+	height: 240px;
+	font-family: monospace;
 }
 
 .iframe-container {
-  position: relative;
-}
-
-/* Create the spinner animation */
-@keyframes spinner {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.hidden {
-  visibility: hidden;
-}
-
-/* Style the spinner */
-.iframe-spinner {
-  display: block;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border: 3px solid rgba(0, 0, 0, 0.2);
-  border-top-color: #333;
-  border-radius: 50%;
-  animation: spinner 0.6s linear infinite;
+	position: relative;
 }

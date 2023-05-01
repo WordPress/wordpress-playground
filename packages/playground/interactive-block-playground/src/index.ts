@@ -84,17 +84,32 @@ store({
 	const client = await startPlaygroundWeb({
 		iframe: playground,
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
+		blueprint: {
+			landingPage: '/wp-admin',
+			preferredVersions: {
+				php: '8.0',
+				wp: 'latest',
+			},
+			steps: [
+				{
+					step: 'login',
+					username: 'admin',
+					password: 'password',
+				},
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'wordpress.org/plugins',
+						slug: 'gutenberg',
+					},
+				},
+			],
+		},
 	});
 
 	await client.isReady();
-	await login(client, { username: 'admin', password: 'password' });
 
-	const plugins = [
-		'gutenberg.zip',
-		'block-interactivity-experiments.zip',
-		'hello.zip',
-	];
-
+	const plugins = ['block-interactivity-experiments.zip', 'hello.zip'];
 	for (const plugin of plugins) {
 		const pluginResponse = await fetch(`zips/${plugin}`);
 		const blob = await pluginResponse.blob();
@@ -109,12 +124,6 @@ store({
 	);
 
 	await client.goTo(`/?p=${data.id}`);
-
-	// sleep for 400ms to make sure the new post is loaded
-	await new Promise((resolve) => setTimeout(resolve, 400));
-
-	document.querySelector('.iframe-spinner')!.remove();
-	document.querySelector('iframe')!.classList.remove('hidden');
 
 	document
 		.getElementById('render.php')!
