@@ -5,6 +5,8 @@ import {
 	startPlaygroundWeb,
 } from '@wp-playground/client';
 
+import { remotePlaygroundOrigin } from './config';
+
 function asDOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(response.text, 'text/html')!;
 }
@@ -82,7 +84,7 @@ store({
 
 	const client = await startPlaygroundWeb({
 		iframe: playground,
-		remoteUrl: 'https://playground.wordpress.net/remote.html',
+		remoteUrl: `${remotePlaygroundOrigin}/remote.html`,
 		blueprint: {
 			landingPage: '/wp-admin',
 			preferredVersions: {
