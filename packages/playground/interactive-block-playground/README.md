@@ -1,4 +1,4 @@
-### Interactive Block Playground 
+### Interactive Block Playground
 
 Built with [WordPress Playground](https://github.com/WordPress/wordpress-playground).
 
