@@ -1,17 +1,17 @@
 body > :not(.wp-site-blocks) {
-  display: none;
+	display: none;
 }
 
 .wp-site-blocks > :not(main) {
-  display: none;
+	display: none;
 }
 
 main > :not(.entry-content) {
-  display: none;
+	display: none;
 }
 
 .entry-content {
-  position: absolute;
-  top: 0;
-  left: 0;
+	position: absolute;
+	top: 0;
+	left: 0;
 }

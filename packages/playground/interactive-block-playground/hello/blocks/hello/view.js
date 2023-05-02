@@ -2,11 +2,11 @@
 const { store } = window.__experimentalInteractivity;
 
 store({
-  actions: {
-    hello: {
-      log: () => {
-        console.log("hello!");
-      },
-    },
-  },
+	actions: {
+		hello: {
+			log: () => {
+				console.log('hello!');
+			},
+		},
+	},
 });

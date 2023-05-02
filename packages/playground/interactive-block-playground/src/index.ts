@@ -104,19 +104,26 @@ store({
 						slug: 'gutenberg',
 					},
 				},
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'url',
+						url: 'zips/hello.zip',
+					},
+				},
 			],
 		},
 	});
 
 	await client.isReady();
 
-	const plugins = ['block-interactivity-experiments.zip', 'hello.zip'];
-	for (const plugin of plugins) {
-		const pluginResponse = await fetch(`zips/${plugin}`);
-		const blob = await pluginResponse.blob();
-		const pluginFile = new File([blob], plugin);
-		await installPlugin(client, { pluginZipFile: pluginFile });
-	}
+	// Install the block-interactivity-experiments plugin
+	const pluginResponse = await fetch(
+		`zips/block-interactivity-experiments.zip`
+	);
+	const blob = await pluginResponse.blob();
+	const pluginFile = new File([blob], 'block-interactivity-experiments.zip');
+	await installPlugin(client, { pluginZipFile: pluginFile });
 
 	const data = await createNewPost(
 		client,
