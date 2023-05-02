@@ -559,6 +559,14 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         # 
         # Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
         # to get the entire stack.
+        #
+        #
+        # -------
+        # 
+        # Related: Any errors like Fatal error: Cannot redeclare function ...
+        # are caused by dispatching a PHP request while an execution is paused 
+        # due to an async call – it means the same PHP files are loaded before
+        # the previous request, where they're already loaded, is concluded.
         export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
@@ -636,6 +644,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
 "cli",\
 "wasm_sapi_handle_request",\
+"_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
 "_php_stream_copy_to_mem",\
@@ -766,6 +775,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_openssl_sockop_write",\
 "php_pollfd_for",\
 "php_replace_in_subject_func",\
+"php_request_shutdown",\
 "php_sock_stream_wait_for_data",\
 "php_sockop_read",\
 "php_sockop_read_close",\
@@ -797,10 +807,15 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zend_eval_stringl",\
 "zend_execute",\
 "zend_execute_scripts",\
+"zend_error",\
+"zend_error_va_list",\
 "zend_hash_apply",\
 "zend_hash_graceful_reverse_destroy",\
+"zend_internal_type_error",\
 "zend_objects_destroy_object",\
 "zend_objects_store_call_destructors",\
+"zend_parse_parameters",\
+"zend_parse_va_args",\
 "zend_std_call_getter",\
 "zend_std_has_property",\
 "zend_std_read_property",\
@@ -847,6 +862,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zim_PDO_rollBack",\
 "zim_ReflectionMethod_invoke",\
 "zim_ReflectionMethod_invokeArgs",\
+"zim_reflection_class_newInstanceArgs",\
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs"'; \
     # If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
