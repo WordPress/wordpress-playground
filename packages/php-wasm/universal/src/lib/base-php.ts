@@ -302,7 +302,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			'wasm_set_content_length',
 			null,
 			[NUMBER],
-			[body.length]
+			[new TextEncoder().encode(body).length]
 		);
 	}
 
