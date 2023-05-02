@@ -22,7 +22,7 @@ export const WORDPRESS_ZIPS_PATH = path.join(WP_NOW_PATH, 'wordpress_zips');
 export const SQLITE_FILENAME = 'sqlite-database-integration';
 
 /**
- * The full path to the SQLite database integration folder.
+ * The full path to the "SQLite database integration" folder.
  */
 export const SQLITE_PATH = path.join(WP_NOW_PATH, `${SQLITE_FILENAME}-main`);
 
@@ -32,7 +32,7 @@ export const SQLITE_PATH = path.join(WP_NOW_PATH, `${SQLITE_FILENAME}-main`);
 export const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip';
 
 /**
- * The URL for downloading the SQLite database integration WordPress Plugin.
+ * The URL for downloading the "SQLite database integration" WordPress Plugin.
  */
 export const SQLITE_URL =
 	'https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip';
