@@ -37,12 +37,6 @@ export async function runCli() {
 					type: 'string',
 					default: process.cwd(),
 				});
-				yargs.option('wp-content', {
-					describe:
-						'Path to the wp-content directory. Defaults to .wp-now/projects/ inside the home directory.',
-					type: 'string',
-					default: '',
-				});
 				yargs.option('phpVersion', {
 					describe: 'PHP version to use.',
 					type: 'string',
@@ -57,9 +51,6 @@ export async function runCli() {
 						projectPath: argv.path as string,
 						phpVersion: argv.phpVersion as SupportedPHPVersion,
 					};
-					if (argv['wp-content']) {
-						options['wpContentPath'] = argv['wp-content'] as string;
-					}
 					await startServer(options);
 				} catch (error) {
 					console.error(error);
