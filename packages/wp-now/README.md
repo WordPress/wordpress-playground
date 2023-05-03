@@ -18,7 +18,7 @@ yarn build
 
 ### Running
 
-To start the webserver and preview your WordPress plugin or theme, use the following command:
+To start the web server and execute your WordPress plugin or theme, use the following command:
 
 ```bash
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
