@@ -1,0 +1,26 @@
+.output {
+	box-sizing: border-box;
+	min-height: 3em;
+	position: relative;
+	border: 1px solid #e0e0e0;
+	overflow-y: auto;
+
+	opacity: 1;
+	transition: opacity ease-in 0.25s, border-color ease-in 0.25s,
+		background-color ease-in 0.25s;
+}
+
+.title {
+	margin-bottom: 5px;
+	font-weight: bold;
+}
+
+.output.is-ready {
+	opacity: 0.5;
+	border-color: #f9e79f;
+	background-color: #f9e79f;
+}
+
+.output pre {
+	margin: 15px 20px;
+}

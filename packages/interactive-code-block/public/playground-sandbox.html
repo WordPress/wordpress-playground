@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				height: 100%;
+				width: 100%;
+			}
+			iframe {
+				height: 100%;
+				width: 100%;
+				border: none;
+			}
+		</style>
+	</head>
+	<body>
+		<script>
+			window.iframeLoaded = new Promise((resolve) => {
+				window.resolveLoaded = resolve;
+			});
+		</script>
+		<iframe
+			id="playground-frame"
+			src="https://playground.wordpress.net/remote.html"
+			onload="window.resolveLoaded();"
+		></iframe>
+
+		<script type="module">
+			import { expose, windowEndpoint } from './assets/comlink.js';
+			import { connectPlayground } from './assets/playground-client.js';
+			const iframe = document.getElementById('playground-frame');
+			const readyPromise = window.iframeLoaded
+				.then(() => connectPlayground(iframe))
+				.then((client) => {
+					window.client = client;
+					return client.isReady();
+				});
+
+			expose(
+				{
+					async isReady() {
+						await readyPromise;
+					},
+					execute(code) {
+						const script = document.createElement('script');
+						script.type = 'module';
+						// Very naive way to resolve the import statement.
+						// Import maps would be much better, but they are not yet
+						// supported in Safari.
+						script.text = code
+							.replaceAll(
+								'"@wp-playground/client"',
+								"''./assets/playground-client.js'"
+							)
+							.replaceAll(
+								"'@wp-playground/client'",
+								'"./assets/playground-client.js"'
+							);
+						document.head.appendChild(script);
+						document.head.removeChild(script);
+					},
+				},
+				windowEndpoint(self.parent)
+			);
+		</script>
+	</body>
+</html>

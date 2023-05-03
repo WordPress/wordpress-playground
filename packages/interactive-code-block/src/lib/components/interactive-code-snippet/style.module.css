@@ -1,0 +1,31 @@
+.snippet {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+:local .snippet :global .cm-editor {
+	border: 1px solid #e0e0e0;
+}
+
+.snippet code {
+	display: block;
+}
+
+.title {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+	flex-direction: row;
+	margin-bottom: 5px;
+}
+
+.run-button {
+	font-size: 18px;
+	padding: 10px !important;
+	padding-right: 15px !important;
+}
+
+:local .run-button :global .dashicon {
+	margin-right: 5px !important;
+}

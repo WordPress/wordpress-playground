@@ -1,0 +1,18 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../../dist/out-tsc",
+		"declaration": true
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/lib/block/view-async.tsx",
+		"src/lib/block/register.tsx",
+		"src/lib/components/php-runner/index.tsx",
+		"src/lib/components/playground-runner/index.tsx",
+		"src/lib/hooks/use-code-runner.tsx",
+		"src/lib/hooks/use-libraries.tsx",
+		"src/lib/components/code-runner/index.tsx"
+	],
+	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+}

@@ -8,6 +8,8 @@
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"importHelpers": true,
+		"resolveJsonModule": true,
+		"jsx": "react",
 		"target": "ES2021",
 		"module": "esnext",
 		"lib": ["ES2022", "dom"],
@@ -33,6 +35,9 @@
 				"packages/playground/client/src/index.ts"
 			],
 			"@wp-playground/node": ["packages/playground/node/src/index.ts"],
+			"@wp-playground/interactive-code-block": [
+				"packages/interactive-code-block/src/index.ts"
+			],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],

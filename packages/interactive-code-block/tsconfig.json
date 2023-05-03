@@ -1,0 +1,24 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"forceConsistentCasingInFileNames": true,
+		"strict": true,
+		"jsx": "react-jsx",
+		"noImplicitOverride": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["vitest", "react"]
+	},
+	"files": [],
+	"include": [],
+	"references": [
+		{
+			"path": "./tsconfig.lib.json"
+		},
+		{
+			"path": "./tsconfig.spec.json"
+		}
+	]
+}
