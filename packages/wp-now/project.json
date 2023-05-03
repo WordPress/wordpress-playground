@@ -18,12 +18,13 @@
 			"dependsOn": ["build:bundle"]
 		},
 		"build:bundle": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"node packages/wp-now/esbuild.mjs",
 					"cp packages/wp-now/package.json dist/packages/wp-now"
-				]
+				],
+        "parallel": false
 			}
 		},
 		"preview": {
