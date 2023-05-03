@@ -37,7 +37,7 @@ export async function runCli() {
 					type: 'string',
 					default: process.cwd(),
 				});
-				yargs.option('phpVersion', {
+				yargs.option('php', {
 					describe: 'PHP version to use.',
 					type: 'string',
 					default: DEFAULT_PHP_VERSION,
