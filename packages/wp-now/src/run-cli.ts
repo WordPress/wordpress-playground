@@ -49,7 +49,7 @@ export async function runCli() {
 					portFinder.setPort(argv.port as number);
 					const options = {
 						projectPath: argv.path as string,
-						phpVersion: argv.phpVersion as SupportedPHPVersion,
+						phpVersion: argv.php as SupportedPHPVersion,
 					};
 					await startServer(options);
 				} catch (error) {
