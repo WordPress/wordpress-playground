@@ -39,10 +39,13 @@
 	"dependencies": {
 		"classnames": "^2.3.2",
 		"comlink": "^4.4.1",
+		"express-fileupload": "1.4.0",
 		"file-saver": "^2.0.5",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
-		"react-modal": "^3.16.1"
+		"react-modal": "^3.16.1",
+		"request": "2.88.2",
+		"unzipper": "0.10.11"
 	},
 	"devDependencies": {
 		"@convex-dev/typedoc-plugin-markdown": "3.14.0",
@@ -76,6 +79,7 @@
 		"@vitejs/plugin-react": "^3.1.0",
 		"@vitest/coverage-c8": "~0.25.8",
 		"@vitest/ui": "^0.25.8",
+		"chalk": "5.2.0",
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "^0.17.5",
 		"esbuild-plugin-copy": "^2.1.0",
@@ -95,6 +99,7 @@
 		"jsonc-eslint-parser": "^2.1.0",
 		"lerna": "6.6.1",
 		"nx": "15.8.6",
+		"ora": "6.3.0",
 		"prettier": "^2.6.2",
 		"react-test-renderer": "18.2.0",
 		"rimraf": "^4.4.0",
