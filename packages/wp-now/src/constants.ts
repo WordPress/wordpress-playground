@@ -16,7 +16,7 @@ export const WP_NOW_PATH = path.join(os.homedir(), WP_NOW_HIDDEN_FOLDER);
  */
 export const WORDPRESS_VERSIONS_PATH = path.join(
 	WP_NOW_PATH,
-	'wordpress_versions'
+	'wordpress-versions'
 );
 
 /**
