@@ -1,6 +1,6 @@
 # WP-NOW
 
-`wp-now` is an intuitive Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment using Node.js. This powerful tool is an ideal choice for developers working on WordPress themes and plugins.
+`wp-now` is an intuitive Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. This powerful tool is an ideal choice for developers working on WordPress themes and plugins.
 
 ## Getting Started
 
@@ -18,7 +18,7 @@ yarn build
 
 ### Running
 
-To run the project and preview your WordPress plugin or theme, use the following command:
+To start the webserver and preview your WordPress plugin or theme, use the following command:
 
 ```bash
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
