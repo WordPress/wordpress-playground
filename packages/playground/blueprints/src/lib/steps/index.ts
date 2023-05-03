@@ -10,6 +10,7 @@ import { InstallThemeStep } from './install-theme';
 import { LoginStep } from './login';
 import { RunWpInstallationWizardStep } from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
+import { CreatePostStep } from './create-post';
 import {
 	RmStep,
 	CpStep,
@@ -35,6 +36,7 @@ export type GenericStep<Resource> =
 	| ActivatePluginStep
 	| ApplyWordPressPatchesStep
 	| CpStep
+	| CreatePostStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>
