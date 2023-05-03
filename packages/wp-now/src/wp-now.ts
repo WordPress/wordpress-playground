@@ -203,14 +203,14 @@ export default class WPNow {
 			path.join(projectPath, 'wp-content')
 		);
 
-    if (WPNow.#isPluginDirectory(projectPath)) {
-      return 'plugin';
-    } else if (WPNow.#isThemeDirectory(projectPath)) {
-      return 'theme';
-    } else if (!hasIndexPhp && hasWpContentFolder) {
-      return 'core';
-    }
-    return 'index';
+		if (WPNow.#isPluginDirectory(projectPath)) {
+			return 'plugin';
+		} else if (WPNow.#isThemeDirectory(projectPath)) {
+			return 'theme';
+		} else if (!hasIndexPhp && hasWpContentFolder) {
+			return 'core';
+		}
+		return 'index';
 	}
 
 	static #validateOptions(options: WPNowOptions) {
