@@ -1,6 +1,6 @@
 # WP-NOW
 
-`wp-now` is an intuitive Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. This powerful tool is an ideal choice for developers working on WordPress themes and plugins.
+`wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. This powerful tool is optimized for developers working on WordPress themes and plugins.
 
 ## Getting Started
 
