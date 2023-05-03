@@ -22,7 +22,8 @@
 			"options": {
 				"commands": [
 					"node packages/wp-now/esbuild.mjs",
-					"cp packages/wp-now/package.json dist/packages/wp-now"
+					"cp packages/wp-now/package.json dist/packages/wp-now",
+					"cp packages/wp-now/README.md dist/packages/wp-now"
 				],
 				"parallel": false
 			}
