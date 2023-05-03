@@ -6,7 +6,7 @@ import path from 'path';
 import {
 	SQLITE_FILENAME,
 	SQLITE_PATH,
-	WORDPRESS_ZIPS_PATH,
+	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
 import { downloadSqlite, downloadWordPress } from './download';
@@ -95,7 +95,7 @@ export default class WPNow {
 
 	mountWordpress(fileName = 'latest') {
 		const { documentRoot } = this.options;
-		const root = path.join(WORDPRESS_ZIPS_PATH, fileName, 'wordpress');
+		const root = path.join(WORDPRESS_VERSIONS_PATH, fileName, 'wordpress');
 		this.php.mount(
 			{
 				root,
@@ -227,7 +227,7 @@ export default class WPNow {
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
 		fs.copySync(
-			path.join(WORDPRESS_ZIPS_PATH, 'latest', 'wordpress', 'wp-content'),
+			path.join(WORDPRESS_VERSIONS_PATH, 'latest', 'wordpress', 'wp-content'),
 			wpContentPath
 		);
 		this.php.mount(

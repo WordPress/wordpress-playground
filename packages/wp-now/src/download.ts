@@ -6,7 +6,7 @@ import {
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	SQLITE_URL,
-	WORDPRESS_ZIPS_PATH,
+	WORDPRESS_VERSIONS_PATH,
 	WP_DOWNLOAD_URL,
 	WP_NOW_PATH,
 } from './constants';
@@ -57,9 +57,9 @@ async function downloadFileAndUnzip({
 export async function downloadWordPress(fileName = 'latest') {
 	return downloadFileAndUnzip({
 		url: WP_DOWNLOAD_URL,
-		zipPath: path.join(WORDPRESS_ZIPS_PATH, `${fileName}.zip`),
-		unzipPath: path.join(WORDPRESS_ZIPS_PATH, fileName),
-		checkFinalPath: path.join(WORDPRESS_ZIPS_PATH, fileName),
+		zipPath: path.join(WORDPRESS_VERSIONS_PATH, `${fileName}.zip`),
+		unzipPath: path.join(WORDPRESS_VERSIONS_PATH, fileName),
+		checkFinalPath: path.join(WORDPRESS_VERSIONS_PATH, fileName),
 		itemName: `WordPress ${fileName}`,
 	});
 }
