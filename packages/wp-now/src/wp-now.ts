@@ -227,7 +227,12 @@ export default class WPNow {
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
 		fs.copySync(
-			path.join(WORDPRESS_VERSIONS_PATH, 'latest', 'wordpress', 'wp-content'),
+			path.join(
+				WORDPRESS_VERSIONS_PATH,
+				'latest',
+				'wordpress',
+				'wp-content'
+			),
 			wpContentPath
 		);
 		this.php.mount(

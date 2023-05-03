@@ -24,7 +24,7 @@
 					"node packages/wp-now/esbuild.mjs",
 					"cp packages/wp-now/package.json dist/packages/wp-now"
 				],
-        "parallel": false
+				"parallel": false
 			}
 		},
 		"preview": {

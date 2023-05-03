@@ -14,7 +14,10 @@ export const WP_NOW_PATH = path.join(os.homedir(), WP_NOW_HIDDEN_FOLDER);
 /**
  * The path where WordPress zip files will be unzipped and stored within the WP Now folder.
  */
-export const WORDPRESS_VERSIONS_PATH = path.join(WP_NOW_PATH, 'wordpress_versions');
+export const WORDPRESS_VERSIONS_PATH = path.join(
+	WP_NOW_PATH,
+	'wordpress_versions'
+);
 
 /**
  * The file name for the SQLite plugin name.
