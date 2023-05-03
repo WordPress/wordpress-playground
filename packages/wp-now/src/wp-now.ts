@@ -11,6 +11,7 @@ import {
 } from './constants';
 import { downloadSqlite, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
+import { defineSiteUrl } from '@wp-playground/blueprints';
 
 type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto';
 export interface WPNowOptions {
@@ -106,14 +107,7 @@ export default class WPNow {
 			`${documentRoot}/wp-config.php`,
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
-		this.updateFile(
-			`${documentRoot}/wp-config.php`,
-			(contents) =>
-				`<?php
-          define('WP_HOME', "${this.options.absoluteUrl}");
-          define('WP_SITEURL', "${this.options.absoluteUrl}");
-          ?>${contents}`
-		);
+		defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
 		this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
 		this.php.writeFile(
 			`${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
