@@ -1,9 +1,10 @@
 import fs from 'fs-extra';
 import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node';
-import { SupportedPHPVersion } from '@php-wasm/universal';
+import { SupportedPHPVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import path from 'path';
 import {
+  DEFAULT_PHP_VERSION,
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	WORDPRESS_VERSIONS_PATH,
@@ -24,7 +25,7 @@ export interface WPNowOptions {
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
-	phpVersion: '8.0',
+	phpVersion: DEFAULT_PHP_VERSION,
 	documentRoot: '/var/www/html',
 	mode: 'auto',
 };
@@ -41,7 +42,8 @@ export default class WPNow {
 	php: NodePHP;
 	options: WPNowOptions = DEFAULT_OPTIONS;
 
-	static async create(options: WPNowOptions = {}): Promise<WPNow> {
+  static async create(options: WPNowOptions = {}): Promise<WPNow> {
+    this.#validateOptions(options);
 		const instance = new WPNow();
 		const absoluteUrl = await getAbsoluteURL();
 		const projectPath = options.projectPath || process.cwd();
@@ -208,7 +210,15 @@ export default class WPNow {
 			return 'index';
 		}
 		throw new Error('Could not infer mode. Please specify it manually.');
-	}
+  }
+
+  static #validateOptions(options: WPNowOptions) {
+    // Check the php version
+    if (options.phpVersion && !SupportedPHPVersionsList.includes(options.phpVersion)) {
+      throw new Error(`Unsupported PHP version: ${options.phpVersion}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`);
+    }
+  }
+
 
 	mount() {
 		const { mode } = this.options;
@@ -285,6 +295,7 @@ export default class WPNow {
 		console.log(`Project directory: ${this.options.projectPath}`);
 		console.log(`wp-content directory: ${this.options.wpContentPath}`);
 		console.log(`Mode: ${this.options.mode}`);
+		console.log(`phpVersion: ${this.options.phpVersion}`);
 		if (this.options.mode === 'index') {
 			this.mount();
 			return;

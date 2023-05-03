@@ -2,6 +2,8 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startServer } from './start-server';
 import { portFinder } from './port-finder';
+import { DEFAULT_PHP_VERSION } from './constants';
+import { SupportedPHPVersion } from '@php-wasm/universal';
 
 function startSpinner(message: string) {
 	process.stdout.write(`${message}...\n`);
@@ -41,6 +43,12 @@ export async function runCli() {
 					type: 'string',
 					default: '',
 				});
+				yargs.option('phpVersion', {
+					describe:
+						'PHP version to use.',
+					type: 'string',
+					default: DEFAULT_PHP_VERSION,
+				});
 			},
 			async (argv) => {
 				const spinner = startSpinner('Starting the server...');
@@ -48,6 +56,7 @@ export async function runCli() {
 					portFinder.setPort(argv.port as number);
 					const options = {
 						projectPath: argv.path as string,
+						phpVersion: argv.phpVersion as SupportedPHPVersion,
 					};
 					if (argv['wp-content']) {
 						options['wpContentPath'] = argv['wp-content'] as string;

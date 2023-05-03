@@ -44,3 +44,8 @@ export const SQLITE_URL =
  * The default starting port for running the WP Now server.
  */
 export const DEFAULT_PORT = 8881;
+
+/**
+ * The default PHP version to use when running the WP Now server.
+ */
+export const DEFAULT_PHP_VERSION = '8.0';
