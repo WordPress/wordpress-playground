@@ -4,7 +4,7 @@ import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
 
-function generateMultipartFormDataString(json, boundary) {
+function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
 	const eol = '\r\n';
 
@@ -56,7 +56,7 @@ export async function startServer(options: WPNowOptions = {}) {
 			const body = requestHeaders['content-type']?.startsWith(
 				'multipart/form-data'
 			)
-				? generateMultipartFormDataString(
+				? requestBodyToMultipartFormData(
 						req.body,
 						requestHeaders['content-type'].split('; boundary=')[1]
 				  )
