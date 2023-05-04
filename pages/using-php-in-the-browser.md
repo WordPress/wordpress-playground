@@ -232,7 +232,7 @@ Pick your favorite option and make sure to use it for serving the `iframe-worker
 
 Example usage:
 
-**/app.ts**:
+**/app.js**:
 
 ```ts
 const phpClient = consumeAPI<PHPClient>(
