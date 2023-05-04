@@ -12,6 +12,7 @@ dist.zip
 
 # dependencies
 node_modules
+/__interactive-code-batteries
 
 # IDEs and editors
 /.idea
