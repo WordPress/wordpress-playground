@@ -239,7 +239,13 @@ export abstract class FetchResource extends Resource {
 
 	/** @inheritDoc */
 	get name() {
-		return this.getURL();
+		try {
+			return new URL(this.getURL(), 'http://example.com').pathname
+				.split('/')
+				.pop()!;
+		} catch (e) {
+			return this.getURL();
+		}
 	}
 
 	/** @inheritDoc */
