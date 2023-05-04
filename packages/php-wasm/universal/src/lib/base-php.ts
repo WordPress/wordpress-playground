@@ -15,6 +15,7 @@ import {
 	PHPRunOptions,
 	RmDirOptions,
 } from './universal-php';
+import { improveWASMErrorReporting } from './wasm-error-reporting';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -86,6 +87,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+
+		improveWASMErrorReporting(runtime);
 	}
 
 	/** @inheritDoc */
@@ -362,7 +365,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
 		 * Promise<Promise<number>>.
 		 *
-		 * @TODO: Determine if this is a bug in emscripten.
+		 * @TODO: Determine whether this is a bug in emscripten or in our code.
 		 */
 		const exitCode = await await this[__private__dont__use].ccall(
 			'wasm_sapi_handle_request',
