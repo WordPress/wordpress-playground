@@ -85,15 +85,19 @@ function JSONTabularSQLResult({ resultString, className }: ResultsTableProps) {
 				if (header === 'query') {
 					return (
 						<span
+							style={{ fontFamily: 'monospace' }}
 							dangerouslySetInnerHTML={{
 								__html: highlighter(value),
 							}}
 						/>
 					);
 				} else if (header === 'params') {
-					if (value === '[]') {
+					if (['[]', 'null'].includes(value)) {
 						return '';
 					}
+					return (
+						<pre>{JSON.stringify(JSON.parse(value), null, 2)}</pre>
+					);
 				}
 				return value;
 			})
@@ -129,10 +133,10 @@ function makeSQLHighlighter() {
 			const output = document.createElement('div');
 
 			function addToken({ from, to, classes }: Token) {
-				const token = document.createElement('SPAN');
-				token.className = classes;
-				token.innerText = query.slice(from, to);
-				output.appendChild(token);
+				const span = document.createElement('SPAN');
+				span.className = classes;
+				span.innerText = query.slice(from, to);
+				output.appendChild(span);
 			}
 			let lastToken: Token | null = null;
 			highlightTree(
@@ -191,7 +195,7 @@ function JSONTabularResult({
 		return (
 			<PlaintextResult
 				className={className}
-				result={JSON.stringify(resultString)}
+				result={toJSONString(resultString)}
 			/>
 		);
 	}

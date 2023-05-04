@@ -24,7 +24,7 @@
 	background-color: #f9e79f;
 }
 
-.output pre {
+.output.format-plaintext > pre {
 	margin: 15px 20px;
 }
 
@@ -48,6 +48,7 @@
 	color: #ffffff;
 	background-color: #009879;
 	text-transform: capitalize;
+	text-align: center;
 }
 
 .json-tabular td {
@@ -62,10 +63,10 @@
 	border-top-width: 0;
 	font-size: inherit;
 	margin: 0;
-	padding: 3px 5px;
+	padding: 6px 10px;
 	overflow: visible;
 }
 
-.pure tr:nth-child(2n-1) td {
+.json-tabular tr:nth-child(2n) td {
 	background-color: #f2f2f2;
 }
