@@ -1,7 +1,8 @@
-import request from 'request';
 import fs from 'fs-extra';
-import unzipper from 'unzipper';
 import path from 'path';
+import https from 'https';
+import unzipper from 'unzipper';
+import { IncomingMessage } from 'http';
 import {
 	SQLITE_PATH,
 	SQLITE_URL,
@@ -16,18 +17,46 @@ async function downloadFileAndUnzip({
 	checkFinalPath,
 	itemName,
 }) {
-	if (!fs.existsSync(checkFinalPath)) {
-		try {
-			fs.ensureDirSync(path.dirname(destinationFolder));
-			console.log(`Downloading ${itemName}...`);
-			await request(url)
-				.pipe(unzipper.Extract({ path: destinationFolder }))
-				.promise();
-		} catch (err) {
-			console.error(`Error downloading or unzipping ${itemName}:`, err);
-		}
-	} else {
+	if (fs.existsSync(checkFinalPath)) {
 		console.log(`${itemName} folder already exists. Skipping download.`);
+		return;
+	}
+
+	try {
+		fs.ensureDirSync(path.dirname(destinationFolder));
+
+		console.log(`Downloading ${itemName}...`);
+		const response = await new Promise<IncomingMessage>((resolve) =>
+			https.get(url, { timeout: 0 }, (response) => resolve(response))
+		);
+
+		if (response.statusCode !== 200) {
+			throw new Error(
+				`Failed to download file (Status code ${response.statusCode}).`
+			);
+		}
+
+		/**
+		 * Using Parse because Extract is broken:
+		 * https://github.com/WordPress/wordpress-playground/issues/248
+		 */
+		await response
+			.pipe(unzipper.Parse())
+			.on('entry', (entry) => {
+				const filePath = path.join(destinationFolder, entry.path);
+				/*
+				 * Use the sync version to ensure entry is piped to
+				 * a write stream before moving on to the next entry.
+				 */
+				fs.ensureDirSync(path.dirname(filePath));
+
+				if (entry.type !== 'Directory') {
+					entry.pipe(fs.createWriteStream(filePath));
+				}
+			})
+			.promise();
+	} catch (err) {
+		console.error(`Error downloading or unzipping ${itemName}:`, err);
 	}
 }
 
