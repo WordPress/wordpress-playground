@@ -33,7 +33,7 @@
 			"options": {
 				"scriptPath": "dist/packages/wp-now/main.js"
 			},
-			"dependsOn": ["build"]
+			"dependsOn": ["build", "^build"]
 		},
 		"serve": {
 			"executor": "@nrwl/js:node",
