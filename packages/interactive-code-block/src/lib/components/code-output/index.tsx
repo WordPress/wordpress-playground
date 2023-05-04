@@ -41,6 +41,13 @@ export function CodeOutput({
 			<div className={classes.title}>Output:</div>
 			{(function () {
 				switch (outputFormat) {
+					case 'jsontabularsql':
+						return (
+							<JSONTabularSQLResult
+								className={className}
+								resultString={result as any}
+							/>
+						);
 					case 'jsontabular':
 						return (
 							<JSONTabularResult
@@ -69,14 +76,110 @@ export function CodeOutput({
 	);
 }
 
+function JSONTabularSQLResult({ resultString, className }: ResultsTableProps) {
+	const [sqlHighlighter, setSqlHighlighter] =
+		useState<CellRenderer>(defaultCellRenderer);
+	useEffect(() => {
+		makeSQLHighlighter().then((highlighter) =>
+			setSqlHighlighter(() => (header: string, value: string) => {
+				if (header === 'query') {
+					return (
+						<span
+							dangerouslySetInnerHTML={{
+								__html: highlighter(value),
+							}}
+						/>
+					);
+				} else if (header === 'params') {
+					if (value === '[]') {
+						return '';
+					}
+				}
+				return value;
+			})
+		);
+	}, []);
+	if (!sqlHighlighter) {
+		className = `${classes.output} is-spinner-active`;
+	}
+	return (
+		<JSONTabularResult
+			resultString={resultString}
+			className={className}
+			cellRenderer={sqlHighlighter}
+		/>
+	);
+}
+
+function makeSQLHighlighter() {
+	type Token = {
+		from: number;
+		to: number;
+		classes: string;
+	};
+	return Promise.all([
+		import('@codemirror/lang-sql'),
+		import('@lezer/highlight'),
+		import('@codemirror/language'),
+	]).then(([sql, { highlightTree }, { defaultHighlightStyle }]) => {
+		return (query: string) => {
+			const parser = sql.SQLite.language.parser;
+			const result = parser.parse(query);
+
+			const output = document.createElement('div');
+
+			function addToken({ from, to, classes }: Token) {
+				const token = document.createElement('SPAN');
+				token.className = classes;
+				token.innerText = query.slice(from, to);
+				output.appendChild(token);
+			}
+			let lastToken: Token | null = null;
+			highlightTree(
+				result as any,
+				defaultHighlightStyle,
+				(from: number, to: number, classes: string) => {
+					if (lastToken && lastToken.to !== from) {
+						addToken({
+							from: lastToken!.to,
+							to: from,
+							classes: '',
+						});
+					}
+					const token = { from, to, classes };
+					addToken(token);
+					lastToken = token;
+				}
+			);
+			if (lastToken as any) {
+				addToken({
+					from: (lastToken as any)?.to,
+					to: query.length,
+					classes: '',
+				});
+			}
+			return output.outerHTML;
+		};
+	});
+}
+
+type CellRenderer = (header: string, value: string) => string | JSX.Element;
 interface ResultsTableProps {
 	resultString: string;
 	className: string;
+	cellRenderer?: CellRenderer;
 }
 
 const INVALID_JSON = {};
 
-function JSONTabularResult({ resultString, className }: ResultsTableProps) {
+function defaultCellRenderer(header: string, value: string) {
+	return value;
+}
+function JSONTabularResult({
+	resultString,
+	className,
+	cellRenderer = defaultCellRenderer,
+}: ResultsTableProps) {
 	const results = useMemo(() => {
 		try {
 			return JSON.parse(resultString);
@@ -92,8 +195,8 @@ function JSONTabularResult({ resultString, className }: ResultsTableProps) {
 			/>
 		);
 	}
-	if (!results.length) {
-		return null;
+	if (!Array.isArray(results) || !results.length) {
+		return <span>{'<No data>'}</span>;
 	}
 
 	const headers = Object.keys(results[0]);
@@ -101,7 +204,7 @@ function JSONTabularResult({ resultString, className }: ResultsTableProps) {
 	const headerHtml = (
 		<tr>
 			{headers.map((header) => (
-				<th>{header}</th>
+				<th>{toJSONString(header)}</th>
 			))}
 		</tr>
 	);
@@ -109,7 +212,7 @@ function JSONTabularResult({ resultString, className }: ResultsTableProps) {
 	const rowHtml = results.map((result: any) => (
 		<tr>
 			{headers.map((header) => (
-				<td>{result[header]}</td>
+				<td>{cellRenderer(header, toJSONString(result[header]))}</td>
 			))}
 		</tr>
 	));
@@ -122,6 +225,13 @@ function JSONTabularResult({ resultString, className }: ResultsTableProps) {
 			</table>
 		</div>
 	);
+}
+
+function toJSONString(value: any) {
+	if (typeof value === 'string') {
+		return value;
+	}
+	return JSON.stringify(value, null, 2);
 }
 
 function HTMLResult({

@@ -47,6 +47,7 @@
 .json-tabular thead th {
 	color: #ffffff;
 	background-color: #009879;
+	text-transform: capitalize;
 }
 
 .json-tabular td {

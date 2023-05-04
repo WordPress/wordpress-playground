@@ -227,8 +227,12 @@ function ScriptForm({
 }: ScriptFormProps) {
 	const initialContents = useMemo(() => script.content, []);
 	const editorRef = useRef(null);
+	function handleSave(e) {
+		e.preventDefault();
+		onSave?.();
+	}
 	return (
-		<form className="interactive-code-block-form">
+		<form className="interactive-code-block-form" onSubmit={handleSave}>
 			{lastError ? (
 				<div className="form-error">Error: {lastError.message}</div>
 			) : (
@@ -311,7 +315,6 @@ function ScriptForm({
 							<Button
 								type="submit"
 								isBusy={isSaving}
-								onClick={onSave}
 								variant="primary"
 								disabled={!canSave || isSaving}
 							>

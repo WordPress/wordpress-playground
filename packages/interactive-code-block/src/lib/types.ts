@@ -7,6 +7,7 @@ export const outputFormats = {
 	plaintext: 'Plain text',
 	html: 'HTML',
 	jsontabular: 'JSON (tabular)',
+	jsontabularsql: 'JSON (tabular, SQL queries)',
 } as const;
 export type OutputFormat = keyof typeof outputFormats;
 

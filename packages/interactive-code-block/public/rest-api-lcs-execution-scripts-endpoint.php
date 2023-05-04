@@ -3,10 +3,12 @@
 const FORMAT_PLAINTEXT = 'plaintext';
 const FORMAT_HTML = 'html';
 const FORMAT_JSON_TABULAR = 'jsontabular';
+const FORMAT_JSON_TABULAR_SQL = 'jsontabularsql';
 const VALID_OUTPUT_FORMATS = array(
     FORMAT_PLAINTEXT,
     FORMAT_HTML,
     FORMAT_JSON_TABULAR,
+    FORMAT_JSON_TABULAR_SQL,
 );
 
 const RUNNER_PHP = 'PHP';
