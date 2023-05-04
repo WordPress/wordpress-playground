@@ -1,0 +1,76 @@
+{
+	"name": "wp-now",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/wp-now/src",
+	"projectType": "application",
+	"targets": {
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:package-json", "build:bundle"]
+		},
+		"build:package-json": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/wp-now/tsconfig.lib.json",
+				"outputPath": "dist/packages/wp-now",
+				"buildTarget": "wp-now:build:bundle"
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:bundle": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/wp-now/esbuild.mjs",
+					"cp packages/wp-now/package.json dist/packages/wp-now",
+					"cp packages/wp-now/README.md dist/packages/wp-now"
+				],
+				"parallel": false
+			}
+		},
+		"preview": {
+			"executor": "@wp-playground/nx-extensions:built-script",
+			"options": {
+				"scriptPath": "dist/packages/wp-now/main.js"
+			},
+			"dependsOn": ["build"]
+		},
+		"serve": {
+			"executor": "@nrwl/js:node",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "wp-now:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "wp-now:build:development"
+				},
+				"production": {
+					"buildTarget": "wp-now:build:production"
+				}
+			}
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/wp-now/**/*.ts"]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/jest:jest",
+			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"options": {
+				"jestConfig": "packages/wp-now/jest.config.ts",
+				"passWithNoTests": true
+			},
+			"configurations": {
+				"ci": {
+					"ci": true,
+					"codeCoverage": true
+				}
+			}
+		}
+	},
+	"tags": []
+}
