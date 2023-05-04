@@ -13,7 +13,7 @@ import {
 	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
-import { downloadSqlite, downloadWordPress } from './download';
+import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
 import { defineSiteUrl } from '@wp-playground/blueprints';
 
@@ -308,7 +308,7 @@ export default class WPNow {
 			return;
 		}
 		await downloadWordPress();
-		await downloadSqlite();
+		await downloadSqliteIntegrationPlugin();
 		this.mount();
 		await this.registerUser();
 		await this.autoLogin();

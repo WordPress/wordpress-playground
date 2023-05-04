@@ -40,7 +40,7 @@ export async function downloadWordPress(fileName = 'latest') {
 	});
 }
 
-export async function downloadSqlite() {
+export async function downloadSqliteIntegrationPlugin() {
 	return downloadFileAndUnzip({
 		url: SQLITE_URL,
 		destinationFolder: WP_NOW_PATH,
