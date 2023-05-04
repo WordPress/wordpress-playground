@@ -1,0 +1,72 @@
+.output {
+	box-sizing: border-box;
+	min-height: 3em;
+	position: relative;
+	overflow-y: auto;
+
+	opacity: 1;
+	transition: opacity ease-in 0.25s, border-color ease-in 0.25s,
+		background-color ease-in 0.25s;
+}
+
+.output.format-plaintext {
+	border: 1px solid #e0e0e0;
+}
+
+.title {
+	margin-bottom: 5px;
+	font-weight: bold;
+}
+
+.output.is-ready {
+	opacity: 0.5;
+	border-color: #f9e79f;
+	background-color: #f9e79f;
+}
+
+.output.format-plaintext > pre {
+	margin: 15px 20px;
+}
+
+.json-tabular {
+	border: 1px solid #cbcbcb;
+	border-spacing: 0;
+	border-collapse: collapse;
+	empty-cells: show;
+	min-width: 40px;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.json-tabular thead {
+	background-color: #e0e0e0;
+	color: #000;
+	text-align: left;
+	vertical-align: bottom;
+}
+
+.json-tabular thead th {
+	color: #ffffff;
+	background-color: #009879;
+	text-transform: capitalize;
+	text-align: center;
+}
+
+.json-tabular td {
+	background-color: initial;
+}
+
+.json-tabular td,
+.json-tabular th {
+	border-bottom-width: 0;
+	border-left: 1px solid #cbcbcb;
+	border-right-width: 0;
+	border-top-width: 0;
+	font-size: inherit;
+	margin: 0;
+	padding: 6px 10px;
+	overflow: visible;
+}
+
+.json-tabular tr:nth-child(2n) td {
+	background-color: #f2f2f2;
+}

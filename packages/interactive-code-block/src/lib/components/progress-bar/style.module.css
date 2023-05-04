@@ -1,0 +1,35 @@
+.root {
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 5;
+	display: flex;
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+	pointer-events: none;
+}
+
+.wrapper {
+	position: relative;
+	width: 80%;
+	height: 4px;
+	margin: 4px auto;
+	border-radius: 10px;
+	background: #e0e0e0;
+}
+
+.bar {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 100%;
+	width: 0;
+	background: #3858e9;
+	border-radius: 2px;
+	transition: opacity linear 0.25s, width ease-in 0.5s;
+}

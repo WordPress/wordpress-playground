@@ -1,0 +1,36 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"name": "wordpress-playground/interactive-code",
+	"title": "Interactive Code",
+	"icon": "shield",
+	"category": "common",
+	"attributes": {
+		"code": {
+			"type": "string"
+		},
+		"fileType": {
+			"type": "string",
+			"enum": ["php", "sql", "js"],
+			"default": "php"
+		},
+		"executionScript": {
+			"type": "string",
+			"default": "PHP"
+		},
+		"libraries": {
+			"type": "array",
+			"default": []
+		},
+		"cachedOutput": {
+			"type": "string"
+		},
+		"showCachedOutput": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"viewScript": "interactive-code-block",
+	"editorScript": "interactive-code-block-editor",
+	"style": "interactive-code-block",
+	"editorStyle": "interactive-code-block-editor"
+}

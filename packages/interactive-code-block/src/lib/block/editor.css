@@ -1,0 +1,27 @@
+.interactive-code-snippet-items-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.interactive-code-snippet-items-list-wrapper {
+	max-width: 400px !important;
+}
+
+.interactive-code-block-form__buttons {
+	margin-top: 10px;
+}
+
+.interactive-code-block__snackbar-list {
+	position: fixed;
+	bottom: 20px;
+}
+
+.interactive-code-block__panel-row .components-input-control__label {
+	padding-right: 10px;
+	text-overflow: unset !important;
+}
