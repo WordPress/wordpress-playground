@@ -91,7 +91,7 @@
 					"minify": false
 				},
 				"production": {
-					"minify": false
+					"minify": true
 				}
 			}
 		},
