@@ -25,9 +25,25 @@ import {
 export default function ExecutionScriptsPanel() {
 	return (
 		<Flex direction="column" gap={4}>
-			<FlexItem>
-				Create execution scripts to customize the execution of your
-				interactive code blocks.
+			<FlexItem className="interactive-code-snippet-items-list-wrapper">
+				<p>
+					When the user clicks "Run" in an interactive code block,
+					they <b>don't</b> actually run the code snippet. Instead,
+					they run an <i>execution script</i> associated with the code
+					block.
+				</p>
+
+				<p>
+					The built-in execution scripts are quite simple, but you're
+					free to get more fancy and:
+				</p>
+
+				<ul className="ul-disc">
+					<li>Load a few libraries</li>
+					<li>Expose some variables to the code snippet</li>
+					<li>Preload an SQLite database</li>
+					<li>Highlight the code snippet instead of executing it</li>
+				</ul>
 			</FlexItem>
 			<FlexItem className="interactive-code-snippet-items-list-wrapper">
 				<ScriptsList />

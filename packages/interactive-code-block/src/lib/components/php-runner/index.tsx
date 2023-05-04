@@ -122,6 +122,7 @@ export default class PHPRunner extends React.Component<Props, State> {
 		return (
 			<div className={className}>
 				<CodeOutput
+					outputFormat={this.props.executionScript?.outputFormat}
 					result={this.state.result}
 					isRunning={this.state.isRunning}
 				/>

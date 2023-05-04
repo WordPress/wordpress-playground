@@ -12,10 +12,11 @@ import { useState, useRef, useMemo } from '@wordpress/element';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as coreDataStore } from '@wordpress/core-data';
 import { store as noticesStore } from '@wordpress/notices';
+import { ToggleControl } from '@wordpress/components';
 
 import CodeMirror from '../components/code-mirror';
 import LibrariesControl from '../components/libraries-control';
-import { ExecutionScript } from '../types';
+import { ExecutionScript, outputFormats } from '../types';
 import {
 	isDefaultScriptId,
 	getDefaultExecutionScript,
@@ -259,6 +260,22 @@ function ScriptForm({
 				</FlexItem>
 
 				<FlexItem>
+					<SelectControl
+						label="Output format"
+						value={script.outputFormat!}
+						options={Object.entries(outputFormats).map(
+							([value, label]) => ({
+								label,
+								value,
+							})
+						)}
+						onChange={(newOutputFormat) =>
+							onChange({ outputFormat: newOutputFormat })
+						}
+					/>
+				</FlexItem>
+
+				<FlexItem>
 					<BaseControl label="Script contents" id="script-contents">
 						<CodeMirror
 							key="code-mirror"
@@ -277,13 +294,10 @@ function ScriptForm({
 					<FlexItem>
 						<BaseControl id={script.id} label="Libraries to load">
 							<LibrariesControl
-								librariesIncludedByScript={
-									script.libraries || []
-								}
 								onChange={(libraries) =>
 									onChange({ libraries })
 								}
-								selected={[]}
+								selected={script.libraries || []}
 							/>
 						</BaseControl>
 					</FlexItem>

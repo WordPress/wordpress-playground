@@ -3,11 +3,19 @@ export type MemFile = {
 	contents: string;
 };
 
+export const outputFormats = {
+	plaintext: 'Plain text',
+	html: 'HTML',
+	jsontabular: 'JSON (tabular)',
+} as const;
+export type OutputFormat = keyof typeof outputFormats;
+
 export interface ExecutionScript {
 	id: string;
 	runner: CodeRunnerClass['id'];
 	name?: string;
 	content: string;
+	outputFormat?: OutputFormat;
 	libraries?: string[];
 }
 

@@ -2,10 +2,11 @@ import * as React from '@wordpress/element';
 import { useRef } from '@wordpress/element';
 
 const UploadOverlay = ({ onFileSelected }) => {
-	const fileInputRef = useRef(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	const handleFileChange = (event) => {
-		onFileSelected(event.target.files[0]);
+	const handleFileChange = async (event) => {
+		await onFileSelected(event.target.files[0]);
+		event.target.value = null;
 	};
 
 	return (

@@ -1,14 +1,16 @@
 import {
 	exposeAPI,
-	LatestSupportedPHPVersion,
 	parseWorkerStartupOptions,
-	PHP,
-	PHPClient as BasePHPClient,
 	PublicAPI,
-	SupportedPHPVersion,
-	SupportedPHPVersionsList,
+	WebPHP,
+	WebPHPEndpoint,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import {
+	LatestSupportedPHPVersion,
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/universal';
 
 interface WorkerOptions extends Record<string, string> {
 	php: string;
@@ -21,7 +23,7 @@ if (!SupportedPHPVersionsList.includes(phpVersion)) {
 }
 
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady } = PHP.loadSync(phpVersion, {
+const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	requestHandler: {
 		documentRoot: '/',
 		absoluteUrl: 'https://example.com/',
@@ -29,10 +31,10 @@ const { php, phpReady } = PHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 });
 
-const [setApiReady, client] = exposeAPI(new BasePHPClient(php, monitor));
+const [setApiReady, client] = exposeAPI(new WebPHPEndpoint(php, monitor));
 await phpReady;
 
 setApiReady();
 
-export type PHPClient = PublicAPI<BasePHPClient>;
+export type PHPClient = PublicAPI<WebPHPEndpoint>;
 export const assertClientType: PHPClient = client;

@@ -96,16 +96,16 @@ class LCS_Libraries_Endpoint
         }
 
         // If name already stored, replace the file 
-        // $name = $request->get_param('name');
-        // $updated = false;
-        // foreach($scripts as $script) {
-        //     if($script['name'] === $name) {
-        //         $updated = true;
-        //     }
-        // }
-
-        // if (!$updated) {
-        // }
+        $libraries = get_option(self::OPTION_KEY, []);
+        foreach ($libraries as $library) {
+            if ($library['name'] === $file['name']) {
+                $file_path = $this->uploads_dir . "/" . $library['id'];
+                if (!move_uploaded_file($file['tmp_name'], $file_path)) {
+                    return new WP_Error('rest_server_error', 'Failed to move uploaded file.', ['status' => 500]);
+                }
+                return $library;
+            }
+        }
 
         do {
             $file_name = uniqid();
@@ -150,7 +150,7 @@ class LCS_Libraries_Endpoint
             if (!move_uploaded_file($file['tmp_name'], $file_path)) {
                 return new WP_Error('rest_server_error', 'Failed to move uploaded file.', ['status' => 500]);
             }
-    
+
             // Update stored file details
             $libraries[$id]['type'] = $file['type'];
             $libraries[$id]['size'] = $file['size'];
@@ -219,13 +219,14 @@ class LCS_Libraries_Endpoint
 
 }
 
-function lcs_get_libraries_list() {
+function lcs_get_libraries_list()
+{
     $libraries = array_values(get_option(LCS_Libraries_Endpoint::OPTION_KEY, []));
     usort($libraries, function ($a, $b) {
         return strcmp(strtolower($a['name']), strtolower($b['name']));
     });
     $uploads_url = wp_upload_dir()['baseurl'] . LCS_Libraries_Endpoint::UPLOAD_DIR_SUFFIX;
-    foreach($libraries as $k => $library) {
+    foreach ($libraries as $k => $library) {
         $libraries[$k]['url'] = $uploads_url . "/{$library['id']}";
     }
     return $libraries;

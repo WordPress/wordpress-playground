@@ -58,7 +58,7 @@ export default function PharLibrariesPanel() {
 				}
 			);
 
-			createSuccessNotice(`Library created successfully`, {
+			createSuccessNotice(`Library uploaded successfully`, {
 				type: 'snackbar',
 			});
 		} catch (error) {
@@ -74,7 +74,8 @@ export default function PharLibrariesPanel() {
 		<Flex direction="column" gap={4}>
 			<FlexItem>
 				Upload libraries (e.g. .phar files) to use in your interative
-				code blocks.
+				code blocks. Uploading a library with the same name twice
+				overwrites the previous version.
 			</FlexItem>
 			<FlexItem className="interactive-code-snippet-items-list-wrapper">
 				<LibraryList />
@@ -85,7 +86,7 @@ export default function PharLibrariesPanel() {
 					isBusy={isUploading}
 					style={{ position: 'relative' }}
 				>
-					Upload a new library
+					Upload a library
 					<UploadOverlay onFileSelected={handleUpload} />
 				</Button>
 			</FlexItem>

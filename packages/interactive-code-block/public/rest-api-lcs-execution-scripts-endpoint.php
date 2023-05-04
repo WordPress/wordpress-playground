@@ -1,5 +1,21 @@
 <?php
 
+const FORMAT_PLAINTEXT = 'plaintext';
+const FORMAT_HTML = 'html';
+const FORMAT_JSON_TABULAR = 'jsontabular';
+const VALID_OUTPUT_FORMATS = array(
+    FORMAT_PLAINTEXT,
+    FORMAT_HTML,
+    FORMAT_JSON_TABULAR,
+);
+
+const RUNNER_PHP = 'PHP';
+const RUNNER_PLAYGROUND = 'WordPress Playground';
+const VALID_CODE_RUNNERS = array(
+    RUNNER_PHP,
+    RUNNER_PLAYGROUND,
+);
+
 class LCS_Execution_Scripts_Endpoint
 {
     // WP options key for storing execution scripts
@@ -38,17 +54,22 @@ class LCS_Execution_Scripts_Endpoint
                 'runner' => [
                     'required' => true,
                     'validate_callback' => function ($param, $request, $key) {
-                        return is_string($param);
+                        return in_array($param, VALID_CODE_RUNNERS);
+                    },
+                ],
+                'outputFormat' => [
+                    'validate_callback' => function ($param, $request, $key) {
+                        return in_array($param, VALID_OUTPUT_FORMATS);
                     },
                 ],
                 'libraries' => [
                     'required' => false,
                     'validate_callback' => function ($param, $request, $key) {
-                        if(!is_array($param)) {
+                        if (!is_array($param)) {
                             return false;
                         }
-                        foreach($param as $library) {
-                            if(!is_string($library)) {
+                        foreach ($param as $library) {
+                            if (!is_string($library)) {
                                 return false;
                             }
                         }
@@ -75,9 +96,13 @@ class LCS_Execution_Scripts_Endpoint
                     },
                 ],
                 'runner' => [
-                    'required' => true,
                     'validate_callback' => function ($param, $request, $key) {
-                        return is_string($param);
+                        return in_array($param, VALID_CODE_RUNNERS);
+                    },
+                ],
+                'outputFormat' => [
+                    'validate_callback' => function ($param, $request, $key) {
+                        return in_array($param, VALID_OUTPUT_FORMATS);
                     },
                 ],
                 'content' => [
@@ -117,6 +142,7 @@ class LCS_Execution_Scripts_Endpoint
             'id' => $id,
             'name' => $request->get_param('name'),
             'runner' => $request->get_param('runner'),
+            'outputFormat' => $request->get_param('outputFormat'),
             'content' => $request->get_param('content'),
             'libraries' => $request->get_param('libraries') ?: [],
         ];
@@ -163,6 +189,9 @@ class LCS_Execution_Scripts_Endpoint
         }
         if ($new_libraries) {
             $scripts[$id]['libraries'] = $new_libraries;
+        }
+        if ($request->has_param('outputFormat')) {
+            $scripts[$id]['outputFormat'] = $request->get_param('outputFormat');
         }
         update_option(self::OPTION_KEY, $scripts);
 
