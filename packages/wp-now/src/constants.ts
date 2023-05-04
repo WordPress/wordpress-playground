@@ -30,11 +30,6 @@ export const SQLITE_FILENAME = 'sqlite-database-integration';
 export const SQLITE_PATH = path.join(WP_NOW_PATH, `${SQLITE_FILENAME}-main`);
 
 /**
- * The URL for downloading the latest version of WordPress.
- */
-export const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip';
-
-/**
  * The URL for downloading the "SQLite database integration" WordPress Plugin.
  */
 export const SQLITE_URL =
@@ -49,3 +44,8 @@ export const DEFAULT_PORT = 8881;
  * The default PHP version to use when running the WP Now server.
  */
 export const DEFAULT_PHP_VERSION = '8.0';
+
+/**
+ * The default WordPress version to use when running the WP Now server.
+ */
+export const DEFAULT_WORDPRESS_VERSION = 'latest';

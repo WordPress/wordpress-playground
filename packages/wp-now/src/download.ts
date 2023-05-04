@@ -2,21 +2,26 @@ import fs from 'fs-extra';
 import path from 'path';
 import https from 'https';
 import unzipper from 'unzipper';
+import os from 'os';
 import { IncomingMessage } from 'http';
 import {
+	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_PATH,
 	SQLITE_URL,
 	WORDPRESS_VERSIONS_PATH,
-	WP_DOWNLOAD_URL,
 	WP_NOW_PATH,
 } from './constants';
+
+function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
+  return `https://wordpress.org/wordpress-${version}.zip`;
+}
 
 async function downloadFileAndUnzip({
 	url,
 	destinationFolder,
 	checkFinalPath,
 	itemName,
-}) {
+}): Promise<boolean> {
 	if (fs.existsSync(checkFinalPath)) {
 		console.log(`${itemName} folder already exists. Skipping download.`);
 		return;
@@ -54,19 +59,28 @@ async function downloadFileAndUnzip({
 					entry.pipe(fs.createWriteStream(filePath));
 				}
 			})
-			.promise();
+      .promise();
+    return true
 	} catch (err) {
 		console.error(`Error downloading or unzipping ${itemName}:`, err);
-	}
+  }
+  return false
 }
 
-export async function downloadWordPress(fileName = 'latest') {
-	await downloadFileAndUnzip({
-		url: WP_DOWNLOAD_URL,
-		destinationFolder: path.join(WORDPRESS_VERSIONS_PATH, fileName),
-		checkFinalPath: path.join(WORDPRESS_VERSIONS_PATH, fileName),
-		itemName: `WordPress ${fileName}`,
-	});
+export async function downloadWordPress(wordPressVersion = DEFAULT_WORDPRESS_VERSION) {
+  const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+  const temporalFolder = os.tmpdir();
+	const downloaded = await downloadFileAndUnzip({
+		url: getWordPressVersionUrl(wordPressVersion),
+		destinationFolder: temporalFolder,
+		checkFinalPath: finalFolder,
+		itemName: `WordPress ${wordPressVersion}`,
+  });
+  console.log('downloaded', downloaded)
+  if (downloaded) {
+    fs.ensureDirSync(path.dirname(finalFolder));
+    fs.renameSync(path.join(temporalFolder, 'wordpress'), finalFolder);
+  }
 }
 
 export async function downloadSqliteIntegrationPlugin() {

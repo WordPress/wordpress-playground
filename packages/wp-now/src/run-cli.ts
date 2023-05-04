@@ -2,7 +2,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { startServer } from './start-server';
 import { portFinder } from './port-finder';
-import { DEFAULT_PHP_VERSION } from './constants';
+import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from './constants';
 import { SupportedPHPVersion } from '@php-wasm/universal';
 
 function startSpinner(message: string) {
@@ -42,6 +42,11 @@ export async function runCli() {
 					type: 'string',
 					default: DEFAULT_PHP_VERSION,
 				});
+				yargs.option('wp', {
+					describe: 'WordPress version to use.',
+					type: 'string',
+					default: DEFAULT_WORDPRESS_VERSION,
+				});
 			},
 			async (argv) => {
 				const spinner = startSpinner('Starting the server...');
@@ -50,6 +55,7 @@ export async function runCli() {
 					const options = {
 						projectPath: argv.path as string,
 						phpVersion: argv.php as SupportedPHPVersion,
+						wordPressVersion: argv.wp as string,
 					};
 					await startServer(options);
 				} catch (error) {

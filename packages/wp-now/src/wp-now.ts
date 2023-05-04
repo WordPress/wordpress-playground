@@ -8,6 +8,7 @@ import {
 import path from 'path';
 import {
 	DEFAULT_PHP_VERSION,
+	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	WORDPRESS_VERSIONS_PATH,
@@ -24,14 +25,17 @@ export interface WPNowOptions {
 	absoluteUrl?: string;
 	mode?: WPNowMode;
 	projectPath?: string;
-	wpContentPath?: string;
+  wpContentPath?: string;
+  wordPressVersion?: string;
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
+  wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
-	mode: 'auto',
+  mode: 'auto',
 };
+
 async function getAbsoluteURL() {
 	const port = await portFinder.getOpenPort();
 	return `http://127.0.0.1:${port}`;
@@ -99,9 +103,10 @@ export default class WPNow {
 		);
 	}
 
-	mountWordpress(fileName = 'latest') {
+  mountWordpress() {
+    const { wordPressVersion } = this.options;
 		const { documentRoot } = this.options;
-		const root = path.join(WORDPRESS_VERSIONS_PATH, fileName, 'wordpress');
+		const root = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 		this.php.mount(
 			{
 				root,
@@ -228,11 +233,11 @@ export default class WPNow {
 	}
 
 	mount() {
-		const { mode } = this.options;
+		const { mode, wordPressVersion } = this.options;
 		if (mode === 'index') {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
-		}
+    }
 		// Mode: core, plugin or theme
 		this.mountWordpress();
 		const { wpContentPath } = this.options;
@@ -240,8 +245,7 @@ export default class WPNow {
 		fs.copySync(
 			path.join(
 				WORDPRESS_VERSIONS_PATH,
-				'latest',
-				'wordpress',
+				wordPressVersion,
 				'wp-content'
 			),
 			wpContentPath
@@ -300,14 +304,14 @@ export default class WPNow {
 
 	async start() {
 		console.log(`Project directory: ${this.options.projectPath}`);
-		console.log(`wp-content directory: ${this.options.wpContentPath}`);
-		console.log(`Mode: ${this.options.mode}`);
-		console.log(`phpVersion: ${this.options.phpVersion}`);
+		console.log(`mode: ${this.options.mode}`);
+		console.log(`php: ${this.options.phpVersion}`);
+		console.log(`wp: ${this.options.wordPressVersion}`);
 		if (this.options.mode === 'index') {
 			this.mount();
 			return;
 		}
-		await downloadWordPress();
+		await downloadWordPress(this.options.wordPressVersion);
 		await downloadSqliteIntegrationPlugin();
 		this.mount();
 		await this.registerUser();
