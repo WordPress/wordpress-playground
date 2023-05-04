@@ -44,6 +44,9 @@
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
 			],
+			"@wp-playground/website": [
+				"packages/playground/website/src/index.ts"
+			],
 			"wp-now": ["packages/wp-now/src/index.ts"]
 		}
 	},
