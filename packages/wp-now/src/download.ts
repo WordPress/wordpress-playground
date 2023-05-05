@@ -27,16 +27,23 @@ function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
 	return `https://wordpress.org/wordpress-${version}.zip`;
 }
 
+interface DownloadFileAndUnzipResult {
+	downloaded: boolean;
+	statusCode: number;
+}
+
 async function downloadFileAndUnzip({
 	url,
 	destinationFolder,
 	checkFinalPath,
 	itemName,
-}): Promise<boolean> {
+}): Promise<DownloadFileAndUnzipResult> {
 	if (fs.existsSync(checkFinalPath)) {
 		console.log(`${itemName} folder already exists. Skipping download.`);
 		return;
 	}
+
+	let statusCode = 0;
 
 	try {
 		fs.ensureDirSync(path.dirname(destinationFolder));
@@ -45,6 +52,7 @@ async function downloadFileAndUnzip({
 		const response = await new Promise<IncomingMessage>((resolve) =>
 			https.get(url, (response) => resolve(response))
 		);
+		statusCode = response.statusCode;
 
 		if (response.statusCode !== 200) {
 			throw new Error(
@@ -71,11 +79,11 @@ async function downloadFileAndUnzip({
 				}
 			})
 			.promise();
-		return true;
+		return { downloaded: true, statusCode };
 	} catch (err) {
 		console.error(`Error downloading or unzipping ${itemName}:`, err);
 	}
-	return false;
+	return { downloaded: false, statusCode };
 }
 
 export async function downloadWordPress(
@@ -83,7 +91,7 @@ export async function downloadWordPress(
 ) {
 	const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 	const tempFolder = os.tmpdir();
-	const downloaded = await downloadFileAndUnzip({
+	const { downloaded, statusCode } = await downloadFileAndUnzip({
 		url: getWordPressVersionUrl(wordPressVersion),
 		destinationFolder: tempFolder,
 		checkFinalPath: finalFolder,
@@ -93,6 +101,11 @@ export async function downloadWordPress(
 	if (downloaded) {
 		fs.ensureDirSync(path.dirname(finalFolder));
 		fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
+	} else if (404 === statusCode) {
+		console.log(
+			`WordPress ${wordPressVersion} not found. Check https://wordpress.org/download/releases/ for available versions.`
+		);
+		process.exit(1);
 	}
 }
 
