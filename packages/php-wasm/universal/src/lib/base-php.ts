@@ -382,7 +382,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			 *
 			 * @TODO: Determine whether this is a bug in emscripten or in our code.
 			 */
-			exitCode = await await new Promise<number>((resolve, reject) => {
+			// eslint-disable-next-line no-async-promise-executor
+			exitCode = await new Promise<number>(async (resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
@@ -394,16 +395,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					errorListener
 				);
 
-				Promise.resolve(
-					this[__private__dont__use].ccall(
-						'wasm_sapi_handle_request',
-						NUMBER,
-						[],
-						[]
-					)
-				)
-					.then(resolve)
-					.catch(reject);
+				try {
+					resolve(
+						await await this[__private__dont__use].ccall(
+							'wasm_sapi_handle_request',
+							NUMBER,
+							[],
+							[]
+						)
+					);
+				} catch (e) {
+					reject(e);
+				}
 			});
 		} catch (e) {
 			/**
