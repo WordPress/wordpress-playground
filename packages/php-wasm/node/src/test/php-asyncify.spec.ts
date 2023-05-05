@@ -61,20 +61,15 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 		test('Direct call', () => assertNoCrash(` ${networkCall}`));
 		describe('Function calls', () => {
 			test('Simple call', () =>
-				assertNoCrash(`
-				function top() { ${networkCall} }
-				top();
-				`));
+				assertNoCrash(`function top() { ${networkCall} } top();`));
 			test('Via call_user_func', () =>
-				assertNoCrash(`
-				function top() { ${networkCall} }
-				call_user_func('top');
-				`));
+				assertNoCrash(
+					`function top() { ${networkCall} } call_user_func('top'); `
+				));
 			test('Via call_user_func_array', () =>
-				assertNoCrash(`
-				function top() { ${networkCall} }
-				call_user_func_array('top', array());
-				`));
+				assertNoCrash(
+					`function top() { ${networkCall} } call_user_func_array('top', array());`
+				));
 		});
 
 		describe('Class method calls', () => {
