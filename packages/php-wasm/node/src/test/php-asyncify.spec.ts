@@ -30,7 +30,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
 		`file_get_contents(${js['httpUrl']});`,
-		
+
 		`$fp = fopen(${js['httpUrl']}, "r");
 		 fread($fp, 1024);
 		 fclose($fp);`,
@@ -58,20 +58,20 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 	});
 
 	describe.each(topOfTheStack)('%s', (networkCall) => {
-		test('Direct call', () => asyncifyTest(` ${networkCall}`));
+		test('Direct call', () => assertNoCrash(` ${networkCall}`));
 		describe('Function calls', () => {
 			test('Simple call', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				function top() { ${networkCall} }
 				top();
 				`));
 			test('Via call_user_func', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				function top() { ${networkCall} }
 				call_user_func('top');
 				`));
 			test('Via call_user_func_array', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				function top() { ${networkCall} }
 				call_user_func_array('top', array());
 				`));
@@ -79,7 +79,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 
 		describe('Class method calls', () => {
 			test('Regular method', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function my_method() { ${networkCall} }
 				}
@@ -87,7 +87,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$x->my_method();
 			`));
 			test('Via ReflectionMethod->invoke()', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function my_method() { ${networkCall} }
 				}
@@ -95,7 +95,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$reflectionMethod->invoke(new Top());
 			`));
 			test('Via ReflectionMethod->invokeArgs()', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function my_method() { ${networkCall} }
 				}
@@ -103,28 +103,28 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$reflectionMethod->invokeArgs(new Top(), array());
 			`));
 			test('Via call_user_func', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function my_method() { ${networkCall} }
 				}
 				call_user_func([new Top(), 'my_method']);
 				`));
 			test('Via call_user_func_array', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function my_method() { ${networkCall} }
 				}
 				call_user_func_array([new Top(), 'my_method'], []);
 				`));
 			test('Constructor', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __construct() { ${networkCall} }
 				}
 				new Top();
 			`));
 			test('Destructor', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __destruct() { ${networkCall} }
 				}
@@ -132,7 +132,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				unset($x);
 			`));
 			test('__call', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __call($method, $args) { ${networkCall} }
 				}
@@ -140,7 +140,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$x->test();
 			`));
 			test('__get', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __get($prop) { ${networkCall} }
 				}
@@ -148,7 +148,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$x->test;
 			`));
 			test('__set', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __set($prop, $value) { ${networkCall} }
 				}
@@ -156,7 +156,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				$x->test = 1;
 			`));
 			test('__isset', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top {
 					function __isset($prop) { ${networkCall} }
 				}
@@ -164,7 +164,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				isset($x->test);
 			`));
 			test('offsetSet', () =>
-				asyncifyTest(`
+				assertNoCrash(`
 				class Top implements ArrayAccess {
 					function offsetExists($offset) { ${networkCall} }
 					function offsetGet($offset) { ${networkCall} }
@@ -180,7 +180,7 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 		});
 	});
 
-	async function asyncifyTest(code: string) {
+	async function assertNoCrash(code: string) {
 		try {
 			const result = await php.run({
 				code: `<?php ${code}`,
