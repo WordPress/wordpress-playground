@@ -210,6 +210,10 @@ export type DataModule = {
 
 export type EmscriptenOptions = {
 	onAbort?: (message: string) => void;
+	/**
+	 * Set to true for debugging tricky WebAssembly errors.
+	 */
+	debug?: boolean;
 	ENV?: Record<string, string>;
 	locateFile?: (path: string) => string;
 	noInitialRun?: boolean;

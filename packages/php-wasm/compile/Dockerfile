@@ -621,7 +621,22 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
+    export ASYNCIFY_ONLY=$'"zend_std_unset_dimension",\
+"ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_std_read_dimension",\
+"zend_fetch_dimension_address_read_R_slow",\
+"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
+"zend_call_method",\
+"zend_assign_to_object_dim",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_std_write_dimension",\
+"zend_isset_dim_slow",\
+"ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_write_property",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_objects_store_del",\
+"ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER",\
@@ -786,11 +801,11 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_stream_url_wrap_http_ex",\
 "php_stream_xport_crypto_enable",\
 "php_tcp_sockop_set_option",\
-"php_tcp_sockop_set_option",\
 "preg_replace_func_impl",\
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
+"run_php",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
@@ -939,6 +954,7 @@ RUN ls /root/output/
 #     fi
 
 # Postprocess the build php.js module:
+COPY ./build-assets/append-before-return.js /root/append-before-return.js
 RUN \
     # Figure out the target file names and URLs
         # The .js and .wasm filenames should reflect the build configuration, e.g.:
@@ -1010,8 +1026,9 @@ RUN \
         else \
             echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
+        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader, RuntimeOptions) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
+        cat /root/append-before-return.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
         \
         # Remove the old php.js file
