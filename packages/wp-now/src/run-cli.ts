@@ -43,7 +43,7 @@ export async function runCli() {
 					default: DEFAULT_PHP_VERSION,
 				});
 				yargs.option('wp', {
-					describe: 'WordPress version to use.',
+					describe: "WordPress version to use: e.g. '--wp=6.2'",
 					type: 'string',
 					default: DEFAULT_WORDPRESS_VERSION,
 				});
