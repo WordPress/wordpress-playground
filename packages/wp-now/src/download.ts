@@ -69,17 +69,17 @@ async function downloadFileAndUnzip({
 
 export async function downloadWordPress(wordPressVersion = DEFAULT_WORDPRESS_VERSION) {
   const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
-  const temporalFolder = os.tmpdir();
+  const tempFolder = os.tmpdir();
 	const downloaded = await downloadFileAndUnzip({
 		url: getWordPressVersionUrl(wordPressVersion),
-		destinationFolder: temporalFolder,
+		destinationFolder: tempFolder,
 		checkFinalPath: finalFolder,
 		itemName: `WordPress ${wordPressVersion}`,
   });
   console.log('downloaded', downloaded)
   if (downloaded) {
     fs.ensureDirSync(path.dirname(finalFolder));
-    fs.renameSync(path.join(temporalFolder, 'wordpress'), finalFolder);
+    fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
   }
 }
 
