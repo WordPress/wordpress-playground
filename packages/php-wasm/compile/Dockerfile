@@ -862,6 +862,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zim_PDO_rollBack",\
 "zim_ReflectionMethod_invoke",\
 "zim_ReflectionMethod_invokeArgs",\
+"zim_ReflectionClass_newInstanceArgs",\
 "zim_reflection_class_newInstanceArgs",\
 "zim_reflection_method_invoke",\
 "zim_reflection_method_invokeArgs"'; \
