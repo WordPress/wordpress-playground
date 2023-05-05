@@ -1026,7 +1026,7 @@ RUN \
         else \
             echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader, RuntimeOptions) {" >> /root/output/php-module.js && \
+        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
         cat /root/append-before-return.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
