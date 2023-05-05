@@ -27,7 +27,7 @@ async function downloadFileAndUnzip({
 
 		console.log(`Downloading ${itemName}...`);
 		const response = await new Promise<IncomingMessage>((resolve) =>
-			https.get(url, { timeout: 0 }, (response) => resolve(response))
+			https.get(url, (response) => resolve(response))
 		);
 
 		if (response.statusCode !== 200) {
