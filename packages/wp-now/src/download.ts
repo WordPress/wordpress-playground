@@ -12,8 +12,19 @@ import {
 	WP_NOW_PATH,
 } from './constants';
 
+export function isValidWordpressVersion(version: string): boolean {
+	const versionPattern =
+		/^latest$|^(?:(\d+)\.(\d+)(?:\.(\d+))?)((?:-beta(?:\d+)?)|(?:-RC(?:\d+)?))?$/;
+	return versionPattern.test(version);
+}
+
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
-  return `https://wordpress.org/wordpress-${version}.zip`;
+	if (!isValidWordpressVersion(version)) {
+		throw new Error(
+			'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+		);
+	}
+	return `https://wordpress.org/wordpress-${version}.zip`;
 }
 
 async function downloadFileAndUnzip({
@@ -59,28 +70,30 @@ async function downloadFileAndUnzip({
 					entry.pipe(fs.createWriteStream(filePath));
 				}
 			})
-      .promise();
-    return true
+			.promise();
+		return true;
 	} catch (err) {
 		console.error(`Error downloading or unzipping ${itemName}:`, err);
-  }
-  return false
+	}
+	return false;
 }
 
-export async function downloadWordPress(wordPressVersion = DEFAULT_WORDPRESS_VERSION) {
-  const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
-  const tempFolder = os.tmpdir();
+export async function downloadWordPress(
+	wordPressVersion = DEFAULT_WORDPRESS_VERSION
+) {
+	const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+	const tempFolder = os.tmpdir();
 	const downloaded = await downloadFileAndUnzip({
 		url: getWordPressVersionUrl(wordPressVersion),
 		destinationFolder: tempFolder,
 		checkFinalPath: finalFolder,
 		itemName: `WordPress ${wordPressVersion}`,
-  });
-  console.log('downloaded', downloaded)
-  if (downloaded) {
-    fs.ensureDirSync(path.dirname(finalFolder));
-    fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
-  }
+	});
+	console.log('downloaded', downloaded);
+	if (downloaded) {
+		fs.ensureDirSync(path.dirname(finalFolder));
+		fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
+	}
 }
 
 export async function downloadSqliteIntegrationPlugin() {
