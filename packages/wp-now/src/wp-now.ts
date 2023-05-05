@@ -25,15 +25,15 @@ export interface WPNowOptions {
 	absoluteUrl?: string;
 	mode?: WPNowMode;
 	projectPath?: string;
-  wpContentPath?: string;
-  wordPressVersion?: string;
+	wpContentPath?: string;
+	wordPressVersion?: string;
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
-  wordPressVersion: DEFAULT_WORDPRESS_VERSION,
+	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
-  mode: 'auto',
+	mode: 'auto',
 };
 
 async function getAbsoluteURL() {
@@ -103,8 +103,8 @@ export default class WPNow {
 		);
 	}
 
-  mountWordpress() {
-    const { wordPressVersion } = this.options;
+	mountWordpress() {
+		const { wordPressVersion } = this.options;
 		const { documentRoot } = this.options;
 		const root = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 		this.php.mount(
@@ -237,17 +237,13 @@ export default class WPNow {
 		if (mode === 'index') {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
-    }
+		}
 		// Mode: core, plugin or theme
 		this.mountWordpress();
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
 		fs.copySync(
-			path.join(
-				WORDPRESS_VERSIONS_PATH,
-				wordPressVersion,
-				'wp-content'
-			),
+			path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
 			wpContentPath
 		);
 		this.php.mount(
