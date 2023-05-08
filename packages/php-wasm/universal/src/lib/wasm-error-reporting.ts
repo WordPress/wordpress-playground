@@ -20,6 +20,9 @@ type Runtime = {
  * @param runtime
  */
 export function improveWASMErrorReporting(runtime: Runtime) {
+	runtime.asm = {
+		...runtime.asm,
+	};
 	let logged = false;
 	for (const key in runtime.asm) {
 		if (typeof runtime.asm[key] == 'function') {
