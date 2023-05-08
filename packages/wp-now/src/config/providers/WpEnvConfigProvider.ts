@@ -9,7 +9,8 @@ const WP_ENV_OVERRIDE_FILE = '.wp-env.override.json';
 
 const WP_ENV_TO_WP_NOW_MAPPER = {
 	phpVersion: 'phpVersion',
-	core: 'projectPath',
+	core: 'core',
+	port: 'port',
 };
 
 class WpEnvConfigProvider implements ConfigProviderInterface {
