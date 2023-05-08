@@ -2,13 +2,10 @@ import fs from 'fs-extra';
 import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node';
 import {
-	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import path from 'path';
 import {
-	DEFAULT_PHP_VERSION,
-	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	WORDPRESS_VERSIONS_PATH,
@@ -17,24 +14,7 @@ import {
 import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
 import { defineSiteUrl } from '@wp-playground/blueprints';
-
-type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto';
-export interface WPNowOptions {
-	phpVersion?: SupportedPHPVersion;
-	documentRoot?: string;
-	absoluteUrl?: string;
-	mode?: WPNowMode;
-	projectPath?: string;
-	wpContentPath?: string;
-	wordPressVersion?: string;
-}
-
-const DEFAULT_OPTIONS: WPNowOptions = {
-	phpVersion: DEFAULT_PHP_VERSION,
-	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
-	documentRoot: '/var/www/html',
-	mode: 'auto',
-};
+import { WPNowOptions, DEFAULT_OPTIONS } from './config/providers/ConfigProvider';
 
 async function getAbsoluteURL() {
 	const port = await portFinder.getOpenPort();
