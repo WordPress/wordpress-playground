@@ -11,12 +11,7 @@ import {
 	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
-
-export function isValidWordpressVersion(version: string): boolean {
-	const versionPattern =
-		/^latest$|^(?:(\d+)\.(\d+)(?:\.(\d+))?)((?:-beta(?:\d+)?)|(?:-RC(?:\d+)?))?$/;
-	return versionPattern.test(version);
-}
+import { isValidWordpressVersion } from './wp-playground-wordpress';
 
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
 	if (!isValidWordpressVersion(version)) {

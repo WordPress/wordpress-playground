@@ -1,7 +1,7 @@
 /*
  * Test for isValidWordpressVersion
  */
-import { isValidWordpressVersion } from '../download';
+import { isValidWordpressVersion } from '../is-valid-wordpress-version';
 
 test('isValidWordpressVersion', () => {
 	// Accepted versions
