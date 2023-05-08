@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-import https from 'https';
+import followRedirects from 'follow-redirects';
 import unzipper from 'unzipper';
 import { IncomingMessage } from 'http';
 import {
@@ -10,6 +10,9 @@ import {
 	WP_DOWNLOAD_URL,
 	WP_NOW_PATH,
 } from './constants';
+
+followRedirects.maxRedirects = 5;
+const { https } = followRedirects;
 
 async function downloadFileAndUnzip({
 	url,
