@@ -3,6 +3,7 @@ import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
+import {spawn, SpawnOptionsWithoutStdio} from 'child_process';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
@@ -95,5 +96,23 @@ export async function startServer(options: WPNowOptions = {}) {
 
 	app.listen(port, () => {
 		console.log(`Server running at http://127.0.0.1:${port}/`);
-	});
+		const porturl = `http://127.0.0.1:${port}`;
+		let cmd: string, args: string[] | SpawnOptionsWithoutStdio;
+		switch (process.platform) {
+		  case 'darwin':
+			cmd = 'open';
+			args = [porturl];
+			break;
+		  case 'linux':
+			cmd = 'xdg-open';
+			args = [porturl];
+			break;
+		  default:
+			cmd = 'cmd';
+			args = ['/c', `start ${porturl}`];
+			break;
+		}
+		spawn(cmd, args);
+	  });
+
 }
