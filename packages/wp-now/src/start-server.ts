@@ -1,3 +1,4 @@
+import fs from 'fs';
 import WPNow, { WPNowOptions } from './wp-now';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
@@ -57,6 +58,11 @@ function openInDefaultBrowser(port: number) {
 }
 
 export async function startServer(options: WPNowOptions = {}) {
+	if (!fs.existsSync(options.projectPath)) {
+		throw new Error(
+			`The given path "${options.projectPath}" does not exist.`
+		);
+	}
 	const port = await portFinder.getOpenPort();
 	const wpNow = await WPNow.create(options);
 	await wpNow.start();
