@@ -369,19 +369,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		let exitCode: number;
 
 		/*
-		 * Emscripten throws WASM failures outside of the promise chain, so we need
+		 * Emscripten throws WASM failures outside of the promise chain so we need
 		 * to listen for them here and rethrow in the correct context. Otherwise we
 		 * get crashes and unhandled promise rejections without any useful error messages
 		 * or stack traces.
 		 */
 		let errorListener: any;
 		try {
-			/**
-			 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
-			 * Promise<Promise<number>>.
-			 *
-			 * @TODO: Determine whether this is a bug in emscripten or in our code.
-			 */
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>(async (resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
@@ -397,6 +391,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 				try {
 					resolve(
+						/**
+						 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
+						 * Promise<Promise<number>>.
+						 *
+						 * @TODO: Determine whether this is a bug in emscripten or in our code.
+						 */
 						await await this[__private__dont__use].ccall(
 							'wasm_sapi_handle_request',
 							NUMBER,
