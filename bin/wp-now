@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ $(uname -s) == 'Darwin' ]]; then
   SCRIPT_PATH=$(realpath "$0")
@@ -7,4 +7,13 @@ else
 fi
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
 
-exec /usr/bin/env node --loader $SCRIPT_DIR/../packages/nx-extensions/src/executors/built-script/loader.mjs $SCRIPT_DIR/../dist/packages/wp-now/main.js "$@"
+ARGS="$@"
+if [[ "$@" != *"--path="* ]]; then
+  ARGS="$@ --path=$PWD"
+fi
+
+cd $SCRIPT_DIR/..
+export NVM_DIR=$HOME/.nvm;
+source $NVM_DIR/nvm.sh;
+nvm use
+npx nx preview wp-now $ARGS
