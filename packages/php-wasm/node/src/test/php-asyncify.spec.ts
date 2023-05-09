@@ -25,8 +25,9 @@ const js = phpVars({
 	httpUrl,
 });
 
-// describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
+const phpVersions =
+	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
 		`file_get_contents(${js['httpUrl']});`,
@@ -184,7 +185,11 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 			expect(result.text).toBe('');
 			expect(result.errors).toBeFalsy();
 		} catch (e) {
-			if ('functionsMaybeMissingFromAsyncify' in php) {
+			if (
+				'FIX_DOCKERFILE' in process.env &&
+				process.env['FIX_DOCKERFILE'] === 'true' &&
+				'functionsMaybeMissingFromAsyncify' in php
+			) {
 				const missingCandidates = (
 					php.functionsMaybeMissingFromAsyncify as string[]
 				)

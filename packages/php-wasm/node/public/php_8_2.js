@@ -1,6 +1,6 @@
-export const dependenciesTotalSize = 10295138; 
+export const dependenciesTotalSize = 10301237; 
 const dependencyFilename = __dirname + '/php_8_2.wasm'; 
- export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {
+ export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
 
 var moduleOverrides = Object.assign({}, Module);
@@ -7210,4 +7210,19 @@ if (Module["preInit"]) {
 }
 
 run();
+/**
+ * Debugging Asyncify errors is tricky because the stack trace is lost when the
+ * error is thrown. This code saves the stack trace in a global variable 
+ * so that it can be inspected later.
+ */
+PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
+if (PHPLoader.debug) {
+    const originalHandleSleep = Asyncify.handleSleep;
+    Asyncify.handleSleep = function (startAsync) {
+        if (!ABORT) {
+            Module["lastAsyncifyStackSource"] = new Error();
+        }
+        return originalHandleSleep(startAsync);
+    }
+}
  return PHPLoader; }
