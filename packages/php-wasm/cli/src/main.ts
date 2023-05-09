@@ -40,6 +40,7 @@ const php = await NodePHP.load(phpVersion, {
 		},
 	},
 });
+
 php.useHostFilesystem();
 
 const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));

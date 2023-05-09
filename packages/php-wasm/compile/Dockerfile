@@ -890,6 +890,7 @@ fi;
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
+COPY ./build-assets/selective-rawfs.js /root/selective-rawfs.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS=$'["_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
@@ -914,6 +915,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
     emcc -O3 \
     --js-library /root/phpwasm-emscripten-library.js \
+    --js-library /root/selective-rawfs.js \
     -I .  \
     -I ext   \
     -I ext/json   \

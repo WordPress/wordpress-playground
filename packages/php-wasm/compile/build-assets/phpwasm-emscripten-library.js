@@ -9,7 +9,7 @@
 
 const LibraryExample = {
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack'],
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$SELECTIVERAWFS'],
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
@@ -397,7 +397,7 @@ const LibraryExample = {
 			'popen() is unsupported in the browser. Implement popen_to_file in your Module ' +
 			'or disable shell_exec() and similar functions via php.ini.'
 		);
-		return _W_EXITCODE(0, 2); // 2 is SIGINT
+		return _W_EXITCODE(0, 2); // 2 is SIGINTT
 	},
 };
 

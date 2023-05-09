@@ -18,6 +18,7 @@ export default defineConfig(() => {
 		build: {
 			assetsInlineLimit: 0,
 			target: 'es2020',
+			minify: false,
 			rollupOptions: {
 				external: [
 					'@php-wasm/node',

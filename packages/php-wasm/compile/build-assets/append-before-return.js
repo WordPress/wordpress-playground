@@ -4,7 +4,7 @@
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
-if (PHPLoader.debug) {
+if (PHPLoader.debug && typeof Asyncify !== 'undefined') {
     const originalHandleSleep = Asyncify.handleSleep;
     Asyncify.handleSleep = function (startAsync) {
         if (!ABORT) {

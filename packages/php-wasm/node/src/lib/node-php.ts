@@ -88,11 +88,16 @@ export class NodePHP extends BasePHP {
 	 * setting the current working directory to one used by
 	 * the current node.js process.
 	 */
-	useHostFilesystem() {
+	async useHostFilesystem() {
+		console.log(this[__private__dont__use]["RAW_DIRECTORIES"]);
+		console.log(this[__private__dont__use]["FS"]["RAW_DIRECTORIES"]);
 		const dirs = readdirSync('/')
 			.map((file) => `/${file}`)
 			.filter((file) => lstatSync(file).isDirectory());
 		for (const dir of dirs) {
+			if (dir === '/proc' || dir === '/dev') {
+				continue;
+			}
 			if (!this.fileExists(dir)) {
 				this.mkdirTree(dir);
 			}
