@@ -41,7 +41,20 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return await NodePHP.loadSync(phpVersion, options).phpReady;
+		return await NodePHP.loadSync(phpVersion, {
+			...options,
+			emscriptenOptions: {
+				...(options.emscriptenOptions || {}),
+				/**
+				 * Emscripten default behavior is to kill the process when
+				 * the WASM program calls `exit()`. We want to throw an
+				 * exception instead.
+				 */
+				quit: function (code, error) {
+					throw error;
+				},
+			},
+		}).phpReady;
 	}
 
 	/**

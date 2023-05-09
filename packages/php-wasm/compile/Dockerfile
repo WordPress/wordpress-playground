@@ -556,10 +556,9 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
         # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
         # at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
-        # 
+        #
         # Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
         # to get the entire stack.
-        #
         #
         # -------
         # 
@@ -621,7 +620,40 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
+    export ASYNCIFY_ONLY=$'"zend_call_known_instance_method_with_2_params",\
+"zend_fetch_dimension_address_read_R",\
+"_zval_dtor_func_for_ptr",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_fetch_dimension_address_read",\
+"php_if_fopen",\
+"zend_std_has_dimension",\
+"zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
+"zend_assign_to_object",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_call_user_call",\
+"zend_objects_store_del_ref_by_handle_ex",\
+"zend_objects_store_del_ref",\
+"_zval_dtor_func",\
+"_zval_ptr_dtor",\
+"zend_hash_del_key_or_index",\
+"zend_delete_variable",\
+"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
+"zend_std_unset_dimension",\
+"ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_std_read_dimension",\
+"zend_fetch_dimension_address_read_R_slow",\
+"ZEND_FETCH_DIM_R_SPEC_CV_CONST_HANDLER",\
+"zend_call_method",\
+"zend_assign_to_object_dim",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_std_write_dimension",\
+"zend_isset_dim_slow",\
+"ZEND_ISSET_ISEMPTY_DIM_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_write_property",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_OP_DATA_CONST_HANDLER",\
+"zend_objects_store_del",\
+"ZEND_UNSET_CV_SPEC_CV_UNUSED_HANDLER",\
+"ZEND_DO_FCALL_BY_NAME_SPEC_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_OBSERVER_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_UNUSED_HANDLER",\
 "ZEND_DO_FCALL_BY_NAME_SPEC_RETVAL_USED_HANDLER",\
@@ -786,11 +818,11 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_stream_url_wrap_http_ex",\
 "php_stream_xport_crypto_enable",\
 "php_tcp_sockop_set_option",\
-"php_tcp_sockop_set_option",\
 "preg_replace_func_impl",\
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
+"run_php",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
@@ -916,6 +948,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
+    -s NODEJS_CATCH_EXIT=0           \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \
         /root/lib/libphp.a \
@@ -939,6 +972,7 @@ RUN ls /root/output/
 #     fi
 
 # Postprocess the build php.js module:
+COPY ./build-assets/append-before-return.js /root/append-before-return.js
 RUN \
     # Figure out the target file names and URLs
         # The .js and .wasm filenames should reflect the build configuration, e.g.:
@@ -1010,8 +1044,9 @@ RUN \
         else \
             echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader, EnvVariables) {" >> /root/output/php-module.js && \
+        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
+        cat /root/append-before-return.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \
         \
         # Remove the old php.js file

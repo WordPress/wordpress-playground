@@ -210,12 +210,17 @@ export type DataModule = {
 
 export type EmscriptenOptions = {
 	onAbort?: (message: string) => void;
+	/**
+	 * Set to true for debugging tricky WebAssembly errors.
+	 */
+	debug?: boolean;
 	ENV?: Record<string, string>;
 	locateFile?: (path: string) => string;
 	noInitialRun?: boolean;
 	dataFileDownloads?: Record<string, number>;
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
+	quit?: (status: number, toThrow: any) => void;
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 } & Record<string, any>;
