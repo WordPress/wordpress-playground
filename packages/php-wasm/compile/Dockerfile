@@ -556,10 +556,9 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
         # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
         # at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
-        # 
+        #
         # Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
         # to get the entire stack.
-        #
         #
         # -------
         # 

@@ -17,7 +17,7 @@ import {
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
-	listenToWASMErrors,
+	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 
@@ -93,7 +93,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 		this[__private__dont__use] = runtime;
 
-		this.#wasmErrorsTarget = listenToWASMErrors(runtime);
+		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
 	}
 
 	/** @inheritDoc */
