@@ -8,6 +8,7 @@ import {
 import path from 'path';
 import {
 	DEFAULT_PHP_VERSION,
+	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	WORDPRESS_VERSIONS_PATH,
@@ -25,13 +26,16 @@ export interface WPNowOptions {
 	mode?: WPNowMode;
 	projectPath?: string;
 	wpContentPath?: string;
+	wordPressVersion?: string;
 }
 
 const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
+	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
 	mode: 'auto',
 };
+
 async function getAbsoluteURL() {
 	const port = await portFinder.getOpenPort();
 	return `http://127.0.0.1:${port}`;
@@ -99,9 +103,10 @@ export default class WPNow {
 		);
 	}
 
-	mountWordpress(fileName = 'latest') {
+	mountWordpress() {
+		const { wordPressVersion } = this.options;
 		const { documentRoot } = this.options;
-		const root = path.join(WORDPRESS_VERSIONS_PATH, fileName, 'wordpress');
+		const root = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 		this.php.mount(
 			{
 				root,
@@ -113,6 +118,16 @@ export default class WPNow {
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
 		defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
+		if (this.options.wordPressVersion !== 'latest') {
+			this.updateFile(
+				`${documentRoot}/wp-config.php`,
+				(contents) => `<?php
+          if ( ! defined( 'WP_AUTO_UPDATE_CORE' ) ) {
+            define( 'WP_AUTO_UPDATE_CORE', false );
+          }
+        ?>${contents}`
+			);
+		}
 		this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
 		this.php.writeFile(
 			`${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
@@ -228,7 +243,7 @@ export default class WPNow {
 	}
 
 	mount() {
-		const { mode } = this.options;
+		const { mode, wordPressVersion } = this.options;
 		if (mode === 'index') {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
@@ -238,12 +253,7 @@ export default class WPNow {
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
 		fs.copySync(
-			path.join(
-				WORDPRESS_VERSIONS_PATH,
-				'latest',
-				'wordpress',
-				'wp-content'
-			),
+			path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
 			wpContentPath
 		);
 		this.php.mount(
@@ -300,14 +310,14 @@ export default class WPNow {
 
 	async start() {
 		console.log(`Project directory: ${this.options.projectPath}`);
-		console.log(`wp-content directory: ${this.options.wpContentPath}`);
-		console.log(`Mode: ${this.options.mode}`);
-		console.log(`phpVersion: ${this.options.phpVersion}`);
+		console.log(`mode: ${this.options.mode}`);
+		console.log(`php: ${this.options.phpVersion}`);
+		console.log(`wp: ${this.options.wordPressVersion}`);
 		if (this.options.mode === 'index') {
 			this.mount();
 			return;
 		}
-		await downloadWordPress();
+		await downloadWordPress(this.options.wordPressVersion);
 		await downloadSqliteIntegrationPlugin();
 		this.mount();
 		await this.registerUser();

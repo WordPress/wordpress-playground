@@ -26,6 +26,14 @@ nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 
 Replace `/path/to/wordpress-plugin-or-theme` with the actual path to your plugin or theme folder.
 
+### Testing
+
+To run the unit tests, use the following command:
+
+```bash
+nx test wp-now
+```
+
 ## Contributing
 
 We welcome contributions from the community! Please refer to the main [README.md](../../README.md) file for instructions on how to contribute to this project.

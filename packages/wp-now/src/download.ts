@@ -2,14 +2,30 @@ import fs from 'fs-extra';
 import path from 'path';
 import followRedirects from 'follow-redirects';
 import unzipper from 'unzipper';
+import os from 'os';
 import { IncomingMessage } from 'http';
 import {
+	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_PATH,
 	SQLITE_URL,
 	WORDPRESS_VERSIONS_PATH,
-	WP_DOWNLOAD_URL,
 	WP_NOW_PATH,
 } from './constants';
+import { isValidWordpressVersion } from './wp-playground-wordpress';
+
+function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
+	if (!isValidWordpressVersion(version)) {
+		throw new Error(
+			'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+		);
+	}
+	return `https://wordpress.org/wordpress-${version}.zip`;
+}
+
+interface DownloadFileAndUnzipResult {
+	downloaded: boolean;
+	statusCode: number;
+}
 
 followRedirects.maxRedirects = 5;
 const { https } = followRedirects;
@@ -19,11 +35,13 @@ async function downloadFileAndUnzip({
 	destinationFolder,
 	checkFinalPath,
 	itemName,
-}) {
+}): Promise<DownloadFileAndUnzipResult> {
 	if (fs.existsSync(checkFinalPath)) {
 		console.log(`${itemName} folder already exists. Skipping download.`);
-		return;
+		return { downloaded: false, statusCode: 0 };
 	}
+
+	let statusCode = 0;
 
 	try {
 		fs.ensureDirSync(path.dirname(destinationFolder));
@@ -32,6 +50,7 @@ async function downloadFileAndUnzip({
 		const response = await new Promise<IncomingMessage>((resolve) =>
 			https.get(url, (response) => resolve(response))
 		);
+		statusCode = response.statusCode;
 
 		if (response.statusCode !== 200) {
 			throw new Error(
@@ -58,18 +77,34 @@ async function downloadFileAndUnzip({
 				}
 			})
 			.promise();
+		return { downloaded: true, statusCode };
 	} catch (err) {
 		console.error(`Error downloading or unzipping ${itemName}:`, err);
 	}
+	return { downloaded: false, statusCode };
 }
 
-export async function downloadWordPress(fileName = 'latest') {
-	await downloadFileAndUnzip({
-		url: WP_DOWNLOAD_URL,
-		destinationFolder: path.join(WORDPRESS_VERSIONS_PATH, fileName),
-		checkFinalPath: path.join(WORDPRESS_VERSIONS_PATH, fileName),
-		itemName: `WordPress ${fileName}`,
+export async function downloadWordPress(
+	wordPressVersion = DEFAULT_WORDPRESS_VERSION
+) {
+	const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+	const tempFolder = os.tmpdir();
+	const { downloaded, statusCode } = await downloadFileAndUnzip({
+		url: getWordPressVersionUrl(wordPressVersion),
+		destinationFolder: tempFolder,
+		checkFinalPath: finalFolder,
+		itemName: `WordPress ${wordPressVersion}`,
 	});
+	console.log('downloaded', downloaded);
+	if (downloaded) {
+		fs.ensureDirSync(path.dirname(finalFolder));
+		fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
+	} else if (404 === statusCode) {
+		console.log(
+			`WordPress ${wordPressVersion} not found. Check https://wordpress.org/download/releases/ for available versions.`
+		);
+		process.exit(1);
+	}
 }
 
 export async function downloadSqliteIntegrationPlugin() {
