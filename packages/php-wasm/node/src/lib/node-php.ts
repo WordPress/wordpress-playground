@@ -41,7 +41,20 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return await NodePHP.loadSync(phpVersion, options).phpReady;
+		return await NodePHP.loadSync(phpVersion, {
+			...options,
+			emscriptenOptions: {
+				...(options.emscriptenOptions || {}),
+				/**
+				 * Emscripten default behavior is to kill the process when
+				 * the WASM program calls `exit()`. We want to throw an
+				 * exception instead.
+				 */
+				quit: function (code, error) {
+					throw error;
+				},
+			},
+		}).phpReady;
 	}
 
 	/**
@@ -90,6 +103,10 @@ export class NodePHP extends BasePHP {
 	 */
 	useHostFilesystem() {
 		const dirs = readdirSync('/')
+			/*
+			 * Don't mount the dev directory – it's polyfilled by Emscripten.
+			 */
+			.filter((file) => file !== 'dev')
 			.map((file) => `/${file}`)
 			.filter((file) => lstatSync(file).isDirectory());
 		for (const dir of dirs) {

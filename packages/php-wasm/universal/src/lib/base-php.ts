@@ -15,7 +15,11 @@ import {
 	PHPRunOptions,
 	RmDirOptions,
 } from './universal-php';
-import { improveWASMErrorReporting } from './wasm-error-reporting';
+import {
+	getFunctionsMaybeMissingFromAsyncify,
+	improveWASMErrorReporting,
+	UnhandledRejectionsTarget,
+} from './wasm-error-reporting';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -33,6 +37,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
+	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	requestHandler?: PHPBrowser;
 
 	/**
@@ -88,7 +93,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 		this[__private__dont__use] = runtime;
 
-		improveWASMErrorReporting(runtime);
+		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
 	}
 
 	/** @inheritDoc */
@@ -361,18 +366,76 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	async #handleRequest(): Promise<PHPResponse> {
-		/**
-		 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
-		 * Promise<Promise<number>>.
-		 *
-		 * @TODO: Determine whether this is a bug in emscripten or in our code.
+		let exitCode: number;
+
+		/*
+		 * Emscripten throws WASM failures outside of the promise chain so we need
+		 * to listen for them here and rethrow in the correct context. Otherwise we
+		 * get crashes and unhandled promise rejections without any useful error messages
+		 * or stack traces.
 		 */
-		const exitCode = await await this[__private__dont__use].ccall(
-			'wasm_sapi_handle_request',
-			NUMBER,
-			[],
-			[]
-		);
+		let errorListener: any;
+		try {
+			// eslint-disable-next-line no-async-promise-executor
+			exitCode = await new Promise<number>(async (resolve, reject) => {
+				errorListener = (e: ErrorEvent) => {
+					const rethrown = new Error('Rethrown');
+					rethrown.cause = e.error;
+					(rethrown as any).betterMessage = e.message;
+					reject(rethrown);
+				};
+				this.#wasmErrorsTarget?.addEventListener(
+					'error',
+					errorListener
+				);
+
+				try {
+					resolve(
+						/**
+						 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
+						 * Promise<Promise<number>>.
+						 *
+						 * @TODO: Determine whether this is a bug in emscripten or in our code.
+						 */
+						await await this[__private__dont__use].ccall(
+							'wasm_sapi_handle_request',
+							NUMBER,
+							[],
+							[]
+						)
+					);
+				} catch (e) {
+					reject(e);
+				}
+			});
+		} catch (e) {
+			/**
+			 * An exception here means an irrecoverable crash. Let's make
+			 * it very clear to the consumers of this API – every method
+			 * call on this PHP instance will throw an error from now on.
+			 */
+			for (const name in this) {
+				if (typeof this[name] === 'function') {
+					(this as any)[name] = () => {
+						throw new Error(
+							`PHP runtime has crashed – see the earlier error for details.`
+						);
+					};
+				}
+			}
+			(this as any).functionsMaybeMissingFromAsyncify =
+				getFunctionsMaybeMissingFromAsyncify();
+
+			const err = e as Error;
+			const message = (
+				'betterMessage' in err ? err.betterMessage : err.message
+			) as string;
+			const rethrown = new Error(message);
+			rethrown.cause = err;
+			throw rethrown;
+		} finally {
+			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
+		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
 		return new PHPResponse(
