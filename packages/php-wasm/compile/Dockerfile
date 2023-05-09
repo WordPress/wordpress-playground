@@ -620,15 +620,26 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"zend_objects_store_del_ref_by_handle_ex",\
-"zend_objects_store_del_ref",\
+    export ASYNCIFY_ONLY=$'"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+"zend_fetch_dimension_address_read",\
+"php_if_fopen",\
+"php_if_fopen",\
+"zend_std_has_dimension",\
+"zend_std_has_dimension",\
+"zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
+"zend_assign_to_object",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"zend_std_call_user_call",\
+"zend_std_call_user_call",\
+"zend_objects_store_del_ref_by_handle_ex",\
 "zend_objects_store_del_ref",\
 "_zval_dtor_func",\
 "_zval_ptr_dtor",\
 "_zval_ptr_dtor",\
 "zend_hash_del_key_or_index",\
 "zend_delete_variable",\
-"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
 "ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
 "zend_std_unset_dimension",\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
@@ -940,6 +951,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
+    -s NODEJS_CATCH_EXIT=0           \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \
         /root/lib/libphp.a \

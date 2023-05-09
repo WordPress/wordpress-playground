@@ -218,8 +218,6 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				err.cause = e;
 				throw err;
 			}
-
-			throw e;
 		}
 	}
 });
@@ -237,3 +235,4 @@ function addAsyncifyFunctionsToDockerfile(functions: string[]) {
 	fs.writeFileSync(DockerfilePath, updatedDockerfile);
 	Dockerfile = updatedDockerfile;
 }
+

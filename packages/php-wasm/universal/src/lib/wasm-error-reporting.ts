@@ -1,3 +1,5 @@
+import { ErrorEvent } from './error-event-polyfill';
+
 type Runtime = {
 	asm: Record<string, unknown>;
 	lastAsyncifyStackSource?: Error;

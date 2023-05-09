@@ -220,6 +220,7 @@ export type EmscriptenOptions = {
 	dataFileDownloads?: Record<string, number>;
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
+	quit?: (status: number, toThrow: any) => void;
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 } & Record<string, any>;
