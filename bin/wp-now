@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [[ $(uname -s) == 'Darwin' ]]; then
+  SCRIPT_PATH=$(realpath "$0")
+else
+  SCRIPT_PATH=$(readlink -f "$0")
+fi
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
+exec /usr/bin/env node --loader $SCRIPT_DIR/../packages/nx-extensions/src/executors/built-script/loader.mjs $SCRIPT_DIR/../dist/packages/wp-now/main.js "$@"
