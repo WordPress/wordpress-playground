@@ -21,6 +21,7 @@ export interface WPNowOptions {
 	documentRoot?: string;
 	absoluteUrl?: string;
 	mode?: WPNowMode;
+	port?: number;
 	projectPath?: string;
 	wpContentPath?: string;
 	wordPressVersion?: string;

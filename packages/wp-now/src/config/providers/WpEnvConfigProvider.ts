@@ -1,3 +1,4 @@
+import { SupportedPHPVersion } from '@php-wasm/universal';
 import * as fs from 'fs';
 import path from 'path';
 import { CliOptions } from './CliConfigProvider';
@@ -6,11 +7,6 @@ import { ConfigProviderInterface, WPNowOptions } from './ConfigProvider';
 
 const WP_ENV_FILE = '.wp-env.json';
 const WP_ENV_OVERRIDE_FILE = '.wp-env.override.json';
-
-const WP_ENV_TO_WP_NOW_MAPPER = {
-	phpVersion: 'phpVersion',
-	port: 'port',
-};
 
 class WpEnvConfigProvider implements ConfigProviderInterface {
 	priority: 1;
@@ -64,13 +60,11 @@ class WpEnvConfigProvider implements ConfigProviderInterface {
 		if (!wpenvConfig) {
 			return null;
 		}
-		const config: WPNowOptions = {};
-		for (const [key, value] of Object.entries(wpenvConfig)) {
-			if (WP_ENV_TO_WP_NOW_MAPPER[key]) {
-				config[WP_ENV_TO_WP_NOW_MAPPER[key]] = value;
-			}
-		}
-		return config;
+		return {
+			phpVersion: wpenvConfig.phpVersion as SupportedPHPVersion,
+			port: wpenvConfig.port,
+      wordPressVersion: wpenvConfig.core,
+		};
 	}
 	public async getConfig(): Promise<WPNowOptions> {
 		if (!this.configExists()) {
