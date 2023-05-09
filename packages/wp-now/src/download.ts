@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-import https from 'https';
+import followRedirects from 'follow-redirects';
 import unzipper from 'unzipper';
 import os from 'os';
 import { IncomingMessage } from 'http';
@@ -26,6 +26,9 @@ interface DownloadFileAndUnzipResult {
 	downloaded: boolean;
 	statusCode: number;
 }
+
+followRedirects.maxRedirects = 5;
+const { https } = followRedirects;
 
 async function downloadFileAndUnzip({
 	url,
