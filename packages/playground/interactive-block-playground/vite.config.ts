@@ -12,7 +12,7 @@ import {
 import virtualModule from '../vite-virtual-module';
 
 const proxy = {
-	'^/plugin-proxy.*&artifact=.*': {
+	'^/plugin-proxy.*repo=.*': {
 		target: 'https://playground.wordpress.net',
 		changeOrigin: true,
 		secure: true,

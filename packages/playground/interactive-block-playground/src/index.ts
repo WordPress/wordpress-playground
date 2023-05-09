@@ -87,7 +87,7 @@ store({
 					step: 'installPlugin',
 					pluginZipFile: {
 						resource: 'url',
-						url: 'zips/block-interactivity-experiments.zip',
+						url: '/plugin-proxy?repo=WordPress/block-interactivity-experiments&name=block-interactivity-experiments.zip',
 					},
 				},
 			],
@@ -117,4 +117,3 @@ store({
 		await client.goTo(`/?p=${postId}`);
 	});
 })();
-
