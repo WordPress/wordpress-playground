@@ -118,6 +118,16 @@ export default class WPNow {
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
 		defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
+		if (this.options.wordPressVersion !== 'latest') {
+			this.updateFile(
+				`${documentRoot}/wp-config.php`,
+				(contents) => `<?php
+          if ( ! defined( 'WP_AUTO_UPDATE_CORE' ) ) {
+            define( 'WP_AUTO_UPDATE_CORE', false );
+          }
+        ?>${contents}`
+			);
+		}
 		this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
 		this.php.writeFile(
 			`${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
