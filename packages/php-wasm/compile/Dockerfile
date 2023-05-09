@@ -620,7 +620,17 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"zend_std_unset_dimension",\
+    export ASYNCIFY_ONLY=$'"zend_objects_store_del_ref_by_handle_ex",\
+"zend_objects_store_del_ref",\
+"zend_objects_store_del_ref",\
+"_zval_dtor_func",\
+"_zval_ptr_dtor",\
+"_zval_ptr_dtor",\
+"zend_hash_del_key_or_index",\
+"zend_delete_variable",\
+"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
+"ZEND_UNSET_VAR_SPEC_CV_UNUSED_HANDLER",\
+"zend_std_unset_dimension",\
 "ZEND_UNSET_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_std_read_dimension",\
 "zend_fetch_dimension_address_read_R_slow",\
