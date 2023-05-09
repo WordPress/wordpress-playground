@@ -3,6 +3,7 @@ import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
+import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
@@ -31,6 +32,29 @@ const requestBodyToString = async (req) =>
 
 const app = express();
 app.use(fileUpload());
+
+function openInDefaultBrowser(port: number) {
+	const url = `http://127.0.0.1:${port}`;
+	let cmd: string, args: string[] | SpawnOptionsWithoutStdio;
+	switch (process.platform) {
+		case 'darwin':
+			cmd = 'open';
+			args = [url];
+			break;
+		case 'linux':
+			cmd = 'xdg-open';
+			args = [url];
+			break;
+		case 'win32':
+			cmd = 'cmd';
+			args = ['/c', `start ${url}`];
+			break;
+		default:
+			console.log(`Platform '${process.platform}' not supported`);
+			return;
+	}
+	spawn(cmd, args);
+}
 
 export async function startServer(options: WPNowOptions = {}) {
 	const port = await portFinder.getOpenPort();
@@ -95,5 +119,6 @@ export async function startServer(options: WPNowOptions = {}) {
 
 	app.listen(port, () => {
 		console.log(`Server running at http://127.0.0.1:${port}/`);
+		openInDefaultBrowser(port);
 	});
 }
