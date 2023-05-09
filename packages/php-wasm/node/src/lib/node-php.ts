@@ -103,6 +103,10 @@ export class NodePHP extends BasePHP {
 	 */
 	useHostFilesystem() {
 		const dirs = readdirSync('/')
+			/*
+			 * Don't mount the dev directory – it's polyfilled by Emscripten.
+			 */
+			.filter((file) => file !== 'dev')
 			.map((file) => `/${file}`)
 			.filter((file) => lstatSync(file).isDirectory());
 		for (const dir of dirs) {
