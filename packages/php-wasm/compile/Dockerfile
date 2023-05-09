@@ -620,7 +620,10 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
+    export ASYNCIFY_ONLY=$'"zend_call_known_instance_method_with_2_params",\
+"zend_fetch_dimension_address_read_R",\
+"_zval_dtor_func_for_ptr",\
+"ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_fetch_dimension_address_read",\
 "php_if_fopen",\

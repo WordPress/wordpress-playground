@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 10301236; 
+export const dependenciesTotalSize = 10302567; 
 const dependencyFilename = __dirname + '/php_8_2.wasm'; 
  export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
@@ -76,11 +76,6 @@ if (ENVIRONMENT_IS_NODE) {
  if (typeof module != "undefined") {
   module["exports"] = Module;
  }
- process["on"]("uncaughtException", function(ex) {
-  if (!(ex instanceof ExitStatus)) {
-   throw ex;
-  }
- });
  process["on"]("unhandledRejection", function(reason) {
   throw reason;
  });

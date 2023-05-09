@@ -27,6 +27,7 @@ const js = phpVars({
 
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
+
 describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
@@ -235,4 +236,3 @@ function addAsyncifyFunctionsToDockerfile(functions: string[]) {
 	fs.writeFileSync(DockerfilePath, updatedDockerfile);
 	Dockerfile = updatedDockerfile;
 }
-

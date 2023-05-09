@@ -48,7 +48,7 @@ export class NodePHP extends BasePHP {
 				/**
 				 * Emscripten default behavior is to kill the process when
 				 * the WASM program calls `exit()`. We want to throw an
-				 * exception instead. 
+				 * exception instead.
 				 */
 				quit: function (code, error) {
 					throw error;
