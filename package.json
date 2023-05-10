@@ -156,7 +156,7 @@
 		"packages/php-wasm/*",
 		"packages/playground/*"
 	],
-  "bin": {
-    "wp-now": "bin/wp-now"
-  }
+	"bin": {
+		"wp-now": "bin/wp-now"
+	}
 }
