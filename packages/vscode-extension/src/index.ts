@@ -57,7 +57,6 @@ async function startWordPressServer() {
 				phpVersion: stateManager.read().phpVersion,
 				wordPressVersion: stateManager.read().wordPressVersion,
 				projectPath: vscode.workspace.workspaceFolders[0].uri.fsPath,
-				mode: 'plugin',
 			},
 		});
 	} catch (e) {
