@@ -18,7 +18,7 @@ import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
 import { defineSiteUrl } from '@wp-playground/blueprints';
 
-type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto';
+type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'wp-content' | 'auto';
 export interface WPNowOptions {
 	phpVersion?: SupportedPHPVersion;
 	documentRoot?: string;
@@ -212,13 +212,28 @@ export default class WPNow {
 		return styleCSS.includes('Theme Name:');
 	}
 
+	static #isWpContentDirectory(projectPath: string): Boolean {
+		const pluginsExists = fs.existsSync(
+			path.join(projectPath, 'plugins')
+		);
+		const themesExists = fs.existsSync(
+			path.join(projectPath, 'themes')
+		);
+		if (!pluginsExists || !themesExists) {
+			return false;
+		}
+		return true;
+	}
+
 	static #inferMode(projectPath: string): Exclude<WPNowMode, 'auto'> {
 		const hasIndexPhp = fs.existsSync(path.join(projectPath, 'index.php'));
 		const hasWpContentFolder = fs.existsSync(
 			path.join(projectPath, 'wp-content')
 		);
 
-		if (WPNow.#isPluginDirectory(projectPath)) {
+		if (WPNow.#isWpContentDirectory(projectPath)) {
+			return 'wp-content';
+		} else if (WPNow.#isPluginDirectory(projectPath)) {
 			return 'plugin';
 		} else if (WPNow.#isThemeDirectory(projectPath)) {
 			return 'theme';
@@ -248,18 +263,31 @@ export default class WPNow {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
 		}
-		// Mode: core, plugin or theme
+
+		// Mount wordpress in all modes except index
 		this.mountWordpress();
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
-		fs.copySync(
-			path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
-			wpContentPath
-		);
-		this.php.mount(
-			wpContentPath,
-			`${this.options.documentRoot}/wp-content`
-		);
+
+		// Mode: wp-content - mount the wp-content folder as is
+		if (mode === 'wp-content') {
+			this.php.mount(
+				this.options.projectPath,
+				`${this.options.documentRoot}/wp-content`
+			);
+		}
+
+		// Mode: core, plugin or theme
+		if (mode === 'core' || mode === 'plugin' || mode === 'theme') {
+			fs.copySync(
+				path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
+				wpContentPath
+			);
+			this.php.mount(
+				wpContentPath,
+				`${this.options.documentRoot}/wp-content`
+			);
+		}
 
 		if (mode === 'plugin' || mode === 'theme') {
 			const folderName = path.basename(this.options.projectPath);
