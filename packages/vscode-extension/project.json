@@ -15,6 +15,15 @@
 			},
 			"dependsOn": ["build"]
 		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["vsce publish ./wordpress-playground-*.vsix"],
+				"cwd": "dist/packages/vscode-extension",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		},
 		"build": {
 			"executor": "nx:noop",
 			"dependsOn": ["build:package"]
