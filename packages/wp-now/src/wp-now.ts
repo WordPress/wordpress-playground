@@ -17,6 +17,11 @@ import {
 import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
 import { defineSiteUrl } from '@wp-playground/blueprints';
+import {
+	isPluginDirectory,
+	isThemeDirectory,
+	isWpContentDirectory,
+} from './wp-playground-wordpress';
 
 export enum WPNowMode {
 	PLUGIN = 'plugin',
@@ -190,56 +195,17 @@ export default class WPNow {
 		);
 	}
 
-	static #isPluginDirectory(projectPath: string): Boolean {
-		const files = fs.readdirSync(projectPath);
-		for (const file of files) {
-			if (file.endsWith('.php')) {
-				const fileContent = fs.readFileSync(
-					path.join(projectPath, file),
-					'utf8'
-				);
-				if (fileContent.includes('Plugin Name:')) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	static #isThemeDirectory(projectPath: string): Boolean {
-		const styleCSSExists = fs.existsSync(
-			path.join(projectPath, 'style.css')
-		);
-		if (!styleCSSExists) {
-			return false;
-		}
-		const styleCSS = fs.readFileSync(
-			path.join(projectPath, 'style.css'),
-			'utf-8'
-		);
-		return styleCSS.includes('Theme Name:');
-	}
-
-	static #isWpContentDirectory(projectPath: string): Boolean {
-		const pluginsExists = fs.existsSync(path.join(projectPath, 'plugins'));
-		const themesExists = fs.existsSync(path.join(projectPath, 'themes'));
-		if (!pluginsExists || !themesExists) {
-			return false;
-		}
-		return true;
-	}
-
 	static #inferMode(projectPath: string): Exclude<WPNowMode, WPNowMode.AUTO> {
 		const hasIndexPhp = fs.existsSync(path.join(projectPath, 'index.php'));
 		const hasWpContentFolder = fs.existsSync(
 			path.join(projectPath, 'wp-content')
 		);
 
-		if (WPNow.#isWpContentDirectory(projectPath)) {
+		if (isWpContentDirectory(projectPath)) {
 			return WPNowMode.WP_CONTENT;
-		} else if (WPNow.#isPluginDirectory(projectPath)) {
+		} else if (isPluginDirectory(projectPath)) {
 			return WPNowMode.PLUGIN;
-		} else if (WPNow.#isThemeDirectory(projectPath)) {
+		} else if (isThemeDirectory(projectPath)) {
 			return WPNowMode.THEME;
 		} else if (!hasIndexPhp && hasWpContentFolder) {
 			return WPNowMode.CORE;
