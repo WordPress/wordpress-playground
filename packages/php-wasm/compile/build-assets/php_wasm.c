@@ -810,6 +810,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
         *query_start = '\0';
     }
     php_register_variable("PHP_SELF", php_self, track_vars_array TSRMLS_CC);
+    free(php_self);
 	}
 
 	/* argv */
