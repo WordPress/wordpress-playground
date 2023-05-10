@@ -154,6 +154,7 @@
 	"workspaces": [
 		"packages/nx-extensions",
 		"packages/php-wasm/*",
-		"packages/playground/*"
+		"packages/playground/*",
+		"packages/wp-now"
 	]
 }
