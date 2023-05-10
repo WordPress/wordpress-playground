@@ -213,12 +213,8 @@ export default class WPNow {
 	}
 
 	static #isWpContentDirectory(projectPath: string): Boolean {
-		const pluginsExists = fs.existsSync(
-			path.join(projectPath, 'plugins')
-		);
-		const themesExists = fs.existsSync(
-			path.join(projectPath, 'themes')
-		);
+		const pluginsExists = fs.existsSync(path.join(projectPath, 'plugins'));
+		const themesExists = fs.existsSync(path.join(projectPath, 'themes'));
 		if (!pluginsExists || !themesExists) {
 			return false;
 		}
@@ -280,7 +276,11 @@ export default class WPNow {
 		// Mode: core, plugin or theme
 		if (mode === 'core' || mode === 'plugin' || mode === 'theme') {
 			fs.copySync(
-				path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
+				path.join(
+					WORDPRESS_VERSIONS_PATH,
+					wordPressVersion,
+					'wp-content'
+				),
 				wpContentPath
 			);
 			this.php.mount(
