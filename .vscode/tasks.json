@@ -1,0 +1,14 @@
+// BEGIN: 3f7a8b3d9b3c
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "group": "build:vscode-extension",
+            "label": "build-vscode-extension",
+            "script": "build:vscode-extension",
+            "problemMatcher": "$esbuild-watch"
+        }
+    ]
+}
+// END: 3f7a8b3d9b3c
