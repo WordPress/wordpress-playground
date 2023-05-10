@@ -4,6 +4,7 @@ import {
 	PHPRequestHandler,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
+
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
@@ -154,6 +155,47 @@ describe.each(SupportedPHPVersions)(
 				},
 			});
 			expect(response.json).toEqual({ foo: 'bar' });
+		});
+	}
+);
+
+describe.each(SupportedPHPVersions)(
+	'[PHP %s] PHPRequestHandler – PHP_SELF',
+	(phpVersion) => {
+		let php: NodePHP;
+		let handler: PHPRequestHandler;
+		beforeEach(async () => {
+			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+			const runtimeId = await loadPHPRuntime(phpLoaderModule);
+			php = new NodePHP(runtimeId);
+			php.mkdirTree('/var/www');
+			handler = new PHPRequestHandler(php, {
+				documentRoot: '/var/www',
+				isStaticFilePath: (path) => !path.endsWith('.php'),
+			});
+		});
+
+		it('should assign the correct PHP_SELF', async () => {
+			php.writeFile(
+				'/var/www/index.php',
+				`<?php echo $_SERVER['PHP_SELF'];`
+			);
+			const response = await handler.request({
+				url: '/index.php',
+			});
+			expect(response.text).toEqual('/index.php');
+		});
+
+		it('should assign the correct PHP_SELF (file in subdirectory, query string present)', async () => {
+			php.mkdirTree('/var/www/subdir');
+			php.writeFile(
+				'/var/www/subdir/index.php',
+				`<?php echo $_SERVER['PHP_SELF'];`
+			);
+			const response = await handler.request({
+				url: '/subdir/?foo=bar',
+			});
+			expect(response.text).toEqual('/subdir/index.php');
 		});
 	}
 );

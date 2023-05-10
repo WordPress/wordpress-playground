@@ -229,7 +229,8 @@ const int MODE_EVAL_CODE = 1;
 const int MODE_EXECUTE_SCRIPT = 2;
 
 typedef struct {
-	char *query_string,
+	char *document_root,
+		*query_string,
 		*path_translated,
 		*request_uri,
 		*request_method,
@@ -328,6 +329,7 @@ void wasm_set_phpini_entries(char *ini_entries)
 }
 
 void wasm_init_server_context() {
+	wasm_server_context->document_root = NULL;
 	wasm_server_context->query_string = NULL;
 	wasm_server_context->path_translated = NULL;
 	wasm_server_context->request_uri = NULL;
@@ -346,6 +348,9 @@ void wasm_init_server_context() {
 }
 
 void wasm_destroy_server_context() {
+	if(wasm_server_context->document_root != NULL) {
+		free(wasm_server_context->document_root);
+	}
 	if(wasm_server_context->query_string != NULL) {
 		free(wasm_server_context->query_string);
 	}
@@ -412,6 +417,14 @@ void wasm_add_SERVER_entry(char *key, char *value) {
 	entry->value = strdup(value);
 	entry->next = wasm_server_context->server_array_entries;
 	wasm_server_context->server_array_entries = entry;
+
+	/**
+	 * Keep track of the document root separately so it can be reused
+	 * later to compute PHP_SELF.
+	 */
+	if( key == "DOCUMENT_ROOT" ) {
+		wasm_server_context->document_root = strdup(value);
+	}
 }
 
 /**
@@ -802,8 +815,36 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	if (value != NULL) {
 		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
+	}
+
+	int php_self_set = 0;
+	if (wasm_server_context->document_root != NULL && wasm_server_context->path_translated != NULL)
+	{
+		/**
+		 * PHP_SELF is the script path relative to the document rooth.
+		 *
+		 * For example:
+		 * 
+		 * If the document root is /var/www/html and the requested path is /dir/index.php,
+		 * PHP_SELF will be /dir/index.php.
+		 * 
+		 * If the document root is /var/www/html and the requested path /nice/urls is
+		 * served from /var/www/html/another/directory/script.php, PHP_SELF will be
+		 * /another/directory/script.php
+		 */
+		// Confirm path translated starts with the document root
+		if (strncmp(wasm_server_context->document_root, wasm_server_context->path_translated, strlen(wasm_server_context->document_root)) == 0) {
+			// Substring of path translated starting after document root
+			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			php_register_variable("PHP_SELF", strdup(php_self), track_vars_array TSRMLS_CC);
+			php_self_set = 1;
+		}
+	}
+
+	if(php_self_set == 0) {
+		// Default to REQUEST_URI
+		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 	}
 
 	/* argv */
