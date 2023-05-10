@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 10915927; 
+export const dependenciesTotalSize = 10915930; 
 const dependencyFilename = __dirname + '/php_7_3.wasm'; 
  export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
@@ -7148,6 +7148,12 @@ if (Module["preInit"]) {
 }
 
 run();
+/**
+ * Emscripten resolves `localhost` to a random IP address. Let's
+ * make it always resolve to 127.0.0.1.
+ */
+DNS.address_map.addrs.localhost = '127.0.0.1';
+
 /**
  * Debugging Asyncify errors is tricky because the stack trace is lost when the
  * error is thrown. This code saves the stack trace in a global variable 

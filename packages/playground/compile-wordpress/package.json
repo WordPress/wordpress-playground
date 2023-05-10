@@ -15,7 +15,7 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"private": true
 }

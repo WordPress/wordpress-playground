@@ -16,7 +16,7 @@
 		}
 	],
 	"private": true,
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"gitHead": "a0eeb66fd5386bb56715fca2b89e9669a5b8618b"
 }

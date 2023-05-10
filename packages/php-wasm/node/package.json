@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node",
-	"version": "0.1.37",
+	"version": "0.1.39",
 	"description": "PHP.wasm for Node.js",
 	"repository": {
 		"type": "git",
@@ -25,7 +25,7 @@
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/node"
 	},
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"main": "index.cjs",
 	"types": "index.d.ts",
 	"gitHead": "e6a7ed1b4e3e804590a5d9c40d95dfb9e6281e1a"

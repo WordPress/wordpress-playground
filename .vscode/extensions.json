@@ -1,0 +1,9 @@
+{
+	"recommendations": [
+		"nrwl.angular-console",
+		"esbenp.prettier-vscode",
+		"dbaeumer.vscode-eslint",
+		"firsttris.vscode-jest-runner",
+		"connor4312.esbuild-problem-matchers"
+	]
+}

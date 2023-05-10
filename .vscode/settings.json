@@ -1,0 +1,20 @@
+{
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"eslint.validate": [
+		"json"
+	],
+	"files.associations": {
+		"*.embeddedhtml": "html",
+		"api-extractor-base.json": "jsonc",
+		"__string": "c",
+		"atomic": "c",
+		"cstring": "c",
+		"memory": "c",
+		"variant": "c",
+		"typeinfo": "c",
+		"stdio.h": "c"
+	},
+	"autoImportFileExcludePatterns": [
+		"@wp-playground/client"
+	]
+}

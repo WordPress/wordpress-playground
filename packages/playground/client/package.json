@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/client",
-	"version": "0.1.38",
+	"version": "0.1.39",
 	"description": "WordPress Playground client",
 	"repository": {
 		"type": "git",
@@ -32,7 +32,7 @@
 		"access": "public",
 		"directory": "../../../dist/packages/playground/client"
 	},
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",
