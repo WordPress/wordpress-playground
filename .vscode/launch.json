@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Playground for VS Code",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/dist/packages/vscode-extension"
+            ],
+            "preLaunchTask": "build-vscode-extension"
+        },
+        {
+          "name": "Heap Profiler",
+          "type": "node",
+          "request": "launch",
+          "program": "${workspaceFolder}/test2.mjs",
+          "cwd": "${workspaceFolder}",
+          "runtimeArgs": ["--inspect-brk", "--loader=${workspaceFolder}/packages/nx-extensions/src/executors/built-script/loader.mjs"]
+        }
+    ]
+}

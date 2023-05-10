@@ -1,4 +1,4 @@
-<?php
+export default `<?php
 
 function zipDir($dir, $output, $additionalFiles = array())
 {
@@ -60,3 +60,4 @@ function delTree($dir)
     }
     return rmdir($dir);
 }
+`;
