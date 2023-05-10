@@ -81,7 +81,7 @@ const ServerState = ({ appState }: ServerStateProps) => {
 					</a>
 				</p>
 				<Dropdown
-					label="PHP Version"
+					label="PHP Version:"
 					options={Object.fromEntries(
 						SupportedPHPVersions.map((version) => [
 							version,
@@ -97,23 +97,25 @@ const ServerState = ({ appState }: ServerStateProps) => {
 						});
 					}}
 				/>
-				<Dropdown
-					label="WordPress Version"
-					options={Object.fromEntries(
-						SupportedWordPressVersions.map((version) => [
-							version,
-							version,
-						])
-					)}
-					selected={appState.wordPressVersion!}
-					onChange={(value) => {
-						vscode.postMessage({
-							command: 'option-change',
-							option: 'wordPressVersion',
-							value,
-						});
-					}}
-				/>
+				{!['core', 'core-develop'].includes(appState.mode) ? (
+					<Dropdown
+						label="WordPress Version:"
+						options={Object.fromEntries(
+							SupportedWordPressVersions.map((version) => [
+								version,
+								version,
+							])
+						)}
+						selected={appState.wordPressVersion!}
+						onChange={(value) => {
+							vscode.postMessage({
+								command: 'option-change',
+								option: 'wordPressVersion',
+								value,
+							});
+						}}
+					/>
+				) : null}
 				<p>Mode: {appState.mode}</p>
 				<p>Project path: {appState.projectPath}</p>
 			</>
