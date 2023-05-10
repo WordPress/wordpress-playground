@@ -5,7 +5,7 @@
 ## Getting Started
 
 Before getting started, make sure you have `nvm` installed. If you need to install it first,
-[follow these installation instructions](https://github.com/nvm-sh/nvm#installation). 
+[follow these installation instructions](https://github.com/nvm-sh/nvm#installation).
 
 Follow these steps to build and run `wp-now` locally:
 
@@ -17,10 +17,9 @@ To build the project, use the following commands in your terminal:
 2. Execute `nvm use`
 3. Execute `yarn install` followed by `yarn build`
 
-
 ### Running
 
-1. Execute `sudo npm install -g nx@latest`. This will make `nx` command globally accessible in the project. 
+1. Execute `sudo npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
 2. To start the web server in the plugin or theme mode (see Modes on WP-NOW section for details), run the command below. Make sure to replace `/path/to/wordpress-plugin-or-theme` with the actual path to your plugin or theme folder.
 
 ```bash
@@ -31,10 +30,10 @@ nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 
 wp-now operates in four different modes:
 
-* `index`: executes a simple php file
-* `theme`: loads WordPress with your selected theme included
-* `plugin`: loads WordPress with your selected plugin included
-* `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
+-   `index`: executes a simple php file
+-   `theme`: loads WordPress with your selected theme included
+-   `plugin`: loads WordPress with your selected plugin included
+-   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
 
 To launch the `wp-now` in the `index`, `theme` or `plugin` mode, you can run:
 
@@ -54,10 +53,10 @@ Make sure to replace `/path/to/wordpress-plugin-or-theme` or `/path/to/wp-conten
 
 `wp-now start` currently supports the following arguments:
 
-* `port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically;
-* `path`: the path to the PHP file or WordPress project to use. If not provided, it will use the current working directory;
-* `php`: the version of PHP to use. This is optional and if not provided, it will use a default version;
-* `wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version.
+-   `port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically;
+-   `path`: the path to the PHP file or WordPress project to use. If not provided, it will use the current working directory;
+-   `php`: the version of PHP to use. This is optional and if not provided, it will use a default version;
+-   `wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version.
 
 #### Examples of using `wp-now start` arguments:
 
@@ -70,13 +69,13 @@ nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.9 --php
 Specify WordPress version and plugin or theme path:
 
 ```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.8 
+nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.8
 ```
 
 Specify PHP version and plugin or theme path:
 
 ```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --php=7.4 
+nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --php=7.4
 ```
 
 ### Making WP-NOW accessible globally on your local machine
@@ -93,7 +92,6 @@ Example:
 1. Navigate in the terminal to a folder where your WordPress plugin or theme lives with `cd /my-plugin-or-theme`
 2. Execute `wp start now`
 
-
 ### How to install WP-NOW from npm (not available yet)
 
 To install `wp-now` directly from `npm`, execute:
@@ -106,37 +104,35 @@ npm install -g @wordpress/wp-now
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
 
-* `wp-now` does not require you to install separately WordPress, create database, connect WordPress to that database, create your use or login. All of these steps are packaged into `wp now start` command and are running under the hood;
-* `wp-now` works across all platforms (Mac, Linux, Windows);
-* `wp-now` does not support custom domains or SSL;
-* `wp-now` offers `theme` and `plugin` modes specific to WordPress development;
-* `wp-now` allows to easily switch the WordPress version with `wp-now start --wp=version.number`(make sure to replace the `version.number` with the actual WordPress version);
-* `wp-now` does not support Xdebug PHP extension
-
+-   `wp-now` does not require you to install separately WordPress, create database, connect WordPress to that database, create your use or login. All of these steps are packaged into `wp now start` command and are running under the hood;
+-   `wp-now` works across all platforms (Mac, Linux, Windows);
+-   `wp-now` does not support custom domains or SSL;
+-   `wp-now` offers `theme` and `plugin` modes specific to WordPress development;
+-   `wp-now` allows to easily switch the WordPress version with `wp-now start --wp=version.number`(make sure to replace the `version.number` with the actual WordPress version);
+-   `wp-now` does not support Xdebug PHP extension
 
 Some similarities between Laravel Valet and `wp-now` to be aware of:
 
-* could be used for non-WordPress projects;
-* deployments are not possible on Laravel Valet and `wp-now`;
-* possible to switch easily the PHP version;
-* possibility to work on multiple WordPress sites simultaneously
+-   could be used for non-WordPress projects;
+-   deployments are not possible on Laravel Valet and `wp-now`;
+-   possible to switch easily the PHP version;
+-   possibility to work on multiple WordPress sites simultaneously
 
 ### Migrating from wp-env?
 
 If you are migrating from `wp-env`, you should be aware of the differences it has with `wp-now`:
 
-* `wp-now` supports non-WordPress projects;
-* `wp-env` is Docker-based which makes it platform indepedent (although `wp-now` does run across different platforms);
-* `wp-now` does not support Xdebug PHP extension;
-* `wp-now` does not include Jest for automatic browser testing
-
+-   `wp-now` supports non-WordPress projects;
+-   `wp-env` is Docker-based which makes it platform indepedent (although `wp-now` does run across different platforms);
+-   `wp-now` does not support Xdebug PHP extension;
+-   `wp-now` does not include Jest for automatic browser testing
 
 Some similarities between `wp-env` and `wp-now` to be aware of:
 
-* no support for custom domains or SSL;
-* `plugin`, `themes` and index modes are available on `wp-env` and `wp-now`;
-* deployments are not supported from `wp-now` or `wp-env`
-* possible to switch easily the PHP version
+-   no support for custom domains or SSL;
+-   `plugin`, `themes` and index modes are available on `wp-env` and `wp-now`;
+-   deployments are not supported from `wp-now` or `wp-env`
+-   possible to switch easily the PHP version
 
 ## Contributing
 
