@@ -68,12 +68,6 @@ export async function startServer(options: WPNowOptions = {}) {
 	await wpNow.start();
 
 	app.use('/', async (req, res) => {
-		console.log(
-			'request>',
-			req.url,
-			req.method,
-			req.headers['content-type']
-		);
 		try {
 			const requestHeaders = {};
 			if (req.rawHeaders && req.rawHeaders.length) {
