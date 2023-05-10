@@ -9,7 +9,6 @@ export const DEFAULT_OPTIONS: WPNowOptions = {
 	documentRoot: '/var/www/html',
 	projectPath: process.cwd(),
 	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
-	mode: 'auto',
 };
 
 export interface ConfigProviderInterface {
