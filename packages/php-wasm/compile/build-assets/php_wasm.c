@@ -802,8 +802,14 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	if (value != NULL) {
 		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
+    // Remove query_string from request_uri for PHP_SELF
+    char *php_self = strdup(value);
+    char *query_start = strchr(php_self, '?');
+    if (query_start) {
+        *query_start = '\0';
+    }
+    php_register_variable("PHP_SELF", php_self, track_vars_array TSRMLS_CC);
 	}
 
 	/* argv */
