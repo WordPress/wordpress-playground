@@ -1,5 +1,5 @@
 {
-	"name": "wp-now",
+	"name": "@wp-now/wp-now",
 	"version": "0.0.0",
 	"description": "WordPress Playground CLI",
 	"repository": {
@@ -17,7 +17,7 @@
 	],
 	"publishConfig": {
 		"access": "public",
-		"directory": "../../../dist/packages/wp-now"
+		"directory": "../../dist/packages/wp-now"
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
