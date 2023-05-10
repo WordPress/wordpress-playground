@@ -22,19 +22,12 @@ async function startWordPressServer() {
 
 	try {
 		await stateManager.write({ state: 'starting-server' });
-		vscode.window.showInformationMessage(
-			'Starting WordPress Playground server...'
-		);
-
 		worker = new Worker(__dirname + '/worker.js');
 
 		worker.on('message', (message) => {
 			switch (message.command) {
 				case 'server-started':
 					stateManager.write({ state: 'server-running' });
-					vscode.window.showInformationMessage(
-						'WordPress is running at ' + message.url
-					);
 					vscode.env.openExternal(vscode.Uri.parse(message.url));
 					stateManager.write({
 						serverAddress: message.url,
@@ -85,7 +78,6 @@ async function stopWordPressServer() {
 		stateManager.write({ state: 'stopping-server' });
 		worker.terminate();
 		await stateManager.write({ serverAddress: undefined });
-		vscode.window.showInformationMessage('WordPress server stopped');
 		stateManager.write({ state: 'idle' });
 	} catch (e) {
 		vscode.window.showErrorMessage(
