@@ -1,11 +1,15 @@
 import { SupportedPHPVersion } from '@php-wasm/universal';
-import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from '../../constants';
+import {
+	DEFAULT_PHP_VERSION,
+	DEFAULT_WORDPRESS_VERSION,
+} from '../../constants';
 
 export const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
 	documentRoot: '/var/www/html',
 	projectPath: process.cwd(),
-  wordPressVersion: DEFAULT_WORDPRESS_VERSION,
+	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
+	mode: 'auto',
 };
 
 export interface ConfigProviderInterface {
