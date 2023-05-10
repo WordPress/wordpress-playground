@@ -100,6 +100,14 @@ To install `wp-now` directly from `npm`, execute:
 npm install -g @wordpress/wp-now
 ```
 
+### Testing
+
+To run the unit tests, use the following command:
+
+```bash
+nx test wp-now
+```
+
 ### Migrating from Laravel Valet?
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
