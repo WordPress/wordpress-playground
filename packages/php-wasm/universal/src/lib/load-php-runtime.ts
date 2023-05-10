@@ -115,7 +115,6 @@
  * @param  dataDependenciesModules - A list of the ESM-wrapped Emscripten data dependency modules.
  * @returns Loaded runtime id.
  */
-
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
 	phpModuleArgs: EmscriptenOptions = {},
@@ -164,9 +163,12 @@ export async function loadPHPRuntime(
 	await depsReady;
 	await phpReady;
 
-	loadedRuntimes.push(PHPRuntime);
-	return loadedRuntimes.length - 1;
+	++lastLoadedRuntime;
+	loadedRuntimes[lastLoadedRuntime] = PHPRuntime;
+	return lastLoadedRuntime;
 }
+
+let lastLoadedRuntime = 0;
 
 export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
 
@@ -174,10 +176,15 @@ declare const self: WindowOrWorkerGlobalScope;
 declare const WorkerGlobalScope: object | undefined;
 
 export type PHPRuntimeId = number;
-const loadedRuntimes: PHPRuntime[] = [];
+const loadedRuntimes: Record<number, PHPRuntime> = [];
 
 export function getLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
 	return loadedRuntimes[id];
+}
+
+export function shutdownRuntime(id: PHPRuntimeId): PHPRuntime {
+	loadedRuntimes[id].exitRuntime();
+	delete loadedRuntimes[id];
 }
 
 export const currentJsRuntime = (function () {

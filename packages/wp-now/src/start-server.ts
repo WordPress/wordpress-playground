@@ -31,8 +31,10 @@ const requestBodyToString = async (req) =>
 		});
 	});
 
-const app = express();
-app.use(fileUpload());
+export interface WPNowServer {
+	url: string;
+	destroy: () => void;
+}
 
 function openInDefaultBrowser(port: number) {
 	const url = `http://127.0.0.1:${port}`;
@@ -57,12 +59,14 @@ function openInDefaultBrowser(port: number) {
 	spawn(cmd, args);
 }
 
-export async function startServer(options: WPNowOptions = {}) {
+export async function startServer(options: WPNowOptions = {}): Promise<WPNowServer> {
 	if (!fs.existsSync(options.projectPath)) {
 		throw new Error(
 			`The given path "${options.projectPath}" does not exist.`
 		);
 	}
+	const app = express();
+	app.use(fileUpload());
 	const port = await portFinder.getOpenPort();
 	const wpNow = await WPNow.create(options);
 	await wpNow.start();
@@ -117,8 +121,17 @@ export async function startServer(options: WPNowOptions = {}) {
 		}
 	});
 
-	app.listen(port, () => {
-		console.log(`Server running at http://127.0.0.1:${port}/`);
+	const url = `http://127.0.0.1:${port}/`;
+	const server = app.listen(port, () => {
+		console.log(`Server running at ${url}`);
 		openInDefaultBrowser(port);
 	});
+
+	return {
+		url,
+		destroy() {
+			server.close();
+			wpNow.php.shutdown();
+		},
+	};
 }

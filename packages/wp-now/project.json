@@ -2,7 +2,7 @@
 	"name": "wp-now",
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/wp-now/src",
-	"projectType": "application",
+	"projectType": "library",
 	"targets": {
 		"build": {
 			"executor": "nx:noop",

@@ -1,0 +1,71 @@
+{
+	"name": "vscode-extension",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/vscode-extension/src",
+	"projectType": "library",
+	"targets": {
+		"install": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"code --install-extension ./wordpress-playground-*.vsix"
+				],
+				"cwd": "dist/packages/vscode-extension",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		},
+		"build": {
+			"executor": "nx:noop",
+			"dependsOn": ["build:package"]
+		},
+		"build:package": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"rm ./*.vsix || true",
+					"vsce package"
+				],
+				"cwd": "dist/packages/vscode-extension",
+				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:bundle": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/vscode-extension/esbuild.mjs",
+					"cp -r packages/vscode-extension/public dist/packages/vscode-extension",
+					"cp packages/vscode-extension/package.json dist/packages/vscode-extension",
+					"cp packages/vscode-extension/README.md dist/packages/vscode-extension"
+				],
+				"parallel": false
+			}
+		},
+		"lint": {
+			"executor": "@nrwl/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/vscode-extension/**/*.ts"
+				]
+			}
+		},
+		"test": {
+			"executor": "@nrwl/jest:jest",
+			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"options": {
+				"jestConfig": "packages/vscode-extension/jest.config.ts",
+				"passWithNoTests": true
+			},
+			"configurations": {
+				"ci": {
+					"ci": true,
+					"codeCoverage": true
+				}
+			}
+		}
+	},
+	"tags": []
+}

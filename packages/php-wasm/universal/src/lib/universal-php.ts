@@ -111,6 +111,11 @@ export interface RequestHandler {
 }
 
 export interface IsomorphicLocalPHP extends RequestHandler {
+	/**
+	 * Shuts down the current PHP runtime.
+	 * No further requests can be made after this method is called.
+	 */
+	shutdown(): void;
 	setPhpIniPath(path: string): void;
 	setPhpIniEntry(key: string, value: string): void;
 	/**

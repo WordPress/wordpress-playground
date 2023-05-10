@@ -1,0 +1,53 @@
+{
+	"name": "wordpress-playground",
+	"displayName": "WordPress Playground for VS Code",
+	"description": "Embeds a WordPress installation in your your VS Code",
+	"license": "dual (GPLv2 and MPLv2)",
+	"publisher": "WordPressPlayground",
+	"version": "0.0.16",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playgrond"
+	},
+	"engines": {
+		"vscode": "^1.77.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [],
+	"main": "./index.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "wordpress-playground.serve",
+				"title": "Launch WordPress Playground"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "wordpress-playground",
+					"title": "WordPress Playground",
+					"icon": "public/sidebar-button.svg"
+				}
+			]
+		},
+		"views": {
+			"wordpress-playground": [
+				{
+					"id": "wordpress-playground-server",
+					"name": "Server",
+					"type": "webview"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "wordpress-playground-server",
+				"contents": "In order to use git features, you can open a folder containing a git repository or clone from a URL.\n[Open Folder](command:vscode.openFolder)\n[Clone Repository](command:git.clone)\nTo learn more about how to use git and source control in VS Code [read our docs](https://aka.ms/vscode-scm).",
+				"when": "!wordpressPlayground.serverAddress"
+			}
+		]
+	}
+}
