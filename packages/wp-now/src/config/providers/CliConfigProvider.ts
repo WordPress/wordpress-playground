@@ -4,7 +4,7 @@ import { ConfigProviderInterface } from './ConfigProvider';
 export interface CliOptions {
 	php: string;
 	path: string;
-  wp: string;
+	wp: string;
 }
 
 class CliConfigProvider implements ConfigProviderInterface {
@@ -26,6 +26,7 @@ class CliConfigProvider implements ConfigProviderInterface {
 		return {
 			projectPath: this.#options.path as string,
 			phpVersion: this.#options.php as SupportedPHPVersion,
+			wordPressVersion: this.#options.wp as string,
 		};
 	}
 }
