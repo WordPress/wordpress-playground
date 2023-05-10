@@ -181,8 +181,9 @@ export function getLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
 }
 
 export const currentJsRuntime = (function () {
-	// @ts-ignore
-	if (typeof window !== 'undefined' && !import.meta.env.TEST) {
+	if (typeof process !== 'undefined' && process.release?.name === 'node') {
+		return 'NODE';
+	} else if (typeof window !== 'undefined') {
 		return 'WEB';
 	} else if (
 		typeof WorkerGlobalScope !== 'undefined' &&
