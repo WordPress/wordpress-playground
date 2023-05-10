@@ -2,7 +2,7 @@ import { Worker } from 'worker_threads';
 import * as vscode from 'vscode';
 // @ts-ignore
 import webviewHtml from './webview.html';
-import { InMemoryStateManager, StateChangeEvent } from './state';
+import { InMemoryStateManager } from './state';
 
 let worker;
 const stateManager = new InMemoryStateManager();
@@ -100,20 +100,8 @@ async function activate(context) {
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			PlaygroundViewProvider.viewType,
-			provider,
-			{
-				// Enable javascript in the webview
-				enableScripts: true,
-				// Restrict the webview to only load resources from the `out` directory
-				localResourceRoots: [
-					vscode.Uri.joinPath(context.extensionUri, 'out'),
-				],
-			}
+			provider
 		)
-	);
-
-	vscode.window.showInformationMessage(
-		'WordPress is running at ' + stateManager.read().serverAddress
 	);
 
 	context.subscriptions.push(
@@ -137,10 +125,10 @@ class PlaygroundViewProvider implements vscode.WebviewViewProvider {
 			localResourceRoots: [this._extensionUri],
 		};
 
-		stateManager.addEventListener('change', (e: StateChangeEvent) => {
+		stateManager.addEventListener('change', (e) => {
 			webviewView.webview.postMessage({
 				command: 'stateChange',
-				state: e.state,
+				state: (e as any).state,
 			});
 		});
 

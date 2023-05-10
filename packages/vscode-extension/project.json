@@ -22,10 +22,7 @@
 		"build:package": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": [
-					"rm ./*.vsix || true",
-					"vsce package"
-				],
+				"commands": ["rm ./*.vsix || true", "vsce package"],
 				"cwd": "dist/packages/vscode-extension",
 				"parallel": false
 			},
@@ -47,9 +44,7 @@
 			"executor": "@nrwl/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": [
-					"packages/vscode-extension/**/*.ts"
-				]
+				"lintFilePatterns": ["packages/vscode-extension/**/*.ts"]
 			}
 		},
 		"test": {
@@ -64,6 +59,15 @@
 					"ci": true,
 					"codeCoverage": true
 				}
+			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/vscode-extension/tsconfig.spec.json --noEmit",
+					"yarn tsc -p packages/vscode-extension/tsconfig.lib.json --noEmit"
+				]
 			}
 		}
 	},

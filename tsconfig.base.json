@@ -5,6 +5,7 @@
 		"sourceMap": true,
 		"declaration": false,
 		"moduleResolution": "node",
+		"esModuleInterop": true,
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"importHelpers": true,
@@ -28,6 +29,7 @@
 			"@php-wasm/web-service-worker": [
 				"packages/php-wasm/web-service-worker/src/index.ts"
 			],
+			"@wp-now/wp-now": ["packages/wp-now/src/index.ts"],
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
@@ -49,8 +51,7 @@
 			],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
-			],
-			"@wp-now/wp-now": ["packages/wp-now/src/main.ts"]
+			]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

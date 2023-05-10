@@ -154,9 +154,7 @@
 		"vite-plugin-wasm": "^3.2.2",
 		"vite-tsconfig-paths": "^4.0.2",
 		"vitepress": "1.0.0-alpha.60",
-		"vitest": "^0.25.8",
-		"vscode": "1.1.37",
-		"yargs": "^17.7.1"
+		"vitest": "^0.25.8"
 	},
 	"workspaces": [
 		"packages/nx-extensions",

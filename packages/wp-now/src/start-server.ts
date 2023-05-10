@@ -34,7 +34,6 @@ const requestBodyToString = async (req) =>
 export interface WPNowServer {
 	url: string;
 	wpNow: WPNow;
-	destroy: () => void;
 }
 
 function openInDefaultBrowser(port: number) {
@@ -60,7 +59,9 @@ function openInDefaultBrowser(port: number) {
 	spawn(cmd, args);
 }
 
-export async function startServer(options: WPNowOptions = {}): Promise<WPNowServer> {
+export async function startServer(
+	options: WPNowOptions = {}
+): Promise<WPNowServer> {
 	if (!fs.existsSync(options.projectPath)) {
 		throw new Error(
 			`The given path "${options.projectPath}" does not exist.`
@@ -123,7 +124,7 @@ export async function startServer(options: WPNowOptions = {}): Promise<WPNowServ
 	});
 
 	const url = `http://127.0.0.1:${port}/`;
-	const server = app.listen(port, () => {
+	app.listen(port, () => {
 		console.log(`Server running at ${url}`);
 		openInDefaultBrowser(port);
 	});
@@ -131,9 +132,5 @@ export async function startServer(options: WPNowOptions = {}): Promise<WPNowServ
 	return {
 		url,
 		wpNow,
-		destroy() {
-			server.close();
-			wpNow.php.shutdown();
-		},
 	};
 }

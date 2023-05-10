@@ -1,16 +1,16 @@
-import { startServer } from 'wp-now';
+import { startServer } from '@wp-now/wp-now';
 import { parentPort } from 'worker_threads';
 
 async function start(config: any) {
-    const server = await startServer(config);
-    parentPort.postMessage({
-        ...server.wpNow.options,
+	const server = await startServer(config);
+	parentPort!.postMessage({
+		...server.wpNow.options,
 		command: 'server-started',
-        url: server.url,
+		url: server.url,
 	});
 }
 
-parentPort.on('message', (message) => {
+parentPort!.on('message', (message) => {
 	switch (message.command) {
 		case 'start-server':
 			start(message.config);

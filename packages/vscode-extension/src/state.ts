@@ -4,12 +4,17 @@ export interface InMemoryState {
 	mode?: string;
 	phpVersion?: string;
 	projectPath?: string;
-	state: 'starting-server' | 'server-running' | 'server-stopped' | 'idle';
+	state:
+		| 'starting-server'
+		| 'server-running'
+		| 'stopping-server'
+		| 'server-stopped'
+		| 'idle';
 }
 
 export class InMemoryStateManager extends EventTarget {
 	private state: InMemoryState = {
-		state: 'idle'
+		state: 'idle',
 	};
 
 	read() {

@@ -4,9 +4,8 @@ import ignorePlugin from 'esbuild-plugin-ignore';
 const options = {
 	entryPoints: [
 		'packages/vscode-extension/src/index.ts',
-		'packages/vscode-extension/src/serve.ts',
 		'packages/vscode-extension/src/webview.tsx',
-		'packages/vscode-extension/src/worker.ts'
+		'packages/vscode-extension/src/worker.ts',
 	],
 	outdir: 'dist/packages/vscode-extension',
 	bundle: true,
@@ -14,17 +13,17 @@ const options = {
 	minify: false,
 	format: 'cjs',
 	loader: {
-		'.html': 'text'
+		'.html': 'text',
 	},
 	platform: 'node',
 	plugins: [
 		// Only bundle PHP 7.4 for now
 		ignorePlugin([
 			{
-				resourceRegExp: /php_([^7]_\d|7_[^4])\.js$/
-			}
-		])
-	]
+				resourceRegExp: /php_([^7]_\d|7_[^4])\.js$/,
+			},
+		]),
+	],
 };
 
 // Build or watch, depending on the command line arguments
