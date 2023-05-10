@@ -28,6 +28,7 @@ export enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
 	CORE = 'core',
+	CORE_DEVELOP = 'core-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
 	AUTO = 'auto',
@@ -204,6 +205,20 @@ export default class WPNow {
 			return WPNowMode.THEME;
 		}
 		return WPNowMode.INDEX;
+	}
+
+	static #isThemeDirectory(projectPath: string): Boolean {
+		const styleCSSExists = fs.existsSync(
+			path.join(projectPath, 'style.css')
+		);
+		if (!styleCSSExists) {
+			return false;
+		}
+		const styleCSS = fs.readFileSync(
+			path.join(projectPath, 'style.css'),
+			'utf-8'
+		);
+		return styleCSS.includes('Theme Name:');
 	}
 
 	static #validateOptions(options: WPNowOptions) {
