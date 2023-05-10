@@ -52,7 +52,7 @@ export async function runCli() {
 						cliOptions: {
 							path: argv.path as string,
 							php: argv.php as SupportedPHPVersion,
-              wp: arv.wp as string,
+							wp: argv.wp as string,
 						},
 					});
 					portFinder.setPort(argv.port as number);
