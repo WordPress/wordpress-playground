@@ -102,6 +102,7 @@
 		"@vitejs/plugin-react": "^3.1.0",
 		"@vitest/coverage-c8": "~0.25.8",
 		"@vitest/ui": "^0.25.8",
+		"@vscode/vsce": "2.19.0",
 		"@vscode/webview-ui-toolkit": "1.2.2",
 		"@wordpress/block-editor": "11.6.0",
 		"@wordpress/blocks": "12.6.0",
@@ -154,8 +155,7 @@
 		"vite-plugin-wasm": "^3.2.2",
 		"vite-tsconfig-paths": "^4.0.2",
 		"vitepress": "1.0.0-alpha.60",
-		"vitest": "^0.25.8",
-		"vsce": "2.15.0"
+		"vitest": "^0.25.8"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
