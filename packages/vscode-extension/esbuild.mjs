@@ -5,7 +5,8 @@ const options = {
 	entryPoints: [
 		'packages/vscode-extension/src/index.ts',
 		'packages/vscode-extension/src/serve.ts',
-		'packages/vscode-extension/src/webview.tsx'
+		'packages/vscode-extension/src/webview.tsx',
+		'packages/vscode-extension/src/worker.ts'
 	],
 	outdir: 'dist/packages/vscode-extension',
 	bundle: true,

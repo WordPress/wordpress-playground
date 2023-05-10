@@ -33,6 +33,7 @@ const requestBodyToString = async (req) =>
 
 export interface WPNowServer {
 	url: string;
+	wpNow: WPNow;
 	destroy: () => void;
 }
 
@@ -129,6 +130,7 @@ export async function startServer(options: WPNowOptions = {}): Promise<WPNowServ
 
 	return {
 		url,
+		wpNow,
 		destroy() {
 			server.close();
 			wpNow.php.shutdown();

@@ -1,33 +1,12 @@
-import { startServer, WPNowServer } from 'wp-now';
+import { Worker } from 'worker_threads';
 import * as vscode from 'vscode';
 // @ts-ignore
 import webviewHtml from './webview.html';
 import { InMemoryStateManager, StateChangeEvent } from './state';
 
+let worker;
 const stateManager = new InMemoryStateManager();
-let server: WPNowServer;
 async function startWordPressServer() {
-	const memoryData = process.memoryUsage();
-
-	const formatMemoryUsage = (data) =>
-		`${Math.round((data / 1024 / 1024) * 100) / 100} MB`;
-	const memoryUsage = {
-		rss: `${formatMemoryUsage(
-			memoryData.rss
-		)} -> Resident Set Size - total memory allocated for the process execution`,
-		heapTotal: `${formatMemoryUsage(
-			memoryData.heapTotal
-		)} -> total size of the allocated heap`,
-		heapUsed: `${formatMemoryUsage(
-			memoryData.heapUsed
-		)} -> actual memory used during the execution`,
-		external: `${formatMemoryUsage(
-			memoryData.external
-		)} -> V8 external memory`,
-	};
-
-	console.log(memoryUsage);
-
 	if (!vscode.workspace.workspaceFolders) {
 		vscode.window.showErrorMessage(
 			'Open a folder before starting WordPress Playground server'
@@ -42,19 +21,51 @@ async function startWordPressServer() {
 	}
 
 	try {
+		await stateManager.write({ state: 'starting-server' });
 		vscode.window.showInformationMessage(
 			'Starting WordPress Playground server...'
 		);
-		server = await startServer({
-			phpVersion: '7.4',
-			projectPath: vscode.workspace.workspaceFolders[0].uri.fsPath,
-			mode: 'plugin',
+
+		worker = new Worker(__dirname + '/worker.js');
+
+		worker.on('message', (message) => {
+			switch (message.command) {
+				case 'server-started':
+					stateManager.write({ state: 'server-running' });
+					vscode.window.showInformationMessage(
+						'WordPress is running at ' + message.url
+					);
+					vscode.env.openExternal(vscode.Uri.parse(message.url));
+					stateManager.write({
+						serverAddress: message.url,
+						wordPressVersion: message.wordPressVersion,
+						mode: message.mode,
+						phpVersion: message.phpVersion,
+						projectPath: message.projectPath,
+					});
+					vscode.window.showInformationMessage(
+						'WordPress is running at ' + message.url
+					);
+					vscode.env.openExternal(vscode.Uri.parse(message.url));
+					break;
+			}
 		});
-		stateManager.write({ serverAddress: server.url });
-		vscode.window.showInformationMessage(
-			'WordPress is running at ' + server.url
-		);
-		vscode.env.openExternal(vscode.Uri.parse(server.url));
+
+		worker.on('error', (err) => {
+			vscode.window.showErrorMessage(
+				'WordPress Playground error: ' + err.message
+			);
+			console.trace(err);
+		});
+
+		worker.postMessage({
+			command: 'start-server',
+			config: {
+				phpVersion: '7.4',
+				projectPath: vscode.workspace.workspaceFolders[0].uri.fsPath,
+				mode: 'plugin',
+			},
+		});
 	} catch (e) {
 		vscode.window.showErrorMessage(
 			'WordPress Playground error: ' + e.message
@@ -70,9 +81,11 @@ async function stopWordPressServer() {
 	}
 
 	try {
-		server.destroy();
+		stateManager.write({ state: 'stopping-server' });
+		worker.terminate();
 		await stateManager.write({ serverAddress: undefined });
 		vscode.window.showInformationMessage('WordPress server stopped');
+		stateManager.write({ state: 'idle' });
 	} catch (e) {
 		vscode.window.showErrorMessage(
 			'WordPress Playground error: ' + e.message

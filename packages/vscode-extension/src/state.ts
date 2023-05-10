@@ -1,9 +1,16 @@
 export interface InMemoryState {
 	serverAddress?: string;
+	wordPressVersion?: string;
+	mode?: string;
+	phpVersion?: string;
+	projectPath?: string;
+	state: 'starting-server' | 'server-running' | 'server-stopped' | 'idle';
 }
 
 export class InMemoryStateManager extends EventTarget {
-	private state: InMemoryState = {};
+	private state: InMemoryState = {
+		state: 'idle'
+	};
 
 	read() {
 		return {
@@ -16,7 +23,7 @@ export class InMemoryStateManager extends EventTarget {
 			...this.state,
 			...newState,
 		};
-		this.dispatchEvent(new StateChangeEvent('change', newState));
+		this.dispatchEvent(new StateChangeEvent('change', this.state));
 	}
 }
 

@@ -25,15 +25,10 @@ const js = phpVars({
 	httpUrl,
 });
 
-<<<<<<< HEAD
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
 describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
-=======
-// describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
->>>>>>> 83a44b17 (Squash)
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
 		`file_get_contents(${js['httpUrl']});`,
@@ -191,15 +186,11 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 			expect(result.text).toBe('');
 			expect(result.errors).toBeFalsy();
 		} catch (e) {
-<<<<<<< HEAD
 			if (
 				'FIX_DOCKERFILE' in process.env &&
 				process.env['FIX_DOCKERFILE'] === 'true' &&
 				'functionsMaybeMissingFromAsyncify' in php
 			) {
-=======
-			if ('functionsMaybeMissingFromAsyncify' in php) {
->>>>>>> 83a44b17 (Squash)
 				const missingCandidates = (
 					php.functionsMaybeMissingFromAsyncify as string[]
 				)
@@ -228,11 +219,6 @@ describe.each(['7.4', '8.0'])('PHP %s – asyncify', (phpVersion) => {
 				err.cause = e;
 				throw err;
 			}
-<<<<<<< HEAD
-=======
-
-			throw e;
->>>>>>> 83a44b17 (Squash)
 		}
 	}
 });

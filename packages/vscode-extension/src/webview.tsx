@@ -4,10 +4,11 @@ import { createRoot } from 'react-dom/client';
 import {
 	provideVSCodeDesignSystem,
 	vsCodeButton,
+	vsCodeProgressRing,
 } from '@vscode/webview-ui-toolkit';
 import { InMemoryState } from './state';
 
-provideVSCodeDesignSystem().register(vsCodeButton());
+provideVSCodeDesignSystem().register(vsCodeButton(), vsCodeProgressRing());
 
 const vscode = acquireVsCodeApi();
 const Webview = () => {
@@ -41,49 +42,76 @@ const Webview = () => {
 interface ServerStateProps {
 	appState: InMemoryState;
 }
+const VscodeButton = 'vscode-button' as any;
+const VscodeProgressRing = 'vscode-progress-ring' as any;
 const ServerState = ({ appState }: ServerStateProps) => {
-	if (appState.serverAddress) {
+	if (appState.state === 'starting-server') {
 		return (
 			<>
-				<vscode-button
-					class="server-button"
-					appearance="primary"
-					onClick={handleStopServerClick}
-				>
-					Stop WordPress Server
-				</vscode-button>
+				<FlexCenter>
+					<VscodeProgressRing />
+					<span>Starting WordPress Server...</span>
+				</FlexCenter>
+			</>
+		);
+	}
+
+	if (appState.state === 'server-running') {
+		return (
+			<>
+				<FlexCenter>
+					<VscodeButton
+						className="server-button"
+						appearance="primary"
+						onClick={handleStopServerClick}
+					>
+						Stop WordPress Server
+					</VscodeButton>
+				</FlexCenter>
 				<p>
-					WordPressServer is running at
+					WordPressServer is running at{' '}
 					<a href={appState.serverAddress}>
 						{appState.serverAddress}
 					</a>
-                </p>
-                <p>
-                    PHP Version:
-                </p>
-                <p>
-                    WordPress Version:
-                </p>
-                <p>
-                    Mode:
-                </p>
+				</p>
+				<p>PHP Version: {appState.phpVersion}</p>
+				<p>WordPress Version: {appState.wordPressVersion}</p>
+				<p>Mode: {appState.mode}</p>
+				<p>Project path: {appState.projectPath}</p>
 			</>
 		);
 	}
 
 	return (
 		<>
-			<p>To get started, press the button below.</p>
-			<vscode-button
-				class="server-button"
-				appearance="primary"
-				onClick={handleStartServerClick}
-			>
-				Start WordPress Server
-			</vscode-button>
+			<p>To get started, press the button below:</p>
+			<FlexCenter>
+				<VscodeButton
+					className="server-button"
+					appearance="primary"
+					onClick={handleStartServerClick}
+				>
+					Start WordPress Server
+				</VscodeButton>
+			</FlexCenter>
 		</>
 	);
 };
+
+function FlexCenter({ children }) {
+	return (
+		<div
+			style={{
+				display: 'flex',
+				justifyContent: 'center',
+				alignItems: 'center',
+				gap: '1rem',
+			}}
+		>
+			{children}
+		</div>
+	);
+}
 
 function handleStartServerClick() {
 	vscode.postMessage({

@@ -136,8 +136,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				(this as any)[name] = () => {
 					throw new Error(`PHP runtime has been shutdown.`);
 				};
-			} else {
-				delete this[name];
 			}
 		}
 	}
