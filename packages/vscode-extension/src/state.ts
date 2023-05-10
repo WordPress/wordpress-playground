@@ -15,6 +15,8 @@ export interface InMemoryState {
 export class InMemoryStateManager extends EventTarget {
 	private state: InMemoryState = {
 		state: 'idle',
+		phpVersion: '7.4',
+		wordPressVersion: '6.2',
 	};
 
 	read() {

@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-
-import {
-	provideVSCodeDesignSystem,
-	vsCodeButton,
-	vsCodeProgressRing,
-} from '@vscode/webview-ui-toolkit';
+import { SupportedPHPVersions } from '@php-wasm/universal';
 import { InMemoryState } from './state';
+import {
+	VSCodeButton,
+	VSCodeProgressRing,
+	VSCodeDropdown,
+	VSCodeOption,
+} from '@vscode/webview-ui-toolkit/react';
 
-provideVSCodeDesignSystem().register(vsCodeButton(), vsCodeProgressRing());
+// @TODO Move to @wp-playground/wordpress package
+const SupportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
 
+// @ts-ignore
 const vscode = acquireVsCodeApi();
+
 const Webview = () => {
 	const [appState, setAppState] = useState(
 		(window as any).initialState as InMemoryState
@@ -42,14 +46,12 @@ const Webview = () => {
 interface ServerStateProps {
 	appState: InMemoryState;
 }
-const VscodeButton = 'vscode-button' as any;
-const VscodeProgressRing = 'vscode-progress-ring' as any;
 const ServerState = ({ appState }: ServerStateProps) => {
 	if (appState.state === 'starting-server') {
 		return (
 			<>
 				<FlexCenter>
-					<VscodeProgressRing />
+					<VSCodeProgressRing />
 					<span>Starting WordPress Server...</span>
 				</FlexCenter>
 			</>
@@ -60,13 +62,13 @@ const ServerState = ({ appState }: ServerStateProps) => {
 		return (
 			<>
 				<FlexCenter>
-					<VscodeButton
+					<VSCodeButton
 						className="server-button"
 						appearance="primary"
 						onClick={handleStopServerClick}
 					>
 						Stop WordPress Server
-					</VscodeButton>
+					</VSCodeButton>
 				</FlexCenter>
 				<p>
 					WordPressServer is running at{' '}
@@ -74,8 +76,40 @@ const ServerState = ({ appState }: ServerStateProps) => {
 						{appState.serverAddress}
 					</a>
 				</p>
-				<p>PHP Version: {appState.phpVersion}</p>
-				<p>WordPress Version: {appState.wordPressVersion}</p>
+				<Dropdown
+					label="PHP Version"
+					options={Object.fromEntries(
+						SupportedPHPVersions.map((version) => [
+							version,
+							version,
+						])
+					)}
+					selected={appState.phpVersion!}
+					onChange={(value) => {
+						vscode.postMessage({
+							command: 'option-change',
+							option: 'phpVersion',
+							value,
+						});
+					}}
+				/>
+				<Dropdown
+					label="WordPress Version"
+					options={Object.fromEntries(
+						SupportedWordPressVersions.map((version) => [
+							version,
+							version,
+						])
+					)}
+					selected={appState.wordPressVersion!}
+					onChange={(value) => {
+						vscode.postMessage({
+							command: 'option-change',
+							option: 'wordPressVersion',
+							value,
+						});
+					}}
+				/>
 				<p>Mode: {appState.mode}</p>
 				<p>Project path: {appState.projectPath}</p>
 			</>
@@ -86,17 +120,48 @@ const ServerState = ({ appState }: ServerStateProps) => {
 		<>
 			<p>To get started, press the button below:</p>
 			<FlexCenter>
-				<VscodeButton
+				<VSCodeButton
 					className="server-button"
 					appearance="primary"
 					onClick={handleStartServerClick}
 				>
 					Start WordPress Server
-				</VscodeButton>
+				</VSCodeButton>
 			</FlexCenter>
 		</>
 	);
 };
+
+interface DropdownProps {
+	label: string;
+	options: Record<string, string>;
+	selected: string;
+	onChange: (value: string) => void;
+}
+
+function Dropdown({ label, options, selected, onChange }: DropdownProps) {
+	const handleSelectChange = (event) => {
+		console.log(event.target.value);
+		onChange(event.target.value);
+	};
+
+	return (
+		<div className="dropdown-container">
+			<label htmlFor="my-dropdown">{label}</label>
+			<VSCodeDropdown id="my-dropdown" onChange={handleSelectChange}>
+				{Object.entries(options).map(([value, label]) => (
+					<VSCodeOption
+						key={value}
+						selected={value === selected}
+						value={value}
+					>
+						{label}
+					</VSCodeOption>
+				))}
+			</VSCodeDropdown>
+		</div>
+	);
+}
 
 function FlexCenter({ children }) {
 	return (

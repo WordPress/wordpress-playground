@@ -4,7 +4,7 @@
 	"description": "Embeds a WordPress installation in your your VS Code",
 	"license": "dual (GPLv2 and MPLv2)",
 	"publisher": "WordPressPlayground",
-	"version": "0.0.16",
+	"version": "0.0.17",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playgrond"

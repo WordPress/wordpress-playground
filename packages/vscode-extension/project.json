@@ -18,7 +18,7 @@
 		"publish": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["vsce publish ./wordpress-playground-*.vsix"],
+				"commands": ["vsce publish -i ./wordpress-playground-*.vsix"],
 				"cwd": "dist/packages/vscode-extension",
 				"parallel": false
 			},
@@ -43,8 +43,10 @@
 				"commands": [
 					"node packages/vscode-extension/esbuild.mjs",
 					"cp -r packages/vscode-extension/public dist/packages/vscode-extension",
+					"cp ./LICENSE dist/packages/vscode-extension",
 					"cp packages/vscode-extension/package.json dist/packages/vscode-extension",
-					"cp packages/vscode-extension/README.md dist/packages/vscode-extension"
+					"cp packages/vscode-extension/README.md dist/packages/vscode-extension",
+					"cp packages/php-wasm/node/public/*.wasm dist/packages/vscode-extension"
 				],
 				"parallel": false
 			}

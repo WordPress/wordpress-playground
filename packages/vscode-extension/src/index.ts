@@ -61,7 +61,8 @@ async function startWordPressServer() {
 		worker.postMessage({
 			command: 'start-server',
 			config: {
-				phpVersion: '7.4',
+				phpVersion: stateManager.read().phpVersion,
+				wordPressVersion: stateManager.read().wordPressVersion,
 				projectPath: vscode.workspace.workspaceFolders[0].uri.fsPath,
 				mode: 'plugin',
 			},
@@ -134,13 +135,26 @@ class PlaygroundViewProvider implements vscode.WebviewViewProvider {
 
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-		webviewView.webview.onDidReceiveMessage((data) => {
-			switch (data.command) {
+		webviewView.webview.onDidReceiveMessage(async (message) => {
+			switch (message.command) {
 				case 'server-start':
 					startWordPressServer();
 					break;
 				case 'server-stop':
 					stopWordPressServer();
+					break;
+				case 'option-change':
+					await stopWordPressServer();
+					if (message.option === 'phpVersion') {
+						stateManager.write({
+							phpVersion: message.value,
+						});
+					} else if (message.option === 'wordPressVersion') {
+						stateManager.write({
+							wordPressVersion: message.value,
+						});
+					}
+					startWordPressServer();
 					break;
 			}
 		});
