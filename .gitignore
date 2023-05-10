@@ -17,7 +17,6 @@ node_modules
 # IDEs and editors
 /.idea
 /.local
-.vscode
 .project
 .classpath
 .c9/

@@ -3,7 +3,7 @@ import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
 
 // @ts-ignore
-import migrationsPHPCode from './migration.php?raw';
+import migrationsPHPCode from './migration';
 
 /**
  * Full site export support:

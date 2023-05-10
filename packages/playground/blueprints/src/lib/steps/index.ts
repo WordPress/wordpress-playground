@@ -22,6 +22,7 @@ import {
 	RequestStep,
 	WriteFileStep,
 } from './client-methods';
+import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -35,6 +36,7 @@ export type GenericStep<Resource> =
 	| ActivatePluginStep
 	| ApplyWordPressPatchesStep
 	| CpStep
+	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>

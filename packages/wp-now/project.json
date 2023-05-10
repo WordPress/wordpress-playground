@@ -2,7 +2,7 @@
 	"name": "wp-now",
 	"$schema": "../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/wp-now/src",
-	"projectType": "application",
+	"projectType": "library",
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
@@ -22,6 +22,7 @@
 			"options": {
 				"commands": [
 					"node packages/wp-now/esbuild.mjs",
+					"cp packages/wp-now/public/* dist/packages/wp-now",
 					"cp packages/wp-now/package.json dist/packages/wp-now",
 					"cp packages/wp-now/README.md dist/packages/wp-now"
 				],

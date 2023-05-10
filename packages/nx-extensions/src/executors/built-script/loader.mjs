@@ -9,9 +9,10 @@ import devkit from '@nrwl/devkit';
 const nxBaseDir = process.cwd();
 const require = createRequire(nxBaseDir + '/');
 const resolvedPackages = {};
-for (const packageJson of globSync(
-	nxBaseDir + '/dist/packages/*/*/package.json'
-)) {
+for (const packageJson of globSync([
+	nxBaseDir + '/dist/packages/*/package.json',
+	nxBaseDir + '/dist/packages/*/*/package.json',
+])) {
 	const json = require(packageJson);
 	const filename = json.module || json.main || 'index.js';
 	resolvedPackages[json.name] = dirname(packageJson) + '/' + filename;
