@@ -39,7 +39,6 @@ async function startWordPressServer() {
 					vscode.window.showInformationMessage(
 						'WordPress is running at ' + message.url
 					);
-					vscode.env.openExternal(vscode.Uri.parse(message.url));
 					break;
 			}
 		});
