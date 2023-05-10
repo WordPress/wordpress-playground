@@ -1,5 +1,5 @@
-import fs from "fs-extra";
-import path from "path";
+import fs from 'fs-extra';
+import path from 'path';
 
 /**
  * Checks if the given path is a WordPress theme directory.
@@ -8,9 +8,7 @@ import path from "path";
  * @returns A boolean value indicating whether the project is a WordPress theme directory.
  */
 export function isThemeDirectory(projectPath: string): Boolean {
-	const styleCSSExists = fs.existsSync(
-		path.join(projectPath, 'style.css')
-	);
+	const styleCSSExists = fs.existsSync(path.join(projectPath, 'style.css'));
 	if (!styleCSSExists) {
 		return false;
 	}
