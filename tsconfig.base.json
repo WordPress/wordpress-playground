@@ -47,7 +47,7 @@
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
 			],
-			"wp-now": ["packages/wp-now/src/index.ts"]
+			"@wp-now/wp-now": ["packages/wp-now/src/main.ts"]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]
