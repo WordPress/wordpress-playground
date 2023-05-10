@@ -25,7 +25,7 @@
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/progress"
 	},
-	"license": "(GPL-2.0-or-later OR MPL-2.0)",
+	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"main": "index.js",
 	"types": "index.d.ts",
