@@ -108,7 +108,16 @@ class PlaygroundViewProvider implements vscode.WebviewViewProvider {
 
 	constructor(private readonly _extensionUri: vscode.Uri) {}
 
+	/**
+	 * Revolves a webview view.
+	 *
+	 * `resolveWebviewView` is called when a view first becomes visible. This may happen when the view is
+	 * first loaded or when the user hides and then shows a view again.
+	 *
+	 * @return Optional thenable indicating that the view has been fully resolved.
+	 */
 	public resolveWebviewView(webviewView: vscode.WebviewView) {
+		console.log('CREATING WEB VIEW');
 		webviewView.webview.options = {
 			// Allow scripts in the webview
 			enableScripts: true,
@@ -126,7 +135,14 @@ class PlaygroundViewProvider implements vscode.WebviewViewProvider {
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
 		webviewView.webview.onDidReceiveMessage(async (message) => {
+			console.log('MESSAGE RECEIVED', message);
 			switch (message.command) {
+				case 'get-state':
+					webviewView.webview.postMessage({
+						command: 'stateChange',
+						state: stateManager.read(),
+					});
+					break;
 				case 'server-start':
 					startWordPressServer();
 					break;

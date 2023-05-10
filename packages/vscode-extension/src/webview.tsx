@@ -15,20 +15,24 @@ const SupportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
 // @ts-ignore
 const vscode = acquireVsCodeApi();
 
-const Webview = () => {
-	const [appState, setAppState] = useState(
-		(window as any).initialState as InMemoryState
-	);
+interface WebviewProps {
+	initialState: InMemoryState;
+}
+const Webview = ({ initialState }: WebviewProps) => {
+	const [appState, setAppState] = useState(initialState as InMemoryState);
 	useEffect(() => {
 		window.addEventListener('message', (event) => {
 			const message = event.data;
-			console.log(message);
 
 			switch (message.command) {
 				case 'stateChange':
 					setAppState(message.state as InMemoryState);
 					break;
 			}
+		});
+
+		getInitialState().then((state: InMemoryState) => {
+			setAppState(state);
 		});
 	}, []);
 
@@ -191,4 +195,25 @@ function handleStopServerClick() {
 }
 
 const root = createRoot(document.querySelector('#root')!);
-root.render(<Webview />);
+root.render(
+	<Webview initialState={JSON.parse(localStorage.getItem('state') || '{}')} />
+);
+window.addEventListener('message', function (event) {
+	if (event?.data?.command === 'stateChange') {
+		localStorage.setItem('state', JSON.stringify(event?.data?.state));
+	}
+});
+
+function getInitialState() {
+	return new Promise((resolve) => {
+		vscode.postMessage({ command: 'get-state' });
+		function renderOnStateChange(event) {
+			if (event?.data?.command === 'stateChange') {
+				window.removeEventListener('message', renderOnStateChange);
+				console.log(event?.data?.state);
+				resolve(event?.data?.state);
+			}
+		}
+		window.addEventListener('message', renderOnStateChange);
+	});
+}
