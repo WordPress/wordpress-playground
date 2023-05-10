@@ -31,7 +31,7 @@ export class UnhandledRejectionsTarget extends EventTarget {
  *
  * @param runtime
  */
-export function listenToWASMErrors(runtime: Runtime) {
+export function improveWASMErrorReporting(runtime: Runtime) {
 	runtime.asm = {
 		...runtime.asm,
 	};

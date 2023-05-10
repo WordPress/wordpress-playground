@@ -5,7 +5,7 @@ import {
 } from './php-request-handler';
 import { PHPResponse } from './php-response';
 import { rethrowFileSystemError } from './rethrow-file-system-error';
-import { getLoadedRuntime, shutdownRuntime } from './load-php-runtime';
+import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import {
 	FileInfo,
@@ -17,7 +17,7 @@ import {
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
-	listenToWASMErrors,
+	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 
@@ -38,7 +38,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#runtimeId?: number;
 	requestHandler?: PHPBrowser;
 
 	/**
@@ -92,10 +91,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (!runtime) {
 			throw new Error('Invalid PHP runtime id.');
 		}
-		this.#runtimeId = runtimeId;
 		this[__private__dont__use] = runtime;
 
-		this.#wasmErrorsTarget = listenToWASMErrors(runtime);
+		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
 	}
 
 	/** @inheritDoc */
@@ -122,22 +120,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	chdir(path: string) {
 		this[__private__dont__use].FS.chdir(path);
-	}
-
-	/** @inheritDoc */
-	shutdown() {
-		if (this.#runtimeId) {
-			shutdownRuntime(this.#runtimeId);
-		}
-		delete this[__private__dont__use];
-
-		for (const name in this) {
-			if (typeof this[name] === 'function') {
-				(this as any)[name] = () => {
-					throw new Error(`PHP runtime has been shutdown.`);
-				};
-			}
-		}
 	}
 
 	/** @inheritDoc */
