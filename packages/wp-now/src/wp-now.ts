@@ -212,19 +212,6 @@ export default class WPNow {
 		return WPNowMode.INDEX;
 	}
 
-	static #isThemeDirectory(projectPath: string): Boolean {
-		const styleCSSExists = fs.existsSync(
-			path.join(projectPath, 'style.css')
-		);
-		if (!styleCSSExists) {
-			return false;
-		}
-		const styleCSS = fs.readFileSync(
-			path.join(projectPath, 'style.css'),
-			'utf-8'
-		);
-		return styleCSS.includes('Theme Name:');
-	}
 	static #validateOptions(options: WPNowOptions) {
 		// Check the php version
 		if (
