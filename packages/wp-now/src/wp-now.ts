@@ -317,7 +317,9 @@ function copySqlite(localWordPressPath: string) {
 	);
 }
 
-function inferMode(projectPath: string): Exclude<WPNowMode, WPNowMode.AUTO> {
+export function inferMode(
+	projectPath: string
+): Exclude<WPNowMode, WPNowMode.AUTO> {
 	if (isWpDevelopDirectory(projectPath)) {
 		return WPNowMode.CORE_DEVELOP;
 	} else if (isWpCoreDirectory(projectPath)) {
