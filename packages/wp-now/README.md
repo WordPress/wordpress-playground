@@ -30,7 +30,7 @@ nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 
 wp-now operates in four different modes:
 
-The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file. 
+The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file.
 
 -   `index`: executes a simple php file. If your destination folder does not contain a `theme`, `plugin` or `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
 -   `theme`: loads WordPress with your selected theme included
