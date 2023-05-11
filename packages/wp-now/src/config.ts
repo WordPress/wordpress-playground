@@ -17,6 +17,7 @@ export enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
 	CORE = 'core',
+	CORE_DEVELOP = 'core-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
 	AUTO = 'auto',

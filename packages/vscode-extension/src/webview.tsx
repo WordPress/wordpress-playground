@@ -40,7 +40,17 @@ const Webview = ({ initialState }: WebviewProps) => {
 		<div>
 			<p>
 				WordPress Playground is a tool for developing WordPress themes
-				and plugins.
+				and plugins locally in Visual Studio Code.
+			</p>
+			<p>
+				It provides a working local WordPress environment, with which
+				you can develop and test your WordPress plugin or theme, and
+				even WordPress core itself.
+			</p>
+			<p>
+				To get started, make sure to open a folder with either your
+				plugin, theme, or an entire WordPress, and then press the button
+				below to start the playground:
 			</p>
 			<ServerState appState={appState} />
 		</div>
@@ -123,18 +133,15 @@ const ServerState = ({ appState }: ServerStateProps) => {
 	}
 
 	return (
-		<>
-			<p>To get started, press the button below:</p>
-			<FlexCenter>
-				<VSCodeButton
-					className="server-button"
-					appearance="primary"
-					onClick={handleStartServerClick}
-				>
-					Start WordPress Server
-				</VSCodeButton>
-			</FlexCenter>
-		</>
+		<FlexCenter>
+			<VSCodeButton
+				className="server-button"
+				appearance="primary"
+				onClick={handleStartServerClick}
+			>
+				Start WordPress Server
+			</VSCodeButton>
+		</FlexCenter>
 	);
 };
 

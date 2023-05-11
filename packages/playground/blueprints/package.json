@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/blueprints",
-	"version": "0.1.39",
+	"version": "0.1.42",
 	"exports": {
 		".": {
 			"import": "./index.js",
@@ -18,6 +18,7 @@
 		"tsconfig": "./tsconfig.lib.json"
 	},
 	"publishConfig": {
-		"access": "public"
+		"access": "public",
+		"directory": "../../../dist/packages/playground/blueprints"
 	}
 }
