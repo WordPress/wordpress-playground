@@ -24,7 +24,7 @@ import {
 } from './wp-playground-wordpress';
 import { isWpCoreDirectory } from './wp-playground-wordpress/is-wp-core-directory';
 
-export enum WPNowMode {
+export const enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
 	CORE = 'core',
