@@ -42,7 +42,7 @@ If you would like to be able to not use `wp-now` globally and manually specify t
 1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
 2. Start the web server in one of the modes specified below:
 
-### Modes on WP-NOW {#modes-on-wp-now}
+### Modes on WP-NOW
 
 wp-now operates in four different modes:
 
