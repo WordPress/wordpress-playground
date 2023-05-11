@@ -7,7 +7,7 @@ import path from 'path';
  * @param projectPath The path to the project to check.
  * @returns Is it a WordPress directory?
  */
-export function isWpDirectory(projectPath: string): Boolean {
+export function isWordPressDirectory(projectPath: string): Boolean {
 	return (
 		fs.existsSync(path.join(projectPath, 'wp-content')) &&
 		fs.existsSync(path.join(projectPath, 'wp-includes')) &&
