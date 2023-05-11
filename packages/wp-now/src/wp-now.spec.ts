@@ -2,10 +2,10 @@ import { parseOptions, WPNowMode, WPNowOptions } from './wp-now';
 
 test('parseOptions with default options', async () => {
 	const options = await parseOptions();
-	expect(options.phpVersion).toBe('7.4.0');
+	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
 	expect(options.documentRoot).toBe('/var/www/html');
-	expect(options.mode).toBe(WPNowMode.AUTO);
+	expect(options.mode).toBe(WPNowMode.PLUGIN);
 	expect(options.projectPath).toBe(process.cwd());
 });
 
@@ -21,9 +21,9 @@ test('parseOptions with custom options', async () => {
 	};
 	const options = await parseOptions(rawOptions);
 	expect(options.phpVersion).toBe('7.3');
-	expect(options.wordPressVersion).toBe('5.7.2');
+	expect(options.wordPressVersion).toBe('5.7');
 	expect(options.documentRoot).toBe('/var/www/my-site');
-	expect(options.mode).toBe(WPNowMode.CORE);
+	expect(options.mode).toBe(WPNowMode.WP_CONTENT);
 	expect(options.projectPath).toBe('/path/to/my-site');
 	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
 	expect(options.absoluteUrl).toBe('http://localhost:8080');
@@ -31,9 +31,9 @@ test('parseOptions with custom options', async () => {
 
 test('parseOptions with unsupported PHP version', async () => {
 	const rawOptions: Partial<WPNowOptions> = {
-		phpVersion: '7.2',
+		phpVersion: '5.4' as any,
 	};
-	await expect(parseOptions(rawOptions)).rejects.toContain(
-		'Unsupported PHP version: 7.2. Supported versions: 7.4.0, 8.0.0'
+	await expect(parseOptions(rawOptions)).rejects.toThrowError(
+		'Unsupported PHP version: 5.4.'
 	);
 });
