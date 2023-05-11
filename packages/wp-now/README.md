@@ -42,16 +42,15 @@ If you would like to be able to not use `wp-now` globally and manually specify t
 1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
 2. Start the web server in one of the modes specified below:
 
-### Modes on WP-NOW
+### Automatic execution modes
 
-`wp-now` operates in four different modes:
+`wp-now` can automatically operate in a few different modes. The selected mode depends on the directory in which it is executed:
 
-The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file.
-
--   `index`: executes a simple PHP file. If your destination folder does not contain a theme, plugin or is not a `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
--   `theme`: loads WordPress with your selected theme included
--   `plugin`: loads WordPress with your selected plugin included
--   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
+-   `plugin` or `theme`: Loads the plugin or theme files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, te database, `wp-config.php`, etc.) is stored in the user's home directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `wp-content`: Loads the project files as a `wp-content` folder within a virtual filesystem. WordPress core files and `wp-config.php` remain virtualized, but the SQLite database will be written to the project directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `wordpress`: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
+-   `wordpress-develop`: Same as `wordpress` mode, except the `build` directory is served as the web root.
+-   `index`: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
 
 To launch the `wp-now` in the `index` mode, you can run:
 
