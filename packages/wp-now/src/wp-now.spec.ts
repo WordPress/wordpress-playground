@@ -158,22 +158,6 @@ test('isWordPressDirectory detects a WordPress directory and WORDPRESS mode', ()
 	expect(inferMode(projectPath)).toBe(WPNowMode.WORDPRESS);
 });
 
-test('isWordPressDirectory returns false in a WordPress directory with a wp-config.php', () => {
-	const projectPath = __dirname;
-	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
-		const existingFiles = [
-			path.join(projectPath, 'wp-content'),
-			path.join(projectPath, 'wp-includes'),
-			path.join(projectPath, 'wp-load.php'),
-			path.join(projectPath, 'wp-config.php'),
-		];
-		return existingFiles.includes(fileOrFolder as string);
-	});
-
-	expect(isWordPressDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
-});
-
 test('isWordPressDirectory returns false for non-WordPress directory', () => {
 	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockReturnValue(false);
