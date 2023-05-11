@@ -96,7 +96,7 @@ Please note: if you use `npm link` and are executing `wp-now` from the plugin or
 wp-now start --wp=5.9 --php=7.4 --port=3000
 ```
 
-### How to install WP-NOW from npm (not available yet)
+## How to install WP-NOW from npm (not available yet)
 
 To install `wp-now` directly from `npm`, execute:
 
@@ -111,7 +111,7 @@ cd wordpress-plugin-or-theme
 wp now start
 ```
 
-### Testing
+## Testing
 
 To run the unit tests, use the following command:
 
@@ -119,13 +119,12 @@ To run the unit tests, use the following command:
 nx test wp-now
 ```
 
-### Other important technical details
+## Other important technical details
 
 -   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-conten` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
 -   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
--
 
-### Migrating from Laravel Valet?
+## Migrating from Laravel Valet?
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
 
@@ -143,7 +142,7 @@ Some similarities between Laravel Valet and `wp-now` to be aware of:
 -   possible to switch easily the PHP version;
 -   possibility to work on multiple WordPress sites simultaneously
 
-### Migrating from wp-env?
+## Migrating from wp-env?
 
 If you are migrating from `wp-env`, you should be aware of the differences it has with `wp-now`:
 
