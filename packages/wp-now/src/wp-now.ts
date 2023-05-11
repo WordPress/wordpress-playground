@@ -136,10 +136,10 @@ export default async function startWPNow(
 			await runWpContentMode(php, options);
 			break;
 		case WPNowMode.WORDPRESS_DEVELOP:
-			await runCoreDevelopMode(php, options);
+			await runWordPressDevelopMode(php, options);
 			break;
 		case WPNowMode.WORDPRESS:
-			await runCoreMode(php, options);
+			await runWordPressMode(php, options);
 			break;
 		case WPNowMode.PLUGIN:
 			await runPluginOrThemeMode(php, options);
@@ -195,18 +195,18 @@ async function runWpContentMode(
 	php.mount(projectPath, `${documentRoot}/wp-content`);
 }
 
-async function runCoreDevelopMode(
+async function runWordPressDevelopMode(
 	php: NodePHP,
 	{ documentRoot, projectPath, absoluteUrl }: WPNowOptions
 ) {
-	await runCoreMode(php, {
+	await runWordPressMode(php, {
 		documentRoot,
 		projectPath: projectPath + '/build',
 		absoluteUrl,
 	});
 }
 
-async function runCoreMode(
+async function runWordPressMode(
 	php: NodePHP,
 	{ documentRoot, projectPath, absoluteUrl }: WPNowOptions
 ) {
