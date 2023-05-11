@@ -4,8 +4,11 @@
 
 ## Getting Started
 
-Before getting started, make sure you have `nvm` installed. If you need to install it first,
-[follow these installation instructions](https://github.com/nvm-sh/nvm#installation).
+Before getting started:
+
+-   Make sure you have `nvm` installed. If you need to install it first,
+    [follow these installation instructions](https://github.com/nvm-sh/nvm#installation). Please note that if you are installing `wp-now` from `npm`, **this step is not necessary**;
+-   Install `yarn` by running `npm install -g yarn`
 
 Follow these steps to build and run `wp-now` locally:
 
@@ -19,7 +22,7 @@ To build the project, use the following commands in your terminal:
 
 ### Running
 
-1. Execute `sudo npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
+1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
 2. To start the web server in the plugin or theme mode (see Modes on WP-NOW section for details), run the command below. Make sure to replace `/path/to/wordpress-plugin-or-theme` with the actual path to your plugin or theme folder.
 
 ```bash
@@ -61,10 +64,10 @@ Make sure to replace `/path/to/wordpress-plugin-or-theme` or `/path/to/wp-conten
 
 `wp-now start` currently supports the following arguments:
 
--   `port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically;
+-   `port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`;
 -   `path`: the path to the PHP file or WordPress project to use. If not provided, it will use the current working directory;
--   `php`: the version of PHP to use. This is optional and if not provided, it will use a default version;
--   `wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version.
+-   `php`: the version of PHP to use. This is optional and if not provided, it will use a default version which is `8.0`;
+-   `wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/).
 
 #### Examples of using `wp-now start` arguments:
 
