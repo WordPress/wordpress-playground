@@ -1,9 +1,10 @@
 import fs from 'fs';
-import WPNow, { WPNowOptions } from './wp-now';
+import WPNow from './wp-now';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
+import { WPNowOptions } from './config';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
