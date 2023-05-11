@@ -125,15 +125,15 @@ If you are migrating from Laravel Valet, you should be aware of the differences 
 
 -   `wp-now` does not require you to install separately WordPress, create database, connect WordPress to that database, create your use or login. All of these steps are packaged into `wp now start` command and are running under the hood;
 -   `wp-now` works across all platforms (Mac, Linux, Windows);
--   `wp-now` does not support custom domains or SSL;
--   `wp-now` offers `theme` and `plugin` modes specific to WordPress development;
+-   `wp-now` does not support custom domains or SSL (yet!);
+-   `wp-now` works with WordPress themes and plugins even if you don't have WordPress installed;
 -   `wp-now` allows to easily switch the WordPress version with `wp-now start --wp=version.number`(make sure to replace the `version.number` with the actual WordPress version);
--   `wp-now` does not support Xdebug PHP extension
+-   `wp-now` does not support Xdebug PHP extension (yet!)
 
 Some similarities between Laravel Valet and `wp-now` to be aware of:
 
 -   could be used for non-WordPress projects;
--   deployments are not possible on Laravel Valet and `wp-now`;
+-   deployments are not possible with neither Laravel Valet, nor `wp-now`;
 -   possible to switch easily the PHP version;
 -   possibility to work on multiple WordPress sites simultaneously
 
@@ -143,14 +143,14 @@ If you are migrating from `wp-env`, you should be aware of the differences it ha
 
 -   `wp-now` supports non-WordPress projects;
 -   `wp-now` does not need Docker;
--   `wp-now` does not support Xdebug PHP extension;
+-   `wp-now` does not support Xdebug PHP extension (yet!);
 -   `wp-now` does not include Jest for automatic browser testing
 
 Some similarities between `wp-env` and `wp-now` to be aware of:
 
 -   no support for custom domains or SSL;
 -   `plugin`, `themes` and index modes are available on `wp-env` and `wp-now`;
--   deployments are not supported from `wp-now` or `wp-env`
+-   deployments are not possible with neither `wp-env`, nor `wp-now`;
 -   possible to switch easily the PHP version
 
 ## Contributing
