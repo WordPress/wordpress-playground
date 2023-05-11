@@ -1,10 +1,16 @@
-import { parseOptions, WPNowMode, WPNowOptions } from './wp-now';
+import { inferMode, parseOptions, WPNowMode, WPNowOptions } from './wp-now';
+import fs from 'fs-extra';
+import path from 'path';
+import { isPluginDirectory } from './wp-playground-wordpress';
+import jest from 'jest-mock';
+import { Dirent } from 'fs';
 
+// Options
 test('parseOptions with default options', async () => {
 	const options = await parseOptions();
 	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
-  expect(options.documentRoot).toBe('/var/www/html');
+	expect(options.documentRoot).toBe('/var/www/html');
 	expect(options.mode).toBe(WPNowMode.INDEX);
 	expect(options.projectPath).toBe(process.cwd());
 });
@@ -36,4 +42,23 @@ test('parseOptions with unsupported PHP version', async () => {
 	await expect(parseOptions(rawOptions)).rejects.toThrowError(
 		'Unsupported PHP version: 5.4.'
 	);
+});
+
+// Plugin mode
+test('isPluginDirectory detects a WordPress plugin and infer plugin mode.', () => {
+	const projectPath = path.join(__dirname, 'test-fixtures', 'plugin');
+	jest.spyOn(fs, 'readdirSync').mockReturnValue(['foo.php']);
+	jest.spyOn(fs, 'readFileSync').mockReturnValue(
+		'/\nPlugin Name: Test Plugin\n/'
+	);
+	expect(isPluginDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
+});
+
+test('isPluginDirectory returns false for non-plugin directory', () => {
+	const projectPath = path.join(__dirname, 'test-fixtures', 'non-plugin');
+	jest.spyOn(fs, 'readdirSync').mockReturnValue(['foo.php']);
+	jest.spyOn(fs, 'readFileSync').mockReturnValue('/\nNo Plugin Name Here\n/');
+	expect(isPluginDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
