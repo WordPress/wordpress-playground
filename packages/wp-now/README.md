@@ -30,12 +30,20 @@ nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 
 wp-now operates in four different modes:
 
--   `index`: executes a simple php file
+The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file. 
+
+-   `index`: executes a simple php file. If your destination folder does not contain a `theme`, `plugin` or `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
 -   `theme`: loads WordPress with your selected theme included
 -   `plugin`: loads WordPress with your selected plugin included
 -   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
 
-To launch the `wp-now` in the `index`, `theme` or `plugin` mode, you can run:
+To launch the `wp-now` in the `index` mode, you can run:
+
+```bash
+nx preview wp-now start --path=/path/to/index.php-file
+```
+
+To launch the `wp-now` in the `theme` or `plugin` mode, you can run:
 
 ```bash
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
@@ -131,7 +139,7 @@ Some similarities between Laravel Valet and `wp-now` to be aware of:
 If you are migrating from `wp-env`, you should be aware of the differences it has with `wp-now`:
 
 -   `wp-now` supports non-WordPress projects;
--   `wp-env` is Docker-based which makes it platform indepedent (although `wp-now` does run across different platforms);
+-   `wp-now` does not need Docker;
 -   `wp-now` does not support Xdebug PHP extension;
 -   `wp-now` does not include Jest for automatic browser testing
 
