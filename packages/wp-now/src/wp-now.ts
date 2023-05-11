@@ -16,7 +16,11 @@ import {
 } from './constants';
 import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
-import { defineSiteUrl, defineWpConfigConsts } from '@wp-playground/blueprints';
+import {
+	cp,
+	defineSiteUrl,
+	defineWpConfigConsts,
+} from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
@@ -124,9 +128,9 @@ export default class WPNow {
 			this.options;
 
 		const root =
-			mode === 'core'
+			mode === WPNowMode.CORE
 				? projectPath
-				: mode === 'core-develop'
+				: mode === WPNowMode.CORE_DEVELOP
 				? projectPath + '/build'
 				: path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 		this.php.mount(root, documentRoot);
@@ -135,7 +139,7 @@ export default class WPNow {
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
 		await defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
-		if (!['core', 'core-develop'].includes(mode)) {
+		if (![WPNowMode.CORE, WPNowMode.CORE_DEVELOP].includes(mode)) {
 			await defineWpConfigConsts(this.php, {
 				consts: {
 					WP_AUTO_UPDATE_CORE:
@@ -169,18 +173,27 @@ export default class WPNow {
 
 	mountSqlite() {
 		const { documentRoot } = this.options;
-		const sqlitePluginPath = `${documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
-		this.php.mkdirTree(sqlitePluginPath);
-		this.php.mount(SQLITE_PATH, sqlitePluginPath);
-		this.php.writeFile(
-			`${documentRoot}/wp-content/db.php`,
-			this.php
-				.readFileAsText(`${sqlitePluginPath}/db.copy`)
-				.replace(
-					/\{SQLITE_IMPLEMENTATION_FOLDER_PATH\}/g,
-					`${documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`
-				)
-				.replace(/\{SQLITE_PLUGIN\}/g, SQLITE_FILENAME)
+		const sqlitePluginPath = `${this.options.documentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
+		if (!this.php.fileExists(sqlitePluginPath)) {
+			this.php.mkdirTree(sqlitePluginPath);
+		}
+		if (this.php.listFiles(sqlitePluginPath).length === 0) {
+			this.php.mount(SQLITE_PATH, sqlitePluginPath);
+		}
+		cp(this.php, {
+			fromPath: `${sqlitePluginPath}/db.copy`,
+			toPath: `${documentRoot}/wp-content/db.php`,
+		});
+	}
+
+	copySqlite(localWordPressPath) {
+		const targetPath = `${localWordPressPath}/wp-content/plugins/${SQLITE_FILENAME}`;
+		if (!fs.existsSync(targetPath)) {
+			fs.copySync(SQLITE_PATH, targetPath);
+		}
+		fs.copySync(
+			`${SQLITE_PATH}/db.copy`,
+			`${localWordPressPath}/wp-content/db.php`
 		);
 	}
 
@@ -245,12 +258,8 @@ export default class WPNow {
 			);
 		}
 
-		// Mode: core, plugin or theme
-		if (
-			mode === WPNowMode.CORE ||
-			mode === WPNowMode.PLUGIN ||
-			mode === WPNowMode.THEME
-		) {
+		// Mode: plugin or theme
+		if (mode === WPNowMode.PLUGIN || mode === WPNowMode.THEME) {
 			fs.copySync(
 				path.join(
 					WORDPRESS_VERSIONS_PATH,
@@ -263,9 +272,7 @@ export default class WPNow {
 				wpContentPath,
 				`${this.options.documentRoot}/wp-content`
 			);
-		}
 
-		if (mode === WPNowMode.PLUGIN || mode === WPNowMode.THEME) {
 			const folderName = path.basename(this.options.projectPath);
 			const partialPath =
 				mode === WPNowMode.PLUGIN ? 'plugins' : 'themes';
@@ -274,9 +281,12 @@ export default class WPNow {
 				this.options.projectPath,
 				`${this.options.documentRoot}/wp-content/${partialPath}/${folderName}`
 			);
+			this.mountSqlite();
+		} else if (mode === WPNowMode.CORE) {
+			this.copySqlite(this.options.projectPath);
+		} else if (mode === WPNowMode.CORE_DEVELOP) {
+			this.copySqlite(`${this.options.projectPath}/build`);
 		}
-
-		this.mountSqlite();
 	}
 
 	async registerUser() {
