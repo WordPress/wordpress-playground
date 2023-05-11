@@ -33,8 +33,8 @@ import {
 export const enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
-	CORE = 'core',
-	CORE_DEVELOP = 'core-develop',
+	WORDPRESS = 'wordpress',
+	WORDPRESS_DEVELOP = 'wordpress-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
 	AUTO = 'auto',
@@ -135,10 +135,10 @@ export default async function startWPNow(
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
 			break;
-		case WPNowMode.CORE_DEVELOP:
+		case WPNowMode.WORDPRESS_DEVELOP:
 			await runCoreDevelopMode(php, options);
 			break;
-		case WPNowMode.CORE:
+		case WPNowMode.WORDPRESS:
 			await runCoreMode(php, options);
 			break;
 		case WPNowMode.PLUGIN:
@@ -321,9 +321,9 @@ export function inferMode(
 	projectPath: string
 ): Exclude<WPNowMode, WPNowMode.AUTO> {
 	if (isWpDevelopDirectory(projectPath)) {
-		return WPNowMode.CORE_DEVELOP;
+		return WPNowMode.WORDPRESS_DEVELOP;
 	} else if (isWpCoreDirectory(projectPath)) {
-		return WPNowMode.CORE;
+		return WPNowMode.WORDPRESS;
 	} else if (isWpContentDirectory(projectPath)) {
 		return WPNowMode.WP_CONTENT;
 	} else if (isPluginDirectory(projectPath)) {
