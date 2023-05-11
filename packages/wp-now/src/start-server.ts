@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { WPNowOptions } from './wp-now';
+import { WPNowMode, WPNowOptions } from './wp-now';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
@@ -35,6 +35,7 @@ const requestBodyToString = async (req) =>
 export interface WPNowServer {
 	url: string;
 	php: NodePHP;
+	options: WPNowOptions;
 }
 
 export async function startServer(
@@ -48,7 +49,7 @@ export async function startServer(
 	const app = express();
 	app.use(fileUpload());
 	const port = await portFinder.getOpenPort();
-	const php = await startWPNow(options);
+	const { php, options: wpNowOptions } = await startWPNow(options);
 
 	app.use('/', async (req, res) => {
 		try {
@@ -108,5 +109,6 @@ export async function startServer(
 	return {
 		url,
 		php,
+		options: wpNowOptions,
 	};
 }

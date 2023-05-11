@@ -153,7 +153,10 @@ export default async function startWPNow(
 		username: 'admin',
 		password: 'password',
 	});
-	return php;
+	return {
+		php,
+		options,
+	};
 }
 
 function getWpContentHomePath(projectPath: string) {
