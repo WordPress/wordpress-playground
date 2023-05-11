@@ -127,6 +127,9 @@ export class NodePHP extends BasePHP {
 	 */
 	@rethrowFileSystemError('Could not mount {path}')
 	mount(localPath: string | MountSettings, virtualFSPath: string) {
+		if (!this.fileExists(virtualFSPath)) {
+			this.mkdirTree(virtualFSPath);
+		}
 		this[__private__dont__use].FS.mount(
 			this[__private__dont__use].FS.filesystems.NODEFS,
 			typeof localPath === 'object' ? localPath : { root: localPath },
