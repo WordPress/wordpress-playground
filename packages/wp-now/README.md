@@ -33,7 +33,7 @@ cd wordpress-plugin-or-theme
 wp now start
 ```
 
-Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see [Arguments supported by wp-now start section](#arguments-supported-by-wp-now-start).
+Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see **Arguments supported by wp-now start section**.
 
 ## Option 2: Development flow
 
@@ -44,11 +44,11 @@ If you would like to be able to not use `wp-now` globally and manually specify t
 
 ### Modes on WP-NOW
 
-wp-now operates in four different modes:
+`wp-now` operates in four different modes:
 
 The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file.
 
--   `index`: executes a simple php file. If your destination folder does not contain a `theme`, `plugin` or `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
+-   `index`: executes a simple PHP file. If your destination folder does not contain a `theme`, `plugin` or `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
 -   `theme`: loads WordPress with your selected theme included
 -   `plugin`: loads WordPress with your selected plugin included
 -   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
@@ -73,7 +73,7 @@ nx preview wp-now start --path=/path/to/wp-content-directory
 
 Make sure to replace `/path/to/wordpress-plugin-or-theme` or `/path/to/wp-content-directory` with the actual path to your plugin or theme folder or wp-content directory.
 
-### Arguments supported by wp-now start {#arguments-supported-by-wp-now-start}
+### Arguments supported by wp-now start
 
 `wp-now start` currently supports the following arguments:
 
