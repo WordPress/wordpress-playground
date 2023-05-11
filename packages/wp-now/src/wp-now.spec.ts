@@ -1,7 +1,7 @@
 import { inferMode, parseOptions, WPNowMode, WPNowOptions } from './wp-now';
 import fs from 'fs-extra';
 import path from 'path';
-import { isPluginDirectory } from './wp-playground-wordpress';
+import { isPluginDirectory, isThemeDirectory } from './wp-playground-wordpress';
 import jest from 'jest-mock';
 import { Dirent } from 'fs';
 
@@ -46,7 +46,7 @@ test('parseOptions with unsupported PHP version', async () => {
 
 // Plugin mode
 test('isPluginDirectory detects a WordPress plugin and infer plugin mode.', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'plugin');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'readdirSync').mockReturnValue(['foo.php']);
 	jest.spyOn(fs, 'readFileSync').mockReturnValue(
 		'/\nPlugin Name: Test Plugin\n/'
@@ -56,9 +56,45 @@ test('isPluginDirectory detects a WordPress plugin and infer plugin mode.', () =
 });
 
 test('isPluginDirectory returns false for non-plugin directory', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'non-plugin');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'readdirSync').mockReturnValue(['foo.php']);
 	jest.spyOn(fs, 'readFileSync').mockReturnValue('/\nNo Plugin Name Here\n/');
 	expect(isPluginDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+// Theme mode
+test('isThemeDirectory detects a WordPress theme and infer theme mode', () => {
+	const projectPath = __dirname;
+
+	jest.spyOn(fs, 'existsSync').mockImplementation((file) => {
+		return file === path.join(projectPath, 'style.css');
+	});
+	jest.spyOn(fs, 'readFileSync').mockReturnValue(
+		'/*\nTheme Name: Foo Theme\n*/'
+	);
+	expect(isThemeDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.THEME);
+});
+
+test('isThemeDirectory returns false for non-theme directory', () => {
+	const projectPath = __dirname;
+	jest.spyOn(fs, 'existsSync').mockImplementation((file) => {
+		return file === path.join(projectPath, 'foo.css');
+	});
+	expect(isThemeDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+test('isThemeDirectory returns false for a directory with style.css but without Theme Name', () => {
+	const projectPath = __dirname;
+	jest.spyOn(fs, 'existsSync').mockImplementation((file) => {
+		return file === path.join(projectPath, 'style.css');
+	});
+	jest.spyOn(fs, 'readFileSync').mockReturnValue(
+		'/*\nNo Theme Name Here\n*/'
+	);
+
+	expect(isThemeDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
