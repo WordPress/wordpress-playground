@@ -11,7 +11,6 @@ export function isWordPressDirectory(projectPath: string): Boolean {
 	return (
 		fs.existsSync(path.join(projectPath, 'wp-content')) &&
 		fs.existsSync(path.join(projectPath, 'wp-includes')) &&
-		fs.existsSync(path.join(projectPath, 'wp-load.php')) &&
-		!fs.existsSync(path.join(projectPath, 'wp-config.php'))
+		fs.existsSync(path.join(projectPath, 'wp-load.php'))
 	);
 }
