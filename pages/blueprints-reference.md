@@ -87,25 +87,25 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 
 A Blueprint can contain the following properties:
 
-- `landingPage` (string): The URL to navigate to after the blueprint has been run.
-- `preferredVersions`: The preferred PHP and WordPress versions to use.
-- `steps`: The steps to run.
+-   `landingPage` (string): The URL to navigate to after the blueprint has been run.
+-   `preferredVersions`: The preferred PHP and WordPress versions to use.
+-   `steps`: The steps to run.
 
 ### Preferred Versions
 
 The `preferredVersions` property is an object that specifies the preferred PHP and WordPress versions to use. It can contain the following properties:
 
-- `php` (string): The preferred PHP version to use. Defaults to 'latest'.
-- `wp` (string): The preferred WordPress version to use. Defaults to 'latest'.
+-   `php` (string): The preferred PHP version to use. Defaults to 'latest'.
+-   `wp` (string): The preferred WordPress version to use. Defaults to 'latest'.
 
 Example:
 
 ```json
 {
-  "preferredVersions": {
-	"php": "7.4",
-	"wp": "5.9"
-  }
+	"preferredVersions": {
+		"php": "7.4",
+		"wp": "5.9"
+	}
 }
 ```
 
@@ -117,18 +117,18 @@ The `steps` property is an array of steps to run. Each step is an object that co
 
 This step installs a WordPress plugin in the Playground. It takes the following parameters:
 
-- `pluginZipFile`: The URL or `File` object of the plugin zip file to install.
-- `options` (optional): An object that specifies whether to activate the plugin after installing it.
+-   `pluginZipFile`: The URL or `File` object of the plugin zip file to install.
+-   `options` (optional): An object that specifies whether to activate the plugin after installing it.
 
 Example:
 
 ```json
 {
-  "step": "installPlugin",
-  "pluginZipFile": "http://example.com/plugin.zip",
-  "options": {
-    "activate": true
-  }
+	"step": "installPlugin",
+	"pluginZipFile": "http://example.com/plugin.zip",
+	"options": {
+		"activate": true
+	}
 }
 ```
 
@@ -136,18 +136,18 @@ Example:
 
 This step installs a WordPress theme in the Playground. It takes the following parameters:
 
-- `themeZipFile`: The URL or `File` object of the theme zip file to install.
-- `options` (optional): An object that specifies whether to activate the theme after installing it.
+-   `themeZipFile`: The URL or `File` object of the theme zip file to install.
+-   `options` (optional): An object that specifies whether to activate the theme after installing it.
 
 Example:
 
 ```json
 {
-  "step": "installTheme",
-  "themeZipFile": "http://example.com/theme.zip",
-  "options": {
-    "activate": true
-  }
+	"step": "installTheme",
+	"themeZipFile": "http://example.com/theme.zip",
+	"options": {
+		"activate": true
+	}
 }
 ```
 
@@ -155,16 +155,16 @@ Example:
 
 This step logs in to the Playground. It takes the following parameters:
 
-- `username` (optional): The username to log in as. Defaults to 'admin'.
-- `password` (optional): The password to log in with. Defaults to 'password'.
+-   `username` (optional): The username to log in as. Defaults to 'admin'.
+-   `password` (optional): The password to log in with. Defaults to 'password'.
 
 Example:
 
 ```json
 {
-  "step": "login",
-  "username": "admin",
-  "password": "password"
+	"step": "login",
+	"username": "admin",
+	"password": "password"
 }
 ```
 
@@ -172,14 +172,14 @@ Example:
 
 This step uploads a file to the WordPress importer and returns the response. It takes the following parameters:
 
-- `file`: The URL or `File` object of the file to import.
+-   `file`: The URL or `File` object of the file to import.
 
 Example:
 
 ```json
 {
-  "step": "importFile",
-  "file": "http://example.com/file.xml"
+	"step": "importFile",
+	"file": "http://example.com/file.xml"
 }
 ```
 
@@ -187,14 +187,14 @@ Example:
 
 This step activates a WordPress plugin in the Playground. It takes the following parameter:
 
-- `plugin`: The slug of the plugin to activate.
+-   `plugin`: The slug of the plugin to activate.
 
 Example:
 
 ```json
 {
-  "step": "activatePlugin",
-  "plugin": "plugin-slug"
+	"step": "activatePlugin",
+	"plugin": "plugin-slug"
 }
 ```
 
@@ -202,14 +202,14 @@ Example:
 
 This step replaces the current site with the contents of a full site zip file. It takes the following parameter:
 
-- `fullSiteZip`: The URL or `File` object of the full site zip file to use.
+-   `fullSiteZip`: The URL or `File` object of the full site zip file to use.
 
 Example:
 
 ```json
 {
-  "step": "replaceSite",
-  "fullSiteZip": "http://example.com/full-site.zip"
+	"step": "replaceSite",
+	"fullSiteZip": "http://example.com/full-site.zip"
 }
 ```
 
@@ -217,16 +217,16 @@ Example:
 
 This step unzips a file in the Playground. It takes the following parameters:
 
-- `zipPath`: The path to the zip file to unzip.
-- `extractToPath`: The path to extract the zip file to.
+-   `zipPath`: The path to the zip file to unzip.
+-   `extractToPath`: The path to extract the zip file to.
 
 Example:
 
 ```json
 {
-  "step": "unzip",
-  "zipPath": "/path/to/file.zip",
-  "extractToPath": "/path/to/extract/to"
+	"step": "unzip",
+	"zipPath": "/path/to/file.zip",
+	"extractToPath": "/path/to/extract/to"
 }
 ```
 
@@ -234,16 +234,16 @@ Example:
 
 This step sets options for the current site in the Playground. It takes the following parameter:
 
-- `options`: An object that specifies the site options to set.
+-   `options`: An object that specifies the site options to set.
 
 Example:
 
 ```json
 {
-  "step": "setSiteOptions",
-  "options": {
-    "option_name": "option_value"
-  }
+	"step": "setSiteOptions",
+	"options": {
+		"option_name": "option_value"
+	}
 }
 ```
 
@@ -251,14 +251,15 @@ Example:
 
 This step updates user meta in the Playground. It takes the following parameters:
 
-- `meta`: An object that specifies the user meta to update.
+-   `meta`: An object that specifies the user meta to update.
+
 ```json
 {
-  "step": "updateUserMeta",
-  "meta": {
-    "meta_key": "meta_value"
-  },
-  "userId": 1
+	"step": "updateUserMeta",
+	"meta": {
+		"meta_key": "meta_value"
+	},
+	"userId": 1
 }
 ```
 
@@ -266,14 +267,14 @@ This step updates user meta in the Playground. It takes the following parameters
 
 This step runs PHP code in the Playground. It takes the following parameter:
 
-- `code`: The PHP code to run.
+-   `code`: The PHP code to run.
 
 Example:
 
 ```json
 {
-  "step": "runPHP",
-  "code": "<?php echo 'Hello, World!'; ?>"
+	"step": "runPHP",
+	"code": "<?php echo 'Hello, World!'; ?>"
 }
 ```
 
@@ -281,17 +282,17 @@ Example:
 
 This step runs PHP code in the Playground with additional options. It takes the following parameter:
 
-- `options` (optional): An object that specifies the options for running the PHP code.
+-   `options` (optional): An object that specifies the options for running the PHP code.
 
 Example:
 
 ```json
 {
-  "step": "runPHPWithOptions",
-  "options": {
-    "code": "<?php echo 'Hello, World!'; ?>",
-    "allowUrlFopen": true
-  }
+	"step": "runPHPWithOptions",
+	"options": {
+		"code": "<?php echo 'Hello, World!'; ?>",
+		"allowUrlFopen": true
+	}
 }
 ```
 
@@ -299,16 +300,16 @@ Example:
 
 This step sets a PHP ini entry in the Playground. It takes the following parameters:
 
-- `key`: The name of the PHP ini entry to set.
-- `value`: The value to set the PHP ini entry to.
+-   `key`: The name of the PHP ini entry to set.
+-   `value`: The value to set the PHP ini entry to.
 
 Example:
 
 ```json
 {
-  "step": "setPhpIniEntry",
-  "key": "max_execution_time",
-  "value": "60"
+	"step": "setPhpIniEntry",
+	"key": "max_execution_time",
+	"value": "60"
 }
 ```
 
@@ -316,19 +317,19 @@ Example:
 
 This step makes a PHP request in the Playground. It takes the following parameters:
 
-- `request`: An object that specifies the PHP request to make.
-- `maxRedirects` (optional): The maximum number of redirects to follow. Defaults to 10.
+-   `request`: An object that specifies the PHP request to make.
+-   `maxRedirects` (optional): The maximum number of redirects to follow. Defaults to 10.
 
 Example:
 
 ```json
 {
-  "step": "request",
-  "request": {
-    "method": "GET",
-    "url": "http://example.com"
-  },
-  "maxRedirects": 5
+	"step": "request",
+	"request": {
+		"method": "GET",
+		"url": "http://example.com"
+	},
+	"maxRedirects": 5
 }
 ```
 
@@ -336,16 +337,16 @@ Example:
 
 This step copies a file in the Playground. It takes the following parameters:
 
-- `fromPath`: The path to the file to copy.
-- `toPath`: The path to copy the file to.
+-   `fromPath`: The path to the file to copy.
+-   `toPath`: The path to copy the file to.
 
 Example:
 
 ```json
 {
-  "step": "cp",
-  "fromPath": "/path/to/file",
-  "toPath": "/path/to/copy/to"
+	"step": "cp",
+	"fromPath": "/path/to/file",
+	"toPath": "/path/to/copy/to"
 }
 ```
 
@@ -353,16 +354,16 @@ Example:
 
 This step moves a file in the Playground. It takes the following parameters:
 
-- `fromPath`: The path to the file to move.
-- `toPath`: The path to move the file to.
+-   `fromPath`: The path to the file to move.
+-   `toPath`: The path to move the file to.
 
 Example:
 
 ```json
 {
-  "step": "mv",
-  "fromPath": "/path/to/file",
-  "toPath": "/path/to/move/to"
+	"step": "mv",
+	"fromPath": "/path/to/file",
+	"toPath": "/path/to/move/to"
 }
 ```
 
@@ -370,14 +371,14 @@ Example:
 
 This step creates a directory in the Playground. It takes the following parameter:
 
-- `path`: The path of the directory to create.
+-   `path`: The path of the directory to create.
 
 Example:
 
 ```json
 {
-  "step": "mkdir",
-  "path": "/path/to/create"
+	"step": "mkdir",
+	"path": "/path/to/create"
 }
 ```
 
@@ -385,14 +386,14 @@ Example:
 
 This step deletes a file in the Playground. It takes the following parameter:
 
-- `path`: The path of the file to delete.
+-   `path`: The path of the file to delete.
 
 Example:
 
 ```json
 {
-  "step": "rm",
-  "path": "/path/to/delete"
+	"step": "rm",
+	"path": "/path/to/delete"
 }
 ```
 
@@ -400,14 +401,14 @@ Example:
 
 This step deletes a directory in the Playground. It takes the following parameter:
 
-- `path`: The path of the directory to delete.
+-   `path`: The path of the directory to delete.
 
 Example:
 
 ```json
 {
-  "step": "rmdir",
-  "path": "/path/to/delete"
+	"step": "rmdir",
+	"path": "/path/to/delete"
 }
 ```
 
@@ -415,15 +416,15 @@ Example:
 
 This step writes data to a file in the Playground. It takes the following parameters:
 
-- `path`: The path of the file to write to.
-- `data`: The data to write to the file.
+-   `path`: The path of the file to write to.
+-   `data`: The data to write to the file.
 
 Example:
 
 ```json
 {
-  "step": "writeFile",
-  "path": "/path/to/write/to",
-  "data": "Hello, World!"
+	"step": "writeFile",
+	"path": "/path/to/write/to",
+	"data": "Hello, World!"
 }
 ```
