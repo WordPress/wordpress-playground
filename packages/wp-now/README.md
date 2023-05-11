@@ -10,26 +10,39 @@ Before getting started:
     [follow these installation instructions](https://github.com/nvm-sh/nvm#installation). Please note that if you are installing `wp-now` from `npm`, **this step is not necessary**;
 -   Install `yarn` by running `npm install -g yarn`
 
-Follow these steps to build and run `wp-now` locally:
+## Option 1: Using WP-NOW globally across your projects
+
+---
 
 ### Building
 
 To build the project, use the following commands in your terminal:
 
 1. Clone this repository locally
-2. Execute `nvm use`
-3. Execute `yarn install` followed by `yarn build`
+2. Run `npm link` (only run it **ONCE**) to make `wp-now` available globally across your projects
+3. Execute `nvm use`
+4. Execute `yarn install` followed by `yarn build`
+5. `wp-now` should be now available globally on your machine. This means that you can run `wp-now start` from any path on your local machine
 
 ### Running
 
-1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
-2. To start the web server in the plugin or theme mode (see Modes on WP-NOW section for details), run the command below. Make sure to replace `/path/to/wordpress-plugin-or-theme` with the actual path to your plugin or theme folder.
+Once you have built `wp-now`, this is how you can use it:
 
 ```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
+cd wordpress-plugin-or-theme
+wp now start
 ```
 
-### Modes on WP-NOW
+Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see [Arguments supported by wp-now start section]((#arguments-supported-by-wp-now-start).
+
+## Option 2: Development flow
+
+If you would like to be able to not use `wp-now` globally and manually specify the path to each project, you can use this development flow instead:
+
+1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
+2. Start the web server in one of the modes specified below:
+
+### Modes on WP-NOW {#modes-on-wp-now}
 
 wp-now operates in four different modes:
 
@@ -60,7 +73,7 @@ nx preview wp-now start --path=/path/to/wp-content-directory
 
 Make sure to replace `/path/to/wordpress-plugin-or-theme` or `/path/to/wp-content-directory` with the actual path to your plugin or theme folder or wp-content directory.
 
-### Arguments supported by wp-now start
+### Arguments supported by wp-now start {#arguments-supported-by-wp-now-start}
 
 `wp-now start` currently supports the following arguments:
 
@@ -77,19 +90,11 @@ Specify plugin path, WordPress version, PHP version and port number:
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.9 --php=7.4 --port=3000
 ```
 
-### Making WP-NOW accessible globally on your local machine
+Please note: if you use `npm link` and are executing `wp-now` from the plugin or theme folder, you don't need to specify the path. In that case, the command would be:
 
-To make `wp-now` accessible globally on your local machine:
-
-1. Clone this repository
-2. Follow the installation steps from **Building** section on `packages/wp-now/README.md`
-3. Execute `npm link`
-4. `wp-now` should be now available globally on your machine. This means that you can run `wp-now start` from any path on your local machine
-
-Example:
-
-1. Navigate in the terminal to a folder where your WordPress plugin or theme lives with `cd /my-plugin-or-theme`
-2. Execute `wp start now`
+```bash
+wp-now start --wp=5.9 --php=7.4 --port=3000
+```
 
 ### How to install WP-NOW from npm (not available yet)
 
@@ -106,6 +111,12 @@ To run the unit tests, use the following command:
 ```bash
 nx test wp-now
 ```
+
+### Other important technical details
+
+-   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-conten` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
+-   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
+-
 
 ### Migrating from Laravel Valet?
 
