@@ -14,7 +14,7 @@ test('parseOptions with custom options', async () => {
 		phpVersion: '7.3',
 		wordPressVersion: '5.7',
 		documentRoot: '/var/www/my-site',
-		mode: WPNowMode.CORE,
+		mode: WPNowMode.WORDPRESS,
 		projectPath: '/path/to/my-site',
 		wpContentPath: '/path/to/my-site/wp-content',
 		absoluteUrl: 'http://localhost:8080',
