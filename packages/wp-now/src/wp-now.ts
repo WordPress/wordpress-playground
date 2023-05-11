@@ -17,8 +17,21 @@ import {
 import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
 import { defineSiteUrl } from '@wp-playground/blueprints';
+import {
+	isPluginDirectory,
+	isThemeDirectory,
+	isWpContentDirectory,
+} from './wp-playground-wordpress';
 
-type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto';
+export enum WPNowMode {
+	PLUGIN = 'plugin',
+	THEME = 'theme',
+	CORE = 'core',
+	INDEX = 'index',
+	WP_CONTENT = 'wp-content',
+	AUTO = 'auto',
+}
+
 export interface WPNowOptions {
 	phpVersion?: SupportedPHPVersion;
 	documentRoot?: string;
@@ -33,7 +46,7 @@ const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
 	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
-	mode: 'auto',
+	mode: WPNowMode.AUTO,
 };
 
 async function getAbsoluteURL() {
@@ -182,50 +195,22 @@ export default class WPNow {
 		);
 	}
 
-	static #isPluginDirectory(projectPath: string): Boolean {
-		const files = fs.readdirSync(projectPath);
-		for (const file of files) {
-			if (file.endsWith('.php')) {
-				const fileContent = fs.readFileSync(
-					path.join(projectPath, file),
-					'utf8'
-				);
-				if (fileContent.includes('Plugin Name:')) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	static #isThemeDirectory(projectPath: string): Boolean {
-		const styleCSSExists = fs.existsSync(
-			path.join(projectPath, 'style.css')
-		);
-		if (!styleCSSExists) {
-			return false;
-		}
-		const styleCSS = fs.readFileSync(
-			path.join(projectPath, 'style.css'),
-			'utf-8'
-		);
-		return styleCSS.includes('Theme Name:');
-	}
-
-	static #inferMode(projectPath: string): Exclude<WPNowMode, 'auto'> {
+	static #inferMode(projectPath: string): Exclude<WPNowMode, WPNowMode.AUTO> {
 		const hasIndexPhp = fs.existsSync(path.join(projectPath, 'index.php'));
 		const hasWpContentFolder = fs.existsSync(
 			path.join(projectPath, 'wp-content')
 		);
 
-		if (WPNow.#isPluginDirectory(projectPath)) {
-			return 'plugin';
-		} else if (WPNow.#isThemeDirectory(projectPath)) {
-			return 'theme';
+		if (isWpContentDirectory(projectPath)) {
+			return WPNowMode.WP_CONTENT;
+		} else if (isPluginDirectory(projectPath)) {
+			return WPNowMode.PLUGIN;
+		} else if (isThemeDirectory(projectPath)) {
+			return WPNowMode.THEME;
 		} else if (!hasIndexPhp && hasWpContentFolder) {
-			return 'core';
+			return WPNowMode.CORE;
 		}
-		return 'index';
+		return WPNowMode.INDEX;
 	}
 
 	static #validateOptions(options: WPNowOptions) {
@@ -244,26 +229,48 @@ export default class WPNow {
 
 	mount() {
 		const { mode, wordPressVersion } = this.options;
-		if (mode === 'index') {
+		if (mode === WPNowMode.INDEX) {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
 		}
-		// Mode: core, plugin or theme
+
+		// Mount wordpress in all modes except index
 		this.mountWordpress();
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
-		fs.copySync(
-			path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
-			wpContentPath
-		);
-		this.php.mount(
-			wpContentPath,
-			`${this.options.documentRoot}/wp-content`
-		);
 
-		if (mode === 'plugin' || mode === 'theme') {
+		// Mode: wp-content - mount the wp-content folder as is
+		if (mode === WPNowMode.WP_CONTENT) {
+			this.php.mount(
+				this.options.projectPath,
+				`${this.options.documentRoot}/wp-content`
+			);
+		}
+
+		// Mode: core, plugin or theme
+		if (
+			mode === WPNowMode.CORE ||
+			mode === WPNowMode.PLUGIN ||
+			mode === WPNowMode.THEME
+		) {
+			fs.copySync(
+				path.join(
+					WORDPRESS_VERSIONS_PATH,
+					wordPressVersion,
+					'wp-content'
+				),
+				wpContentPath
+			);
+			this.php.mount(
+				wpContentPath,
+				`${this.options.documentRoot}/wp-content`
+			);
+		}
+
+		if (mode === WPNowMode.PLUGIN || mode === WPNowMode.THEME) {
 			const folderName = path.basename(this.options.projectPath);
-			const partialPath = mode === 'plugin' ? 'plugins' : 'themes';
+			const partialPath =
+				mode === WPNowMode.PLUGIN ? 'plugins' : 'themes';
 			fs.ensureDirSync(path.join(wpContentPath, partialPath, folderName));
 			this.php.mount(
 				this.options.projectPath,
@@ -313,7 +320,7 @@ export default class WPNow {
 		console.log(`mode: ${this.options.mode}`);
 		console.log(`php: ${this.options.phpVersion}`);
 		console.log(`wp: ${this.options.wordPressVersion}`);
-		if (this.options.mode === 'index') {
+		if (this.options.mode === WPNowMode.INDEX) {
 			this.mount();
 			return;
 		}
