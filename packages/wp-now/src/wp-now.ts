@@ -127,7 +127,7 @@ export default async function startWPNow(
 	console.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
 		await runIndexMode(php, options);
-		return;
+		return php;
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
