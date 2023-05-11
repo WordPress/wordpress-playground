@@ -30,7 +30,7 @@ Once you have built `wp-now`, this is how you can use it:
 
 ```bash
 cd wordpress-plugin-or-theme
-wp now start
+wp-now start
 ```
 
 Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see **Arguments supported by wp-now start section**.
@@ -108,7 +108,7 @@ Once installed, you can use it like so:
 
 ```bash
 cd wordpress-plugin-or-theme
-wp now start
+wp-now start
 ```
 
 ## Testing
@@ -121,7 +121,7 @@ nx test wp-now
 
 ## Other important technical details
 
--   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-conten` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
+-   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-content` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
 -   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
 
 ## Migrating from Laravel Valet?
