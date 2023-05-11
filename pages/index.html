@@ -31,7 +31,7 @@
   <h3>Embedding the WordPress Playground demo</h3>
 </a>
 <p>You can embed WordPress Playground using an iframe. <strong>Note this is an experimental feature that may break or change without a warning.</strong></p>
-<pre><code class="language-html"><span class="hl-10">&lt;</span><span class="hl-11">iframe</span><br/><span class="hl-1">    </span><span class="hl-12">style</span><span class="hl-1">=</span><span class="hl-13">&quot;width: 800px; height: 500px;&quot;</span><br/><span class="hl-1">    </span><span class="hl-12">src</span><span class="hl-1">=</span><span class="hl-13">&quot;https://wasm.wordpress.net/?mode=seamless&quot;</span><br/><span class="hl-10">&gt;&lt;/</span><span class="hl-11">iframe</span><span class="hl-10">&gt;</span>
+<pre><code class="language-html"><span class="hl-0">&lt;</span><span class="hl-1">iframe</span><br/><span class="hl-2">    </span><span class="hl-3">style</span><span class="hl-2">=</span><span class="hl-4">&quot;width: 800px; height: 500px;&quot;</span><br/><span class="hl-2">    </span><span class="hl-3">src</span><span class="hl-2">=</span><span class="hl-4">&quot;https://playground.wordpress.net/?mode=seamless&quot;</span><br/><span class="hl-0">&gt;&lt;/</span><span class="hl-1">iframe</span><span class="hl-0">&gt;</span>
 </code></pre>
 <p>Learn more about the configuration options and JavaScript API at <a href="./embedding-wordpress-playground-on-other-websites.html">embedding WordPress Playground on other websites</a>.</p>
 
@@ -40,7 +40,7 @@
 </a>
 <p>To customize WordPress Playground and build on top of it, you will need to work directly with the GitHub repository. Don&#39;t worry, <strong>you don&#39;t need to know WebAssembly.</strong> Most of the meaningful work happens in the JavaScript and PHP land.</p>
 <p>Start by creating a local development environment:</p>
-<pre><code class="language-js"><span class="hl-1"># </span><span class="hl-2">Install</span><span class="hl-1"> </span><span class="hl-2">Yarn</span><span class="hl-1"> </span><span class="hl-0">if</span><span class="hl-1"> </span><span class="hl-2">you</span><span class="hl-1"> </span><span class="hl-2">don</span><span class="hl-3">&#39;t have it</span><span class="hl-14">:</span><br/><span class="hl-2">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> -</span><span class="hl-2">g</span><span class="hl-1"> </span><span class="hl-2">yarn</span><br/><br/><span class="hl-1"># </span><span class="hl-2">Now</span><span class="hl-1"> </span><span class="hl-2">you</span><span class="hl-3">&#39;re ready to run Playground</span><span class="hl-14">:</span><br/><span class="hl-2">git</span><span class="hl-1"> </span><span class="hl-2">clone</span><span class="hl-1"> </span><span class="hl-15">https</span><span class="hl-1">:</span><span class="hl-8">//github.com/WordPress/wordpress-playground</span><br/><span class="hl-2">cd</span><span class="hl-1"> </span><span class="hl-2">wordpress</span><span class="hl-1">-</span><span class="hl-2">playground</span><br/><span class="hl-2">yarn</span><span class="hl-1"> </span><span class="hl-2">install</span><br/><span class="hl-2">yarn</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-2">dev</span>
+<pre><code class="language-js"><span class="hl-2"># </span><span class="hl-7">Install</span><span class="hl-2"> </span><span class="hl-7">Yarn</span><span class="hl-2"> </span><span class="hl-6">if</span><span class="hl-2"> </span><span class="hl-7">you</span><span class="hl-2"> </span><span class="hl-7">don</span><span class="hl-8">&#39;t have it</span><span class="hl-15">:</span><br/><span class="hl-7">npm</span><span class="hl-2"> </span><span class="hl-7">install</span><span class="hl-2"> -</span><span class="hl-7">g</span><span class="hl-2"> </span><span class="hl-7">yarn</span><br/><br/><span class="hl-2"># </span><span class="hl-7">Now</span><span class="hl-2"> </span><span class="hl-7">you</span><span class="hl-8">&#39;re ready to run Playground</span><span class="hl-15">:</span><br/><span class="hl-7">git</span><span class="hl-2"> </span><span class="hl-7">clone</span><span class="hl-2"> </span><span class="hl-16">https</span><span class="hl-2">:</span><span class="hl-12">//github.com/WordPress/wordpress-playground</span><br/><span class="hl-7">cd</span><span class="hl-2"> </span><span class="hl-7">wordpress</span><span class="hl-2">-</span><span class="hl-7">playground</span><br/><span class="hl-7">yarn</span><span class="hl-2"> </span><span class="hl-7">install</span><br/><span class="hl-7">yarn</span><span class="hl-2"> </span><span class="hl-7">run</span><span class="hl-2"> </span><span class="hl-7">dev</span>
 </code></pre>
 <p>A browser should open and take you to your very own WordPress Playground at <code>http://127.0.0.1:5400/</code>!</p>
 <p>Any changes you make to <code>.ts</code> files will be live-reloaded. Changes to <code>Dockerfile</code> require a full rebuild.</p>
@@ -57,7 +57,7 @@
 <li><code>remote.html</code> creates an <code>&lt;iframe src=&quot;/index.php&quot;&gt;</code> where the WordPress homepage is rendered</li>
 </ul>
 <p>Visually, it looks like this:</p>
-<p><img src="https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/docs/architecture-overview.png" alt="Architecture overview"></p>
+<p><img src="https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/pages/architecture-overview.png" alt="Architecture overview"></p>
 
 <a href="#next-steps" id="next-steps" style="color: inherit; text-decoration: none;">
   <h2>Next steps</h2>
@@ -95,15 +95,21 @@
 <li class="current pages-entry pages-entry-menu pages-entry-depth-1"><a>Playground</a>
 <ul>
 <li class="current selected pages-entry pages-entry-page pages-entry-depth-2"><a href="index.html">Start here</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="blueprints-reference.html">Blueprints <wbr/>Reference</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="embedding-wordpress-playground-on-other-websites.html">Embedding <wbr/>Word<wbr/>Press playground-<wbr/>on other websites</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="index-html-vs-remote-html.html">Comparing remote.html and index.html</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="using-php-in-javascript.html">Using PHP in <wbr/>Java<wbr/>Script</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="using-php-in-the-browser.html">Using PHP in the browser</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="bundling-wordpress-for-the-browser.html">Bundling <wbr/>Word<wbr/>Press for the browser</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="running-wordpress-in-the-browser.html">Running <wbr/>Word<wbr/>Press in the browser</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="service-worker.html">Service workers</a></li>
 <li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="wordpress-plugin-ide.html">Word<wbr/>Press plugin IDE</a></li></ul></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_node.html">@php-<wbr/>wasm/node</a></li>
 <li class="tsd-kind-module"><a href="../modules/_php_wasm_progress.html">@php-<wbr/>wasm/progress</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_universal.html">@php-<wbr/>wasm/universal</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_util.html">@php-<wbr/>wasm/util</a></li>
 <li class="tsd-kind-module"><a href="../modules/_php_wasm_web.html">@php-<wbr/>wasm/web</a></li>
+<li class="tsd-kind-module"><a href="../modules/_wp_playground_blueprints.html">@wp-<wbr/>playground/blueprints</a></li>
 <li class="tsd-kind-module"><a href="../modules/_wp_playground_client.html">@wp-<wbr/>playground/client</a></li></ul></li></ul></div></details></nav>
 <nav class="tsd-navigation secondary menu-sticky"></nav></div></div>
 <div class="container tsd-generator">
