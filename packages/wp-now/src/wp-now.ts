@@ -187,12 +187,7 @@ async function runWpContentMode(
 ) {
 	const wordPressPath = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 	php.mount(wordPressPath, documentRoot);
-	await initWordPress(
-		php,
-		wordPressVersion,
-		documentRoot,
-		absoluteUrl
-	);
+	await initWordPress(php, wordPressVersion, documentRoot, absoluteUrl);
 	fs.ensureDirSync(wpContentPath);
 
 	php.mount(projectPath, `${documentRoot}/wp-content`);
@@ -217,12 +212,7 @@ async function runWordPressMode(
 ) {
 	php.mount(projectPath, documentRoot);
 	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
-		await initWordPress(
-			php,
-			'user-provided',
-			documentRoot,
-			absoluteUrl
-		);
+		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
 	}
 	copySqlite(projectPath);
 }
@@ -240,12 +230,7 @@ async function runPluginOrThemeMode(
 ) {
 	const wordPressPath = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 	php.mount(wordPressPath, documentRoot);
-	await initWordPress(
-		php,
-		wordPressVersion,
-		documentRoot,
-		absoluteUrl
-	);
+	await initWordPress(php, wordPressVersion, documentRoot, absoluteUrl);
 
 	fs.ensureDirSync(wpContentPath);
 	fs.copySync(
