@@ -27,6 +27,7 @@ export interface WPNowOptions {
 	documentRoot?: string;
 	absoluteUrl?: string;
 	mode?: WPNowMode;
+	port?: number;
 	projectPath?: string;
 	wpContentPath?: string;
 	wordPressVersion?: string;
@@ -49,11 +50,11 @@ export interface WPEnvOptions {
 	mappings: Object;
 }
 
-async function parseWpEnvConfig(path: string): Promise<WPNowOptions> {
+async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {
 	try {
 		return JSON.parse(fs.readFileSync(path, 'utf8'));
 	} catch (error) {
-		return {};
+		return {} as WPEnvOptions;
 	}
 }
 
@@ -63,8 +64,9 @@ async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
 		path.join(cwd, WP_ENV_OVERRIDE_FILE)
 	);
 	return {
-		...wpEnvConfig,
-		...wpOverrideEnvConfig,
+		phpVersion: wpEnvConfig.phpVersion || wpOverrideEnvConfig.phpVersion,
+		wordPressVersion: wpEnvConfig.core || wpOverrideEnvConfig.core,
+		port: wpEnvConfig.port || wpOverrideEnvConfig.port,
 	};
 }
 
@@ -79,9 +81,15 @@ export default async function getWpNowConfig(
 
 	const wpEnvToNowConfig = await fromWpEnv(optionsFromCli.projectPath);
 
-	return {
-		...DEFAULT_OPTIONS,
-		...wpEnvToNowConfig,
-		...optionsFromCli,
-	};
+	const mergedConfig: WPNowOptions = {} as WPNowOptions;
+
+	[optionsFromCli, wpEnvToNowConfig, DEFAULT_OPTIONS].forEach((config) => {
+		for (const key in config) {
+			if (!mergedConfig[key]) {
+				mergedConfig[key] = config[key];
+			}
+		}
+	});
+
+	return mergedConfig;
 }
