@@ -1,8 +1,12 @@
 import { StepHandler } from '.';
 import { updateFile } from './common';
 
+/**
+ * The step object for defining constants in the wp-config.php file of a WordPress installation.
+ */
 export interface DefineWpConfigConstsStep {
 	step: 'defineWpConfigConsts';
+	/** The constants to define */
 	consts: Record<string, unknown>;
 }
 
