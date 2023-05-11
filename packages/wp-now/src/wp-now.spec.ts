@@ -1,7 +1,12 @@
 import { inferMode, parseOptions, WPNowMode, WPNowOptions } from './wp-now';
 import fs from 'fs-extra';
 import path from 'path';
-import { isPluginDirectory, isThemeDirectory } from './wp-playground-wordpress';
+import {
+	isPluginDirectory,
+	isThemeDirectory,
+	isWpContentDirectory,
+	isWpDirectory,
+} from './wp-playground-wordpress';
 import jest from 'jest-mock';
 import { Dirent } from 'fs';
 
@@ -45,7 +50,7 @@ test('parseOptions with unsupported PHP version', async () => {
 });
 
 // Plugin mode
-test('isPluginDirectory detects a WordPress plugin and infer plugin mode.', () => {
+test('isPluginDirectory detects a WordPress plugin and infer PLUGIN mode.', () => {
 	const projectPath = __dirname;
 	jest.spyOn(fs, 'readdirSync').mockReturnValue(['foo.php']);
 	jest.spyOn(fs, 'readFileSync').mockReturnValue(
@@ -64,7 +69,7 @@ test('isPluginDirectory returns false for non-plugin directory', () => {
 });
 
 // Theme mode
-test('isThemeDirectory detects a WordPress theme and infer theme mode', () => {
+test('isThemeDirectory detects a WordPress theme and infer THEME mode', () => {
 	const projectPath = __dirname;
 
 	jest.spyOn(fs, 'existsSync').mockImplementation((file) => {
@@ -96,5 +101,43 @@ test('isThemeDirectory returns false for a directory with style.css but without 
 	);
 
 	expect(isThemeDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+// WP_CONTENT mode
+test('isWpContentDirectory detects a WordPress wp-content directory and infer WP_CONTENT mode', () => {
+	const projectPath = __dirname;
+	jest.spyOn(fs, 'existsSync').mockImplementation((folder) => {
+		return (
+			folder === path.join(projectPath, 'plugins') ||
+			folder === path.join(projectPath, 'themes')
+		);
+	});
+	expect(isWpContentDirectory(projectPath)).toBe(true);
+	expect(isWpDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.WP_CONTENT);
+});
+
+test('isWpContentDirectory returns false for wp-content parent directory', () => {
+	const projectPath = __dirname;
+	jest.spyOn(fs, 'existsSync').mockImplementation((folder) => {
+		return folder === path.join(projectPath, 'wp-content');
+	});
+	expect(isWpContentDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+test('isWpContentDirectory returns false for a directory with only one directory of plugins or themes', () => {
+	const projectPath = __dirname;
+	jest.spyOn(fs, 'existsSync').mockImplementation((folder) => {
+		return folder === path.join(projectPath, 'plugins');
+	});
+	expect(isWpContentDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+
+	jest.spyOn(fs, 'existsSync').mockImplementation((folder) => {
+		return folder === path.join(projectPath, 'themes');
+	});
+	expect(isWpContentDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
