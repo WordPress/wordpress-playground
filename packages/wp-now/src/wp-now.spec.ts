@@ -6,6 +6,7 @@ import {
 	isThemeDirectory,
 	isWpContentDirectory,
 	isWordPressDirectory,
+	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
 import jest from 'jest-mock';
 
@@ -178,4 +179,58 @@ test('isWordPressDirectory returns false for non-WordPress directory', () => {
 	jest.spyOn(fs, 'existsSync').mockReturnValue(false);
 
 	expect(isWordPressDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+// WordPress developer mode
+test('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
+	const projectPath = path.join(__dirname, 'test-fixtures', 'wp-develop');
+	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
+		const existingFiles = [
+			'src',
+			'src/wp-content',
+			'src/wp-includes',
+			'src/wp-load.php',
+			'build',
+			'build/wp-content',
+			'build/wp-includes',
+			'build/wp-load.php',
+		].map((file) => path.join(projectPath, file));
+		return existingFiles.includes(fileOrFolder as string);
+	});
+
+	expect(isWordPressDevelopDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.WORDPRESS_DEVELOP);
+});
+
+test('isWordPressDevelopDirectory returns false for non-WordPress-develop directory', () => {
+	const projectPath = path.join(__dirname, 'test-fixtures', 'non-wp-develop');
+	jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
+	const projectPath = path.join(
+		__dirname,
+		'test-fixtures',
+		'incomplete-wp-develop'
+	);
+	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
+		const requiredFiles = [
+			'src',
+			'src/wp-content',
+			'src/wp-includes',
+			'src/wp-load.php',
+			'build',
+			'build/wp-content',
+			'build/wp-includes',
+			// 'build/wp-load.php', // Simulates missing file
+		].map((file) => path.join(projectPath, file));
+		return requiredFiles.includes(fileOrFolder as string);
+	});
+
+	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
