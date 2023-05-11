@@ -185,17 +185,19 @@ async function runWpContentMode(
 		absoluteUrl,
 	}: WPNowOptions
 ) {
-	php.mount(projectPath, documentRoot);
+	const wordPressPath = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 	await initWordPress(
 		php,
 		wordPressVersion,
-		projectPath,
+		wordPressPath,
 		documentRoot,
 		absoluteUrl
 	);
 	fs.ensureDirSync(wpContentPath);
 
 	php.mount(projectPath, `${documentRoot}/wp-content`);
+
+	mountSqlite(php, documentRoot);
 }
 
 async function runWordPressDevelopMode(
