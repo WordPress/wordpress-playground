@@ -18,6 +18,7 @@
 		"tsconfig": "./tsconfig.lib.json"
 	},
 	"publishConfig": {
-		"access": "public"
+		"access": "public",
+    "directory": "../../../dist/packages/playground/blueprints"
 	}
 }

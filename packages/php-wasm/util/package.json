@@ -9,6 +9,7 @@
 		"tsconfig": "./tsconfig.lib.json"
 	},
 	"publishConfig": {
-		"access": "public"
+		"access": "public",
+    "directory": "../../../dist/packages/php-wasm/util"
 	}
 }
