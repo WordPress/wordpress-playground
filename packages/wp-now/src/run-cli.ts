@@ -3,7 +3,7 @@ import { hideBin } from 'yargs/helpers';
 import { startServer } from './start-server';
 import { portFinder } from './port-finder';
 import { SupportedPHPVersion } from '@php-wasm/universal';
-import ConfigFactory from './config/ConfigFactory';
+import getWpNowConfig from './config';
 
 function startSpinner(message: string) {
 	process.stdout.write(`${message}...\n`);
@@ -48,12 +48,10 @@ export async function runCli() {
 			async (argv) => {
 				const spinner = startSpinner('Starting the server...');
 				try {
-					const options = await ConfigFactory.getInstance().read({
-						cliOptions: {
-							path: argv.path as string,
-							php: argv.php as SupportedPHPVersion,
-							wp: argv.wp as string,
-						},
+					const options = await getWpNowConfig({
+						path: argv.path as string,
+						php: argv.php as SupportedPHPVersion,
+						wp: argv.wp as string,
 					});
 					portFinder.setPort(argv.port as number);
 					await startServer(options);
