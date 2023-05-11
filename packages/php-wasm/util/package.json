@@ -10,6 +10,6 @@
 	},
 	"publishConfig": {
 		"access": "public",
-    "directory": "../../../dist/packages/php-wasm/util"
+		"directory": "../../../dist/packages/php-wasm/util"
 	}
 }

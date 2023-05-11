@@ -19,6 +19,6 @@
 	},
 	"publishConfig": {
 		"access": "public",
-    "directory": "../../../dist/packages/playground/blueprints"
+		"directory": "../../../dist/packages/playground/blueprints"
 	}
 }
