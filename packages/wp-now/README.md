@@ -33,7 +33,7 @@ cd wordpress-plugin-or-theme
 wp now start
 ```
 
-Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see [Arguments supported by wp-now start section]((#arguments-supported-by-wp-now-start).
+Additionally, you can specify the arguments such as `--port`, `--php` and `--wp`. For more details, see [Arguments supported by wp-now start section](#arguments-supported-by-wp-now-start).
 
 ## Option 2: Development flow
 
