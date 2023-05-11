@@ -48,6 +48,7 @@ async function startWordPressServer() {
 				'WordPress Playground error: ' + err.message
 			);
 			console.trace(err);
+			stateManager.write({ state: 'idle', serverAddress: undefined });
 		});
 
 		worker.postMessage({
@@ -63,6 +64,7 @@ async function startWordPressServer() {
 			'WordPress Playground error: ' + e.message
 		);
 		console.trace(e);
+		stateManager.write({ state: 'idle', serverAddress: undefined });
 	}
 }
 
@@ -75,8 +77,7 @@ async function stopWordPressServer() {
 	try {
 		stateManager.write({ state: 'stopping-server' });
 		worker.terminate();
-		await stateManager.write({ serverAddress: undefined });
-		stateManager.write({ state: 'idle' });
+		stateManager.write({ state: 'idle', serverAddress: undefined });
 	} catch (e) {
 		vscode.window.showErrorMessage(
 			'WordPress Playground error: ' + e.message
