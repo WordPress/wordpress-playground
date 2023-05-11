@@ -64,29 +64,17 @@ Make sure to replace `/path/to/wordpress-plugin-or-theme` or `/path/to/wp-conten
 
 `wp-now start` currently supports the following arguments:
 
--   `port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`;
--   `path`: the path to the PHP file or WordPress project to use. If not provided, it will use the current working directory;
--   `php`: the version of PHP to use. This is optional and if not provided, it will use a default version which is `8.0`;
--   `wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/).
+-   `--port`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`(example of usage: `--port=3000`);
+-   `--path`: the path to the PHP file or WordPress project to use. If not provided, it will use the current working directory;
+-   `--php`: the version of PHP to use. This is optional and if not provided, it will use a default version which is `8.0`(example of usage: `--php=7.4`);
+-   `--wp`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/)(example of usage: `--wp=5.8`)
 
-#### Examples of using `wp-now start` arguments:
+#### Example of using `wp-now start` arguments:
 
-Specify WordPress version, PHP version and plugin path:
-
-```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.9 --php=7.4
-```
-
-Specify WordPress version and plugin or theme path:
+Specify plugin path, WordPress version, PHP version and port number:
 
 ```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.8
-```
-
-Specify PHP version and plugin or theme path:
-
-```bash
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --php=7.4
+nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme --wp=5.9 --php=7.4 --port=3000
 ```
 
 ### Making WP-NOW accessible globally on your local machine
@@ -123,7 +111,7 @@ nx test wp-now
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
 
--   `wp-now` does not require you to install separately WordPress, create database, connect WordPress to that database, create your use or login. All of these steps are packaged into `wp now start` command and are running under the hood;
+-   `wp-now` does not require you to install WordPress separately, create a database, connect WordPress to that database or create a user account. All of these steps are handled by the `wp now start` command and are running under the hood;
 -   `wp-now` works across all platforms (Mac, Linux, Windows);
 -   `wp-now` does not support custom domains or SSL (yet!);
 -   `wp-now` works with WordPress themes and plugins even if you don't have WordPress installed;
