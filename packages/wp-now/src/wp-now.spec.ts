@@ -4,8 +4,8 @@ test('parseOptions with default options', async () => {
 	const options = await parseOptions();
 	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
-	expect(options.documentRoot).toBe('/var/www/html');
-	expect(options.mode).toBe(WPNowMode.PLUGIN);
+  expect(options.documentRoot).toBe('/var/www/html');
+	expect(options.mode).toBe(WPNowMode.INDEX);
 	expect(options.projectPath).toBe(process.cwd());
 });
 
@@ -23,7 +23,7 @@ test('parseOptions with custom options', async () => {
 	expect(options.phpVersion).toBe('7.3');
 	expect(options.wordPressVersion).toBe('5.7');
 	expect(options.documentRoot).toBe('/var/www/my-site');
-	expect(options.mode).toBe(WPNowMode.WP_CONTENT);
+	expect(options.mode).toBe(WPNowMode.WORDPRESS);
 	expect(options.projectPath).toBe('/path/to/my-site');
 	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
 	expect(options.absoluteUrl).toBe('http://localhost:8080');
