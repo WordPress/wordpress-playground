@@ -13,12 +13,18 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --includes dist/docs-copy"
+				],
+				"parallel": false
+			}
+		},
+		"build:markdown-version-for-future-reference": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"rimraf dist/docs-copy",
 					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
-					"node packages/docs/site/src/build-markdown-docs.js",
-					"rimraf pages/api",
-
-					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
-					"node packages/docs/site/src/build-markdown-docs.js"
+					"mv dist/docs dist/docs-copy"
 				],
 				"parallel": false
 			}

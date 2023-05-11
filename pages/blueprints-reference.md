@@ -21,9 +21,14 @@ For example:
 }
 ```
 
+To learn why you would want to use Blueprints, see the [Getting Started With Blueprints](./blueprints-getting-started.md) page.
+
 ## Using Blueprints
 
 You can use Blueprints in one of two ways:
+
+-   By passing them as a URL fragment to the Playground.
+-   By using the JavaScript API.
 
 ### URL Fragment
 
@@ -83,13 +88,131 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 </html>
 ```
 
+## Resource References
+
+Resource References allow you use external files in Blueprints
+
+In the `installPlugin` step in the example above, we reference the `https://downloads.wordpress.org/plugins/friends.latest-stable.zip` file by using the `wordpress.org/plugins` resource reference.
+
+The following resource references are available:
+
+-   [URLReference](#urlreference)
+-   [CoreThemeReference](#corethemereference)
+-   [CorePluginReference](#corepluginreference)
+-   [VFSReference](#vfsreference)
+-   [LiteralReference](#literalreference)
+
+### URLReference
+
+The URLReference resource is used to reference files that are stored on a remote server. The URLReference resource is defined as follows:
+
+```typescript
+type URLReference = {
+	resource: 'url';
+	url: string;
+};
+```
+
+To use the URLReference resource, you need to provide the URL of the file. For example, to reference a file named "index.html" that is stored on a remote server, you can create a URLReference as follows:
+
+```json
+{
+  "resource": "url",
+  "url": "https://example.com/index.html"
+}
+```
+
+### CoreThemeReference
+
+The CoreThemeReference resource is used to reference WordPress core themes. The CoreThemeReference resource is defined as follows:
+
+```typescript
+type CoreThemeReference = {
+	resource: 'wordpress.org/themes';
+	slug: string;
+	version?: string;
+};
+```
+
+To use the CoreThemeReference resource, you need to provide the slug of the theme. For example, to reference the "Twenty Twenty-One" theme, you can create a CoreThemeReference as follows:
+
+```json
+{
+  "resource": "wordpress.org/themes",
+  "slug": "twentytwentyone"
+}
+```
+
+### CorePluginReference
+
+The CorePluginReference resource is used to reference WordPress core plugins. The CorePluginReference resource is defined as follows:
+
+```typescript
+type CorePluginReference = {
+	resource: 'wordpress.org/plugins';
+	slug: string;
+	version?: string;
+};
+```
+
+To use the CorePluginReference resource, you need to provide the slug of the plugin. For example, to reference the "Akismet" plugin, you can create a CorePluginReference as follows:
+
+```json
+{
+  "resource": "wordpress.org/plugins",
+  "slug": "akismet"
+}
+```
+
+### VFSReference
+
+The VFSReference resource is used to reference files that are stored in a virtual file system (VFS). The VFS is a file system that is stored in memory and can be used to store files that are not part of the file system of the operating system. The VFSReference resource is defined as follows:
+
+```typescript
+type VFSReference = {
+	resource: 'vfs';
+	path: string;
+};
+```
+
+To use the VFSReference resource, you need to provide the path to the file in the VFS. For example, to reference a file named "index.html" that is stored in the root of the VFS, you can create a VFSReference as follows:
+
+```json
+{
+  "resource": "vfs",
+  "path": "/index.html"
+}
+```
+
+### LiteralReference
+
+The LiteralReference resource is used to reference files that are stored as literals in the code. The LiteralReference resource is defined as follows:
+
+```typescript
+type LiteralReference = {
+	resource: 'literal';
+	name: string;
+	contents: string | Uint8Array;
+};
+```
+
+To use the LiteralReference resource, you need to provide the name of the file and its contents. For example, to reference a file named "index.html" that contains the text "Hello, World!", you can create a LiteralReference as follows:
+
+```json
+{
+  "resource": "literal",
+  "name": "index.html",
+  "contents": "Hello, World!"
+}
+```
+
 ## Blueprint Data Format
 
 A Blueprint can contain the following properties:
 
 -   `landingPage` (string): The URL to navigate to after the blueprint has been run.
--   `preferredVersions`: The preferred PHP and WordPress versions to use.
--   `steps`: The steps to run.
+-   [`preferredVersions`](#Preferred%20Versions): The preferred PHP and WordPress versions to use.
+-   [`steps`](#Steps): The steps to run.
 
 ### Preferred Versions
 
@@ -111,7 +234,28 @@ Example:
 
 ### Steps
 
-The `steps` property is an array of steps to run. Each step is an object that contains a `step` property that specifies the type of step to run. The rest of the properties depend on the type of step. Here are the possible steps and their usage:
+The `steps` property is an array of steps to run. Each step is an object that contains a `step` property that specifies the type of step to run. The rest of the properties depend on the type of step. The possible steps are:
+
+-   [installPlugin](#installplugin)
+-   [installTheme](#installtheme)
+-   [login](#login)
+-   [importFile](#importfile)
+-   [activatePlugin](#activateplugin)
+-   [replaceSite](#replacesite)
+-   [unzip](#unzip)
+-   [setSiteOptions][#setSiteOptions]
+-   [updateUserMeta][#updateUserMeta]
+-   [runPHP][#runPHP]
+-   [runPHPWithOptions][#runPHPWithOptions]
+-   [setPhpiniEntry][#setPhpiniEntry]
+-   [request][#request]
+-   [ср][#ср]
+-   [mv][#mv]
+-   [mkdir][#mkdir]
+-   [rm][#rm]
+-   [rmdir][#rmdir]
+-   [writeFile][#writeFile]
+-   [defineWpConfigConsts][#defineWpConfigConsts]
 
 #### installPlugin
 
@@ -179,7 +323,10 @@ Example:
 ```json
 {
 	"step": "importFile",
-	"file": "http://example.com/file.xml"
+	"file": {
+    "resource": "url",
+    "url": "http://example.com/file.wxz"
+  }
 }
 ```
 
@@ -209,7 +356,10 @@ Example:
 ```json
 {
 	"step": "replaceSite",
-	"fullSiteZip": "http://example.com/full-site.zip"
+	"fullSiteZip": {
+    "resource": "url",
+    "url": "http://example.com/full-site.zip"
+  }
 }
 ```
 
@@ -317,7 +467,7 @@ Example:
 
 This step makes a PHP request in the Playground. It takes the following parameters:
 
--   `request`: An object that specifies the PHP request to make.
+-   `request`: An PHPRequest object that specifies the PHP request to make.
 -   `maxRedirects` (optional): The maximum number of redirects to follow. Defaults to 10.
 
 Example:
@@ -426,5 +576,22 @@ Example:
 	"step": "writeFile",
 	"path": "/path/to/write/to",
 	"data": "Hello, World!"
+}
+```
+
+#### defineWpConfigConsts
+
+This step defines constants in the wp-config.php file of a WordPress installation.
+
+-   `consts`: An object that specifies the constants to define.
+
+Example:
+
+```json
+{
+	"step": "defineWpConfigConsts",
+	"consts": {
+		"WP_DEBUG": true
+	}
 }
 ```

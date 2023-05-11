@@ -8,6 +8,8 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 
 ...and a lot more!
 
+The Blueprints data format is described in details on the [Blueprints reference](./blueprints-reference.md) page. This page is a guide to using Blueprints.
+
 ## Why use Blueprints over other APIs?
 
 Blueprints are the easiest way to create a Playground instance. You don't need to know any JavaScript, you just need to write some JSON. And if you use the [Blueprint schema](https://playground.wordpress.net/blueprint-schema.json), you'll be aided by autocompletion.
@@ -18,7 +20,7 @@ Blueprints are also portable. You can share them with your team, or even publish
 
 ## Getting started
 
-The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`.
+The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. 
 
 For example, to create a Playground with specific versions of WordPress and PHP you would use the following Blueprint:
 
@@ -33,6 +35,8 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 
 And then you would go to
 [https://playground.wordpress.net/#{"preferredVersions": {"php": "7.4","wp": "5.9"}}](https://playground.wordpress.net/#{%22preferredVersions%22:{%22php%22:%227.4%22,%22wp%22:%225.9%22}}).
+
+To learn more about the data format, see the [Blueprints Reference](./blueprints-reference.md) page.
 
 Let's see what other things you can do with Blueprints.
 
@@ -83,3 +87,42 @@ Let's see what other things you can do with Blueprints.
 ```
 
 [Try it now](<https://playground.wordpress.net/#%7B%22steps%22:%5B%7B%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20include%20'wordpress/wp-load.php';wp_insert_post(array('post_title'=%3E'Post%20title','post_content'=%3E'Post%20content','post_status'=%3E'publish'));%22%7D%5D%7D>)
+
+
+### Showcase product demos
+
+```json
+{
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "url",
+				"url": "https://your-site.com/your-plugin.zip"
+			}
+		},
+		{
+			"step": "installTheme",
+			"pluginZipFile": {
+				"resource": "url",
+				"url": "https://your-site.com/your-theme.zip"
+			}
+		},
+		{
+			"step": "importFile",
+			"pluginZipFile": {
+				"resource": "url",
+				"url": "https://your-site.com/starter-content.wxz"
+			}
+		},
+		{
+			"step": "setSiteOptions",
+			"options": {
+				"some_required_option_1": "your_favorite_values",
+				"some_required_option_2": "your_favorite_values"
+			}
+		}
+	]
+}
+```
+
