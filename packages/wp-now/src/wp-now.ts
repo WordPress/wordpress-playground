@@ -59,7 +59,7 @@ function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
 
-async function parseOptions(
+export async function parseOptions(
 	rawOptions: Partial<WPNowOptions> = {}
 ): Promise<WPNowOptions> {
 	const options: WPNowOptions = {
