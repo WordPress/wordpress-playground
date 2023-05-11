@@ -21,13 +21,15 @@ import {
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
+	isWpCoreDirectory,
+	isWpDevelopDirectory,
 } from './wp-playground-wordpress';
-import { isWpCoreDirectory } from './wp-playground-wordpress/is-wp-core-directory';
 
 export const enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
 	CORE = 'core',
+	CORE_DEVELOP = 'core-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
 	AUTO = 'auto',
@@ -124,6 +126,8 @@ export default class WPNow {
 		const root =
 			mode === 'core'
 				? projectPath
+				: mode === 'core-develop'
+				? projectPath + '/build'
 				: path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
 		this.php.mount(root, documentRoot);
 		this.php.writeFile(
@@ -131,7 +135,7 @@ export default class WPNow {
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
 		await defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
-		if (mode !== 'core') {
+		if (!['core', 'core-develop'].includes(mode)) {
 			await defineWpConfigConsts(this.php, {
 				consts: {
 					WP_AUTO_UPDATE_CORE:
@@ -194,7 +198,9 @@ export default class WPNow {
 	}
 
 	static #inferMode(projectPath: string): Exclude<WPNowMode, WPNowMode.AUTO> {
-		if (isWpCoreDirectory(projectPath)) {
+		if (isWpDevelopDirectory(projectPath)) {
+			return WPNowMode.CORE_DEVELOP;
+		} else if (isWpCoreDirectory(projectPath)) {
 			return WPNowMode.CORE;
 		} else if (isWpContentDirectory(projectPath)) {
 			return WPNowMode.WP_CONTENT;
