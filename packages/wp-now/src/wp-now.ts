@@ -26,7 +26,7 @@ import {
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
-	isWpCoreDirectory,
+	isWpDirectory,
 	isWpDevelopDirectory,
 } from './wp-playground-wordpress';
 
@@ -322,7 +322,7 @@ export function inferMode(
 ): Exclude<WPNowMode, WPNowMode.AUTO> {
 	if (isWpDevelopDirectory(projectPath)) {
 		return WPNowMode.WORDPRESS_DEVELOP;
-	} else if (isWpCoreDirectory(projectPath)) {
+	} else if (isWpDirectory(projectPath)) {
 		return WPNowMode.WORDPRESS;
 	} else if (isWpContentDirectory(projectPath)) {
 		return WPNowMode.WP_CONTENT;
