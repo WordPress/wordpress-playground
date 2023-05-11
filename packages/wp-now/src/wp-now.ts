@@ -126,26 +126,26 @@ export default async function startWPNow(
 	console.log(`php: ${options.phpVersion}`);
 	console.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
-		await initInIndexMode(php, options);
+		await runIndexMode(php, options);
 		return;
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
-			await initInWpContentMode(php, options);
+			await runWpContentMode(php, options);
 			break;
 		case WPNowMode.CORE_DEVELOP:
-			await initInCoreDevelopMode(php, options);
+			await runCoreDevelopMode(php, options);
 			break;
 		case WPNowMode.CORE:
-			await initInCoreMode(php, options);
+			await runCoreMode(php, options);
 			break;
 		case WPNowMode.PLUGIN:
-			await initInPluginOrThemeMode(php, options);
+			await runPluginOrThemeMode(php, options);
 			break;
 		case WPNowMode.THEME:
-			await initInPluginOrThemeMode(php, options);
+			await runPluginOrThemeMode(php, options);
 			break;
 	}
 	await installationStep2(php);
@@ -165,14 +165,14 @@ function getWpContentHomePath(projectPath: string) {
 	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
 }
 
-async function initInIndexMode(
+async function runIndexMode(
 	php: NodePHP,
 	{ documentRoot, projectPath }: WPNowOptions
 ) {
 	php.mount(projectPath, documentRoot);
 }
 
-async function initInWpContentMode(
+async function runWpContentMode(
 	php: NodePHP,
 	{
 		documentRoot,
@@ -195,18 +195,18 @@ async function initInWpContentMode(
 	php.mount(projectPath, `${documentRoot}/wp-content`);
 }
 
-async function initInCoreDevelopMode(
+async function runCoreDevelopMode(
 	php: NodePHP,
 	{ documentRoot, projectPath, absoluteUrl }: WPNowOptions
 ) {
-	await initInCoreMode(php, {
+	await runCoreMode(php, {
 		documentRoot,
 		projectPath: projectPath + '/build',
 		absoluteUrl,
 	});
 }
 
-async function initInCoreMode(
+async function runCoreMode(
 	php: NodePHP,
 	{ documentRoot, projectPath, absoluteUrl }: WPNowOptions
 ) {
@@ -220,7 +220,7 @@ async function initInCoreMode(
 	copySqlite(projectPath);
 }
 
-async function initInPluginOrThemeMode(
+async function runPluginOrThemeMode(
 	php: NodePHP,
 	{
 		wordPressVersion,
