@@ -21,9 +21,9 @@ import {
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
+	isWpCoreDirectory,
+	isWpDevelopDirectory,
 } from './wp-playground-wordpress';
-import { isWpCoreDirectory } from './wp-playground-wordpress/is-wp-core-directory';
-import { isWpDevelopDirectory } from './wp-playground-wordpress/is-wp-develop-directory';
 
 export enum WPNowMode {
 	PLUGIN = 'plugin',
