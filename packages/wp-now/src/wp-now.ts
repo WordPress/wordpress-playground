@@ -27,7 +27,7 @@ import {
 	isThemeDirectory,
 	isWpContentDirectory,
 	isWordPressDirectory,
-	isWpDevelopDirectory,
+	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
 
 export const enum WPNowMode {
@@ -320,7 +320,7 @@ function copySqlite(localWordPressPath: string) {
 export function inferMode(
 	projectPath: string
 ): Exclude<WPNowMode, WPNowMode.AUTO> {
-	if (isWpDevelopDirectory(projectPath)) {
+	if (isWordPressDevelopDirectory(projectPath)) {
 		return WPNowMode.WORDPRESS_DEVELOP;
 	} else if (isWordPressDirectory(projectPath)) {
 		return WPNowMode.WORDPRESS;
