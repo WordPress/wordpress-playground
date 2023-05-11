@@ -1,4 +1,4 @@
-import { inferMode, parseOptions, WPNowMode, WPNowOptions } from './wp-now';
+import { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -7,7 +7,7 @@ import {
 	isWpContentDirectory,
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
-} from './wp-playground-wordpress';
+} from '../wp-playground-wordpress';
 import jest from 'jest-mock';
 
 // Options
