@@ -4,7 +4,7 @@ import { parentPort } from 'worker_threads';
 async function start(config: any) {
 	const server = await startServer(config);
 	parentPort!.postMessage({
-		...server.wpNow.options,
+		...server.options,
 		command: 'server-started',
 		url: server.url,
 	});
