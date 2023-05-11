@@ -4,6 +4,7 @@ import { startServer } from './start-server';
 import { portFinder } from './port-finder';
 import { SupportedPHPVersion } from '@php-wasm/universal';
 import getWpNowConfig from './config';
+import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
 
 function startSpinner(message: string) {
 	process.stdout.write(`${message}...\n`);
@@ -53,8 +54,9 @@ export async function runCli() {
 						php: argv.php as SupportedPHPVersion,
 						wp: argv.wp as string,
 					});
-					portFinder.setPort(argv.port as number);
-					await startServer(options);
+					portFinder.setPort(options.port as number);
+					const { url } = await startServer(options);
+					openInDefaultBrowser(url);
 				} catch (error) {
 					console.error(error);
 					spinner.fail(
@@ -69,4 +71,26 @@ export async function runCli() {
 		.help()
 		.alias('h', 'help')
 		.strict().argv;
+}
+
+function openInDefaultBrowser(url: string) {
+	let cmd: string, args: string[] | SpawnOptionsWithoutStdio;
+	switch (process.platform) {
+		case 'darwin':
+			cmd = 'open';
+			args = [url];
+			break;
+		case 'linux':
+			cmd = 'xdg-open';
+			args = [url];
+			break;
+		case 'win32':
+			cmd = 'cmd';
+			args = ['/c', `start ${url}`];
+			break;
+		default:
+			console.log(`Platform '${process.platform}' not supported`);
+			return;
+	}
+	spawn(cmd, args);
 }

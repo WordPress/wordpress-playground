@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [[ $(uname -s) == 'Darwin' ]]; then
+  SCRIPT_PATH=$(realpath "$0")
+else
+  SCRIPT_PATH=$(readlink -f "$0")
+fi
+SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
+
+ARGS="$@"
+if [[ "$@" != *"--path="* ]]; then
+  ARGS="$@ --path=$PWD"
+fi
+
+cd $SCRIPT_DIR/..
+export NVM_DIR=$HOME/.nvm;
+source $NVM_DIR/nvm.sh;
+nvm use
+npx nx preview wp-now $ARGS

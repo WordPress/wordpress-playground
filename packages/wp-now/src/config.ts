@@ -13,25 +13,30 @@ export interface CliOptions {
 	wp: string;
 }
 
-export const DEFAULT_OPTIONS: WPNowOptions = {
-	phpVersion: DEFAULT_PHP_VERSION,
-	documentRoot: '/var/www/html',
-	projectPath: process.cwd(),
-	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
-};
-
-type WPNowMode = 'plugin' | 'theme' | 'core' | 'index' | 'auto';
+export enum WPNowMode {
+	PLUGIN = 'plugin',
+	THEME = 'theme',
+	CORE = 'core',
+	INDEX = 'index',
+	WP_CONTENT = 'wp-content',
+	AUTO = 'auto',
+}
 
 export interface WPNowOptions {
 	phpVersion?: SupportedPHPVersion;
 	documentRoot?: string;
 	absoluteUrl?: string;
 	mode?: WPNowMode;
-	port?: number;
 	projectPath?: string;
 	wpContentPath?: string;
 	wordPressVersion?: string;
 }
+
+export const DEFAULT_OPTIONS: WPNowOptions = {
+	phpVersion: DEFAULT_PHP_VERSION,
+	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
+	documentRoot: '/var/www/html',
+};
 
 export interface WPEnvOptions {
 	core: string | null;

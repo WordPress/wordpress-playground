@@ -43,6 +43,15 @@
 			"options": {
 				"lintFilePatterns": ["packages/playground/blueprints/**/*.ts"]
 			}
+		},
+		"typecheck": {
+			"executor": "@nrwl/workspace:run-commands",
+			"options": {
+				"commands": [
+					"yarn tsc -p packages/playground/remote/tsconfig.spec.json --noEmit",
+					"yarn tsc -p packages/playground/remote/tsconfig.lib.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []

@@ -1,5 +1,5 @@
 import { StepHandler } from '.';
-import { updateFile } from './common';
+import { defineWpConfigConsts } from './define-wp-config-consts';
 
 export interface DefineSiteUrlStep {
 	step: 'defineSiteUrl';
@@ -16,18 +16,10 @@ export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {
-	const documentRoot = await playground.documentRoot;
-	await updateFile(
-		playground,
-		`${documentRoot}/wp-config.php`,
-		(contents) =>
-			`<?php
-			if ( ! defined( 'WP_HOME' ) ) {
-            	define('WP_HOME', "${siteUrl}");
-			}
-			if ( ! defined( 'WP_SITEURL' ) ) {
-            	define('WP_SITEURL', "${siteUrl}");
-			}
-            ?>${contents}`
-	);
+	return await defineWpConfigConsts(playground, {
+		consts: {
+			WP_HOME: siteUrl,
+			WP_SITEURL: siteUrl,
+		},
+	});
 };
