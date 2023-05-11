@@ -213,8 +213,8 @@ async function runWordPressMode(
 	php.mount(projectPath, documentRoot);
 	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
 		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
+		copySqlite(projectPath);
 	}
-	copySqlite(projectPath);
 }
 
 async function runPluginOrThemeMode(
