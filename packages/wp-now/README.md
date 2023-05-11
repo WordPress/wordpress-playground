@@ -104,6 +104,13 @@ To install `wp-now` directly from `npm`, execute:
 npm install -g @wordpress/wp-now
 ```
 
+Once installed, you can use it like so:
+
+```bash
+cd wordpress-plugin-or-theme
+wp now start
+```
+
 ### Testing
 
 To run the unit tests, use the following command:
