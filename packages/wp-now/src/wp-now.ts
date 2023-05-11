@@ -16,12 +16,13 @@ import {
 } from './constants';
 import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
 import { portFinder } from './port-finder';
-import { defineSiteUrl } from '@wp-playground/blueprints';
+import { defineSiteUrl, defineWpConfigConsts } from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
 } from './wp-playground-wordpress';
+import { isWpCoreDirectory } from './wp-playground-wordpress/is-wp-core-directory';
 
 export enum WPNowMode {
 	PLUGIN = 'plugin',
@@ -116,45 +117,42 @@ export default class WPNow {
 		);
 	}
 
-	mountWordpress() {
-		const { wordPressVersion } = this.options;
-		const { documentRoot } = this.options;
-		const root = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
-		this.php.mount(
-			{
-				root,
-			},
-			documentRoot
-		);
+	async mountWordpress() {
+		const { wordPressVersion, documentRoot, mode, projectPath } =
+			this.options;
+
+		const root =
+			mode === 'core'
+				? projectPath
+				: path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+		this.php.mount(root, documentRoot);
 		this.php.writeFile(
 			`${documentRoot}/wp-config.php`,
 			this.php.readFileAsText(`${documentRoot}/wp-config-sample.php`)
 		);
-		defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
-		if (this.options.wordPressVersion !== 'latest') {
-			this.updateFile(
-				`${documentRoot}/wp-config.php`,
-				(contents) => `<?php
-          if ( ! defined( 'WP_AUTO_UPDATE_CORE' ) ) {
-            define( 'WP_AUTO_UPDATE_CORE', false );
-          }
-        ?>${contents}`
+		await defineSiteUrl(this.php, { siteUrl: this.options.absoluteUrl });
+		if (mode !== 'core') {
+			await defineWpConfigConsts(this.php, {
+				consts: {
+					WP_AUTO_UPDATE_CORE:
+						this.options.wordPressVersion === 'latest',
+				},
+			});
+			this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
+			this.php.writeFile(
+				`${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
+				`<?php
+		// Needed because gethostbyname( 'wordpress.org' ) returns
+		// a private network IP address for some reason.
+		add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
+			return array(
+				'wordpress.org',
+				'api.wordpress.org',
+				'downloads.wordpress.org',
+			);
+		} );`
 			);
 		}
-		this.php.mkdirTree(`${documentRoot}/wp-content/mu-plugins`);
-		this.php.writeFile(
-			`${documentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
-			`<?php
-      // Needed because gethostbyname( 'wordpress.org' ) returns
-      // a private network IP address for some reason.
-      add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-          return array(
-              'wordpress.org',
-              'api.wordpress.org',
-              'downloads.wordpress.org',
-          );
-      } );`
-		);
 	}
 
 	async runCode(code) {
@@ -196,19 +194,14 @@ export default class WPNow {
 	}
 
 	static #inferMode(projectPath: string): Exclude<WPNowMode, WPNowMode.AUTO> {
-		const hasIndexPhp = fs.existsSync(path.join(projectPath, 'index.php'));
-		const hasWpContentFolder = fs.existsSync(
-			path.join(projectPath, 'wp-content')
-		);
-
-		if (isWpContentDirectory(projectPath)) {
+		if (isWpCoreDirectory(projectPath)) {
+			return WPNowMode.CORE;
+		} else if (isWpContentDirectory(projectPath)) {
 			return WPNowMode.WP_CONTENT;
 		} else if (isPluginDirectory(projectPath)) {
 			return WPNowMode.PLUGIN;
 		} else if (isThemeDirectory(projectPath)) {
 			return WPNowMode.THEME;
-		} else if (!hasIndexPhp && hasWpContentFolder) {
-			return WPNowMode.CORE;
 		}
 		return WPNowMode.INDEX;
 	}
@@ -227,15 +220,14 @@ export default class WPNow {
 		}
 	}
 
-	mount() {
+	async mount() {
 		const { mode, wordPressVersion } = this.options;
 		if (mode === WPNowMode.INDEX) {
 			this.php.mount(this.options.projectPath, this.options.documentRoot);
 			return;
 		}
-
 		// Mount wordpress in all modes except index
-		this.mountWordpress();
+		await this.mountWordpress();
 		const { wpContentPath } = this.options;
 		fs.ensureDirSync(wpContentPath);
 
@@ -321,12 +313,12 @@ export default class WPNow {
 		console.log(`php: ${this.options.phpVersion}`);
 		console.log(`wp: ${this.options.wordPressVersion}`);
 		if (this.options.mode === WPNowMode.INDEX) {
-			this.mount();
+			await this.mount();
 			return;
 		}
 		await downloadWordPress(this.options.wordPressVersion);
 		await downloadSqliteIntegrationPlugin();
-		this.mount();
+		await this.mount();
 		await this.registerUser();
 		await this.autoLogin();
 	}
