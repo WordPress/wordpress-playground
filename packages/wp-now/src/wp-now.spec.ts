@@ -144,7 +144,7 @@ test('isWpContentDirectory returns false for a directory with only one directory
 
 // WordPress mode
 test('isWordPressDirectory detects a WordPress directory and WORDPRESS mode', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'wp');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
 		const existingFiles = [
 			path.join(projectPath, 'wp-content'),
@@ -159,7 +159,7 @@ test('isWordPressDirectory detects a WordPress directory and WORDPRESS mode', ()
 });
 
 test('isWordPressDirectory returns false in a WordPress directory with a wp-config.php', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'wp');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
 		const existingFiles = [
 			path.join(projectPath, 'wp-content'),
@@ -175,7 +175,7 @@ test('isWordPressDirectory returns false in a WordPress directory with a wp-conf
 });
 
 test('isWordPressDirectory returns false for non-WordPress directory', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'non-wp');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockReturnValue(false);
 
 	expect(isWordPressDirectory(projectPath)).toBe(false);
@@ -184,7 +184,7 @@ test('isWordPressDirectory returns false for non-WordPress directory', () => {
 
 // WordPress developer mode
 test('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'wp-develop');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
 		const existingFiles = [
 			'src',
@@ -204,7 +204,7 @@ test('isWordPressDevelopDirectory detects a WordPress-develop directory and WORD
 });
 
 test('isWordPressDevelopDirectory returns false for non-WordPress-develop directory', () => {
-	const projectPath = path.join(__dirname, 'test-fixtures', 'non-wp-develop');
+	const projectPath = __dirname;
 	jest.spyOn(fs, 'existsSync').mockReturnValue(false);
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
