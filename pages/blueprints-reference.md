@@ -117,8 +117,8 @@ To use the URLReference resource, you need to provide the URL of the file. For e
 
 ```json
 {
-  "resource": "url",
-  "url": "https://example.com/index.html"
+	"resource": "url",
+	"url": "https://example.com/index.html"
 }
 ```
 
@@ -138,8 +138,8 @@ To use the CoreThemeReference resource, you need to provide the slug of the them
 
 ```json
 {
-  "resource": "wordpress.org/themes",
-  "slug": "twentytwentyone"
+	"resource": "wordpress.org/themes",
+	"slug": "twentytwentyone"
 }
 ```
 
@@ -159,8 +159,8 @@ To use the CorePluginReference resource, you need to provide the slug of the plu
 
 ```json
 {
-  "resource": "wordpress.org/plugins",
-  "slug": "akismet"
+	"resource": "wordpress.org/plugins",
+	"slug": "akismet"
 }
 ```
 
@@ -179,8 +179,8 @@ To use the VFSReference resource, you need to provide the path to the file in th
 
 ```json
 {
-  "resource": "vfs",
-  "path": "/index.html"
+	"resource": "vfs",
+	"path": "/index.html"
 }
 ```
 
@@ -200,9 +200,9 @@ To use the LiteralReference resource, you need to provide the name of the file a
 
 ```json
 {
-  "resource": "literal",
-  "name": "index.html",
-  "contents": "Hello, World!"
+	"resource": "literal",
+	"name": "index.html",
+	"contents": "Hello, World!"
 }
 ```
 
@@ -324,9 +324,9 @@ Example:
 {
 	"step": "importFile",
 	"file": {
-    "resource": "url",
-    "url": "http://example.com/file.wxz"
-  }
+		"resource": "url",
+		"url": "http://example.com/file.wxz"
+	}
 }
 ```
 
@@ -357,9 +357,9 @@ Example:
 {
 	"step": "replaceSite",
 	"fullSiteZip": {
-    "resource": "url",
-    "url": "http://example.com/full-site.zip"
-  }
+		"resource": "url",
+		"url": "http://example.com/full-site.zip"
+	}
 }
 ```
 

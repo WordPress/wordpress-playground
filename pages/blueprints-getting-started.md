@@ -20,7 +20,7 @@ Blueprints are also portable. You can share them with your team, or even publish
 
 ## Getting started
 
-The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. 
+The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`.
 
 For example, to create a Playground with specific versions of WordPress and PHP you would use the following Blueprint:
 
@@ -88,7 +88,6 @@ Let's see what other things you can do with Blueprints.
 
 [Try it now](<https://playground.wordpress.net/#%7B%22steps%22:%5B%7B%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20include%20'wordpress/wp-load.php';wp_insert_post(array('post_title'=%3E'Post%20title','post_content'=%3E'Post%20content','post_status'=%3E'publish'));%22%7D%5D%7D>)
 
-
 ### Showcase product demos
 
 ```json
@@ -125,4 +124,3 @@ Let's see what other things you can do with Blueprints.
 	]
 }
 ```
-
