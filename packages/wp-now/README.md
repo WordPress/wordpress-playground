@@ -48,7 +48,7 @@ If you would like to be able to not use `wp-now` globally and manually specify t
 
 The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file.
 
--   `index`: executes a simple PHP file. If your destination folder does not contain a `theme`, `plugin` or `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
+-   `index`: executes a simple PHP file. If your destination folder does not contain a theme, plugin or is not a `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
 -   `theme`: loads WordPress with your selected theme included
 -   `plugin`: loads WordPress with your selected plugin included
 -   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
