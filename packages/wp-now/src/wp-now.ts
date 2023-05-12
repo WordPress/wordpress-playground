@@ -52,6 +52,7 @@ export interface WPNowOptions {
 	projectPath?: string;
 	wpContentPath?: string;
 	wordPressVersion?: string;
+	autoLogin?: boolean;
 }
 
 async function getAbsoluteURL() {
@@ -72,6 +73,7 @@ export async function parseOptions(
 		documentRoot: '/var/www/html',
 		mode: WPNowMode.AUTO,
 		projectPath: process.cwd(),
+		autoLogin: true,
 		...rawOptions,
 	};
 	if (!options.wpContentPath) {
@@ -100,6 +102,7 @@ export default async function startWPNow(
 	rawOptions: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; options: WPNowOptions }> {
 	const options = await parseOptions(rawOptions);
+	console.log(`Executing WPNow options "${JSON.stringify(options)}"`);
 
 	const { documentRoot } = options;
 	const php = await NodePHP.load(options.phpVersion, {
@@ -153,11 +156,13 @@ export default async function startWPNow(
 			await runPluginOrThemeMode(php, options);
 			break;
 	}
-	await installationStep2(php);
-	await login(php, {
-		username: 'admin',
-		password: 'password',
-	});
+	if (options.autoLogin) {
+		await installationStep2(php);
+		await login(php, {
+			username: 'admin',
+			password: 'password',
+		});
+	}
 	return {
 		php,
 		options,
