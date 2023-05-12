@@ -123,6 +123,11 @@ nx test wp-now
 -   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-content` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
 -   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
 
+## Known Issues
+
+-   Running `wp-now start` in 'wp-content' or 'wordpress' mode will produce some empty directories: [WordPress/wordpress-playground#328](https://github.com/WordPress/wordpress-playground/issues/328)
+-   If you have an existing MySQL database defined in your `wp-config.php`, `wp-now` will still mount SQLite and the site won't load: [WordPress/wordpress-playground#327](https://github.com/WordPress/wordpress-playground/issues/327)
+
 ## Migrating from Laravel Valet?
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
