@@ -1,0 +1,114 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Blueprints: Getting started | wp-playground</title><meta name="description" content="Documentation for wp-playground"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><link rel="stylesheet" href="../assets/custom.css"/><script async src="../assets/search.js" id="search-script"></script><link rel="stylesheet" href="../assets/pages.css"/></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container">
+<div class="table-cell" id="tsd-search" data-base="..">
+<div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.7824 13.833L12.6666 10.7177C12.5259 10.5771 12.3353 10.499 12.1353 10.499H11.6259C12.4884 9.39596 13.001 8.00859 13.001 6.49937C13.001 2.90909 10.0914 0 6.50048 0C2.90959 0 0 2.90909 0 6.49937C0 10.0896 2.90959 12.9987 6.50048 12.9987C8.00996 12.9987 9.39756 12.4863 10.5008 11.6239V12.1332C10.5008 12.3332 10.5789 12.5238 10.7195 12.6644L13.8354 15.7797C14.1292 16.0734 14.6042 16.0734 14.8948 15.7797L15.7793 14.8954C16.0731 14.6017 16.0731 14.1267 15.7824 13.833ZM6.50048 10.499C4.29094 10.499 2.50018 8.71165 2.50018 6.49937C2.50018 4.29021 4.28781 2.49976 6.50048 2.49976C8.71001 2.49976 10.5008 4.28708 10.5008 6.49937C10.5008 8.70852 8.71314 10.499 6.50048 10.499Z" fill="var(--color-text)"></path></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div>
+<div class="field">
+<div id="tsd-toolbar-links"></div></div>
+<ul class="results">
+<li class="state loading">Preparing search index...</li>
+<li class="state failure">The search index is not available</li></ul><a href="../index.html" class="title">wp-playground</a></div>
+<div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="2" fill="var(--color-text)"></rect><rect x="1" y="7" width="14" height="2" fill="var(--color-text)"></rect><rect x="1" y="11" width="14" height="2" fill="var(--color-text)"></rect></svg></a></div></div></header>
+<div class="container container-main">
+<div class="col-8 col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb">
+<li><a href="../modules.html">wp-playground</a></li>
+<li><span>Playground</span></li>
+<li><a href="blueprints-getting-started.html">Blueprints: Getting started</a></li></ul>
+<h1> Blueprints: Getting started</h1></div>
+<div class="tsd-panel tsd-typography">
+<a href="#blueprints-api" id="blueprints-api" style="color: inherit; text-decoration: none;">
+  <h2>Blueprints API</h2>
+</a>
+<p>Blueprints are JSON files for setting up your very own WordPress Playground instance. You can use them to:</p>
+<ul>
+<li>Showcase product demos – preinstall your plugin, set up starter content, and voila</li>
+<li>Test Pull Requests – install your plugin from the zip artifact exposed by your CI</li>
+<li>Build In-browser WordPress apps – like <a href="https://make.wordpress.org/polyglots/2023/04/19/wp-translation-playground/">GlotPress translations Playground</a></li>
+</ul>
+<p>...and a lot more!</p>
+<p>The Blueprints data format is described in details on the <a href="./blueprints-reference.md">Blueprints reference</a> page. This page is a guide to using Blueprints.</p>
+
+<a href="#why-use-blueprints-over-other-apis" id="why-use-blueprints-over-other-apis" style="color: inherit; text-decoration: none;">
+  <h2>Why use Blueprints over other APIs?</h2>
+</a>
+<p>Blueprints are the easiest way to create a Playground instance. You don&#39;t need to know any JavaScript, you just need to write some JSON. And if you use the <a href="https://playground.wordpress.net/blueprint-schema.json">Blueprint schema</a>, you&#39;ll be aided by autocompletion.</p>
+<p>Furthermore, Blueprints <code>fetch()</code> resources in parallel and update the progress bar to provide the user with visual feedback.</p>
+<p>Blueprints are also portable. You can share them with your team, or even publish them on GitHub for the world to see.</p>
+
+<a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
+  <h2>Getting started</h2>
+</a>
+<p>The easiest way to start using Blueprints is to paste one into the URL &quot;fragment&quot; on WordPress Playground website, e.g. <code>https://playground.wordpress.net/#{&quot;preferredVersions...</code>.</p>
+<p>For example, to create a Playground with specific versions of WordPress and PHP you would use the following Blueprint:</p>
+<pre><code class="language-json"><span class="hl-2">{</span><br/><span class="hl-2">    </span><span class="hl-17">&quot;preferredVersions&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">        </span><span class="hl-17">&quot;php&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;7.4&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">        </span><span class="hl-17">&quot;wp&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;5.9&quot;</span><br/><span class="hl-2">    }</span><br/><span class="hl-2">}</span>
+</code></pre>
+<p>And then you would go to
+<a href="https://playground.wordpress.net/#%7B%22preferredVersions%22:%7B%22php%22:%227.4%22,%22wp%22:%225.9%22%7D%7D">https://playground.wordpress.net/#{&quot;preferredVersions&quot;: {&quot;php&quot;: &quot;7.4&quot;,&quot;wp&quot;: &quot;5.9&quot;}}</a>.</p>
+<p>To learn more about the data format, see the <a href="./blueprints-reference.md">Blueprints Reference</a> page.</p>
+<p>Let&#39;s see what other things you can do with Blueprints.</p>
+
+<a href="#install-a-theme-and-a-plugin" id="install-a-theme-and-a-plugin" style="color: inherit; text-decoration: none;">
+  <h3>Install a Theme and a Plugin</h3>
+</a>
+<pre><code class="language-json"><span class="hl-2">{</span><br/><span class="hl-2">    </span><span class="hl-17">&quot;steps&quot;</span><span class="hl-2">: [</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;installPlugin&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;pluginZipFile&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;resource&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;wordpress.org/plugins&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;slug&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;coblocks&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        },</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;installTheme&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;pluginZipFile&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;resource&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;wordpress.org/themes&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;slug&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;pendant&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        }</span><br/><span class="hl-2">    ]</span><br/><span class="hl-2">}</span>
+</code></pre>
+<p><a href="https://playground.wordpress.net/#%7B%22steps%22:%5B%7B%22step%22:%22installPlugin%22,%22pluginZipFile%22:%7B%22resource%22:%22wordpress.org/plugins%22,%22slug%22:%22coblocks%22%7D%7D,%7B%22step%22:%22installTheme%22,%22pluginZipFile%22:%7B%22resource%22:%22wordpress.org/themes%22,%22slug%22:%22pendant%22%7D%7D%5D%7D">Try it now</a></p>
+
+<a href="#run-custom-php-code" id="run-custom-php-code" style="color: inherit; text-decoration: none;">
+  <h3>Run custom PHP code</h3>
+</a>
+<pre><code class="language-json"><span class="hl-2">{</span><br/><span class="hl-2">    </span><span class="hl-17">&quot;steps&quot;</span><span class="hl-2">: [</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;runPHP&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;code&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;&lt;?php</span><br/><span class="hl-8">                include &#39;wordpress/wp-load.php&#39;;</span><br/><span class="hl-8">                wp_insert_post(array(</span><br/><span class="hl-8">                    &#39;post_title&#39;    =&gt; &#39;Post title&#39;,</span><br/><span class="hl-8">                    &#39;post_content&#39;  =&gt; &#39;Post content&#39;,</span><br/><span class="hl-8">                    &#39;post_status&#39;   =&gt; &#39;publish&#39;,</span><br/><span class="hl-8">                    &#39;post_author&#39;   =&gt; 1</span><br/><span class="hl-8">                ));</span><br/><span class="hl-8">            &quot;</span><br/><span class="hl-2">        }</span><br/><span class="hl-2">    ]</span><br/><span class="hl-2">}</span>
+</code></pre>
+<p><a href="https://playground.wordpress.net/#%7B%22steps%22:%5B%7B%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20include%20'wordpress/wp-load.php';wp_insert_post(array('post_title'=%3E'Post%20title','post_content'=%3E'Post%20content','post_status'=%3E'publish'));%22%7D%5D%7D">Try it now</a></p>
+
+<a href="#showcase-product-demos" id="showcase-product-demos" style="color: inherit; text-decoration: none;">
+  <h3>Showcase product demos</h3>
+</a>
+<pre><code class="language-json"><span class="hl-2">{</span><br/><span class="hl-2">    </span><span class="hl-17">&quot;steps&quot;</span><span class="hl-2">: [</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;installPlugin&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;pluginZipFile&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;resource&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;url&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;url&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;https://your-site.com/your-plugin.zip&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        },</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;installTheme&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;pluginZipFile&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;resource&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;url&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;url&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;https://your-site.com/your-theme.zip&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        },</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;importFile&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;pluginZipFile&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;resource&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;url&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;url&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;https://your-site.com/starter-content.wxz&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        },</span><br/><span class="hl-2">        {</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;step&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;setSiteOptions&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">            </span><span class="hl-17">&quot;options&quot;</span><span class="hl-2">: {</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;some_required_option_1&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;your_favorite_values&quot;</span><span class="hl-2">,</span><br/><span class="hl-2">                </span><span class="hl-17">&quot;some_required_option_2&quot;</span><span class="hl-2">: </span><span class="hl-8">&quot;your_favorite_values&quot;</span><br/><span class="hl-2">            }</span><br/><span class="hl-2">        }</span><br/><span class="hl-2">    ]</span><br/><span class="hl-2">}</span>
+</code></pre>
+</div></div>
+<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+<div class="tsd-navigation settings">
+<details class="tsd-index-accordion"><summary class="tsd-accordion-summary">
+<h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-text)"></path></svg> Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility">
+<h4 class="uppercase">Member Visibility</h4><form>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-private" name="private"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Private</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></form></div>
+<div class="tsd-theme-toggle">
+<h4 class="uppercase">Theme</h4><select id="theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<nav class="tsd-navigation primary">
+<details class="tsd-index-accordion" open><summary class="tsd-accordion-summary">
+<h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4.93896 8.531L12 15.591L19.061 8.531L16.939 6.409L12 11.349L7.06098 6.409L4.93896 8.531Z" fill="var(--color-text)"></path></svg> Modules</h3></summary>
+<div class="tsd-accordion-details">
+<ul>
+<li class="current"><a href="../modules.html">wp-<wbr/>playground</a>
+<ul>
+<li class="current pages-entry pages-entry-menu pages-entry-depth-1"><a>Playground</a>
+<ul>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="index.html">Start here</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="embedding-wordpress-playground-on-other-websites.html">Embedding <wbr/>Word<wbr/>Press playground-<wbr/>on other websites</a></li>
+<li class="current selected pages-entry pages-entry-page pages-entry-depth-2"><a href="blueprints-getting-started.html">Blueprints: <wbr/>Getting started</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="blueprints-reference.html">Blueprints: <wbr/>Reference</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="index-html-vs-remote-html.html">Comparing remote.html and index.html</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="using-php-in-javascript.html">Using PHP in <wbr/>Java<wbr/>Script</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="using-php-in-the-browser.html">Using PHP in the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="bundling-wordpress-for-the-browser.html">Bundling <wbr/>Word<wbr/>Press for the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="running-wordpress-in-the-browser.html">Running <wbr/>Word<wbr/>Press in the browser</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="service-worker.html">Service workers</a></li>
+<li class="pages-entry pages-entry-page pages-entry-depth-2"><a href="wordpress-plugin-ide.html">Word<wbr/>Press plugin IDE</a></li></ul></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_node.html">@php-<wbr/>wasm/node</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_progress.html">@php-<wbr/>wasm/progress</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_universal.html">@php-<wbr/>wasm/universal</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_util.html">@php-<wbr/>wasm/util</a></li>
+<li class="tsd-kind-module"><a href="../modules/_php_wasm_web.html">@php-<wbr/>wasm/web</a></li>
+<li class="tsd-kind-module"><a href="../modules/_wp_playground_blueprints.html">@wp-<wbr/>playground/blueprints</a></li>
+<li class="tsd-kind-module"><a href="../modules/_wp_playground_client.html">@wp-<wbr/>playground/client</a></li></ul></li></ul></div></details></nav>
+<nav class="tsd-navigation secondary menu-sticky"></nav></div></div>
+<div class="container tsd-generator">
+<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
+<div class="overlay"></div><script src="../assets/main.js"></script></body></html>
