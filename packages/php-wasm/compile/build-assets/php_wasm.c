@@ -422,7 +422,7 @@ void wasm_add_SERVER_entry(char *key, char *value) {
 	 * Keep track of the document root separately so it can be reused
 	 * later to compute PHP_SELF.
 	 */
-	if( strcmp( key, "DOCUMENT_ROOT" ) && value != null ) {
+	if( strcmp( key, "DOCUMENT_ROOT" ) && value != NULL ) {
 		wasm_server_context->document_root = strdup(value);
 	}
 }
