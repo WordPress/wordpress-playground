@@ -284,16 +284,10 @@ async function initWordPress(
 
 function mountSqlite(php: NodePHP, vfsDocumentRoot: string) {
 	const sqlitePluginPath = `${vfsDocumentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
-	if (!php.fileExists(sqlitePluginPath)) {
-		php.mkdirTree(sqlitePluginPath);
-	}
 	if (php.listFiles(sqlitePluginPath).length === 0) {
 		php.mount(SQLITE_PATH, sqlitePluginPath);
+		php.mount(path.join(SQLITE_PATH, 'db.copy'), `${vfsDocumentRoot}/wp-content/db.php`);
 	}
-	cp(php, {
-		fromPath: `${sqlitePluginPath}/db.copy`,
-		toPath: `${vfsDocumentRoot}/wp-content/db.php`,
-	});
 }
 
 function copySqlite(localWordPressPath: string) {
