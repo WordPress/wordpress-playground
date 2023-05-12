@@ -422,7 +422,7 @@ void wasm_add_SERVER_entry(char *key, char *value) {
 	 * Keep track of the document root separately so it can be reused
 	 * later to compute PHP_SELF.
 	 */
-	if( key == "DOCUMENT_ROOT" ) {
+	if( key == "DOCUMENT_ROOT" && value != null ) {
 		wasm_server_context->document_root = strdup(value);
 	}
 }
@@ -842,7 +842,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		}
 	}
 
-	if(php_self_set == 0) {
+	if(php_self_set == 0 && value != NULL) {
 		// Default to REQUEST_URI
 		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 	}
