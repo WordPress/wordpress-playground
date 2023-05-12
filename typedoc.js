@@ -27,12 +27,16 @@ if (process.argv.includes('@knodes/typedoc-plugin-pages')) {
 						source: 'index.md',
 					},
 					{
-						title: 'Blueprints Reference',
-						source: 'blueprints-reference.md',
-					},
-					{
 						title: 'Embedding WordPress playground-on other websites',
 						source: 'embedding-wordpress-playground-on-other-websites.md',
+					},
+					{
+						title: 'Blueprints: Getting started',
+						source: 'blueprints-getting-started.md',
+					},
+					{
+						title: 'Blueprints: Reference',
+						source: 'blueprints-reference.md',
 					},
 					{
 						title: 'Comparing remote.html and index.html',
