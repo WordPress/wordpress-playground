@@ -238,6 +238,14 @@ export class PHPRequestHandler implements RequestHandler {
 			} else {
 				body = request.body;
 			}
+			const scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
+			if (scriptPath === '') {
+				return new PHPResponse(
+					404,
+					{},
+					new TextEncoder().encode('404 File not found')
+				);
+			}
 
 			return await this.php.run({
 				relativeUri: ensurePathPrefix(
@@ -284,7 +292,10 @@ export class PHPRequestHandler implements RequestHandler {
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
-		return `${this.#DOCROOT}/index.php`;
+		if (this.php.fileExists(`${this.#DOCROOT}/index.php`)) {
+			return `${this.#DOCROOT}/index.php`;
+		}
+		return '';
 	}
 }
 
