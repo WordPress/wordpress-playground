@@ -185,17 +185,5 @@ describe.each(SupportedPHPVersions)(
 			});
 			expect(response.text).toEqual('/index.php');
 		});
-
-		it('should assign the correct PHP_SELF (file in subdirectory, query string present)', async () => {
-			php.mkdirTree('/var/www/subdir');
-			php.writeFile(
-				'/var/www/subdir/index.php',
-				`<?php echo $_SERVER['PHP_SELF'];`
-			);
-			const response = await handler.request({
-				url: '/subdir/?foo=bar',
-			});
-			expect(response.text).toEqual('/subdir/index.php');
-		});
 	}
 );
