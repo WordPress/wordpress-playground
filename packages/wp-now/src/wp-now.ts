@@ -14,7 +14,11 @@ import {
 	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
-import {downloadMuPlugins, downloadSqliteIntegrationPlugin, downloadWordPress} from './download';
+import {
+	downloadMuPlugins,
+	downloadSqliteIntegrationPlugin,
+	downloadWordPress,
+} from './download';
 import { portFinder } from './port-finder';
 import {
 	cp,
@@ -131,7 +135,7 @@ export default async function startWPNow(
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
-	await downloadMuPlugins()
+	await downloadMuPlugins();
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
@@ -273,7 +277,10 @@ async function initWordPress(
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
-	php.mount(path.join(WP_NOW_PATH, 'mu-plugins'), path.join(vfsDocumentRoot, 'wp-content', 'mu-plugins'));
+	php.mount(
+		path.join(WP_NOW_PATH, 'mu-plugins'),
+		path.join(vfsDocumentRoot, 'wp-content', 'mu-plugins')
+	);
 }
 
 function mountSqlite(php: NodePHP, vfsDocumentRoot: string) {
