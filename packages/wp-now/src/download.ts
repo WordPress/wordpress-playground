@@ -115,3 +115,20 @@ export async function downloadSqliteIntegrationPlugin() {
 		itemName: 'Sqlite',
 	});
 }
+
+export async function downloadMuPlugins() {
+	fs.ensureDirSync(path.join(WP_NOW_PATH, 'mu-plugins'));
+	fs.writeFile(
+		path.join(WP_NOW_PATH, 'mu-plugins', '0-allow-wp-org.php'),
+		`<?php
+	// Needed because gethostbyname( 'wordpress.org' ) returns
+	// a private network IP address for some reason.
+	add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
+		return array(
+			'wordpress.org',
+			'api.wordpress.org',
+			'downloads.wordpress.org',
+		);
+	} );`
+	);
+}

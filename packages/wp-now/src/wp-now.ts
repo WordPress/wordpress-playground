@@ -14,7 +14,11 @@ import {
 	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
-import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
+import {
+	downloadMuPlugins,
+	downloadSqliteIntegrationPlugin,
+	downloadWordPress,
+} from './download';
 import { portFinder } from './port-finder';
 import {
 	cp,
@@ -94,7 +98,7 @@ export async function parseOptions(
 
 export default async function startWPNow(
 	rawOptions: Partial<WPNowOptions> = {}
-) {
+): Promise<{ php: NodePHP; options: WPNowOptions }> {
 	const options = await parseOptions(rawOptions);
 
 	const { documentRoot } = options;
@@ -127,10 +131,11 @@ export default async function startWPNow(
 	console.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
 		await runIndexMode(php, options);
-		return php;
+		return { php, options };
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
+	await downloadMuPlugins();
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
@@ -192,6 +197,7 @@ async function runWpContentMode(
 
 	php.mount(projectPath, `${documentRoot}/wp-content`);
 
+	mountMuPlugins(php, documentRoot);
 	mountSqlite(php, documentRoot);
 }
 
@@ -214,6 +220,7 @@ async function runWordPressMode(
 	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
 		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
 	}
+	mountMuPlugins(php, documentRoot);
 	copySqlite(projectPath);
 }
 
@@ -245,6 +252,7 @@ async function runPluginOrThemeMode(
 		projectPath,
 		`${documentRoot}/wp-content/${directoryName}/${pluginName}`
 	);
+	mountMuPlugins(php, documentRoot);
 	mountSqlite(php, documentRoot);
 }
 
@@ -266,34 +274,24 @@ async function initWordPress(
 			},
 		});
 	}
-	php.mkdirTree(`${vfsDocumentRoot}/wp-content/mu-plugins`);
-	php.writeFile(
-		`${vfsDocumentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
-		`<?php
-	// Needed because gethostbyname( 'wordpress.org' ) returns
-	// a private network IP address for some reason.
-	add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-		return array(
-			'wordpress.org',
-			'api.wordpress.org',
-			'downloads.wordpress.org',
-		);
-	} );`
+}
+
+function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
+	php.mount(
+		path.join(WP_NOW_PATH, 'mu-plugins'),
+		path.join(vfsDocumentRoot, 'wp-content', 'mu-plugins')
 	);
 }
 
 function mountSqlite(php: NodePHP, vfsDocumentRoot: string) {
 	const sqlitePluginPath = `${vfsDocumentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
-	if (!php.fileExists(sqlitePluginPath)) {
-		php.mkdirTree(sqlitePluginPath);
-	}
 	if (php.listFiles(sqlitePluginPath).length === 0) {
 		php.mount(SQLITE_PATH, sqlitePluginPath);
+		php.mount(
+			path.join(SQLITE_PATH, 'db.copy'),
+			`${vfsDocumentRoot}/wp-content/db.php`
+		);
 	}
-	cp(php, {
-		fromPath: `${sqlitePluginPath}/db.copy`,
-		toPath: `${vfsDocumentRoot}/wp-content/db.php`,
-	});
 }
 
 function copySqlite(localWordPressPath: string) {
