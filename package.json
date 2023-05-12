@@ -5,6 +5,7 @@
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"build:website": "nx build playground-website",
+		"build:vscode-extension": "nx build vscode-extension",
 		"deploy": "gh-pages -d dist/docs -t true",
 		"dev": "nx dev playground-website",
 		"lint": "nx run-many --all --target=lint",
@@ -57,7 +58,8 @@
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"react-modal": "^3.16.1",
-		"unzipper": "0.10.11"
+		"unzipper": "0.10.11",
+		"yargs": "17.7.2"
 	},
 	"resolutions": {
 		"@codemirror/state": "6.2.0",
@@ -91,6 +93,8 @@
 		"@types/react": "^18.0.28",
 		"@types/react-dom": "^18.0.11",
 		"@types/react-modal": "^3.13.1",
+		"@types/vscode": "1.78.0",
+		"@types/vscode-webview": "1.57.1",
 		"@types/wordpress__block-editor": "11.5.0",
 		"@types/wordpress__blocks": "12.5.0",
 		"@typescript-eslint/eslint-plugin": "^5.36.1",
@@ -98,6 +102,8 @@
 		"@vitejs/plugin-react": "^3.1.0",
 		"@vitest/coverage-c8": "~0.25.8",
 		"@vitest/ui": "^0.25.8",
+		"@vscode/vsce": "2.19.0",
+		"@vscode/webview-ui-toolkit": "1.2.2",
 		"@wordpress/block-editor": "11.6.0",
 		"@wordpress/blocks": "12.6.0",
 		"@wordpress/components": "23.6.0",
@@ -109,6 +115,7 @@
 		"dts-bundle-generator": "^7.2.0",
 		"esbuild": "^0.17.5",
 		"esbuild-plugin-copy": "^2.1.0",
+		"esbuild-plugin-ignore": "1.1.1",
 		"eslint": "~8.15.0",
 		"eslint-config-prettier": "8.1.0",
 		"eslint-plugin-cypress": "^2.10.3",
@@ -148,12 +155,16 @@
 		"vite-plugin-wasm": "^3.2.2",
 		"vite-tsconfig-paths": "^4.0.2",
 		"vitepress": "1.0.0-alpha.60",
-		"vitest": "^0.25.8",
-		"yargs": "^17.7.1"
+		"vitest": "^0.25.8"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
+		"packages/wp-now",
+		"packages/vscode-extension",
 		"packages/php-wasm/*",
 		"packages/playground/*"
-	]
+	],
+	"bin": {
+		"wp-now": "bin/wp-now"
+	}
 }

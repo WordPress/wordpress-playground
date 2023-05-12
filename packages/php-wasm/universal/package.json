@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/universal",
-	"version": "0.1.37",
+	"version": "0.1.42",
 	"description": "PHP.wasm – emscripten bindings for PHP",
 	"repository": {
 		"type": "git",
@@ -29,7 +29,8 @@
 		"./package.json": "./package.json"
 	},
 	"publishConfig": {
-		"access": "public"
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/universal"
 	},
 	"type": "module",
 	"main": "./index.cjs",

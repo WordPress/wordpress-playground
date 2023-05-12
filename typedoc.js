@@ -31,6 +31,14 @@ if (process.argv.includes('@knodes/typedoc-plugin-pages')) {
 						source: 'embedding-wordpress-playground-on-other-websites.md',
 					},
 					{
+						title: 'Blueprints: Getting started',
+						source: 'blueprints-getting-started.md',
+					},
+					{
+						title: 'Blueprints: Reference',
+						source: 'blueprints-reference.md',
+					},
+					{
 						title: 'Comparing remote.html and index.html',
 						source: 'index-html-vs-remote-html.md',
 					},

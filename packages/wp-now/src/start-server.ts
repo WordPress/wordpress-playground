@@ -1,10 +1,11 @@
 import fs from 'fs';
-import WPNow, { WPNowOptions } from './wp-now';
+import { WPNowOptions } from './wp-now';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
-import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
+import { NodePHP } from '@php-wasm/node';
+import startWPNow from './wp-now';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
@@ -31,49 +32,26 @@ const requestBodyToString = async (req) =>
 		});
 	});
 
-const app = express();
-app.use(fileUpload());
-
-function openInDefaultBrowser(port: number) {
-	const url = `http://127.0.0.1:${port}`;
-	let cmd: string, args: string[] | SpawnOptionsWithoutStdio;
-	switch (process.platform) {
-		case 'darwin':
-			cmd = 'open';
-			args = [url];
-			break;
-		case 'linux':
-			cmd = 'xdg-open';
-			args = [url];
-			break;
-		case 'win32':
-			cmd = 'cmd';
-			args = ['/c', `start ${url}`];
-			break;
-		default:
-			console.log(`Platform '${process.platform}' not supported`);
-			return;
-	}
-	spawn(cmd, args);
+export interface WPNowServer {
+	url: string;
+	php: NodePHP;
+	options: WPNowOptions;
 }
 
-export async function startServer(options: WPNowOptions = {}) {
+export async function startServer(
+	options: WPNowOptions = {}
+): Promise<WPNowServer> {
 	if (!fs.existsSync(options.projectPath)) {
 		throw new Error(
 			`The given path "${options.projectPath}" does not exist.`
 		);
 	}
+	const app = express();
+	app.use(fileUpload());
 	const port = await portFinder.getOpenPort();
-	const wpNow = await WPNow.create(options);
-	await wpNow.start();
+	const { php, options: wpNowOptions } = await startWPNow(options);
 
 	app.use('/', async (req, res) => {
-		console.log(
-			'request>',
-			req.url,
-			req.method,
-			req.headers['content-type']
-		);
 		try {
 			const requestHeaders = {};
 			if (req.rawHeaders && req.rawHeaders.length) {
@@ -112,7 +90,7 @@ export async function startServer(options: WPNowOptions = {}) {
 				),
 				body: body as string,
 			};
-			const resp = await wpNow.php.request(data);
+			const resp = await php.request(data);
 			res.statusCode = resp.httpStatusCode;
 			Object.keys(resp.headers).forEach((key) => {
 				res.setHeader(key, resp.headers[key]);
@@ -123,8 +101,14 @@ export async function startServer(options: WPNowOptions = {}) {
 		}
 	});
 
+	const url = `http://127.0.0.1:${port}/`;
 	app.listen(port, () => {
-		console.log(`Server running at http://127.0.0.1:${port}/`);
-		openInDefaultBrowser(port);
+		console.log(`Server running at ${url}`);
 	});
+
+	return {
+		url,
+		php,
+		options: wpNowOptions,
+	};
 }

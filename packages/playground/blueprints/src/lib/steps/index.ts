@@ -5,10 +5,13 @@ import { ActivatePluginStep } from './activate-plugin';
 import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
 import { DefineSiteUrlStep } from './define-site-url';
 import { ImportFileStep, ReplaceSiteStep, UnzipStep } from './import-export';
-import { InstallPluginStep } from './install-plugin';
-import { InstallThemeStep } from './install-theme';
+import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
+import { InstallThemeStep, InstallThemeOptions } from './install-theme';
 import { LoginStep } from './login';
-import { RunWpInstallationWizardStep } from './run-wp-installation-wizard';
+import {
+	RunWpInstallationWizardStep,
+	WordPressInstallationOptions,
+} from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
 import {
 	RmStep,
@@ -22,6 +25,7 @@ import {
 	RequestStep,
 	WriteFileStep,
 } from './client-methods';
+import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -35,6 +39,7 @@ export type GenericStep<Resource> =
 	| ActivatePluginStep
 	| ApplyWordPressPatchesStep
 	| CpStep
+	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>
@@ -54,6 +59,35 @@ export type GenericStep<Resource> =
 	| UnzipStep
 	| UpdateUserMetaStep
 	| WriteFileStep<Resource>;
+
+export type {
+	ActivatePluginStep,
+	ApplyWordPressPatchesStep,
+	CpStep,
+	DefineWpConfigConstsStep,
+	DefineSiteUrlStep,
+	ImportFileStep,
+	InstallPluginStep,
+	InstallPluginOptions,
+	InstallThemeStep,
+	InstallThemeOptions,
+	LoginStep,
+	MkdirStep,
+	MvStep,
+	RequestStep,
+	ReplaceSiteStep,
+	RmStep,
+	RmdirStep,
+	RunPHPStep,
+	RunPHPWithOptionsStep,
+	RunWpInstallationWizardStep,
+	WordPressInstallationOptions,
+	SetPhpIniEntryStep,
+	SetSiteOptionsStep,
+	UnzipStep,
+	UpdateUserMetaStep,
+	WriteFileStep,
+};
 
 export type StepHandler<S extends GenericStep<File>> = (
 	php: UniversalPHP,

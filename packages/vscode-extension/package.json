@@ -1,0 +1,47 @@
+{
+	"name": "wordpress-playground",
+	"displayName": "WordPress Playground for VS Code",
+	"description": "Embeds a WordPress installation in your your VS Code",
+	"license": "GPL-2.0-or-later",
+	"publisher": "WordPressPlayground",
+	"version": "0.1.42",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playgrond"
+	},
+	"icon": "public/icon.png",
+	"engines": {
+		"vscode": "^1.77.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [],
+	"main": "./index.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "wordpress-playground.serve",
+				"title": "Launch WordPress Playground"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "wordpress-playground",
+					"title": "WordPress Playground",
+					"icon": "public/sidebar-button.svg"
+				}
+			]
+		},
+		"views": {
+			"wordpress-playground": [
+				{
+					"id": "wordpress-playground-server",
+					"name": "Server",
+					"type": "webview"
+				}
+			]
+		}
+	}
+}

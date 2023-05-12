@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+
+		<!--
+			Use a content security policy to only allow loading styles from our extension directory,
+			and only allow scripts that have a specific nonce.
+			(See the 'webview-sample' extension sample for img-src content security policy examples)
+		-->
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';"
+		/>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+		<title>WordPress Playground</title>
+		<style>
+			.server-button {
+				margin: 0 auto;
+				text-align: center;
+			}
+
+			/*
+			 * CSS from https://github.com/microsoft/vscode-webview-ui-toolkit/tree/main/src/dropdown
+			 */
+			.dropdown-container {
+				box-sizing: border-box;
+				display: flex;
+				flex-flow: column nowrap;
+				align-items: flex-start;
+				justify-content: flex-start;
+			}
+
+			.dropdown-container label {
+				display: block;
+				color: var(--vscode-foreground);
+				cursor: pointer;
+				font-size: var(--vscode-font-size);
+				line-height: normal;
+				margin-bottom: 2px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="root"></div>
+
+		<script nonce="${nonce}">
+			/*
+			 * Polyfill the global variables referenced in the imported libraries.
+			 */
+			window.FAST = {};
+			window.process = {
+				env: {},
+			};
+		</script>
+		<script nonce="${nonce}" src="${scriptUri}"></script>
+	</body>
+</html>

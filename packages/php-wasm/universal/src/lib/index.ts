@@ -12,6 +12,8 @@ export type {
 	RequestHandler,
 } from './universal-php';
 
+export { UnhandledRejectionsTarget } from './wasm-error-reporting';
+
 export { PHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
 export type { ErrnoError } from './rethrow-file-system-error';

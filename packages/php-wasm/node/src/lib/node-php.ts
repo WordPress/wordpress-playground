@@ -125,8 +125,11 @@ export class NodePHP extends BasePHP {
 	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
 	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
 	 */
-	@rethrowFileSystemError('Could not mount a directory')
+	@rethrowFileSystemError('Could not mount {path}')
 	mount(localPath: string | MountSettings, virtualFSPath: string) {
+		if (!this.fileExists(virtualFSPath)) {
+			this.mkdirTree(virtualFSPath);
+		}
 		this[__private__dont__use].FS.mount(
 			this[__private__dont__use].FS.filesystems.NODEFS,
 			typeof localPath === 'object' ? localPath : { root: localPath },

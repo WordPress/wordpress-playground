@@ -18,7 +18,11 @@ export async function updateFile(
 	path: string,
 	callback: PatchFileCallback
 ) {
-	await php.writeFile(path, callback(await php.readFileAsText(path)));
+	let contents = '';
+	if (await php.fileExists(path)) {
+		contents = await php.readFileAsText(path);
+	}
+	await php.writeFile(path, callback(contents));
 }
 
 export async function fileToUint8Array(file: File) {
