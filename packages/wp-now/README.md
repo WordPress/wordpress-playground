@@ -96,12 +96,12 @@ Please note: if you use `npm link` and are executing `wp-now` from the plugin or
 wp-now start --wp=5.9 --php=7.4 --port=3000
 ```
 
-## How to install WP-NOW from npm (not available yet)
+## How to install WP-NOW from npm
 
 To install `wp-now` directly from `npm`, execute:
 
 ```bash
-npm install -g @wordpress/wp-now
+npm install -g @wp-now/wp-now
 ```
 
 Once installed, you can use it like so:
