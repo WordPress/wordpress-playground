@@ -94,7 +94,7 @@ export async function parseOptions(
 
 export default async function startWPNow(
 	rawOptions: Partial<WPNowOptions> = {}
-) {
+): Promise<{ php: NodePHP; options: WPNowOptions }> {
 	const options = await parseOptions(rawOptions);
 
 	const { documentRoot } = options;
@@ -127,7 +127,7 @@ export default async function startWPNow(
 	console.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
 		await runIndexMode(php, options);
-		return php;
+		return { php, options };
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
