@@ -286,7 +286,10 @@ function mountSqlite(php: NodePHP, vfsDocumentRoot: string) {
 	const sqlitePluginPath = `${vfsDocumentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
 	if (php.listFiles(sqlitePluginPath).length === 0) {
 		php.mount(SQLITE_PATH, sqlitePluginPath);
-		php.mount(path.join(SQLITE_PATH, 'db.copy'), `${vfsDocumentRoot}/wp-content/db.php`);
+		php.mount(
+			path.join(SQLITE_PATH, 'db.copy'),
+			`${vfsDocumentRoot}/wp-content/db.php`
+		);
 	}
 }
 
