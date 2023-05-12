@@ -14,7 +14,11 @@ import {
 	WORDPRESS_VERSIONS_PATH,
 	WP_NOW_PATH,
 } from './constants';
-import { downloadSqliteIntegrationPlugin, downloadWordPress } from './download';
+import {
+	downloadMuPlugins,
+	downloadSqliteIntegrationPlugin,
+	downloadWordPress,
+} from './download';
 import { portFinder } from './port-finder';
 import {
 	cp,
@@ -131,6 +135,7 @@ export default async function startWPNow(
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
+	await downloadMuPlugins();
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
@@ -192,6 +197,7 @@ async function runWpContentMode(
 
 	php.mount(projectPath, `${documentRoot}/wp-content`);
 
+	mountMuPlugins(php, documentRoot);
 	mountSqlite(php, documentRoot);
 }
 
@@ -214,6 +220,7 @@ async function runWordPressMode(
 	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
 		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
 	}
+	mountMuPlugins(php, documentRoot);
 	copySqlite(projectPath);
 }
 
@@ -245,6 +252,7 @@ async function runPluginOrThemeMode(
 		projectPath,
 		`${documentRoot}/wp-content/${directoryName}/${pluginName}`
 	);
+	mountMuPlugins(php, documentRoot);
 	mountSqlite(php, documentRoot);
 }
 
@@ -266,19 +274,12 @@ async function initWordPress(
 			},
 		});
 	}
-	php.mkdirTree(`${vfsDocumentRoot}/wp-content/mu-plugins`);
-	php.writeFile(
-		`${vfsDocumentRoot}/wp-content/mu-plugins/0-allow-wp-org.php`,
-		`<?php
-	// Needed because gethostbyname( 'wordpress.org' ) returns
-	// a private network IP address for some reason.
-	add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-		return array(
-			'wordpress.org',
-			'api.wordpress.org',
-			'downloads.wordpress.org',
-		);
-	} );`
+}
+
+function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
+	php.mount(
+		path.join(WP_NOW_PATH, 'mu-plugins'),
+		path.join(vfsDocumentRoot, 'wp-content', 'mu-plugins')
 	);
 }
 
