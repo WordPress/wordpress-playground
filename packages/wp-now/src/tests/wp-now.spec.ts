@@ -14,12 +14,16 @@ const exampleDir = __dirname + '/mode-examples';
 
 // Options
 test('parseOptions with default options', async () => {
-	const options = await parseOptions();
+	const rawOptions: Partial<WPNowOptions> = {
+		projectPath: exampleDir,
+	};
+	const options = await parseOptions(rawOptions);
+
 	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
 	expect(options.documentRoot).toBe('/var/www/html');
 	expect(options.mode).toBe(WPNowMode.INDEX);
-	expect(options.projectPath).toBe(process.cwd());
+	expect(options.projectPath).toBe(exampleDir);
 });
 
 test('parseOptions with custom options', async () => {
