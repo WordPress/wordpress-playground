@@ -305,9 +305,16 @@ function mountSqlitePlugin(php: NodePHP, vfsDocumentRoot: string) {
  * @param vfsDocumentRoot
  * @param wpContentPath
  */
-function mountSqliteDatabaseDirectory(php: NodePHP, vfsDocumentRoot: string, wpContentPath: string) {
+function mountSqliteDatabaseDirectory(
+	php: NodePHP,
+	vfsDocumentRoot: string,
+	wpContentPath: string
+) {
 	fs.ensureDirSync(path.join(wpContentPath, 'database'));
-	php.mount(path.join(wpContentPath, 'database'), path.join(vfsDocumentRoot, 'wp-content', 'database'));
+	php.mount(
+		path.join(wpContentPath, 'database'),
+		path.join(vfsDocumentRoot, 'wp-content', 'database')
+	);
 }
 
 export function inferMode(
