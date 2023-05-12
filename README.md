@@ -126,7 +126,6 @@ npx @php-wasm/cli phpcbf
 
 This experimental software may break or change without a warning. Releasing a stable API is an important future milestone that will be reached once the codebase is mature enough.
 
-
 ## Prior art
 
 WordPress Playground forked the original PHP to WebAssembly build published in https://github.com/oraoto/pib and modified later in https://github.com/seanmorris/php-wasm.
