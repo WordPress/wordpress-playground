@@ -139,7 +139,7 @@ test('isWordPressDevelopDirectory returns false for non-WordPress-develop direct
 });
 
 test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
-  const projectPath = exampleDir + '/not-wordpress-develop';
+	const projectPath = exampleDir + '/not-wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
