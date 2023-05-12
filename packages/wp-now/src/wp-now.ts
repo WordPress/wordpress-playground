@@ -310,17 +310,6 @@ function mountSqliteDatabaseDirectory(php: NodePHP, vfsDocumentRoot: string, wpC
 	php.mount(path.join(wpContentPath, 'database'), path.join(vfsDocumentRoot, 'wp-content', 'database'));
 }
 
-function copySqlite(localWordPressPath: string) {
-	const targetPath = `${localWordPressPath}/wp-content/plugins/${SQLITE_FILENAME}`;
-	if (!fs.existsSync(targetPath)) {
-		fs.copySync(SQLITE_PATH, targetPath);
-	}
-	fs.copySync(
-		`${SQLITE_PATH}/db.copy`,
-		`${localWordPressPath}/wp-content/db.php`
-	);
-}
-
 export function inferMode(
 	projectPath: string
 ): Exclude<WPNowMode, WPNowMode.AUTO> {
