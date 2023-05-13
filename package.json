@@ -8,6 +8,7 @@
 		"build:vscode-extension": "nx build vscode-extension",
 		"deploy": "gh-pages -d dist/docs -t true",
 		"dev": "nx dev playground-website",
+		"dev:interactivity": "nx dev interactive-block-playground",
 		"lint": "nx run-many --all --target=lint",
 		"predeploy": "nx build docs-site",
 		"prepublishOnly": "npm run build",
