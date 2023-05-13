@@ -124,21 +124,8 @@ test('isWordPressDirectory returns false for non-WordPress directory', () => {
 });
 
 // WordPress developer mode
-test.skip('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
-	const projectPath = __dirname;
-	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
-		const existingFiles = [
-			'src',
-			'src/wp-content',
-			'src/wp-includes',
-			'src/wp-load.php',
-			'build',
-			'build/wp-content',
-			'build/wp-includes',
-			'build/wp-load.php',
-		].map((file) => path.join(projectPath, file));
-		return existingFiles.includes(fileOrFolder as string);
-	});
+test('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
+	const projectPath = exampleDir + '/wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(true);
 	expect(inferMode(projectPath)).toBe(WPNowMode.WORDPRESS_DEVELOP);
@@ -151,25 +138,8 @@ test('isWordPressDevelopDirectory returns false for non-WordPress-develop direct
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
 
-test.skip('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
-	const projectPath = path.join(
-		__dirname,
-		'test-fixtures',
-		'incomplete-wp-develop'
-	);
-	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
-		const requiredFiles = [
-			'src',
-			'src/wp-content',
-			'src/wp-includes',
-			'src/wp-load.php',
-			'build',
-			'build/wp-content',
-			'build/wp-includes',
-			// 'build/wp-load.php', // Simulates missing file
-		].map((file) => path.join(projectPath, file));
-		return requiredFiles.includes(fileOrFolder as string);
-	});
+test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
+	const projectPath = exampleDir + '/not-wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
