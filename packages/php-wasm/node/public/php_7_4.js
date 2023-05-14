@@ -989,7 +989,9 @@ var MEMFS = {
     }
     entries.push(key);
    }
-   return entries;
+    return Asyncify.handleSleep(wakeUp => {
+        return wakeUp(entries);
+    });
   },
   symlink: function(parent, newname, oldpath) {
    var node = MEMFS.createNode(parent, newname, 511 | 40960, 0);

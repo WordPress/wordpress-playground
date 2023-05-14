@@ -24,6 +24,23 @@ export default function ImportButton({ playground }: ExportButtonProps) {
 	return (
 		<>
 			<button
+				onClick={async () => {
+					const dirHandle = await (
+						window as any
+					).showDirectoryPicker();
+					await playground?.mkdir('/testdir');
+					console.log('pre!');
+					// @TODO: This doesn't seem to do anything and the await never finishes :-(
+					//        Perhaps dirHandle needs to be sent separately?
+					await playground!.mount(dirHandle, '/testdir');
+					console.log('Mounted!');
+					console.log(await playground?.listFiles('/testdir'));
+				}}
+			>
+				Mount
+			</button>
+
+			<button
 				id="import-open-modal--btn"
 				className={css.btn}
 				aria-label="Open Playground import window"

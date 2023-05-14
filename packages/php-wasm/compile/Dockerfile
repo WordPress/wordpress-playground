@@ -541,9 +541,13 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
     fi
 
 # Add ws networking proxy support if needed
-RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
+RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+        echo -n ' -lwebsocket.js -s ' >> /root/.emcc-php-wasm-flags; \
+    fi
+
+RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ] || [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     then \
-        echo -n ' -lwebsocket.js -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
+        echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
         # Emscripten supports yielding from sync functions to JavaScript event loop, but all
         # the synchronous functions doing that must be explicitly listed here. This is an
         # exhaustive list that was created by compiling PHP with ASYNCIFY, running code that

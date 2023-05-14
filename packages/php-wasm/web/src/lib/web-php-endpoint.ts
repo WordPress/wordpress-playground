@@ -155,4 +155,10 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php.fileExists(path);
 	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.mount */
+	mount(fileHandle: FileSystemHandle, virtualFSPath: string) {
+		console.log("mount() in the client", fileHandle, virtualFSPath);
+		return _private.get(this)!.php.mount(fileHandle, virtualFSPath);
+	}
 }

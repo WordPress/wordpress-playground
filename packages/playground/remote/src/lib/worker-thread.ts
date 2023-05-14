@@ -79,6 +79,8 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 			defaultTheme: wpLoaderModule?.defaultThemeName,
 		};
 	}
+
+	
 }
 
 const [setApiReady] = exposeAPI(

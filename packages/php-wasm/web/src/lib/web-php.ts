@@ -4,7 +4,9 @@ import {
 	EmscriptenOptions,
 	loadPHPRuntime,
 	PHPRequestHandlerConfiguration,
+	rethrowFileSystemError,
 	SupportedPHPVersion,
+	__private__dont__use,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { getPHPLoaderModule } from './get-php-loader-module';
@@ -79,5 +81,28 @@ export class WebPHP extends BasePHP {
 			phpReady: asyncData.then(() => php),
 			dataModules: asyncData.then((data) => data.dataModules),
 		};
+	}
+
+	/**
+	 * Mounts a Node.js filesystem to a given path in the PHP filesystem.
+	 *
+	 * @param  localPath - The path of a real local directory you want to mount.
+	 * @param  virtualFSPath - Where to mount it in the virtual filesystem.
+	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
+	 */
+	@rethrowFileSystemError('Could not mount {path}')
+	mount(fileHandle: FileSystemHandle, virtualFSPath: string) {
+		console.log('mounting', fileHandle, virtualFSPath)
+		if (!this.fileExists(virtualFSPath)) {
+			console.log('mkfdir');
+			this.mkdirTree(virtualFSPath);
+		}
+		console.log('mount()');
+		this[__private__dont__use].FS.mount(
+			this[__private__dont__use].FS.filesystems.NativeFS,
+			{ fs_handle: fileHandle },
+			virtualFSPath
+		);
+		console.log('after mount()');
 	}
 }

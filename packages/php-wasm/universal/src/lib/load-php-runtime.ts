@@ -160,6 +160,7 @@ export async function loadPHPRuntime(
 	if (!dataDependenciesModules.length) {
 		resolveDepsReady();
 	}
+	
 
 	await depsReady;
 	await phpReady;

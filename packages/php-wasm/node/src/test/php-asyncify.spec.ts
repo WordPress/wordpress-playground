@@ -59,6 +59,34 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 		php.setPhpIniEntry('allow_url_fopen', '1');
 	});
 
+	test.only('Glob', async () => {
+		const resp = await php.run({
+			code: `<?php
+					mkdir('/test');
+					touch('/test/file1.txt');
+					echo glob('/test/*')[0];
+				`,
+		});
+
+		expect(resp.text).toEqual('/test/file1.txt');
+	});
+
+	test.only('Readdir', async () => {
+		const resp = await php.run({
+			code: `<?php
+					mkdir('/test');
+					touch('/test/file1.txt');
+
+					$handle = opendir('/test');
+					while (false !== ($entry = readdir($handle))) {
+						echo "$entry\n";
+					}
+				`,
+		});
+
+		expect(resp.text).toEqual(`.\n..\nfile1.txt\n`);
+	});
+
 	describe.each(topOfTheStack)('%s', (networkCall) => {
 		test('Direct call', () => assertNoCrash(` ${networkCall}`));
 		describe('Function calls', () => {
