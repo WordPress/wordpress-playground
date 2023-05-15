@@ -1,11 +1,11 @@
 #!/bin/bash
 
+mkdir -p source
 if [[ $* == *--rebuild-docker* ]]; then
     mkdir -p build/downloads
     docker build -t emscripten -f Dockerfile_emscripten .
-    cp -r ./build-assets/zlib ./source
 fi
 
-cp ./build-assets/*.patch ./source
-cp ./build-assets/Makefile ./source
-docker run -v $(PWD)/source:/source -v $(PWD)/lib:/root/lib -w /source emscripten 'make all'
+cp -r ./build-assets/* ./source
+# docker run -v $(PWD)/source:/source -v $(PWD)/lib:/root/lib -w /source emscripten 'make php-src-7-4-configured'
+docker run -v $(PWD)/source:/source -v $(PWD)/lib:/root/lib -w /source emscripten 'make php-src-7-4-linked'

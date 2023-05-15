@@ -3,7 +3,8 @@
 # emscripten/emsdk:3.1.24 supports amd64 only.
 FROM ubuntu:lunar as emscripten
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-l", "-c"]
+ENTRYPOINT ["/bin/bash", "-l", "-c"]
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
@@ -37,9 +38,17 @@ RUN set -euxo pipefail;\
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install latest && \
-    /root/emsdk/emsdk activate latest
+RUN git clone https://github.com/emscripten-core/emsdk.git
+
+RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+RUN echo 'source /root/.nvm/nvm.sh' >> /root/.bashrc
+RUN . /root/.nvm/nvm.sh && nvm install 20
+
+RUN /root/emsdk/emsdk install latest
+RUN /root/emsdk/emsdk list
+RUN ./emsdk/emsdk activate latest
+
+RUN . /root/.nvm/nvm.sh && echo 'NODE_JS = "'$(which node)'"' >> /root/emsdk/.emscripten
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 
@@ -86,6 +95,9 @@ fi\n\
 /root/emsdk/upstream/emscripten/emcc2 "$@" $EMCC_FLAGS \n' > /root/emsdk/upstream/emscripten/emcc && \
     chmod a+x /root/emsdk/upstream/emscripten/emcc
 
-RUN echo 'OLDCWD=$(pwd); cd /root/emsdk && source /root/emsdk/emsdk_env.sh; cd $OLDCWD;' > /root/.bashrc
-ENTRYPOINT ["/bin/bash", "-l", "-c"]
+
+RUN echo '' > /root/.bashrc
+RUN echo 'OLDCWD=$(pwd); cd /root/emsdk && source /root/emsdk/emsdk_env.sh; cd $OLDCWD;' >> /root/.bashrc
+RUN echo 'source /root/.nvm/nvm.sh' >> /root/.bashrc
 COPY ./build-assets/ /root/build-assets
+RUN source /root/emsdk/emsdk_env.sh && node -v
