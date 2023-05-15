@@ -20,10 +20,7 @@ import {
 	downloadWordPress,
 } from './download';
 import { portFinder } from './port-finder';
-import {
-	defineVirtualWpConfigConsts,
-	login,
-} from '@wp-playground/blueprints';
+import { defineVirtualWpConfigConsts, login } from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
