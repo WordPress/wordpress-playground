@@ -247,7 +247,10 @@ describe('Test starting different modes', () => {
 
 		expectEmptyMountPoints(mountPointPaths, projectPath);
 
-		const requiredFiles = ['wp-content/db.php'];
+		const requiredFiles = [
+			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php'
+		];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
