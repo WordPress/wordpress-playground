@@ -98,7 +98,9 @@ export async function downloadWordPress(
 	console.log('downloaded', downloaded);
 	if (downloaded) {
 		fs.ensureDirSync(path.dirname(finalFolder));
-		fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
+		fs.moveSync(path.join(tempFolder, 'wordpress'), finalFolder, {
+			overwrite: true,
+		});
 	} else if (404 === statusCode) {
 		console.log(
 			`WordPress ${wordPressVersion} not found. Check https://wordpress.org/download/releases/ for available versions.`
