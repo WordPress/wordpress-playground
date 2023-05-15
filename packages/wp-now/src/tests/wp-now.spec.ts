@@ -212,8 +212,8 @@ describe('Test starting different modes', () => {
 	 * Test that startWPNow in "index" mode doesn't change anything in the project directory.
 	 */
 	test('startWPNow starts index mode', async () => {
-		const projectPath = exampleDir + '/index';
-		const initialProjectContent = fs.readdirSync(projectPath);
+		const exampleProjectPath = path.join(exampleDir, 'index');
+		const projectPath = path.join(tmpExampleDirectory, 'index');
 
 		const rawOptions: Partial<WPNowOptions> = {
 			projectPath: projectPath,
@@ -221,8 +221,7 @@ describe('Test starting different modes', () => {
 
 		await startWPNow(rawOptions);
 
-		const finalProjectContent = fs.readdirSync(projectPath);
-		expect(initialProjectContent).toEqual(finalProjectContent);
+		expect(fs.readdirSync(projectPath)).toEqual(fs.readdirSync(exampleProjectPath));
 	});
 
 	/**
