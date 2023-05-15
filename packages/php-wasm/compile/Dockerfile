@@ -339,15 +339,16 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip' >> /root/.php-configure-flags; \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
-        fi && \
-        /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
-        /root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
+        fi; \
     fi;
+
+RUN /root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure
+RUN /root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure;
 
 # Add ncurses if needed and libedit if needed
 COPY --from=emscripten-libedit /root/lib /root/lib-libedit
 COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
-RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
+RUN if [ "$WITH_CLI_SAPI" = "disabled" ]; \
     then \
         /root/copy-lib.sh lib-ncurses && \
         /root/copy-lib.sh lib-libedit && \
@@ -499,6 +500,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
+RUN echo '#define ZEND_DEBUG 1' >> /root/php-src/main/php_config.h; 
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
@@ -923,6 +925,7 @@ RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS=$'["_php_wasm_init", \n\
+"_run_php", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
@@ -943,8 +946,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 \
+    emcc -O0 -g2 \
     --js-library /root/phpwasm-emscripten-library.js \
+    -pthread \
     -I .  \
     -I ext   \
     -I ext/json   \
@@ -960,7 +964,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s USE_PTHREADS=1                \
-    -s ASSERTIONS=0                  \
+    -s ASSERTIONS=3                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s NODEJS_CATCH_EXIT=0           \
     -s INVOKE_RUN=0                  \
@@ -1052,13 +1056,13 @@ RUN \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
-        echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+        echo "const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
         if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-            echo "const dependencyFilename = __dirname + '/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+            echo "const dependencyFilename = './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         else \
             echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {" >> /root/output/php-module.js && \
+        echo "  module.exports = function init(RuntimeName, PHPLoader) {" >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
         cat /root/append-before-return.js >> /root/output/php-module.js && \
         echo " return PHPLoader; }" >> /root/output/php-module.js && \

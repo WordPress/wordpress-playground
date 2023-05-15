@@ -181,16 +181,6 @@ const char WASM_HARDCODED_INI[] =
 	"html_errors = 1\n"
 	"display_startup_errors = On\n"
 	"log_errors = 1\n"
-	"always_populate_raw_post_data = -1\n"
-	"upload_max_filesize = 2000M\n"
-	"post_max_size = 2000M\n"
-	"disable_functions = proc_open,popen,curl_exec,curl_multi_exec\n"
-	"allow_url_fopen = Off\n"
-	"allow_url_include = Off\n"
-	"session.save_path = /home/web_user\n"
-	"implicit_flush = 1\n"
-	"output_buffering = 0\n"
-	"max_execution_time = 0\n"
 	"max_input_time = -1\n\0"
 ;
 
@@ -262,7 +252,29 @@ static char *wasm_sapi_read_cookies();
 static void wasm_sapi_register_server_variables(zval *track_vars_array);
 void wasm_init_server_context();
 static char *int_to_string(int i);
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
+int run_php(char *code)
+{
+	int retVal = 255; // Unknown error.
+
+	zend_try
+	{
+		retVal = zend_eval_string(code, NULL, "php-wasm run script");
+
+		if (EG(exception))
+		{
+			zend_exception_error(EG(exception), E_ERROR);
+			retVal = 2;
+		}
+	}
+	zend_catch
+	{
+		retVal = 1; // Code died.
+	}
+
+	zend_end_try();
+
+	return retVal;
+}
 
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",                        /* name */
@@ -845,6 +857,13 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array)
  */
 int wasm_sapi_request_init()
 {
+	// Minimize the surface area of the code that can be called
+	if (php_request_startup()==FAILURE) {
+		wasm_sapi_module_shutdown();
+		return FAILURE;
+	}
+	return SUCCESS;
+
 	putenv("USE_ZEND_ALLOC=0");
 
 	// Write to files instead of stdout and stderr because Emscripten truncates null
@@ -1229,8 +1248,6 @@ static void wasm_sapi_log_message(char *message)
 int php_wasm_init() {
 #ifdef ZTS
   	php_tsrm_startup();
-	/* initial resource fetch */
-	(void)ts_resource(0);
 #endif
 	wasm_server_context = malloc(sizeof(wasm_server_context_t));
 	wasm_init_server_context();
@@ -1272,30 +1289,6 @@ int php_wasm_init() {
  *
  *   returns: The exit code. 0 means success, 1 means the code died, 2 means an error.
  */
-static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
-{
-	int retVal = 255; // Unknown error.
-
-	zend_try
-	{
-		retVal = zend_eval_string(code, NULL, "php-wasm run script");
-
-		if (EG(exception))
-		{
-			zend_exception_error(EG(exception), E_ERROR);
-			retVal = 2;
-		}
-	}
-	zend_catch
-	{
-		retVal = 1; // Code died.
-	}
-
-	zend_end_try();
-
-	return retVal;
-}
-
 #ifdef WITH_VRZNO
 #include "../php-src/ext/vrzno/php_vrzno.h"
 

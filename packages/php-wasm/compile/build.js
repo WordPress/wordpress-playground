@@ -94,19 +94,19 @@ const args = argParser.argv;
 const platformDefaults = {
 	all: {
 		PHP_VERSION: '8.0.24',
-		WITH_LIBZIP: 'yes',
-		WITH_SQLITE: 'yes',
+		WITH_LIBZIP: 'no',
+		WITH_SQLITE: 'no',
 	},
 	web: {},
 	node: {
-		WITH_LIBXML: 'yes',
-		WITH_LIBPNG: 'yes',
-		WITH_MBSTRING: 'yes',
-		WITH_CLI_SAPI: 'yes',
-		WITH_OPENSSL: 'yes',
-		WITH_NODEFS: 'yes',
-		WITH_MYSQL: 'yes',
-		WITH_WS_NETWORKING_PROXY: 'yes',
+		WITH_LIBXML: 'no',
+		WITH_LIBPNG: 'no',
+		WITH_MBSTRING: 'no',
+		WITH_CLI_SAPI: 'no',
+		WITH_OPENSSL: 'no',
+		WITH_NODEFS: 'no',
+		WITH_MYSQL: 'no',
+		WITH_WS_NETWORKING_PROXY: 'no',
 	},
 };
 const platform = args.PLATFORM === 'node' ? 'node' : 'web';

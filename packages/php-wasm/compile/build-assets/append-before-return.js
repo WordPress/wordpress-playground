@@ -10,12 +10,3 @@ DNS.address_map.addrs.localhost = '127.0.0.1';
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
-if (PHPLoader.debug) {
-    const originalHandleSleep = Asyncify.handleSleep;
-    Asyncify.handleSleep = function (startAsync) {
-        if (!ABORT) {
-            Module["lastAsyncifyStackSource"] = new Error();
-        }
-        return originalHandleSleep(startAsync);
-    }
-}
