@@ -1,6 +1,9 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
-import { defineVirtualWpConfigConsts } from './steps/define-virtual-wp-config-consts';
+import {
+	VFS_CONFIG_FILE_PATH,
+	defineVirtualWpConfigConsts,
+} from './steps/define-virtual-wp-config-consts';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -33,7 +36,7 @@ describe('Blueprints', () => {
 		);
 	});
 
-	it('should define constants in the vfsConfigFilePath php file', async () => {
+	it('should define constants in the VFS_CONFIG_FILE_PATH php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -43,14 +46,13 @@ describe('Blueprints', () => {
 		};
 
 		// Call the function with the constants and the playground client
-		const vfsConfigFilePath = '/virtual-test/config.php';
-		await defineVirtualWpConfigConsts(php, { consts, vfsConfigFilePath });
+		await defineVirtualWpConfigConsts(php, { consts });
 
 		// Assert that the file was created
-		expect(php.fileExists(vfsConfigFilePath)).toBe(true);
+		expect(php.fileExists(VFS_CONFIG_FILE_PATH)).toBe(true);
 
 		// Assert that the file content is as expected
-		const fileContent = php.readFileAsText(vfsConfigFilePath);
+		const fileContent = php.readFileAsText(VFS_CONFIG_FILE_PATH);
 		expect(fileContent).toContain('define("TEST_CONST", "test_value");');
 		expect(fileContent).toContain('define("SITE_URL", "http://test.url");');
 		expect(fileContent).toContain('define("HOME_URL", "http://test.url");');
@@ -62,7 +64,7 @@ describe('Blueprints', () => {
 		expect(result.text).toBe('test_value');
 	});
 
-	it('should define auto load the constants in the vfsConfigFilePath php file', async () => {
+	it('should define auto load the constants in the VFS_CONFIG_FILE_PATH php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -70,11 +72,7 @@ describe('Blueprints', () => {
 		};
 
 		// Call the function with the constants and the playground client
-		const vfsConfigFilePath = '/virtual-test/config.php';
-		await defineVirtualWpConfigConsts(php, { consts, vfsConfigFilePath });
-
-		// Assert that the file was created
-		expect(php.fileExists(vfsConfigFilePath)).toBe(true);
+		await defineVirtualWpConfigConsts(php, { consts });
 
 		// Assert execution of echo statements
 		php.writeFile('/index.php', '<?php echo TEST_CONST;');
