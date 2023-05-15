@@ -349,7 +349,7 @@ void wasm_init_server_context() {
 
 void wasm_destroy_server_context() {
 	if(wasm_server_context->document_root != NULL) {
-		efree(wasm_server_context->document_root);
+		free(wasm_server_context->document_root);
 	}
 	if(wasm_server_context->query_string != NULL) {
 		free(wasm_server_context->query_string);
