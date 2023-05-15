@@ -1,4 +1,4 @@
-import { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
+import startWPNow, { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -8,7 +8,8 @@ import {
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
 } from '../wp-playground-wordpress';
-import jest from 'jest-mock';
+import os from "os";
+import crypto from "crypto";
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -143,4 +144,105 @@ test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+describe('Test starting different modes', () => {
+	let tmpExampleDirectory;
+
+	/**
+	 * Copy example directory to a temporary directory
+	 */
+	beforeEach(() => {
+		const tmpDirectory = os.tmpdir();
+		const directoryHash = crypto.randomBytes(20).toString('hex');
+
+		tmpExampleDirectory = path.join(tmpDirectory, directoryHash);
+		fs.ensureDirSync(tmpExampleDirectory);
+		fs.copySync(exampleDir, tmpExampleDirectory);
+
+		console.log(tmpExampleDirectory);
+	});
+
+	/**
+	 * Remove temporary directory
+	 */
+	afterEach(() => {
+		fs.rmSync(tmpExampleDirectory, { recursive: true, force: true });
+	});
+
+	/**
+	 * Expect that all provided mount point paths are empty directories which are result of file system mounts.
+	 *
+	 * @param mountPaths List of mount point paths that should exist on file system.
+	 * @param projectPath Project path.
+	 */
+	const expectEmptyMountPoints = (mountPaths, projectPath) => {
+		mountPaths.map((relativePath) => {
+			const fullPath = path.join(projectPath, relativePath);
+
+			expect(fs.existsSync(fullPath)).toBe(true);
+			expect(fs.readdirSync(fullPath)).toEqual([]);
+			expect(fs.lstatSync(fullPath).isDirectory()).toBe(true);
+		});
+	};
+
+	/**
+	 * Expect that all required files exist for PHP.
+	 *
+	 * @param requiredFiles List of files that should be accessible by PHP.
+	 * @param documentRoot Document root of the PHP server.
+	 * @param php NodePHP instance.
+	 */
+	const expectRequiredFiles = (requiredFiles, documentRoot, php) => {
+		requiredFiles.map((relativePath) => {
+			const fullPath = path.join(documentRoot, relativePath);
+			expect(php.fileExists(fullPath)).toBe(true);
+		});
+	};
+
+	/**
+	 * Test that startWPNow in "index" mode doesn't change anything in the project directory.
+	 */
+	test('startWPNow starts index mode', async () => {
+		const projectPath = exampleDir + '/index';
+		const initialProjectContent = fs.readdirSync(projectPath);
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		await startWPNow(rawOptions);
+
+		const finalProjectContent = fs.readdirSync(projectPath);
+		expect(initialProjectContent).toEqual(finalProjectContent);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
+	 * that required files exist for PHP.
+	 */
+	test('startWPNow starts wp-content mode', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'wp-content');
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		const {php, options: wpNowOptions} = await startWPNow(rawOptions);
+
+		const mountPointPaths = [
+			'database',
+			'db.php',
+			'mu-plugins',
+			'plugins/sqlite-database-integration'
+		];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const requiredFiles = [
+			'wp-content/db.php'
+		];
+
+		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
 });
