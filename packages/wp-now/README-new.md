@@ -114,7 +114,7 @@ yarn build
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 ```
 
-If you'd like to make the `wp-now` executable globally available, run `npm link`.
+If you'd like to make the `wp-now` executable globally available when using this installation method, run `npm link`. It's not particularly reliable, however.
 
 Please refer to the main [README.md](../../README.md) file for more detail on how to contribute to this project.
 
