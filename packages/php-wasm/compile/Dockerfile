@@ -3,7 +3,7 @@
 # emscripten/emsdk:3.1.24 supports amd64 only.
 FROM ubuntu:lunar as emscripten
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-l", "-c"]
 
 ENV PKG_CONFIG_PATH /root/lib/lib/pkgconfig
 ENV TIMER "(which pv > /dev/null && pv --name '${@}' || cat)"
@@ -37,9 +37,18 @@ RUN set -euxo pipefail;\
 # Docker image, but there is no arm64 image available which makes
 # the build take forever on Apple Silicon.
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install latest && \
-    /root/emsdk/emsdk activate latest
+RUN git clone https://github.com/emscripten-core/emsdk.git
+
+RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+RUN echo 'source /root/.nvm/nvm.sh' >> /root/.bashrc
+RUN . /root/.nvm/nvm.sh && nvm install 20
+
+RUN /root/emsdk/emsdk install latest
+RUN /root/emsdk/emsdk list
+RUN /root/emsdk/emsdk activate latest
+
+RUN . /root/.nvm/nvm.sh && echo 'NODE_JS = "'$(which node)'"' >> /root/emsdk/.emscripten
+
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 
@@ -120,8 +129,8 @@ RUN cd libzip/build && \
             -DZLIB_LIBRARY=/root/lib/lib/libz.a \
             -DZLIB_INCLUDE_DIR=/root/lib/include \
             ..
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " emmake make
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " emmake make install
 
 # Compile ncurses
 FROM emscripten AS emscripten-ncurses
@@ -180,7 +189,7 @@ RUN     wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
         # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
         # let's define it manually. Learn more at:
         # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
+        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 -D__STDC_ISO_10646__=201103L " \
         emmake make && \
         emmake make install
 
@@ -193,8 +202,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
         --depth 1 && \
     cd libxml2 && \
     ./autogen.sh && \
-    emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/lib/ &&\
-    EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
+    emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=yes --enable-shared=no --prefix=/root/lib/ &&\
+    EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " emmake make && \
     emmake make install
 
 # Compile Bison 2.7 (for PHP  <=7.3)
@@ -222,7 +231,7 @@ RUN     set -euxo pipefail &&\
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/ && \
-        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
+        EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " emmake make && \
         emmake make install
 
 # Compile OpenSSL
@@ -237,12 +246,12 @@ RUN set -euxo pipefail && \
     wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz && \
     tar xf openssl-$OPENSSL_VERSION.tar.gz && \
     cd openssl-$OPENSSL_VERSION && \
-    emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 no-threads --prefix=/root/lib && \
+    emconfigure ./Configure dist -DHAVE_FORK=0 -DOPENSSL_NO_AFALGENG=1 --prefix=/root/lib && \
     sed -i 's|^CROSS_COMPILE.*$|CROSS_COMPILE=|g' Makefile && \
-    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
+    EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
     cp -RL include/openssl /root/lib/include && \
     cp libcrypto.a libssl.a /root/lib/lib && \
-    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install;
+    EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 " EMCC_SKIP="-lz" emmake make install;
 
 # Compile libpng
 FROM emscripten AS emscripten-libpng
@@ -259,7 +268,7 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -sUSE_PTHREADS=1" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
 
 # Clone PHP
@@ -463,6 +472,10 @@ RUN source /root/emsdk/emsdk_env.sh && \
     # --enable-json for PHP < 8.0:
     --enable-json      \
     --enable-embed=static \
+	--enable-zts  \
+	--enable-maintainer-zts \
+	--enable-pthreads  \
+	--enable-pcntl  \
     --with-layout=GNU  \
     --disable-cgi      \
     --disable-all      \
@@ -511,7 +524,7 @@ RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
 
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
-    EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
+    EMCC_FLAGS=" -sSIDE_MODULE -sUSE_PTHREADS=1 -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
     EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
@@ -946,6 +959,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
+    -s USE_PTHREADS=1                \
     -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s NODEJS_CATCH_EXIT=0           \

@@ -174,22 +174,6 @@ static const zend_function_entry additional_functions[] = {
 };
 #endif
 
-#if !defined(TSRMLS_DC)
-#define TSRMLS_DC
-#endif
-#if !defined(TSRMLS_D)
-#define TSRMLS_D
-#endif
-#if !defined(TSRMLS_CC)
-#define TSRMLS_CC
-#endif
-#if !defined(TSRMLS_C)
-#define TSRMLS_C
-#endif
-#if !defined(TSRMLS_FETCH)
-#define TSRMLS_FETCH()
-#endif
-
 // Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
 const char WASM_HARDCODED_INI[] =
 	"error_reporting = E_ALL\n"
@@ -254,28 +238,28 @@ static wasm_server_context_t *wasm_server_context;
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
 void wasm_sapi_module_shutdown();
-static int wasm_sapi_deactivate(TSRMLS_D);
+static int wasm_sapi_deactivate();
 #if PHP_MAJOR_VERSION == 5
-static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC);
+static int wasm_sapi_ub_write(const char *str, uint str_length);
 static int wasm_sapi_read_post_body(char *buffer, uint count_bytes);
 #else
-static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
+static size_t wasm_sapi_ub_write(const char *str, size_t str_length);
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
 #endif
 #if PHP_MAJOR_VERSION >= 8
-static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int);
+static void wasm_sapi_log_message(const char *message, int syslog_type_int);
 #else
 #if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1)
-static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int);
+static void wasm_sapi_log_message(char *message, int syslog_type_int);
 #else
-static void wasm_sapi_log_message(char *message TSRMLS_DC);
+static void wasm_sapi_log_message(char *message);
 #endif
 #endif
 static void wasm_sapi_flush(void *server_context);
-static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC);
-static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context TSRMLS_DC);
-static char *wasm_sapi_read_cookies(TSRMLS_D);
-static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC);
+static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers);
+static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context);
+static char *wasm_sapi_read_cookies();
+static void wasm_sapi_register_server_variables(zval *track_vars_array);
 void wasm_init_server_context();
 static char *int_to_string(int i);
 static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
@@ -636,7 +620,7 @@ int stderr_replacement;
  *   Called by PHP to retrieve the cookies associated with the currently
  *   processed request.
  */
-static char *wasm_sapi_read_cookies(TSRMLS_D)
+static char *wasm_sapi_read_cookies()
 {
 	return wasm_server_context->cookies;
 }
@@ -792,46 +776,46 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
  * 
  *   track_vars_array: the array where the $_SERVER keys and values are stored.
  */
-static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC)
+static void wasm_sapi_register_server_variables(zval *track_vars_array)
 {
-	php_import_environment_variables(track_vars_array TSRMLS_CC);
+	php_import_environment_variables(track_vars_array);
 
 	char *value;
 	/* PHP_SELF and REQUEST_URI */
 	value = SG(request_info).request_uri;
 	if (value != NULL) {
-		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
-		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
+		php_register_variable("SCRIPT_NAME", value, track_vars_array);
+		php_register_variable("SCRIPT_FILENAME", value, track_vars_array);
+		php_register_variable("PHP_SELF", value, track_vars_array);
+		php_register_variable("REQUEST_URI", value, track_vars_array);
 	}
 
 	/* argv */
 	value = SG(request_info).query_string;
 	if (value != NULL)
-		php_register_variable("argv", value, track_vars_array TSRMLS_CC);
+		php_register_variable("argv", value, track_vars_array);
 
 	/* SERVER_SOFTWARE */
-	php_register_variable("SERVER_SOFTWARE", "PHP.wasm", track_vars_array TSRMLS_CC);
+	php_register_variable("SERVER_SOFTWARE", "PHP.wasm", track_vars_array);
 
 	/* SERVER_PROTOCOL */
 	if(SG(request_info).proto_num != -1) {
 		char *port_str = int_to_string(wasm_server_context->request_port);
-		php_register_variable("SERVER_PORT", port_str, track_vars_array TSRMLS_CC);
+		php_register_variable("SERVER_PORT", port_str, track_vars_array);
 		free(port_str);
 	}
 
 	/* SERVER_NAME */
 	value = wasm_server_context->request_host;
 	if (value != NULL) {
-		php_register_variable("SERVER_NAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("HTTP_HOST", value, track_vars_array TSRMLS_CC);
+		php_register_variable("SERVER_NAME", value, track_vars_array);
+		php_register_variable("HTTP_HOST", value, track_vars_array);
 	}
 
 	/* REQUEST_METHOD */
 	value = (char*)SG(request_info).request_method;
 	if (value != NULL) {
-		php_register_variable("REQUEST_METHOD", value, track_vars_array TSRMLS_CC);
+		php_register_variable("REQUEST_METHOD", value, track_vars_array);
 		if (!strcmp(value, "HEAD")) {
 			SG(request_info).headers_only = 1;
 		} else {
@@ -842,12 +826,12 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	/* QUERY_STRING */
 	value = SG(request_info).query_string;
 	if (value != NULL)
-		php_register_variable("QUERY_STRING", value, track_vars_array TSRMLS_CC);
+		php_register_variable("QUERY_STRING", value, track_vars_array);
 
 	// Register entries from wasm_server_context->server_array_entries linked list
 	wasm_array_entry_t *entry = wasm_server_context->server_array_entries;
 	while (entry != NULL) {
-		php_register_variable(entry->key, entry->value, track_vars_array TSRMLS_CC);
+		php_register_variable(entry->key, entry->value, track_vars_array);
 		entry = entry->next;
 	}
 }
@@ -890,7 +874,7 @@ int wasm_sapi_request_init()
 	SG(request_info).proto_num = 1000; // For HTTP 1.0
 	SG(sapi_headers).http_response_code = 200;
 
-	if (php_request_startup(TSRMLS_C)==FAILURE) {
+	if (php_request_startup()==FAILURE) {
 		wasm_sapi_module_shutdown();
 		return FAILURE;
 	}
@@ -903,7 +887,7 @@ int wasm_sapi_request_init()
 	}
 #endif
 
-	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
+	php_register_variable("PHP_SELF", "-", NULL);
 
 	// Set $_FILES in case any were passed via the wasm_server_context->uploaded_files
 	// linked list
@@ -975,7 +959,6 @@ int wasm_sapi_request_init()
  *   required to run the PHP code.
  */
 void wasm_sapi_request_shutdown() {
-	TSRMLS_FETCH();
 	if(SG(rfc1867_uploaded_files) != NULL) {
 		phpwasm_destroy_uploaded_files_hash();
 	}
@@ -1006,13 +989,13 @@ void wasm_sapi_request_shutdown() {
  */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 	int result;
+	
 	if (wasm_sapi_request_init() == FAILURE)
 	{
 		result = -1;
 		goto wasm_request_done;
 	}
 
-	TSRMLS_FETCH();
 	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
 	{
 		zend_file_handle file_handle;
@@ -1037,7 +1020,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 		// https://github.com/php/php-src/commit/c5f1b384b591009310370f0b06b10868d2d62741
 		// https://www.mail-archive.com/internals@lists.php.net/msg43642.html
 		// http://git.php.net/?p=php-src.git;a=commit;h=896dad4c794f7826812bcfdbaaa9f0b3518d9385
-		if (php_fopen_primary_script(&file_handle TSRMLS_CC) == FAILURE) {
+		if (php_fopen_primary_script(&file_handle) == FAILURE) {
 			zend_try {
 				if (errno == EACCES) {
 					SG(sapi_headers).http_response_code = 403;
@@ -1051,7 +1034,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request() {
 			goto wasm_request_done;
 		}
 
-		result = php_execute_script(&file_handle TSRMLS_CC);
+		result = php_execute_script(&file_handle);
 	}
 	else
 	{
@@ -1063,7 +1046,7 @@ wasm_request_done:
 }
 
 void wasm_sapi_module_shutdown() {
-	php_module_shutdown(TSRMLS_C);
+	php_module_shutdown();
 	sapi_shutdown();
 #ifdef ZTS
     tsrm_shutdown();
@@ -1082,12 +1065,11 @@ void wasm_sapi_module_shutdown() {
  */
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals)
 {
-	TSRMLS_FETCH();
 	wasm_sapi_module_shutdown();
 	return SUCCESS;
 }
 
-static int wasm_sapi_deactivate(TSRMLS_D)
+static int wasm_sapi_deactivate()
 {
 	fflush(stdout);
 	return SUCCESS;
@@ -1118,9 +1100,9 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
  *   str_length: the length of the string.
  */
 #if PHP_MAJOR_VERSION == 5
-static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC)
+static int wasm_sapi_ub_write(const char *str, uint str_length)
 #else
-static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC)
+static size_t wasm_sapi_ub_write(const char *str, size_t str_length)
 #endif
 {
 	const char *ptr = str;
@@ -1144,7 +1126,7 @@ static void wasm_sapi_flush(void *server_context)
 	if (fflush(stdout)==EOF) {
 		php_handle_aborted_connection();
 	}
-	sapi_send_headers(TSRMLS_C);
+	sapi_send_headers();
 }
 
 static int _fwrite(FILE *file, char *str)
@@ -1169,7 +1151,7 @@ FILE *headers_file;
  * 
  *   Called by PHP in the request shutdown handler.
  */
-static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
+static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers)
 {
 	headers_file = fopen("/tmp/headers.json", "w");
 	if (headers_file == NULL)
@@ -1183,15 +1165,15 @@ static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 	free(response_code);
 	_fwrite(headers_file, ", \"headers\": [");
 
-	zend_llist_apply_with_argument(&SG(sapi_headers).headers, (llist_apply_with_arg_func_t) sapi_module.send_header, SG(server_context) TSRMLS_CC);
+	zend_llist_apply_with_argument(&SG(sapi_headers).headers, (llist_apply_with_arg_func_t) sapi_module.send_header, SG(server_context));
 	if(SG(sapi_headers).send_default_content_type) {
 		sapi_header_struct default_header;
 
-		sapi_get_default_content_type_header(&default_header TSRMLS_CC);
-		sapi_module.send_header(&default_header, SG(server_context) TSRMLS_CC);
+		sapi_get_default_content_type_header(&default_header);
+		sapi_module.send_header(&default_header, SG(server_context));
 		sapi_free_header(&default_header);
 	}
-	sapi_module.send_header(NULL, SG(server_context) TSRMLS_CC);
+	sapi_module.send_header(NULL, SG(server_context));
 			
 	_fwrite(headers_file, "]}");
 	fclose(headers_file);
@@ -1205,7 +1187,7 @@ static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
  * ----------------------------
  *   Appends a single header line to the headers JSON file.
  */
-static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context TSRMLS_DC) {
+static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_context) {
 	if (sapi_header == NULL)
 	{
 		fseek(headers_file, ftell(headers_file) - 2, SEEK_SET);
@@ -1225,12 +1207,12 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 
 
 #if PHP_MAJOR_VERSION >= 8
-static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int)
+static void wasm_sapi_log_message(const char *message, int syslog_type_int)
 #else
 #if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 1)
-static void wasm_sapi_log_message(char *message TSRMLS_DC, int syslog_type_int)
+static void wasm_sapi_log_message(char *message, int syslog_type_int)
 #else
-static void wasm_sapi_log_message(char *message TSRMLS_DC)
+static void wasm_sapi_log_message(char *message)
 #endif
 #endif
 {
@@ -1245,15 +1227,14 @@ static void wasm_sapi_log_message(char *message TSRMLS_DC)
  *   other function.
  */
 int php_wasm_init() {
+#ifdef ZTS
+  	php_tsrm_startup();
+	/* initial resource fetch */
+	(void)ts_resource(0);
+#endif
 	wasm_server_context = malloc(sizeof(wasm_server_context_t));
 	wasm_init_server_context();
 
-#ifdef ZTS
-	void ***tsrm_ls = NULL;
-	tsrm_startup(1, 1, 0, NULL);
-	tsrm_ls = ts_resource(0);
-	*ptsrm_ls = tsrm_ls;
-#endif
 	sapi_startup(&php_wasm_sapi_module);
 	if(phpini_path_override != NULL) {
 		free(php_wasm_sapi_module.php_ini_path_override);

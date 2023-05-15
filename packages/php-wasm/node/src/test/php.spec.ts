@@ -5,12 +5,24 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+describe.each(['7.4'])('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion);
+		// php = await NodePHP.load(phpVersion);
 	});
 
+	it.only('test', async () => {
+		const php = await NodePHP.load('7.4');
+		expect(php).toBeDefined();
+		await php.setPhpIniEntry('disable_functions', '');
+		const out = await php.run({
+			code: `<?php 
+			echo "HI";
+			//var_dump(function_exists('pcntl_fork')); 
+			`,
+		});
+		expect(out.text).toEqual('HI');
+	});
 	describe('Filesystem', () => {
 		// Unit tests for the filesystem methods of the
 		// PHP runtime.

@@ -1,6 +1,55 @@
-export const dependenciesTotalSize = 11015874; 
-const dependencyFilename = __dirname + '/php_7_4.wasm'; 
- export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {
+const dependenciesTotalSize = 11162570; 
+const dependencyFilename = './php_7_4.wasm'; 
+ module.exports= function(RuntimeName, PHPLoader) {
+function GROWABLE_HEAP_I8() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAP8;
+}
+
+function GROWABLE_HEAP_U8() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAPU8;
+}
+
+function GROWABLE_HEAP_I16() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAP16;
+}
+
+function GROWABLE_HEAP_U16() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAPU16;
+}
+
+function GROWABLE_HEAP_I32() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAP32;
+}
+
+function GROWABLE_HEAP_U32() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAPU32;
+}
+
+function GROWABLE_HEAP_F64() {
+ if (wasmMemory.buffer != HEAP8.buffer) {
+  updateMemoryViews();
+ }
+ return HEAPF64;
+}
+
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};
 
 var moduleOverrides = Object.assign({}, Module);
@@ -15,9 +64,19 @@ var quit_ = (status, toThrow) => {
 
 var ENVIRONMENT_IS_WEB=RuntimeName==="WEB";
 
-var ENVIRONMENT_IS_WORKER=RuntimeName==="WORKER";
+var ENVIRONMENT_IS_WORKER = typeof importScripts == "function";
 
 var ENVIRONMENT_IS_NODE=RuntimeName==="NODE";
+
+var ENVIRONMENT_IS_PTHREAD = Module["ENVIRONMENT_IS_PTHREAD"] || false;
+
+var _scriptDir = typeof document != "undefined" && document.currentScript ? document.currentScript.src : undefined;
+
+if (ENVIRONMENT_IS_WORKER) {
+ _scriptDir = self.location.href;
+} else if (ENVIRONMENT_IS_NODE) {
+ _scriptDir = __filename;
+}
 
 var scriptDirectory = "";
 
@@ -28,31 +87,18 @@ function locateFile(path) {
  return scriptDirectory + path;
 }
 
-var read_, readAsync, readBinary;
-
-function logExceptionOnExit(e) {
- if (e instanceof ExitStatus) return;
- let toLog = e;
- err("exiting due to exception: " + toLog);
-}
+var read_, readAsync, readBinary, setWindowTitle;
 
 if (ENVIRONMENT_IS_NODE) {
+ var fs = require("fs");
+ var nodePath = require("path");
  if (ENVIRONMENT_IS_WORKER) {
-  scriptDirectory = require("path").dirname(scriptDirectory) + "/";
+  scriptDirectory = nodePath.dirname(scriptDirectory) + "/";
  } else {
   scriptDirectory = __dirname + "/";
  }
- var fs;
- var nodePath;
- var requireNodeFS = () => {
-  if (!nodePath) {
-   fs = require("fs");
-   nodePath = require("path");
-  }
- };
  read_ = (filename, binary) => {
-  requireNodeFS();
-  filename = nodePath["normalize"](filename);
+  filename = isFileURI(filename) ? new URL(filename) : nodePath.normalize(filename);
   return fs.readFileSync(filename, binary ? undefined : "utf8");
  };
  readBinary = filename => {
@@ -63,38 +109,102 @@ if (ENVIRONMENT_IS_NODE) {
   return ret;
  };
  readAsync = (filename, onload, onerror) => {
-  requireNodeFS();
-  filename = nodePath["normalize"](filename);
+  filename = isFileURI(filename) ? new URL(filename) : nodePath.normalize(filename);
   fs.readFile(filename, function(err, data) {
    if (err) onerror(err); else onload(data.buffer);
   });
  };
- if (process["argv"].length > 1) {
-  thisProgram = process["argv"][1].replace(/\\/g, "/");
+ if (process.argv.length > 1) {
+  thisProgram = process.argv[1].replace(/\\/g, "/");
  }
- arguments_ = process["argv"].slice(2);
+ arguments_ = process.argv.slice(2);
  if (typeof module != "undefined") {
   module["exports"] = Module;
  }
- process["on"]("unhandledRejection", function(reason) {
-  throw reason;
- });
+ var nodeMajor = process.versions.node.split(".")[0];
+ if (nodeMajor < 15) {
+  process.on("unhandledRejection", function(reason) {
+   throw reason;
+  });
+ }
  quit_ = (status, toThrow) => {
-  if (keepRuntimeAlive()) {
-   process["exitCode"] = status;
-   throw toThrow;
-  }
-  logExceptionOnExit(toThrow);
-  process["exit"](status);
+  process.exitCode = status;
+  throw toThrow;
  };
  Module["inspect"] = function() {
   return "[Emscripten Module object]";
  };
+ let nodeWorkerThreads;
+ try {
+  nodeWorkerThreads = require("worker_threads");
+ } catch (e) {
+  console.error('The "worker_threads" module is not supported in this node.js build - perhaps a newer version is needed?');
+  throw e;
+ }
+ global.Worker = nodeWorkerThreads.Worker;
+} else if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
+ if (ENVIRONMENT_IS_WORKER) {
+  scriptDirectory = self.location.href;
+ } else if (typeof document != "undefined" && document.currentScript) {
+  scriptDirectory = document.currentScript.src;
+ }
+ if (scriptDirectory.indexOf("blob:") !== 0) {
+  scriptDirectory = scriptDirectory.substr(0, scriptDirectory.replace(/[?#].*/, "").lastIndexOf("/") + 1);
+ } else {
+  scriptDirectory = "";
+ }
+ if (!ENVIRONMENT_IS_NODE) {
+  read_ = url => {
+   var xhr = new XMLHttpRequest();
+   xhr.open("GET", url, false);
+   xhr.send(null);
+   return xhr.responseText;
+  };
+  if (ENVIRONMENT_IS_WORKER) {
+   readBinary = url => {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, false);
+    xhr.responseType = "arraybuffer";
+    xhr.send(null);
+    return new Uint8Array(xhr.response);
+   };
+  }
+  readAsync = (url, onload, onerror) => {
+   var xhr = new XMLHttpRequest();
+   xhr.open("GET", url, true);
+   xhr.responseType = "arraybuffer";
+   xhr.onload = () => {
+    if (xhr.status == 200 || xhr.status == 0 && xhr.response) {
+     onload(xhr.response);
+     return;
+    }
+    onerror();
+   };
+   xhr.onerror = onerror;
+   xhr.send(null);
+  };
+ }
+ setWindowTitle = title => document.title = title;
 } else {}
 
-var out = Module["print"] || console.log.bind(console);
+if (ENVIRONMENT_IS_NODE) {
+ if (typeof performance == "undefined") {
+  global.performance = require("perf_hooks").performance;
+ }
+}
 
-var err = Module["printErr"] || console.warn.bind(console);
+var defaultPrint = console.log.bind(console);
+
+var defaultPrintErr = console.warn.bind(console);
+
+if (ENVIRONMENT_IS_NODE) {
+ defaultPrint = str => fs.writeSync(1, str + "\n");
+ defaultPrintErr = str => fs.writeSync(2, str + "\n");
+}
+
+var out = Module["print"] || defaultPrint;
+
+var err = Module["printErr"] || defaultPrintErr;
 
 Object.assign(Module, moduleOverrides);
 
@@ -118,6 +228,8 @@ if (typeof WebAssembly != "object") {
 
 var wasmMemory;
 
+var wasmModule;
+
 var ABORT = false;
 
 var EXITSTATUS;
@@ -135,7 +247,7 @@ function UTF8ArrayToString(heapOrArray, idx, maxBytesToRead) {
  var endPtr = idx;
  while (heapOrArray[endPtr] && !(endPtr >= endIdx)) ++endPtr;
  if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
-  return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
+  return UTF8Decoder.decode(heapOrArray.buffer instanceof SharedArrayBuffer ? heapOrArray.slice(idx, endPtr) : heapOrArray.subarray(idx, endPtr));
  }
  var str = "";
  while (idx < endPtr) {
@@ -166,7 +278,7 @@ function UTF8ArrayToString(heapOrArray, idx, maxBytesToRead) {
 }
 
 function UTF8ToString(ptr, maxBytesToRead) {
- return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : "";
+ return ptr ? UTF8ArrayToString(GROWABLE_HEAP_U8(), ptr, maxBytesToRead) : "";
 }
 
 function stringToUTF8Array(str, heap, outIdx, maxBytesToWrite) {
@@ -204,7 +316,7 @@ function stringToUTF8Array(str, heap, outIdx, maxBytesToWrite) {
 }
 
 function stringToUTF8(str, outPtr, maxBytesToWrite) {
- return stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
+ return stringToUTF8Array(str, GROWABLE_HEAP_U8(), outPtr, maxBytesToWrite);
 }
 
 function lengthBytesUTF8(str) {
@@ -225,21 +337,48 @@ function lengthBytesUTF8(str) {
  return len;
 }
 
-var buffer, HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
+var HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
 
-function updateGlobalBufferAndViews(buf) {
- buffer = buf;
- Module["HEAP8"] = HEAP8 = new Int8Array(buf);
- Module["HEAP16"] = HEAP16 = new Int16Array(buf);
- Module["HEAP32"] = HEAP32 = new Int32Array(buf);
- Module["HEAPU8"] = HEAPU8 = new Uint8Array(buf);
- Module["HEAPU16"] = HEAPU16 = new Uint16Array(buf);
- Module["HEAPU32"] = HEAPU32 = new Uint32Array(buf);
- Module["HEAPF32"] = HEAPF32 = new Float32Array(buf);
- Module["HEAPF64"] = HEAPF64 = new Float64Array(buf);
+function updateMemoryViews() {
+ var b = wasmMemory.buffer;
+ Module["HEAP8"] = HEAP8 = new Int8Array(b);
+ Module["HEAP16"] = HEAP16 = new Int16Array(b);
+ Module["HEAP32"] = HEAP32 = new Int32Array(b);
+ Module["HEAPU8"] = HEAPU8 = new Uint8Array(b);
+ Module["HEAPU16"] = HEAPU16 = new Uint16Array(b);
+ Module["HEAPU32"] = HEAPU32 = new Uint32Array(b);
+ Module["HEAPF32"] = HEAPF32 = new Float32Array(b);
+ Module["HEAPF64"] = HEAPF64 = new Float64Array(b);
 }
 
 var INITIAL_MEMORY = Module["INITIAL_MEMORY"] || 1073741824;
+
+assert(INITIAL_MEMORY >= 65536, "INITIAL_MEMORY should be larger than STACK_SIZE, was " + INITIAL_MEMORY + "! (STACK_SIZE=" + 65536 + ")");
+
+if (ENVIRONMENT_IS_PTHREAD) {
+ wasmMemory = Module["wasmMemory"];
+} else {
+ if (Module["wasmMemory"]) {
+  wasmMemory = Module["wasmMemory"];
+ } else {
+  wasmMemory = new WebAssembly.Memory({
+   "initial": INITIAL_MEMORY / 65536,
+   "maximum": 2147483648 / 65536,
+   "shared": true
+  });
+  if (!(wasmMemory.buffer instanceof SharedArrayBuffer)) {
+   err("requested a shared WebAssembly.Memory but the returned buffer is not a SharedArrayBuffer, indicating that while the browser has SharedArrayBuffer it does not have WebAssembly threads support - you may need to set a flag");
+   if (ENVIRONMENT_IS_NODE) {
+    err("(on node you may need: --experimental-wasm-threads --experimental-wasm-bulk-memory and/or recent version)");
+   }
+   throw Error("bad memory");
+  }
+ }
+}
+
+updateMemoryViews();
+
+INITIAL_MEMORY = wasmMemory.buffer.byteLength;
 
 var wasmTable;
 
@@ -273,6 +412,7 @@ function preRun() {
 
 function initRuntime() {
  runtimeInitialized = true;
+ if (ENVIRONMENT_IS_PTHREAD) return;
  if (!Module["noFSInit"] && !FS.init.initialized) FS.init();
  FS.ignorePermissions = false;
  TTY.init();
@@ -282,14 +422,17 @@ function initRuntime() {
 }
 
 function exitRuntime() {
+ if (ENVIRONMENT_IS_PTHREAD) return;
  ___funcs_on_exit();
  callRuntimeCallbacks(__ATEXIT__);
  FS.quit();
  TTY.shutdown();
+ PThread.terminateAllThreads();
  runtimeExited = true;
 }
 
 function postRun() {
+ if (ENVIRONMENT_IS_PTHREAD) return;
  if (Module["postRun"]) {
   if (typeof Module["postRun"] == "function") Module["postRun"] = [ Module["postRun"] ];
   while (Module["postRun"].length) {
@@ -347,10 +490,8 @@ function removeRunDependency(id) {
 }
 
 function abort(what) {
- {
-  if (Module["onAbort"]) {
-   Module["onAbort"](what);
-  }
+ if (Module["onAbort"]) {
+  Module["onAbort"](what);
  }
  what = "Aborted(" + what + ")";
  err(what);
@@ -365,6 +506,10 @@ var dataURIPrefix = "data:application/octet-stream;base64,";
 
 function isDataURI(filename) {
  return filename.startsWith(dataURIPrefix);
+}
+
+function isFileURI(filename) {
+ return filename.startsWith("file://");
 }
 
 var wasmBinaryFile;
@@ -389,81 +534,82 @@ function getBinary(file) {
  }
 }
 
-function getBinaryPromise() {
+function getBinaryPromise(binaryFile) {
  if (!wasmBinary && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
   if (typeof fetch == "function") {
-   return fetch(wasmBinaryFile, {
+   return fetch(binaryFile, {
     credentials: "same-origin"
    }).then(function(response) {
     if (!response["ok"]) {
-     throw "failed to load wasm binary file at '" + wasmBinaryFile + "'";
+     throw "failed to load wasm binary file at '" + binaryFile + "'";
     }
     return response["arrayBuffer"]();
    }).catch(function() {
-    return getBinary(wasmBinaryFile);
+    return getBinary(binaryFile);
    });
   }
  }
  return Promise.resolve().then(function() {
-  return getBinary(wasmBinaryFile);
+  return getBinary(binaryFile);
  });
+}
+
+function instantiateArrayBuffer(binaryFile, imports, receiver) {
+ return getBinaryPromise(binaryFile).then(function(binary) {
+  return WebAssembly.instantiate(binary, imports);
+ }).then(function(instance) {
+  return instance;
+ }).then(receiver, function(reason) {
+  err("failed to asynchronously prepare wasm: " + reason);
+  abort(reason);
+ });
+}
+
+function instantiateAsync(binary, binaryFile, imports, callback) {
+ if (!binary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(binaryFile) && !ENVIRONMENT_IS_NODE && typeof fetch == "function") {
+  return fetch(binaryFile, {
+   credentials: "same-origin"
+  }).then(function(response) {
+   var result = WebAssembly.instantiateStreaming(response, imports);
+   return result.then(callback, function(reason) {
+    err("wasm streaming compile failed: " + reason);
+    err("falling back to ArrayBuffer instantiation");
+    return instantiateArrayBuffer(binaryFile, imports, callback);
+   });
+  });
+ } else {
+  return instantiateArrayBuffer(binaryFile, imports, callback);
+ }
 }
 
 function createWasm() {
  var info = {
-  "a": asmLibraryArg
+  "a": wasmImports
  };
  function receiveInstance(instance, module) {
   var exports = instance.exports;
   exports = Asyncify.instrumentWasmExports(exports);
   Module["asm"] = exports;
-  wasmMemory = Module["asm"]["Wa"];
-  updateGlobalBufferAndViews(wasmMemory.buffer);
-  wasmTable = Module["asm"]["gb"];
-  addOnInit(Module["asm"]["Xa"]);
-  removeRunDependency("wasm-instantiate");
+  registerTLSInit(Module["asm"]["Ob"]);
+  wasmTable = Module["asm"]["nb"];
+  addOnInit(Module["asm"]["cb"]);
+  wasmModule = module;
+  PThread.loadWasmModuleToAllWorkers(() => removeRunDependency("wasm-instantiate"));
+  return exports;
  }
  addRunDependency("wasm-instantiate");
  function receiveInstantiationResult(result) {
-  receiveInstance(result["instance"]);
- }
- function instantiateArrayBuffer(receiver) {
-  return getBinaryPromise().then(function(binary) {
-   return WebAssembly.instantiate(binary, info);
-  }).then(function(instance) {
-   return instance;
-  }).then(receiver, function(reason) {
-   err("failed to asynchronously prepare wasm: " + reason);
-   abort(reason);
-  });
- }
- function instantiateAsync() {
-  if (!wasmBinary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(wasmBinaryFile) && !ENVIRONMENT_IS_NODE && typeof fetch == "function") {
-   return fetch(wasmBinaryFile, {
-    credentials: "same-origin"
-   }).then(function(response) {
-    var result = WebAssembly.instantiateStreaming(response, info);
-    return result.then(receiveInstantiationResult, function(reason) {
-     err("wasm streaming compile failed: " + reason);
-     err("falling back to ArrayBuffer instantiation");
-     return instantiateArrayBuffer(receiveInstantiationResult);
-    });
-   });
-  } else {
-   return instantiateArrayBuffer(receiveInstantiationResult);
-  }
+  receiveInstance(result["instance"], result["module"]);
  }
  if (Module["instantiateWasm"]) {
   try {
-   var exports = Module["instantiateWasm"](info, receiveInstance);
-   exports = Asyncify.instrumentWasmExports(exports);
-   return exports;
+   return Module["instantiateWasm"](info, receiveInstance);
   } catch (e) {
    err("Module.instantiateWasm callback failed with error: " + e);
    return false;
   }
  }
- instantiateAsync();
+ instantiateAsync(wasmBinary, wasmBinaryFile, info, receiveInstantiationResult);
  return {};
 }
 
@@ -477,31 +623,57 @@ function ExitStatus(status) {
  this.status = status;
 }
 
-function callRuntimeCallbacks(callbacks) {
- while (callbacks.length > 0) {
-  callbacks.shift()(Module);
+function terminateWorker(worker) {
+ worker.terminate();
+ worker.onmessage = e => {};
+}
+
+function killThread(pthread_ptr) {
+ var worker = PThread.pthreads[pthread_ptr];
+ delete PThread.pthreads[pthread_ptr];
+ terminateWorker(worker);
+ __emscripten_thread_free_data(pthread_ptr);
+ PThread.runningWorkers.splice(PThread.runningWorkers.indexOf(worker), 1);
+ worker.pthread_ptr = 0;
+}
+
+function cancelThread(pthread_ptr) {
+ var worker = PThread.pthreads[pthread_ptr];
+ worker.postMessage({
+  "cmd": "cancel"
+ });
+}
+
+function cleanupThread(pthread_ptr) {
+ var worker = PThread.pthreads[pthread_ptr];
+ assert(worker);
+ PThread.returnWorkerToPool(worker);
+}
+
+function zeroMemory(address, size) {
+ GROWABLE_HEAP_U8().fill(0, address, address + size);
+ return address;
+}
+
+function spawnThread(threadParams) {
+ var worker = PThread.getNewWorker();
+ if (!worker) {
+  return 6;
  }
-}
-
-function handleException(e) {
- if (e instanceof ExitStatus || e == "unwind") {
-  return EXITSTATUS;
+ PThread.runningWorkers.push(worker);
+ PThread.pthreads[threadParams.pthread_ptr] = worker;
+ worker.pthread_ptr = threadParams.pthread_ptr;
+ var msg = {
+  "cmd": "run",
+  "start_routine": threadParams.startRoutine,
+  "arg": threadParams.arg,
+  "pthread_ptr": threadParams.pthread_ptr
+ };
+ if (ENVIRONMENT_IS_NODE) {
+  worker.ref();
  }
- quit_(1, e);
-}
-
-function writeArrayToMemory(array, buffer) {
- HEAP8.set(array, buffer);
-}
-
-function ___assert_fail(condition, filename, line, func) {
- abort("Assertion failed: " + UTF8ToString(condition) + ", at: " + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
-}
-
-function ___call_sighandler(fp, sig) {
- (function(a1) {
-  dynCall_vi.apply(null, [ fp, a1 ]);
- })(sig);
+ worker.postMessage(msg, threadParams.transferList);
+ return 0;
 }
 
 var PATH = {
@@ -780,11 +952,6 @@ var TTY = {
  }
 };
 
-function zeroMemory(address, size) {
- HEAPU8.fill(0, address, address + size);
- return address;
-}
-
 function alignMemory(size, alignment) {
  return Math.ceil(size / alignment) * alignment;
 }
@@ -1016,7 +1183,7 @@ var MEMFS = {
    return size;
   },
   write: function(stream, buffer, offset, length, position, canOwn) {
-   if (buffer.buffer === HEAP8.buffer) {
+   if (buffer.buffer === GROWABLE_HEAP_I8().buffer) {
     canOwn = false;
    }
    if (!length) return 0;
@@ -1072,7 +1239,7 @@ var MEMFS = {
    var ptr;
    var allocated;
    var contents = stream.node.contents;
-   if (!(flags & 2) && contents.buffer === buffer) {
+   if (!(flags & 2) && contents.buffer === GROWABLE_HEAP_I8().buffer) {
     allocated = false;
     ptr = contents.byteOffset;
    } else {
@@ -1088,7 +1255,7 @@ var MEMFS = {
     if (!ptr) {
      throw new FS.ErrnoError(48);
     }
-    HEAP8.set(contents, ptr);
+    GROWABLE_HEAP_I8().set(contents, ptr);
    }
    return {
     ptr: ptr,
@@ -1124,7 +1291,7 @@ var NODEFS = {
  isWindows: false,
  staticInit: () => {
   NODEFS.isWindows = !!process.platform.match(/^win/);
-  var flags = process["binding"]("constants");
+  var flags = process.binding("constants");
   if (flags["fs"]) {
    flags = flags["fs"];
   }
@@ -1392,7 +1559,7 @@ var NODEFS = {
     throw new FS.ErrnoError(43);
    }
    var ptr = mmapAlloc(length);
-   NODEFS.stream_ops.read(stream, HEAP8, ptr, length, position);
+   NODEFS.stream_ops.read(stream, GROWABLE_HEAP_I8(), ptr, length, position);
    return {
     ptr: ptr,
     allocated: true
@@ -1420,7 +1587,7 @@ var FS = {
  filesystems: null,
  syncFSRequests: 0,
  lookupPath: (path, opts = {}) => {
-  path = PATH_FS.resolve(FS.cwd(), path);
+  path = PATH_FS.resolve(path);
   if (!path) return {
    path: "",
    node: null
@@ -1433,7 +1600,7 @@ var FS = {
   if (opts.recurse_count > 8) {
    throw new FS.ErrnoError(32);
   }
-  var parts = PATH.normalizeArray(path.split("/").filter(p => !!p), false);
+  var parts = path.split("/").filter(p => !!p);
   var current = FS.root;
   var current_path = "/";
   for (var i = 0; i < parts.length; i++) {
@@ -2490,6 +2657,7 @@ var FS = {
  ensureErrnoError: () => {
   if (FS.ErrnoError) return;
   FS.ErrnoError = function ErrnoError(errno, node) {
+   this.name = "ErrnoError";
    this.node = node;
    this.setErrno = function(errno) {
     this.errno = errno;
@@ -2838,7 +3006,7 @@ var FS = {
    if (!ptr) {
     throw new FS.ErrnoError(48);
    }
-   writeChunks(stream, HEAP8, ptr, length, position);
+   writeChunks(stream, GROWABLE_HEAP_I8(), ptr, length, position);
    return {
     ptr: ptr,
     allocated: true
@@ -2882,9 +3050,7 @@ var FS = {
  },
  DB_VERSION: 20,
  DB_STORE_NAME: "FILE_DATA",
- saveFilesToDB: (paths, onload, onerror) => {
-  onload = onload || (() => {});
-  onerror = onerror || (() => {});
+ saveFilesToDB: (paths, onload = (() => {}), onerror = (() => {})) => {
   var indexedDB = FS.indexedDB();
   try {
    var openRequest = indexedDB.open(FS.DB_NAME(), FS.DB_VERSION);
@@ -2919,9 +3085,7 @@ var FS = {
   };
   openRequest.onerror = onerror;
  },
- loadFilesFromDB: (paths, onload, onerror) => {
-  onload = onload || (() => {});
-  onerror = onerror || (() => {});
+ loadFilesFromDB: (paths, onload = (() => {}), onerror = (() => {})) => {
   var indexedDB = FS.indexedDB();
   try {
    var openRequest = indexedDB.open(FS.DB_NAME(), FS.DB_VERSION);
@@ -2993,31 +3157,34 @@ var SYSCALLS = {
    }
    throw e;
   }
-  HEAP32[buf >> 2] = stat.dev;
-  HEAP32[buf + 8 >> 2] = stat.ino;
-  HEAP32[buf + 12 >> 2] = stat.mode;
-  HEAPU32[buf + 16 >> 2] = stat.nlink;
-  HEAP32[buf + 20 >> 2] = stat.uid;
-  HEAP32[buf + 24 >> 2] = stat.gid;
-  HEAP32[buf + 28 >> 2] = stat.rdev;
+  GROWABLE_HEAP_I32()[buf >> 2] = stat.dev;
+  GROWABLE_HEAP_I32()[buf + 8 >> 2] = stat.ino;
+  GROWABLE_HEAP_I32()[buf + 12 >> 2] = stat.mode;
+  GROWABLE_HEAP_U32()[buf + 16 >> 2] = stat.nlink;
+  GROWABLE_HEAP_I32()[buf + 20 >> 2] = stat.uid;
+  GROWABLE_HEAP_I32()[buf + 24 >> 2] = stat.gid;
+  GROWABLE_HEAP_I32()[buf + 28 >> 2] = stat.rdev;
   tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
-  HEAP32[buf + 48 >> 2] = 4096;
-  HEAP32[buf + 52 >> 2] = stat.blocks;
-  tempI64 = [ Math.floor(stat.atime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.atime.getTime() / 1e3), 
+  GROWABLE_HEAP_I32()[buf + 40 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 44 >> 2] = tempI64[1];
+  GROWABLE_HEAP_I32()[buf + 48 >> 2] = 4096;
+  GROWABLE_HEAP_I32()[buf + 52 >> 2] = stat.blocks;
+  var atime = stat.atime.getTime();
+  var mtime = stat.mtime.getTime();
+  var ctime = stat.ctime.getTime();
+  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), 
   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
-  HEAPU32[buf + 64 >> 2] = 0;
-  tempI64 = [ Math.floor(stat.mtime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.mtime.getTime() / 1e3), 
+  GROWABLE_HEAP_I32()[buf + 56 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 60 >> 2] = tempI64[1];
+  GROWABLE_HEAP_U32()[buf + 64 >> 2] = atime % 1e3 * 1e3;
+  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), 
   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
-  HEAPU32[buf + 80 >> 2] = 0;
-  tempI64 = [ Math.floor(stat.ctime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.ctime.getTime() / 1e3), 
+  GROWABLE_HEAP_I32()[buf + 72 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 76 >> 2] = tempI64[1];
+  GROWABLE_HEAP_U32()[buf + 80 >> 2] = mtime % 1e3 * 1e3;
+  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), 
   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
-  HEAPU32[buf + 96 >> 2] = 0;
+  GROWABLE_HEAP_I32()[buf + 88 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 92 >> 2] = tempI64[1];
+  GROWABLE_HEAP_U32()[buf + 96 >> 2] = ctime % 1e3 * 1e3;
   tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 104 >> 2] = tempI64[0], HEAP32[buf + 108 >> 2] = tempI64[1];
+  GROWABLE_HEAP_I32()[buf + 104 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[buf + 108 >> 2] = tempI64[1];
   return 0;
  },
  doMsync: function(addr, stream, len, flags, offset) {
@@ -3027,13 +3194,13 @@ var SYSCALLS = {
   if (flags & 2) {
    return 0;
   }
-  var buffer = HEAPU8.slice(addr, addr + len);
+  var buffer = GROWABLE_HEAP_U8().slice(addr, addr + len);
   FS.msync(stream, buffer, offset, len, flags);
  },
  varargs: undefined,
  get: function() {
   SYSCALLS.varargs += 4;
-  var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
+  var ret = GROWABLE_HEAP_I32()[SYSCALLS.varargs - 4 >> 2];
   return ret;
  },
  getStr: function(ptr) {
@@ -3047,17 +3214,287 @@ var SYSCALLS = {
  }
 };
 
+function _proc_exit(code) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(1, 1, code);
+ EXITSTATUS = code;
+ if (!keepRuntimeAlive()) {
+  PThread.terminateAllThreads();
+  if (Module["onExit"]) Module["onExit"](code);
+  ABORT = true;
+ }
+ quit_(code, new ExitStatus(code));
+}
+
+function exitJS(status, implicit) {
+ EXITSTATUS = status;
+ if (ENVIRONMENT_IS_PTHREAD) {
+  exitOnMainThread(status);
+  throw "unwind";
+ }
+ if (!keepRuntimeAlive()) {
+  exitRuntime();
+ }
+ _proc_exit(status);
+}
+
+var _exit = exitJS;
+
+function handleException(e) {
+ if (e instanceof ExitStatus || e == "unwind") {
+  return EXITSTATUS;
+ }
+ quit_(1, e);
+}
+
+var PThread = {
+ unusedWorkers: [],
+ runningWorkers: [],
+ tlsInitFunctions: [],
+ pthreads: {},
+ init: function() {
+  if (ENVIRONMENT_IS_PTHREAD) {
+   PThread.initWorker();
+  } else {
+   PThread.initMainThread();
+  }
+ },
+ initMainThread: function() {},
+ initWorker: function() {
+  noExitRuntime = false;
+ },
+ setExitStatus: function(status) {
+  EXITSTATUS = status;
+ },
+ terminateAllThreads__deps: [ "$terminateWorker" ],
+ terminateAllThreads: function() {
+  for (var worker of PThread.runningWorkers) {
+   terminateWorker(worker);
+  }
+  for (var worker of PThread.unusedWorkers) {
+   terminateWorker(worker);
+  }
+  PThread.unusedWorkers = [];
+  PThread.runningWorkers = [];
+  PThread.pthreads = [];
+ },
+ returnWorkerToPool: function(worker) {
+  var pthread_ptr = worker.pthread_ptr;
+  delete PThread.pthreads[pthread_ptr];
+  PThread.unusedWorkers.push(worker);
+  PThread.runningWorkers.splice(PThread.runningWorkers.indexOf(worker), 1);
+  worker.pthread_ptr = 0;
+  if (ENVIRONMENT_IS_NODE) {
+   worker.unref();
+  }
+  __emscripten_thread_free_data(pthread_ptr);
+ },
+ receiveObjectTransfer: function(data) {},
+ threadInitTLS: function() {
+  PThread.tlsInitFunctions.forEach(f => f());
+ },
+ loadWasmModuleToWorker: worker => new Promise(onFinishedLoading => {
+  worker.onmessage = e => {
+   var d = e["data"];
+   var cmd = d["cmd"];
+   if (worker.pthread_ptr) PThread.currentProxiedOperationCallerThread = worker.pthread_ptr;
+   if (d["targetThread"] && d["targetThread"] != _pthread_self()) {
+    var targetWorker = PThread.pthreads[d.targetThread];
+    if (targetWorker) {
+     targetWorker.postMessage(d, d["transferList"]);
+    } else {
+     err('Internal error! Worker sent a message "' + cmd + '" to target pthread ' + d["targetThread"] + ", but that thread no longer exists!");
+    }
+    PThread.currentProxiedOperationCallerThread = undefined;
+    return;
+   }
+   if (cmd === "checkMailbox") {
+    checkMailbox();
+   } else if (cmd === "spawnThread") {
+    spawnThread(d);
+   } else if (cmd === "cleanupThread") {
+    cleanupThread(d["thread"]);
+   } else if (cmd === "killThread") {
+    killThread(d["thread"]);
+   } else if (cmd === "cancelThread") {
+    cancelThread(d["thread"]);
+   } else if (cmd === "loaded") {
+    worker.loaded = true;
+    if (ENVIRONMENT_IS_NODE && !worker.pthread_ptr) {
+     worker.unref();
+    }
+    onFinishedLoading(worker);
+   } else if (cmd === "print") {
+    out("Thread " + d["threadId"] + ": " + d["text"]);
+   } else if (cmd === "printErr") {
+    err("Thread " + d["threadId"] + ": " + d["text"]);
+   } else if (cmd === "alert") {
+    alert("Thread " + d["threadId"] + ": " + d["text"]);
+   } else if (d.target === "setimmediate") {
+    worker.postMessage(d);
+   } else if (cmd === "callHandler") {
+    Module[d["handler"]](...d["args"]);
+   } else if (cmd) {
+    err("worker sent an unknown command " + cmd);
+   }
+   PThread.currentProxiedOperationCallerThread = undefined;
+  };
+  worker.onerror = e => {
+   var message = "worker sent an error!";
+   err(message + " " + e.filename + ":" + e.lineno + ": " + e.message);
+   throw e;
+  };
+  if (ENVIRONMENT_IS_NODE) {
+   worker.on("message", function(data) {
+    worker.onmessage({
+     data: data
+    });
+   });
+   worker.on("error", function(e) {
+    worker.onerror(e);
+   });
+   worker.on("detachedExit", function() {});
+  }
+  var handlers = [];
+  var knownHandlers = [ "onExit", "onAbort", "print", "printErr" ];
+  for (var handler of knownHandlers) {
+   if (Module.hasOwnProperty(handler)) {
+    handlers.push(handler);
+   }
+  }
+  worker.postMessage({
+   "cmd": "load",
+   "handlers": handlers,
+   "urlOrBlob": Module["mainScriptUrlOrBlob"] || _scriptDir,
+   "wasmMemory": wasmMemory,
+   "wasmModule": wasmModule
+  });
+ }),
+ loadWasmModuleToAllWorkers: function(onMaybeReady) {
+  onMaybeReady();
+ },
+ allocateUnusedWorker: function() {
+  var worker;
+  var pthreadMainJs = locateFile("php.worker.js");
+  worker = new Worker(pthreadMainJs);
+  PThread.unusedWorkers.push(worker);
+ },
+ getNewWorker: function() {
+  if (PThread.unusedWorkers.length == 0) {
+   PThread.allocateUnusedWorker();
+   PThread.loadWasmModuleToWorker(PThread.unusedWorkers[0]);
+  }
+  return PThread.unusedWorkers.pop();
+ }
+};
+
+Module["PThread"] = PThread;
+
+function callRuntimeCallbacks(callbacks) {
+ while (callbacks.length > 0) {
+  callbacks.shift()(Module);
+ }
+}
+
+function establishStackSpace() {
+ var pthread_ptr = _pthread_self();
+ var stackTop = GROWABLE_HEAP_I32()[pthread_ptr + 52 >> 2];
+ var stackSize = GROWABLE_HEAP_I32()[pthread_ptr + 56 >> 2];
+ var stackMax = stackTop - stackSize;
+ _emscripten_stack_set_limits(stackTop, stackMax);
+ stackRestore(stackTop);
+}
+
+Module["establishStackSpace"] = establishStackSpace;
+
+function exitOnMainThread(returnCode) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(2, 0, returnCode);
+ _exit(returnCode);
+}
+
+function invokeEntryPoint(ptr, arg) {
+ runtimeKeepaliveCounter = 0;
+ var result = (a1 => dynCall_ii.apply(null, [ ptr, a1 ]))(arg);
+ if (keepRuntimeAlive()) {
+  PThread.setExitStatus(result);
+ } else {
+  __emscripten_thread_exit(result);
+ }
+}
+
+Module["invokeEntryPoint"] = invokeEntryPoint;
+
+function registerTLSInit(tlsInitFunc) {
+ PThread.tlsInitFunctions.push(tlsInitFunc);
+}
+
+function ___assert_fail(condition, filename, line, func) {
+ abort("Assertion failed: " + UTF8ToString(condition) + ", at: " + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
+}
+
+function ___call_sighandler(fp, sig) {
+ (a1 => dynCall_vi.apply(null, [ fp, a1 ]))(sig);
+}
+
+var dlopenMissingError = "To use dlopen, you need enable dynamic linking, see https://github.com/emscripten-core/emscripten/wiki/Linking";
+
+function ___dlsym(handle, symbol) {
+ abort(dlopenMissingError);
+}
+
+function ___emscripten_init_main_thread_js(tb) {
+ __emscripten_thread_init(tb, !ENVIRONMENT_IS_WORKER, 1, !ENVIRONMENT_IS_WEB);
+ PThread.threadInitTLS();
+}
+
+function ___emscripten_thread_cleanup(thread) {
+ if (!ENVIRONMENT_IS_PTHREAD) cleanupThread(thread); else postMessage({
+  "cmd": "cleanupThread",
+  "thread": thread
+ });
+}
+
+function pthreadCreateProxied(pthread_ptr, attr, startRoutine, arg) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(3, 1, pthread_ptr, attr, startRoutine, arg);
+ return ___pthread_create_js(pthread_ptr, attr, startRoutine, arg);
+}
+
+function ___pthread_create_js(pthread_ptr, attr, startRoutine, arg) {
+ if (typeof SharedArrayBuffer == "undefined") {
+  err("Current environment does not support SharedArrayBuffer, pthreads are not available!");
+  return 6;
+ }
+ var transferList = [];
+ var error = 0;
+ if (ENVIRONMENT_IS_PTHREAD && (transferList.length === 0 || error)) {
+  return pthreadCreateProxied(pthread_ptr, attr, startRoutine, arg);
+ }
+ if (error) return error;
+ var threadParams = {
+  startRoutine: startRoutine,
+  pthread_ptr: pthread_ptr,
+  arg: arg,
+  transferList: transferList
+ };
+ if (ENVIRONMENT_IS_PTHREAD) {
+  threadParams.cmd = "spawnThread";
+  postMessage(threadParams, transferList);
+  return 0;
+ }
+ return spawnThread(threadParams);
+}
+
 function ___syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(4, 1, nfds, readfds, writefds, exceptfds, timeout);
  try {
   var total = 0;
-  var srcReadLow = readfds ? HEAP32[readfds >> 2] : 0, srcReadHigh = readfds ? HEAP32[readfds + 4 >> 2] : 0;
-  var srcWriteLow = writefds ? HEAP32[writefds >> 2] : 0, srcWriteHigh = writefds ? HEAP32[writefds + 4 >> 2] : 0;
-  var srcExceptLow = exceptfds ? HEAP32[exceptfds >> 2] : 0, srcExceptHigh = exceptfds ? HEAP32[exceptfds + 4 >> 2] : 0;
+  var srcReadLow = readfds ? GROWABLE_HEAP_I32()[readfds >> 2] : 0, srcReadHigh = readfds ? GROWABLE_HEAP_I32()[readfds + 4 >> 2] : 0;
+  var srcWriteLow = writefds ? GROWABLE_HEAP_I32()[writefds >> 2] : 0, srcWriteHigh = writefds ? GROWABLE_HEAP_I32()[writefds + 4 >> 2] : 0;
+  var srcExceptLow = exceptfds ? GROWABLE_HEAP_I32()[exceptfds >> 2] : 0, srcExceptHigh = exceptfds ? GROWABLE_HEAP_I32()[exceptfds + 4 >> 2] : 0;
   var dstReadLow = 0, dstReadHigh = 0;
   var dstWriteLow = 0, dstWriteHigh = 0;
   var dstExceptLow = 0, dstExceptHigh = 0;
-  var allLow = (readfds ? HEAP32[readfds >> 2] : 0) | (writefds ? HEAP32[writefds >> 2] : 0) | (exceptfds ? HEAP32[exceptfds >> 2] : 0);
-  var allHigh = (readfds ? HEAP32[readfds + 4 >> 2] : 0) | (writefds ? HEAP32[writefds + 4 >> 2] : 0) | (exceptfds ? HEAP32[exceptfds + 4 >> 2] : 0);
+  var allLow = (readfds ? GROWABLE_HEAP_I32()[readfds >> 2] : 0) | (writefds ? GROWABLE_HEAP_I32()[writefds >> 2] : 0) | (exceptfds ? GROWABLE_HEAP_I32()[exceptfds >> 2] : 0);
+  var allHigh = (readfds ? GROWABLE_HEAP_I32()[readfds + 4 >> 2] : 0) | (writefds ? GROWABLE_HEAP_I32()[writefds + 4 >> 2] : 0) | (exceptfds ? GROWABLE_HEAP_I32()[exceptfds + 4 >> 2] : 0);
   var check = function(fd, low, high, val) {
    return fd < 32 ? low & val : high & val;
   };
@@ -3085,20 +3522,20 @@ function ___syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) {
    }
   }
   if (readfds) {
-   HEAP32[readfds >> 2] = dstReadLow;
-   HEAP32[readfds + 4 >> 2] = dstReadHigh;
+   GROWABLE_HEAP_I32()[readfds >> 2] = dstReadLow;
+   GROWABLE_HEAP_I32()[readfds + 4 >> 2] = dstReadHigh;
   }
   if (writefds) {
-   HEAP32[writefds >> 2] = dstWriteLow;
-   HEAP32[writefds + 4 >> 2] = dstWriteHigh;
+   GROWABLE_HEAP_I32()[writefds >> 2] = dstWriteLow;
+   GROWABLE_HEAP_I32()[writefds + 4 >> 2] = dstWriteHigh;
   }
   if (exceptfds) {
-   HEAP32[exceptfds >> 2] = dstExceptLow;
-   HEAP32[exceptfds + 4 >> 2] = dstExceptHigh;
+   GROWABLE_HEAP_I32()[exceptfds >> 2] = dstExceptLow;
+   GROWABLE_HEAP_I32()[exceptfds + 4 >> 2] = dstExceptHigh;
   }
   return total;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
@@ -3368,7 +3805,7 @@ url = Module["websocket"]["url"](...arguments);
     if (sock.recv_queue.length) {
      bytes = sock.recv_queue[0].data.length;
     }
-    HEAP32[arg >> 2] = bytes;
+    GROWABLE_HEAP_I32()[arg >> 2] = bytes;
     return 0;
 
    default:
@@ -3406,7 +3843,7 @@ url = Module["websocket"]["url"](...arguments);
     try {
      sock.sock_ops.listen(sock, 0);
     } catch (e) {
-     if (!(e instanceof FS.ErrnoError)) throw e;
+     if (!(e.name === "ErrnoError")) throw e;
      if (e.errno !== 138) throw e;
     }
    }
@@ -3517,7 +3954,11 @@ url = Module["websocket"]["url"](...arguments);
     buffer = buffer.buffer;
    }
    var data;
-   data = buffer.slice(offset, offset + length);
+   if (buffer instanceof SharedArrayBuffer) {
+    data = new Uint8Array(new Uint8Array(buffer.slice(offset, offset + length))).buffer;
+   } else {
+    data = buffer.slice(offset, offset + length);
+   }
    if (sock.type === 2) {
     if (!dest || dest.socket.readyState !== dest.socket.OPEN) {
      if (!dest || dest.socket.readyState === dest.socket.CLOSING || dest.socket.readyState === dest.socket.CLOSED) {
@@ -3578,7 +4019,7 @@ function getSocketFromFD(fd) {
 }
 
 function setErrNo(value) {
- HEAP32[___errno_location() >> 2] = value;
+ GROWABLE_HEAP_I32()[___errno_location() >> 2] = value;
  return value;
 }
 
@@ -3646,25 +4087,25 @@ function writeSockaddr(sa, family, addr, port, addrlen) {
   addr = inetPton4(addr);
   zeroMemory(sa, 16);
   if (addrlen) {
-   HEAP32[addrlen >> 2] = 16;
+   GROWABLE_HEAP_I32()[addrlen >> 2] = 16;
   }
-  HEAP16[sa >> 1] = family;
-  HEAP32[sa + 4 >> 2] = addr;
-  HEAP16[sa + 2 >> 1] = _htons(port);
+  GROWABLE_HEAP_I16()[sa >> 1] = family;
+  GROWABLE_HEAP_I32()[sa + 4 >> 2] = addr;
+  GROWABLE_HEAP_I16()[sa + 2 >> 1] = _htons(port);
   break;
 
  case 10:
   addr = inetPton6(addr);
   zeroMemory(sa, 28);
   if (addrlen) {
-   HEAP32[addrlen >> 2] = 28;
+   GROWABLE_HEAP_I32()[addrlen >> 2] = 28;
   }
-  HEAP32[sa >> 2] = family;
-  HEAP32[sa + 8 >> 2] = addr[0];
-  HEAP32[sa + 12 >> 2] = addr[1];
-  HEAP32[sa + 16 >> 2] = addr[2];
-  HEAP32[sa + 20 >> 2] = addr[3];
-  HEAP16[sa + 2 >> 1] = _htons(port);
+  GROWABLE_HEAP_I32()[sa >> 2] = family;
+  GROWABLE_HEAP_I32()[sa + 8 >> 2] = addr[0];
+  GROWABLE_HEAP_I32()[sa + 12 >> 2] = addr[1];
+  GROWABLE_HEAP_I32()[sa + 16 >> 2] = addr[2];
+  GROWABLE_HEAP_I32()[sa + 20 >> 2] = addr[3];
+  GROWABLE_HEAP_I16()[sa + 2 >> 1] = _htons(port);
   break;
 
  default:
@@ -3709,6 +4150,7 @@ var DNS = {
 };
 
 function ___syscall_accept4(fd, addr, addrlen, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(5, 1, fd, addr, addrlen, flags);
  try {
   var sock = getSocketFromFD(fd);
   var newsock = sock.sock_ops.accept(sock);
@@ -3717,7 +4159,7 @@ function ___syscall_accept4(fd, addr, addrlen, flags) {
   }
   return newsock.stream.fd;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
@@ -3788,8 +4230,8 @@ function inetNtop6(ints) {
 }
 
 function readSockaddr(sa, salen) {
- var family = HEAP16[sa >> 1];
- var port = _ntohs(HEAPU16[sa + 2 >> 1]);
+ var family = GROWABLE_HEAP_I16()[sa >> 1];
+ var port = _ntohs(GROWABLE_HEAP_U16()[sa + 2 >> 1]);
  var addr;
  switch (family) {
  case 2:
@@ -3798,7 +4240,7 @@ function readSockaddr(sa, salen) {
     errno: 28
    };
   }
-  addr = HEAP32[sa + 4 >> 2];
+  addr = GROWABLE_HEAP_I32()[sa + 4 >> 2];
   addr = inetNtop4(addr);
   break;
 
@@ -3808,7 +4250,7 @@ function readSockaddr(sa, salen) {
     errno: 28
    };
   }
-  addr = [ HEAP32[sa + 8 >> 2], HEAP32[sa + 12 >> 2], HEAP32[sa + 16 >> 2], HEAP32[sa + 20 >> 2] ];
+  addr = [ GROWABLE_HEAP_I32()[sa + 8 >> 2], GROWABLE_HEAP_I32()[sa + 12 >> 2], GROWABLE_HEAP_I32()[sa + 16 >> 2], GROWABLE_HEAP_I32()[sa + 20 >> 2] ];
   addr = inetNtop6(addr);
   break;
 
@@ -3833,62 +4275,68 @@ function getSocketAddress(addrp, addrlen, allowNull) {
 }
 
 function ___syscall_bind(fd, addr, addrlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(6, 1, fd, addr, addrlen);
  try {
   var sock = getSocketFromFD(fd);
   var info = getSocketAddress(addr, addrlen);
   sock.sock_ops.bind(sock, info.addr, info.port);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_chdir(path) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(7, 1, path);
  try {
   path = SYSCALLS.getStr(path);
   FS.chdir(path);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_chmod(path, mode) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(8, 1, path, mode);
  try {
   path = SYSCALLS.getStr(path);
   FS.chmod(path, mode);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_connect(fd, addr, addrlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(9, 1, fd, addr, addrlen);
  try {
   var sock = getSocketFromFD(fd);
   var info = getSocketAddress(addr, addrlen);
   sock.sock_ops.connect(sock, info.addr, info.port);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_dup(fd) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(10, 1, fd);
  try {
   var old = SYSCALLS.getStreamFromFD(fd);
   return FS.createStream(old, 0).fd;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_dup3(fd, suggestFD, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(11, 1, fd, suggestFD, flags);
  try {
   var old = SYSCALLS.getStreamFromFD(fd);
   if (old.fd === suggestFD) return -28;
@@ -3896,12 +4344,13 @@ function ___syscall_dup3(fd, suggestFD, flags) {
   if (suggest) FS.close(suggest);
   return FS.createStream(old, suggestFD, suggestFD + 1).fd;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_faccessat(dirfd, path, amode, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(12, 1, dirfd, path, amode, flags);
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -3924,7 +4373,7 @@ function ___syscall_faccessat(dirfd, path, amode, flags) {
   }
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
@@ -3934,6 +4383,7 @@ function convertI32PairToI53Checked(lo, hi) {
 }
 
 function ___syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_high) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(13, 1, fd, mode, offset_low, offset_high, len_low, len_high);
  try {
   var offset = convertI32PairToI53Checked(offset_low, offset_high);
   if (isNaN(offset)) return -61;
@@ -3943,32 +4393,35 @@ function ___syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_hi
   FS.allocate(stream, offset, len);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fchmod(fd, mode) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(14, 1, fd, mode);
  try {
   FS.fchmod(fd, mode);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fchown32(fd, owner, group) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(15, 1, fd, owner, group);
  try {
   FS.fchown(fd, owner, group);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fchownat(dirfd, path, owner, group, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(16, 1, dirfd, path, owner, group, flags);
  try {
   path = SYSCALLS.getStr(path);
   var nofollow = flags & 256;
@@ -3977,12 +4430,13 @@ function ___syscall_fchownat(dirfd, path, owner, group, flags) {
   (nofollow ? FS.lchown : FS.chown)(path, owner, group);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fcntl64(fd, cmd, varargs) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(17, 1, fd, cmd, varargs);
  SYSCALLS.varargs = varargs;
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
@@ -4016,7 +4470,7 @@ function ___syscall_fcntl64(fd, cmd, varargs) {
    {
     var arg = SYSCALLS.get();
     var offset = 0;
-    HEAP16[arg + offset >> 1] = 2;
+    GROWABLE_HEAP_I16()[arg + offset >> 1] = 2;
     return 0;
    }
 
@@ -4038,44 +4492,48 @@ function ___syscall_fcntl64(fd, cmd, varargs) {
    }
   }
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fdatasync(fd) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(18, 1, fd);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_fstat64(fd, buf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(19, 1, fd, buf);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   return SYSCALLS.doStat(FS.stat, stream.path, buf);
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_ftruncate64(fd, length_low, length_high) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(20, 1, fd, length_low, length_high);
  try {
   var length = convertI32PairToI53Checked(length_low, length_high);
   if (isNaN(length)) return -61;
   FS.ftruncate(fd, length);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_getcwd(buf, size) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(21, 1, buf, size);
  try {
   if (size === 0) return -28;
   var cwd = FS.cwd();
@@ -4084,12 +4542,13 @@ function ___syscall_getcwd(buf, size) {
   stringToUTF8(cwd, buf, size);
   return cwdLengthInBytes;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_getdents64(fd, dirp, count) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(22, 1, fd, dirp, count);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   if (!stream.getdents) {
@@ -4118,12 +4577,12 @@ function ___syscall_getdents64(fd, dirp, count) {
     type = FS.isChrdev(child.mode) ? 2 : FS.isDir(child.mode) ? 4 : FS.isLink(child.mode) ? 10 : 8;
    }
    tempI64 = [ id >>> 0, (tempDouble = id, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-   HEAP32[dirp + pos >> 2] = tempI64[0], HEAP32[dirp + pos + 4 >> 2] = tempI64[1];
+   GROWABLE_HEAP_I32()[dirp + pos >> 2] = tempI64[0], GROWABLE_HEAP_I32()[dirp + pos + 4 >> 2] = tempI64[1];
    tempI64 = [ (idx + 1) * struct_size >>> 0, (tempDouble = (idx + 1) * struct_size, 
    +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-   HEAP32[dirp + pos + 8 >> 2] = tempI64[0], HEAP32[dirp + pos + 12 >> 2] = tempI64[1];
-   HEAP16[dirp + pos + 16 >> 1] = 280;
-   HEAP8[dirp + pos + 18 >> 0] = type;
+   GROWABLE_HEAP_I32()[dirp + pos + 8 >> 2] = tempI64[0], GROWABLE_HEAP_I32()[dirp + pos + 12 >> 2] = tempI64[1];
+   GROWABLE_HEAP_I16()[dirp + pos + 16 >> 1] = 280;
+   GROWABLE_HEAP_I8()[dirp + pos + 18 >> 0] = type;
    stringToUTF8(name, dirp + pos + 19, 256);
    pos += struct_size;
    idx += 1;
@@ -4131,12 +4590,13 @@ function ___syscall_getdents64(fd, dirp, count) {
   FS.llseek(stream, idx * struct_size, 0);
   return pos;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_getpeername(fd, addr, addrlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(23, 1, fd, addr, addrlen);
  try {
   var sock = getSocketFromFD(fd);
   if (!sock.daddr) {
@@ -4145,42 +4605,45 @@ function ___syscall_getpeername(fd, addr, addrlen) {
   var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(sock.daddr), sock.dport, addrlen);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_getsockname(fd, addr, addrlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(24, 1, fd, addr, addrlen);
  try {
   err("__syscall_getsockname " + fd);
   var sock = getSocketFromFD(fd);
   var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(sock.saddr || "0.0.0.0"), sock.sport, addrlen);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_getsockopt(fd, level, optname, optval, optlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(25, 1, fd, level, optname, optval, optlen);
  try {
   var sock = getSocketFromFD(fd);
   if (level === 1) {
    if (optname === 4) {
-    HEAP32[optval >> 2] = sock.error;
-    HEAP32[optlen >> 2] = 4;
+    GROWABLE_HEAP_I32()[optval >> 2] = sock.error;
+    GROWABLE_HEAP_I32()[optlen >> 2] = 4;
     sock.error = null;
     return 0;
    }
   }
   return -50;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_ioctl(fd, op, varargs) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(26, 1, fd, op, varargs);
  SYSCALLS.varargs = varargs;
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
@@ -4207,7 +4670,7 @@ function ___syscall_ioctl(fd, op, varargs) {
    {
     if (!stream.tty) return -59;
     var argp = SYSCALLS.get();
-    HEAP32[argp >> 2] = 0;
+    GROWABLE_HEAP_I32()[argp >> 2] = 0;
     return 0;
    }
 
@@ -4239,33 +4702,36 @@ function ___syscall_ioctl(fd, op, varargs) {
    return -28;
   }
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_listen(fd, backlog) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(27, 1, fd, backlog);
  try {
   var sock = getSocketFromFD(fd);
   sock.sock_ops.listen(sock, backlog);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_lstat64(path, buf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(28, 1, path, buf);
  try {
   path = SYSCALLS.getStr(path);
   return SYSCALLS.doStat(FS.lstat, path, buf);
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_mkdirat(dirfd, path, mode) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(29, 1, dirfd, path, mode);
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -4274,26 +4740,28 @@ function ___syscall_mkdirat(dirfd, path, mode) {
   FS.mkdir(path, mode, 0);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_newfstatat(dirfd, path, buf, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(30, 1, dirfd, path, buf, flags);
  try {
   path = SYSCALLS.getStr(path);
   var nofollow = flags & 256;
   var allowEmpty = flags & 4096;
-  flags = flags & ~4352;
+  flags = flags & ~6400;
   path = SYSCALLS.calculateAt(dirfd, path, allowEmpty);
   return SYSCALLS.doStat(nofollow ? FS.lstat : FS.stat, path, buf);
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_openat(dirfd, path, flags, varargs) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(31, 1, dirfd, path, flags, varargs);
  SYSCALLS.varargs = varargs;
  try {
   path = SYSCALLS.getStr(path);
@@ -4301,7 +4769,7 @@ function ___syscall_openat(dirfd, path, flags, varargs) {
   var mode = varargs ? SYSCALLS.get() : 0;
   return FS.open(path, flags, mode).fd;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
@@ -4377,7 +4845,7 @@ var PIPEFS = {
     var bucket = pipe.buckets[i];
     currentLength += bucket.offset - bucket.roffset;
    }
-   assert(buffer instanceof ArrayBuffer || ArrayBuffer.isView(buffer));
+   assert(buffer instanceof ArrayBuffer || buffer instanceof SharedArrayBuffer || ArrayBuffer.isView(buffer));
    var data = buffer.subarray(offset, offset + length);
    if (length <= 0) {
     return 0;
@@ -4419,7 +4887,7 @@ var PIPEFS = {
   },
   write: function(stream, buffer, offset, length, position) {
    var pipe = stream.node.pipe;
-   assert(buffer instanceof ArrayBuffer || ArrayBuffer.isView(buffer));
+   assert(buffer instanceof ArrayBuffer || buffer instanceof SharedArrayBuffer || ArrayBuffer.isView(buffer));
    var data = buffer.subarray(offset, offset + length);
    var dataLen = data.byteLength;
    if (dataLen <= 0) {
@@ -4487,27 +4955,29 @@ var PIPEFS = {
 };
 
 function ___syscall_pipe(fdPtr) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(32, 1, fdPtr);
  try {
   if (fdPtr == 0) {
    throw new FS.ErrnoError(21);
   }
   var res = PIPEFS.createPipe();
-  HEAP32[fdPtr >> 2] = res.readable_fd;
-  HEAP32[fdPtr + 4 >> 2] = res.writable_fd;
+  GROWABLE_HEAP_I32()[fdPtr >> 2] = res.readable_fd;
+  GROWABLE_HEAP_I32()[fdPtr + 4 >> 2] = res.writable_fd;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_poll(fds, nfds, timeout) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(33, 1, fds, nfds, timeout);
  try {
   var nonzero = 0;
   for (var i = 0; i < nfds; i++) {
    var pollfd = fds + 8 * i;
-   var fd = HEAP32[pollfd >> 2];
-   var events = HEAP16[pollfd + 4 >> 1];
+   var fd = GROWABLE_HEAP_I32()[pollfd >> 2];
+   var events = GROWABLE_HEAP_I16()[pollfd + 4 >> 1];
    var mask = 32;
    var stream = FS.getStream(fd);
    if (stream) {
@@ -4518,33 +4988,35 @@ function ___syscall_poll(fds, nfds, timeout) {
    }
    mask &= events | 8 | 16;
    if (mask) nonzero++;
-   HEAP16[pollfd + 6 >> 1] = mask;
+   GROWABLE_HEAP_I16()[pollfd + 6 >> 1] = mask;
   }
   return nonzero;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(34, 1, dirfd, path, buf, bufsize);
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
   if (bufsize <= 0) return -28;
   var ret = FS.readlink(path);
   var len = Math.min(bufsize, lengthBytesUTF8(ret));
-  var endChar = HEAP8[buf + len];
+  var endChar = GROWABLE_HEAP_I8()[buf + len];
   stringToUTF8(ret, buf, bufsize + 1);
-  HEAP8[buf + len] = endChar;
+  GROWABLE_HEAP_I8()[buf + len] = endChar;
   return len;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(35, 1, fd, buf, len, flags, addr, addrlen);
  try {
   var sock = getSocketFromFD(fd);
   var msg = sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);
@@ -4552,15 +5024,16 @@ function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
   if (addr) {
    var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(msg.addr), msg.port, addrlen);
   }
-  HEAPU8.set(msg.buffer, buf);
+  GROWABLE_HEAP_U8().set(msg.buffer, buf);
   return msg.buffer.byteLength;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_renameat(olddirfd, oldpath, newdirfd, newpath) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(36, 1, olddirfd, oldpath, newdirfd, newpath);
  try {
   oldpath = SYSCALLS.getStr(oldpath);
   newpath = SYSCALLS.getStr(newpath);
@@ -4569,89 +5042,96 @@ function ___syscall_renameat(olddirfd, oldpath, newdirfd, newpath) {
   FS.rename(oldpath, newpath);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_rmdir(path) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(37, 1, path);
  try {
   path = SYSCALLS.getStr(path);
   FS.rmdir(path);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_sendto(fd, message, length, flags, addr, addr_len) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(38, 1, fd, message, length, flags, addr, addr_len);
  try {
   var sock = getSocketFromFD(fd);
   var dest = getSocketAddress(addr, addr_len, true);
   if (!dest) {
-   return FS.write(sock.stream, HEAP8, message, length);
+   return FS.write(sock.stream, GROWABLE_HEAP_I8(), message, length);
   }
-  return sock.sock_ops.sendmsg(sock, HEAP8, message, length, dest.addr, dest.port);
+  return sock.sock_ops.sendmsg(sock, GROWABLE_HEAP_I8(), message, length, dest.addr, dest.port);
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_socket(domain, type, protocol) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(39, 1, domain, type, protocol);
  try {
   var sock = SOCKFS.createSocket(domain, type, protocol);
   return sock.stream.fd;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_stat64(path, buf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(40, 1, path, buf);
  try {
   path = SYSCALLS.getStr(path);
   return SYSCALLS.doStat(FS.stat, path, buf);
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_statfs64(path, size, buf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(41, 1, path, size, buf);
  try {
   path = SYSCALLS.getStr(path);
-  HEAP32[buf + 4 >> 2] = 4096;
-  HEAP32[buf + 40 >> 2] = 4096;
-  HEAP32[buf + 8 >> 2] = 1e6;
-  HEAP32[buf + 12 >> 2] = 5e5;
-  HEAP32[buf + 16 >> 2] = 5e5;
-  HEAP32[buf + 20 >> 2] = FS.nextInode;
-  HEAP32[buf + 24 >> 2] = 1e6;
-  HEAP32[buf + 28 >> 2] = 42;
-  HEAP32[buf + 44 >> 2] = 2;
-  HEAP32[buf + 36 >> 2] = 255;
+  GROWABLE_HEAP_I32()[buf + 4 >> 2] = 4096;
+  GROWABLE_HEAP_I32()[buf + 40 >> 2] = 4096;
+  GROWABLE_HEAP_I32()[buf + 8 >> 2] = 1e6;
+  GROWABLE_HEAP_I32()[buf + 12 >> 2] = 5e5;
+  GROWABLE_HEAP_I32()[buf + 16 >> 2] = 5e5;
+  GROWABLE_HEAP_I32()[buf + 20 >> 2] = FS.nextInode;
+  GROWABLE_HEAP_I32()[buf + 24 >> 2] = 1e6;
+  GROWABLE_HEAP_I32()[buf + 28 >> 2] = 42;
+  GROWABLE_HEAP_I32()[buf + 44 >> 2] = 2;
+  GROWABLE_HEAP_I32()[buf + 36 >> 2] = 255;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_symlink(target, linkpath) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(42, 1, target, linkpath);
  try {
   target = SYSCALLS.getStr(target);
   linkpath = SYSCALLS.getStr(linkpath);
   FS.symlink(target, linkpath);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function ___syscall_unlinkat(dirfd, path, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(43, 1, dirfd, path, flags);
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -4664,16 +5144,17 @@ function ___syscall_unlinkat(dirfd, path, flags) {
   }
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
 function readI53FromI64(ptr) {
- return HEAPU32[ptr >> 2] + HEAP32[ptr + 4 >> 2] * 4294967296;
+ return GROWABLE_HEAP_U32()[ptr >> 2] + GROWABLE_HEAP_I32()[ptr + 4 >> 2] * 4294967296;
 }
 
 function ___syscall_utimensat(dirfd, path, times, flags) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(44, 1, dirfd, path, times, flags);
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path, true);
@@ -4682,31 +5163,23 @@ function ___syscall_utimensat(dirfd, path, times, flags) {
    var mtime = atime;
   } else {
    var seconds = readI53FromI64(times);
-   var nanoseconds = HEAP32[times + 8 >> 2];
+   var nanoseconds = GROWABLE_HEAP_I32()[times + 8 >> 2];
    atime = seconds * 1e3 + nanoseconds / (1e3 * 1e3);
    times += 16;
    seconds = readI53FromI64(times);
-   nanoseconds = HEAP32[times + 8 >> 2];
+   nanoseconds = GROWABLE_HEAP_I32()[times + 8 >> 2];
    mtime = seconds * 1e3 + nanoseconds / (1e3 * 1e3);
   }
   FS.utime(path, atime, mtime);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return -e.errno;
  }
 }
 
-function __dlinit(main_dso_handle) {}
-
-var dlopenMissingError = "To use dlopen, you need enable dynamic linking, see https://github.com/emscripten-core/emscripten/wiki/Linking";
-
-function __dlopen_js(filename, flag) {
- abort(dlopenMissingError);
-}
-
-function __dlsym_js(handle, symbol) {
- abort(dlopenMissingError);
+function __emscripten_default_pthread_stack_size() {
+ return 65536;
 }
 
 var nowIsMonotonic = true;
@@ -4715,215 +5188,13 @@ function __emscripten_get_now_is_monotonic() {
  return nowIsMonotonic;
 }
 
-function __emscripten_throw_longjmp() {
- throw Infinity;
-}
-
-function __gmtime_js(time, tmPtr) {
- var date = new Date(readI53FromI64(time) * 1e3);
- HEAP32[tmPtr >> 2] = date.getUTCSeconds();
- HEAP32[tmPtr + 4 >> 2] = date.getUTCMinutes();
- HEAP32[tmPtr + 8 >> 2] = date.getUTCHours();
- HEAP32[tmPtr + 12 >> 2] = date.getUTCDate();
- HEAP32[tmPtr + 16 >> 2] = date.getUTCMonth();
- HEAP32[tmPtr + 20 >> 2] = date.getUTCFullYear() - 1900;
- HEAP32[tmPtr + 24 >> 2] = date.getUTCDay();
- var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
- var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
- HEAP32[tmPtr + 28 >> 2] = yday;
-}
-
-function __localtime_js(time, tmPtr) {
- var date = new Date(readI53FromI64(time) * 1e3);
- HEAP32[tmPtr >> 2] = date.getSeconds();
- HEAP32[tmPtr + 4 >> 2] = date.getMinutes();
- HEAP32[tmPtr + 8 >> 2] = date.getHours();
- HEAP32[tmPtr + 12 >> 2] = date.getDate();
- HEAP32[tmPtr + 16 >> 2] = date.getMonth();
- HEAP32[tmPtr + 20 >> 2] = date.getFullYear() - 1900;
- HEAP32[tmPtr + 24 >> 2] = date.getDay();
- var start = new Date(date.getFullYear(), 0, 1);
- var yday = (date.getTime() - start.getTime()) / (1e3 * 60 * 60 * 24) | 0;
- HEAP32[tmPtr + 28 >> 2] = yday;
- HEAP32[tmPtr + 36 >> 2] = -(date.getTimezoneOffset() * 60);
- var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
- var winterOffset = start.getTimezoneOffset();
- var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
- HEAP32[tmPtr + 32 >> 2] = dst;
-}
-
-function __mktime_js(tmPtr) {
- var date = new Date(HEAP32[tmPtr + 20 >> 2] + 1900, HEAP32[tmPtr + 16 >> 2], HEAP32[tmPtr + 12 >> 2], HEAP32[tmPtr + 8 >> 2], HEAP32[tmPtr + 4 >> 2], HEAP32[tmPtr >> 2], 0);
- var dst = HEAP32[tmPtr + 32 >> 2];
- var guessedOffset = date.getTimezoneOffset();
- var start = new Date(date.getFullYear(), 0, 1);
- var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
- var winterOffset = start.getTimezoneOffset();
- var dstOffset = Math.min(winterOffset, summerOffset);
- if (dst < 0) {
-  HEAP32[tmPtr + 32 >> 2] = Number(summerOffset != winterOffset && dstOffset == guessedOffset);
- } else if (dst > 0 != (dstOffset == guessedOffset)) {
-  var nonDstOffset = Math.max(winterOffset, summerOffset);
-  var trueOffset = dst > 0 ? dstOffset : nonDstOffset;
-  date.setTime(date.getTime() + (trueOffset - guessedOffset) * 6e4);
- }
- HEAP32[tmPtr + 24 >> 2] = date.getDay();
- var yday = (date.getTime() - start.getTime()) / (1e3 * 60 * 60 * 24) | 0;
- HEAP32[tmPtr + 28 >> 2] = yday;
- HEAP32[tmPtr >> 2] = date.getSeconds();
- HEAP32[tmPtr + 4 >> 2] = date.getMinutes();
- HEAP32[tmPtr + 8 >> 2] = date.getHours();
- HEAP32[tmPtr + 12 >> 2] = date.getDate();
- HEAP32[tmPtr + 16 >> 2] = date.getMonth();
- HEAP32[tmPtr + 20 >> 2] = date.getYear();
- return date.getTime() / 1e3 | 0;
-}
-
-function __mmap_js(len, prot, flags, fd, off, allocated) {
- try {
-  var stream = SYSCALLS.getStreamFromFD(fd);
-  var res = FS.mmap(stream, len, off, prot, flags);
-  var ptr = res.ptr;
-  HEAP32[allocated >> 2] = res.allocated;
-  return ptr;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
-  return -e.errno;
- }
-}
-
-function __munmap_js(addr, len, prot, flags, fd, offset) {
- try {
-  var stream = SYSCALLS.getStreamFromFD(fd);
-  if (prot & 2) {
-   SYSCALLS.doMsync(addr, stream, len, flags, offset);
-  }
-  FS.munmap(stream);
- } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
-  return -e.errno;
- }
-}
-
-function allocateUTF8(str) {
- var size = lengthBytesUTF8(str) + 1;
- var ret = _malloc(size);
- if (ret) stringToUTF8Array(str, HEAP8, ret, size);
- return ret;
-}
-
-function _tzset_impl(timezone, daylight, tzname) {
- var currentYear = new Date().getFullYear();
- var winter = new Date(currentYear, 0, 1);
- var summer = new Date(currentYear, 6, 1);
- var winterOffset = winter.getTimezoneOffset();
- var summerOffset = summer.getTimezoneOffset();
- var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
- HEAP32[timezone >> 2] = stdTimezoneOffset * 60;
- HEAP32[daylight >> 2] = Number(winterOffset != summerOffset);
- function extractZone(date) {
-  var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
-  return match ? match[1] : "GMT";
- }
- var winterName = extractZone(winter);
- var summerName = extractZone(summer);
- var winterNamePtr = allocateUTF8(winterName);
- var summerNamePtr = allocateUTF8(summerName);
- if (summerOffset < winterOffset) {
-  HEAPU32[tzname >> 2] = winterNamePtr;
-  HEAPU32[tzname + 4 >> 2] = summerNamePtr;
- } else {
-  HEAPU32[tzname >> 2] = summerNamePtr;
-  HEAPU32[tzname + 4 >> 2] = winterNamePtr;
- }
-}
-
-function __tzset_js(timezone, daylight, tzname) {
- if (__tzset_js.called) return;
- __tzset_js.called = true;
- _tzset_impl(timezone, daylight, tzname);
-}
-
-function _abort() {
- abort("");
-}
-
-function _emscripten_date_now() {
- return Date.now();
-}
-
-function getHeapMax() {
- return 2147483648;
-}
-
-function _emscripten_get_heap_max() {
- return getHeapMax();
-}
-
-var _emscripten_get_now;
-
-if (ENVIRONMENT_IS_NODE) {
- _emscripten_get_now = () => {
-  var t = process["hrtime"]();
-  return t[0] * 1e3 + t[1] / 1e6;
- };
-} else _emscripten_get_now = () => performance.now();
-
-function _emscripten_memcpy_big(dest, src, num) {
- HEAPU8.copyWithin(dest, src, src + num);
-}
-
-function emscripten_realloc_buffer(size) {
- try {
-  wasmMemory.grow(size - buffer.byteLength + 65535 >>> 16);
-  updateGlobalBufferAndViews(wasmMemory.buffer);
-  return 1;
- } catch (e) {}
-}
-
-function _emscripten_resize_heap(requestedSize) {
- var oldSize = HEAPU8.length;
- requestedSize = requestedSize >>> 0;
- var maxHeapSize = getHeapMax();
- if (requestedSize > maxHeapSize) {
-  return false;
- }
- let alignUp = (x, multiple) => x + (multiple - x % multiple) % multiple;
- for (var cutDown = 1; cutDown <= 4; cutDown *= 2) {
-  var overGrownHeapSize = oldSize * (1 + .2 / cutDown);
-  overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296);
-  var newSize = Math.min(maxHeapSize, alignUp(Math.max(requestedSize, overGrownHeapSize), 65536));
-  var replacement = emscripten_realloc_buffer(newSize);
-  if (replacement) {
-   return true;
-  }
- }
- return false;
-}
-
-function _proc_exit(code) {
- EXITSTATUS = code;
- if (!keepRuntimeAlive()) {
-  if (Module["onExit"]) Module["onExit"](code);
-  ABORT = true;
- }
- quit_(code, new ExitStatus(code));
-}
-
-function exitJS(status, implicit) {
- EXITSTATUS = status;
- if (!keepRuntimeAlive()) {
-  exitRuntime();
- }
- _proc_exit(status);
-}
-
-var _exit = exitJS;
-
 function maybeExit() {
+ if (runtimeExited) {
+  return;
+ }
  if (!keepRuntimeAlive()) {
   try {
-   _exit(EXITSTATUS);
+   if (ENVIRONMENT_IS_PTHREAD) __emscripten_thread_exit(EXITSTATUS); else _exit(EXITSTATUS);
   } catch (e) {
    handleException(e);
   }
@@ -4942,8 +5213,324 @@ function callUserCallback(func) {
  }
 }
 
+function __emscripten_thread_mailbox_await(pthread_ptr) {
+ if (typeof Atomics.waitAsync === "function") {
+  var wait = Atomics.waitAsync(GROWABLE_HEAP_I32(), pthread_ptr >> 2, pthread_ptr);
+  wait.value.then(checkMailbox);
+  var waitingAsync = pthread_ptr + 128;
+  Atomics.store(GROWABLE_HEAP_I32(), waitingAsync >> 2, 1);
+ }
+}
+
+Module["__emscripten_thread_mailbox_await"] = __emscripten_thread_mailbox_await;
+
+function checkMailbox() {
+ var pthread_ptr = _pthread_self();
+ if (pthread_ptr) {
+  __emscripten_thread_mailbox_await(pthread_ptr);
+  callUserCallback(() => __emscripten_check_mailbox());
+ }
+}
+
+Module["checkMailbox"] = checkMailbox;
+
+function __emscripten_notify_mailbox_postmessage(targetThreadId, currThreadId, mainThreadId) {
+ if (targetThreadId == currThreadId) {
+  setTimeout(() => checkMailbox());
+ } else if (ENVIRONMENT_IS_PTHREAD) {
+  postMessage({
+   "targetThread": targetThreadId,
+   "cmd": "checkMailbox"
+  });
+ } else {
+  var worker = PThread.pthreads[targetThreadId];
+  if (!worker) {
+   return;
+  }
+  worker.postMessage({
+   "cmd": "checkMailbox"
+  });
+ }
+}
+
+function __emscripten_set_offscreencanvas_size(target, width, height) {
+ return -1;
+}
+
+function __emscripten_throw_longjmp() {
+ throw Infinity;
+}
+
+function __gmtime_js(time, tmPtr) {
+ var date = new Date(readI53FromI64(time) * 1e3);
+ GROWABLE_HEAP_I32()[tmPtr >> 2] = date.getUTCSeconds();
+ GROWABLE_HEAP_I32()[tmPtr + 4 >> 2] = date.getUTCMinutes();
+ GROWABLE_HEAP_I32()[tmPtr + 8 >> 2] = date.getUTCHours();
+ GROWABLE_HEAP_I32()[tmPtr + 12 >> 2] = date.getUTCDate();
+ GROWABLE_HEAP_I32()[tmPtr + 16 >> 2] = date.getUTCMonth();
+ GROWABLE_HEAP_I32()[tmPtr + 20 >> 2] = date.getUTCFullYear() - 1900;
+ GROWABLE_HEAP_I32()[tmPtr + 24 >> 2] = date.getUTCDay();
+ var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+ var yday = (date.getTime() - start) / (1e3 * 60 * 60 * 24) | 0;
+ GROWABLE_HEAP_I32()[tmPtr + 28 >> 2] = yday;
+}
+
+function __isLeapYear(year) {
+ return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+var __MONTH_DAYS_LEAP_CUMULATIVE = [ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335 ];
+
+var __MONTH_DAYS_REGULAR_CUMULATIVE = [ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 ];
+
+function __yday_from_date(date) {
+ var isLeapYear = __isLeapYear(date.getFullYear());
+ var monthDaysCumulative = isLeapYear ? __MONTH_DAYS_LEAP_CUMULATIVE : __MONTH_DAYS_REGULAR_CUMULATIVE;
+ var yday = monthDaysCumulative[date.getMonth()] + date.getDate() - 1;
+ return yday;
+}
+
+function __localtime_js(time, tmPtr) {
+ var date = new Date(readI53FromI64(time) * 1e3);
+ GROWABLE_HEAP_I32()[tmPtr >> 2] = date.getSeconds();
+ GROWABLE_HEAP_I32()[tmPtr + 4 >> 2] = date.getMinutes();
+ GROWABLE_HEAP_I32()[tmPtr + 8 >> 2] = date.getHours();
+ GROWABLE_HEAP_I32()[tmPtr + 12 >> 2] = date.getDate();
+ GROWABLE_HEAP_I32()[tmPtr + 16 >> 2] = date.getMonth();
+ GROWABLE_HEAP_I32()[tmPtr + 20 >> 2] = date.getFullYear() - 1900;
+ GROWABLE_HEAP_I32()[tmPtr + 24 >> 2] = date.getDay();
+ var yday = __yday_from_date(date) | 0;
+ GROWABLE_HEAP_I32()[tmPtr + 28 >> 2] = yday;
+ GROWABLE_HEAP_I32()[tmPtr + 36 >> 2] = -(date.getTimezoneOffset() * 60);
+ var start = new Date(date.getFullYear(), 0, 1);
+ var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+ var winterOffset = start.getTimezoneOffset();
+ var dst = (summerOffset != winterOffset && date.getTimezoneOffset() == Math.min(winterOffset, summerOffset)) | 0;
+ GROWABLE_HEAP_I32()[tmPtr + 32 >> 2] = dst;
+}
+
+function __mktime_js(tmPtr) {
+ var date = new Date(GROWABLE_HEAP_I32()[tmPtr + 20 >> 2] + 1900, GROWABLE_HEAP_I32()[tmPtr + 16 >> 2], GROWABLE_HEAP_I32()[tmPtr + 12 >> 2], GROWABLE_HEAP_I32()[tmPtr + 8 >> 2], GROWABLE_HEAP_I32()[tmPtr + 4 >> 2], GROWABLE_HEAP_I32()[tmPtr >> 2], 0);
+ var dst = GROWABLE_HEAP_I32()[tmPtr + 32 >> 2];
+ var guessedOffset = date.getTimezoneOffset();
+ var start = new Date(date.getFullYear(), 0, 1);
+ var summerOffset = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
+ var winterOffset = start.getTimezoneOffset();
+ var dstOffset = Math.min(winterOffset, summerOffset);
+ if (dst < 0) {
+  GROWABLE_HEAP_I32()[tmPtr + 32 >> 2] = Number(summerOffset != winterOffset && dstOffset == guessedOffset);
+ } else if (dst > 0 != (dstOffset == guessedOffset)) {
+  var nonDstOffset = Math.max(winterOffset, summerOffset);
+  var trueOffset = dst > 0 ? dstOffset : nonDstOffset;
+  date.setTime(date.getTime() + (trueOffset - guessedOffset) * 6e4);
+ }
+ GROWABLE_HEAP_I32()[tmPtr + 24 >> 2] = date.getDay();
+ var yday = __yday_from_date(date) | 0;
+ GROWABLE_HEAP_I32()[tmPtr + 28 >> 2] = yday;
+ GROWABLE_HEAP_I32()[tmPtr >> 2] = date.getSeconds();
+ GROWABLE_HEAP_I32()[tmPtr + 4 >> 2] = date.getMinutes();
+ GROWABLE_HEAP_I32()[tmPtr + 8 >> 2] = date.getHours();
+ GROWABLE_HEAP_I32()[tmPtr + 12 >> 2] = date.getDate();
+ GROWABLE_HEAP_I32()[tmPtr + 16 >> 2] = date.getMonth();
+ GROWABLE_HEAP_I32()[tmPtr + 20 >> 2] = date.getYear();
+ return date.getTime() / 1e3 | 0;
+}
+
+function __mmap_js(len, prot, flags, fd, off, allocated, addr) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(45, 1, len, prot, flags, fd, off, allocated, addr);
+ try {
+  var stream = SYSCALLS.getStreamFromFD(fd);
+  var res = FS.mmap(stream, len, off, prot, flags);
+  var ptr = res.ptr;
+  GROWABLE_HEAP_I32()[allocated >> 2] = res.allocated;
+  GROWABLE_HEAP_U32()[addr >> 2] = ptr;
+  return 0;
+ } catch (e) {
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
+  return -e.errno;
+ }
+}
+
+function __munmap_js(addr, len, prot, flags, fd, offset) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(46, 1, addr, len, prot, flags, fd, offset);
+ try {
+  var stream = SYSCALLS.getStreamFromFD(fd);
+  if (prot & 2) {
+   SYSCALLS.doMsync(addr, stream, len, flags, offset);
+  }
+  FS.munmap(stream);
+ } catch (e) {
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
+  return -e.errno;
+ }
+}
+
+var timers = {};
+
+var _emscripten_get_now;
+
+if (ENVIRONMENT_IS_NODE) {
+ _emscripten_get_now = () => {
+  var t = process.hrtime();
+  return t[0] * 1e3 + t[1] / 1e6;
+ };
+} else _emscripten_get_now = () => performance.timeOrigin + performance.now();
+
+function __setitimer_js(which, timeout_ms) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(47, 1, which, timeout_ms);
+ if (timers[which]) {
+  clearTimeout(timers[which].id);
+  delete timers[which];
+ }
+ if (!timeout_ms) return 0;
+ var id = setTimeout(() => {
+  delete timers[which];
+  callUserCallback(() => __emscripten_timeout(which, _emscripten_get_now()));
+ }, timeout_ms);
+ timers[which] = {
+  id: id,
+  timeout_ms: timeout_ms
+ };
+ return 0;
+}
+
+function allocateUTF8(str) {
+ var size = lengthBytesUTF8(str) + 1;
+ var ret = _malloc(size);
+ if (ret) stringToUTF8Array(str, GROWABLE_HEAP_I8(), ret, size);
+ return ret;
+}
+
+function __tzset_js(timezone, daylight, tzname) {
+ var currentYear = new Date().getFullYear();
+ var winter = new Date(currentYear, 0, 1);
+ var summer = new Date(currentYear, 6, 1);
+ var winterOffset = winter.getTimezoneOffset();
+ var summerOffset = summer.getTimezoneOffset();
+ var stdTimezoneOffset = Math.max(winterOffset, summerOffset);
+ GROWABLE_HEAP_U32()[timezone >> 2] = stdTimezoneOffset * 60;
+ GROWABLE_HEAP_I32()[daylight >> 2] = Number(winterOffset != summerOffset);
+ function extractZone(date) {
+  var match = date.toTimeString().match(/\(([A-Za-z ]+)\)$/);
+  return match ? match[1] : "GMT";
+ }
+ var winterName = extractZone(winter);
+ var summerName = extractZone(summer);
+ var winterNamePtr = allocateUTF8(winterName);
+ var summerNamePtr = allocateUTF8(summerName);
+ if (summerOffset < winterOffset) {
+  GROWABLE_HEAP_U32()[tzname >> 2] = winterNamePtr;
+  GROWABLE_HEAP_U32()[tzname + 4 >> 2] = summerNamePtr;
+ } else {
+  GROWABLE_HEAP_U32()[tzname >> 2] = summerNamePtr;
+  GROWABLE_HEAP_U32()[tzname + 4 >> 2] = winterNamePtr;
+ }
+}
+
+function _abort() {
+ abort("");
+}
+
+function _dlopen(handle) {
+ abort(dlopenMissingError);
+}
+
+function _emscripten_check_blocking_allowed() {}
+
+function _emscripten_date_now() {
+ return Date.now();
+}
+
 function runtimeKeepalivePush() {
  runtimeKeepaliveCounter += 1;
+}
+
+function _emscripten_exit_with_live_runtime() {
+ runtimeKeepalivePush();
+ throw "unwind";
+}
+
+function getHeapMax() {
+ return 2147483648;
+}
+
+function _emscripten_get_heap_max() {
+ return getHeapMax();
+}
+
+function _emscripten_memcpy_big(dest, src, num) {
+ GROWABLE_HEAP_U8().copyWithin(dest, src, src + num);
+}
+
+function _emscripten_num_logical_cores() {
+ if (ENVIRONMENT_IS_NODE) return require("os").cpus().length;
+ return navigator["hardwareConcurrency"];
+}
+
+function withStackSave(f) {
+ var stack = stackSave();
+ var ret = f();
+ stackRestore(stack);
+ return ret;
+}
+
+function _emscripten_proxy_to_main_thread_js(index, sync) {
+ var numCallArgs = arguments.length - 2;
+ var outerArgs = arguments;
+ return withStackSave(() => {
+  var serializedNumCallArgs = numCallArgs;
+  var args = stackAlloc(serializedNumCallArgs * 8);
+  var b = args >> 3;
+  for (var i = 0; i < numCallArgs; i++) {
+   var arg = outerArgs[2 + i];
+   GROWABLE_HEAP_F64()[b + i] = arg;
+  }
+  return __emscripten_run_in_main_runtime_thread_js(index, serializedNumCallArgs, args, sync);
+ });
+}
+
+var _emscripten_receive_on_main_thread_js_callArgs = [];
+
+function _emscripten_receive_on_main_thread_js(index, numCallArgs, args) {
+ _emscripten_receive_on_main_thread_js_callArgs.length = numCallArgs;
+ var b = args >> 3;
+ for (var i = 0; i < numCallArgs; i++) {
+  _emscripten_receive_on_main_thread_js_callArgs[i] = GROWABLE_HEAP_F64()[b + i];
+ }
+ var func = proxiedFunctionTable[index];
+ return func.apply(null, _emscripten_receive_on_main_thread_js_callArgs);
+}
+
+function emscripten_realloc_buffer(size) {
+ var b = wasmMemory.buffer;
+ try {
+  wasmMemory.grow(size - b.byteLength + 65535 >>> 16);
+  updateMemoryViews();
+  return 1;
+ } catch (e) {}
+}
+
+function _emscripten_resize_heap(requestedSize) {
+ var oldSize = GROWABLE_HEAP_U8().length;
+ requestedSize = requestedSize >>> 0;
+ if (requestedSize <= oldSize) {
+  return false;
+ }
+ var maxHeapSize = getHeapMax();
+ if (requestedSize > maxHeapSize) {
+  return false;
+ }
+ let alignUp = (x, multiple) => x + (multiple - x % multiple) % multiple;
+ for (var cutDown = 1; cutDown <= 4; cutDown *= 2) {
+  var overGrownHeapSize = oldSize * (1 + .2 / cutDown);
+  overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296);
+  var newSize = Math.min(maxHeapSize, alignUp(Math.max(requestedSize, overGrownHeapSize), 65536));
+  var replacement = emscripten_realloc_buffer(newSize);
+  if (replacement) {
+   return true;
+  }
+ }
+ return false;
 }
 
 function runtimeKeepalivePop() {
@@ -4994,16 +5581,17 @@ function getEnvStrings() {
 
 function writeAsciiToMemory(str, buffer, dontAddNull) {
  for (var i = 0; i < str.length; ++i) {
-  HEAP8[buffer++ >> 0] = str.charCodeAt(i);
+  GROWABLE_HEAP_I8()[buffer++ >> 0] = str.charCodeAt(i);
  }
- if (!dontAddNull) HEAP8[buffer >> 0] = 0;
+ if (!dontAddNull) GROWABLE_HEAP_I8()[buffer >> 0] = 0;
 }
 
 function _environ_get(__environ, environ_buf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(48, 1, __environ, environ_buf);
  var bufSize = 0;
  getEnvStrings().forEach(function(string, i) {
   var ptr = environ_buf + bufSize;
-  HEAPU32[__environ + i * 4 >> 2] = ptr;
+  GROWABLE_HEAP_U32()[__environ + i * 4 >> 2] = ptr;
   writeAsciiToMemory(string, ptr);
   bufSize += string.length + 1;
  });
@@ -5011,35 +5599,38 @@ function _environ_get(__environ, environ_buf) {
 }
 
 function _environ_sizes_get(penviron_count, penviron_buf_size) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(49, 1, penviron_count, penviron_buf_size);
  var strings = getEnvStrings();
- HEAPU32[penviron_count >> 2] = strings.length;
+ GROWABLE_HEAP_U32()[penviron_count >> 2] = strings.length;
  var bufSize = 0;
  strings.forEach(function(string) {
   bufSize += string.length + 1;
  });
- HEAPU32[penviron_buf_size >> 2] = bufSize;
+ GROWABLE_HEAP_U32()[penviron_buf_size >> 2] = bufSize;
  return 0;
 }
 
 function _fd_close(fd) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(50, 1, fd);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   FS.close(stream);
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return e.errno;
  }
 }
 
 function _fd_fdstat_get(fd, pbuf) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(51, 1, fd, pbuf);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   var type = stream.tty ? 2 : FS.isDir(stream.mode) ? 3 : FS.isLink(stream.mode) ? 7 : 4;
-  HEAP8[pbuf >> 0] = type;
+  GROWABLE_HEAP_I8()[pbuf >> 0] = type;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return e.errno;
  }
 }
@@ -5047,41 +5638,46 @@ function _fd_fdstat_get(fd, pbuf) {
 function doReadv(stream, iov, iovcnt, offset) {
  var ret = 0;
  for (var i = 0; i < iovcnt; i++) {
-  var ptr = HEAPU32[iov >> 2];
-  var len = HEAPU32[iov + 4 >> 2];
+  var ptr = GROWABLE_HEAP_U32()[iov >> 2];
+  var len = GROWABLE_HEAP_U32()[iov + 4 >> 2];
   iov += 8;
-  var curr = FS.read(stream, HEAP8, ptr, len, offset);
+  var curr = FS.read(stream, GROWABLE_HEAP_I8(), ptr, len, offset);
   if (curr < 0) return -1;
   ret += curr;
   if (curr < len) break;
+  if (typeof offset !== "undefined") {
+   offset += curr;
+  }
  }
  return ret;
 }
 
 function _fd_read(fd, iov, iovcnt, pnum) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(52, 1, fd, iov, iovcnt, pnum);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   var num = doReadv(stream, iov, iovcnt);
-  HEAPU32[pnum >> 2] = num;
+  GROWABLE_HEAP_U32()[pnum >> 2] = num;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return e.errno;
  }
 }
 
 function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(53, 1, fd, offset_low, offset_high, whence, newOffset);
  try {
   var offset = convertI32PairToI53Checked(offset_low, offset_high);
   if (isNaN(offset)) return 61;
   var stream = SYSCALLS.getStreamFromFD(fd);
   FS.llseek(stream, offset, whence);
   tempI64 = [ stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[newOffset >> 2] = tempI64[0], HEAP32[newOffset + 4 >> 2] = tempI64[1];
+  GROWABLE_HEAP_I32()[newOffset >> 2] = tempI64[0], GROWABLE_HEAP_I32()[newOffset + 4 >> 2] = tempI64[1];
   if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return e.errno;
  }
 }
@@ -5089,29 +5685,34 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
 function doWritev(stream, iov, iovcnt, offset) {
  var ret = 0;
  for (var i = 0; i < iovcnt; i++) {
-  var ptr = HEAPU32[iov >> 2];
-  var len = HEAPU32[iov + 4 >> 2];
+  var ptr = GROWABLE_HEAP_U32()[iov >> 2];
+  var len = GROWABLE_HEAP_U32()[iov + 4 >> 2];
   iov += 8;
-  var curr = FS.write(stream, HEAP8, ptr, len, offset);
+  var curr = FS.write(stream, GROWABLE_HEAP_I8(), ptr, len, offset);
   if (curr < 0) return -1;
   ret += curr;
+  if (typeof offset !== "undefined") {
+   offset += curr;
+  }
  }
  return ret;
 }
 
 function _fd_write(fd, iov, iovcnt, pnum) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(54, 1, fd, iov, iovcnt, pnum);
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   var num = doWritev(stream, iov, iovcnt);
-  HEAPU32[pnum >> 2] = num;
+  GROWABLE_HEAP_U32()[pnum >> 2] = num;
   return 0;
  } catch (e) {
-  if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
+  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   return e.errno;
  }
 }
 
 function _getaddrinfo(node, service, hint, out) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(55, 1, node, service, hint, out);
  var addr = 0;
  var port = 0;
  var flags = 0;
@@ -5128,24 +5729,24 @@ function _getaddrinfo(node, service, hint, out) {
   errno = writeSockaddr(sa, family, addr, port);
   assert(!errno);
   ai = _malloc(32);
-  HEAP32[ai + 4 >> 2] = family;
-  HEAP32[ai + 8 >> 2] = type;
-  HEAP32[ai + 12 >> 2] = proto;
-  HEAP32[ai + 24 >> 2] = canon;
-  HEAPU32[ai + 20 >> 2] = sa;
+  GROWABLE_HEAP_I32()[ai + 4 >> 2] = family;
+  GROWABLE_HEAP_I32()[ai + 8 >> 2] = type;
+  GROWABLE_HEAP_I32()[ai + 12 >> 2] = proto;
+  GROWABLE_HEAP_I32()[ai + 24 >> 2] = canon;
+  GROWABLE_HEAP_U32()[ai + 20 >> 2] = sa;
   if (family === 10) {
-   HEAP32[ai + 16 >> 2] = 28;
+   GROWABLE_HEAP_I32()[ai + 16 >> 2] = 28;
   } else {
-   HEAP32[ai + 16 >> 2] = 16;
+   GROWABLE_HEAP_I32()[ai + 16 >> 2] = 16;
   }
-  HEAP32[ai + 28 >> 2] = 0;
+  GROWABLE_HEAP_I32()[ai + 28 >> 2] = 0;
   return ai;
  }
  if (hint) {
-  flags = HEAP32[hint >> 2];
-  family = HEAP32[hint + 4 >> 2];
-  type = HEAP32[hint + 8 >> 2];
-  proto = HEAP32[hint + 12 >> 2];
+  flags = GROWABLE_HEAP_I32()[hint >> 2];
+  family = GROWABLE_HEAP_I32()[hint + 4 >> 2];
+  type = GROWABLE_HEAP_I32()[hint + 8 >> 2];
+  proto = GROWABLE_HEAP_I32()[hint + 12 >> 2];
  }
  if (type && !proto) {
   proto = type === 2 ? 17 : 6;
@@ -5165,7 +5766,7 @@ function _getaddrinfo(node, service, hint, out) {
  if (flags & ~(1 | 2 | 4 | 1024 | 8 | 16 | 32)) {
   return -1;
  }
- if (hint !== 0 && HEAP32[hint >> 2] & 2 && !node) {
+ if (hint !== 0 && GROWABLE_HEAP_I32()[hint >> 2] & 2 && !node) {
   return -1;
  }
  if (flags & 32) {
@@ -5199,7 +5800,7 @@ function _getaddrinfo(node, service, hint, out) {
    }
   }
   ai = allocaddrinfo(family, type, proto, null, addr, port);
-  HEAPU32[out >> 2] = ai;
+  GROWABLE_HEAP_U32()[out >> 2] = ai;
   return 0;
  }
  node = UTF8ToString(node);
@@ -5225,7 +5826,7 @@ function _getaddrinfo(node, service, hint, out) {
  }
  if (addr != null) {
   ai = allocaddrinfo(family, type, proto, node, addr, port);
-  HEAPU32[out >> 2] = ai;
+  GROWABLE_HEAP_U32()[out >> 2] = ai;
   return 0;
  }
  if (flags & 4) {
@@ -5239,7 +5840,7 @@ function _getaddrinfo(node, service, hint, out) {
   addr = [ 0, 0, _htonl(65535), addr ];
  }
  ai = allocaddrinfo(family, type, proto, null, addr, port);
- HEAPU32[out >> 2] = ai;
+ GROWABLE_HEAP_U32()[out >> 2] = ai;
  return 0;
 }
 
@@ -5247,27 +5848,28 @@ function getHostByName(name) {
  var ret = _malloc(20);
  var nameBuf = _malloc(name.length + 1);
  stringToUTF8(name, nameBuf, name.length + 1);
- HEAPU32[ret >> 2] = nameBuf;
+ GROWABLE_HEAP_U32()[ret >> 2] = nameBuf;
  var aliasesBuf = _malloc(4);
- HEAPU32[aliasesBuf >> 2] = 0;
- HEAPU32[ret + 4 >> 2] = aliasesBuf;
+ GROWABLE_HEAP_U32()[aliasesBuf >> 2] = 0;
+ GROWABLE_HEAP_U32()[ret + 4 >> 2] = aliasesBuf;
  var afinet = 2;
- HEAP32[ret + 8 >> 2] = afinet;
- HEAP32[ret + 12 >> 2] = 4;
+ GROWABLE_HEAP_I32()[ret + 8 >> 2] = afinet;
+ GROWABLE_HEAP_I32()[ret + 12 >> 2] = 4;
  var addrListBuf = _malloc(12);
- HEAPU32[addrListBuf >> 2] = addrListBuf + 8;
- HEAPU32[addrListBuf + 4 >> 2] = 0;
- HEAP32[addrListBuf + 8 >> 2] = inetPton4(DNS.lookup_name(name));
- HEAPU32[ret + 16 >> 2] = addrListBuf;
+ GROWABLE_HEAP_U32()[addrListBuf >> 2] = addrListBuf + 8;
+ GROWABLE_HEAP_U32()[addrListBuf + 4 >> 2] = 0;
+ GROWABLE_HEAP_I32()[addrListBuf + 8 >> 2] = inetPton4(DNS.lookup_name(name));
+ GROWABLE_HEAP_U32()[ret + 16 >> 2] = addrListBuf;
  return ret;
 }
 
 function _gethostbyaddr(addr, addrlen, type) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(56, 1, addr, addrlen, type);
  if (type !== 2) {
   setErrNo(5);
   return null;
  }
- addr = HEAP32[addr >> 2];
+ addr = GROWABLE_HEAP_I32()[addr >> 2];
  var host = inetNtop4(addr);
  var lookup = DNS.lookup_addr(host);
  if (lookup) {
@@ -5277,15 +5879,17 @@ function _gethostbyaddr(addr, addrlen, type) {
 }
 
 function _gethostbyname(name) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(58, 1, name);
  return getHostByName(UTF8ToString(name));
 }
 
 function _gethostbyname_r(name, ret, buf, buflen, out, err) {
+ if (ENVIRONMENT_IS_PTHREAD) return _emscripten_proxy_to_main_thread_js(57, 1, name, ret, buf, buflen, out, err);
  var data = _gethostbyname(name);
  _memcpy(ret, data, 20);
  _free(data);
- HEAP32[err >> 2] = 0;
- HEAPU32[out >> 2] = ret;
+ GROWABLE_HEAP_I32()[err >> 2] = 0;
+ GROWABLE_HEAP_U32()[out >> 2] = ret;
  return 0;
 }
 
@@ -5293,7 +5897,7 @@ function _getloadavg(loadavg, nelem) {
  var limit = Math.min(nelem, 3);
  var doubleSize = 8;
  for (var i = 0; i < limit; i++) {
-  HEAPF64[loadavg + i * doubleSize >> 3] = .1;
+  GROWABLE_HEAP_F64()[loadavg + i * doubleSize >> 3] = .1;
  }
  return limit;
 }
@@ -5333,61 +5937,10 @@ function _getnameinfo(sa, salen, node, nodelen, serv, servlen, flags) {
  return 0;
 }
 
-var Protocols = {
- list: [],
- map: {}
-};
-
-function _setprotoent(stayopen) {
- function allocprotoent(name, proto, aliases) {
-  var nameBuf = _malloc(name.length + 1);
-  writeAsciiToMemory(name, nameBuf);
-  var j = 0;
-  var length = aliases.length;
-  var aliasListBuf = _malloc((length + 1) * 4);
-  for (var i = 0; i < length; i++, j += 4) {
-   var alias = aliases[i];
-   var aliasBuf = _malloc(alias.length + 1);
-   writeAsciiToMemory(alias, aliasBuf);
-   HEAPU32[aliasListBuf + j >> 2] = aliasBuf;
-  }
-  HEAPU32[aliasListBuf + j >> 2] = 0;
-  var pe = _malloc(12);
-  HEAPU32[pe >> 2] = nameBuf;
-  HEAPU32[pe + 4 >> 2] = aliasListBuf;
-  HEAP32[pe + 8 >> 2] = proto;
-  return pe;
- }
- var list = Protocols.list;
- var map = Protocols.map;
- if (list.length === 0) {
-  var entry = allocprotoent("tcp", 6, [ "TCP" ]);
-  list.push(entry);
-  map["tcp"] = map["6"] = entry;
-  entry = allocprotoent("udp", 17, [ "UDP" ]);
-  list.push(entry);
-  map["udp"] = map["17"] = entry;
- }
- _setprotoent.index = 0;
-}
-
-function _getprotobyname(name) {
- name = UTF8ToString(name);
- _setprotoent(true);
- var result = Protocols.map[name];
- return result;
-}
-
-function _getprotobynumber(number) {
- _setprotoent(true);
- var result = Protocols.map[number];
- return result;
-}
-
 function allocateUTF8OnStack(str) {
  var size = lengthBytesUTF8(str) + 1;
  var ret = stackAlloc(size);
- stringToUTF8Array(str, HEAP8, ret, size);
+ stringToUTF8Array(str, GROWABLE_HEAP_I8(), ret, size);
  return ret;
 }
 
@@ -5482,7 +6035,7 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
  if (!modestr.length) return 0;
  if (Module["popen_to_file"]) {
   const {path: path, exitCode: exitCode} = Module["popen_to_file"](cmdstr, modestr);
-  HEAPU8[exitCodePtr] = exitCode;
+  GROWABLE_HEAP_U8()[exitCodePtr] = exitCode;
   return allocateUTF8OnStack(path);
  }
  if (ENVIRONMENT_IS_NODE) {
@@ -5496,7 +6049,7 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
     shell: true,
     stdio: [ "inherit", "pipe", "inherit" ]
    });
-   HEAPU8[exitCodePtr] = ret.status;
+   GROWABLE_HEAP_U8()[exitCodePtr] = ret.status;
    require("fs").writeFileSync(pipeFilePath, ret.stdout, {
     encoding: "utf8",
     flag: "w+"
@@ -5512,10 +6065,6 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
  }
  throw new Error("popen() is unsupported in the browser. Implement popen_to_file in your Module " + "or disable shell_exec() and similar functions via php.ini.");
  return _W_EXITCODE(0, 2);
-}
-
-function __isLeapYear(year) {
- return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
 
 function __arraySum(array, index) {
@@ -5551,19 +6100,23 @@ function __addDays(date, days) {
  return newDate;
 }
 
+function writeArrayToMemory(array, buffer) {
+ GROWABLE_HEAP_I8().set(array, buffer);
+}
+
 function _strftime(s, maxsize, format, tm) {
- var tm_zone = HEAP32[tm + 40 >> 2];
+ var tm_zone = GROWABLE_HEAP_I32()[tm + 40 >> 2];
  var date = {
-  tm_sec: HEAP32[tm >> 2],
-  tm_min: HEAP32[tm + 4 >> 2],
-  tm_hour: HEAP32[tm + 8 >> 2],
-  tm_mday: HEAP32[tm + 12 >> 2],
-  tm_mon: HEAP32[tm + 16 >> 2],
-  tm_year: HEAP32[tm + 20 >> 2],
-  tm_wday: HEAP32[tm + 24 >> 2],
-  tm_yday: HEAP32[tm + 28 >> 2],
-  tm_isdst: HEAP32[tm + 32 >> 2],
-  tm_gmtoff: HEAP32[tm + 36 >> 2],
+  tm_sec: GROWABLE_HEAP_I32()[tm >> 2],
+  tm_min: GROWABLE_HEAP_I32()[tm + 4 >> 2],
+  tm_hour: GROWABLE_HEAP_I32()[tm + 8 >> 2],
+  tm_mday: GROWABLE_HEAP_I32()[tm + 12 >> 2],
+  tm_mon: GROWABLE_HEAP_I32()[tm + 16 >> 2],
+  tm_year: GROWABLE_HEAP_I32()[tm + 20 >> 2],
+  tm_wday: GROWABLE_HEAP_I32()[tm + 24 >> 2],
+  tm_yday: GROWABLE_HEAP_I32()[tm + 28 >> 2],
+  tm_isdst: GROWABLE_HEAP_I32()[tm + 32 >> 2],
+  tm_gmtoff: GROWABLE_HEAP_I32()[tm + 36 >> 2],
   tm_zone: tm_zone ? UTF8ToString(tm_zone) : ""
  };
  var pattern = UTF8ToString(format);
@@ -5879,12 +6432,12 @@ function _strptime(buf, format, tm) {
    return typeof value != "number" || isNaN(value) ? min : value >= min ? value <= max ? value : max : min;
   }
   return {
-   year: fixup(HEAP32[tm + 20 >> 2] + 1900, 1970, 9999),
-   month: fixup(HEAP32[tm + 16 >> 2], 0, 11),
-   day: fixup(HEAP32[tm + 12 >> 2], 1, 31),
-   hour: fixup(HEAP32[tm + 8 >> 2], 0, 23),
-   min: fixup(HEAP32[tm + 4 >> 2], 0, 59),
-   sec: fixup(HEAP32[tm >> 2], 0, 59)
+   year: fixup(GROWABLE_HEAP_I32()[tm + 20 >> 2] + 1900, 1970, 9999),
+   month: fixup(GROWABLE_HEAP_I32()[tm + 16 >> 2], 0, 11),
+   day: fixup(GROWABLE_HEAP_I32()[tm + 12 >> 2], 1, 31),
+   hour: fixup(GROWABLE_HEAP_I32()[tm + 8 >> 2], 0, 23),
+   min: fixup(GROWABLE_HEAP_I32()[tm + 4 >> 2], 0, 59),
+   sec: fixup(GROWABLE_HEAP_I32()[tm >> 2], 0, 59)
   };
  }
  if (matches) {
@@ -5968,15 +6521,15 @@ function _strptime(buf, format, tm) {
    }
   }
   var fullDate = new Date(date.year, date.month, date.day, date.hour, date.min, date.sec, 0);
-  HEAP32[tm >> 2] = fullDate.getSeconds();
-  HEAP32[tm + 4 >> 2] = fullDate.getMinutes();
-  HEAP32[tm + 8 >> 2] = fullDate.getHours();
-  HEAP32[tm + 12 >> 2] = fullDate.getDate();
-  HEAP32[tm + 16 >> 2] = fullDate.getMonth();
-  HEAP32[tm + 20 >> 2] = fullDate.getFullYear() - 1900;
-  HEAP32[tm + 24 >> 2] = fullDate.getDay();
-  HEAP32[tm + 28 >> 2] = __arraySum(__isLeapYear(fullDate.getFullYear()) ? __MONTH_DAYS_LEAP : __MONTH_DAYS_REGULAR, fullDate.getMonth() - 1) + fullDate.getDate() - 1;
-  HEAP32[tm + 32 >> 2] = 0;
+  GROWABLE_HEAP_I32()[tm >> 2] = fullDate.getSeconds();
+  GROWABLE_HEAP_I32()[tm + 4 >> 2] = fullDate.getMinutes();
+  GROWABLE_HEAP_I32()[tm + 8 >> 2] = fullDate.getHours();
+  GROWABLE_HEAP_I32()[tm + 12 >> 2] = fullDate.getDate();
+  GROWABLE_HEAP_I32()[tm + 16 >> 2] = fullDate.getMonth();
+  GROWABLE_HEAP_I32()[tm + 20 >> 2] = fullDate.getFullYear() - 1900;
+  GROWABLE_HEAP_I32()[tm + 24 >> 2] = fullDate.getDay();
+  GROWABLE_HEAP_I32()[tm + 28 >> 2] = __arraySum(__isLeapYear(fullDate.getFullYear()) ? __MONTH_DAYS_LEAP : __MONTH_DAYS_REGULAR, fullDate.getMonth() - 1) + fullDate.getDate() - 1;
+  GROWABLE_HEAP_I32()[tm + 32 >> 2] = 0;
   return buf + intArrayFromString(matches[0]).length - 1;
  }
  return 0;
@@ -6069,7 +6622,7 @@ function _wasm_poll_socket(socketd, events, timeout) {
 }
 
 function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen) {
- const optionValue = HEAPU8[optionValuePtr];
+ const optionValue = GROWABLE_HEAP_U8()[optionValuePtr];
  const SOL_SOCKET = 1;
  const SO_KEEPALIVE = 9;
  const IPPROTO_TCP = 6;
@@ -6100,33 +6653,8 @@ function runAndAbortIfError(func) {
 }
 
 var Asyncify = {
- State: {
-  Normal: 0,
-  Unwinding: 1,
-  Rewinding: 2,
-  Disabled: 3
- },
- state: 0,
- StackSize: 4096,
- currData: null,
- handleSleepReturnValue: 0,
- exportCallStack: [],
- callStackNameToId: {},
- callStackIdToName: {},
- callStackId: 0,
- asyncPromiseHandlers: null,
- sleepCallbacks: [],
- getCallStackId: function(funcName) {
-  var id = Asyncify.callStackNameToId[funcName];
-  if (id === undefined) {
-   id = Asyncify.callStackId++;
-   Asyncify.callStackNameToId[funcName] = id;
-   Asyncify.callStackIdToName[id] = funcName;
-  }
-  return id;
- },
  instrumentWasmImports: function(imports) {
-  var ASYNCIFY_IMPORTS = [ "env._dlopen_js", "env.invoke_i", "env.invoke_ii", "env.invoke_iii", "env.invoke_iiii", "env.invoke_iiiii", "env.invoke_iiiiii", "env.invoke_iiiiiii", "env.invoke_iiiiiiii", "env.invoke_iiiiiiiiii", "env.invoke_v", "env.invoke_vi", "env.invoke_vii", "env.invoke_viidii", "env.invoke_viii", "env.invoke_viiii", "env.invoke_viiiii", "env.invoke_viiiiii", "env.invoke_viiiiiii", "env.invoke_viiiiiiiii", "env.wasm_poll_socket", "env.wasm_shutdown", "env.emscripten_sleep", "env.emscripten_wget", "env.emscripten_wget_data", "env.emscripten_idb_load", "env.emscripten_idb_store", "env.emscripten_idb_delete", "env.emscripten_idb_exists", "env.emscripten_idb_load_blob", "env.emscripten_idb_store_blob", "env.SDL_Delay", "env.emscripten_scan_registers", "env.emscripten_lazy_load_code", "env.emscripten_fiber_swap", "wasi_snapshot_preview1.fd_sync", "env.__wasi_fd_sync", "env._emval_await", "env._dlopen_js", "env.__asyncjs__*" ].map(x => x.split(".")[1]);
+  var ASYNCIFY_IMPORTS = [ "_dlopen_js", "invoke_i", "invoke_ii", "invoke_iii", "invoke_iiii", "invoke_iiiii", "invoke_iiiiii", "invoke_iiiiiii", "invoke_iiiiiiii", "invoke_iiiiiiiiii", "invoke_v", "invoke_vi", "invoke_vii", "invoke_viidii", "invoke_viii", "invoke_viiii", "invoke_viiiii", "invoke_viiiiii", "invoke_viiiiiii", "invoke_viiiiiiiii", "wasm_poll_socket", "wasm_shutdown", "emscripten_sleep", "emscripten_wget", "emscripten_wget_data", "emscripten_idb_load", "emscripten_idb_store", "emscripten_idb_delete", "emscripten_idb_exists", "emscripten_idb_load_blob", "emscripten_idb_store_blob", "SDL_Delay", "emscripten_scan_registers", "emscripten_lazy_load_code", "emscripten_fiber_swap", "__load_secondary_module", "fd_sync", "__wasi_fd_sync", "_emval_await", "_dlopen_js", "__asyncjs__*" ];
   for (var x in imports) {
    (function(x) {
     var original = imports[x];
@@ -6162,6 +6690,31 @@ var Asyncify = {
   }
   return ret;
  },
+ State: {
+  Normal: 0,
+  Unwinding: 1,
+  Rewinding: 2,
+  Disabled: 3
+ },
+ state: 0,
+ StackSize: 4096,
+ currData: null,
+ handleSleepReturnValue: 0,
+ exportCallStack: [],
+ callStackNameToId: {},
+ callStackIdToName: {},
+ callStackId: 0,
+ asyncPromiseHandlers: null,
+ sleepCallbacks: [],
+ getCallStackId: function(funcName) {
+  var id = Asyncify.callStackNameToId[funcName];
+  if (id === undefined) {
+   id = Asyncify.callStackId++;
+   Asyncify.callStackNameToId[funcName] = id;
+   Asyncify.callStackIdToName[id] = funcName;
+  }
+  return id;
+ },
  maybeStopUnwind: function() {
   if (Asyncify.currData && Asyncify.state === Asyncify.State.Unwinding && Asyncify.exportCallStack.length === 0) {
    Asyncify.state = Asyncify.State.Normal;
@@ -6187,16 +6740,16 @@ var Asyncify = {
   return ptr;
  },
  setDataHeader: function(ptr, stack, stackSize) {
-  HEAP32[ptr >> 2] = stack;
-  HEAP32[ptr + 4 >> 2] = stack + stackSize;
+  GROWABLE_HEAP_I32()[ptr >> 2] = stack;
+  GROWABLE_HEAP_I32()[ptr + 4 >> 2] = stack + stackSize;
  },
  setDataRewindFunc: function(ptr) {
   var bottomOfCallStack = Asyncify.exportCallStack[0];
   var rewindId = Asyncify.getCallStackId(bottomOfCallStack);
-  HEAP32[ptr + 8 >> 2] = rewindId;
+  GROWABLE_HEAP_I32()[ptr + 8 >> 2] = rewindId;
  },
  getDataRewindFunc: function(ptr) {
-  var id = HEAP32[ptr + 8 >> 2];
+  var id = GROWABLE_HEAP_I32()[ptr + 8 >> 2];
   var name = Asyncify.callStackIdToName[id];
   var func = Module["asm"][name];
   return func;
@@ -6211,9 +6764,9 @@ var Asyncify = {
   if (Asyncify.state === Asyncify.State.Normal) {
    var reachedCallback = false;
    var reachedAfterCallback = false;
-   startAsync(handleSleepReturnValue => {
+   startAsync((handleSleepReturnValue = 0) => {
     if (ABORT) return;
-    Asyncify.handleSleepReturnValue = handleSleepReturnValue || 0;
+    Asyncify.handleSleepReturnValue = handleSleepReturnValue;
     reachedCallback = true;
     if (!reachedAfterCallback) {
      return;
@@ -6330,6 +6883,8 @@ function ccall(ident, returnType, argTypes, args, opts) {
  return ret;
 }
 
+PThread.init();
+
 var FSNode = function(parent, name, mode, rdev) {
  if (!parent) {
   parent = this;
@@ -6395,7 +6950,6 @@ Module["FS_createLazyFile"] = FS.createLazyFile;
 Module["FS_createDevice"] = FS.createDevice;
 
 if (ENVIRONMENT_IS_NODE) {
- requireNodeFS();
  NODEFS.staticInit();
 }
 
@@ -6523,367 +7077,445 @@ ERRNO_CODES = {
  "ESTRPIPE": 135
 };
 
-var asmLibraryArg = {
- "j": ___assert_fail,
- "Va": ___call_sighandler,
- "Ua": ___syscall__newselect,
- "Ta": ___syscall_accept4,
- "Sa": ___syscall_bind,
- "Ra": ___syscall_chdir,
- "P": ___syscall_chmod,
- "Qa": ___syscall_connect,
- "Pa": ___syscall_dup,
- "Oa": ___syscall_dup3,
- "Na": ___syscall_faccessat,
- "U": ___syscall_fallocate,
- "Ma": ___syscall_fchmod,
- "La": ___syscall_fchown32,
- "O": ___syscall_fchownat,
- "o": ___syscall_fcntl64,
- "Ka": ___syscall_fdatasync,
- "Ja": ___syscall_fstat64,
- "T": ___syscall_ftruncate64,
- "Ia": ___syscall_getcwd,
- "Ha": ___syscall_getdents64,
- "Ga": ___syscall_getpeername,
- "Fa": ___syscall_getsockname,
- "Ea": ___syscall_getsockopt,
- "N": ___syscall_ioctl,
- "Da": ___syscall_listen,
- "Ca": ___syscall_lstat64,
- "Ba": ___syscall_mkdirat,
- "Aa": ___syscall_newfstatat,
- "w": ___syscall_openat,
- "za": ___syscall_pipe,
- "ya": ___syscall_poll,
- "xa": ___syscall_readlinkat,
- "wa": ___syscall_recvfrom,
- "va": ___syscall_renameat,
- "M": ___syscall_rmdir,
- "ua": ___syscall_sendto,
- "L": ___syscall_socket,
- "ta": ___syscall_stat64,
- "sa": ___syscall_statfs64,
- "ra": ___syscall_symlink,
- "D": ___syscall_unlinkat,
- "qa": ___syscall_utimensat,
- "ma": __dlinit,
- "la": __dlopen_js,
- "ka": __dlsym_js,
- "ja": __emscripten_get_now_is_monotonic,
- "ia": __emscripten_throw_longjmp,
- "ha": __gmtime_js,
- "ga": __localtime_js,
- "fa": __mktime_js,
- "ea": __mmap_js,
- "da": __munmap_js,
- "ca": __tzset_js,
- "m": _abort,
- "B": _emscripten_date_now,
- "ba": _emscripten_get_heap_max,
- "A": _emscripten_get_now,
- "aa": _emscripten_memcpy_big,
- "$": _emscripten_resize_heap,
- "_": _emscripten_sleep,
- "pa": _environ_get,
- "oa": _environ_sizes_get,
- "p": _exit,
- "r": _fd_close,
- "K": _fd_fdstat_get,
- "J": _fd_read,
- "S": _fd_seek,
- "C": _fd_write,
- "Z": _getaddrinfo,
- "I": _gethostbyaddr,
- "H": _gethostbyname_r,
- "Y": _getloadavg,
- "G": _getnameinfo,
- "X": _getprotobyname,
- "W": _getprotobynumber,
- "h": invoke_i,
- "d": invoke_ii,
- "b": invoke_iii,
- "f": invoke_iiii,
- "g": invoke_iiiii,
- "u": invoke_iiiiii,
- "t": invoke_iiiiiii,
- "v": invoke_iiiiiiii,
- "F": invoke_iiiiiiiiii,
- "e": invoke_v,
- "a": invoke_vi,
- "c": invoke_vii,
- "z": invoke_viidii,
+var proxiedFunctionTable = [ null, _proc_exit, exitOnMainThread, pthreadCreateProxied, ___syscall__newselect, ___syscall_accept4, ___syscall_bind, ___syscall_chdir, ___syscall_chmod, ___syscall_connect, ___syscall_dup, ___syscall_dup3, ___syscall_faccessat, ___syscall_fallocate, ___syscall_fchmod, ___syscall_fchown32, ___syscall_fchownat, ___syscall_fcntl64, ___syscall_fdatasync, ___syscall_fstat64, ___syscall_ftruncate64, ___syscall_getcwd, ___syscall_getdents64, ___syscall_getpeername, ___syscall_getsockname, ___syscall_getsockopt, ___syscall_ioctl, ___syscall_listen, ___syscall_lstat64, ___syscall_mkdirat, ___syscall_newfstatat, ___syscall_openat, ___syscall_pipe, ___syscall_poll, ___syscall_readlinkat, ___syscall_recvfrom, ___syscall_renameat, ___syscall_rmdir, ___syscall_sendto, ___syscall_socket, ___syscall_stat64, ___syscall_statfs64, ___syscall_symlink, ___syscall_unlinkat, ___syscall_utimensat, __mmap_js, __munmap_js, __setitimer_js, _environ_get, _environ_sizes_get, _fd_close, _fd_fdstat_get, _fd_read, _fd_seek, _fd_write, _getaddrinfo, _gethostbyaddr, _gethostbyname_r, _gethostbyname ];
+
+var wasmImports = {
+ "k": ___assert_fail,
+ "bb": ___call_sighandler,
+ "ab": ___dlsym,
+ "$a": ___emscripten_init_main_thread_js,
+ "U": ___emscripten_thread_cleanup,
+ "_a": ___pthread_create_js,
+ "Za": ___syscall__newselect,
+ "Ya": ___syscall_accept4,
+ "Xa": ___syscall_bind,
+ "T": ___syscall_chmod,
+ "Wa": ___syscall_connect,
+ "Va": ___syscall_dup,
+ "Ua": ___syscall_dup3,
+ "Ta": ___syscall_faccessat,
+ "Z": ___syscall_fallocate,
+ "Sa": ___syscall_fchmod,
+ "Ra": ___syscall_fchown32,
+ "S": ___syscall_fchownat,
+ "p": ___syscall_fcntl64,
+ "Qa": ___syscall_fdatasync,
+ "Pa": ___syscall_fstat64,
+ "Y": ___syscall_ftruncate64,
+ "Oa": ___syscall_getcwd,
+ "Na": ___syscall_getdents64,
+ "Ma": ___syscall_getpeername,
+ "La": ___syscall_getsockname,
+ "Ka": ___syscall_getsockopt,
+ "R": ___syscall_ioctl,
+ "Ja": ___syscall_listen,
+ "Ia": ___syscall_lstat64,
+ "Ha": ___syscall_mkdirat,
+ "Ga": ___syscall_newfstatat,
+ "z": ___syscall_openat,
+ "Fa": ___syscall_pipe,
+ "Ea": ___syscall_poll,
+ "Da": ___syscall_readlinkat,
+ "Ca": ___syscall_recvfrom,
+ "Ba": ___syscall_renameat,
+ "Q": ___syscall_rmdir,
+ "Aa": ___syscall_sendto,
+ "P": ___syscall_socket,
+ "za": ___syscall_stat64,
+ "ya": ___syscall_statfs64,
+ "xa": ___syscall_symlink,
+ "F": ___syscall_unlinkat,
+ "wa": ___syscall_utimensat,
+ "ta": __emscripten_default_pthread_stack_size,
+ "sa": __emscripten_get_now_is_monotonic,
+ "ra": __emscripten_notify_mailbox_postmessage,
+ "qa": __emscripten_set_offscreencanvas_size,
+ "pa": __emscripten_thread_mailbox_await,
+ "oa": __emscripten_throw_longjmp,
+ "na": __gmtime_js,
+ "ma": __localtime_js,
+ "la": __mktime_js,
+ "ka": __mmap_js,
+ "ja": __munmap_js,
+ "M": __setitimer_js,
+ "ia": __tzset_js,
+ "n": _abort,
+ "x": _dlopen,
+ "L": _emscripten_check_blocking_allowed,
+ "D": _emscripten_date_now,
+ "ha": _emscripten_exit_with_live_runtime,
+ "ga": _emscripten_get_heap_max,
+ "q": _emscripten_get_now,
+ "fa": _emscripten_memcpy_big,
+ "ea": _emscripten_num_logical_cores,
+ "da": _emscripten_receive_on_main_thread_js,
+ "ca": _emscripten_resize_heap,
+ "ba": _emscripten_sleep,
+ "va": _environ_get,
+ "ua": _environ_sizes_get,
+ "r": _exit,
+ "t": _fd_close,
+ "O": _fd_fdstat_get,
+ "N": _fd_read,
+ "X": _fd_seek,
+ "E": _fd_write,
+ "aa": _getaddrinfo,
+ "K": _gethostbyaddr,
+ "J": _gethostbyname_r,
+ "$": _getloadavg,
+ "I": _getnameinfo,
+ "g": invoke_i,
+ "e": invoke_ii,
+ "c": invoke_iii,
+ "h": invoke_iiii,
+ "i": invoke_iiiii,
+ "v": invoke_iiiiii,
+ "w": invoke_iiiiiii,
+ "y": invoke_iiiiiiii,
+ "H": invoke_iiiiiiiiii,
+ "f": invoke_v,
+ "b": invoke_vi,
+ "d": invoke_vii,
+ "C": invoke_viidii,
  "l": invoke_viii,
- "k": invoke_viiii,
- "n": invoke_viiiii,
- "i": invoke_viiiiii,
- "y": invoke_viiiiiiiii,
- "V": _js_popen_to_file,
- "na": _proc_exit,
- "E": _strftime,
- "R": _strptime,
- "s": _wasm_close,
- "x": _wasm_poll_socket,
- "q": _wasm_setsockopt,
- "Q": _wasm_shutdown
+ "m": invoke_viiii,
+ "o": invoke_viiiii,
+ "j": invoke_viiiiii,
+ "B": invoke_viiiiiiiii,
+ "_": _js_popen_to_file,
+ "a": wasmMemory,
+ "G": _strftime,
+ "W": _strptime,
+ "u": _wasm_close,
+ "A": _wasm_poll_socket,
+ "s": _wasm_setsockopt,
+ "V": _wasm_shutdown
 };
 
 var asm = createWasm();
 
-var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
- return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["Xa"]).apply(null, arguments);
+var ___wasm_call_ctors = function() {
+ return (___wasm_call_ctors = Module["asm"]["cb"]).apply(null, arguments);
 };
 
 var _wasm_popen = Module["_wasm_popen"] = function() {
- return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["Ya"]).apply(null, arguments);
+ return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["db"]).apply(null, arguments);
 };
 
-var ___errno_location = Module["___errno_location"] = function() {
- return (___errno_location = Module["___errno_location"] = Module["asm"]["Za"]).apply(null, arguments);
+var ___errno_location = function() {
+ return (___errno_location = Module["asm"]["eb"]).apply(null, arguments);
 };
 
 var _wasm_pclose = Module["_wasm_pclose"] = function() {
- return (_wasm_pclose = Module["_wasm_pclose"] = Module["asm"]["_a"]).apply(null, arguments);
+ return (_wasm_pclose = Module["_wasm_pclose"] = Module["asm"]["fb"]).apply(null, arguments);
 };
 
 var _php_pollfd_for = Module["_php_pollfd_for"] = function() {
- return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["$a"]).apply(null, arguments);
+ return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["gb"]).apply(null, arguments);
 };
 
 var _wasm_select = Module["_wasm_select"] = function() {
- return (_wasm_select = Module["_wasm_select"] = Module["asm"]["ab"]).apply(null, arguments);
+ return (_wasm_select = Module["_wasm_select"] = Module["asm"]["hb"]).apply(null, arguments);
 };
 
 var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = function() {
- return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["bb"]).apply(null, arguments);
+ return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["ib"]).apply(null, arguments);
 };
 
-var _malloc = Module["_malloc"] = function() {
- return (_malloc = Module["_malloc"] = Module["asm"]["cb"]).apply(null, arguments);
+var _malloc = function() {
+ return (_malloc = Module["asm"]["jb"]).apply(null, arguments);
 };
 
 var _run_cli = Module["_run_cli"] = function() {
- return (_run_cli = Module["_run_cli"] = Module["asm"]["db"]).apply(null, arguments);
+ return (_run_cli = Module["_run_cli"] = Module["asm"]["kb"]).apply(null, arguments);
 };
 
-var _memcpy = Module["_memcpy"] = function() {
- return (_memcpy = Module["_memcpy"] = Module["asm"]["eb"]).apply(null, arguments);
+var _free = function() {
+ return (_free = Module["asm"]["lb"]).apply(null, arguments);
 };
 
-var _free = Module["_free"] = function() {
- return (_free = Module["_free"] = Module["asm"]["fb"]).apply(null, arguments);
+var _pthread_self = Module["_pthread_self"] = function() {
+ return (_pthread_self = Module["_pthread_self"] = Module["asm"]["mb"]).apply(null, arguments);
+};
+
+var _saveSetjmp = function() {
+ return (_saveSetjmp = Module["asm"]["saveSetjmp"]).apply(null, arguments);
 };
 
 var _fflush = Module["_fflush"] = function() {
- return (_fflush = Module["_fflush"] = Module["asm"]["hb"]).apply(null, arguments);
+ return (_fflush = Module["_fflush"] = Module["asm"]["ob"]).apply(null, arguments);
 };
 
-var _htons = Module["_htons"] = function() {
- return (_htons = Module["_htons"] = Module["asm"]["ib"]).apply(null, arguments);
+var _memcpy = function() {
+ return (_memcpy = Module["asm"]["pb"]).apply(null, arguments);
 };
 
-var _ntohs = Module["_ntohs"] = function() {
- return (_ntohs = Module["_ntohs"] = Module["asm"]["jb"]).apply(null, arguments);
+var _htons = function() {
+ return (_htons = Module["asm"]["qb"]).apply(null, arguments);
 };
 
-var _htonl = Module["_htonl"] = function() {
- return (_htonl = Module["_htonl"] = Module["asm"]["kb"]).apply(null, arguments);
+var _ntohs = function() {
+ return (_ntohs = Module["asm"]["rb"]).apply(null, arguments);
+};
+
+var _htonl = function() {
+ return (_htonl = Module["asm"]["sb"]).apply(null, arguments);
 };
 
 var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = function() {
- return (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = Module["asm"]["lb"]).apply(null, arguments);
+ return (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = Module["asm"]["tb"]).apply(null, arguments);
 };
 
 var _wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = function() {
- return (_wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = Module["asm"]["mb"]).apply(null, arguments);
+ return (_wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = Module["asm"]["ub"]).apply(null, arguments);
 };
 
 var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
- return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["nb"]).apply(null, arguments);
+ return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["vb"]).apply(null, arguments);
 };
 
 var _wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = function() {
- return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["ob"]).apply(null, arguments);
+ return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["wb"]).apply(null, arguments);
 };
 
 var _wasm_set_query_string = Module["_wasm_set_query_string"] = function() {
- return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["pb"]).apply(null, arguments);
+ return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["xb"]).apply(null, arguments);
 };
 
 var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = function() {
- return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["qb"]).apply(null, arguments);
+ return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["yb"]).apply(null, arguments);
 };
 
 var _wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = function() {
- return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["rb"]).apply(null, arguments);
+ return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["zb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = function() {
- return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["sb"]).apply(null, arguments);
+ return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["Ab"]).apply(null, arguments);
 };
 
 var _wasm_set_request_method = Module["_wasm_set_request_method"] = function() {
- return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["tb"]).apply(null, arguments);
+ return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["Bb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_host = Module["_wasm_set_request_host"] = function() {
- return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["ub"]).apply(null, arguments);
+ return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["Cb"]).apply(null, arguments);
 };
 
 var _wasm_set_content_type = Module["_wasm_set_content_type"] = function() {
- return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["vb"]).apply(null, arguments);
+ return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["Db"]).apply(null, arguments);
 };
 
 var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
- return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["wb"]).apply(null, arguments);
+ return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["Eb"]).apply(null, arguments);
 };
 
 var _wasm_set_content_length = Module["_wasm_set_content_length"] = function() {
- return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["xb"]).apply(null, arguments);
+ return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["Fb"]).apply(null, arguments);
 };
 
 var _wasm_set_cookies = Module["_wasm_set_cookies"] = function() {
- return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["yb"]).apply(null, arguments);
+ return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["Gb"]).apply(null, arguments);
 };
 
 var _wasm_set_php_code = Module["_wasm_set_php_code"] = function() {
- return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["zb"]).apply(null, arguments);
+ return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["Hb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_port = Module["_wasm_set_request_port"] = function() {
- return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Ab"]).apply(null, arguments);
+ return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Ib"]).apply(null, arguments);
 };
 
 var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
- return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["Bb"]).apply(null, arguments);
+ return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["Jb"]).apply(null, arguments);
 };
 
 var _phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = function() {
- return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["Cb"]).apply(null, arguments);
+ return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["Kb"]).apply(null, arguments);
 };
 
 var _phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = function() {
- return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["Db"]).apply(null, arguments);
+ return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["Lb"]).apply(null, arguments);
 };
 
 var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function() {
- return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Eb"]).apply(null, arguments);
+ return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Mb"]).apply(null, arguments);
 };
 
 var _php_wasm_init = Module["_php_wasm_init"] = function() {
- return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Fb"]).apply(null, arguments);
+ return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Nb"]).apply(null, arguments);
 };
 
-var ___funcs_on_exit = Module["___funcs_on_exit"] = function() {
- return (___funcs_on_exit = Module["___funcs_on_exit"] = Module["asm"]["Gb"]).apply(null, arguments);
+var __emscripten_tls_init = Module["__emscripten_tls_init"] = function() {
+ return (__emscripten_tls_init = Module["__emscripten_tls_init"] = Module["asm"]["Ob"]).apply(null, arguments);
 };
 
-var _emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = function() {
- return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["Hb"]).apply(null, arguments);
+var _emscripten_builtin_memalign = function() {
+ return (_emscripten_builtin_memalign = Module["asm"]["Pb"]).apply(null, arguments);
 };
 
-var _setThrew = Module["_setThrew"] = function() {
- return (_setThrew = Module["_setThrew"] = Module["asm"]["Ib"]).apply(null, arguments);
+var ___funcs_on_exit = function() {
+ return (___funcs_on_exit = Module["asm"]["Qb"]).apply(null, arguments);
 };
 
-var stackSave = Module["stackSave"] = function() {
- return (stackSave = Module["stackSave"] = Module["asm"]["Jb"]).apply(null, arguments);
+var ___dl_seterr = function() {
+ return (___dl_seterr = Module["asm"]["__dl_seterr"]).apply(null, arguments);
 };
 
-var stackRestore = Module["stackRestore"] = function() {
- return (stackRestore = Module["stackRestore"] = Module["asm"]["Kb"]).apply(null, arguments);
+var __emscripten_thread_init = Module["__emscripten_thread_init"] = function() {
+ return (__emscripten_thread_init = Module["__emscripten_thread_init"] = Module["asm"]["Rb"]).apply(null, arguments);
 };
 
-var stackAlloc = Module["stackAlloc"] = function() {
- return (stackAlloc = Module["stackAlloc"] = Module["asm"]["Lb"]).apply(null, arguments);
+var __emscripten_thread_crashed = Module["__emscripten_thread_crashed"] = function() {
+ return (__emscripten_thread_crashed = Module["__emscripten_thread_crashed"] = Module["asm"]["Sb"]).apply(null, arguments);
+};
+
+var _emscripten_main_thread_process_queued_calls = function() {
+ return (_emscripten_main_thread_process_queued_calls = Module["asm"]["emscripten_main_thread_process_queued_calls"]).apply(null, arguments);
+};
+
+var _emscripten_main_runtime_thread_id = function() {
+ return (_emscripten_main_runtime_thread_id = Module["asm"]["emscripten_main_runtime_thread_id"]).apply(null, arguments);
+};
+
+var __emscripten_run_in_main_runtime_thread_js = function() {
+ return (__emscripten_run_in_main_runtime_thread_js = Module["asm"]["Tb"]).apply(null, arguments);
+};
+
+var _emscripten_dispatch_to_thread_ = function() {
+ return (_emscripten_dispatch_to_thread_ = Module["asm"]["emscripten_dispatch_to_thread_"]).apply(null, arguments);
+};
+
+var _emscripten_stack_get_base = function() {
+ return (_emscripten_stack_get_base = Module["asm"]["emscripten_stack_get_base"]).apply(null, arguments);
+};
+
+var _emscripten_stack_get_end = function() {
+ return (_emscripten_stack_get_end = Module["asm"]["emscripten_stack_get_end"]).apply(null, arguments);
+};
+
+var __emscripten_thread_free_data = function() {
+ return (__emscripten_thread_free_data = Module["asm"]["Ub"]).apply(null, arguments);
+};
+
+var __emscripten_thread_exit = Module["__emscripten_thread_exit"] = function() {
+ return (__emscripten_thread_exit = Module["__emscripten_thread_exit"] = Module["asm"]["Vb"]).apply(null, arguments);
+};
+
+var __emscripten_timeout = function() {
+ return (__emscripten_timeout = Module["asm"]["Wb"]).apply(null, arguments);
+};
+
+var __emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = function() {
+ return (__emscripten_check_mailbox = Module["__emscripten_check_mailbox"] = Module["asm"]["Xb"]).apply(null, arguments);
+};
+
+var _setThrew = function() {
+ return (_setThrew = Module["asm"]["Yb"]).apply(null, arguments);
+};
+
+var _emscripten_stack_set_limits = function() {
+ return (_emscripten_stack_set_limits = Module["asm"]["Zb"]).apply(null, arguments);
+};
+
+var stackSave = function() {
+ return (stackSave = Module["asm"]["_b"]).apply(null, arguments);
+};
+
+var stackRestore = function() {
+ return (stackRestore = Module["asm"]["$b"]).apply(null, arguments);
+};
+
+var stackAlloc = function() {
+ return (stackAlloc = Module["asm"]["ac"]).apply(null, arguments);
 };
 
 var dynCall_vi = Module["dynCall_vi"] = function() {
- return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Mb"]).apply(null, arguments);
-};
-
-var dynCall_iiii = Module["dynCall_iiii"] = function() {
- return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Nb"]).apply(null, arguments);
-};
-
-var dynCall_ii = Module["dynCall_ii"] = function() {
- return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Ob"]).apply(null, arguments);
-};
-
-var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
- return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Pb"]).apply(null, arguments);
-};
-
-var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
- return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Qb"]).apply(null, arguments);
-};
-
-var dynCall_viii = Module["dynCall_viii"] = function() {
- return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Rb"]).apply(null, arguments);
+ return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["bc"]).apply(null, arguments);
 };
 
 var dynCall_vii = Module["dynCall_vii"] = function() {
- return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Sb"]).apply(null, arguments);
+ return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["cc"]).apply(null, arguments);
+};
+
+var dynCall_viii = Module["dynCall_viii"] = function() {
+ return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["dc"]).apply(null, arguments);
+};
+
+var dynCall_ii = Module["dynCall_ii"] = function() {
+ return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["ec"]).apply(null, arguments);
+};
+
+var dynCall_iiii = Module["dynCall_iiii"] = function() {
+ return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["fc"]).apply(null, arguments);
+};
+
+var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
+ return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["gc"]).apply(null, arguments);
+};
+
+var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
+ return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["hc"]).apply(null, arguments);
 };
 
 var dynCall_iii = Module["dynCall_iii"] = function() {
- return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Tb"]).apply(null, arguments);
+ return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["ic"]).apply(null, arguments);
 };
 
 var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
- return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Ub"]).apply(null, arguments);
+ return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["jc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = function() {
- return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["Vb"]).apply(null, arguments);
+ return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["kc"]).apply(null, arguments);
 };
 
 var dynCall_i = Module["dynCall_i"] = function() {
- return (dynCall_i = Module["dynCall_i"] = Module["asm"]["Wb"]).apply(null, arguments);
+ return (dynCall_i = Module["dynCall_i"] = Module["asm"]["lc"]).apply(null, arguments);
 };
 
 var dynCall_v = Module["dynCall_v"] = function() {
- return (dynCall_v = Module["dynCall_v"] = Module["asm"]["Xb"]).apply(null, arguments);
+ return (dynCall_v = Module["dynCall_v"] = Module["asm"]["mc"]).apply(null, arguments);
 };
 
 var dynCall_viiii = Module["dynCall_viiii"] = function() {
- return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["Yb"]).apply(null, arguments);
+ return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["nc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
- return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["Zb"]).apply(null, arguments);
+ return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["oc"]).apply(null, arguments);
 };
 
 var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = function() {
- return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["_b"]).apply(null, arguments);
+ return (dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = Module["asm"]["pc"]).apply(null, arguments);
 };
 
 var dynCall_viiiiii = Module["dynCall_viiiiii"] = function() {
- return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["$b"]).apply(null, arguments);
+ return (dynCall_viiiiii = Module["dynCall_viiiiii"] = Module["asm"]["qc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = function() {
- return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["ac"]).apply(null, arguments);
+ return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["rc"]).apply(null, arguments);
 };
 
 var dynCall_viidii = Module["dynCall_viidii"] = function() {
- return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["bc"]).apply(null, arguments);
+ return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["sc"]).apply(null, arguments);
 };
 
-var _asyncify_start_unwind = Module["_asyncify_start_unwind"] = function() {
- return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["cc"]).apply(null, arguments);
+var _asyncify_start_unwind = function() {
+ return (_asyncify_start_unwind = Module["asm"]["tc"]).apply(null, arguments);
 };
 
-var _asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = function() {
- return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["dc"]).apply(null, arguments);
+var _asyncify_stop_unwind = function() {
+ return (_asyncify_stop_unwind = Module["asm"]["uc"]).apply(null, arguments);
 };
 
-var _asyncify_start_rewind = Module["_asyncify_start_rewind"] = function() {
- return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["ec"]).apply(null, arguments);
+var _asyncify_start_rewind = function() {
+ return (_asyncify_start_rewind = Module["asm"]["vc"]).apply(null, arguments);
 };
 
-var _asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = function() {
- return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["fc"]).apply(null, arguments);
+var _asyncify_stop_rewind = function() {
+ return (_asyncify_stop_rewind = Module["asm"]["wc"]).apply(null, arguments);
 };
 
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
@@ -6901,17 +7533,6 @@ function invoke_vi(index, a1) {
  var sp = stackSave();
  try {
   dynCall_vi(index, a1);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0) throw e;
-  _setThrew(1, 0);
- }
-}
-
-function invoke_iii(index, a1, a2) {
- var sp = stackSave();
- try {
-  return dynCall_iii(index, a1, a2);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -6974,6 +7595,17 @@ function invoke_ii(index, a1) {
  }
 }
 
+function invoke_iii(index, a1, a2) {
+ var sp = stackSave();
+ try {
+  return dynCall_iii(index, a1, a2);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0) throw e;
+  _setThrew(1, 0);
+ }
+}
+
 function invoke_viiii(index, a1, a2, a3, a4) {
  var sp = stackSave();
  try {
@@ -7000,6 +7632,17 @@ function invoke_iiii(index, a1, a2, a3) {
  var sp = stackSave();
  try {
   return dynCall_iiii(index, a1, a2, a3);
+ } catch (e) {
+  stackRestore(sp);
+  if (e !== e + 0) throw e;
+  _setThrew(1, 0);
+ }
+}
+
+function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+ var sp = stackSave();
+ try {
+  return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
  } catch (e) {
   stackRestore(sp);
   if (e !== e + 0) throw e;
@@ -7051,17 +7694,6 @@ function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
  }
 }
 
-function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
- var sp = stackSave();
- try {
-  return dynCall_iiiiii(index, a1, a2, a3, a4, a5);
- } catch (e) {
-  stackRestore(sp);
-  if (e !== e + 0) throw e;
-  _setThrew(1, 0);
- }
-}
-
 function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
  var sp = stackSave();
  try {
@@ -7104,7 +7736,13 @@ Module["FS_createDevice"] = FS.createDevice;
 
 Module["FS_unlink"] = FS.unlink;
 
+Module["keepRuntimeAlive"] = keepRuntimeAlive;
+
+Module["wasmMemory"] = wasmMemory;
+
 Module["ccall"] = ccall;
+
+Module["ExitStatus"] = ExitStatus;
 
 Module["FS"] = FS;
 
@@ -7115,9 +7753,13 @@ dependenciesFulfilled = function runCaller() {
  if (!calledRun) dependenciesFulfilled = runCaller;
 };
 
-function run(args) {
- args = args || arguments_;
+function run() {
  if (runDependencies > 0) {
+  return;
+ }
+ if (ENVIRONMENT_IS_PTHREAD) {
+  initRuntime();
+  startWorker(Module);
   return;
  }
  preRun();
