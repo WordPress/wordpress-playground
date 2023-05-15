@@ -249,7 +249,7 @@ describe('Test starting different modes', () => {
 
 		const requiredFiles = [
 			'wp-content/db.php',
-			'wp-content/mu-plugins/0-allow-wp-org.php'
+			'wp-content/mu-plugins/0-allow-wp-org.php',
 		];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
@@ -279,7 +279,7 @@ describe('Test starting different modes', () => {
 
 		const requiredFiles = [
 			'wp-content/db.php',
-			'wp-content/mu-plugins/0-allow-wp-org.php'
+			'wp-content/mu-plugins/0-allow-wp-org.php',
 		];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
