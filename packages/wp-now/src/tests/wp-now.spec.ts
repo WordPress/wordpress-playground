@@ -164,7 +164,10 @@ describe('Test starting different modes', () => {
 		const tmpDirectory = os.tmpdir();
 		const directoryHash = crypto.randomBytes(20).toString('hex');
 
-		tmpExampleDirectory = path.join(tmpDirectory, `wp-now-tests-${directoryHash}`);
+		tmpExampleDirectory = path.join(
+			tmpDirectory,
+			`wp-now-tests-${directoryHash}`
+		);
 		fs.ensureDirSync(tmpExampleDirectory);
 		fs.copySync(exampleDir, tmpExampleDirectory);
 
@@ -221,7 +224,9 @@ describe('Test starting different modes', () => {
 
 		await startWPNow(rawOptions);
 
-		expect(fs.readdirSync(projectPath)).toEqual(fs.readdirSync(exampleProjectPath));
+		expect(fs.readdirSync(projectPath)).toEqual(
+			fs.readdirSync(exampleProjectPath)
+		);
 	});
 
 	/**
