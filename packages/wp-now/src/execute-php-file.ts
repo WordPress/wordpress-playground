@@ -36,7 +36,7 @@ export async function executePHPFile(
 	php.useHostFilesystem();
 
 	let fileToExecute = absoluteFilePath;
-  if (wpNowOptions.mode !== 'index') {
+	if (wpNowOptions.mode !== 'index') {
 		// Load WordPress context for non index mode.
 		php.mkdirTree(VFS_TMP_PATH);
 		php.writeFile(
