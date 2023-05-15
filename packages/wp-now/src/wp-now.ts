@@ -125,7 +125,7 @@ export default async function startWPNow(
 	php.chdir(documentRoot);
 	php.writeFile(`${documentRoot}/index.php`, `<?php echo 'Hello wp-now!';`);
 
-	console.log(`Project directory: ${options.projectPath}`);
+	console.log(`directory: ${options.projectPath}`);
 	console.log(`mode: ${options.mode}`);
 	console.log(`php: ${options.phpVersion}`);
 	console.log(`wp: ${options.wordPressVersion}`);
