@@ -64,7 +64,6 @@ libxml2.a: libxml2_configure
 	touch libxml2.a
 
 bison-2.7:
-	cd source && \
 	wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
 	tar -xvf bison-2.7.tar.gz && \
 	rm bison-2.7.tar.gz && \
