@@ -1,6 +1,7 @@
 import startWPNow, { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
 import fs from 'fs-extra';
 import path from 'path';
+import jest from 'jest-mock';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
@@ -151,6 +152,8 @@ describe('Test starting different modes', () => {
 
 	/**
 	 * Copy example directory to a temporary directory
+	 *
+	 * Also, silent the console.log() output.
 	 */
 	beforeEach(() => {
 		const tmpDirectory = os.tmpdir();
@@ -159,6 +162,8 @@ describe('Test starting different modes', () => {
 		tmpExampleDirectory = path.join(tmpDirectory, directoryHash);
 		fs.ensureDirSync(tmpExampleDirectory);
 		fs.copySync(exampleDir, tmpExampleDirectory);
+
+		jest.spyOn(console, 'log').mockImplementation(() => {});
 	});
 
 	/**
