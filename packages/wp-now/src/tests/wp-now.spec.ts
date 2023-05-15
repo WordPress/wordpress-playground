@@ -226,7 +226,7 @@ describe('Test starting different modes', () => {
 	});
 
 	/**
-	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
+	 * Test that startWPNow in "wp-content" mode mounts required files and directories, and
 	 * that required files exist for PHP.
 	 */
 	test('startWPNow starts wp-content mode', async () => {
@@ -243,6 +243,36 @@ describe('Test starting different modes', () => {
 			'db.php',
 			'mu-plugins',
 			'plugins/sqlite-database-integration',
+		];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const requiredFiles = [
+			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php'
+		];
+
+		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
+	 * that required files exist for PHP.
+	 */
+	test('startWPNow starts wordpress mode', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+
+		const mountPointPaths = [
+			'wp-content/database',
+			'wp-content/db.php',
+			'wp-content/mu-plugins',
+			'wp-content/plugins/sqlite-database-integration',
 		];
 
 		expectEmptyMountPoints(mountPointPaths, projectPath);
