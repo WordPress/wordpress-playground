@@ -1,4 +1,9 @@
-import startWPNow, { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
+import startWPNow, {
+	inferMode,
+	parseOptions,
+	WPNowMode,
+	WPNowOptions,
+} from '../wp-now';
 import fs from 'fs-extra';
 import path from 'path';
 import jest from 'jest-mock';
@@ -9,8 +14,8 @@ import {
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
 } from '../wp-playground-wordpress';
-import os from "os";
-import crypto from "crypto";
+import os from 'os';
+import crypto from 'crypto';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -231,20 +236,18 @@ describe('Test starting different modes', () => {
 			projectPath: projectPath,
 		};
 
-		const {php, options: wpNowOptions} = await startWPNow(rawOptions);
+		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
 
 		const mountPointPaths = [
 			'database',
 			'db.php',
 			'mu-plugins',
-			'plugins/sqlite-database-integration'
+			'plugins/sqlite-database-integration',
 		];
 
 		expectEmptyMountPoints(mountPointPaths, projectPath);
 
-		const requiredFiles = [
-			'wp-content/db.php'
-		];
+		const requiredFiles = ['wp-content/db.php'];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
