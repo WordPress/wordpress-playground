@@ -212,11 +212,11 @@ describe('Test starting different modes', () => {
 	};
 
 	/**
-	 * Test that startWPNow in "index" mode doesn't change anything in the project directory.
+	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
 	 */
-	test('startWPNow starts index mode', async () => {
-		const exampleProjectPath = path.join(exampleDir, 'index');
-		const projectPath = path.join(tmpExampleDirectory, 'index');
+	test.each(['index', 'plugin', 'theme'])('startWPNow starts %s mode', async (mode) => {
+		const exampleProjectPath = path.join(exampleDir, mode);
+		const projectPath = path.join(tmpExampleDirectory, mode);
 
 		const rawOptions: Partial<WPNowOptions> = {
 			projectPath: projectPath,
@@ -254,6 +254,7 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'playground-consts.json',
 		];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
@@ -284,6 +285,8 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'playground-consts.json',
+			'wp-config.php',
 		];
 
 		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
