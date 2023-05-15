@@ -21,9 +21,7 @@ import {
 } from './download';
 import { portFinder } from './port-finder';
 import {
-	cp,
-	defineSiteUrl,
-	defineWpConfigConsts,
+	defineVirtualWpConfigConsts,
 	login,
 } from '@wp-playground/blueprints';
 import {
@@ -268,14 +266,17 @@ async function initWordPress(
 		`${vfsDocumentRoot}/wp-config.php`,
 		php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
 	);
-	await defineSiteUrl(php, { siteUrl });
+
+	const wpConfigConsts = {
+		WP_HOME: siteUrl,
+		WP_SITEURL: siteUrl,
+	};
 	if (wordPressVersion !== 'user-defined') {
-		await defineWpConfigConsts(php, {
-			consts: {
-				WP_AUTO_UPDATE_CORE: wordPressVersion === 'latest',
-			},
-		});
+		wpConfigConsts['WP_AUTO_UPDATE_CORE'] = wordPressVersion === 'latest';
 	}
+	defineVirtualWpConfigConsts(php, {
+		consts: wpConfigConsts,
+	});
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
