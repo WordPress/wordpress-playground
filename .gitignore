@@ -9,6 +9,7 @@ var
 __pycache__
 packages/php-wasm/node/src/test/__test*
 dist.zip
+packages/php-wasm/compile/build
 
 # dependencies
 node_modules

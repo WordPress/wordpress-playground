@@ -1,4 +1,4 @@
-prefix=/root/lib/
+prefix=/root/lib
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 sharedlibdir=${libdir}
