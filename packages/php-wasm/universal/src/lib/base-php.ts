@@ -140,7 +140,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#initWebRuntime();
 			this.#webSapiInitialized = true;
 		}
-		this.#addServerGlobalEntriesInWasm();
 		this.#setScriptPath(request.scriptPath || '');
 		this.#setRelativeRequestUri(request.relativeUri || '');
 		this.#setRequestMethod(request.method || 'GET');
@@ -161,6 +160,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (request.code) {
 			this.#setPHPCode(' ?>' + request.code);
 		}
+		this.#addServerGlobalEntriesInWasm();
 		return await this.#handleRequest();
 	}
 
