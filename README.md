@@ -74,6 +74,15 @@ You can connect to the Playground using the JavaScript client. Here's an example
 </html>
 ```
 
+## Cloning the repo
+
+The vanilla `git clone` command will take ages. Here's a faster alternative that will
+only pull the latest revision of the trunk branch:
+
+```
+git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+```
+
 ## Contributing
 
 You also can run WordPress Playground locally as follows:

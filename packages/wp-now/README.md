@@ -1,6 +1,6 @@
 # WP-NOW
 
-`wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. This powerful tool is optimized for developers working on WordPress themes and plugins.
+`wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment. It is optimized for developers working on WordPress themes and plugins and only requires Node.js.
 
 ## Getting Started
 
@@ -95,12 +95,12 @@ Please note: if you use `npm link` and are executing `wp-now` from the plugin or
 wp-now start --wp=5.9 --php=7.4 --port=3000
 ```
 
-## How to install WP-NOW from npm (not available yet)
+## How to install WP-NOW from npm (IN PROGRESS):
 
 To install `wp-now` directly from `npm`, execute:
 
 ```bash
-npm install -g @wordpress/wp-now
+npm install -g @wp-now/wp-now
 ```
 
 Once installed, you can use it like so:
@@ -122,6 +122,11 @@ nx test wp-now
 
 -   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-content` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
 -   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
+
+## Known Issues
+
+-   Running `wp-now start` in 'wp-content' or 'wordpress' mode will produce some empty directories: [WordPress/wordpress-playground#328](https://github.com/WordPress/wordpress-playground/issues/328)
+-   If you have an existing MySQL database defined in your `wp-config.php`, `wp-now` will still mount SQLite and the site won't load: [WordPress/wordpress-playground#327](https://github.com/WordPress/wordpress-playground/issues/327)
 
 ## Migrating from Laravel Valet?
 

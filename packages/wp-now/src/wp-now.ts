@@ -202,8 +202,9 @@ async function runWpContentMode(
 
 	php.mount(projectPath, `${documentRoot}/wp-content`);
 
+	mountSqlitePlugin(php, documentRoot);
+	mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
 	mountMuPlugins(php, documentRoot);
-	mountSqlite(php, documentRoot);
 }
 
 async function runWordPressDevelopMode(
@@ -219,14 +220,15 @@ async function runWordPressDevelopMode(
 
 async function runWordPressMode(
 	php: NodePHP,
-	{ documentRoot, projectPath, absoluteUrl }: WPNowOptions
+	{ documentRoot, wpContentPath, projectPath, absoluteUrl }: WPNowOptions
 ) {
 	php.mount(projectPath, documentRoot);
 	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
 		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
 	}
+	mountSqlitePlugin(php, documentRoot);
+	mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
 	mountMuPlugins(php, documentRoot);
-	copySqlite(projectPath);
 }
 
 async function runPluginOrThemeMode(
@@ -257,8 +259,8 @@ async function runPluginOrThemeMode(
 		projectPath,
 		`${documentRoot}/wp-content/${directoryName}/${pluginName}`
 	);
+	mountSqlitePlugin(php, documentRoot);
 	mountMuPlugins(php, documentRoot);
-	mountSqlite(php, documentRoot);
 }
 
 async function initWordPress(
@@ -288,28 +290,33 @@ function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
 	);
 }
 
-function mountSqlite(php: NodePHP, vfsDocumentRoot: string) {
+function mountSqlitePlugin(php: NodePHP, vfsDocumentRoot: string) {
 	const sqlitePluginPath = `${vfsDocumentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
-	if (!php.fileExists(sqlitePluginPath)) {
-		php.mkdirTree(sqlitePluginPath);
-	}
 	if (php.listFiles(sqlitePluginPath).length === 0) {
 		php.mount(SQLITE_PATH, sqlitePluginPath);
+		php.mount(
+			path.join(SQLITE_PATH, 'db.copy'),
+			`${vfsDocumentRoot}/wp-content/db.php`
+		);
 	}
-	cp(php, {
-		fromPath: `${sqlitePluginPath}/db.copy`,
-		toPath: `${vfsDocumentRoot}/wp-content/db.php`,
-	});
 }
 
-function copySqlite(localWordPressPath: string) {
-	const targetPath = `${localWordPressPath}/wp-content/plugins/${SQLITE_FILENAME}`;
-	if (!fs.existsSync(targetPath)) {
-		fs.copySync(SQLITE_PATH, targetPath);
-	}
-	fs.copySync(
-		`${SQLITE_PATH}/db.copy`,
-		`${localWordPressPath}/wp-content/db.php`
+/**
+ * Create SQLite database directory in hidden utility directory and mount it to the document root
+ *
+ * @param php
+ * @param vfsDocumentRoot
+ * @param wpContentPath
+ */
+function mountSqliteDatabaseDirectory(
+	php: NodePHP,
+	vfsDocumentRoot: string,
+	wpContentPath: string
+) {
+	fs.ensureDirSync(path.join(wpContentPath, 'database'));
+	php.mount(
+		path.join(wpContentPath, 'database'),
+		path.join(vfsDocumentRoot, 'wp-content', 'database')
 	);
 }
 
