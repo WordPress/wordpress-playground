@@ -102,7 +102,6 @@ export default async function startWPNow(
 	rawOptions: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; options: WPNowOptions }> {
 	const options = await parseOptions(rawOptions);
-	console.log(`Executing WPNow options "${JSON.stringify(options)}"`);
 
 	const { documentRoot } = options;
 	const php = await NodePHP.load(options.phpVersion, {
