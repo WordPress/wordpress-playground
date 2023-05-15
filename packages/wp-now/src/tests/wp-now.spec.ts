@@ -159,8 +159,6 @@ describe('Test starting different modes', () => {
 		tmpExampleDirectory = path.join(tmpDirectory, directoryHash);
 		fs.ensureDirSync(tmpExampleDirectory);
 		fs.copySync(exampleDir, tmpExampleDirectory);
-
-		console.log(tmpExampleDirectory);
 	});
 
 	/**
