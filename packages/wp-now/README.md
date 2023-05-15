@@ -166,9 +166,9 @@ Some similarities between `wp-env` and `wp-now` to be aware of:
 
 The `wp-now` package is part of a larger monorepo, sharing its space with other sibiling packages. To publish the `wp-now` package to npm, you must first understand the automated release process facilitated by lerna. This process includes automatically incrementing the version number, creating a new tag, and publishing all modified packages to npm simultaneously. Notably, all published packages share the same version number.
 
-Each package identifies a distinct organization in its package.json file. To publish the `wp-now` package, you need access to the npm organizations `@wp-playground`, `@php-wasm`, and `@wp-now`.
+Each package identifies a distinct organization in its `package.json` file. To publish the `wp-now` package, you need access to the npm organizations `@wp-playground`, `@php-wasm`, and `@wp-now`.
 
-To initiate the publishing process for the wp-now package, execute the following commands:
+To initiate the publishing process for the all the modified packages, execute the following commands:
 
 ```bash
 npm login # this is required only once and it will store the credentials in ~/.npmrc file.
