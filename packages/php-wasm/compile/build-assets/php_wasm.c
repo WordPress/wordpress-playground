@@ -349,7 +349,7 @@ void wasm_init_server_context() {
 
 void wasm_destroy_server_context() {
 	if(wasm_server_context->document_root != NULL) {
-		free(wasm_server_context->document_root);
+		efree(wasm_server_context->document_root);
 	}
 	if(wasm_server_context->query_string != NULL) {
 		free(wasm_server_context->query_string);
@@ -833,13 +833,13 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		 * If the document root is /var/www/html and the requested path /nice/urls is
 		 * served from /var/www/html/another/directory/script.php, PHP_SELF will be
 		 * /another/directory/script.php
-     *
-     * @see https://www.php.net/manual/en/reserved.variables.server.php#:~:text=PHP_SELF
+		 *
+		 * @see https://www.php.net/manual/en/reserved.variables.server.php#:~:text=PHP_SELF
 		 */
 		if (strncmp(wasm_server_context->document_root, wasm_server_context->path_translated, strlen(wasm_server_context->document_root)) == 0) {
 			// Substring of path translated starting after document root
 			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
-			php_register_variable("PHP_SELF", strdup(php_self), track_vars_array TSRMLS_CC);
+			php_register_variable("PHP_SELF", estrdup(php_self), track_vars_array TSRMLS_CC);
 			php_self_set = 1;
 		}
 	}
