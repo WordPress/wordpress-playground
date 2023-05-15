@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { executePHPFile } from '../execute-php-file';
-import { SupportedPHPVersion, SupportedPHPVersions } from '@php-wasm/universal';
 
 const exampleDir = path.join(__dirname, 'execute-php-file');
 
