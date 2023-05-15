@@ -1,3 +1,4 @@
+import path from 'path';
 import { StepHandler } from '.';
 
 /**
@@ -22,7 +23,7 @@ function buildConfigFileContents(consts: Record<string, unknown>) {
 	let contents = `<?php `;
 	for (const [key, value] of Object.entries(consts)) {
 		contents += `if (!defined('${key}')) {
-      define('${key}', ${JSON.stringify(value)});
+      define("${key}", ${JSON.stringify(value)});
     }`;
 	}
 	return contents;
@@ -41,6 +42,7 @@ export const defineVirtualWpConfigConsts: StepHandler<
 	DefineVirtualWpConfigConstsStep
 > = async (playground, { consts, vfsConfigFilePath }) => {
 	const configFilePath = vfsConfigFilePath || VFS_CONFIG_FILE_PATH;
+	playground.mkdir(path.dirname(configFilePath));
 	playground.writeFile(configFilePath, buildConfigFileContents(consts));
 	playground.setPhpIniEntry('auto_prepend_file', configFilePath);
 };
