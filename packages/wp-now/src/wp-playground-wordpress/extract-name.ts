@@ -36,4 +36,3 @@ export function extractPluginName(projectPath: string) {
 	);
 	return extractName(pluginFileContent, /Plugin Name:\s*(.*)/i);
 }
-
