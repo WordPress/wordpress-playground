@@ -5,15 +5,16 @@ import { portFinder } from './port-finder';
 import { SupportedPHPVersion } from '@php-wasm/universal';
 import getWpNowConfig from './config';
 import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
+import { output } from './output';
 
 function startSpinner(message: string) {
 	process.stdout.write(`${message}...\n`);
 	return {
 		succeed: (text: string) => {
-			console.log(`${text}`);
+			output?.log(`${text}`);
 		},
 		fail: (text: string) => {
-			console.error(`${text}`);
+			output?.error(`${text}`);
 		},
 	};
 }
@@ -57,7 +58,7 @@ export async function runCli() {
 					const { url } = await startServer(options);
 					openInDefaultBrowser(url);
 				} catch (error) {
-					console.error(error);
+					output?.error(error);
 					spinner.fail(
 						`Failed to start the server: ${
 							(error as Error).message
@@ -88,7 +89,7 @@ function openInDefaultBrowser(url: string) {
 			args = ['/c', `start ${url}`];
 			break;
 		default:
-			console.log(`Platform '${process.platform}' not supported`);
+			output?.log(`Platform '${process.platform}' not supported`);
 			return;
 	}
 	spawn(cmd, args);
