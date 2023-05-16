@@ -20,12 +20,7 @@ import {
 	downloadWordPress,
 } from './download';
 import { portFinder } from './port-finder';
-import {
-	cp,
-	defineSiteUrl,
-	defineWpConfigConsts,
-	login,
-} from '@wp-playground/blueprints';
+import { defineVirtualWpConfigConsts, login } from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
@@ -269,14 +264,18 @@ async function initWordPress(
 		`${vfsDocumentRoot}/wp-config.php`,
 		php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
 	);
-	await defineSiteUrl(php, { siteUrl });
+
+	const wpConfigConsts = {
+		WP_HOME: siteUrl,
+		WP_SITEURL: siteUrl,
+	};
 	if (wordPressVersion !== 'user-defined') {
-		await defineWpConfigConsts(php, {
-			consts: {
-				WP_AUTO_UPDATE_CORE: wordPressVersion === 'latest',
-			},
-		});
+		wpConfigConsts['WP_AUTO_UPDATE_CORE'] = wordPressVersion === 'latest';
 	}
+	const configFile = await defineVirtualWpConfigConsts(php, {
+		consts: wpConfigConsts,
+	});
+	php.setPhpIniEntry('auto_prepend_file', configFile);
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
