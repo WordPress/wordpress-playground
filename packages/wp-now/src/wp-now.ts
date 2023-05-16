@@ -1,7 +1,5 @@
 import fs from 'fs-extra';
-import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node';
-import { SupportedPHPVersionsList } from '@php-wasm/universal';
 import path from 'path';
 import {
 	SQLITE_FILENAME,
@@ -14,10 +12,8 @@ import {
 	downloadSqliteIntegrationPlugin,
 	downloadWordPress,
 } from './download';
-import { portFinder } from './port-finder';
 import { WPNowOptions, WPNowMode } from './config';
 import {
-	cp,
 	defineSiteUrl,
 	defineWpConfigConsts,
 	login,
@@ -30,45 +26,13 @@ import {
 	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
 
-async function getAbsoluteURL() {
-	const port = await portFinder.getOpenPort();
-	return `http://127.0.0.1:${port}`;
-}
-
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
 
-export async function parseOptions(
-	options: Partial<WPNowOptions> = {}
-): Promise<WPNowOptions> {
-	if (!options.wpContentPath) {
-		options.wpContentPath = getWpContentHomePath(options.projectPath);
-	}
-	if (!options.mode || options.mode === 'auto') {
-		options.mode = inferMode(options.projectPath);
-	}
-	if (!options.absoluteUrl) {
-		options.absoluteUrl = await getAbsoluteURL();
-	}
-	if (
-		options.phpVersion &&
-		!SupportedPHPVersionsList.includes(options.phpVersion)
-	) {
-		throw new Error(
-			`Unsupported PHP version: ${
-				options.phpVersion
-			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
-		);
-	}
-	return options;
-}
-
 export default async function startWPNow(
-	rawOptions: Partial<WPNowOptions> = {}
+	options: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; options: WPNowOptions }> {
-	const options = await parseOptions(rawOptions);
-
 	const { documentRoot } = options;
 	const php = await NodePHP.load(options.phpVersion, {
 		requestHandler: {
@@ -130,15 +94,6 @@ export default async function startWPNow(
 		php,
 		options,
 	};
-}
-
-function getWpContentHomePath(projectPath: string) {
-	const basename = path.basename(projectPath);
-	const directoryHash = crypto
-		.createHash('sha1')
-		.update(projectPath)
-		.digest('hex');
-	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
 }
 
 async function runIndexMode(

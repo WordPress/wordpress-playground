@@ -1,4 +1,12 @@
-import { SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	SupportedPHPVersion,
+	SupportedPHPVersionsList,
+} from '@php-wasm/universal';
+import { WP_NOW_PATH } from './constants';
+import crypto from 'crypto';
+import { inferMode } from './wp-now';
+import { portFinder } from './port-finder';
+
 import path from 'path';
 import * as fs from 'fs';
 
@@ -8,9 +16,10 @@ const WP_ENV_OVERRIDE_FILE = '.wp-env.override.json';
 import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from './constants';
 
 export interface CliOptions {
-	php: string;
-	path: string;
-	wp: string;
+	php?: string;
+	path?: string;
+	wp?: string;
+	port?: number;
 }
 
 export const enum WPNowMode {
@@ -38,6 +47,7 @@ export const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
 	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
+	projectPath: process.cwd(),
 	mode: WPNowMode.AUTO,
 };
 
@@ -52,12 +62,51 @@ export interface WPEnvOptions {
 	mappings: Object;
 }
 
+async function getAbsoluteURL() {
+	const port = await portFinder.getOpenPort();
+	return `http://127.0.0.1:${port}`;
+}
+
+function getWpContentHomePath(projectPath: string) {
+	const basename = path.basename(projectPath);
+	const directoryHash = crypto
+		.createHash('sha1')
+		.update(projectPath)
+		.digest('hex');
+	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
+}
+
 async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {
 	try {
 		return JSON.parse(fs.readFileSync(path, 'utf8'));
 	} catch (error) {
 		return {} as WPEnvOptions;
 	}
+}
+
+async function parseOptions(
+	options: Partial<WPNowOptions> = {}
+): Promise<WPNowOptions> {
+	if (!options.wpContentPath) {
+		options.wpContentPath = getWpContentHomePath(options.projectPath);
+	}
+	if (!options.mode || options.mode === 'auto') {
+		options.mode = inferMode(options.projectPath);
+	}
+	if (!options.absoluteUrl) {
+		options.absoluteUrl = await getAbsoluteURL();
+	}
+	if (
+		options.phpVersion &&
+		!SupportedPHPVersionsList.includes(options.phpVersion)
+	) {
+		throw new Error(
+			`Unsupported PHP version: ${
+				options.phpVersion
+			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
+		);
+	}
+	return options;
 }
 
 async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
@@ -75,10 +124,12 @@ async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
 export default async function getWpNowConfig(
 	args: CliOptions
 ): Promise<WPNowOptions> {
+	const port = args.port || (await portFinder.getOpenPort());
 	const optionsFromCli: WPNowOptions = {
 		phpVersion: args.php as SupportedPHPVersion,
 		projectPath: args.path as string,
 		wordPressVersion: args.wp as string,
+		port,
 	};
 
 	const wpEnvToNowConfig = await fromWpEnv(optionsFromCli.projectPath);
@@ -93,5 +144,5 @@ export default async function getWpNowConfig(
 		}
 	});
 
-	return mergedConfig;
+	return await parseOptions(mergedConfig);
 }

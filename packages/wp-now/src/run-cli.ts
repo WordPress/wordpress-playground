@@ -19,7 +19,6 @@ function startSpinner(message: string) {
 }
 
 export async function runCli() {
-	const port = await portFinder.getOpenPort();
 	return yargs(hideBin(process.argv))
 		.scriptName('wp-now')
 		.usage('$0 <cmd> [args]')
@@ -30,7 +29,6 @@ export async function runCli() {
 				yargs.option('port', {
 					describe: 'Server port',
 					type: 'number',
-					default: port,
 				});
 				yargs.option('path', {
 					describe:
@@ -53,6 +51,7 @@ export async function runCli() {
 						path: argv.path as string,
 						php: argv.php as SupportedPHPVersion,
 						wp: argv.wp as string,
+						port: argv.port as number,
 					});
 					portFinder.setPort(options.port as number);
 					const { url } = await startServer(options);
