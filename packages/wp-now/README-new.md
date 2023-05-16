@@ -31,7 +31,7 @@ wp-now start --wp=5.9 --php=7.4
 
 `wp-now` automatically operates in a few different modes. The selected mode depends on the directory in which it is executed:
 
--   `plugin` or `theme`: Loads the plugin or theme files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, te database, `wp-config.php`, etc.) is stored in the user's home directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `plugin` or `theme`: Loads the plugin or theme files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
 -   `wp-content`: Loads the project files as a `wp-content` folder within a virtual filesystem. WordPress core files and `wp-config.php` remain virtualized, but the SQLite database will be written to the project directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
 -   `wordpress`: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   `wordpress-develop`: Same as `wordpress` mode, except the `build` directory is served as the web root.
