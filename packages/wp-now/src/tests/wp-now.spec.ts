@@ -228,10 +228,13 @@ describe('Test starting different modes', () => {
 	/**
 	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
 	 */
-	test.each(['index', 'plugin', 'theme'])(
+	test.each([
+		['index', ['index.php']],
+		['plugin', ['sample-plugin.php']],
+		['theme', ['style.css']]
+	])(
 		'startWPNow starts %s mode',
-		async (mode) => {
-			const exampleProjectPath = path.join(exampleDir, mode);
+		async (mode, expectedDirectories) => {
 			const projectPath = path.join(tmpExampleDirectory, mode);
 
 			const rawOptions: Partial<WPNowOptions> = {
@@ -244,9 +247,7 @@ describe('Test starting different modes', () => {
 
 			expectForbiddenProjectFiles(forbiddenPaths, projectPath);
 
-			expect(fs.readdirSync(projectPath)).toEqual(
-				fs.readdirSync(exampleProjectPath)
-			);
+			expect(fs.readdirSync(projectPath)).toEqual(expectedDirectories);
 		}
 	);
 
