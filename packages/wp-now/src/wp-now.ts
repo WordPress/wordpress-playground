@@ -272,4 +272,3 @@ async function installationStep2(php: NodePHP) {
 		},
 	});
 }
-
