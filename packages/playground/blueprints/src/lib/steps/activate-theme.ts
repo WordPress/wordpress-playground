@@ -10,7 +10,7 @@ export interface ActivateThemeStep {
  * Activates a WordPress theme in the Playground.
  *
  * @param playground The playground client.
- * @param theme The theme slug.
+ * @param themeFolderName The theme folder name.
  */
 export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	playground,
