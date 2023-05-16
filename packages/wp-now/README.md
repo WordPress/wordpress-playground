@@ -137,3 +137,11 @@ To initiate the publishing process for the all the modified packages, execute th
 npm login # this is required only once and it will store the credentials in ~/.npmrc file.
 npm run release
 ```
+
+### When publishing goes wrong
+
+Internet connections drop, APIs stop responding, and GitHub rules are nasty. Stuff happens. If the publishing process fails, you may need to bump the version again and force a publish. To do so, execute the following command:
+
+```bash
+npm run release --force-publish
+```
