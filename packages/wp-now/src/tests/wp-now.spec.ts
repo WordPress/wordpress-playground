@@ -186,9 +186,20 @@ describe('Test starting different modes', () => {
 		mountPaths.map((relativePath) => {
 			const fullPath = path.join(projectPath, relativePath);
 
-			expect(fs.existsSync(fullPath)).toBe(true);
-			expect(fs.readdirSync(fullPath)).toEqual([]);
-			expect(fs.lstatSync(fullPath).isDirectory()).toBe(true);
+			expect({
+				path: fullPath,
+				exists: fs.existsSync(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: true });
+
+			expect({
+				path: fullPath,
+				content: fs.readdirSync(fullPath),
+			}).toStrictEqual({ path: fullPath, content: [] });
+
+			expect({
+				path: fullPath,
+				isDirectory: fs.lstatSync(fullPath).isDirectory(),
+			}).toStrictEqual({ path: fullPath, isDirectory: true });
 		});
 	};
 
@@ -283,8 +294,8 @@ describe('Test starting different modes', () => {
 	});
 
 	/**
-	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
-	 * that required files exist for PHP.
+	 * Test that startWPNow in "wordpress" mode without existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
 	 */
 	test('startWPNow starts wordpress mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
@@ -306,6 +317,42 @@ describe('Test starting different modes', () => {
 
 		const requiredFiles = [
 			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'wp-config.php',
+		];
+
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode with existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
+	 */
+	test('startWPNow starts wordpress mode with existing wp-config', async () => {
+		const projectPath = path.join(
+			tmpExampleDirectory,
+			'wordpress-with-config'
+		);
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+
+		const mountPointPaths = ['wp-content/mu-plugins'];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const forbiddenPaths = [
+			'wp-content/database',
+			'wp-content/db.php',
+			'wp-content/plugins/sqlite-database-integration',
+		];
+
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
+		const requiredFiles = [
 			'wp-content/mu-plugins/0-allow-wp-org.php',
 			'wp-config.php',
 		];
