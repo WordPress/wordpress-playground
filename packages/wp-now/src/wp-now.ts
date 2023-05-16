@@ -271,9 +271,10 @@ async function initWordPress(
 	if (wordPressVersion !== 'user-defined') {
 		wpConfigConsts['WP_AUTO_UPDATE_CORE'] = wordPressVersion === 'latest';
 	}
-	defineVirtualWpConfigConsts(php, {
+	const configFile = await defineVirtualWpConfigConsts(php, {
 		consts: wpConfigConsts,
 	});
+	php.setPhpIniEntry('auto_prepend_file', configFile);
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
