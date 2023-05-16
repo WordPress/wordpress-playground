@@ -32,8 +32,8 @@ import {
 	isWpContentDirectory,
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
+	getPluginFile,
 } from './wp-playground-wordpress';
-import { extractPluginName } from './wp-playground-wordpress/extract-name';
 import { output } from './output';
 
 export const enum WPNowMode {
@@ -298,9 +298,10 @@ async function activatePluginOrTheme(
 	{ projectPath, mode }: WPNowOptions
 ) {
 	if (mode === WPNowMode.PLUGIN) {
-		const { slug } = extractPluginName(projectPath);
-		if (slug) {
-			await activatePlugin(php, { plugin: slug });
+		const pluginFile = getPluginFile(projectPath);
+		console.log('pluginFile', pluginFile);
+		if (pluginFile) {
+			await activatePlugin(php, { pluginPath: pluginFile });
 		}
 	} else if (mode === WPNowMode.THEME) {
 		const themeFolderName = path.basename(projectPath);

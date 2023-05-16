@@ -4,3 +4,4 @@ export * from './is-theme-directory';
 export * from './is-wp-content-directory';
 export * from './is-wordpress-directory';
 export * from './is-wordpress-develop-directory';
+export * from './get-plugin-file';
