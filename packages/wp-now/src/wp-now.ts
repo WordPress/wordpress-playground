@@ -36,6 +36,7 @@ import {
 	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
 import { extractPluginName } from './wp-playground-wordpress/extract-name';
+import { output } from './output';
 
 export const enum WPNowMode {
 	PLUGIN = 'plugin',
@@ -118,7 +119,7 @@ export default async function startWPNow(
 						!seemsLikeAPHPFile(fullPath)
 					);
 				} catch (e) {
-					console.error(e);
+					output?.error(e);
 					return false;
 				}
 			},
@@ -128,10 +129,10 @@ export default async function startWPNow(
 	php.chdir(documentRoot);
 	php.writeFile(`${documentRoot}/index.php`, `<?php echo 'Hello wp-now!';`);
 
-	console.log(`directory: ${options.projectPath}`);
-	console.log(`mode: ${options.mode}`);
-	console.log(`php: ${options.phpVersion}`);
-	console.log(`wp: ${options.wordPressVersion}`);
+	output?.log(`directory: ${options.projectPath}`);
+	output?.log(`mode: ${options.mode}`);
+	output?.log(`php: ${options.phpVersion}`);
+	output?.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
 		await runIndexMode(php, options);
 		return { php, options };

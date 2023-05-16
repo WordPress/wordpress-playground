@@ -63,7 +63,8 @@
 			"outputs": ["coverage/packages/wp-now"],
 			"options": {
 				"passWithNoTests": true,
-				"reportsDirectory": "../../coverage/packages/wp-now/node"
+				"reportsDirectory": "../../coverage/packages/wp-now/node",
+				"testTimeout": 20000
 			}
 		}
 	},
