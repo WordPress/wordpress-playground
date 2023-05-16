@@ -66,9 +66,9 @@ async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
 		path.join(cwd, WP_ENV_OVERRIDE_FILE)
 	);
 	return {
-		phpVersion: wpEnvConfig.phpVersion || wpOverrideEnvConfig.phpVersion,
-		wordPressVersion: wpEnvConfig.core || wpOverrideEnvConfig.core,
-		port: wpEnvConfig.port || wpOverrideEnvConfig.port,
+		phpVersion: wpOverrideEnvConfig.phpVersion || wpEnvConfig.phpVersion,
+		wordPressVersion: wpOverrideEnvConfig.core || wpEnvConfig.core,
+		port: wpOverrideEnvConfig.port || wpEnvConfig.port,
 	};
 }
 
