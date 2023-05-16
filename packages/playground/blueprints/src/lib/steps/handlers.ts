@@ -21,3 +21,4 @@ export { login } from './login';
 export { runWpInstallationWizard } from './run-wp-installation-wizard';
 export { setSiteOptions, updateUserMeta } from './site-data';
 export { defineWpConfigConsts } from './define-wp-config-consts';
+export { defineVirtualWpConfigConsts } from './define-virtual-wp-config-consts';

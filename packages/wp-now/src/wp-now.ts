@@ -23,9 +23,7 @@ import { portFinder } from './port-finder';
 import {
 	activatePlugin,
 	activateTheme,
-	cp,
-	defineSiteUrl,
-	defineWpConfigConsts,
+	defineVirtualWpConfigConsts,
 	login,
 } from '@wp-playground/blueprints';
 import {
@@ -281,14 +279,18 @@ async function initWordPress(
 		`${vfsDocumentRoot}/wp-config.php`,
 		php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
 	);
-	await defineSiteUrl(php, { siteUrl });
+
+	const wpConfigConsts = {
+		WP_HOME: siteUrl,
+		WP_SITEURL: siteUrl,
+	};
 	if (wordPressVersion !== 'user-defined') {
-		await defineWpConfigConsts(php, {
-			consts: {
-				WP_AUTO_UPDATE_CORE: wordPressVersion === 'latest',
-			},
-		});
+		wpConfigConsts['WP_AUTO_UPDATE_CORE'] = wordPressVersion === 'latest';
 	}
+	const configFile = await defineVirtualWpConfigConsts(php, {
+		consts: wpConfigConsts,
+	});
+	php.setPhpIniEntry('auto_prepend_file', configFile);
 }
 
 async function activatePluginOrTheme(

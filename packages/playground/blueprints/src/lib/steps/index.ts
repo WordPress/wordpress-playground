@@ -27,6 +27,7 @@ import {
 } from './client-methods';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
+import { DefineVirtualWpConfigConstsStep } from './define-virtual-wp-config-consts';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -42,6 +43,7 @@ export type GenericStep<Resource> =
 	| ApplyWordPressPatchesStep
 	| CpStep
 	| DefineWpConfigConstsStep
+	| DefineVirtualWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>
