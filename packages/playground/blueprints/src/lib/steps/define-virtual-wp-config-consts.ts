@@ -15,23 +15,6 @@ export interface DefineVirtualWpConfigConstsStep {
 }
 
 /**
- * Function to build the contents of the config php file.
- *
- * @param consts An object containing constants to be defined.
- * @returns Returns the file content as a string.
- */
-function buildConfigFileContents(consts: Record<string, unknown>) {
-	let contents = `<?php `;
-	for (const [key, value] of Object.entries(consts)) {
-		contents += `if (!defined('${key}')) {
-      define("${key}", ${JSON.stringify(value)});
-    }`;
-	}
-	contents += ` ?>`;
-	return contents;
-}
-
-/**
  * Function to define constants in the virtual VFS_CONFIG_FILE_PATH php file of a WordPress installation.
  * The file should be dynamically loaded using the auto_prepend_file php.ini directive after this step.
  *
@@ -44,10 +27,25 @@ export const defineVirtualWpConfigConsts: StepHandler<
 	DefineVirtualWpConfigConstsStep
 > = async (playground, { consts }) => {
 	playground.mkdir(VFS_CONFIG_FILE_BASENAME);
-	await updateFile(
-		playground,
-		VFS_CONFIG_FILE_PATH,
-		(contents) => contents + buildConfigFileContents(consts)
+	const jsonPath = `${VFS_CONFIG_FILE_BASENAME}/playground-consts.json`;
+	await updateFile(playground, jsonPath, (contents) =>
+		JSON.stringify({
+			...JSON.parse(contents || '{}'),
+			...consts,
+		})
 	);
+	await updateFile(playground, VFS_CONFIG_FILE_PATH, (contents) => {
+		if (!contents.includes('playground-consts.json')) {
+			return `<?php
+	$consts = json_decode(file_get_contents('${jsonPath}'), true);
+	foreach ($consts as $const => $value) {
+		if (!defined($const)) {
+			define($const, $value);
+		}
+	}
+?>${contents}`;
+		}
+		return contents;
+	});
 	return VFS_CONFIG_FILE_PATH;
 };

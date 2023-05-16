@@ -1,7 +1,7 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
 import { defineVirtualWpConfigConsts } from './steps/define-virtual-wp-config-consts';
-import { VFS_CONFIG_FILE_PATH } from './steps/common';
+import { VFS_CONFIG_FILE_BASENAME, VFS_CONFIG_FILE_PATH } from './steps/common';
 import { setPhpIniEntry } from './steps/client-methods';
 
 const phpVersion = '8.0';
@@ -35,34 +35,12 @@ describe('Blueprints', () => {
 		);
 	});
 
-	it('should define constants in the VFS_CONFIG_FILE_PATH php file', async () => {
+	it('should define the consts in a json and auto load the constants in VFS_CONFIG_FILE_PATH php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
 			SITE_URL: 'http://test.url',
-			HOME_URL: 'http://test.url',
 			WP_AUTO_UPDATE_CORE: false,
-		};
-
-		// Call the function with the constants and the playground client
-		await defineVirtualWpConfigConsts(php, { consts });
-
-		// Assert that the file was created
-		expect(php.fileExists(VFS_CONFIG_FILE_PATH)).toBe(true);
-
-		// Assert that the file content is as expected
-		const fileContent = php.readFileAsText(VFS_CONFIG_FILE_PATH);
-		expect(fileContent).toContain('define("TEST_CONST", "test_value");');
-		expect(fileContent).toContain('define("SITE_URL", "http://test.url");');
-		expect(fileContent).toContain('define("HOME_URL", "http://test.url");');
-		expect(fileContent).toContain('define("WP_AUTO_UPDATE_CORE", false);');
-	});
-
-	it('should define and auto load the constants in the VFS_CONFIG_FILE_PATH php file', async () => {
-		// Define the constants to be tested
-		const consts = {
-			TEST_CONST: 'test_value',
-			SITE_URL: 'http://test.url',
 		};
 
 		// Call the function with the constants and the playground client
@@ -74,6 +52,14 @@ describe('Blueprints', () => {
 			value: configFile,
 		});
 
+		expect(php.fileExists(VFS_CONFIG_FILE_PATH)).toBe(true);
+		expect(
+			php.fileExists(`${VFS_CONFIG_FILE_BASENAME}/playground-consts.json`)
+		).toBe(true);
+		expect(
+			php.fileExists(`${php.documentRoot}/playground-consts.json`)
+		).toBe(false);
+
 		// Assert execution of echo statements
 		php.writeFile('/index.php', '<?php echo TEST_CONST;');
 		let result = await php.request({ url: '/index.php' });
@@ -82,5 +68,9 @@ describe('Blueprints', () => {
 		php.writeFile('/index.php', '<?php echo SITE_URL;');
 		result = await php.request({ url: '/index.php' });
 		expect(result.text).toBe('http://test.url');
+
+		php.writeFile('/index.php', '<?php var_dump(WP_AUTO_UPDATE_CORE);');
+		result = await php.request({ url: '/index.php' });
+		expect(result.text.trim()).toBe('bool(false)');
 	});
 });
