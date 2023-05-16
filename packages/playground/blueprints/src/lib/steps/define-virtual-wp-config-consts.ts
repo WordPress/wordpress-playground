@@ -16,8 +16,8 @@ export const VFS_CONFIG_FILE_PATH = `${VFS_CONFIG_PATH}/${VFS_CONFIG_FILE_NAME}`
 /**
  * Function to build the contents of the config php file.
  *
- * @param {Record<string, unknown>} consts - An object containing constants to be defined.
- * @returns {string} - Returns the file content as a string.
+ * @param consts An object containing constants to be defined.
+ * @returns Returns the file content as a string.
  */
 function buildConfigFileContents(consts: Record<string, unknown>) {
 	let contents = `<?php `;
@@ -33,9 +33,9 @@ function buildConfigFileContents(consts: Record<string, unknown>) {
  * Function to define constants in the virtual VFS_CONFIG_FILE_PATH php file of a WordPress installation.
  * The file is then dinamically loaded using the auto_prepend_file php.ini directive.
  *
- * @param {Object} playground - The playground client.
- * @param {DefineVirtualWpConfigConstsStep} wpConfigConst - An object containing the constants to be defined and the optional virtual file system configuration file path.
- * @returns {Promise<void>} - A Promise that resolves when the operation is completed.
+ * @param playground The playground client.
+ * @param wpConfigConst An object containing the constants to be defined and the optional virtual file system configuration file path.
+ * @returns A Promise that resolves when the operation is completed.
  * @see {@link https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file}
  */
 export const defineVirtualWpConfigConsts: StepHandler<
