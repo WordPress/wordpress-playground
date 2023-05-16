@@ -38,6 +38,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
+	#serverEntries: Record<string, string> = {};
 	requestHandler?: PHPBrowser;
 
 	/**
@@ -159,6 +160,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (request.code) {
 			this.#setPHPCode(' ?>' + request.code);
 		}
+		this.#addServerGlobalEntriesInWasm();
 		return await this.#handleRequest();
 	}
 
@@ -324,12 +326,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	addServerGlobalEntry(key: string, value: string) {
-		this[__private__dont__use].ccall(
-			'wasm_add_SERVER_entry',
-			null,
-			[STRING, STRING],
-			[key, value]
-		);
+		this.#serverEntries[key] = value;
+	}
+
+	#addServerGlobalEntriesInWasm() {
+		for (const key in this.#serverEntries) {
+			this[__private__dont__use].ccall(
+				'wasm_add_SERVER_entry',
+				null,
+				[STRING, STRING],
+				[key, this.#serverEntries[key]]
+			);
+		}
 	}
 
 	/**
@@ -426,6 +434,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
+			this.#serverEntries = {};
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();

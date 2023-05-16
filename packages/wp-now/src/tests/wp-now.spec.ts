@@ -1,4 +1,9 @@
-import { inferMode, parseOptions, WPNowMode, WPNowOptions } from '../wp-now';
+import startWPNow, {
+	inferMode,
+	parseOptions,
+	WPNowMode,
+	WPNowOptions,
+} from '../wp-now';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -8,7 +13,8 @@ import {
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
 } from '../wp-playground-wordpress';
-import jest from 'jest-mock';
+import os from 'os';
+import crypto from 'crypto';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -124,21 +130,8 @@ test('isWordPressDirectory returns false for non-WordPress directory', () => {
 });
 
 // WordPress developer mode
-test.skip('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
-	const projectPath = __dirname;
-	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
-		const existingFiles = [
-			'src',
-			'src/wp-content',
-			'src/wp-includes',
-			'src/wp-load.php',
-			'build',
-			'build/wp-content',
-			'build/wp-includes',
-			'build/wp-load.php',
-		].map((file) => path.join(projectPath, file));
-		return existingFiles.includes(fileOrFolder as string);
-	});
+test('isWordPressDevelopDirectory detects a WordPress-develop directory and WORDPRESS_DEVELOP mode', () => {
+	const projectPath = exampleDir + '/wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(true);
 	expect(inferMode(projectPath)).toBe(WPNowMode.WORDPRESS_DEVELOP);
@@ -151,26 +144,176 @@ test('isWordPressDevelopDirectory returns false for non-WordPress-develop direct
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
 
-test.skip('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
-	const projectPath = path.join(
-		__dirname,
-		'test-fixtures',
-		'incomplete-wp-develop'
-	);
-	jest.spyOn(fs, 'existsSync').mockImplementation((fileOrFolder) => {
-		const requiredFiles = [
-			'src',
-			'src/wp-content',
-			'src/wp-includes',
-			'src/wp-load.php',
-			'build',
-			'build/wp-content',
-			'build/wp-includes',
-			// 'build/wp-load.php', // Simulates missing file
-		].map((file) => path.join(projectPath, file));
-		return requiredFiles.includes(fileOrFolder as string);
-	});
+test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
+	const projectPath = exampleDir + '/not-wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+});
+
+describe('Test starting different modes', () => {
+	let tmpExampleDirectory;
+
+	/**
+	 * Copy example directory to a temporary directory
+	 */
+	beforeEach(() => {
+		const tmpDirectory = os.tmpdir();
+		const directoryHash = crypto.randomBytes(20).toString('hex');
+
+		tmpExampleDirectory = path.join(
+			tmpDirectory,
+			`wp-now-tests-${directoryHash}`
+		);
+		fs.ensureDirSync(tmpExampleDirectory);
+		fs.copySync(exampleDir, tmpExampleDirectory);
+	});
+
+	/**
+	 * Remove temporary directory
+	 */
+	afterEach(() => {
+		fs.rmSync(tmpExampleDirectory, { recursive: true, force: true });
+	});
+
+	/**
+	 * Expect that all provided mount point paths are empty directories which are result of file system mounts.
+	 *
+	 * @param mountPaths List of mount point paths that should exist on file system.
+	 * @param projectPath Project path.
+	 */
+	const expectEmptyMountPoints = (mountPaths, projectPath) => {
+		mountPaths.map((relativePath) => {
+			const fullPath = path.join(projectPath, relativePath);
+
+			expect(fs.existsSync(fullPath)).toBe(true);
+			expect(fs.readdirSync(fullPath)).toEqual([]);
+			expect(fs.lstatSync(fullPath).isDirectory()).toBe(true);
+		});
+	};
+
+	/**
+	 * Expect that all listed files do not exist in project directory
+	 *
+	 * @param forbiddenFiles List of files that should not exist on file system.
+	 * @param projectPath Project path.
+	 */
+	const expectForbiddenProjectFiles = (forbiddenFiles, projectPath) => {
+		forbiddenFiles.map((relativePath) => {
+			const fullPath = path.join(projectPath, relativePath);
+			expect({
+				path: fullPath,
+				exists: fs.existsSync(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: false });
+		});
+	};
+
+	/**
+	 * Expect that all required files exist for PHP.
+	 *
+	 * @param requiredFiles List of files that should be accessible by PHP.
+	 * @param documentRoot Document root of the PHP server.
+	 * @param php NodePHP instance.
+	 */
+	const expectRequiredRootFiles = (requiredFiles, documentRoot, php) => {
+		requiredFiles.map((relativePath) => {
+			const fullPath = path.join(documentRoot, relativePath);
+			expect({
+				path: fullPath,
+				exists: php.fileExists(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: true });
+		});
+	};
+
+	/**
+	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
+	 */
+	test.each(['index', 'plugin', 'theme'])(
+		'startWPNow starts %s mode',
+		async (mode) => {
+			const exampleProjectPath = path.join(exampleDir, mode);
+			const projectPath = path.join(tmpExampleDirectory, mode);
+
+			const rawOptions: Partial<WPNowOptions> = {
+				projectPath: projectPath,
+			};
+
+			await startWPNow(rawOptions);
+
+			const forbiddenPaths = ['wp-config.php'];
+
+			expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
+			expect(fs.readdirSync(projectPath)).toEqual(
+				fs.readdirSync(exampleProjectPath)
+			);
+		}
+	);
+
+	/**
+	 * Test that startWPNow in "wp-content" mode mounts required files and directories, and
+	 * that required files exist for PHP.
+	 */
+	test('startWPNow starts wp-content mode', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'wp-content');
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+
+		const mountPointPaths = [
+			'database',
+			'db.php',
+			'mu-plugins',
+			'plugins/sqlite-database-integration',
+		];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const forbiddenPaths = ['wp-config.php'];
+
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
+		const requiredFiles = [
+			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'playground-consts.json',
+		];
+
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
+	 * that required files exist for PHP.
+	 */
+	test('startWPNow starts wordpress mode', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
+
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
+
+		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+
+		const mountPointPaths = [
+			'wp-content/database',
+			'wp-content/db.php',
+			'wp-content/mu-plugins',
+			'wp-content/plugins/sqlite-database-integration',
+		];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const requiredFiles = [
+			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'playground-consts.json',
+			'wp-config.php',
+		];
+
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
 });
