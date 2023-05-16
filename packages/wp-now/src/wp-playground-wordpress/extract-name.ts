@@ -37,11 +37,3 @@ export function extractPluginName(projectPath: string) {
 	return extractName(pluginFileContent, /Plugin Name:\s*(.*)/i);
 }
 
-export function extractThemeName(projectPath: string) {
-	const styleCssPath = path.join(projectPath, 'style.css');
-	if (!fs.existsSync(styleCssPath)) {
-		return null;
-	}
-	const styleCssContent = fs.readFileSync(styleCssPath, 'utf-8');
-	return extractName(styleCssContent, /Theme Name:\s*(.*)/i);
-}
