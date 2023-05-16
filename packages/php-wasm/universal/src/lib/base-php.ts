@@ -403,7 +403,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					[]
 				);
 				if (response instanceof Promise) {
-					return response.then(resolve).catch(reject);
+					return response.then(resolve, reject);
 				}
 				return resolve(response);
 			});
