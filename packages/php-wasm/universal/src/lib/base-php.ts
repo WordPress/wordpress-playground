@@ -388,25 +388,16 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					'error',
 					errorListener
 				);
-
-				try {
-					resolve(
-						/**
-						 * This is awkward, but Asyncify makes wasm_sapi_handle_request return
-						 * Promise<Promise<number>>.
-						 *
-						 * @TODO: Determine whether this is a bug in emscripten or in our code.
-						 */
-						this[__private__dont__use].ccall(
-							'wasm_sapi_handle_request',
-							NUMBER,
-							[],
-							[]
-						)
-					);
-				} catch (e) {
-					reject(e);
+				const response = this[__private__dont__use].ccall(
+					'wasm_sapi_handle_request',
+					NUMBER,
+					[],
+					[]
+				);
+				if (response instanceof Promise) {
+					return response.then(resolve).catch(reject);
 				}
+				return resolve(response);
 			});
 		} catch (e) {
 			/**
