@@ -1,5 +1,4 @@
 import { StepHandler } from '.';
-import { asDOM } from './common';
 
 export interface ActivateThemeStep {
 	step: 'activateTheme';
