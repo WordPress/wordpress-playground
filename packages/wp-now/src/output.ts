@@ -1,5 +1,5 @@
 function shouldOutput() {
-	return process.env.NODE_ENV !== 'test'
+	return process.env.NODE_ENV !== 'test';
 }
 
-export const output = (shouldOutput()) ? console : null;
+export const output = shouldOutput() ? console : null;
