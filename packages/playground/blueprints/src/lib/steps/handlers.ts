@@ -1,4 +1,5 @@
 export { activatePlugin } from './activate-plugin';
+export { activateTheme } from './activate-theme';
 export { applyWordPressPatches } from './apply-wordpress-patches';
 export {
 	rm,

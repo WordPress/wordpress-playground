@@ -21,6 +21,8 @@ import {
 } from './download';
 import { portFinder } from './port-finder';
 import {
+	activatePlugin,
+	activateTheme,
 	cp,
 	defineSiteUrl,
 	defineWpConfigConsts,
@@ -33,6 +35,7 @@ import {
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
+import { extractPluginName } from './wp-playground-wordpress/extract-name';
 
 export const enum WPNowMode {
 	PLUGIN = 'plugin',
@@ -136,6 +139,7 @@ export default async function startWPNow(
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
 	await downloadMuPlugins();
+	const isFirstTimeProject = !fs.existsSync(options.wpContentPath);
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
@@ -158,6 +162,14 @@ export default async function startWPNow(
 		username: 'admin',
 		password: 'password',
 	});
+
+	if (
+		isFirstTimeProject &&
+		[WPNowMode.PLUGIN, WPNowMode.THEME].includes(options.mode)
+	) {
+		activatePluginOrTheme(php, options);
+	}
+
 	return {
 		php,
 		options,
@@ -275,6 +287,21 @@ async function initWordPress(
 				WP_AUTO_UPDATE_CORE: wordPressVersion === 'latest',
 			},
 		});
+	}
+}
+
+async function activatePluginOrTheme(
+	php: NodePHP,
+	{ projectPath, mode }: WPNowOptions
+) {
+	if (mode === WPNowMode.PLUGIN) {
+		const { slug } = extractPluginName(projectPath);
+		if (slug) {
+			await activatePlugin(php, { plugin: slug });
+		}
+	} else if (mode === WPNowMode.THEME) {
+		const themeFolderName = path.basename(projectPath);
+		await activateTheme(php, { themeFolderName });
 	}
 }
 
