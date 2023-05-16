@@ -1,8 +1,12 @@
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
-import { JSDOM } from 'jsdom';
 
-export function asDOM(response: PHPResponse) {
-	return new JSDOM(response.text).window.document;
+export async function asDOM(response: PHPResponse) {
+	if (typeof process !== 'undefined' && process.release?.name === 'node') {
+		const { JSDOM } = await import('jsdom');
+		return new JSDOM(response.text).window.document;
+	} else {
+		return new DOMParser().parseFromString(response.text, 'text/html')!;
+	}
 }
 
 export function zipNameToHumanName(zipName: string) {

@@ -18,7 +18,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(`Activating ${plugin}`);
-	const pluginsPage = asDOM(
+	const pluginsPage = await asDOM(
 		await playground.request({
 			url: '/wp-admin/plugins.php',
 		})
