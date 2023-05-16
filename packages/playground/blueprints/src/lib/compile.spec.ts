@@ -66,7 +66,9 @@ describe('Blueprints', () => {
 		};
 
 		// Call the function with the constants and the playground client
-		const configFile = await defineVirtualWpConfigConsts(php, { consts });
+    // Step1: define the constants
+    const configFile = await defineVirtualWpConfigConsts(php, { consts });
+    // Step2: set the auto_prepend_file php.ini entry
 		await setPhpIniEntry(php, {
 			key: 'auto_prepend_file',
 			value: configFile,

@@ -33,7 +33,7 @@ function buildConfigFileContents(consts: Record<string, unknown>) {
 
 /**
  * Function to define constants in the virtual VFS_CONFIG_FILE_PATH php file of a WordPress installation.
- * The file is then dynamically loaded using the auto_prepend_file php.ini directive.
+ * The file should be dynamically loaded using the auto_prepend_file php.ini directive after this step.
  *
  * @param playground The playground client.
  * @param wpConfigConst An object containing the constants to be defined and the optional virtual file system configuration file path.
@@ -49,6 +49,5 @@ export const defineVirtualWpConfigConsts: StepHandler<
 		VFS_CONFIG_FILE_PATH,
 		(contents) => contents + buildConfigFileContents(consts)
 	);
-	// playground.setPhpIniEntry('auto_prepend_file', VFS_CONFIG_FILE_PATH);
 	return VFS_CONFIG_FILE_PATH;
 };
