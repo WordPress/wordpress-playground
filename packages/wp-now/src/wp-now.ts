@@ -214,11 +214,22 @@ async function runWordPressMode(
 	{ documentRoot, wpContentPath, projectPath, absoluteUrl }: WPNowOptions
 ) {
 	php.mount(projectPath, documentRoot);
-	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
-		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
+
+	const { initializeDefaultDatabase } = await initWordPress(
+		php,
+		'user-provided',
+		documentRoot,
+		absoluteUrl
+	);
+
+	if (
+		initializeDefaultDatabase ||
+		fs.existsSync(path.join(wpContentPath, 'database'))
+	) {
+		mountSqlitePlugin(php, documentRoot);
+		mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
 	}
-	mountSqlitePlugin(php, documentRoot);
-	mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
+
 	mountMuPlugins(php, documentRoot);
 }
 
@@ -254,16 +265,33 @@ async function runPluginOrThemeMode(
 	mountMuPlugins(php, documentRoot);
 }
 
+/**
+ * Initialize WordPress
+ *
+ * Initializes WordPress by copying sample config file to wp-config.php if it doesn't exist,
+ * and sets up additional constants for PHP.
+ *
+ * It also returns information about whether the default database should be initialized.
+ *
+ * @param php
+ * @param wordPressVersion
+ * @param vfsDocumentRoot
+ * @param siteUrl
+ */
 async function initWordPress(
 	php: NodePHP,
 	wordPressVersion: string,
 	vfsDocumentRoot: string,
 	siteUrl: string
 ) {
-	php.writeFile(
-		`${vfsDocumentRoot}/wp-config.php`,
-		php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
-	);
+	let initializeDefaultDatabase = false;
+	if (!php.fileExists(`${vfsDocumentRoot}/wp-config.php`)) {
+		php.writeFile(
+			`${vfsDocumentRoot}/wp-config.php`,
+			php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
+		);
+		initializeDefaultDatabase = true;
+	}
 
 	const wpConfigConsts = {
 		WP_HOME: siteUrl,
@@ -276,6 +304,8 @@ async function initWordPress(
 		consts: wpConfigConsts,
 	});
 	php.setPhpIniEntry('auto_prepend_file', configFile);
+
+	return { initializeDefaultDatabase };
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
