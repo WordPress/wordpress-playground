@@ -228,27 +228,25 @@ describe('Test starting different modes', () => {
 	/**
 	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
 	 */
-	test.each(['index', 'plugin', 'theme'])(
-		'startWPNow starts %s mode',
-		async (mode) => {
-			const exampleProjectPath = path.join(exampleDir, mode);
-			const projectPath = path.join(tmpExampleDirectory, mode);
+	test.each([
+		['index', ['index.php']],
+		['plugin', ['sample-plugin.php']],
+		['theme', ['style.css']],
+	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
+		const projectPath = path.join(tmpExampleDirectory, mode);
 
-			const rawOptions: Partial<WPNowOptions> = {
-				projectPath: projectPath,
-			};
+		const rawOptions: Partial<WPNowOptions> = {
+			projectPath: projectPath,
+		};
 
-			await startWPNow(rawOptions);
+		await startWPNow(rawOptions);
 
-			const forbiddenPaths = ['wp-config.php'];
+		const forbiddenPaths = ['wp-config.php'];
 
-			expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
 
-			expect(fs.readdirSync(projectPath)).toEqual(
-				fs.readdirSync(exampleProjectPath)
-			);
-		}
-	);
+		expect(fs.readdirSync(projectPath)).toEqual(expectedDirectories);
+	});
 
 	/**
 	 * Test that startWPNow in "wp-content" mode mounts required files and directories, and
