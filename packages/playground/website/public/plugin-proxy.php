@@ -112,6 +112,25 @@ class PluginDownloader
         }
     }
 
+    public function streamFromGithubReleases($repo, $name)
+    {
+        $zipUrl = "https://github.com/$repo/releases/latest/download/$name";
+        try {
+            $this->streamHttpResponse($zipUrl, [
+                'content-length',
+                'x-frame-options',
+                'last-modified',
+                'etag',
+                'date',
+                'age',
+                'vary',
+                'cache-Control'
+            ]);
+        } catch (ApiException $e) {
+            throw new ApiException("Plugin or theme '$name' not found");
+        }
+    }
+
     protected function gitHubRequest($url, $decode = true)
     {
         $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36';
@@ -247,6 +266,15 @@ try {
             $_GET['workflow'],
             $_GET['artifact']
         );
+    } else if (isset($_GET['repo']) && isset($_GET['name'])) {
+
+      // Only allow downloads from the block-interactivity-experiments repo for now.
+        if ($_GET['repo'] !== 'WordPress/block-interactivity-experiments') {
+            throw new ApiException('Invalid repo. Only "WordPress/block-interactivity-experiments" is allowed.');
+        }
+
+        $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
+
     } else {
         throw new ApiException('Invalid query parameters');
     }

@@ -2,9 +2,33 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { asDOM, zipNameToHumanName } from './common';
 
+/**
+ * The step to install a WordPress plugin in the Playground.
+ *
+ * @example
+ *
+ * <code>
+ * {
+ * 	    "step": "installPlugin",
+ * 		"pluginZipFile": "http://example.com/plugin.zip",
+ * 		"options": {
+ * 			"activate": true
+ * 		}
+ * }
+ * </code>
+ */
 export interface InstallPluginStep<ResourceType> {
+	/**
+	 * The step identifier.
+	 */
 	step: 'installPlugin';
+	/**
+	 * The plugin zip file to install.
+	 */
 	pluginZipFile: ResourceType;
+	/**
+	 * Optional installation options.
+	 */
 	options?: InstallPluginOptions;
 }
 

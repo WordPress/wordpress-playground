@@ -13,11 +13,11 @@ export interface CliOptions {
 	wp: string;
 }
 
-export enum WPNowMode {
+export const enum WPNowMode {
 	PLUGIN = 'plugin',
 	THEME = 'theme',
-	CORE = 'core',
-	CORE_DEVELOP = 'core-develop',
+	WORDPRESS = 'wordpress',
+	WORDPRESS_DEVELOP = 'wordpress-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
 	AUTO = 'auto',
@@ -38,6 +38,7 @@ export const DEFAULT_OPTIONS: WPNowOptions = {
 	phpVersion: DEFAULT_PHP_VERSION,
 	wordPressVersion: DEFAULT_WORDPRESS_VERSION,
 	documentRoot: '/var/www/html',
+	mode: WPNowMode.AUTO,
 };
 
 export interface WPEnvOptions {

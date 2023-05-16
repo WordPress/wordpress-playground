@@ -59,17 +59,11 @@
 			}
 		},
 		"test": {
-			"executor": "@nrwl/jest:jest",
-			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+			"executor": "@nrwl/vite:test",
+			"outputs": ["coverage/packages/wp-now"],
 			"options": {
-				"jestConfig": "packages/wp-now/jest.config.ts",
-				"passWithNoTests": true
-			},
-			"configurations": {
-				"ci": {
-					"ci": true,
-					"codeCoverage": true
-				}
+				"passWithNoTests": true,
+				"reportsDirectory": "../../coverage/packages/wp-now/node"
 			}
 		}
 	},

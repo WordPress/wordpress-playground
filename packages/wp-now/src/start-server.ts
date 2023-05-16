@@ -1,10 +1,11 @@
 import fs from 'fs';
-import WPNow from './wp-now';
+import { WPNowOptions } from './config';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
-import { WPNowOptions } from './config';
+import { NodePHP } from '@php-wasm/node';
+import startWPNow from './wp-now';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
@@ -33,7 +34,8 @@ const requestBodyToString = async (req) =>
 
 export interface WPNowServer {
 	url: string;
-	wpNow: WPNow;
+	php: NodePHP;
+	options: WPNowOptions;
 }
 
 export async function startServer(
@@ -47,8 +49,7 @@ export async function startServer(
 	const app = express();
 	app.use(fileUpload());
 	const port = await portFinder.getOpenPort();
-	const wpNow = await WPNow.create(options);
-	await wpNow.start();
+	const { php, options: wpNowOptions } = await startWPNow(options);
 
 	app.use('/', async (req, res) => {
 		try {
@@ -89,7 +90,7 @@ export async function startServer(
 				),
 				body: body as string,
 			};
-			const resp = await wpNow.php.request(data);
+			const resp = await php.request(data);
 			res.statusCode = resp.httpStatusCode;
 			Object.keys(resp.headers).forEach((key) => {
 				res.setHeader(key, resp.headers[key]);
@@ -107,6 +108,7 @@ export async function startServer(
 
 	return {
 		url,
-		wpNow,
+		php,
+		options: wpNowOptions,
 	};
 }

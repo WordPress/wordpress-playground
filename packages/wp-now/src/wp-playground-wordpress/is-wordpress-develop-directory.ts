@@ -7,7 +7,7 @@ import path from 'path';
  * @param projectPath The path to the project to check.
  * @returns Is it a WordPress-develop directory?
  */
-export function isWpDevelopDirectory(projectPath: string): boolean {
+export function isWordPressDevelopDirectory(projectPath: string): boolean {
 	const requiredFiles = [
 		'src',
 		'src/wp-content',

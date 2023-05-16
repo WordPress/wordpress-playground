@@ -1,6 +1,6 @@
 # WP-NOW
 
-`wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. This powerful tool is optimized for developers working on WordPress themes and plugins.
+`wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment. It is optimized for developers working on WordPress themes and plugins and only requires Node.js.
 
 ## Getting Started
 
@@ -42,16 +42,15 @@ If you would like to be able to not use `wp-now` globally and manually specify t
 1. Execute `npm install -g nx@latest`. This will make `nx` command globally accessible in the project.
 2. Start the web server in one of the modes specified below:
 
-### Modes on WP-NOW
+### Automatic execution modes
 
-`wp-now` operates in four different modes:
+`wp-now` can automatically operate in a few different modes. The selected mode depends on the directory in which it is executed:
 
-The mode of the `wp-now` will depend on the destination folder and whether you are working with a single plugin or a theme, `wp-content` directory or a single PHP file.
-
--   `index`: executes a simple PHP file. If your destination folder does not contain a theme, plugin or is not a `wp-content` directory, `wp-now` will run in the `index` mode serving the content of the folder without mounting a WordPress instance. For this mode, `index.php` is recommended
--   `theme`: loads WordPress with your selected theme included
--   `plugin`: loads WordPress with your selected plugin included
--   `wp-content`: loads WordPress site that contains plugins and themes from the provided wp-content directory
+-   `plugin` or `theme`: Loads the plugin or theme files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, te database, `wp-config.php`, etc.) is stored in the user's home directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `wp-content`: Loads the project files as a `wp-content` folder within a virtual filesystem. WordPress core files and `wp-config.php` remain virtualized, but the SQLite database will be written to the project directory. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `wordpress`: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
+-   `wordpress-develop`: Same as `wordpress` mode, except the `build` directory is served as the web root.
+-   `index`: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
 
 To launch the `wp-now` in the `index` mode, you can run:
 
@@ -96,12 +95,12 @@ Please note: if you use `npm link` and are executing `wp-now` from the plugin or
 wp-now start --wp=5.9 --php=7.4 --port=3000
 ```
 
-## How to install WP-NOW from npm (not available yet)
+## How to install WP-NOW from npm (IN PROGRESS):
 
 To install `wp-now` directly from `npm`, execute:
 
 ```bash
-npm install -g @wordpress/wp-now
+npm install -g @wp-now/wp-now
 ```
 
 Once installed, you can use it like so:
@@ -123,6 +122,11 @@ nx test wp-now
 
 -   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-content` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}`.
 -   For the database setup, `wp-now` is using [Sqlite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to Sqlite database is ` ~/.wp-now/wp-content/${projectName}/database/.ht.sqlite`
+
+## Known Issues
+
+-   Running `wp-now start` in 'wp-content' or 'wordpress' mode will produce some empty directories: [WordPress/wordpress-playground#328](https://github.com/WordPress/wordpress-playground/issues/328)
+-   If you have an existing MySQL database defined in your `wp-config.php`, `wp-now` will still mount SQLite and the site won't load: [WordPress/wordpress-playground#327](https://github.com/WordPress/wordpress-playground/issues/327)
 
 ## Migrating from Laravel Valet?
 
@@ -157,6 +161,19 @@ Some similarities between `wp-env` and `wp-now` to be aware of:
 -   `plugin`, `themes` and index modes are available on `wp-env` and `wp-now`;
 -   deployments are not possible with neither `wp-env`, nor `wp-now`;
 -   possible to switch easily the PHP version
+
+## Publishing to npm
+
+The `wp-now` package is part of a larger monorepo, sharing its space with other sibiling packages. To publish the `wp-now` package to npm, you must first understand the automated release process facilitated by lerna. This process includes automatically incrementing the version number, creating a new tag, and publishing all modified packages to npm simultaneously. Notably, all published packages share the same version number.
+
+Each package identifies a distinct organization in its `package.json` file. To publish the `wp-now` package, you need access to the npm organizations `@wp-playground`, `@php-wasm`, and `@wp-now`.
+
+To initiate the publishing process for the all the modified packages, execute the following commands:
+
+```bash
+npm login # this is required only once and it will store the credentials in ~/.npmrc file.
+npm run release
+```
 
 ## Contributing
 
