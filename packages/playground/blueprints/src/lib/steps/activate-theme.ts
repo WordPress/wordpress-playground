@@ -18,18 +18,13 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
-	const themesPage = asDOM(
-		await playground.request({
-			url: '/wp-admin/themes.php',
-		})
-	);
-
-	const link = themesPage.querySelector(
-		`a[href*="action=activate&stylesheet=${themeFolderName}"]`
-	)! as HTMLAnchorElement;
-	const href = link.attributes.getNamedItem('href')!.value;
-
-	await playground.request({
-		url: href,
-	});
+	const wpLoadPath = `${playground.documentRoot}/wp-load.php`;
+	if (playground.fileExists(wpLoadPath)) {
+		await playground.run({
+			code: `<?php
+      include_once( '${wpLoadPath}' );
+      switch_theme( '${themeFolderName}' );
+      `,
+		});
+	}
 };
