@@ -31,8 +31,7 @@ wp-now start --wp=5.9 --php=7.4
 
 `wp-now` automatically operates in a few different modes. The selected mode depends on the directory in which it is executed:
 
--   `plugin` or `theme`: Loads the plugin or theme files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
--   `wp-content`: Loads the project files as a `wp-content` folder within a virtual filesystem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   `plugin`, `theme`, or `wp-content`: Loads the project files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
 -   `wordpress`: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   `wordpress-develop`: Same as `wordpress` mode, except the `build` directory is served as the web root.
 -   `index`: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
@@ -48,7 +47,7 @@ wp-now start --wp=5.9 --php=7.4
 
 ## Technical Details
 
--   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme and plugin mode. The path to `wp-content` directory for the `plugin` and `theme` modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`.
+-   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using theme, plugin, and wp-content mode. The path to `wp-content` directory for the `plugin`, `theme`, and `wp-content` modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`.
 -   For the database setup, `wp-now` is using [SQLite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to SQLite database is ` ~/.wp-now/wp-content/${projectName}-${directoryHash}/database/.ht.sqlite`
 
 ## Known Issues
