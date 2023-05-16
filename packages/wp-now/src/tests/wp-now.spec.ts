@@ -193,16 +193,35 @@ describe('Test starting different modes', () => {
 	};
 
 	/**
+	 * Expect that all listed files do not exist in project directory
+	 *
+	 * @param forbiddenFiles List of files that should not exist on file system.
+	 * @param projectPath Project path.
+	 */
+	const expectForbiddenProjectFiles = (forbiddenFiles, projectPath) => {
+		forbiddenFiles.map((relativePath) => {
+			const fullPath = path.join(projectPath, relativePath);
+			expect({
+				path: fullPath,
+				exists: fs.existsSync(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: false });
+		});
+	};
+
+	/**
 	 * Expect that all required files exist for PHP.
 	 *
 	 * @param requiredFiles List of files that should be accessible by PHP.
 	 * @param documentRoot Document root of the PHP server.
 	 * @param php NodePHP instance.
 	 */
-	const expectRequiredFiles = (requiredFiles, documentRoot, php) => {
+	const expectRequiredRootFiles = (requiredFiles, documentRoot, php) => {
 		requiredFiles.map((relativePath) => {
 			const fullPath = path.join(documentRoot, relativePath);
-			expect(php.fileExists(fullPath)).toBe(true);
+			expect({
+				path: fullPath,
+				exists: php.fileExists(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: true });
 		});
 	};
 
@@ -220,6 +239,10 @@ describe('Test starting different modes', () => {
 			};
 
 			await startWPNow(rawOptions);
+
+			const forbiddenPaths = ['wp-config.php'];
+
+			expectForbiddenProjectFiles(forbiddenPaths, projectPath);
 
 			expect(fs.readdirSync(projectPath)).toEqual(
 				fs.readdirSync(exampleProjectPath)
@@ -249,13 +272,17 @@ describe('Test starting different modes', () => {
 
 		expectEmptyMountPoints(mountPointPaths, projectPath);
 
+		const forbiddenPaths = ['wp-config.php'];
+
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
 			'playground-consts.json',
 		];
 
-		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
 
 	/**
@@ -287,6 +314,6 @@ describe('Test starting different modes', () => {
 			'wp-config.php',
 		];
 
-		expectRequiredFiles(requiredFiles, wpNowOptions.documentRoot, php);
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
 });
