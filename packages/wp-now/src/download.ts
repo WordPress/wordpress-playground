@@ -12,6 +12,7 @@ import {
 	WP_NOW_PATH,
 } from './constants';
 import { isValidWordpressVersion } from './wp-playground-wordpress';
+import { output } from './output';
 
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
 	if (!isValidWordpressVersion(version)) {
@@ -37,7 +38,7 @@ async function downloadFileAndUnzip({
 	itemName,
 }): Promise<DownloadFileAndUnzipResult> {
 	if (fs.existsSync(checkFinalPath)) {
-		console.log(`${itemName} folder already exists. Skipping download.`);
+		output?.log(`${itemName} folder already exists. Skipping download.`);
 		return { downloaded: false, statusCode: 0 };
 	}
 
@@ -46,7 +47,7 @@ async function downloadFileAndUnzip({
 	try {
 		fs.ensureDirSync(path.dirname(destinationFolder));
 
-		console.log(`Downloading ${itemName}...`);
+		output?.log(`Downloading ${itemName}...`);
 		const response = await new Promise<IncomingMessage>((resolve) =>
 			https.get(url, (response) => resolve(response))
 		);
@@ -79,7 +80,7 @@ async function downloadFileAndUnzip({
 			.promise();
 		return { downloaded: true, statusCode };
 	} catch (err) {
-		console.error(`Error downloading or unzipping ${itemName}:`, err);
+		output?.error(`Error downloading or unzipping ${itemName}:`, err);
 	}
 	return { downloaded: false, statusCode };
 }
@@ -95,14 +96,13 @@ export async function downloadWordPress(
 		checkFinalPath: finalFolder,
 		itemName: `WordPress ${wordPressVersion}`,
 	});
-	console.log('downloaded', downloaded);
 	if (downloaded) {
 		fs.ensureDirSync(path.dirname(finalFolder));
 		fs.moveSync(path.join(tempFolder, 'wordpress'), finalFolder, {
 			overwrite: true,
 		});
 	} else if (404 === statusCode) {
-		console.log(
+		output?.log(
 			`WordPress ${wordPressVersion} not found. Check https://wordpress.org/download/releases/ for available versions.`
 		);
 		process.exit(1);
