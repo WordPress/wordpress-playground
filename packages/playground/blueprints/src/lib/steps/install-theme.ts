@@ -38,7 +38,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 		const themeForm = await playground.request({
 			url: '/wp-admin/theme-install.php',
 		});
-		const themeFormPage = await asDOM(themeForm);
+		const themeFormPage = asDOM(themeForm);
 		const themeFormData = new FormData(
 			themeFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
 		) as any;
@@ -56,7 +56,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 
 		// Activate if needed
 		if (activate) {
-			const themeInstalledPage = await asDOM(themeInstalledResponse);
+			const themeInstalledPage = asDOM(themeInstalledResponse);
 
 			const messageContainer = themeInstalledPage.querySelector(
 				'#wpbody-content > .wrap'

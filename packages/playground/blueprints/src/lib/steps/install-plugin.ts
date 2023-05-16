@@ -63,7 +63,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		const pluginForm = await playground.request({
 			url: '/wp-admin/plugin-install.php?tab=upload',
 		});
-		const pluginFormPage = await asDOM(pluginForm);
+		const pluginFormPage = asDOM(pluginForm);
 		const pluginFormData = new FormData(
 			pluginFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
 		) as any;
@@ -81,7 +81,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 		// Activate if needed
 		if (activate) {
-			const pluginInstalledPage = await asDOM(pluginInstalledResponse);
+			const pluginInstalledPage = asDOM(pluginInstalledResponse);
 			const activateButtonHref = pluginInstalledPage
 				.querySelector('#wpbody-content .button.button-primary')!
 				.attributes.getNamedItem('href')!.value;

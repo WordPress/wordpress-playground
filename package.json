@@ -58,7 +58,7 @@
 		"express-fileupload": "1.4.0",
 		"file-saver": "^2.0.5",
 		"follow-redirects": "1.15.2",
-		"jsdom": "22.0.0",
+		"jsdom": "~20.0.3",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"react-modal": "^3.16.1",
