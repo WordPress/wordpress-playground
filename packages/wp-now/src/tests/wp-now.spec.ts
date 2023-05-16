@@ -277,7 +277,6 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
-			'playground-consts.json',
 		];
 
 		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
@@ -308,7 +307,6 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
-			'playground-consts.json',
 			'wp-config.php',
 		];
 
