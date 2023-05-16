@@ -1,9 +1,8 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
-import {
-	VFS_CONFIG_FILE_PATH,
-	defineVirtualWpConfigConsts,
-} from './steps/define-virtual-wp-config-consts';
+import { defineVirtualWpConfigConsts } from './steps/define-virtual-wp-config-consts';
+import { VFS_CONFIG_FILE_PATH } from './steps/common';
+import { setPhpIniEntry } from './steps/client-methods';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -57,14 +56,9 @@ describe('Blueprints', () => {
 		expect(fileContent).toContain('define("SITE_URL", "http://test.url");');
 		expect(fileContent).toContain('define("HOME_URL", "http://test.url");');
 		expect(fileContent).toContain('define("WP_AUTO_UPDATE_CORE", false);');
-
-		// Assert execution of echo statements
-		php.writeFile('/index.php', '<?php echo TEST_CONST;');
-		const result = await php.request({ url: '/index.php' });
-		expect(result.text).toBe('test_value');
 	});
 
-	it('should define auto load the constants in the VFS_CONFIG_FILE_PATH php file', async () => {
+	it('should define and auto load the constants in the VFS_CONFIG_FILE_PATH php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -72,7 +66,11 @@ describe('Blueprints', () => {
 		};
 
 		// Call the function with the constants and the playground client
-		await defineVirtualWpConfigConsts(php, { consts });
+		const configFile = await defineVirtualWpConfigConsts(php, { consts });
+		await setPhpIniEntry(php, {
+			key: 'auto_prepend_file',
+			value: configFile,
+		});
 
 		// Assert execution of echo statements
 		php.writeFile('/index.php', '<?php echo TEST_CONST;');

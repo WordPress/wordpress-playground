@@ -1,4 +1,9 @@
 import { StepHandler } from '.';
+import {
+	VFS_CONFIG_FILE_BASENAME,
+	VFS_CONFIG_FILE_PATH,
+	updateFile,
+} from './common';
 
 /**
  * The step object for defining constants in the VFS_CONFIG_FILE_PATH php file and loaded using the auto_prepend_file php.ini directive.
@@ -8,10 +13,6 @@ export interface DefineVirtualWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 }
-
-const VFS_CONFIG_PATH = '/vfs-blueprints';
-const VFS_CONFIG_FILE_NAME = 'wp-config-consts.php';
-export const VFS_CONFIG_FILE_PATH = `${VFS_CONFIG_PATH}/${VFS_CONFIG_FILE_NAME}`;
 
 /**
  * Function to build the contents of the config php file.
@@ -26,6 +27,7 @@ function buildConfigFileContents(consts: Record<string, unknown>) {
       define("${key}", ${JSON.stringify(value)});
     }`;
 	}
+	contents += ` ?>`;
 	return contents;
 }
 
@@ -35,13 +37,18 @@ function buildConfigFileContents(consts: Record<string, unknown>) {
  *
  * @param playground The playground client.
  * @param wpConfigConst An object containing the constants to be defined and the optional virtual file system configuration file path.
- * @returns A Promise that resolves when the operation is completed.
+ * @returns Returns the virtual file system configuration file path.
  * @see {@link https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file}
  */
 export const defineVirtualWpConfigConsts: StepHandler<
 	DefineVirtualWpConfigConstsStep
 > = async (playground, { consts }) => {
-	playground.mkdir(VFS_CONFIG_PATH);
-	playground.writeFile(VFS_CONFIG_FILE_PATH, buildConfigFileContents(consts));
-	playground.setPhpIniEntry('auto_prepend_file', VFS_CONFIG_FILE_PATH);
+	playground.mkdir(VFS_CONFIG_FILE_BASENAME);
+	await updateFile(
+		playground,
+		VFS_CONFIG_FILE_PATH,
+		(contents) => contents + buildConfigFileContents(consts)
+	);
+	// playground.setPhpIniEntry('auto_prepend_file', VFS_CONFIG_FILE_PATH);
+	return VFS_CONFIG_FILE_PATH;
 };
