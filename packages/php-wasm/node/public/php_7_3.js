@@ -1,4 +1,4 @@
-export const dependenciesTotalSize = 10915930; 
+export const dependenciesTotalSize = 10916038; 
 const dependencyFilename = __dirname + '/php_7_3.wasm'; 
  export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {
 var Module = typeof PHPLoader != "undefined" ? PHPLoader : {};

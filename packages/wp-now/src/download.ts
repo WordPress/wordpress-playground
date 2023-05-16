@@ -96,7 +96,6 @@ export async function downloadWordPress(
 		checkFinalPath: finalFolder,
 		itemName: `WordPress ${wordPressVersion}`,
 	});
-	output?.log('downloaded', downloaded);
 	if (downloaded) {
 		fs.ensureDirSync(path.dirname(finalFolder));
 		fs.renameSync(path.join(tempFolder, 'wordpress'), finalFolder);
