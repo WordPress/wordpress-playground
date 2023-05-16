@@ -112,7 +112,7 @@ export async function downloadSqliteIntegrationPlugin() {
 		url: SQLITE_URL,
 		destinationFolder: WP_NOW_PATH,
 		checkFinalPath: SQLITE_PATH,
-		itemName: 'Sqlite',
+		itemName: 'SQLite',
 	});
 }
 
