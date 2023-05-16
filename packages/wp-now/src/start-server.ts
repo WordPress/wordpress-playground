@@ -6,6 +6,7 @@ import fileUpload from 'express-fileupload';
 import { portFinder } from './port-finder';
 import { NodePHP } from '@php-wasm/node';
 import startWPNow from './wp-now';
+import { output } from './output';
 
 function requestBodyToMultipartFormData(json, boundary) {
 	let multipartData = '';
@@ -97,13 +98,13 @@ export async function startServer(
 			});
 			res.end(resp.bytes);
 		} catch (e) {
-			console.trace(e);
+			output?.trace(e);
 		}
 	});
 
 	const url = `http://127.0.0.1:${port}/`;
 	app.listen(port, () => {
-		console.log(`Server running at ${url}`);
+		output?.log(`Server running at ${url}`);
 	});
 
 	return {
