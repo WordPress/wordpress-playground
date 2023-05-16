@@ -168,7 +168,7 @@ export default async function startWPNow(
 		isFirstTimeProject &&
 		[WPNowMode.PLUGIN, WPNowMode.THEME].includes(options.mode)
 	) {
-		activatePluginOrTheme(php, options);
+		await activatePluginOrTheme(php, options);
 	}
 
 	return {
