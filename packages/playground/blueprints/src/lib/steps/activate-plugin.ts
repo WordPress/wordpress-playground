@@ -1,9 +1,9 @@
 import { StepHandler } from '.';
-import { asDOM } from './common';
 
 export interface ActivatePluginStep {
 	step: 'activatePlugin';
-	plugin: string;
+	/* Path to the plugin file relative to the plugins directory. */
+	pluginPath: string;
 }
 
 /**
@@ -14,22 +14,23 @@ export interface ActivatePluginStep {
  */
 export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	playground,
-	{ plugin },
+	{ pluginPath },
 	progress
 ) => {
-	progress?.tracker.setCaption(`Activating ${plugin}`);
-	const pluginsPage = await asDOM(
-		await playground.request({
-			url: '/wp-admin/plugins.php',
-		})
+	progress?.tracker.setCaption(`Activating ${pluginPath}`);
+	const requiredFiles = [
+		`${playground.documentRoot}/wp-load.php`,
+		`${playground.documentRoot}/wp-admin/includes/plugin.php`,
+	];
+	const requiredFilesExist = requiredFiles.every((file) =>
+		playground.fileExists(file)
 	);
-
-	const link = pluginsPage.querySelector(
-		`tr[data-slug="${plugin}"] a`
-	)! as HTMLAnchorElement;
-	const href = link.attributes.getNamedItem('href')!.value;
-
-	await playground.request({
-		url: '/wp-admin/' + href,
-	});
+	if (requiredFilesExist) {
+		await playground.run({
+			code: `<?php
+      ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
+      activate_plugin('${pluginPath}');
+      `,
+		});
+	}
 };
