@@ -54,6 +54,7 @@ wp-now start --wp=5.9 --php=7.4
 
 -   Running `wp-now start` in 'wp-content' or 'wordpress' mode will produce some empty directories: [WordPress/wordpress-playground#328](https://github.com/WordPress/wordpress-playground/issues/328)
 -   If you have an existing MySQL database defined in your `wp-config.php`, `wp-now` will still mount SQLite and the site won't load: [WordPress/wordpress-playground#327](https://github.com/WordPress/wordpress-playground/issues/327)
+-   `wp-now` published versions can appear random: [WordPress/wordpress-playground#357](https://github.com/WordPress/wordpress-playground/issues/357)
 
 ## Comparisions
 
@@ -127,7 +128,7 @@ nx test wp-now
 
 ## Publishing
 
-The `wp-now` package is part of a larger monorepo, sharing its space with other sibiling packages. To publish the `wp-now` package to npm, you must first understand the automated release process facilitated by lerna. This process includes automatically incrementing the version number, creating a new tag, and publishing all modified packages to npm simultaneously. Notably, all published packages share the same version number.
+The `wp-now` package is part of a larger monorepo, sharing its space with other sibling packages. To publish the `wp-now` package to npm, you must first understand the automated release process facilitated by lerna. This process includes automatically incrementing the version number, creating a new tag, and publishing all modified packages to npm simultaneously. Notably, all published packages share the same version number.
 
 Each package identifies a distinct organization in its `package.json` file. To publish the `wp-now` package, you need access to the npm organizations `@wp-playground`, `@php-wasm`, and `@wp-now`.
 
