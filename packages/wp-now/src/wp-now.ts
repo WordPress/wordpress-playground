@@ -12,14 +12,20 @@ import {
 	downloadSqliteIntegrationPlugin,
 	downloadWordPress,
 } from './download';
+import {
+	activatePlugin,
+	activateTheme,
+	defineVirtualWpConfigConsts,
+	login,
+} from '@wp-playground/blueprints';
 import { WPNowOptions, WPNowMode } from './config';
-import { defineVirtualWpConfigConsts, login } from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
+	getPluginFile,
 } from './wp-playground-wordpress';
 import { output } from './output';
 
@@ -65,6 +71,7 @@ export default async function startWPNow(
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
 	await downloadMuPlugins();
+	const isFirstTimeProject = !fs.existsSync(options.wpContentPath);
 	switch (options.mode) {
 		case WPNowMode.WP_CONTENT:
 			await runWpContentMode(php, options);
@@ -87,6 +94,14 @@ export default async function startWPNow(
 		username: 'admin',
 		password: 'password',
 	});
+
+	if (
+		isFirstTimeProject &&
+		[WPNowMode.PLUGIN, WPNowMode.THEME].includes(options.mode)
+	) {
+		await activatePluginOrTheme(php, options);
+	}
+
 	return {
 		php,
 		options,
@@ -230,6 +245,19 @@ async function initWordPress(
 	php.setPhpIniEntry('auto_prepend_file', configFile);
 
 	return { initializeDefaultDatabase };
+}
+
+async function activatePluginOrTheme(
+	php: NodePHP,
+	{ projectPath, mode }: WPNowOptions
+) {
+	if (mode === WPNowMode.PLUGIN) {
+		const pluginFile = getPluginFile(projectPath);
+		await activatePlugin(php, { pluginPath: pluginFile });
+	} else if (mode === WPNowMode.THEME) {
+		const themeFolderName = path.basename(projectPath);
+		await activateTheme(php, { themeFolderName });
+	}
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {

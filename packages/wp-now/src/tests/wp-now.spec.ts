@@ -384,4 +384,103 @@ describe('Test starting different modes', () => {
 
 		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
+
+	/**
+	 * Test that startWPNow in "plugin" mode auto installs the plugin.
+	 */
+	test('startWPNow auto installs the plugin', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'plugin');
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
+		const codeIsPluginActivePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+
+    if (is_plugin_active('plugin/sample-plugin.php')) {
+      echo 'plugin/sample-plugin.php is active';
+    }
+    `;
+		const isPluginActive = await php.run({
+			code: codeIsPluginActivePhp,
+		});
+
+		expect(isPluginActive.text).toContain(
+			'plugin/sample-plugin.php is active'
+		);
+	});
+
+	/**
+	 * Test that startWPNow in "plugin" mode does not auto install the plugin the second time.
+	 */
+	test('startWPNow auto installs the plugin', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'plugin');
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
+		const deactivatePluginPhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+    deactivate_plugins('plugin/sample-plugin.php');
+    `;
+		await php.run({ code: deactivatePluginPhp });
+		// Run startWPNow a second time.
+		const { php: phpSecondTime } = await startWPNow(options);
+		const codeIsPluginActivePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+
+    if (is_plugin_active('plugin/sample-plugin.php')) {
+      echo 'plugin/sample-plugin.php is active';
+    } else {
+      echo 'plugin not active';
+    }
+    `;
+		const isPluginActive = await phpSecondTime.run({
+			code: codeIsPluginActivePhp,
+		});
+
+		expect(isPluginActive.text).toContain('plugin not active');
+	});
+
+	/**
+	 * Test that startWPNow in "theme" mode auto activates the theme.
+	 */
+	test('startWPNow auto installs the theme', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'theme');
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
+		const codeActiveThemeNamePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    echo wp_get_theme()->get('Name');
+    `;
+		const themeName = await php.run({
+			code: codeActiveThemeNamePhp,
+		});
+
+		expect(themeName.text).toContain('Yolo Theme');
+	});
+
+	/**
+	 * Test that startWPNow in "theme" mode does not auto activate the theme the second time.
+	 */
+	test('startWPNow auto installs the theme', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'theme');
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
+		const switchThemePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    switch_theme('twentytwentythree');
+    `;
+		await php.run({ code: switchThemePhp });
+		// Run startWPNow a second time.
+		const { php: phpSecondTime } = await startWPNow(options);
+		const codeActiveThemeNamePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    echo wp_get_theme()->get('Name');
+    `;
+		const themeName = await phpSecondTime.run({
+			code: codeActiveThemeNamePhp,
+		});
+
+		expect(themeName.text).toContain('Twenty Twenty-Three');
+	});
 });

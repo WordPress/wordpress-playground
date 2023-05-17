@@ -1,5 +1,4 @@
-import fs from 'fs-extra';
-import path from 'path';
+import { getPluginFile } from './get-plugin-file';
 
 /**
  * Checks if the given path is a WordPress plugin.
@@ -8,17 +7,6 @@ import path from 'path';
  * @returns A boolean value indicating whether the project is a WordPress plugin.
  */
 export function isPluginDirectory(projectPath: string): Boolean {
-	const files = fs.readdirSync(projectPath);
-	for (const file of files) {
-		if (file.endsWith('.php')) {
-			const fileContent = fs.readFileSync(
-				path.join(projectPath, file),
-				'utf8'
-			);
-			if (fileContent.toLowerCase().includes('plugin name:')) {
-				return true;
-			}
-		}
-	}
-	return false;
+	const pluginFile = getPluginFile(projectPath);
+	return pluginFile !== null;
 }
