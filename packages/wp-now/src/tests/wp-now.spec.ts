@@ -68,6 +68,12 @@ test('isPluginDirectory detects a WordPress plugin and infer PLUGIN mode.', () =
 	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
 });
 
+test('isPluginDirectory detects a WordPress plugin in case-insensitive way and infer PLUGIN mode.', () => {
+	const projectPath = exampleDir + '/plugin-case-insensitive';
+	expect(isPluginDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
+});
+
 test('isPluginDirectory returns false for non-plugin directory', () => {
 	const projectPath = exampleDir + '/not-plugin';
 	expect(isPluginDirectory(projectPath)).toBe(false);
