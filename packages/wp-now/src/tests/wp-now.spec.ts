@@ -390,7 +390,8 @@ describe('Test starting different modes', () => {
 	 */
 	test('startWPNow auto installs the plugin', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'plugin');
-		const { php } = await startWPNow({ projectPath });
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
 		const codeIsPluginActivePhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
@@ -413,7 +414,8 @@ describe('Test starting different modes', () => {
 	 */
 	test('startWPNow auto installs the plugin', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'plugin');
-		const { php } = await startWPNow({ projectPath });
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
 		const deactivatePluginPhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
@@ -421,7 +423,7 @@ describe('Test starting different modes', () => {
     `;
 		await php.run({ code: deactivatePluginPhp });
 		// Run startWPNow a second time.
-		const { php: phpSecondTime } = await startWPNow({ projectPath });
+		const { php: phpSecondTime } = await startWPNow(options);
 		const codeIsPluginActivePhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
@@ -444,7 +446,8 @@ describe('Test starting different modes', () => {
 	 */
 	test('startWPNow auto installs the theme', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'theme');
-		const { php } = await startWPNow({ projectPath });
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
 		const codeActiveThemeNamePhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     echo wp_get_theme()->get('Name');
@@ -461,14 +464,15 @@ describe('Test starting different modes', () => {
 	 */
 	test('startWPNow auto installs the theme', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'theme');
-		const { php } = await startWPNow({ projectPath });
+		const options = await getWpNowConfig({ path: projectPath });
+		const { php } = await startWPNow(options);
 		const switchThemePhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     switch_theme('twentytwentythree');
     `;
 		await php.run({ code: switchThemePhp });
 		// Run startWPNow a second time.
-		const { php: phpSecondTime } = await startWPNow({ projectPath });
+		const { php: phpSecondTime } = await startWPNow(options);
 		const codeActiveThemeNamePhp = `<?php
     require_once('${php.documentRoot}/wp-load.php');
     echo wp_get_theme()->get('Name');
