@@ -9,6 +9,7 @@
 		"deploy": "gh-pages -d dist/docs -t true",
 		"dev": "nx dev playground-website",
 		"dev:interactivity": "nx dev interactive-block-playground",
+		"format": "nx format",
 		"lint": "nx run-many --all --target=lint",
 		"predeploy": "nx build docs-site",
 		"prepublishOnly": "npm run build",
@@ -36,7 +37,8 @@
 		"release": "lerna publish patch --yes --no-private --loglevel=verbose",
 		"test": "nx run-many --all --target=test",
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
-		"typecheck": "nx run-many --all --target=typecheck"
+		"typecheck": "nx run-many --all --target=typecheck",
+		"prepare": "husky install"
 	},
 	"private": true,
 	"dependencies": {
@@ -126,6 +128,7 @@
 		"eslint-plugin-react-hooks": "4.6.0",
 		"gh-pages": "5.0.0",
 		"glob": "^9.3.0",
+		"husky": "8.0.3",
 		"jest": "^29.4.1",
 		"jest-environment-jsdom": "^29.4.1",
 		"jest-environment-node": "^29.4.1",

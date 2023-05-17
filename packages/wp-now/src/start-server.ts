@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { WPNowOptions } from './wp-now';
+import { WPNowOptions } from './config';
 import { HTTPMethod } from '@php-wasm/universal';
 import express from 'express';
 import fileUpload from 'express-fileupload';

@@ -4,15 +4,12 @@ import followRedirects from 'follow-redirects';
 import unzipper from 'unzipper';
 import os from 'os';
 import { IncomingMessage } from 'http';
-import {
-	DEFAULT_WORDPRESS_VERSION,
-	SQLITE_PATH,
-	SQLITE_URL,
-	WORDPRESS_VERSIONS_PATH,
-	WP_NOW_PATH,
-} from './constants';
+import { DEFAULT_WORDPRESS_VERSION, SQLITE_URL } from './constants';
 import { isValidWordpressVersion } from './wp-playground-wordpress';
 import { output } from './output';
+import getWpNowPath from './get-wp-now-path';
+import getWordpressVersionsPath from './get-wordpress-versions-path';
+import getSqlitePath from './get-sqlite-path';
 
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
 	if (!isValidWordpressVersion(version)) {
@@ -88,7 +85,7 @@ async function downloadFileAndUnzip({
 export async function downloadWordPress(
 	wordPressVersion = DEFAULT_WORDPRESS_VERSION
 ) {
-	const finalFolder = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+	const finalFolder = path.join(getWordpressVersionsPath(), wordPressVersion);
 	const tempFolder = os.tmpdir();
 	const { downloaded, statusCode } = await downloadFileAndUnzip({
 		url: getWordPressVersionUrl(wordPressVersion),
@@ -110,16 +107,16 @@ export async function downloadWordPress(
 export async function downloadSqliteIntegrationPlugin() {
 	return downloadFileAndUnzip({
 		url: SQLITE_URL,
-		destinationFolder: WP_NOW_PATH,
-		checkFinalPath: SQLITE_PATH,
-		itemName: 'Sqlite',
+		destinationFolder: getWpNowPath(),
+		checkFinalPath: getSqlitePath(),
+		itemName: 'SQLite',
 	});
 }
 
 export async function downloadMuPlugins() {
-	fs.ensureDirSync(path.join(WP_NOW_PATH, 'mu-plugins'));
+	fs.ensureDirSync(path.join(getWpNowPath(), 'mu-plugins'));
 	fs.writeFile(
-		path.join(WP_NOW_PATH, 'mu-plugins', '0-allow-wp-org.php'),
+		path.join(getWpNowPath(), 'mu-plugins', '0-allow-wp-org.php'),
 		`<?php
 	// Needed because gethostbyname( 'wordpress.org' ) returns
 	// a private network IP address for some reason.

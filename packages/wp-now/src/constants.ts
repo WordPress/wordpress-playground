@@ -7,27 +7,9 @@ import path from 'path';
 export const WP_NOW_HIDDEN_FOLDER = '.wp-now';
 
 /**
- * The full path to the hidden WP Now folder in the user's home directory.
- */
-export const WP_NOW_PATH = path.join(os.homedir(), WP_NOW_HIDDEN_FOLDER);
-
-/**
- * The path where WordPress zip files will be unzipped and stored within the WP Now folder.
- */
-export const WORDPRESS_VERSIONS_PATH = path.join(
-	WP_NOW_PATH,
-	'wordpress-versions'
-);
-
-/**
  * The file name for the SQLite plugin name.
  */
 export const SQLITE_FILENAME = 'sqlite-database-integration';
-
-/**
- * The full path to the "SQLite database integration" folder.
- */
-export const SQLITE_PATH = path.join(WP_NOW_PATH, `${SQLITE_FILENAME}-main`);
 
 /**
  * The URL for downloading the "SQLite database integration" WordPress Plugin.

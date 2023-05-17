@@ -1,10 +1,43 @@
 import { StepHandler } from '.';
 import { asDOM, zipNameToHumanName } from './common';
 
+/**
+ * @inheritDoc installTheme
+ * @hasRunnableExample
+ * @needsLogin
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "installTheme",
+ * 		"themeZipFile": {
+ * 			"resource": "wordpress.org/themes",
+ * 			"slug": "pendant"
+ * 		},
+ * 		"options": {
+ * 			"activate": true
+ * 		}
+ * }
+ * </code>
+ */
 export interface InstallThemeStep<ResourceType> {
+	/**
+	 * The step identifier.
+	 */
 	step: 'installTheme';
+	/**
+	 * The theme zip file to install.
+	 */
 	themeZipFile: ResourceType;
-	options?: InstallThemeOptions;
+	/**
+	 * Optional installation options.
+	 */
+	options?: {
+		/**
+		 * Whether to activate the theme after installing it.
+		 */
+		activate?: boolean;
+	};
 }
 
 export interface InstallThemeOptions {
