@@ -52,6 +52,10 @@ wp-now start --wp=5.9 --php=7.4
 
 -   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using 'theme', 'plugin', and 'wp-content' modes. The path to `wp-content` directory for the 'plugin', 'theme', and 'wp-content' modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`.
 -   For the database setup, `wp-now` is using [SQLite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to SQLite database is ` ~/.wp-now/wp-content/${projectName}-${directoryHash}/database/.ht.sqlite`
+-   If you are already using [`wp-env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/) and have an existing configuration file (`.wp-env.json` or `.wp-env.overrides.json`), `wp-now` can make use of them. For now, the following properties are supported:
+    - `phpVersion`
+    - `port`
+    - `wordPressVersion`
 
 ## Known Issues
 
