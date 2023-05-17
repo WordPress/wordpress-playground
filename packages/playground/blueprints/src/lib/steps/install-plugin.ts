@@ -3,14 +3,19 @@ import { StepHandler } from '.';
 import { asDOM, zipNameToHumanName } from './common';
 
 /**
- * The step to install a WordPress plugin in the Playground.
- *
+ * @inheritDoc installPlugin
+ * @hasRunnableExample
+ * @needsLogin
+ * @landingPage /wp-admin/plugins.php
  * @example
  *
  * <code>
  * {
  * 	    "step": "installPlugin",
- * 		"pluginZipFile": "http://example.com/plugin.zip",
+ * 		"pluginZipFile": {
+ * 			"resource": "wordpress.org/plugins",
+ * 			"slug": "gutenberg"
+ * 		},
  * 		"options": {
  * 			"activate": true
  * 		}

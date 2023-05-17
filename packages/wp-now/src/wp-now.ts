@@ -1,14 +1,7 @@
 import fs from 'fs-extra';
-import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node';
-import {
-	SupportedPHPVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
 import path from 'path';
 import {
-	DEFAULT_PHP_VERSION,
-	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
 } from './constants';
 import {
@@ -16,7 +9,7 @@ import {
 	downloadSqliteIntegrationPlugin,
 	downloadWordPress,
 } from './download';
-import { portFinder } from './port-finder';
+import { WPNowOptions, WPNowMode } from './config';
 import { defineVirtualWpConfigConsts, login } from '@wp-playground/blueprints';
 import {
 	isPluginDirectory,
@@ -30,73 +23,13 @@ import getWpNowPath from './get-wp-now-path';
 import getWordpressVersionsPath from './get-wordpress-versions-path';
 import getSqlitePath from './get-sqlite-path';
 
-export const enum WPNowMode {
-	PLUGIN = 'plugin',
-	THEME = 'theme',
-	WORDPRESS = 'wordpress',
-	WORDPRESS_DEVELOP = 'wordpress-develop',
-	INDEX = 'index',
-	WP_CONTENT = 'wp-content',
-	AUTO = 'auto',
-}
-
-export interface WPNowOptions {
-	phpVersion?: SupportedPHPVersion;
-	documentRoot?: string;
-	absoluteUrl?: string;
-	mode?: WPNowMode;
-	projectPath?: string;
-	wpContentPath?: string;
-	wordPressVersion?: string;
-}
-
-async function getAbsoluteURL() {
-	const port = await portFinder.getOpenPort();
-	return `http://127.0.0.1:${port}`;
-}
-
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
 
-export async function parseOptions(
-	rawOptions: Partial<WPNowOptions> = {}
-): Promise<WPNowOptions> {
-	const options: WPNowOptions = {
-		phpVersion: DEFAULT_PHP_VERSION,
-		wordPressVersion: DEFAULT_WORDPRESS_VERSION,
-		documentRoot: '/var/www/html',
-		mode: WPNowMode.AUTO,
-		projectPath: process.cwd(),
-		...rawOptions,
-	};
-	if (!options.wpContentPath) {
-		options.wpContentPath = getWpContentHomePath(options.projectPath);
-	}
-	if (!options.mode || options.mode === 'auto') {
-		options.mode = inferMode(options.projectPath);
-	}
-	if (!options.absoluteUrl) {
-		options.absoluteUrl = await getAbsoluteURL();
-	}
-	if (
-		options.phpVersion &&
-		!SupportedPHPVersionsList.includes(options.phpVersion)
-	) {
-		throw new Error(
-			`Unsupported PHP version: ${
-				options.phpVersion
-			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
-		);
-	}
-	return options;
-}
-
 export default async function startWPNow(
-	rawOptions: Partial<WPNowOptions> = {}
+	options: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; options: WPNowOptions }> {
-	const options = await parseOptions(rawOptions);
-
 	const { documentRoot } = options;
 	const php = await NodePHP.load(options.phpVersion, {
 		requestHandler: {
@@ -160,19 +93,6 @@ export default async function startWPNow(
 	};
 }
 
-function getWpContentHomePath(projectPath: string) {
-	const basename = path.basename(projectPath);
-	const directoryHash = crypto
-		.createHash('sha1')
-		.update(projectPath)
-		.digest('hex');
-	return path.join(
-		getWpNowPath(),
-		'wp-content',
-		`${basename}-${directoryHash}`
-	);
-}
-
 async function runIndexMode(
 	php: NodePHP,
 	{ documentRoot, projectPath }: WPNowOptions
@@ -221,11 +141,22 @@ async function runWordPressMode(
 	{ documentRoot, wpContentPath, projectPath, absoluteUrl }: WPNowOptions
 ) {
 	php.mount(projectPath, documentRoot);
-	if (!php.fileExists(`${documentRoot}/wp-config.php`)) {
-		await initWordPress(php, 'user-provided', documentRoot, absoluteUrl);
+
+	const { initializeDefaultDatabase } = await initWordPress(
+		php,
+		'user-provided',
+		documentRoot,
+		absoluteUrl
+	);
+
+	if (
+		initializeDefaultDatabase ||
+		fs.existsSync(path.join(wpContentPath, 'database'))
+	) {
+		mountSqlitePlugin(php, documentRoot);
+		mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
 	}
-	mountSqlitePlugin(php, documentRoot);
-	mountSqliteDatabaseDirectory(php, documentRoot, wpContentPath);
+
 	mountMuPlugins(php, documentRoot);
 }
 
@@ -264,16 +195,33 @@ async function runPluginOrThemeMode(
 	mountMuPlugins(php, documentRoot);
 }
 
+/**
+ * Initialize WordPress
+ *
+ * Initializes WordPress by copying sample config file to wp-config.php if it doesn't exist,
+ * and sets up additional constants for PHP.
+ *
+ * It also returns information about whether the default database should be initialized.
+ *
+ * @param php
+ * @param wordPressVersion
+ * @param vfsDocumentRoot
+ * @param siteUrl
+ */
 async function initWordPress(
 	php: NodePHP,
 	wordPressVersion: string,
 	vfsDocumentRoot: string,
 	siteUrl: string
 ) {
-	php.writeFile(
-		`${vfsDocumentRoot}/wp-config.php`,
-		php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
-	);
+	let initializeDefaultDatabase = false;
+	if (!php.fileExists(`${vfsDocumentRoot}/wp-config.php`)) {
+		php.writeFile(
+			`${vfsDocumentRoot}/wp-config.php`,
+			php.readFileAsText(`${vfsDocumentRoot}/wp-config-sample.php`)
+		);
+		initializeDefaultDatabase = true;
+	}
 
 	const wpConfigConsts = {
 		WP_HOME: siteUrl,
@@ -286,6 +234,8 @@ async function initWordPress(
 		consts: wpConfigConsts,
 	});
 	php.setPhpIniEntry('auto_prepend_file', configFile);
+
+	return { initializeDefaultDatabase };
 }
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {

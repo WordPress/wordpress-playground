@@ -1,9 +1,5 @@
-import startWPNow, {
-	inferMode,
-	parseOptions,
-	WPNowMode,
-	WPNowOptions,
-} from '../wp-now';
+import startWPNow, { inferMode } from '../wp-now';
+import getWpNowConfig, { CliOptions, WPNowMode, WPNowOptions } from '../config';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -20,11 +16,11 @@ import getWpNowPath from '../get-wp-now-path';
 const exampleDir = __dirname + '/mode-examples';
 
 // Options
-test('parseOptions with default options', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		projectPath: exampleDir,
+test('getWpNowConfig with default options', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir,
 	};
-	const options = await parseOptions(rawOptions);
+	const options = await getWpNowConfig(rawOptions);
 
 	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
@@ -33,38 +29,61 @@ test('parseOptions with default options', async () => {
 	expect(options.projectPath).toBe(exampleDir);
 });
 
-test('parseOptions with custom options', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		phpVersion: '7.3',
-		wordPressVersion: '5.7',
-		documentRoot: '/var/www/my-site',
-		mode: WPNowMode.WORDPRESS,
-		projectPath: '/path/to/my-site',
-		wpContentPath: '/path/to/my-site/wp-content',
-		absoluteUrl: 'http://localhost:8080',
-	};
-	const options = await parseOptions(rawOptions);
-	expect(options.phpVersion).toBe('7.3');
-	expect(options.wordPressVersion).toBe('5.7');
-	expect(options.documentRoot).toBe('/var/www/my-site');
-	expect(options.mode).toBe(WPNowMode.WORDPRESS);
-	expect(options.projectPath).toBe('/path/to/my-site');
-	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
-	expect(options.absoluteUrl).toBe('http://localhost:8080');
-});
+//TODO: Add it back when all options are supported as cli arguments
+// test('parseOptions with custom options', async () => {
+// 	const rawOptions: Partial<WPNowOptions> = {
+// 		phpVersion: '7.3',
+// 		wordPressVersion: '5.7',
+// 		documentRoot: '/var/www/my-site',
+// 		mode: WPNowMode.WORDPRESS,
+// 		projectPath: '/path/to/my-site',
+// 		wpContentPath: '/path/to/my-site/wp-content',
+// 		absoluteUrl: 'http://localhost:8080',
+// 	};
+// 	const options = await parseOptions(rawOptions);
+// 	expect(options.phpVersion).toBe('7.3');
+// 	expect(options.wordPressVersion).toBe('5.7');
+// 	expect(options.documentRoot).toBe('/var/www/my-site');
+// 	expect(options.mode).toBe(WPNowMode.WORDPRESS);
+// 	expect(options.projectPath).toBe('/path/to/my-site');
+// 	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
+// 	expect(options.absoluteUrl).toBe('http://localhost:8080');
+// });
 
-test('parseOptions with unsupported PHP version', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		phpVersion: '5.4' as any,
+test('getWpNowConfig with unsupported PHP version', async () => {
+	const rawOptions: CliOptions = {
+		php: '5.4' as any,
 	};
-	await expect(parseOptions(rawOptions)).rejects.toThrowError(
+	await expect(getWpNowConfig(rawOptions)).rejects.toThrowError(
 		'Unsupported PHP version: 5.4.'
 	);
+});
+
+test('getWpNowConfig with .wp-env.json', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir + '/wp-env',
+	};
+	const options = await getWpNowConfig(rawOptions);
+	expect(options.wordPressVersion).toBe('6.0');
+});
+
+test('getWpNowConfig with .wp-env.override.json', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir + '/wp-env-override',
+	};
+	const options = await getWpNowConfig(rawOptions);
+	expect(options.wordPressVersion).toBe('6.3');
 });
 
 // Plugin mode
 test('isPluginDirectory detects a WordPress plugin and infer PLUGIN mode.', () => {
 	const projectPath = exampleDir + '/plugin';
+	expect(isPluginDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
+});
+
+test('isPluginDirectory detects a WordPress plugin in case-insensitive way and infer PLUGIN mode.', () => {
+	const projectPath = exampleDir + '/plugin-case-insensitive';
 	expect(isPluginDirectory(projectPath)).toBe(true);
 	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
 });
@@ -194,9 +213,20 @@ describe('Test starting different modes', () => {
 		mountPaths.map((relativePath) => {
 			const fullPath = path.join(projectPath, relativePath);
 
-			expect(fs.existsSync(fullPath)).toBe(true);
-			expect(fs.readdirSync(fullPath)).toEqual([]);
-			expect(fs.lstatSync(fullPath).isDirectory()).toBe(true);
+			expect({
+				path: fullPath,
+				exists: fs.existsSync(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: true });
+
+			expect({
+				path: fullPath,
+				content: fs.readdirSync(fullPath),
+			}).toStrictEqual({ path: fullPath, content: [] });
+
+			expect({
+				path: fullPath,
+				isDirectory: fs.lstatSync(fullPath).isDirectory(),
+			}).toStrictEqual({ path: fullPath, isDirectory: true });
 		});
 	};
 
@@ -243,11 +273,13 @@ describe('Test starting different modes', () => {
 	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
 		const projectPath = path.join(tmpExampleDirectory, mode);
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
 
-		await startWPNow(rawOptions);
+		const options = await getWpNowConfig(rawOptions);
+
+		await startWPNow(options);
 
 		const forbiddenPaths = ['wp-config.php'];
 
@@ -263,11 +295,13 @@ describe('Test starting different modes', () => {
 	test('startWPNow starts wp-content mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wp-content');
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
 
-		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+		const options = await getWpNowConfig(rawOptions);
+
+		const { php, options: wpNowOptions } = await startWPNow(options);
 
 		const mountPointPaths = [
 			'database',
@@ -291,17 +325,18 @@ describe('Test starting different modes', () => {
 	});
 
 	/**
-	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
-	 * that required files exist for PHP.
+	 * Test that startWPNow in "wordpress" mode without existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
 	 */
 	test('startWPNow starts wordpress mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
+		const options = await getWpNowConfig(rawOptions);
 
-		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+		const { php, options: wpNowOptions } = await startWPNow(options);
 
 		const mountPointPaths = [
 			'wp-content/database',
@@ -314,6 +349,43 @@ describe('Test starting different modes', () => {
 
 		const requiredFiles = [
 			'wp-content/db.php',
+			'wp-content/mu-plugins/0-allow-wp-org.php',
+			'wp-config.php',
+		];
+
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode with existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
+	 */
+	test('startWPNow starts wordpress mode with existing wp-config', async () => {
+		const projectPath = path.join(
+			tmpExampleDirectory,
+			'wordpress-with-config'
+		);
+
+		const rawOptions: CliOptions = {
+			path: projectPath,
+		};
+		const options = await getWpNowConfig(rawOptions);
+
+		const { php, options: wpNowOptions } = await startWPNow(options);
+
+		const mountPointPaths = ['wp-content/mu-plugins'];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const forbiddenPaths = [
+			'wp-content/database',
+			'wp-content/db.php',
+			'wp-content/plugins/sqlite-database-integration',
+		];
+
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
+		const requiredFiles = [
 			'wp-content/mu-plugins/0-allow-wp-org.php',
 			'wp-config.php',
 		];
