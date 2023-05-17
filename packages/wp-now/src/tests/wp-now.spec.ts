@@ -318,4 +318,46 @@ describe('Test starting different modes', () => {
 
 		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
+
+	/**
+	 * Test that startWPNow in "plugin" mode auto installs the plugin.
+	 */
+	test('startWPNow auto installs the plugin', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'plugin');
+		const { php } = await startWPNow({ projectPath });
+		const codeIsPluginActivePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+
+    if (is_plugin_active('plugin/sample-plugin.php')) {
+      echo 'plugin/sample-plugin.php is active';
+    } else {
+      echo 'plugin not active';
+    }
+    `;
+		const isPluginActive = await php.run({
+			code: codeIsPluginActivePhp,
+		});
+
+		expect(isPluginActive.text).toContain(
+			'plugin/sample-plugin.php is active'
+		);
+	});
+
+	/**
+	 * Test that startWPNow in "theme" mode auto activates the theme.
+	 */
+	test('startWPNow auto installs the theme', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'theme');
+		const { php } = await startWPNow({ projectPath });
+		const codeActiveThemeNamePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    echo wp_get_theme()->get('Name');
+    `;
+		const themeName = await php.run({
+			code: codeActiveThemeNamePhp,
+		});
+
+		expect(themeName.text).toContain('Yolo Theme');
+	});
 });
