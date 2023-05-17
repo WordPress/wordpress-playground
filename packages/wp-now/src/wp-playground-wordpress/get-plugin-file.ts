@@ -14,7 +14,8 @@ export function getPluginFile(projectPath: string) {
 				path.join(projectPath, file),
 				'utf8'
 			);
-			if (fileContent.includes('Plugin Name:')) {
+			const pluginNameRegex = /plugin name:/i;
+			if (pluginNameRegex.test(fileContent)) {
 				return path.join(path.basename(projectPath), file);
 			}
 		}
