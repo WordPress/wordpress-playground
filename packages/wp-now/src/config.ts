@@ -73,7 +73,11 @@ function getWpContentHomePath(projectPath: string) {
 		.createHash('sha1')
 		.update(projectPath)
 		.digest('hex');
-	return path.join(getWpNowPath(), 'wp-content', `${basename}-${directoryHash}`);
+	return path.join(
+		getWpNowPath(),
+		'wp-content',
+		`${basename}-${directoryHash}`
+	);
 }
 
 async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {

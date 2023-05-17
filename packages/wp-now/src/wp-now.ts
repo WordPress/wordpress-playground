@@ -1,9 +1,7 @@
 import fs from 'fs-extra';
 import { NodePHP } from '@php-wasm/node';
 import path from 'path';
-import {
-	SQLITE_FILENAME,
-} from './constants';
+import { SQLITE_FILENAME } from './constants';
 import {
 	downloadMuPlugins,
 	downloadSqliteIntegrationPlugin,
