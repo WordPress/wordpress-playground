@@ -25,7 +25,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	const requiredFilesExist = requiredFiles.every((file) =>
 		playground.fileExists(file)
 	);
-	if (requiredFilesExist) {
+	if (!requiredFilesExist) {
 		throw new Error(
 			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
 		);
