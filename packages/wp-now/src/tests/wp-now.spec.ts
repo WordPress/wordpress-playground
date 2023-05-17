@@ -81,6 +81,12 @@ test('isPluginDirectory detects a WordPress plugin and infer PLUGIN mode.', () =
 	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
 });
 
+test('isPluginDirectory detects a WordPress plugin in case-insensitive way and infer PLUGIN mode.', () => {
+	const projectPath = exampleDir + '/plugin-case-insensitive';
+	expect(isPluginDirectory(projectPath)).toBe(true);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLUGIN);
+});
+
 test('isPluginDirectory returns false for non-plugin directory', () => {
 	const projectPath = exampleDir + '/not-plugin';
 	expect(isPluginDirectory(projectPath)).toBe(false);
@@ -199,9 +205,20 @@ describe('Test starting different modes', () => {
 		mountPaths.map((relativePath) => {
 			const fullPath = path.join(projectPath, relativePath);
 
-			expect(fs.existsSync(fullPath)).toBe(true);
-			expect(fs.readdirSync(fullPath)).toEqual([]);
-			expect(fs.lstatSync(fullPath).isDirectory()).toBe(true);
+			expect({
+				path: fullPath,
+				exists: fs.existsSync(fullPath),
+			}).toStrictEqual({ path: fullPath, exists: true });
+
+			expect({
+				path: fullPath,
+				content: fs.readdirSync(fullPath),
+			}).toStrictEqual({ path: fullPath, content: [] });
+
+			expect({
+				path: fullPath,
+				isDirectory: fs.lstatSync(fullPath).isDirectory(),
+			}).toStrictEqual({ path: fullPath, isDirectory: true });
 		});
 	};
 
@@ -241,11 +258,12 @@ describe('Test starting different modes', () => {
 	/**
 	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
 	 */
-	test.each(['index', 'plugin', 'theme'])(
-		'startWPNow starts %s mode',
-		async (mode) => {
-			const exampleProjectPath = path.join(exampleDir, mode);
-			const projectPath = path.join(tmpExampleDirectory, mode);
+	test.each([
+		['index', ['index.php']],
+		['plugin', ['sample-plugin.php']],
+		['theme', ['style.css']],
+	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
+		const projectPath = path.join(tmpExampleDirectory, mode);
 
 			const rawOptions: CliOptions = {
 				path: projectPath,
@@ -255,15 +273,12 @@ describe('Test starting different modes', () => {
 
 			await startWPNow(options);
 
-			const forbiddenPaths = ['wp-config.php'];
+		const forbiddenPaths = ['wp-config.php'];
 
-			expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
 
-			expect(fs.readdirSync(projectPath)).toEqual(
-				fs.readdirSync(exampleProjectPath)
-			);
-		}
-	);
+		expect(fs.readdirSync(projectPath)).toEqual(expectedDirectories);
+	});
 
 	/**
 	 * Test that startWPNow in "wp-content" mode mounts required files and directories, and
@@ -296,15 +311,14 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
-			'playground-consts.json',
 		];
 
 		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
 	});
 
 	/**
-	 * Test that startWPNow in "wordpress" mode mounts required files and directories, and
-	 * that required files exist for PHP.
+	 * Test that startWPNow in "wordpress" mode without existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
 	 */
 	test('startWPNow starts wordpress mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
@@ -328,7 +342,43 @@ describe('Test starting different modes', () => {
 		const requiredFiles = [
 			'wp-content/db.php',
 			'wp-content/mu-plugins/0-allow-wp-org.php',
-			'playground-consts.json',
+			'wp-config.php',
+		];
+
+		expectRequiredRootFiles(requiredFiles, wpNowOptions.documentRoot, php);
+	});
+
+	/**
+	 * Test that startWPNow in "wordpress" mode with existing wp-config.php file mounts
+	 * required files and directories, and that required files exist for PHP.
+	 */
+	test('startWPNow starts wordpress mode with existing wp-config', async () => {
+		const projectPath = path.join(
+			tmpExampleDirectory,
+			'wordpress-with-config'
+		);
+
+		const rawOptions: CliOptions = {
+			path: projectPath,
+		};
+		const options = await getWpNowConfig(rawOptions);
+
+		const { php, options: wpNowOptions } = await startWPNow(options);
+
+		const mountPointPaths = ['wp-content/mu-plugins'];
+
+		expectEmptyMountPoints(mountPointPaths, projectPath);
+
+		const forbiddenPaths = [
+			'wp-content/database',
+			'wp-content/db.php',
+			'wp-content/plugins/sqlite-database-integration',
+		];
+
+		expectForbiddenProjectFiles(forbiddenPaths, projectPath);
+
+		const requiredFiles = [
+			'wp-content/mu-plugins/0-allow-wp-org.php',
 			'wp-config.php',
 		];
 

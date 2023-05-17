@@ -26,6 +26,7 @@ import {
 	WriteFileStep,
 } from './client-methods';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
+import { DefineVirtualWpConfigConstsStep } from './define-virtual-wp-config-consts';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -40,6 +41,7 @@ export type GenericStep<Resource> =
 	| ApplyWordPressPatchesStep
 	| CpStep
 	| DefineWpConfigConstsStep
+	| DefineVirtualWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>
@@ -90,8 +92,14 @@ export type {
 };
 
 export type StepHandler<S extends GenericStep<File>> = (
+	/**
+	 * A PHP instance or Playground client.
+	 */
 	php: UniversalPHP,
 	args: Omit<S, 'step'>,
+	/**
+	 * Progress reporting details.
+	 */
 	progressArgs?: {
 		tracker: ProgressTracker;
 		initialCaption?: string;

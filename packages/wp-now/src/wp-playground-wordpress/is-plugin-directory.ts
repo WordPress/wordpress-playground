@@ -15,7 +15,7 @@ export function isPluginDirectory(projectPath: string): Boolean {
 				path.join(projectPath, file),
 				'utf8'
 			);
-			if (fileContent.includes('Plugin Name:')) {
+			if (fileContent.toLowerCase().includes('plugin name:')) {
 				return true;
 			}
 		}
