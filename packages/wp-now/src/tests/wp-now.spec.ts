@@ -331,8 +331,6 @@ describe('Test starting different modes', () => {
 
     if (is_plugin_active('plugin/sample-plugin.php')) {
       echo 'plugin/sample-plugin.php is active';
-    } else {
-      echo 'plugin not active';
     }
     `;
 		const isPluginActive = await php.run({
@@ -342,6 +340,37 @@ describe('Test starting different modes', () => {
 		expect(isPluginActive.text).toContain(
 			'plugin/sample-plugin.php is active'
 		);
+	});
+
+	/**
+	 * Test that startWPNow in "plugin" mode does not auto install the plugin the second time.
+	 */
+	test('startWPNow auto installs the plugin', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'plugin');
+		const { php } = await startWPNow({ projectPath });
+		const deactivatePluginPhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+    deactivate_plugins('plugin/sample-plugin.php');
+    `;
+		await php.run({ code: deactivatePluginPhp });
+		// Run startWPNow a second time.
+		const { php: phpSecondTime } = await startWPNow({ projectPath });
+		const codeIsPluginActivePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    require_once('${php.documentRoot}/wp-admin/includes/plugin.php');
+
+    if (is_plugin_active('plugin/sample-plugin.php')) {
+      echo 'plugin/sample-plugin.php is active';
+    } else {
+      echo 'plugin not active';
+    }
+    `;
+		const isPluginActive = await phpSecondTime.run({
+			code: codeIsPluginActivePhp,
+		});
+
+		expect(isPluginActive.text).toContain('plugin not active');
 	});
 
 	/**
