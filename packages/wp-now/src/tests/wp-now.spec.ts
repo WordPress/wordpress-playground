@@ -265,13 +265,13 @@ describe('Test starting different modes', () => {
 	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
 		const projectPath = path.join(tmpExampleDirectory, mode);
 
-			const rawOptions: CliOptions = {
-				path: projectPath,
-			};
+		const rawOptions: CliOptions = {
+			path: projectPath,
+		};
 
-			const options = await getWpNowConfig(rawOptions);
+		const options = await getWpNowConfig(rawOptions);
 
-			await startWPNow(options);
+		await startWPNow(options);
 
 		const forbiddenPaths = ['wp-config.php'];
 
