@@ -15,6 +15,7 @@ import {
 } from '../wp-playground-wordpress';
 import os from 'os';
 import crypto from 'crypto';
+import getWpNowPath from '../get-wp-now-path';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -163,7 +164,7 @@ describe('Test starting different modes', () => {
 
 		tmpExampleDirectory = path.join(
 			tmpDirectory,
-			`wp-now-tests-${directoryHash}`
+			`wp-now-tests-examples-${directoryHash}`
 		);
 		fs.ensureDirSync(tmpExampleDirectory);
 		fs.copySync(exampleDir, tmpExampleDirectory);
@@ -174,6 +175,13 @@ describe('Test starting different modes', () => {
 	 */
 	afterEach(() => {
 		fs.rmSync(tmpExampleDirectory, { recursive: true, force: true });
+	});
+
+	/**
+	 * Remove wp-now hidden directory from temporary directory.
+	 */
+	afterAll(() => {
+		fs.rmSync(getWpNowPath(), { recursive: true, force: true });
 	});
 
 	/**

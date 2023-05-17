@@ -10,9 +10,6 @@ import {
 	DEFAULT_PHP_VERSION,
 	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
-	SQLITE_PATH,
-	WORDPRESS_VERSIONS_PATH,
-	WP_NOW_PATH,
 } from './constants';
 import {
 	downloadMuPlugins,
@@ -29,6 +26,9 @@ import {
 	isWordPressDevelopDirectory,
 } from './wp-playground-wordpress';
 import { output } from './output';
+import getWpNowPath from './get-wp-now-path';
+import getWordpressVersionsPath from './get-wordpress-versions-path';
+import getSqlitePath from './get-sqlite-path';
 
 export const enum WPNowMode {
 	PLUGIN = 'plugin',
@@ -166,7 +166,11 @@ function getWpContentHomePath(projectPath: string) {
 		.createHash('sha1')
 		.update(projectPath)
 		.digest('hex');
-	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
+	return path.join(
+		getWpNowPath(),
+		'wp-content',
+		`${basename}-${directoryHash}`
+	);
 }
 
 async function runIndexMode(
@@ -186,7 +190,10 @@ async function runWpContentMode(
 		absoluteUrl,
 	}: WPNowOptions
 ) {
-	const wordPressPath = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+	const wordPressPath = path.join(
+		getWordpressVersionsPath(),
+		wordPressVersion
+	);
 	php.mount(wordPressPath, documentRoot);
 	await initWordPress(php, wordPressVersion, documentRoot, absoluteUrl);
 	fs.ensureDirSync(wpContentPath);
@@ -233,13 +240,16 @@ async function runPluginOrThemeMode(
 		mode,
 	}: WPNowOptions
 ) {
-	const wordPressPath = path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion);
+	const wordPressPath = path.join(
+		getWordpressVersionsPath(),
+		wordPressVersion
+	);
 	php.mount(wordPressPath, documentRoot);
 	await initWordPress(php, wordPressVersion, documentRoot, absoluteUrl);
 
 	fs.ensureDirSync(wpContentPath);
 	fs.copySync(
-		path.join(WORDPRESS_VERSIONS_PATH, wordPressVersion, 'wp-content'),
+		path.join(getWordpressVersionsPath(), wordPressVersion, 'wp-content'),
 		wpContentPath
 	);
 	php.mount(wpContentPath, `${documentRoot}/wp-content`);
@@ -280,7 +290,7 @@ async function initWordPress(
 
 function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
 	php.mount(
-		path.join(WP_NOW_PATH, 'mu-plugins'),
+		path.join(getWpNowPath(), 'mu-plugins'),
 		path.join(vfsDocumentRoot, 'wp-content', 'mu-plugins')
 	);
 }
@@ -288,9 +298,9 @@ function mountMuPlugins(php: NodePHP, vfsDocumentRoot: string) {
 function mountSqlitePlugin(php: NodePHP, vfsDocumentRoot: string) {
 	const sqlitePluginPath = `${vfsDocumentRoot}/wp-content/plugins/${SQLITE_FILENAME}`;
 	if (php.listFiles(sqlitePluginPath).length === 0) {
-		php.mount(SQLITE_PATH, sqlitePluginPath);
+		php.mount(getSqlitePath(), sqlitePluginPath);
 		php.mount(
-			path.join(SQLITE_PATH, 'db.copy'),
+			path.join(getSqlitePath(), 'db.copy'),
 			`${vfsDocumentRoot}/wp-content/db.php`
 		);
 	}
