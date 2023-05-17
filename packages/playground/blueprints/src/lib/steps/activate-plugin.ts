@@ -26,15 +26,14 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		playground.fileExists(file)
 	);
 	if (requiredFilesExist) {
-		await playground.run({
-			code: `<?php
-      ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
-      activate_plugin('${pluginPath}');
-      `,
-		});
-	} else {
 		throw new Error(
 			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
 		);
 	}
+	await playground.run({
+		code: `<?php
+      ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
+      activate_plugin('${pluginPath}');
+      `,
+	});
 };

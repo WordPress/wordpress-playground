@@ -18,16 +18,15 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
 	const wpLoadPath = `${playground.documentRoot}/wp-load.php`;
-	if (playground.fileExists(wpLoadPath)) {
-		await playground.run({
-			code: `<?php
-      require_once( '${wpLoadPath}' );
-      switch_theme( '${themeFolderName}' );
-      `,
-		});
-	} else {
+	if (!playground.fileExists(wpLoadPath)) {
 		throw new Error(
 			`Required WordPress file does not exist: ${wpLoadPath}`
 		);
 	}
+	await playground.run({
+		code: `<?php
+      require_once( '${wpLoadPath}' );
+      switch_theme( '${themeFolderName}' );
+      `,
+	});
 };
