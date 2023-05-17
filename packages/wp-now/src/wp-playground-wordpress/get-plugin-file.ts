@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import path from 'path';
+import path, { basename } from 'path';
 
 /**
  *
@@ -17,12 +17,28 @@ function readFileHead(filePath: string, length = 4096) {
 }
 
 /**
+ * Sorts the files in the given array using a heuristic.
+ * The plugin file usually has the same name as the project folder.
+ * @param files The files to sort.
+ * @returns The sorted files.
+ */
+function heuristicSort(files: string[], projectPath: string) {
+	const heuristicsBestGuess = `${basename(projectPath)}.php`;
+	const heuristicsBestGuessIndex = files.indexOf(heuristicsBestGuess);
+	if (heuristicsBestGuessIndex !== -1) {
+		files.splice(heuristicsBestGuessIndex, 1);
+		files.unshift(heuristicsBestGuess);
+	}
+	return files;
+}
+
+/**
  *
  * @param projectPath The path to the plugin.
  * @returns Path to the plugin file relative to the plugins directory.
  */
 export function getPluginFile(projectPath: string) {
-	const files = fs.readdirSync(projectPath);
+	const files = heuristicSort(fs.readdirSync(projectPath), projectPath);
 	for (const file of files) {
 		if (file.endsWith('.php')) {
 			const fileContent = readFileHead(path.join(projectPath, file));
