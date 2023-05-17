@@ -299,11 +299,7 @@ async function activatePluginOrTheme(
 ) {
 	if (mode === WPNowMode.PLUGIN) {
 		const pluginFile = getPluginFile(projectPath);
-		if (pluginFile) {
-			await activatePlugin(php, { pluginPath: pluginFile });
-		} else {
-			output?.log(`Error: plugin file not found in ${projectPath}`);
-		}
+		await activatePlugin(php, { pluginPath: pluginFile });
 	} else if (mode === WPNowMode.THEME) {
 		const themeFolderName = path.basename(projectPath);
 		await activateTheme(php, { themeFolderName });
