@@ -1,9 +1,5 @@
-import startWPNow, {
-	inferMode,
-	parseOptions,
-	WPNowMode,
-	WPNowOptions,
-} from '../wp-now';
+import startWPNow, { inferMode } from '../wp-now';
+import getWpNowConfig, { CliOptions, WPNowMode, WPNowOptions } from '../config';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -19,11 +15,11 @@ import crypto from 'crypto';
 const exampleDir = __dirname + '/mode-examples';
 
 // Options
-test('parseOptions with default options', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		projectPath: exampleDir,
+test('getWpNowConfig with default options', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir,
 	};
-	const options = await parseOptions(rawOptions);
+	const options = await getWpNowConfig(rawOptions);
 
 	expect(options.phpVersion).toBe('8.0');
 	expect(options.wordPressVersion).toBe('latest');
@@ -32,33 +28,50 @@ test('parseOptions with default options', async () => {
 	expect(options.projectPath).toBe(exampleDir);
 });
 
-test('parseOptions with custom options', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		phpVersion: '7.3',
-		wordPressVersion: '5.7',
-		documentRoot: '/var/www/my-site',
-		mode: WPNowMode.WORDPRESS,
-		projectPath: '/path/to/my-site',
-		wpContentPath: '/path/to/my-site/wp-content',
-		absoluteUrl: 'http://localhost:8080',
-	};
-	const options = await parseOptions(rawOptions);
-	expect(options.phpVersion).toBe('7.3');
-	expect(options.wordPressVersion).toBe('5.7');
-	expect(options.documentRoot).toBe('/var/www/my-site');
-	expect(options.mode).toBe(WPNowMode.WORDPRESS);
-	expect(options.projectPath).toBe('/path/to/my-site');
-	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
-	expect(options.absoluteUrl).toBe('http://localhost:8080');
-});
+//TODO: Add it back when all options are supported as cli arguments
+// test('parseOptions with custom options', async () => {
+// 	const rawOptions: Partial<WPNowOptions> = {
+// 		phpVersion: '7.3',
+// 		wordPressVersion: '5.7',
+// 		documentRoot: '/var/www/my-site',
+// 		mode: WPNowMode.WORDPRESS,
+// 		projectPath: '/path/to/my-site',
+// 		wpContentPath: '/path/to/my-site/wp-content',
+// 		absoluteUrl: 'http://localhost:8080',
+// 	};
+// 	const options = await parseOptions(rawOptions);
+// 	expect(options.phpVersion).toBe('7.3');
+// 	expect(options.wordPressVersion).toBe('5.7');
+// 	expect(options.documentRoot).toBe('/var/www/my-site');
+// 	expect(options.mode).toBe(WPNowMode.WORDPRESS);
+// 	expect(options.projectPath).toBe('/path/to/my-site');
+// 	expect(options.wpContentPath).toBe('/path/to/my-site/wp-content');
+// 	expect(options.absoluteUrl).toBe('http://localhost:8080');
+// });
 
-test('parseOptions with unsupported PHP version', async () => {
-	const rawOptions: Partial<WPNowOptions> = {
-		phpVersion: '5.4' as any,
+test('getWpNowConfig with unsupported PHP version', async () => {
+	const rawOptions: CliOptions = {
+		php: '5.4' as any,
 	};
-	await expect(parseOptions(rawOptions)).rejects.toThrowError(
+	await expect(getWpNowConfig(rawOptions)).rejects.toThrowError(
 		'Unsupported PHP version: 5.4.'
 	);
+});
+
+test('getWpNowConfig with .wp-env.json', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir + '/wp-env',
+	};
+	const options = await getWpNowConfig(rawOptions);
+	expect(options.wordPressVersion).toBe('6.0');
+});
+
+test('getWpNowConfig with .wp-env.override.json', async () => {
+	const rawOptions: CliOptions = {
+		path: exampleDir + '/wp-env-override',
+	};
+	const options = await getWpNowConfig(rawOptions);
+	expect(options.wordPressVersion).toBe('6.3');
 });
 
 // Plugin mode
@@ -252,11 +265,13 @@ describe('Test starting different modes', () => {
 	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
 		const projectPath = path.join(tmpExampleDirectory, mode);
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
 
-		await startWPNow(rawOptions);
+		const options = await getWpNowConfig(rawOptions);
+
+		await startWPNow(options);
 
 		const forbiddenPaths = ['wp-config.php'];
 
@@ -272,11 +287,13 @@ describe('Test starting different modes', () => {
 	test('startWPNow starts wp-content mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wp-content');
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
 
-		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+		const options = await getWpNowConfig(rawOptions);
+
+		const { php, options: wpNowOptions } = await startWPNow(options);
 
 		const mountPointPaths = [
 			'database',
@@ -306,11 +323,12 @@ describe('Test starting different modes', () => {
 	test('startWPNow starts wordpress mode', async () => {
 		const projectPath = path.join(tmpExampleDirectory, 'wordpress');
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
+		const options = await getWpNowConfig(rawOptions);
 
-		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+		const { php, options: wpNowOptions } = await startWPNow(options);
 
 		const mountPointPaths = [
 			'wp-content/database',
@@ -340,11 +358,12 @@ describe('Test starting different modes', () => {
 			'wordpress-with-config'
 		);
 
-		const rawOptions: Partial<WPNowOptions> = {
-			projectPath: projectPath,
+		const rawOptions: CliOptions = {
+			path: projectPath,
 		};
+		const options = await getWpNowConfig(rawOptions);
 
-		const { php, options: wpNowOptions } = await startWPNow(rawOptions);
+		const { php, options: wpNowOptions } = await startWPNow(options);
 
 		const mountPointPaths = ['wp-content/mu-plugins'];
 
