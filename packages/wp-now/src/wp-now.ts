@@ -299,7 +299,6 @@ async function activatePluginOrTheme(
 ) {
 	if (mode === WPNowMode.PLUGIN) {
 		const pluginFile = getPluginFile(projectPath);
-		console.log('pluginFile', pluginFile);
 		if (pluginFile) {
 			await activatePlugin(php, { pluginPath: pluginFile });
 		}
