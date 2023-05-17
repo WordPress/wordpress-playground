@@ -389,4 +389,28 @@ describe('Test starting different modes', () => {
 
 		expect(themeName.text).toContain('Yolo Theme');
 	});
+
+	/**
+	 * Test that startWPNow in "theme" mode does not auto activate the theme the second time.
+	 */
+	test('startWPNow auto installs the theme', async () => {
+		const projectPath = path.join(tmpExampleDirectory, 'theme');
+		const { php } = await startWPNow({ projectPath });
+		const switchThemePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    switch_theme('twentytwentythree');
+    `;
+		await php.run({ code: switchThemePhp });
+		// Run startWPNow a second time.
+		const { php: phpSecondTime } = await startWPNow({ projectPath });
+		const codeActiveThemeNamePhp = `<?php
+    require_once('${php.documentRoot}/wp-load.php');
+    echo wp_get_theme()->get('Name');
+    `;
+		const themeName = await phpSecondTime.run({
+			code: codeActiveThemeNamePhp,
+		});
+
+		expect(themeName.text).toContain('Twenty Twenty-Three');
+	});
 });
