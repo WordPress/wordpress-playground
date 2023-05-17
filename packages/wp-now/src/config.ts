@@ -84,31 +84,6 @@ async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {
 	}
 }
 
-async function parseOptions(
-	options: Partial<WPNowOptions> = {}
-): Promise<WPNowOptions> {
-	if (!options.wpContentPath) {
-		options.wpContentPath = getWpContentHomePath(options.projectPath);
-	}
-	if (!options.mode || options.mode === 'auto') {
-		options.mode = inferMode(options.projectPath);
-	}
-	if (!options.absoluteUrl) {
-		options.absoluteUrl = await getAbsoluteURL();
-	}
-	if (
-		options.phpVersion &&
-		!SupportedPHPVersionsList.includes(options.phpVersion)
-	) {
-		throw new Error(
-			`Unsupported PHP version: ${
-				options.phpVersion
-			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
-		);
-	}
-	return options;
-}
-
 async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
 	const wpEnvConfig = await parseWpEnvConfig(path.join(cwd, WP_ENV_FILE));
 	const wpOverrideEnvConfig = await parseWpEnvConfig(
@@ -134,15 +109,34 @@ export default async function getWpNowConfig(
 
 	const wpEnvToNowConfig = await fromWpEnv(optionsFromCli.projectPath);
 
-	const mergedConfig: WPNowOptions = {} as WPNowOptions;
+	const options: WPNowOptions = {} as WPNowOptions;
 
 	[optionsFromCli, wpEnvToNowConfig, DEFAULT_OPTIONS].forEach((config) => {
 		for (const key in config) {
-			if (!mergedConfig[key]) {
-				mergedConfig[key] = config[key];
+			if (!options[key]) {
+				options[key] = config[key];
 			}
 		}
 	});
 
-	return await parseOptions(mergedConfig);
+	if (!options.wpContentPath) {
+		options.wpContentPath = getWpContentHomePath(options.projectPath);
+	}
+	if (!options.mode || options.mode === 'auto') {
+		options.mode = inferMode(options.projectPath);
+	}
+	if (!options.absoluteUrl) {
+		options.absoluteUrl = await getAbsoluteURL();
+	}
+	if (
+		options.phpVersion &&
+		!SupportedPHPVersionsList.includes(options.phpVersion)
+	) {
+		throw new Error(
+			`Unsupported PHP version: ${
+				options.phpVersion
+			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
+		);
+	}
+	return options;
 }
