@@ -32,5 +32,9 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
       activate_plugin('${pluginPath}');
       `,
 		});
+	} else {
+		throw new Error(
+			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
+		);
 	}
 };

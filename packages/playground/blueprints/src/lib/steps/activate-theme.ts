@@ -21,9 +21,13 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	if (playground.fileExists(wpLoadPath)) {
 		await playground.run({
 			code: `<?php
-      include_once( '${wpLoadPath}' );
+      require_once( '${wpLoadPath}' );
       switch_theme( '${themeFolderName}' );
       `,
 		});
+	} else {
+		throw new Error(
+			`Required WordPress file does not exist: ${wpLoadPath}`
+		);
 	}
 };
