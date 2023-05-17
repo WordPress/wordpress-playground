@@ -94,8 +94,14 @@ export type {
 };
 
 export type StepHandler<S extends GenericStep<File>> = (
+	/**
+	 * A PHP instance or Playground client.
+	 */
 	php: UniversalPHP,
 	args: Omit<S, 'step'>,
+	/**
+	 * Progress reporting details.
+	 */
 	progressArgs?: {
 		tracker: ProgressTracker;
 		initialCaption?: string;

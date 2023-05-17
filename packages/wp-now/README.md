@@ -31,7 +31,10 @@ wp-now start --wp=5.9 --php=7.4
 
 `wp-now` automatically operates in a few different modes. The selected mode depends on the directory in which it is executed:
 
--   **plugin**, **theme**, or **wp-content**: Loads the project files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided.
+-   **plugin**, **theme**, or **wp-content**: Loads the project files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided. Here are the heuristics for each mode:
+    -   **plugin** mode: Presence of a PHP file with 'Plugin Name:' in its contents.
+    -   **theme** mode: Presence of a `style.css` file with 'Theme Name:' in its contents.
+    -   **wp-content** mode: Presence of `plugins` and `themes` subdirectories.
 -   **wordpress**: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   **wordpress-develop**: Same as `wordpress` mode, except the `build` directory is served as the web root.
 -   **index**: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
@@ -53,8 +56,9 @@ wp-now start --wp=5.9 --php=7.4
 ## Known Issues
 
 -   Running `wp-now start` in 'wp-content' or 'wordpress' mode will produce some empty directories: [WordPress/wordpress-playground#328](https://github.com/WordPress/wordpress-playground/issues/328)
--   If you have an existing MySQL database defined in your `wp-config.php`, `wp-now` will still mount SQLite and the site won't load: [WordPress/wordpress-playground#327](https://github.com/WordPress/wordpress-playground/issues/327)
+-   In 'wordpress' mode, `wp-now` can connect to a MySQL database with `define( 'DB_HOST', '127.0.0.1' );`, but `define( 'DB_HOST', 'localhost' );` does not work: [WordPress/wordpress-playground#369](https://github.com/WordPress/wordpress-playground/issues/369)
 -   `wp-now` published versions can appear random: [WordPress/wordpress-playground#357](https://github.com/WordPress/wordpress-playground/issues/357)
+-   Inline images are broken when site starts on a different port: [WordPress/wordpress-playground#356](https://github.com/WordPress/wordpress-playground/issues/356)
 
 ## Comparisions
 
