@@ -2,10 +2,10 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import { WP_NOW_PATH } from './constants';
 import crypto from 'crypto';
 import { inferMode } from './wp-now';
 import { portFinder } from './port-finder';
+import getWpNowPath from './get-wp-now-path';
 
 import path from 'path';
 import * as fs from 'fs';
@@ -73,7 +73,11 @@ function getWpContentHomePath(projectPath: string) {
 		.createHash('sha1')
 		.update(projectPath)
 		.digest('hex');
-	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
+	return path.join(
+		getWpNowPath(),
+		'wp-content',
+		`${basename}-${directoryHash}`
+	);
 }
 
 async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {
