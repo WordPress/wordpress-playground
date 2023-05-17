@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { readFileHead } from './read-file-head';
 
 /**
  * Checks if the given path is a WordPress theme directory.
@@ -12,9 +13,7 @@ export function isThemeDirectory(projectPath: string): Boolean {
 	if (!styleCSSExists) {
 		return false;
 	}
-	const styleCSS = fs.readFileSync(
-		path.join(projectPath, 'style.css'),
-		'utf-8'
-	);
-	return styleCSS.includes('Theme Name:');
+	const styleCSS = readFileHead(path.join(projectPath, 'style.css'));
+	const themeNameRegex = /^(?:[ \t]*<\?php)?[ \t/*#@]*Theme Name:(.*)$/im;
+	return themeNameRegex.test(styleCSS);
 }
