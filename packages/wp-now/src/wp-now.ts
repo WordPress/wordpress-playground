@@ -1,14 +1,7 @@
 import fs from 'fs-extra';
-import crypto from 'crypto';
 import { NodePHP } from '@php-wasm/node';
-import {
-	SupportedPHPVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
 import path from 'path';
 import {
-	DEFAULT_PHP_VERSION,
-	DEFAULT_WORDPRESS_VERSION,
 	SQLITE_FILENAME,
 	SQLITE_PATH,
 	WORDPRESS_VERSIONS_PATH,
@@ -19,13 +12,13 @@ import {
 	downloadSqliteIntegrationPlugin,
 	downloadWordPress,
 } from './download';
-import { portFinder } from './port-finder';
 import {
 	activatePlugin,
 	activateTheme,
 	defineVirtualWpConfigConsts,
 	login,
 } from '@wp-playground/blueprints';
+import { WPNowOptions, WPNowMode } from './config';
 import {
 	isPluginDirectory,
 	isThemeDirectory,
@@ -36,73 +29,13 @@ import {
 } from './wp-playground-wordpress';
 import { output } from './output';
 
-export const enum WPNowMode {
-	PLUGIN = 'plugin',
-	THEME = 'theme',
-	WORDPRESS = 'wordpress',
-	WORDPRESS_DEVELOP = 'wordpress-develop',
-	INDEX = 'index',
-	WP_CONTENT = 'wp-content',
-	AUTO = 'auto',
-}
-
-export interface WPNowOptions {
-	phpVersion?: SupportedPHPVersion;
-	documentRoot?: string;
-	absoluteUrl?: string;
-	mode?: WPNowMode;
-	projectPath?: string;
-	wpContentPath?: string;
-	wordPressVersion?: string;
-}
-
-async function getAbsoluteURL() {
-	const port = await portFinder.getOpenPort();
-	return `http://127.0.0.1:${port}`;
-}
-
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
 
-export async function parseOptions(
-	rawOptions: Partial<WPNowOptions> = {}
-): Promise<WPNowOptions> {
-	const options: WPNowOptions = {
-		phpVersion: DEFAULT_PHP_VERSION,
-		wordPressVersion: DEFAULT_WORDPRESS_VERSION,
-		documentRoot: '/var/www/html',
-		mode: WPNowMode.AUTO,
-		projectPath: process.cwd(),
-		...rawOptions,
-	};
-	if (!options.wpContentPath) {
-		options.wpContentPath = getWpContentHomePath(options.projectPath);
-	}
-	if (!options.mode || options.mode === 'auto') {
-		options.mode = inferMode(options.projectPath);
-	}
-	if (!options.absoluteUrl) {
-		options.absoluteUrl = await getAbsoluteURL();
-	}
-	if (
-		options.phpVersion &&
-		!SupportedPHPVersionsList.includes(options.phpVersion)
-	) {
-		throw new Error(
-			`Unsupported PHP version: ${
-				options.phpVersion
-			}. Supported versions: ${SupportedPHPVersionsList.join(', ')}`
-		);
-	}
-	return options;
-}
-
 export default async function startWPNow(
-	rawOptions: Partial<WPNowOptions> = {}
+	options: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; options: WPNowOptions }> {
-	const options = await parseOptions(rawOptions);
-
 	const { documentRoot } = options;
 	const php = await NodePHP.load(options.phpVersion, {
 		requestHandler: {
@@ -173,15 +106,6 @@ export default async function startWPNow(
 		php,
 		options,
 	};
-}
-
-function getWpContentHomePath(projectPath: string) {
-	const basename = path.basename(projectPath);
-	const directoryHash = crypto
-		.createHash('sha1')
-		.update(projectPath)
-		.digest('hex');
-	return path.join(WP_NOW_PATH, 'wp-content', `${basename}-${directoryHash}`);
 }
 
 async function runIndexMode(
