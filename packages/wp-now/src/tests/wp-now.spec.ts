@@ -12,6 +12,7 @@ import {
 import os from 'os';
 import crypto from 'crypto';
 import getWpNowPath from '../get-wp-now-path';
+import getWpNowTmpPath from '../get-wp-now-tmp-path';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -200,7 +201,7 @@ describe('Test starting different modes', () => {
 	 * Remove wp-now hidden directory from temporary directory.
 	 */
 	afterAll(() => {
-		fs.rmSync(getWpNowPath(), { recursive: true, force: true });
+		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
 	});
 
 	/**
