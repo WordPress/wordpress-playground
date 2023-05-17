@@ -43,7 +43,8 @@ export function getPluginFile(projectPath: string) {
 	for (const file of files) {
 		if (file.endsWith('.php')) {
 			const fileContent = readFileHead(path.join(projectPath, file));
-			const pluginNameRegex = /\/\*[\s\S]*?Plugin Name:[\s\S]*?\*\//i;
+			const pluginNameRegex =
+				/^(?:[ \t]*<\?php)?[ \t/*#@]*Plugin Name:(.*)$/im;
 			if (pluginNameRegex.test(fileContent)) {
 				return path.join(path.basename(projectPath), file);
 			}
