@@ -37,7 +37,7 @@
 			"dependsOn": ["build", "^build"]
 		},
 		"serve": {
-			"executor": "@nrwl/js:node",
+			"executor": "@nx/js:node",
 			"defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "wp-now:build"
@@ -52,14 +52,14 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/wp-now/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/wp-now"],
 			"options": {
 				"passWithNoTests": true,

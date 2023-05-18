@@ -3,7 +3,7 @@
 		{
 			"cli": "nx",
 			"version": "16.0.0-beta.0",
-			"description": "Remove @nrwl/cli.",
+			"description": "Remove @nx/cli.",
 			"implementation": "./src/migrations/update-16-0-0/remove-nrwl-cli",
 			"package": "nx",
 			"name": "16.0.0-remove-nrwl-cli"
@@ -19,7 +19,7 @@
 		{
 			"cli": "nx",
 			"version": "16.0.0-beta.0",
-			"description": "Replace @nrwl/nx-cloud with nx-cloud",
+			"description": "Replace @nx/nx-cloud with nx-cloud",
 			"implementation": "./src/migrations/update-16-0-0/update-nx-cloud-runner",
 			"package": "nx",
 			"name": "16.0.0-update-nx-cloud-runner"
@@ -147,7 +147,7 @@
 		{
 			"cli": "nx",
 			"version": "15.9.1",
-			"description": "Add @nx/linter, @nrwl/cypress, @nx/jest, @nx/rollup if they are used",
+			"description": "Add @nx/linter, @nx/cypress, @nx/jest, @nx/rollup if they are used",
 			"factory": "./src/migrations/update-15-9-1/add-dropped-dependencies",
 			"package": "@nx/web",
 			"name": "add-dropped-dependencies"

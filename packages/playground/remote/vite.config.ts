@@ -1,12 +1,13 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
 import { join } from 'path';
 import dts from 'vite-plugin-dts';
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../vite-virtual-module';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [

@@ -1,4 +1,4 @@
-import { ExecutorContext } from '@nrwl/devkit';
+import { ExecutorContext } from '@nx/devkit';
 import { spawn } from 'child_process';
 import { mkdirSync, writeFileSync } from 'fs';
 import * as path from 'path';

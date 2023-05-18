@@ -30,14 +30,14 @@
 			}
 		},
 		"preview": {
-			"executor": "@nrwl/web:file-server",
+			"executor": "@nx/web:file-server",
 			"options": {
 				"buildTarget": "docs-site:build",
 				"staticFilePath": "dist/docs"
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/docs/site"],
 			"options": {
 				"passWithNoTests": true,
@@ -45,7 +45,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"]

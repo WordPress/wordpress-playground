@@ -4,7 +4,7 @@ import { pathToFileURL, fileURLToPath } from 'url';
 import { resolve as tsNodeResolve } from 'ts-node/esm';
 import { globSync } from 'glob';
 
-import devkit from '@nrwl/devkit';
+import devkit from '@nx/devkit';
 
 const nxBaseDir = process.cwd();
 const require = createRequire(nxBaseDir + '/');
