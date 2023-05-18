@@ -15,11 +15,9 @@ jobs:
             - uses: nrwl/nx-set-shas@v3
               with:
                   main-branch-name: 'trunk'
-            - run: npm install -g yarn nx
-            - run: yarn install --frozen-lockfile
-
-            - run: nx format:check || npx prettier --check .
-            - run: nx affected --target=typecheck
-            - run: nx affected --target=lint --parallel=3
-            - run: nx affected --target=test --parallel=3 --configuration=ci
-            - run: nx affected --target=build --parallel=3
+            - run: npm ci
+            - run: npx nx format:check || npx prettier --check .
+            - run: npx nx affected --target=typecheck
+            - run: npx nx affected --target=lint --parallel=3
+            - run: npx nx affected --target=test --parallel=3 --configuration=ci
+            - run: npx nx affected --target=build --parallel=3

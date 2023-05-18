@@ -11,7 +11,8 @@
 				"outputPath": "dist/packages/php-wasm/util",
 				"main": "packages/php-wasm/util/src/index.ts",
 				"tsConfig": "packages/php-wasm/util/tsconfig.lib.json",
-				"assets": ["packages/php-wasm/util/*.md"]
+				"assets": ["packages/php-wasm/util/*.md"],
+				"thirdParty": true
 			}
 		},
 		"publish": {

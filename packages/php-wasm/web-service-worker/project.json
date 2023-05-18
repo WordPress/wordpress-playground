@@ -35,7 +35,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/php-wasm/web-service-worker/tsconfig.lib.json --noEmit"
+					"tsc -p packages/php-wasm/web-service-worker/tsconfig.lib.json --noEmit"
 				]
 			}
 		}
