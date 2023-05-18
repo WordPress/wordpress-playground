@@ -31,7 +31,7 @@ export async function executePHPFile(
 	// check if filePath exists
 	const absoluteFilePath = path.resolve(filePath);
 	if (!fs.existsSync(absoluteFilePath)) {
-		throw new Error(`File not found: ${absoluteFilePath}`);
+		throw new Error(`Could not open input file: ${absoluteFilePath}`);
 	}
 
 	php.useHostFilesystem();
