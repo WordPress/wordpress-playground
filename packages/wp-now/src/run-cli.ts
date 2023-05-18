@@ -84,7 +84,6 @@ export async function runCli() {
 				});
 			},
 			async (argv) => {
-				const spinner = startSpinner('Running the php command...');
 				try {
 					const options = await getWpNowConfig({
 						path: argv.path as string,
@@ -98,7 +97,7 @@ export async function runCli() {
 					process.exit(result.status);
 				} catch (error) {
 					console.error(error);
-					spinner.fail(
+					console.error(
 						`Failed to start the server: ${
 							(error as Error).message
 						}`
