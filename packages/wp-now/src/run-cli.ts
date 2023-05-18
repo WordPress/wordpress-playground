@@ -97,11 +97,6 @@ export async function runCli() {
 					process.exit(result.status);
 				} catch (error) {
 					console.error(error);
-					console.error(
-						`Failed to start the server: ${
-							(error as Error).message
-						}`
-					);
 					process.exit(error.status || -1);
 				}
 			}
