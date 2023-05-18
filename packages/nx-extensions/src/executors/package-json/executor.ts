@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { createPackageJson } from '@nrwl/js';
+import { createPackageJson } from '@nx/js';
 import {
 	ExecutorContext,
 	serializeJson,
@@ -7,12 +7,12 @@ import {
 	parseTargetString,
 	runExecutor,
 	ProjectGraphDependency,
-} from '@nrwl/devkit';
+} from '@nx/devkit';
 import {
 	getHelperDependenciesFromProjectGraph,
 	HelperDependency,
 	readTsConfig,
-} from '@nrwl/js';
+} from '@nx/js';
 import { PackageJsonExecutorSchema } from './schema';
 
 interface ExecutorEvent {

@@ -2,7 +2,9 @@
 import { join } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
 export default defineConfig(({ command }) => {
 	return {

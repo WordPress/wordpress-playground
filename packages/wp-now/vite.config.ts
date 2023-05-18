@@ -4,7 +4,9 @@
  */
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../vite-ts-config-paths';
 
 export default defineConfig(() => {
 	return {

@@ -10,7 +10,7 @@
 			"dependsOn": ["build:README", "build:rollup-declarations"]
 		},
 		"build:README": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"cp packages/php-wasm/web/README.md dist/packages/php-wasm/web"
@@ -27,7 +27,7 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/php-wasm/web"
@@ -79,14 +79,14 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/web/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/php-wasm/web"],
 			"options": {
 				"passWithNoTests": true,
@@ -94,7 +94,7 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"yarn tsc -p packages/php-wasm/web/tsconfig.lib.json --noEmit",

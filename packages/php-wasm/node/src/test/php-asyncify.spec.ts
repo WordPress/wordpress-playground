@@ -4,7 +4,7 @@ import path from 'path';
 import { NodePHP } from '..';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
-// eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/Dockerfile?raw';
 
 // Start a server to test network functions

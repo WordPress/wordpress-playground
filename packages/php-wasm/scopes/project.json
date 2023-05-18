@@ -13,21 +13,21 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/php-wasm/scopes"
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/scopes/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/php-wasm/scopes"],
 			"options": {
 				"passWithNoTests": true,
@@ -35,7 +35,7 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"yarn tsc -p packages/php-wasm/scopes/tsconfig.lib.json --noEmit",

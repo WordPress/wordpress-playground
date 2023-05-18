@@ -3,10 +3,12 @@ import { defineConfig } from 'vite';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import react from '@vitejs/plugin-react';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
 import externalGlobals from 'rollup-plugin-external-globals';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import type { OutputOptions } from 'rollup';
+
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../vite-ts-config-paths';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig({
