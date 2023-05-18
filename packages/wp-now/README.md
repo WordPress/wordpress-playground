@@ -45,6 +45,7 @@ wp-now php my-file.php
 -   **wordpress**: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   **wordpress-develop**: Same as `wordpress` mode, except the `build` directory is served as the web root.
 -   **index**: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
+
 ### Arguments
 
 `wp-now start` currently supports the following arguments:
