@@ -126,13 +126,22 @@ test('isWpContentDirectory detects a WordPress wp-content directory and infer WP
 test('isWpContentDirectory returns false for wp-content parent directory', () => {
 	const projectPath = exampleDir + '/index';
 	expect(isWpContentDirectory(projectPath)).toBe(false);
+	expect(isWordPressDirectory(projectPath)).toBe(false);
 	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
 });
 
-test.skip('isWpContentDirectory returns false for a directory with only one directory of plugins or themes', () => {
-	const projectPath = exampleDir + '/not-wp-content';
-	expect(isWpContentDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+test('isWpContentDirectory returns true for a directory with only themes directory', () => {
+	const projectPath = exampleDir + '/wp-content-only-themes';
+	expect(isWpContentDirectory(projectPath)).toBe(true);
+	expect(isWordPressDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.WP_CONTENT);
+});
+
+test('isWpContentDirectory returns true for a directory with only mu-plugins directory', () => {
+	const projectPath = exampleDir + '/wp-content-only-mu-plugins';
+	expect(isWpContentDirectory(projectPath)).toBe(true);
+	expect(isWordPressDirectory(projectPath)).toBe(false);
+	expect(inferMode(projectPath)).toBe(WPNowMode.WP_CONTENT);
 });
 
 // WordPress mode
