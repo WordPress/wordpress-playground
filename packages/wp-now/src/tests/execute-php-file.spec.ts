@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { executePHPFile } from '../execute-php-file';
+import getWpNowConfig from '../config';
 
 const exampleDir = path.join(__dirname, 'execute-php-file');
 
@@ -8,9 +9,12 @@ test('php file execution in index mode', async () => {
 	const resultFilePath = path.join(exampleDir, 'hello-world-result.txt');
 	// reset result file
 	fs.writeFileSync(resultFilePath, '');
-
+	const options = await getWpNowConfig({
+		path: exampleDir,
+	});
 	const result = await executePHPFile(
-		path.join(exampleDir, 'hello-world.php')
+		path.join(exampleDir, 'hello-world.php'),
+		options
 	);
 	expect(result.name).toBe('ExitStatus');
 	expect(result.status).toBe(0);
@@ -20,10 +24,12 @@ test('php file execution in index mode', async () => {
 
 test('php file execution for each PHP Version', async () => {
 	const resultFilePath = path.join(exampleDir, 'php-version-result.txt');
-
+	const options = await getWpNowConfig({
+		path: exampleDir,
+	});
 	let result = await executePHPFile(
 		path.join(exampleDir, 'php-version.php'),
-		{ phpVersion: '7.4' }
+		{ ...options, phpVersion: '7.4' }
 	);
 	expect(result.name).toBe('ExitStatus');
 	expect(result.status).toBe(0);
@@ -31,6 +37,7 @@ test('php file execution for each PHP Version', async () => {
 	expect(output.substring(0, 16)).toBe('PHP Version: 7.4');
 
 	result = await executePHPFile(path.join(exampleDir, 'php-version.php'), {
+		...options,
 		phpVersion: '8.0',
 	});
 	expect(result.name).toBe('ExitStatus');
@@ -39,6 +46,7 @@ test('php file execution for each PHP Version', async () => {
 	expect(output.substring(0, 16)).toBe('PHP Version: 8.0');
 
 	result = await executePHPFile(path.join(exampleDir, 'php-version.php'), {
+		...options,
 		phpVersion: '8.2',
 	});
 	expect(result.name).toBe('ExitStatus');
