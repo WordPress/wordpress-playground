@@ -20,10 +20,7 @@ const VFS_PHP_FILE = path.join(VFS_TMP_PATH, 'parent.php');
 export async function executePHPFile(
 	filePath: string,
 	options: WPNowOptions = {}
-): Promise<{
-	name: string;
-	status: 0;
-}> {
+) {
 	disableOutput();
 	const { php, options: wpNowOptions } = await startWPNow({
 		...options,
@@ -54,13 +51,12 @@ export async function executePHPFile(
 	}
 
 	try {
+		php.useHostFilesystem();
 		await php.cli(['php', fileToExecute]);
 	} catch (resultOrError) {
-		if (resultOrError.name === 'ExitStatus' && resultOrError.status === 0) {
-			// Success
-			return resultOrError;
-		} else {
-			// Real error
+		const success =
+			resultOrError.name === 'ExitStatus' && resultOrError.status === 0;
+		if (!success) {
 			throw resultOrError;
 		}
 	}

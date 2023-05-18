@@ -90,11 +90,8 @@ export async function runCli() {
 						php: argv.php as SupportedPHPVersion,
 						wp: argv.wp as string,
 					});
-					const result = await executePHPFile(
-						argv.filePath as string,
-						options
-					);
-					process.exit(result.status);
+					await executePHPFile(argv.filePath as string, options);
+					process.exit(0);
 				} catch (error) {
 					console.error(error);
 					process.exit(error.status || -1);
