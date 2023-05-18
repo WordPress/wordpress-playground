@@ -239,6 +239,17 @@ export class PHPRequestHandler implements RequestHandler {
 				body = request.body;
 			}
 
+			let scriptPath;
+			try {
+				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
+			} catch (error) {
+				return new PHPResponse(
+					404,
+					{},
+					new TextEncoder().encode('404 File not found')
+				);
+			}
+
 			return await this.php.run({
 				relativeUri: ensurePathPrefix(
 					toRelativeUrl(requestedUrl),
@@ -248,7 +259,7 @@ export class PHPRequestHandler implements RequestHandler {
 				method: request.method || preferredMethod,
 				body,
 				fileInfos,
-				scriptPath: this.#resolvePHPFilePath(requestedUrl.pathname),
+				scriptPath,
 				headers,
 			});
 		} finally {
@@ -262,6 +273,7 @@ export class PHPRequestHandler implements RequestHandler {
 	 * Fall back to index.php as if there was a url rewriting rule in place.
 	 *
 	 * @param  requestedPath - The requested pathname.
+	 * @throws {Error} If the requested path doesn't exist.
 	 * @returns The resolved filesystem path.
 	 */
 	#resolvePHPFilePath(requestedPath: string): string {
@@ -283,6 +295,9 @@ export class PHPRequestHandler implements RequestHandler {
 		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
+		}
+		if (!this.php.fileExists(`${this.#DOCROOT}/index.php`)) {
+			throw new Error(`File not found: ${resolvedFsPath}`);
 		}
 		return `${this.#DOCROOT}/index.php`;
 	}
