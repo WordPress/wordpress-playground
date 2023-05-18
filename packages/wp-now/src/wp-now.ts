@@ -87,11 +87,13 @@ export default async function startWPNow(
 			await runPluginOrThemeMode(php, options);
 			break;
 	}
-	await installationStep2(php);
-	await login(php, {
-		username: 'admin',
-		password: 'password',
-	});
+	if (options.autoLogin) {
+		await installationStep2(php);
+		await login(php, {
+			username: 'admin',
+			password: 'password',
+		});
+	}
 
 	if (
 		isFirstTimeProject &&

@@ -86,11 +86,11 @@ export async function runCli() {
 			async (argv) => {
 				const spinner = startSpinner('Running the php command...');
 				try {
-					const options = {
-						projectPath: argv.path as string,
-						phpVersion: argv.php as SupportedPHPVersion,
-						wordPressVersion: argv.wp as string,
-					};
+					const options = await getWpNowConfig({
+						path: argv.path as string,
+						php: argv.php as SupportedPHPVersion,
+						wp: argv.wp as string,
+					});
 					const result = await executePHPFile(
 						argv.filePath as string,
 						options

@@ -1,8 +1,9 @@
 import fs from 'fs';
-import startWPNow, { WPNowOptions } from './wp-now';
 import path from 'path';
+import startWPNow from './wp-now';
+import { WPNowOptions } from './config';
 
-const VFS_TMP_PATH = '/tmp';
+const VFS_TMP_PATH = '/vfs-wp-now-tmp';
 const VFS_PHP_FILE = path.join(VFS_TMP_PATH, 'parent.php');
 
 /**
@@ -42,6 +43,7 @@ export async function executePHPFile(
 		php.writeFile(
 			VFS_PHP_FILE,
 			`<?php
+      $_SERVER['HTTP_HOST'] = '${wpNowOptions.absoluteUrl}';
       require_once '${path.join(wpNowOptions.documentRoot, 'wp-load.php')}';
       require_once '${filePath}';
     `
