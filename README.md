@@ -88,14 +88,10 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 You also can run WordPress Playground locally as follows:
 
 ```bash
-# Install Yarn if you don't have it:
-npm install -g yarn
-
-# Now you're ready to run Playground:
 git clone https://github.com/WordPress/wordpress-playground
 cd wordpress-playground
-yarn install
-yarn run dev
+npm install
+npm run dev
 ```
 
 A browser should open and take you to your very own client-side WordPress at [http://127.0.0.1:5400/](http://127.0.0.1:5400/)!

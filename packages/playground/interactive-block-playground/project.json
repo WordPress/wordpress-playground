@@ -53,7 +53,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/playground/interactive-block-playground/tsconfig.json --noEmit"
+					"tsc -p packages/playground/interactive-block-playground/tsconfig.json --noEmit"
 				]
 			}
 		}
