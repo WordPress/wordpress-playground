@@ -13,7 +13,7 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"main": "dist/packages/php-wasm/cli/main.js",
@@ -44,14 +44,14 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/cli/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/jest:jest",
+			"executor": "@nx/jest:jest",
 			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
 			"options": {
 				"jestConfig": "packages/php-wasm/cli/jest.config.ts",
@@ -65,11 +65,11 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/php-wasm/cli/tsconfig.lib.json --noEmit",
-					"yarn tsc -p packages/php-wasm/cli/tsconfig.spec.json --noEmit"
+					"tsc -p packages/php-wasm/cli/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/cli/tsconfig.spec.json --noEmit"
 				]
 			}
 		}

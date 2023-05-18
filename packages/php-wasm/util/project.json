@@ -5,13 +5,14 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "@nrwl/esbuild:esbuild",
+			"executor": "@nx/esbuild:esbuild",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/php-wasm/util",
 				"main": "packages/php-wasm/util/src/index.ts",
 				"tsConfig": "packages/php-wasm/util/tsconfig.lib.json",
-				"assets": ["packages/php-wasm/util/*.md"]
+				"assets": ["packages/php-wasm/util/*.md"],
+				"thirdParty": true
 			}
 		},
 		"publish": {
@@ -22,14 +23,14 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/util/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/php-wasm/util"],
 			"options": {
 				"passWithNoTests": true,

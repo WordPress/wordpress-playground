@@ -6,7 +6,7 @@
 	"implicitDependencies": ["playground-remote"],
 	"targets": {
 		"build:standalone": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
 			"options": {
@@ -33,7 +33,7 @@
 			}
 		},
 		"dev:standalone": {
-			"executor": "@nrwl/vite:dev-server",
+			"executor": "@nx/vite:dev-server",
 			"defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "interactive-block-playground:build"
@@ -50,10 +50,10 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/playground/interactive-block-playground/tsconfig.json --noEmit"
+					"tsc -p packages/playground/interactive-block-playground/tsconfig.json --noEmit"
 				]
 			}
 		}

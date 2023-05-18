@@ -108,7 +108,6 @@ In order to contribute to `wp-now`, you'll need to first install a few global de
 
 -   Make sure you have `nvm` installed. If you need to install it first,
     [follow these installation instructions](https://github.com/nvm-sh/nvm#installation).
--   Install `yarn` by running `npm install -g yarn`.
 -   Install `nx` by running `npm install -g nx`.
 
 Once the global dependencies are installed, you can start using the repo:
@@ -117,8 +116,8 @@ Once the global dependencies are installed, you can start using the repo:
 git clone git@github.com:WordPress/wordpress-playground.git
 cd wordpress-playground
 nvm use
-yarn install
-yarn build
+npm install
+npm run build
 nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
 ```
 

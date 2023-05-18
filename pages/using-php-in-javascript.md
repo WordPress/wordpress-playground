@@ -100,7 +100,7 @@ export default function (jsEnv, emscriptenModuleArgs) {}
 
 ### Building
 
-To build the JavaScript API, just build the entire project with `yarn run build:all`.
+To build the JavaScript API, just build the entire project with `npm run build:all`.
 
 ## API
 
@@ -204,8 +204,7 @@ export const dependenciesTotalSize = 5644199;
 export const dependencyFilename = 'dependency.data';
 export default function (emscriptenPHPModule) {
 	// Emscripten-generated code:
-	var Module =
-		typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
+	var Module = typeof emscriptenPHPModule !== 'undefined' ? emscriptenPHPModule : {};
 	// ... the rest of it ...
 }
 ```
@@ -216,10 +215,7 @@ Such a constructions enables loading the `dependency.js` as an ES Module using
 Once it's ready, you can load PHP and your data dependencies as follows:
 
 ```js
-const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([
-	getPHPLoaderModule('7.4'),
-	import('/wp.js'),
-]);
+const [phpLoaderModule, wordPressLoaderModule] = await Promise.all([getPHPLoaderModule('7.4'), import('/wp.js')]);
 const php = await loadPHPRuntime(phpLoaderModule, {}, [wordPressLoaderModule]);
 ```
 
@@ -237,12 +233,7 @@ bind to any port.
 **`Example`**
 
 ```js
-import {
-	loadPHPRuntime,
-	PHP,
-	PHPRequestHandler,
-	getPHPLoaderModule,
-} from '@php-wasm/web';
+import { loadPHPRuntime, PHP, PHPRequestHandler, getPHPLoaderModule } from '@php-wasm/web';
 
 const runtime = await loadPHPRuntime(await getPHPLoaderModule('7.4'));
 const php = new PHP(runtime);

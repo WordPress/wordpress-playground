@@ -6,7 +6,7 @@
 	"implicitDependencies": ["playground-compile-wordpress"],
 	"targets": {
 		"build": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/playground/remote",
@@ -16,7 +16,7 @@
 			}
 		},
 		"dev": {
-			"executor": "@nrwl/vite:dev-server",
+			"executor": "@nx/vite:dev-server",
 			"defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "playground-remote:build"
@@ -58,7 +58,7 @@
 			}
 		},
 		"preview": {
-			"executor": "@nrwl/vite:preview-server",
+			"executor": "@nx/vite:preview-server",
 			"defaultConfiguration": "production",
 			"options": {
 				"buildTarget": "playground-remote:build"
@@ -81,14 +81,14 @@
 			"dependsOn": ["build"]
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/playground/remote/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/playground/remote"],
 			"options": {
 				"passWithNoTests": true,
@@ -96,11 +96,11 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/playground/remote/tsconfig.spec.json --noEmit",
-					"yarn tsc -p packages/playground/remote/tsconfig.lib.json --noEmit"
+					"tsc -p packages/playground/remote/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/remote/tsconfig.lib.json --noEmit"
 				]
 			}
 		}

@@ -52,14 +52,14 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/vscode-extension/**/*.ts"]
 			}
 		},
 		"test": {
-			"executor": "@nrwl/jest:jest",
+			"executor": "@nx/jest:jest",
 			"outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
 			"options": {
 				"jestConfig": "packages/vscode-extension/jest.config.ts",
@@ -73,11 +73,11 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/vscode-extension/tsconfig.spec.json --noEmit",
-					"yarn tsc -p packages/vscode-extension/tsconfig.lib.json --noEmit"
+					"tsc -p packages/vscode-extension/tsconfig.spec.json --noEmit",
+					"tsc -p packages/vscode-extension/tsconfig.lib.json --noEmit"
 				]
 			}
 		}

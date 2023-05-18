@@ -26,7 +26,7 @@
 			"dependsOn": ["build:standalone", "^build"]
 		},
 		"build:standalone": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
 			"options": {
@@ -54,7 +54,7 @@
 			}
 		},
 		"dev:standalone": {
-			"executor": "@nrwl/vite:dev-server",
+			"executor": "@nx/vite:dev-server",
 			"defaultConfiguration": "development",
 			"options": {
 				"buildTarget": "playground-website:build"
@@ -71,7 +71,7 @@
 			}
 		},
 		"preview": {
-			"executor": "@nrwl/vite:preview-server",
+			"executor": "@nx/vite:preview-server",
 			"options": {
 				"buildTarget": "playground-website:build",
 				"staticFilePath": "dist/packages/playground/wasm-wordpress-net",
@@ -79,7 +79,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
@@ -87,7 +87,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": [
@@ -96,11 +96,11 @@
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/playground/website/tsconfig.spec.json --noEmit",
-					"yarn tsc -p packages/playground/website/tsconfig.app.json --noEmit"
+					"tsc -p packages/playground/website/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/website/tsconfig.app.json --noEmit"
 				]
 			}
 		}

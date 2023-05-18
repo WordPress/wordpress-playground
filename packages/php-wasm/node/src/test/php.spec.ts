@@ -1,5 +1,9 @@
 import { getPHPLoaderModule, NodePHP } from '..';
-import { loadPHPRuntime, SupportedPHPVersions } from '@php-wasm/universal';
+import {
+	loadPHPRuntime,
+	SupportedPHPVersions,
+	__private__dont__use,
+} from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync } from 'fs';
 
 const testDirPath = '/__test987654321';
@@ -554,3 +558,85 @@ bar1
 		});
 	});
 });
+
+// @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
+describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
+	'PHP %s – process crash',
+	(phpVersion) => {
+		let php: NodePHP;
+		beforeEach(async () => {
+			php = await NodePHP.load(phpVersion as any);
+			php.setPhpIniEntry('allow_url_fopen', '1');
+			vi.restoreAllMocks();
+		});
+
+		it('Does not crash due to an unhandled Asyncify error ', async () => {
+			let caughtError;
+			try {
+				/**
+				 * PHP is intentionally built without network support for __clone()
+				 * because it's an extremely unlikely place for any network activity
+				 * and not supporting it allows us to test the error handling here.
+				 *
+				 * `clone $x` will throw an asynchronous error out when attempting
+				 * to do a network call ("unreachable" WASM instruction executed).
+				 * This test should gracefully catch and handle that error.
+				 *
+				 * A failure to do so will crash the entire process
+				 */
+				await php.run({
+					code: `<?php
+				class Top {
+					function __clone() {
+						file_get_contents("http://127.0.0.1");
+					}
+				}
+				$x = new Top();
+				clone $x;
+				`,
+				});
+			} catch (error: unknown) {
+				caughtError = error;
+				if (error instanceof Error) {
+					expect(error.message).toMatch(
+						/Aborted|Program terminated with exit\(1\)|/
+					);
+				}
+			}
+			if (!caughtError) {
+				expect.fail('php.run should have thrown an error');
+			}
+		});
+
+		it('Does not crash due to an unhandled non promise error ', async () => {
+			let caughtError;
+			try {
+				const spy = vi.spyOn(php[__private__dont__use], 'ccall');
+				expect(spy.getMockName()).toEqual('ccall');
+				spy.mockImplementation((c_func) => {
+					if (c_func === 'wasm_sapi_handle_request') {
+						throw new Error('test');
+					}
+				});
+
+				await php.run({
+					code: `<?php
+              function top() {
+						     file_get_contents("http://127.0.0.1");
+              }
+              top();
+				`,
+				});
+			} catch (error: unknown) {
+				caughtError = error;
+				if (error instanceof Error) {
+					expect(error.message).toMatch('test');
+					expect(error.stack).toContain('#handleRequest');
+				}
+			}
+			if (!caughtError) {
+				expect.fail('php.run should have thrown an error');
+			}
+		});
+	}
+);

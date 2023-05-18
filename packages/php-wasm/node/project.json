@@ -10,7 +10,7 @@
 			"dependsOn": ["build:README", "build:copy-wasms"]
 		},
 		"build:README": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
 					"cp packages/php-wasm/node/README.md dist/packages/php-wasm/node"
@@ -50,7 +50,7 @@
 			}
 		},
 		"build:bundle": {
-			"executor": "@nrwl/esbuild:esbuild",
+			"executor": "@nx/esbuild:esbuild",
 			"outputs": ["{options.outputPath}"],
 			"defaultConfiguration": "production",
 			"options": {
@@ -72,7 +72,7 @@
 					"supported": {
 						"dynamic-import": false
 					},
-					"outdir": "{options.outputPath}",
+					"outdir": "dist/packages/php-wasm/node",
 					"platform": "node",
 					"assetNames": "[name]",
 					"chunkNames": "[name]",
@@ -84,7 +84,8 @@
 						".ini": "file",
 						".wasm": "file"
 					}
-				}
+				},
+				"thirdParty": true
 			},
 			"configurations": {
 				"development": {
@@ -136,7 +137,7 @@
 			"dependsOn": ["build"]
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/php-wasm/node"],
 			"options": {
 				"passWithNoTests": true,
@@ -144,18 +145,18 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/php-wasm/node/**/*.ts"]
 			}
 		},
 		"typecheck": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/php-wasm/node/tsconfig.lib.json --noEmit",
-					"yarn tsc -p packages/php-wasm/node/tsconfig.spec.json --noEmit"
+					"tsc -p packages/php-wasm/node/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/node/tsconfig.spec.json --noEmit"
 				]
 			}
 		}

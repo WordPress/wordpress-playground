@@ -9,7 +9,7 @@
 			"dependsOn": ["build:zip"]
 		},
 		"build:zip": {
-			"executor": "@nrwl/workspace:run-commands",
+			"executor": "nx:run-commands",
 			"options": {
 				"cwd": "dist/packages",
 				"commands": [
@@ -20,14 +20,14 @@
 			"dependsOn": ["build:bundle"]
 		},
 		"build:bundle": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/interactive-code-block"
 			}
 		},
 		"dev": {
-			"executor": "@nrwl/vite:build",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/interactive-code-block",
@@ -36,7 +36,7 @@
 			}
 		},
 		"test": {
-			"executor": "@nrwl/vite:test",
+			"executor": "@nx/vite:test",
 			"outputs": ["coverage/packages/interactive-code-block"],
 			"options": {
 				"passWithNoTests": true,
@@ -44,7 +44,7 @@
 			}
 		},
 		"lint": {
-			"executor": "@nrwl/linter:eslint",
+			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": ["packages/interactive-code-block/**/*.ts"]
