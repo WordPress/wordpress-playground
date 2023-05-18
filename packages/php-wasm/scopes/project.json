@@ -38,8 +38,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/php-wasm/scopes/tsconfig.lib.json --noEmit",
-					"yarn tsc -p packages/php-wasm/scopes/tsconfig.spec.json --noEmit"
+					"tsc -p packages/php-wasm/scopes/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/scopes/tsconfig.spec.json --noEmit"
 				]
 			}
 		}

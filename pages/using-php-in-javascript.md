@@ -100,7 +100,7 @@ export default function (jsEnv, emscriptenModuleArgs) {}
 
 ### Building
 
-To build the JavaScript API, just build the entire project with `yarn run build:all`.
+To build the JavaScript API, just build the entire project with `npm run build:all`.
 
 ## API
 

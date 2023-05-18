@@ -84,7 +84,8 @@
 						".ini": "file",
 						".wasm": "file"
 					}
-				}
+				},
+				"thirdParty": true
 			},
 			"configurations": {
 				"development": {
@@ -154,8 +155,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/php-wasm/node/tsconfig.lib.json --noEmit",
-					"yarn tsc -p packages/php-wasm/node/tsconfig.spec.json --noEmit"
+					"tsc -p packages/php-wasm/node/tsconfig.lib.json --noEmit",
+					"tsc -p packages/php-wasm/node/tsconfig.spec.json --noEmit"
 				]
 			}
 		}

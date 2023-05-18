@@ -88,7 +88,6 @@
 				"lintFilePatterns": ["packages/playground/client/**/*.ts"]
 			}
 		},
-
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite", "test:esmcjs"]
@@ -112,8 +111,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"yarn tsc -p packages/playground/client/tsconfig.spec.json --noEmit",
-					"yarn tsc -p packages/playground/client/tsconfig.lib.json --noEmit"
+					"tsc -p packages/playground/client/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/client/tsconfig.lib.json --noEmit"
 				]
 			}
 		}
