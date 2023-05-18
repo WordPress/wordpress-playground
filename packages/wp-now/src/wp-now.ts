@@ -41,7 +41,7 @@ export default async function startWPNow(
 	options: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; phpInstances: NodePHP[]; options: WPNowOptions }> {
 	const { documentRoot } = options;
-	const phpOptions = {
+	const nodePHPOptions = {
 		requestHandler: {
 			documentRoot,
 			absoluteUrl: options.absoluteUrl,
@@ -64,16 +64,7 @@ export default async function startWPNow(
 	const phpInstances = [];
 	for (let i = 0; i < Math.max(options.numberOfPhpInstances, 1); i++) {
 		phpInstances.push(
-			await NodePHP.load(options.phpVersion, {
-				...phpOptions,
-				requestHandler: {
-					...phpOptions.requestHandler,
-					documentRoot:
-						i === 0
-							? options.documentRoot
-							: `/php_instance_${i}/www/html`,
-				},
-			})
+			await NodePHP.load(options.phpVersion, nodePHPOptions)
 		);
 	}
 	const php = phpInstances[0];
