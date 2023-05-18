@@ -567,6 +567,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		beforeEach(async () => {
 			php = await NodePHP.load(phpVersion as any);
 			php.setPhpIniEntry('allow_url_fopen', '1');
+			vi.restoreAllMocks();
 		});
 
 		it('Does not crash due to an unhandled Asyncify error ', async () => {
@@ -594,11 +595,13 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				clone $x;
 				`,
 				});
-			} catch (error) {
+			} catch (error: unknown) {
 				caughtError = error;
-				expect(error.message).toMatch(
-					/Aborted|Program terminated with exit\(1\)|/
-				);
+				if (error instanceof Error) {
+					expect(error.message).toMatch(
+						/Aborted|Program terminated with exit\(1\)|/
+					);
+				}
 			}
 			if (!caughtError) {
 				expect.fail('php.run should have thrown an error');
@@ -610,21 +613,26 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			try {
 				const spy = vi.spyOn(php[__private__dont__use], 'ccall');
 				expect(spy.getMockName()).toEqual('ccall');
-				spy.mockImplementationOnce(() => {
-					throw new Error('test');
+				spy.mockImplementation((c_func) => {
+					if (c_func === 'wasm_sapi_handle_request') {
+						throw new Error('test');
+					}
 				});
 
 				await php.run({
 					code: `<?php
               function top() {
-                 gethostbyname("http://127.0.0.1");
+						     file_get_contents("http://127.0.0.1");
               }
               top();
 				`,
 				});
-			} catch (error) {
+			} catch (error: unknown) {
 				caughtError = error;
-				expect(error.message).toMatch('test');
+				if (error instanceof Error) {
+					expect(error.message).toMatch('test');
+					expect(error.stack).toContain('#handleRequest');
+				}
 			}
 			if (!caughtError) {
 				expect.fail('php.run should have thrown an error');
