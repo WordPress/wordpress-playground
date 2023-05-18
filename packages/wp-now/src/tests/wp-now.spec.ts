@@ -192,8 +192,12 @@ describe('Test starting different modes', () => {
 	 */
 	beforeAll(async () => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
+		console.log('Downloading WordPress...');
 		await downloadWordPress();
+		console.log('WordPress downloaded.');
+		console.log('Downloading SQLite...');
 		await downloadSqliteIntegrationPlugin();
+		console.log('SQLite downloaded.');
 	});
 
 	/**
