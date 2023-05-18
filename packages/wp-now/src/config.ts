@@ -41,7 +41,7 @@ export interface WPNowOptions {
 	projectPath?: string;
 	wpContentPath?: string;
 	wordPressVersion?: string;
-	autoLogin?: boolean;
+	numberOfPhpInstances?: number;
 }
 
 export const DEFAULT_OPTIONS: WPNowOptions = {
@@ -50,7 +50,7 @@ export const DEFAULT_OPTIONS: WPNowOptions = {
 	documentRoot: '/var/www/html',
 	projectPath: process.cwd(),
 	mode: WPNowMode.AUTO,
-	autoLogin: true,
+	numberOfPhpInstances: 1,
 };
 
 export interface WPEnvOptions {

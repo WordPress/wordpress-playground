@@ -31,11 +31,17 @@ function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
 
+async function applyToInstances(phpInstances: NodePHP[], callback: Function) {
+	for (let i = 0; i < phpInstances.length; i++) {
+		await callback(phpInstances[i]);
+	}
+}
+
 export default async function startWPNow(
 	options: Partial<WPNowOptions> = {}
-): Promise<{ php: NodePHP; options: WPNowOptions }> {
+): Promise<{ php: NodePHP; phpInstances: NodePHP[]; options: WPNowOptions }> {
 	const { documentRoot } = options;
-	const php = await NodePHP.load(options.phpVersion, {
+	const phpOptions = {
 		requestHandler: {
 			documentRoot,
 			absoluteUrl: options.absoluteUrl,
@@ -53,47 +59,73 @@ export default async function startWPNow(
 				}
 			},
 		},
+	};
+
+	const phpInstances = [];
+	for (let i = 0; i < Math.max(options.numberOfPhpInstances, 1); i++) {
+		phpInstances.push(
+			await NodePHP.load(options.phpVersion, {
+				...phpOptions,
+				requestHandler: {
+					...phpOptions.requestHandler,
+					documentRoot:
+						i === 0
+							? options.documentRoot
+							: `/php_instance_${i}/www/html`,
+				},
+			})
+		);
+	}
+	const php = phpInstances[0];
+
+	phpInstances.forEach((_php) => {
+		_php.mkdirTree(documentRoot);
+		_php.chdir(documentRoot);
+		_php.writeFile(
+			`${documentRoot}/index.php`,
+			`<?php echo 'Hello wp-now!';`
+		);
 	});
-	php.mkdirTree(documentRoot);
-	php.chdir(documentRoot);
-	php.writeFile(`${documentRoot}/index.php`, `<?php echo 'Hello wp-now!';`);
 
 	output?.log(`directory: ${options.projectPath}`);
 	output?.log(`mode: ${options.mode}`);
 	output?.log(`php: ${options.phpVersion}`);
 	output?.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
-		await runIndexMode(php, options);
-		return { php, options };
+		await applyToInstances(phpInstances, async (_php) => {
+			runIndexMode(_php, options);
+		});
+		return { php, phpInstances, options };
 	}
 	await downloadWordPress(options.wordPressVersion);
 	await downloadSqliteIntegrationPlugin();
 	await downloadMuPlugins();
 	const isFirstTimeProject = !fs.existsSync(options.wpContentPath);
-	switch (options.mode) {
-		case WPNowMode.WP_CONTENT:
-			await runWpContentMode(php, options);
-			break;
-		case WPNowMode.WORDPRESS_DEVELOP:
-			await runWordPressDevelopMode(php, options);
-			break;
-		case WPNowMode.WORDPRESS:
-			await runWordPressMode(php, options);
-			break;
-		case WPNowMode.PLUGIN:
-			await runPluginOrThemeMode(php, options);
-			break;
-		case WPNowMode.THEME:
-			await runPluginOrThemeMode(php, options);
-			break;
-	}
-	if (options.autoLogin) {
-		await installationStep2(php);
-		await login(php, {
-			username: 'admin',
-			password: 'password',
-		});
-	}
+	await applyToInstances(phpInstances, async (_php) => {
+		switch (options.mode) {
+			case WPNowMode.WP_CONTENT:
+				await runWpContentMode(_php, options);
+				break;
+			case WPNowMode.WORDPRESS_DEVELOP:
+				await runWordPressDevelopMode(_php, options);
+				break;
+			case WPNowMode.WORDPRESS:
+				await runWordPressMode(_php, options);
+				break;
+			case WPNowMode.PLUGIN:
+				await runPluginOrThemeMode(_php, options);
+				break;
+			case WPNowMode.THEME:
+				await runPluginOrThemeMode(_php, options);
+				break;
+		}
+	});
+
+	await installationStep2(php);
+	await login(php, {
+		username: 'admin',
+		password: 'password',
+	});
 
 	if (
 		isFirstTimeProject &&
@@ -104,6 +136,7 @@ export default async function startWPNow(
 
 	return {
 		php,
+		phpInstances,
 		options,
 	};
 }

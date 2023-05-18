@@ -22,18 +22,17 @@ export async function executePHPFile(
 	options: WPNowOptions = {}
 ) {
 	disableOutput();
-	const { php, options: wpNowOptions } = await startWPNow({
+	const { phpInstances, options: wpNowOptions } = await startWPNow({
 		...options,
-		autoLogin: false,
+		numberOfPhpInstances: 2,
 	});
+	const [, php] = phpInstances;
 
 	// check if filePath exists
 	const absoluteFilePath = path.resolve(filePath);
 	if (!fs.existsSync(absoluteFilePath)) {
 		throw new Error(`Could not open input file: ${absoluteFilePath}`);
 	}
-
-	php.useHostFilesystem();
 
 	let fileToExecute = absoluteFilePath;
 	if (wpNowOptions.mode !== 'index') {
