@@ -296,10 +296,10 @@ export class PHPRequestHandler implements RequestHandler {
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
-		if (this.php.fileExists(`${this.#DOCROOT}/index.php`)) {
-			return `${this.#DOCROOT}/index.php`;
+		if (!this.php.fileExists(`${this.#DOCROOT}/index.php`)) {
+			throw new Error(`File not found: ${resolvedFsPath}`);
 		}
-		throw new Error(`File not found: ${resolvedFsPath}`);
+		return `${this.#DOCROOT}/index.php`;
 	}
 }
 
