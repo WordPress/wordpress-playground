@@ -9,9 +9,12 @@ import {
 	isWordPressDirectory,
 	isWordPressDevelopDirectory,
 } from '../wp-playground-wordpress';
+import {
+	downloadSqliteIntegrationPlugin,
+	downloadWordPress,
+} from '../download';
 import os from 'os';
 import crypto from 'crypto';
-import getWpNowPath from '../get-wp-now-path';
 import getWpNowTmpPath from '../get-wp-now-tmp-path';
 
 const exampleDir = __dirname + '/mode-examples';
@@ -183,6 +186,15 @@ test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop
 
 describe('Test starting different modes', () => {
 	let tmpExampleDirectory;
+
+	/**
+	 * Download an initial copy of WordPress
+	 */
+	beforeAll(async () => {
+		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
+		await downloadWordPress();
+		await downloadSqliteIntegrationPlugin();
+	});
 
 	/**
 	 * Copy example directory to a temporary directory
