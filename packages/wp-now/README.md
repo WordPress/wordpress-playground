@@ -27,6 +27,13 @@ Use the `--php=<version>` and `--wp=<version>` arguments to switch to different 
 wp-now start --wp=5.9 --php=7.4
 ```
 
+Alternativaly to start the server, you can executes php files using the command `wp-now php <filePath>`:
+
+```bash
+cd wordpress-plugin-or-theme
+wp-now php /path/to/php-file.php
+```
+
 ### Automatic Modes
 
 `wp-now` automatically operates in a few different modes. The selected mode depends on the directory in which it is executed:
@@ -47,6 +54,9 @@ wp-now start --wp=5.9 --php=7.4
 -   `--php=<version>`: the version of PHP to use. This is optional and if not provided, it will use a default version which is `8.0`(example usage: `--php=7.4`);
 -   `--port=<port>`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`(example of usage: `--port=3000`);
 -   `--wp=<version>`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/)(example usage: `--wp=5.8`)
+
+`wp-now php <phpFilePath>` currently supports `--path`, `--php` and `--wp`.
+It executes the php file loading the WordPress context when possible.
 
 ## Technical Details
 
