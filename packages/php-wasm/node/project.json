@@ -72,7 +72,7 @@
 					"supported": {
 						"dynamic-import": false
 					},
-					"outdir": "{options.outputPath}",
+					"outdir": "dist/packages/php-wasm/node",
 					"platform": "node",
 					"assetNames": "[name]",
 					"chunkNames": "[name]",
