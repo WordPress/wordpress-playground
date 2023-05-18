@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import startWPNow from './wp-now';
 import { WPNowOptions } from './config';
+import { disableOutput } from './output';
 
 const VFS_TMP_PATH = '/vfs-wp-now-tmp';
 const VFS_PHP_FILE = path.join(VFS_TMP_PATH, 'parent.php');
@@ -23,6 +24,7 @@ export async function executePHPFile(
 	name: string;
 	status: 0;
 }> {
+	disableOutput();
 	const { php, options: wpNowOptions } = await startWPNow({
 		...options,
 		autoLogin: false,
