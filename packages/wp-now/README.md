@@ -14,7 +14,7 @@ npm install -g @wp-now/wp-now
 
 Alternatively, you can install `wp-now` via `git clone` if you'd like to hack on it too. See [Contributing](#contributing) for more details.
 
-Once installed, you can use it like so:
+Once installed, you can start a new server like so:
 
 ```bash
 cd wordpress-plugin-or-theme
@@ -27,16 +27,16 @@ Use the `--php=<version>` and `--wp=<version>` arguments to switch to different 
 wp-now start --wp=5.9 --php=7.4
 ```
 
-Alternativaly to start the server, you can executes php files using the command `wp-now php <filePath>`:
+Use `wp-now php <file>` to execute a specific PHP file:
 
 ```bash
 cd wordpress-plugin-or-theme
-wp-now php /path/to/php-file.php
+wp-now php my-file.php
 ```
 
 ### Automatic Modes
 
-`wp-now` automatically operates in a few different modes. The selected mode depends on the directory in which it is executed:
+`wp-now` automatically operates in a few different modes for both the `start` and the `php` commands. The selected mode depends on the directory in which it is executed:
 
 -   **plugin**, **theme**, or **wp-content**: Loads the project files into a virtual filesytem with WordPress and a SQLite-based database. Everything (including WordPress core files, the database, `wp-config.php`, etc.) is stored in the user's home directory and loaded into the virtual filesystem. The latest version of WordPress will be used, unless the `--wp=<version>` argument is provided. Here are the heuristics for each mode:
     -   **plugin** mode: Presence of a PHP file with 'Plugin Name:' in its contents.
@@ -55,8 +55,7 @@ wp-now php /path/to/php-file.php
 -   `--port=<port>`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`(example of usage: `--port=3000`);
 -   `--wp=<version>`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/)(example usage: `--wp=5.8`)
 
-`wp-now php <phpFilePath>` currently supports `--path`, `--php` and `--wp`.
-It executes the php file loading the WordPress context when possible.
+Of these, `wp-now php` currently supports the `--path=<path>`, `--php=<version>`, and `--wp=<version>` arguments.
 
 ## Technical Details
 
@@ -74,7 +73,7 @@ It executes the php file loading the WordPress context when possible.
 -   `wp-now` published versions can appear random: [WordPress/wordpress-playground#357](https://github.com/WordPress/wordpress-playground/issues/357)
 -   Inline images are broken when site starts on a different port: [WordPress/wordpress-playground#356](https://github.com/WordPress/wordpress-playground/issues/356)
 
-## Comparisions
+## Comparisons
 
 ### Laravel Valet
 
