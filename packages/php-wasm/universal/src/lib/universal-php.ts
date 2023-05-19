@@ -59,6 +59,34 @@ export interface RequestHandler {
 	/**
 	 * Serves the request – either by serving a static file, or by
 	 * dispatching it to the PHP runtime.
+	 * 
+	 * ### Request mode
+	 * 
+	 * This mode behaves like a web server and only works if you load PHP
+	 * with a `requestHandler` option (which the online version of WordPress
+	 * Playground does by default).
+	 * 
+	 * In the request mode, you pass an object containing the request information
+	 * (method, headers, body, etc.) and the path to the PHP file to run:
+	 * 
+	 * ```ts
+	 * const php = PHP.load('7.4', {
+	 * 	requestHandler: {
+	 * 		documentRoot: "/www"
+	 * 	}
+	 * })
+	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
+	 * const result = await php.run({
+	 * 	method: "GET",
+	 * 	headers: {
+	 * 		"Content-Type": "text/plain"
+	 * 	},
+	 * 	body: "Hello world!",
+	 * 	path: "/www/index.php"
+	 * });
+	 * // result.text === "Hello world!"
+	 * ```
+	 * 
 	 * Cannot be used in conjunction with `cli()`.
 	 *
 	 * @example
@@ -215,24 +243,76 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 
 	/**
 	 * Runs PHP code.
-	 * Cannot be used in conjunction with `cli()`.
-	 *
+	 * 
+	 * This low-level method directly interacts with the WebAssembly
+	 * PHP interpreter.
+	 * 
+	 * Every time you call run(), it prepares the PHP
+	 * environment and:
+	 * 
+	 * * Resets the internal PHP state
+	 * * Populates superglobals ($_SERVER, $_GET, etc.)
+	 * * Handles file uploads
+	 * * Populates input streams (stdin, argv, etc.)
+	 * * Sets the current working directory 
+	 * 
+	 * You can use run() in two primary modes:
+	 * 
+	 * ### Code snippet mode
+	 * 
+	 * In this mode, you pass a string containing PHP code to run.
+	 * 
 	 * @example
-	 * ```js
-	 * const output = await php.run('<?php echo "Hello world!";');
-	 * console.log(output.stdout); // "Hello world!"
+	 * ```ts
+	 * const result = await php.run({
+	 * 	code: `<?php echo "Hello world!";`
+	 * });
+	 * // result.text === "Hello world!"
 	 * ```
+	 * 
+	 * In this mode, information like __DIR__ or __FILE__ isn't very 
+	 * useful because the code is not associated with any file.
+	 * 
+	 * Under the hood, the PHP snippet is passed to the `zend_eval_string`
+	 * C function.
+	 * 
+	 * ### File mode
+	 * 
+	 * In the file mode, you pass a scriptPath and PHP executes a file
+	 * found at a that path:
+	 * 
+	 * @example
+	 * ```ts
+	 * php.writeFile(
+	 * 	"/www/index.php",
+	 * 	`<?php echo "Hello world!";"`
+	 * );
+	 * const result = await php.run({
+	 * 	scriptPath: "/www/index.php"
+	 * });
+	 * // result.text === "Hello world!"
+	 * ```
+	 * 
+	 * In this mode, you can rely on path-related information like __DIR__
+	 * or __FILE__.
+	 * 
+	 * Under the hood, the PHP file is executed with the `php_execute_script` 
+	 * C function.
+	 * 
+	 * ## Caveats
+	 * 
+	 * * (Node.js) run() cannot be used in conjunction with `cli()`.
 	 *
 	 * @example
 	 * ```js
-	 * console.log(await php.run(`<?php
+	 * const result = await php.run(`<?php
 	 *  $fp = fopen('php://stderr', 'w');
 	 *  fwrite($fp, "Hello, world!");
-	 * `));
-	 * // {"exitCode":0,"stdout":"","stderr":["Hello, world!"]}
+	 * `);
+	 * // result.errors === "Hello, world!"
 	 * ```
 	 *
-	 * @param  options - PHP run options.
+	 * @param  options - PHP runtime options.
 	 */
 	run(options: PHPRunOptions): Promise<PHPResponse>;
 }
