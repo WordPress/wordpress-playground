@@ -13,6 +13,7 @@ export type WithAPIState = {
 	 */
 	isReady: () => Promise<void>;
 };
+
 export type RemoteAPI<T> = Comlink.Remote<T & WithAPIState>;
 
 export function consumeAPI<APIType>(

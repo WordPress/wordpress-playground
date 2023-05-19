@@ -86,72 +86,72 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.rmdir(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
+	/** @inheritDoc */
 	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
 		return _private.get(this)!.php.request(request, redirects);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.run */
+	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
+	/** @inheritDoc */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
+	/** @inheritDoc */
 	setPhpIniPath(path: string): void {
 		return _private.get(this)!.php.setPhpIniPath(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
+	/** @inheritDoc */
 	setPhpIniEntry(key: string, value: string): void {
 		return _private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
+	/** @inheritDoc */
 	mkdir(path: string): void {
 		return _private.get(this)!.php.mkdir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
+	/** @inheritDoc */
 	mkdirTree(path: string): void {
 		return _private.get(this)!.php.mkdirTree(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
+	/** @inheritDoc */
 	readFileAsText(path: string): string {
 		return _private.get(this)!.php.readFileAsText(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
+	/** @inheritDoc */
 	readFileAsBuffer(path: string): Uint8Array {
 		return _private.get(this)!.php.readFileAsBuffer(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
+	/** @inheritDoc */
 	writeFile(path: string, data: string | Uint8Array): void {
 		return _private.get(this)!.php.writeFile(path, data);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
+	/** @inheritDoc */
 	unlink(path: string): void {
 		return _private.get(this)!.php.unlink(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
+	/** @inheritDoc */
 	listFiles(path: string): string[] {
 		return _private.get(this)!.php.listFiles(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
+	/** @inheritDoc */
 	isDir(path: string): boolean {
 		return _private.get(this)!.php.isDir(path);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
+	/** @inheritDoc */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php.fileExists(path);
 	}

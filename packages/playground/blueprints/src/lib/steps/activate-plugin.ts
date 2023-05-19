@@ -1,10 +1,10 @@
 import { StepHandler } from '.';
 
-export interface ActivatePluginStep {
+export type ActivatePluginStep = {
 	step: 'activatePlugin';
 	/* Path to the plugin file relative to the plugins directory. */
 	pluginPath: string;
-}
+};
 
 /**
  * Activates a WordPress plugin in the Playground.

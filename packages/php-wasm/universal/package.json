@@ -15,12 +15,6 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"typedoc": {
-		"entryPoint": "./src/index.ts",
-		"readmeFile": "./README.md",
-		"displayName": "@php-wasm/universal",
-		"tsconfig": "./tsconfig.lib.json"
-	},
 	"exports": {
 		".": {
 			"import": "./index.js",

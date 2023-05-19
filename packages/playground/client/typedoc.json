@@ -1,0 +1,7 @@
+{
+	"extends": ["../../../typedoc.base.json"],
+	"entryPoints": ["./src/index.ts"],
+	"readme": "./README.md",
+	"name": "@wp-playground/client",
+	"tsconfig": "./tsconfig.lib.json"
+}

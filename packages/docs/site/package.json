@@ -2,5 +2,6 @@
 	"name": "@wp-playground/docs-site",
 	"version": "0.0.1",
 	"type": "commonjs",
+	"main": "index.js",
 	"private": true
 }

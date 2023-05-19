@@ -11,12 +11,6 @@
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",
-	"typedoc": {
-		"entryPoint": "./src/index.ts",
-		"readmeFile": "./README.md",
-		"displayName": "@wp-playground/blueprints",
-		"tsconfig": "./tsconfig.lib.json"
-	},
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/playground/blueprints"

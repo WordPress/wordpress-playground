@@ -1,0 +1,7 @@
+{
+	"extends": ["../../../typedoc.base.json"],
+	"entryPoints": ["./src/index.ts"],
+	"readme": "./README.md",
+	"name": "@php-wasm/universal",
+	"tsconfig": "./tsconfig.lib.json"
+}

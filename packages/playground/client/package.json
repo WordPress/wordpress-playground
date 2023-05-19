@@ -22,12 +22,6 @@
 		},
 		"./package.json": "./package.json"
 	},
-	"typedoc": {
-		"entryPoint": "./src/index.ts",
-		"readmeFile": "./README.md",
-		"displayName": "@wp-playground/client",
-		"tsconfig": "./tsconfig.lib.json"
-	},
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/playground/client"

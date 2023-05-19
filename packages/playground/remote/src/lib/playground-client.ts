@@ -1,5 +1,5 @@
 import { ProgressReceiver } from '@php-wasm/progress';
-import { UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP, type IsomorphicRemotePHP } from '@php-wasm/universal';
 import { RemoteAPI } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
@@ -15,12 +15,16 @@ export interface WebClientMixin extends ProgressReceiver {
 	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
 }
 
+// Using interface instead of Type to ensure TypeDoc
+// generates documentation for the methods.
+
+type BaseType = RemoteAPI<PlaygroundWorkerEndpoint & WebClientMixin> &
+	IsomorphicRemotePHP;
+
 /**
  * @inheritDoc
  */
-export type PlaygroundClient = RemoteAPI<
-	PlaygroundWorkerEndpoint & WebClientMixin
->;
+export interface PlaygroundClient extends BaseType {}
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

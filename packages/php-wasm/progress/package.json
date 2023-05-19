@@ -15,12 +15,6 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
-	"typedoc": {
-		"entryPoint": "./src/index.ts",
-		"readmeFile": "./README.md",
-		"displayName": "@php-wasm/progress",
-		"tsconfig": "./tsconfig.lib.json"
-	},
 	"publishConfig": {
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/progress"

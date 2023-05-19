@@ -13,7 +13,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --includes dist/docs-copy"
+					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --includes dist/docs-copy"
 				],
 				"parallel": false
 			}
@@ -23,7 +23,7 @@
 			"options": {
 				"commands": [
 					"rimraf dist/docs-copy",
-					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
+					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links",
 					"mv dist/docs dist/docs-copy"
 				],
 				"parallel": false

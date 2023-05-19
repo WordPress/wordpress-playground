@@ -71,7 +71,7 @@
 		"@codemirror/view": "6.9.3"
 	},
 	"devDependencies": {
-		"@convex-dev/typedoc-plugin-markdown": "3.14.0",
+		"@convex-dev/typedoc-plugin-markdown": "3.15.3",
 		"@knodes/typedoc-plugin-pages": "0.23.1",
 		"@nx/devkit": "16.2.1",
 		"@nx/esbuild": "16.2.1",
@@ -148,9 +148,8 @@
 		"ts-json-schema-generator": "1.2.0",
 		"ts-node": "10.9.1",
 		"tslib": "^2.3.0",
-		"typedoc": "0.23.27",
+		"typedoc": "0.24.7",
 		"typedoc-plugin-mdn-links": "3.0.3",
-		"typedoc-plugin-resolve-crossmodule-references": "0.3.3",
 		"typescript": "5.0.4",
 		"vite": "4.3.7",
 		"vite-plugin-dts": "~1.7.1",
@@ -166,7 +165,8 @@
 		"rollup": "^3.2.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
-		"typescript": "5.0.4"
+		"typescript": "5.0.4",
+		"typedoc": "0.24.7"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
