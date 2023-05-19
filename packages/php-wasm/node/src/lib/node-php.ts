@@ -140,8 +140,12 @@ export class NodePHP extends BasePHP {
 	/**
 	 * Starts a PHP CLI session with given arguments.
 	 *
-	 * Can only be used when PHP was compiled with the CLI SAPI.
-	 * Cannot be used in conjunction with `run()`.
+	 * This method can only be used when PHP was compiled with the CLI SAPI
+	 * and it cannot be used in conjunction with `run()`.
+	 * 
+	 * Once this method finishes running, the PHP instance is no
+	 * longer usable and should be discarded. This is because PHP
+	 * internally cleans up all the resources and calls exit().
 	 *
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
