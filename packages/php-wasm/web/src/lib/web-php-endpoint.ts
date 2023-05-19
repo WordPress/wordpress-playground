@@ -20,9 +20,9 @@ const _private = new WeakMap<
  * A PHP client that can be used to run PHP code in the browser.
  */
 export class WebPHPEndpoint implements IsomorphicLocalPHP {
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl: string;
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
 	documentRoot: string;
 
 	/** @inheritDoc */
@@ -58,16 +58,19 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		this.documentRoot = php.documentRoot;
 	}
 
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
 		return _private.get(this)!.php.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
 		return _private.get(this)!.php.internalUrlToPath(internalUrl);
 	}
 
+	/**
+	 * The onDownloadProgress event listener.
+	 */
 	async onDownloadProgress(
 		callback: (progress: CustomEvent<ProgressEvent>) => void
 	): Promise<void> {
@@ -76,12 +79,12 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 			.monitor?.addEventListener('progress', callback as any);
 	}
 
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
 	mv(fromPath: string, toPath: string) {
 		return _private.get(this)!.php.mv(fromPath, toPath);
 	}
 
-	/** @inheritDoc */
+	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
 	rmdir(path: string, options?: RmDirOptions) {
 		return _private.get(this)!.php.rmdir(path, options);
 	}

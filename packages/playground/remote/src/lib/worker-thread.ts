@@ -55,8 +55,19 @@ const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
 
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
+	/**
+	 * A string representing the scope of the Playground instance.
+	 */
 	scope: string;
+
+	/**
+	 * A string representing the version of WordPress being used.
+	 */
 	wordPressVersion: string;
+
+	/**
+	 * A string representing the version of PHP being used.
+	 */
 	phpVersion: string;
 
 	constructor(
@@ -72,6 +83,9 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		this.phpVersion = phpVersion;
 	}
 
+	/**
+	 * @returns WordPress module details, including the static assets directory and default theme.
+	 */
 	async getWordPressModuleDetails() {
 		const version = await this.wordPressVersion;
 		return {
