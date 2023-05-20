@@ -12,38 +12,89 @@
 		"build": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": [
-					"npx typedoc --plugin @knodes/typedoc-plugin-pages --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --includes dist/docs-copy"
-				],
-				"parallel": false
-			}
+				"commands": ["docusaurus build --out-dir ../../../dist/docs/build"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build:json"]
 		},
-		"build:markdown-version-for-future-reference": {
+		"build:json": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"rimraf dist/docs-copy",
-					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references",
-					"mv dist/docs dist/docs-copy"
+					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json"
 				],
 				"parallel": false
 			}
 		},
-		"preview": {
-			"executor": "@nx/web:file-server",
+		"swizzle": {
+			"executor": "nx:run-commands",
 			"options": {
-				"buildTarget": "docs-site:build",
-				"staticFilePath": "dist/docs"
+				"commands": ["docusaurus swizzle"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build:json"]
+		},
+		"deploy": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus deploy"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build:json"]
+		},
+		"clear": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus clear"],
+				"cwd": "packages/docs/site"
 			}
 		},
-		"test": {
-			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/docs/site"],
+		"serve": {
+			"executor": "nx:run-commands",
 			"options": {
-				"passWithNoTests": true,
-				"reportsDirectory": "../../../coverage/packages/docs/site"
+				"commands": ["docusaurus serve --config ../../packages/docs/site/docusaurus.config.js ../../../dist/docs"],
+				"cwd": "packages/docs/site"
 			}
 		},
+		"write-translations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus write-translations"],
+				"cwd": "packages/docs/site"
+			}
+		},
+		"write-heading-ids": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus write-heading-ids"],
+				"cwd": "packages/docs/site"
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/docs/site/tsconfig.lib.json --noEmit"
+				]
+			}
+		},
+		"start": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus start"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build:json"]
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus start"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build:json"]
+		},
+
 		"lint": {
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],

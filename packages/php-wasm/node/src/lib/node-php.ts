@@ -142,7 +142,7 @@ export class NodePHP extends BasePHP {
 	 *
 	 * This method can only be used when PHP was compiled with the CLI SAPI
 	 * and it cannot be used in conjunction with `run()`.
-	 * 
+	 *
 	 * Once this method finishes running, the PHP instance is no
 	 * longer usable and should be discarded. This is because PHP
 	 * internally cleans up all the resources and calls exit().

@@ -16,5 +16,11 @@
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"
+	],
+	"frontMatter.content.pageFolders": [
+		{
+			"title": "Start here",
+			"path": "[[workspace]]/packages/docs/site/docs/01-start-here"
+		}
 	]
 }
