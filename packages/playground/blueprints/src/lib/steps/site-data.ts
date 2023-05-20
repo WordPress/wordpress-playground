@@ -4,6 +4,7 @@ import { StepHandler } from '.';
 
 /**
  * @inheritDoc setSiteOptions
+ * @hasRunnableExample
  *
  * @example
  *
@@ -49,6 +50,7 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 
 /**
  * @inheritDoc updateUserMeta
+ * @hasRunnableExample
  *
  * @example
  *
