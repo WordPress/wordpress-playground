@@ -1,3 +1,7 @@
+---
+title: Using Blueprints
+---
+
 ## Using Blueprints
 
 You can use Blueprints in one of two ways:
