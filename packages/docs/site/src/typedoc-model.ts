@@ -1,3 +1,4 @@
+// @ts-ignore
 import api from './model.json';
 import type {
 	ProjectReflection,
