@@ -16,6 +16,7 @@ import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model.tsx';
 <span>{BlueprintSteps.map((name) => (
 <>
 <BlueprintStep name={name} key={name} />
+
 <hr/>
 </>
 ))}</span>

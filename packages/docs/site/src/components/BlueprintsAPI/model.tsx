@@ -173,7 +173,7 @@ function parseExamples(Step) {
 							steps: [
 								needsLogin ? { step: 'login' } : null,
 								parsed,
-							],
+							].filter(Boolean),
 						},
 						null,
 						4

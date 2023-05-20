@@ -12,7 +12,9 @@
 		"build": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus build --out-dir ../../../dist/docs/build"],
+				"commands": [
+					"docusaurus build --out-dir ../../../dist/docs/build"
+				],
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
@@ -52,7 +54,9 @@
 		"serve": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus serve --config ../../packages/docs/site/docusaurus.config.js ../../../dist/docs"],
+				"commands": [
+					"docusaurus serve --config ../../packages/docs/site/docusaurus.config.js ../../../dist/docs"
+				],
 				"cwd": "packages/docs/site"
 			}
 		},

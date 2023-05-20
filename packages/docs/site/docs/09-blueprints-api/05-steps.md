@@ -32,6 +32,7 @@ level: 2
 return (
 <>
 <BlueprintStep name={name} key={name} />
+
 <hr/>
 </>
 );
