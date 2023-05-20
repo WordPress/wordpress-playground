@@ -2,14 +2,14 @@
 title: Using Blueprints
 ---
 
-## Using Blueprints
+# Using Blueprints
 
 You can use Blueprints in one of two ways:
 
 -   By passing them as a URL fragment to the Playground.
 -   By using the JavaScript API.
 
-### URL Fragment
+## URL Fragment
 
 The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`.
 
@@ -36,7 +36,7 @@ You won't have to paste links to follow along. We'll use code examples with a "T
 	}
 }} />
 
-### JavaScript API
+## JavaScript API
 
 You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen:
 
