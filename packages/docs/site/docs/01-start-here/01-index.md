@@ -40,6 +40,6 @@ As with all WordPress projects, we want to ensure a welcoming environment for ev
 
 ## License
 
-WordPress Playground is free software, and is released under the terms of the GNU General Public License version 2 or (at your option) any later version. See [LICENSE](https://github.com/WordPress/wordpress-playground/blob/HEAD/LICENSE.md). for complete license.
+WordPress Playground is free software, and is released under the terms of the GNU General Public License version 2 or (at your option) any later version. See [LICENSE](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE). for complete license.
 
 <br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>
