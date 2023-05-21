@@ -1,14 +1,26 @@
 {
 	"$schema": "http://json-schema.org/schema",
 	"version": 2,
-	"title": "AssertBuiltEsmAndCjs executor",
+	"title": "BuiltScript executor",
 	"description": "",
 	"type": "object",
 	"properties": {
-		"outputPath": {
+		"scriptPath": {
 			"type": "string",
-			"description": "The path to the built module"
+			"description": "Path of the script to run.",
+			"x-prompt": "What script would you like to run?"
+		},
+		"__unparsed__": {
+			"hidden": true,
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"$default": {
+				"$source": "unparsed"
+			},
+			"x-priority": "internal"
 		}
 	},
-	"required": ["outputPath"]
+	"required": []
 }

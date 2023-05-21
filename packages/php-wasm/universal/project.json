@@ -18,7 +18,7 @@
 		"test:esmcjs": {
 			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
 			"options": {
-				"outputPath": "dist/packages/php-wasm/universal"
+				"scriptPath": "dist/packages/php-wasm/universal"
 			},
 			"dependsOn": ["build"]
 		},
