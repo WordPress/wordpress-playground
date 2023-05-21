@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
-			"outputs": ["dist/packages/php-wasm/universal"],
+			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/php-wasm/universal"
 			}
@@ -18,7 +18,7 @@
 		"test:esmcjs": {
 			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
 			"options": {
-				"scriptPath": "dist/packages/php-wasm/universal"
+				"outputPath": "dist/packages/php-wasm/universal"
 			},
 			"dependsOn": ["build"]
 		},
