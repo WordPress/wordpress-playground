@@ -10,11 +10,9 @@ In the `installPlugin` step in the example above, we reference the `https://down
 
 The following resource references are available:
 
--   [URLReference](#urlreference)
--   [CoreThemeReference](#corethemereference)
--   [CorePluginReference](#corepluginreference)
--   [VFSReference](#vfsreference)
--   [LiteralReference](#literalreference)
+import TOCInline from '@theme/TOCInline';
+
+<TOCInline toc={toc} />
 
 ### URLReference
 
