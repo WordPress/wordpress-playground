@@ -16,7 +16,7 @@ jobs:
               with:
                   main-branch-name: 'trunk'
             - run: npm ci
-            - run: npm nx test:esmcjs php-wasm-universal --verbose
+            - run: npx nx test:esmcjs php-wasm-universal --verbose
 
             # - run: npx nx format:check || npx prettier --check .
             # - run: npx nx affected --target=typecheck
