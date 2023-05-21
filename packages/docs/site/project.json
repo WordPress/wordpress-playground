@@ -23,7 +23,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"npx typedoc --plugin @convex-dev/typedoc-plugin-markdown --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json"
+					"npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json"
 				],
 				"parallel": false
 			}
