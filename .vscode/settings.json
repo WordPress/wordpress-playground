@@ -22,5 +22,6 @@
 			"title": "Start here",
 			"path": "[[workspace]]/packages/docs/site/docs/01-start-here"
 		}
-	]
+	],
+	"git.ignoreLimitWarning": true
 }

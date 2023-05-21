@@ -6,7 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
-			"outputs": ["{options.outputPath}"],
+			"outputs": ["dist/packages/php-wasm/universal"],
 			"options": {
 				"outputPath": "dist/packages/php-wasm/universal"
 			}
