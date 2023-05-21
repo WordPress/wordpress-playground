@@ -17,10 +17,8 @@ jobs:
               with:
                   main-branch-name: 'trunk'
             - run: npm ci
-            - run: npx nx test:esmcjs php-wasm-universal --verbose
-
-            # - run: npx nx format:check || npx prettier --check .
-            # - run: npx nx affected --target=typecheck
-            # - run: npx nx affected --target=lint --parallel=3
-            # - run: npx nx affected --target=test --parallel=3 --configuration=ci
-            # - run: npx nx affected --target=build --parallel=3
+            - run: npx nx format:check || npx prettier --check .
+            - run: npx nx affected --target=typecheck
+            - run: npx nx affected --target=lint --parallel=3
+            - run: npx nx affected --target=test --parallel=3 --configuration=ci
+            - run: npx nx affected --target=build --parallel=3
