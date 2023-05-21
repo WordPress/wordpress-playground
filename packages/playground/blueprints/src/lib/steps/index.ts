@@ -37,6 +37,10 @@ export type StepDefinition = Step & {
 	};
 };
 
+/**
+ * If you add a step here, make sure to also
+ * add it to the exports below.
+ */
 export type GenericStep<Resource> =
 	| ActivatePluginStep
 	| ActivateThemeStep
@@ -66,9 +70,11 @@ export type GenericStep<Resource> =
 
 export type {
 	ActivatePluginStep,
+	ActivateThemeStep,
 	ApplyWordPressPatchesStep,
 	CpStep,
 	DefineWpConfigConstsStep,
+	DefineVirtualWpConfigConstsStep,
 	DefineSiteUrlStep,
 	ImportFileStep,
 	InstallPluginStep,

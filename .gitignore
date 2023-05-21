@@ -8,6 +8,8 @@ var
 .vitepress
 __pycache__
 packages/php-wasm/node/src/test/__test*
+packages/docs/site/src/model.json
+.docusaurus
 dist.zip
 
 # dependencies
