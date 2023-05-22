@@ -30,11 +30,8 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     --single-branch \
     --depth 1 &&    \
     rm -rf wordpress/wp-content/plugins/sqlite-database-integration/.git && \
-    cat wordpress/wp-content/plugins/sqlite-database-integration/db.copy \
-    | sed "s#{SQLITE_IMPLEMENTATION_FOLDER_PATH}#' . __DIR__ . '/plugins/sqlite-database-integration#g" \
-    | sed 's#{SQLITE_PLUGIN}#sqlite-database-integration#g' \
-    > wordpress/wp-content/db.php && \
     # Required by the SQLite integration plugin:
+    cp wordpress/wp-content/plugins/sqlite-database-integration/db.copy wordpress/wp-content/db.php && \
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
 # Separate WordPress static files
@@ -74,8 +71,8 @@ RUN cp -r wordpress wordpress-static && \
 # See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 
 RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
-    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
-    sed -E 's#srcDoc:"[^"]+"#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
+    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
+    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
 
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
