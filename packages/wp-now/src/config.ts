@@ -5,7 +5,7 @@ import {
 import crypto from 'crypto';
 import { inferMode } from './wp-now';
 import { portFinder } from './port-finder';
-import { isValidWordpressVersion } from './wp-playground-wordpress';
+import { isValidWordPressVersion } from './wp-playground-wordpress';
 import getWpNowPath from './get-wp-now-path';
 
 import path from 'path';
@@ -135,7 +135,7 @@ export default async function getWpNowConfig(
 	if (!options.absoluteUrl) {
 		options.absoluteUrl = await getAbsoluteURL();
 	}
-	if (!isValidWordpressVersion(options.wordPressVersion)) {
+	if (!isValidWordPressVersion(options.wordPressVersion)) {
 		throw new Error(
 			'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
 		);
