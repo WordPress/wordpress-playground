@@ -41,6 +41,19 @@ export async function runCli() {
 	return yargs(hideBin(process.argv))
 		.scriptName('wp-now')
 		.usage('$0 <cmd> [args]')
+		.check(async (argv) => {
+			try {
+				await getWpNowConfig({
+					path: argv.path as string,
+					php: argv.php as SupportedPHPVersion,
+					wp: argv.wp as string,
+					port: argv.port as number,
+				});
+			} catch (error) {
+				return error.message;
+			}
+			return true;
+		})
 		.command(
 			'start',
 			'Start the server',
