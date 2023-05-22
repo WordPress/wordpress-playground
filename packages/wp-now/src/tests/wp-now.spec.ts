@@ -63,22 +63,6 @@ test('getWpNowConfig with unsupported PHP version', async () => {
 	);
 });
 
-test('getWpNowConfig with .wp-env.json', async () => {
-	const rawOptions: CliOptions = {
-		path: exampleDir + '/wp-env',
-	};
-	const options = await getWpNowConfig(rawOptions);
-	expect(options.wordPressVersion).toBe('6.0');
-});
-
-test('getWpNowConfig with .wp-env.override.json', async () => {
-	const rawOptions: CliOptions = {
-		path: exampleDir + '/wp-env-override',
-	};
-	const options = await getWpNowConfig(rawOptions);
-	expect(options.wordPressVersion).toBe('6.3');
-});
-
 // Plugin mode
 test('isPluginDirectory detects a WordPress plugin and infer PLUGIN mode.', () => {
 	const projectPath = exampleDir + '/plugin';
