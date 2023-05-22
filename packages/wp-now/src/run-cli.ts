@@ -74,11 +74,11 @@ export async function runCli() {
 			}
 		)
 		.command(
-			'php <filePath>',
+			'php <file>',
 			'Run the php command passing the arguments for php cli',
 			(yargs) => {
 				commonParameters(yargs);
-				yargs.positional('filePath', {
+				yargs.positional('file', {
 					describe: 'Path to the PHP file to run',
 					type: 'string',
 				});
@@ -90,7 +90,7 @@ export async function runCli() {
 						php: argv.php as SupportedPHPVersion,
 						wp: argv.wp as string,
 					});
-					await executePHPFile(argv.filePath as string, options);
+					await executePHPFile(argv.file as string, options);
 					process.exit(0);
 				} catch (error) {
 					console.error(error);
