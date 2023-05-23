@@ -21,10 +21,8 @@ export async function executeWPCli(args: string[]) {
 
 	try {
 		php.useHostFilesystem();
-		const result = await php.cli([
+		await php.cli([
 			'php',
-			// '-derror_reporting=24575',
-			// '-ddisable_functions=proc_open,popen,curl_exec,curl_multi_exec,shell_exec,proc_close',
 			getWpCliPath(),
 			`--path=${wpNowOptions.documentRoot}`,
 			...args,
