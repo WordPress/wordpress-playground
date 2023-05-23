@@ -19,6 +19,14 @@ import getWpNowTmpPath from '../get-wp-now-tmp-path';
 
 const exampleDir = __dirname + '/mode-examples';
 
+async function downloadWithTimer(name, fn) {
+	console.log(`Downloading ${name}...`);
+	console.time(name);
+	await fn();
+	console.log(`${name} downloaded.`);
+	console.timeEnd(name);
+}
+
 // Options
 test('getWpNowConfig with default options', async () => {
 	const rawOptions: CliOptions = {
@@ -176,16 +184,10 @@ describe('Test starting different modes', () => {
 	 */
 	beforeAll(async () => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
-		console.log('Downloading WordPress...');
-		console.time('wordpress');
-		await downloadWordPress();
-		console.log('WordPress downloaded.');
-		console.timeEnd('wordpress');
-		console.log('Downloading SQLite...');
-		console.time('sqlite');
-		await downloadSqliteIntegrationPlugin();
-		console.log('SQLite downloaded.');
-		console.timeEnd('sqlite');
+		await Promise.all([
+			downloadWithTimer('wordpresss', downloadWordPress),
+			downloadWithTimer('sqlite', downloadSqliteIntegrationPlugin),
+		]);
 	});
 
 	/**
