@@ -99,23 +99,6 @@ export async function runCli() {
 				}
 			}
 		)
-		.command(
-			'wp',
-			'Run the wp command passing the arguments for wp cli',
-			(yargs) => {
-				return yargs.strict(false);
-			},
-			async () => {
-				// 0: node, 1: wp-now, 2: wp, 3: [wp-cli options...]
-				const args = process.argv.slice(3);
-				try {
-					await executeWPCli(args);
-					process.exit(0);
-				} catch (error) {
-					process.exit(error.status || -1);
-				}
-			}
-		)
 		.demandCommand(1, 'You must provide a valid command')
 		.help()
 		.alias('h', 'help')
