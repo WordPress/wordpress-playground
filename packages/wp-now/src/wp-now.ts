@@ -10,7 +10,7 @@ import {
 import {
 	activatePlugin,
 	activateTheme,
-	defineVirtualWpConfigConsts,
+	defineWpConfigConsts,
 	login,
 } from '@wp-playground/blueprints';
 import { WPNowOptions, WPNowMode } from './config';
@@ -269,8 +269,9 @@ async function initWordPress(
 	if (wordPressVersion !== 'user-defined') {
 		wpConfigConsts['WP_AUTO_UPDATE_CORE'] = wordPressVersion === 'latest';
 	}
-	const configFile = await defineVirtualWpConfigConsts(php, {
+	const configFile = await defineWpConfigConsts(php, {
 		consts: wpConfigConsts,
+		virtualize: true,
 	});
 	php.setPhpIniEntry('auto_prepend_file', configFile);
 

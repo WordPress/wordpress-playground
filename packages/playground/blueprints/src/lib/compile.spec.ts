@@ -1,8 +1,8 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
-import { defineVirtualWpConfigConsts } from './steps/define-virtual-wp-config-consts';
-import { VFS_CONFIG_FILE_BASENAME, VFS_CONFIG_FILE_PATH } from './steps/common';
+import { VFS_CONFIG_FILE_BASENAME } from './steps/common';
 import { setPhpIniEntry } from './steps/client-methods';
+import { defineWpConfigConsts } from './steps/define-wp-config-consts';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -35,7 +35,7 @@ describe('Blueprints', () => {
 		);
 	});
 
-	it('should define the consts in a json and auto load the constants in VFS_CONFIG_FILE_PATH php file', async () => {
+	it('should define the consts in a json and auto load the constants in VFS_CONFIG_FILE_BASENAME/wp-config.php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -45,14 +45,16 @@ describe('Blueprints', () => {
 
 		// Call the function with the constants and the playground client
 		// Step1: define the constants
-		const configFile = await defineVirtualWpConfigConsts(php, { consts });
+		const configFile = await defineWpConfigConsts(php, {
+			consts,
+			virtualize: true,
+		});
 		// Step2: set the auto_prepend_file php.ini entry
 		await setPhpIniEntry(php, {
 			key: 'auto_prepend_file',
 			value: configFile,
 		});
-
-		expect(php.fileExists(VFS_CONFIG_FILE_PATH)).toBe(true);
+		expect(configFile.startsWith(VFS_CONFIG_FILE_BASENAME)).toBe(true);
 		expect(
 			php.fileExists(`${VFS_CONFIG_FILE_BASENAME}/playground-consts.json`)
 		).toBe(true);

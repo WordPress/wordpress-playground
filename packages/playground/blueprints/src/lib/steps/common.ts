@@ -30,4 +30,3 @@ export async function fileToUint8Array(file: File) {
 }
 
 export const VFS_CONFIG_FILE_BASENAME = '/vfs-blueprints';
-export const VFS_CONFIG_FILE_PATH = '/vfs-blueprints/wp-config-consts.php';
