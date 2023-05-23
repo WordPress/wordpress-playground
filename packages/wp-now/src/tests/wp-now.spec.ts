@@ -524,17 +524,14 @@ describe('Test starting different modes', () => {
 			executePhpExamplePath,
 			'hello-world-result.txt'
 		);
-		process.env.WP_NOW_PROJECT_PATH = path.join(
-			tmpExampleDirectory,
-			'theme'
-		);
+		const pathTheme = path.join(tmpExampleDirectory, 'theme');
 
 		// reset result file
 		fs.writeFileSync(resultFilePath, '');
-		await executeWPCli([
-			'eval-file',
-			path.join(executePhpExamplePath, 'hello-world.php'),
-		]);
+		await executeWPCli(
+			['eval-file', path.join(executePhpExamplePath, 'hello-world.php')],
+			pathTheme
+		);
 		const output = fs.readFileSync(resultFilePath, 'utf8');
 
 		expect(output).toBe('Hello World!');
