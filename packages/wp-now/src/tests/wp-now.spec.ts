@@ -222,7 +222,6 @@ describe('Test starting different modes', () => {
 	 */
 	afterAll(() => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
-		fs.removeSync(getWpCliPath());
 	});
 
 	/**
@@ -513,27 +512,32 @@ describe('Test starting different modes', () => {
 
 		expect(themeName.text).toContain('Twenty Twenty-Three');
 	});
+});
 
+/**
+ * Test wp-cli command.
+ */
+describe('wp-cli command', () => {
+	beforeAll(async () => {
+		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
+		await Promise.all([downloadWithTimer('wp-cli', downloadWPCLI)]);
+	});
+
+	afterAll(() => {
+		fs.removeSync(getWpCliPath());
+	});
 	/**
-	 * Test wp-cli executes a PHP file.
-	 * We need a WordPress installation to run wp-cli.
+	 * Test wp-cli displays the version.
+	 * We don't need the WordPress context for this test.
 	 */
-	test('wp-cli executes a PHP file', async () => {
-		const executePhpExamplePath = path.join(__dirname, 'execute-php-file');
-		const resultFilePath = path.join(
-			executePhpExamplePath,
-			'hello-world-result.txt'
-		);
-		const pathTheme = path.join(tmpExampleDirectory, 'theme');
-
-		// reset result file
-		fs.writeFileSync(resultFilePath, '');
-		await executeWPCli(
-			['eval-file', path.join(executePhpExamplePath, 'hello-world.php')],
-			pathTheme
-		);
-		const output = fs.readFileSync(resultFilePath, 'utf8');
-
-		expect(output).toBe('Hello World!');
+	test('wp-cli displays the version', async () => {
+		let output = '';
+		function collectOutput(outputLine: string) {
+			output += outputLine;
+		}
+		await executeWPCli(['--version'], {
+			print: collectOutput,
+		});
+		expect(output).toMatch('WP-CLI ');
 	});
 });
