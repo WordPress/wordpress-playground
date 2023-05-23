@@ -11,11 +11,14 @@ import {
 } from '../wp-playground-wordpress';
 import {
 	downloadSqliteIntegrationPlugin,
+	downloadWPCLI,
 	downloadWordPress,
 } from '../download';
 import os from 'os';
 import crypto from 'crypto';
 import getWpNowTmpPath from '../get-wp-now-tmp-path';
+import { executeWPCli } from '../execute-wp-cli';
+import getWpCliPath from '../get-wp-cli-path';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -186,6 +189,11 @@ describe('Test starting different modes', () => {
 		await downloadSqliteIntegrationPlugin();
 		console.log('SQLite downloaded.');
 		console.timeEnd('sqlite');
+		console.log('Downloading wp-cli...');
+		console.time('wp-cli');
+		await downloadWPCLI();
+		console.log('wp-cli downloaded.');
+		console.timeEnd('wp-cli');
 	});
 
 	/**
@@ -215,6 +223,7 @@ describe('Test starting different modes', () => {
 	 */
 	afterAll(() => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
+		fs.removeSync(getWpCliPath());
 	});
 
 	/**
@@ -504,5 +513,31 @@ describe('Test starting different modes', () => {
 		});
 
 		expect(themeName.text).toContain('Twenty Twenty-Three');
+	});
+
+	/**
+	 * Test wp-cli executes a PHP file.
+	 * We need a WordPress installation to run wp-cli.
+	 */
+	test('wp-cli executes a PHP file', async () => {
+		const executePhpExamplePath = path.join(__dirname, 'execute-php-file');
+		const resultFilePath = path.join(
+			executePhpExamplePath,
+			'hello-world-result.txt'
+		);
+		process.env.WP_NOW_PROJECT_PATH = path.join(
+			tmpExampleDirectory,
+			'theme'
+		);
+
+		// reset result file
+		fs.writeFileSync(resultFilePath, '');
+		await executeWPCli([
+			'eval-file',
+			path.join(executePhpExamplePath, 'hello-world.php'),
+		]);
+		const output = fs.readFileSync(resultFilePath, 'utf8');
+
+		expect(output).toBe('Hello World!');
 	});
 });
