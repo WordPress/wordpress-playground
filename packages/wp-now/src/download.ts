@@ -45,11 +45,6 @@ async function downloadFile({
 		);
 		statusCode = response.statusCode;
 		if (response.statusCode !== 200) {
-			console.log(
-				'dowloadFile: response',
-				response.statusCode,
-				response.statusMessage
-			);
 			throw new Error(
 				`Failed to download file (Status code ${response.statusCode}).`
 			);
@@ -67,10 +62,10 @@ async function downloadFile({
 				reject(error);
 			});
 		});
-		console.log(`Downloaded ${itemName} to ${destinationFilePath}`);
+		output?.log(`Downloaded ${itemName} to ${destinationFilePath}`);
 		return { downloaded: true, statusCode };
 	} catch (error) {
-		console.log(`Error downloading file ${itemName}`, error);
+		output?.error(`Error downloading file ${itemName}`, error);
 		return { downloaded: false, statusCode };
 	}
 }
