@@ -42,6 +42,19 @@ export async function runCli() {
 	return yargs(hideBin(process.argv))
 		.scriptName('wp-now')
 		.usage('$0 <cmd> [args]')
+		.check(async (argv) => {
+			try {
+				await getWpNowConfig({
+					path: argv.path as string,
+					php: argv.php as SupportedPHPVersion,
+					wp: argv.wp as string,
+					port: argv.port as number,
+				});
+			} catch (error) {
+				return error.message;
+			}
+			return true;
+		})
 		.command(
 			'start',
 			'Start the server',
@@ -75,11 +88,11 @@ export async function runCli() {
 			}
 		)
 		.command(
-			'php <filePath>',
+			'php <file>',
 			'Run the php command passing the arguments for php cli',
 			(yargs) => {
 				commonParameters(yargs);
-				yargs.positional('filePath', {
+				yargs.positional('file', {
 					describe: 'Path to the PHP file to run',
 					type: 'string',
 				});
@@ -91,7 +104,7 @@ export async function runCli() {
 						php: argv.php as SupportedPHPVersion,
 						wp: argv.wp as string,
 					});
-					await executePHPFile(argv.filePath as string, options);
+					await executePHPFile(argv.file as string, options);
 					process.exit(0);
 				} catch (error) {
 					console.error(error);

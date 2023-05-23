@@ -12,7 +12,7 @@
  * @param version The version string to check.
  * @returns A boolean value indicating whether the version string is a valid WordPress version.
  */
-export function isValidWordpressVersion(version: string): boolean {
+export function isValidWordPressVersion(version: string): boolean {
 	const versionPattern =
 		/^latest$|^(?:(\d+)\.(\d+)(?:\.(\d+))?)((?:-beta(?:\d+)?)|(?:-RC(?:\d+)?))?$/;
 	return versionPattern.test(version);

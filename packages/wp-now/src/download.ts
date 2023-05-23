@@ -5,7 +5,7 @@ import unzipper from 'unzipper';
 import os from 'os';
 import { IncomingMessage } from 'http';
 import { DEFAULT_WORDPRESS_VERSION, SQLITE_URL, WP_CLI_URL } from './constants';
-import { isValidWordpressVersion } from './wp-playground-wordpress';
+import { isValidWordPressVersion } from './wp-playground-wordpress';
 import { output } from './output';
 import getWpNowPath from './get-wp-now-path';
 import getWordpressVersionsPath from './get-wordpress-versions-path';
@@ -13,7 +13,7 @@ import getSqlitePath from './get-sqlite-path';
 import getWpCliPath from './get-wp-cli-path';
 
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
-	if (!isValidWordpressVersion(version)) {
+	if (!isValidWordPressVersion(version)) {
 		throw new Error(
 			'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
 		);

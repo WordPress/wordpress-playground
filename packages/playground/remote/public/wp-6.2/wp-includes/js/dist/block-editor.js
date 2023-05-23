@@ -20332,7 +20332,7 @@ function Iframe(_ref2) {
     // mode. Also preload the styles to avoid a flash of unstyled
     // content.
     ,
-    srcDoc: srcDoc,
+    src:"/wp-includes/empty.html",
     title: (0,external_wp_i18n_namespaceObject.__)('Editor canvas')
   }), iframeDocument && (0,external_wp_element_namespaceObject.createPortal)((0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)("head", {
     ref: headRef

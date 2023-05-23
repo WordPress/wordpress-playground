@@ -5,13 +5,10 @@ import {
 import crypto from 'crypto';
 import { inferMode } from './wp-now';
 import { portFinder } from './port-finder';
+import { isValidWordPressVersion } from './wp-playground-wordpress';
 import getWpNowPath from './get-wp-now-path';
 
 import path from 'path';
-import * as fs from 'fs';
-
-const WP_ENV_FILE = '.wp-env.json';
-const WP_ENV_OVERRIDE_FILE = '.wp-env.override.json';
 
 import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from './constants';
 
@@ -82,26 +79,6 @@ function getWpContentHomePath(projectPath: string) {
 	);
 }
 
-async function parseWpEnvConfig(path: string): Promise<WPEnvOptions> {
-	try {
-		return JSON.parse(fs.readFileSync(path, 'utf8'));
-	} catch (error) {
-		return {} as WPEnvOptions;
-	}
-}
-
-async function fromWpEnv(cwd: string = process.cwd()): Promise<WPNowOptions> {
-	const wpEnvConfig = await parseWpEnvConfig(path.join(cwd, WP_ENV_FILE));
-	const wpOverrideEnvConfig = await parseWpEnvConfig(
-		path.join(cwd, WP_ENV_OVERRIDE_FILE)
-	);
-	return {
-		phpVersion: wpOverrideEnvConfig.phpVersion || wpEnvConfig.phpVersion,
-		wordPressVersion: wpOverrideEnvConfig.core || wpEnvConfig.core,
-		port: wpOverrideEnvConfig.port || wpEnvConfig.port,
-	};
-}
-
 export default async function getWpNowConfig(
 	args: CliOptions
 ): Promise<WPNowOptions> {
@@ -113,11 +90,9 @@ export default async function getWpNowConfig(
 		port,
 	};
 
-	const wpEnvToNowConfig = await fromWpEnv(optionsFromCli.projectPath);
-
 	const options: WPNowOptions = {} as WPNowOptions;
 
-	[optionsFromCli, wpEnvToNowConfig, DEFAULT_OPTIONS].forEach((config) => {
+	[optionsFromCli, DEFAULT_OPTIONS].forEach((config) => {
 		for (const key in config) {
 			if (!options[key]) {
 				options[key] = config[key];
@@ -133,6 +108,11 @@ export default async function getWpNowConfig(
 	}
 	if (!options.absoluteUrl) {
 		options.absoluteUrl = await getAbsoluteURL();
+	}
+	if (!isValidWordPressVersion(options.wordPressVersion)) {
+		throw new Error(
+			'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+		);
 	}
 	if (
 		options.phpVersion &&
