@@ -1,5 +1,5 @@
 import startWPNow, { inferMode } from '../wp-now';
-import getWpNowConfig, { CliOptions, WPNowMode, WPNowOptions } from '../config';
+import getWpNowConfig, { CliOptions, WPNowMode } from '../config';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -21,6 +21,14 @@ import { executeWPCli } from '../execute-wp-cli';
 import getWpCliPath from '../get-wp-cli-path';
 
 const exampleDir = __dirname + '/mode-examples';
+
+async function downloadWithTimer(name, fn) {
+	console.log(`Downloading ${name}...`);
+	console.time(name);
+	await fn();
+	console.log(`${name} downloaded.`);
+	console.timeEnd(name);
+}
 
 // Options
 test('getWpNowConfig with default options', async () => {
@@ -179,21 +187,12 @@ describe('Test starting different modes', () => {
 	 */
 	beforeAll(async () => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
-		console.log('Downloading WordPress...');
-		console.time('wordpress');
-		await downloadWordPress();
-		console.log('WordPress downloaded.');
-		console.timeEnd('wordpress');
-		console.log('Downloading SQLite...');
-		console.time('sqlite');
-		await downloadSqliteIntegrationPlugin();
-		console.log('SQLite downloaded.');
-		console.timeEnd('sqlite');
-		console.log('Downloading wp-cli...');
-		console.time('wp-cli');
-		await downloadWPCLI();
-		console.log('wp-cli downloaded.');
-		console.timeEnd('wp-cli');
+		// Download files in parallel
+		await Promise.all([
+			downloadWithTimer('wordpress', downloadWordPress),
+			downloadWithTimer('sqlite', downloadSqliteIntegrationPlugin),
+			downloadWithTimer('wp-cli', downloadWPCLI),
+		]);
 	});
 
 	/**
