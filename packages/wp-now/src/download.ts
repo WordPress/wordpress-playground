@@ -55,6 +55,7 @@ async function downloadFile({
 			);
 		}
 		await new Promise<void>((resolve, reject) => {
+			fs.ensureFileSync(destinationFilePath);
 			const file = fs.createWriteStream(destinationFilePath);
 			response.pipe(file);
 			file.on('finish', () => {
