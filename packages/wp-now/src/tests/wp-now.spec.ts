@@ -191,7 +191,6 @@ describe('Test starting different modes', () => {
 		await Promise.all([
 			downloadWithTimer('wordpress', downloadWordPress),
 			downloadWithTimer('sqlite', downloadSqliteIntegrationPlugin),
-			downloadWithTimer('wp-cli', downloadWPCLI),
 		]);
 	});
 
@@ -520,7 +519,7 @@ describe('Test starting different modes', () => {
 describe('wp-cli command', () => {
 	beforeAll(async () => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
-		await Promise.all([downloadWithTimer('wp-cli', downloadWPCLI)]);
+		await downloadWithTimer('wp-cli', downloadWPCLI);
 	});
 
 	afterAll(() => {
