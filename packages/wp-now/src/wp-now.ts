@@ -38,7 +38,8 @@ async function applyToInstances(phpInstances: NodePHP[], callback: Function) {
 }
 
 export default async function startWPNow(
-	options: Partial<WPNowOptions> = {}
+	options: Partial<WPNowOptions> = {},
+	emscriptenOptions = {}
 ): Promise<{ php: NodePHP; phpInstances: NodePHP[]; options: WPNowOptions }> {
 	const { documentRoot } = options;
 	const nodePHPOptions = {
@@ -59,6 +60,7 @@ export default async function startWPNow(
 				}
 			},
 		},
+		emscriptenOptions,
 	};
 
 	const phpInstances = [];
