@@ -1,4 +1,4 @@
-# WordPress Playground and PHP WASM (WebAssembly)
+# WordPress Playground and  PHP WASM (WebAssembly)
 
 [Project Page](https://developer.wordpress.org/playground/) | [Live demo](https://playground.wordpress.net/) | [Documentation and API Reference](https://wordpress.github.io/wordpress-playground/)
 
