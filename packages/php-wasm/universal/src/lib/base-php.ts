@@ -486,7 +486,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not move "{path}"')
 	mv(fromPath: string, toPath: string) {
-		this[__private__dont__use].FS.mv(fromPath, toPath);
+		this[__private__dont__use].FS.rename(fromPath, toPath);
 	}
 
 	/** @inheritDoc */
