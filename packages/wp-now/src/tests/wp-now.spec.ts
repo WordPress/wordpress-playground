@@ -30,7 +30,7 @@ async function downloadWithTimer(name, fn) {
 // Options
 test('getWpNowConfig with default options', async () => {
 	const rawOptions: CliOptions = {
-		path: exampleDir,
+		path: exampleDir + '/index',
 	};
 	const options = await getWpNowConfig(rawOptions);
 
@@ -87,7 +87,7 @@ test('isPluginDirectory detects a WordPress plugin in case-insensitive way and i
 test('isPluginDirectory returns false for non-plugin directory', () => {
 	const projectPath = exampleDir + '/not-plugin';
 	expect(isPluginDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 // Theme mode
@@ -100,14 +100,14 @@ test('isThemeDirectory detects a WordPress theme and infer THEME mode', () => {
 test('isThemeDirectory returns false for non-theme directory', () => {
 	const projectPath = exampleDir + '/not-theme';
 	expect(isThemeDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 test('isThemeDirectory returns false for a directory with style.css but without Theme Name', () => {
 	const projectPath = exampleDir + '/not-theme';
 
 	expect(isThemeDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 // WP_CONTENT mode
@@ -151,7 +151,7 @@ test('isWordPressDirectory returns false for non-WordPress directory', () => {
 	const projectPath = exampleDir + '/nothing';
 
 	expect(isWordPressDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 // WordPress developer mode
@@ -166,14 +166,14 @@ test('isWordPressDevelopDirectory returns false for non-WordPress-develop direct
 	const projectPath = exampleDir + '/nothing';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 test('isWordPressDevelopDirectory returns false for incomplete WordPress-develop directory', () => {
 	const projectPath = exampleDir + '/not-wordpress-develop';
 
 	expect(isWordPressDevelopDirectory(projectPath)).toBe(false);
-	expect(inferMode(projectPath)).toBe(WPNowMode.INDEX);
+	expect(inferMode(projectPath)).toBe(WPNowMode.PLAYGROUND);
 });
 
 describe('Test starting different modes', () => {

@@ -26,6 +26,7 @@ export const enum WPNowMode {
 	WORDPRESS_DEVELOP = 'wordpress-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
+	PLAYGROUND = 'playground',
 	AUTO = 'auto',
 }
 
