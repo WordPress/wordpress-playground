@@ -90,9 +90,11 @@ export default async function startWPNow(
 		});
 		return { php, phpInstances, options };
 	}
-	await downloadWordPress(options.wordPressVersion);
-	await downloadSqliteIntegrationPlugin();
-	await downloadMuPlugins();
+	await Promise.all([
+		downloadWordPress(options.wordPressVersion),
+		downloadSqliteIntegrationPlugin(),
+		downloadMuPlugins(),
+	]);
 	const isFirstTimeProject = !fs.existsSync(options.wpContentPath);
 	await applyToInstances(phpInstances, async (_php) => {
 		switch (options.mode) {
