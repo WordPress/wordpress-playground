@@ -517,11 +517,7 @@ describe('Test starting different modes', () => {
  */
 describe('wp-cli command', () => {
 	beforeAll(async () => {
-		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
-		console.time('wp-cli');
-		await downloadWPCLI();
-		console.log('wp-cli downloaded.');
-		console.timeEnd('wp-cli');
+		await downloadWithTimer('wp-cli', downloadWPCLI);
 	});
 
 	afterAll(() => {
