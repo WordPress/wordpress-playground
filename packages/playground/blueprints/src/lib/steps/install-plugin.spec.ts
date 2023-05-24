@@ -46,6 +46,8 @@ describe('Blueprint step installPlugin', () => {
 			php
 		);
 
+		php.unlink('/test-plugin-0.0.1.zip');
+
 		expect(
 			php.fileExists(`${php.documentRoot}/wp-content/test-plugin`)
 		).toBe(true);
