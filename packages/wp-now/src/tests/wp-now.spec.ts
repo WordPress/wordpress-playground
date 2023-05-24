@@ -532,9 +532,9 @@ describe('wp-cli command', () => {
 		function collectOutput(outputLine: string) {
 			output += outputLine;
 		}
-		await executeWPCli(['--version'], {
+		await executeWPCli(['cli', 'version'], {
 			print: collectOutput,
 		});
-		expect(output).toMatch('WP-CLI ');
+		expect(output).toMatch(/WP-CLI (\d\.?)+/i);
 	});
 });
