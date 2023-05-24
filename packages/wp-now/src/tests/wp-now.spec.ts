@@ -281,7 +281,7 @@ describe('Test starting different modes', () => {
 	};
 
 	/**
-	 * Test that startWPNow in "index", "plugin" and "theme" modes doesn't change anything in the project directory.
+	 * Test that startWPNow in "index", "plugin", "theme", and "playground" modes doesn't change anything in the project directory.
 	 */
 	test.each([
 		['index', ['index.php']],
