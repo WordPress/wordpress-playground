@@ -1,8 +1,8 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
-import { writeFile } from './client-methods'
-import { activatePlugin } from './activate-plugin'
+import { writeFile } from './client-methods';
+import { activatePlugin } from './activate-plugin';
 
 /**
  * @inheritDoc installPlugin
@@ -66,13 +66,13 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	try {
 		const activate = 'activate' in options ? options.activate : true;
 
-		const pluginsPath = `${playground.documentRoot}/wp-content/plugins`
-		const pluginZipPath = `${pluginsPath}/${pluginZipFile.name}`
+		const pluginsPath = `${playground.documentRoot}/wp-content/plugins`;
+		const pluginZipPath = `${pluginsPath}/${pluginZipFile.name}`;
 
 		await writeFile(playground, {
 			path: pluginZipPath,
-			data: pluginZipFile
-		})
+			data: pluginZipFile,
+		});
 
 		await playground.run({
 			code: `<?php
@@ -85,12 +85,16 @@ if ($res) {
 `,
 		});
 
-		const pluginPath = pluginZipPath.replace('.zip', '')
+		const pluginPath = pluginZipPath.replace('.zip', '');
 
 		if (activate) {
-			await activatePlugin(playground, {
-				pluginPath
-			}, progress)
+			await activatePlugin(
+				playground,
+				{
+					pluginPath,
+				},
+				progress
+			);
 		}
 
 		/**
