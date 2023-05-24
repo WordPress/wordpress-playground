@@ -36,7 +36,7 @@ npm run release
 Internet connections drop, APIs stop responding, and GitHub rules are nasty. Stuff happens. If the publishing process fails, you may need to bump the version again and force a publish. To do so, execute the following command:
 
 ```bash
-npm run release --force-publish
+npm run release -- --force-publish
 ```
 
 ## GitHub documentation
