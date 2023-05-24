@@ -105,8 +105,8 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		}
 
 		// Move it to site plugins
-
-		const pluginPath = `${playground.documentRoot}/wp-content/plugins/${pluginFolderName}`;
+		const rootPath = await playground.documentRoot
+		const pluginPath = `${rootPath}/wp-content/plugins/${pluginFolderName}`;
 
 		await playground.mv(tmpPluginPath, pluginPath);
 
