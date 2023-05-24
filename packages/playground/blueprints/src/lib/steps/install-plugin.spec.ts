@@ -16,19 +16,20 @@ describe('Blueprint step installPlugin', () => {
 	it('should install a plugin', async () => {
 		// Create test plugin
 
-		php.mkdir('/test-plugin');
+		php.mkdir('/tmp/test-plugin');
 		php.writeFile(
-			'/test-plugin/index.php',
+			'/tmp/test-plugin/index.php',
 			`/**\n * Plugin Name: Test Plugin`
 		);
 
 		await php.run({
-			code: `<?php $zip = new ZipArchive(); $zip->open("test-plugin.zip", ZIPARCHIVE::CREATE); $zip->addFile("/test-plugin/index.php"); $zip->close();`,
+			code: `<?php $zip = new ZipArchive(); $zip->open("test-plugin-0.0.1.zip", ZIPARCHIVE::CREATE); $zip->addFile("/tmp/test-plugin/index.php"); $zip->close();`,
 		});
 
-		php.rmdir('/test-plugin');
+		php.rmdir('/tmp/test-plugin');
 
-		expect(php.fileExists('/test-plugin.zip')).toBe(true);
+		// Note the package name is different from plugin folder name
+		expect(php.fileExists('/test-plugin-0.0.1.zip')).toBe(true);
 
 		await runBlueprintSteps(
 			compileBlueprint({
@@ -37,7 +38,7 @@ describe('Blueprint step installPlugin', () => {
 						step: 'installPlugin',
 						pluginZipFile: {
 							resource: 'vfs',
-							path: '/test-plugin.zip',
+							path: '/test-plugin-0.0.1.zip',
 						},
 					},
 				],
