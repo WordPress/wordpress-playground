@@ -1,14 +1,11 @@
-import startWPNow, { WPNowOutputOptions } from './wp-now';
+import startWPNow from './wp-now';
 import { downloadWPCLI } from './download';
 import { disableOutput } from './output';
 import getWpCliPath from './get-wp-cli-path';
 import getWpNowConfig from './config';
 import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from './constants';
 
-export async function executeWPCli(
-	args: string[],
-	outputOptions?: WPNowOutputOptions
-) {
+export async function executeWPCli(args: string[]) {
 	await downloadWPCLI();
 	disableOutput();
 	const options = await getWpNowConfig({
@@ -16,13 +13,10 @@ export async function executeWPCli(
 		wp: DEFAULT_WORDPRESS_VERSION,
 		path: process.env.WP_NOW_PROJECT_PATH || process.cwd(),
 	});
-	const { phpInstances, options: wpNowOptions } = await startWPNow(
-		{
-			...options,
-			numberOfPhpInstances: 2,
-		},
-		outputOptions
-	);
+	const { phpInstances, options: wpNowOptions } = await startWPNow({
+		...options,
+		numberOfPhpInstances: 2,
+	});
 	const [, php] = phpInstances;
 
 	try {
