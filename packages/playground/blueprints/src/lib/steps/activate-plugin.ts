@@ -19,8 +19,8 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Activating ${pluginPath}`);
 	const requiredFiles = [
-		`${playground.documentRoot}/wp-load.php`,
-		`${playground.documentRoot}/wp-admin/includes/plugin.php`,
+		`${await playground.documentRoot}/wp-load.php`,
+		`${await playground.documentRoot}/wp-admin/includes/plugin.php`,
 	];
 	const requiredFilesExist = requiredFiles.every((file) =>
 		playground.fileExists(file)
