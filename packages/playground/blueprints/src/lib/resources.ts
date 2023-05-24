@@ -140,6 +140,9 @@ export abstract class Resource {
  * A `Resource` that represents a file in the VFS (virtual file system) of the playground.
  */
 export class VFSResource extends Resource {
+
+	public buffer?: Uint8Array;
+
 	/**
 	 * Creates a new instance of `VFSResource`.
 	 * @param playground The playground client.
@@ -159,7 +162,15 @@ export class VFSResource extends Resource {
 			this.resource.path
 		);
 		this.progress?.set(100);
-		return new File([buffer], this.name);
+		const file = new File([buffer], this.name);
+
+		// Workaround for File class in Node.js lacking arrayBuffer() method
+		if (!file.arrayBuffer) {
+			file.arrayBuffer = async function() {
+				return buffer;
+			}
+		}
+		return file;
 	}
 
 	/** @inheritDoc */

@@ -7,7 +7,7 @@ describe('Blueprint step installPlugin', () => {
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion, {
 			requestHandler: {
-				documentRoot: '/',
+				documentRoot: '/wordpress',
 				isStaticFilePath: (path) => !path.endsWith('.php'),
 			},
 		});
@@ -16,22 +16,30 @@ describe('Blueprint step installPlugin', () => {
 	it('should install a plugin', async () => {
 		// Create test plugin
 
-		php.mkdir('/tmp/test-plugin');
+		const pluginName = 'test-plugin'
+
+		php.mkdir(`/${pluginName}`);
 		php.writeFile(
-			'/tmp/test-plugin/index.php',
+			`/${pluginName}/index.php`,
 			`/**\n * Plugin Name: Test Plugin`
 		);
 
-		const zipFileName = 'test-plugin-0.0.1.zip';
+		const zipFileName = `${pluginName}-0.0.1.zip`;
 
 		await php.run({
-			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); $zip->addFile("/tmp/test-plugin/index.php"); $zip->close();`,
+			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); $zip->addFile("/${pluginName}/index.php"); $zip->close();`,
 		});
 
-		php.rmdir('/tmp/test-plugin');
+		php.rmdir(`/${pluginName}`);
 
 		// Note the package name is different from plugin folder name
 		expect(php.fileExists(zipFileName)).toBe(true);
+
+		// Create plugins folder
+		const rootPath = await php.documentRoot;
+		const pluginsPath = `${rootPath}/wp-content/plugins`;
+
+		php.mkdir(pluginsPath)
 
 		await runBlueprintSteps(
 			compileBlueprint({
@@ -42,6 +50,9 @@ describe('Blueprint step installPlugin', () => {
 							resource: 'vfs',
 							path: zipFileName,
 						},
+						options: {
+							activate: false
+						}
 					},
 				],
 			}),
@@ -51,7 +62,7 @@ describe('Blueprint step installPlugin', () => {
 		php.unlink(zipFileName);
 
 		expect(
-			php.fileExists(`${php.documentRoot}/wp-content/test-plugin`)
+			php.fileExists(`${pluginsPath}/${pluginName}`)
 		).toBe(true);
 	}, 30000);
 });
