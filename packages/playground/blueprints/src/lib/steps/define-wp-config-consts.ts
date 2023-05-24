@@ -23,13 +23,13 @@ export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
 > = async (playground, { consts, virtualize = false }) => {
 	const documentRoot = await playground.documentRoot;
-	let basePath = documentRoot;
-	if (virtualize) {
-		playground.mkdir(VFS_CONFIG_FILE_BASENAME);
-		basePath = VFS_CONFIG_FILE_BASENAME;
-	}
+	const basePath = virtualize ? VFS_CONFIG_FILE_BASENAME : documentRoot;
 	const jsonPath = `${basePath}/playground-consts.json`;
 	const configFilePath = `${basePath}/wp-config.php`;
+	if (virtualize) {
+		playground.mkdir(VFS_CONFIG_FILE_BASENAME);
+		playground.setPhpIniEntry('auto_prepend_file', configFilePath);
+	}
 	await updateFile(playground, jsonPath, (contents) =>
 		JSON.stringify({
 			...JSON.parse(contents || '{}'),

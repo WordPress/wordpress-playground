@@ -49,11 +49,6 @@ describe('Blueprints', () => {
 			consts,
 			virtualize: true,
 		});
-		// Step2: set the auto_prepend_file php.ini entry
-		await setPhpIniEntry(php, {
-			key: 'auto_prepend_file',
-			value: configFile,
-		});
 		expect(configFile.startsWith(VFS_CONFIG_FILE_BASENAME)).toBe(true);
 		expect(
 			php.fileExists(`${VFS_CONFIG_FILE_BASENAME}/playground-consts.json`)
