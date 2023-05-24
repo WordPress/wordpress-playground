@@ -287,6 +287,7 @@ describe('Test starting different modes', () => {
 		['index', ['index.php']],
 		['plugin', ['sample-plugin.php']],
 		['theme', ['style.css']],
+		['playground', ['my-file.txt']],
 	])('startWPNow starts %s mode', async (mode, expectedDirectories) => {
 		const projectPath = path.join(tmpExampleDirectory, mode);
 
