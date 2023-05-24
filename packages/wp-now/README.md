@@ -75,7 +75,7 @@ Of these, `wp-now php` currently supports the `--path=<path>`, `--php=<version>`
 
 If you are migrating from Laravel Valet, you should be aware of the differences it has with `wp-now`:
 
--   `wp-now` does not require you to install WordPress separately, create a database, connect WordPress to that database or create a user account. All of these steps are handled by the `wp now start` command and are running under the hood;
+-   `wp-now` does not require you to install WordPress separately, create a database, connect WordPress to that database or create a user account. All of these steps are handled by the `wp-now start` command and are running under the hood;
 -   `wp-now` works across all platforms (Mac, Linux, Windows);
 -   `wp-now` does not support custom domains or SSL (yet!);
 -   `wp-now` works with WordPress themes and plugins even if you don't have WordPress installed;
