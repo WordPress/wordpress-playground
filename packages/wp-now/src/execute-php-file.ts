@@ -4,8 +4,6 @@ import startWPNow from './wp-now';
 import { WPNowOptions } from './config';
 import { disableOutput } from './output';
 
-const VFS_TMP_PATH = '/vfs-wp-now-tmp';
-
 /**
  *
  * Execute a PHP file given its path. For non index mode it loads WordPress context.
@@ -21,7 +19,7 @@ export async function executePHPFile(
 	options: WPNowOptions = {}
 ) {
 	disableOutput();
-	const { phpInstances, options: wpNowOptions } = await startWPNow({
+	const { phpInstances } = await startWPNow({
 		...options,
 		numberOfPhpInstances: 2,
 	});
