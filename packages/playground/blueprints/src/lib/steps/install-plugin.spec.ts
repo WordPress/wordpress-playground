@@ -22,14 +22,16 @@ describe('Blueprint step installPlugin', () => {
 			`/**\n * Plugin Name: Test Plugin`
 		);
 
+		const zipFileName = 'test-plugin-0.0.1.zip'
+
 		await php.run({
-			code: `<?php $zip = new ZipArchive(); $zip->open("test-plugin-0.0.1.zip", ZIPARCHIVE::CREATE); $zip->addFile("/tmp/test-plugin/index.php"); $zip->close();`,
+			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); $zip->addFile("/tmp/test-plugin/index.php"); $zip->close();`,
 		});
 
 		php.rmdir('/tmp/test-plugin');
 
 		// Note the package name is different from plugin folder name
-		expect(php.fileExists('/test-plugin-0.0.1.zip')).toBe(true);
+		expect(php.fileExists(zipFileName)).toBe(true);
 
 		await runBlueprintSteps(
 			compileBlueprint({
@@ -38,7 +40,7 @@ describe('Blueprint step installPlugin', () => {
 						step: 'installPlugin',
 						pluginZipFile: {
 							resource: 'vfs',
-							path: '/test-plugin-0.0.1.zip',
+							path: zipFileName,
 						},
 					},
 				],
@@ -46,7 +48,7 @@ describe('Blueprint step installPlugin', () => {
 			php
 		);
 
-		php.unlink('/test-plugin-0.0.1.zip');
+		php.unlink(zipFileName);
 
 		expect(
 			php.fileExists(`${php.documentRoot}/wp-content/test-plugin`)
