@@ -85,7 +85,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			extractToPath: tmpFolder,
 		});
 
-		await playground.unlink(tmpZipPath)
+		await playground.unlink(tmpZipPath);
 
 		// Find extracted plugin folder name
 
