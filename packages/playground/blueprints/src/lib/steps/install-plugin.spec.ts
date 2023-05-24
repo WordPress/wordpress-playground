@@ -22,7 +22,7 @@ describe('Blueprint step installPlugin', () => {
 			`/**\n * Plugin Name: Test Plugin`
 		);
 
-		const zipFileName = 'test-plugin-0.0.1.zip'
+		const zipFileName = 'test-plugin-0.0.1.zip';
 
 		await php.run({
 			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); $zip->addFile("/tmp/test-plugin/index.php"); $zip->close();`,

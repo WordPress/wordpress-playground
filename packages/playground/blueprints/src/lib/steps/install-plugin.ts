@@ -61,18 +61,14 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	{ pluginZipFile, options = {} },
 	progress?
 ) => {
+	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
+	const zipNiceName = zipNameToHumanName(zipFileName);
 
-	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip'
-	const zipNiceName = zipNameToHumanName(zipFileName)
-
-	progress?.tracker.setCaption(
-		`Installing the ${zipNiceName} plugin`
-	);
+	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	try {
-
 		// Extract to temporary folder so we can find plugin folder name
 
-		const tmpFolder = '/tmp/plugin'
+		const tmpFolder = '/tmp/plugin';
 		const tmpZipPath = `/tmp/${zipFileName}`;
 
 		if (await playground.isDir(tmpFolder)) {
@@ -86,7 +82,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 		await unzip(playground, {
 			zipPath: tmpZipPath,
-			extractToPath: tmpFolder
+			extractToPath: tmpFolder,
 		});
 
 		// Find extracted plugin folder name
@@ -97,25 +93,22 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		let tmpPluginPath = '';
 
 		for (const file of files) {
-			tmpPluginPath = `${tmpFolder}/${file}`
+			tmpPluginPath = `${tmpFolder}/${file}`;
 			if (await playground.isDir(tmpPluginPath)) {
 				pluginFolderName = file;
-				break
+				break;
 			}
 		}
 
 		if (!pluginFolderName) {
-			throw new Error('Extracted plugin folder not found')
+			throw new Error('Extracted plugin folder not found');
 		}
 
 		// Move it to site plugins
 
 		const pluginPath = `${playground.documentRoot}/wp-content/plugins/${pluginFolderName}`;
 
-		await playground.mv(
-			tmpPluginPath,
-			pluginPath
-		)
+		await playground.mv(tmpPluginPath, pluginPath);
 
 		const activate = 'activate' in options ? options.activate : true;
 
@@ -130,7 +123,6 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		}
 
 		await maybeApplyGutenbergPatch(playground);
-
 	} catch (error) {
 		console.error(
 			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
@@ -140,9 +132,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	}
 };
 
-async function maybeApplyGutenbergPatch(
-	playground: UniversalPHP
-) {
+async function maybeApplyGutenbergPatch(playground: UniversalPHP) {
 	/**
 	 * Pair the site editor's nested iframe to the Service Worker.
 	 *
@@ -172,9 +162,7 @@ async function maybeApplyGutenbergPatch(
 	 * See https://github.com/WordPress/wordpress-playground/issues/42 for more details
 	 */
 	if (
-		(await playground.isDir(
-			'/wordpress/wp-content/plugins/gutenberg'
-		)) &&
+		(await playground.isDir('/wordpress/wp-content/plugins/gutenberg')) &&
 		!(await playground.fileExists('/wordpress/.gutenberg-patched'))
 	) {
 		await playground.writeFile('/wordpress/.gutenberg-patched', '1');
