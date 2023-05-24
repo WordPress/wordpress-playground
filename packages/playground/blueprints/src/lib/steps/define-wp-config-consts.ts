@@ -9,7 +9,7 @@ export interface DefineWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 	/** Whether to virtualize the wp-config.php and playground-consts.json files, by default false */
-	virtualize: boolean;
+	virtualize?: boolean;
 }
 
 /**
