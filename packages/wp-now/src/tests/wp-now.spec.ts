@@ -516,6 +516,22 @@ describe('Test starting different modes', () => {
  * Test wp-cli command.
  */
 describe('wp-cli command', () => {
+	let consoleSpy;
+	let output = '';
+
+	beforeEach(() => {
+		function onStdout(outputLine: string) {
+			output += outputLine;
+		}
+		consoleSpy = vi.spyOn(console, 'log');
+		consoleSpy.mockImplementation(onStdout);
+	});
+
+	afterEach(() => {
+		output = '';
+		consoleSpy.mockRestore();
+	});
+
 	beforeAll(async () => {
 		await downloadWithTimer('wp-cli', downloadWPCLI);
 	});
@@ -523,18 +539,13 @@ describe('wp-cli command', () => {
 	afterAll(() => {
 		fs.removeSync(getWpCliPath());
 	});
+
 	/**
 	 * Test wp-cli displays the version.
 	 * We don't need the WordPress context for this test.
 	 */
 	test('wp-cli displays the version', async () => {
-		let output = '';
-		function onStdout(outputLine: string) {
-			output += outputLine;
-		}
-		await executeWPCli(['cli', 'version'], {
-			onStdout,
-		});
+		await executeWPCli(['cli', 'version']);
 		expect(output).toMatch(/WP-CLI (\d\.?)+/i);
 	});
 });
