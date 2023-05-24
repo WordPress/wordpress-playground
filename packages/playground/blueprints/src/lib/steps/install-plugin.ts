@@ -103,7 +103,9 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		}
 
 		if (!pluginFolderName) {
-			throw new Error(`The plugin zip file should contain a folder with plugin files inside, but the provided zip file (${zipFileName}) does not contain such a folders.`);
+			throw new Error(
+				`The plugin zip file should contain a folder with plugin files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
+			);
 		}
 
 		// Move it to site plugins

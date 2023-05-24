@@ -16,7 +16,7 @@ describe('Blueprint step installPlugin', () => {
 	it('should install a plugin', async () => {
 		// Create test plugin
 
-		const pluginName = 'test-plugin'
+		const pluginName = 'test-plugin';
 
 		php.mkdir(`/${pluginName}`);
 		php.writeFile(
@@ -39,7 +39,7 @@ describe('Blueprint step installPlugin', () => {
 		const rootPath = await php.documentRoot;
 		const pluginsPath = `${rootPath}/wp-content/plugins`;
 
-		php.mkdir(pluginsPath)
+		php.mkdir(pluginsPath);
 
 		await runBlueprintSteps(
 			compileBlueprint({
@@ -51,8 +51,8 @@ describe('Blueprint step installPlugin', () => {
 							path: zipFileName,
 						},
 						options: {
-							activate: false
-						}
+							activate: false,
+						},
 					},
 				],
 			}),
@@ -61,8 +61,6 @@ describe('Blueprint step installPlugin', () => {
 
 		php.unlink(zipFileName);
 
-		expect(
-			php.fileExists(`${pluginsPath}/${pluginName}`)
-		).toBe(true);
+		expect(php.fileExists(`${pluginsPath}/${pluginName}`)).toBe(true);
 	}, 30000);
 });
