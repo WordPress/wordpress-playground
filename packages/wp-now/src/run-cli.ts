@@ -7,7 +7,6 @@ import getWpNowConfig from './config';
 import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
 import { executePHPFile } from './execute-php-file';
 import { output } from './output';
-import { executeWPCli } from './execute-wp-cli';
 
 function startSpinner(message: string) {
 	process.stdout.write(`${message}...\n`);
