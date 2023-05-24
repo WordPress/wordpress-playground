@@ -85,6 +85,8 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			extractToPath: tmpFolder,
 		});
 
+		await playground.unlink(tmpZipPath)
+
 		// Find extracted plugin folder name
 
 		const files = await playground.listFiles(tmpFolder);
@@ -105,7 +107,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		}
 
 		// Move it to site plugins
-		const rootPath = await playground.documentRoot
+		const rootPath = await playground.documentRoot;
 		const pluginPath = `${rootPath}/wp-content/plugins/${pluginFolderName}`;
 
 		await playground.mv(tmpPluginPath, pluginPath);
