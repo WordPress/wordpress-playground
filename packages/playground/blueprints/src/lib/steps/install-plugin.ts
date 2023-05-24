@@ -1,6 +1,8 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
-import { asDOM, zipNameToHumanName } from './common';
+import { zipNameToHumanName } from './common';
+import { writeFile } from './client-methods'
+import { activatePlugin } from './activate-plugin'
 
 /**
  * @inheritDoc installPlugin
@@ -64,39 +66,31 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	try {
 		const activate = 'activate' in options ? options.activate : true;
 
-		// Upload it to WordPress
-		const pluginForm = await playground.request({
-			url: '/wp-admin/plugin-install.php?tab=upload',
-		});
-		const pluginFormPage = asDOM(pluginForm);
-		const pluginFormData = new FormData(
-			pluginFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
-		) as any;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { pluginzip, ...postData } = Object.fromEntries(
-			pluginFormData.entries()
-		);
+		const pluginsPath = `${playground.documentRoot}/wp-content/plugins`
+		const pluginZipPath = `${pluginsPath}/${pluginZipFile.name}`
 
-		const pluginInstalledResponse = await playground.request({
-			url: '/wp-admin/update.php?action=upload-plugin',
-			method: 'POST',
-			formData: postData,
-			files: { pluginzip: pluginZipFile },
+		await writeFile(playground, {
+			path: pluginZipPath,
+			data: pluginZipFile
+		})
+
+		await playground.run({
+			code: `<?php
+$zip = new ZipArchive;
+$res = $zip->open('${pluginZipPath}');
+if ($res) {
+  $zip->extractTo('${pluginsPath}');
+  $zip->close();
+}
+`,
 		});
 
-		// Activate if needed
+		const pluginPath = pluginZipPath.replace('.zip', '')
+
 		if (activate) {
-			const pluginInstalledPage = asDOM(pluginInstalledResponse);
-			const activateButtonHref = pluginInstalledPage
-				.querySelector('#wpbody-content .button.button-primary')!
-				.attributes.getNamedItem('href')!.value;
-			const activatePluginUrl = new URL(
-				activateButtonHref,
-				await playground.pathToInternalUrl('/wp-admin/')
-			).toString();
-			await playground.request({
-				url: activatePluginUrl,
-			});
+			await activatePlugin(playground, {
+				pluginPath
+			}, progress)
 		}
 
 		/**
@@ -155,7 +149,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		}
 	} catch (error) {
 		console.error(
-			`Proceeding without the ${pluginZipFile.name} theme. Could not install it in wp-admin. ` +
+			`Proceeding without the ${pluginZipFile.name} plugin. Could not install it in wp-admin. ` +
 				`The original error was: ${error}`
 		);
 		console.error(error);
