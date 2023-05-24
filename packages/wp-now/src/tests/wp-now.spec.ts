@@ -29,8 +29,9 @@ async function downloadWithTimer(name, fn) {
 
 // Options
 test('getWpNowConfig with default options', async () => {
+	const projectDirectory = exampleDir + '/index';
 	const rawOptions: CliOptions = {
-		path: exampleDir + '/index',
+		path: projectDirectory,
 	};
 	const options = await getWpNowConfig(rawOptions);
 
@@ -38,7 +39,7 @@ test('getWpNowConfig with default options', async () => {
 	expect(options.wordPressVersion).toBe('latest');
 	expect(options.documentRoot).toBe('/var/www/html');
 	expect(options.mode).toBe(WPNowMode.INDEX);
-	expect(options.projectPath).toBe(exampleDir);
+	expect(options.projectPath).toBe(projectDirectory);
 });
 
 //TODO: Add it back when all options are supported as cli arguments
