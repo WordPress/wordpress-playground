@@ -138,6 +138,14 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 async function maybeApplyGutenbergPatch(playground: UniversalPHP) {
 	/**
+	 * The patch below is no longer necessary as it's been fixed upstream:
+	 *
+	 * https://github.com/WordPress/gutenberg/pull/50875
+	 *
+	 * It can be removed in the next few WordPress releases.
+	 *
+	 * ---
+	 *
 	 * Pair the site editor's nested iframe to the Service Worker.
 	 *
 	 * Without the patch below, the site editor initiates network requests that
