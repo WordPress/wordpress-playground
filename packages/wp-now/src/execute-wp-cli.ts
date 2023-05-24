@@ -1,11 +1,14 @@
-import startWPNow from './wp-now';
+import startWPNow, { WPNowOutputOptions } from './wp-now';
 import { downloadWPCLI } from './download';
 import { disableOutput } from './output';
 import getWpCliPath from './get-wp-cli-path';
 import getWpNowConfig from './config';
 import { DEFAULT_PHP_VERSION, DEFAULT_WORDPRESS_VERSION } from './constants';
 
-export async function executeWPCli(args: string[], emscriptenOptions = {}) {
+export async function executeWPCli(
+	args: string[],
+	outputOptions?: WPNowOutputOptions
+) {
 	await downloadWPCLI();
 	disableOutput();
 	const options = await getWpNowConfig({
@@ -18,7 +21,7 @@ export async function executeWPCli(args: string[], emscriptenOptions = {}) {
 			...options,
 			numberOfPhpInstances: 2,
 		},
-		emscriptenOptions
+		outputOptions
 	);
 	const [, php] = phpInstances;
 

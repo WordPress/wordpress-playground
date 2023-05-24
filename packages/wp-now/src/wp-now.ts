@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { NodePHP } from '@php-wasm/node';
+import { NodePHP, PHPLoaderOptions } from '@php-wasm/node';
 import path from 'path';
 import { SQLITE_FILENAME } from './constants';
 import {
@@ -27,6 +27,10 @@ import getWpNowPath from './get-wp-now-path';
 import getWordpressVersionsPath from './get-wordpress-versions-path';
 import getSqlitePath from './get-sqlite-path';
 
+export interface WPNowOutputOptions {
+	onStdout?: (data: string) => void;
+}
+
 function seemsLikeAPHPFile(path) {
 	return path.endsWith('.php') || path.includes('.php/');
 }
@@ -39,10 +43,11 @@ async function applyToInstances(phpInstances: NodePHP[], callback: Function) {
 
 export default async function startWPNow(
 	options: Partial<WPNowOptions> = {},
-	emscriptenOptions = {}
+	outputOptions: WPNowOutputOptions = {}
 ): Promise<{ php: NodePHP; phpInstances: NodePHP[]; options: WPNowOptions }> {
 	const { documentRoot } = options;
-	const nodePHPOptions = {
+	const print = outputOptions.onStdout;
+	const nodePHPOptions: PHPLoaderOptions = {
 		requestHandler: {
 			documentRoot,
 			absoluteUrl: options.absoluteUrl,
@@ -60,7 +65,7 @@ export default async function startWPNow(
 				}
 			},
 		},
-		emscriptenOptions,
+		emscriptenOptions: print ? { print } : {},
 	};
 
 	const phpInstances = [];
