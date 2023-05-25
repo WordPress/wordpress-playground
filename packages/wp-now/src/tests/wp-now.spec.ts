@@ -17,8 +17,8 @@ import {
 import os from 'os';
 import crypto from 'crypto';
 import getWpNowTmpPath from '../get-wp-now-tmp-path';
+import getWpCliTmpPath from '../get-wp-cli-tmp-path';
 import { executeWPCli } from '../execute-wp-cli';
-import getWpCliPath from '../get-wp-cli-path';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -539,7 +539,7 @@ describe('wp-cli command', () => {
 	});
 
 	afterAll(() => {
-		fs.removeSync(getWpCliPath());
+		fs.removeSync(getWpCliTmpPath());
 	});
 
 	/**
