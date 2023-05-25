@@ -140,8 +140,6 @@ export abstract class Resource {
  * A `Resource` that represents a file in the VFS (virtual file system) of the playground.
  */
 export class VFSResource extends Resource {
-	public buffer?: Uint8Array;
-
 	/**
 	 * Creates a new instance of `VFSResource`.
 	 * @param playground The playground client.
