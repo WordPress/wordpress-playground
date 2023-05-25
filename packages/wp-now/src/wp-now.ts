@@ -81,13 +81,13 @@ export default async function startWPNow(
 	output?.log(`directory: ${options.projectPath}`);
 	output?.log(`mode: ${options.mode}`);
 	output?.log(`php: ${options.phpVersion}`);
-	output?.log(`wp: ${options.wordPressVersion}`);
 	if (options.mode === WPNowMode.INDEX) {
 		await applyToInstances(phpInstances, async (_php) => {
 			runIndexMode(_php, options);
 		});
 		return { php, phpInstances, options };
 	}
+	output?.log(`wp: ${options.wordPressVersion}`);
 	await Promise.all([
 		downloadWordPress(options.wordPressVersion),
 		downloadSqliteIntegrationPlugin(),
