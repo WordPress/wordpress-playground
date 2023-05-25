@@ -4,7 +4,7 @@ import { disableOutput } from './output';
 
 /**
  *
- * Execute a PHP file given its path. For non index mode it loads WordPress context.
+ * Execute a PHP cli given its parameters.
  *
  * @param phpArgs - Arguments to pass to the PHP cli. The first argument should be the string 'php'.
  * @param options - Optional configuration object for WPNow. Defaults to an empty object.
@@ -12,7 +12,7 @@ import { disableOutput } from './output';
  * the exit name and status (0 for success).
  * @throws - Throws an error if the specified file is not found or if an error occurs while executing the file.
  */
-export async function executePHPFile(
+export async function executePHP(
 	phpArgs: string[],
 	options: WPNowOptions = {}
 ) {

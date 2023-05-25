@@ -5,7 +5,7 @@ import { portFinder } from './port-finder';
 import { SupportedPHPVersion } from '@php-wasm/universal';
 import getWpNowConfig, { CliOptions } from './config';
 import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
-import { executePHPFile } from './execute-php-file';
+import { executePHP } from './execute-php';
 import { output } from './output';
 
 function startSpinner(message: string) {
@@ -108,7 +108,7 @@ export async function runCli() {
 						? (argv._ as string[])
 						: args;
 					// 0: php, ...args
-					await executePHPFile(phpArgs, options);
+					await executePHP(phpArgs, options);
 					process.exit(0);
 				} catch (error) {
 					console.error(error);
