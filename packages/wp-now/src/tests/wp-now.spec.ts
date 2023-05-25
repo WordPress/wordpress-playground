@@ -1,5 +1,5 @@
 import startWPNow, { inferMode } from '../wp-now';
-import getWpNowConfig, { CliOptions, WPNowMode, WPNowOptions } from '../config';
+import getWpNowConfig, { CliOptions, WPNowMode } from '../config';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -185,7 +185,7 @@ describe('Test starting different modes', () => {
 	beforeAll(async () => {
 		fs.rmSync(getWpNowTmpPath(), { recursive: true, force: true });
 		await Promise.all([
-			downloadWithTimer('wordpresss', downloadWordPress),
+			downloadWithTimer('wordpress', downloadWordPress),
 			downloadWithTimer('sqlite', downloadSqliteIntegrationPlugin),
 		]);
 	});
