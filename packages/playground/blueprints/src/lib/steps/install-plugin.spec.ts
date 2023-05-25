@@ -24,6 +24,7 @@ describe('Blueprint step installPlugin', () => {
 			`/**\n * Plugin Name: Test Plugin`
 		);
 
+		// Note the package name is different from plugin folder name
 		const zipFileName = `${pluginName}-0.0.1.zip`;
 
 		await php.run({
@@ -32,7 +33,6 @@ describe('Blueprint step installPlugin', () => {
 
 		php.rmdir(`/${pluginName}`);
 
-		// Note the package name is different from plugin folder name
 		expect(php.fileExists(zipFileName)).toBe(true);
 
 		// Create plugins folder

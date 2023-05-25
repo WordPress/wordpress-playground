@@ -24,6 +24,7 @@ describe('Blueprint step installTheme', () => {
 			`/**\n * Theme Name: Test Theme`
 		);
 
+		// Note the package name is different from theme folder name
 		const zipFileName = `${themeName}-0.0.1.zip`;
 
 		await php.run({
@@ -32,7 +33,6 @@ describe('Blueprint step installTheme', () => {
 
 		php.rmdir(`/${themeName}`);
 
-		// Note the package name is different from theme folder name
 		expect(php.fileExists(zipFileName)).toBe(true);
 
 		// Create themes folder
