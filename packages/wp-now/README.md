@@ -1,5 +1,7 @@
 # wp-now
 
+![i5d637Jmx2WNn97j](https://github.com/mpkelly/wordpress-playground/assets/6851384/605d0096-05e4-4c30-8252-63743ad87aca)
+
 `wp-now` streamlines the process of setting up a local WordPress environment.
 
 It uses automatic mode detection to provide a fast setup process, regardless of whether you're working on a plugin or an entire site. You can easily switch between PHP and WordPress versions with just a configuration argument. Under the hood, `wp-now` is powered by WordPress Playground and only requires Node.js.
