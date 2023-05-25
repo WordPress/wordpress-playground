@@ -140,12 +140,18 @@ body.is-embedded .fake-window-wrapper {
 
 @media (max-width: 902px) {
 	.wrapper {
-		padding: 15px;
+		padding: 0;
 		height: 100%;
+	}
+	.window {
+		border-radius: 0;
 	}
 }
 
 @media (max-width: 812px) {
+	.toolbar {
+		padding: 0 10px;
+	}
 	.window-controls {
 		display: none;
 	}
