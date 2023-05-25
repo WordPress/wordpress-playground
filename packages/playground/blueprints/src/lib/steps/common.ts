@@ -1,8 +1,4 @@
-import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
-
-export function asDOM(response: PHPResponse) {
-	return new DOMParser().parseFromString(response.text, 'text/html')!;
-}
+import type { UniversalPHP } from '@php-wasm/universal';
 
 export function zipNameToHumanName(zipName: string) {
 	const mixedCaseName = zipName.split('.').shift()!.replace('-', ' ');
