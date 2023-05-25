@@ -1,5 +1,8 @@
 import { StepHandler } from '.';
-import { asDOM, zipNameToHumanName } from './common';
+import { zipNameToHumanName } from './common';
+import { writeFile } from './client-methods';
+import { activateTheme } from './activate-theme';
+import { unzip } from './import-export';
 
 /**
  * @inheritDoc installTheme
@@ -61,70 +64,74 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	{ themeZipFile, options = {} },
 	progress
 ) => {
-	progress?.tracker.setCaption(
-		`Installing the ${zipNameToHumanName(themeZipFile.name)} theme`
-	);
+	const zipFileName = themeZipFile.name.split('/').pop() || 'theme.zip';
+	const zipNiceName = zipNameToHumanName(zipFileName);
+
+	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 	try {
+		// Extract to temporary folder so we can find theme folder name
+
+		const tmpFolder = '/tmp/theme';
+		const tmpZipPath = `/tmp/${zipFileName}`;
+
+		if (await playground.isDir(tmpFolder)) {
+			await playground.unlink(tmpFolder);
+		}
+
+		await writeFile(playground, {
+			path: tmpZipPath,
+			data: themeZipFile,
+		});
+
+		await unzip(playground, {
+			zipPath: tmpZipPath,
+			extractToPath: tmpFolder,
+		});
+
+		await playground.unlink(tmpZipPath);
+
+		// Find extracted theme folder name
+
+		const files = await playground.listFiles(tmpFolder);
+
+		let themeFolderName;
+		let tmpThemePath = '';
+
+		for (const file of files) {
+			tmpThemePath = `${tmpFolder}/${file}`;
+			if (await playground.isDir(tmpThemePath)) {
+				themeFolderName = file;
+				break;
+			}
+		}
+
+		if (!themeFolderName) {
+			throw new Error(
+				`The theme zip file should contain a folder with theme files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
+			);
+		}
+
+		// Move it to site themes
+		const rootPath = await playground.documentRoot;
+		const themePath = `${rootPath}/wp-content/themes/${themeFolderName}`;
+
+		await playground.mv(tmpThemePath, themePath);
+
 		const activate = 'activate' in options ? options.activate : true;
 
-		// Upload it to WordPress
-		const themeForm = await playground.request({
-			url: '/wp-admin/theme-install.php',
-		});
-		const themeFormPage = asDOM(themeForm);
-		const themeFormData = new FormData(
-			themeFormPage.querySelector('.wp-upload-form')! as HTMLFormElement
-		) as any;
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { themezip, ...postData } = Object.fromEntries(
-			themeFormData.entries()
-		);
-
-		const themeInstalledResponse = await playground.request({
-			url: '/wp-admin/update.php?action=upload-theme',
-			method: 'POST',
-			formData: postData,
-			files: { themezip: themeZipFile },
-		});
-
-		// Activate if needed
 		if (activate) {
-			const themeInstalledPage = asDOM(themeInstalledResponse);
-
-			const messageContainer = themeInstalledPage.querySelector(
-				'#wpbody-content > .wrap'
+			await activateTheme(
+				playground,
+				{
+					themeFolderName,
+				},
+				progress
 			);
-			if (
-				messageContainer?.textContent?.includes(
-					'Theme installation failed.'
-				)
-			) {
-				console.error(messageContainer?.textContent);
-				return;
-			}
-
-			const activateButton = themeInstalledPage.querySelector(
-				'#wpbody-content .activatelink, ' +
-					'.update-from-upload-actions .button.button-primary'
-			);
-			if (!activateButton) {
-				console.error('The "activate" button was not found.');
-				return;
-			}
-
-			const activateButtonHref =
-				activateButton.attributes.getNamedItem('href')!.value;
-			const activateThemeUrl = new URL(
-				activateButtonHref,
-				await playground.pathToInternalUrl('/wp-admin/')
-			).toString();
-			await playground.request({
-				url: activateThemeUrl,
-			});
 		}
+
 	} catch (error) {
 		console.error(
-			`Proceeding without the ${themeZipFile.name} theme. Could not install it in wp-admin. ` +
+			`Proceeding without the ${zipNiceName} theme. Could not install it in wp-admin. ` +
 				`The original error was: ${error}`
 		);
 		console.error(error);
