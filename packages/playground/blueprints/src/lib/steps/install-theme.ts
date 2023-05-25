@@ -128,7 +128,6 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 				progress
 			);
 		}
-
 	} catch (error) {
 		console.error(
 			`Proceeding without the ${zipNiceName} theme. Could not install it in wp-admin. ` +
