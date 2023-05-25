@@ -15,6 +15,7 @@ import {
 } from '@wp-playground/blueprints';
 import { WPNowOptions, WPNowMode } from './config';
 import {
+	hasIndexFile,
 	isPluginDirectory,
 	isThemeDirectory,
 	isWpContentDirectory,
@@ -110,6 +111,9 @@ export default async function startWPNow(
 				break;
 			case WPNowMode.THEME:
 				await runPluginOrThemeMode(_php, options);
+				break;
+			case WPNowMode.PLAYGROUND:
+				await runWpPlaygroundMode(_php, options);
 				break;
 		}
 	});
@@ -236,6 +240,28 @@ async function runPluginOrThemeMode(
 	mountMuPlugins(php, documentRoot);
 }
 
+async function runWpPlaygroundMode(
+	php: NodePHP,
+	{ documentRoot, wordPressVersion, wpContentPath, absoluteUrl }: WPNowOptions
+) {
+	const wordPressPath = path.join(
+		getWordpressVersionsPath(),
+		wordPressVersion
+	);
+	php.mount(wordPressPath, documentRoot);
+	await initWordPress(php, wordPressVersion, documentRoot, absoluteUrl);
+
+	fs.ensureDirSync(wpContentPath);
+	fs.copySync(
+		path.join(getWordpressVersionsPath(), wordPressVersion, 'wp-content'),
+		wpContentPath
+	);
+	php.mount(wpContentPath, `${documentRoot}/wp-content`);
+
+	mountSqlitePlugin(php, documentRoot);
+	mountMuPlugins(php, documentRoot);
+}
+
 /**
  * Initialize WordPress
  *
@@ -342,8 +368,10 @@ export function inferMode(
 		return WPNowMode.PLUGIN;
 	} else if (isThemeDirectory(projectPath)) {
 		return WPNowMode.THEME;
+	} else if (hasIndexFile(projectPath)) {
+		return WPNowMode.INDEX;
 	}
-	return WPNowMode.INDEX;
+	return WPNowMode.PLAYGROUND;
 }
 
 async function installationStep2(php: NodePHP) {

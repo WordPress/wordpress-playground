@@ -46,7 +46,8 @@ wp-now php my-file.php
     -   **wp-content** mode: Presence of `plugins` and `themes` subdirectories.
 -   **wordpress**: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   **wordpress-develop**: Same as `wordpress` mode, except the `build` directory is served as the web root.
--   **index**: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
+-   **index**: When an `index.php` file is present, starts a PHP webserver in the working directory and simply passes requests to the `index.php`.
+-   **playground**: If no other conditions are matched, launches a completely virtualized WordPress site.
 
 ### Arguments
 
@@ -61,7 +62,7 @@ Of these, `wp-now php` currently supports the `--path=<path>` and `--php=<versio
 
 ## Technical Details
 
--   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using 'theme', 'plugin', and 'wp-content' modes. The path to `wp-content` directory for the 'plugin', 'theme', and 'wp-content' modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`.
+-   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using 'theme', 'plugin', 'wp-content', and 'playground' modes. The path to `wp-content` directory for the 'plugin', 'theme', and 'wp-content' modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`. 'playground' mode shares the same `~/.wp-now/wp-content/playground` directory, regardless of where it's started.
 -   For the database setup, `wp-now` is using [SQLite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to SQLite database is ` ~/.wp-now/wp-content/${projectName}-${directoryHash}/database/.ht.sqlite`
 
 ## Known Issues
