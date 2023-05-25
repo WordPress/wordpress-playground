@@ -26,6 +26,7 @@ export const enum WPNowMode {
 	WORDPRESS_DEVELOP = 'wordpress-develop',
 	INDEX = 'index',
 	WP_CONTENT = 'wp-content',
+	PLAYGROUND = 'playground',
 	AUTO = 'auto',
 }
 
@@ -66,17 +67,17 @@ async function getAbsoluteURL() {
 	return `http://127.0.0.1:${port}`;
 }
 
-function getWpContentHomePath(projectPath: string) {
+function getWpContentHomePath(projectPath: string, mode: string) {
 	const basename = path.basename(projectPath);
 	const directoryHash = crypto
 		.createHash('sha1')
 		.update(projectPath)
 		.digest('hex');
-	return path.join(
-		getWpNowPath(),
-		'wp-content',
-		`${basename}-${directoryHash}`
-	);
+	const projectDirectory =
+		mode === WPNowMode.PLAYGROUND
+			? 'playground'
+			: `${basename}-${directoryHash}`;
+	return path.join(getWpNowPath(), 'wp-content', projectDirectory);
 }
 
 export default async function getWpNowConfig(
@@ -100,11 +101,14 @@ export default async function getWpNowConfig(
 		}
 	});
 
-	if (!options.wpContentPath) {
-		options.wpContentPath = getWpContentHomePath(options.projectPath);
-	}
 	if (!options.mode || options.mode === 'auto') {
 		options.mode = inferMode(options.projectPath);
+	}
+	if (!options.wpContentPath) {
+		options.wpContentPath = getWpContentHomePath(
+			options.projectPath,
+			options.mode
+		);
 	}
 	if (!options.absoluteUrl) {
 		options.absoluteUrl = await getAbsoluteURL();

@@ -1,3 +1,4 @@
+export * from './has-index-file';
 export * from './is-valid-wordpress-version';
 export * from './is-plugin-directory';
 export * from './is-theme-directory';

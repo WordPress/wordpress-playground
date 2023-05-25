@@ -1,6 +1,3 @@
-import os from 'os';
-import path from 'path';
-
 /**
  * The hidden folder name for storing WP Now related files.
  */

@@ -4,9 +4,6 @@ import startWPNow from './wp-now';
 import { WPNowOptions } from './config';
 import { disableOutput } from './output';
 
-const VFS_TMP_PATH = '/vfs-wp-now-tmp';
-const VFS_PHP_FILE = path.join(VFS_TMP_PATH, 'parent.php');
-
 /**
  *
  * Execute a PHP file given its path. For non index mode it loads WordPress context.
@@ -22,7 +19,7 @@ export async function executePHPFile(
 	options: WPNowOptions = {}
 ) {
 	disableOutput();
-	const { phpInstances, options: wpNowOptions } = await startWPNow({
+	const { phpInstances } = await startWPNow({
 		...options,
 		numberOfPhpInstances: 2,
 	});
@@ -34,24 +31,9 @@ export async function executePHPFile(
 		throw new Error(`Could not open input file: ${absoluteFilePath}`);
 	}
 
-	let fileToExecute = absoluteFilePath;
-	if (wpNowOptions.mode !== 'index') {
-		// Load WordPress context for non index mode.
-		php.mkdirTree(VFS_TMP_PATH);
-		php.writeFile(
-			VFS_PHP_FILE,
-			`<?php
-      $_SERVER['HTTP_HOST'] = '${wpNowOptions.absoluteUrl}';
-      require_once '${path.join(wpNowOptions.documentRoot, 'wp-load.php')}';
-      require_once '${filePath}';
-    `
-		);
-		fileToExecute = VFS_PHP_FILE;
-	}
-
 	try {
 		php.useHostFilesystem();
-		await php.cli(['php', fileToExecute]);
+		await php.cli(['php', absoluteFilePath]);
 	} catch (resultOrError) {
 		const success =
 			resultOrError.name === 'ExitStatus' && resultOrError.status === 0;

@@ -4,6 +4,8 @@
 
 It uses automatic mode detection to provide a fast setup process, regardless of whether you're working on a plugin or an entire site. You can easily switch between PHP and WordPress versions with just a configuration argument. Under the hood, `wp-now` is powered by WordPress Playground and only requires Node.js.
 
+![Demo GIF of wp-now](https://github.com/WordPress/wordpress-playground/assets/36432/474ecb85-d789-4db9-b820-a19c25da79ad)
+
 ## Getting Started
 
 To install `wp-now` directly from `npm`:
@@ -44,7 +46,8 @@ wp-now php my-file.php
     -   **wp-content** mode: Presence of `plugins` and `themes` subdirectories.
 -   **wordpress**: Runs the directory as a WordPress installation when WordPress files are detected. An existing `wp-config.php` file will be used if it exists; if it doesn't exist, it will be created along with a SQLite database.
 -   **wordpress-develop**: Same as `wordpress` mode, except the `build` directory is served as the web root.
--   **index**: Starts a PHP webserver in the working directory and simply passes requests to `index.php`.
+-   **index**: When an `index.php` file is present, starts a PHP webserver in the working directory and simply passes requests to the `index.php`.
+-   **playground**: If no other conditions are matched, launches a completely virtualized WordPress site.
 
 ### Arguments
 
@@ -55,11 +58,11 @@ wp-now php my-file.php
 -   `--port=<port>`: the port number on which the server will listen. This is optional and if not provided, it will pick an open port number automatically. The default port number is set to `8881`(example of usage: `--port=3000`);
 -   `--wp=<version>`: the version of WordPress to use. This is optional and if not provided, it will use a default version. The default version is set to the [latest WordPress version](https://wordpress.org/download/releases/)(example usage: `--wp=5.8`)
 
-Of these, `wp-now php` currently supports the `--path=<path>`, `--php=<version>`, and `--wp=<version>` arguments.
+Of these, `wp-now php` currently supports the `--path=<path>` and `--php=<version>` arguments.
 
 ## Technical Details
 
--   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using 'theme', 'plugin', and 'wp-content' modes. The path to `wp-content` directory for the 'plugin', 'theme', and 'wp-content' modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`.
+-   The `~/.wp-now` home directory is used to store the WP versions and the `wp-content` folders for projects using 'theme', 'plugin', 'wp-content', and 'playground' modes. The path to `wp-content` directory for the 'plugin', 'theme', and 'wp-content' modes is `~/.wp-now/wp-content/${projectName}-${directoryHash}`. 'playground' mode shares the same `~/.wp-now/wp-content/playground` directory, regardless of where it's started.
 -   For the database setup, `wp-now` is using [SQLite database integration plugin](https://wordpress.org/plugins/sqlite-database-integration/). The path to SQLite database is ` ~/.wp-now/wp-content/${projectName}-${directoryHash}/database/.ht.sqlite`
 
 ## Known Issues
@@ -107,54 +110,4 @@ Some similarities between `wp-env` and `wp-now` to be aware of:
 
 ## Contributing
 
-We welcome contributions from the community!
-
-In order to contribute to `wp-now`, you'll need to first install a few global dependencies:
-
--   Make sure you have `nvm` installed. If you need to install it first,
-    [follow these installation instructions](https://github.com/nvm-sh/nvm#installation).
--   Install `nx` by running `npm install -g nx`.
-
-Once the global dependencies are installed, you can start using the repo:
-
-```bash
-git clone git@github.com:WordPress/wordpress-playground.git
-cd wordpress-playground
-nvm use
-npm install
-npm run build
-nx preview wp-now start --path=/path/to/wordpress-plugin-or-theme
-```
-
-If you'd like to make the `wp-now` executable globally available when using this installation method, run `npm link`. It's not particularly reliable, however.
-
-Please refer to the main [README.md](../../README.md) file for more detail on how to contribute to this project.
-
-## Testing
-
-To run the unit tests, use the following command:
-
-```bash
-nx test wp-now
-```
-
-## Publishing
-
-The `wp-now` package is part of a larger monorepo, sharing its space with other sibling packages. To publish the `wp-now` package to npm, you must first understand the automated release process facilitated by lerna. This process includes automatically incrementing the version number, creating a new tag, and publishing all modified packages to npm simultaneously. Notably, all published packages share the same version number.
-
-Each package identifies a distinct organization in its `package.json` file. To publish the `wp-now` package, you need access to the npm organizations `@wp-playground`, `@php-wasm`, and `@wp-now`.
-
-To initiate the publishing process for the all the modified packages, execute the following commands:
-
-```bash
-npm login # this is required only once and it will store the credentials in ~/.npmrc file.
-npm run release
-```
-
-### When publishing goes wrong
-
-Internet connections drop, APIs stop responding, and GitHub rules are nasty. Stuff happens. If the publishing process fails, you may need to bump the version again and force a publish. To do so, execute the following command:
-
-```bash
-npm run release --force-publish
-```
+See [Contributing](CONTRIBUTING.md)
