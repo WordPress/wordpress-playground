@@ -30,10 +30,6 @@ function commonParameters(yargs) {
 		.option('php', {
 			describe: 'PHP version to use.',
 			type: 'string',
-		})
-		.option('wp', {
-			describe: "WordPress version to use: e.g. '--wp=6.2'",
-			type: 'string',
 		});
 }
 
@@ -59,6 +55,10 @@ export async function runCli() {
 			'Start the server',
 			(yargs) => {
 				commonParameters(yargs);
+				yargs.option('wp', {
+					describe: "WordPress version to use: e.g. '--wp=6.2'",
+					type: 'string',
+				});
 				yargs.option('port', {
 					describe: 'Server port',
 					type: 'number',
@@ -101,7 +101,6 @@ export async function runCli() {
 					const options = await getWpNowConfig({
 						path: argv.path as string,
 						php: argv.php as SupportedPHPVersion,
-						wp: argv.wp as string,
 					});
 					await executePHPFile(argv.file as string, options);
 					process.exit(0);
