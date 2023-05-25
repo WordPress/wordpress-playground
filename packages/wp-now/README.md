@@ -106,4 +106,5 @@ Some similarities between `wp-env` and `wp-now` to be aware of:
 -   possible to switch easily the PHP version
 
 ## Contributing
+
 See [Contributing](CONTRIBUTING.md)
