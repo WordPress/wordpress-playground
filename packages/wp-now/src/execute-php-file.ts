@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import startWPNow from './wp-now';
 import { WPNowOptions } from './config';
 import { disableOutput } from './output';
@@ -8,14 +6,14 @@ import { disableOutput } from './output';
  *
  * Execute a PHP file given its path. For non index mode it loads WordPress context.
  *
- * @param {string} filePath - The path to the PHP file to be executed.
- * @param {WPNowOptions} [options={}] - Optional configuration object for WPNow. Defaults to an empty object.
- * @returns {Promise<{ name: string; status: 0; }>} - Returns a Promise that resolves to an object containing
+ * @param phpArgs - Arguments to pass to the PHP cli. The first argument should be the string 'php'.
+ * @param options - Optional configuration object for WPNow. Defaults to an empty object.
+ * @returns - Returns a Promise that resolves to an object containing
  * the exit name and status (0 for success).
- * @throws {Error} - Throws an error if the specified file is not found or if an error occurs while executing the file.
+ * @throws - Throws an error if the specified file is not found or if an error occurs while executing the file.
  */
 export async function executePHPFile(
-	filePath: string,
+	phpArgs: string[],
 	options: WPNowOptions = {}
 ) {
 	disableOutput();
@@ -25,15 +23,9 @@ export async function executePHPFile(
 	});
 	const [, php] = phpInstances;
 
-	// check if filePath exists
-	const absoluteFilePath = path.resolve(filePath);
-	if (!fs.existsSync(absoluteFilePath)) {
-		throw new Error(`Could not open input file: ${absoluteFilePath}`);
-	}
-
 	try {
 		php.useHostFilesystem();
-		await php.cli(['php', absoluteFilePath]);
+		await php.cli(phpArgs);
 	} catch (resultOrError) {
 		const success =
 			resultOrError.name === 'ExitStatus' && resultOrError.status === 0;

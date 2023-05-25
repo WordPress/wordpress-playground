@@ -98,7 +98,7 @@ export async function runCli() {
 			},
 			async (argv) => {
 				try {
-					// 0: node, 1: wp-now, 2: php, 3: args
+					// 0: node, 1: wp-now, 2: php, ...args
 					const args = process.argv.slice(2);
 					const options = await getWpNowConfig({
 						path: argv.path as string,
@@ -107,7 +107,8 @@ export async function runCli() {
 					const phpArgs = args.includes('--')
 						? (argv._ as string[])
 						: args;
-					await executePHPFile(phpArgs[1], options);
+					// 0: php, ...args
+					await executePHPFile(phpArgs, options);
 					process.exit(0);
 				} catch (error) {
 					console.error(error);
