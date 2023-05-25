@@ -1,6 +1,6 @@
 # wp-now
 
-![i5d637Jmx2WNn97j](https://github.com/mpkelly/wordpress-playground/assets/6851384/605d0096-05e4-4c30-8252-63743ad87aca)
+![Demo GIF of wp-now](https://github.com/WordPress/wordpress-playground/assets/36432/474ecb85-d789-4db9-b820-a19c25da79ad)
 
 `wp-now` streamlines the process of setting up a local WordPress environment.
 
