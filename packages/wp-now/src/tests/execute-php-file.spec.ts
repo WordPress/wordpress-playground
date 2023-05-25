@@ -12,7 +12,10 @@ test('php file execution in index mode', async () => {
 	const options = await getWpNowConfig({
 		path: exampleDir,
 	});
-	await executePHPFile(path.join(exampleDir, 'hello-world.php'), options);
+	await executePHPFile(
+		['php', path.join(exampleDir, 'hello-world.php')],
+		options
+	);
 	const output = fs.readFileSync(resultFilePath, 'utf8');
 	expect(output).toBe('Hello World!');
 });
@@ -22,21 +25,21 @@ test('php file execution for each PHP Version', async () => {
 	const options = await getWpNowConfig({
 		path: exampleDir,
 	});
-	await executePHPFile(path.join(exampleDir, 'php-version.php'), {
+	await executePHPFile(['php', path.join(exampleDir, 'php-version.php')], {
 		...options,
 		phpVersion: '7.4',
 	});
 	let output = fs.readFileSync(resultFilePath, 'utf8');
 	expect(output.substring(0, 16)).toBe('PHP Version: 7.4');
 
-	await executePHPFile(path.join(exampleDir, 'php-version.php'), {
+	await executePHPFile(['php', path.join(exampleDir, 'php-version.php')], {
 		...options,
 		phpVersion: '8.0',
 	});
 	output = fs.readFileSync(resultFilePath, 'utf8');
 	expect(output.substring(0, 16)).toBe('PHP Version: 8.0');
 
-	await executePHPFile(path.join(exampleDir, 'php-version.php'), {
+	await executePHPFile(['php', path.join(exampleDir, 'php-version.php')], {
 		...options,
 		phpVersion: '8.2',
 	});
