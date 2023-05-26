@@ -1,6 +1,6 @@
 # Scopes
 
-Scopes keep your app working when you open it in two different different browser tabs.
+Scopes keep your app working when you open it in two different browser tabs.
 
 The Service Worker passes the intercepted HTTP requests to the PHPRequestHandler for rendering. Technically, it sends a message through a [`BroadcastChannel`](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel) which then gets delivered to every browser tab where the application is open. This is undesirable, slow, and leads to unexpected behaviors.
 

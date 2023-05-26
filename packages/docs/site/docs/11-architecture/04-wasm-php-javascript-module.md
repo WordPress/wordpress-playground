@@ -29,7 +29,7 @@ const php = NodePHP.load('7.4');
 const php = await WebPHP.load('8.0');
 ```
 
-Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standarizes the API across all PHP environments.
+Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standardizes the API across all PHP environments.
 
 ### Loading the PHP runtime
 

@@ -15,7 +15,7 @@ import TOCInline from '@theme/TOCInline';
 
 ## Start a new WordPress site
 
-Every time you visit the [the official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
+Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
 
 You can then create pages, upload plugins, themes, import your own site, and do most things you would do on a regular WordPress.
 
