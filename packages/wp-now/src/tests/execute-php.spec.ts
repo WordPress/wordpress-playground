@@ -50,6 +50,25 @@ test('php file execution for each PHP Version', async () => {
 	fs.writeFileSync(resultFilePath, 'PHP Version: X.Y');
 });
 
+test('php throws an error if the first element is not the string "php"', async () => {
+	const options = await getWpNowConfig({
+		path: exampleDir,
+	});
+	try {
+		await executePHP(
+			['word-different-to-php', path.join(exampleDir, 'php-version.php')],
+			{
+				...options,
+				phpVersion: '7.4',
+			}
+		);
+	} catch (error) {
+		expect(error.message).toBe(
+			'The first argument to executePHP must be the string "php".'
+		);
+	}
+});
+
 describe('validate php arguments passed through yargs', () => {
 	let output = '';
 	let consoleLogMock;
