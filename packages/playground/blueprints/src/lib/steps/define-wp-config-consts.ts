@@ -10,7 +10,12 @@ export interface DefineWpConfigConstsStep {
 	step: 'defineWpConfigConsts';
 	/** The constants to define */
 	consts: Record<string, unknown>;
-	/** Whether to virtualize the wp-config.php and playground-consts.json files, by default false */
+	/**
+	 * Enables the virtualization of wp-config.php and playground-consts.json files, leaving the local system files untouched.
+	 * The variables defined in the /vfs-blueprints/playground-consts.json file are loaded via the auto_prepend_file directive in the php.ini file.
+	 * @default false
+	 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+	 */
 	virtualize?: boolean;
 }
 
