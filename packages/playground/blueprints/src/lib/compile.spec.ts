@@ -1,7 +1,9 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
-import { VFS_CONFIG_FILE_BASENAME } from './steps/common';
-import { defineWpConfigConsts } from './steps/define-wp-config-consts';
+import {
+	VFS_TMP_DIRECTORY,
+	defineWpConfigConsts,
+} from './steps/define-wp-config-consts';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -34,7 +36,7 @@ describe('Blueprints', () => {
 		);
 	});
 
-	it('should define the consts in a json and auto load the constants in VFS_CONFIG_FILE_BASENAME/wp-config.php file', async () => {
+	it('should define the consts in a json and auto load the constants in VFS_TMP_DIRECTORY/wp-config.php file', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -48,9 +50,9 @@ describe('Blueprints', () => {
 			consts,
 			virtualize: true,
 		});
-		expect(configFile.startsWith(VFS_CONFIG_FILE_BASENAME)).toBe(true);
+		expect(configFile.startsWith(VFS_TMP_DIRECTORY)).toBe(true);
 		expect(
-			php.fileExists(`${VFS_CONFIG_FILE_BASENAME}/playground-consts.json`)
+			php.fileExists(`${VFS_TMP_DIRECTORY}/playground-consts.json`)
 		).toBe(true);
 		expect(
 			php.fileExists(`${php.documentRoot}/playground-consts.json`)

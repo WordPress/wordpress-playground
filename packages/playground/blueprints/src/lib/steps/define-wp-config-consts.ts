@@ -1,5 +1,7 @@
 import { StepHandler } from '.';
-import { VFS_CONFIG_FILE_BASENAME, updateFile } from './common';
+import { updateFile } from './common';
+
+export const VFS_TMP_DIRECTORY = '/vfs-blueprints';
 
 /**
  * The step object for defining constants in the wp-config.php file of a WordPress installation.
@@ -23,11 +25,11 @@ export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
 > = async (playground, { consts, virtualize = false }) => {
 	const documentRoot = await playground.documentRoot;
-	const basePath = virtualize ? VFS_CONFIG_FILE_BASENAME : documentRoot;
+	const basePath = virtualize ? VFS_TMP_DIRECTORY : documentRoot;
 	const jsonPath = `${basePath}/playground-consts.json`;
 	const configFilePath = `${basePath}/wp-config.php`;
 	if (virtualize) {
-		playground.mkdir(VFS_CONFIG_FILE_BASENAME);
+		playground.mkdir(VFS_TMP_DIRECTORY);
 		playground.setPhpIniEntry('auto_prepend_file', configFilePath);
 	}
 	await updateFile(playground, jsonPath, (contents) =>

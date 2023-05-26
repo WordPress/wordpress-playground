@@ -28,5 +28,3 @@ export async function updateFile(
 export async function fileToUint8Array(file: File) {
 	return new Uint8Array(await file.arrayBuffer());
 }
-
-export const VFS_CONFIG_FILE_BASENAME = '/vfs-blueprints';
