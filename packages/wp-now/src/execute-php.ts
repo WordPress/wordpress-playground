@@ -3,7 +3,6 @@ import { WPNowOptions } from './config';
 import { disableOutput } from './output';
 
 /**
- *
  * Execute a PHP cli given its parameters.
  *
  * @param phpArgs - Arguments to pass to the PHP cli. The first argument should be the string 'php'.
