@@ -13,7 +13,5 @@ if [[ "$@" != *"--path="* ]]; then
 fi
 
 cd $SCRIPT_DIR/..
-export NVM_DIR=$HOME/.nvm;
-source $NVM_DIR/nvm.sh;
-nvm use
+
 npx nx preview wp-now $ARGS
