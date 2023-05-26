@@ -62,5 +62,5 @@ describe('Blueprint step installPlugin', () => {
 		php.unlink(zipFileName);
 
 		expect(php.fileExists(`${pluginsPath}/${pluginName}`)).toBe(true);
-	}, 30000);
+	});
 });

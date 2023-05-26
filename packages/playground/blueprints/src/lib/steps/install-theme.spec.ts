@@ -62,5 +62,5 @@ describe('Blueprint step installTheme', () => {
 		php.unlink(zipFileName);
 
 		expect(php.fileExists(`${themesPath}/${themeName}`)).toBe(true);
-	}, 30000);
+	});
 });
