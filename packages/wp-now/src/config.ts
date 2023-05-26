@@ -64,7 +64,7 @@ export interface WPEnvOptions {
 
 async function getAbsoluteURL() {
 	const port = await portFinder.getOpenPort();
-	return `http://127.0.0.1:${port}`;
+	return `http://localhost:${port}`;
 }
 
 function getWpContentHomePath(projectPath: string, mode: string) {

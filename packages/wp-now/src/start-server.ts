@@ -102,7 +102,7 @@ export async function startServer(
 		}
 	});
 
-	const url = `http://127.0.0.1:${port}/`;
+	const url = `http://localhost:${port}/`;
 	app.listen(port, () => {
 		output?.log(`Server running at ${url}`);
 	});
