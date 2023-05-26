@@ -2,7 +2,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
 import { writeFile } from './client-methods';
-import { activatePlugin } from './activate-plugin';
+import { activatePlugin, findPluginEntryFile } from './activate-plugin';
 import { unzip } from './import-export';
 
 /**
@@ -117,29 +117,10 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		const activate = 'activate' in options ? options.activate : true;
 
 		if (activate) {
-			/**
-			 * Find plugin entry file - Based on logic in WordPress class
-			 * Plugin_Upgrader and function get_file_data
-			 */
-			const { text: pluginEntryFile } = await playground.run({
-				code: `<?php
-$files = glob( "${pluginPath}/" . '*.php' );
-if ( $files ) {
-	foreach ( $files as $file ) {
-
-		// Pull only the first 8 KB of the file in.
-		$file_data = file_get_contents( $file, false, null, 0, 8192 );
-		if ( false === $file_data ) continue;
-
-		if ( preg_match( '/^(?:[ \\t]*<\\?php)?[ \\t\\/*#@]*' . preg_quote( 'Plugin Name', '/' ) . ':(.*)$/mi', $file_data, $match ) && $match[1] ) {
-			echo $file;
-			return;
-		}
-	}
-}
-`,
-			});
-
+			const pluginEntryFile = await findPluginEntryFile(
+				playground,
+				pluginPath
+			);
 			if (!pluginEntryFile) {
 				throw new Error('Could not find plugin entry file');
 			}

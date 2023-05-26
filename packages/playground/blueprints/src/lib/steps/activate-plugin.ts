@@ -1,3 +1,4 @@
+import type { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 
 export interface ActivatePluginStep {
@@ -36,4 +37,37 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
       activate_plugin('${pluginPath}');
       `,
 	});
+};
+
+/**
+ * Find plugin entry file from its folder path.
+ *
+ * Based on logic in WordPress class Plugin_Upgrader and function get_file_data.
+ *
+ * @param playground The playground client.
+ * @param pluginFolderPath The plugin folder path.
+ */
+export const findPluginEntryFile = async (
+	playground: UniversalPHP,
+	pluginFolderPath: string
+): Promise<string | undefined> => {
+	const result = await playground.run({
+		code: `<?php
+$files = glob( "${pluginFolderPath}/" . '*.php' );
+if ( $files ) {
+	foreach ( $files as $file ) {
+
+		// Pull only the first 8 KB of the file in.
+		$file_data = file_get_contents( $file, false, null, 0, 8192 );
+		if ( false === $file_data ) continue;
+
+		if ( preg_match( '/^(?:[ \\t]*<\\?php)?[ \\t\\/*#@]*' . preg_quote( 'Plugin Name', '/' ) . ':(.*)$/mi', $file_data, $match ) && $match[1] ) {
+			echo $file;
+			return;
+		}
+	}
+}
+`,
+	});
+	return result.text;
 };
