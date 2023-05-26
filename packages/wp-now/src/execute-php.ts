@@ -10,12 +10,17 @@ import { disableOutput } from './output';
  * @param options - Optional configuration object for WPNow. Defaults to an empty object.
  * @returns - Returns a Promise that resolves to an object containing
  * the exit name and status (0 for success).
- * @throws - Throws an error if the specified file is not found or if an error occurs while executing the file.
+ * @throws - Throws an error if the first element in phpArgs is not the string 'php'.
  */
 export async function executePHP(
 	phpArgs: string[],
 	options: WPNowOptions = {}
 ) {
+	if (phpArgs[0] !== 'php') {
+		throw new Error(
+			'The first argument to executePHP must be the string "php".'
+		);
+	}
 	disableOutput();
 	const { phpInstances } = await startWPNow({
 		...options,
