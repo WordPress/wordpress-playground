@@ -31,7 +31,7 @@ Or a theme:
 
 ## Blueprints
 
-If you need more control over your Playground, you can use JSON Blueprints. For example, here's how to create a post and a install a plugin:
+If you need more control over your Playground, you can use JSON Blueprints. For example, here's how to create a post and install a plugin:
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 

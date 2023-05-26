@@ -69,7 +69,7 @@ Here's what happens whenever the iframe issues a same-domain request:
 
 ![The data flow](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/pages/data-flow.png)
 
-A step-by-step breakown:
+A step-by-step breakdown:
 
 1.  The request is intercepted by the Service Worker
 2.  The Service Worker passes it to the Worker Thread

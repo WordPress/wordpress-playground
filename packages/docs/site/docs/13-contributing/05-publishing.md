@@ -31,6 +31,13 @@ npm login # this is required only once and it will store the credentials in ~/.
 npm run release
 ```
 
+### After publishing
+
+To verify the publishing process went correctly:
+
+1. Please verify https://translate.wordpress.org/projects/wp-plugins/contact-form-7/dev/de/default/playground/ loads as expected. If it doesn't load, something broke.
+2. Please run `npm install -g @wp-now/wp-now`. Verify you have the latest version with `wp-now --version`. Try `wp-now start` in a couple of modes to make sure everything is loaded as expected.
+
 ### When publishing packages goes wrong
 
 Internet connections drop, APIs stop responding, and GitHub rules are nasty. Stuff happens. If the publishing process fails, you may need to bump the version again and force a publish. To do so, execute the following command:

@@ -67,6 +67,52 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(php.fileExists(testFilePath)).toEqual(false);
 		});
 
+		it('mv() should move a file', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			php.writeFile(file1, '1');
+			php.mv(file1, file2);
+			expect(php.fileExists(file1)).toEqual(false);
+			expect(php.fileExists(file2)).toEqual(true);
+			expect(php.readFileAsText(file2)).toEqual('1');
+		});
+
+		it('mv() should replace target file if it exists', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			php.writeFile(file1, '1');
+			php.writeFile(file2, '2');
+			php.mv(file1, file2);
+			expect(php.fileExists(file1)).toEqual(false);
+			expect(php.fileExists(file2)).toEqual(true);
+			expect(php.readFileAsText(file2)).toEqual('1');
+		});
+
+		it('mv() should throw a useful error when source file does not exist', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			expect(() => {
+				php.mv(file1, file2);
+			}).toThrowError(
+				`Could not move "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+			);
+		});
+
+		it('mv() should throw a useful error when target directory does not exist', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/nowhere/2.txt';
+			php.writeFile(file1, '1');
+			expect(() => {
+				php.mv(file1, file2);
+			}).toThrowError(
+				`Could not move "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+			);
+		});
+
 		it('mkdir() should create a directory', () => {
 			php.mkdir(testDirPath);
 			expect(php.fileExists(testDirPath)).toEqual(true);
