@@ -1,7 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from './compile';
 import { VFS_CONFIG_FILE_BASENAME } from './steps/common';
-import { setPhpIniEntry } from './steps/client-methods';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
 
 const phpVersion = '8.0';
