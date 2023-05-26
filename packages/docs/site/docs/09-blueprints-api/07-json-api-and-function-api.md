@@ -23,7 +23,7 @@ import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model.tsx';
 
 You can use Blueprints [both with the web and the node.js](./06-isomorphic.md) version of WordPress Playground.
 
-## Differencese between JSON and Function APIs
+## Differences between JSON and Function APIs
 
 There are two main differences between the JSON and Function APIs:
 
