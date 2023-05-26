@@ -52,8 +52,6 @@ export interface InstallThemeOptions {
 
 /**
  * Installs a WordPress theme in the Playground.
- * Technically, it uses the same theme upload form as a WordPress user
- * would, and then activates the theme if needed.
  *
  * @param playground The playground client.
  * @param themeZipFile The theme zip file.

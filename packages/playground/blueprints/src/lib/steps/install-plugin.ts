@@ -49,8 +49,6 @@ export interface InstallPluginOptions {
 
 /**
  * Installs a WordPress plugin in the Playground.
- * Technically, it uses the same plugin upload form as a WordPress user
- * would, and then activates the plugin if needed.
  *
  * @param playground The playground client.
  * @param pluginZipFile The plugin zip file.
