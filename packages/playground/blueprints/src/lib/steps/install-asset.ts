@@ -20,7 +20,6 @@ export async function installAsset(
 	assetFolderPath: string;
 	assetFolderName: string;
 }> {
-
 	// Extract to temporary folder so we can find asset folder name
 
 	const zipFileName = zipFile.name;

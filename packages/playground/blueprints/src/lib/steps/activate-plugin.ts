@@ -20,9 +20,8 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	{ pluginPath, pluginName },
 	progress
 ) => {
-
 	// Path to plugin entry file relative to plugins directory
-	const pluginRelativePath = pluginPath.split('/').slice().join('/')
+	const pluginRelativePath = pluginPath.split('/').slice().join('/');
 
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 	const requiredFiles = [

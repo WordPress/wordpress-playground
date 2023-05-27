@@ -85,7 +85,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 				playground,
 				{
 					pluginPath: pluginEntryFile,
-					pluginName: zipNiceName
+					pluginName: zipNiceName,
 				},
 				progress
 			);
