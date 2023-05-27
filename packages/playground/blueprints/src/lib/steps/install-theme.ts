@@ -1,8 +1,7 @@
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
-import { writeFile } from './client-methods';
+import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
-import { unzip } from './import-export';
 
 /**
  * @inheritDoc installTheme
@@ -62,58 +61,17 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	{ themeZipFile, options = {} },
 	progress
 ) => {
-	const zipFileName = themeZipFile.name.split('/').pop() || 'theme.zip';
-	const zipNiceName = zipNameToHumanName(zipFileName);
+	const zipNiceName = zipNameToHumanName(themeZipFile.name);
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
+
 	try {
-		// Extract to temporary folder so we can find theme folder name
-
-		const tmpFolder = '/tmp/theme';
-		const tmpZipPath = `/tmp/${zipFileName}`;
-
-		if (await playground.isDir(tmpFolder)) {
-			await playground.unlink(tmpFolder);
-		}
-
-		await writeFile(playground, {
-			path: tmpZipPath,
-			data: themeZipFile,
+		const { assetFolderName } = await installAsset(playground, {
+			type: 'theme',
+			zipFile: themeZipFile,
 		});
 
-		await unzip(playground, {
-			zipPath: tmpZipPath,
-			extractToPath: tmpFolder,
-		});
-
-		await playground.unlink(tmpZipPath);
-
-		// Find extracted theme folder name
-
-		const files = await playground.listFiles(tmpFolder);
-
-		let themeFolderName;
-		let tmpThemePath = '';
-
-		for (const file of files) {
-			tmpThemePath = `${tmpFolder}/${file}`;
-			if (await playground.isDir(tmpThemePath)) {
-				themeFolderName = file;
-				break;
-			}
-		}
-
-		if (!themeFolderName) {
-			throw new Error(
-				`The theme zip file should contain a folder with theme files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
-			);
-		}
-
-		// Move it to site themes
-		const rootPath = await playground.documentRoot;
-		const themePath = `${rootPath}/wp-content/themes/${themeFolderName}`;
-
-		await playground.mv(tmpThemePath, themePath);
+		// Activate
 
 		const activate = 'activate' in options ? options.activate : true;
 
@@ -121,7 +79,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			await activateTheme(
 				playground,
 				{
-					themeFolderName,
+					themeFolderName: assetFolderName,
 				},
 				progress
 			);

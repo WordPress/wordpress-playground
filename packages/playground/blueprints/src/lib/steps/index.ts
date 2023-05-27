@@ -99,17 +99,19 @@ export type {
 	WriteFileStep,
 };
 
+/**
+ * Progress reporting details.
+ */
+export type StepProgress = {
+	tracker: ProgressTracker;
+	initialCaption?: string;
+};
+
 export type StepHandler<S extends GenericStep<File>> = (
 	/**
 	 * A PHP instance or Playground client.
 	 */
 	php: UniversalPHP,
 	args: Omit<S, 'step'>,
-	/**
-	 * Progress reporting details.
-	 */
-	progressArgs?: {
-		tracker: ProgressTracker;
-		initialCaption?: string;
-	}
+	progressArgs?: StepProgress
 ) => any;

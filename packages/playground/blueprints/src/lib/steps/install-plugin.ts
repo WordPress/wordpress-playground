@@ -1,9 +1,8 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
-import { writeFile } from './client-methods';
+import { installAsset } from './install-asset';
 import { activatePlugin, findPluginEntryFile } from './activate-plugin';
-import { unzip } from './import-export';
 
 /**
  * @inheritDoc installPlugin
@@ -64,60 +63,19 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	try {
-		// Extract to temporary folder so we can find plugin folder name
-
-		const tmpFolder = '/tmp/plugin';
-		const tmpZipPath = `/tmp/${zipFileName}`;
-
-		if (await playground.isDir(tmpFolder)) {
-			await playground.unlink(tmpFolder);
-		}
-
-		await writeFile(playground, {
-			path: tmpZipPath,
-			data: pluginZipFile,
+		const { assetFolderPath } = await installAsset(playground, {
+			type: 'plugin',
+			zipFile: pluginZipFile,
 		});
 
-		await unzip(playground, {
-			zipPath: tmpZipPath,
-			extractToPath: tmpFolder,
-		});
-
-		await playground.unlink(tmpZipPath);
-
-		// Find extracted plugin folder name
-
-		const files = await playground.listFiles(tmpFolder);
-
-		let pluginFolderName;
-		let tmpPluginPath = '';
-
-		for (const file of files) {
-			tmpPluginPath = `${tmpFolder}/${file}`;
-			if (await playground.isDir(tmpPluginPath)) {
-				pluginFolderName = file;
-				break;
-			}
-		}
-
-		if (!pluginFolderName) {
-			throw new Error(
-				`The plugin zip file should contain a folder with plugin files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
-			);
-		}
-
-		// Move it to site plugins
-		const rootPath = await playground.documentRoot;
-		const pluginPath = `${rootPath}/wp-content/plugins/${pluginFolderName}`;
-
-		await playground.mv(tmpPluginPath, pluginPath);
+		// Activate
 
 		const activate = 'activate' in options ? options.activate : true;
 
 		if (activate) {
 			const pluginEntryFile = await findPluginEntryFile(
 				playground,
-				pluginPath
+				assetFolderPath
 			);
 			if (!pluginEntryFile) {
 				throw new Error('Could not find plugin entry file');
@@ -127,6 +85,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 				playground,
 				{
 					pluginPath: pluginEntryFile,
+					pluginName: zipNiceName
 				},
 				progress
 			);

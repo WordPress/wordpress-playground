@@ -5,6 +5,8 @@ export interface ActivatePluginStep {
 	step: 'activatePlugin';
 	/* Path to the plugin file relative to the plugins directory. */
 	pluginPath: string;
+	/* Optional plugin name */
+	pluginName?: string;
 }
 
 /**
@@ -15,10 +17,14 @@ export interface ActivatePluginStep {
  */
 export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	playground,
-	{ pluginPath },
+	{ pluginPath, pluginName },
 	progress
 ) => {
-	progress?.tracker.setCaption(`Activating ${pluginPath}`);
+
+	// Path to plugin entry file relative to plugins directory
+	const pluginRelativePath = pluginPath.split('/').slice().join('/')
+
+	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 	const requiredFiles = [
 		`${await playground.documentRoot}/wp-load.php`,
 		`${await playground.documentRoot}/wp-admin/includes/plugin.php`,
@@ -34,7 +40,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	await playground.run({
 		code: `<?php
       ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
-      activate_plugin('${pluginPath}');
+      activate_plugin('${pluginRelativePath}');
       `,
 	});
 };
