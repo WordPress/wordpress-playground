@@ -14,6 +14,7 @@ import {
 	PHPRequestHeaders,
 	PHPRunOptions,
 	RmDirOptions,
+	ListFilesOptions,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
@@ -507,14 +508,21 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not list files in "{path}"')
-	listFiles(path: string): string[] {
+	listFiles(
+		path: string,
+		options: ListFilesOptions = { includePath: false }
+	): string[] {
 		if (!this.fileExists(path)) {
 			return [];
 		}
 		try {
-			return this[__private__dont__use].FS.readdir(path).filter(
+			const files = this[__private__dont__use].FS.readdir(path).filter(
 				(name: string) => name !== '.' && name !== '..'
 			);
+			if (options.includePath) {
+				return files.map((name: string) => `${path}/${name}`);
+			}
+			return files;
 		} catch (e) {
 			console.error(e, { path });
 			return [];
