@@ -26,10 +26,14 @@ export async function installAsset(
 	const tmpFolder = `/tmp/${assetType}`;
 	const tmpZipPath = `/tmp/${zipFileName}`;
 
-	if (await playground.isDir(tmpFolder)) {
+	async function cleanTmpFolder() {
 		await playground.rmdir(tmpFolder, {
 			recursive: true,
 		});
+	}
+
+	if (await playground.fileExists(tmpFolder)) {
+		await cleanTmpFolder();
 	}
 
 	await writeFile(playground, {
@@ -60,6 +64,7 @@ export async function installAsset(
 	}
 
 	if (!assetFolderName) {
+		await cleanTmpFolder();
 		throw new Error(
 			`The ${assetType} zip file should contain a folder with ${assetType} files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
 		);
@@ -74,9 +79,7 @@ export async function installAsset(
 
 	// Clean up
 
-	await playground.rmdir(tmpFolder, {
-		recursive: true,
-	});
+	await cleanTmpFolder();
 
 	return {
 		assetFolderPath,
