@@ -152,6 +152,16 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				'test2.txt',
 			]);
 		});
+
+		it('listFiles() option prependPath should prepend given path to all files returned', () => {
+			php.mkdir(testDirPath);
+			php.writeFile(testDirPath + '/test.txt', 'Hello World!');
+			php.writeFile(testDirPath + '/test2.txt', 'Hello World!');
+			expect(php.listFiles(testDirPath, { prependPath: true })).toEqual([
+				testDirPath + '/test.txt',
+				testDirPath + '/test2.txt',
+			]);
+		});
 	});
 
 	describe('Stdio', () => {
