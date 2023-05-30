@@ -7,7 +7,6 @@ import {
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
-	recommendedWorkerBackend,
 } from '@php-wasm/web';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
@@ -21,24 +20,8 @@ const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
 import moduleWorkerUrl from './worker-thread?worker&url';
-// Hardcoded for now, this file lives in the /public folder
-// @ts-ignore
-const iframeHtmlUrl = '/iframe-worker.html';
 
-export const workerBackend = recommendedWorkerBackend;
-export const workerUrl: string = (function () {
-	switch (workerBackend) {
-		case 'webworker':
-			return new URL(moduleWorkerUrl, origin) + '';
-		case 'iframe': {
-			const wasmWorkerUrl = new URL(iframeHtmlUrl, origin);
-			wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
-			return wasmWorkerUrl + '';
-		}
-		default:
-			throw new Error(`Unknown backend: ${workerBackend}`);
-	}
-})();
+export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
@@ -77,7 +60,7 @@ export async function bootPlaygroundRemote() {
 		LatestSupportedPHPVersion
 	);
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, workerBackend, {
+		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
 			persistent: query.has('persistent') ? 'true' : 'false',

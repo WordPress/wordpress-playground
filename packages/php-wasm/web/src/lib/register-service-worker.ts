@@ -31,7 +31,7 @@ export async function registerServiceWorker<
 	// the update:
 	await registration.update();
 
-	// Proxy the service worker messages to the worker thread:
+	// Proxy the service worker messages to the web worker:
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
