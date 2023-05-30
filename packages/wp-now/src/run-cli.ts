@@ -3,9 +3,9 @@ import { hideBin } from 'yargs/helpers';
 import { startServer } from './start-server';
 import { portFinder } from './port-finder';
 import { SupportedPHPVersion } from '@php-wasm/universal';
-import getWpNowConfig from './config';
+import getWpNowConfig, { CliOptions } from './config';
 import { spawn, SpawnOptionsWithoutStdio } from 'child_process';
-import { executePHPFile } from './execute-php-file';
+import { executePHP } from './execute-php';
 import { output } from './output';
 
 function startSpinner(message: string) {
@@ -38,13 +38,16 @@ export async function runCli() {
 		.scriptName('wp-now')
 		.usage('$0 <cmd> [args]')
 		.check(async (argv) => {
+			const config: CliOptions = {
+				php: argv.php as SupportedPHPVersion,
+				path: argv.path as string,
+			};
+			if (argv._[0] !== 'php') {
+				config.wp = argv.wp as string;
+				config.port = argv.port as number;
+			}
 			try {
-				await getWpNowConfig({
-					path: argv.path as string,
-					php: argv.php as SupportedPHPVersion,
-					wp: argv.wp as string,
-					port: argv.port as number,
-				});
+				await getWpNowConfig(config);
 			} catch (error) {
 				return error.message;
 			}
@@ -87,22 +90,25 @@ export async function runCli() {
 			}
 		)
 		.command(
-			'php <file>',
-			'Run the php command passing the arguments for php cli',
+			'php [..args]',
+			'Run the php command passing the arguments to php cli',
 			(yargs) => {
 				commonParameters(yargs);
-				yargs.positional('file', {
-					describe: 'Path to the PHP file to run',
-					type: 'string',
-				});
+				yargs.strict(false);
 			},
 			async (argv) => {
 				try {
+					// 0: node, 1: wp-now, 2: php, ...args
+					const args = process.argv.slice(2);
 					const options = await getWpNowConfig({
 						path: argv.path as string,
 						php: argv.php as SupportedPHPVersion,
 					});
-					await executePHPFile(argv.file as string, options);
+					const phpArgs = args.includes('--')
+						? (argv._ as string[])
+						: args;
+					// 0: php, ...args
+					await executePHP(phpArgs, options);
 					process.exit(0);
 				} catch (error) {
 					console.error(error);
