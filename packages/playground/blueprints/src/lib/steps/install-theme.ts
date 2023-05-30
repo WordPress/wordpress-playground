@@ -67,8 +67,8 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 
 	try {
 		const { assetFolderName } = await installAsset(playground, {
-			type: 'theme',
 			zipFile: themeZipFile,
+			targetPath: `${await playground.documentRoot}/wp-content/themes`,
 		});
 
 		// Activate

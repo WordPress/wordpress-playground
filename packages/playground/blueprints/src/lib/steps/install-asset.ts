@@ -2,7 +2,21 @@ import type { UniversalPHP } from '@php-wasm/universal';
 import { writeFile } from './client-methods';
 import { unzip } from './import-export';
 
-export type AssetType = 'plugin' | 'theme';
+export interface InstallAssetOptions {
+	/**
+	 * The zip file to install.
+	 */
+	zipFile: File;
+	/**
+	 * Target path to extract the main folder.
+	 * @example
+	 *
+	 * <code>
+	 * const targetPath = `${await playground.documentRoot}/wp-content/plugins`;
+	 * </code>
+	 */
+	targetPath: string
+}
 
 /**
  * Install asset: Extract folder from zip file and move it to target
@@ -10,12 +24,9 @@ export type AssetType = 'plugin' | 'theme';
 export async function installAsset(
 	playground: UniversalPHP,
 	{
-		type: assetType,
+		targetPath,
 		zipFile,
-	}: {
-		type: AssetType;
-		zipFile: File;
-	}
+	}: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
 	assetFolderName: string;
@@ -23,7 +34,7 @@ export async function installAsset(
 	// Extract to temporary folder so we can find asset folder name
 
 	const zipFileName = zipFile.name;
-	const tmpFolder = `/tmp/${assetType}`;
+	const tmpFolder = `/tmp/assets`;
 	const tmpZipPath = `/tmp/${zipFileName}`;
 
 	async function cleanTmpFolder() {
@@ -66,13 +77,11 @@ export async function installAsset(
 	if (!assetFolderName) {
 		await cleanTmpFolder();
 		throw new Error(
-			`The ${assetType} zip file should contain a folder with ${assetType} files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
+			`The zip file should contain a single folder with files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
 		);
 	}
 
 	// Move asset folder to target path
-
-	const targetPath = `${await playground.documentRoot}/wp-content/${assetType}s`;
 
 	const assetFolderPath = `${targetPath}/${assetFolderName}`;
 	await playground.mv(tmpAssetPath, assetFolderPath);

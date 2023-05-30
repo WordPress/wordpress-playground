@@ -64,8 +64,8 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	try {
 		const { assetFolderPath } = await installAsset(playground, {
-			type: 'plugin',
 			zipFile: pluginZipFile,
+			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
 		});
 
 		// Activate
