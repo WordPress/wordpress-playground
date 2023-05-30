@@ -161,7 +161,10 @@ export class VFSResource extends Resource {
 		this.progress?.set(100);
 		const file = new File([buffer], this.name);
 
-		// Workaround for File class in Node.js lacking arrayBuffer() method
+		/**
+		 * Workaround for File class in JSDOM lacking arrayBuffer() method
+		 * - [Implement Blob.stream, Blob.text and Blob.arrayBuffer](https://github.com/jsdom/jsdom/issues/2555)
+		 */
 		if (!file.arrayBuffer) {
 			file.arrayBuffer = async function () {
 				return buffer;
