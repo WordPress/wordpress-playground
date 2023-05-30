@@ -34,14 +34,13 @@ export async function installAsset(
 	const tmpFolder = `/tmp/assets`;
 	const tmpZipPath = `/tmp/${zipFileName}`;
 
-	async function cleanTmpFolder() {
-		await playground.rmdir(tmpFolder, {
+	const removeTmpFolder = () =>
+		playground.rmdir(tmpFolder, {
 			recursive: true,
 		});
-	}
 
 	if (await playground.fileExists(tmpFolder)) {
-		await cleanTmpFolder();
+		await removeTmpFolder();
 	}
 
 	await writeFile(playground, {
@@ -49,46 +48,49 @@ export async function installAsset(
 		data: zipFile,
 	});
 
-	await unzip(playground, {
-		zipPath: tmpZipPath,
-		extractToPath: tmpFolder,
-	});
+	const cleanup = () =>
+		Promise.all([removeTmpFolder, () => playground.unlink(tmpZipPath)]);
 
-	await playground.unlink(tmpZipPath);
+	try {
+		await unzip(playground, {
+			zipPath: tmpZipPath,
+			extractToPath: tmpFolder,
+		});
 
-	// Find extracted asset folder name
+		// Find extracted asset folder name
 
-	const files = await playground.listFiles(tmpFolder);
+		const files = await playground.listFiles(tmpFolder);
 
-	let assetFolderName;
-	let tmpAssetPath = '';
+		let assetFolderName;
+		let tmpAssetPath = '';
 
-	for (const file of files) {
-		tmpAssetPath = `${tmpFolder}/${file}`;
-		if (await playground.isDir(tmpAssetPath)) {
-			assetFolderName = file;
-			break;
+		for (const file of files) {
+			tmpAssetPath = `${tmpFolder}/${file}`;
+			if (await playground.isDir(tmpAssetPath)) {
+				assetFolderName = file;
+				break;
+			}
 		}
+
+		if (!assetFolderName) {
+			throw new Error(
+				`The zip file should contain a single folder with files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
+			);
+		}
+
+		// Move asset folder to target path
+
+		const assetFolderPath = `${targetPath}/${assetFolderName}`;
+		await playground.mv(tmpAssetPath, assetFolderPath);
+
+		await cleanup();
+
+		return {
+			assetFolderPath,
+			assetFolderName,
+		};
+	} catch (error) {
+		await cleanup();
+		throw error;
 	}
-
-	if (!assetFolderName) {
-		await cleanTmpFolder();
-		throw new Error(
-			`The zip file should contain a single folder with files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
-		);
-	}
-
-	// Move asset folder to target path
-
-	const assetFolderPath = `${targetPath}/${assetFolderName}`;
-	await playground.mv(tmpAssetPath, assetFolderPath);
-
-	// Clean up
-
-	await cleanTmpFolder();
-
-	return {
-		assetFolderPath,
-		assetFolderName,
-	};
 }
