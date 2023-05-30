@@ -510,7 +510,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	@rethrowFileSystemError('Could not list files in "{path}"')
 	listFiles(
 		path: string,
-		options: ListFilesOptions = { includePath: false }
+		options: ListFilesOptions = { prependPath: false }
 	): string[] {
 		if (!this.fileExists(path)) {
 			return [];
@@ -519,7 +519,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			const files = this[__private__dont__use].FS.readdir(path).filter(
 				(name: string) => name !== '.' && name !== '..'
 			);
-			if (options.includePath) {
+			if (options.prependPath) {
 				return files.map((name: string) => `${path}/${name}`);
 			}
 			return files;

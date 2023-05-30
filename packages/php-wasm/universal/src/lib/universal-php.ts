@@ -445,5 +445,5 @@ export interface ListFilesOptions {
 	 * If true, prepend given folder path to all file names.
 	 * Default: false.
 	 */
-	includePath: boolean;
+	prependPath: boolean;
 }
