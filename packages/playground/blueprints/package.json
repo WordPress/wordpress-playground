@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/blueprints",
-	"version": "0.1.55",
+	"version": "0.1.56",
 	"exports": {
 		".": {
 			"import": "./index.js",
@@ -21,5 +21,5 @@
 		"access": "public",
 		"directory": "../../../dist/packages/playground/blueprints"
 	},
-	"gitHead": "b16b37f980aa3a2092490a20dada9d5c06427c83"
+	"gitHead": "2fb8bb928071e308143e5895af19f4d13b6e90ba"
 }

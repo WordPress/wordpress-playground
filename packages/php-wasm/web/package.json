@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web",
-	"version": "0.1.55",
+	"version": "0.1.56",
 	"description": "PHP.wasm for the web",
 	"repository": {
 		"type": "git",
@@ -29,5 +29,5 @@
 	"type": "module",
 	"main": "index.js",
 	"types": "index.d.ts",
-	"gitHead": "b16b37f980aa3a2092490a20dada9d5c06427c83"
+	"gitHead": "2fb8bb928071e308143e5895af19f4d13b6e90ba"
 }
