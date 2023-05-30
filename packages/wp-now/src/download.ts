@@ -4,12 +4,13 @@ import followRedirects from 'follow-redirects';
 import unzipper from 'unzipper';
 import os from 'os';
 import { IncomingMessage } from 'http';
-import { DEFAULT_WORDPRESS_VERSION, SQLITE_URL } from './constants';
+import { DEFAULT_WORDPRESS_VERSION, SQLITE_URL, WP_CLI_URL } from './constants';
 import { isValidWordPressVersion } from './wp-playground-wordpress';
 import { output } from './output';
 import getWpNowPath from './get-wp-now-path';
 import getWordpressVersionsPath from './get-wordpress-versions-path';
 import getSqlitePath from './get-sqlite-path';
+import getWpCliPath from './get-wp-cli-path';
 
 function getWordPressVersionUrl(version = DEFAULT_WORDPRESS_VERSION) {
 	if (!isValidWordPressVersion(version)) {
@@ -27,6 +28,55 @@ interface DownloadFileAndUnzipResult {
 
 followRedirects.maxRedirects = 5;
 const { https } = followRedirects;
+
+async function downloadFile({
+	url,
+	destinationFilePath,
+	itemName,
+}): Promise<DownloadFileAndUnzipResult> {
+	let statusCode = 0;
+	try {
+		if (fs.existsSync(destinationFilePath)) {
+			return { downloaded: false, statusCode: 0 };
+		}
+		fs.ensureDirSync(path.dirname(destinationFilePath));
+		const response = await new Promise<IncomingMessage>((resolve) =>
+			https.get(url, (response) => resolve(response))
+		);
+		statusCode = response.statusCode;
+		if (response.statusCode !== 200) {
+			throw new Error(
+				`Failed to download file (Status code ${response.statusCode}).`
+			);
+		}
+		await new Promise<void>((resolve, reject) => {
+			fs.ensureFileSync(destinationFilePath);
+			const file = fs.createWriteStream(destinationFilePath);
+			response.pipe(file);
+			file.on('finish', () => {
+				file.close();
+				resolve();
+			});
+			file.on('error', (error) => {
+				file.close();
+				reject(error);
+			});
+		});
+		output?.log(`Downloaded ${itemName} to ${destinationFilePath}`);
+		return { downloaded: true, statusCode };
+	} catch (error) {
+		output?.error(`Error downloading file ${itemName}`, error);
+		return { downloaded: false, statusCode };
+	}
+}
+
+export async function downloadWPCLI() {
+	return downloadFile({
+		url: WP_CLI_URL,
+		destinationFilePath: getWpCliPath(),
+		itemName: 'wp-cli',
+	});
+}
 
 async function downloadFileAndUnzip({
 	url,

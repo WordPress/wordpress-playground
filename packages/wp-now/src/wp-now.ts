@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { NodePHP } from '@php-wasm/node';
+import { NodePHP, PHPLoaderOptions } from '@php-wasm/node';
 import path from 'path';
 import { SQLITE_FILENAME } from './constants';
 import {
@@ -42,7 +42,7 @@ export default async function startWPNow(
 	options: Partial<WPNowOptions> = {}
 ): Promise<{ php: NodePHP; phpInstances: NodePHP[]; options: WPNowOptions }> {
 	const { documentRoot } = options;
-	const nodePHPOptions = {
+	const nodePHPOptions: PHPLoaderOptions = {
 		requestHandler: {
 			documentRoot,
 			absoluteUrl: options.absoluteUrl,

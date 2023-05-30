@@ -11,11 +11,14 @@ import {
 } from '../wp-playground-wordpress';
 import {
 	downloadSqliteIntegrationPlugin,
+	downloadWPCLI,
 	downloadWordPress,
 } from '../download';
 import os from 'os';
 import crypto from 'crypto';
 import getWpNowTmpPath from '../get-wp-now-tmp-path';
+import getWpCliTmpPath from '../get-wp-cli-tmp-path';
+import { executeWPCli } from '../execute-wp-cli';
 
 const exampleDir = __dirname + '/mode-examples';
 
@@ -508,5 +511,43 @@ describe('Test starting different modes', () => {
 		});
 
 		expect(themeName.text).toContain('Twenty Twenty-Three');
+	});
+});
+
+/**
+ * Test wp-cli command.
+ */
+describe('wp-cli command', () => {
+	let consoleSpy;
+	let output = '';
+
+	beforeEach(() => {
+		function onStdout(outputLine: string) {
+			output += outputLine;
+		}
+		consoleSpy = vi.spyOn(console, 'log');
+		consoleSpy.mockImplementation(onStdout);
+	});
+
+	afterEach(() => {
+		output = '';
+		consoleSpy.mockRestore();
+	});
+
+	beforeAll(async () => {
+		await downloadWithTimer('wp-cli', downloadWPCLI);
+	});
+
+	afterAll(() => {
+		fs.removeSync(getWpCliTmpPath());
+	});
+
+	/**
+	 * Test wp-cli displays the version.
+	 * We don't need the WordPress context for this test.
+	 */
+	test('wp-cli displays the version', async () => {
+		await executeWPCli(['cli', 'version']);
+		expect(output).toMatch(/WP-CLI (\d\.?)+/i);
 	});
 });
