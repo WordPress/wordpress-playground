@@ -973,7 +973,8 @@ RUN ls /root/output/
 #     fi
 
 # Postprocess the build php.js module:
-COPY ./build-assets/append-before-return.js /root/append-before-return.js
+COPY ./build-assets/esm-prefix.js /root/esm-prefix.js
+COPY ./build-assets/esm-suffix.js /root/esm-suffix.js
 RUN \
     # Figure out the target file names and URLs
         # The .js and .wasm filenames should reflect the build configuration, e.g.:
@@ -1039,16 +1040,16 @@ RUN \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
-        echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
         if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
             echo "const dependencyFilename = __dirname + '/$WASM_FILENAME'; " >> /root/output/php-module.js; \
         else \
             echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; export function init(RuntimeName, PHPLoader) {" >> /root/output/php-module.js && \
+        echo " export { dependencyFilename }; " >> /root/output/php-module.js && \
+        echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+        cat /root/esm-prefix.js >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
-        cat /root/append-before-return.js >> /root/output/php-module.js && \
-        echo " return PHPLoader; }" >> /root/output/php-module.js && \
+        cat /root/esm-suffix.js >> /root/output/php-module.js && \
         \
         # Remove the old php.js file
         rm /root/output/php.js && \
