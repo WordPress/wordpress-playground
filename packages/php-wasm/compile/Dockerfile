@@ -499,7 +499,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
-RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
+RUN echo '#define ZEND_MM_ERROR 1' >> /root/php-src/main/php_config.h; 
 RUN echo '#define ZEND_DEBUG 1' >> /root/php-src/main/php_config.h; 
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 

@@ -1,6 +1,15 @@
-const dependenciesTotalSize = 4782880; 
+const dependenciesTotalSize = 4784045; 
 const dependencyFilename = './php_7_4.wasm'; 
   module.exports = function init(RuntimeName, PHPLoader) {
+    ExitStatus = class PHPExitStatus extends Error {
+        constructor(status) {
+            super(status);
+            this.name = "ExitStatus";
+            this.message = "Program terminated with exit(" + status + ")";
+            this.status = status;
+        }
+    }
+
 // Support for growable heap + pthreads, where the buffer may change, so JS views
 // must be updated.
 function GROWABLE_HEAP_I8() {
@@ -591,6 +600,7 @@ function initRuntime() {
 function exitRuntime() {
  assert(!runtimeExited);
  checkStackCookie();
+ console.trace();
  if (ENVIRONMENT_IS_PTHREAD) return;
  ___funcs_on_exit();
  callRuntimeCallbacks(__ATEXIT__);
