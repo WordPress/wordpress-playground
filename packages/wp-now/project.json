@@ -9,7 +9,7 @@
 			"dependsOn": ["build:package-json", "build:bundle"]
 		},
 		"build:package-json": {
-			"executor": "@wp-playground/nx-extensions:package-json",
+			"executor": "nx-extensions:package-json",
 			"options": {
 				"tsConfig": "packages/wp-now/tsconfig.lib.json",
 				"outputPath": "dist/packages/wp-now",
@@ -30,7 +30,7 @@
 			}
 		},
 		"preview": {
-			"executor": "@wp-playground/nx-extensions:built-script",
+			"executor": "nx-extensions:built-script",
 			"options": {
 				"scriptPath": "dist/packages/wp-now/main.js"
 			},
