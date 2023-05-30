@@ -176,11 +176,7 @@
 	},
 	"workspaces": [
 		"packages/nx-extensions",
-		"packages/wp-now",
 		"packages/php-wasm/*",
 		"packages/playground/*"
-	],
-	"bin": {
-		"wp-now": "bin/wp-now"
-	}
+	]
 }

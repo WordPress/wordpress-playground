@@ -1,1 +1,0 @@
-PHP Version: X.Y

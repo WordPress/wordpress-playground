@@ -47,6 +47,5 @@ The following Playground APIs are available in Node.js:
 
 -   [JSON Blueprints API](../09-blueprints-api/01-index.md)
 -   [JavaScript API](../10-javascript-api/01-index.md)
--   [wp-now API](https://www.npmjs.com/package/@wp-now/wp-now)
 
 These APIs are very similar to their web counterparts, but, unsurprisingly, they are not based or links or iframes.

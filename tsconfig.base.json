@@ -29,7 +29,6 @@
 			"@php-wasm/web-service-worker": [
 				"packages/php-wasm/web-service-worker/src/index.ts"
 			],
-			"@wp-now/wp-now": ["packages/wp-now/src/index.ts"],
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],

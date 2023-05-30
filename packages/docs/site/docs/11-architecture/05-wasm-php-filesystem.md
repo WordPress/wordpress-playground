@@ -4,7 +4,7 @@ The PHP module has its own filesystem separate from your computer's filesystem. 
 
 In general, WordPress Playground uses an in-memory virtual filesystem.
 
-However, in Node.js, you can also mount a real directory from the host filesystem into the PHP filesystem. This is what `wp-now` and the VS Code extension do to access your local WordPress installation.
+However, in Node.js, you can also mount a real directory from the host filesystem into the PHP filesystem. 
 
 Here's how to interact with the filesystem in WordPress Playground:
 
