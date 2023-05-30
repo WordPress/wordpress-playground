@@ -2,7 +2,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
 import { installAsset } from './install-asset';
-import { activatePlugin, findPluginEntryFile } from './activate-plugin';
+import { activatePlugin } from './activate-plugin';
 
 /**
  * @inheritDoc installPlugin
@@ -73,18 +73,10 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		const activate = 'activate' in options ? options.activate : true;
 
 		if (activate) {
-			const pluginEntryFile = await findPluginEntryFile(
-				playground,
-				assetFolderPath
-			);
-			if (!pluginEntryFile) {
-				throw new Error('Could not find plugin entry file');
-			}
-
 			await activatePlugin(
 				playground,
 				{
-					pluginPath: pluginEntryFile,
+					pluginPath: assetFolderPath,
 					pluginName: zipNiceName,
 				},
 				progress
