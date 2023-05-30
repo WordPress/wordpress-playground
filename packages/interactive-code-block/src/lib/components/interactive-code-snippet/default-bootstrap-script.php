@@ -1,3 +1,0 @@
-<?php
-
-eval($_SCRIPT);
