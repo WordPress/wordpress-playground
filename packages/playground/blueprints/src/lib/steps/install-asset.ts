@@ -15,7 +15,7 @@ export interface InstallAssetOptions {
 	 * const targetPath = `${await playground.documentRoot}/wp-content/plugins`;
 	 * </code>
 	 */
-	targetPath: string
+	targetPath: string;
 }
 
 /**
@@ -23,10 +23,7 @@ export interface InstallAssetOptions {
  */
 export async function installAsset(
 	playground: UniversalPHP,
-	{
-		targetPath,
-		zipFile,
-	}: InstallAssetOptions
+	{ targetPath, zipFile }: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
 	assetFolderName: string;
