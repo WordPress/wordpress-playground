@@ -95,8 +95,7 @@ Playground aims to shift the WordPress learning journey from following screensho
 
 Imagine live Playgrounds that guide users through building their first website, customizing a theme, or setting up an e-commerce store. Furthermore, users would have the freedom to take a detour and explore on their own. The goal is to not to create specific tutorials or apps, but rather to empower developers with the tools necessary to build them.
 
-Key features include support for pre-defining an initial site setup and the ability to provide step-by-step interactive instructions. 
-
+Key features include support for pre-defining an initial site setup and the ability to provide step-by-step interactive instructions.
 
 ### Learning WordPress Development Through Writing Code
 
@@ -106,8 +105,7 @@ Imagine an in-browser code editor with an instant preview of everything you buil
 
 The goal is not to build such a full-featured code editor in Playground, but rather to provide the tools necessary to build one.
 
-Key features include running PHP code in Playground, an abstraction for synchronizing files with a Playground instance, and a PHP binary that supports CLI tools like wp-cli or phpunit. 
-
+Key features include running PHP code in Playground, an abstraction for synchronizing files with a Playground instance, and a PHP binary that supports CLI tools like wp-cli or phpunit.
 
 ### Instant access to WordPress ecosystem
 
