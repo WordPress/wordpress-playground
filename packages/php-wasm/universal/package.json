@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/universal",
-	"version": "0.1.53",
+	"version": "0.1.54",
 	"description": "PHP.wasm – emscripten bindings for PHP",
 	"repository": {
 		"type": "git",
@@ -35,5 +35,6 @@
 	"type": "module",
 	"main": "./index.cjs",
 	"module": "./index.js",
-	"license": "GPL-2.0-or-later"
+	"license": "GPL-2.0-or-later",
+	"gitHead": "b16b37f980aa3a2092490a20dada9d5c06427c83"
 }
