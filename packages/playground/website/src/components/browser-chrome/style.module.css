@@ -78,13 +78,14 @@ body.is-embedded .fake-window-wrapper {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+	padding-left: 10px;
 }
 
 .address-bar-slot {
 	margin-right: auto;
 	margin-left: 100px;
 	min-width: 200px;
-	width: 50%;
+	width: 100%;
 	opacity: 1;
 	transition: opacity ease-in 0.25s;
 }
@@ -135,4 +136,40 @@ body.is-embedded .fake-window-wrapper {
 .window-control.is-green {
 	background: #27c93f;
 	border: 1px solid #1dad2b;
+}
+
+@media (max-width: 902px) {
+	.wrapper {
+		padding: 0;
+		height: 100%;
+	}
+	.window {
+		border-radius: 0;
+	}
+}
+
+@media (max-width: 812px) {
+	.toolbar {
+		padding: 10px;
+	}
+	.window-controls {
+		display: none;
+	}
+	.address-bar-slot {
+		margin-left: 0;
+	}
+}
+
+@media (max-width: 620px) {
+	.toolbar {
+		flex-direction: column;
+		height: auto;
+		align-items: normal;
+	}
+	.toolbar-buttons {
+		padding: 0;
+	}
+	.address-bar-slot {
+		margin-bottom: 10px;
+	}
 }
