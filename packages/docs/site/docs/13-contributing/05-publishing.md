@@ -56,10 +56,6 @@ npm run deploy
 
 You will need to have push access to the `gh-pages` branch of the repository.
 
-## VS Code extension
-
-See the [VS Code extension](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/vscode-extension/README.md#publishing) document.
-
 ## playground.wordpress.net website
 
 TBD

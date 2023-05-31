@@ -43,9 +43,6 @@
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
 			],
-			"@wp-playground/vscode-extension": [
-				"packages/vscode-extension/src/index.ts"
-			],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
 			]
