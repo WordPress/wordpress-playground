@@ -52,7 +52,13 @@ export default defineConfig(({ command }) => {
 						typeof specifier === 'string' &&
 						specifier.match(/php_\d_\d\.js$/)
 					) {
-						return specifier.split('/').pop();
+						/**
+						 * The ../ is weird but necessary to make the final build say
+						 * import("./php_8_2.js")
+						 * and not
+						 * import("php_8_2.js")
+						 */
+						return '../' + specifier.split('/').pop();
 					}
 				},
 			},
