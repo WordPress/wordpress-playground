@@ -41,18 +41,17 @@ export const VFS_CONFIG_FILE_PATH = '/vfs-blueprints/wp-config-consts.php';
  * functions like writeFile (./client-methods.ts) and fileToUint8Array (above).
  */
 class FilePolyfill extends File {
-	buffers: BlobPart[]
+	buffers: BlobPart[];
 	constructor(buffers: BlobPart[], name: string) {
-		super(buffers, name)
-		this.buffers = buffers
+		super(buffers, name);
+		this.buffers = buffers;
 	}
 	override async arrayBuffer(): Promise<ArrayBuffer> {
-		return this.buffers[0] as ArrayBuffer
+		return this.buffers[0] as ArrayBuffer;
 	}
 }
 
-const FileWithArrayBuffer = (File.prototype.arrayBuffer instanceof Function)
-	? File
-	: FilePolyfill
+const FileWithArrayBuffer =
+	File.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
 
-export { FileWithArrayBuffer as File }
+export { FileWithArrayBuffer as File };
