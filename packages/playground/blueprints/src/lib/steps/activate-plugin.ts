@@ -3,7 +3,7 @@ import { StepHandler } from '.';
 
 export interface ActivatePluginStep {
 	step: 'activatePlugin';
-	/* Path to the plugin directory, or the plugin entry file relative to the plugins directory. */
+	/* Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php). */
 	pluginPath: string;
 	/* Optional plugin name */
 	pluginName?: string;
