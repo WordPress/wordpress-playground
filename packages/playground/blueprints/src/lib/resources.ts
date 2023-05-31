@@ -4,7 +4,7 @@ import {
 } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
-import { zipNameToHumanName } from './steps/common';
+import { File, zipNameToHumanName } from './steps/common';
 
 export const ResourceTypes = [
 	'vfs',
@@ -159,18 +159,7 @@ export class VFSResource extends Resource {
 			this.resource.path
 		);
 		this.progress?.set(100);
-		const file = new File([buffer], this.name);
-
-		/**
-		 * Workaround for File class in JSDOM lacking arrayBuffer() method
-		 * - [Implement Blob.stream, Blob.text and Blob.arrayBuffer](https://github.com/jsdom/jsdom/issues/2555)
-		 */
-		if (!file.arrayBuffer) {
-			file.arrayBuffer = async function () {
-				return buffer;
-			};
-		}
-		return file;
+		return new File([buffer], this.name);
 	}
 
 	/** @inheritDoc */
