@@ -75,12 +75,7 @@ export default defineConfig(({ command }) => {
 				external: [/php_\d_\d.js$/],
 				output: {
 					// Ensure the PHP loaders are not hashed in the final build.
-					entryFileNames: (chunkInfo: any) => {
-						if (chunkInfo.name?.includes('php-')) {
-							return '[name].js';
-						}
-						return '[name]-[hash].js';
-					},
+					entryFileNames: '[name].js',
 				},
 			},
 		},
