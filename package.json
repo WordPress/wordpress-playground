@@ -171,13 +171,7 @@
 		"typedoc": "0.23.27",
 		"@codemirror/state": "6.2.0",
 		"@codemirror/theme-one-dark": "6.1.1",
-		"@codemirror/view": "6.9.3",
-		"@swc/core": "./typedoc.js",
-		"@swc/hepers": "./typedoc.js"
-	},
-	"peerDependencies": {
-		"@swc/core": "./typedoc.js",
-		"@swc/hepers": "./typedoc.js"
+		"@codemirror/view": "6.9.3"
 	},
 	"workspaces": [
 		"packages/nx-extensions",

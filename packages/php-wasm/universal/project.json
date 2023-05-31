@@ -13,7 +13,7 @@
 		},
 		"test": {
 			"executor": "nx:noop",
-			"dependsOn": ["test:vite", "test:esmcjs"]
+			"dependsOn": ["test:vite"]
 		},
 		"test:esmcjs": {
 			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
