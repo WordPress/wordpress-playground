@@ -1,4 +1,3 @@
-import type { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 
 export interface ActivatePluginStep {
