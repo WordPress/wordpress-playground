@@ -520,7 +520,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				(name: string) => name !== '.' && name !== '..'
 			);
 			if (options.prependPath) {
-				return files.map((name: string) => `${path}/${name}`);
+				const prepend = path.replace(/\/$/, '')
+				return files.map(
+					(name: string) => `${prepend}/${name}`
+				);
 			}
 			return files;
 		} catch (e) {
