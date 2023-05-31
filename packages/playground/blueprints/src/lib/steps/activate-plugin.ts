@@ -2,25 +2,26 @@ import { StepHandler } from '.';
 
 export interface ActivatePluginStep {
 	step: 'activatePlugin';
-	/* Path to the plugin file relative to the plugins directory. */
+	/* Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php). */
 	pluginPath: string;
+	/* Optional plugin name */
+	pluginName?: string;
 }
 
 /**
  * Activates a WordPress plugin in the Playground.
  *
  * @param playground The playground client.
- * @param plugin The plugin slug.
  */
 export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	playground,
-	{ pluginPath },
+	{ pluginPath, pluginName },
 	progress
 ) => {
-	progress?.tracker.setCaption(`Activating ${pluginPath}`);
+	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 	const requiredFiles = [
-		`${playground.documentRoot}/wp-load.php`,
-		`${playground.documentRoot}/wp-admin/includes/plugin.php`,
+		`${await playground.documentRoot}/wp-load.php`,
+		`${await playground.documentRoot}/wp-admin/includes/plugin.php`,
 	];
 	const requiredFilesExist = requiredFiles.every((file) =>
 		playground.fileExists(file)
@@ -30,10 +31,28 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
 		);
 	}
-	await playground.run({
+
+	const result = await playground.run({
 		code: `<?php
-      ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
-      activate_plugin('${pluginPath}');
-      `,
+${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
+$plugin_path = '${pluginPath}';
+if (!is_dir($plugin_path)) {
+	activate_plugin($plugin_path);
+	return;
+}
+// Find plugin entry file
+foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+	$info = get_plugin_data( $file, false, false );
+	if ( ! empty( $info['Name'] ) ) {
+		activate_plugin( $file );
+		return;
+	}
+}
+echo 'NO_ENTRY_FILE';
+`,
 	});
+	if (result.errors) throw new Error(result.errors);
+	if (result.text === 'NO_ENTRY_FILE') {
+		throw new Error('Could not find plugin entry file.');
+	}
 };

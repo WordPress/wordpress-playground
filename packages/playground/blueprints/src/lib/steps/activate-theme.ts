@@ -17,7 +17,7 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
-	const wpLoadPath = `${playground.documentRoot}/wp-load.php`;
+	const wpLoadPath = `${await playground.documentRoot}/wp-load.php`;
 	if (!playground.fileExists(wpLoadPath)) {
 		throw new Error(
 			`Required WordPress file does not exist: ${wpLoadPath}`
