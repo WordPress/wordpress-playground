@@ -31,7 +31,8 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
 		);
 	}
-	await playground.run({
+
+	const result = await playground.run({
 		code: `<?php
 ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
 $plugin_path = '${pluginPath}';
@@ -47,7 +48,11 @@ foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 		return;
 	}
 }
-throw new Exception('Could not find plugin entry file.');
+echo 'NO_ENTRY_FILE';
 `,
 	});
+	if (result.errors) throw new Error(result.errors)
+	if (result.text==='NO_ENTRY_FILE') {
+		throw new Error('Could not find plugin entry file.')
+	}
 };
