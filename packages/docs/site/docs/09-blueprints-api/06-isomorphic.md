@@ -32,7 +32,7 @@ await login(phpInSameThread);
 // ^ @TODO: Still fails unless you provide a DOMParser polyfill
 ```
 
-This opens the door to using Blueprints in the VS Code extension, wp-now, and other tools.
+This opens the door to using Blueprints in Node.js tools.
 
 ## Implementation
 

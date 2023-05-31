@@ -5,15 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Playground for VS Code",
-            "type": "extensionHost",
-            "request": "launch",
-            "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}/dist/packages/vscode-extension"
-            ],
-            "preLaunchTask": "build-vscode-extension"
-        },
-        {
           "name": "Heap Profiler",
           "type": "node",
           "request": "launch",

@@ -29,15 +29,11 @@
 			"@php-wasm/web-service-worker": [
 				"packages/php-wasm/web-service-worker/src/index.ts"
 			],
-			"@wp-now/wp-now": ["packages/wp-now/src/index.ts"],
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
-			],
-			"@wp-playground/interactive-code-block": [
-				"packages/interactive-code-block/src/index.ts"
 			],
 			"@wp-playground/node": ["packages/playground/node/src/index.ts"],
 			"@wp-playground/nx-extensions": [
@@ -45,9 +41,6 @@
 			],
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
-			],
-			"@wp-playground/vscode-extension": [
-				"packages/vscode-extension/src/index.ts"
 			],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"

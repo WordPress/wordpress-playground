@@ -5,7 +5,6 @@
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"build:website": "nx build playground-website",
-		"build:vscode-extension": "nx build vscode-extension",
 		"deploy": "gh-pages -d dist/docs/build -t true",
 		"dev": "nx dev playground-website",
 		"dev:interactivity": "nx dev interactive-block-playground",
@@ -65,11 +64,6 @@
 		"unzipper": "0.10.11",
 		"yargs": "17.7.2"
 	},
-	"resolutions": {
-		"@codemirror/state": "6.2.0",
-		"@codemirror/theme-one-dark": "6.1.1",
-		"@codemirror/view": "6.9.3"
-	},
 	"devDependencies": {
 		"@docusaurus/core": "2.4.1",
 		"@docusaurus/plugin-ideal-image": "^2.4.1",
@@ -101,8 +95,6 @@
 		"@types/react": "^18.0.28",
 		"@types/react-dom": "^18.0.11",
 		"@types/react-modal": "^3.13.1",
-		"@types/vscode": "1.78.0",
-		"@types/vscode-webview": "1.57.1",
 		"@types/wordpress__block-editor": "11.5.0",
 		"@types/wordpress__blocks": "12.5.0",
 		"@typescript-eslint/eslint-plugin": "5.59.6",
@@ -110,8 +102,6 @@
 		"@vitejs/plugin-react": "^3.1.0",
 		"@vitest/coverage-c8": "0.31.1",
 		"@vitest/ui": "0.31.1",
-		"@vscode/vsce": "2.19.0",
-		"@vscode/webview-ui-toolkit": "1.2.2",
 		"@wordpress/block-editor": "11.6.0",
 		"@wordpress/blocks": "12.6.0",
 		"@wordpress/components": "23.6.0",
@@ -141,7 +131,7 @@
 		"jest-environment-node": "^29.4.1",
 		"jsdom": "~20.0.3",
 		"jsonc-eslint-parser": "^2.1.0",
-		"lerna": "6.6.1",
+		"lerna": "6.6.2",
 		"nx": "16.2.1",
 		"ora": "6.3.0",
 		"prettier": "^2.6.2",
@@ -173,20 +163,19 @@
 		"vite": "4.3.7"
 	},
 	"overrides": {
+		"nx": "16.2.1",
 		"rollup": "^3.2.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"typescript": "5.0.4",
-		"typedoc": "0.23.27"
+		"typedoc": "0.23.27",
+		"@codemirror/state": "6.2.0",
+		"@codemirror/theme-one-dark": "6.1.1",
+		"@codemirror/view": "6.9.3"
 	},
 	"workspaces": [
 		"packages/nx-extensions",
-		"packages/wp-now",
-		"packages/vscode-extension",
 		"packages/php-wasm/*",
 		"packages/playground/*"
-	],
-	"bin": {
-		"wp-now": "bin/wp-now"
-	}
+	]
 }

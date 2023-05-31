@@ -32,7 +32,7 @@ const client = await startPlaygroundWeb({
 await client.isReady();
 ```
 
-Running a JSON Bluerprint is only possible during the initialization of the API client.
+Running a JSON Blueprint is only possible during the initialization of the API client.
 
 If this is sufficient for your needs, read more about [JSON Blueprints](../09-blueprints-api/01-index.md).
 

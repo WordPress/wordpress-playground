@@ -20,4 +20,4 @@ WordPress Playground ships a [bundled WordPress](./06-wasm-php-data-dependencies
 
 ## WordPress in Node.js
 
-In Node.js, you'll typically want to [mount WordPress](./05-wasm-php-filesystem.md) from a disk directory. Since [wp-now](https://npmjs.com/package/@wp-now/wp-now) does that, you can reuse the utilities it provides.
+In Node.js, you'll typically want to [mount WordPress](./05-wasm-php-filesystem.md) from a disk directory.

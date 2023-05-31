@@ -52,12 +52,12 @@ Follow this checklist:
 -   Add a new `workspaces` in the top-level `package.json` file if needed. Otherwise TypeScript won't work correctly and Lerna won't pick up your package for publishing.
 -   Add a `typecheck` task to the `project.json` file in the new project. You can copy it from another project in this repo.
 -   Run `nx typecheck <project name>` to make sure TypeScript is set up correctly.
--   If the project needs to ship both ESM and CJS builds, add a `test:esmcjs` task to the `project.json` and add it to the `dependsOn` list of the `test` task. This way the CI will continuosly verify whether your double build works. The alternative is to find out when a disappointed extender files an issue.
+-   If the project needs to ship both ESM and CJS builds, add a `test:esmcjs` task to the `project.json` and add it to the `dependsOn` list of the `test` task. This way the CI will continuously verify whether your double build works. The alternative is to find out when a disappointed extender files an issue.
 -   Add the `package-json` task to the build pipeline. See the details below.
 
 ### Package.json
 
-Do not add any `dependencies` or `devDependencies` into the `package.json` file of the new project. WordPress Playground keeps track of all dependencies in the top-level `package.json` file and computes the one used by each project automatically using a custom NX executor. The proces goes like this:
+Do not add any `dependencies` or `devDependencies` into the `package.json` file of the new project. WordPress Playground keeps track of all dependencies in the top-level `package.json` file and computes the one used by each project automatically using a custom NX executor. The process goes like this:
 
 1. Bundle the project into the `dist` directory, just copy the package.json as is
 2. Add correct dependencies using the `@wp-playground/nx-extensions:package-json` executor

@@ -74,6 +74,22 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				));
 		});
 
+		describe('Array functions', () => {
+			test('array_filter', () =>
+				assertNoCrash(`
+					function top() { ${networkCall} }
+					array_filter(array('top'), 'top');
+				`));
+
+			test('array_map', () =>
+				assertNoCrash(`
+					function top() { ${networkCall} }
+					array_map(array('top'), 'top');
+				`));
+
+			// Network calls in sort() would be silly so let's skip those for now.
+		});
+
 		describe('Class method calls', () => {
 			test('Regular method', () =>
 				assertNoCrash(`

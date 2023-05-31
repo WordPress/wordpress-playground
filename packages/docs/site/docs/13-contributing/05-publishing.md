@@ -22,7 +22,6 @@ Each package identifies a distinct organization in its `package.json` file. To p
 
 -   `@wp-playground`
 -   `@php-wasm`
--   `@wp-now`
 
 To initiate the publishing process for the all the modified packages, execute the following commands:
 
@@ -36,7 +35,6 @@ npm run release
 To verify the publishing process went correctly:
 
 1. Please verify https://translate.wordpress.org/projects/wp-plugins/contact-form-7/dev/de/default/playground/ loads as expected. If it doesn't load, something broke.
-2. Please run `npm install -g @wp-now/wp-now`. Verify you have the latest version with `wp-now --version`. Try `wp-now start` in a couple of modes to make sure everything is loaded as expected.
 
 ### When publishing packages goes wrong
 
@@ -55,10 +53,6 @@ npm run deploy
 ```
 
 You will need to have push access to the `gh-pages` branch of the repository.
-
-## VS Code extension
-
-See the [VS Code extension](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/vscode-extension/README.md#publishing) document.
 
 ## playground.wordpress.net website
 
