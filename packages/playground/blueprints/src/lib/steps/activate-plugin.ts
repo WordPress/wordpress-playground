@@ -36,18 +36,19 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 		code: `<?php
 ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
 $plugin_path = '${pluginPath}';
-if (is_dir($plugin_path)) {
-	// Find plugin entry file
-	foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
-		$info = get_plugin_data( $file, false, false );
-		if ( ! empty( $info['Name'] ) ) {
-			activate_plugin( $file );
-			return;
-		}
-	}
-	throw new Exception('Could not find plugin entry file.');
+if (!is_dir($plugin_path)) {
+	activate_plugin($plugin_path);
+	return;
 }
-activate_plugin($plugin_path);
+// Find plugin entry file
+foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+	$info = get_plugin_data( $file, false, false );
+	if ( ! empty( $info['Name'] ) ) {
+		activate_plugin( $file );
+		return;
+	}
+}
+throw new Exception('Could not find plugin entry file.');
 `,
 	});
 };
