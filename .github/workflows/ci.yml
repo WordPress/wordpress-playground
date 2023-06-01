@@ -6,30 +6,31 @@ on:
     pull_request:
 
 jobs:
-        main:
+    main:
+        runs-on: ubuntu-latest
+        steps:
             - uses: actions/checkout@v2
-              with:
-                  fetch-depth: 0
+            with:
+                fetch-depth: 0
             - uses: actions/setup-node@v3
             - uses: nrwl/nx-set-shas@v3
-              with:
-                  main-branch-name: 'trunk'
+            with:
+                main-branch-name: 'trunk'
             - run: npm ci
-        format:
-            needs: [main]
-            steps:
-                - run: npx nx format:check || npx prettier --check .
-                - run: npx nx affected --target=lint
-        typecheck:
-            needs: [main]
-            steps:
-                - run: npx nx affected --target=typecheck
-        test:
-            needs: [main]
-            steps:
-                - run: npx nx affected --target=test --configuration=ci
-        build:
-            needs: [main]
-            steps:
-                - run: npx nx affected --target=build --parallel=3
-                
+    format:
+        needs: [main]
+        steps:
+            - run: npx nx format:check || npx prettier --check .
+            - run: npx nx affected --target=lint
+    typecheck:
+        needs: [main]
+        steps:
+            - run: npx nx affected --target=typecheck
+    test:
+        needs: [main]
+        steps:
+            - run: npx nx affected --target=test --configuration=ci
+    build:
+        needs: [main]
+        steps:
+            - run: npx nx affected --target=build --parallel=3
