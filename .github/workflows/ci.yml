@@ -11,11 +11,11 @@ jobs:
         steps:
             - uses: actions/checkout@v2
               with:
-                fetch-depth: 0
+                  fetch-depth: 0
             - uses: actions/setup-node@v3
             - uses: nrwl/nx-set-shas@v3
               with:
-                main-branch-name: 'trunk'
+                  main-branch-name: 'trunk'
             - run: npm ci
     format:
         needs: [main]
