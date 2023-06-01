@@ -18,6 +18,7 @@ runs:
                   ${{ runner.os }}-build-
                   ${{ runner.os }}-
         - name: Install Dependencies
+          shell: bash
           if: steps.cache-nodemodules.outputs.cache-hit != 'true'
           run: npm ci
         - uses: nrwl/nx-set-shas@v3
