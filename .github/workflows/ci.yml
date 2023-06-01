@@ -9,21 +9,21 @@ jobs:
     format:
         runs-on: ubuntu-latest
         steps:
-            - uses: ./.github/workflows/prepare-playground
+            - uses: ./.github/actions/prepare-playground/action.yml
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
     typecheck:
         runs-on: ubuntu-latest
         steps:
-            - uses: ./.github/workflows/prepare-playground
+            - uses: ./.github/actions/prepare-playground/action.yml
             - run: npx nx affected --target=typecheck
     test:
         runs-on: ubuntu-latest
         steps:
-            - uses: ./.github/workflows/prepare-playground
+            - uses: ./.github/actions/prepare-playground/action.yml
             - run: npx nx affected --target=test --configuration=ci
     build:
         runs-on: ubuntu-latest
         steps:
-            - uses: ./.github/workflows/prepare-playground
+            - uses: ./.github/actions/prepare-playground/action.yml
             - run: npx nx affected --target=build --parallel=3
