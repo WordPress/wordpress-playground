@@ -9,6 +9,7 @@
 		"dev": "nx dev playground-website",
 		"dev:interactivity": "nx dev interactive-block-playground",
 		"format": "nx format",
+		"format:uncommitted": "nx format --fix --parallel --uncommitted",
 		"lint": "nx run-many --all --target=lint",
 		"predeploy": "nx build docs-site",
 		"prepublishOnly": "npm run build",
