@@ -439,3 +439,11 @@ export interface RmDirOptions {
 	 */
 	recursive?: boolean;
 }
+
+export interface ListFilesOptions {
+	/**
+	 * If true, prepend given folder path to all file names.
+	 * Default: false.
+	 */
+	prependPath: boolean;
+}
