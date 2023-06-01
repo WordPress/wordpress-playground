@@ -4,6 +4,7 @@ runs:
     using: 'composite'
     steps:
         - name: Fetch trunk
+          shell: bash
           run: git fetch origin trunk
         - uses: actions/setup-node@v3
         - name: Cache node modules
