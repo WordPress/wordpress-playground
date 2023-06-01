@@ -90,7 +90,7 @@ export default defineConfig(({ command }) => {
 				name: 'website-config',
 				content: `
 				export const remotePlaygroundOrigin = ${JSON.stringify(playgroundOrigin)};
-				export const buildVersion = ${JSON.stringify(buildVersion)};					`,
+				export const buildVersion = ${JSON.stringify(buildVersion)};`,
 			}),
 		],
 
