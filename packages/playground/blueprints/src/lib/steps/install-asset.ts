@@ -31,17 +31,15 @@ export async function installAsset(
 	// Extract to temporary folder so we can find asset folder name
 
 	const zipFileName = zipFile.name;
-	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
-
-	const tmpUnzippedFilesPath = `/tmp/assets/${assetNameGuess}`;
+	const tmpFolder = `/tmp/assets`;
 	const tmpZipPath = `/tmp/${zipFileName}`;
 
 	const removeTmpFolder = () =>
-		playground.rmdir(tmpUnzippedFilesPath, {
+		playground.rmdir(tmpFolder, {
 			recursive: true,
 		});
 
-	if (await playground.fileExists(tmpUnzippedFilesPath)) {
+	if (await playground.fileExists(tmpFolder)) {
 		await removeTmpFolder();
 	}
 
@@ -56,34 +54,35 @@ export async function installAsset(
 	try {
 		await unzip(playground, {
 			zipPath: tmpZipPath,
-			extractToPath: tmpUnzippedFilesPath,
+			extractToPath: tmpFolder,
 		});
 
-		// Find the path asset folder name
-		const files = await playground.listFiles(tmpUnzippedFilesPath, {
-			prependPath: true,
-		});
+		// Find extracted asset folder name
 
-		/**
-		 * If the zip only contains a single entry that is directory,
-		 * we assume that's the asset folder. Otherwise, the zip
-		 * probably contains the plugin files without an intermediate folder.
-		 */
-		const zipHasRootFolder =
-			files.length === 1 && (await playground.isDir(files[0]));
+		const files = await playground.listFiles(tmpFolder);
+
 		let assetFolderName;
 		let tmpAssetPath = '';
-		if (zipHasRootFolder) {
-			tmpAssetPath = files[0];
-			assetFolderName = files[0].split('/').pop()!;
-		} else {
-			tmpAssetPath = tmpUnzippedFilesPath;
-			assetFolderName = assetNameGuess;
+
+		for (const file of files) {
+			tmpAssetPath = `${tmpFolder}/${file}`;
+			if (await playground.isDir(tmpAssetPath)) {
+				assetFolderName = file;
+				break;
+			}
+		}
+
+		if (!assetFolderName) {
+			throw new Error(
+				`The zip file should contain a single folder with files inside, but the provided zip file (${zipFileName}) does not contain such a folder.`
+			);
 		}
 
 		// Move asset folder to target path
+
 		const assetFolderPath = `${targetPath}/${assetFolderName}`;
 		await playground.mv(tmpAssetPath, assetFolderPath);
+
 		await cleanup();
 
 		return {
