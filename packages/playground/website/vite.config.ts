@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'node:child_process';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
@@ -35,6 +36,13 @@ const proxy = {
 		},
 	},
 };
+
+let buildVersion: string;
+try {
+	buildVersion = execSync('git rev-parse HEAD').toString().trim();
+} catch (e) {
+	buildVersion = (new Date().getTime() / 1000).toFixed(0);
+}
 
 export default defineConfig(({ command }) => {
 	const playgroundOrigin =
@@ -82,9 +90,7 @@ export default defineConfig(({ command }) => {
 				name: 'website-config',
 				content: `
 				export const remotePlaygroundOrigin = ${JSON.stringify(playgroundOrigin)};
-				export const buildVersion = ${JSON.stringify(
-					(new Date().getTime() / 1000).toFixed(0)
-				)};					`,
+				export const buildVersion = ${JSON.stringify(buildVersion)};					`,
 			}),
 		],
 
