@@ -4,7 +4,7 @@ on:
     workflow_call:
 
 jobs:
-    cached-npm-ci:
+    prepare-playground:
         runs-on: ubuntu-latest
 
         steps:
