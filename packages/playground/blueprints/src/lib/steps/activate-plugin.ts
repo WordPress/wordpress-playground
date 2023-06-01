@@ -51,8 +51,7 @@ foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 echo 'NO_ENTRY_FILE';
 `,
 	});
-	if (result.errors) throw new Error(result.errors);
-	if (result.text === 'NO_ENTRY_FILE') {
+	if (result.text.endsWith('NO_ENTRY_FILE')) {
 		throw new Error('Could not find plugin entry file.');
 	}
 };

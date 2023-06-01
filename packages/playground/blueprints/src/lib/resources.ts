@@ -164,7 +164,7 @@ export class VFSResource extends Resource {
 
 	/** @inheritDoc */
 	get name() {
-		return this.resource.path;
+		return this.resource.path.split('/').pop() || '';
 	}
 }
 
