@@ -166,11 +166,22 @@
 		</div>
 	</form>
 	<script>
+		/*
+		 * This function uses a Playground Blueprint to apply a PR to a WordPress Playground site.
+		 * 
+		 * You could build a similar tool to preview Pull Requests from your own repository!
+		 * 
+		 * Learn more at:
+		 * 
+		 * * https://wordpress.github.io/wordpress-playground/docs/start-here 
+		 * * https://wordpress.github.io/wordpress-playground/docs/build-your-first-app#preview-pull-requests-from-your-repository
+		 */
+
 		document.getElementById('create').addEventListener('submit', previewPr);
 		function previewPr(e) {
 			e.preventDefault();
 			let prNumber = document.getElementById('gutenberg-pr').value;
-			console.log({ prNumber });
+
 			// Extract number from a GitHub URL
 			if (
 				prNumber
@@ -219,7 +230,6 @@
 				],
 			};
 			const encoded = JSON.stringify(blueprint);
-			// window.location = 'https://playground.wordpress.net/#' + encoded;
 			window.location = '/#' + encodeURI(encoded);
 		}
 	</script>
