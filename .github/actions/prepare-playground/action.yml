@@ -1,0 +1,32 @@
+name: Clone the repository, install dependencies, and configures nx variables
+
+runs:
+    using: 'composite'
+    steps:
+        - name: Fetch trunk
+          shell: bash
+          run: git fetch origin trunk --depth=1
+        - uses: actions/setup-node@v3
+        - name: Cache node modules
+          id: cache-nodemodules
+          uses: actions/cache@v2
+          env:
+              cache-name: cache-node-modules
+          with:
+              # caching node_modules
+              path: node_modules
+              key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+              restore-keys: |
+                  ${{ runner.os }}-build-${{ env.cache-name }}-
+                  ${{ runner.os }}-build-
+                  ${{ runner.os }}-
+        - name: Install Dependencies
+          shell: bash
+          if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+          run: npm ci
+        - name: Set NX_BASE
+          shell: bash
+          run: echo "NX_BASE=$(git rev-parse origin/trunk)" >> $GITHUB_ENV
+        - name: Set NX_HEAD
+          shell: bash
+          run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV

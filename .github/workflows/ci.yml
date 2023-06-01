@@ -6,19 +6,37 @@ on:
     pull_request:
 
 jobs:
-    main:
+    warmup-cache:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v2
-              with:
-                  fetch-depth: 0
-            - uses: actions/setup-node@v3
-            - uses: nrwl/nx-set-shas@v3
-              with:
-                  main-branch-name: 'trunk'
-            - run: npm ci
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+    format:
+        runs-on: ubuntu-latest
+        needs: [warmup-cache]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
             - run: npx nx format:check || npx prettier --check .
+            - run: npx nx affected --target=lint
+    typecheck:
+        runs-on: ubuntu-latest
+        needs: [warmup-cache]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=typecheck
-            - run: npx nx affected --target=lint --parallel=3
-            - run: npx nx affected --target=test --parallel=3 --configuration=ci
+    test:
+        runs-on: ubuntu-latest
+        needs: [warmup-cache]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - run: npx nx affected --target=test --configuration=ci
+    build:
+        runs-on: ubuntu-latest
+        needs: [warmup-cache]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3
