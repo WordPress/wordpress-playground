@@ -35,7 +35,6 @@ try {
 		blueprint.preferredVersions!.wp =
 			query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 	}
-	console.log(blueprint);
 } catch (e) {
 	blueprint = makeBlueprint({
 		php: query.get('php') || '8.0',
