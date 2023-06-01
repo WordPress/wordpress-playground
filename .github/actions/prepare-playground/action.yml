@@ -26,7 +26,7 @@ runs:
           run: npm ci
         - name: Set NX_BASE
           shell: bash
-          run: echo "NX_BASE=$(git rev-parse trunk)" >> $GITHUB_ENV
+          run: echo "NX_BASE=$(git rev-parse origin/trunk)" >> $GITHUB_ENV
         - name: Set NX_HEAD
           shell: bash
           run: echo "NX_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
