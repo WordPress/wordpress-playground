@@ -15,22 +15,26 @@ jobs:
             - uses: actions/setup-node@v3
             - uses: nrwl/nx-set-shas@v3
               with:
-                  main-branch-name: 'trunk'
+                  main-branch-name: "trunk"
             - run: npm ci
     format:
+        runs-on: ubuntu-latest
         needs: [main]
         steps:
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
     typecheck:
+        runs-on: ubuntu-latest
         needs: [main]
         steps:
             - run: npx nx affected --target=typecheck
     test:
+        runs-on: ubuntu-latest
         needs: [main]
         steps:
             - run: npx nx affected --target=test --configuration=ci
     build:
+        runs-on: ubuntu-latest
         needs: [main]
         steps:
             - run: npx nx affected --target=build --parallel=3
