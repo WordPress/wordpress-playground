@@ -6,35 +6,24 @@ on:
     pull_request:
 
 jobs:
-    main:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-              with:
-                  fetch-depth: 0
-            - uses: actions/setup-node@v3
-            - uses: nrwl/nx-set-shas@v3
-              with:
-                  main-branch-name: "trunk"
-            - run: npm ci
     format:
         runs-on: ubuntu-latest
-        needs: [main]
         steps:
+            - uses: wordpress/wordpress-playground/.github/workflows/prepare-playground.yml
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
     typecheck:
         runs-on: ubuntu-latest
-        needs: [main]
         steps:
+            - uses: wordpress/wordpress-playground/.github/workflows/prepare-playground.yml
             - run: npx nx affected --target=typecheck
     test:
         runs-on: ubuntu-latest
-        needs: [main]
         steps:
+            - uses: wordpress/wordpress-playground/.github/workflows/prepare-playground.yml
             - run: npx nx affected --target=test --configuration=ci
     build:
         runs-on: ubuntu-latest
-        needs: [main]
         steps:
+            - uses: wordpress/wordpress-playground/.github/workflows/prepare-playground.yml
             - run: npx nx affected --target=build --parallel=3
