@@ -295,8 +295,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			);
 		}
 		for (const name in headers) {
+			let HTTP_prefix = 'HTTP_';
+			/**
+			 * Some headers are special and don't have the HTTP_ prefix.
+			 */
+			if (
+				['content-type', 'content-length'].includes(name.toLowerCase())
+			) {
+				HTTP_prefix = '';
+			}
 			this.addServerGlobalEntry(
-				`HTTP_${name.toUpperCase().replace(/-/g, '_')}`,
+				`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`,
 				headers[name]
 			);
 		}

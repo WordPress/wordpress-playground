@@ -333,6 +333,31 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(bodyText).toEqual('{"foo": "bar"}');
 		});
 
+		it('Should set $_SERVER entries for provided headers', async () => {
+			const response = await php.run({
+				code: `<?php echo json_encode($_SERVER);`,
+				method: 'POST',
+				body: 'foo=bar',
+				headers: {
+					'Content-Type': 'text/plain',
+					'Content-Length': '15',
+					'User-agent': 'my-user-agent',
+					'custom-header': 'custom value',
+					'x-test': 'x custom value',
+				},
+			});
+			const json = response.json;
+			expect(json).toHaveProperty('HTTP_USER_AGENT', 'my-user-agent');
+			expect(json).toHaveProperty('HTTP_CUSTOM_HEADER', 'custom value');
+			expect(json).toHaveProperty('HTTP_X_TEST', 'x custom value');
+			/*
+			 * The following headers should be set without the HTTP_ prefix,
+			 * as PHP follows the following convention:
+			 * https://www.ietf.org/rfc/rfc3875
+			 */
+			expect(json).toHaveProperty('CONTENT_TYPE', 'text/plain');
+			expect(json).toHaveProperty('CONTENT_LENGTH', '15');
+		});
 		it('Should expose urlencoded POST data in $_POST', async () => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
@@ -536,7 +561,7 @@ bar1
 			expect($_SERVER).toHaveProperty('REQUEST_URI', '/test.php?a=b');
 			expect($_SERVER).toHaveProperty('REQUEST_METHOD', 'POST');
 			expect($_SERVER).toHaveProperty(
-				'HTTP_CONTENT_TYPE',
+				'CONTENT_TYPE',
 				'multipart/form-data; boundary=boundary'
 			);
 			expect($_SERVER).toHaveProperty(

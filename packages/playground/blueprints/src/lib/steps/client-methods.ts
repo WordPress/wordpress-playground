@@ -37,7 +37,7 @@ export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
  * {
  * 		"step": "runPHP",
  * 		"options": {
- * 			"code": "<?php echo $_SERVER['HTTP_CONTENT_TYPE']; ?>",
+ * 			"code": "<?php echo $_SERVER['CONTENT_TYPE']; ?>",
  * 			"headers": {
  * 				"Content-type": "text/plain"
  * 			}
