@@ -5,6 +5,7 @@ export type {
 	PHPOutput,
 	PHPRunOptions,
 	UniversalPHP,
+	ListFilesOptions,
 	RmDirOptions,
 	HTTPMethod,
 	PHPRequest,

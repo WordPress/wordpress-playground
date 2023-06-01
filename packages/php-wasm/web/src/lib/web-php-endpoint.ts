@@ -1,6 +1,7 @@
 import type {
 	BasePHP,
 	IsomorphicLocalPHP,
+	ListFilesOptions,
 	PHPRequest,
 	PHPResponse,
 	PHPRunOptions,
@@ -145,8 +146,8 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
-	listFiles(path: string): string[] {
-		return _private.get(this)!.php.listFiles(path);
+	listFiles(path: string, options?: ListFilesOptions): string[] {
+		return _private.get(this)!.php.listFiles(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.isDir */

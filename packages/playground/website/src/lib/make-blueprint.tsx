@@ -52,6 +52,10 @@ function applyGutenbergPRSteps(prNumber: number): StepDefinition[] {
 			path: '/wordpress/pr',
 		},
 		{
+			step: 'mkdir',
+			path: '/tmp',
+		},
+		{
 			step: 'writeFile',
 			path: '/wordpress/pr/pr.zip',
 			data: {
