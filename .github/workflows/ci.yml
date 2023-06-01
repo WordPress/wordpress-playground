@@ -6,9 +6,7 @@ on:
     pull_request:
 
 jobs:
-    main:
-        runs-on: ubuntu-latest
-        steps:
+        main:
             - uses: actions/checkout@v2
               with:
                   fetch-depth: 0
@@ -17,8 +15,21 @@ jobs:
               with:
                   main-branch-name: 'trunk'
             - run: npm ci
-            - run: npx nx format:check || npx prettier --check .
-            - run: npx nx affected --target=typecheck
-            - run: npx nx affected --target=lint --parallel=3
-            - run: npx nx affected --target=test --parallel=3 --configuration=ci
-            - run: npx nx affected --target=build --parallel=3
+        format:
+            needs: [main]
+            steps:
+                - run: npx nx format:check || npx prettier --check .
+                - run: npx nx affected --target=lint
+        typecheck:
+            needs: [main]
+            steps:
+                - run: npx nx affected --target=typecheck
+        test:
+            needs: [main]
+            steps:
+                - run: npx nx affected --target=test --configuration=ci
+        build:
+            needs: [main]
+            steps:
+                - run: npx nx affected --target=build --parallel=3
+                
