@@ -1,2 +1,2 @@
 // Provided by vite
-export { remotePlaygroundOrigin } from 'virtual:website-config';
+export { remotePlaygroundOrigin, buildVersion } from 'virtual:website-config';

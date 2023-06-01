@@ -80,9 +80,13 @@ export default defineConfig(({ command }) => {
 			ignoreWasmImports(),
 			virtualModule({
 				name: 'website-config',
-				content: `export const remotePlaygroundOrigin = ${JSON.stringify(
+				content: `
+				export const remotePlaygroundOrigin = ${JSON.stringify(
 					playgroundOrigin
-				)};`,
+				)};
+				export const buildVersion = ${JSON.stringify(
+					(new Date().getTime() / 1000).toFixed(0)
+				)};					`,
 			}),
 		],
 

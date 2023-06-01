@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { remotePlaygroundOrigin } from './config';
+import { remotePlaygroundOrigin, buildVersion } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -30,7 +30,7 @@ export function usePlayground({ blueprint }: UsePlaygroundOptions) {
 
 		startPlaygroundWeb({
 			iframe,
-			remoteUrl: `${remotePlaygroundOrigin}/remote.html`,
+			remoteUrl: `${remotePlaygroundOrigin}/remote.html?v=${buildVersion}`,
 			blueprint,
 		}).then(async (playground) => {
 			playground.onNavigation((url) => setUrl(url));
