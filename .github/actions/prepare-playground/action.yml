@@ -3,6 +3,8 @@ name: Clone the repository, install dependencies, and configures nx variables
 runs:
     using: 'composite'
     steps:
+        - name: Fetch trunk
+          run: git fetch origin trunk
         - uses: actions/setup-node@v3
         - name: Cache node modules
           id: cache-nodemodules
