@@ -10,14 +10,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-              with: { fetch-depth: 0 }
             - uses: ./.github/actions/prepare-playground
     format:
         runs-on: ubuntu-latest
         needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v2
-              with: { fetch-depth: 0 }
             - uses: ./.github/actions/prepare-playground
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
@@ -26,7 +24,6 @@ jobs:
         needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v2
-              with: { fetch-depth: 0 }
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=typecheck
     test:
@@ -34,7 +31,6 @@ jobs:
         needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v2
-              with: { fetch-depth: 0 }
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=test --configuration=ci
     build:
@@ -42,6 +38,5 @@ jobs:
         needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v2
-              with: { fetch-depth: 0 }
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3
