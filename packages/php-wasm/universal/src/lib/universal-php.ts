@@ -222,9 +222,10 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 * Lists the files and directories in the given directory.
 	 *
 	 * @param  path - The directory path to list.
+	 * @param  options - Options for the listing.
 	 * @returns The list of files and directories in the given directory.
 	 */
-	listFiles(path: string): string[];
+	listFiles(path: string, options?: ListFilesOptions): string[];
 
 	/**
 	 * Checks if a directory exists in the PHP filesystem.
