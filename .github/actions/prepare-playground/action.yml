@@ -1,10 +1,8 @@
 name: Clone the repository, install dependencies, and configures nx variables
 
 runs:
-    using: "composite"
+    using: 'composite'
     steps:
-        - uses: actions/checkout@v2
-          with: { fetch-depth: 0 }
         - uses: actions/setup-node@v3
         - name: Cache node modules
           id: cache-nodemodules
