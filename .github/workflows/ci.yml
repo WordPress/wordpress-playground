@@ -10,11 +10,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
-            with:
+              with:
                 fetch-depth: 0
             - uses: actions/setup-node@v3
             - uses: nrwl/nx-set-shas@v3
-            with:
+              with:
                 main-branch-name: 'trunk'
             - run: npm ci
     format:
