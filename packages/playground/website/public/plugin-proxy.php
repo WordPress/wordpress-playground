@@ -78,6 +78,12 @@ class PluginDownloader
                 continue;
             }
 
+            // If HTTP method is HEAD or OPTIONS, just say it's 200 OK
+            if ($_SERVER['REQUEST_METHOD'] === 'HEAD' || $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+                header('HTTP/1.1 200 OK');
+                return;
+            }
+
             $allowed_headers = array(
                 'content-length',
                 'content-disposition',
