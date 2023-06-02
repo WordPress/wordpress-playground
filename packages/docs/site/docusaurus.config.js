@@ -101,6 +101,11 @@ const config = {
 						label: 'API Reference',
 						position: 'left',
 					},
+					{
+						href: 'https://playground.wordpress.net/gutenberg.html',
+						label: 'Gutenberg PR Previewer',
+						position: 'left',
+					},
 				],
 			},
 			footer: {
