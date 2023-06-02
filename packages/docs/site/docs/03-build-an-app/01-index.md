@@ -85,6 +85,8 @@ See [getting started with Blueprints](../09-blueprints-api/01-index.md) to learn
 
 ## Preview pull requests from your repository
 
+See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
+
 You can use Playground as a Pull Request previewer if:
 
 -   Your WordPress plugin or theme uses a CI pipeline
