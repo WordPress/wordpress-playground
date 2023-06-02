@@ -103,9 +103,9 @@
 				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 			}
 
+			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
-			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
-			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
+			const response = await fetch(zipArtifactUrl + '&mode=verify');
 			if (response.status !== 200) {
 				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
 				submitting = false;
@@ -114,6 +114,7 @@
 				return;
 			}
 
+			// Redirect to the Playground site with the Blueprint to download and apply the PR
 			const blueprint = {
 				landingPage: '/wp-admin/',
 				steps: [

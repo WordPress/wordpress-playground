@@ -78,8 +78,12 @@ class PluginDownloader
                 continue;
             }
 
-            // If HTTP method is HEAD or OPTIONS, just say it's 200 OK
-            if ($_SERVER['REQUEST_METHOD'] === 'HEAD' || $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            /*
+             * Short-circuit if we only want to verify whether the CI 
+             * artifact seems to exist.
+             */
+            $mode = $_GET['mode'] ?? 'download';
+            if ($mode === 'verify') {
                 header('HTTP/1.1 200 OK');
                 return;
             }

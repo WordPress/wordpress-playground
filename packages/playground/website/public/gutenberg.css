@@ -31,7 +31,6 @@ input[type='text'] {
 	padding: 5px 8px;
 	outline: 0;
 	font-size: 26px;
-
 }
 input[type='text']::-webkit-inner-spin-button,
 input[type='text']::-webkit-outer-spin-button {
@@ -142,51 +141,50 @@ button:focus {
 #error {
 	text-align: center;
 	padding: 0 10px;
-    margin-bottom: 5vh;
-    color: #8b0000;
-    font-weight: bold;
-    font-size: 1.5em;
+	margin-bottom: 5vh;
+	color: #8b0000;
+	font-weight: bold;
+	font-size: 1.5em;
 }
 
 #submit {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 #submit:not(.loading) .verifying {
-    display: none;
+	display: none;
 }
 #submit.loading .go {
-    display: none;
+	display: none;
 }
 
 #submit.loading {
-    position: relative;
-    background: #00435d;
-    border-color: #00435d;
-    cursor: default;
+	position: relative;
+	background: #00435d;
+	border-color: #00435d;
+	cursor: default;
 }
 
 #submit.loading:before {
-    content: '';
-    /* position: absolute;
+	content: '';
+	/* position: absolute;
     top: 0;
     left: 0; */
-    margin-right: 5px;
-    margin-left: -5px;
-    width: 15px;
-    height: 15px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    border-top-color: transparent;
-    border-right-color: transparent;
-    animation: spin 1s linear infinite;
+	margin-right: 5px;
+	margin-left: -5px;
+	width: 15px;
+	height: 15px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	border-top-color: transparent;
+	border-right-color: transparent;
+	animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+	to {
+		transform: rotate(360deg);
+	}
 }
