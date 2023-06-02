@@ -88,7 +88,7 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 You also can run WordPress Playground locally as follows:
 
 ```bash
-git clone https://github.com/WordPress/wordpress-playground
+git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
 cd wordpress-playground
 npm install
 npm run dev
