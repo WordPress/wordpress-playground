@@ -6,25 +6,14 @@ on:
     pull_request:
 
 jobs:
-    warmup-cache:
+    lint-and-typecheck:
+        name: "Lint and typecheck"
         runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - uses: ./.github/actions/prepare-playground
-    format:
-        runs-on: ubuntu-latest
-        needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
-    typecheck:
-        runs-on: ubuntu-latest
-        needs: [warmup-cache]
-        steps:
-            - uses: actions/checkout@v3
-            - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=typecheck
     test:
         runs-on: ubuntu-latest
