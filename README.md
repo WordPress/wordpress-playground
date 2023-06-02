@@ -139,10 +139,6 @@ Another strong inspiration was the [Drupal in the browser demo](https://seanmorr
 
 A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https://wordpress.wasmlabs.dev/) shared before this project was first published. There is no public repository available, but their [technical overview](https://wasmlabs.dev/articles/wordpress-in-the-browser/) gives a breakdown of the technical decisions that project took. WordPress Playground draws inspiration from the same PHP in the browser projects and makes similar technical choices.
 
-## Using WP-NOW for local environment
-
-WordPress Playground comes with `wp-now`. `wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. If you are looking to set up `wp-now` specifically, you can follow [this README.md](/packages/wp-now/README.md).
-
 ## Contributing
 
 WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
