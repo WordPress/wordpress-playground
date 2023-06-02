@@ -96,6 +96,15 @@
 						step: 'mkdir',
 						path: '/wordpress/pr',
 					},
+					/*
+					 * This is the most important step.
+					 * It download the built plugin zip file exposed by GitHub CI.
+					 * 
+					 * Because the zip file is not publicly accessible, we use the
+					 * plugin-proxy API endpoint to download it. The source code of
+					 * that endpoint is available at:
+					 * https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/plugin-proxy.php
+					 */
 					{
 						step: 'writeFile',
 						path: '/wordpress/pr/pr.zip',
@@ -109,6 +118,18 @@
 							caption: `Applying Gutenberg PR ${prNumber}`,
 						},
 					},
+					/**
+					 * GitHub CI artifacts are doubly zipped:
+					 * 
+					 * pr.zip
+					 *    gutenberg.zip
+					 *       gutenberg.php
+					 *       ... other files ...
+					 * 
+					 * This step extracts the inner zip file so that we get
+					 * access directly to gutenberg.zip and can use it to
+					 * install the plugin.
+					 */
 					{
 						step: 'unzip',
 						zipPath: '/wordpress/pr/pr.zip',
