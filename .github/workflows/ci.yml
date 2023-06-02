@@ -6,36 +6,32 @@ on:
     pull_request:
 
 jobs:
-    warmup-cache:
+    # This step:
+    # * Warms up the node_modules cache
+    # * Performs linting and typechecking
+    #
+    # The linting tasks take ~5s to complete and it doesn't
+    # make sense to separate them into separate steps that would
+    # take ~25s just to run git clone and restore node_modules.
+    lint-and-typecheck:
+        name: 'Lint and typecheck'
         runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
-            - uses: ./.github/actions/prepare-playground
-    format:
-        runs-on: ubuntu-latest
-        needs: [warmup-cache]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
-    typecheck:
-        runs-on: ubuntu-latest
-        needs: [warmup-cache]
-        steps:
-            - uses: actions/checkout@v3
-            - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=typecheck
     test:
         runs-on: ubuntu-latest
-        needs: [warmup-cache]
+        needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=test --configuration=ci
     build:
         runs-on: ubuntu-latest
-        needs: [warmup-cache]
+        needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
