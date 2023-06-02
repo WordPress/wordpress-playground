@@ -134,3 +134,7 @@ button:focus {
 	background: #191e23;
 	transition: width 0.6s ease-in-out;
 }
+.links {
+	text-align: center;
+	padding: 0 10px;
+}
