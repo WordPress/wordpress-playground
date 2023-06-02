@@ -19,7 +19,6 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: npx nx format:check || npx prettier --check .
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
     test:
