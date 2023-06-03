@@ -47,7 +47,6 @@ jobs:
 
     # Deploy documentation job
     deploy_docs:
-        if: github.ref == 'refs/tags/truk' && github.event_name == 'push'
         # Add a dependency to the build job
         needs: build
 
