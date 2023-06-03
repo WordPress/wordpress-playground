@@ -42,11 +42,12 @@ jobs:
                   if [ ! -d "dist/docs/build" ]; then
                       npm run build:docs
                   fi
-            - uses: actions/upload-pages-artifact
+            - uses: actions/upload-pages-artifact@v1
               with: { path: dist/docs/build }
 
     # Deploy documentation job
     deploy_docs:
+        if: github.ref == 'refs/tags/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
         needs: build
 
