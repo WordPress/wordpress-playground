@@ -38,7 +38,7 @@ jobs:
 
     # Deploy documentation job
     deploy_docs:
-        if: github.ref == 'refs/tags/trunk' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
         needs: [test, build]
 
