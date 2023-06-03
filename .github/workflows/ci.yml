@@ -36,20 +36,11 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3
 
-            # For deploying documentation:
-            # Run npm run build:docs if dist/docs/build doesn't exist
-            - run: |
-                  if [ ! -d "dist/docs/build" ]; then
-                      npm run build:docs
-                  fi
-            - uses: actions/upload-pages-artifact@v1
-              with: { path: dist/docs/build }
-
     # Deploy documentation job
     deploy_docs:
         if: github.ref == 'refs/tags/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: build
+        needs: [test, build]
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
         permissions:
@@ -64,6 +55,11 @@ jobs:
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - run: npm run build:docs
+            - uses: actions/upload-pages-artifact@v1
+              with: { path: dist/docs/build }
             - name: Deploy to GitHub Pages
               id: deployment
-              uses: actions/deploy-pages@v2 # or the latest "vX.X.X" version tag for this action
+              uses: actions/deploy-pages@v2
