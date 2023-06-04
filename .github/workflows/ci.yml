@@ -40,7 +40,8 @@ jobs:
     deploy_docs:
         if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test, build]
+        needs: [test, build]        
+        name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
         permissions:
