@@ -24,7 +24,7 @@ jobs:
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
-                  git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
             - name: Authenticate with Registry
               run: |
                   echo "@php-wasm:registry=http://registry.npmjs.org/" > .npmrc
