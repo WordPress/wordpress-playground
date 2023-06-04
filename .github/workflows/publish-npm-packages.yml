@@ -27,7 +27,6 @@ jobs:
                   git remote set-url origin https://x-access-token/:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
             - name: Authenticate with Registry
               run: |
-                  npm logout
                   echo "@php-wasm:registry=http://registry.npmjs.org/" > .npmrc
                   echo "@wp-playground:registry=http://registry.npmjs.org/" >> .npmrc
                   echo "registry=http://registry.npmjs.org/" >> .npmrc
