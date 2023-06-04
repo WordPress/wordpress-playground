@@ -35,6 +35,9 @@ jobs:
                   npm whoami
             # Build npm packages
             - uses: ./.github/actions/prepare-playground
+            - name: Confirm the auth is still there
+              run: |
+                  npm whoami
             - run: npm run build
             # Version bump, release, tag a new version on GitHub
             - name: Release new version of NPM packages
