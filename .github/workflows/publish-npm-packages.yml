@@ -43,7 +43,6 @@ jobs:
                   echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
                   echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
             - uses: ./.github/actions/prepare-playground
-            - run: npm run build
             # Version bump, release, tag a new version on GitHub
             - name: Release new version of NPM packages
               shell: bash
