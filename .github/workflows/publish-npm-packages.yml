@@ -1,0 +1,55 @@
+name: Release NPM packages
+
+on:
+    workflow_dispatch:
+        # Require a version bump (patch, minor, major) and an optional dist tag
+        inputs:
+            version_bump:
+                description: 'Version bump (patch, minor, or major)'
+                required: true
+                default: 'patch'
+            dist_tag:
+                description: 'Dist tag (latest, next, etc.)'
+                required: false
+                default: 'latest'
+
+jobs:
+    release:
+        # Only run this workflow from the trunk branch
+        if: github.ref == 'refs/heads/trunk'
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: npm
+        env:
+            NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.event.pull_request.head.ref }}
+                  clean: true
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Config git user
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+            - name: Authenticate with Registry
+              run: |
+                  echo "@php-wasm:registry=https://registry.npmjs.org/" > ~/.npmrc
+                  echo "@wp-playground:registry=https://registry.npmjs.org/" >> ~/.npmrc
+                  echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+                  echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+                  npm whoami
+            # Build npm packages
+            - uses: ./.github/actions/prepare-playground
+            - name: Confirm the auth is still there
+              run: |
+                  npm whoami
+            - run: npm run build
+            # Version bump, release, tag a new version on GitHub
+            - name: Release new version of NPM packages
+              shell: bash
+              run: lerna publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
