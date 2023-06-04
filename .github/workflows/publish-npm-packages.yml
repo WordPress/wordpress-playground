@@ -8,7 +8,7 @@ on:
 jobs:
     release:
         # Only run this workflow from the trunk branch
-        if: github.ref == 'refs/heads/trunk'
+        # if: github.ref == 'refs/heads/trunk'
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
