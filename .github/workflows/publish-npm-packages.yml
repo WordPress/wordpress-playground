@@ -32,7 +32,7 @@ jobs:
               run: |
                   echo "@php-wasm:registry=http://registry.npmjs.org/" > ~/.npmrc
                   echo "@wp-playground:registry=http://registry.npmjs.org/" >> ~/.npmrc
-                  echo "registry=http://registry.npmjs.org/" >> ~/.npmrc
+                  echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
                   echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
                   npm whoami
             # Build npm packages
