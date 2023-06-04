@@ -42,12 +42,6 @@ jobs:
                   echo "@wp-playground:registry=https://registry.npmjs.org/" >> ~/.npmrc
                   echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
                   echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-                  npm whoami
-            # Build npm packages
-            - uses: ./.github/actions/prepare-playground
-            - name: Confirm the auth is still there
-              run: |
-                  npm whoami
             - run: npm run build
             # Version bump, release, tag a new version on GitHub
             - name: Release new version of NPM packages
