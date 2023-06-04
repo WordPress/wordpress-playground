@@ -1,0 +1,42 @@
+name: Release npm packages
+
+on:
+    workflow_dispatch:
+    # Temporary trigger for testing
+    pull_request:
+
+jobs:
+    release:
+        # Only run this workflow from the trunk branch
+        if: github.ref == 'refs/heads/trunk'
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: npm
+        env:
+            NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  persist-credentials: false
+            - name: Config git user
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://x-access-token/:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+            - name: Authenticate with Registry
+              run: |
+                  yarn logout
+                  echo "@php-wasm:registry=http://registry.npmjs.org/" > .npmrc
+                  echo "@wp-playground:registry=http://registry.npmjs.org/" >> .npmrc
+                  echo "registry=http://registry.npmjs.org/" >> .npmrc
+                  echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> .npmrc
+                  npm whoami
+            # Build npm packages
+            - uses: ./.github/actions/prepare-playground
+            - run: npm run build
+            # Version bump, release, tag a new version on GitHub
+            - name: Release new version of NPM packages
+              shell: bash
+              run: npm run release
