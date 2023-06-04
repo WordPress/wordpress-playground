@@ -19,6 +19,7 @@ node_modules
 # IDEs and editors
 /.idea
 /.local
+/.playground-private
 .project
 .classpath
 .c9/
