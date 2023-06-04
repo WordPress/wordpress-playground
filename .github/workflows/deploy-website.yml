@@ -1,4 +1,4 @@
-name: Deploy new website to playground.wordpress.net
+name: Deploy to playground.wordpress.net
 
 on:
     workflow_dispatch:
