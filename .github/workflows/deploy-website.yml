@@ -5,6 +5,9 @@ on:
 
 jobs:
     build_and_deploy:
+        # Only run this workflow from the trunk branch
+        if: github.ref == 'refs/heads/trunk'
+        
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
