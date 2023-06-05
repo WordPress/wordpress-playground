@@ -25,8 +25,9 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	}
 	await playground.run({
 		code: `<?php
-      require_once( '${wpLoadPath}' );
-      switch_theme( '${themeFolderName}' );
-      `,
+define( 'WP_ADMIN', true );
+require_once( '${wpLoadPath}' );
+switch_theme( '${themeFolderName}' );
+`,
 	});
 };
