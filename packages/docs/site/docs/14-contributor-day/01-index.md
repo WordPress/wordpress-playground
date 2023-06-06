@@ -31,6 +31,8 @@ You can globally install wp-now npm package in your machine, or if you prefer, y
 npm install -g @wp-now/wp-now
 ```
 
+### Running
+
 To start a new server, navigate to your WordPress plugin or theme directory and run the command wp-now start. This will start the server with the default PHP and WordPress versions. A new tab will open automatically in your browser.
 
 ```
@@ -39,6 +41,12 @@ wp-now start
 ```
 
 You can stop wp-now by killing the process by pressing the keys `CTRL + C`.
+
+To change the PHP or WordPress version, you can use the `--php` and `--wp` arguments. For example, to start a server with PHP 7.4 and WordPress 6.1, you can run:
+
+```
+wp-now start --php 7.4 --wp 6.1
+```
 
 ## Contributing to Gutenberg
 
