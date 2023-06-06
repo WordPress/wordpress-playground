@@ -139,6 +139,16 @@ Another strong inspiration was the [Drupal in the browser demo](https://seanmorr
 
 A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https://wordpress.wasmlabs.dev/) shared before this project was first published. There is no public repository available, but their [technical overview](https://wasmlabs.dev/articles/wordpress-in-the-browser/) gives a breakdown of the technical decisions that project took. WordPress Playground draws inspiration from the same PHP in the browser projects and makes similar technical choices.
 
+# WordPress Playground tools
+
+WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository [github.com/WordPress/playground-tools](https://github.com/WordPress/playground-tools).
+
+These tools include:
+
+-   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
+-   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
+-   [wp-now](https://github.com/WordPress/playground-tools/tree/trunk/packages/wp-now/#readme) CLI local development environment.
+
 ## Contributing
 
 WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
