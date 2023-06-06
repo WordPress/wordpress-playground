@@ -34,6 +34,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 
 	const result = await playground.run({
 		code: `<?php
+define( 'WP_ADMIN', true );
 ${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
 $plugin_path = '${pluginPath}';
 if (!is_dir($plugin_path)) {

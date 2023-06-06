@@ -1,0 +1,33 @@
+name: Deploy to playground.wordpress.net
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build_and_deploy:
+        # Only run this workflow from the trunk branch
+        if: github.ref == 'refs/heads/trunk'
+        
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: playground-wordpress-net
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - run: npm run build
+            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
+            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
+            - uses: actions/upload-artifact@v2
+              with:
+                  name: playground-website
+                  path: wasm-wordpress-net.tar.gz
+            # Deploy the playground.wordpress.net website by
+            # sending a CURL request to https://playground.wordpress.net/webhook.php with a header
+            # like X-Deployment-Token that has the same value as github secret DEPLOY_AUTH_TOKEN
+            - name: Deploy
+              shell: bash
+              run: |
+                  curl -X POST https://playground.wordpress.net/webhook.php \
+                      -H "X-Deployment-Token: ${{ secrets.DEPLOYMENT_KEY }}" \
+                      -H "Content-Type: application/json"
