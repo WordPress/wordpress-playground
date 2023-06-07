@@ -11,6 +11,10 @@ Read on to see how you can use either for contributing to WordPress. Please note
 
 ## Getting Started
 
+If you're a visual learner – here's a step-by-step video for you! If you prefer reading at your own pace, you're welcome to skip over to the written instructions below.
+
+<iframe title="Getting Started with wp-now for WordPress development at Contributor Day" aria-label="Getting Started with wp-now for WordPress development at Contributor Day" width="752" height="423.2" src="https://video.wordpress.com/embed/Gn7XOCAM?cover=1&amp;preloadContent=metadata&amp;useAverageColor=1&amp;hd=1&amp;metadata_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ3b3JkcHJlc3MuY29tIiwiaWF0IjoxNjg2MTQ4ODQ5LCJleHAiOjE2ODYzMjE2NDksImJsb2dfaWQiOiIyMDMxMjIxMTIiLCJndWlkIjoiR243WE9DQU0iLCJhdXRoIjoidmlkZW9wcmVzc19wbGF5YmFja190b2tlbiIsImFjY2VzcyI6InZpZGVvIiwiZXhwaXJlcyI6MTY4NjMyMTY0OX0.DJWVfePHl2nUKo8ziG81CK2VlG5Ui8vNg-dZJ7dOSq8" frameborder="0" allowfullscreen="" data-resize-to-parent="true" allow="clipboard-write"></iframe>
+
 ### VSCode Playground extension
 
 [Visual Studio Code Playground extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) offers a friendly user interface to a local WordPress environment.
