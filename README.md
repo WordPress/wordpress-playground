@@ -139,7 +139,7 @@ Another strong inspiration was the [Drupal in the browser demo](https://seanmorr
 
 A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https://wordpress.wasmlabs.dev/) shared before this project was first published. There is no public repository available, but their [technical overview](https://wasmlabs.dev/articles/wordpress-in-the-browser/) gives a breakdown of the technical decisions that project took. WordPress Playground draws inspiration from the same PHP in the browser projects and makes similar technical choices.
 
-# WordPress Playground tools
+# WordPress Playground Tools
 
 WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository [github.com/WordPress/playground-tools](https://github.com/WordPress/playground-tools).
 
