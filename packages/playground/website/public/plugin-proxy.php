@@ -79,11 +79,11 @@ class PluginDownloader
             }
 
             /*
-             * Short-circuit if we only want to verify whether the CI 
-             * artifact seems to exist.
+             * HEAD method is used when we only want to verify whether the CI 
+             * artifact seems to exist – we don't want to download it. Let's
+             * short-circuit with HTTP 200 OK.
              */
-            $mode = $_GET['mode'] ?? 'download';
-            if ($mode === 'verify') {
+            if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
                 header('HTTP/1.1 200 OK');
                 return;
             }

@@ -20,7 +20,7 @@ svg {
 }
 label {
 	margin-bottom: 4px;
-	font-size: 13px;
+	font-size: 16px;
 }
 input[type='text'] {
 	appearance: none;
@@ -105,7 +105,7 @@ button:focus {
 	align-items: center;
 }
 #gutenberg-pr {
-	width: 80px;
+	width: 280px;
 	margin-right: 4px;
 }
 #run {

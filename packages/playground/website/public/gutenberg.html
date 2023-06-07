@@ -27,7 +27,7 @@
 			action="https://playground.wordpress.net"
 			method="GET"
 		>
-			<label for="gutenberg-pr">Pull request:</label>
+			<label for="gutenberg-pr">Pull request number or URL:</label>
 			<div id="createFields">
 				<input
 					id="gutenberg-pr"
@@ -105,7 +105,8 @@
 
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
-			const response = await fetch(zipArtifactUrl + '&mode=verify');
+			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
+			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
 			if (response.status !== 200) {
 				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
 				submitting = false;
