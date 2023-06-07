@@ -141,7 +141,7 @@ A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https
 
 # WordPress Playground Tools
 
-WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository [github.com/WordPress/playground-tools](https://github.com/WordPress/playground-tools).
+WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository: [WordPress/playground-tools](https://github.com/WordPress/playground-tools).
 
 These tools include:
 
