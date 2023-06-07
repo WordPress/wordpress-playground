@@ -78,6 +78,16 @@ class PluginDownloader
                 continue;
             }
 
+            /*
+             * HEAD method is used when we only want to verify whether the CI 
+             * artifact seems to exist – we don't want to download it. Let's
+             * short-circuit with HTTP 200 OK.
+             */
+            if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+                header('HTTP/1.1 200 OK');
+                return;
+            }
+
             $allowed_headers = array(
                 'content-length',
                 'content-disposition',

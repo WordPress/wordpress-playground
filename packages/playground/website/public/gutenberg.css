@@ -20,7 +20,7 @@ svg {
 }
 label {
 	margin-bottom: 4px;
-	font-size: 13px;
+	font-size: 16px;
 }
 input[type='text'] {
 	appearance: none;
@@ -30,7 +30,7 @@ input[type='text'] {
 	border-radius: 4px;
 	padding: 5px 8px;
 	outline: 0;
-	font-size: 16px;
+	font-size: 26px;
 }
 input[type='text']::-webkit-inner-spin-button,
 input[type='text']::-webkit-outer-spin-button {
@@ -47,14 +47,14 @@ input[type='text']:focus {
 button {
 	border-radius: 3px;
 	vertical-align: top;
-	height: 30px;
-	line-height: 28px;
-	padding: 0 12px 2px;
+	height: 40px;
+	line-height: 38px;
+	padding: 0 12px;
 	webkit-appearance: none;
 	border: 0;
 	cursor: pointer;
 	display: inline-flex;
-	font-size: 13px;
+	font-size: 30px;
 	margin: 0;
 	background: #0085ba;
 	border-color: #006a95 #00648c #00648c;
@@ -105,7 +105,7 @@ button:focus {
 	align-items: center;
 }
 #gutenberg-pr {
-	width: 60px;
+	width: 280px;
 	margin-right: 4px;
 }
 #run {
@@ -134,7 +134,57 @@ button:focus {
 	background: #191e23;
 	transition: width 0.6s ease-in-out;
 }
-.links {
+#links {
 	text-align: center;
 	padding: 0 10px;
+}
+#error {
+	text-align: center;
+	padding: 0 10px;
+	margin-bottom: 5vh;
+	color: #8b0000;
+	font-weight: bold;
+	font-size: 1.5em;
+}
+
+#submit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#submit:not(.loading) .verifying {
+	display: none;
+}
+#submit.loading .go {
+	display: none;
+}
+
+#submit.loading {
+	position: relative;
+	background: #00435d;
+	border-color: #00435d;
+	cursor: default;
+}
+
+#submit.loading:before {
+	content: '';
+	/* position: absolute;
+    top: 0;
+    left: 0; */
+	margin-right: 5px;
+	margin-left: -5px;
+	width: 15px;
+	height: 15px;
+	border-radius: 50%;
+	border: 2px solid #fff;
+	border-top-color: transparent;
+	border-right-color: transparent;
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
 }
