@@ -97,6 +97,10 @@ You can manually test a Gutenberg pull request directly from your browser. Given
 
 ![Mermaid chart](https://github.com/WordPress/wordpress-playground/assets/779993/d4bc5a27-1401-4f35-bc68-2fad0ef699d5)
 
+## Translate WordPress Plugins using the WordPress Playground
+
+You can translate WordPress Plugins and Themes the traditional way in the table view at https://translate.wordpress.org/, or you can load the plugin to be translated and use Inline Translation to do so. Find the `Translate Live` link on the top right of the translation view for this. See [this blog post for more context](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
+
 ## Contributing to other Make projects
 
 At this time, contributing to other Make projects is not fully supported at this time.
