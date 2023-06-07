@@ -3,7 +3,7 @@ title: WordCamp Contributor Day
 slug: /wordcamp-contributor-day
 ---
 
-## Introduction
+# WordCamp Contributor Day
 
 The WordPress Playground VS Code extension and wp-now are tools that streamline the process of setting up a local WordPress environment. Both are powered by WordPress Playground, eliminating the need for other tools like Docker and MySQL.
 
