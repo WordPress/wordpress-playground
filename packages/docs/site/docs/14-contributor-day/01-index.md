@@ -89,7 +89,7 @@ wp-now start
 
 ### Test a Gutenberg PR with the web version of WordPress Playground
 
-You can manually test a Gutenberg pull request directly from your browser. Given a pull request URL, https://github.com/WordPress/gutenberg/pull/51239, copy the ID (in this case, `51239`) and paste it into the following link: https://playground.wordpress.net/?gutenberg-pr=51239. Use your specific pull request ID. Open this Playground link in your browser to initiate a new WordPress playground where you can manually review and validate the changes proposed in the pull request.
+You can manually test a Gutenberg pull request directly from your browser. Given a pull request URL, https://github.com/WordPress/gutenberg/pull/51239, copy the ID (in this case, `51239`) and paste it at https://playground.wordpress.net/gutenberg.html. Use your specific pull request ID. Once you press "Go," your Pull Request will open in a new WordPress Playground where you can review the proposed changes!
 
 ![Mermaid chart](https://github.com/WordPress/wordpress-playground/assets/779993/d4bc5a27-1401-4f35-bc68-2fad0ef699d5)
 
