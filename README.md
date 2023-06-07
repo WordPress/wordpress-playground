@@ -18,6 +18,10 @@ WordPress Playground is a building block that can power apps like:
 See
 [the WordPress.org announcement post](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) to learn more about the vision.
 
+## WordCamp Contributor Day
+
+If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/docs/wordcamp-contributor-day/).
+
 ## Getting started
 
 WordPress Playground has a [live demo](https://developer.wordpress.org/playground/demo/) available.
