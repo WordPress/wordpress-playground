@@ -107,7 +107,7 @@ PHP_FUNCTION(post_message_to_js)
 	char *data;
 	int data_len;
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &data, &data_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE) {
 		return;
 	}
 
