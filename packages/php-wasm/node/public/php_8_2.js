@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/php_8_2.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 10303112; 
+export const dependenciesTotalSize = 10303879; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -454,10 +454,10 @@ function createWasm() {
   var exports = instance.exports;
   exports = Asyncify.instrumentWasmExports(exports);
   Module["asm"] = exports;
-  wasmMemory = Module["asm"]["$a"];
+  wasmMemory = Module["asm"]["ab"];
   updateGlobalBufferAndViews(wasmMemory.buffer);
-  wasmTable = Module["asm"]["lb"];
-  addOnInit(Module["asm"]["ab"]);
+  wasmTable = Module["asm"]["ib"];
+  addOnInit(Module["asm"]["bb"]);
   removeRunDependency("wasm-instantiate");
  }
  addRunDependency("wasm-instantiate");
@@ -5532,6 +5532,13 @@ var PHPWASM = {
  }
 };
 
+function _js_module_onMessage(data) {
+ if (Module["onMessage"]) {
+  const dataStr = UTF8ToString(data);
+  Module["onMessage"](dataStr);
+ }
+}
+
 function _js_popen_to_file(command, mode, exitCodePtr) {
  if (!command) return 1;
  const cmdstr = UTF8ToString(command);
@@ -6593,83 +6600,83 @@ ERRNO_CODES = {
 
 var asmLibraryArg = {
  "m": ___assert_fail,
- "_a": ___call_sighandler,
- "Za": ___syscall__newselect,
- "Ya": ___syscall_accept4,
- "Xa": ___syscall_bind,
- "Wa": ___syscall_chdir,
+ "$a": ___call_sighandler,
+ "_a": ___syscall__newselect,
+ "Za": ___syscall_accept4,
+ "Ya": ___syscall_bind,
+ "Xa": ___syscall_chdir,
  "O": ___syscall_chmod,
- "Va": ___syscall_connect,
- "Ua": ___syscall_dup,
- "Ta": ___syscall_dup3,
- "Sa": ___syscall_faccessat,
+ "Wa": ___syscall_connect,
+ "Va": ___syscall_dup,
+ "Ua": ___syscall_dup3,
+ "Ta": ___syscall_faccessat,
  "V": ___syscall_fallocate,
- "Ra": ___syscall_fchmod,
- "Qa": ___syscall_fchown32,
+ "Sa": ___syscall_fchmod,
+ "Ra": ___syscall_fchown32,
  "N": ___syscall_fchownat,
  "p": ___syscall_fcntl64,
- "Pa": ___syscall_fdatasync,
- "Oa": ___syscall_fstat64,
+ "Qa": ___syscall_fdatasync,
+ "Pa": ___syscall_fstat64,
  "U": ___syscall_ftruncate64,
- "Na": ___syscall_getcwd,
- "Ma": ___syscall_getdents64,
- "La": ___syscall_getpeername,
- "Ka": ___syscall_getsockname,
- "Ja": ___syscall_getsockopt,
+ "Oa": ___syscall_getcwd,
+ "Na": ___syscall_getdents64,
+ "Ma": ___syscall_getpeername,
+ "La": ___syscall_getsockname,
+ "Ka": ___syscall_getsockopt,
  "M": ___syscall_ioctl,
- "Ia": ___syscall_listen,
- "Ha": ___syscall_lstat64,
- "Ga": ___syscall_mkdirat,
- "Fa": ___syscall_newfstatat,
+ "Ja": ___syscall_listen,
+ "Ia": ___syscall_lstat64,
+ "Ha": ___syscall_mkdirat,
+ "Ga": ___syscall_newfstatat,
  "x": ___syscall_openat,
- "Ea": ___syscall_pipe,
- "Da": ___syscall_poll,
- "Ca": ___syscall_readlinkat,
- "Ba": ___syscall_recvfrom,
- "Aa": ___syscall_renameat,
+ "Fa": ___syscall_pipe,
+ "Ea": ___syscall_poll,
+ "Da": ___syscall_readlinkat,
+ "Ca": ___syscall_recvfrom,
+ "Ba": ___syscall_renameat,
  "L": ___syscall_rmdir,
- "za": ___syscall_sendto,
+ "Aa": ___syscall_sendto,
  "K": ___syscall_socket,
- "ya": ___syscall_stat64,
- "xa": ___syscall_statfs64,
- "wa": ___syscall_symlink,
+ "za": ___syscall_stat64,
+ "ya": ___syscall_statfs64,
+ "xa": ___syscall_symlink,
  "E": ___syscall_unlinkat,
- "va": ___syscall_utimensat,
- "qa": __dlinit,
- "pa": __dlopen_js,
- "oa": __dlsym_js,
- "na": __emscripten_get_now_is_monotonic,
- "ma": __emscripten_throw_longjmp,
- "la": __gmtime_js,
- "ka": __localtime_js,
- "ja": __mktime_js,
- "ia": __mmap_js,
- "ha": __munmap_js,
- "ga": __tzset_js,
+ "wa": ___syscall_utimensat,
+ "ra": __dlinit,
+ "qa": __dlopen_js,
+ "pa": __dlsym_js,
+ "oa": __emscripten_get_now_is_monotonic,
+ "na": __emscripten_throw_longjmp,
+ "ma": __gmtime_js,
+ "la": __localtime_js,
+ "ka": __mktime_js,
+ "ja": __mmap_js,
+ "ia": __munmap_js,
+ "ha": __tzset_js,
  "l": _abort,
  "C": _emscripten_date_now,
- "fa": _emscripten_get_heap_max,
+ "ga": _emscripten_get_heap_max,
  "B": _emscripten_get_now,
- "ea": _emscripten_memcpy_big,
- "da": _emscripten_resize_heap,
- "ca": _emscripten_sleep,
- "ua": _environ_get,
- "ta": _environ_sizes_get,
+ "fa": _emscripten_memcpy_big,
+ "ea": _emscripten_resize_heap,
+ "da": _emscripten_sleep,
+ "va": _environ_get,
+ "ua": _environ_sizes_get,
  "r": _exit,
  "t": _fd_close,
  "J": _fd_fdstat_get,
  "I": _fd_read,
  "T": _fd_seek,
- "sa": _fd_sync,
+ "ta": _fd_sync,
  "D": _fd_write,
- "ba": _getaddrinfo,
- "aa": _getcontext,
- "$": _getdtablesize,
+ "ca": _getaddrinfo,
+ "ba": _getcontext,
+ "aa": _getdtablesize,
  "H": _gethostbyname_r,
- "_": _getloadavg,
+ "$": _getloadavg,
  "w": _getnameinfo,
- "Z": _getprotobyname,
- "Y": _getprotobynumber,
+ "_": _getprotobyname,
+ "Z": _getprotobynumber,
  "i": invoke_i,
  "c": invoke_ii,
  "b": invoke_iii,
@@ -6687,11 +6694,12 @@ var asmLibraryArg = {
  "k": invoke_viiii,
  "n": invoke_viiiii,
  "j": invoke_viiiiii,
- "X": invoke_viiiiiii,
+ "Y": invoke_viiiiiii,
  "z": invoke_viiiiiiiii,
+ "X": _js_module_onMessage,
  "W": _js_popen_to_file,
  "S": _makecontext,
- "ra": _proc_exit,
+ "sa": _proc_exit,
  "F": _strftime,
  "R": _strptime,
  "Q": _swapcontext,
@@ -6704,227 +6712,223 @@ var asmLibraryArg = {
 var asm = createWasm();
 
 var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
- return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["ab"]).apply(null, arguments);
+ return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["bb"]).apply(null, arguments);
 };
 
 var _wasm_popen = Module["_wasm_popen"] = function() {
- return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["bb"]).apply(null, arguments);
+ return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["cb"]).apply(null, arguments);
 };
 
 var ___errno_location = Module["___errno_location"] = function() {
- return (___errno_location = Module["___errno_location"] = Module["asm"]["cb"]).apply(null, arguments);
+ return (___errno_location = Module["___errno_location"] = Module["asm"]["db"]).apply(null, arguments);
 };
 
 var _wasm_pclose = Module["_wasm_pclose"] = function() {
- return (_wasm_pclose = Module["_wasm_pclose"] = Module["asm"]["db"]).apply(null, arguments);
+ return (_wasm_pclose = Module["_wasm_pclose"] = Module["asm"]["eb"]).apply(null, arguments);
 };
 
 var _php_pollfd_for = Module["_php_pollfd_for"] = function() {
- return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["eb"]).apply(null, arguments);
-};
-
-var _wasm_select = Module["_wasm_select"] = function() {
- return (_wasm_select = Module["_wasm_select"] = Module["asm"]["fb"]).apply(null, arguments);
-};
-
-var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = function() {
- return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["gb"]).apply(null, arguments);
-};
-
-var _malloc = Module["_malloc"] = function() {
- return (_malloc = Module["_malloc"] = Module["asm"]["hb"]).apply(null, arguments);
-};
-
-var _run_cli = Module["_run_cli"] = function() {
- return (_run_cli = Module["_run_cli"] = Module["asm"]["ib"]).apply(null, arguments);
-};
-
-var _memcpy = Module["_memcpy"] = function() {
- return (_memcpy = Module["_memcpy"] = Module["asm"]["jb"]).apply(null, arguments);
+ return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["fb"]).apply(null, arguments);
 };
 
 var _free = Module["_free"] = function() {
- return (_free = Module["_free"] = Module["asm"]["kb"]).apply(null, arguments);
+ return (_free = Module["_free"] = Module["asm"]["gb"]).apply(null, arguments);
 };
 
-var _fflush = Module["_fflush"] = function() {
- return (_fflush = Module["_fflush"] = Module["asm"]["mb"]).apply(null, arguments);
+var _memcpy = Module["_memcpy"] = function() {
+ return (_memcpy = Module["_memcpy"] = Module["asm"]["hb"]).apply(null, arguments);
+};
+
+var _malloc = Module["_malloc"] = function() {
+ return (_malloc = Module["_malloc"] = Module["asm"]["jb"]).apply(null, arguments);
 };
 
 var _htons = Module["_htons"] = function() {
- return (_htons = Module["_htons"] = Module["asm"]["nb"]).apply(null, arguments);
+ return (_htons = Module["_htons"] = Module["asm"]["kb"]).apply(null, arguments);
 };
 
 var _ntohs = Module["_ntohs"] = function() {
- return (_ntohs = Module["_ntohs"] = Module["asm"]["ob"]).apply(null, arguments);
+ return (_ntohs = Module["_ntohs"] = Module["asm"]["lb"]).apply(null, arguments);
 };
 
 var _htonl = Module["_htonl"] = function() {
- return (_htonl = Module["_htonl"] = Module["asm"]["pb"]).apply(null, arguments);
+ return (_htonl = Module["_htonl"] = Module["asm"]["mb"]).apply(null, arguments);
+};
+
+var _fflush = Module["_fflush"] = function() {
+ return (_fflush = Module["_fflush"] = Module["asm"]["nb"]).apply(null, arguments);
+};
+
+var _wasm_select = Module["_wasm_select"] = function() {
+ return (_wasm_select = Module["_wasm_select"] = Module["asm"]["ob"]).apply(null, arguments);
+};
+
+var _wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = function() {
+ return (_wasm_add_cli_arg = Module["_wasm_add_cli_arg"] = Module["asm"]["pb"]).apply(null, arguments);
+};
+
+var _run_cli = Module["_run_cli"] = function() {
+ return (_run_cli = Module["_run_cli"] = Module["asm"]["qb"]).apply(null, arguments);
 };
 
 var _wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = function() {
- return (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = Module["asm"]["qb"]).apply(null, arguments);
+ return (_wasm_set_phpini_path = Module["_wasm_set_phpini_path"] = Module["asm"]["rb"]).apply(null, arguments);
 };
 
 var _wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = function() {
- return (_wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = Module["asm"]["rb"]).apply(null, arguments);
+ return (_wasm_set_phpini_entries = Module["_wasm_set_phpini_entries"] = Module["asm"]["sb"]).apply(null, arguments);
 };
 
 var _wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = function() {
- return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["sb"]).apply(null, arguments);
+ return (_wasm_add_SERVER_entry = Module["_wasm_add_SERVER_entry"] = Module["asm"]["tb"]).apply(null, arguments);
 };
 
 var _wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = function() {
- return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["tb"]).apply(null, arguments);
+ return (_wasm_add_uploaded_file = Module["_wasm_add_uploaded_file"] = Module["asm"]["ub"]).apply(null, arguments);
 };
 
 var _wasm_set_query_string = Module["_wasm_set_query_string"] = function() {
- return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["ub"]).apply(null, arguments);
+ return (_wasm_set_query_string = Module["_wasm_set_query_string"] = Module["asm"]["vb"]).apply(null, arguments);
 };
 
 var _wasm_set_path_translated = Module["_wasm_set_path_translated"] = function() {
- return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["vb"]).apply(null, arguments);
+ return (_wasm_set_path_translated = Module["_wasm_set_path_translated"] = Module["asm"]["wb"]).apply(null, arguments);
 };
 
 var _wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = function() {
- return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["wb"]).apply(null, arguments);
+ return (_wasm_set_skip_shebang = Module["_wasm_set_skip_shebang"] = Module["asm"]["xb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_uri = Module["_wasm_set_request_uri"] = function() {
- return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["xb"]).apply(null, arguments);
+ return (_wasm_set_request_uri = Module["_wasm_set_request_uri"] = Module["asm"]["yb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_method = Module["_wasm_set_request_method"] = function() {
- return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["yb"]).apply(null, arguments);
+ return (_wasm_set_request_method = Module["_wasm_set_request_method"] = Module["asm"]["zb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_host = Module["_wasm_set_request_host"] = function() {
- return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["zb"]).apply(null, arguments);
+ return (_wasm_set_request_host = Module["_wasm_set_request_host"] = Module["asm"]["Ab"]).apply(null, arguments);
 };
 
 var _wasm_set_content_type = Module["_wasm_set_content_type"] = function() {
- return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["Ab"]).apply(null, arguments);
+ return (_wasm_set_content_type = Module["_wasm_set_content_type"] = Module["asm"]["Bb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_body = Module["_wasm_set_request_body"] = function() {
- return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["Bb"]).apply(null, arguments);
+ return (_wasm_set_request_body = Module["_wasm_set_request_body"] = Module["asm"]["Cb"]).apply(null, arguments);
 };
 
 var _wasm_set_content_length = Module["_wasm_set_content_length"] = function() {
- return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["Cb"]).apply(null, arguments);
+ return (_wasm_set_content_length = Module["_wasm_set_content_length"] = Module["asm"]["Db"]).apply(null, arguments);
 };
 
 var _wasm_set_cookies = Module["_wasm_set_cookies"] = function() {
- return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["Db"]).apply(null, arguments);
+ return (_wasm_set_cookies = Module["_wasm_set_cookies"] = Module["asm"]["Eb"]).apply(null, arguments);
 };
 
 var _wasm_set_php_code = Module["_wasm_set_php_code"] = function() {
- return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["Eb"]).apply(null, arguments);
+ return (_wasm_set_php_code = Module["_wasm_set_php_code"] = Module["asm"]["Fb"]).apply(null, arguments);
 };
 
 var _wasm_set_request_port = Module["_wasm_set_request_port"] = function() {
- return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Fb"]).apply(null, arguments);
+ return (_wasm_set_request_port = Module["_wasm_set_request_port"] = Module["asm"]["Gb"]).apply(null, arguments);
 };
 
 var _phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = function() {
- return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["Gb"]).apply(null, arguments);
+ return (_phpwasm_init_uploaded_files_hash = Module["_phpwasm_init_uploaded_files_hash"] = Module["asm"]["Hb"]).apply(null, arguments);
 };
 
 var _phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = function() {
- return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["Hb"]).apply(null, arguments);
+ return (_phpwasm_register_uploaded_file = Module["_phpwasm_register_uploaded_file"] = Module["asm"]["Ib"]).apply(null, arguments);
 };
 
 var _phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = function() {
- return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["Ib"]).apply(null, arguments);
+ return (_phpwasm_destroy_uploaded_files_hash = Module["_phpwasm_destroy_uploaded_files_hash"] = Module["asm"]["Jb"]).apply(null, arguments);
 };
 
 var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function() {
- return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Jb"]).apply(null, arguments);
+ return (_wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = Module["asm"]["Kb"]).apply(null, arguments);
 };
 
 var _php_wasm_init = Module["_php_wasm_init"] = function() {
- return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Kb"]).apply(null, arguments);
+ return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["Lb"]).apply(null, arguments);
 };
 
 var ___funcs_on_exit = Module["___funcs_on_exit"] = function() {
- return (___funcs_on_exit = Module["___funcs_on_exit"] = Module["asm"]["Lb"]).apply(null, arguments);
+ return (___funcs_on_exit = Module["___funcs_on_exit"] = Module["asm"]["Mb"]).apply(null, arguments);
 };
 
 var _emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = function() {
- return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["Mb"]).apply(null, arguments);
+ return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["Nb"]).apply(null, arguments);
 };
 
 var _setThrew = Module["_setThrew"] = function() {
- return (_setThrew = Module["_setThrew"] = Module["asm"]["Nb"]).apply(null, arguments);
+ return (_setThrew = Module["_setThrew"] = Module["asm"]["Ob"]).apply(null, arguments);
 };
 
 var stackSave = Module["stackSave"] = function() {
- return (stackSave = Module["stackSave"] = Module["asm"]["Ob"]).apply(null, arguments);
+ return (stackSave = Module["stackSave"] = Module["asm"]["Pb"]).apply(null, arguments);
 };
 
 var stackRestore = Module["stackRestore"] = function() {
- return (stackRestore = Module["stackRestore"] = Module["asm"]["Pb"]).apply(null, arguments);
+ return (stackRestore = Module["stackRestore"] = Module["asm"]["Qb"]).apply(null, arguments);
 };
 
 var stackAlloc = Module["stackAlloc"] = function() {
- return (stackAlloc = Module["stackAlloc"] = Module["asm"]["Qb"]).apply(null, arguments);
-};
-
-var dynCall_vii = Module["dynCall_vii"] = function() {
- return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Rb"]).apply(null, arguments);
-};
-
-var dynCall_vi = Module["dynCall_vi"] = function() {
- return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Sb"]).apply(null, arguments);
-};
-
-var dynCall_iii = Module["dynCall_iii"] = function() {
- return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Tb"]).apply(null, arguments);
-};
-
-var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
- return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Ub"]).apply(null, arguments);
+ return (stackAlloc = Module["stackAlloc"] = Module["asm"]["Rb"]).apply(null, arguments);
 };
 
 var dynCall_iiii = Module["dynCall_iiii"] = function() {
- return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Vb"]).apply(null, arguments);
+ return (dynCall_iiii = Module["dynCall_iiii"] = Module["asm"]["Sb"]).apply(null, arguments);
 };
 
 var dynCall_ii = Module["dynCall_ii"] = function() {
- return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Wb"]).apply(null, arguments);
+ return (dynCall_ii = Module["dynCall_ii"] = Module["asm"]["Tb"]).apply(null, arguments);
+};
+
+var dynCall_vi = Module["dynCall_vi"] = function() {
+ return (dynCall_vi = Module["dynCall_vi"] = Module["asm"]["Ub"]).apply(null, arguments);
+};
+
+var dynCall_vii = Module["dynCall_vii"] = function() {
+ return (dynCall_vii = Module["dynCall_vii"] = Module["asm"]["Vb"]).apply(null, arguments);
+};
+
+var dynCall_iii = Module["dynCall_iii"] = function() {
+ return (dynCall_iii = Module["dynCall_iii"] = Module["asm"]["Wb"]).apply(null, arguments);
+};
+
+var dynCall_viiiii = Module["dynCall_viiiii"] = function() {
+ return (dynCall_viiiii = Module["dynCall_viiiii"] = Module["asm"]["Xb"]).apply(null, arguments);
 };
 
 var dynCall_iiiii = Module["dynCall_iiiii"] = function() {
- return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Xb"]).apply(null, arguments);
+ return (dynCall_iiiii = Module["dynCall_iiiii"] = Module["asm"]["Yb"]).apply(null, arguments);
 };
 
 var dynCall_iiiiii = Module["dynCall_iiiiii"] = function() {
- return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Yb"]).apply(null, arguments);
+ return (dynCall_iiiiii = Module["dynCall_iiiiii"] = Module["asm"]["Zb"]).apply(null, arguments);
 };
 
 var dynCall_viii = Module["dynCall_viii"] = function() {
- return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["Zb"]).apply(null, arguments);
+ return (dynCall_viii = Module["dynCall_viii"] = Module["asm"]["_b"]).apply(null, arguments);
 };
 
 var dynCall_v = Module["dynCall_v"] = function() {
- return (dynCall_v = Module["dynCall_v"] = Module["asm"]["_b"]).apply(null, arguments);
+ return (dynCall_v = Module["dynCall_v"] = Module["asm"]["$b"]).apply(null, arguments);
 };
 
 var dynCall_i = Module["dynCall_i"] = function() {
- return (dynCall_i = Module["dynCall_i"] = Module["asm"]["$b"]).apply(null, arguments);
+ return (dynCall_i = Module["dynCall_i"] = Module["asm"]["ac"]).apply(null, arguments);
 };
 
 var dynCall_viiii = Module["dynCall_viiii"] = function() {
- return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["ac"]).apply(null, arguments);
+ return (dynCall_viiii = Module["dynCall_viiii"] = Module["asm"]["bc"]).apply(null, arguments);
 };
 
 var dynCall_iiiiiii = Module["dynCall_iiiiiii"] = function() {
- return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["bc"]).apply(null, arguments);
-};
-
-var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
- return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["cc"]).apply(null, arguments);
+ return (dynCall_iiiiiii = Module["dynCall_iiiiiii"] = Module["asm"]["cc"]).apply(null, arguments);
 };
 
 var dynCall_viiiiiiiii = Module["dynCall_viiiiiiiii"] = function() {
@@ -6943,24 +6947,28 @@ var dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = function() {
  return (dynCall_iiiiiiii = Module["dynCall_iiiiiiii"] = Module["asm"]["gc"]).apply(null, arguments);
 };
 
+var dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = function() {
+ return (dynCall_iiiiiiiiii = Module["dynCall_iiiiiiiiii"] = Module["asm"]["hc"]).apply(null, arguments);
+};
+
 var dynCall_viidii = Module["dynCall_viidii"] = function() {
- return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["hc"]).apply(null, arguments);
+ return (dynCall_viidii = Module["dynCall_viidii"] = Module["asm"]["ic"]).apply(null, arguments);
 };
 
 var _asyncify_start_unwind = Module["_asyncify_start_unwind"] = function() {
- return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["ic"]).apply(null, arguments);
+ return (_asyncify_start_unwind = Module["_asyncify_start_unwind"] = Module["asm"]["jc"]).apply(null, arguments);
 };
 
 var _asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = function() {
- return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["jc"]).apply(null, arguments);
+ return (_asyncify_stop_unwind = Module["_asyncify_stop_unwind"] = Module["asm"]["kc"]).apply(null, arguments);
 };
 
 var _asyncify_start_rewind = Module["_asyncify_start_rewind"] = function() {
- return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["kc"]).apply(null, arguments);
+ return (_asyncify_start_rewind = Module["_asyncify_start_rewind"] = Module["asm"]["lc"]).apply(null, arguments);
 };
 
 var _asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = function() {
- return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["lc"]).apply(null, arguments);
+ return (_asyncify_stop_rewind = Module["_asyncify_stop_rewind"] = Module["asm"]["mc"]).apply(null, arguments);
 };
 
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
