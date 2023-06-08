@@ -90,7 +90,7 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 ## Contributing
 
 > WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
-You also can run WordPress Playground locally as follows:
+> You also can run WordPress Playground locally as follows:
 
 ```bash
 git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
