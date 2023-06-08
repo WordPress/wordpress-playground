@@ -9,8 +9,44 @@
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<link rel="stylesheet" href="/src/styles.css" />
 	</head>
-	<body class="with-background">
-		<div id="root"></div>
-		<script type="module" src="/src/main.tsx"></script>
+	<body>
+		<div id="root">
+			<script>
+				const query = new URLSearchParams(window.location.search);
+				const shouldLazyLoadPlayground =
+					query.has('lazy') ||
+					// Initial API used "start_button" - this preserves compatability.
+					'1' === query.get('start_button');
+
+				if (
+					'seamless' !== query.get('mode') &&
+					!shouldLazyLoadPlayground
+				) {
+					document.body.classList.add('with-background');
+				}
+
+				if (shouldLazyLoadPlayground) {
+					const query = new URLSearchParams(window.location.search);
+					query.delete('lazy');
+					query.delete('start_button');
+					const nonLazyUrl = new URL(window.location);
+					nonLazyUrl.search = query.toString();
+
+					const initiator = document.createElement('a');
+					initiator.innerText = 'Run Playground';
+					initiator.setAttribute('id', 'lazy-load-initiator');
+					initiator.setAttribute('href', nonLazyUrl);
+
+					const root = document.getElementById('root');
+					root.classList.add('lazy-loading');
+					root.appendChild(initiator);
+				}
+			</script>
+		</div>
+		<script type="module">
+			if (!shouldLazyLoadPlayground) {
+				import('./src/main.tsx');
+			}
+		</script>
 	</body>
 </html>
