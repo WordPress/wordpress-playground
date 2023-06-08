@@ -26,6 +26,7 @@ This site (Documentation) is where you will find all the information you need to
 
 import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
+-   Have a look at [Resources](../01-start-here/02-resources.md) for better understanding.
 -   Read about [Playground APIs](../06-playground-apis/01-index.md) and basic concepts
 -   Choose the right API for your app <APIList />
 -   Dive into the [architecture](../11-architecture/01-index.md) and learn how it all works

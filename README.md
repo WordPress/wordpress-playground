@@ -4,7 +4,7 @@
 
 [WordPress Playground](https://github.com/WordPress/wordpress-playground) is an experimental in-browser WordPress that runs without a PHP server thanks to the magic of WebAssembly.
 
-![](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/demo.png)
+![Playground Demo Screenshot](https://raw.githubusercontent.com/wordpress/wordpress-playground/trunk/demo.png)
 
 ## Why is WordPress Playground useful?
 
@@ -89,6 +89,7 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 
 ## Contributing
 
+> WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
 You also can run WordPress Playground locally as follows:
 
 ```bash
@@ -153,6 +154,6 @@ These tools include:
 -   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
 -   [wp-now](https://github.com/WordPress/playground-tools/tree/trunk/packages/wp-now/#readme) CLI local development environment.
 
-## Contributing
+## Using WP-NOW for local environment
 
-WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
+WordPress Playground comes with `wp-now`. `wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. If you are looking to set up `wp-now` specifically, you can follow [this README.md](/packages/wp-now/README.md).
