@@ -19,7 +19,7 @@
 	"type": "module",
 	"private": true,
 	"engines": {
-		"node": ">=18",
-		"npm": ">=9"
+		"node": ">=16.15.1",
+		"npm": ">=8.11.0"
 	}
 }
