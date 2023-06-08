@@ -2,6 +2,7 @@ export type {
 	FileInfo,
 	IsomorphicLocalPHP,
 	IsomorphicRemotePHP,
+	MessageListener,
 	PHPOutput,
 	PHPRunOptions,
 	UniversalPHP,

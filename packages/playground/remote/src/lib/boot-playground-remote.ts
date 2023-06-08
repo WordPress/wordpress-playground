@@ -1,4 +1,7 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	MessageListener,
+} from '@php-wasm/universal';
 import {
 	registerServiceWorker,
 	spawnPHPWorkerThread,
@@ -120,6 +123,22 @@ export async function bootPlaygroundRemote() {
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
+		},
+		/**
+		 * This function is merely here to explicitly call workerApi.onMessage.
+		 * Comlink should be able to handle that on its own, but something goes
+		 * wrong and if this function is not here, we see the following error:
+		 *
+		 * Error: Failed to execute 'postMessage' on 'Worker': function() {
+		 * } could not be cloned.
+		 *
+		 * In the future, this explicit declaration shouldn't be needed.
+		 *
+		 * @param callback
+		 * @returns
+		 */
+		async onMessage(callback: MessageListener) {
+			return await workerApi.onMessage(callback);
 		},
 	};
 

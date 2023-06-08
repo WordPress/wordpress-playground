@@ -38,6 +38,7 @@
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+extern void *js_module_onMessage(const char *data);
 
 uint8_t last_exit_code;
 EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
@@ -91,10 +92,29 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 0, 1)
+    ZEND_ARG_INFO(0, data)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
+
+/* {{{ proto int strcmp(string str1, string str2)
+   Binary safe string comparison */
+PHP_FUNCTION(post_message_to_js)
+{
+	char *data;
+	int data_len;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss", &data, &data_len) == FAILURE) {
+		return;
+	}
+
+	js_module_onMessage(data);
+}
+/* }}} */
+
 
 #if WITH_CLI_SAPI == 1
 #include "sapi/cli/php_cli_process_title.h"
@@ -127,6 +147,7 @@ static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
 	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
 	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
+	PHP_FE(post_message_to_js,      arginfo_post_message_to_js)
 	{NULL, NULL, NULL}
 };
 
@@ -170,6 +191,7 @@ int run_cli() {
 #else 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
+	PHP_FE(post_message_to_js,      arginfo_post_message_to_js)
 	{NULL, NULL, NULL}
 };
 #endif
