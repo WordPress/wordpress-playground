@@ -8,5 +8,9 @@
 	"author": "The WordPress Contributors",
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"private": "true"
+	"private": "true",
+	"engines": {
+		"node": ">=18",
+		"npm": ">=9"
+	}
 }
