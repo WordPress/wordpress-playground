@@ -9,8 +9,9 @@ slug: /start-here
 
 The documentation consists of two major sections:
 
--   [Documentation](./01-index.md) – Introduction, concepts, and guides
--   [API reference](/api) – All the APIs exposed by WordPress Playground
+-   [Overview] (./02-overview.md) - What is it and how it works?
+-   [Documentation](./01-index.md) – Concepts and guides.
+-   [API reference](/api) – All the APIs exposed by WordPress Playground.
 
 This site (Documentation) is where you will find all the information you need to start doing something awesome things with Playground.
 
