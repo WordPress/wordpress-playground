@@ -224,4 +224,7 @@ export type EmscriptenOptions = {
 	quit?: (status: number, toThrow: any) => void;
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
+	onMessage?: (listener: EmscriptenMessageListener) => void;
 } & Record<string, any>;
+
+export type EmscriptenMessageListener = (type: string, data: string) => void;
