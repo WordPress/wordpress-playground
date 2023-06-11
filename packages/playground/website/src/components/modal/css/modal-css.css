@@ -1,63 +1,63 @@
 /* The Modal (background) */
 .modal {
-  display: block; /* Hidden by default */
-  position: fixed; /* Stay in place */
-  z-index: 1; /* Sit on top */
-  padding-top: 15%; /* Location of the box */
-  left: 10%;
-  top: 0;
-  width: 80%; /* Full width */
-  height: 100%; /* Full height */
-  overflow: auto; /* Enable scroll if needed */
+	display: block; /* Hidden by default */
+	position: fixed; /* Stay in place */
+	z-index: 1; /* Sit on top */
+	padding-top: 15%; /* Location of the box */
+	left: 10%;
+	top: 0;
+	width: 80%; /* Full width */
+	height: 100%; /* Full height */
+	overflow: auto; /* Enable scroll if needed */
 }
 
 /* Modal Content */
 .modal_content {
-  display: flex;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: 14px;
-  background-color: #FFF7CC;
-  margin: auto;
-  padding: 25px;
-  border: 1px solid #888;
-  width: 50%;
-  -webkit-border-radius: 10px !important;
-  -moz-border-radius: 10px !important;
-  border-radius: 10px !important;
+	display: flex;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 14px;
+	background-color: #fff7cc;
+	margin: auto;
+	padding: 25px;
+	border: 1px solid #888;
+	width: 50%;
+	-webkit-border-radius: 10px !important;
+	-moz-border-radius: 10px !important;
+	border-radius: 10px !important;
 }
 
 .content_block {
-  margin-top: 16px;
+	margin-top: 16px;
 }
 
 /* The Close Button */
 .close {
-  color: #aaaaaa;
-  float: right;
-  font-size: 25px;
-  font-weight: bold;
+	color: #aaaaaa;
+	float: right;
+	font-size: 25px;
+	font-weight: bold;
 }
 
-.close_section{
-  padding-left: 16px;
+.close_section {
+	padding-left: 16px;
 }
 
 .close:hover,
 .close:focus {
-  color: #000;
-  text-decoration: none;
-  cursor: pointer;
+	color: #000;
+	text-decoration: none;
+	cursor: pointer;
 }
 
 @media (max-width: 960px) {
-  /* The Modal (background) */
-  .modal {
-    padding-top: 20%; /* Location of the box */
-    left: 5%;
-  }
+	/* The Modal (background) */
+	.modal {
+		padding-top: 20%; /* Location of the box */
+		left: 5%;
+	}
 
-  /* Modal Content */
-  .modal_content {
-    width: 60%;
-  }
+	/* Modal Content */
+	.modal_content {
+		width: 60%;
+	}
 }
