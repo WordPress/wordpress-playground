@@ -4,8 +4,10 @@
 		"json"
 	],
 	"files.associations": {
-		"*.embeddedhtml": "html",
+		"**/frontmatter.json": "jsonc",
+		"**/.frontmatter/config/*.json": "jsonc",
 		"api-extractor-base.json": "jsonc",
+		"*.embeddedhtml": "html",
 		"__string": "c",
 		"atomic": "c",
 		"cstring": "c",
@@ -16,7 +18,8 @@
 		"array": "c",
 		"string": "c",
 		"string_view": "c",
-		"vector": "c"
+		"vector": "c",
+		"exception": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"

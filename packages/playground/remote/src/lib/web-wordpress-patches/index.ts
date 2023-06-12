@@ -10,7 +10,10 @@ import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw'
 import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 import { DOCROOT } from '../config';
-import { applyWordPressPatches } from '@wp-playground/blueprints';
+import {
+	applyWordPressPatches,
+	defineWpConfigConsts,
+} from '@wp-playground/blueprints';
 
 export function applyWebWordPressPatches(php: UniversalPHP, siteUrl: string) {
 	const patch = new WordPressPatcher(php, siteUrl, DOCROOT);
@@ -40,11 +43,20 @@ class WordPressPatcher {
 	}
 
 	async replaceRequestsTransports() {
-		await updateFile(
-			this.php,
-			`${this.wordpressPath}/wp-config.php`,
-			(contents) => `${contents} define('USE_FETCH_FOR_REQUESTS', false);`
-		);
+		// @TODO: Only apply these patches once instead of
+		//        using conditionals
+		if (
+			await this.php.fileExists(
+				`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_fetch.php`
+			)
+		) {
+			return;
+		}
+
+		await defineWpConfigConsts(this.php, {
+			consts: { USE_FETCH_FOR_REQUESTS: false },
+			virtualize: true,
+		});
 
 		// Force the fsockopen and cUrl transports to report they don't work:
 		const transports = [
@@ -89,6 +101,9 @@ class WordPressPatcher {
 	}
 
 	async addMissingSvgs() {
+		// @TODO: Restore
+		return;
+
 		// @TODO: use only on the web version, or not even there – just include these
 		// in WordPress build:
 		this.php.mkdirTree(`${this.wordpressPath}/wp-admin/images`);

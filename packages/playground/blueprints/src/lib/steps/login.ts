@@ -30,11 +30,11 @@ export type LoginStep = {
  * Under the hood, this function submits the wp-login.php form
  * just like a user would.
  */
-export const login: StepHandler<LoginStep> = async (
+export const login: StepHandler<LoginStep> = async function (
 	playground,
 	{ username = 'admin', password = 'password' } = {},
 	progress
-) => {
+) {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
 	await playground.request({
 		url: '/wp-login.php',

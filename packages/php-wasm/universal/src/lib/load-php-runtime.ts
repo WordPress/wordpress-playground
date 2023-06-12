@@ -154,8 +154,38 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
-	for (const { default: loadDataModule } of dataDependenciesModules) {
-		loadDataModule(PHPRuntime);
+
+	// @TODO: Find a good strategy for conditionally loading data dependencies
+	const root = PHPRuntime.FS.filesystems.OPFS.opfs.root;
+	let loaded = false;
+	try {
+		root.getFile('/wordpress/wp-config.php', {});
+		// loaded = true;
+	} catch (e) {
+		loaded = false;
+	}
+	if (!loaded) {
+		try {
+			root.getDirectory('/wordpress', {
+				create: true,
+			}).removeRecursively();
+			root.getDirectory('/wordpress', { create: true });
+		} catch (e) {
+			console.error(e);
+		}
+		for (const { default: loadDataModule } of dataDependenciesModules) {
+			try {
+				const result = PHPRuntime.locateFile(
+					'/wordpress/wp-config.php'
+				);
+				console.log({ result });
+				// throw new Error();
+			} catch (e) {
+				console.error(e);
+				console.log('Loading data module');
+			}
+			loadDataModule(PHPRuntime);
+		}
 	}
 	if (!dataDependenciesModules.length) {
 		resolveDepsReady();
@@ -163,6 +193,19 @@ export async function loadPHPRuntime(
 
 	await depsReady;
 	await phpReady;
+
+	// console.log(PHPRuntime.FS.readdir('/wordpress'));
+	// // console.log(PHPRuntime.FS.writeFile('/phpinfo.php', 'test'));
+	// // console.log(PHPRuntime.FS.readFile('/phpinfo.php'));
+	// // Sleep 100
+	// const z = new Promise((resolve) => setTimeout(resolve, 100))
+	// 	.then(() => {
+	// 		console.log("Reading file");
+	// 		console.log(PHPRuntime.FS.readFile('/wordpress/phpinfo.php'));
+	// 	});
+	// console.log(z);
+
+	// throw new Error('a');
 
 	loadedRuntimes.push(PHPRuntime);
 	return loadedRuntimes.length - 1;

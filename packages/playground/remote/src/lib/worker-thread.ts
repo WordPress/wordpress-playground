@@ -40,7 +40,8 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-const scope = Math.random().toFixed(16);
+// @TODO: figure out what to do when the filesystem is reusable
+const scope = '123'; // Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
 const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
