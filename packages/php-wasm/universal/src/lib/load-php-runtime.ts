@@ -195,10 +195,10 @@ export async function loadPHPRuntime(
 	// await depsReady;
 	await phpReady;
 	// PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
-	PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
-	console.log(PHPRuntime.FS.readFile(
-		'/wordpress/wp-config.php'
-	));
+	console.time('opfsToMemfs');
+	await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
+	console.timeEnd('opfsToMemfs');
+	console.log(PHPRuntime.FS.readFile('/wordpress/wp-admin/index.php'));
 
 	// console.log(PHPRuntime.FS.readdir('/wordpress'));
 	// // console.log(PHPRuntime.FS.writeFile('/phpinfo.php', 'test'));

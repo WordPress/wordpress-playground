@@ -2055,13 +2055,6 @@ function getModifiedTime(path) {
     return FS.stat(path).mtime;
 }
 
-// const { mtime } = runtime.FS.lstat('/wordpress/');
-const opfs = webkitRequestFileSystemSync(
-    // @TODO: Maybe do Window.PERSISTENT?
-    TEMPORARY,
-    50 * 1024 * 1024, // 50 MB
-);
-	
 // let semaphore = new Semaphore(20); // limit to 20 concurrent async calls
 
 /**
@@ -2095,7 +2088,7 @@ function memfsToOpfs(src, dest) {
 				continue;
 			}
 		} catch (e) {
-			// File doesn't exist – let's sync it.
+			// File doesn't exist in OPFS – sync it
 		}
 
 		if (FS.isDir(memfsDirStat.mode)) {
@@ -2114,34 +2107,11 @@ function memfsToOpfs(src, dest) {
 }
 
 
-function opfsToMemfs(src, dest) {
-	for (const file of opfs.root.getDirectory(src, {}).createReader().readEntries()) {
-		if (file.name === '.' || file.name === '..') {
-			continue;
-		}
-
-		const opfsPath = file.fullPath;
-		const memfsPath = PATH.join.apply(null, [dest, file.name]);
-
-		// console.log({ opfsPath, memfsPath });
-		const entry = getOpfsEntry(opfsPath);
-		if (entry.isDirectory) {
-			try {
-				FS.mkdir(memfsPath);
-			} catch (e) { }
-			opfsToMemfs(opfsPath, memfsPath);
-		} else {
-			const blob = entry.file();
-
-			const reader = new FileReaderSync();
-			const contents = reader.readAsArrayBuffer(blob);
-			const byteArray = new Uint8Array(contents);
-			
-			FS.createDataFile(memfsPath, null, byteArray, true, true, true);
-		}
-	}
-}
-
+const opfs = webkitRequestFileSystemSync(
+    // @TODO: Maybe do Window.PERSISTENT?
+    TEMPORARY,
+    50 * 1024 * 1024, // 50 MB
+);
 class Semaphore {
 	constructor(maxConcurrency) {
 	  this.maxConcurrency = maxConcurrency;
@@ -2169,12 +2139,64 @@ class Semaphore {
 	  }
 	}
 }
+
+async function opfsToMemfs(src, dest, opfs) {
+	async function getOpfsEntry(path, opts = {}) {
+		try {
+			return await new Promise((resolve, reject) => {
+				opfs.root.getFile(path, opts, resolve, reject);
+			});
+		} catch (e) {
+			return await new Promise((resolve, reject) => {
+				opfs.root.getDirectory(path, opts, resolve, reject);
+			});
+		}
+	}
+
+	const semaphore = new Semaphore(20);
+	const dir = await getOpfsEntry(src);
+	const entries = await new Promise(resolve => {
+		dir.createReader().readEntries(resolve);
+	});
+
+	await Promise.all(entries.map(async (entry) => {
+		const memfsPath = PATH.join.apply(null, [dest, entry.name]);
+		
+		if (entry.isDirectory) {
+			try {
+				FS.mkdir(memfsPath);
+			} catch (e) { }
+			await opfsToMemfs(entry.fullPath, memfsPath, opfs);
+		} else {
+			await semaphore.acquire();
+			try {
+				const blob = await new Promise(resolve => entry.file(resolve));
+				const reader = new FileReader();
+				const contents = await new Promise(resolve => {
+					reader.onloadend = () => resolve(reader.result);
+					reader.readAsArrayBuffer(blob);
+				});
+				const byteArray = new Uint8Array(contents);
+				FS.createDataFile(memfsPath, null, byteArray, true, true, true);
+			} finally {
+				semaphore.release();
+			}
+		}
+	}));
+}
   
 
 	
-FS.opfsToMemfs = () => {
+FS.opfsToMemfs = async () => {
+	const opfs2 = await new Promise(resolve => webkitRequestFileSystem(
+		// @TODO: Maybe do Window.PERSISTENT?
+		TEMPORARY,
+		50 * 1024 * 1024, // 50 MB
+		resolve
+	));
+	
 	FS.mkdir('/wordpress');
-	opfsToMemfs();
+	await opfsToMemfs('/wordpress', '/wordpress', opfs2);
 }
 
 FS.memfsToOpfs = () => {

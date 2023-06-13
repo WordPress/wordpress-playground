@@ -109,24 +109,24 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
 
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		this.run({
-// 			code: `<?php
-// echo '<pre>';
-// $sqlite = new SQLite3('/wordpress/wp-content/database/.ht.sqlite');
-// $sqlite->exec("INSERT INTO wp_options (option_name, option_value) VALUES ('a', 'b');");
-// var_dump($sqlite->lastErrorCode());
-// // PHP Warning:  SQLite3::exec(): disk I/O error in php-wasm run script on line 6
-// 		`
-// 		}).then(console.log);
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		console.log("____________________")
-// 		throw new Error();
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		this.run({
+		// 			code: `<?php
+		// echo '<pre>';
+		// $sqlite = new SQLite3('/wordpress/wp-content/database/.ht.sqlite');
+		// $sqlite->exec("INSERT INTO wp_options (option_name, option_value) VALUES ('a', 'b');");
+		// var_dump($sqlite->lastErrorCode());
+		// // PHP Warning:  SQLite3::exec(): disk I/O error in php-wasm run script on line 6
+		// 		`
+		// 		}).then(console.log);
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		console.log("____________________")
+		// 		throw new Error();
 	}
 
 	/** @inheritDoc */
@@ -447,7 +447,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					[],
 					[]
 				);
-				this[__private__dont__use].FS.memfsToOpfs('/wordpress', '/wordpress');
+				this[__private__dont__use].FS.memfsToOpfs(
+					'/wordpress',
+					'/wordpress'
+				);
 
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
