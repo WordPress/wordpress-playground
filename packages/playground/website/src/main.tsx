@@ -55,7 +55,9 @@ const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
 const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 
-const persistent = query.has('persistent');
+// @ts-ignore
+const opfsSupported = typeof webkitRequestFileSystem !== 'undefined';
+const persistent = query.has('persistent') && opfsSupported;
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
@@ -75,7 +77,7 @@ root.render(
 				selected={blueprint.preferredVersions?.wp}
 				default={LatestSupportedWordPressVersion}
 			/>,
-			<PersistenceSelect />,
+			opfsSupported && <PersistenceSelect />,
 			persistent && <OpfsResetButton />,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,

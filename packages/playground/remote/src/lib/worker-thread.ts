@@ -47,7 +47,10 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-const useOpfs = startupOptions.persistent === 'true';
+const useOpfs =
+	startupOptions.persistent === 'true' &&
+	// @ts-ignore
+	typeof webkitRequestFileSystem !== 'undefined';
 let opfs: FileSystem | undefined;
 let wordPressAvailableInOPFS = false;
 if (useOpfs) {
