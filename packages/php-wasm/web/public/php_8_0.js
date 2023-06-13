@@ -63,7 +63,7 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
     }
 }
 	
-	PHPLoader.PATH = PATH;
+PHPLoader.PATH = PATH;
 
 return PHPLoader;
 
