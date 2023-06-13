@@ -79,6 +79,7 @@ export class OPFSSynchronizer {
 				throw e;
 			}
 		}
+		this.observeMEMFSChanges();
 	}
 
 	async copyChangesToOPFS() {
@@ -113,11 +114,51 @@ export class OPFSSynchronizer {
 			)
 		);
 
+		this.clearObservedMEMFSChanges();
+		console.timeEnd('copyChangesToOPFS');
+	}
+
+	async copyEverythingToOPFS() {
+		console.time('toOPFS');
+		await this.createOpfsDirectory(this.options.opfsPath);
+		console.log(this.options.memfsPath);
+		await this.internalCopyEverythingToOPFS(
+			this.options.memfsPath,
+			this.options.opfsPath
+		);
+		console.timeEnd('toOPFS');
+	}
+
+	private async internalCopyEverythingToOPFS(src: string, dest: string) {
+		await Promise.all(
+			this.options.FS.readdir(src).map(async (name: string) => {
+				if (name === '.' || name === '..') return;
+				const memfsPath = this.options.joinPaths(src, name);
+				const lookup = this.options.FS.lookupPath(memfsPath, {
+					follow: true,
+				});
+				const memFsNode = lookup.node;
+				const isDir = this.options.FS.isDir(memFsNode.mode);
+
+				const opfsPath = this.options.joinPaths(dest, name);
+				if (isDir) {
+					await this.createOpfsDirectory(opfsPath);
+					await this.internalCopyEverythingToOPFS(
+						memfsPath,
+						opfsPath
+					);
+				} else {
+					await this.overwriteOpfsFile({ memfsPath, opfsPath });
+				}
+			})
+		);
+	}
+
+	clearObservedMEMFSChanges() {
 		this.removedFiles.clear();
 		this.removedDirectories.clear();
 		this.createdDirectories.clear();
 		this.updatedFiles.clear();
-		console.timeEnd('copyChangesToOPFS');
 	}
 
 	async toMEMFS() {
@@ -321,7 +362,7 @@ export class OPFSSynchronizer {
 		return await getOpfsFile(this.options.opfs, path, opts);
 	}
 
-	observeMEMFSChanges() {
+	private observeMEMFSChanges() {
 		if (this.options.FS.fsObserversBound) {
 			return;
 		}
