@@ -155,63 +155,31 @@ export async function loadPHPRuntime(
 		},
 	});
 
-	// @TODO: Find a good strategy for conditionally loading data dependencies
-	// const root = PHPRuntime.FS.filesystems.OPFS.opfs.root;
-	let loaded = false;
-	try {
-		// root.getFile('/wordpress/wp-config.php', {});
-		// loaded = true;
-	} catch (e) {
-		loaded = false;
-	}
-	if (!loaded) {
-		// try {
-		// 	root.getDirectory('/wordpress', {
-		// 		create: true,
-		// 	}).removeRecursively();
-		// 	root.getDirectory('/wordpress', { create: true });
-		// } catch (e) {
-		// 	console.error(e);
-		// }
+	const opfs = await new Promise(resolve => webkitRequestFileSystem(
+		// @TODO: Maybe do Window.PERSISTENT?
+		TEMPORARY,
+		50 * 1024 * 1024, // 50 MB
+		resolve
+	));
+	await PHPRuntime.FS.addOPFSSupport(opfs);
+	const loaded = await PHPRuntime.FS.hasOPFSFile('/wordpress/wp-config.php');
+	if (loaded) {
+		await phpReady;
+		console.time('opfsToMemfs');
+		await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
+		console.timeEnd('opfsToMemfs');
+	} else {
+		// @TODO: Find a good strategy for conditionally loading data dependencies
 		for (const { default: loadDataModule } of dataDependenciesModules) {
-			try {
-				const result = PHPRuntime.locateFile(
-					'/wordpress/wp-config.php'
-				);
-				console.log({ result });
-				// throw new Error();
-			} catch (e) {
-				console.error(e);
-				console.log('Loading data module');
-			}
 			loadDataModule(PHPRuntime);
 		}
-		console.log('PHPRuntime.FS', PHPRuntime.FS);
+		if (!dataDependenciesModules.length) {
+			resolveDepsReady();
+		}
+		await depsReady;
+		await phpReady;
+		await PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
 	}
-	if (!dataDependenciesModules.length) {
-		resolveDepsReady();
-	}
-
-	// await depsReady;
-	await phpReady;
-	PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
-	// console.time('opfsToMemfs');
-	// await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
-	// console.timeEnd('opfsToMemfs');
-	console.log(PHPRuntime.FS.readFile('/wordpress/wp-admin/index.php'));
-
-	// console.log(PHPRuntime.FS.readdir('/wordpress'));
-	// // console.log(PHPRuntime.FS.writeFile('/phpinfo.php', 'test'));
-	// // console.log(PHPRuntime.FS.readFile('/phpinfo.php'));
-	// // Sleep 100
-	// const z = new Promise((resolve) => setTimeout(resolve, 100))
-	// 	.then(() => {
-	// 		console.log("Reading file");
-	// 		console.log(PHPRuntime.FS.readFile('/wordpress/phpinfo.php'));
-	// 	});
-	// console.log(z);
-
-	// throw new Error('a');
 
 	loadedRuntimes.push(PHPRuntime);
 	return loadedRuntimes.length - 1;

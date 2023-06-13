@@ -1002,9 +1002,7 @@ export function init(RuntimeName, PHPLoader) {
 			if (!node.node_ops.getattr) {
 				throw new FS.ErrnoError(63);
 			}
-			const attr = node.node_ops.getattr(node);
-			// console.log(path, attr);
-			return attr;
+			return node.node_ops.getattr(node);
 		},
 		lstat: (path) => {
 			return FS.stat(path, true);
@@ -2057,167 +2055,306 @@ function getModifiedTime(path) {
 
 // let semaphore = new Semaphore(20); // limit to 20 concurrent async calls
 
-async function SynchronizingStuff() {
-	
+
+FS.addOPFSSupport = async function SynchronizingStuff(opfs) {
 class Semaphore {
-	constructor(maxConcurrency) {
-	  this.maxConcurrency = maxConcurrency;
-	  this.currentConcurrency = 0;
-	  this.queue = [];
+	constructor({ concurrency }) {
+		this._running = 0;
+		this.concurrency = concurrency;
+		this.queue = [];
 	}
-  
+
+	get running() {
+		return this._running;
+	}
+
 	async acquire() {
-	  return new Promise(resolve => {
-		if (this.currentConcurrency < this.maxConcurrency) {
-		  this.currentConcurrency++;
-		  return resolve();
-		} else {
-		  this.queue.push(resolve);
+		while (true) {
+			if (this._running >= this.concurrency) {
+				// Concurrency exhausted – wait until a lock is released:
+				await new Promise((resolve) => this.queue.push(resolve));
+			} else {
+				// Acquire the lock:
+				this._running++;
+				let released = false;
+				return () => {
+					if (released) {
+						return;
+					}
+					released = true;
+					this._running--;
+					// Release the lock:
+					if (this.queue.length > 0) {
+						this.queue.shift()();
+					}
+				};
+			}
 		}
-	  });
 	}
-  
-	release() {
-	  if (this.queue.length > 0) {
-		let nextJob = this.queue.shift();
-		nextJob();
-	  } else {
-		this.currentConcurrency--;
-	  }
+
+	async run(fn) {
+		const release = await this.acquire();
+		try {
+			return await fn();
+		} finally {
+			release();
+		}
 	}
 }
-	
-const opfs = await new Promise(resolve => webkitRequestFileSystem(
-	// @TODO: Maybe do Window.PERSISTENT?
-	TEMPORARY,
-	50 * 1024 * 1024, // 50 MB
-	resolve
-));
+
+
+const TYPE_DIR = 'directory';
+const TYPE_FILE = 'file';
 
 /**
  * @returns {FileSystemFileEntry|FileSystemDirectoryEntry}
  */
-async function getOpfsEntry(path, opts = {}) {
-	try {
-		return await new Promise((resolve, reject) => {
-			opfs.root.getFile(path, opts, resolve, reject);
-		});
-	} catch (e) {
+async function getOpfsEntry(path, type, opts = {}) {
+	if (type === TYPE_DIR) {
 		return await new Promise((resolve, reject) => {
 			opfs.root.getDirectory(path, opts, resolve, reject);
 		});
+	} else if (type === TYPE_FILE) {
+		return await new Promise((resolve, reject) => {
+			opfs.root.getFile(path, opts, resolve, reject);
+		});
+	} else {
+		throw new Error(`Unknown type: ${type}`);
+	}
+}
+
+	
+const updatedFiles = new Set();
+const removedFiles = new Set();
+const createdDirectories = new Set();
+const removedDirectories = new Set();
+
+let fsObserversBound = false;
+function bindFSObservers() {
+	if (fsObserversBound) {
+		return;
+	}
+	fsObserversBound = true;
+	const originalWrite = FS.write;
+	FS.write = function (stream) {
+		updatedFiles.add(stream.path);
+		return originalWrite.apply(null, arguments);
+	}
+
+	const originalRename = MEMFS.ops_table.dir.node.rename;
+	MEMFS.ops_table.dir.node.rename = function (old_node, new_dir, new_name) {
+		const old_path = FS.getPath(old_node);
+		const new_path = PATH.join(FS.getPath(new_dir), new_name);
+		for (const set of [updatedFiles, createdDirectories]) {
+			for (const path of set) {
+				if (path.startsWith(old_path)) {
+					set.delete(path);
+					set.add(PATH.join(
+						new_path,
+						path.substr(old_path.length)
+					));
+				}
+			}
+		}
+		return originalRename.apply(null, arguments);
+	}
+
+	const originalTruncate = FS.truncate;
+	FS.truncate = function (path) {
+		let node;
+		if (typeof path == "string") {
+		  const lookup = FS.lookupPath(path, {
+		    follow: true
+		  });
+		  node = lookup.node;
+		} else {
+		  node = path;
+		}
+		updatedFiles.add(FS.getPath(node));
+		return originalTruncate.apply(null, arguments);
+	}
+
+	const originalUnlink = FS.unlink;
+	FS.unlink = function (path) {
+		removedFiles.add(path);
+		return originalUnlink.apply(null, arguments);
+	}
+
+	const originalMkdir = FS.mkdir;
+	FS.mkdir = function (path) {
+		createdDirectories.add(path);
+		return originalMkdir.apply(null, arguments);
+	}
+
+	const originalRmdir = FS.rmdir;
+	FS.rmdir = function (path) {
+		removedDirectories.add(path);
+		return originalRmdir.apply(null, arguments);
 	}
 }
 	
 const semaphore = new Semaphore(20);
 async function memfsToOpfs(src, dest) {
-	for (const filename of FS.readdir(src)) {
-		if (filename === '.' || filename === '..') {
-			continue;
-		}
-		await semaphore.acquire();
+	const asPaths = set => 
+		Array.from(set)
+			.filter(path => path.startsWith(src))
+			.map(path => ({
+				memfsPath: path,
+				opfsPath: PATH.join.apply(null, [dest, path.substr(src.length)]),
+			}))
+	await Promise.all([
+		...asPaths(removedFiles).map(removeOpfsFile),
+		...asPaths(removedDirectories).map(removeOpfsDirectory),
+	]);
+	await Promise.all(
+		asPaths(createdDirectories).map(createOpfsDirectory)
+	);
 
+	await Promise.all(
+		asPaths(updatedFiles).map(overwriteOpfsFile)
+	);
+}
+
+async function overwriteOpfsFile({ memfsPath, opfsPath }) {
+	const release = await semaphore.acquire();
+	try {
+		let buffer;
 		try {
-			const memfsFilePath = PATH.join.apply(null, [src, filename]);
-			const memfsDirStat = FS.stat(memfsFilePath);
-			const memfsMtime = memfsDirStat.mtime;
-
-			const opfsPath = PATH.join.apply(null, [dest, filename]);
-
-			// Only sync if opfs file is missing or older than memfs file
-			let entry;
-			try {
-				entry = await getOpfsEntry(opfsPath);
-				const metadata = await new Promise((resolve, reject) =>
-					opfs.root.getMetadata(resolve, reject)
-				);
-				if (memfsMtime <= opfsMtime) {
-					continue;
-				}
-			} catch (e) {
-				// File doesn't exist in OPFS – sync it
-			}
-
-			if (FS.isDir(memfsDirStat.mode)) {
-				entry = entry || await new Promise((resolve, reject) => {
-					opfs.root.getDirectory(opfsPath, { create: true }, resolve, reject);
-				});
-				await memfsToOpfs(memfsFilePath, opfsPath);
-			} else {
-				entry = entry || await new Promise((resolve, reject) => {
-					opfs.root.getFile(opfsPath, { create: true }, resolve, reject);
-				});
-				const buffer = FS.readFile(memfsFilePath, { encoding: 'binary' });
-
-				let writer = await new Promise((resolve, reject) => entry.createWriter(resolve, reject));
-				writer.truncate(0);
-				await new Promise(resolve => { writer.onwriteend = resolve });
-
-				writer.write(new Blob([buffer], { type: 'application/octet-stream' }));
-				await new Promise(resolve => { writer.onwriteend = resolve });
-			}
-		} finally {
-			semaphore.release();
+			buffer = FS.readFile(memfsPath, { encoding: 'binary' });
+		} catch (e) {
+			// File was removed, ignore
+			return;
 		}
+
+		const opfsFile = await getOpfsEntry(opfsPath, TYPE_FILE, { create: true });
+		const writer = await new Promise((resolve, reject) => opfsFile.createWriter(resolve, reject));
+		writer.truncate(0);
+		await new Promise(resolve => { writer.onwriteend = resolve });
+
+		writer.write(new Blob([buffer], { type: 'application/octet-stream' }));
+		await new Promise(resolve => { writer.onwriteend = resolve });
+	} finally {
+		release();
+	}
+}
+	
+async function createOpfsDirectory({ opfsPath }) {
+	const release = await semaphore.acquire();
+	try {
+		await getOpfsEntry(opfsPath, TYPE_DIR, { create: true });
+	} catch (e) {
+		// Can't create directory – this is probably due to
+		// a rename() call on a higher-up hierarchy folder
+		// earlier on. Let's pay attention to this later.
+		console.log('Failed to create directory', opfsPath);
+		console.error(e);
+	} finally {
+		release();
+	}
+}
+	
+async function removeOpfsDirectory({ opfsPath }) {
+	const release = await semaphore.acquire();
+	try {
+		const entry = await getOpfsEntry(opfsPath, TYPE_DIR);
+		await new Promise((resolve, reject) => entry.removeRecursively(resolve, reject));
+	} catch (e) {
+		// Directory doesn't exist or was already removed, that's fine.
+		return;
+	} finally {
+		release();
+	}
+}
+	
+async function removeOpfsFile({ opfsPath }) {
+	const release = await semaphore.acquire();
+	try {
+		const entry = await getOpfsEntry(opfsPath, TYPE_FILE);
+		await new Promise((resolve, reject) => entry.remove(resolve, reject));
+	} catch (e) {
+		// File doesn't exist or was already removed, that's fine.
+		return;
+	} finally {
+		release();
 	}
 }
 
 
 async function opfsToMemfs(src, dest) {
-	async function getOpfsEntry(path, opts = {}) {
-		try {
-			return await new Promise((resolve, reject) => {
-				opfs.root.getFile(path, opts, resolve, reject);
-			});
-		} catch (e) {
-			return await new Promise((resolve, reject) => {
-				opfs.root.getDirectory(path, opts, resolve, reject);
-			});
+	const dir = await getOpfsEntry(src, TYPE_DIR);
+	const reader = dir.createReader()
+	while (true) {
+		const entries = await new Promise(resolve => {
+			reader.readEntries(resolve);
+		});
+		if (!entries.length) {
+			break;
 		}
-	}
 
-	const dir = await getOpfsEntry(src);
-	const entries = await new Promise(resolve => {
-		dir.createReader().readEntries(resolve);
-	});
-
-	await Promise.all(entries.map(async (entry) => {
-		const memfsPath = PATH.join.apply(null, [dest, entry.name]);
+		await Promise.all(entries.map(async (entry) => {
+			const memfsPath = PATH.join.apply(null, [dest, entry.name]);
 		
-		if (entry.isDirectory) {
-			try {
-				FS.mkdir(memfsPath);
-			} catch (e) { }
-			await opfsToMemfs(entry.fullPath, memfsPath);
-		} else {
-			await semaphore.acquire();
-			try {
-				const blob = await new Promise(resolve => entry.file(resolve));
-				const reader = new FileReader();
-				const contents = await new Promise(resolve => {
-					reader.onloadend = () => resolve(reader.result);
-					reader.readAsArrayBuffer(blob);
-				});
-				const byteArray = new Uint8Array(contents);
-				FS.createDataFile(memfsPath, null, byteArray, true, true, true);
-			} finally {
-				semaphore.release();
+			if (entry.isDirectory) {
+				try {
+					FS.mkdir(memfsPath);
+				} catch (e) { }
+				await opfsToMemfs(entry.fullPath, memfsPath);
+			} else {
+				const release = await semaphore.acquire();
+				try {
+					const blob = await new Promise(resolve => entry.file(resolve));
+					const reader = new FileReader();
+					const contents = await new Promise(resolve => {
+						reader.onloadend = () => resolve(reader.result);
+						reader.readAsArrayBuffer(blob);
+					});
+					const byteArray = new Uint8Array(contents);
+					FS.createDataFile(memfsPath, null, byteArray, true, true, true);
+				} finally {
+					release();
+				}
 			}
-		}
-	}));
+		}));
+	}		
 }
-  
 
-	
+
+
 FS.opfsToMemfs = async () => {
 	FS.mkdir('/wordpress');
 	await opfsToMemfs('/wordpress', '/wordpress');
+	bindFSObservers();
 }
 
 FS.memfsToOpfs = async () => {
 	await memfsToOpfs('/wordpress', '/wordpress');
 }
+
+let memfsToOpfsInProgress = false;
+let memfsToOpfsScheduled = false;
+FS.scheduleMemfsToOpfs = async () => {
+		if (memfsToOpfsInProgress) {
+			memfsToOpfsScheduled = true;
+			return;
+		}
+		memfsToOpfsInProgress = true;
+		await memfsToOpfs('/wordpress', '/wordpress');
+		memfsToOpfsInProgress = false;
+		if (memfsToOpfsScheduled) {
+			memfsToOpfsScheduled = false;
+			FS.scheduleMemfsToOpfs();
+		}
+}
 	
+FS.hasOPFSFile = async (path) => {
+	try {
+		await getOpfsEntry(path, TYPE_FILE);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
 FS.resetOpfs = async () => {
 	const entry = await new Promise((resolve, reject) =>
 		opfs.root.getDirectory('/wordpress', {
@@ -2231,9 +2368,11 @@ FS.resetOpfs = async () => {
 		}, resolve, reject)
 	);
 }
+FS.setOPFS = async (opfsInstance) => {
+	opfs = opfsInstance;
+}
 };
-	
-SynchronizingStuff();
+
 	
 return PHPLoader;
 

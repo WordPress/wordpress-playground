@@ -447,10 +447,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					[],
 					[]
 				);
-				this[__private__dont__use].FS.memfsToOpfs(
-					'/wordpress',
-					'/wordpress'
-				);
 
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
@@ -486,6 +482,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
 			this.#serverEntries = {};
 		}
+
+		console.time('memfsToOpfs');
+		await this[__private__dont__use].FS.memfsToOpfs(
+			'/wordpress',
+			'/wordpress'
+		);
+		console.timeEnd('memfsToOpfs');
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
 		return new PHPResponse(
