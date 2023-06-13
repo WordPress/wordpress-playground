@@ -7,30 +7,35 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 
 interface PlaygroundViewportProps {
+	persistent?: boolean;
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
-	toolbarButtons?: React.ReactElement[];
+	toolbarButtons?: Array<React.ReactElement | false | null>;
 }
 
 export default function PlaygroundViewport({
 	blueprint,
 	isSeamless,
+	persistent,
 	toolbarButtons,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
+		persistent,
 	});
 
 	const updatedToolbarButtons = useMemo(() => {
 		if (isSeamless || !playground || !toolbarButtons?.length) {
 			return;
 		}
-		return toolbarButtons.map((button, index) =>
-			React.cloneElement(button as React.ReactElement, {
-				key: index,
-				playground,
-			})
-		) as ReactElement[];
+		return toolbarButtons
+			.filter((x) => x)
+			.map((button, index) =>
+				React.cloneElement(button as React.ReactElement, {
+					key: index,
+					playground,
+				})
+			) as ReactElement[];
 	}, [isSeamless, playground, toolbarButtons]);
 
 	if (isSeamless) {

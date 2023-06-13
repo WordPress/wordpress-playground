@@ -62,6 +62,8 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
         return originalHandleSleep(startAsync);
     }
 }
+	
+PHPLoader.PATH = PATH;
 
 return PHPLoader;
 

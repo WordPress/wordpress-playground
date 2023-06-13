@@ -1,4 +1,4 @@
-import css from './style.module.css';
+import Select from '../select';
 
 type SelectorProps = {
 	name: string;
@@ -17,21 +17,18 @@ export default function VersionSelector(props: SelectorProps) {
 	}
 
 	return (
-		<select
-			className={css.select}
-			defaultValue={selected}
+		<Select
+			selected={selected}
 			id={props.name + '-version'}
 			onChange={(event) => {
 				const url = new URL(window.location.toString());
 				url.searchParams.set(props.name, event.target.value);
 				window.location.assign(url);
 			}}
-		>
-			{props.versions.map((value) => (
-				<option value={value} key={value}>
-					{props.name.toString().toUpperCase() + ' ' + value}
-				</option>
-			))}
-		</select>
+			options={props.versions.reduce((acc, version) => {
+				acc[props.name.toUpperCase() + ' ' + version] = version;
+				return acc;
+			}, {} as Record<string, string>)}
+		/>
 	);
 }

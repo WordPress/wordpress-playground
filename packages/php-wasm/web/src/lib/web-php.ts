@@ -70,14 +70,12 @@ export class WebPHP extends BasePHP {
 				dataModules
 			);
 			php.initializeRuntime(runtimeId);
-			return { dataModules };
 		};
 		const asyncData = doLoad();
 
 		return {
 			php,
 			phpReady: asyncData.then(() => php),
-			dataModules: asyncData.then((data) => data.dataModules),
 		};
 	}
 }
