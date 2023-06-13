@@ -27,7 +27,10 @@ jobs:
             # like X-Deployment-Token that has the same value as github secret DEPLOY_AUTH_TOKEN
             - name: Deploy
               shell: bash
+              # Sleep to give the GitHub API time to register the artifact,
+              # otherwise the artifact will not be available when the webhook is called
               run: |
+                  sleep 8
                   curl -X POST https://playground.wordpress.net/webhook.php \
                       -H "X-Deployment-Token: ${{ secrets.DEPLOYMENT_KEY }}" \
                       -H "Content-Type: application/json"
