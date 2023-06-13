@@ -424,7 +424,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					[],
 					[]
 				);
-
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
 				}
@@ -458,10 +457,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
 			this.#serverEntries = {};
-		}
-
-		if (this[__private__dont__use].synchronizer) {
-			await this[__private__dont__use].synchronizer.exportMemfsChanges();
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();

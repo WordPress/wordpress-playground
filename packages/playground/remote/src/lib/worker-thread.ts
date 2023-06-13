@@ -19,6 +19,10 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
+import {
+	OpfsFileExists,
+	synchronizePHPWithOPFS,
+} from './synchronize-php-with-opfs';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -40,8 +44,25 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-// @TODO: figure out what to do when the filesystem is reusable
-const scope = '123'; // Math.random().toFixed(16);
+const opfs = await new Promise<FileSystem>((resolve, reject) =>
+	// @ts-ignore
+	webkitRequestFileSystem(
+		// @TODO: Maybe do Window.PERSISTENT?
+		// @ts-ignore
+		TEMPORARY,
+		50 * 1024 * 1024, // 50 MB
+		resolve,
+		reject
+	)
+);
+const loadWordPressFromOPFS = await OpfsFileExists(
+	opfs,
+	'/wordpress/wp-config.php'
+);
+
+// @TODO: figure out how to use scopes when the filesystem is reusable.
+//        a SharedWorker could be a good candidate for this.
+const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
 const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
@@ -51,7 +72,7 @@ const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	dataModules: [getWordPressModule(wpVersion)],
+	dataModules: loadWordPressFromOPFS ? [] : [getWordPressModule(wpVersion)],
 });
 
 /** @inheritDoc PHPClient */
@@ -101,6 +122,14 @@ const [setApiReady] = exposeAPI(
 );
 
 await phpReady;
+
+await synchronizePHPWithOPFS(php, {
+	opfs,
+	hasFilesInOpfs: loadWordPressFromOPFS,
+	memfsPath: '/wordpress',
+	opfsPath: '/wordpress',
+});
+
 const wpLoaderModule = (await dataModules)[0] as any;
 applyWebWordPressPatches(php, scopedSiteUrl);
 

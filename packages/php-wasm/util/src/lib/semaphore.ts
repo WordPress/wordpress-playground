@@ -24,12 +24,7 @@ export default class Semaphore {
 			} else {
 				// Acquire the lock:
 				this._running++;
-				let released = false;
 				return () => {
-					if (released) {
-						return;
-					}
-					released = true;
 					this._running--;
 					// Release the lock:
 					if (this.queue.length > 0) {

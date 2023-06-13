@@ -29,7 +29,7 @@ export { BasePHP, __private__dont__use } from './base-php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type {
 	DataModule,
-	EmscriptenOptionsPlus as EmscriptenOptions,
+	EmscriptenOptions,
 	PHPLoaderModule,
 	PHPRuntime,
 	PHPRuntimeId,

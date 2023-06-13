@@ -37,11 +37,35 @@ export function consumeAPI<APIType>(
 	return new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
-				return () => api.isConnected();
+				return async () => {
+					/*
+					 * If exposeAPI() is called after this function,
+					 * the isConnected() call will hang forever. Let's
+					 * retry it a few times.
+					 */
+					for (let i = 0; i < 10; i++) {
+						try {
+							await runWithTimeout(api.isConnected(), 200);
+							break;
+						} catch (e) {
+							// Timeout exceeded, try again
+						}
+					}
+				};
 			}
 			return (api as any)[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
+}
+
+async function runWithTimeout<T>(
+	promise: Promise<T>,
+	timeout: number
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		setTimeout(reject, timeout);
+		promise.then(resolve);
+	});
 }
 
 export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<

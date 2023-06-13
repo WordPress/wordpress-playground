@@ -1,5 +1,7 @@
 /* eslint-disable prefer-rest-params */
+import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { WebPHP } from '@php-wasm/web';
 
 const TYPE_DIR = 'directory';
 const TYPE_FILE = 'file';
@@ -60,14 +62,38 @@ type OPFSSynchronizerOptions = {
 	hasFilesInOpfs: boolean;
 };
 
-export interface FileSystemSynchronizer {
-	populateMemfs(): Promise<void>;
-	exportEntireMemfs(): Promise<void>;
-	clearObservedMemfsChanges(): void;
-	exportMemfsChanges(): Promise<void>;
+export async function synchronizePHPWithOPFS(
+	php: WebPHP,
+	options: Omit<OPFSSynchronizerOptions, 'FS' | 'joinPaths'>
+) {
+	const PHPRuntime = php[__private__dont__use];
+
+	const synchronizer = new OPFSSynchronizer({
+		...options,
+		FS: PHPRuntime.FS,
+		joinPaths: PHPRuntime.PATH.join,
+	});
+
+	if (options.hasFilesInOpfs) {
+		await synchronizer.populateMemfs();
+	} else {
+		await synchronizer.exportEntireMemfs();
+	}
+
+	/**
+	 * Do not do this in external code. This is a temporary solution
+	 * to allow some time for a few more use-cases to emerge before
+	 * proposing a new public API like php.onRun().
+	 */
+	const originalRun = php.run;
+	php.run = async function (...args) {
+		const response = await originalRun.apply(this, args);
+		await synchronizer.exportMemfsChanges();
+		return response;
+	};
 }
 
-export class OPFSSynchronizer implements FileSystemSynchronizer {
+class OPFSSynchronizer {
 	private options: OPFSSynchronizerOptions;
 	private semaphore = new Semaphore({
 		concurrency: 40,
@@ -88,16 +114,6 @@ export class OPFSSynchronizer implements FileSystemSynchronizer {
 			}
 		}
 		this.observeMEMFSChanges();
-	}
-
-	static async create(options: OPFSSynchronizerOptions) {
-		const synchronizer = new OPFSSynchronizer(options);
-		if (synchronizer.options.hasFilesInOpfs) {
-			await synchronizer.populateMemfs();
-		} else {
-			await synchronizer.exportEntireMemfs();
-		}
-		return synchronizer;
 	}
 
 	async exportMemfsChanges() {
@@ -472,7 +488,7 @@ export async function OpfsFileExists(opfs: FileSystem, path: string) {
 	}
 }
 
-export async function getOpfsFile(
+async function getOpfsFile(
 	opfs: FileSystem,
 	path: string,
 	opts: FileSystemGetFileOptions = {}

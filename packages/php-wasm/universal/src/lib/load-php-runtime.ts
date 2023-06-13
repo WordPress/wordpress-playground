@@ -116,11 +116,9 @@
  * @returns Loaded runtime id.
  */
 
-import { FileSystemSynchronizer, OPFSSynchronizer, OpfsFileExists } from './ops-sync';
-
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	loaderArgs: EmscriptenOptionsPlus = {},
+	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
 	let resolvePhpReady: any, resolveDepsReady: any;
@@ -130,8 +128,6 @@ export async function loadPHPRuntime(
 	const phpReady = new Promise((resolve) => {
 		resolvePhpReady = resolve;
 	});
-
-	const { fsSynchronizer, ...phpModuleArgs } = loaderArgs
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
@@ -158,39 +154,15 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
-
-	const opfs = await new Promise<FileSystem>((resolve) =>
-		// @ts-ignore
-		webkitRequestFileSystem(
-			// @TODO: Maybe do Window.PERSISTENT?
-			// @ts-ignore
-			TEMPORARY,
-			50 * 1024 * 1024, // 50 MB
-			resolve
-		)
-	);
-	const loadFromOPFS = await OpfsFileExists(opfs, '/wordpress/wp-config.php');
-	console.log({ loadFromOPFS });
-	if (!loadFromOPFS) {
-		// @TODO: Find a good strategy for conditionally loading data dependencies
-		for (const { default: loadDataModule } of dataDependenciesModules) {
-			loadDataModule(PHPRuntime);
-		}
-		if (!dataDependenciesModules.length) {
-			resolveDepsReady();
-		}
-		await depsReady;
+	for (const { default: loadDataModule } of dataDependenciesModules) {
+		loadDataModule(PHPRuntime);
 	}
-	await phpReady;
+	if (!dataDependenciesModules.length) {
+		resolveDepsReady();
+	}
 
-	PHPRuntime.synchronizer = await OPFSSynchronizer.create({
-		opfs,
-		hasFilesInOpfs: loadFromOPFS,
-		FS: PHPRuntime.FS,
-		joinPaths: PHPRuntime.PATH.join,
-		memfsPath: '/wordpress',
-		opfsPath: '/wordpress',
-	});
+	await depsReady;
+	await phpReady;
 
 	loadedRuntimes.push(PHPRuntime);
 	return loadedRuntimes.length - 1;
@@ -228,7 +200,7 @@ export type PHPRuntime = any;
 export type PHPLoaderModule = {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
-	init: (jsRuntime: string, options: EmscriptenOptionsPlus) => PHPRuntime;
+	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
 };
 
 export type DataModule = {
@@ -237,10 +209,7 @@ export type DataModule = {
 	default: (phpRuntime: PHPRuntime) => void;
 };
 
-/**
- * Emscripten options plus some extra options.
- */
-export type EmscriptenOptionsPlus = {
+export type EmscriptenOptions = {
 	onAbort?: (message: string) => void;
 	/**
 	 * Set to true for debugging tricky WebAssembly errors.
@@ -256,7 +225,6 @@ export type EmscriptenOptionsPlus = {
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
-	fsSynchronizer?: FileSystemSynchronizer;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;
