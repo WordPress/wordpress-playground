@@ -73,15 +73,16 @@ export class OPFSSynchronizer {
 		try {
 			options.FS.mkdir(options.memfsPath);
 		} catch (e) {
-			// Directory already exists, ignore.
-			// There's also a chance it couldn't be created
-			// @TODO: Handle this case
-			console.error(e);
-			throw e;
+			if ((e as any)?.errno !== 20) {
+				// We ignore the error if the directory already exists,
+				// and throw otherwise.
+				throw e;
+			}
 		}
 	}
 
-	async toOPFS() {
+	async copyChangesToOPFS() {
+		console.time('toOPFS');
 		const asPaths = (set: Set<string>): SyncPathsTuple[] =>
 			Array.from(set)
 				.filter((path) => path.startsWith(this.options.memfsPath))
@@ -101,8 +102,8 @@ export class OPFSSynchronizer {
 			),
 		]);
 		await Promise.all(
-			asPaths(this.createdDirectories).map((path) =>
-				this.createOpfsDirectory(path)
+			asPaths(this.createdDirectories).map(({ opfsPath }) =>
+				this.createOpfsDirectory(opfsPath)
 			)
 		);
 
@@ -116,9 +117,55 @@ export class OPFSSynchronizer {
 		this.removedDirectories.clear();
 		this.createdDirectories.clear();
 		this.updatedFiles.clear();
+		console.timeEnd('toOPFS');
 	}
 
-	async toMEMFS(src = this.options.opfsPath, dest = this.options.memfsPath) {
+	async copyEverythingToOPFS() {
+		console.time('toOPFS');
+		await this.createOpfsDirectory(this.options.opfsPath);
+		console.log(this.options.memfsPath)
+		await this.internalCopyEverythingToOPFS(
+			this.options.memfsPath,
+			this.options.opfsPath
+		);
+		console.timeEnd('toOPFS');
+	}
+
+	private async internalCopyEverythingToOPFS(src: string, dest: string) {
+		await Promise.all(
+			this.options.FS.readdir(src).map(async (name: string) => {
+				if(name === '.' || name === '..') return;
+				const memfsPath = this.options.joinPaths(src, name);
+				const lookup = this.options.FS.lookupPath(memfsPath, {
+					follow: true,
+				});
+				const memFsNode = lookup.node;
+				const isDir = this.options.FS.isDir(memFsNode.mode);
+
+				const opfsPath = this.options.joinPaths(dest, name);
+				if (isDir) {
+					await this.createOpfsDirectory(opfsPath);
+					await this.internalCopyEverythingToOPFS(
+						memfsPath,
+						opfsPath
+					);
+				} else {
+					await this.overwriteOpfsFile({ memfsPath, opfsPath });
+				}
+			})
+		);
+	}
+
+	async toMEMFS() {
+		console.time('toMEMFS');
+		await this.internalToMEMFS(
+			this.options.opfsPath,
+			this.options.memfsPath
+		);
+		console.timeEnd('toMEMFS');
+	}
+
+	private async internalToMEMFS(src: string, dest: string) {
 		const dir = await this.getOpfsDirectory(src);
 		const reader = dir.createReader();
 		while (true) {
@@ -145,7 +192,7 @@ export class OPFSSynchronizer {
 							console.error(e);
 							throw e;
 						}
-						await this.toMEMFS(entry.fullPath, memfsPath);
+						await this.internalToMEMFS(entry.fullPath, memfsPath);
 					} else {
 						const release = await this.semaphore.acquire();
 						try {
@@ -228,7 +275,7 @@ export class OPFSSynchronizer {
 		}
 	}
 
-	private async createOpfsDirectory({ opfsPath }: SyncPathsTuple) {
+	private async createOpfsDirectory(opfsPath: string) {
 		const release = await this.semaphore.acquire();
 		try {
 			await this.getOpfsEntry(opfsPath, TYPE_DIR, { create: true });
@@ -310,7 +357,7 @@ export class OPFSSynchronizer {
 		return await getOpfsFile(this.options.opfs, path, opts);
 	}
 
-	bindMEMFSObservers() {
+	observeMEMFSChanges() {
 		if (this.options.FS.fsObserversBound) {
 			return;
 		}
