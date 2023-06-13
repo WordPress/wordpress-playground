@@ -167,9 +167,18 @@ export async function loadPHPRuntime(
 		)
 	);
 
+	const synchronizer = new OPFSSynchronizer({
+		opfs,
+		FS: PHPRuntime.FS,
+		joinPaths: PHPRuntime.PATH.join,
+		memfsPath: '/wordpress',
+		opfsPath: '/wordpress',
+	});
+
 	const loadFromOPFS = await OpfsFileExists(opfs, '/wordpress/wp-config.php');
-	console.log({ loadFromOPFS })
+	console.log({ loadFromOPFS });
 	if (!loadFromOPFS) {
+		synchronizer.observeMEMFSChanges();
 		// @TODO: Find a good strategy for conditionally loading data dependencies
 		for (const { default: loadDataModule } of dataDependenciesModules) {
 			loadDataModule(PHPRuntime);
@@ -181,21 +190,14 @@ export async function loadPHPRuntime(
 	}
 	await phpReady;
 
-	const synchronizer = new OPFSSynchronizer({
-		opfs,
-		FS: PHPRuntime.FS,
-		joinPaths: PHPRuntime.PATH.join,
-		memfsPath: '/wordpress',
-		opfsPath: '/wordpress',
-	});
 	if (loadFromOPFS) {
 		await synchronizer.toMEMFS();
+		synchronizer.observeMEMFSChanges();
 	} else {
 		// Data dependencies are loaded by now,
 		// let's write them to OPFS.
-		await synchronizer.copyEverythingToOPFS();
+		await synchronizer.copyChangesToOPFS();
 	}
-	synchronizer.observeMEMFSChanges();
 	PHPRuntime.synchronizer = synchronizer;
 
 	loadedRuntimes.push(PHPRuntime);

@@ -460,13 +460,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#serverEntries = {};
 		}
 
-		console.log("Start request");
-		console.time('memfsToOpfs');
 		if (this[__private__dont__use].synchronizer) {
-			// await this[__private__dont__use].synchronizer.toOPFS();
+			await this[__private__dont__use].synchronizer.copyChangesToOPFS();
 		}
-		console.timeEnd('memfsToOpfs');
-		console.log("stop request");
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
 		return new PHPResponse(

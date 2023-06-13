@@ -82,7 +82,7 @@ export class OPFSSynchronizer {
 	}
 
 	async copyChangesToOPFS() {
-		console.time('toOPFS');
+		console.time('copyChangesToOPFS');
 		const asPaths = (set: Set<string>): SyncPathsTuple[] =>
 			Array.from(set)
 				.filter((path) => path.startsWith(this.options.memfsPath))
@@ -117,43 +117,7 @@ export class OPFSSynchronizer {
 		this.removedDirectories.clear();
 		this.createdDirectories.clear();
 		this.updatedFiles.clear();
-		console.timeEnd('toOPFS');
-	}
-
-	async copyEverythingToOPFS() {
-		console.time('toOPFS');
-		await this.createOpfsDirectory(this.options.opfsPath);
-		console.log(this.options.memfsPath)
-		await this.internalCopyEverythingToOPFS(
-			this.options.memfsPath,
-			this.options.opfsPath
-		);
-		console.timeEnd('toOPFS');
-	}
-
-	private async internalCopyEverythingToOPFS(src: string, dest: string) {
-		await Promise.all(
-			this.options.FS.readdir(src).map(async (name: string) => {
-				if(name === '.' || name === '..') return;
-				const memfsPath = this.options.joinPaths(src, name);
-				const lookup = this.options.FS.lookupPath(memfsPath, {
-					follow: true,
-				});
-				const memFsNode = lookup.node;
-				const isDir = this.options.FS.isDir(memFsNode.mode);
-
-				const opfsPath = this.options.joinPaths(dest, name);
-				if (isDir) {
-					await this.createOpfsDirectory(opfsPath);
-					await this.internalCopyEverythingToOPFS(
-						memfsPath,
-						opfsPath
-					);
-				} else {
-					await this.overwriteOpfsFile({ memfsPath, opfsPath });
-				}
-			})
-		);
+		console.timeEnd('copyChangesToOPFS');
 	}
 
 	async toMEMFS() {
