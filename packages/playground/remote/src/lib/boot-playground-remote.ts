@@ -142,9 +142,7 @@ export async function bootPlaygroundRemote() {
 		},
 	};
 
-	console.log('Awaiting workerApi.isConnected');
 	await workerApi.isConnected();
-	console.log('Is connected');
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback

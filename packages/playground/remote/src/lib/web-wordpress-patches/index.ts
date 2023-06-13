@@ -10,53 +10,29 @@ import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw'
 import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 import { DOCROOT } from '../config';
-import {
-	applyWordPressPatches,
-	defineWpConfigConsts,
-} from '@wp-playground/blueprints';
 
-export function applyWebWordPressPatches(php: UniversalPHP, siteUrl: string) {
-	const patch = new WordPressPatcher(php, siteUrl, DOCROOT);
+export function applyWebWordPressPatches(php: UniversalPHP) {
+	const patch = new WordPressPatcher(php, DOCROOT);
 
 	patch.replaceRequestsTransports();
 	patch.addMissingSvgs();
-
-	applyWordPressPatches(php, {
-		siteUrl: siteUrl,
-		wordpressPath: DOCROOT,
-	});
 }
 
 class WordPressPatcher {
 	php: UniversalPHP;
-	scopedSiteUrl: string;
 	wordpressPath: string;
 
-	constructor(
-		php: UniversalPHP,
-		scopedSiteUrl: string,
-		wordpressPath: string
-	) {
+	constructor(php: UniversalPHP, wordpressPath: string) {
 		this.php = php;
-		this.scopedSiteUrl = scopedSiteUrl;
 		this.wordpressPath = wordpressPath;
 	}
 
 	async replaceRequestsTransports() {
-		// @TODO: Only apply these patches once instead of
-		//        using conditionals
-		if (
-			await this.php.fileExists(
-				`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_fetch.php`
-			)
-		) {
-			return;
-		}
-
-		await defineWpConfigConsts(this.php, {
-			consts: { USE_FETCH_FOR_REQUESTS: false },
-			virtualize: true,
-		});
+		await updateFile(
+			this.php,
+			`${this.wordpressPath}/wp-config.php`,
+			(contents) => `${contents} define('USE_FETCH_FOR_REQUESTS', false);`
+		);
 
 		// Force the fsockopen and cUrl transports to report they don't work:
 		const transports = [
@@ -103,7 +79,7 @@ class WordPressPatcher {
 	async addMissingSvgs() {
 		// @TODO: use only on the web version, or not even there – just include these
 		// in WordPress build:
-		this.php.mkdir(`${this.wordpressPath}/wp-admin/images`);
+		this.php.mkdirTree(`${this.wordpressPath}/wp-admin/images`);
 		const missingSvgs = [
 			`${this.wordpressPath}/wp-admin/images/about-header-about.svg`,
 			`${this.wordpressPath}/wp-admin/images/dashboard-background.svg`,

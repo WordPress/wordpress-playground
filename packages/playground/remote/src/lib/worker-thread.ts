@@ -23,6 +23,7 @@ import {
 	OpfsFileExists,
 	synchronizePHPWithOPFS,
 } from './synchronize-php-with-opfs';
+import { applyWordPressPatches } from '@wp-playground/blueprints';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -65,14 +66,15 @@ const loadWordPressFromOPFS = await OpfsFileExists(
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
+const wordPressModule = getWordPressModule(wpVersion);
+const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
 		documentRoot: DOCROOT,
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	dataModules: loadWordPressFromOPFS ? [] : [getWordPressModule(wpVersion)],
+	dataModules: loadWordPressFromOPFS ? [] : [wordPressModule],
 });
 
 /** @inheritDoc PHPClient */
@@ -112,7 +114,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		const version = await this.wordPressVersion;
 		return {
 			staticAssetsDirectory: `wp-${version.replace('_', '.')}`,
-			defaultTheme: wpLoaderModule?.defaultThemeName,
+			defaultTheme: undefined, //(await wordPressModule)?.defaultThemeName,
 		};
 	}
 }
@@ -126,11 +128,30 @@ await phpReady;
 await synchronizePHPWithOPFS(php, {
 	opfs,
 	hasFilesInOpfs: loadWordPressFromOPFS,
-	memfsPath: '/wordpress',
-	opfsPath: '/wordpress',
+	memfsPath: DOCROOT,
+	opfsPath: DOCROOT,
 });
 
-const wpLoaderModule = (await dataModules)[0] as any;
-applyWebWordPressPatches(php, scopedSiteUrl);
+if (!loadWordPressFromOPFS) {
+	/**
+	 * When WordPress is restored from OPFS, these patches are already applied.
+	 * Thus, let's not apply them again.
+	 */
+	await wordPressModule;
+	applyWebWordPressPatches(php);
+	await applyWordPressPatches(php, {
+		wordpressPath: DOCROOT,
+		patchSecrets: true,
+		disableWpNewBlogNotification: true,
+		addPhpInfo: true,
+		disableSiteHealth: true,
+	});
+}
+
+// Always setup the current site URL.
+await applyWordPressPatches(php, {
+	wordpressPath: DOCROOT,
+	siteUrl: scopedSiteUrl,
+});
 
 setApiReady();
