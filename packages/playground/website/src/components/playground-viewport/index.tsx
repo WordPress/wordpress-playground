@@ -10,7 +10,7 @@ interface PlaygroundViewportProps {
 	persistent?: boolean;
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
-	toolbarButtons?: React.ReactElement[];
+	toolbarButtons?: Array<React.ReactElement | false | null>;
 }
 
 export default function PlaygroundViewport({
@@ -28,12 +28,14 @@ export default function PlaygroundViewport({
 		if (isSeamless || !playground || !toolbarButtons?.length) {
 			return;
 		}
-		return toolbarButtons.map((button, index) =>
-			React.cloneElement(button as React.ReactElement, {
-				key: index,
-				playground,
-			})
-		) as ReactElement[];
+		return toolbarButtons
+			.filter((x) => x)
+			.map((button, index) =>
+				React.cloneElement(button as React.ReactElement, {
+					key: index,
+					playground,
+				})
+			) as ReactElement[];
 	}, [isSeamless, playground, toolbarButtons]);
 
 	if (isSeamless) {

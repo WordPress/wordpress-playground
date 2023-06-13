@@ -4,6 +4,7 @@ import ExportButton from './components/export-button';
 import ImportButton from './components/import-button';
 import VersionSelector from './components/version-select';
 import './styles.css';
+import css from './style.module.css';
 
 import { makeBlueprint } from './lib/make-blueprint';
 import {
@@ -11,6 +12,8 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import type { Blueprint } from '@wp-playground/blueprints';
+import Select from './components/select';
+import { PlaygroundClient } from '@wp-playground/remote';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -52,10 +55,11 @@ const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
 const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 
+const persistent = query.has('persistent');
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
-		persistent={query.has('persistent')}
+		persistent={persistent}
 		isSeamless={isSeamless}
 		blueprint={blueprint}
 		toolbarButtons={[
@@ -71,8 +75,51 @@ root.render(
 				selected={blueprint.preferredVersions?.wp}
 				default={LatestSupportedWordPressVersion}
 			/>,
+			<PersistenceSelect />,
+			persistent && <OpfsResetButton />,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,
 		]}
 	/>
 );
+
+function PersistenceSelect() {
+	return (
+		<Select
+			selected={persistent ? 'persistent' : 'temporary'}
+			id={'persistence-mode'}
+			onChange={(event) => {
+				const url = new URL(window.location.toString());
+				if (event.currentTarget.value === 'persistent') {
+					url.searchParams.set('persistent', '1');
+				} else {
+					url.searchParams.delete('persistent');
+				}
+				window.location.assign(url);
+			}}
+			options={{
+				['Temporary site']: 'temporary',
+				['Persistent site']: 'persistent',
+			}}
+		/>
+	);
+}
+
+function OpfsResetButton({ playground }: { playground?: PlaygroundClient }) {
+	return (
+		<button
+			className={css.button}
+			onClick={async () => {
+				if (
+					!window.confirm('Are you sure you want to reset the site?')
+				) {
+					return;
+				}
+				await playground?.resetOpfs();
+				window.location.reload();
+			}}
+		>
+			Reset site data
+		</button>
+	);
+}
