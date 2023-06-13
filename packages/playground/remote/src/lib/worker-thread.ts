@@ -56,7 +56,7 @@ if (useOpfs) {
 		webkitRequestFileSystem(
 			// @ts-ignore
 			PERSISTENT,
-			50 * 1024 * 1024, // 50 MB
+			150 * 1024 * 1024, // 150 MB
 			resolve,
 			reject
 		)
