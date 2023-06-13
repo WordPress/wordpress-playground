@@ -101,12 +101,9 @@ class WordPressPatcher {
 	}
 
 	async addMissingSvgs() {
-		// @TODO: Restore
-		return;
-
 		// @TODO: use only on the web version, or not even there – just include these
 		// in WordPress build:
-		this.php.mkdirTree(`${this.wordpressPath}/wp-admin/images`);
+		this.php.mkdir(`${this.wordpressPath}/wp-admin/images`);
 		const missingSvgs = [
 			`${this.wordpressPath}/wp-admin/images/about-header-about.svg`,
 			`${this.wordpressPath}/wp-admin/images/dashboard-background.svg`,
