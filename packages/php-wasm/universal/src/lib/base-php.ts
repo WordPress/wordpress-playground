@@ -109,49 +109,24 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
 
-		this.writeFile(
-			'/wordpress/index2.php',
-			`<?php
-			require('/wordpress/wp-load.php');
-echo '<pre>';
-
-// Create a new file with fopen(), write some data, seek,
-// write more data, close it, and verify the consistency
-// of the written data.
-$fp = fopen('test.txt', 'w');
-fwrite($fp, '1234567890');
-fseek($fp, 3);
-fwrite($fp, 'abc');
-fclose($fp);
-echo file_get_contents('test.txt');
-// 123abc7890int as expected
-
-var_dump($wpdb->query('SELECT 1'));
-// This works fine
-
-var_dump(
-	$wpdb->insert(
-		'wp_posts',
-		array(
-			'post_title' => 'Test',
-			'post_content' => 'Hello world!',
-			'post_status' => 'publish',
-			'post_excerpt' => 'excerpt',
-			'to_ping' => 0,
-			'pinged' => 0,
-			'post_content_filtered' => 0,
-			'post_type' => 'post',
-			'post_mime_type' => 'text/plain',
-			'comment_status' => 'closed',
-			'ping_status' => 'closed',
-
-		)
-	)
-);
-var_dump($wpdb->last_error);
-// General error: 10 disk I/O error.
-		`
-		);
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		this.run({
+// 			code: `<?php
+// echo '<pre>';
+// $sqlite = new SQLite3('/wordpress/wp-content/database/.ht.sqlite');
+// $sqlite->exec("INSERT INTO wp_options (option_name, option_value) VALUES ('a', 'b');");
+// var_dump($sqlite->lastErrorCode());
+// // PHP Warning:  SQLite3::exec(): disk I/O error in php-wasm run script on line 6
+// 		`
+// 		}).then(console.log);
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		console.log("____________________")
+// 		throw new Error();
 	}
 
 	/** @inheritDoc */
@@ -472,6 +447,8 @@ var_dump($wpdb->last_error);
 					[],
 					[]
 				);
+				this[__private__dont__use].FS.memfsToOpfs('/wordpress', '/wordpress');
+
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
 				}

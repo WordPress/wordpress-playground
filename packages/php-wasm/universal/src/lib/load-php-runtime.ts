@@ -156,23 +156,23 @@ export async function loadPHPRuntime(
 	});
 
 	// @TODO: Find a good strategy for conditionally loading data dependencies
-	const root = PHPRuntime.FS.filesystems.OPFS.opfs.root;
+	// const root = PHPRuntime.FS.filesystems.OPFS.opfs.root;
 	let loaded = false;
 	try {
-		root.getFile('/wordpress/wp-config.php', {});
+		// root.getFile('/wordpress/wp-config.php', {});
 		// loaded = true;
 	} catch (e) {
 		loaded = false;
 	}
 	if (!loaded) {
-		try {
-			root.getDirectory('/wordpress', {
-				create: true,
-			}).removeRecursively();
-			root.getDirectory('/wordpress', { create: true });
-		} catch (e) {
-			console.error(e);
-		}
+		// try {
+		// 	root.getDirectory('/wordpress', {
+		// 		create: true,
+		// 	}).removeRecursively();
+		// 	root.getDirectory('/wordpress', { create: true });
+		// } catch (e) {
+		// 	console.error(e);
+		// }
 		for (const { default: loadDataModule } of dataDependenciesModules) {
 			try {
 				const result = PHPRuntime.locateFile(
@@ -184,15 +184,21 @@ export async function loadPHPRuntime(
 				console.error(e);
 				console.log('Loading data module');
 			}
-			loadDataModule(PHPRuntime);
+			// loadDataModule(PHPRuntime);
 		}
+		console.log('PHPRuntime.FS', PHPRuntime.FS);
 	}
 	if (!dataDependenciesModules.length) {
 		resolveDepsReady();
 	}
 
-	await depsReady;
+	// await depsReady;
 	await phpReady;
+	// PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
+	PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
+	console.log(PHPRuntime.FS.readFile(
+		'/wordpress/wp-config.php'
+	));
 
 	// console.log(PHPRuntime.FS.readdir('/wordpress'));
 	// // console.log(PHPRuntime.FS.writeFile('/phpinfo.php', 'test'));
