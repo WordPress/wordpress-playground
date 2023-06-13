@@ -461,7 +461,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 
 		if (this[__private__dont__use].synchronizer) {
-			await this[__private__dont__use].synchronizer.copyChangesToOPFS();
+			await this[__private__dont__use].synchronizer.exportMemfsChanges();
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();

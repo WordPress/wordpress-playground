@@ -116,11 +116,11 @@
  * @returns Loaded runtime id.
  */
 
-import { OPFSSynchronizer, OpfsFileExists } from './ops-sync';
+import { FileSystemSynchronizer, OPFSSynchronizer, OpfsFileExists } from './ops-sync';
 
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {},
+	loaderArgs: EmscriptenOptionsPlus = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
 	let resolvePhpReady: any, resolveDepsReady: any;
@@ -130,6 +130,8 @@ export async function loadPHPRuntime(
 	const phpReady = new Promise((resolve) => {
 		resolvePhpReady = resolve;
 	});
+
+	const { fsSynchronizer, ...phpModuleArgs } = loaderArgs
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
@@ -181,22 +183,14 @@ export async function loadPHPRuntime(
 	}
 	await phpReady;
 
-	const synchronizer = new OPFSSynchronizer({
+	PHPRuntime.synchronizer = await OPFSSynchronizer.create({
 		opfs,
+		hasFilesInOpfs: loadFromOPFS,
 		FS: PHPRuntime.FS,
 		joinPaths: PHPRuntime.PATH.join,
 		memfsPath: '/wordpress',
 		opfsPath: '/wordpress',
 	});
-	if (loadFromOPFS) {
-		await synchronizer.toMEMFS();
-		synchronizer.clearObservedMEMFSChanges();
-	} else {
-		// Data dependencies are loaded by now,
-		// let's write them to OPFS.
-		await synchronizer.copyEverythingToOPFS();
-	}
-	PHPRuntime.synchronizer = synchronizer;
 
 	loadedRuntimes.push(PHPRuntime);
 	return loadedRuntimes.length - 1;
@@ -234,7 +228,7 @@ export type PHPRuntime = any;
 export type PHPLoaderModule = {
 	dependencyFilename: string;
 	dependenciesTotalSize: number;
-	init: (jsRuntime: string, options: EmscriptenOptions) => PHPRuntime;
+	init: (jsRuntime: string, options: EmscriptenOptionsPlus) => PHPRuntime;
 };
 
 export type DataModule = {
@@ -243,7 +237,10 @@ export type DataModule = {
 	default: (phpRuntime: PHPRuntime) => void;
 };
 
-export type EmscriptenOptions = {
+/**
+ * Emscripten options plus some extra options.
+ */
+export type EmscriptenOptionsPlus = {
 	onAbort?: (message: string) => void;
 	/**
 	 * Set to true for debugging tricky WebAssembly errors.
@@ -259,6 +256,7 @@ export type EmscriptenOptions = {
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
+	fsSynchronizer?: FileSystemSynchronizer;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;

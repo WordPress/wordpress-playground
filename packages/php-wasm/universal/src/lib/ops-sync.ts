@@ -57,9 +57,17 @@ type OPFSSynchronizerOptions = {
 	opfs: FileSystem;
 	memfsPath: string;
 	opfsPath: string;
+	hasFilesInOpfs: boolean;
 };
 
-export class OPFSSynchronizer {
+export interface FileSystemSynchronizer {
+	populateMemfs(): Promise<void>;
+	exportEntireMemfs(): Promise<void>;
+	clearObservedMemfsChanges(): void;
+	exportMemfsChanges(): Promise<void>;
+}
+
+export class OPFSSynchronizer implements FileSystemSynchronizer {
 	private options: OPFSSynchronizerOptions;
 	private semaphore = new Semaphore({
 		concurrency: 40,
@@ -82,7 +90,17 @@ export class OPFSSynchronizer {
 		this.observeMEMFSChanges();
 	}
 
-	async copyChangesToOPFS() {
+	static async create(options: OPFSSynchronizerOptions) {
+		const synchronizer = new OPFSSynchronizer(options);
+		if (synchronizer.options.hasFilesInOpfs) {
+			await synchronizer.populateMemfs();
+		} else {
+			await synchronizer.exportEntireMemfs();
+		}
+		return synchronizer;
+	}
+
+	async exportMemfsChanges() {
 		console.time('copyChangesToOPFS');
 		const asPaths = (set: Set<string>): SyncPathsTuple[] =>
 			Array.from(set)
@@ -114,11 +132,11 @@ export class OPFSSynchronizer {
 			)
 		);
 
-		this.clearObservedMEMFSChanges();
+		this.clearObservedMemfsChanges();
 		console.timeEnd('copyChangesToOPFS');
 	}
 
-	async copyEverythingToOPFS() {
+	async exportEntireMemfs() {
 		console.time('toOPFS');
 		await this.createOpfsDirectory(this.options.opfsPath);
 		console.log(this.options.memfsPath);
@@ -154,19 +172,20 @@ export class OPFSSynchronizer {
 		);
 	}
 
-	clearObservedMEMFSChanges() {
+	clearObservedMemfsChanges() {
 		this.removedFiles.clear();
 		this.removedDirectories.clear();
 		this.createdDirectories.clear();
 		this.updatedFiles.clear();
 	}
 
-	async toMEMFS() {
+	async populateMemfs() {
 		console.time('toMEMFS');
 		await this.internalToMEMFS(
 			this.options.opfsPath,
 			this.options.memfsPath
 		);
+		this.clearObservedMemfsChanges();
 		console.timeEnd('toMEMFS');
 	}
 
