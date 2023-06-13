@@ -4,15 +4,6 @@ import { Semaphore } from '@php-wasm/util';
 const TYPE_DIR = 'directory';
 const TYPE_FILE = 'file';
 
-const updatedFiles = new Set<string>();
-const removedFiles = new Set<string>();
-const createdDirectories = new Set<string>();
-const removedDirectories = new Set<string>();
-
-const semaphore = new Semaphore({
-	concurrency: 20,
-});
-
 type EmscriptenFSStream = {
 	path: string;
 	node: EmscriptenFSNode;
@@ -70,9 +61,15 @@ type OPFSSynchronizerOptions = {
 
 export class OPFSSynchronizer {
 	private options: OPFSSynchronizerOptions;
+	private semaphore = new Semaphore({
+		concurrency: 40,
+	});
+	private updatedFiles = new Set<string>();
+	private removedFiles = new Set<string>();
+	private createdDirectories = new Set<string>();
+	private removedDirectories = new Set<string>();
 	constructor(options: OPFSSynchronizerOptions) {
 		this.options = options;
-		this.bindFSObservers();
 		try {
 			options.FS.mkdir(options.memfsPath);
 		} catch (e) {
@@ -96,25 +93,29 @@ export class OPFSSynchronizer {
 					),
 				}));
 		await Promise.all([
-			...asPaths(removedFiles).map((path) => this.removeOpfsFile(path)),
-			...asPaths(removedDirectories).map((path) =>
+			...asPaths(this.removedFiles).map((path) =>
+				this.removeOpfsFile(path)
+			),
+			...asPaths(this.removedDirectories).map((path) =>
 				this.removeOpfsDirectory(path)
 			),
 		]);
 		await Promise.all(
-			asPaths(createdDirectories).map((path) =>
+			asPaths(this.createdDirectories).map((path) =>
 				this.createOpfsDirectory(path)
 			)
 		);
 
 		await Promise.all(
-			asPaths(updatedFiles).map((path) => this.overwriteOpfsFile(path))
+			asPaths(this.updatedFiles).map((path) =>
+				this.overwriteOpfsFile(path)
+			)
 		);
 
-		removedFiles.clear();
-		removedDirectories.clear();
-		createdDirectories.clear();
-		updatedFiles.clear();
+		this.removedFiles.clear();
+		this.removedDirectories.clear();
+		this.createdDirectories.clear();
+		this.updatedFiles.clear();
 	}
 
 	async toMEMFS(src = this.options.opfsPath, dest = this.options.memfsPath) {
@@ -146,7 +147,7 @@ export class OPFSSynchronizer {
 						}
 						await this.toMEMFS(entry.fullPath, memfsPath);
 					} else {
-						const release = await semaphore.acquire();
+						const release = await this.semaphore.acquire();
 						try {
 							const blob = await new Promise<File>((resolve) =>
 								(entry as FileSystemFileEntry).file(resolve)
@@ -193,7 +194,7 @@ export class OPFSSynchronizer {
 	}
 
 	private async overwriteOpfsFile({ memfsPath, opfsPath }: SyncPathsTuple) {
-		const release = await semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			let buffer;
 			try {
@@ -228,7 +229,7 @@ export class OPFSSynchronizer {
 	}
 
 	private async createOpfsDirectory({ opfsPath }: SyncPathsTuple) {
-		const release = await semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			await this.getOpfsEntry(opfsPath, TYPE_DIR, { create: true });
 		} catch (e) {
@@ -243,7 +244,7 @@ export class OPFSSynchronizer {
 	}
 
 	private async removeOpfsDirectory({ opfsPath }: SyncPathsTuple) {
-		const release = await semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			const entry = await this.getOpfsDirectory(opfsPath);
 			await new Promise((resolve, reject) =>
@@ -258,7 +259,7 @@ export class OPFSSynchronizer {
 	}
 
 	private async removeOpfsFile({ opfsPath }: SyncPathsTuple) {
-		const release = await semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			const entry = await this.getOpfsFile(opfsPath);
 			await new Promise((resolve, reject) =>
@@ -306,26 +307,10 @@ export class OPFSSynchronizer {
 		path: string,
 		opts: FileSystemGetFileOptions = {}
 	) {
-		return await new Promise<FileSystemFileEntry>((resolve, reject) => {
-			this.options.opfs.root.getFile(
-				path,
-				opts,
-				(value) => resolve(value as FileSystemFileEntry),
-				reject
-			);
-		});
+		return await getOpfsFile(this.options.opfs, path, opts);
 	}
 
-	async OPFSFileExists(path: string) {
-		try {
-			await this.getOpfsFile(path);
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-
-	private bindFSObservers() {
+	bindMEMFSObservers() {
 		if (this.options.FS.fsObserversBound) {
 			return;
 		}
@@ -333,10 +318,12 @@ export class OPFSSynchronizer {
 
 		const FS = this.options.FS;
 		const MEMFS = FS.filesystems.MEMFS;
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		const synchronizer = this;
 
 		const originalWrite = FS.write;
 		FS.write = function (stream: EmscriptenFSStream) {
-			updatedFiles.add(stream.path);
+			synchronizer.updatedFiles.add(stream.path);
 			return originalWrite(...arguments);
 		};
 
@@ -351,7 +338,10 @@ export class OPFSSynchronizer {
 				FS.getPath(new_dir),
 				new_name
 			);
-			for (const set of [updatedFiles, createdDirectories]) {
+			for (const set of [
+				synchronizer.updatedFiles,
+				synchronizer.createdDirectories,
+			]) {
 				for (const path of set) {
 					if (path.startsWith(old_path)) {
 						set.delete(path);
@@ -378,26 +368,50 @@ export class OPFSSynchronizer {
 			} else {
 				node = path;
 			}
-			updatedFiles.add(FS.getPath(node));
+			synchronizer.updatedFiles.add(FS.getPath(node));
 			return originalTruncate(...arguments);
 		};
 
 		const originalUnlink = FS.unlink;
 		FS.unlink = function (path: string) {
-			removedFiles.add(path);
+			synchronizer.removedFiles.add(path);
 			return originalUnlink(...arguments);
 		};
 
 		const originalMkdir = FS.mkdir;
 		FS.mkdir = function (path: string) {
-			createdDirectories.add(path);
+			synchronizer.createdDirectories.add(path);
 			return originalMkdir(...arguments);
 		};
 
 		const originalRmdir = FS.rmdir;
 		FS.rmdir = function (path: string) {
-			removedDirectories.add(path);
+			synchronizer.removedDirectories.add(path);
 			return originalRmdir(...arguments);
 		};
 	}
+}
+
+export async function OpfsFileExists(opfs: FileSystem, path: string) {
+	try {
+		await getOpfsFile(opfs, path);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+export async function getOpfsFile(
+	opfs: FileSystem,
+	path: string,
+	opts: FileSystemGetFileOptions = {}
+) {
+	return await new Promise<FileSystemFileEntry>((resolve, reject) => {
+		opfs.root.getFile(
+			path,
+			opts,
+			(value) => resolve(value as FileSystemFileEntry),
+			reject
+		);
+	});
 }
