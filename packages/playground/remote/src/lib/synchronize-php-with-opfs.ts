@@ -206,7 +206,7 @@ class OPFSSynchronizer {
 	}
 
 	private async internalToMEMFS(src: string, dest: string) {
-		const dir = await this.getOpfsDirectory(src);
+		const dir = await getOpfsDirectory(this.options.opfs, src);
 		const reader = dir.createReader();
 		while (true) {
 			const entries = await new Promise<FileSystemEntry[]>(
@@ -268,18 +268,6 @@ class OPFSSynchronizer {
 		}
 	}
 
-	async resetOpfs() {
-		const entry = await this.getOpfsDirectory(this.options.opfsPath, {
-			create: true,
-		});
-		await new Promise((resolve, reject) =>
-			entry.removeRecursively(resolve, reject)
-		);
-		await this.getOpfsDirectory(this.options.opfsPath, {
-			create: true,
-		});
-	}
-
 	private async overwriteOpfsFile({ memfsPath, opfsPath }: SyncPathsTuple) {
 		const release = await this.semaphore.acquire();
 		try {
@@ -293,7 +281,7 @@ class OPFSSynchronizer {
 				return;
 			}
 
-			const opfsFile = await this.getOpfsFile(opfsPath, {
+			const opfsFile = await getOpfsFile(this.options.opfs, opfsPath, {
 				create: true,
 			});
 			const writer = await new Promise<FileWriter>((resolve, reject) =>
@@ -318,7 +306,7 @@ class OPFSSynchronizer {
 	private async createOpfsDirectory(opfsPath: string) {
 		const release = await this.semaphore.acquire();
 		try {
-			await this.getOpfsEntry(opfsPath, TYPE_DIR, { create: true });
+			await getOpfsDirectory(this.options.opfs, opfsPath, { create: true });
 		} catch (e) {
 			// Can't create directory – this is probably due to
 			// a rename() call on a higher-up hierarchy folder
@@ -333,7 +321,7 @@ class OPFSSynchronizer {
 	private async removeOpfsDirectory({ opfsPath }: SyncPathsTuple) {
 		const release = await this.semaphore.acquire();
 		try {
-			const entry = await this.getOpfsDirectory(opfsPath);
+			const entry = await getOpfsDirectory(this.options.opfs, opfsPath);
 			await new Promise((resolve, reject) =>
 				entry.removeRecursively(resolve, reject)
 			);
@@ -348,7 +336,7 @@ class OPFSSynchronizer {
 	private async removeOpfsFile({ opfsPath }: SyncPathsTuple) {
 		const release = await this.semaphore.acquire();
 		try {
-			const entry = await this.getOpfsFile(opfsPath);
+			const entry = await getOpfsFile(this.options.opfs, opfsPath);
 			await new Promise((resolve, reject) =>
 				entry.remove(resolve, reject)
 			);
@@ -358,43 +346,6 @@ class OPFSSynchronizer {
 		} finally {
 			release();
 		}
-	}
-
-	private async getOpfsEntry(
-		path: string,
-		type: string,
-		opts: FileSystemGetFileOptions | FileSystemGetDirectoryOptions = {}
-	): Promise<FileSystemFileEntry | FileSystemDirectoryEntry> {
-		if (type === TYPE_DIR) {
-			return await this.getOpfsDirectory(path, opts);
-		} else if (type === TYPE_FILE) {
-			return await this.getOpfsFile(path, opts);
-		} else {
-			throw new Error(`Unknown type: ${type}`);
-		}
-	}
-
-	private async getOpfsDirectory(
-		path: string,
-		opts: FileSystemGetDirectoryOptions = {}
-	) {
-		return await new Promise<FileSystemDirectoryEntry>(
-			(resolve, reject) => {
-				this.options.opfs.root.getDirectory(
-					path,
-					opts,
-					(value) => resolve(value as FileSystemDirectoryEntry),
-					reject
-				);
-			}
-		);
-	}
-
-	private async getOpfsFile(
-		path: string,
-		opts: FileSystemGetFileOptions = {}
-	) {
-		return await getOpfsFile(this.options.opfs, path, opts);
 	}
 
 	private observeMEMFSChanges() {
@@ -498,6 +449,21 @@ async function getOpfsFile(
 			path,
 			opts,
 			(value) => resolve(value as FileSystemFileEntry),
+			reject
+		);
+	});
+}
+
+export async function getOpfsDirectory(
+	opfs: FileSystem,
+	path: string,
+	opts: FileSystemGetFileOptions = {}
+) {
+	return await new Promise<FileSystemDirectoryEntry>((resolve, reject) => {
+		opfs.root.getDirectory(
+			path,
+			opts,
+			(value) => resolve(value as FileSystemDirectoryEntry),
 			reject
 		);
 	});

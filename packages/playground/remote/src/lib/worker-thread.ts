@@ -21,6 +21,7 @@ import {
 import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
 	OpfsFileExists,
+	getOpfsDirectory,
 	synchronizePHPWithOPFS,
 } from './synchronize-php-with-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
@@ -28,6 +29,7 @@ import { applyWordPressPatches } from '@wp-playground/blueprints';
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
 	phpVersion?: string;
+	persistent?: string;
 }>();
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
@@ -45,21 +47,25 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-const opfs = await new Promise<FileSystem>((resolve, reject) =>
-	// @ts-ignore
-	webkitRequestFileSystem(
-		// @TODO: Maybe do Window.PERSISTENT?
+const useOpfs = startupOptions.persistent === 'true';
+let opfs: FileSystem | undefined;
+let wordPressAvailableInOPFS = false;
+if (useOpfs) {
+	opfs = await new Promise<FileSystem>((resolve, reject) =>
 		// @ts-ignore
-		TEMPORARY,
-		50 * 1024 * 1024, // 50 MB
-		resolve,
-		reject
-	)
-);
-const loadWordPressFromOPFS = await OpfsFileExists(
-	opfs,
-	'/wordpress/wp-config.php'
-);
+		webkitRequestFileSystem(
+			// @ts-ignore
+			PERSISTENT,
+			50 * 1024 * 1024, // 50 MB
+			resolve,
+			reject
+		)
+	);
+	wordPressAvailableInOPFS = await OpfsFileExists(
+		opfs,
+		`${DOCROOT}/wp-config.php`
+	);
+}
 
 // @TODO: figure out how to use scopes when the filesystem is reusable.
 //        a SharedWorker could be a good candidate for this.
@@ -74,7 +80,7 @@ const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	dataModules: loadWordPressFromOPFS ? [] : [wordPressModule],
+	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 
 /** @inheritDoc PHPClient */
@@ -114,8 +120,20 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		const version = await this.wordPressVersion;
 		return {
 			staticAssetsDirectory: `wp-${version.replace('_', '.')}`,
-			defaultTheme: undefined, //(await wordPressModule)?.defaultThemeName,
+			defaultTheme: (await wordPressModule)?.defaultThemeName,
 		};
+	}
+
+	async resetOpfs() {
+		if (!opfs) {
+			throw new Error('No OPFS available.');
+		}
+		const entry = await getOpfsDirectory(opfs, DOCROOT, {
+			create: true,
+		});
+		await new Promise((resolve, reject) =>
+			entry.removeRecursively(resolve, reject)
+		);
 	}
 }
 
@@ -125,14 +143,16 @@ const [setApiReady] = exposeAPI(
 
 await phpReady;
 
-await synchronizePHPWithOPFS(php, {
-	opfs,
-	hasFilesInOpfs: loadWordPressFromOPFS,
-	memfsPath: DOCROOT,
-	opfsPath: DOCROOT,
-});
+if (opfs) {
+	await synchronizePHPWithOPFS(php, {
+		opfs,
+		hasFilesInOpfs: wordPressAvailableInOPFS,
+		memfsPath: DOCROOT,
+		opfsPath: DOCROOT,
+	});
+}
 
-if (!loadWordPressFromOPFS) {
+if (!wordPressAvailableInOPFS) {
 	/**
 	 * When WordPress is restored from OPFS, these patches are already applied.
 	 * Thus, let's not apply them again.

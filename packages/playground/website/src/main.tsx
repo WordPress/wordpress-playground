@@ -55,6 +55,7 @@ const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
+		persistent={query.has('persistent')}
 		isSeamless={isSeamless}
 		blueprint={blueprint}
 		toolbarButtons={[

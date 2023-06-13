@@ -7,6 +7,7 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 
 interface PlaygroundViewportProps {
+	persistent?: boolean;
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
 	toolbarButtons?: React.ReactElement[];
@@ -15,10 +16,12 @@ interface PlaygroundViewportProps {
 export default function PlaygroundViewport({
 	blueprint,
 	isSeamless,
+	persistent,
 	toolbarButtons,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
+		persistent,
 	});
 
 	const updatedToolbarButtons = useMemo(() => {

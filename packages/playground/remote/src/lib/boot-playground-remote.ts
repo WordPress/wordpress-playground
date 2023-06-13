@@ -47,7 +47,7 @@ import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from './get-wordpress-module';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
-const query = new URL(document.location.href).searchParams as any;
+const query = new URL(document.location.href).searchParams;
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
@@ -70,6 +70,7 @@ export async function bootPlaygroundRemote() {
 		await spawnPHPWorkerThread(workerUrl, workerBackend, {
 			wpVersion,
 			phpVersion,
+			persistent: query.has('persistent') ? 'true' : 'false',
 		})
 	);
 
