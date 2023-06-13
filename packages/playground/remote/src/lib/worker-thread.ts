@@ -67,8 +67,6 @@ if (useOpfs) {
 	);
 }
 
-// @TODO: figure out how to use scopes when the filesystem is reusable.
-//        a SharedWorker could be a good candidate for this.
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
