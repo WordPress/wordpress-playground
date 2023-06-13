@@ -108,25 +108,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
-
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		this.run({
-		// 			code: `<?php
-		// echo '<pre>';
-		// $sqlite = new SQLite3('/wordpress/wp-content/database/.ht.sqlite');
-		// $sqlite->exec("INSERT INTO wp_options (option_name, option_value) VALUES ('a', 'b');");
-		// var_dump($sqlite->lastErrorCode());
-		// // PHP Warning:  SQLite3::exec(): disk I/O error in php-wasm run script on line 6
-		// 		`
-		// 		}).then(console.log);
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		console.log("____________________")
-		// 		throw new Error();
 	}
 
 	/** @inheritDoc */
@@ -223,10 +204,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			);
 		}
 
-		console.log(
-			headersFilePath + ': ',
-			this.readFileAsText(headersFilePath)
-		);
 		const headersData = JSON.parse(this.readFileAsText(headersFilePath));
 		const headers: PHPResponse['headers'] = {};
 		for (const line of headersData.headers) {
@@ -484,10 +461,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 
 		console.time('memfsToOpfs');
-		await this[__private__dont__use].FS.memfsToOpfs(
-			'/wordpress',
-			'/wordpress'
-		);
+		if (this[__private__dont__use].synchronizer) {
+			await this[__private__dont__use].synchronizer.toOPFS();
+		}
 		console.timeEnd('memfsToOpfs');
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();

@@ -116,6 +116,8 @@
  * @returns Loaded runtime id.
  */
 
+import { OPFSSynchronizer } from './ops-sync';
+
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
 	phpModuleArgs: EmscriptenOptions = {},
@@ -154,19 +156,32 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
+	const opfs = await new Promise<FileSystem>((resolve) =>
+		// @ts-ignore
+		webkitRequestFileSystem(
+			// @TODO: Maybe do Window.PERSISTENT?
+			// @ts-ignore
+			TEMPORARY,
+			50 * 1024 * 1024, // 50 MB
+			resolve
+		)
+	);
+	const synchronizer = new OPFSSynchronizer({
+		opfs,
+		FS: PHPRuntime.FS,
+		memfsPath: '/wordpress',
+		opfsPath: '/wordpress',
+	});
 
-	const opfs = await new Promise(resolve => webkitRequestFileSystem(
-		// @TODO: Maybe do Window.PERSISTENT?
-		TEMPORARY,
-		50 * 1024 * 1024, // 50 MB
-		resolve
-	));
-	await PHPRuntime.FS.addOPFSSupport(opfs);
-	const loaded = await PHPRuntime.FS.hasOPFSFile('/wordpress/wp-config.php');
+	// await synchronizer.resetOpfs();
+	const loaded = await synchronizer.OPFSFileExists(
+		'/wordpress/wp-config.php'
+	);
+	console.log({ loaded });
 	if (loaded) {
 		await phpReady;
 		console.time('opfsToMemfs');
-		await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
+		await synchronizer.toMEMFS();
 		console.timeEnd('opfsToMemfs');
 	} else {
 		// @TODO: Find a good strategy for conditionally loading data dependencies
@@ -178,8 +193,9 @@ export async function loadPHPRuntime(
 		}
 		await depsReady;
 		await phpReady;
-		await PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
+		await synchronizer.toOPFS();
 	}
+	PHPRuntime.synchronizer = synchronizer;
 
 	loadedRuntimes.push(PHPRuntime);
 	return loadedRuntimes.length - 1;

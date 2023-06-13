@@ -7220,8 +7220,6 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
         return originalHandleSleep(startAsync);
     }
 }
-    
-    
 
 return PHPLoader;
 

@@ -2526,8 +2526,7 @@ var FS = {
  },
  ensureErrnoError: () => {
   if (FS.ErrnoError) return;
-     FS.ErrnoError = function ErrnoError(errno, node) {
-      console.trace(errno)
+  FS.ErrnoError = function ErrnoError(errno, node) {
    this.node = node;
    this.setErrno = function(errno) {
     this.errno = errno;
