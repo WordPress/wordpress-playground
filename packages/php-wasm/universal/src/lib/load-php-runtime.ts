@@ -169,6 +169,7 @@ export async function loadPHPRuntime(
 	const synchronizer = new OPFSSynchronizer({
 		opfs,
 		FS: PHPRuntime.FS,
+		joinPaths: PHPRuntime.PATH.join,
 		memfsPath: '/wordpress',
 		opfsPath: '/wordpress',
 	});

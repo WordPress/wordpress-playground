@@ -55,10 +55,6 @@ declare global {
 type SuccessCallback = (v?: any) => void;
 type ErrorCallback = (e: any) => void;
 
-function joinPaths(...paths: string[]) {
-	return paths.join('/').replace(/\/+/g, '/');
-}
-
 type SyncPathsTuple = {
 	memfsPath: string;
 	opfsPath: string;
@@ -66,6 +62,7 @@ type SyncPathsTuple = {
 
 type OPFSSynchronizerOptions = {
 	FS: any;
+	joinPaths: (...paths: string[]) => string;
 	opfs: FileSystem;
 	memfsPath: string;
 	opfsPath: string;
@@ -93,7 +90,7 @@ export class OPFSSynchronizer {
 				.filter((path) => path.startsWith(this.options.memfsPath))
 				.map((path) => ({
 					memfsPath: path,
-					opfsPath: joinPaths(
+					opfsPath: this.options.joinPaths(
 						this.options.opfsPath,
 						path.substring(this.options.memfsPath.length)
 					),
@@ -135,7 +132,7 @@ export class OPFSSynchronizer {
 
 			await Promise.all(
 				entries.map(async (entry) => {
-					const memfsPath = joinPaths(dest, entry.name);
+					const memfsPath = this.options.joinPaths(dest, entry.name);
 
 					if (entry.isDirectory) {
 						try {
@@ -350,13 +347,19 @@ export class OPFSSynchronizer {
 			new_name: string
 		) {
 			const old_path = FS.getPath(old_node);
-			const new_path = joinPaths(FS.getPath(new_dir), new_name);
+			const new_path = this.options.joinPaths(
+				FS.getPath(new_dir),
+				new_name
+			);
 			for (const set of [updatedFiles, createdDirectories]) {
 				for (const path of set) {
 					if (path.startsWith(old_path)) {
 						set.delete(path);
 						set.add(
-							joinPaths(new_path, path.substring(old_path.length))
+							this.options.joinPaths(
+								new_path,
+								path.substring(old_path.length)
+							)
 						);
 					}
 				}
