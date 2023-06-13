@@ -2057,61 +2057,8 @@ function getModifiedTime(path) {
 
 // let semaphore = new Semaphore(20); // limit to 20 concurrent async calls
 
-/**
- * @returns {FileSystemFileEntry|FileSystemDirectoryEntry}
- */
-function getOpfsEntry(path, opts = {}) {	
-	try {
-		return opfs.root.getFile(path, opts);
-	} catch (e) {
-		return opfs.root.getDirectory(path, opts);
-	}
-}
+async function SynchronizingStuff() {
 	
-function memfsToOpfs(src, dest) {
-	for (const filename of FS.readdir(src)) {
-		if (filename === '.' || filename === '..') {
-			continue;
-		}
-
-		const memfsFilePath = PATH.join.apply(null, [src, filename]);
-		const memfsDirStat = FS.stat(memfsFilePath);
-		const memfsMtime = memfsDirStat.mtime;
-
-		const opfsPath = PATH.join.apply(null, [dest, filename]);
-
-		// Only sync if opfs file is missing or older than memfs file
-		let opfsMtime;
-		try {
-			opfsMtime = getOpfsEntry(opfsPath).getMetadata().modificationTime;
-			if (memfsMtime <= opfsMtime) {
-				continue;
-			}
-		} catch (e) {
-			// File doesn't exist in OPFS – sync it
-		}
-
-		if (FS.isDir(memfsDirStat.mode)) {
-			// Get or create OPFS directory
-			opfs.root.getDirectory(opfsPath, { create: true });
-			// Recursively sync the directory
-			memfsToOpfs(memfsFilePath, opfsPath);
-		} else {
-			const buffer = FS.readFile(memfsFilePath, { encoding: 'binary' });
-			// Create OPFS writer
-			const writer = opfs.root.getFile(opfsPath, { create: true }).createWriter();
-			writer.truncate(0);
-			writer.write(new Blob([buffer], { type: 'application/octet-stream' }));
-		}
-	}
-}
-
-
-const opfs = webkitRequestFileSystemSync(
-    // @TODO: Maybe do Window.PERSISTENT?
-    TEMPORARY,
-    50 * 1024 * 1024, // 50 MB
-);
 class Semaphore {
 	constructor(maxConcurrency) {
 	  this.maxConcurrency = maxConcurrency;
@@ -2139,8 +2086,84 @@ class Semaphore {
 	  }
 	}
 }
+	
+const opfs = await new Promise(resolve => webkitRequestFileSystem(
+	// @TODO: Maybe do Window.PERSISTENT?
+	TEMPORARY,
+	50 * 1024 * 1024, // 50 MB
+	resolve
+));
 
-async function opfsToMemfs(src, dest, opfs) {
+/**
+ * @returns {FileSystemFileEntry|FileSystemDirectoryEntry}
+ */
+async function getOpfsEntry(path, opts = {}) {
+	try {
+		return await new Promise((resolve, reject) => {
+			opfs.root.getFile(path, opts, resolve, reject);
+		});
+	} catch (e) {
+		return await new Promise((resolve, reject) => {
+			opfs.root.getDirectory(path, opts, resolve, reject);
+		});
+	}
+}
+	
+const semaphore = new Semaphore(20);
+async function memfsToOpfs(src, dest) {
+	for (const filename of FS.readdir(src)) {
+		if (filename === '.' || filename === '..') {
+			continue;
+		}
+		await semaphore.acquire();
+
+		try {
+			const memfsFilePath = PATH.join.apply(null, [src, filename]);
+			const memfsDirStat = FS.stat(memfsFilePath);
+			const memfsMtime = memfsDirStat.mtime;
+
+			const opfsPath = PATH.join.apply(null, [dest, filename]);
+
+			// Only sync if opfs file is missing or older than memfs file
+			let entry;
+			try {
+				entry = await getOpfsEntry(opfsPath);
+				const metadata = await new Promise((resolve, reject) =>
+					opfs.root.getMetadata(resolve, reject)
+				);
+				if (memfsMtime <= opfsMtime) {
+					continue;
+				}
+			} catch (e) {
+				// File doesn't exist in OPFS – sync it
+			}
+
+			if (FS.isDir(memfsDirStat.mode)) {
+				entry = entry || await new Promise((resolve, reject) => {
+					opfs.root.getDirectory(opfsPath, { create: true }, resolve, reject);
+				});
+				await memfsToOpfs(memfsFilePath, opfsPath);
+			} else {
+				entry = entry || await new Promise((resolve, reject) => {
+					opfs.root.getFile(opfsPath, { create: true }, resolve, reject);
+				});
+				const buffer = FS.readFile(memfsFilePath, { encoding: 'binary' });
+
+				let writer = await new Promise((resolve, reject) => entry.createWriter(resolve, reject));
+				writer.truncate(0);
+				await new Promise(resolve => { writer.onwriteend = resolve });
+
+				writer.write(new Blob([buffer], { type: 'application/octet-stream' }));
+				await new Promise(resolve => { writer.onwriteend = resolve });
+			}
+		} finally {
+			semaphore.release();
+		}
+	}
+}
+
+
+async function opfsToMemfs(src, dest) {
 	async function getOpfsEntry(path, opts = {}) {
 		try {
 			return await new Promise((resolve, reject) => {
@@ -2153,7 +2176,6 @@ async function opfsToMemfs(src, dest, opfs) {
 		}
 	}
 
-	const semaphore = new Semaphore(20);
 	const dir = await getOpfsEntry(src);
 	const entries = await new Promise(resolve => {
 		dir.createReader().readEntries(resolve);
@@ -2166,7 +2188,7 @@ async function opfsToMemfs(src, dest, opfs) {
 			try {
 				FS.mkdir(memfsPath);
 			} catch (e) { }
-			await opfsToMemfs(entry.fullPath, memfsPath, opfs);
+			await opfsToMemfs(entry.fullPath, memfsPath);
 		} else {
 			await semaphore.acquire();
 			try {
@@ -2188,21 +2210,32 @@ async function opfsToMemfs(src, dest, opfs) {
 
 	
 FS.opfsToMemfs = async () => {
-	const opfs2 = await new Promise(resolve => webkitRequestFileSystem(
-		// @TODO: Maybe do Window.PERSISTENT?
-		TEMPORARY,
-		50 * 1024 * 1024, // 50 MB
-		resolve
-	));
-	
 	FS.mkdir('/wordpress');
-	await opfsToMemfs('/wordpress', '/wordpress', opfs2);
+	await opfsToMemfs('/wordpress', '/wordpress');
 }
 
-FS.memfsToOpfs = () => {
-	memfsToOpfs('/wordpress', '/wordpress');
+FS.memfsToOpfs = async () => {
+	await memfsToOpfs('/wordpress', '/wordpress');
 }
+	
+FS.resetOpfs = async () => {
+	const entry = await new Promise((resolve, reject) =>
+		opfs.root.getDirectory('/wordpress', {
+			create: true,
+		}, resolve, reject)
+	);
+	await new Promise((resolve, reject) => entry.removeRecursively(resolve, reject))
+	await new Promise((resolve, reject) =>
+		opfs.root.getDirectory('/wordpress', {
+			create: true,
+		}, resolve, reject)
+	);
+}
+};
+	
+SynchronizingStuff();
+	
 return PHPLoader;
 
-// Close the opening bracket from esm-prefix.js:
+// Close the opening bracket from esm-prefix.js
 }

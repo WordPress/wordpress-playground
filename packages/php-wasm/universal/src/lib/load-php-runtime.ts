@@ -184,7 +184,7 @@ export async function loadPHPRuntime(
 				console.error(e);
 				console.log('Loading data module');
 			}
-			// loadDataModule(PHPRuntime);
+			loadDataModule(PHPRuntime);
 		}
 		console.log('PHPRuntime.FS', PHPRuntime.FS);
 	}
@@ -194,10 +194,10 @@ export async function loadPHPRuntime(
 
 	// await depsReady;
 	await phpReady;
-	// PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
-	console.time('opfsToMemfs');
-	await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
-	console.timeEnd('opfsToMemfs');
+	PHPRuntime.FS.memfsToOpfs('/wordpress', '/wordpress');
+	// console.time('opfsToMemfs');
+	// await PHPRuntime.FS.opfsToMemfs('/wordpress', '/wordpress');
+	// console.timeEnd('opfsToMemfs');
 	console.log(PHPRuntime.FS.readFile('/wordpress/wp-admin/index.php'));
 
 	// console.log(PHPRuntime.FS.readdir('/wordpress'));
