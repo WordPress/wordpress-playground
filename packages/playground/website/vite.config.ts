@@ -48,7 +48,7 @@ export default defineConfig(({ command }) => {
 	const playgroundOrigin =
 		command === 'build'
 			? // In production, both the website and the playground are served from the same domain.
-			  ''
+			  process?.env?.ORIGIN || 'https://playground.wordpress.net/'
 			: // In dev, the website and the playground are served from different domains.
 			  `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 	return {
