@@ -353,7 +353,7 @@ async function exportMemfsChangesToOpfs(
 			.map(toOpfsPath)
 			// We sort the directories by length so that we create
 			// the parent directories before the children.
-			.sort((a, b) => b.length - a.length)
+			.sort((a, b) => a.length - b.length)
 			.map((opfsPath) => createOpfsDirectory(opfs, opfsPath))
 	);
 
@@ -412,6 +412,13 @@ async function createOpfsDirectory(opfs: FileSystem, opfsPath: string) {
 		await getOpfsDirectory(opfs, opfsPath, {
 			create: true,
 		});
+	} catch (e) {
+		if ((e as any)?.errno !== 20) {
+			// We ignore the error if the directory already exists,
+			// and throw otherwise.
+			console.error(e);
+			throw e;
+		}
 	} finally {
 		release();
 	}
