@@ -3,7 +3,7 @@
  * filesystem such as OPFS or local filesystem and restore them on page refresh:
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API
- * 
+ *
  * Many synchronous functions are await-ed here because some browsers did not
  * catch up yet with the latest spec and still return promises.
  */
@@ -331,7 +331,9 @@ async function exportMemfsChangesToOpfs(
 			if (!memfsPath.startsWith(memfsRoot)) {
 				return;
 			}
-			const opfsPath = memfsPath.substring(memfsRoot.length);
+			const opfsPath = memfsPath
+				.substring(memfsRoot.length)
+				.replace(/\/$/, '');
 			const lastSlash = opfsPath.lastIndexOf('/');
 			if (lastSlash === -1) {
 				return;
@@ -415,21 +417,6 @@ export async function OpfsFileExists(
 	} catch (e) {
 		return false;
 	}
-}
-
-export async function getOpfsDirectory(
-	opfs: FileSystem,
-	path: string,
-	opts: FileSystemGetFileOptions = {}
-) {
-	return await new Promise<FileSystemDirectoryEntry>((resolve, reject) => {
-		opfs.root.getDirectory(
-			path,
-			opts,
-			(value) => resolve(value as FileSystemDirectoryEntry),
-			reject
-		);
-	});
 }
 
 async function resolveParent(
