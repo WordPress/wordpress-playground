@@ -33,5 +33,7 @@ export default function ExportButton({ playground }: ExportButtonProps) {
 }
 
 async function startDownload(playground: PlaygroundClient) {
-	saveAs(await zipEntireSite(playground));
+	const file = await zipEntireSite(playground);
+	console.log({ file });
+	saveAs(file);
 }

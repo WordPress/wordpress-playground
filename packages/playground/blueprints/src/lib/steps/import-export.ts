@@ -15,8 +15,8 @@ import migrationsPHPCode from './migration';
  * @param playground Playground client.
  */
 export async function zipEntireSite(playground: UniversalPHP) {
-	const zipName = `wordpress-playground.zip`;
-	const zipPath = `/${zipName}`;
+	const zipName = 'wordpress-playground.zip';
+	const zipPath = `/tmp/${zipName}`;
 
 	const js = phpVars({
 		zipPath,

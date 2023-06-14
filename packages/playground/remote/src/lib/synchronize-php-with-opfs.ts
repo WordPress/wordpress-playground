@@ -1,3 +1,13 @@
+/**
+ * Uses the FileSystem access API to synchronize MEMFS changes in a compliant
+ * filesystem such as OPFS or local filesystem and restore them on page refresh:
+ *
+ * https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API
+ * 
+ * Many synchronous functions are await-ed here because some browsers did not
+ * catch up yet with the latest spec and still return promises.
+ */
+
 /* eslint-disable prefer-rest-params */
 import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
@@ -13,50 +23,20 @@ type EmscriptenFSNode = {
 	mode: number;
 	node_ops: any;
 };
-type FileWriterResult = {
-	bytesWritten: number;
-};
-type FileWriter = {
-	write: (data: Blob) => void;
-	truncate: (bytes: Number) => void;
-	close: () => void;
-	onwriteend: (callback: (result: FileWriterResult) => void) => void;
-};
 
 declare global {
-	interface FileSystemFileEntry {
-		createWriter: (
-			callback: (writer: FileWriter) => void,
-			errorCallback: ErrorCallback
-		) => void;
-		remove: (
-			successCallback: SuccessCallback,
-			errorCallback: ErrorCallback
-		) => void;
-	}
-	interface FileSystemDirectoryEntry {
-		removeRecursively: (
-			successCallback: SuccessCallback,
-			errorCallback: ErrorCallback
-		) => void;
-		createReader: () => FileSystemDirectoryReader;
+	interface FileSystemDirectoryHandle {
+		values: () => AsyncIterable<
+			FileSystemDirectoryHandle | FileSystemFileHandle
+		>;
 	}
 }
-
-type SuccessCallback = (v?: any) => void;
-type ErrorCallback = (e: any) => void;
-
-type SyncPathsTuple = {
-	memfsPath: string;
-	opfsPath: string;
-};
 
 type OPFSSynchronizerOptions = {
 	FS: any;
 	joinPaths: (...paths: string[]) => string;
-	opfs: FileSystem;
+	opfs: FileSystemDirectoryHandle;
 	memfsPath: string;
-	opfsPath: string;
 	hasFilesInOpfs: boolean;
 };
 
@@ -88,24 +68,15 @@ export async function synchronizePHPWithOPFS(
 			options.opfs,
 			PHPRuntime.FS,
 			options.memfsPath,
-			options.opfsPath,
 			fsState
 		);
 	} else {
 		await exportEntireMemfsToOpfs(
 			options.opfs,
 			PHPRuntime.FS,
-			options.memfsPath,
-			options.opfsPath
+			options.memfsPath
 		);
 	}
-
-	const toOpfsPath = (memfsPath: string) =>
-		FS.joinPaths(
-			options.opfsPath,
-			memfsPath.substring(options.memfsPath.length)
-		);
-
 	/**
 	 * Do not do this in external code. This is a temporary solution
 	 * to allow some time for a few more use-cases to emerge before
@@ -118,15 +89,11 @@ export async function synchronizePHPWithOPFS(
 			options.opfs,
 			fsState,
 			PHPRuntime.FS,
-			toOpfsPath
+			options.memfsPath
 		);
 		return response;
 	};
 }
-
-const semaphore = new Semaphore({
-	concurrency: 40,
-});
 
 class FSState {
 	updatedFiles = new Set<string>();
@@ -143,41 +110,40 @@ class FSState {
 }
 
 async function populateMemfs(
-	opfs: FileSystem,
+	opfs: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
 	memfsPath: string,
-	opfsPath: string,
 	fsState: FSState
 ) {
-	await recursivePopulateMemfs(opfs, FS, opfsPath, memfsPath);
+	await recursivePopulateMemfs(opfs, FS, memfsPath);
 	fsState.reset();
 }
 
 async function recursivePopulateMemfs(
-	opfs: FileSystem,
+	opfsRoot: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
-	opfsSrc: string,
-	memfsDest: string
+	memfsRoot: string
 ) {
-	const dir = await getOpfsDirectory(opfs, opfsSrc);
-	const reader = dir.createReader();
-	while (true) {
-		const entries = await new Promise<FileSystemEntry[]>(
-			(resolve, reject) => {
-				reader.readEntries(resolve, reject);
-			}
-		);
-		if (!entries.length) {
-			break;
-		}
+	const semaphore = new Semaphore({
+		concurrency: 40,
+	});
 
-		await Promise.all(
-			entries.map(async (entry) => {
-				const memfsPath = FS.joinPaths(memfsDest, entry.name);
+	const ops: Array<Promise<void>> = [];
+	const stack: Array<[FileSystemDirectoryHandle, string]> = [
+		[opfsRoot, memfsRoot],
+	];
+	while (stack.length > 0) {
+		const [opfsParent, memfsParentPath] = stack.pop()!;
 
-				if (entry.isDirectory) {
+		for await (const opfsHandle of opfsParent.values()) {
+			const op = semaphore.run(async () => {
+				const memfsEntryPath = FS.joinPaths(
+					memfsParentPath,
+					opfsHandle.name
+				);
+				if (opfsHandle.kind === 'directory') {
 					try {
-						FS.mkdir(memfsPath);
+						FS.mkdir(memfsEntryPath);
 					} catch (e) {
 						// Directory already exists, ignore.
 						// There's also a chance it couldn't be created
@@ -185,84 +151,97 @@ async function recursivePopulateMemfs(
 						console.error(e);
 						throw e;
 					}
-					await recursivePopulateMemfs(
-						opfs,
-						FS,
-						entry.fullPath,
-						memfsPath
+					stack.push([opfsHandle, memfsEntryPath]);
+				} else if (opfsHandle.kind === 'file') {
+					const file = await opfsHandle.getFile();
+					const byteArray = new Uint8Array(await file.arrayBuffer());
+					FS.createDataFile(
+						memfsEntryPath,
+						null,
+						byteArray,
+						true,
+						true,
+						true
 					);
-				} else {
-					const release = await semaphore.acquire();
-					try {
-						const blob = await new Promise<File>((resolve) =>
-							(entry as FileSystemFileEntry).file(resolve)
-						);
-						const reader = new FileReader();
-						const contents = await new Promise<ArrayBuffer>(
-							(resolve) => {
-								reader.onloadend = () =>
-									resolve(reader.result as ArrayBuffer);
-								reader.readAsArrayBuffer(blob);
-							}
-						);
-						const byteArray = new Uint8Array(contents);
-						FS.createDataFile(
-							memfsPath,
-							null,
-							byteArray,
-							true,
-							true,
-							true
-						);
-					} finally {
-						release();
-					}
 				}
-			})
-		);
+				ops.splice(ops.indexOf(op), 1);
+			});
+			ops.push(op);
+		}
+		// Let the ongoing operations catch-up to the stack.
+		while (stack.length === 0 && ops.length > 0) {
+			await Promise.any(ops);
+		}
 	}
 }
 
+async function asyncMap<T, U>(
+	iter: Iterable<T>,
+	asyncFunc: (value: T) => Promise<U>
+): Promise<U[]> {
+	const promises: Promise<U>[] = [];
+	for (const value of iter) {
+		promises.push(asyncFunc(value));
+	}
+	return await Promise.all(promises);
+}
+
 async function exportEntireMemfsToOpfs(
-	opfs: FileSystem,
+	opfs: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
-	memfsPath: string,
-	opfsPath: string
+	memfsPath: string
 ) {
-	await createOpfsDirectory(opfs, opfsPath);
-	await recursiveExportEntireMemfsToOpfs(opfs, FS, memfsPath, opfsPath);
+	await recursiveExportEntireMemfsToOpfs(opfs, FS, memfsPath);
 }
 
 async function recursiveExportEntireMemfsToOpfs(
-	opfs: FileSystem,
+	opfsRoot: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
-	memfsSrc: string,
-	opfsDest: string
+	memfsRoot: string
 ) {
-	await Promise.all(
-		FS.readdir(memfsSrc).map(async (name: string) => {
-			if (name === '.' || name === '..') return;
-			const memfsPath = FS.joinPaths(memfsSrc, name);
+	const semaphore = new Semaphore({
+		concurrency: 40,
+	});
+	const ops: Array<Promise<any>> = [];
+	const stack: Array<[Promise<FileSystemDirectoryHandle>, string]> = [
+		[Promise.resolve(opfsRoot), memfsRoot],
+	];
+	while (stack.length) {
+		const [opfsDirPromise, memfsParent] = stack.pop()!;
+		const opfsDir = await opfsDirPromise;
+
+		for (const entryName of FS.readdir(memfsParent)) {
+			if (entryName === '.' || entryName === '..') continue;
+
+			const memfsPath = FS.joinPaths(memfsParent, entryName);
 			const lookup = FS.lookupPath(memfsPath, {
 				follow: true,
 			});
 			const memFsNode = lookup.node;
 			const isDir = FS.isDir(memFsNode.mode);
 
-			const opfsPath = FS.joinPaths(opfsDest, name);
-			if (isDir) {
-				await createOpfsDirectory(opfs, opfsPath);
-				await recursiveExportEntireMemfsToOpfs(
-					opfs,
-					FS,
-					memfsPath,
-					opfsPath
-				);
-			} else {
-				await overwriteOpfsFile(opfs, FS, { memfsPath, opfsPath });
-			}
-		})
-	);
+			const op = semaphore.run(async () => {
+				if (isDir) {
+					const handlePromise = opfsDir.getDirectoryHandle(
+						entryName,
+						{
+							create: true,
+						}
+					);
+					stack.push([handlePromise, memfsPath]);
+				} else {
+					await overwriteOpfsFile(opfsDir, entryName, FS, memfsPath);
+				}
+				ops.splice(ops.indexOf(op), 1);
+			});
+			ops.push(op);
+		}
+
+		// Let the ongoing operations catch-up to the stack.
+		while (ops.length > 200 || (stack.length === 0 && ops.length > 0)) {
+			await Promise.any(ops);
+		}
+	}
 }
 
 function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
@@ -335,145 +314,107 @@ function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
 }
 
 async function exportMemfsChangesToOpfs(
-	opfs: FileSystem,
+	opfs: FileSystemDirectoryHandle,
 	delta: FSState,
 	FS: EmscriptenFS,
-	toOpfsPath: (path: string) => string
+	memfsRoot: string
 ) {
-	await Promise.all([
-		...[...delta.removedFiles].map((memfsPath) =>
-			removeOpfsFile(opfs, toOpfsPath(memfsPath))
-		),
-		...[...delta.removedDirectories].map((memfsPath) =>
-			removeOpfsDirectory(opfs, toOpfsPath(memfsPath))
-		),
-	]);
-	await Promise.all(
-		[...delta.createdDirectories]
-			.map(toOpfsPath)
-			// We sort the directories by length so that we create
-			// the parent directories before the children.
-			.sort((a, b) => a.length - b.length)
-			.map((opfsPath) => createOpfsDirectory(opfs, opfsPath))
+	const asyncMapPaths = async (
+		paths: Iterable<string>,
+		callback: (data: {
+			opfsParent: FileSystemDirectoryHandle;
+			name: string;
+			memfsPath: string;
+		}) => Promise<any>
+	) => {
+		return await asyncMap(paths, async (memfsPath) => {
+			if (!memfsPath.startsWith(memfsRoot)) {
+				return;
+			}
+			const opfsPath = memfsPath.substring(memfsRoot.length);
+			const lastSlash = opfsPath.lastIndexOf('/');
+			if (lastSlash === -1) {
+				return;
+			}
+			const opfsParent = await resolveParent(opfs, opfsPath);
+			const name = opfsPath.substring(lastSlash + 1);
+			await callback({ opfsParent, name, memfsPath });
+		});
+	};
+
+	// Sync deletions of files and directories
+	await asyncMapPaths(
+		[...delta.removedDirectories, ...delta.removedFiles]
+			// We sort the directories by length descending so that we delete
+			// the child directories before the parents
+			.sort((a, b) => b.length - a.length),
+		async ({ opfsParent, name }) => {
+			try {
+				await opfsParent.removeEntry(name, { recursive: true });
+			} catch (e) {
+				// If the directory already doesn't exist, it's fine
+			}
+		}
 	);
 
-	await Promise.all(
-		[...delta.updatedFiles].map((memfsPath) =>
-			overwriteOpfsFile(opfs, FS, {
-				memfsPath,
-				opfsPath: toOpfsPath(memfsPath),
-			})
-		)
+	// Sync created directories
+	await asyncMapPaths(
+		[...delta.createdDirectories]
+			// We sort the directories by length so that we create
+			// the parent directories before the children.
+			.sort((a, b) => a.length - b.length),
+		async ({ opfsParent, name }) => {
+			await opfsParent.getDirectoryHandle(name, { create: true });
+		}
+	);
+
+	// Sync updated files
+	await asyncMapPaths(
+		delta.updatedFiles,
+		async ({ opfsParent, memfsPath, name }) => {
+			await overwriteOpfsFile(opfsParent, name, FS, memfsPath);
+		}
 	);
 
 	delta.reset();
 }
 
 async function overwriteOpfsFile(
-	opfs: FileSystem,
+	opfsParent: FileSystemDirectoryHandle,
+	name: string,
 	FS: EmscriptenFS,
-	{ memfsPath, opfsPath }: SyncPathsTuple
+	memfsPath: string
 ) {
-	const release = await semaphore.acquire();
+	let buffer;
 	try {
-		let buffer;
-		try {
-			buffer = FS.readFile(memfsPath, {
-				encoding: 'binary',
-			});
-		} catch (e) {
-			// File was removed, ignore
-			return;
-		}
-
-		const opfsFile = await getOpfsFile(opfs, opfsPath, {
-			create: true,
-		});
-		const writer = await new Promise<FileWriter>((resolve, reject) =>
-			opfsFile.createWriter(resolve, reject)
-		);
-		writer.truncate(0);
-		await new Promise((resolve) => {
-			writer.onwriteend = resolve;
-		});
-
-		writer.write(new Blob([buffer], { type: 'application/octet-stream' }));
-		await new Promise((resolve) => {
-			writer.onwriteend = resolve;
-		});
-	} finally {
-		release();
-	}
-}
-
-async function createOpfsDirectory(opfs: FileSystem, opfsPath: string) {
-	const release = await semaphore.acquire();
-	try {
-		await getOpfsDirectory(opfs, opfsPath, {
-			create: true,
+		buffer = FS.readFile(memfsPath, {
+			encoding: 'binary',
 		});
 	} catch (e) {
-		if ((e as any)?.errno !== 20) {
-			// We ignore the error if the directory already exists,
-			// and throw otherwise.
-			console.error(e);
-			throw e;
-		}
-	} finally {
-		release();
-	}
-}
-
-async function removeOpfsDirectory(opfs: FileSystem, opfsPath: string) {
-	const release = await semaphore.acquire();
-	try {
-		const entry = await getOpfsDirectory(opfs, opfsPath);
-		await new Promise((resolve, reject) =>
-			entry.removeRecursively(resolve, reject)
-		);
-	} catch (e) {
-		// Directory doesn't exist or was already removed, that's fine.
+		// File was removed, ignore
 		return;
+	}
+
+	const opfsFile = await opfsParent.getFileHandle(name, { create: true });
+	const accessHandle = await opfsFile.createSyncAccessHandle();
+	try {
+		await accessHandle.truncate(0);
+		await accessHandle.write(buffer, { at: 0 });
 	} finally {
-		release();
+		await accessHandle.close();
 	}
 }
 
-async function removeOpfsFile(opfs: FileSystem, opfsPath: string) {
-	const release = await semaphore.acquire();
+export async function OpfsFileExists(
+	opfs: FileSystemDirectoryHandle,
+	path: string
+) {
 	try {
-		const entry = await getOpfsFile(opfs, opfsPath);
-		await new Promise((resolve, reject) => entry.remove(resolve, reject));
-	} catch (e) {
-		// File doesn't exist or was already removed, that's fine.
-		return;
-	} finally {
-		release();
-	}
-}
-
-export async function OpfsFileExists(opfs: FileSystem, path: string) {
-	try {
-		await getOpfsFile(opfs, path);
+		await opfs.getFileHandle(path);
 		return true;
 	} catch (e) {
 		return false;
 	}
-}
-
-async function getOpfsFile(
-	opfs: FileSystem,
-	path: string,
-	opts: FileSystemGetFileOptions = {}
-) {
-	return await new Promise<FileSystemFileEntry>((resolve, reject) => {
-		opfs.root.getFile(
-			path,
-			opts,
-			(value) => resolve(value as FileSystemFileEntry),
-			reject
-		);
-	});
 }
 
 export async function getOpfsDirectory(
@@ -489,4 +430,23 @@ export async function getOpfsDirectory(
 			reject
 		);
 	});
+}
+
+async function resolveParent(
+	opfs: FileSystemDirectoryHandle,
+	relativePath: string
+): Promise<FileSystemDirectoryHandle> {
+	const normalizedPath = relativePath
+		.replace(/^\/+|\/+$/g, '')
+		.replace(/\/+/, '/');
+	if (!normalizedPath) {
+		return opfs;
+	}
+	const segments = normalizedPath.split('/');
+	let handle: FileSystemDirectoryHandle | FileSystemFileHandle = opfs;
+	for (let i = 0; i < segments.length - 1; i++) {
+		const segment = segments[i];
+		handle = await handle.getDirectoryHandle(segment, { create: true });
+	}
+	return handle as any;
 }
