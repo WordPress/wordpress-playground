@@ -25,7 +25,7 @@ export default function PlaygroundViewport({
 	});
 
 	const updatedToolbarButtons = useMemo(() => {
-		if (isSeamless || !playground || !toolbarButtons?.length) {
+		if (isSeamless || !toolbarButtons?.length) {
 			return;
 		}
 		return toolbarButtons

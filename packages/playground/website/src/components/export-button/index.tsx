@@ -8,6 +8,9 @@ interface ExportButtonProps {
 }
 
 export default function ExportButton({ playground }: ExportButtonProps) {
+	if (!playground) {
+		return null;
+	}
 	return (
 		<button
 			id="export-playground--btn"
