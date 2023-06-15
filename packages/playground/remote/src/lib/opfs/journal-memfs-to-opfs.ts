@@ -224,7 +224,7 @@ class FilesystemJournal {
 	}
 
 	async flush() {
-		// Return everything except for the NOOP partition
+		// Remove the NOOP partition
 		const entries = this.entries.slice(1);
 		this.reset();
 
