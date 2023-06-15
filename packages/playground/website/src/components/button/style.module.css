@@ -1,0 +1,11 @@
+.button {
+	flex-grow: 1;
+	padding: 0px 15px;
+	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	font-weight: 50;
+	height: 26px;
+	white-space: nowrap;
+	cursor: pointer;
+	color-scheme: dark;
+}
