@@ -113,19 +113,10 @@ class FSState {
 }
 
 async function populateMemfs(
-	opfs: FileSystemDirectoryHandle,
-	FS: EmscriptenFS,
-	memfsPath: string,
-	fsState: FSState
-) {
-	await recursivePopulateMemfs(opfs, FS, memfsPath);
-	fsState.reset();
-}
-
-async function recursivePopulateMemfs(
 	opfsRoot: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
-	memfsRoot: string
+	memfsRoot: string,
+	fsState: FSState
 ) {
 	const semaphore = new Semaphore({
 		concurrency: 40,
@@ -176,6 +167,8 @@ async function recursivePopulateMemfs(
 			await Promise.any(ops);
 		}
 	}
+
+	fsState.reset();
 }
 
 async function asyncMap<T, U>(
@@ -190,14 +183,6 @@ async function asyncMap<T, U>(
 }
 
 async function exportEntireMemfsToOpfs(
-	opfs: FileSystemDirectoryHandle,
-	FS: EmscriptenFS,
-	memfsPath: string
-) {
-	await recursiveExportEntireMemfsToOpfs(opfs, FS, memfsPath);
-}
-
-async function recursiveExportEntireMemfsToOpfs(
 	opfsRoot: FileSystemDirectoryHandle,
 	FS: EmscriptenFS,
 	memfsRoot: string
@@ -241,6 +226,7 @@ async function recursiveExportEntireMemfsToOpfs(
 		}
 
 		// Let the ongoing operations catch-up to the stack.
+		// Also don't let the operations array grow too large.
 		while (ops.length > 200 || (stack.length === 0 && ops.length > 0)) {
 			await Promise.any(ops);
 		}
