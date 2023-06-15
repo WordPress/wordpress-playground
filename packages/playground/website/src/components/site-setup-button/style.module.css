@@ -1,0 +1,20 @@
+.radio-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.radio-list li {
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 10px;
+}
+
+.submit {
+	display: block;
+	margin: 0 auto;
+}
+
+.danger {
+	color: red;
+}

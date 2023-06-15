@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import type { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
+import forms from '../../forms.module.css';
 import { replaceSite } from '@wp-playground/client';
 
 interface ImportFormProps {
@@ -50,79 +51,50 @@ export default function ImportForm({
 	}
 
 	return (
-		<div className={css.modalInner}>
-			<form
-				id="import-playground-form"
-				ref={form}
-				onSubmit={handleSubmit}
-			>
-				<button
-					id="import-close-modal--btn"
-					onClick={onClose}
-					className={`${css.btn} ${css.btnClose}`}
-					aria-label="Close import window"
+		<form id="import-playground-form" ref={form} onSubmit={handleSubmit}>
+			<h2 tabIndex={0}>Import Playground</h2>
+			<p className={css.modalText}>
+				You may replace the current WordPress Playground site with a
+				previously exported one.
+			</p>
+			<div className={forms.formGroup}>
+				<input
+					type="file"
+					id="import-select-file"
+					onChange={handleSelectFile}
+					style={{ display: 'none' }}
+					ref={fileInputRef}
+					accept="application/zip"
+				/>
+				<label
+					htmlFor="import-select-file"
+					className={forms.fileInputLabel}
+					onClick={handleImportSelectFileClick}
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 24 24"
-						width="32"
-						height="32"
-						aria-hidden="true"
-						focusable="false"
+					<div
+						id="import-select-file--text"
+						className={forms.fileInputText}
 					>
-						<path d="M13 11.8l6.1-6.3-1-1-6.1 6.2-6.1-6.2-1 1 6.1 6.3-6.5 6.7 1 1 6.5-6.6 6.5 6.6 1-1z"></path>
-					</svg>
-				</button>
-				<h2 tabIndex={0}>Import Playground</h2>
-				<p className={css.modalText}>
-					You may replace the current WordPress Playground site with a
-					previously exported one.
-				</p>
-				<p className={css.modalText}>
-					<strong>Known Limitations</strong>
-				</p>
-				<div className={css.inputsContainer}>
-					<input
-						type="file"
-						id="import-select-file"
-						onChange={handleSelectFile}
-						style={{ display: 'none' }}
-						ref={fileInputRef}
-						accept="application/zip"
-					/>
-					<label
-						htmlFor="import-select-file"
-						className={css.fileInputLabel}
-						onClick={handleImportSelectFileClick}
-					>
-						<div
-							id="import-select-file--text"
-							className={css.fileInputText}
-						>
-							{error ? (
-								<span className={css.error}>{error}</span>
-							) : file ? (
-								file.name
-							) : (
-								'No File Selected'
-							)}
-						</div>
-						<button
-							id="import-select-file--btn"
-							className={css.btn}
-						>
-							Choose File
-						</button>
-					</label>
-					<button
-						id="import-submit--btn"
-						className={css.btn}
-						disabled={!file}
-					>
-						Import
+						{error ? (
+							<span className={forms.error}>{error}</span>
+						) : file ? (
+							file.name
+						) : (
+							'No File Selected'
+						)}
+					</div>
+					<button id="import-select-file--btn" className={forms.btn}>
+						Choose File
 					</button>
-				</div>
-			</form>
-		</div>
+				</label>
+				<button
+					id="import-submit--btn"
+					className={forms.btn}
+					disabled={!file}
+				>
+					Import
+				</button>
+			</div>
+		</form>
 	);
 }

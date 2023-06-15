@@ -2,18 +2,13 @@ import { createRoot } from 'react-dom/client';
 import PlaygroundViewport from './components/playground-viewport';
 import ExportButton from './components/export-button';
 import ImportButton from './components/import-button';
-import VersionSelector from './components/version-select';
 import './styles.css';
-import css from './style.module.css';
 
 import { makeBlueprint } from './lib/make-blueprint';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
 import type { Blueprint } from '@wp-playground/blueprints';
-import Select from './components/select';
 import { PlaygroundClient } from '@wp-playground/remote';
+import SiteSetupButton from './components/site-setup-button';
+import Button from './components/button';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -52,12 +47,10 @@ try {
 }
 
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
-const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
-const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 
 // @ts-ignore
 const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
-const persistent = query.has('persistent') && opfsSupported;
+const persistent = query.get('persistent') === '1' && opfsSupported;
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
@@ -65,19 +58,11 @@ root.render(
 		isSeamless={isSeamless}
 		blueprint={blueprint}
 		toolbarButtons={[
-			<VersionSelector
-				name="php"
-				versions={SupportedPHPVersionsList}
-				selected={blueprint.preferredVersions?.php}
-				default={LatestSupportedPHPVersion}
+			<SiteSetupButton
+				persistent={persistent}
+				selectedPHP={blueprint.preferredVersions?.php}
+				preferredWP={blueprint.preferredVersions?.wp}
 			/>,
-			<VersionSelector
-				name="wp"
-				versions={SupportedWordPressVersionsList}
-				selected={blueprint.preferredVersions?.wp}
-				default={LatestSupportedWordPressVersion}
-			/>,
-			opfsSupported && <PersistenceSelect />,
 			persistent && <OpfsResetButton />,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,
@@ -85,43 +70,24 @@ root.render(
 	/>
 );
 
-function PersistenceSelect() {
-	return (
-		<Select
-			selected={persistent ? 'persistent' : 'temporary'}
-			id={'persistence-mode'}
-			onChange={(event) => {
-				const url = new URL(window.location.toString());
-				if (event.currentTarget.value === 'persistent') {
-					url.searchParams.set('persistent', '1');
-				} else {
-					url.searchParams.delete('persistent');
-				}
-				window.location.assign(url);
-			}}
-			options={{
-				['Temporary site']: 'temporary',
-				['Persistent site']: 'persistent',
-			}}
-		/>
-	);
-}
-
 function OpfsResetButton({ playground }: { playground?: PlaygroundClient }) {
 	return (
-		<button
-			className={css.button}
+		<Button
 			onClick={async () => {
 				if (
-					!window.confirm('Are you sure you want to reset the site?')
+					!window.confirm(
+						'This will wipe out all data and start a new site. Do you want to proceed?'
+					)
 				) {
 					return;
 				}
-				await playground?.resetOpfs();
+				if (persistent) {
+					await playground?.resetOpfs();
+				}
 				window.location.reload();
 			}}
 		>
-			Reset site data
-		</button>
+			Start over
+		</Button>
 	);
 }
