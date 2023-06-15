@@ -102,12 +102,8 @@ export default function SiteSetupButton({
 			<Modal isOpen={isOpen} onRequestClose={closeModal}>
 				<form onSubmit={handleSubmit}>
 					<h2 tabIndex={0} style={{ textAlign: 'center' }}>
-						Configure Playground
+						Customize Playground
 					</h2>
-					<p>
-						You may replace the current WordPress Playground site
-						with a previously exported one.
-					</p>
 					<div className={forms.formGroup}>
 						<label
 							htmlFor="php-version"
