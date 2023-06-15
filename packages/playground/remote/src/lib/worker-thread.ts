@@ -20,13 +20,12 @@ import {
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
-	OpfsFileExists,
+	opfsFileExists,
 	copyMemfsToOpfs,
 	copyOpfsToMemfs,
-	onMemfsDelta,
-	syncMemfsDeltaToOpfs,
-} from './synchronize-php-with-opfs';
+} from './opfs/opfs-memfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -59,7 +58,7 @@ let wordPressAvailableInOPFS = false;
 if (useOpfs) {
 	opfsRoot = await navigator.storage.getDirectory();
 	opfsDir = await opfsRoot.getDirectoryHandle('wordpress', { create: true });
-	wordPressAvailableInOPFS = await OpfsFileExists(opfsDir!, `wp-config.php`);
+	wordPressAvailableInOPFS = await opfsFileExists(opfsDir!, `wp-config.php`);
 }
 
 const scope = Math.random().toFixed(16);
@@ -154,9 +153,7 @@ if (useOpfs) {
 		await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
 	}
 
-	onMemfsDelta(php, async (delta) => {
-		await syncMemfsDeltaToOpfs(php, opfsDir!, DOCROOT, delta);
-	});
+	journalMemfsToOpfs(php, opfsDir!, DOCROOT);
 }
 
 // Always setup the current site URL.
