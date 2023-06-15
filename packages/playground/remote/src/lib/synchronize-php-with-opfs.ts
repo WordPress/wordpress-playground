@@ -11,7 +11,7 @@
 /* eslint-disable prefer-rest-params */
 import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, joinPaths } from '@php-wasm/util';
-import { WebPHP } from '@php-wasm/web';
+import type { WebPHP } from '@php-wasm/web';
 
 type EmscriptenFS = any;
 type EmscriptenFSStream = {
@@ -32,73 +32,34 @@ declare global {
 	}
 }
 
-type OPFSSynchronizerOptions = {
-	FS: any;
-	opfs: FileSystemDirectoryHandle;
-	memfsPath: string;
-	hasFilesInOpfs: boolean;
-};
-
-export async function synchronizePHPWithOPFS(
-	php: WebPHP,
-	options: Omit<OPFSSynchronizerOptions, 'FS'>
-) {
-	const PHPRuntime = php[__private__dont__use];
-
-	const FS = PHPRuntime.FS;
-
-	// Ensure the memfs directory exists.
-	try {
-		FS.mkdir(options.memfsPath);
-	} catch (e) {
-		if ((e as any)?.errno !== 20) {
-			// We ignore the error if the directory already exists,
-			// and throw otherwise.
-			throw e;
-		}
-	}
-
-	const fsState = new FSState();
-	const cleanupObservers = observeMEMFSChanges(FS, fsState);
-
-	if (options.hasFilesInOpfs) {
-		await populateMemfs(
-			options.opfs,
-			PHPRuntime.FS,
-			options.memfsPath,
-			fsState
-		);
-	} else {
-		await exportEntireMemfsToOpfs(
-			options.opfs,
-			PHPRuntime.FS,
-			options.memfsPath
-		);
-	}
+type MemfsDeltaObserver = (delta: FSDelta) => any;
+export function onMemfsDelta(php: WebPHP, callback: MemfsDeltaObserver) {
+	const runningDelta = new FSDelta();
+	const cleanupMemfsObservers = setupMemfsJournal(php, runningDelta);
 	/**
-	 * Do not do this in external code. This is a temporary solution
-	 * to allow some time for a few more use-cases to emerge before
-	 * proposing a new public API like php.onRun().
+	 * Calls the observer with the current delta each time PHP is ran.
+	 * 
+	 * Do not do this in external code. This is a private code path that
+	 * will be maintained alongside Playground code and likely removed
+	 * in the future. It is not part of the public API. The goal is to
+	 * allow some time for a few more use-cases to emerge before
+	 * proposing a new public API like php.addEventListener( 'run' ).
 	 */
 	const originalRun = php.run;
 	php.run = async function (...args) {
 		const response = await originalRun.apply(this, args);
-		await exportMemfsChangesToOpfs(
-			options.opfs,
-			fsState,
-			PHPRuntime.FS,
-			options.memfsPath
-		);
+		await callback(runningDelta);
+		runningDelta.reset();
 		return response;
 	};
 
 	return () => {
-		cleanupObservers();
+		cleanupMemfsObservers();
 		php.run = originalRun;
 	};
 }
 
-class FSState {
+class FSDelta {
 	updatedFiles = new Set<string>();
 	removedFiles = new Set<string>();
 	createdDirectories = new Set<string>();
@@ -112,12 +73,20 @@ class FSState {
 	}
 }
 
-async function populateMemfs(
+export async function copyOpfsToMemfs(
+	php: WebPHP,
 	opfsRoot: FileSystemDirectoryHandle,
-	FS: EmscriptenFS,
-	memfsRoot: string,
-	fsState: FSState
+	memfsRoot: string
 ) {
+	const PHPRuntime = php[__private__dont__use];
+	const FS = PHPRuntime.FS;
+	FS.mkdirTree(memfsRoot);
+
+	/**
+	 * Semaphores are used to limit the number of concurrent operations.
+	 * Flooding the browser with 2000 FS operations at the same time
+	 * can get quite slow.
+	 */
 	const semaphore = new Semaphore({
 		concurrency: 40,
 	});
@@ -139,11 +108,12 @@ async function populateMemfs(
 					try {
 						FS.mkdir(memfsEntryPath);
 					} catch (e) {
-						// Directory already exists, ignore.
-						// There's also a chance it couldn't be created
-						// @TODO: Handle this case
-						console.error(e);
-						throw e;
+						if ((e as any)?.errno !== 20) {
+							console.error(e);
+							// We ignore the error if the directory already exists,
+							// and throw otherwise.
+							throw e;
+						}
 					}
 					stack.push([opfsHandle, memfsEntryPath]);
 				} else if (opfsHandle.kind === 'file') {
@@ -167,8 +137,6 @@ async function populateMemfs(
 			await Promise.any(ops);
 		}
 	}
-
-	fsState.reset();
 }
 
 async function asyncMap<T, U>(
@@ -182,11 +150,21 @@ async function asyncMap<T, U>(
 	return await Promise.all(promises);
 }
 
-async function exportEntireMemfsToOpfs(
+export async function copyMemfsToOpfs(
+	php: WebPHP,
 	opfsRoot: FileSystemDirectoryHandle,
-	FS: EmscriptenFS,
 	memfsRoot: string
 ) {
+	const PHPRuntime = php[__private__dont__use];
+	const FS = PHPRuntime.FS;
+	// Ensure the memfs directory exists.
+	FS.mkdirTree(memfsRoot);
+
+	/**
+	 * Semaphores are used to limit the number of concurrent operations.
+	 * Flooding the browser with 2000 FS operations at the same time
+	 * can get quite slow.
+	 */
 	const semaphore = new Semaphore({
 		concurrency: 40,
 	});
@@ -226,14 +204,16 @@ async function exportEntireMemfsToOpfs(
 		}
 
 		// Let the ongoing operations catch-up to the stack.
-		// Also don't let the operations array grow too large.
-		while (ops.length > 200 || (stack.length === 0 && ops.length > 0)) {
+		while (stack.length === 0 && ops.length > 0) {
 			await Promise.any(ops);
 		}
 	}
 }
 
-function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
+function setupMemfsJournal(php: WebPHP, fsState: FSDelta) {
+	const PHPRuntime = php[__private__dont__use];
+	const FS = PHPRuntime.FS;
+
 	if (FS.fsObserversBound) {
 		return () => {};
 	}
@@ -311,12 +291,15 @@ function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
 	};
 }
 
-async function exportMemfsChangesToOpfs(
+export async function syncMemfsDeltaToOpfs(
+	php: WebPHP,
 	opfs: FileSystemDirectoryHandle,
-	delta: FSState,
-	FS: EmscriptenFS,
-	memfsRoot: string
+	memfsRoot: string,
+	delta: FSDelta
 ) {
+	const PHPRuntime = php[__private__dont__use];
+	const FS = PHPRuntime.FS;
+
 	const asyncMapPaths = async (
 		paths: Iterable<string>,
 		callback: (data: {
@@ -375,8 +358,6 @@ async function exportMemfsChangesToOpfs(
 			await overwriteOpfsFile(opfsParent, name, FS, memfsPath);
 		}
 	);
-
-	delta.reset();
 }
 
 async function overwriteOpfsFile(
@@ -399,7 +380,7 @@ async function overwriteOpfsFile(
 	const accessHandle = await opfsFile.createSyncAccessHandle();
 	try {
 		await accessHandle.truncate(0);
-		await accessHandle.write(buffer, { at: 0 });
+		await accessHandle.write(buffer);
 	} finally {
 		await accessHandle.close();
 	}

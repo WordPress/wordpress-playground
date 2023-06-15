@@ -21,7 +21,10 @@ import {
 import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
 	OpfsFileExists,
-	synchronizePHPWithOPFS,
+	copyMemfsToOpfs,
+	copyOpfsToMemfs,
+	onMemfsDelta,
+	syncMemfsDeltaToOpfs,
 } from './synchronize-php-with-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
 
@@ -128,15 +131,7 @@ const [setApiReady] = exposeAPI(
 
 await phpReady;
 
-if (opfsDir) {
-	await synchronizePHPWithOPFS(php, {
-		opfs: opfsDir,
-		hasFilesInOpfs: wordPressAvailableInOPFS,
-		memfsPath: DOCROOT,
-	});
-}
-
-if (!wordPressAvailableInOPFS) {
+if (!useOpfs || !wordPressAvailableInOPFS) {
 	/**
 	 * When WordPress is restored from OPFS, these patches are already applied.
 	 * Thus, let's not apply them again.
@@ -149,6 +144,18 @@ if (!wordPressAvailableInOPFS) {
 		disableWpNewBlogNotification: true,
 		addPhpInfo: true,
 		disableSiteHealth: true,
+	});
+}
+
+if (useOpfs) {
+	if (wordPressAvailableInOPFS) {
+		await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
+	} else {
+		await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
+	}
+
+	onMemfsDelta(php, async (delta) => {
+		await syncMemfsDeltaToOpfs(php, opfsDir!, DOCROOT, delta);
 	});
 }
 
