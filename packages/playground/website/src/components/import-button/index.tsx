@@ -21,6 +21,9 @@ export default function ImportButton({ playground }: ExportButtonProps) {
 		closeModal();
 		playground!.goTo('/');
 	}
+	if (!playground) {
+		return null;
+	}
 	return (
 		<>
 			<button

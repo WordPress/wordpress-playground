@@ -20,11 +20,12 @@ import {
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
-	OpfsFileExists,
-	getOpfsDirectory,
-	synchronizePHPWithOPFS,
-} from './synchronize-php-with-opfs';
+	opfsFileExists,
+	copyMemfsToOpfs,
+	copyOpfsToMemfs,
+} from './opfs/opfs-memfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -50,24 +51,14 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 const useOpfs =
 	startupOptions.persistent === 'true' &&
 	// @ts-ignore
-	typeof webkitRequestFileSystem !== 'undefined';
-let opfs: FileSystem | undefined;
+	typeof navigator?.storage?.getDirectory !== 'undefined';
+let opfsRoot: FileSystemDirectoryHandle | undefined;
+let opfsDir: FileSystemDirectoryHandle | undefined;
 let wordPressAvailableInOPFS = false;
 if (useOpfs) {
-	opfs = await new Promise<FileSystem>((resolve, reject) =>
-		// @ts-ignore
-		webkitRequestFileSystem(
-			// @ts-ignore
-			PERSISTENT,
-			150 * 1024 * 1024, // 150 MB
-			resolve,
-			reject
-		)
-	);
-	wordPressAvailableInOPFS = await OpfsFileExists(
-		opfs,
-		`${DOCROOT}/wp-config.php`
-	);
+	opfsRoot = await navigator.storage.getDirectory();
+	opfsDir = await opfsRoot.getDirectoryHandle('wordpress', { create: true });
+	wordPressAvailableInOPFS = await opfsFileExists(opfsDir!, `wp-config.php`);
 }
 
 const scope = Math.random().toFixed(16);
@@ -126,15 +117,10 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 
 	async resetOpfs() {
-		if (!opfs) {
+		if (!opfsRoot) {
 			throw new Error('No OPFS available.');
 		}
-		const entry = await getOpfsDirectory(opfs, DOCROOT, {
-			create: true,
-		});
-		await new Promise((resolve, reject) =>
-			entry.removeRecursively(resolve, reject)
-		);
+		await opfsRoot.removeEntry(opfsDir!.name, { recursive: true });
 	}
 }
 
@@ -144,16 +130,7 @@ const [setApiReady] = exposeAPI(
 
 await phpReady;
 
-if (opfs) {
-	await synchronizePHPWithOPFS(php, {
-		opfs,
-		hasFilesInOpfs: wordPressAvailableInOPFS,
-		memfsPath: DOCROOT,
-		opfsPath: DOCROOT,
-	});
-}
-
-if (!wordPressAvailableInOPFS) {
+if (!useOpfs || !wordPressAvailableInOPFS) {
 	/**
 	 * When WordPress is restored from OPFS, these patches are already applied.
 	 * Thus, let's not apply them again.
@@ -167,6 +144,16 @@ if (!wordPressAvailableInOPFS) {
 		addPhpInfo: true,
 		disableSiteHealth: true,
 	});
+}
+
+if (useOpfs) {
+	if (wordPressAvailableInOPFS) {
+		await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
+	} else {
+		await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
+	}
+
+	journalMemfsToOpfs(php, opfsDir!, DOCROOT);
 }
 
 // Always setup the current site URL.

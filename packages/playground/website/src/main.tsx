@@ -56,7 +56,7 @@ const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
 const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 
 // @ts-ignore
-const opfsSupported = typeof webkitRequestFileSystem !== 'undefined';
+const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
 const persistent = query.has('persistent') && opfsSupported;
 const root = createRoot(document.getElementById('root')!);
 root.render(
