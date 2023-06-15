@@ -59,7 +59,7 @@ export async function synchronizePHPWithOPFS(
 	}
 
 	const fsState = new FSState();
-	observeMEMFSChanges(FS, fsState);
+	const cleanupObservers = observeMEMFSChanges(FS, fsState);
 
 	if (options.hasFilesInOpfs) {
 		await populateMemfs(
@@ -90,6 +90,11 @@ export async function synchronizePHPWithOPFS(
 			options.memfsPath
 		);
 		return response;
+	};
+
+	return () => {
+		cleanupObservers();
+		php.run = originalRun;
 	};
 }
 
@@ -244,7 +249,7 @@ async function recursiveExportEntireMemfsToOpfs(
 
 function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
 	if (FS.fsObserversBound) {
-		return;
+		return () => {};
 	}
 	FS.fsObserversBound = true;
 
@@ -308,6 +313,15 @@ function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
 	FS.rmdir = function (path: string) {
 		fsState.removedDirectories.add(path);
 		return originalRmdir(...arguments);
+	};
+
+	return () => {
+		FS.write = originalWrite;
+		MEMFS.ops_table.dir.node.rename = originalRename;
+		FS.truncate = originalTruncate;
+		FS.unlink = originalUnlink;
+		FS.mkdir = originalMkdir;
+		FS.rmdir = originalRmdir;
 	};
 }
 
