@@ -57,9 +57,6 @@ export default function ImportForm({
 				You may replace the current WordPress Playground site with a
 				previously exported one.
 			</p>
-			<p className={css.modalText}>
-				<strong>Known Limitations</strong>
-			</p>
 			<div className={forms.formGroup}>
 				<input
 					type="file"
