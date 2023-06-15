@@ -60,7 +60,10 @@ class FilesystemJournal {
 	private FS: EmscriptenFS;
 	private workingSet: Set<string> = new Set();
 	private entries: JournalEntry[][] = [];
+<<<<<<< HEAD
 	private memfsRoot: string;
+=======
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 	unbind: () => void = () => {};
 
 	public static createFor(
@@ -74,6 +77,7 @@ class FilesystemJournal {
 		}
 		FS.hasJournal = true;
 
+<<<<<<< HEAD
 		const journal = new FilesystemJournal(php, opfsRoot, memfsRoot);
 		journal.bind();
 		return journal;
@@ -97,6 +101,12 @@ class FilesystemJournal {
 		const journal = this;
 
 		// Bind the journal to the filesystem
+=======
+		const MEMFS = FS.filesystems.MEMFS;
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
+		const journal = new FilesystemJournal(php);
+
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 		const originalWrite = FS.write;
 		FS.write = function (stream: EmscriptenFSStream) {
 			journal.addEntry({
@@ -182,15 +192,26 @@ class FilesystemJournal {
 		 * allow some time for a few more use-cases to emerge before
 		 * proposing a new public API like php.addEventListener( 'run' ).
 		 */
+<<<<<<< HEAD
 		const originalRun = this.php.run;
 		this.php.run = async function (...args) {
 			const response = await originalRun.apply(this, args);
 			await journal.flush();
+=======
+		const originalRun = php.run;
+		php.run = async function (...args) {
+			const response = await originalRun.apply(this, args);
+			await journal.flush(opfsRoot, memfsRoot);
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 			return response;
 		};
 
 		journal.unbind = () => {
+<<<<<<< HEAD
 			this.php.run = originalRun;
+=======
+			php.run = originalRun;
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 
 			FS.write = originalWrite;
 			MEMFS.ops_table.dir.node.rename = originalRename;
@@ -202,6 +223,14 @@ class FilesystemJournal {
 		return journal;
 	}
 
+<<<<<<< HEAD
+=======
+	private constructor(private php: WebPHP) {
+		this.FS = this.php[__private__dont__use].FS;
+		this.reset();
+	}
+
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 	addEntry(entry: JournalEntry) {
 		const lastPartition = this.entries[this.entries.length - 1];
 		const lastEntry = lastPartition[lastPartition.length - 1];
@@ -223,6 +252,7 @@ class FilesystemJournal {
 		}
 	}
 
+<<<<<<< HEAD
 	async flush() {
 		// Remove the NOOP partition
 		const entries = this.entries.slice(1);
@@ -311,6 +341,101 @@ class FilesystemJournal {
 			console.log({ entry, name });
 			console.error(e);
 			throw e;
+=======
+	async flush(opfs: FileSystemDirectoryHandle, memfsRoot: string) {
+		// Return everything except for the NOOP partition
+		const entries = this.entries.slice(1);
+		this.reset();
+
+		const normalizeMemfsPath = (path: string) =>
+			path.replace(/\/$/, '').replace(/\/\/+/g, '/');
+		const toOpfsPath = (path: string) =>
+			normalizeMemfsPath(path.substring(memfsRoot.length));
+		const getFilename = (path: string) =>
+			path.substring(path.lastIndexOf('/') + 1);
+
+		memfsRoot = normalizeMemfsPath(memfsRoot);
+
+		for (const partition of entries) {
+			const type = partition[0].type;
+			await asyncMap(partition, async (entry) => {
+				if (
+					!entry.path.startsWith(memfsRoot) ||
+					normalizeMemfsPath(entry.path) === memfsRoot
+				) {
+					return;
+				}
+				const opfsPath = toOpfsPath(entry.path);
+				const opfsParent = await resolveParent(opfs, opfsPath);
+				const name = getFilename(opfsPath);
+				if (!name) {
+					return;
+				}
+
+				try {
+					if (type === 'DELETE') {
+						try {
+							await opfsParent.removeEntry(name, {
+								recursive: true,
+							});
+						} catch (e) {
+							// If the directory already doesn't exist, it's fine
+						}
+					} else if (entry.type === 'UPDATE') {
+						if (entry.nodeType === 'directory') {
+							await opfsParent.getDirectoryHandle(name, {
+								create: true,
+							});
+						} else {
+							await overwriteOpfsFile(
+								opfsParent,
+								name,
+								this.FS,
+								entry.path
+							);
+						}
+					} else if (
+						entry.type === 'RENAME' &&
+						entry.toPath.startsWith(memfsRoot)
+					) {
+						const opfsTargetPath = toOpfsPath(entry.toPath);
+						const opfsTargetParent = await resolveParent(
+							opfs,
+							opfsTargetPath
+						);
+						const targetName = getFilename(opfsTargetPath);
+
+						if (entry.nodeType === 'directory') {
+							const opfsDir =
+								await opfsTargetParent.getDirectoryHandle(
+									name,
+									{
+										create: true,
+									}
+								);
+							// in OPFS, move() doesn't work for directories :-(
+							// We have to copy the directory recursively instead.
+							await copyMemfsToOpfs(
+								this.php,
+								opfsDir,
+								entry.toPath
+							);
+							// Then delete the old directory
+							await opfsParent.removeEntry(name, {
+								recursive: true,
+							});
+						} else {
+							const file = await opfsParent.getFileHandle(name);
+							file.move(opfsTargetParent, targetName);
+						}
+					}
+				} catch (e) {
+					console.log({ entry, name });
+					console.error(e);
+					throw e;
+				}
+			});
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 		}
 	}
 
@@ -321,6 +446,7 @@ class FilesystemJournal {
 	}
 }
 
+<<<<<<< HEAD
 function normalizeMemfsPath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
 }
@@ -329,6 +455,8 @@ function getFilename(path: string) {
 	return path.substring(path.lastIndexOf('/') + 1);
 }
 
+=======
+>>>>>>> 163afe77 (Migrate to a Filesystem journal)
 async function resolveParent(
 	opfs: FileSystemDirectoryHandle,
 	relativePath: string
