@@ -20,8 +20,6 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
     }
 }
 
-PHPLoader.PATH = PATH;
-
 return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:

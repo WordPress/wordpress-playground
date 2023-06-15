@@ -10,7 +10,7 @@
 
 /* eslint-disable prefer-rest-params */
 import { __private__dont__use } from '@php-wasm/universal';
-import { Semaphore } from '@php-wasm/util';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 import { WebPHP } from '@php-wasm/web';
 
 type EmscriptenFS = any;
@@ -34,7 +34,6 @@ declare global {
 
 type OPFSSynchronizerOptions = {
 	FS: any;
-	joinPaths: (...paths: string[]) => string;
 	opfs: FileSystemDirectoryHandle;
 	memfsPath: string;
 	hasFilesInOpfs: boolean;
@@ -42,12 +41,11 @@ type OPFSSynchronizerOptions = {
 
 export async function synchronizePHPWithOPFS(
 	php: WebPHP,
-	options: Omit<OPFSSynchronizerOptions, 'FS' | 'joinPaths'>
+	options: Omit<OPFSSynchronizerOptions, 'FS'>
 ) {
 	const PHPRuntime = php[__private__dont__use];
 
 	const FS = PHPRuntime.FS;
-	FS.joinPaths = PHPRuntime.PATH.join;
 
 	// Ensure the memfs directory exists.
 	try {
@@ -137,7 +135,7 @@ async function recursivePopulateMemfs(
 
 		for await (const opfsHandle of opfsParent.values()) {
 			const op = semaphore.run(async () => {
-				const memfsEntryPath = FS.joinPaths(
+				const memfsEntryPath = joinPaths(
 					memfsParentPath,
 					opfsHandle.name
 				);
@@ -213,7 +211,7 @@ async function recursiveExportEntireMemfsToOpfs(
 		for (const entryName of FS.readdir(memfsParent)) {
 			if (entryName === '.' || entryName === '..') continue;
 
-			const memfsPath = FS.joinPaths(memfsParent, entryName);
+			const memfsPath = joinPaths(memfsParent, entryName);
 			const lookup = FS.lookupPath(memfsPath, {
 				follow: true,
 			});
@@ -265,13 +263,13 @@ function observeMEMFSChanges(FS: EmscriptenFS, fsState: FSState) {
 		new_name: string
 	) {
 		const old_path = FS.getPath(old_node);
-		const new_path = FS.joinPaths(FS.getPath(new_dir), new_name);
+		const new_path = joinPaths(FS.getPath(new_dir), new_name);
 		for (const set of [fsState.updatedFiles, fsState.createdDirectories]) {
 			for (const path of set) {
 				if (path.startsWith(old_path)) {
 					set.delete(path);
 					set.add(
-						FS.joinPaths(new_path, path.substring(old_path.length))
+						joinPaths(new_path, path.substring(old_path.length))
 					);
 				}
 			}
