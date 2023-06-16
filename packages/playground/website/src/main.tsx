@@ -38,7 +38,9 @@ try {
 		php: query.get('php') || '8.0',
 		wp: query.get('wp') || 'latest',
 		theme: query.get('theme') || undefined,
-		plugins: query.getAll('plugin'),
+		plugins: Array.isArray(query.getAll('plugin')) && query.getAll('plugin').length > 0
+			? query.getAll('plugin')
+			: getPlugins(query.getAll('plugins')),
 		landingPage: query.get('url') || undefined,
 		gutenbergPR: query.has('gutenberg-pr')
 			? Number(query.get('gutenberg-pr'))
@@ -90,4 +92,17 @@ function OpfsResetButton({ playground }: { playground?: PlaygroundClient }) {
 			Start over
 		</Button>
 	);
+}
+
+function getPlugins(plugins: string[]): string[] {
+	const pluginList: string[] = [];
+
+	plugins.forEach((plugin) => {
+		plugin.split(',').forEach((value) => {
+			value.trim();
+			pluginList.push(value);
+		});
+	});
+
+	return pluginList;
 }
