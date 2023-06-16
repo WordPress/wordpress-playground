@@ -1,7 +1,11 @@
-name: Deploy to playground.wordpress.net
+name: Actually trigger the deploy to playground.wordpress.net
+# Sorry, the previous job just built it and uploaded it to GitHub
 
 on:
-    workflow_dispatch:
+    workflow_run:
+        workflows: [Deploy to playground.wordpress.net]
+        types:
+            - completed
 
 jobs:
     build_and_deploy:
@@ -13,16 +17,7 @@ jobs:
         environment:
             name: playground-wordpress-net
         steps:
-            - uses: actions/checkout@v3
-            - uses: ./.github/actions/prepare-playground
-            - run: npm run build
-            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
-            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
-            - uses: actions/upload-artifact@v2
-              with:
-                  name: playground-website
-                  path: wasm-wordpress-net.tar.gz
-            # Deploy the playground.wordpress.net website by
+            # Deploy the latest website artifact to playground.wordpress.net website by
             # sending a CURL request to https://playground.wordpress.net/webhook.php with a header
             # like X-Deployment-Token that has the same value as github secret DEPLOY_AUTH_TOKEN
             - name: Deploy
