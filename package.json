@@ -178,5 +178,9 @@
 		"packages/nx-extensions",
 		"packages/php-wasm/*",
 		"packages/playground/*"
-	]
+	],
+	"engines": {
+		"node": ">=16.15.1",
+		"npm": ">=8.11.0"
+	}
 }
