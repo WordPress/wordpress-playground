@@ -332,7 +332,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 *     post_message_to_js(string $data)
 	 *
 	 *     Arguments:
-	 *         $data – any extra information as a string
+	 *         $data (string) – Data to pass to JavaScript.
 	 *
 	 * @example
 	 *
