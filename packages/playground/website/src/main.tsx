@@ -38,9 +38,11 @@ try {
 		php: query.get('php') || '8.0',
 		wp: query.get('wp') || 'latest',
 		theme: query.get('theme') || undefined,
-		plugins: Array.isArray(query.getAll('plugin')) && query.getAll('plugin').length > 0
-			? query.getAll('plugin')
-			: getPlugins(query.getAll('plugins')),
+		plugins:
+			Array.isArray(query.getAll('plugin')) &&
+			query.getAll('plugin').length > 0
+				? query.getAll('plugin')
+				: getPlugins(query.getAll('plugins')),
 		landingPage: query.get('url') || undefined,
 		gutenbergPR: query.has('gutenberg-pr')
 			? Number(query.get('gutenberg-pr'))
