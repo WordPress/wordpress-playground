@@ -399,6 +399,14 @@ const LibraryExample = {
 		);
 		return _W_EXITCODE(0, 2); // 2 is SIGINT
 	},
+
+	js_module_onMessage: function (data) {
+		if (Module['onMessage']) {
+			const dataStr = UTF8ToString(data);
+			
+			Module['onMessage'](dataStr);
+		}
+	}
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');

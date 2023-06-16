@@ -13,6 +13,10 @@ import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
+This page will guide you through each of these. Oh, and if you're a visual learner – here's a video:
+
+<iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video"></iframe>
+
 ## Start a new WordPress site
 
 Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.

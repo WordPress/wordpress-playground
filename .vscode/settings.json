@@ -12,7 +12,11 @@
 		"memory": "c",
 		"variant": "c",
 		"typeinfo": "c",
-		"stdio.h": "c"
+		"stdio.h": "c",
+		"array": "c",
+		"string": "c",
+		"string_view": "c",
+		"vector": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"

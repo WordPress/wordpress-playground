@@ -19,10 +19,19 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
+import {
+	opfsFileExists,
+	copyMemfsToOpfs,
+	copyOpfsToMemfs,
+} from './opfs/opfs-memfs';
+import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
+import { phpVar } from '@php-wasm/util';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
 	phpVersion?: string;
+	persistent?: string;
 }>();
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
@@ -40,17 +49,31 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
+const useOpfs =
+	startupOptions.persistent === 'true' &&
+	// @ts-ignore
+	typeof navigator?.storage?.getDirectory !== 'undefined';
+let opfsRoot: FileSystemDirectoryHandle | undefined;
+let opfsDir: FileSystemDirectoryHandle | undefined;
+let wordPressAvailableInOPFS = false;
+if (useOpfs) {
+	opfsRoot = await navigator.storage.getDirectory();
+	opfsDir = await opfsRoot.getDirectoryHandle('wordpress', { create: true });
+	wordPressAvailableInOPFS = await opfsFileExists(opfsDir!, `wp-config.php`);
+}
+
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
+const wordPressModule = getWordPressModule(wpVersion);
+const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
 		documentRoot: DOCROOT,
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	dataModules: [getWordPressModule(wpVersion)],
+	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 
 /** @inheritDoc PHPClient */
@@ -87,11 +110,27 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	 * @returns WordPress module details, including the static assets directory and default theme.
 	 */
 	async getWordPressModuleDetails() {
-		const version = await this.wordPressVersion;
+		const path = phpVar(`${this.documentRoot}/wp-includes/version.php`);
+		const majorVersion = (
+			await this.run({
+				code: `<?php
+				require(${path});
+				echo substr($wp_version, 0, 3);
+				`,
+			})
+		).text;
 		return {
-			staticAssetsDirectory: `wp-${version.replace('_', '.')}`,
-			defaultTheme: wpLoaderModule?.defaultThemeName,
+			majorVersion,
+			staticAssetsDirectory: `wp-${majorVersion.replace('_', '.')}`,
+			defaultTheme: (await wordPressModule)?.defaultThemeName,
 		};
+	}
+
+	async resetOpfs() {
+		if (!opfsRoot) {
+			throw new Error('No OPFS available.');
+		}
+		await opfsRoot.removeEntry(opfsDir!.name, { recursive: true });
 	}
 }
 
@@ -100,7 +139,37 @@ const [setApiReady] = exposeAPI(
 );
 
 await phpReady;
-const wpLoaderModule = (await dataModules)[0] as any;
-applyWebWordPressPatches(php, scopedSiteUrl);
+
+if (!useOpfs || !wordPressAvailableInOPFS) {
+	/**
+	 * When WordPress is restored from OPFS, these patches are already applied.
+	 * Thus, let's not apply them again.
+	 */
+	await wordPressModule;
+	applyWebWordPressPatches(php);
+	await applyWordPressPatches(php, {
+		wordpressPath: DOCROOT,
+		patchSecrets: true,
+		disableWpNewBlogNotification: true,
+		addPhpInfo: true,
+		disableSiteHealth: true,
+	});
+}
+
+if (useOpfs) {
+	if (wordPressAvailableInOPFS) {
+		await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
+	} else {
+		await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
+	}
+
+	journalMemfsToOpfs(php, opfsDir!, DOCROOT);
+}
+
+// Always setup the current site URL.
+await applyWordPressPatches(php, {
+	wordpressPath: DOCROOT,
+	siteUrl: scopedSiteUrl,
+});
 
 setApiReady();

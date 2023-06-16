@@ -1,0 +1,66 @@
+.form-group {
+	display: flex;
+	flex-direction: column;
+	margin-bottom: 20px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid #eaeaea;
+}
+
+.form-group-last {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+.file-input-text {
+	margin-top: 5px;
+	margin-bottom: 15px;
+}
+
+.file-input-label .btn {
+	width: 100%;
+}
+
+.group-label {
+	font-size: 18px;
+	margin-bottom: 10px;
+}
+
+.error {
+	color: red;
+}
+
+.btn {
+	cursor: pointer;
+	background: none;
+	border: none;
+	background: #1e2327;
+	color: #fff;
+	height: 40px;
+	border-radius: 6px;
+	margin: 5px 0;
+	padding: 5px 20px;
+	font-size: 18px;
+}
+
+.btn[disabled] {
+	opacity: 0.5;
+}
+
+.btn:hover,
+.btn:active {
+	opacity: 0.8;
+}
+
+.large-select {
+	cursor: pointer;
+	font-size: 16px;
+}
+
+.radio-input {
+	margin-right: 10px;
+}
+
+.radio-label {
+	font-size: 16px;
+	cursor: pointer;
+}

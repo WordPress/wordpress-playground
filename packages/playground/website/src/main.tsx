@@ -2,15 +2,13 @@ import { createRoot } from 'react-dom/client';
 import PlaygroundViewport from './components/playground-viewport';
 import ExportButton from './components/export-button';
 import ImportButton from './components/import-button';
-import VersionSelector from './components/version-select';
 import './styles.css';
 
 import { makeBlueprint } from './lib/make-blueprint';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
 import type { Blueprint } from '@wp-playground/blueprints';
+import { PlaygroundClient } from '@wp-playground/remote';
+import SiteSetupButton from './components/site-setup-button';
+import Button from './components/button';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -49,29 +47,47 @@ try {
 }
 
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
-const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
-const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
 
+// @ts-ignore
+const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
+const persistent = query.get('persistent') === '1' && opfsSupported;
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
+		persistent={persistent}
 		isSeamless={isSeamless}
 		blueprint={blueprint}
 		toolbarButtons={[
-			<VersionSelector
-				name="php"
-				versions={SupportedPHPVersionsList}
-				selected={blueprint.preferredVersions?.php}
-				default={LatestSupportedPHPVersion}
+			<SiteSetupButton
+				persistent={persistent}
+				selectedPHP={blueprint.preferredVersions?.php}
+				preferredWP={blueprint.preferredVersions?.wp}
 			/>,
-			<VersionSelector
-				name="wp"
-				versions={SupportedWordPressVersionsList}
-				selected={blueprint.preferredVersions?.wp}
-				default={LatestSupportedWordPressVersion}
-			/>,
+			persistent && <OpfsResetButton />,
 			<ImportButton key="export" />,
 			<ExportButton key="export" />,
 		]}
 	/>
 );
+
+function OpfsResetButton({ playground }: { playground?: PlaygroundClient }) {
+	return (
+		<Button
+			onClick={async () => {
+				if (
+					!window.confirm(
+						'This will wipe out all data and start a new site. Do you want to proceed?'
+					)
+				) {
+					return;
+				}
+				if (persistent) {
+					await playground?.resetOpfs();
+				}
+				window.location.reload();
+			}}
+		>
+			Start over
+		</Button>
+	);
+}

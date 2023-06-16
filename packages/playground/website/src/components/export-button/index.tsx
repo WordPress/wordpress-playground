@@ -8,6 +8,9 @@ interface ExportButtonProps {
 }
 
 export default function ExportButton({ playground }: ExportButtonProps) {
+	if (!playground) {
+		return null;
+	}
 	return (
 		<button
 			id="export-playground--btn"
@@ -33,5 +36,7 @@ export default function ExportButton({ playground }: ExportButtonProps) {
 }
 
 async function startDownload(playground: PlaygroundClient) {
-	saveAs(await zipEntireSite(playground));
+	const file = await zipEntireSite(playground);
+	console.log({ file });
+	saveAs(file);
 }

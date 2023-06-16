@@ -2,8 +2,8 @@
  * Imports required for the Playground Client.
  */
 import { ProgressReceiver } from '@php-wasm/progress';
-import { IsomorphicRemotePHP, UniversalPHP } from '@php-wasm/universal';
-import { RemoteAPI, WebPHPEndpoint } from '@php-wasm/web';
+import { UniversalPHP } from '@php-wasm/universal';
+import { RemoteAPI } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
 
@@ -46,6 +46,9 @@ export interface WebClientMixin extends ProgressReceiver {
 	 * The onDownloadProgress event listener.
 	 */
 	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
+
+	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
+	onMessage: PlaygroundWorkerEndpoint['onMessage'];
 }
 
 /**

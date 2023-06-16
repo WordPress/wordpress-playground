@@ -78,6 +78,11 @@ const config = {
 	themeConfig:
 		/** @type {import('@docusaurus/preset-classic').ThemeConfig} */
 		({
+			algolia: {
+				appId: 'EKWQ08DUQS',
+				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
+				indexName: 'wordpress-playground',
+			},
 			navbar: {
 				title: 'WordPress Playground',
 				logo: {
