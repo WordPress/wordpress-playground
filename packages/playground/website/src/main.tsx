@@ -13,7 +13,7 @@ import Button from './components/button';
 const query = new URL(document.location.href).searchParams;
 
 /*
- * Support passing blueprints in the URI frament, e.g.:
+ * Support passing blueprints in the URI fragment, e.g.:
  * /#{"landingPage": "/?p=4"}
  */
 const fragment = decodeURI(document.location.hash || '#').substring(1);
