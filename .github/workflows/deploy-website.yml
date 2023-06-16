@@ -1,4 +1,4 @@
-name: Actually trigger the deploy to playground.wordpress.net
+name: Continue deploying to playground.wordpress.net (don't use manually)
 # Sorry, the previous job just built it and uploaded it to GitHub
 
 on:
