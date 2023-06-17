@@ -28,14 +28,20 @@ export async function registerServiceWorker<
 					`(expected version: ${expectedVersion}, registered version: ${actualVersion})`
 			);
 			for (const registration of registrations) {
-				registration.unregister();
 				try {
-					await registration.update();
-				} catch(e) {
-					console.warn(`[window] Failed to update the Service Worker registration:`, e);
+					await registration.unregister();
+					const waitingWorker =
+						registration.waiting || registration.installing;
+					waitingWorker?.postMessage('skip-waiting');
+				} catch (e) {
+					console.warn(
+						`[window] Failed to update the Service Worker registration:`,
+						e
+					);
 				}
 			}
-			window.location.reload();
+			console.log(' Window location reload...? ');
+			window.parent.location.reload();
 		}
 	} else {
 		console.debug(
