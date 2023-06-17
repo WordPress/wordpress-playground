@@ -108,21 +108,15 @@ async function doStartPlaygroundWeb(
 
 	// Connect the Comlink client and wait until the
 	// playground is ready.
-	console.log('Pre consume API');
 	const playground = consumeAPI<PlaygroundClient>(
 		iframe.contentWindow!
 	) as PlaygroundClient;
-	console.log('Post consume API');
 	await playground.isConnected();
-	console.log('isConnected()');
 	progressTracker.pipe(playground);
 	const downloadPHPandWP = progressTracker.stage();
 	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
-	console.log('downloadProgress()');
 	await playground.isReady();
-	console.log('ready()');
 	downloadPHPandWP.finish();
-	console.log('finish()');
 	return playground;
 }
 

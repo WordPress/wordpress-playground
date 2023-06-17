@@ -36,14 +36,9 @@ export const login: StepHandler<LoginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
-	console.log('Before request');
-	playground.request({
-		url: '/wp-login.php',
-	});
 	await playground.request({
 		url: '/wp-login.php',
 	});
-	console.log('after request');
 
 	await playground.request({
 		url: '/wp-login.php',

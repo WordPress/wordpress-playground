@@ -4,11 +4,12 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { getURLScope, removeURLScope } from '@php-wasm/scopes';
 import {
+	awaitReply,
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
 	seemsLikeAPHPRequestHandlerPath,
 	cloneRequest,
-	broadcastMessageAwaitReply,
+	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
@@ -104,12 +105,13 @@ async function rewriteRequest(
 
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 	if (!scopeToWpModule[scope]) {
-		scopeToWpModule[scope] = await broadcastMessageAwaitReply(
+		const requestId = await broadcastMessageExpectReply(
 			{
 				method: 'getWordPressModuleDetails',
 			},
 			scope
 		);
+		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
 	return scopeToWpModule[scope];
 }

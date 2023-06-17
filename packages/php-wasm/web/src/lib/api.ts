@@ -148,11 +148,9 @@ function setupTransferHandlers() {
 			'exitCode' in obj &&
 			'httpStatusCode' in obj,
 		serialize(obj: PHPResponse): [PHPResponseData, Transferable[]] {
-			console.log('Serializing');
 			return [obj.toRawData(), []];
 		},
 		deserialize(responseData: PHPResponseData): PHPResponse {
-			console.log('Deerializing');
 			return PHPResponse.fromRawData(responseData);
 		},
 	});

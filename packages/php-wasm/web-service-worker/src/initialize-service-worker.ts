@@ -170,7 +170,8 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				message,
 			}
 		);
-		phpResponse = await broadcastMessageAwaitReply(message, scope);
+		const requestId = await broadcastMessageExpectReply(message, scope);
+		phpResponse = await awaitReply(self, requestId);
 
 		// X-frame-options gets in a way when PHP is
 		// being displayed in an iframe.
@@ -209,18 +210,8 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
  * @param  scope   Target worker thread scope.
  * @returns The request ID to receive the reply.
  */
-export async function broadcastMessageAwaitReply(message: any, scope: string) {
+export async function broadcastMessageExpectReply(message: any, scope: string) {
 	const requestId = getNextRequestId();
-	console.log(
-		'broadcastMessageAwaitReply(',
-		message,
-		scope,
-		') {requestId: ',
-		requestId,
-		'}'
-	);
-	const responsePromise = awaitReply(self, requestId);
-
 	for (const client of await self.clients.matchAll({
 		// Sometimes the client that triggered the current fetch()
 		// event is considered uncontrolled in Google Chrome. This
@@ -241,11 +232,7 @@ export async function broadcastMessageAwaitReply(message: any, scope: string) {
 			requestId,
 		});
 	}
-
-	console.log('pre await responsePromise');
-	const response = await responsePromise;
-	console.log('post await responsePromise', response);
-	return response;
+	return requestId;
 }
 
 interface ServiceWorkerConfiguration {
