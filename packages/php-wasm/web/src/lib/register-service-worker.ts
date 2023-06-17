@@ -28,36 +28,14 @@ export async function registerServiceWorker<
 					`(expected version: ${expectedVersion}, registered version: ${actualVersion})`
 			);
 			for (const registration of registrations) {
-				let unregister = false;
+				registration.unregister();
 				try {
 					await registration.update();
-				} catch (e) {
-					// If the worker registration cannot be updated,
-					// we're probably seeing a blank page in the dev
-					// mode. Let's unregister the worker and reload
-					// the page.
-					unregister = true;
-				}
-				const waitingWorker =
-					registration.waiting || registration.installing;
-				if (waitingWorker && !unregister) {
-					if (actualVersion !== null) {
-						// If the worker exposes a version, it supports
-						// a "skip-waiting" message – let's force it to
-						// skip waiting.
-						waitingWorker.postMessage('skip-waiting');
-					} else {
-						// If the version is not exposed, we can't force
-						// the worker to skip waiting – let's unregister
-						// and reload the page.
-						unregister = true;
-					}
-				}
-				if (unregister) {
-					await registration.unregister();
-					window.location.reload();
+				} catch(e) {
+					console.warn(`[window] Failed to update the Service Worker registration:`, e);
 				}
 			}
+			window.location.reload();
 		}
 	} else {
 		console.debug(

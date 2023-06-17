@@ -122,8 +122,10 @@ export function compileBlueprint(
 				}
 
 				for (const { run, step } of compiled) {
+					console.log('before run', { run, step });
 					const result = await run(playground);
 					onStepCompleted(result, step);
+					console.log('after run', { result, step });
 				}
 				try {
 					await (playground as any).goTo(
@@ -140,6 +142,7 @@ export function compileBlueprint(
 			} finally {
 				progress.finish();
 			}
+			console.log('Fnished');
 		},
 	};
 }

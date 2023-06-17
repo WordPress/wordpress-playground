@@ -93,7 +93,10 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
 	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
-		return _private.get(this)!.php.request(request, redirects);
+		console.log('Got request', request, { redirects });
+		const resp = _private.get(this)!.php.request(request, redirects);
+		console.log(resp.then((r) => console.log(r)));
+		return resp;
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
