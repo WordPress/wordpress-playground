@@ -1,9 +1,15 @@
 import { NodePHP } from '@php-wasm/node';
-import { compileBlueprint, runBlueprintSteps } from './compile';
+import {
+	compileBlueprint,
+	runBlueprintSteps,
+	validateBlueprint,
+} from './compile';
 import {
 	VFS_TMP_DIRECTORY,
 	defineWpConfigConsts,
 } from './steps/define-wp-config-consts';
+import { Blueprint } from './blueprint';
+import { installTheme } from './steps/install-theme';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -70,5 +76,111 @@ describe('Blueprints', () => {
 		php.writeFile('/index.php', '<?php var_dump(WP_AUTO_UPDATE_CORE);');
 		result = await php.request({ url: '/index.php' });
 		expect(result.text.trim()).toBe('bool(false)');
+	});
+
+	describe('Validation', () => {
+		const validBlueprints = [
+			{},
+			{
+				steps: [],
+			},
+		];
+		it.each(validBlueprints)(
+			'valid Blueprint should pass validation',
+			(blueprint) => {
+				expect(validateBlueprint(blueprint)).toEqual({
+					valid: true,
+				});
+			}
+		);
+
+		describe('Invalid Blueprints should not pass validation', () => {
+			test('extra properties', () => {
+				const invalidBlueprint = {
+					invalidProperty: 'foo',
+				};
+				expect(validateBlueprint(invalidBlueprint)).toEqual({
+					valid: false,
+					errors: [
+						{
+							instancePath: '',
+							keyword: 'additionalProperties',
+							params: {
+								additionalProperty: 'invalidProperty',
+							},
+							message: 'must NOT have additional properties',
+							schemaPath: expect.any(String),
+						},
+					],
+				});
+			});
+			test('invalid properties', () => {
+				const invalidBlueprint = {
+					steps: 1,
+				};
+				expect(validateBlueprint(invalidBlueprint)).toEqual({
+					valid: false,
+					errors: [
+						{
+							instancePath: '/steps',
+							keyword: 'type',
+							params: {
+								type: 'array',
+							},
+							message: 'must be array',
+							schemaPath: expect.any(String),
+						},
+					],
+				});
+			});
+			test('invalid steps definition', () => {
+				const invalidBlueprint = {
+					steps: [
+						{
+							step: 'installTheme',
+							// A common type:
+							pluginsZipFile: {
+								resource: 'wordpress.org/themes',
+								slug: 'twentytwenty',
+							},
+						},
+					],
+				};
+				expect(validateBlueprint(invalidBlueprint)).toEqual({
+					valid: false,
+					errors: [
+						{
+							instancePath: '/steps/0',
+							keyword: 'required',
+							params: {
+								missingProperty: 'themeZipFile',
+							},
+							message:
+								"must have required property 'themeZipFile'",
+							schemaPath: expect.any(String),
+						},
+					],
+				});
+			});
+			test('invalid step type', () => {
+				const invalidBlueprint = {
+					steps: [14],
+				};
+				expect(validateBlueprint(invalidBlueprint)).toEqual({
+					valid: false,
+					errors: [
+						{
+							instancePath: '/steps/0',
+							keyword: 'type',
+							params: {
+								type: 'object',
+							},
+							message: 'must be object',
+							schemaPath: expect.any(String),
+						},
+					],
+				});
+			});
+		});
 	});
 });
