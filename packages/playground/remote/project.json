@@ -28,8 +28,7 @@
 				},
 				"development-for-website": {
 					"buildTarget": "playground-remote:build:development",
-					"hmr": true,
-					"logLevel": "silent"
+					"hmr": true
 				},
 				"production": {
 					"buildTarget": "playground-remote:build:production",

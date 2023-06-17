@@ -47,7 +47,7 @@
 			"options": {
 				"commands": [
 					"nx dev playground-remote --configuration=development-for-website",
-					"nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
+					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true
