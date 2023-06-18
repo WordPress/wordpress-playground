@@ -1,6 +1,6 @@
 import React from 'react';
-import { getStepAPI } from './model.tsx';
-import { BlueprintRunButton } from '../Blueprints/BlueprintRunButton.tsx';
+import { getStepAPI } from './model';
+import { BlueprintRunButton } from '../Blueprints/BlueprintRunButton';
 
 export function BlueprintStepRunButton({ name }) {
 	const stepApi = getStepAPI(name);

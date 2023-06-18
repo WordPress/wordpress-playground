@@ -1,5 +1,5 @@
 import React from 'react';
-import { getStepAPI } from './model.tsx';
+import { getStepAPI } from './model';
 
 export function BlueprintStepParameters({ name }) {
 	const stepApi = getStepAPI(name);

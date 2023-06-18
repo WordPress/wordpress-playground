@@ -10,8 +10,8 @@ Blueprints are defined in JSON format, but the underlying implementation uses Ja
 
 JSON is merely a wrapper around the functions. Whether you use the JSON steps or the exported functions, you'll have to provide the same parameters (except for the step name):
 
-import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep.tsx';
-import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model.tsx';
+import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
+import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
 
 <span>{BlueprintSteps.map((name) => (
 <>
