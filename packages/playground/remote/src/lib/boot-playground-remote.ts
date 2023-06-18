@@ -9,8 +9,6 @@ import {
 	consumeAPI,
 	recommendedWorkerBackend,
 } from '@php-wasm/web';
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WebClientMixin } from './playground-client';
@@ -46,6 +44,18 @@ export const workerUrl: string = (function () {
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from './get-wordpress-module';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+
+// Prevent Vite from hot-reloading this file – it would
+// cause bootPlaygroundRemote() to register another web worker
+// without unregistering the previous one. The first web worker
+// would then fight for service worker requests with the second
+// one. It's a difficult problem to debug and HMR isn't that useful
+// here anyway – let's just disable it for this file.
+// @ts-ignore
+if (import.meta.hot) {
+	// @ts-ignore
+	import.meta.hot.accept(() => {});
+}
 
 const query = new URL(document.location.href).searchParams;
 export async function bootPlaygroundRemote() {
@@ -158,11 +168,10 @@ export async function bootPlaygroundRemote() {
 	await registerServiceWorker(
 		workerApi,
 		await workerApi.scope,
-		serviceWorkerUrl + '',
-		serviceWorkerVersion
+		serviceWorkerUrl + ''
 	);
-	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 	wpFrame.src = await playground.pathToInternalUrl('/');
+	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 
 	setAPIReady();
 

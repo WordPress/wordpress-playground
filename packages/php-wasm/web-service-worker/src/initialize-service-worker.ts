@@ -16,36 +16,7 @@ import {
  * @param  config
  */
 export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
-	const { version, handleRequest = defaultRequestHandler } = config;
-	/**
-	 * Enable the client app to force-update the service worker
-	 * registration.
-	 */
-	self.addEventListener('message', (event) => {
-		if (!event.data) {
-			return;
-		}
-
-		if (event.data === 'skip-waiting') {
-			self.skipWaiting();
-		}
-	});
-
-	/**
-	 * Ensure the client gets claimed by this service worker right after the registration.
-	 *
-	 * Only requests from the "controlled" pages are resolved via the fetch listener below.
-	 * However, simply registering the worker is not enough to make it the "controller" of
-	 * the current page. The user still has to reload the page. If they don't an iframe
-	 * pointing to /index.php will show a 404 message instead of a homepage.
-	 *
-	 * This activation handles saves the user reloading the page after the initial confusion.
-	 * It immediately makes this worker the controller of any client that registers it.
-	 */
-	self.addEventListener('activate', (event) => {
-		// eslint-disable-next-line no-undef
-		event.waitUntil(self.clients.claim());
-	});
+	const { handleRequest = defaultRequestHandler } = config;
 
 	/**
 	 * The main method. It captures the requests and loop them back to the
@@ -53,24 +24,6 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 	 */
 	self.addEventListener('fetch', (event) => {
 		const url = new URL(event.request.url);
-
-		// Provide a custom JSON response in the special /version endpoint
-		// so the frontend app can know whether it's time to update the
-		// service worker registration.
-		if (url.pathname === '/version') {
-			event.preventDefault();
-			const currentVersion =
-				typeof version === 'function' ? version() : version;
-			event.respondWith(
-				new Response(JSON.stringify({ version: currentVersion }), {
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					status: 200,
-				})
-			);
-			return;
-		}
 
 		// Don't handle requests to the service worker script itself.
 		if (url.pathname.startsWith(self.location.pathname)) {
@@ -236,13 +189,6 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 }
 
 interface ServiceWorkerConfiguration {
-	/**
-	 * The version of the service worker – exposed via the /version endpoint.
-	 *
-	 * This is used by the frontend app to know whether it's time to update
-	 * the service worker registration.
-	 */
-	version: string | (() => string);
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
 }
 
