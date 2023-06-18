@@ -33,6 +33,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"mkdir -p dist/packages/playground/blueprints",
 					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts",
 					"rimraf dist/packages/playground/blueprints/lib/*.d.ts",
 					"rimraf dist/packages/playground/blueprints/*.d.ts",

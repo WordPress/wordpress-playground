@@ -7,5 +7,3 @@ Whenever the types are modified, the schema needs to be rebuilt using
 Unfortunately, it is not auto-rebuilt in `npm run dev` mode as the
 `dts-bundle-generator` utility we use for type rollyps does not support
 watching for changes.
-
- 
