@@ -9,8 +9,6 @@ import {
 	consumeAPI,
 	recommendedWorkerBackend,
 } from '@php-wasm/web';
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WebClientMixin } from './playground-client';
@@ -158,11 +156,9 @@ export async function bootPlaygroundRemote() {
 	await registerServiceWorker(
 		workerApi,
 		await workerApi.scope,
-		serviceWorkerUrl + '',
-		serviceWorkerVersion
+		serviceWorkerUrl + ''
 	);
 	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
-	wpFrame.src = await playground.pathToInternalUrl('/');
 
 	setAPIReady();
 

@@ -14,49 +14,28 @@ import { Remote } from 'comlink';
  */
 export async function registerServiceWorker<
 	Client extends Remote<WebPHPEndpoint>
->(phpApi: Client, scope: string, scriptUrl: string, expectedVersion: string) {
-	const sw = (navigator as any).serviceWorker;
+>(phpApi: Client, scope: string, scriptUrl: string) {
+	const sw = navigator.serviceWorker;
 	if (!sw) {
 		throw new Error('Service workers are not supported in this browser.');
 	}
-	const registrations = await sw.getRegistrations();
-	if (registrations.length > 0) {
-		const actualVersion = await getRegisteredServiceWorkerVersion();
-		if (expectedVersion !== actualVersion) {
-			console.debug(
-				`[window] Reloading the currently registered Service Worker ` +
-					`(expected version: ${expectedVersion}, registered version: ${actualVersion})`
-			);
-			for (const registration of registrations) {
-				try {
-					await registration.unregister();
-					const waitingWorker =
-						registration.waiting || registration.installing;
-					waitingWorker?.postMessage('skip-waiting');
-				} catch (e) {
-					console.warn(
-						`[window] Failed to update the Service Worker registration:`,
-						e
-					);
-				}
-			}
-			console.log(' Window location reload...? ');
-			window.parent.location.reload();
-		}
-	} else {
-		console.debug(
-			`[window] Creating a Service Worker registration (version: ${expectedVersion})`
-		);
-		await sw.register(scriptUrl, {
-			type: 'module',
-		});
-	}
+
+	console.debug(`[window][sw] Registering a Service Worker`);
+	const registration = await sw.register(scriptUrl, {
+		type: 'module',
+		// Always bypass HTTP cache when fetching the new Service Worker script:
+		updateViaCache: 'none',
+	});
+
+	// Check if there's a new service worker available and, if so, enqueue
+	// the update:
+	await registration.update();
 
 	// Proxy the service worker messages to the worker thread:
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.debug('Message from ServiceWorker', event);
+			console.debug('[window][sw] Message from ServiceWorker', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
@@ -77,14 +56,4 @@ export async function registerServiceWorker<
 	);
 
 	sw.startMessages();
-}
-
-async function getRegisteredServiceWorkerVersion() {
-	try {
-		const response = await fetch('/version');
-		const data = await response.json();
-		return data.version;
-	} catch (e) {
-		return null;
-	}
 }

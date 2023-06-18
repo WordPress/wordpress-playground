@@ -5,8 +5,6 @@ import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import virtualModule from '../vite-virtual-module';
-// eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
@@ -18,11 +16,6 @@ const plugins = [
 		entryRoot: 'src',
 		tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
 		skipDiagnostics: true,
-	}),
-	virtualModule({
-		name: 'service-worker-version',
-		// @TODO: compute a hash of the service worker chunk instead of using the build timestamp
-		content: `export const serviceWorkerVersion = '${Date.now()}';`,
 	}),
 ];
 export default defineConfig({
