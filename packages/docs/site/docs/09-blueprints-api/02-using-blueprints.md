@@ -17,6 +17,7 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 
 ```json
 {
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
 		"php": "7.4",
 		"wp": "5.9"

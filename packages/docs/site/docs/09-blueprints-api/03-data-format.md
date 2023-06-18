@@ -30,6 +30,18 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 	]
 }} />
 
+## JSON Schema
+
+JSON files can be tedious to write and easy to get wrong. To help with that, Playground provides a [JSON schema](https://playground.wordpress.net/blueprint-schema.json) file that you can use to get autocompletion and validation in your editor:
+
+```js
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"landingPage": "/wp-admin/",
+	// ...
+}
+```
+
 ## Preferred Versions
 
 The `preferredVersions` property, unsurprisingly, declares the preferred of PHP and WordPress versions to use. It can contain the following properties:
