@@ -10,6 +10,7 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 
 ```json
 {
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"landingPage": "/wp-admin/",
 	"preferredVersions": {
 		"php": "8.0",
