@@ -6,6 +6,7 @@ const config = {
 	path: 'dist/packages/playground/blueprints/index.d.ts',
 	tsconfig: './tsconfig.base.json',
 	type: 'Blueprint',
+	skipTypeCheck: true,
 };
 
 const output_path =
