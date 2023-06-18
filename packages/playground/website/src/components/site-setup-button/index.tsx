@@ -58,6 +58,7 @@ export default function SiteSetupButton({
 				setWp(details.majorVersion);
 			});
 		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!playground]);
 
 	const handleStorageChange = (
