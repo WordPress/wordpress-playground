@@ -158,6 +158,7 @@ export async function bootPlaygroundRemote() {
 		await workerApi.scope,
 		serviceWorkerUrl + ''
 	);
+	wpFrame.src = await playground.pathToInternalUrl('/');
 	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 
 	setAPIReady();
