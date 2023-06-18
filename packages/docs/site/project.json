@@ -105,6 +105,15 @@
 			"options": {
 				"lintFilePatterns": ["packages/docs/site/**/*.ts"]
 			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/nx-extensions/tsconfig.spec.json --noEmit",
+					"tsc -p packages/nx-extensions/tsconfig.lib.json --noEmit"
+				]
+			}
 		}
 	},
 	"tags": []
