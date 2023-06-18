@@ -35,11 +35,6 @@ const proxy = {
 			throw new Error('Invalid request');
 		},
 	},
-	// Proxy requests to the remote content through this server for dev builds.
-	// See base config below.
-	'^[/]((?!website-server).)': {
-		target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
-	},
 };
 
 let buildVersion: string;
@@ -55,14 +50,8 @@ export default defineConfig(({ command }) => {
 			? // In production, both the website and the playground are served from the same domain.
 			  process?.env?.ORIGIN || 'https://playground.wordpress.net/'
 			: // In dev, the website and the playground are served from different domains.
-			  `http://${websiteDevServerHost}:${websiteDevServerPort}`;
+			  `http://${remoteDevServerHost}:${remoteDevServerPort}`;
 	return {
-		// Split traffic from this server on dev so that the iframe content and outer
-		// content can be served from the same origin. In production it's already
-		// the same host, but dev builds run two separate servers.
-		// See proxy config above.
-		base: command === 'build' ? '/' : '/website-server/',
-
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
@@ -89,9 +78,6 @@ export default defineConfig(({ command }) => {
 				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
 			proxy,
-			fs: {
-				strict: false, // Serve files from the other project directories.
-			},
 		},
 
 		plugins: [
