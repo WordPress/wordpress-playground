@@ -8,8 +8,6 @@ import {
 	VFS_TMP_DIRECTORY,
 	defineWpConfigConsts,
 } from './steps/define-wp-config-consts';
-import { Blueprint } from './blueprint';
-import { installTheme } from './steps/install-theme';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
