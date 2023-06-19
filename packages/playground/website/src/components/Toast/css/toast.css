@@ -1,0 +1,13 @@
+/* The Toast container css */
+.toast-container {
+	width: 600px; /* Desktop/Tablet/Large screen support */
+	padding-bottom: 60px;
+}
+
+@media (max-width: 600px) {
+	/* The Toast container will be in full screen width */
+	.toast-container {
+		width: 100%;
+		padding-bottom: 60px;
+	}
+}

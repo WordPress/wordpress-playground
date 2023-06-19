@@ -1,9 +1,10 @@
-import React from 'react';
-import Modal from '../modal';
+import React, { useEffect } from 'react';
+import Toast from '../Toast';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
-import util from '../../util/util.js';
+import useQuery from '../../hooks/useQuery';
+import { setCookie, getCookie } from '../../util/util';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -13,16 +14,6 @@ interface BrowserChromeProps {
 	onUrlChange?: (url: string) => void;
 }
 
-// Check if the user is onboarding for the first time.
-const isOnboarding = util.isOnboardedFirstTime();
-
-// Welcome message to be displayed in the modal.
-const WELCOME_MSG = `Welcome to our brand new WordPress Plyground website! We are thrilled to have you here. 
-Whether you're a first-time visitor or a returning customer, we would like to remind you once:`;
-
-// Reminder message to be displayed in the modal.
-const REMINDER = `All your modifications made here are private, and stored temporarily in the session and will be lost upon refreshing the page.`;
-
 export default function BrowserChrome({
 	children,
 	url,
@@ -30,30 +21,37 @@ export default function BrowserChrome({
 	showAddressBar = true,
 	toolbarButtons,
 }: BrowserChromeProps) {
+	// Check if the user is onboarding for the first time.
+	const onBoarding = useQuery('onBoarding');
+
+	// Show the toast message.
+	const [showToast, setShowToast] = React.useState(false);
+
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
 
+	useEffect(() => {
+		if (onBoarding && parseInt(onBoarding) === 1) {
+			const isOnboarded = getCookie('onBoarding');
+			if (isOnboarded !== '1') {
+				setCookie('onBoarding', '1', 1);
+				setShowToast(true);
+			} else {
+				setShowToast(false);
+			}
+		}
+	}, [onBoarding]);
+	
 	return (
 		<div className={css.wrapper}>
 			<div className={css.window}>
 				<div className={css.toolbar}>
 					<WindowControls />
-
 					<div className={addressBarClass}>
 						<AddressBar url={url} onUpdate={onUrlChange} />
 					</div>
-					{!isOnboarding && (
-						<Modal>
-							<div>
-								{WELCOME_MSG}
-								<br></br>
-								<p>
-									<strong>{REMINDER}</strong>
-								</p>
-							</div>
-						</Modal>
-					)}
+					{showToast && <Toast />} 
 					<div className={css.toolbarButtons}>
 						{toolbarButtons?.map(
 							(button: React.ReactElement, idx) =>
@@ -64,11 +62,6 @@ export default function BrowserChrome({
 					</div>
 				</div>
 				<div className={css.content}>{children}</div>
-				<div className={css.experimentalNotice}>
-					This is a cool fun experimental WordPress running in your
-					browser :) All your changes are private and gone after a
-					page refresh.
-				</div>
 			</div>
 		</div>
 	);
@@ -83,3 +76,4 @@ function WindowControls() {
 		</div>
 	);
 }
+
