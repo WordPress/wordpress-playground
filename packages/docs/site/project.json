@@ -95,8 +95,8 @@
 			"options": {
 				"commands": ["docusaurus start"],
 				"cwd": "packages/docs/site"
-			}
-			// "dependsOn": ["build:json"]
+			},
+			"dependsOn": ["build:json"]
 		},
 
 		"lint": {
