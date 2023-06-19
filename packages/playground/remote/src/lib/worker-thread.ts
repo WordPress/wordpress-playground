@@ -27,8 +27,6 @@ import {
 import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
-self.postMessage('worker-script-started');
-
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
 	phpVersion?: string;
@@ -129,46 +127,42 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 }
 
-const [setApiReady, setAPIError] = exposeAPI(
+const [setApiReady] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
-try {
-	await phpReady;
 
-	if (!useOpfs || !wordPressAvailableInOPFS) {
-		/**
-		 * When WordPress is restored from OPFS, these patches are already applied.
-		 * Thus, let's not apply them again.
-		 */
-		await wordPressModule;
-		applyWebWordPressPatches(php);
-		await applyWordPressPatches(php, {
-			wordpressPath: DOCROOT,
-			patchSecrets: true,
-			disableWpNewBlogNotification: true,
-			addPhpInfo: true,
-			disableSiteHealth: true,
-		});
-	}
+await phpReady;
 
-	if (useOpfs) {
-		if (wordPressAvailableInOPFS) {
-			await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
-		} else {
-			await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
-		}
-
-		journalMemfsToOpfs(php, opfsDir!, DOCROOT);
-	}
-
-	// Always setup the current site URL.
+if (!useOpfs || !wordPressAvailableInOPFS) {
+	/**
+	 * When WordPress is restored from OPFS, these patches are already applied.
+	 * Thus, let's not apply them again.
+	 */
+	await wordPressModule;
+	applyWebWordPressPatches(php);
 	await applyWordPressPatches(php, {
 		wordpressPath: DOCROOT,
-		siteUrl: scopedSiteUrl,
+		patchSecrets: true,
+		disableWpNewBlogNotification: true,
+		addPhpInfo: true,
+		disableSiteHealth: true,
 	});
-
-	setApiReady();
-} catch (e) {
-	setAPIError(e as Error);
-	throw e;
 }
+
+if (useOpfs) {
+	if (wordPressAvailableInOPFS) {
+		await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
+	} else {
+		await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
+	}
+
+	journalMemfsToOpfs(php, opfsDir!, DOCROOT);
+}
+
+// Always setup the current site URL.
+await applyWordPressPatches(php, {
+	wordpressPath: DOCROOT,
+	siteUrl: scopedSiteUrl,
+});
+
+setApiReady();

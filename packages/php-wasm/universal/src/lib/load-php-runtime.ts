@@ -121,10 +121,13 @@ export async function loadPHPRuntime(
 	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-	let resolvePhpReady: any, rejectPhp: any, resolveDepsReady: any;
-	const depsReady = new Promise((resolve) => {
-		// @TODO This also needs to be rejected on failure
+	let resolvePhpReady: any,
+		rejectPhp: any,
+		resolveDepsReady: any,
+		rejectDeps: any;
+	const depsReady = new Promise((resolve, reject) => {
 		resolveDepsReady = resolve;
+		rejectDeps = reject;
 	});
 	const phpReady = new Promise((resolve, reject) => {
 		resolvePhpReady = resolve;
@@ -159,9 +162,17 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
-	for (const { default: loadDataModule } of dataDependenciesModules) {
-		loadDataModule(PHPRuntime);
+
+	try {
+		await Promise.all(
+			dataDependenciesModules.map(({ default: dataModule }) =>
+				dataModule(PHPRuntime)
+			)
+		);
+	} catch (e) {
+		throw e;
 	}
+
 	if (!dataDependenciesModules.length) {
 		resolveDepsReady();
 	}
