@@ -72,11 +72,11 @@ For a full list of these methods, consult the PlaygroundClient interface.
 
 ## Sending messages to JavaScript
 
-You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts two arguments:
+You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts one argument:
 
 -   `$data` (string) – Data to pass to JavaScript.
 
-For example, here's how you would send a message called "post-save" with a JSON-encoded post ID and title:
+For example, here's how you would send a message with a JSON-encoded post ID and title:
 
 ```ts
 const php = await PHP.load('8.0');
