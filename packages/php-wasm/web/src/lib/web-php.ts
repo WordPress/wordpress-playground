@@ -16,6 +16,32 @@ export interface PHPWebLoaderOptions {
 	dataModules?: Array<DataModule | Promise<DataModule>>;
 }
 
+/**
+ * Fake a websocket connection to prevent errors in the web app
+ * from cascading and breaking the Playground.
+ */
+const fakeWebsocket = () => {
+	return {
+		websocket: {
+			decorator: (WebSocketConstructor: any) => {
+				return class FakeWebsocketConstructor extends WebSocketConstructor {
+					constructor() {
+						try {
+							super();
+						} catch (e) {
+							// pass
+						}
+					}
+
+					send() {
+						return null;
+					}
+				};
+			},
+		},
+	};
+};
+
 export class WebPHP extends BasePHP {
 	/**
 	 * Creates a new PHP instance.
@@ -66,6 +92,7 @@ export class WebPHP extends BasePHP {
 				{
 					...(options.emscriptenOptions || {}),
 					...(options.downloadMonitor?.getEmscriptenOptions() || {}),
+					...fakeWebsocket(),
 				},
 				dataModules
 			);
