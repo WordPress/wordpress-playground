@@ -160,7 +160,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
  * what this function uses to broadcast the message.
  *
  * @param  message The message to broadcast.
- * @param  scope   Target worker thread scope.
+ * @param  scope   Target web worker scope.
  * @returns The request ID to receive the reply.
  */
 export async function broadcastMessageExpectReply(message: any, scope: string) {
