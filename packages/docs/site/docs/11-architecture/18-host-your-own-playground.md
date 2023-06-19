@@ -4,7 +4,7 @@ You can host the Playground on your own domain instead of `playground.wordpress.
 
 This is useful for having full control over its content and behavior, as well as removing dependency on a third-party remote endpoint. It can provide a customized user experience, for example: preinstalled plugins, default theme, site settings, and demo content.
 
-Also, if you expect to see heavy traffic, it's good etiquette to provide your own server/CDN resources to serve the static file assets, instead of relying on the `wordpress.net` server.
+Also, if you expect to see heavy traffic, it's good etiquette to provide your own server/CDN resources to serve the static file assets, rather than relying on the `wordpress.net` server.
 
 #### Usage
 
@@ -46,7 +46,7 @@ This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies
 dist/packages/playground/wasm-wordpress-net
 ```
 
-The content of this folder consists the entire service of the Playground.
+The entire service of the Playground consists of the content of this folder.
 
 It includes:
 
@@ -55,7 +55,7 @@ It includes:
 -   `index.html` - the shell, or browser chrome
 -   Web Worker script
 
-You can deploy the content of the folder `wasm-wordpress-net` to your server using SSH, such as `scp` or `rsync`.
+You can deploy the content of the folder to your server using SSH, such as `scp` or `rsync`.
 
 It is a static site, except for these dynamic aspects.
 
@@ -121,7 +121,7 @@ You may need to adjust the above according to server specifics, particularly how
 
 ## Customize `wp.data`
 
-The file `wp.data` is a bundle of all the files for the WordPress instance running in Playground. There's a data file for each available WordPress version.
+The file `wp.data` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
 
 Edit the build script in `packages/playground/compile-wordpress/Dockerfile` to create a custom bundle that includes preinstalled plugins or content.
 
@@ -145,15 +145,13 @@ RUN cd wordpress/wp-content/mu-plugins && \
     done;
 ```
 
-You can download plugins from URLs other than the WordPress plugin directory, use Git to pull them from elsewhere.
-
-It's also possible to copy from a local folder - for example, before `RUN`:
+You can download plugins from URLs other than the WordPress plugin directory, or use Git to pull them from elsewhere. It's also possible to copy from a local folder. For example, before `RUN`:
 
 ```
 COPY ./build-assets/*.zip /root/
 ```
 
-Then put the plugin zip files in `packages/playground/compile-wordpress/build-assets`. You may want to add their paths to `.gitignore`.
+Then put the plugin zip files in `packages/playground/compile-wordpress/build-assets`. In this case, you may want to add their paths to `.gitignore`.
 
 ### Import content
 
@@ -168,4 +166,4 @@ RUN cd wordpress ; \
     ../wp-cli.phar --allow-root import /root/content.xml --authors=create
 ```
 
-This assumes that you have put a WXR export file named `content.xml` in the folder `packages/playground/compile-wordpress/build-assets`. You may want to add its path to `.gitignore`.
+This assumes that you have put a WXR export file named `content.xml` in the folder `packages/playground/compile-wordpress/build-assets`. You can add its path to `.gitignore`.
