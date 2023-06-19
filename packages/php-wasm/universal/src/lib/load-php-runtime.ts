@@ -123,6 +123,7 @@ export async function loadPHPRuntime(
 ): Promise<number> {
 	let resolvePhpReady: any, rejectPhp: any, resolveDepsReady: any;
 	const depsReady = new Promise((resolve) => {
+		// @TODO This also needs to be rejected on failure
 		resolveDepsReady = resolve;
 	});
 	const phpReady = new Promise((resolve, reject) => {
