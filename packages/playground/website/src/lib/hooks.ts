@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { remotePlaygroundOrigin, buildVersion } from './config';
+import { buildVersion } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -29,7 +29,7 @@ export function usePlayground({ blueprint, persistent }: UsePlaygroundOptions) {
 		}
 		started.current = true;
 
-		const remoteUrl = new URL(remotePlaygroundOrigin);
+		const remoteUrl = new URL(window.location.origin);
 		remoteUrl.pathname = '/remote.html';
 		remoteUrl.searchParams.set('v', buildVersion);
 		if (persistent) {

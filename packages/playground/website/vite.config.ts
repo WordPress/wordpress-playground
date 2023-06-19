@@ -49,13 +49,7 @@ try {
 	buildVersion = (new Date().getTime() / 1000).toFixed(0);
 }
 
-export default defineConfig(({ command }) => {
-	const playgroundOrigin =
-		command === 'build'
-			? // In production, both the website and the playground are served from the same domain.
-			  process?.env?.ORIGIN || 'https://playground.wordpress.net/'
-			: // In dev, the website and the playground are served from different domains.
-			  `http://${websiteDevServerHost}:${websiteDevServerPort}`;
+export default defineConfig(({ command, mode }) => {
 	return {
 		// Split traffic from this server on dev so that the iframe content and outer
 		// content can be served from the same origin. In production it's already
@@ -103,7 +97,6 @@ export default defineConfig(({ command }) => {
 			virtualModule({
 				name: 'website-config',
 				content: `
-				export const remotePlaygroundOrigin = ${JSON.stringify(playgroundOrigin)};
 				export const buildVersion = ${JSON.stringify(buildVersion)};`,
 			}),
 		],
