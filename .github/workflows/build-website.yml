@@ -12,6 +12,7 @@ jobs:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
         if: >
             github.ref == 'refs/heads/trunk' && (
+                github.event_name == 'workflow_run' ||
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell'
             )
