@@ -35,11 +35,6 @@ const proxy = {
 			throw new Error('Invalid request');
 		},
 	},
-	// Proxy requests to the remote content through this server for dev builds.
-	// See base config below.
-	'^[/]((?!website-server).)': {
-		target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
-	},
 };
 
 let buildVersion: string;
@@ -55,7 +50,7 @@ export default defineConfig(({ command, mode }) => {
 		// content can be served from the same origin. In production it's already
 		// the same host, but dev builds run two separate servers.
 		// See proxy config above.
-		base: command === 'build' ? '/' : '/website-server/',
+		base: mode === 'production' ? '/' : '/website-server/',
 
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
@@ -82,7 +77,14 @@ export default defineConfig(({ command, mode }) => {
 				'Cross-Origin-Resource-Policy': 'cross-origin',
 				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
-			proxy,
+			proxy: {
+				...proxy,
+				// Proxy requests to the remote content through this server for dev builds.
+				// See base config below.
+				'^[/]((?!website-server).)': {
+					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+				},
+			},
 			fs: {
 				strict: false, // Serve files from the other project directories.
 			},
