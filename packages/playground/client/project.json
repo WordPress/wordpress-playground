@@ -6,21 +6,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": [
-				"build:README",
-				"build:blueprint-schema",
-				"build:rollup-declarations"
-			]
-		},
-		"build:blueprint-schema": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/playground/client/bin/generate-schema.js"
-				],
-				"parallel": false
-			},
-			"dependsOn": ["build:rollup-declarations"]
+			"dependsOn": ["build:README", "build:rollup-declarations"]
 		},
 		"build:rollup-declarations": {
 			"executor": "nx:run-commands",

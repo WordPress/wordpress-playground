@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { remotePlaygroundOrigin, buildVersion } from './config';
+import { buildVersion } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
+	persistent?: boolean;
 }
-export function usePlayground({ blueprint }: UsePlaygroundOptions) {
+export function usePlayground({ blueprint, persistent }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
@@ -28,9 +29,16 @@ export function usePlayground({ blueprint }: UsePlaygroundOptions) {
 		}
 		started.current = true;
 
+		const remoteUrl = new URL(window.location.origin);
+		remoteUrl.pathname = '/remote.html';
+		remoteUrl.searchParams.set('v', buildVersion);
+		if (persistent) {
+			remoteUrl.searchParams.set('persistent', '1');
+		}
+
 		startPlaygroundWeb({
 			iframe,
-			remoteUrl: `${remotePlaygroundOrigin}/remote.html?v=${buildVersion}`,
+			remoteUrl: remoteUrl.toString(),
 			blueprint,
 		}).then(async (playground) => {
 			playground.onNavigation((url) => setUrl(url));

@@ -63,6 +63,7 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
     }
 }
 
+    
 return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:

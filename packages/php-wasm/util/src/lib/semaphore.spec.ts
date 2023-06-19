@@ -26,4 +26,18 @@ describe('RequestsPerIntervaledSemaphore', () => {
 
 		expect(concurrencyTasks).toBe(concurrency);
 	});
+	it('should not be possible to release twice', async () => {
+		const concurrency = 2;
+		const semaphore = new Semaphore({
+			concurrency,
+		});
+
+		const release1 = await semaphore.acquire();
+		await semaphore.acquire();
+
+		release1();
+		release1();
+
+		expect(semaphore.running).toBe(1);
+	});
 });

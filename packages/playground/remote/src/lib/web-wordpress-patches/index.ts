@@ -10,32 +10,20 @@ import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw'
 import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 
 import { DOCROOT } from '../config';
-import { applyWordPressPatches } from '@wp-playground/blueprints';
 
-export function applyWebWordPressPatches(php: UniversalPHP, siteUrl: string) {
-	const patch = new WordPressPatcher(php, siteUrl, DOCROOT);
+export function applyWebWordPressPatches(php: UniversalPHP) {
+	const patch = new WordPressPatcher(php, DOCROOT);
 
 	patch.replaceRequestsTransports();
 	patch.addMissingSvgs();
-
-	applyWordPressPatches(php, {
-		siteUrl: siteUrl,
-		wordpressPath: DOCROOT,
-	});
 }
 
 class WordPressPatcher {
 	php: UniversalPHP;
-	scopedSiteUrl: string;
 	wordpressPath: string;
 
-	constructor(
-		php: UniversalPHP,
-		scopedSiteUrl: string,
-		wordpressPath: string
-	) {
+	constructor(php: UniversalPHP, wordpressPath: string) {
 		this.php = php;
-		this.scopedSiteUrl = scopedSiteUrl;
 		this.wordpressPath = wordpressPath;
 	}
 

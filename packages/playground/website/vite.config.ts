@@ -44,14 +44,14 @@ try {
 	buildVersion = (new Date().getTime() / 1000).toFixed(0);
 }
 
-export default defineConfig(({ command }) => {
-	const playgroundOrigin =
-		command === 'build'
-			? // In production, both the website and the playground are served from the same domain.
-			  ''
-			: // In dev, the website and the playground are served from different domains.
-			  `http://${remoteDevServerHost}:${remoteDevServerPort}`;
+export default defineConfig(({ command, mode }) => {
 	return {
+		// Split traffic from this server on dev so that the iframe content and outer
+		// content can be served from the same origin. In production it's already
+		// the same host, but dev builds run two separate servers.
+		// See proxy config above.
+		base: mode === 'production' ? '/' : '/website-server/',
+
 		cacheDir: '../../../node_modules/.vite/packages-playground-website',
 
 		css: {
@@ -77,7 +77,17 @@ export default defineConfig(({ command }) => {
 				'Cross-Origin-Resource-Policy': 'cross-origin',
 				'Cross-Origin-Embedder-Policy': 'credentialless',
 			},
-			proxy,
+			proxy: {
+				...proxy,
+				// Proxy requests to the remote content through this server for dev builds.
+				// See base config below.
+				'^[/]((?!website-server).)': {
+					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
+				},
+			},
+			fs: {
+				strict: false, // Serve files from the other project directories.
+			},
 		},
 
 		plugins: [
@@ -89,7 +99,6 @@ export default defineConfig(({ command }) => {
 			virtualModule({
 				name: 'website-config',
 				content: `
-				export const remotePlaygroundOrigin = ${JSON.stringify(playgroundOrigin)};
 				export const buildVersion = ${JSON.stringify(buildVersion)};`,
 			}),
 		],

@@ -15,8 +15,12 @@ on:
 
 jobs:
     release:
-        # Only run this workflow from the trunk branch
-        if: github.ref == 'refs/heads/trunk'
+        # Only run this workflow from the trunk branch and when it's triggered by dmsnell OR adamziel
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell'
+            )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
