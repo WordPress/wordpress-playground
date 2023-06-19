@@ -36,4 +36,9 @@ jobs:
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Recompile WordPress"
-                  git push --force-with-lease origin HEAD:trunk
+                  git pull --rebase
+                  # Push if the pull did not result in a conflict
+                  if [ $? -eq 0 ]; then
+                      git push origin HEAD:trunk
+                  fi;
+                
