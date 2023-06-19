@@ -12,6 +12,11 @@ jobs:
             name: wordpress-assets
         steps:
             - uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.event.pull_request.head.ref }}
+                  clean: true
+                  fetch-depth: 0
+                  persist-credentials: false
             - uses: ./.github/actions/prepare-playground
             - name: 'Recompile WordPress'
               shell: bash
@@ -23,4 +28,4 @@ jobs:
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   git add -A
                   git commit -a -m "Recompile WordPress"
-                  git push origin HEAD:trunk
+                  git push --force-with-lease origin HEAD:trunk
