@@ -95,6 +95,7 @@ export function compileBlueprint(
 					const result = await run(playground);
 					onStepCompleted(result, step);
 				}
+			} finally {
 				try {
 					await (playground as any).goTo(
 						blueprint.landingPage || '/'
@@ -107,7 +108,6 @@ export function compileBlueprint(
 					 * with no such method.
 					 */
 				}
-			} finally {
 				progress.finish();
 			}
 		},
