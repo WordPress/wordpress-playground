@@ -275,7 +275,7 @@ function compileStep<S extends StepDefinition>(
 				}
 			);
 		} finally {
-			stepProgress.finish();
+			// stepProgress.finish();
 		}
 	};
 

@@ -33,7 +33,22 @@
 				document.body.classList.add('is-embedded');
 			}
 			import { bootPlaygroundRemote } from './src/index';
-			bootPlaygroundRemote();
+			try {
+				await bootPlaygroundRemote();
+			} catch (e) {
+				document.write('<body>');
+
+				const div = document.createElement('div');
+				div.innerText = `Playground loading error: ${e.message}.`;
+				document.body.append(div);
+
+				const button = document.createElement('button');
+				button.innerText = 'Retry';
+				button.onclick = () => {
+					(window.parent || window).location.reload();
+				};
+				document.body.append(button);
+			}
 		</script>
 	</body>
 </html>

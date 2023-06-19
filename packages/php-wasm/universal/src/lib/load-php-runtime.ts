@@ -121,17 +121,21 @@ export async function loadPHPRuntime(
 	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-	let resolvePhpReady: any, resolveDepsReady: any;
+	let resolvePhpReady: any, rejectPhp: any, resolveDepsReady: any;
 	const depsReady = new Promise((resolve) => {
 		resolveDepsReady = resolve;
 	});
-	const phpReady = new Promise((resolve) => {
+	const phpReady = new Promise((resolve, reject) => {
 		resolvePhpReady = resolve;
+		rejectPhp = reject;
 	});
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
-			console.error('WASM aborted: ');
+			rejectPhp(reason);
+			resolveDepsReady();
+			// This can happen after PHP has been initialized so
+			// let's just log it.
 			console.error(reason);
 		},
 		ENV: {},
