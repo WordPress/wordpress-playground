@@ -50,20 +50,19 @@ The content of this folder consists the entire service of the Playground.
 
 It includes:
 
-- Data and WASM files for all available PHP and WordPress versions
-- `remote.html` - the core of Playground
-- `index.html` - the shell, or browser chrome
-- Web Worker script
+-   Data and WASM files for all available PHP and WordPress versions
+-   `remote.html` - the core of Playground
+-   `index.html` - the shell, or browser chrome
+-   Web Worker script
 
 You can deploy the content of the folder `wasm-wordpress-net` to your server using SSH, such as `scp` or `rsync`.
 
 It is a static site, except for these dynamic aspects.
 
-- Apache server directive `.htaccess` file - the result of combining `.htaccess` from the packages `remote` and `website`
-- Plugin download proxy, `plugin-proxy.php`
- 
-For these to work, you need a server environment with Apache and PHP installed.
+-   Apache server directive `.htaccess` file - the result of combining `.htaccess` from the packages `remote` and `website`
+-   Plugin download proxy, `plugin-proxy.php`
 
+For these to work, you need a server environment with Apache and PHP installed.
 
 ## NGINX configuration
 
@@ -120,12 +119,11 @@ add_header "Cross-Origin-Embedder-Policy" "credentialless";
 
 You may need to adjust the above according to server specifics, particularly how to invoke PHP for the path `/plugin-proxy`.
 
-
 ## Customize `wp.data`
 
 The file `wp.data` is a bundle of all the files for the WordPress instance running in Playground. There's a data file for each available WordPress version.
 
-Edit the build script in `packages/playground/compile-wordpress/Dockerfile` to create a custom bundle that includes preinstalled plugins or content. 
+Edit the build script in `packages/playground/compile-wordpress/Dockerfile` to create a custom bundle that includes preinstalled plugins or content.
 
 ### Install plugins
 
@@ -171,5 +169,3 @@ RUN cd wordpress ; \
 ```
 
 This assumes that you have put a WXR export file named `content.xml` in the folder `packages/playground/compile-wordpress/build-assets`. You may want to add its path to `.gitignore`.
-
-
