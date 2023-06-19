@@ -1,4 +1,10 @@
-export const SupportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9', 'nightly'] as const;
+export const SupportedWordPressVersions = [
+	'6.2',
+	'6.1',
+	'6.0',
+	'5.9',
+	'nightly',
+] as const;
 export type SupportedWordPressVersion =
 	(typeof SupportedWordPressVersions)[number];
 export const LatestSupportedWordPressVersion = SupportedWordPressVersions[0];
