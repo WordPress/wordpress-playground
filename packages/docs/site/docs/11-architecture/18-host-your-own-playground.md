@@ -1,0 +1,175 @@
+# Host your own Playground
+
+You can host the Playground on your own domain instead of `playground.wordpress.net`.
+
+This is useful for having full control over its content and behavior, as well as removing dependency on a third-party remote endpoint. It can provide a customized user experience, for example: preinstalled plugins, default theme, site settings, and demo content.
+
+Also, if you expect to see heavy traffic, it's good etiquette to provide your own server/CDN resources to serve the static file assets, instead of relying on the `wordpress.net` server.
+
+#### Usage
+
+A self-hosted Playground can be embedded as an iframe.
+
+```html
+<iframe src="https://my-playground.com"></iframe>
+```
+
+Or dynamically loaded by passing the remote URL to the Playground Client.
+
+```ts
+import { startPlaygroundWeb } from '@wp-playground/client';
+
+const client = await startPlaygroundWeb({
+	iframe: document.getElementById('wp'),
+	remoteUrl: `https://my-playground.com/remote.html`,
+});
+```
+
+## Build static assets
+
+Create a shallow clone of the Playground repository.
+
+```sh
+git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+```
+
+Install dependencies, and build the website.
+
+```sh
+npm install
+npm run build:website
+```
+
+This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the path.
+
+```
+dist/packages/playground/wasm-wordpress-net
+```
+
+The content of this folder consists the entire service of the Playground.
+
+It includes:
+
+- Data and WASM files for all available PHP and WordPress versions
+- `remote.html` - the core of Playground
+- `index.html` - the shell, or browser chrome
+- Web Worker script
+
+You can deploy the content of the folder `wasm-wordpress-net` to your server using SSH, such as `scp` or `rsync`.
+
+It is a static site, except for these dynamic aspects.
+
+- Apache server directive `.htaccess` file - the result of combining `.htaccess` from the packages `remote` and `website`
+- Plugin download proxy, `plugin-proxy.php`
+ 
+For these to work, you need a server environment with Apache and PHP installed.
+
+
+## NGINX configuration
+
+As an alternative to Apache, here is an example of using NGINX to serve the Playground.
+
+The Apache `.htaccess` file looks like this.
+
+```htaccess
+AddType application/wasm .wasm
+AddType	application/octet-stream .data
+
+<FilesMatch "iframe-worker.html$">
+  Header set Origin-Agent-Cluster: ?1
+</FilesMatch>
+
+Header set Cross-Origin-Resource-Policy: cross-origin
+Header set Cross-Origin-Embedder-Policy: credentialless
+RewriteEngine on
+RewriteRule ^plugin-proxy$ plugin-proxy.php [NC]
+```
+
+An equivalent in NGINX.
+
+```nginx
+location ~* .wasm$ {
+  types {
+    application/wasm wasm;
+  }
+}
+
+location ~* .data$ {
+  types {
+    application/octet-stream data;
+  }
+}
+
+location /iframe-worker.html {
+  add_header Origin-Agent-Cluster ?1;
+}
+
+location /plugin-proxy {
+  try_files plugin-proxy.php /plugin-proxy.php$is_args$args;
+  include fastcgi_params;
+  fastcgi_pass php;
+}
+
+location /scope:.* {
+  rewrite ^scope:.*?/(.*)$ $1 last;
+}
+
+add_header "Cross-Origin-Resource-Policy" "cross-origin";
+add_header "Cross-Origin-Embedder-Policy" "credentialless";
+```
+
+You may need to adjust the above according to server specifics, particularly how to invoke PHP for the path `/plugin-proxy`.
+
+
+## Customize `wp.data`
+
+The file `wp.data` is a bundle of all the files for the WordPress instance running in Playground. There's a data file for each available WordPress version.
+
+Edit the build script in `packages/playground/compile-wordpress/Dockerfile` to create a custom bundle that includes preinstalled plugins or content. 
+
+### Install plugins
+
+Here's an example of installing plugins for the data bundle.
+
+Before the section titled `Strip whitespaces from PHP files`.
+
+```docker
+# === Preinstall plugins ===
+
+RUN cd wordpress/wp-content/mu-plugins && \
+    # Install plugins
+    for plugin_name in example-plugin-1 example-plugin-2; do \
+      curl -L https://downloads.wordpress.org/plugin/{$plugin_name}.latest-stable.zip -o {$plugin_name}.zip && \
+      unzip $plugin_file && \
+      rm $plugin_file && \
+      # Create entry file in mu-plugins root
+      echo "<?php require_once __DIR__.'/$plugin_name/$plugin_name.php';" > $plugin_name.php; \
+    done;
+```
+
+You can download plugins from URLs other than the WordPress plugin directory, use Git to pull them from elsewhere.
+
+It's also possible to copy from a local folder - for example, before `RUN`:
+
+```
+COPY ./build-assets/*.zip /root/
+```
+
+Then put the plugin zip files in `packages/playground/compile-wordpress/build-assets`. You may want to add their paths to `.gitignore`.
+
+### Import content
+
+Here's an example of importing content.
+
+```docker
+# === Demo content ===
+
+COPY ./build-assets/content.xml /root/
+RUN cd wordpress ; \
+     echo "Importing content.."; \
+    ../wp-cli.phar --allow-root import /root/content.xml --authors=create
+```
+
+This assumes that you have put a WXR export file named `content.xml` in the folder `packages/playground/compile-wordpress/build-assets`. You may want to add its path to `.gitignore`.
+
+
