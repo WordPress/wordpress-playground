@@ -26,15 +26,3 @@ function addQueryParams(
 	}
 	return urlWithOptions.toString();
 }
-
-async function createIframe(workerDocumentURL: string) {
-	const iframe = document.createElement('iframe');
-	const relativeUrl = '/' + workerDocumentURL.split('/').slice(-1)[0];
-	iframe.src = relativeUrl;
-	iframe.style.display = 'none';
-	document.body.appendChild(iframe);
-	await new Promise((resolve) => {
-		iframe.addEventListener('load', resolve);
-	});
-	return iframe;
-}
