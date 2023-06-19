@@ -2,6 +2,9 @@ name: 'Refresh WordPress assets'
 
 on:
     workflow_dispatch:
+    # Every day at 8am UTC
+    schedule:
+        - cron: '0 8 * * *'
 
 jobs:
     build_and_deploy:
