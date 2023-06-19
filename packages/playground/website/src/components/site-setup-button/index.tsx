@@ -14,11 +14,15 @@ interface SiteSetupButton {
 	persistent: boolean;
 }
 
-const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
+const SupportedWordPressVersionsList = ['nightly', '6.2', '6.1', '6.0', '5.9'];
 
-const resolveVersion = (version: string | undefined, allVersions: string[]) => {
-	if (!version || version === 'latest') {
-		return allVersions[0];
+const resolveVersion = (
+	version: string | undefined,
+	allVersions: string[],
+	_default: string
+) => {
+	if (!version || version === 'latest' || !allVersions.includes(version)) {
+		return _default;
 	}
 	return version;
 };
@@ -34,10 +38,10 @@ export default function SiteSetupButton({
 	const closeModal = () => setOpen(false);
 
 	const [playgroundWp, setPlaygroundWp] = useState(() =>
-		resolveVersion(preferredWP, SupportedWordPressVersionsList)
+		resolveVersion(preferredWP, SupportedWordPressVersionsList, '6.2')
 	);
 	const [php, setPhp] = useState(
-		resolveVersion(selectedPHP, SupportedPHPVersionsList)
+		resolveVersion(selectedPHP, SupportedPHPVersionsList, '8.0')
 	);
 	const [wp, setWp] = useState(playgroundWp);
 	const [storage, setStorage] = useState(

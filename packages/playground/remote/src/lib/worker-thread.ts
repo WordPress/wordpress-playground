@@ -26,7 +26,6 @@ import {
 } from './opfs/opfs-memfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
-import { phpVar } from '@php-wasm/util';
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
@@ -110,18 +109,12 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	 * @returns WordPress module details, including the static assets directory and default theme.
 	 */
 	async getWordPressModuleDetails() {
-		const path = phpVar(`${this.documentRoot}/wp-includes/version.php`);
-		const majorVersion = (
-			await this.run({
-				code: `<?php
-				require(${path});
-				echo substr($wp_version, 0, 3);
-				`,
-			})
-		).text;
 		return {
-			majorVersion,
-			staticAssetsDirectory: `wp-${majorVersion.replace('_', '.')}`,
+			majorVersion: this.wordPressVersion,
+			staticAssetsDirectory: `wp-${this.wordPressVersion.replace(
+				'_',
+				'.'
+			)}`,
 			defaultTheme: (await wordPressModule)?.defaultThemeName,
 		};
 	}
