@@ -33,13 +33,19 @@ export async function zipEntireSite(playground: UniversalPHP) {
 	return new File([fileBuffer], zipName);
 }
 
+/**
+ * @inheritDoc replaceSite
+ */
 export interface ReplaceSiteStep<ResourceType> {
 	step: 'replaceSite';
+	/** The zip file containing the new WordPress site */
 	fullSiteZip: ResourceType;
 }
 
 /**
- * Replace the current site with the contents of a full site zip file.
+ * Replace the current site with a site from the provided zip file.
+ * Remember to install the SQLite integration plugin in the zipped site:
+ * https://wordpress.org/plugins/sqlite-database-integration.
  *
  * @param playground Playground client.
  * @param fullSiteZip Zipped WordPress site.
@@ -74,9 +80,14 @@ export const replaceSite: StepHandler<ReplaceSiteStep<File>> = async (
 	);
 };
 
+/**
+ * @inheritDoc unzip
+ */
 export interface UnzipStep {
 	step: 'unzip';
+	/** The zip file to extract */
 	zipPath: string;
+	/** The path to extract the zip file to */
 	extractToPath: string;
 }
 
@@ -133,8 +144,12 @@ export async function exportWXZ(playground: UniversalPHP) {
 	return new File([databaseExportResponse.bytes], 'export.wxz');
 }
 
+/**
+ * @inheritDoc importFile
+ */
 export interface ImportFileStep<ResourceType> {
 	step: 'importFile';
+	/** The file to import */
 	file: ResourceType;
 }
 

@@ -3,6 +3,9 @@ import { StepHandler } from '..';
 import { updateFile } from '../common';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
+/**
+ * @private
+ */
 export interface ApplyWordPressPatchesStep {
 	step: 'applyWordPressPatches';
 	siteUrl?: string;
