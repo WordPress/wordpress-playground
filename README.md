@@ -30,48 +30,41 @@ You can connect to the Playground using the JavaScript client. Here's an example
 
 ```html
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>WordPress Playground</title>
-	</head>
-	<body>
-		<iframe id="wp" style="width: 1200px; height: 800px"></iframe>
-		<script type="module">
-			import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+<iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
+<script type="module">
+	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
 
-			const client = await startPlaygroundWeb({
-				iframe,
-				remoteUrl: `https://playground.wordpress.net/remote.html`,
-				blueprint: {
-					landingPage: '/wp-admin/',
-					preferredVersions: {
-						php: '8.0',
-						wp: 'latest',
-					},
-					steps: [
-						{
-							step: 'login',
-							username: 'admin',
-							password: 'password',
-						},
-						{
-							step: 'installPlugin',
-							pluginZipFile: {
-								resource: 'wordpress.org/plugins',
-								slug: 'friends',
-							},
-						},
-					],
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp-playground'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+		blueprint: {
+			landingPage: '/wp-admin/',
+			preferredVersions: {
+				php: '8.0',
+				wp: 'latest',
+			},
+			steps: [
+				{
+					step: 'login',
+					username: 'admin',
+					password: 'password',
 				},
-			});
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'wordpress.org/plugins',
+						slug: 'friends',
+					},
+				},
+			],
+		},
+	});
 
-			const response = await client.run({
-				code: '<?php echo "Hi!"; ',
-			});
-			console.log(response.text);
-		</script>
-	</body>
-</html>
+	const response = await client.run({
+		code: '<?php echo "Hi!"; ',
+	});
+	console.log(response.text);
+</script>
 ```
 
 ## WordPress Playground Tools
