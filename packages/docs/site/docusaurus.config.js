@@ -55,6 +55,7 @@ const config = {
 			({
 				docs: {
 					sidebarPath: require.resolve('./sidebars.js'),
+
 					editUrl:
 						'https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/',
 
@@ -97,11 +98,6 @@ const config = {
 						label: 'Documentation',
 					},
 					{
-						href: 'https://github.com/WordPress/wordpress-playground',
-						label: 'GitHub',
-						position: 'right',
-					},
-					{
 						to: 'api',
 						label: 'API Reference',
 						position: 'left',
@@ -109,7 +105,12 @@ const config = {
 					{
 						href: 'https://playground.wordpress.net/gutenberg.html',
 						label: 'Gutenberg PR Previewer',
-						position: 'left',
+						position: 'right',
+					},
+					{
+						href: 'https://github.com/WordPress/wordpress-playground',
+						label: 'GitHub',
+						position: 'right',
 					},
 				],
 			},
