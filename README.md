@@ -12,9 +12,9 @@ WordPress Playground exists to make WordPress instantly accessible for users, le
 
 Playground aims to facilitate:
 
-–   Learning WordPress Through Exploration
-–   Learning WordPress Development Through Writing Code
-–   Instant access to WordPress ecosystem
+– Learning WordPress Through Exploration
+– Learning WordPress Development Through Writing Code
+– Instant access to WordPress ecosystem
 
 Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
 
@@ -136,11 +136,11 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 
 Here's a few quickstart guides to get you started:
 
-* Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
-* Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
-* Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
-* Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
-* Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+-   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+-   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
+-   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+-   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
 
 ## WordCamp Contributor Day
 

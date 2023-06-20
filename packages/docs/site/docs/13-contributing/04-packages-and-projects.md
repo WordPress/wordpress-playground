@@ -109,4 +109,4 @@ nx g @nx/workspace:remove --projectName=<project name>
 
 ## Publish a project on npm
 
-See the [publishing](./05-publishing.md) guide.
+See the [publishing](./06-publishing.md) guide.
