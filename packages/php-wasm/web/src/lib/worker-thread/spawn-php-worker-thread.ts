@@ -23,11 +23,13 @@ export async function spawnPHPWorkerThread(
 		};
 		// There is no way to know when the worker script has started
 		// executing, so we use a message to signal that.
-		worker.onmessage = (event) => {
+		function onStartup(event: { data: string }) {
 			if (event.data === 'worker-script-started') {
 				resolve(worker);
+				worker.removeEventListener('message', onStartup);
 			}
-		};
+		}
+		worker.addEventListener('message', onStartup);
 	});
 }
 
