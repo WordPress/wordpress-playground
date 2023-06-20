@@ -1,6 +1,6 @@
 ---
 title: Start here
-slug: /start-here
+slug: /
 ---
 
 # WordPress Playground
