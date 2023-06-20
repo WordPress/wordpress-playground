@@ -28,7 +28,7 @@ import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 // post message to parent
-self.postMessage('worker-script-started')
+self.postMessage('worker-script-started');
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
