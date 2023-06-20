@@ -49,6 +49,14 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					if ('exitCode' in e && e?.exitCode === 0) {
 						return;
 					}
+					if (
+						e?.name === 'ExitStatus' &&
+						'status' in e &&
+						e.status === 0
+					) {
+						return;
+					}
+
 					const clearMessage = clarifyErrorMessage(
 						e,
 						runtime.lastAsyncifyStackSource?.stack
