@@ -668,7 +668,7 @@ bar1
 			consoleLogMock.mockReset();
 			consoleErrorMock.mockReset();
 		});
-		it.only('should not log an error message on exit status 0', async () => {
+		it('should not log an error message on exit status 0', async () => {
 			try {
 				await php.cli(['php', '-r', '$tmp = "Hello";']);
 			} catch (resultOrError) {
