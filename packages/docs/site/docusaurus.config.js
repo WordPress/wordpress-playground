@@ -123,7 +123,7 @@ const config = {
 						items: [
 							{
 								label: 'Documentation',
-								to: '/docs/start-here',
+								to: '/',
 							},
 							{
 								label: 'API Reference',
