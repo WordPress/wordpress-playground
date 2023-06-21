@@ -63,7 +63,7 @@
 				const button = document.createElement('button');
 				button.innerText = 'Try again';
 				button.onclick = () => {
-					(window.parent || window).location.reload();
+					window.location.reload();
 				};
 				document.body.append(button);
 			}
