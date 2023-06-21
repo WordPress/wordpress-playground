@@ -28,13 +28,13 @@ export async function fileToUint8Array(file: File) {
  * File class for NodeJS
  * @see https://developer.mozilla.org/en-US/docs/Web/API/File
  */
-class FileWithArrayBufferNode {
+class FileNode {
 	// NodeJS has no File class
 }
 
 if (typeof File === 'undefined') {
 	// @ts-expect-error
-	globalThis.File = FileWithArrayBufferNode;
+	globalThis.File = FileNode;
 }
 
 /**
