@@ -63,17 +63,6 @@
 				const div = document.createElement('div');
 				div.className = 'error-message';
 				div.innerText = 'Ooops! WordPress Playground had a hiccup!';
-				if (
-					e?.message?.includes(
-						'The user denied permission to use Service Worker'
-					)
-				) {
-					div.innerText =
-						'It looks like you have disabled third-party cookies in your browser. This tends to ' +
-						'also disable the ServiceWorker API used by WordPress Playground. Please re-enable ' +
-						'third-party cookies and try again.';
-				}
-
 				document.body.append(div);
 
 				const button = document.createElement('button');
@@ -81,6 +70,51 @@
 				button.onclick = () => {
 					window.location.reload();
 				};
+				if (
+					e?.message?.includes(
+						'The user denied permission to use Service Worker'
+					)
+				) {
+					/**
+					 * Chrome does not allow Service Workers to be registered from cross-origin iframes
+					 * when third-party cookies are disabled unless `requestStorageAccess()` is called
+					 * and the user grants storage access.
+					 *
+					 * Let's assess the situation and provide a helpful message.
+					 */
+					let hasStorageAccess = false;
+					try {
+						const { state } = await navigator.permissions.query({
+							name: 'storage-access',
+						});
+						hasStorageAccess = state === 'granted';
+					} catch (e) {
+						// noop
+					}
+
+					if (hasStorageAccess) {
+						// The user has granted storage access, but the error still persists.
+						// Let's explain why.
+						div.innerText =
+							'It looks like you have disabled third-party cookies in your browser. This tends to ' +
+							'also disable the ServiceWorker API used by WordPress Playground. Please re-enable ' +
+							'third-party cookies and try again.';
+					} else {
+						// The user has not granted storage access.
+						// There's a chance we can fix this by asking for storage access.
+						div.innerText =
+							'WordPress Playground needs to use storage in your browser';
+						button.innerText = 'Allow storage access';
+						button.onclick = async () => {
+							try {
+								await document.requestStorageAccess();
+							} finally {
+								window.location.reload();
+							}
+						};
+					}
+				}
+
 				document.body.append(button);
 			}
 		</script>
