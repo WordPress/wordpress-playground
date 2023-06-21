@@ -92,7 +92,10 @@
 						// noop
 					}
 
-					if (hasStorageAccess) {
+					if (
+						hasStorageAccess ||
+						typeof document.requestStorageAccess === 'undefined'
+					) {
 						// The user has granted storage access, but the error still persists.
 						// Let's explain why.
 						div.innerText =
