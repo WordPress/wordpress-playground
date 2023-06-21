@@ -25,7 +25,7 @@ export async function fileToUint8Array(file: File) {
 	return new Uint8Array(await file.arrayBuffer());
 }
 /**
- * File class in NodeJS
+ * File class for NodeJS
  * @see https://developer.mozilla.org/en-US/docs/Web/API/File
  */
 class FileWithArrayBufferNode {

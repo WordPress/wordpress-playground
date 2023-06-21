@@ -1,3 +1,7 @@
+/**
+ * CustomEvent class for NodeJS
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent
+ */
 class CustomEventNode<T = any> extends Event {
 	detail: T;
 
