@@ -24,6 +24,18 @@ export async function updateFile(
 export async function fileToUint8Array(file: File) {
 	return new Uint8Array(await file.arrayBuffer());
 }
+/**
+ * File class in NodeJS
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/File
+ */
+class FileWithArrayBufferNode {
+	// NodeJS has no File class
+}
+
+if (typeof File === 'undefined') {
+	// @ts-expect-error
+	globalThis.File = FileWithArrayBufferNode;
+}
 
 /**
  * Polyfill the File class in JSDOM which lacks arrayBuffer() method
@@ -49,6 +61,6 @@ class FilePolyfill extends File {
 }
 
 const FileWithArrayBuffer =
-	File.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
+	File?.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
 
 export { FileWithArrayBuffer as File };
