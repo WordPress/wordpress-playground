@@ -201,14 +201,14 @@ export const currentJsRuntime = (function () {
  * Creates and exposes Promise resolve/reject methods for later use.
  */
 const makePromise = () => {
-	const methods = [];
+	const methods : any = [];
 
-	const promise = new Promise( ( resolve, reject ) => {
-		methods.push( promise, resolve, reject );
-	} );
+	const promise = new Promise((resolve, reject) => {
+		methods.push(promise, resolve, reject);
+	});
 
-	return methods;
-}
+	return methods as [Promise<any>, (v?: any) => void, (e?: any) => void];
+};
 
 export type PHPRuntime = any;
 
