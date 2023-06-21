@@ -9,9 +9,10 @@ class CustomEventNode<T = any> extends Event {
 	}
 }
 
-const CustomEventIsomorphic =
-	typeof CustomEvent === 'function' ? CustomEvent : CustomEventNode;
-type CustomEventIsomorphic<T = any> = CustomEvent<T> | CustomEventNode<T>;
+if (typeof CustomEvent === 'undefined') {
+	// @ts-expect-error
+	globalThis.CustomEvent = CustomEventNode;
+}
 
 /**
  * Options for customizing the progress tracker.
@@ -28,7 +29,7 @@ export interface ProgressTrackerOptions {
 /**
  * Custom event providing information about a loading process.
  */
-export type LoadingEvent = CustomEventIsomorphic<{
+export type LoadingEvent = CustomEvent<{
 	/** The number representing how much was loaded. */
 	loaded: number;
 	/** The number representing how much needs to loaded in total. */
@@ -38,12 +39,12 @@ export type LoadingEvent = CustomEventIsomorphic<{
 /**
  * Custom event providing progress details.
  */
-export type ProgressTrackerEvent = CustomEventIsomorphic<ProgressDetails>;
+export type ProgressTrackerEvent = CustomEvent<ProgressDetails>;
 
 /**
  * Custom event providing progress details when the task is done.
  */
-export type DoneEvent = CustomEventIsomorphic<ProgressDetails>;
+export type DoneEvent = CustomEvent<ProgressDetails>;
 
 export interface ProgressDetails {
 	/** The progress percentage as a number between 0 and 100. */
@@ -344,7 +345,7 @@ export class ProgressTracker extends EventTarget {
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;
 		this.dispatchEvent(
-			new CustomEventIsomorphic('progress', {
+			new CustomEvent('progress', {
 				detail: {
 					get progress() {
 						return self.progress;
@@ -358,6 +359,6 @@ export class ProgressTracker extends EventTarget {
 	}
 
 	private notifyDone() {
-		this.dispatchEvent(new CustomEventIsomorphic('done'));
+		this.dispatchEvent(new CustomEvent('done'));
 	}
 }
