@@ -110,10 +110,12 @@
               "const": "activatePlugin"
             },
             "pluginPath": {
-              "type": "string"
+              "type": "string",
+              "description": "Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php)."
             },
             "pluginName": {
-              "type": "string"
+              "type": "string",
+              "description": "Optional. Plugin name to display in the progress bar."
             }
           },
           "required": [
@@ -142,7 +144,8 @@
               "const": "activateTheme"
             },
             "themeFolderName": {
-              "type": "string"
+              "type": "string",
+              "description": "The name of the theme folder inside wp-content/themes/"
             }
           },
           "required": [
@@ -214,10 +217,12 @@
               "const": "cp"
             },
             "fromPath": {
-              "type": "string"
+              "type": "string",
+              "description": "Source path"
             },
             "toPath": {
-              "type": "string"
+              "type": "string",
+              "description": "Target path"
             }
           },
           "required": [
@@ -283,7 +288,8 @@
               "const": "defineSiteUrl"
             },
             "siteUrl": {
-              "type": "string"
+              "type": "string",
+              "description": "The URL"
             }
           },
           "required": [
@@ -312,7 +318,8 @@
               "const": "importFile"
             },
             "file": {
-              "$ref": "#/definitions/FileReference"
+              "$ref": "#/definitions/FileReference",
+              "description": "The file to import"
             }
           },
           "required": [
@@ -451,7 +458,8 @@
               "const": "mkdir"
             },
             "path": {
-              "type": "string"
+              "type": "string",
+              "description": "The path of the directory you want to create"
             }
           },
           "required": [
@@ -480,10 +488,12 @@
               "const": "mv"
             },
             "fromPath": {
-              "type": "string"
+              "type": "string",
+              "description": "Source path"
             },
             "toPath": {
-              "type": "string"
+              "type": "string",
+              "description": "Target path"
             }
           },
           "required": [
@@ -513,7 +523,8 @@
               "const": "request"
             },
             "request": {
-              "$ref": "#/definitions/PHPRequest"
+              "$ref": "#/definitions/PHPRequest",
+              "description": "Request details (See /wordpress-playground/api/universal/interface/PHPRequest)"
             }
           },
           "required": [
@@ -542,7 +553,8 @@
               "const": "replaceSite"
             },
             "fullSiteZip": {
-              "$ref": "#/definitions/FileReference"
+              "$ref": "#/definitions/FileReference",
+              "description": "The zip file containing the new WordPress site"
             }
           },
           "required": [
@@ -571,7 +583,8 @@
               "const": "rm"
             },
             "path": {
-              "type": "string"
+              "type": "string",
+              "description": "The path to remove"
             }
           },
           "required": [
@@ -600,7 +613,8 @@
               "const": "rmdir"
             },
             "path": {
-              "type": "string"
+              "type": "string",
+              "description": "The path to remove"
             }
           },
           "required": [
@@ -660,7 +674,8 @@
               "const": "runPHPWithOptions"
             },
             "options": {
-              "$ref": "#/definitions/PHPRunOptions"
+              "$ref": "#/definitions/PHPRunOptions",
+              "description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)"
             }
           },
           "required": [
@@ -718,10 +733,12 @@
               "const": "setPhpIniEntry"
             },
             "key": {
-              "type": "string"
+              "type": "string",
+              "description": "Entry name e.g. \"display_errors\""
             },
             "value": {
-              "type": "string"
+              "type": "string",
+              "description": "Entry value as a string e.g. \"1\""
             }
           },
           "required": [
@@ -783,10 +800,12 @@
               "const": "unzip"
             },
             "zipPath": {
-              "type": "string"
+              "type": "string",
+              "description": "The zip file to extract"
             },
             "extractToPath": {
-              "type": "string"
+              "type": "string",
+              "description": "The path to extract the zip file to"
             }
           },
           "required": [
@@ -817,10 +836,12 @@
             },
             "meta": {
               "type": "object",
-              "additionalProperties": {}
+              "additionalProperties": {},
+              "description": "An object of user meta values to set, e.g. { \"first_name\": \"John\" }"
             },
             "userId": {
-              "type": "number"
+              "type": "number",
+              "description": "User ID"
             }
           },
           "required": [
@@ -850,7 +871,8 @@
               "const": "writeFile"
             },
             "path": {
-              "type": "string"
+              "type": "string",
+              "description": "The path of the file to write to"
             },
             "data": {
               "anyOf": [
@@ -899,7 +921,8 @@
                     "type": "number"
                   }
                 }
-              ]
+              ],
+              "description": "The data to write"
             }
           },
           "required": [
