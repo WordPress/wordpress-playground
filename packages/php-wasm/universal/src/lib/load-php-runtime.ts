@@ -121,19 +121,13 @@ export async function loadPHPRuntime(
 	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-	let resolvePhpReady: any, rejectPhp: any, resolveDepsReady: any;
-	const depsReady = new Promise((resolve) => {
-		resolveDepsReady = resolve;
-	});
-	const phpReady = new Promise((resolve, reject) => {
-		resolvePhpReady = resolve;
-		rejectPhp = reject;
-	});
+	const [phpReady, resolvePHP, rejectPHP] = makePromise();
+	const [depsReady, resolveDeps] = makePromise();
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
-			rejectPhp(reason);
-			resolveDepsReady();
+			rejectPHP(reason);
+			resolveDeps();
 			// This can happen after PHP has been initialized so
 			// let's just log it.
 			console.error(reason);
@@ -149,12 +143,12 @@ export async function loadPHPRuntime(
 			if (phpModuleArgs.onRuntimeInitialized) {
 				phpModuleArgs.onRuntimeInitialized();
 			}
-			resolvePhpReady();
+			resolvePHP();
 		},
 		monitorRunDependencies(nbLeft) {
 			if (nbLeft === 0) {
 				delete PHPRuntime.monitorRunDependencies;
-				resolveDepsReady();
+				resolveDeps();
 			}
 		},
 	});
@@ -166,7 +160,7 @@ export async function loadPHPRuntime(
 	);
 
 	if (!dataDependenciesModules.length) {
-		resolveDepsReady();
+		resolveDeps();
 	}
 
 	await depsReady;
@@ -202,6 +196,19 @@ export const currentJsRuntime = (function () {
 		return 'NODE';
 	}
 })();
+
+/**
+ * Creates and exposes Promise resolve/reject methods for later use.
+ */
+const makePromise = () => {
+	const methods = [];
+
+	const promise = new Promise( ( resolve, reject ) => {
+		methods.push( promise, resolve, reject );
+	} );
+
+	return methods;
+}
 
 export type PHPRuntime = any;
 
