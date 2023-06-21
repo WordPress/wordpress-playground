@@ -201,7 +201,7 @@ export const currentJsRuntime = (function () {
  * Creates and exposes Promise resolve/reject methods for later use.
  */
 const makePromise = () => {
-	const methods : any = [];
+	const methods: any = [];
 
 	const promise = new Promise((resolve, reject) => {
 		methods.push(promise, resolve, reject);
