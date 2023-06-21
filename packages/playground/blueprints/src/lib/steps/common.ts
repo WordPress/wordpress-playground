@@ -61,6 +61,6 @@ class FilePolyfill extends File {
 }
 
 const FileWithArrayBuffer =
-	File?.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
+	File.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
 
 export { FileWithArrayBuffer as File };
