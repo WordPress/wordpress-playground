@@ -204,8 +204,9 @@ const makePromise = () => {
 	const methods: any = [];
 
 	const promise = new Promise((resolve, reject) => {
-		methods.push(promise, resolve, reject);
+		methods.push(resolve, reject);
 	});
+	methods.unshift(promise);
 
 	return methods as [Promise<any>, (v?: any) => void, (e?: any) => void];
 };
