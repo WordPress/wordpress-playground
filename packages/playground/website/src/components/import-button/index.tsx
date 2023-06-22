@@ -1,5 +1,3 @@
-import type { PlaygroundClient } from '@wp-playground/client';
-
 import { useState } from 'react';
 import css from './style.module.css';
 import ImportForm from '../import-form';

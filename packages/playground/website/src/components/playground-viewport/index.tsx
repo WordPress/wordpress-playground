@@ -1,6 +1,6 @@
 import type { Blueprint } from '@wp-playground/client';
 
-import React, { ReactElement, Ref, useMemo } from 'react';
+import React, { Ref } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
