@@ -101,10 +101,6 @@ location /plugin-proxy {
   fastcgi_pass php;
 }
 
-location /scope:.* {
-  rewrite ^scope:.*?/(.*)$ $1 last;
-}
-
 add_header "Cross-Origin-Resource-Policy" "cross-origin";
 add_header "Cross-Origin-Embedder-Policy" "credentialless";
 ```
