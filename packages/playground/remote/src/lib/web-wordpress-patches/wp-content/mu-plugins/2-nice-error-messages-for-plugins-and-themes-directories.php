@@ -22,9 +22,9 @@ add_filter( 'gettext', function( $translation ) {
     // There is no better hook for swapping the error message
     // on the themes page, unfortunately.
     global $pagenow;
-    
+
     // Only change the message on /wp-admin/theme-install.php
-    if( 'theme-install.php' === $pagenow ) {
+    if( 'theme-install.php' !== $pagenow ) {
         return $translation;
     }
 
