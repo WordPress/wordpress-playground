@@ -121,17 +121,15 @@ export async function loadPHPRuntime(
 	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-	let resolvePhpReady: any, resolveDepsReady: any;
-	const depsReady = new Promise((resolve) => {
-		resolveDepsReady = resolve;
-	});
-	const phpReady = new Promise((resolve) => {
-		resolvePhpReady = resolve;
-	});
+	const [phpReady, resolvePHP, rejectPHP] = makePromise();
+	const [depsReady, resolveDeps] = makePromise();
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
-			console.error('WASM aborted: ');
+			rejectPHP(reason);
+			resolveDeps();
+			// This can happen after PHP has been initialized so
+			// let's just log it.
 			console.error(reason);
 		},
 		ENV: {},
@@ -145,20 +143,24 @@ export async function loadPHPRuntime(
 			if (phpModuleArgs.onRuntimeInitialized) {
 				phpModuleArgs.onRuntimeInitialized();
 			}
-			resolvePhpReady();
+			resolvePHP();
 		},
 		monitorRunDependencies(nbLeft) {
 			if (nbLeft === 0) {
 				delete PHPRuntime.monitorRunDependencies;
-				resolveDepsReady();
+				resolveDeps();
 			}
 		},
 	});
-	for (const { default: loadDataModule } of dataDependenciesModules) {
-		loadDataModule(PHPRuntime);
-	}
+
+	await Promise.all(
+		dataDependenciesModules.map(({ default: dataModule }) =>
+			dataModule(PHPRuntime)
+		)
+	);
+
 	if (!dataDependenciesModules.length) {
-		resolveDepsReady();
+		resolveDeps();
 	}
 
 	await depsReady;
@@ -194,6 +196,20 @@ export const currentJsRuntime = (function () {
 		return 'NODE';
 	}
 })();
+
+/**
+ * Creates and exposes Promise resolve/reject methods for later use.
+ */
+const makePromise = () => {
+	const methods: any = [];
+
+	const promise = new Promise((resolve, reject) => {
+		methods.push(resolve, reject);
+	});
+	methods.unshift(promise);
+
+	return methods as [Promise<any>, (v?: any) => void, (e?: any) => void];
+};
 
 export type PHPRuntime = any;
 

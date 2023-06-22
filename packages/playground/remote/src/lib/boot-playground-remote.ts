@@ -145,18 +145,23 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, playground] = exposeAPI(webApi, workerApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
 
-	await workerApi.isReady();
-	await registerServiceWorker(
-		workerApi,
-		await workerApi.scope,
-		serviceWorkerUrl + ''
-	);
-	wpFrame.src = await playground.pathToInternalUrl('/');
-	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+	try {
+		await workerApi.isReady();
+		await registerServiceWorker(
+			workerApi,
+			await workerApi.scope,
+			serviceWorkerUrl + ''
+		);
+		wpFrame.src = await playground.pathToInternalUrl('/');
+		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 
-	setAPIReady();
+		setAPIReady();
+	} catch (e) {
+		setAPIError(e as Error);
+		throw e;
+	}
 
 	/*
 	 * An asssertion to make sure Playground Client is compatible
