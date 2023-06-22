@@ -150,7 +150,7 @@ export class NodePHP extends BasePHP {
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
 	 */
-	cli(argv: string[]): Promise<number> {
+	async cli(argv: string[]): Promise<number> {
 		for (const arg of argv) {
 			this[__private__dont__use].ccall(
 				'wasm_add_cli_arg',
@@ -159,9 +159,26 @@ export class NodePHP extends BasePHP {
 				[arg]
 			);
 		}
-		return this[__private__dont__use].ccall('run_cli', null, [], [], {
-			async: true,
-		});
+		try {
+			return await this[__private__dont__use].ccall(
+				'run_cli',
+				null,
+				[],
+				[],
+				{
+					async: true,
+				}
+			);
+		} catch (error) {
+			const e = error as any;
+			const isExitCodeZero =
+				('exitCode' in e && e?.exitCode === 0) ||
+				(e?.name === 'ExitStatus' && 'status' in e && e.status === 0);
+			if (isExitCodeZero) {
+				return 0;
+			}
+			throw e;
+		}
 	}
 
 	setSkipShebang(shouldSkip: boolean) {

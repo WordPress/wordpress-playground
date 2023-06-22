@@ -657,27 +657,19 @@ bar1
 	});
 
 	describe('CLI', () => {
-		const consoleLogMock = vi
-			.spyOn(console, 'log')
-			.mockImplementation(() => {});
-		const consoleErrorMock = vi
-			.spyOn(console, 'error')
-			.mockImplementation(() => {});
+		let consoleLogMock: any;
+		let consoleErrorMock: any;
+		beforeEach(() => {
+			consoleLogMock = vi.spyOn(console, 'log').mockImplementation(() => {});
+			consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+		});
 
 		afterAll(() => {
 			consoleLogMock.mockReset();
 			consoleErrorMock.mockReset();
 		});
 		it('should not log an error message on exit status 0', async () => {
-			try {
-				await php.cli(['php', '-r', '$tmp = "Hello";']);
-			} catch (resultOrError) {
-				const e = resultOrError as any;
-				const success = e.name === 'ExitStatus' && e.status === 0;
-				if (!success) {
-					throw resultOrError;
-				}
-			}
+			await php.cli(['php', '-r', '$tmp = "Hello";']);
 			expect(consoleLogMock).not.toHaveBeenCalled();
 			expect(consoleErrorMock).not.toHaveBeenCalled();
 		});
