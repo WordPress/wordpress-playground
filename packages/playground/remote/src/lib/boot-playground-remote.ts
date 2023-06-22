@@ -1,13 +1,13 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	MessageListener,
+} from '@php-wasm/universal';
 import {
 	registerServiceWorker,
 	spawnPHPWorkerThread,
 	exposeAPI,
 	consumeAPI,
-	recommendedWorkerBackend,
 } from '@php-wasm/web';
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WebClientMixin } from './playground-client';
@@ -20,31 +20,28 @@ const origin = new URL('/', (import.meta || {}).url).origin;
 
 // @ts-ignore
 import moduleWorkerUrl from './worker-thread?worker&url';
-// Hardcoded for now, this file lives in the /public folder
-// @ts-ignore
-const iframeHtmlUrl = '/iframe-worker.html';
 
-export const workerBackend = recommendedWorkerBackend;
-export const workerUrl: string = (function () {
-	switch (workerBackend) {
-		case 'webworker':
-			return new URL(moduleWorkerUrl, origin) + '';
-		case 'iframe': {
-			const wasmWorkerUrl = new URL(iframeHtmlUrl, origin);
-			wasmWorkerUrl.searchParams.set('scriptUrl', moduleWorkerUrl);
-			return wasmWorkerUrl + '';
-		}
-		default:
-			throw new Error(`Unknown backend: ${workerBackend}`);
-	}
-})();
+export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from './get-wordpress-module';
+import type { SyncProgressCallback } from './opfs/bind-opfs';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
-const query = new URL(document.location.href).searchParams as any;
+// Prevent Vite from hot-reloading this file – it would
+// cause bootPlaygroundRemote() to register another web worker
+// without unregistering the previous one. The first web worker
+// would then fight for service worker requests with the second
+// one. It's a difficult problem to debug and HMR isn't that useful
+// here anyway – let's just disable it for this file.
+// @ts-ignore
+if (import.meta.hot) {
+	// @ts-ignore
+	import.meta.hot.accept(() => {});
+}
+
+const query = new URL(document.location.href).searchParams;
 export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
@@ -64,9 +61,10 @@ export async function bootPlaygroundRemote() {
 		LatestSupportedPHPVersion
 	);
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
-		await spawnPHPWorkerThread(workerUrl, workerBackend, {
+		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
+			storage: query.get('storage') || '',
 		})
 	);
 
@@ -121,9 +119,37 @@ export async function bootPlaygroundRemote() {
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
 		},
+		/**
+		 * This function is merely here to explicitly call workerApi.onMessage.
+		 * Comlink should be able to handle that on its own, but something goes
+		 * wrong and if this function is not here, we see the following error:
+		 *
+		 * Error: Failed to execute 'postMessage' on 'Worker': function() {
+		 * } could not be cloned.
+		 *
+		 * In the future, this explicit declaration shouldn't be needed.
+		 *
+		 * @param callback
+		 * @returns
+		 */
+		async onMessage(callback: MessageListener) {
+			return await workerApi.onMessage(callback);
+		},
+		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param callback
+		 * @returns
+		 */
+		async bindOpfs(
+			opfs: FileSystemDirectoryHandle,
+			onProgress?: SyncProgressCallback
+		) {
+			return await workerApi.bindOpfs(opfs, onProgress);
+		},
 	};
 
-	await workerApi.isConnected;
+	await workerApi.isConnected();
 
 	// If onDownloadProgress is not explicitly re-exposed here,
 	// Comlink will throw an error and claim the callback
@@ -132,18 +158,22 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, playground] = exposeAPI(webApi, workerApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
 
-	await workerApi.isReady();
-	await registerServiceWorker(
-		workerApi,
-		await workerApi.scope,
-		serviceWorkerUrl + '',
-		serviceWorkerVersion
-	);
-	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+	try {
+		await workerApi.isReady();
+		await registerServiceWorker(
+			workerApi,
+			await workerApi.scope,
+			serviceWorkerUrl + ''
+		);
+		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 
-	setAPIReady();
+		setAPIReady();
+	} catch (e) {
+		setAPIError(e as Error);
+		throw e;
+	}
 
 	/*
 	 * An asssertion to make sure Playground Client is compatible

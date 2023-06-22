@@ -2,20 +2,22 @@ import { createRoot } from 'react-dom/client';
 import PlaygroundViewport from './components/playground-viewport';
 import ExportButton from './components/export-button';
 import ImportButton from './components/import-button';
-import VersionSelector from './components/version-select';
 import './styles.css';
 
 import { makeBlueprint } from './lib/make-blueprint';
-import {
-	LatestSupportedPHPVersion,
-	SupportedPHPVersionsList,
-} from '@php-wasm/universal';
 import type { Blueprint } from '@wp-playground/blueprints';
+import PlaygroundConfigurationGroup from './components/playground-configuration-group';
+import {
+	PlaygroundConfiguration,
+	SupportedWordPressVersions,
+} from './components/playground-configuration-group/form';
+import { SupportedPHPVersions } from '@php-wasm/universal';
+import { StorageType, StorageTypes } from './types';
 
 const query = new URL(document.location.href).searchParams;
 
 /*
- * Support passing blueprints in the URI frament, e.g.:
+ * Support passing blueprints in the URI fragment, e.g.:
  * /#{"landingPage": "/?p=4"}
  */
 const fragment = decodeURI(document.location.hash || '#').substring(1);
@@ -48,30 +50,57 @@ try {
 	});
 }
 
+// @ts-ignore
+const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
+let storageRaw = query.get('storage') || '';
+if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
+	storageRaw = 'temporary';
+} else if (
+	['opfs-browser', 'opfs-host'].includes(storageRaw) &&
+	!opfsSupported
+) {
+	storageRaw = 'temporary';
+}
+const storage = storageRaw as StorageType;
+
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
-const SupportedWordPressVersionsList = ['6.2', '6.1', '6.0', '5.9'];
-const LatestSupportedWordPressVersion = SupportedWordPressVersionsList[0];
+
+const currentConfiguration: PlaygroundConfiguration = {
+	wp: resolveVersion(
+		blueprint.preferredVersions?.wp,
+		SupportedWordPressVersions
+	),
+	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
+	storage,
+};
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
+		storage={storage}
 		isSeamless={isSeamless}
 		blueprint={blueprint}
 		toolbarButtons={[
-			<VersionSelector
-				name="php"
-				versions={SupportedPHPVersionsList}
-				selected={blueprint.preferredVersions?.php}
-				default={LatestSupportedPHPVersion}
+			<PlaygroundConfigurationGroup
+				key="configuration"
+				initialConfiguration={currentConfiguration}
 			/>,
-			<VersionSelector
-				name="wp"
-				versions={SupportedWordPressVersionsList}
-				selected={blueprint.preferredVersions?.wp}
-				default={LatestSupportedWordPressVersion}
-			/>,
-			<ImportButton key="export" />,
+			<ImportButton key="import" />,
 			<ExportButton key="export" />,
 		]}
 	/>
 );
+
+function resolveVersion<T>(
+	version: string | undefined,
+	allVersions: readonly T[]
+): T {
+	if (
+		!version ||
+		!allVersions.includes(version as any) ||
+		version === 'latest'
+	) {
+		return allVersions[0];
+	}
+	return version as T;
+}

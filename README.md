@@ -8,15 +8,15 @@
 
 ## Why is WordPress Playground useful?
 
-WordPress Playground is a building block that can power apps like:
+WordPress Playground exists to make WordPress instantly accessible for users, learners, extenders, and contributors by building foundational software tools developers can use to create interactive, zero-setup, JavaScript applications with WordPress.
 
--   Runnable code snippets in your documentation or course
--   Plugin and theme demos in a private WordPress instance where the user is already logged in as an admin
--   Easily switching PHP and WordPress version when testing
--   Replaying and fixing the failed CI tests right in the browser
+Playground aims to facilitate:
 
-See
-[the WordPress.org announcement post](https://make.wordpress.org/core/2022/09/23/client-side-webassembly-wordpress-with-no-server/) to learn more about the vision.
+– Learning WordPress Through Exploration
+– Learning WordPress Development Through Writing Code
+– Instant access to WordPress ecosystem
+
+Learn more about the [vision](https://github.com/WordPress/wordpress-playground/issues/472) and the [roadmap](https://github.com/WordPress/wordpress-playground/issues/525).
 
 ## Getting started
 
@@ -30,51 +30,54 @@ You can connect to the Playground using the JavaScript client. Here's an example
 
 ```html
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>WordPress Playground</title>
-	</head>
-	<body>
-		<iframe id="wp" style="width: 1200px; height: 800px"></iframe>
-		<script type="module">
-			import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+<iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
+<script type="module">
+	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
 
-			const client = await startPlaygroundWeb({
-				iframe,
-				remoteUrl: `https://playground.wordpress.net/remote.html`,
-				blueprint: {
-					landingPage: '/wp-admin/',
-					preferredVersions: {
-						php: '8.0',
-						wp: 'latest',
-					},
-					steps: [
-						{
-							step: 'login',
-							username: 'admin',
-							password: 'password',
-						},
-						{
-							step: 'installPlugin',
-							pluginZipFile: {
-								resource: 'wordpress.org/plugins',
-								slug: 'friends',
-							},
-						},
-					],
+	const client = await startPlaygroundWeb({
+		iframe: document.getElementById('wp-playground'),
+		remoteUrl: `https://playground.wordpress.net/remote.html`,
+		blueprint: {
+			landingPage: '/wp-admin/',
+			preferredVersions: {
+				php: '8.0',
+				wp: 'latest',
+			},
+			steps: [
+				{
+					step: 'login',
+					username: 'admin',
+					password: 'password',
 				},
-			});
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'wordpress.org/plugins',
+						slug: 'friends',
+					},
+				},
+			],
+		},
+	});
 
-			const response = await client.run({
-				code: '<?php echo "Hi!"; ',
-			});
-			console.log(response.text);
-		</script>
-	</body>
-</html>
+	const response = await client.run({
+		code: '<?php echo "Hi!"; ',
+	});
+	console.log(response.text);
+</script>
 ```
 
-## Cloning the repo
+## WordPress Playground Tools
+
+WordPress [Playground Tools](https://github.com/WordPress/playground-tools) are independent applications built on top of WordPress Playground. They are located in a different repository: [WordPress/playground-tools](https://github.com/WordPress/playground-tools).
+
+These tools include:
+
+-   [Interactive Code Block for Gutenberg](https://github.com/WordPress/playground-tools/tree/trunk/packages/interactive-code-block/#readme)
+-   [WordPress Playground for Visual Studio Code](https://github.com/WordPress/playground-tools/tree/trunk/packages/vscode-extension/#readme)
+-   [wp-now](https://github.com/WordPress/playground-tools/tree/trunk/packages/wp-now/#readme) CLI local development environment.
+
+## Cloning WordPress Playground repo
 
 The vanilla `git clone` command will take ages. Here's a faster alternative that will
 only pull the latest revision of the trunk branch:
@@ -83,7 +86,7 @@ only pull the latest revision of the trunk branch:
 git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
 ```
 
-## Contributing
+## Running WordPress Playground locally
 
 You also can run WordPress Playground locally as follows:
 
@@ -127,6 +130,22 @@ PHP=7.4 npx @php-wasm/cli -v
 npx @php-wasm/cli phpcbf
 ```
 
+## How can I contribute?
+
+WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
+
+Here's a few quickstart guides to get you started:
+
+-   Code contributions – see the [developer section](https://wordpress.github.io/wordpress-playground/docs/contributing/code).
+-   Documentation – see the [documentation section](https://wordpress.github.io/wordpress-playground/docs/contributing/documentation).
+-   Triage – see the [triage section](https://wordpress.github.io/wordpress-playground/docs/contributing/publishing).
+-   Reporting bugs – open an [issue](https://github.com/WordPress/wordpress-playground/issues/new) in the repository.
+-   Ideas, designs or anything else – open a [GitHub discussion](https://github.com/WordPress/wordpress-playground/discussions) and let's talk!
+
+## WordCamp Contributor Day
+
+If you're participating in a WordCamp Contributor Day, you can use the following instructions to get started: [WordCamp Contributor Day](https://wordpress.github.io/wordpress-playground/docs/wordcamp-contributor-day/).
+
 ## Backwards compatibility
 
 This experimental software may break or change without a warning. Releasing a stable API is an important future milestone that will be reached once the codebase is mature enough.
@@ -139,10 +158,8 @@ Another strong inspiration was the [Drupal in the browser demo](https://seanmorr
 
 A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https://wordpress.wasmlabs.dev/) shared before this project was first published. There is no public repository available, but their [technical overview](https://wasmlabs.dev/articles/wordpress-in-the-browser/) gives a breakdown of the technical decisions that project took. WordPress Playground draws inspiration from the same PHP in the browser projects and makes similar technical choices.
 
-## Using WP-NOW for local environment
+## Governance
 
-WordPress Playground comes with `wp-now`. `wp-now` is a Command Line Interface (CLI) tool designed to streamline the process of setting up a local WordPress environment by using only Node.js. If you are looking to set up `wp-now` specifically, you can follow [this README.md](/packages/wp-now/README.md).
+[WordPress Playground](https://github.com/WordPress/wordpress-playground) is a WordPress.org project started and maintained by [Adam Zielinski](https://github.com/adamziel). As Adam is on sabbatical until September 26th, [https://github.com/dmsnell](Dennis Snell) is the current maintainer.
 
-## Contributing
-
-WordPress Playground is an ambitious project in its early days. If the feature you need is missing, you are more than welcome to start a discussion, open an issue, and even propose a Pull Request to implement it.
+[Playground tools](https://github.com/WordPress/playground-tools) like `wp-now` or the interactive code block are maintained by their authors in the [playground-tools monorepo](https://github.com/WordPress/playground-tools).

@@ -1,12 +1,18 @@
 import { StepHandler } from '.';
 
+/**
+ * @inheritDoc activateTheme
+ */
 export interface ActivateThemeStep {
 	step: 'activateTheme';
+	/**
+	 * The name of the theme folder inside wp-content/themes/
+	 */
 	themeFolderName: string;
 }
 
 /**
- * Activates a WordPress theme in the Playground.
+ * Activates a WordPress theme (if it's installed).
  *
  * @param playground The playground client.
  * @param themeFolderName The theme folder name.
@@ -25,8 +31,9 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	}
 	await playground.run({
 		code: `<?php
-      require_once( '${wpLoadPath}' );
-      switch_theme( '${themeFolderName}' );
-      `,
+define( 'WP_ADMIN', true );
+require_once( '${wpLoadPath}' );
+switch_theme( '${themeFolderName}' );
+`,
 	});
 };

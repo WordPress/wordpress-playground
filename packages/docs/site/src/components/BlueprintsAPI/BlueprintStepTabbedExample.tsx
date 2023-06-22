@@ -1,8 +1,8 @@
 import React from 'react';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-import { BlueprintStepFunctionExample } from './BlueprintStepFunctionExample.tsx';
-import { BlueprintStepJsonExample } from './BlueprintStepJsonExample.tsx';
+import { BlueprintStepFunctionExample } from './BlueprintStepFunctionExample';
+import { BlueprintStepJsonExample } from './BlueprintStepJsonExample';
 
 export function BlueprintStepTabbedExample({ name }) {
 	return (

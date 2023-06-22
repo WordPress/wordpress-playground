@@ -46,6 +46,10 @@ export async function startPlaygroundNode(
 	await applyWordPressPatches(playground, {
 		siteUrl: options.serverUrl,
 		wordpressPath: options.wordpressPathOnHost,
+		addPhpInfo: true,
+		patchSecrets: true,
+		disableSiteHealth: true,
+		disableWpNewBlogNotification: true,
 	});
 
 	await allowWpOrgHosts(playground, options.wordpressPathOnHost);

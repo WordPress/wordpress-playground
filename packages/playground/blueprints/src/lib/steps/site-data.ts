@@ -67,7 +67,9 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
  */
 export interface UpdateUserMetaStep {
 	step: 'updateUserMeta';
+	/** An object of user meta values to set, e.g. { "first_name": "John" } */
 	meta: Record<string, unknown>;
+	/** User ID */
 	userId: number;
 }
 

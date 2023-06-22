@@ -2,12 +2,13 @@ import { saveAs } from 'file-saver';
 import css from './style.module.css';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { zipEntireSite } from '@wp-playground/client';
+import { usePlaygroundContext } from '../playground-viewport/context';
 
-interface ExportButtonProps {
-	playground?: PlaygroundClient;
-}
-
-export default function ExportButton({ playground }: ExportButtonProps) {
+export default function ExportButton() {
+	const { playground } = usePlaygroundContext();
+	if (!playground) {
+		return null;
+	}
 	return (
 		<button
 			id="export-playground--btn"
@@ -33,5 +34,7 @@ export default function ExportButton({ playground }: ExportButtonProps) {
 }
 
 async function startDownload(playground: PlaygroundClient) {
-	saveAs(await zipEntireSite(playground));
+	const file = await zipEntireSite(playground);
+	console.log({ file });
+	saveAs(file);
 }

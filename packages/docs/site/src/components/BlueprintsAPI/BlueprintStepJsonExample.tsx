@@ -1,6 +1,6 @@
 import React from 'react';
 import CodeBlock from '@theme/CodeBlock';
-import { getStepAPI } from './model.tsx';
+import { getStepAPI } from './model';
 
 export function BlueprintStepJsonExample({ name }) {
 	const stepApi = getStepAPI(name);

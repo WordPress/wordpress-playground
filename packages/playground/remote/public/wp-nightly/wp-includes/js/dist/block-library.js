@@ -30624,10 +30624,7 @@ function ResponsiveWrapper(_ref) {
 
 const inner_blocks_ALLOWED_BLOCKS = ['core/navigation-link', 'core/search', 'core/social-links', 'core/page-list', 'core/spacer', 'core/home-link', 'core/site-title', 'core/site-logo', 'core/navigation-submenu'];
 const inner_blocks_DEFAULT_BLOCK = {
-  name: 'core/navigation-link',
-  attributes: {
-    type: 'page'
-  }
+  name: 'core/navigation-link'
 };
 function NavigationInnerBlocks(_ref) {
   let {
@@ -31854,6 +31851,7 @@ const MainContent = _ref => {
   (0,external_wp_i18n_namespaceObject.__)('Structure for navigation menu: %s'), (navigationMenu === null || navigationMenu === void 0 ? void 0 : navigationMenu.title) || (0,external_wp_i18n_namespaceObject.__)('Untitled menu')) : (0,external_wp_i18n_namespaceObject.__)('You have not yet created any menus. Displaying a list of your Pages');
   return (0,external_wp_element_namespaceObject.createElement)(OffCanvasEditor, {
     blocks: clientIdsTree,
+    parentClientId: clientId,
     isExpanded: true,
     LeafMoreMenu: LeafMoreMenu,
     description: description

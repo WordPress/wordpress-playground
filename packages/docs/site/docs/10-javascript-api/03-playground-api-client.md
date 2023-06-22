@@ -70,6 +70,42 @@ await client.goTo('/test/index.php');
 
 For a full list of these methods, consult the PlaygroundClient interface.
 
+## Sending messages to JavaScript
+
+You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts one argument:
+
+-   `$data` (string) – Data to pass to JavaScript.
+
+For example, here's how you would send a message with a JSON-encoded post ID and title:
+
+```ts
+const php = await PHP.load('8.0');
+
+php.onMessage(
+	// The data is always passed as a string
+	function (data: string) {
+		// Let's decode and log the data:
+		console.log(JSON.parse(data));
+	}
+);
+
+// Now that we have a listener in place, let's
+// dispatch a message:
+await php.run({
+	code: `<?php
+        post_message_to_js(
+            json_encode([
+                'post_id' => '15',
+                'post_title' => 'This is a blog post!'
+            ])
+        ));
+    `,
+});
+
+// You will see the following output in the console:
+// { post_id: '15', post_title: 'This is a blog post!' }
+```
+
 ## The cli() method
 
 In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode:

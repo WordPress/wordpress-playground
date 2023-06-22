@@ -1,0 +1,24 @@
+.btn {
+	cursor: pointer;
+	background: none;
+	border: none;
+}
+
+.btn:hover,
+.btn:active {
+	opacity: 0.8;
+}
+
+.btn-close {
+	position: absolute;
+	top: -8px;
+	right: -13px;
+}
+
+.modal-inner {
+	position: relative;
+	padding: 15px;
+	text-align: left;
+	max-height: 90vh;
+	overflow: auto;
+}

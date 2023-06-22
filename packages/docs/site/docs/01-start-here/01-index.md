@@ -1,6 +1,6 @@
 ---
 title: Start here
-slug: /start-here
+slug: /
 ---
 
 # WordPress Playground
@@ -9,7 +9,7 @@ slug: /start-here
 
 The documentation consists of two major sections:
 
--   [Documentation](./01-index.md) – Introduction, concepts, and guides
+-   [Documentation](./01-index.md) (you're here) – Introduction, concepts, and guides
 -   [API reference](/api) – All the APIs exposed by WordPress Playground
 
 This site (Documentation) is where you will find all the information you need to start doing something awesome things with Playground.
@@ -20,12 +20,14 @@ This site (Documentation) is where you will find all the information you need to
 -   [Build your first app](../03-build-an-app/01-index.md) with WordPress Playground
 -   Use Playground as a zero-setup [local development environment](../04-nodejs/01-index.md#start-a-zero-setup-dev-environment-via-vscode-extension)
 -   Read about the [limitations](../12-limitations/01-index.md)
+-   [WordCamp Contributor Day](../14-contributor-day/01-index.md)
 
 ## Take a deep dive
 
 import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
 -   Read about [Playground APIs](../06-playground-apis/01-index.md) and basic concepts
+-   Review [links and resources](../15-resources.md)
 -   Choose the right API for your app <APIList />
 -   Dive into the [architecture](../11-architecture/01-index.md) and learn how it all works
 

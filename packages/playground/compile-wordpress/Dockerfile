@@ -195,6 +195,10 @@ COPY ./build-assets/esm-prefix.js ./build-assets/esm-suffix.js /root/
 # This tells web browsers it's a new file and they should reload it.
 RUN cat /root/output/wp.js \
     | sed -E "s#'[^']*wp\.data'#dependencyFilename#g" \
+    | sed -E 's#xhr.onerror = #xhr.onerror = onLoadingFailed; const z = #g' \
+    | sed -E 's#throw new Error\(xhr.+$#onLoadingFailed(event);#g' \
+    | sed -E 's#runWithFS#runWithFSThenResolve#g' \
+    | sed -E 's#function runWithFSThenResolve#function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS#g' \
     > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 

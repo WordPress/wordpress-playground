@@ -47,6 +47,9 @@ export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
  */
 export interface RunPHPWithOptionsStep {
 	step: 'runPHPWithOptions';
+	/**
+	 * Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)
+	 */
 	options: PHPRunOptions;
 }
 
@@ -75,7 +78,9 @@ export const runPHPWithOptions: StepHandler<RunPHPWithOptionsStep> = async (
  */
 export interface SetPhpIniEntryStep {
 	step: 'setPhpIniEntry';
+	/** Entry name e.g. "display_errors" */
 	key: string;
+	/** Entry value as a string e.g. "1" */
 	value: string;
 }
 
@@ -111,6 +116,9 @@ export const setPhpIniEntry: StepHandler<SetPhpIniEntryStep> = async (
  */
 export interface RequestStep {
 	step: 'request';
+	/**
+	 * Request details (See /wordpress-playground/api/universal/interface/PHPRequest)
+	 */
 	request: PHPRequest;
 }
 
@@ -140,7 +148,9 @@ export const request: StepHandler<RequestStep> = async (
  */
 export interface CpStep {
 	step: 'cp';
+	/** Source path */
 	fromPath: string;
+	/** Target path */
 	toPath: string;
 }
 
@@ -173,7 +183,9 @@ export const cp: StepHandler<CpStep> = async (
  */
 export interface MvStep {
 	step: 'mv';
+	/** Source path */
 	fromPath: string;
+	/** Target path */
 	toPath: string;
 }
 
@@ -201,6 +213,7 @@ export const mv: StepHandler<MvStep> = async (
  */
 export interface MkdirStep {
 	step: 'mkdir';
+	/** The path of the directory you want to create */
 	path: string;
 }
 
@@ -226,6 +239,7 @@ export const mkdir: StepHandler<MkdirStep> = async (playground, { path }) => {
  */
 export interface RmStep {
 	step: 'rm';
+	/** The path to remove */
 	path: string;
 }
 
@@ -251,6 +265,7 @@ export const rm: StepHandler<RmStep> = async (playground, { path }) => {
  */
 export interface RmdirStep {
 	step: 'rmdir';
+	/** The path to remove */
 	path: string;
 }
 
@@ -277,7 +292,9 @@ export const rmdir: StepHandler<RmdirStep> = async (playground, { path }) => {
  */
 export interface WriteFileStep<ResourceType> {
 	step: 'writeFile';
+	/** The path of the file to write to */
 	path: string;
+	/** The data to write */
 	data: ResourceType | string | Uint8Array;
 }
 

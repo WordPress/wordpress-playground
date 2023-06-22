@@ -1,51 +1,51 @@
 import type { Blueprint } from '@wp-playground/client';
 
-import React, { ReactElement, Ref, useMemo } from 'react';
+import React, { Ref } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
+import { StorageType } from '../../types';
+import PlaygroundContext from './context';
 
 interface PlaygroundViewportProps {
+	storage?: StorageType;
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
-	toolbarButtons?: React.ReactElement[];
+	toolbarButtons?: Array<React.ReactElement | false | null>;
 }
 
 export default function PlaygroundViewport({
 	blueprint,
 	isSeamless,
+	storage,
 	toolbarButtons,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
+		storage,
 	});
 
-	const updatedToolbarButtons = useMemo(() => {
-		if (isSeamless || !playground || !toolbarButtons?.length) {
-			return;
-		}
-		return toolbarButtons.map((button, index) =>
-			React.cloneElement(button as React.ReactElement, {
-				key: index,
-				playground,
-			})
-		) as ReactElement[];
-	}, [isSeamless, playground, toolbarButtons]);
-
-	if (isSeamless) {
-		return <JustViewport iframeRef={iframeRef} />;
-	}
-
 	return (
-		<BrowserChrome
-			showAddressBar={!!playground}
-			url={url}
-			toolbarButtons={updatedToolbarButtons}
-			onUrlChange={(url) => playground?.goTo(url)}
+		<PlaygroundContext.Provider
+			value={{
+				playground,
+				currentUrl: url,
+			}}
 		>
-			<JustViewport iframeRef={iframeRef} />
-		</BrowserChrome>
+			{isSeamless ? (
+				<JustViewport iframeRef={iframeRef} />
+			) : (
+				<BrowserChrome
+					showAddressBar={!!playground}
+					url={url}
+					toolbarButtons={toolbarButtons}
+					onUrlChange={(url) => playground?.goTo(url)}
+				>
+					<JustViewport iframeRef={iframeRef} />
+				</BrowserChrome>
+			)}
+		</PlaygroundContext.Provider>
 	);
 }
 
