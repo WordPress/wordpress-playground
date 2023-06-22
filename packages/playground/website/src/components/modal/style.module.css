@@ -11,12 +11,14 @@
 
 .btn-close {
 	position: absolute;
-	top: 5px;
-	right: 5px;
+	top: -8px;
+	right: -13px;
 }
 
 .modal-inner {
 	position: relative;
-	padding: 20px;
+	padding: 15px;
 	text-align: left;
+	max-height: 90vh;
+	overflow: auto;
 }

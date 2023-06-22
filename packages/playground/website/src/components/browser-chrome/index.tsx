@@ -5,7 +5,7 @@ import classNames from 'classnames';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
-	toolbarButtons?: React.ReactElement[];
+	toolbarButtons?: Array<React.ReactElement | false | null>;
 	url?: string;
 	showAddressBar?: boolean;
 	onUrlChange?: (url: string) => void;
@@ -31,14 +31,7 @@ export default function BrowserChrome({
 						<AddressBar url={url} onUpdate={onUrlChange} />
 					</div>
 
-					<div className={css.toolbarButtons}>
-						{toolbarButtons?.map(
-							(button: React.ReactElement, idx) =>
-								React.cloneElement(button, {
-									key: button.key || idx,
-								})
-						)}
-					</div>
+					<div className={css.toolbarButtons}>{toolbarButtons}</div>
 				</div>
 				<div className={css.content}>{children}</div>
 				<div className={css.experimentalNotice}>

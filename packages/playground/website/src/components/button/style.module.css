@@ -4,8 +4,31 @@
 	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
-	height: 26px;
+	min-height: 26px;
 	white-space: nowrap;
 	cursor: pointer;
 	color-scheme: dark;
+	border-radius: 6px;
+	border: 0;
+}
+
+.button[disabled] {
+	opacity: 0.5;
+}
+
+.button:hover,
+.button:active {
+	opacity: 0.8;
+}
+
+.button.is-large {
+	height: 40px;
+	padding: 5px 20px;
+	font-size: 18px;
+}
+
+.button.is-primary {
+	background: #1e2327;
+	color: #fff;
+	border: none;
 }

@@ -20,12 +20,11 @@ import {
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
-	opfsFileExists,
-	copyMemfsToOpfs,
-	copyOpfsToMemfs,
-} from './opfs/opfs-memfs';
+	SyncProgressCallback,
+	bindOpfs,
+	playgroundAvailableInOpfs,
+} from './opfs/bind-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
-import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -33,7 +32,7 @@ self.postMessage('worker-script-started');
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
 	phpVersion?: string;
-	persistent?: string;
+	storage?: string;
 }>();
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
@@ -51,17 +50,21 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-const useOpfs =
-	startupOptions.persistent === 'true' &&
-	// @ts-ignore
-	typeof navigator?.storage?.getDirectory !== 'undefined';
-let opfsRoot: FileSystemDirectoryHandle | undefined;
-let opfsDir: FileSystemDirectoryHandle | undefined;
+let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
+let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
+let lastOpfsDir: FileSystemDirectoryHandle | undefined;
 let wordPressAvailableInOPFS = false;
-if (useOpfs) {
-	opfsRoot = await navigator.storage.getDirectory();
-	opfsDir = await opfsRoot.getDirectoryHandle('wordpress', { create: true });
-	wordPressAvailableInOPFS = await opfsFileExists(opfsDir!, `wp-config.php`);
+if (
+	startupOptions.storage === 'opfs-browser' &&
+	// @ts-ignore
+	typeof navigator?.storage?.getDirectory !== 'undefined'
+) {
+	virtualOpfsRoot = await navigator.storage.getDirectory();
+	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle('wordpress', {
+		create: true,
+	});
+	lastOpfsDir = virtualOpfsDir;
+	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
 const scope = Math.random().toFixed(16);
@@ -122,24 +125,44 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		};
 	}
 
-	async resetOpfs() {
-		if (!opfsRoot) {
-			throw new Error('No OPFS available.');
+	async resetVirtualOpfs() {
+		if (!virtualOpfsRoot) {
+			throw new Error('No virtual OPFS available.');
 		}
-		await opfsRoot.removeEntry(opfsDir!.name, { recursive: true });
+		await virtualOpfsRoot.removeEntry(virtualOpfsDir!.name, {
+			recursive: true,
+		});
+	}
+
+	async reloadFilesFromOpfs() {
+		await this.bindOpfs(lastOpfsDir!);
+	}
+
+	async bindOpfs(
+		opfs: FileSystemDirectoryHandle,
+		onProgress?: SyncProgressCallback
+	) {
+		lastOpfsDir = opfs;
+		await bindOpfs({
+			php,
+			opfs,
+			onProgress,
+		});
 	}
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
+
 try {
 	await phpReady;
 
-	if (!useOpfs || !wordPressAvailableInOPFS) {
+	if (!wordPressAvailableInOPFS) {
 		/**
-		 * When WordPress is restored from OPFS, these patches are already applied.
-		 * Thus, let's not apply them again.
+		 * Patch WordPress when it's not restored from OPFS.
+		 * The stopred version, presumably, has all patches
+		 * already applied.
 		 */
 		await wordPressModule;
 		applyWebWordPressPatches(php);
@@ -152,14 +175,12 @@ try {
 		});
 	}
 
-	if (useOpfs) {
-		if (wordPressAvailableInOPFS) {
-			await copyOpfsToMemfs(php, opfsDir!, DOCROOT);
-		} else {
-			await copyMemfsToOpfs(php, opfsDir!, DOCROOT);
-		}
-
-		journalMemfsToOpfs(php, opfsDir!, DOCROOT);
+	if (virtualOpfsDir) {
+		await bindOpfs({
+			php,
+			opfs: virtualOpfsDir!,
+			wordPressAvailableInOPFS,
+		});
 	}
 
 	// Always setup the current site URL.
