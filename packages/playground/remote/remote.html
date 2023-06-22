@@ -70,11 +70,7 @@
 				button.onclick = () => {
 					window.location.reload();
 				};
-				if (
-					e?.message?.includes(
-						'The user denied permission to use Service Worker'
-					)
-				) {
+				if (e?.name === 'NotSupportedError') {
 					/**
 					 * Chrome does not allow Service Workers to be registered from cross-origin iframes
 					 * when third-party cookies are disabled unless `requestStorageAccess()` is called
