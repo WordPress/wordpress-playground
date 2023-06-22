@@ -74,10 +74,6 @@ The Apache `.htaccess` file looks like this.
 AddType application/wasm .wasm
 AddType	application/octet-stream .data
 
-<FilesMatch "iframe-worker.html$">
-  Header set Origin-Agent-Cluster: ?1
-</FilesMatch>
-
 Header set Cross-Origin-Resource-Policy: cross-origin
 Header set Cross-Origin-Embedder-Policy: credentialless
 RewriteEngine on
@@ -97,10 +93,6 @@ location ~* .data$ {
   types {
     application/octet-stream data;
   }
-}
-
-location /iframe-worker.html {
-  add_header Origin-Agent-Cluster ?1;
 }
 
 location /plugin-proxy {
