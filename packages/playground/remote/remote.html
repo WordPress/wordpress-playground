@@ -94,7 +94,7 @@
 
 					if (
 						hasStorageAccess ||
-						typeof document.requestStorageAccess === 'undefined'
+						!('requestStorageAccess' in document)
 					) {
 						// The user has granted storage access, but the error still persists.
 						// Let's explain why.
