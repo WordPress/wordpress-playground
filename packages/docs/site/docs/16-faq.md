@@ -16,4 +16,3 @@ Yes! Although it requires some work at the moment. You need to tell Playground t
 ## Will wp-cli be supported?
 
 Yes! Some commands already work if you include `wp-cli.phar` in the executed PHP code, and support for others is work in progress. The documentation will be progressively updated to reflect the progress.
-
