@@ -20,6 +20,22 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
     }
 }
 
+/**
+ * Data dependencies call removeRunDependency() when they are loaded.
+ * The synchronous call stack then continues to run. If an error occurs
+ * in PHP initialization, e.g. Out Of Memory error, it will not be
+ * caught by any try/catch. This override propagates the failure to
+ * PHPLoader.onAbort() so that it can be handled.
+ */
+const originalRemoveRunDependency = PHPLoader['removeRunDependency'];
+PHPLoader['removeRunDependency'] = function (...args) {
+    try {
+        originalRemoveRunDependency(...args);
+    } catch (e) {
+        PHPLoader['onAbort'](e);
+    }
+}
+
 return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:
