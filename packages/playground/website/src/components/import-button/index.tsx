@@ -1,17 +1,14 @@
-import type { PlaygroundClient } from '@wp-playground/client';
-
 import { useState } from 'react';
 import css from './style.module.css';
 import ImportForm from '../import-form';
 import Modal from '../modal';
+import { usePlaygroundContext } from '../playground-viewport/context';
 
-interface ExportButtonProps {
-	playground?: PlaygroundClient;
-}
-export default function ImportButton({ playground }: ExportButtonProps) {
+export default function ImportButton() {
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => setOpen(true);
 	const closeModal = () => setOpen(false);
+	const { playground } = usePlaygroundContext();
 	function handleImported() {
 		// eslint-disable-next-line no-alert
 		alert(

@@ -17,7 +17,7 @@ import type {
 } from './types';
 import { __private__dont__use } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
-import { copyMemfsToOpfs, overwriteOpfsFile } from './opfs-memfs';
+import { copyMemfsToOpfs, overwriteOpfsFile } from './bind-opfs';
 
 export function journalMemfsToOpfs(
 	php: WebPHP,
@@ -198,6 +198,7 @@ class FilesystemJournal {
 			FS.unlink = originalUnlink;
 			FS.mkdir = originalMkdir;
 			FS.rmdir = originalRmdir;
+			FS.hasJournal = false;
 		};
 		return journal;
 	}

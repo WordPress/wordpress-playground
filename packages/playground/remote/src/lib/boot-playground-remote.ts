@@ -26,6 +26,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from './get-wordpress-module';
+import type { SyncProgressCallback } from './opfs/bind-opfs';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -63,7 +64,7 @@ export async function bootPlaygroundRemote() {
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
-			persistent: query.has('persistent') ? 'true' : 'false',
+			storage: query.get('storage') || '',
 		})
 	);
 
@@ -133,6 +134,18 @@ export async function bootPlaygroundRemote() {
 		 */
 		async onMessage(callback: MessageListener) {
 			return await workerApi.onMessage(callback);
+		},
+		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param callback
+		 * @returns
+		 */
+		async bindOpfs(
+			opfs: FileSystemDirectoryHandle,
+			onProgress?: SyncProgressCallback
+		) {
+			return await workerApi.bindOpfs(opfs, onProgress);
 		},
 	};
 
