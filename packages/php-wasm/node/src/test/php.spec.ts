@@ -660,8 +660,12 @@ bar1
 		let consoleLogMock: any;
 		let consoleErrorMock: any;
 		beforeEach(() => {
-			consoleLogMock = vi.spyOn(console, 'log').mockImplementation(() => {});
-			consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+			consoleLogMock = vi
+				.spyOn(console, 'log')
+				.mockImplementation(() => {});
+			consoleErrorMock = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
 		});
 
 		afterAll(() => {

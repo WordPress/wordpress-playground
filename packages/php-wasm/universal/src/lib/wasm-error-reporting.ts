@@ -46,12 +46,6 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					if (!(e instanceof Error)) {
 						throw e;
 					}
-					const isExitCodeZero =
-						('exitCode' in e && e?.exitCode === 0) ||
-						(e?.name === 'ExitStatus' &&
-							'status' in e &&
-							e.status === 0);
-
 					const clearMessage = clarifyErrorMessage(
 						e,
 						runtime.lastAsyncifyStackSource?.stack
@@ -61,17 +55,25 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 						e.cause = runtime.lastAsyncifyStackSource;
 					}
 
-					if (!target.hasListeners() && !isExitCodeZero) {
-						showCriticalErrorBox(clearMessage);
+					if (target.hasListeners()) {
+						target.dispatchEvent(
+							new ErrorEvent('error', {
+								error: e,
+								message: clearMessage,
+							})
+						);
+						return;
 					}
 
-					target.dispatchEvent(
-						new ErrorEvent('error', {
-							error: e,
-							message: clearMessage,
-						})
-					);
+					const isExitCodeZero =
+						('exitCode' in e && e?.exitCode === 0) ||
+						(e?.name === 'ExitStatus' &&
+							'status' in e &&
+							e.status === 0);
 
+					if (!isExitCodeZero) {
+						showCriticalErrorBox(clearMessage);
+					}
 					throw e;
 				}
 			};
