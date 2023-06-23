@@ -10,7 +10,7 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion);
@@ -653,6 +653,29 @@ bar1
 			});
 			expect(out.errors).toBe('');
 			expect(messageReceived).toBe('world');
+		});
+	});
+
+	describe('CLI', () => {
+		let consoleLogMock: any;
+		let consoleErrorMock: any;
+		beforeEach(() => {
+			consoleLogMock = vi
+				.spyOn(console, 'log')
+				.mockImplementation(() => {});
+			consoleErrorMock = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+		});
+
+		afterAll(() => {
+			consoleLogMock.mockReset();
+			consoleErrorMock.mockReset();
+		});
+		it('should not log an error message on exit status 0', async () => {
+			await php.cli(['php', '-r', '$tmp = "Hello";']);
+			expect(consoleLogMock).not.toHaveBeenCalled();
+			expect(consoleErrorMock).not.toHaveBeenCalled();
 		});
 	});
 });
