@@ -29,7 +29,7 @@ export interface DefineSiteUrlStep {
  */
 export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
-	{ siteUrl,  virtualize = false }
+	{ siteUrl, virtualize = false }
 ) => {
 	return await defineWpConfigConsts(playground, {
 		consts: {
