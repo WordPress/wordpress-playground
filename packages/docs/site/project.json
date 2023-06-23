@@ -55,7 +55,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"docusaurus serve --config ../../packages/docs/site/docusaurus.config.js ../../../dist/docs"
+					"docusaurus serve --port 3005 --config ../../packages/docs/site/docusaurus.config.js ../../../dist/docs"
 				],
 				"cwd": "packages/docs/site"
 			}
