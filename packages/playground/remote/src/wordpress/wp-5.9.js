@@ -13,7 +13,13 @@ export const defaultThemeName = 'twentytwentyone';
 // into an ESM module.
 // This replaces the Emscripten's MODULARIZE=1 which pollutes the
 // global namespace and does not play well with import() mechanics.
-export default function(PHPModule) {
+export default function (PHPModule) {   
+    return new Promise(function(resolve, reject) {
+        function onLoadingFailed(error) {
+            const wrappingError = new Error(`Failed to load data dependency module "${dependencyFilename}"${typeof error === 'string' ? ` (${error})` : ''}`);
+            wrappingError.cause = error instanceof Error ? error : null;
+            reject(wrappingError);        
+        };
   var Module = typeof PHPModule !== 'undefined' ? PHPModule : {};
 
   if (!Module.expectedDataFileDownloads) {
@@ -78,7 +84,7 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
             if (Module['setStatus']) Module['setStatus']('Downloading data...');
           }
         };
-        xhr.onerror = function(event) {
+        xhr.onerror = onLoadingFailed; const z = function(event) {
           throw new Error("NetworkError for: " + packageName);
         }
         xhr.onload = function(event) {
@@ -86,7 +92,7 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
             var packageData = xhr.response;
             callback(packageData);
           } else {
-            throw new Error(xhr.statusText + " : " + xhr.responseURL);
+            onLoadingFailed(event);
           }
         };
         xhr.send(null);
@@ -108,7 +114,7 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
         }
       }, handleError);
 
-    function runWithFS() {
+    function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS() {
 
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
@@ -345,10 +351,10 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
 
     }
     if (Module['calledRun']) {
-      runWithFS();
+      runWithFSThenResolve();
     } else {
       if (!Module['preRun']) Module['preRun'] = [];
-      Module["preRun"].push(runWithFS); // FS is not initialized yet, wait for it
+      Module["preRun"].push(runWithFSThenResolve); // FS is not initialized yet, wait for it
     }
 
     }
@@ -356,4 +362,5 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
 
   })();
 // See esm-prefix.js
+    });
 }
