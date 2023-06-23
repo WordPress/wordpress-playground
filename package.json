@@ -53,7 +53,6 @@
 		"@codemirror/state": "6.2.0",
 		"@codemirror/theme-one-dark": "6.1.1",
 		"@codemirror/view": "6.9.3",
-		"@docusaurus/plugin-client-redirects": "2.4.1",
 		"classnames": "^2.3.2",
 		"comlink": "^4.4.1",
 		"express-fileupload": "1.4.0",
@@ -69,6 +68,7 @@
 	"devDependencies": {
 		"@docusaurus/core": "2.4.1",
 		"@docusaurus/module-type-aliases": "2.4.1",
+		"@docusaurus/plugin-client-redirects": "2.4.1",
 		"@docusaurus/plugin-ideal-image": "^2.4.1",
 		"@docusaurus/preset-classic": "2.4.1",
 		"@docusaurus/theme-live-codeblock": "^2.4.1",
