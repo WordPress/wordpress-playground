@@ -6,6 +6,7 @@ import {
 	BasePHP,
 	rethrowFileSystemError,
 	__private__dont__use,
+	isExitCodeZero,
 } from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
@@ -170,14 +171,10 @@ export class NodePHP extends BasePHP {
 				}
 			);
 		} catch (error) {
-			const e = error as any;
-			const isExitCodeZero =
-				('exitCode' in e && e?.exitCode === 0) ||
-				(e?.name === 'ExitStatus' && 'status' in e && e.status === 0);
-			if (isExitCodeZero) {
+			if (isExitCodeZero(error)) {
 				return 0;
 			}
-			throw e;
+			throw error;
 		}
 	}
 

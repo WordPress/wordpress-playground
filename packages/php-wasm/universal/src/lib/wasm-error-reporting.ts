@@ -1,4 +1,5 @@
 import { ErrorEvent } from './error-event-polyfill';
+import { isExitCodeZero } from './is-exit-code-zero';
 
 type Runtime = {
 	asm: Record<string, unknown>;
@@ -65,13 +66,7 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 						return;
 					}
 
-					const isExitCodeZero =
-						('exitCode' in e && e?.exitCode === 0) ||
-						(e?.name === 'ExitStatus' &&
-							'status' in e &&
-							e.status === 0);
-
-					if (!isExitCodeZero) {
+					if (!isExitCodeZero(e)) {
 						showCriticalErrorBox(clearMessage);
 					}
 					throw e;
