@@ -8,12 +8,12 @@ import { makeBlueprint } from './lib/make-blueprint';
 import type { Blueprint } from '@wp-playground/blueprints';
 import PlaygroundConfigurationGroup from './components/playground-configuration-group';
 import {
+	LatestSupportedWordPressVersion,
 	PlaygroundConfiguration,
 	SupportedWordPressVersions,
 } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
-import { LatestSupportedWordPressVersion } from '@wp-playground/remote';
 
 const query = new URL(document.location.href).searchParams;
 
