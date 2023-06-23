@@ -46,6 +46,22 @@ const config = {
 				disableInDev: false,
 			},
 		],
+		[
+			'@docusaurus/plugin-client-redirects',
+			{
+				redirects: [
+					{
+						to: '/',
+						from: '/docs/start-here',
+					},
+				],
+				createRedirects(existingPath) {
+					if (!existingPath.startsWith('/docs')) {
+						return [`/docs${existingPath}`];
+					}
+				},
+			},
+		],
 	],
 
 	presets: [
