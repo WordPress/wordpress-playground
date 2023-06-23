@@ -1,4 +1,5 @@
 import { ErrorEvent } from './error-event-polyfill';
+import { isExitCodeZero } from './is-exit-code-zero';
 
 type Runtime = {
 	asm: Record<string, unknown>;
@@ -46,9 +47,6 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 					if (!(e instanceof Error)) {
 						throw e;
 					}
-					if ('exitCode' in e && e?.exitCode === 0) {
-						return;
-					}
 					const clearMessage = clarifyErrorMessage(
 						e,
 						runtime.lastAsyncifyStackSource?.stack
@@ -58,17 +56,20 @@ export function improveWASMErrorReporting(runtime: Runtime) {
 						e.cause = runtime.lastAsyncifyStackSource;
 					}
 
-					if (!target.hasListeners()) {
-						showCriticalErrorBox(clearMessage);
-						throw e;
+					if (target.hasListeners()) {
+						target.dispatchEvent(
+							new ErrorEvent('error', {
+								error: e,
+								message: clearMessage,
+							})
+						);
+						return;
 					}
 
-					target.dispatchEvent(
-						new ErrorEvent('error', {
-							error: e,
-							message: clearMessage,
-						})
-					);
+					if (!isExitCodeZero(e)) {
+						showCriticalErrorBox(clearMessage);
+					}
+					throw e;
 				}
 			};
 		}
