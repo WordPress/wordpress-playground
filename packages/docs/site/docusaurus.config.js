@@ -84,6 +84,7 @@ const config = {
 				appId: 'EKWQ08DUQS',
 				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
 				indexName: 'wordpress-playground',
+				schedule: 'every 1 day',
 			},
 			navbar: {
 				title: 'WordPress Playground',
