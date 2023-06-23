@@ -11,7 +11,14 @@ import Button from '../button';
 
 // This is duplicated in @wp-playground/remote
 // @TODO: move to a shared package like @wp-playground/wordpress
-export const SupportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
+export const SupportedWordPressVersions = [
+	'nightly',
+	'6.2',
+	'6.1',
+	'6.0',
+	'5.9',
+] as const;
+const LatestSupportedWordPressVersion = '6.2';
 export const SupportedWordPressVersionsList =
 	SupportedWordPressVersions as any as string[];
 export type SupportedWordPressVersion =
@@ -46,7 +53,9 @@ export function PlaygroundConfigurationForm({
 }: PlaygroundConfigurationFormProps) {
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
-	const [wp, setWp] = useState(initialData.wp);
+	const [wp, setWp] = useState(
+		initialData.wp || LatestSupportedWordPressVersion
+	);
 	const handleStorageChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {

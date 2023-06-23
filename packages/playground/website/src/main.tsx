@@ -13,6 +13,7 @@ import {
 } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
+import { LatestSupportedWordPressVersion } from '@wp-playground/remote';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -52,13 +53,10 @@ try {
 
 // @ts-ignore
 const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
-let storageRaw = query.get('storage') || '';
+let storageRaw = query.get('storage');
 if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
 	storageRaw = 'temporary';
-} else if (
-	['opfs-browser', 'opfs-host'].includes(storageRaw) &&
-	!opfsSupported
-) {
+} else if (!StorageTypes.includes(storageRaw as any)) {
 	storageRaw = 'temporary';
 }
 const storage = storageRaw as StorageType;
@@ -68,10 +66,11 @@ const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 const currentConfiguration: PlaygroundConfiguration = {
 	wp: resolveVersion(
 		blueprint.preferredVersions?.wp,
-		SupportedWordPressVersions
+		SupportedWordPressVersions,
+		LatestSupportedWordPressVersion
 	),
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
-	storage,
+	storage: storage || 'temporary',
 };
 
 const root = createRoot(document.getElementById('root')!);
@@ -93,14 +92,15 @@ root.render(
 
 function resolveVersion<T>(
 	version: string | undefined,
-	allVersions: readonly T[]
+	allVersions: readonly T[],
+	defaultVersion: T = allVersions[0]
 ): T {
 	if (
 		!version ||
 		!allVersions.includes(version as any) ||
 		version === 'latest'
 	) {
-		return allVersions[0];
+		return defaultVersion;
 	}
 	return version as T;
 }
