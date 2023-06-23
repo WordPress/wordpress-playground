@@ -17,6 +17,8 @@ export interface DefineSiteUrlStep {
 	step: 'defineSiteUrl';
 	/** The URL */
 	siteUrl: string;
+	/** If defineWpConfigConsts should use virtual files */
+	virtualize?: boolean;
 }
 
 /**
@@ -27,12 +29,13 @@ export interface DefineSiteUrlStep {
  */
 export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
-	{ siteUrl }
+	{ siteUrl,  virtualize = false }
 ) => {
 	return await defineWpConfigConsts(playground, {
 		consts: {
 			WP_HOME: siteUrl,
 			WP_SITEURL: siteUrl,
 		},
+		virtualize,
 	});
 };
