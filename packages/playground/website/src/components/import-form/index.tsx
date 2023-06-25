@@ -5,6 +5,7 @@ import type { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import { replaceSite } from '@wp-playground/client';
+import Button from '../button';
 
 interface ImportFormProps {
 	playground: PlaygroundClient;
@@ -23,13 +24,6 @@ export default function ImportForm({
 	const [error, setError] = useState<string>('');
 	function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
 		setFile(e.target.files![0]);
-	}
-	function handleImportSelectFileClick(
-		e: React.MouseEvent<HTMLLabelElement>
-	) {
-		e.preventDefault();
-		form.current?.reset();
-		fileInputRef.current?.click();
 	}
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -52,48 +46,33 @@ export default function ImportForm({
 
 	return (
 		<form id="import-playground-form" ref={form} onSubmit={handleSubmit}>
-			<h2 tabIndex={0}>Import Playground</h2>
+			<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
+				Import Playground
+			</h2>
 			<p className={css.modalText}>
 				You may replace the current WordPress Playground site with a
 				previously exported one.
 			</p>
-			<div className={forms.formGroup}>
+			<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
+				{error ? <div className={forms.error}>{error}</div> : null}
 				<input
 					type="file"
 					id="import-select-file"
 					onChange={handleSelectFile}
-					style={{ display: 'none' }}
 					ref={fileInputRef}
 					accept="application/zip"
 				/>
-				<label
-					htmlFor="import-select-file"
-					className={forms.fileInputLabel}
-					onClick={handleImportSelectFileClick}
-				>
-					<div
-						id="import-select-file--text"
-						className={forms.fileInputText}
-					>
-						{error ? (
-							<span className={forms.error}>{error}</span>
-						) : file ? (
-							file.name
-						) : (
-							'No File Selected'
-						)}
-					</div>
-					<button id="import-select-file--btn" className={forms.btn}>
-						Choose File
-					</button>
-				</label>
-				<button
+			</div>
+			<div className={forms.submitRow}>
+				<Button
 					id="import-submit--btn"
 					className={forms.btn}
 					disabled={!file}
+					variant="primary"
+					size="large"
 				>
 					Import
-				</button>
+				</Button>
 			</div>
 		</form>
 	);

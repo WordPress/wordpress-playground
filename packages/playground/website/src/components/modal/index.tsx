@@ -15,6 +15,7 @@ export const defaultStyles: ReactModal.Styles = {
 		marginRight: '-50%',
 		transform: 'translate(-50%, -50%)',
 		width: 400,
+		maxWidth: '100vw',
 		zIndex: 200,
 		textAlign: 'center',
 		color: '#000',

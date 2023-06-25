@@ -8,6 +8,8 @@ import transportDummy from './wp-content/mu-plugins/includes/requests_transport_
 import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw';
 /** @ts-ignore */
 import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
+/** @ts-ignore */
+import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php?raw';
 
 import { DOCROOT } from '../config';
 
@@ -73,6 +75,10 @@ class WordPressPatcher {
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
 			showAdminCredentialsOnWpLogin
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
+			niceErrorMessagesForPluginsAndThemesDirectories
 		);
 	}
 

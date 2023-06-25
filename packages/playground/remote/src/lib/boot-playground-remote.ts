@@ -26,6 +26,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from './get-wordpress-module';
+import type { SyncProgressCallback } from './opfs/bind-opfs';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -63,7 +64,7 @@ export async function bootPlaygroundRemote() {
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
-			persistent: query.has('persistent') ? 'true' : 'false',
+			storage: query.get('storage') || '',
 		})
 	);
 
@@ -134,6 +135,18 @@ export async function bootPlaygroundRemote() {
 		async onMessage(callback: MessageListener) {
 			return await workerApi.onMessage(callback);
 		},
+		/**
+		 * Ditto for this function.
+		 * @see onMessage
+		 * @param callback
+		 * @returns
+		 */
+		async bindOpfs(
+			opfs: FileSystemDirectoryHandle,
+			onProgress?: SyncProgressCallback
+		) {
+			return await workerApi.bindOpfs(opfs, onProgress);
+		},
 	};
 
 	await workerApi.isConnected();
@@ -145,18 +158,22 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, playground] = exposeAPI(webApi, workerApi);
+	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
 
-	await workerApi.isReady();
-	await registerServiceWorker(
-		workerApi,
-		await workerApi.scope,
-		serviceWorkerUrl + ''
-	);
-	wpFrame.src = await playground.pathToInternalUrl('/');
-	setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+	try {
+		await workerApi.isReady();
+		await registerServiceWorker(
+			workerApi,
+			await workerApi.scope,
+			serviceWorkerUrl + ''
+		);
+		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 
-	setAPIReady();
+		setAPIReady();
+	} catch (e) {
+		setAPIError(e as Error);
+		throw e;
+	}
 
 	/*
 	 * An asssertion to make sure Playground Client is compatible

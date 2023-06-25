@@ -11,6 +11,30 @@
 	padding-bottom: 0;
 }
 
+.form-group-linear {
+	flex-direction: row;
+	align-items: baseline;
+	flex-wrap: wrap;
+}
+
+.form-group-linear .group-label {
+	margin-bottom: 0;
+}
+
+/* mobile phones */
+@media (max-width: 600px) {
+	.form-group-linear {
+		justify-content: space-between;
+	}
+}
+
+.file-input-label {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+}
+
 .file-input-text {
 	margin-top: 5px;
 	margin-bottom: 15px;
@@ -23,37 +47,17 @@
 .group-label {
 	font-size: 18px;
 	margin-bottom: 10px;
+	margin-right: 15px;
 }
 
 .error {
 	color: red;
 }
 
-.btn {
-	cursor: pointer;
-	background: none;
-	border: none;
-	background: #1e2327;
-	color: #fff;
-	height: 40px;
-	border-radius: 6px;
-	margin: 5px 0;
-	padding: 5px 20px;
-	font-size: 18px;
-}
-
-.btn[disabled] {
-	opacity: 0.5;
-}
-
-.btn:hover,
-.btn:active {
-	opacity: 0.8;
-}
-
 .large-select {
 	cursor: pointer;
-	font-size: 16px;
+	font-size: 18px;
+	max-width: 200px;
 }
 
 .radio-input {
@@ -63,4 +67,20 @@
 .radio-label {
 	font-size: 16px;
 	cursor: pointer;
+}
+
+input[disabled].radio-input + label {
+	color: GrayText;
+}
+
+input.radio-input.not-available + label > span {
+	color: AccentColor;
+}
+
+.submit-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-around;
+	align-items: center;
+	margin-top: 10px;
 }

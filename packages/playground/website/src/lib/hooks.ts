@@ -5,9 +5,9 @@ import { buildVersion } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	persistent?: boolean;
+	storage?: 'opfs-host' | 'opfs-browser' | 'temporary';
 }
-export function usePlayground({ blueprint, persistent }: UsePlaygroundOptions) {
+export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
 	const iframe = iframeRef.current;
 	const started = useRef(false);
@@ -32,8 +32,8 @@ export function usePlayground({ blueprint, persistent }: UsePlaygroundOptions) {
 		const remoteUrl = new URL(window.location.origin);
 		remoteUrl.pathname = '/remote.html';
 		remoteUrl.searchParams.set('v', buildVersion);
-		if (persistent) {
-			remoteUrl.searchParams.set('persistent', '1');
+		if (storage) {
+			remoteUrl.searchParams.set('storage', storage);
 		}
 
 		startPlaygroundWeb({

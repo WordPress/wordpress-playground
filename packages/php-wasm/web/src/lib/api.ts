@@ -74,14 +74,16 @@ export type PublicAPI<Methods, PipedAPI = unknown> = RemoteAPI<
 export function exposeAPI<Methods, PipedAPI>(
 	apiMethods?: Methods,
 	pipedApi?: PipedAPI
-): [() => void, PublicAPI<Methods, PipedAPI>] {
+): [() => void, (e: Error) => void, PublicAPI<Methods, PipedAPI>] {
 	setupTransferHandlers();
 
 	const connected = Promise.resolve();
 
 	let setReady: any;
-	const ready = new Promise((resolve) => {
+	let setFailed: any;
+	const ready = new Promise((resolve, reject) => {
 		setReady = resolve;
+		setFailed = reject;
 	});
 
 	const methods = proxyClone(apiMethods);
@@ -104,7 +106,7 @@ export function exposeAPI<Methods, PipedAPI>(
 			? Comlink.windowEndpoint(self.parent)
 			: undefined
 	);
-	return [setReady, exposedApi];
+	return [setReady, setFailed, exposedApi];
 }
 
 let isTransferHandlersSetup = false;

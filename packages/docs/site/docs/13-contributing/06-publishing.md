@@ -1,14 +1,10 @@
 # Publishing Packages, Releases, and More
 
-WordPress Playground has many types of artifacts that are published:
+WordPress Playground has many types of artifacts that are published.
 
--   NPM packages
--   GitHub releases
--   VS Code extension
--   WordPress Plugins
--   playground.wordpress.net website
+NPM packages, GitHub releases, and playground.wordpress.net website are published by project maintainers through GitHub Actions.
 
-This document describes the publishing process for each of these artifacts.
+Below you'll find more details about parts of that process.
 
 ## NPM packages
 
@@ -43,17 +39,3 @@ Internet connections drop, APIs stop responding, and GitHub rules are nasty. Stu
 ```bash
 npm run release -- --force-publish
 ```
-
-## GitHub documentation
-
-To deploy this documentation to GitHub Pages, run the following command:
-
-```bash
-npm run deploy
-```
-
-You will need to have push access to the `gh-pages` branch of the repository.
-
-## playground.wordpress.net website
-
-TBD

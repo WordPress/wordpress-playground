@@ -1,15 +1,18 @@
 import { StepHandler } from '.';
 
+/**
+ * @inheritDoc activatePlugin
+ */
 export interface ActivatePluginStep {
 	step: 'activatePlugin';
-	/* Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php). */
+	/** Path to the plugin directory as absolute path (/wordpress/wp-content/plugins/plugin-name); or the plugin entry file relative to the plugins directory (plugin-name/plugin-name.php). */
 	pluginPath: string;
-	/* Optional plugin name */
+	/** Optional. Plugin name to display in the progress bar. */
 	pluginName?: string;
 }
 
 /**
- * Activates a WordPress plugin in the Playground.
+ * Activates a WordPress plugin (if it's installed).
  *
  * @param playground The playground client.
  */
