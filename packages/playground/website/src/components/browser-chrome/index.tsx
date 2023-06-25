@@ -1,10 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Toast from '../Toast';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
 import classNames from 'classnames';
-import useQuery from '../../hooks/useQuery';
-import { setCookie, getCookie } from '../../util/util';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -21,27 +19,9 @@ export default function BrowserChrome({
 	showAddressBar = true,
 	toolbarButtons,
 }: BrowserChromeProps) {
-	// Check if the user is onboarding for the first time.
-	const onBoarding = useQuery('onBoarding');
-
-	// Show the toast message.
-	const [showToast, setShowToast] = React.useState(false);
-
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
-
-	useEffect(() => {
-		if (onBoarding && parseInt(onBoarding) === 1) {
-			const isOnboarded = getCookie('onBoarding');
-			if (isOnboarded !== '1') {
-				setCookie('onBoarding', '1', 1);
-				setShowToast(true);
-			} else {
-				setShowToast(false);
-			}
-		}
-	}, [onBoarding]);
 	
 	return (
 		<div className={css.wrapper}>
@@ -51,7 +31,7 @@ export default function BrowserChrome({
 					<div className={addressBarClass}>
 						<AddressBar url={url} onUpdate={onUrlChange} />
 					</div>
-					{showToast && <Toast />} 
+					<Toast />
 					<div className={css.toolbarButtons}>
 						{toolbarButtons?.map(
 							(button: React.ReactElement, idx) =>
