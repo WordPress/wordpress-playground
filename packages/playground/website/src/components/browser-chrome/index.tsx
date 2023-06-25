@@ -22,7 +22,7 @@ export default function BrowserChrome({
 	const addressBarClass = classNames(css.addressBarSlot, {
 		[css.isHidden]: !showAddressBar,
 	});
-	
+
 	return (
 		<div className={css.wrapper}>
 			<div className={css.window}>
@@ -56,4 +56,3 @@ function WindowControls() {
 		</div>
 	);
 }
-
