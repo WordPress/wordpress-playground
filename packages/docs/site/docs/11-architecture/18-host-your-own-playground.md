@@ -23,9 +23,35 @@ const client = await startPlaygroundWeb({
 });
 ```
 
-## Build static assets
+## Static assets
 
-Create a shallow clone of the Playground repository.
+There are several ways to get the static assets necessary to host the Playground.
+
+In order of convenience and ease:
+
+-   Download pre-built package
+-   Build from fork using GitHub Action
+-   Build locally
+
+### Download pre-built package
+
+To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/build-website.yml?query=is%3Asuccess).
+
+-   Click on **Deploy to playground.wordpress.net**.
+-   In the section **Artifacts** at the bottom of the page, click `playground-website`.
+-   It's a zip package with the same files deployed to the public site.
+
+### Build from fork using GitHub Action
+
+To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
+
+Build it from the fork's GitHub page by going to: **Actions -> Deploy to playground.wordpress.net -> Run workflow**.
+
+### Build locally
+
+The most flexible and customizable method is to build the site locally.
+
+Create a shallow clone of the Playground repository, or your own fork.
 
 ```sh
 git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
@@ -38,7 +64,7 @@ npm install
 npm run build:website
 ```
 
-This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the path.
+This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the following path:
 
 ```
 dist/packages/playground/wasm-wordpress-net
@@ -46,7 +72,9 @@ dist/packages/playground/wasm-wordpress-net
 
 The entire service of the Playground consists of the content of this folder.
 
-It includes:
+## Summary of included files
+
+The static assets include:
 
 -   Data and WASM files for all available PHP and WordPress versions
 -   `remote.html` - the core of Playground
