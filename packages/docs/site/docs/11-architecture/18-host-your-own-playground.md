@@ -2,9 +2,7 @@
 
 You can host the Playground on your own domain instead of `playground.wordpress.net`.
 
-This is useful for having full control over its content and behavior, as well as removing dependency on a third-party remote endpoint. It can provide a customized user experience, for example: preinstalled plugins, default theme, site settings, and demo content.
-
-Also, if you expect to see heavy traffic, it's good etiquette to provide your own server/CDN resources to serve the static file assets, rather than relying on the `wordpress.net` server.
+This is useful for having full control over its content and behavior, as well as removing dependency on a third-party server. It can provide a more customized user experience, for example: a playground with preinstalled plugins and themes, default site settings, or demo content.
 
 #### Usage
 
