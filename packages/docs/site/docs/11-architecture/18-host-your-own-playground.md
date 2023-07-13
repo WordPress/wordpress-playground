@@ -98,8 +98,8 @@ As an alternative to Apache, here is an example of using NGINX to serve the Play
 
 This example may go out of date. It is recommended to refer to the source files.
 
-- [packages/playground/remote/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/public/.htaccess)
-- [packages/playground/website/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/.htaccess)
+-   [packages/playground/remote/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/public/.htaccess)
+-   [packages/playground/website/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/.htaccess)
 
 :::
 
@@ -134,6 +134,10 @@ location /plugin-proxy {
   try_files plugin-proxy.php /plugin-proxy.php$is_args$args;
   include fastcgi_params;
   fastcgi_pass php;
+}
+
+location /scope:.* {
+  rewrite ^scope:.*?/(.*)$ $1 last;
 }
 
 add_header "Cross-Origin-Resource-Policy" "cross-origin";
