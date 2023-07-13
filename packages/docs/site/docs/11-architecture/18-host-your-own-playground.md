@@ -94,7 +94,16 @@ For these to work, you need a server environment with Apache and PHP installed.
 
 As an alternative to Apache, here is an example of using NGINX to serve the Playground.
 
-The Apache `.htaccess` file looks like this.
+:::info Refer to source files
+
+This example may go out of date. It is recommended to refer to the source files.
+
+- [packages/playground/remote/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/public/.htaccess)
+- [packages/playground/website/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/.htaccess)
+
+:::
+
+The combined Apache `.htaccess` file looks like this.
 
 ```htaccess
 AddType application/wasm .wasm
