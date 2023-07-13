@@ -146,11 +146,13 @@ add_header "Cross-Origin-Embedder-Policy" "credentialless";
 
 You may need to adjust the above according to server specifics, particularly how to invoke PHP for the path `/plugin-proxy`.
 
-## Customize `wp.data`
+## Customize bundled data
 
 The file `wp.data` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
 
-Edit the build script in `packages/playground/compile-wordpress/Dockerfile` to create a custom bundle that includes preinstalled plugins or content.
+The package at `packages/playground/compile-wordpress` is responsible for building these data files.
+
+Edit the build script in `Dockerfile` to create a custom bundle that includes preinstalled plugins or content.
 
 ### Install plugins
 
@@ -172,13 +174,15 @@ RUN cd wordpress/wp-content/mu-plugins && \
     done;
 ```
 
-You can download plugins from URLs other than the WordPress plugin directory, or use Git to pull them from elsewhere. It's also possible to copy from a local folder. For example, before `RUN`:
+You can download plugins from URLs other than the WordPress plugin directory, or use Git to pull them from elsewhere.
+
+It's also possible to copy from a local folder. For example, before `RUN`:
 
 ```
 COPY ./build-assets/*.zip /root/
 ```
 
-Then put the plugin zip files in `packages/playground/compile-wordpress/build-assets`. In this case, you may want to add their paths to `.gitignore`.
+Then put the plugin zip files in `build-assets`. In this case, you may want to add their paths to `.gitignore`.
 
 ### Import content
 
@@ -193,4 +197,4 @@ RUN cd wordpress ; \
     ../wp-cli.phar --allow-root import /root/content.xml --authors=create
 ```
 
-This assumes that you have put a WXR export file named `content.xml` in the folder `packages/playground/compile-wordpress/build-assets`. You can add its path to `.gitignore`.
+This assumes that you have put a WXR export file named `content.xml` in the folder `build-assets`. You can add its path to `.gitignore`.
