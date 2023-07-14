@@ -30,7 +30,7 @@ There are several ways to get the static assets necessary to host the Playground
 In order of convenience and ease:
 
 -   Download pre-built package
--   Fork the repository and build via the GitHub Action job
+-   Fork the repository and build with GitHub Action
 -   Build locally
 
 ### Download pre-built package
@@ -41,7 +41,7 @@ To host the Playground as is, without making changes, you can download the built
 -   In the section **Artifacts** at the bottom of the page, click `playground-website`.
 -   It's a zip package with the same files deployed to the public site.
 
-### Build from fork using GitHub Action
+### Fork the repository and build with GitHub Action
 
 To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
 
