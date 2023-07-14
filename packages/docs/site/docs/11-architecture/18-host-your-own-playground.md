@@ -30,7 +30,7 @@ There are several ways to get the static assets necessary to host the Playground
 In order of convenience and ease:
 
 -   Download pre-built package
--   Build from fork using GitHub Action
+-   Fork the repository and build via the GitHub Action job
 -   Build locally
 
 ### Download pre-built package
