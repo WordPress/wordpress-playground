@@ -47,6 +47,7 @@ export interface CompiledBlueprint {
 }
 
 export type OnStepCompleted = (output: any, step: StepDefinition) => any;
+export type OnStepError = (error: any, step: StepDefinition) => any;
 
 export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
@@ -55,6 +56,8 @@ export interface CompileBlueprintOptions {
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
 	onStepCompleted?: OnStepCompleted;
+	/** Optional callback with step error */
+	onStepError?: OnStepError;
 }
 
 /**
@@ -71,6 +74,7 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
+		onStepError
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = {
@@ -127,9 +131,20 @@ export function compileBlueprint(
 					}
 				}
 
-				for (const { run, step } of compiled) {
-					const result = await run(playground);
-					onStepCompleted(result, step);
+				if (onStepError) {
+					for (const { run, step } of compiled) {
+						try {
+							const result = await run(playground);
+							onStepCompleted(result, step);
+						} catch (error) {
+							onStepError(error, step);
+						}
+					}
+				} else {
+					for (const { run, step } of compiled) {
+						const result = await run(playground);
+						onStepCompleted(result, step);
+					}
 				}
 			} finally {
 				try {
