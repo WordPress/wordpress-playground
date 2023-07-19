@@ -74,7 +74,7 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onStepError
+		onStepError,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = {

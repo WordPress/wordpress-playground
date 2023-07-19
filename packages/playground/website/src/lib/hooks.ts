@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
-import type { PlaygroundClient, StepDefinition, OnStepError } from '@wp-playground/client';
+import type {
+	PlaygroundClient,
+	StepDefinition,
+	OnStepError,
+} from '@wp-playground/client';
 import { buildVersion } from './config';
 
 interface UsePlaygroundOptions {
@@ -36,19 +40,22 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
 
-		const onBlueprintStepError: OnStepError = (error: any, step: StepDefinition) => {
-			if (step.step==='installPlugin') {
+		const onBlueprintStepError: OnStepError = (
+			error: any,
+			step: StepDefinition
+		) => {
+			if (step.step === 'installPlugin') {
 				// Gather errors and show in notification
 			} else {
-				throw error
+				throw error;
 			}
-		}
+		};
 
 		startPlaygroundWeb({
 			iframe,
 			remoteUrl: remoteUrl.toString(),
 			blueprint,
-			onBlueprintStepError
+			onBlueprintStepError,
 		}).then(async (playground) => {
 			playground.onNavigation((url) => setUrl(url));
 			setPlayground(() => playground);

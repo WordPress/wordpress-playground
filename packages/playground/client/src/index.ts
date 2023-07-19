@@ -79,7 +79,7 @@ export async function startPlaygroundWeb({
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
-		onStepError: onBlueprintStepError
+		onStepError: onBlueprintStepError,
 	});
 	const playground = await doStartPlaygroundWeb(
 		iframe,
