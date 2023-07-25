@@ -74,7 +74,9 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onStepError,
+		onStepError = (error) => {
+			throw error;
+		},
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = {
@@ -127,11 +129,7 @@ export function compileBlueprint(
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
 							resource.resolve().catch(function (error) {
-								if (onStepError) {
-									onStepError(error, step);
-								} else {
-									throw error;
-								}
+								onStepError(error, step);
 							});
 						}
 					}
@@ -142,11 +140,7 @@ export function compileBlueprint(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (error) {
-						if (onStepError) {
-							onStepError(error, step);
-						} else {
-							throw error;
-						}
+						onStepError(error, step);
 					}
 				}
 			} finally {
