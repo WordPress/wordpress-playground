@@ -46,6 +46,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 		) => {
 			if (step.step === 'installPlugin') {
 				// Gather errors and show in notification
+				console.error(error, step);
 			} else {
 				throw error;
 			}
