@@ -122,28 +122,31 @@ export function compileBlueprint(
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
-				for (const { resources } of compiled) {
+				for (const { resources, step } of compiled) {
 					for (const resource of resources) {
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
-							resource.resolve();
+							resource.resolve().catch(function (error) {
+								if (onStepError) {
+									onStepError(error, step);
+								} else {
+									throw error;
+								}
+							});
 						}
 					}
 				}
 
-				if (onStepError) {
-					for (const { run, step } of compiled) {
-						try {
-							const result = await run(playground);
-							onStepCompleted(result, step);
-						} catch (error) {
-							onStepError(error, step);
-						}
-					}
-				} else {
-					for (const { run, step } of compiled) {
+				for (const { run, step } of compiled) {
+					try {
 						const result = await run(playground);
 						onStepCompleted(result, step);
+					} catch (error) {
+						if (onStepError) {
+							onStepError(error, step);
+						} else {
+							throw error;
+						}
 					}
 				}
 			} finally {
