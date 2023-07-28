@@ -17,11 +17,16 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			wp: options.wp as any,
 		},
 		steps: [
-			{
-				step: 'login',
-				username: 'admin',
-				password: 'password',
-			},
+			options.import
+				? {
+						step: 'importFile',
+						file: options.import,
+				  }
+				: {
+						step: 'login',
+						username: 'admin',
+						password: 'password',
+				  },
 			options.theme && {
 				step: 'installTheme',
 				themeZipFile: {
