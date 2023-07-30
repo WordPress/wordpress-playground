@@ -630,10 +630,21 @@ const LibraryExample = {
 	},
 
 	js_module_onMessage: function (data) {
+		if (typeof Asyncify === 'undefined') {
+			return;
+		}
+
 		if (Module['onMessage']) {
 			const dataStr = UTF8ToString(data);
-			
-			Module['onMessage'](dataStr);
+
+			return Asyncify.handleSleep((wakeUp) => {
+				Module['onMessage'](dataStr).then((result) => {
+					wakeUp(allocateUTF8OnStack(result));
+				}).catch((e) => {
+					console.error(e);
+					wakeUp('error');
+				} );
+			});
 		}
 	}
 };

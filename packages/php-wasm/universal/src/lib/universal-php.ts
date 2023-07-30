@@ -375,7 +375,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	setSpawnHandler(handler: SpawnHandler): void;
 }
 
-export type MessageListener = (data: string) => void;
+export type MessageListener = (data: string) => Promise<string> | string | void;
 interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;

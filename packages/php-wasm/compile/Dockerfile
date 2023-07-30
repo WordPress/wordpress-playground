@@ -649,6 +649,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "js_open_process",\n\
 "js_popen_to_file",\n\
 "wasm_poll_socket",\n\
+"js_module_onMessage",\n\
 "wasm_shutdown"]'; \
     echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
     export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
@@ -931,6 +932,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_fclose",\
 "zif_feof",\
 "zif_file_get_contents",\
+"zif_post_message_to_js",\
 "zif_fopen",\
 "zif_fread",\
 "zif_fsockopen",\

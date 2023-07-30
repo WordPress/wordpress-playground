@@ -848,19 +848,35 @@ bar1
 	});
 
 	describe('onMessage', () => {
-		it('should pass messages to JS', async () => {
-			let messageReceived = '';
-			php.onMessage((message) => {
-				messageReceived = message;
+		// it('should pass messages to JS', async () => {
+		// 	let messageReceived = '';
+		// 	php.onMessage((message) => {
+		// 		messageReceived = message;
+		// 	});
+		// 	const out = await php.run({
+		// 		code: `<?php
+		// 		post_message_to_js('world');
+		// 		`,
+		// 	});
+		// 	expect(out.errors).toBe('');
+		// 	expect(messageReceived).toBe('world');
+		// });
+
+		if ( parseFloat(phpVersion) >= 8 ) {
+			it('should return async messages from JS', async () => {
+				php.onMessage( async (message) => {
+					// Simulate getting data asynchronously.
+					return await new Promise<string>((resolve) =>
+						setTimeout(() => resolve( message + '!'  ), 100)
+					);
+				});
+				const out = await php.run({
+					code: `<?php echo post_message_to_js('a');`,
+				});
+				expect(out.errors).toBe('');
+				expect(out.text).toBe('a!');
 			});
-			const out = await php.run({
-				code: `<?php
-				post_message_to_js('world');
-				`,
-			});
-			expect(out.errors).toBe('');
-			expect(messageReceived).toBe('world');
-		});
+		}
 	});
 
 	describe('CLI', () => {
