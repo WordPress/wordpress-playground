@@ -13,8 +13,14 @@
 
 define( 'SQLITE_DB_DROPIN_VERSION', '1.8.0' );
 
+// Tweak to allow copy-pasting the file without having to run string-replacements.
+$sqlite_plugin_implementation_folder_path = '{SQLITE_IMPLEMENTATION_FOLDER_PATH}';
+if ( ! file_exists( $sqlite_plugin_implementation_folder_path ) ) { // Check that the folder exists.
+	$sqlite_plugin_implementation_folder_path = realpath( __DIR__ . '/plugins/sqlite-database-integration' );
+}
+
 // Bail early if the SQLite implementation was not located in the plugin.
-if ( ! file_exists( '{SQLITE_IMPLEMENTATION_FOLDER_PATH}/wp-includes/sqlite/db.php' ) ) {
+if ( ! $sqlite_plugin_implementation_folder_path || ! file_exists( $sqlite_plugin_implementation_folder_path . '/wp-includes/sqlite/db.php' ) ) {
 	return;
 }
 
@@ -28,7 +34,7 @@ if ( ! defined( 'DB_ENGINE' ) ) {
 }
 
 // Require the implementation from the plugin.
-require_once '{SQLITE_IMPLEMENTATION_FOLDER_PATH}/wp-includes/sqlite/db.php';
+require_once $sqlite_plugin_implementation_folder_path . '/wp-includes/sqlite/db.php';
 
 // Activate the performance-lab plugin if it is not already activated.
 add_action(
@@ -41,7 +47,12 @@ add_action(
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 		if ( is_plugin_inactive( '{SQLITE_PLUGIN}' ) ) {
-			activate_plugin( '{SQLITE_PLUGIN}' );
+			// If `activate_plugin()` returns a value other than null (like WP_Error),
+			// the plugin could not be found. Try with a hardcoded string,
+			// because that probably means the file was directly copy-pasted.
+			if ( null !== activate_plugin( '{SQLITE_PLUGIN}', '', false, true ) ) {
+				activate_plugin( 'sqlite-database-integration/load.php', '', false, true );
+			}
 		}
 	}
 );

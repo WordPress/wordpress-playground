@@ -1,4 +1,10 @@
-export const SupportedWordPressVersions = ['6.2', '6.1', '6.0', '5.9'] as const;
+export const SupportedWordPressVersions = [
+	'6.2',
+	'6.1',
+	'6.0',
+	'5.9',
+	'nightly',
+] as const;
 export type SupportedWordPressVersion =
 	(typeof SupportedWordPressVersions)[number];
 export const LatestSupportedWordPressVersion = SupportedWordPressVersions[0];
@@ -19,6 +25,9 @@ export function getWordPressModule(wpVersion: string) {
 		case '6.2':
 			/** @ts-ignore */
 			return import('../wordpress/wp-6.2.js');
+		case 'nightly':
+			/** @ts-ignore */
+			return import('../wordpress/wp-nightly.js');
 	}
 	throw new Error(`Unsupported WordPress module: ${wpVersion}`);
 }

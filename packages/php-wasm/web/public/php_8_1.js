@@ -1,6 +1,6 @@
 import dependencyFilename from './php_8_1.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 5653957; 
+export const dependenciesTotalSize = 5653952; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -60,6 +60,22 @@ if (PHPLoader.debug && typeof Asyncify !== "undefined") {
             Module["lastAsyncifyStackSource"] = new Error();
         }
         return originalHandleSleep(startAsync);
+    }
+}
+
+/**
+ * Data dependencies call removeRunDependency() when they are loaded.
+ * The synchronous call stack then continues to run. If an error occurs
+ * in PHP initialization, e.g. Out Of Memory error, it will not be
+ * caught by any try/catch. This override propagates the failure to
+ * PHPLoader.onAbort() so that it can be handled.
+ */
+const originalRemoveRunDependency = PHPLoader['removeRunDependency'];
+PHPLoader['removeRunDependency'] = function (...args) {
+    try {
+        originalRemoveRunDependency(...args);
+    } catch (e) {
+        PHPLoader['onAbort'](e);
     }
 }
 

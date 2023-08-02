@@ -1,14 +1,17 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '..';
 import { updateFile } from '../common';
+import { defineWpConfigConsts } from '../define-wp-config-consts';
 
+/**
+ * @private
+ */
 export interface ApplyWordPressPatchesStep {
 	step: 'applyWordPressPatches';
-	siteUrl: string;
+	siteUrl?: string;
 	wordpressPath?: string;
-	patchSqlitePlugin?: boolean;
 	addPhpInfo?: boolean;
-	patchSiteUrl?: boolean;
+	patchSecrets?: boolean;
 	disableSiteHealth?: boolean;
 	disableWpNewBlogNotification?: boolean;
 }
@@ -18,54 +21,40 @@ export const applyWordPressPatches: StepHandler<
 > = async (php, options) => {
 	const patch = new WordPressPatcher(
 		php,
-		options.siteUrl,
-		options.wordpressPath || '/wordpress'
+		options.wordpressPath || '/wordpress',
+		options.siteUrl
 	);
 
-	if (options.patchSqlitePlugin !== false) {
-		await patch.patchSqlitePlugin();
-	}
-	if (options.addPhpInfo !== false) {
+	if (options.addPhpInfo === true) {
 		await patch.addPhpInfo();
 	}
-	if (options.patchSiteUrl !== false) {
+	if (options.siteUrl) {
 		await patch.patchSiteUrl();
 	}
-	if (options.disableSiteHealth !== false) {
+	if (options.patchSecrets === true) {
+		await patch.patchSecrets();
+	}
+	if (options.disableSiteHealth === true) {
 		await patch.disableSiteHealth();
 	}
-	if (options.disableWpNewBlogNotification !== false) {
+	if (options.disableWpNewBlogNotification === true) {
 		await patch.disableWpNewBlogNotification();
 	}
 };
 
 class WordPressPatcher {
 	php: UniversalPHP;
-	scopedSiteUrl: string;
+	scopedSiteUrl?: string;
 	wordpressPath: string;
 
 	constructor(
 		php: UniversalPHP,
-		scopedSiteUrl: string,
-		wordpressPath: string
+		wordpressPath: string,
+		scopedSiteUrl?: string
 	) {
 		this.php = php;
 		this.scopedSiteUrl = scopedSiteUrl;
 		this.wordpressPath = wordpressPath;
-	}
-
-	async patchSqlitePlugin() {
-		// Upstream change proposed in https://github.com/WordPress/sqlite-database-integration/pull/28:
-		await updateFile(
-			this.php,
-			`${this.wordpressPath}/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php`,
-			(contents) => {
-				return contents.replace(
-					'if ( false === strtotime( $value ) )',
-					'if ( $value === "0000-00-00 00:00:00" || false === strtotime( $value ) )'
-				);
-			}
-		);
 	}
 
 	async addPhpInfo() {
@@ -76,16 +65,30 @@ class WordPressPatcher {
 	}
 
 	async patchSiteUrl() {
+		await defineWpConfigConsts(this.php, {
+			consts: {
+				WP_HOME: this.scopedSiteUrl,
+				WP_SITEURL: this.scopedSiteUrl,
+			},
+			virtualize: true,
+		});
+	}
+
+	async patchSecrets() {
 		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
 			(contents) =>
 				`<?php
-				if(!defined('WP_HOME')) {
-					define('WP_HOME', "${this.scopedSiteUrl}");
-					define('WP_SITEURL', "${this.scopedSiteUrl}");
-				}
-				?>${contents}`
+					define('AUTH_KEY',         '${randomString(40)}');
+					define('SECURE_AUTH_KEY',  '${randomString(40)}');
+					define('LOGGED_IN_KEY',    '${randomString(40)}');
+					define('NONCE_KEY',        '${randomString(40)}');
+					define('AUTH_SALT',        '${randomString(40)}');
+					define('SECURE_AUTH_SALT', '${randomString(40)}');
+					define('LOGGED_IN_SALT',   '${randomString(40)}');
+					define('NONCE_SALT',       '${randomString(40)}');
+				?>${contents.replaceAll("', 'put your unique phrase here'", "__', ''")}`
 		);
 	}
 
@@ -110,4 +113,13 @@ class WordPressPatcher {
 				`${contents} function wp_new_blog_notification(...$args){} `
 		);
 	}
+}
+
+function randomString(length: number) {
+	const chars =
+		'0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+=-[]/.,<>?';
+	let result = '';
+	for (let i = length; i > 0; --i)
+		result += chars[Math.floor(Math.random() * chars.length)];
+	return result;
 }

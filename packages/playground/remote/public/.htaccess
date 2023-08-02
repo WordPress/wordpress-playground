@@ -1,9 +1,5 @@
 AddType application/wasm .wasm
 AddType	application/octet-stream .data
 
-<FilesMatch "iframe-worker.html$">
-  Header set Origin-Agent-Cluster: ?1
-</FilesMatch>
-
 Header set Cross-Origin-Resource-Policy: cross-origin
 Header set Cross-Origin-Embedder-Policy: credentialless

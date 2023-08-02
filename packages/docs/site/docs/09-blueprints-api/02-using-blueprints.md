@@ -17,6 +17,7 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 
 ```json
 {
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
 		"php": "7.4",
 		"wp": "5.9"
@@ -41,12 +42,12 @@ You won't have to paste links to follow along. We'll use code examples with a "T
 You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen:
 
 ```html
-<iframe id="wp" style="width: 1200px; height: 800px"></iframe>
+<iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
 <script type="module">
 	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
 
 	const client = await startPlaygroundWeb({
-		iframe,
+		iframe: document.getElementById('wp-playground'),
 		remoteUrl: `https://playground.wordpress.net/remote.html`,
 		blueprint: {
 			landingPage: '/wp-admin/',

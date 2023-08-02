@@ -19,10 +19,20 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import { applyWebWordPressPatches } from './web-wordpress-patches';
+import {
+	SyncProgressCallback,
+	bindOpfs,
+	playgroundAvailableInOpfs,
+} from './opfs/bind-opfs';
+import { applyWordPressPatches } from '@wp-playground/blueprints';
+
+// post message to parent
+self.postMessage('worker-script-started');
 
 const startupOptions = parseWorkerStartupOptions<{
 	wpVersion?: string;
 	phpVersion?: string;
+	storage?: string;
 }>();
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
@@ -40,17 +50,35 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
+let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
+let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
+let lastOpfsDir: FileSystemDirectoryHandle | undefined;
+let wordPressAvailableInOPFS = false;
+if (
+	startupOptions.storage === 'opfs-browser' &&
+	// @ts-ignore
+	typeof navigator?.storage?.getDirectory !== 'undefined'
+) {
+	virtualOpfsRoot = await navigator.storage.getDirectory();
+	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle('wordpress', {
+		create: true,
+	});
+	lastOpfsDir = virtualOpfsDir;
+	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
+}
+
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const { php, phpReady, dataModules } = WebPHP.loadSync(phpVersion, {
+const wordPressModule = getWordPressModule(wpVersion);
+const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
 		documentRoot: DOCROOT,
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	dataModules: [getWordPressModule(wpVersion)],
+	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 
 /** @inheritDoc PHPClient */
@@ -87,20 +115,82 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	 * @returns WordPress module details, including the static assets directory and default theme.
 	 */
 	async getWordPressModuleDetails() {
-		const version = await this.wordPressVersion;
 		return {
-			staticAssetsDirectory: `wp-${version.replace('_', '.')}`,
-			defaultTheme: wpLoaderModule?.defaultThemeName,
+			majorVersion: this.wordPressVersion,
+			staticAssetsDirectory: `wp-${this.wordPressVersion.replace(
+				'_',
+				'.'
+			)}`,
+			defaultTheme: (await wordPressModule)?.defaultThemeName,
 		};
+	}
+
+	async resetVirtualOpfs() {
+		if (!virtualOpfsRoot) {
+			throw new Error('No virtual OPFS available.');
+		}
+		await virtualOpfsRoot.removeEntry(virtualOpfsDir!.name, {
+			recursive: true,
+		});
+	}
+
+	async reloadFilesFromOpfs() {
+		await this.bindOpfs(lastOpfsDir!);
+	}
+
+	async bindOpfs(
+		opfs: FileSystemDirectoryHandle,
+		onProgress?: SyncProgressCallback
+	) {
+		lastOpfsDir = opfs;
+		await bindOpfs({
+			php,
+			opfs,
+			onProgress,
+		});
 	}
 }
 
-const [setApiReady] = exposeAPI(
+const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
 
-await phpReady;
-const wpLoaderModule = (await dataModules)[0] as any;
-applyWebWordPressPatches(php, scopedSiteUrl);
+try {
+	await phpReady;
 
-setApiReady();
+	if (!wordPressAvailableInOPFS) {
+		/**
+		 * Patch WordPress when it's not restored from OPFS.
+		 * The stopred version, presumably, has all patches
+		 * already applied.
+		 */
+		await wordPressModule;
+		applyWebWordPressPatches(php);
+		await applyWordPressPatches(php, {
+			wordpressPath: DOCROOT,
+			patchSecrets: true,
+			disableWpNewBlogNotification: true,
+			addPhpInfo: true,
+			disableSiteHealth: true,
+		});
+	}
+
+	if (virtualOpfsDir) {
+		await bindOpfs({
+			php,
+			opfs: virtualOpfsDir!,
+			wordPressAvailableInOPFS,
+		});
+	}
+
+	// Always setup the current site URL.
+	await applyWordPressPatches(php, {
+		wordpressPath: DOCROOT,
+		siteUrl: scopedSiteUrl,
+	});
+
+	setApiReady();
+} catch (e) {
+	setAPIError(e as Error);
+	throw e;
+}

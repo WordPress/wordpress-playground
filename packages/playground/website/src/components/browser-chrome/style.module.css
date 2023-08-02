@@ -95,15 +95,6 @@ body.is-embedded .fake-window-wrapper {
 	pointer-events: none;
 }
 
-/* .fake-window #wp {
-	position: relative;
-	flex-grow: 1;
-	border: 0;
-	margin: 0;
-	padding: 0;
-	z-index: 6;
-} */
-
 .window-controls {
 	position: absolute;
 	width: 80px;
@@ -138,6 +129,15 @@ body.is-embedded .fake-window-wrapper {
 	border: 1px solid #1dad2b;
 }
 
+@media (max-width: 1100px) {
+	.address-bar-slot {
+		margin-left: 0;
+	}
+	.window-controls {
+		display: none;
+	}
+}
+
 @media (max-width: 902px) {
 	.wrapper {
 		padding: 0;
@@ -151,23 +151,13 @@ body.is-embedded .fake-window-wrapper {
 @media (max-width: 812px) {
 	.toolbar {
 		padding: 10px;
-	}
-	.window-controls {
-		display: none;
-	}
-	.address-bar-slot {
-		margin-left: 0;
-	}
-}
-
-@media (max-width: 620px) {
-	.toolbar {
 		flex-direction: column;
 		height: auto;
 		align-items: normal;
 	}
 	.toolbar-buttons {
 		padding: 0;
+		flex-wrap: wrap;
 	}
 	.address-bar-slot {
 		margin-bottom: 10px;

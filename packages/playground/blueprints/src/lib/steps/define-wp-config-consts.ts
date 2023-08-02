@@ -4,7 +4,19 @@ import { updateFile } from './common';
 export const VFS_TMP_DIRECTORY = '/vfs-blueprints';
 
 /**
- * The step object for defining constants in the wp-config.php file of a WordPress installation.
+ * @inheritDoc defineWpConfigConsts
+ * @hasRunnableExample
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "defineWpConfigConsts",
+ * 		"consts": {
+ *          "WP_DEBUG": true
+ *      },
+ *      "virtualize": true
+ * }
+ * </code>
  */
 export interface DefineWpConfigConstsStep {
 	step: 'defineWpConfigConsts';
@@ -20,11 +32,10 @@ export interface DefineWpConfigConstsStep {
 }
 
 /**
- * Sets site URL of the WordPress installation.
+ * Defines the wp-config.php constants
  *
  * @param playground The playground client.
- * @param wpConfigConst An object containing the constants to be defined and the optional virtual file system configuration file path.
- * @returns Returns the virtual file system configuration file path.
+ * @param wpConfigConst
  */
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep

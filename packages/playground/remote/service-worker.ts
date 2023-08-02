@@ -13,9 +13,6 @@ import {
 } from '@php-wasm/web-service-worker';
 import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
-// @ts-ignore
-import { serviceWorkerVersion } from 'virtual:service-worker-version';
-
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -26,11 +23,6 @@ if (!(self as any).document) {
 }
 
 initializeServiceWorker({
-	// Always use a random version in development to avoid caching issues.
-	// @ts-ignore
-	version: import.meta.env.DEV
-		? () => Math.random() + ''
-		: serviceWorkerVersion,
 	handleRequest(event) {
 		const fullUrl = new URL(event.request.url);
 		let scope = getURLScope(fullUrl);
