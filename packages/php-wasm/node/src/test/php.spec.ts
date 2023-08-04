@@ -863,6 +863,15 @@ bar1
 		});
 
 		if (parseFloat(phpVersion) >= 8) {
+			it('should return sync messages from JS', async () => {
+				php.onMessage(async (message) => message + '!');
+				const out = await php.run({
+					code: `<?php echo post_message_to_js('a');`,
+				});
+				expect(out.errors).toBe('');
+				expect(out.text).toBe('a!');
+			});
+
 			it('should return async messages from JS', async () => {
 				php.onMessage(async (message) => {
 					// Simulate getting data asynchronously.
