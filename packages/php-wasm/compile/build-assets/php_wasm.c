@@ -280,13 +280,17 @@ PHP_FUNCTION(post_message_to_js)
 
 	char *result = js_module_onMessage(data);
 
-	#if PHP_MAJOR_VERSION >= 8
-		if(result != NULL) {
+	if(result != NULL) {
+		// In PHP 7, the second parameter was removed and the string is always
+		// returned as a copy.
+		#if PHP_MAJOR_VERSION >= 7
 			RETURN_STRING(result);
-		} else {
-			RETURN_NULL();
-		}
-	#endif
+		#else
+			RETURN_STRING(result, 1);
+		#endif
+	} else {
+		RETURN_NULL();
+	}
 }
 /* }}} */
 
