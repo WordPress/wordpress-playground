@@ -135,6 +135,11 @@ export function compileBlueprint(
 					}
 				}
 
+				/**
+				 * When each step's `CompiledStep.run()` is called, it uses
+				 * `resolveArguments` to await all dependent resources for the
+				 * step.
+				 */
 				for (const { run, step } of compiled) {
 					try {
 						const result = await run(playground);
