@@ -1,4 +1,4 @@
-import { Blueprint, StepDefinition } from '@wp-playground/client';
+import { Blueprint, StepDefinition, UrlReference } from '@wp-playground/client';
 
 interface MakeBlueprintOptions {
 	php?: string;
@@ -18,7 +18,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			wp: options.wp as any,
 		},
 		steps: [
-			options.import
+			options.import && /^(http(s?)):\/\//i.test(options.import)
 				? {
 						step: 'importFile',
 						file: {
