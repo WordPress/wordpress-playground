@@ -47,7 +47,15 @@ export interface CompiledBlueprint {
 }
 
 export type OnStepCompleted = (output: any, step: StepDefinition) => any;
-export type OnStepError = (error: any, step: StepDefinition) => any;
+
+export type CompletedStatus = Map<StepDefinition, boolean>;
+export type OnStepsCompleted = (completedStatus: CompletedStatus) => void;
+
+export type PromiseMap = Map<StepDefinition, Promise<void>>;
+export type PromiseExecutor = {
+	resolve: (result: any) => void;
+	reject: (error: any) => void;
+};
 
 export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
@@ -56,9 +64,18 @@ export interface CompileBlueprintOptions {
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
 	onStepCompleted?: OnStepCompleted;
-	/** Optional callback with step error */
-	onStepError?: OnStepError;
+	onRunningSteps?: (progressMap: PromiseMap) => void;
+	onStepsCompleted?: OnStepsCompleted;
 }
+
+/**
+ * Convert a Promise into a boolean indicating if it resolved or rejeted.
+ */
+const didResolve = <P extends Promise<any>>(promise: P): Promise<boolean> =>
+	promise.then(
+		() => true,
+		() => false
+	);
 
 /**
  * Compiles Blueprint into a form that can be executed.
@@ -74,9 +91,14 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onStepError = (error) => {
-			throw error;
+		onRunningSteps = (progressMap: PromiseMap) => {
+			for (const promise of progressMap.values()) {
+				promise.catch((error) => {
+					throw error;
+				});
+			}
 		},
+		onStepsCompleted,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = {
@@ -122,44 +144,75 @@ export function compileBlueprint(
 			),
 		},
 		run: async (playground: UniversalPHP) => {
+			const progressMap = new Map<StepDefinition, Promise<void>>();
+			const progressPromises = new Map<StepDefinition, PromiseExecutor>();
+			for (const { step } of compiled) {
+				progressMap.set(
+					step,
+					new Promise((resolve, reject) => {
+						progressPromises.set(step, { resolve, reject });
+					})
+				);
+			}
+			onRunningSteps(progressMap);
+
 			try {
 				// Start resolving resources early
 				for (const { resources, step } of compiled) {
+					const stepPromise = progressPromises.get(
+						step
+					) as PromiseExecutor;
 					for (const resource of resources) {
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
 							resource.resolve().catch(function (error) {
-								onStepError(error, step);
+								stepPromise.reject(error);
 							});
 						}
 					}
 				}
 
 				/**
-				 * When each step's `CompiledStep.run()` is called, it uses
-				 * `resolveArguments` to await all dependent resources for the
-				 * step.
+				 * When a compiled step's `run` method is called, it
+				 * uses `resolveArguments` to await dependent resources.
 				 */
 				for (const { run, step } of compiled) {
+					const stepPromise = progressPromises.get(
+						step
+					) as PromiseExecutor;
 					try {
 						const result = await run(playground);
+						stepPromise.resolve(result);
 						onStepCompleted(result, step);
 					} catch (error) {
-						onStepError(error, step);
+						stepPromise.reject(error);
 					}
 				}
 			} finally {
-				try {
-					await (playground as any).goTo(
-						blueprint.landingPage || '/'
+				const completedStatus = new Map();
+				for (const { step } of compiled) {
+					completedStatus.set(
+						step,
+						await didResolve(progressMap.get(step) as Promise<any>)
 					);
-				} catch (e) {
-					/*
-					 * NodePHP exposes no goTo method.
-					 * We can't use `goto` in playground here,
-					 * because it may be a Comlink proxy object
-					 * with no such method.
-					 */
+				}
+
+				// Either someone made a choice to boot or all steps succeeded.
+				const shouldBoot = onStepsCompleted
+					? await onStepsCompleted(completedStatus)
+					: await didResolve(Promise.all([...progressMap.values()]));
+
+				if (shouldBoot) {
+					try {
+						await playground.goTo(blueprint.landingPage || '/');
+					} catch (e) {
+						/*
+						 * NodePHP exposes no goTo method.
+						 * We can't use `goto` in playground here,
+						 * because it may be a Comlink proxy object
+						 * with no such method.
+						 */
+					}
 				}
 				progress.finish();
 			}
