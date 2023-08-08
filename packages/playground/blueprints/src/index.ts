@@ -8,7 +8,6 @@ export type {
 	CompiledBlueprint,
 	CompileBlueprintOptions,
 	OnStepCompleted,
-	OnStepError,
 } from './lib/compile';
 export type {
 	CachedResource,

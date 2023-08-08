@@ -204,7 +204,7 @@ export function compileBlueprint(
 
 				if (shouldBoot) {
 					try {
-						await playground.goTo(blueprint.landingPage || '/');
+						await (playground as any)?.goTo(blueprint.landingPage || '/');
 					} catch (e) {
 						/*
 						 * NodePHP exposes no goTo method.
