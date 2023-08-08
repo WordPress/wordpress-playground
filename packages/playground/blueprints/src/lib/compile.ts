@@ -50,6 +50,7 @@ export type OnStepCompleted = (output: any, step: StepDefinition) => any;
 
 export type CompletedStatus = Map<StepDefinition, boolean>;
 export type OnStepsCompleted = (completedStatus: CompletedStatus) => void;
+export type OnRunningSteps = (progressMap: PromiseMap) => void;
 
 export type PromiseMap = Map<StepDefinition, Promise<void>>;
 export type PromiseExecutor = {
@@ -64,7 +65,7 @@ export interface CompileBlueprintOptions {
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
 	onStepCompleted?: OnStepCompleted;
-	onRunningSteps?: (progressMap: PromiseMap) => void;
+	onRunningSteps?: OnRunningSteps;
 	onStepsCompleted?: OnStepsCompleted;
 }
 
