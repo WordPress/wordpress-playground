@@ -18,7 +18,7 @@ In addition to themes, you can experiment with plugins too. With WordPress Playg
 
 ## Create content on the go
 
-Another great feature of WordPress Playground is the ability to create and edit content. You can write blog posts, create pages and add media like images & videos to your site. This helps you understand how to organise and structure your content effectively.
+Another great feature of WordPress Playground is the ability to create and edit content. You can write blog posts, create pages and add media like images and videos to your site. This helps you understand how to organize and structure your content effectively.
 
 ## And, yes it's safe
 
