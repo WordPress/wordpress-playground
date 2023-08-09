@@ -51,3 +51,5 @@ export {
 	removePathPrefix,
 	toRelativeUrl,
 } from './urls';
+
+export { isExitCodeZero } from './is-exit-code-zero';

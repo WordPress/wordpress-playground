@@ -6,6 +6,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { RemoteAPI } from '@php-wasm/web';
 import { ProgressBarOptions } from './progress-bar';
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
+import type { SyncProgressCallback } from './opfs/bind-opfs';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -49,6 +50,11 @@ export interface WebClientMixin extends ProgressReceiver {
 
 	/** @inheritDoc @php-wasm/universal!UniversalPHP.onMessage */
 	onMessage: PlaygroundWorkerEndpoint['onMessage'];
+
+	bindOpfs(
+		opfs: FileSystemDirectoryHandle,
+		onProgress?: SyncProgressCallback
+	): Promise<void>;
 }
 
 /**

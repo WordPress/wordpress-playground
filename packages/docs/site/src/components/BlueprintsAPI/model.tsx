@@ -7,6 +7,7 @@ export const BlueprintSteps = BlueprintsApi.children
 	.filter(
 		(entry) => !['CompiledStep', 'GenericStep', 'Step'].includes(entry.name)
 	)
+	.filter((entry) => !entry?.flags?.isPrivate)
 	.map((entry) => entry.name)
 	.sort();
 
@@ -49,10 +50,10 @@ function getBlueprintFunctionDetails(StepDetails: BlueprintStepDetails) {
 	}
 	const Signature = FunctionDefinition?.signatures?.[0];
 
-	let examples = StepDetails?.examples
+	const examples = StepDetails?.examples
 		?.filter((entry) => entry.json)
 		?.map((entry) => entry.json)
-		?.map(({ step, ...exampleJson }) => {
+		?.map(({ ...exampleJson }) => {
 			const { clone, placeholder } =
 				replaceResourcesWithPlaceholders(exampleJson);
 			const formatted = JSON.stringify(clone, null, 4)

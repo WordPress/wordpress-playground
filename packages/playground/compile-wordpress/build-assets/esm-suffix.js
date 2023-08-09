@@ -1,2 +1,3 @@
 // See esm-prefix.js
+    });
 }

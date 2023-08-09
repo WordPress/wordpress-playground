@@ -18,5 +18,5 @@ The [`@php-wasm/web`](https://github.com/WordPress/wordpress-playground/blob/tru
 
 -   [**Browser tab orchestrates everything**](./09-browser-tab-orchestrates-execution.md) – The browser tab is the main program. Closing or reloading it means destroying the entire execution environment.
 -   [**Iframe-based rendering**](./10-browser-iframe-rendering.md) – Every response produced by the PHP server must be rendered in an iframe to avoid reloading the browser tab when the user clicks on a link.
--   [**PHP Worker Thread**](./11-browser-php-worker-threads.md) – The PHP server is slow and must run in a worker thread, otherwise handling requests freezes the website UI.
+-   [**PHP Worker Thread**](./11-browser-php-worker-threads.md) – The PHP server is slow and must run in a web worker, otherwise handling requests freezes the website UI.
 -   [**Service Worker routing**](./12-browser-service-workers.md) – All HTTP requests originating in that iframe must be intercepted by a Service worker and passed on to the PHP worker thread for rendering.

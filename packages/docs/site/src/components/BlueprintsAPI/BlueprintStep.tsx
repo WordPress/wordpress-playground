@@ -1,9 +1,9 @@
 import React from 'react';
-import { getStepAPI } from './model.tsx';
-import { BlueprintStepRunButton } from './BlueprintStepRunButton.tsx';
-import { BlueprintStepTabbedExample } from './BlueprintStepTabbedExample.tsx';
-import { BlueprintStepParameters } from './BlueprintStepParameters.tsx';
-import { BlueprintStepDescription } from './BlueprintStepDescription.tsx';
+import { getStepAPI } from './model';
+import { BlueprintStepRunButton } from './BlueprintStepRunButton';
+import { BlueprintStepTabbedExample } from './BlueprintStepTabbedExample';
+import { BlueprintStepParameters } from './BlueprintStepParameters';
+import { BlueprintStepDescription } from './BlueprintStepDescription';
 
 export default function BlueprintStep({ name }) {
 	const stepApi = getStepAPI(name);

@@ -5,10 +5,41 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"build:bundle",
+				"build:blueprint-schema",
+				"build:rollup-declarations"
+			]
+		},
+		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/playground/blueprints"
+			}
+		},
+		"build:blueprint-schema": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/blueprints/bin/generate-schema.js"
+				],
+				"parallel": false
+			},
+			"dependsOn": ["build:rollup-declarations"]
+		},
+		"build:rollup-declarations": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"mkdir -p dist/packages/playground/blueprints",
+					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts",
+					"rimraf dist/packages/playground/blueprints/lib/*.d.ts",
+					"rimraf dist/packages/playground/blueprints/*.d.ts",
+					"mv packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
+				],
+				"parallel": false
 			}
 		},
 		"publish": {

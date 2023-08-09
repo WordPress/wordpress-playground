@@ -46,6 +46,22 @@ const config = {
 				disableInDev: false,
 			},
 		],
+		[
+			'@docusaurus/plugin-client-redirects',
+			{
+				redirects: [
+					{
+						to: '/',
+						from: '/docs/start-here',
+					},
+				],
+				createRedirects(existingPath) {
+					if (!existingPath.startsWith('/docs')) {
+						return [`/docs${existingPath}`];
+					}
+				},
+			},
+		],
 	],
 
 	presets: [
@@ -54,7 +70,9 @@ const config = {
 			/** @type {import('@docusaurus/preset-classic').Options} */
 			({
 				docs: {
+					routeBasePath: '/',
 					sidebarPath: require.resolve('./sidebars.js'),
+
 					editUrl:
 						'https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/',
 
@@ -82,6 +100,7 @@ const config = {
 				appId: 'EKWQ08DUQS',
 				apiKey: '2fcab4cf2c3596e775de8c4ab1fa065e',
 				indexName: 'wordpress-playground',
+				schedule: 'every 1 day',
 			},
 			navbar: {
 				title: 'WordPress Playground',
@@ -97,11 +116,6 @@ const config = {
 						label: 'Documentation',
 					},
 					{
-						href: 'https://github.com/WordPress/wordpress-playground',
-						label: 'GitHub',
-						position: 'right',
-					},
-					{
 						to: 'api',
 						label: 'API Reference',
 						position: 'left',
@@ -109,7 +123,12 @@ const config = {
 					{
 						href: 'https://playground.wordpress.net/gutenberg.html',
 						label: 'Gutenberg PR Previewer',
-						position: 'left',
+						position: 'right',
+					},
+					{
+						href: 'https://github.com/WordPress/wordpress-playground',
+						label: 'GitHub',
+						position: 'right',
 					},
 				],
 			},
@@ -121,7 +140,7 @@ const config = {
 						items: [
 							{
 								label: 'Documentation',
-								to: '/docs/start-here',
+								to: '/',
 							},
 							{
 								label: 'API Reference',

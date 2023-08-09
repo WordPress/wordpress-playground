@@ -708,17 +708,3 @@ div#wp-responsive-toggle a:before {
   border-bottom-color: #a3b745;
   color: #0073aa;
 }
-
-/* Welcome Panel */
-.welcome-panel {
-  background-color: #523f6d;
-}
-
-.welcome-panel-header-image .curve,
-.welcome-panel-header-image .dot {
-  fill: rgba(255, 255, 255, 0.33);
-}
-
-[class*=welcome-panel-icon] {
-  background-color: rgba(255, 255, 255, 0.33);
-}

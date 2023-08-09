@@ -1,5 +1,8 @@
 import { StepHandler } from '.';
 
+/**
+ * @private
+ */
 export interface RunWpInstallationWizardStep {
 	step: 'runWpInstallationWizard';
 	options: WordPressInstallationOptions;

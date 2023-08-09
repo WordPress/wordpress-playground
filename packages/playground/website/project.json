@@ -15,7 +15,7 @@
 				"commands": [
 					"rimraf --no-preserve-root ./wasm-wordpress-net",
 					"mkdir ./wasm-wordpress-net",
-					"cp -r ./client/blueprint-schema.json ./wasm-wordpress-net/",
+					"cp -r ./blueprints/blueprint-schema.json ./wasm-wordpress-net/",
 					"cp -r ./remote/* ./wasm-wordpress-net/",
 					"cp -r ./website/* ./wasm-wordpress-net/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess"
@@ -47,7 +47,7 @@
 			"options": {
 				"commands": [
 					"nx dev playground-remote --configuration=development-for-website",
-					"nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
+					"sleep 1; nx dev:standalone playground-website --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
 				"color": true

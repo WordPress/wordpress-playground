@@ -1,6 +1,6 @@
 ---
 title: Start here
-slug: /start-here
+slug: /
 ---
 
 # WordPress Playground
@@ -9,8 +9,13 @@ slug: /start-here
 
 The documentation consists of two major sections:
 
+<<<<<<< HEAD
 -   [Documentation](./01-index.md) – Introduction, concepts and guides.
 -   [API reference](/api) – All the APIs exposed by WordPress Playground.
+=======
+-   [Documentation](./01-index.md) (you're here) – Introduction, concepts, and guides
+-   [API reference](/api) – All the APIs exposed by WordPress Playground
+>>>>>>> 9f2195bf3f482c933a9e08973b261ecf5334eff5
 
 This site (Documentation) is where you will find all the information you need to start doing something awesome things with Playground.
 
@@ -27,6 +32,7 @@ This site (Documentation) is where you will find all the information you need to
 import APIList from '@site/docs/\_fragments/\_api_list.mdx';
 
 -   Read about [Playground APIs](../06-playground-apis/01-index.md) and basic concepts
+-   Review [links and resources](../15-resources.md)
 -   Choose the right API for your app <APIList />
 -   Dive into the [architecture](../11-architecture/01-index.md) and learn how it all works
 

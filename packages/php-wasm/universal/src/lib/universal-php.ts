@@ -74,7 +74,7 @@ export interface RequestHandler {
 	 * 	}
 	 * })
 	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
-	 * const result = await php.run({
+	 * const result = await php.request({
 	 * 	method: "GET",
 	 * 	headers: {
 	 * 		"Content-Type": "text/plain"
@@ -332,7 +332,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 *     post_message_to_js(string $data)
 	 *
 	 *     Arguments:
-	 *         $data – any extra information as a string
+	 *         $data (string) – Data to pass to JavaScript.
 	 *
 	 * @example
 	 *
