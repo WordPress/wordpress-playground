@@ -1,4 +1,5 @@
 export const SupportedWordPressVersions = [
+	'6.3',
 	'6.2',
 	'6.1',
 	'6.0',
@@ -25,6 +26,9 @@ export function getWordPressModule(wpVersion: string) {
 		case '6.2':
 			/** @ts-ignore */
 			return import('../wordpress/wp-6.2.js');
+		case '6.3':
+			/** @ts-ignore */
+			return import('../wordpress/wp-6.3.js');
 		case 'nightly':
 			/** @ts-ignore */
 			return import('../wordpress/wp-nightly.js');

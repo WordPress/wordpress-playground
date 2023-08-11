@@ -13,12 +13,13 @@ import Button from '../button';
 // @TODO: move to a shared package like @wp-playground/wordpress
 export const SupportedWordPressVersions = [
 	'nightly',
+	'6.3',
 	'6.2',
 	'6.1',
 	'6.0',
 	'5.9',
 ] as const;
-export const LatestSupportedWordPressVersion = '6.2';
+export const LatestSupportedWordPressVersion = '6.3';
 export const SupportedWordPressVersionsList =
 	SupportedWordPressVersions as any as string[];
 export type SupportedWordPressVersion =

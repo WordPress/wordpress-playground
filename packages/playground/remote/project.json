@@ -51,6 +51,7 @@
 					"node packages/playground/compile-wordpress/build.js --preset=6.0 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
 					"node packages/playground/compile-wordpress/build.js --preset=6.1 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
 					"node packages/playground/compile-wordpress/build.js --preset=6.2 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --preset=6.3 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
 					"node packages/playground/compile-wordpress/build.js --preset=nightly --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public"
 				],
 				"parallel": false

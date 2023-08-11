@@ -29,6 +29,7 @@ import type { ValidateFunction } from 'ajv';
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
 const supportedWordPressVersions = [
+	'6.3',
 	'6.2',
 	'6.1',
 	'6.0',
@@ -112,7 +113,7 @@ export function compileBlueprint(
 			wp: compileVersion(
 				blueprint.preferredVersions?.wp,
 				supportedWordPressVersions,
-				'6.2'
+				'6.3'
 			),
 		},
 		run: async (playground: UniversalPHP) => {
