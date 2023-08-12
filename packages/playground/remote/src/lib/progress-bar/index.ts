@@ -9,7 +9,7 @@ export interface ProgressBarOptions {
 }
 
 class ProgressBar {
-	element: HTMLDivElement;
+	element: HTMLMeterElement;
 	captionElement: HTMLHeadingElement;
 	caption = 'Preparing WordPress';
 	progress = 0;
@@ -17,7 +17,7 @@ class ProgressBar {
 	visible = true;
 
 	constructor(options: ProgressBarOptions = {}) {
-		this.element = document.createElement('div');
+		this.element = document.createElement('meter');
 		this.captionElement = document.createElement('h3');
 		this.element.appendChild(this.captionElement);
 		this.setOptions(options);
@@ -92,7 +92,7 @@ class ProgressBar {
 		const wrapper = document.createElement('div');
 		wrapper.classList.add(css.wrapper, css.wrapperIndefinite);
 
-		const progressBar = document.createElement('div');
+		const progressBar = document.createElement('meter');
 		progressBar.classList.add(css.progressBar, css.isIndefinite);
 
 		wrapper.appendChild(progressBar);
