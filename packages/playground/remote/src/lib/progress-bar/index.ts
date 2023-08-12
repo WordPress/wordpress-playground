@@ -79,9 +79,10 @@ class ProgressBar {
 		const wrapper = document.createElement('div');
 		wrapper.classList.add(css.wrapper, css.wrapperDefinite);
 
-		const progressBar = document.createElement('div');
+		const progressBar = document.createElement('meter');
 		progressBar.classList.add(css.progressBar, css.isDefinite);
-		progressBar.style.width = this.progress + '%';
+		progressBar.value = this.progress;
+		progressBar.max = 100;
 
 		wrapper.appendChild(progressBar);
 		return wrapper;
