@@ -73,6 +73,26 @@ const currentConfiguration: PlaygroundConfiguration = {
 	storage: storage || 'temporary',
 };
 
+/*
+ * The 6.3 release includes a caching bug where
+ * registered styles aren't enqueued when they
+ * should be. This isn't present in all environments
+ * but it does here in the Playground. For now,
+ * the fix is to define `WP_DEVELOPMENT_MODE = all`
+ * to bypass the style cache.
+ *
+ * @see https://core.trac.wordpress.org/ticket/59056
+ */
+if (currentConfiguration.wp === '6.3') {
+	blueprint.steps?.unshift({
+		step: 'defineWpConfigConsts',
+		consts: {
+			WP_DEVELOPMENT_MODE: 'all',
+		},
+		virtualize: true,
+	});
+}
+
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
