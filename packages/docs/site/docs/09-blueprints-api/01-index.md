@@ -61,7 +61,7 @@ Because Blueprints can be pasted in the URL, you can embed or link to a Playgrou
 
 ### Trusted by default
 
-Blueprints are just JSON. Running other people's Blueprints doesn't require the element of trust. Since Blueprints cannot execute arbitrary JavaScript, they are limited in what they can do.
+Blueprints are just JSON. Running other people's Blueprints doesn't require the element of trust. Since Blueprints cannot execute arbitrary , they are limited in what they can do.
 
 With Blueprints, WordPress.org plugin directory may be able to offer live previews of plugins. Plugin authors will just write a custom Blueprint to preconfigure the Playground instance with any site options or starter content they may need.
 
