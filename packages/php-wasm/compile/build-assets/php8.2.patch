@@ -129,13 +129,13 @@ diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
 @@ -246,8 +246,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
  		return FAILURE;
  	}
- 
+
 -	SG(headers_sent) = 1;
 -	SG(request_info).no_headers = 1;
 +	SG(headers_sent) = 0;
 +	SG(request_info).no_headers = 0;
  	php_register_variable("PHP_SELF", "-", NULL);
- 
+
  	return SUCCESS;
 
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
@@ -145,7 +145,7 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  	php_stream *srcstream = NULL, *deststream = NULL;
  	int ret = FAILURE;
  	php_stream_statbuf src_s, dest_s;
- 
+
  	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
  		case -1:
  			/* non-statable stream */
@@ -174,3 +174,32 @@ diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
  		php_error_docref(NULL, E_WARNING, "The first argument to copy() function cannot be a directory");
  		return FAILURE;
  	}
+
+diff --git a/php-src/main/streams/cast.c b/main/streams/cast.c
+index 3bad65fbac..05cab34658 100644
+--- a/php-src/main/streams/cast.c
++++ b/php-src/main/streams/cast.c
+@@ -102,8 +102,7 @@ static ssize_t stream_cookie_writer(void *cookie, const char *buffer, size_t siz
+ 	return php_stream_write(((php_stream *)cookie), (char *)buffer, size);
+ }
+
+-# ifdef COOKIE_SEEKER_USES_OFF64_T
+-static int stream_cookie_seeker(void *cookie, off64_t *position, int whence)
++static int stream_cookie_seeker(void *cookie, off_t *position, int whence)
+ {
+
+ 	*position = php_stream_seek((php_stream *)cookie, (zend_off_t)*position, whence);
+@@ -113,13 +112,6 @@ static int stream_cookie_seeker(void *cookie, off64_t *position, int whence)
+ 	}
+ 	return 0;
+ }
+-# else
+-static int stream_cookie_seeker(void *cookie, zend_off_t position, int whence)
+-{
+-
+-	return php_stream_seek((php_stream *)cookie, position, whence);
+-}
+-# endif
+
+ static int stream_cookie_closer(void *cookie)
+ {
