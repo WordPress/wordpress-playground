@@ -8,11 +8,11 @@
 'use strict';
 
 import * as dns from 'dns';
+import * as util from 'util';
 import * as net from 'net';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils.js';
-const util = require('util');
 
 function log(...args: any[]) {
 	debugLog('[WS Server]', ...args);

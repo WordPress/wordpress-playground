@@ -283,7 +283,6 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		 * Issue https://github.com/WordPress/wordpress-playground/issues/169
 		 */
 		it('Should work with long POST body', async () => {
-			const php = await NodePHP.load(phpVersion);
 			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 			const body =
 				readFileSync(
@@ -304,7 +303,6 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 					},
 				});
 			}).not.toThrowError();
-			php.exit();
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
