@@ -111,7 +111,7 @@ export class PHPBrowser implements RequestHandler {
 	get documentRoot() {
 		return this.requestHandler.documentRoot;
 	}
-	
+
 	setCookies(cookies: string[]) {
 		for (const cookie of cookies) {
 			try {

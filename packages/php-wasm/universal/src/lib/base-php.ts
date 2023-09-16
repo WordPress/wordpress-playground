@@ -573,8 +573,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	exit(code = 0)
-	{
+	exit(code = 0) {
 		return this[__private__dont__use]._exit(code);
 	}
 }

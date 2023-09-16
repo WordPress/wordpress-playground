@@ -28,6 +28,7 @@ export function init(RuntimeName, PHPLoader) {
      * ExitStatus();
      * // logs "reassigned"
      */
+	const asyncifyStubs = {};
     ExitStatus = class PHPExitStatus extends Error {
         constructor(status) {
             super(status);
