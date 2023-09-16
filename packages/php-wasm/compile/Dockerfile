@@ -98,31 +98,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     (EMCC_FLAGS="-fPIC" emmake make || true) && \
     EMCC_FLAGS="-fPIC" emmake make install
 
-# Compile libzip
-FROM emscripten AS emscripten-libzip
-ARG PHP_VERSION
-COPY --from=emscripten-libz /root/lib /root/lib-libz
-RUN /root/copy-lib.sh lib-libz
-RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            export LIBZIP_VERSION=1.2.0; \
-        else \
-            export LIBZIP_VERSION=1.9.2; \
-        fi && \
-        cd /root && \
-        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
-        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
-        mv libzip-$LIBZIP_VERSION libzip;
-RUN mkdir -p libzip/build
-RUN cd libzip/build && \
-        source /root/emsdk/emsdk_env.sh && \
-        emcmake cmake \
-            -DCMAKE_INSTALL_PREFIX=/root/lib \
-            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
-            -DZLIB_INCLUDE_DIR=/root/lib/include \
-            ..
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
-
 # Compile ncurses
 FROM emscripten AS emscripten-ncurses
 COPY ./build-assets/ncurses.patch /root/
@@ -228,7 +203,6 @@ RUN     set -euxo pipefail &&\
 # Compile OpenSSL
 # Inspired by: https://github.com/TrueBitFoundation/wasm-ports/blob/79aac7272729baaf131ca0c49cc3b684eedff835/openssl.sh
 FROM emscripten AS emscripten-openssl
-ARG PHP_VERSION
 COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN /root/copy-lib.sh lib-libz
 RUN set -euxo pipefail && \
@@ -242,7 +216,7 @@ RUN set -euxo pipefail && \
     EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
     cp -RL include/openssl /root/lib/include && \
     cp libcrypto.a libssl.a /root/lib/lib && \
-    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install;
+    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install_sw;
 
 # Compile libpng
 FROM emscripten AS emscripten-libpng
@@ -261,6 +235,33 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --prefix=/root/lib/
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
+
+# Compile libzip
+FROM emscripten AS emscripten-libzip
+ARG PHP_VERSION
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
+RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+            export LIBZIP_VERSION=1.2.0; \
+        else \
+            export LIBZIP_VERSION=1.9.2; \
+        fi && \
+        cd /root && \
+        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
+        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
+        mv libzip-$LIBZIP_VERSION libzip;
+RUN mkdir -p libzip/build
+RUN cd libzip/build && \
+        source /root/emsdk/emsdk_env.sh && \
+        emcmake cmake \
+            -DCMAKE_INSTALL_PREFIX=/root/lib \
+            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
+            -DZLIB_INCLUDE_DIR=/root/lib/include \
+            ..
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
+
+
 
 # Clone PHP
 FROM emscripten AS emscripten-php-src
