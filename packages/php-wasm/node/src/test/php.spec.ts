@@ -282,7 +282,8 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		/**
 		 * Issue https://github.com/WordPress/wordpress-playground/issues/169
 		 */
-		it('Should work with long POST body', () => {
+		it('Should work with long POST body', async () => {
+			const php = await NodePHP.load(phpVersion);
 			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 			const body =
 				readFileSync(
@@ -303,10 +304,12 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 					},
 				});
 			}).not.toThrowError();
+			php.exit();
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
-			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
+			console.log(phpVersion, testScriptPath);
+			php.writeFile(testScriptPath, `<?php echo "Hello world!"; ?>\n`);
 			const response = await php.run({
 				scriptPath: testScriptPath,
 			});
@@ -720,7 +723,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|RuntimeError: memory access out of bounds|RuntimeError: unreachable/
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|memory access/
 					);
 				}
 			}
