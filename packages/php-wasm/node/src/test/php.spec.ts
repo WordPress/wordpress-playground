@@ -720,7 +720,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|/
+						/Aborted|Program terminated with exit\(1\)|RuntimeError: memory access out of bounds/
 					);
 				}
 			}
