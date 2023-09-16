@@ -910,7 +910,8 @@ fi;
 RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 RUN source /root/emsdk/emsdk_env.sh && \
-    export EXPORTED_FUNCTIONS=$'["_php_wasm_init", \n\
+    export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
@@ -950,6 +951,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     -s ASSERTIONS=0                  \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s NODEJS_CATCH_EXIT=0           \
+	-s NODEJS_CATCH_REJECTION=0      \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \
         /root/lib/libphp.a \

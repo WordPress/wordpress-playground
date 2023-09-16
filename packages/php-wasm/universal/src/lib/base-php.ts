@@ -572,6 +572,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			return false;
 		}
 	}
+
+	exit(code = 0)
+	{
+		return this[__private__dont__use]._exit(code);
+	}
 }
 
 export function normalizeHeaders(
