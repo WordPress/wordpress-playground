@@ -17,7 +17,7 @@ diff --git a/php-src/ext/pdo/config.m4 b/php-src/ext/pdo/config.m4
    PHP_NEW_EXTENSION(pdo, pdo.c pdo_dbh.c pdo_stmt.c pdo_sql_parser.c pdo_sqlstate.c, $ext_shared)
    PHP_ADD_EXTENSION_DEP(pdo, spl, true)
    PHP_INSTALL_HEADERS(ext/pdo, [php_pdo.h php_pdo_driver.h php_pdo_error.h])
-
+ 
 -  dnl so we always include the known-good working hack.
    PHP_ADD_MAKEFILE_FRAGMENT
  fi
@@ -27,7 +27,7 @@ diff --git a/php-src/ext/pdo_sqlite/config.m4 b/php-src/ext/pdo_sqlite/config.m4
 @@ -10,25 +10,7 @@ if test "$PHP_PDO_SQLITE" != "no"; then
      AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
    fi
-
+ 
 -  PHP_CHECK_PDO_INCLUDES
 -
 -  PKG_CHECK_MODULES([SQLITE], [sqlite3 >= 3.7.7])
@@ -141,12 +141,14 @@ diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
-@@ -1691,18 +1691,32 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+@@ -1537,20 +1537,34 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php_stream_context *ctx)
+ {
  	php_stream *srcstream = NULL, *deststream = NULL;
  	int ret = FAILURE;
  	php_stream_statbuf src_s, dest_s;
-
- 	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
+ 	int src_stat_flags = (src_flg & STREAM_DISABLE_OPEN_BASEDIR) ? PHP_STREAM_URL_STAT_IGNORE_OPEN_BASEDIR : 0;
+ 
+ 	switch (php_stream_stat_path_ex(src, src_stat_flags, &src_s, ctx)) {
  		case -1:
  			/* non-statable stream */
  			goto safe_to_copy;

@@ -67,6 +67,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with SQLite support',
 		},
+		WITH_SOURCEMAPS: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
+		},
 		WITH_MYSQL: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -166,6 +171,8 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SQLITE'),
 		'--build-arg',
+		getArg('WITH_SOURCEMAPS'),
+		'--build-arg',
 		getArg('WITH_MYSQL'),
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
@@ -192,7 +199,7 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
+		`cp -rf /root/output/* /output && mkdir -p /output/terminfo/x ${
 			getArg('WITH_CLI_SAPI') === 'yes'
 				? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
 				: ''

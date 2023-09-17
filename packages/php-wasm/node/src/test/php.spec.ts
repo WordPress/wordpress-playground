@@ -721,7 +721,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|memory access/
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
 					);
 				}
 			}

@@ -38,8 +38,8 @@ RUN set -euxo pipefail;\
 # the build take forever on Apple Silicon.
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN git clone https://github.com/emscripten-core/emsdk.git && \
-    ./emsdk/emsdk install 3.1.32 && \
-    /root/emsdk/emsdk activate 3.1.32
+    ./emsdk/emsdk install 3.1.43 && \
+    /root/emsdk/emsdk activate 3.1.43
 
 RUN mkdir -p /root/lib/lib /root/lib/include /root/lib/share /root/lib/bin
 
@@ -55,11 +55,11 @@ COPY ./build-assets/replace.sh /root/replace.sh
 RUN chmod a+x /root/replace.sh
 
 # Patch emcc to allow skipping flags and passing additional flags using environment variables.
-# 
+#
 # We're compiling libraries statically using emscripten's -sSIDE_MODULE. It differs from the usual unix
 # process as we're *not* supposed to link intermediate libraries against their dependencies. Instead,
 # We'll provide all the static libraries in the final linking step.
-# 
+#
 # Unfortunately, most Makefiles stubbornly add -lz, -lxml2, etc. to the intermediate
 # emcc calls, which causes the build to fail. This patch:
 # * Enables force-removing linker options when running emcc
@@ -75,8 +75,8 @@ RUN chmod a+x /root/replace.sh
 RUN cp /root/emsdk/upstream/emscripten/emcc /root/emsdk/upstream/emscripten/emcc2 && \
     cp /root/emsdk/upstream/emscripten/emcc.py /root/emsdk/upstream/emscripten/emcc2.py && \
     echo $'#!/bin/bash\n\
-for arg do shift\n\ 
-    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\ 
+for arg do shift\n\
+    [[ " ${EMCC_SKIP[*]} " =~ " ${arg} " ]] && continue \n\
     set -- "$@" "$arg" \n\
 done\n\
 # Passing extra flags breaks the version check \n\
@@ -93,7 +93,7 @@ RUN chmod a+x /root/zlib/configure
 RUN source /root/emsdk/emsdk_env.sh && \
     cd /root/zlib && \
     emconfigure ./configure --prefix=/root/lib && \
-    # emmake make fails, but only after it builds the library files. 
+    # emmake make fails, but only after it builds the library files.
     # Let's just ignore the errors and proceed with the built libraries.
     (EMCC_FLAGS="-fPIC" emmake make || true) && \
     EMCC_FLAGS="-fPIC" emmake make install
@@ -223,7 +223,7 @@ FROM emscripten AS emscripten-libpng
 COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN /root/copy-lib.sh lib-libz
 RUN wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz
-RUN tar -xzf libpng-1.6.39.tar.gz 
+RUN tar -xzf libpng-1.6.39.tar.gz
 WORKDIR /root/libpng-1.6.39
 RUN     source /root/emsdk/emsdk_env.sh && \
         CPPFLAGS="-I/root/lib/include " \
@@ -293,6 +293,7 @@ ARG WITH_CLI_SAPI
 ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
+ARG WITH_SOURCEMAPS
 ARG WITH_WS_NETWORKING_PROXY
 
 # The platform to build for: web or node
@@ -451,7 +452,7 @@ WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-    # Fibers are a PHP 8.1+ feature. They are compiled as 
+    # Fibers are a PHP 8.1+ feature. They are compiled as
     # a custom assembly implementation by default. However,
     # that implementation does not work with emscripten.
     #
@@ -486,9 +487,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
-RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h; 
+RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
 
-# With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function 
+# With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
@@ -507,8 +508,8 @@ RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
-RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h; 
-RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h; 
+RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h;
+RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
 
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
@@ -527,7 +528,11 @@ RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
         # Preserve symbol names in node.js build – the bundle size doesn't matter as much
         # as on the web, and this makes debugging **much** easier.
-        echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
+		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+        	echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
+		else \
+        	echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
+		fi; \
     fi
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
@@ -552,7 +557,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         #
         # If you a get an error similar to the one below, you need to add all the function on
         # the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
-        # 
+        #
         # RuntimeError: unreachable
         # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
         # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
@@ -562,9 +567,9 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         # to get the entire stack.
         #
         # -------
-        # 
+        #
         # Related: Any errors like Fatal error: Cannot redeclare function ...
-        # are caused by dispatching a PHP request while an execution is paused 
+        # are caused by dispatching a PHP request while an execution is paused
         # due to an async call – it means the same PHP files are loaded before
         # the previous request, where they're already loaded, is concluded.
         export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
@@ -910,7 +915,9 @@ fi;
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
-RUN source /root/emsdk/emsdk_env.sh && \
+ARG WITH_SOURCEMAPS
+RUN set -euxo pipefail; \
+	source /root/emsdk/emsdk_env.sh; \
     export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
@@ -933,7 +940,11 @@ RUN source /root/emsdk/emsdk_env.sh && \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-    emcc -O3 \
+	export OPTIMIZATION_FLAGS="-O3"; \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+		export OPTIMIZATION_FLAGS="-O0"; \
+	fi; \
+    emcc $OPTIMIZATION_FLAGS \
     --js-library /root/phpwasm-emscripten-library.js \
     -I .  \
     -I ext   \
@@ -1017,7 +1028,7 @@ RUN \
         # However, PHP relies on passing the MSG_PEEK (== integer 2) flag when polling
         # the stream for data.
         # MSG_PEEK enables reading bytes without moving the stream pointer forward.
-        # Without the patch below, PHP consumes the first byte from the top of the 
+        # Without the patch below, PHP consumes the first byte from the top of the
         # response stream, typically "H" in "HTTP/1.1 200 OK", and then fails after
         # reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
         # status line.
@@ -1039,16 +1050,16 @@ RUN \
         # environment, based on the `RuntimeName` variable, which is an argument to the
         # wrapper function.
         /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js && \
-        /root/replace.sh 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js && \
+        /root/replace.sh 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js; \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
         if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-            echo "const dependencyFilename = __dirname + '/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+            echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
         else \
-            echo "import dependencyFilename from './$WASM_FILENAME'; " >> /root/output/php-module.js; \
+            echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-        echo " export { dependencyFilename }; " >> /root/output/php-module.js && \
+		echo " export { dependencyFilename }; " >> /root/output/php-module.js && \
         echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
         cat /root/esm-prefix.js >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
@@ -1058,5 +1069,13 @@ RUN \
         rm /root/output/php.js && \
         \
         # Rename the build files to their final names
-        mv /root/output/php-module.js "/root/output/$JS_FILENAME" && \
-        mv /root/output/php.wasm "/root/output/$WASM_FILENAME"
+        mv /root/output/php-module.js "/root/output/$JS_FILENAME"; \
+        # mv /root/output/php.wasm "/root/output/$WASM_FILENAME";
+        mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
+		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
+		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+			sed -i 's/..\/php-src/php-src/g' /root/output/php.wasm.map; \
+			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
+			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
+			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
+		fi;

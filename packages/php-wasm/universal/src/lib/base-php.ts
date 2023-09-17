@@ -422,7 +422,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					'wasm_sapi_handle_request',
 					NUMBER,
 					[],
-					[]
+					[],
+					{async:true}
 				);
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
