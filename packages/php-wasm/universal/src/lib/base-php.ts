@@ -423,7 +423,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					NUMBER,
 					[],
 					[],
-					{async:true}
+					{ async: true }
 				);
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
