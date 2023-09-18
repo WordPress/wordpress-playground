@@ -86,7 +86,7 @@ wp_insert_post(array(
 		},
 		{
 			"step": "importFile",
-			"pluginZipFile": {
+			"file": {
 				"resource": "url",
 				"url": "https://your-site.com/starter-content.wxz"
 			}
