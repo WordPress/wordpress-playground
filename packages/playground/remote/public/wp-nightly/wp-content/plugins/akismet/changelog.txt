@@ -1,4 +1,4 @@
-=== Akismet Anti-Spam ===
+=== Akismet Anti-spam ===
 
 == Archived Changelog Entries ==
 

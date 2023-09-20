@@ -10,10 +10,22 @@
 	--akismet-color-white: #fff;
 	--akismet-color-mid-green: #357b49;
 	--akismet-color-mid-red: #e82c3f;
+	--akismet-color-light-blue: #256eff;
+	--akismet-color-notice-light-green: #dbf0e1;
+	--akismet-color-notice-dark-green: #69bf82;
+	--akismet-color-notice-light-red: #ffdbde;
+	--akismet-color-notice-dark-red: #ff6676;
 }
 
 #akismet-plugin-container a {
 	color: var(--akismet-color-mid-green);
+}
+
+#akismet-plugin-container button:focus-visible,
+#akismet-plugin-container input:focus-visible {
+	border: 0;
+	box-shadow: none;
+	outline: 2px solid var(--akismet-color-light-blue);
 }
 
 .akismet-masthead {
@@ -113,7 +125,7 @@
 	padding: 1em;
 }
 
-.akismet-box { 
+.akismet-box {
 	border: 0;
 }
 
@@ -121,7 +133,7 @@
 .akismet-card {
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 0 2px rgba(0, 0, 0, 0.16);
 	border-radius: 8px;
-	overflow: hidden;	
+	overflow: hidden;
 }
 
 .akismet-card {
@@ -241,45 +253,106 @@
 	margin-top: 2px;
 }
 
-.akismet-alert.akismet-active {
-	background-color: var(--akismet-color-mid-green);
+.akismet-alert {
+	border-left: 8px solid;
+	border-radius: 8px;
+	margin: 20px 0;
+	padding: 0.2em 1em;
 }
 
-.akismet-alert.akismet-critical {
-	background-color: var(--akismet-color-mid-red);
+.akismet-alert__heading {
+	font-size: 1em;
+}
+
+.akismet-alert.is-good {
+	background-color: var(--akismet-color-notice-light-green);
+	border-left-color: var(--akismet-color-notice-dark-green);
+}
+
+.akismet-alert.is-neutral {
+	background-color: var(--akismet-color-white);
+	border-left-color: var(--akismet-color-dark-grey);
+}
+
+.akismet-alert.is-bad {
+	background-color: var(--akismet-color-notice-light-red);
+	border-left-color: var(--akismet-color-notice-dark-red);
+}
+
+#akismet-plugin-container .akismet-alert.is-good a,
+#akismet-plugin-container .akismet-alert.is-bad a {
+	/* For better contrast - green isn't great */
+	color: var(--akismet-color-grey-80);
+}
+
+/* Setup - API key input */
+.akismet-enter-api-key-box {
+	margin: 1.5rem 0;
+}
+
+.akismet-enter-api-key-box__reveal {
+	background: none;
+	border: 0;
+	color: var(--akismet-color-mid-green);
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.akismet-enter-api-key-box__form-wrapper {
+	display: none;
+	margin-top: 1.5rem;
+}
+
+.akismet-enter-api-key-box__input-wrapper {
+	box-sizing: border-box;
+	display: flex;
+	flex-wrap: nowrap;
+	padding: 0 1.5rem;
+	width: 100%;
+}
+
+.akismet-enter-api-key-box__key-input {
+	flex-grow: 1;
+	margin-right: 1rem;
+}
+
+h3.akismet-enter-api-key-box__header {
+	padding-top: 0;
+	padding-bottom: 1em;
+	text-align: left;
 }
 
 @media screen and (max-width: 782px) {
 	.akismet-new-snapshot__list {
 		display: block;
 	}
-	
+
 	.akismet-new-snapshot__number {
 		float: right;
 		font-size: 20px;
 		font-weight: 500;
 		margin-top: -16px;
 	}
-	
+
 	.akismet-new-snapshot__header {
 		font-size: 14px;
 		font-weight: 500;
 	}
-	
+
 	.akismet-new-snapshot__text {
 		font-size: 12px;
 	}
-	
+
 	.akismet-settings__row input[type="checkbox"],
 	.akismet-settings__row input[type="radio"] {
 		height: 24px;
 		width: 24px;
 	}
-	
+
 	.akismet-settings__row-label-text {
 		padding-left: 0.8em;
 	}
-	
+
 	.akismet-settings__row input[type="checkbox"],
 	.akismet-settings__row input[type="radio"] {
 		margin-top: 0;
