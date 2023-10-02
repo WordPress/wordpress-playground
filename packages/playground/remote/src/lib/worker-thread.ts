@@ -55,7 +55,7 @@ let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
 let lastOpfsDir: FileSystemDirectoryHandle | undefined;
 let wordPressAvailableInOPFS = false;
 if (
-	startupOptions.storage === 'opfs-browser' || startupOptions.storage === 'browser'
+	(startupOptions.storage === 'opfs-browser' || startupOptions.storage === 'browser') &&
 	// @ts-ignore
 	typeof navigator?.storage?.getDirectory !== 'undefined'
 ) {
