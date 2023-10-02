@@ -5,7 +5,7 @@ import { buildVersion } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	storage?: 'opfs-host' | 'opfs-browser' | 'temporary';
+	storage?: 'opfs-host' | 'browser' | 'temporary';
 }
 export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
