@@ -282,7 +282,7 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		/**
 		 * Issue https://github.com/WordPress/wordpress-playground/issues/169
 		 */
-		it('Should work with long POST body', async () => {
+		it('Should work with long POST body', () => {
 			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
 			const body =
 				readFileSync(
