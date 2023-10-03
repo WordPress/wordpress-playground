@@ -760,5 +760,47 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				expect.fail('php.run should have thrown an error');
 			}
 		});
+
+		it('Does not leak memory when creating and destroying instances', async () => {
+
+			let refCount = 0;
+
+			const registry = new FinalizationRegistry(() => --refCount);
+
+			const concurrent = 25;
+			const steps = 5;
+
+			const delay = (ms: number) => new Promise(accept => setTimeout(accept, ms));
+
+			for(let i = 0; i < steps; i++) {
+
+				const instances = new Set<NodePHP>;
+
+				for(let j = 0; j < concurrent; j++) {
+					instances.add(await NodePHP.load(phpVersion as any));
+				}
+
+				refCount += instances.size;
+
+				for(const instance of instances) {
+					registry.register(instance, null);
+					instance
+					.run({code: `<?php 2+2;`})
+					.then(() => instance.exit())
+					.catch(error => {})
+				}
+
+				instances.clear();
+
+				await delay(10);
+				global.gc();
+			}
+
+			await delay(100);
+			global.gc();
+
+			expect(refCount).lessThanOrEqual(10);
+
+		}, 500_000);
 	}
 );

@@ -4,6 +4,8 @@
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code from JavaScript.
  */
+#define off64_t off_t
+
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>
@@ -106,7 +108,7 @@ PHP_FUNCTION(post_message_to_js)
 {
 	char *data;
 	int data_len;
-	
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE) {
 		return;
 	}
@@ -188,7 +190,7 @@ int run_cli() {
 	return main(cli_argc, cli_argv_array);
 }
 
-#else 
+#else
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
 	PHP_FE(post_message_to_js,      arginfo_post_message_to_js)
@@ -306,33 +308,33 @@ static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",                        /* name */
 	"PHP WASM SAPI",               /* pretty name */
-	
+
 	wasm_sapi_module_startup,      /* startup */
 	wasm_sapi_shutdown_wrapper,    /* shutdown */
-  
+
 	NULL,                          /* activate */
 	wasm_sapi_deactivate,          /* deactivate */
-  
+
 	wasm_sapi_ub_write,            /* unbuffered write */
 	wasm_sapi_flush,               /* flush */
 	NULL,                          /* get uid */
 	NULL,                          /* getenv */
-  
+
 	php_error,                     /* error handler */
-  
+
 	NULL,                          /* header handler */
 	wasm_sapi_send_headers,        /* send headers handler */
 	wasm_sapi_send_header,         /* send header handler */
-	
+
 	wasm_sapi_read_post_body,      /* read POST data */
 	wasm_sapi_read_cookies,        /* read Cookies */
-  
+
 	wasm_sapi_register_server_variables,   /* register server variables */
 
 	wasm_sapi_log_message,          /* Log message */
 	NULL,							/* Get request time */
 	NULL,							/* Child terminate */
-  
+
 	STANDARD_SAPI_MODULE_PROPERTIES
 };
 
@@ -429,7 +431,7 @@ void wasm_destroy_server_context() {
  * Function: wasm_add_SERVER_entry
  * ----------------------------
  *   Adds a new entry to $_SERVER array.
- * 
+ *
  *   key: the key of the entry
  *   value: the value of the entry
  */
@@ -453,7 +455,7 @@ void wasm_add_SERVER_entry(char *key, char *value) {
  * Function: wasm_add_uploaded_file
  * ----------------------------
  *  Adds a new entry to the $_FILES array.
- * 
+ *
  *  key: the key of the $_FILES entry, e.g. my_file for $_FILES['my_file']
  *  name: the name of the file, e.g. notes.txt
  *  type: the type of the file, e.g. text/plain
@@ -462,9 +464,9 @@ void wasm_add_SERVER_entry(char *key, char *value) {
  *  size: the size of the file in bytes
  */
 void wasm_add_uploaded_file(
-	char *key, 
-	char *name, 
-	char *type, 
+	char *key,
+	char *name,
+	char *type,
 	char *tmp_name,
 	int error,
 	int size
@@ -484,7 +486,7 @@ void wasm_add_uploaded_file(
  * Function: wasm_set_query_string
  * ----------------------------
  *  Sets the query string for the next request.
- *  
+ *
  *  query_string: the query string, e.g. "name=John&age=30"
  */
 void wasm_set_query_string(char* query_string) {
@@ -495,7 +497,7 @@ void wasm_set_query_string(char* query_string) {
  * Function: wasm_set_path_translated
  * ----------------------------
  *  Sets the filesystem path of the PHP script to run during the next request.
- *  
+ *
  *  path_translated: the script path, e.g. "/var/www/myapp/index.php"
  */
 void wasm_set_path_translated(char* path_translated) {
@@ -514,7 +516,7 @@ void wasm_set_skip_shebang(int should_skip_shebang) {
  * Function: wasm_set_request_uri
  * ----------------------------
  *  Sets the request path (without the query string) for the next request.
- *  
+ *
  *  path_translated: the request path, e.g. "/index.php"
  */
 void wasm_set_request_uri(char* request_uri) {
@@ -525,7 +527,7 @@ void wasm_set_request_uri(char* request_uri) {
  * Function: wasm_set_request_method
  * ----------------------------
  *  Sets the request method for the next request.
- *  
+ *
  *  request_method: the request method, e.g. "GET" or "POST"
  */
 void wasm_set_request_method(char* request_method) {
@@ -536,7 +538,7 @@ void wasm_set_request_method(char* request_method) {
  * Function: wasm_set_request_host
  * ----------------------------
  *  Sets the request host for the next request.
- *  
+ *
  *  request_host: the request host, e.g. "localhost:8080"
  */
 void wasm_set_request_host(char* request_host) {
@@ -547,7 +549,7 @@ void wasm_set_request_host(char* request_host) {
  * Function: wasm_set_content_type
  * ----------------------------
  *  Sets the content type associated with the next request.
- *  
+ *
  *  content_type: the content type, e.g. "application/x-www-form-urlencoded"
  */
 void wasm_set_content_type(char* content_type) {
@@ -558,7 +560,7 @@ void wasm_set_content_type(char* content_type) {
  * Function: wasm_set_request_body
  * ----------------------------
  *  Sets the request body for the next request.
- *  
+ *
  *  request_body: the request body, e.g. "name=John&age=30"
  */
 void wasm_set_request_body(char* request_body) {
@@ -569,7 +571,7 @@ void wasm_set_request_body(char* request_body) {
  * Function: wasm_set_content_length
  * ----------------------------
  *  Sets the content length associated with the next request.
- *  
+ *
  *  content_length: the content length, e.g. 20
  */
 void wasm_set_content_length(int content_length) {
@@ -580,7 +582,7 @@ void wasm_set_content_length(int content_length) {
  * Function: wasm_set_cookies
  * ----------------------------
  *  Sets the cookies associated with the next request.
- *  
+ *
  *  cookies: the cookies, e.g. "name=John; age=30"
  */
 void wasm_set_cookies(char* cookies) {
@@ -593,7 +595,7 @@ void wasm_set_cookies(char* cookies) {
  *  Sets the PHP code to run during the next request. If set,
  *  the script at the path specified by wasm_set_path_translated()
  *  will be represented in $_SERVER but will not be executed.
- *  
+ *
  *  code: the PHP code, e.g. "echo 'Hello World!';"
  */
 void wasm_set_php_code(char* code) {
@@ -605,7 +607,7 @@ void wasm_set_php_code(char* code) {
  * Function: wasm_set_request_port
  * ----------------------------
  *  Sets the request port for the next request.
- *  
+ *
  *  port: the request port, e.g. 8080
  */
 void wasm_set_request_port(int port) {
@@ -681,7 +683,7 @@ static char *wasm_sapi_read_cookies(TSRMLS_D)
  * ----------------------------
  *   Called by PHP to retrieve the request body associated with the currently
  *   processed request.
- * 
+ *
  *   buffer: the buffer to read the request body into
  *   count_bytes: the number of bytes to read
  */
@@ -727,7 +729,7 @@ static void free_filename(zval *el)
  *
  *   Functions like `is_uploaded_file` or `move_uploaded_file` don't work with
  *   $_FILES entries that are not in an internal hash table – it's a security feature:
- * 
+ *
  *   > is_uploaded_file
  *   >
  *   > Returns true if the file named by filename was uploaded via HTTP POST. This is
@@ -741,14 +743,14 @@ static void free_filename(zval *el)
  *   > For proper working, the function is_uploaded_file() needs an argument like
  *   > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
  *   > machine $_FILES['userfile']['name'] does not work.
- * 
+ *
  *   This function allocates that internal hash table.
  *   It must not be called when the Content-type header is
  *   set to multipart/form-data, because then the hash table
  *   will be also initialized by the rfc1867_post_handler. If
- *   both code paths are triggered, PHP will crash with the 
+ *   both code paths are triggered, PHP will crash with the
  *   following error:
- *   
+ *
  *   Trace: RuntimeError: unreachable
  *   at zend_mm_panic (wasm://wasm/029f4afa:wasm-function[1027]:0x9c52c)
  *   at _efree (wasm://wasm/029f4afa:wasm-function[102]:0xa53a)
@@ -803,7 +805,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
  * Function: wasm_sapi_module_startup
  * ----------------------------
  *   Called by PHP to initialize the SAPI module.
- * 
+ *
  *   sapi_module: the WASM SAPI module struct.
  */
 int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
@@ -824,7 +826,7 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module) {
  * Function: wasm_sapi_register_server_variables
  * ----------------------------
  *   Called by PHP to register the $_SERVER variables.
- * 
+ *
  *   track_vars_array: the array where the $_SERVER keys and values are stored.
  */
 static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC)
@@ -848,10 +850,10 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		 * PHP_SELF is the script path relative to the document rooth.
 		 *
 		 * For example:
-		 * 
+		 *
 		 * If the document root is /var/www/html and the requested path is /dir/index.php,
 		 * PHP_SELF will be /dir/index.php.
-		 * 
+		 *
 		 * If the document root is /var/www/html and the requested path /nice/urls is
 		 * served from /var/www/html/another/directory/script.php, PHP_SELF will be
 		 * /another/directory/script.php
@@ -939,13 +941,13 @@ int wasm_sapi_request_init()
 	}
 
 	zend_llist global_vars;
-	zend_llist_init(&global_vars, sizeof(char *), NULL, 0);  
+	zend_llist_init(&global_vars, sizeof(char *), NULL, 0);
 
 	/* Set some Embedded PHP defaults */
 	SG(options) |= SAPI_OPTION_NO_CHDIR;
 
 	SG(server_context) = wasm_server_context;
-	
+
 	SG(request_info).query_string = wasm_server_context->query_string;
 	SG(request_info).path_translated = wasm_server_context->path_translated;
 	SG(request_info).request_uri = wasm_server_context->request_uri;
@@ -1048,7 +1050,7 @@ void wasm_sapi_request_shutdown() {
 	wasm_destroy_server_context();
 	php_request_shutdown(NULL);
 	SG(server_context) = NULL;
-	
+
 	// Let's flush the output buffers. It must happen here because
 	// ob_start() buffers are not flushed until the shutdown handler
 	// runs.
@@ -1178,7 +1180,7 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
  * Function: wasm_sapi_ub_write
  * ----------------------------
  *   Called by PHP to write to stdout.
- * 
+ *
  *   str: the string to write.
  *   str_length: the length of the string.
  */
@@ -1231,7 +1233,7 @@ FILE *headers_file;
  * ----------------------------
  *   Saves the response HTTP status code and the response headers
  *   to a JSON file located at /tmp/headers.json.
- * 
+ *
  *   Called by PHP in the request shutdown handler.
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
@@ -1257,7 +1259,7 @@ static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 		sapi_free_header(&default_header);
 	}
 	sapi_module.send_header(NULL, SG(server_context) TSRMLS_CC);
-			
+
 	_fwrite(headers_file, "]}");
 	fclose(headers_file);
 	headers_file = NULL;

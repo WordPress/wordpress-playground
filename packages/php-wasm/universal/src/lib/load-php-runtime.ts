@@ -169,7 +169,7 @@ export async function loadPHPRuntime(
 	await depsReady;
 	await phpReady;
 
-	const id = loadedRuntimes.size - 1;
+	const id = loadedRuntimes.size;
 
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
