@@ -385,10 +385,10 @@ jQuery( function ( $ ) {
 	/**
 	 * Shows the Enter API key form
 	 */
-	$( '.akismet-enter-api-key-box a' ).on( 'click', function ( e ) {
+	$( '.akismet-enter-api-key-box__reveal' ).on( 'click', function ( e ) {
 		e.preventDefault();
 
-		var div = $( '.enter-api-key' );
+		var div = $( '.akismet-enter-api-key-box__form-wrapper' );
 		div.show( 500 );
 		div.find( 'input[name=key]' ).focus();
 
