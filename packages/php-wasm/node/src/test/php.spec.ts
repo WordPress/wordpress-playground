@@ -306,7 +306,6 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
-			console.log(phpVersion, testScriptPath);
 			php.writeFile(testScriptPath, `<?php echo "Hello world!"; ?>\n`);
 			const response = await php.run({
 				scriptPath: testScriptPath,
