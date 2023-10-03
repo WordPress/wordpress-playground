@@ -786,7 +786,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 					instance
 						.run({ code: `<?php 2+2;` })
 						.then(() => instance.exit())
-						.catch((error) => {});
+						.catch(() => {});
 				}
 
 				instances.clear();
