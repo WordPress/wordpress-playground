@@ -762,7 +762,6 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		});
 
 		it('Does not leak memory when creating and destroying instances', async () => {
-
 			let refCount = 0;
 
 			const registry = new FinalizationRegistry(() => --refCount);
@@ -770,24 +769,24 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			const concurrent = 25;
 			const steps = 5;
 
-			const delay = (ms: number) => new Promise(accept => setTimeout(accept, ms));
+			const delay = (ms: number) =>
+				new Promise((accept) => setTimeout(accept, ms));
 
-			for(let i = 0; i < steps; i++) {
+			for (let i = 0; i < steps; i++) {
+				const instances = new Set<NodePHP>();
 
-				const instances = new Set<NodePHP>;
-
-				for(let j = 0; j < concurrent; j++) {
+				for (let j = 0; j < concurrent; j++) {
 					instances.add(await NodePHP.load(phpVersion as any));
 				}
 
 				refCount += instances.size;
 
-				for(const instance of instances) {
+				for (const instance of instances) {
 					registry.register(instance, null);
 					instance
-					.run({code: `<?php 2+2;`})
-					.then(() => instance.exit())
-					.catch(error => {})
+						.run({ code: `<?php 2+2;` })
+						.then(() => instance.exit())
+						.catch((error) => {});
 				}
 
 				instances.clear();
@@ -800,7 +799,6 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			global.gc();
 
 			expect(refCount).lessThanOrEqual(10);
-
 		}, 500_000);
 	}
 );
