@@ -5,8 +5,8 @@ export async function reloadWithNewConfiguration(
 	playground: PlaygroundClient,
 	config: PlaygroundConfiguration
 ) {
-	if (config.resetSite && config.storage === 'opfs-browser' || config.storage === 'browser') {
-		await playground?.resetVirtualOpfs();
+	if (config.resetSite && (config.storage === 'opfs-browser' || config.storage === 'browser')) {
+  		await playground?.resetVirtualOpfs();
 	}
 
 	const url = new URL(window.location.toString());
