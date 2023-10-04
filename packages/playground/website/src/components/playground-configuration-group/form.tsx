@@ -137,7 +137,7 @@ export function PlaygroundConfigurationForm({
 							Persistent: stored in this browser
 						</label>
 					</li>
-					{storage === 'browser' ? (
+					{storage === 'opfs-browser' ? (
 						<li
 							style={{ marginLeft: 40 }}
 							className={resetSite ? css.danger : ''}
@@ -150,7 +150,7 @@ export function PlaygroundConfigurationForm({
 									!!currentlyRunningWordPressVersion &&
 									wp !== currentlyRunningWordPressVersion
 								}
-								id="storage-browser-reset"
+								id="storage-opfs-browser-reset"
 								className={forms.radioInput}
 								onChange={(
 									event: React.ChangeEvent<HTMLInputElement>
@@ -160,7 +160,7 @@ export function PlaygroundConfigurationForm({
 								checked={resetSite}
 							/>
 							<label
-								htmlFor="storage-browser-reset"
+								htmlFor="storage-opfs-browser-reset"
 								className={forms.radioLabel}
 							>
 								Delete stored data and start fresh
