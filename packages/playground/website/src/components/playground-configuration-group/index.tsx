@@ -144,7 +144,7 @@ export default function PlaygroundConfigurationGroup({
 			});
 			await playground.goTo('/');
 
-			// Read current querystring and replace storage=opfs-browser with storage=opfs-host.
+			// Read current querystring and replace storage=browser with storage=opfs-host.
 			const url = new URL(window.location.href);
 			url.searchParams.set('storage', 'opfs-host');
 			window.history.pushState({}, '', url.toString());
@@ -176,14 +176,14 @@ export default function PlaygroundConfigurationGroup({
 				WP {runningWp || currentConfiguration.wp} {' - '}
 				{currentConfiguration.storage === 'opfs-host'
 					? `Local (${dirName})`
-					: currentConfiguration.storage === 'opfs-browser'
+					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
 					? 'Persistent'
 					: '⚠️ Temporary'}
 			</Button>
 			{currentConfiguration.storage === 'opfs-host' ? (
 				<SyncLocalFilesButton />
 			) : null}
-			{currentConfiguration.storage === 'opfs-browser' ? (
+			{currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser' ? (
 				<StartOverButton />
 			) : null}
 			{isResumeLastDirOpen ? (
