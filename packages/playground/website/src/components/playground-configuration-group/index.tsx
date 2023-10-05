@@ -157,7 +157,7 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const playground = await playgroundRef.current!.promise;
-		if (config.resetSite && config.storage === 'opfs-browser' || config.storage === 'browser') {
+		if (config.resetSite && (config.storage === 'opfs-browser' || config.storage === 'browser')) {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
