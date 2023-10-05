@@ -1,2 +1,2 @@
-export const StorageTypes = ['opfs-browser', 'temporary', 'opfs-host'] as const;
+export const StorageTypes = ['browser', 'temporary', 'opfs-host', 'opfs-browser'] as const;
 export type StorageType = (typeof StorageTypes)[number];
