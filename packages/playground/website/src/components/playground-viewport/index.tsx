@@ -59,7 +59,7 @@ const JustViewport = function LoadedViewportComponent({
 	return (
 		<div className={css.fullSize}>
 			<iframe
-				title="Playground Viewport"
+				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={css.fullSize}
 				ref={iframeRef}
 			></iframe>
