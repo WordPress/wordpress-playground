@@ -198,7 +198,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{storage === 'opfs-host' ? (
+					{(storage === 'opfs-host' || storage === 'device') ? (
 						<li>
 							<div>
 								<p>
@@ -243,8 +243,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-
-			{storage !== 'opfs-host' ? (
+			{(storage === 'opfs-host' || storage === 'device') ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
