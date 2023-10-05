@@ -8,9 +8,9 @@
 'use strict';
 
 import * as dns from 'dns';
+import * as util from 'util';
 import * as net from 'net';
 import * as http from 'http';
-import * as util from 'util';
 import { WebSocketServer } from 'ws';
 import { debugLog } from './utils.js';
 
