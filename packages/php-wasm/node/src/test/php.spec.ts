@@ -761,6 +761,9 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		});
 
 		it('Does not leak memory when creating and destroying instances', async () => {
+
+			expect(global.gc && global.gc).to.exist;
+
 			let refCount = 0;
 
 			const registry = new FinalizationRegistry(() => --refCount);
