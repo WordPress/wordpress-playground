@@ -60,9 +60,7 @@ export default function PlaygroundConfigurationGroup({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
 
-	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		initialConfiguration.storage === 'opfs-host' && !!lastDirectoryHandle
-	);
+	
 	
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
  		(initialConfiguration.storage === 'opfs-host' || initialConfiguration.storage === 'device') && !!lastDirectoryHandle
@@ -179,13 +177,13 @@ export default function PlaygroundConfigurationGroup({
 			<Button onClick={openModal}>
 				PHP {currentConfiguration.php} {' - '}
 				WP {runningWp || currentConfiguration.wp} {' - '}
-				{currentConfiguration.storage === 'opfs-host'
+				{currentConfiguration.storage === 'device'
 					? `Local (${dirName})`
 					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
 					? 'Persistent'
 					: '⚠️ Temporary'}
 			</Button>
-			{currentConfiguration.storage === 'opfs-host' ? (
+			{currentConfiguration.storage === 'device' ? (
 				<SyncLocalFilesButton />
 			) : null}
 			{currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser' ? (
