@@ -761,9 +761,10 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		});
 
 		it('Does not leak memory when creating and destroying instances', async () => {
-
 			if (!global.gc) {
-				console.error(`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m`);
+				console.error(
+					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m`
+				);
 			}
 
 			expect(global.gc && global.gc).to.exist;
@@ -789,7 +790,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 
 				for (const instance of instances) {
 					registry.register(instance, null);
-					instance
+					await instance
 						.run({ code: `<?php 2+2;` })
 						.then(() => instance.exit())
 						.catch(() => {});
