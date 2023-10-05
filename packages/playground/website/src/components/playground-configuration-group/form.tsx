@@ -171,15 +171,15 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="opfs-host"
-							id="opfs-host"
+							value="device"
+							id="device"
 							className={
 								liveDirectoryAvailable
 									? forms.radioInput
 									: `${forms.radioInput} ${forms.notAvailable}`
 							}
 							onChange={handleStorageChange}
-							checked={storage === 'opfs-host'}
+							checked={storage === 'device'}
 							disabled={!liveDirectoryAvailable}
 						/>
 						<label htmlFor="opfs-host" className={forms.radioLabel}>
