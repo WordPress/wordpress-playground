@@ -63,6 +63,11 @@ export default function PlaygroundConfigurationGroup({
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
 		initialConfiguration.storage === 'opfs-host' && !!lastDirectoryHandle
 	);
+	
+	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
+ 		(initialConfiguration.storage === 'opfs-host' || initialConfiguration.storage === 'device') && !!lastDirectoryHandle
+	);
+	
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
 	const [dirName, setDirName] = useState<string | undefined>(
