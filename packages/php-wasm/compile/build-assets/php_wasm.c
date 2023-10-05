@@ -4,8 +4,6 @@
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code from JavaScript.
  */
-#define off64_t off_t
-
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>

@@ -917,6 +917,7 @@ RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 ARG WITH_SOURCEMAPS
 RUN set -euxo pipefail; \
+	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
     export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
@@ -955,7 +956,7 @@ RUN set -euxo pipefail; \
     -I /root/lib/include \
     -L/root/lib -L/root/lib/lib/ \
     $(cat /root/.emcc-php-wasm-flags) \
-    -o /root/output/php.js \
+    -o /build/output/php.js \
     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
     -s INITIAL_MEMORY=1024MB \
@@ -989,7 +990,8 @@ RUN ls /root/output/
 # Postprocess the build php.js module:
 COPY ./build-assets/esm-prefix.js /root/esm-prefix.js
 COPY ./build-assets/esm-suffix.js /root/esm-suffix.js
-RUN \
+RUN set -eux -o pipefail; \
+	cp -rfv /build/output/* /root/output/; \
     # Figure out the target file names and URLs
         # The .js and .wasm filenames should reflect the build configuration, e.g.:
         # * `php-7.4.node.js` and `php-7.4.node.wasm`
@@ -1035,7 +1037,7 @@ RUN \
         # We need to patch the syscall to support the MSG_PEEK flag.
         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
             /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js && \
-            /root/replace.sh 's/recvmsg:\s*function\(sock,\s*length\)/recvmsg: function(sock, length, flags)/g' /root/output/php.js && \
+            /root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js && \
             /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
         fi ; \
     # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
@@ -1070,7 +1072,6 @@ RUN \
         \
         # Rename the build files to their final names
         mv /root/output/php-module.js "/root/output/$JS_FILENAME"; \
-        # mv /root/output/php.wasm "/root/output/$WASM_FILENAME";
         mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
 		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
