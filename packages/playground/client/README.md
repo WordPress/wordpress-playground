@@ -13,7 +13,7 @@ const client = await startPlaygroundWeb({
 
 const response = await client.run({
 	// wp-load.php is only required if you want to interact with WordPresss.
-	code: '<?php require_once "/wordpress/wp-load.php"; \$posts = get_posts(); echo "Post Title: " . \$posts[0]->post_title;',
+	code: '<?php require_once "/wordpress/wp-load.php"; $posts = get_posts(); echo "Post Title: " . $posts[0]->post_title;',
 });
 console.log(response.text);
 ```
