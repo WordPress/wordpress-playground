@@ -10,7 +10,7 @@ import { fileToUint8Array } from './common';
  * <code>
  * {
  * 		"step": "runPHP",
- * 		"code": "<?php echo 'Hello World'; ?>"
+ * 		"code": "<?php require_once 'wordpress/wp-load.php'; wp_insert_post(array('post_title' => 'wp-load.php required for WP functionality', 'post_status' => 'publish')); ?>"
  * }
  * </code>
  */
