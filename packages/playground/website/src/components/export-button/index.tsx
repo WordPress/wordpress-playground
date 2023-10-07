@@ -9,12 +9,15 @@ export default function ExportButton() {
 	if (!playground) {
 		return null;
 	}
+
+	const exportButtonAriaLabel = 'Download Playground export as ZIP file';
+
 	return (
 		<button
 			id="export-playground--btn"
 			className={css.btn}
-			aria-label="Download Playground export as ZIP file"
-			title="Download Playground export as ZIP file"
+			aria-label={exportButtonAriaLabel}
+			title={exportButtonAriaLabel}
 			onClick={() => playground && startDownload(playground)}
 		>
 			<svg

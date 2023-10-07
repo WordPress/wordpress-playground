@@ -27,7 +27,12 @@ export const defaultStyles: ReactModal.Styles = {
 		background: '#1e2327d0',
 	},
 };
+
+
 export default function Modal(props: ModalProps) {
+
+	const closeBtnAriaLabel = 'Close import window';
+
 	return (
 		<ReactModal style={defaultStyles} {...props}>
 			<div className={css.modalInner}>
@@ -35,8 +40,8 @@ export default function Modal(props: ModalProps) {
 					id="import-close-modal--btn"
 					onClick={props.onRequestClose}
 					className={`${css.btn} ${css.btnClose}`}
-					aria-label="Close import window"
-					title="Close import window"
+					aria-label={closeBtnAriaLabel}
+					title={closeBtnAriaLabel}
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

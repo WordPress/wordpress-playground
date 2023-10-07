@@ -20,13 +20,16 @@ export default function ImportButton() {
 	if (!playground) {
 		return null;
 	}
+
+	const importButtonAriaLabel = 'Open Playground import window';
+
 	return (
 		<>
 			<button
 				id="import-open-modal--btn"
 				className={css.btn}
-				aria-label="Open Playground import window"
-				title="Open Playground import window"
+				aria-label={importButtonAriaLabel}
+				title={importButtonAriaLabel}
 				onClick={openModal}
 			>
 				<svg
