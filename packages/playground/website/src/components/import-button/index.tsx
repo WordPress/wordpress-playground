@@ -8,6 +8,7 @@ export default function ImportButton() {
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => setOpen(true);
 	const closeModal = () => setOpen(false);
+	const importButtonAriaLabel = 'Open Playground import window';
 	const { playground } = usePlaygroundContext();
 	function handleImported() {
 		// eslint-disable-next-line no-alert
@@ -20,8 +21,6 @@ export default function ImportButton() {
 	if (!playground) {
 		return null;
 	}
-
-	const importButtonAriaLabel = 'Open Playground import window';
 
 	return (
 		<>
