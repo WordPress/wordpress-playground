@@ -36,6 +36,7 @@ export default function Modal(props: ModalProps) {
 					onClick={props.onRequestClose}
 					className={`${css.btn} ${css.btnClose}`}
 					aria-label="Close import window"
+					title="Close import window"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

@@ -14,6 +14,7 @@ export default function ExportButton() {
 			id="export-playground--btn"
 			className={css.btn}
 			aria-label="Download Playground export as ZIP file"
+			title="Download Playground export as ZIP file"
 			onClick={() => playground && startDownload(playground)}
 		>
 			<svg

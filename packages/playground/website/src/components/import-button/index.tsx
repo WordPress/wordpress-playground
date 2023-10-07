@@ -26,6 +26,7 @@ export default function ImportButton() {
 				id="import-open-modal--btn"
 				className={css.btn}
 				aria-label="Open Playground import window"
+				title="Open Playground import window"
 				onClick={openModal}
 			>
 				<svg
