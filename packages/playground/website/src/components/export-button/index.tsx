@@ -10,7 +10,7 @@ export default function ExportButton() {
 		return null;
 	}
 
-	const exportButtonAriaLabel = 'Download Playground export as ZIP file';
+	const exportButtonAriaLabel = 'Download configuration .zip file';
 
 	return (
 		<button

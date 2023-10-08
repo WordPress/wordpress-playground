@@ -29,7 +29,7 @@ export const defaultStyles: ReactModal.Styles = {
 };
 
 export default function Modal(props: ModalProps) {
-	const closeBtnAriaLabel = 'Close import window';
+	const closeBtnAriaLabel = 'Close';
 
 	return (
 		<ReactModal style={defaultStyles} {...props}>
