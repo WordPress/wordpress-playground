@@ -1,4 +1,47 @@
-this["wp"] = this["wp"] || {}; this["wp"]["blockEditor"] =
+/**
+ * A synchronous function to read a blob URL as text.
+ * 
+ * @param {string} url 
+ * @returns {string}
+ */
+const __playground_readBlobAsText = function (url) {
+	try {
+	  let xhr = new XMLHttpRequest();
+	  xhr.open('GET', url, false);
+	  xhr.overrideMimeType('text/plain;charset=utf-8');
+	  xhr.send();
+	  return xhr.responseText;
+	} catch(e) {
+	  return '';
+	} finally {
+	  URL.revokeObjectURL(url);
+	}
+}
+
+window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
+    const source = window.wp.element.useMemo(function () {
+        if (props.srcDoc) {
+            // WordPress <= 6.2 uses a srcDoc that only contains a doctype.
+            return '/wp-includes/empty.html';
+        } else if (props.src && props.src.startsWith('blob:')) {
+            // WordPress 6.3 uses a blob URL with doctype and a list of static assets.
+            // Let's pass the document content to empty.html and render it there.
+            return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+        } else {
+            // WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+            return props.src;
+        }
+    }, [props.src]);
+	return (
+		window.wp.element.createElement('iframe', {
+			...props,
+			ref: ref,
+            src: source,
+            // Make sure there's no srcDoc, as it would interfere with the src.
+            srcDoc: undefined
+		})
+	)
+});this["wp"] = this["wp"] || {}; this["wp"]["blockEditor"] =
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -32271,7 +32314,7 @@ function Iframe(_ref3, ref) {
       key: id
     });
   }), head);
-  return Object(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["createElement"])(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["Fragment"], null, tabIndex >= 0 && before, Object(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["createElement"])("iframe", Object(_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__[/* default */ "a"])({}, props, {
+  return Object(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["createElement"])(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["Fragment"], null, tabIndex >= 0 && before, Object(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__["createElement"])(__playground_ControlledIframe, Object(_babel_runtime_helpers_esm_extends__WEBPACK_IMPORTED_MODULE_0__[/* default */ "a"])({}, props, {
     ref: Object(_wordpress_compose__WEBPACK_IMPORTED_MODULE_4__["useMergeRefs"])([ref, setRef]),
     tabIndex: tabIndex,
     title: Object(_wordpress_i18n__WEBPACK_IMPORTED_MODULE_3__["__"])('Editor canvas')

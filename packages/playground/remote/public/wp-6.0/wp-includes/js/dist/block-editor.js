@@ -1,4 +1,47 @@
-/******/ (function() { // webpackBootstrap
+/**
+ * A synchronous function to read a blob URL as text.
+ * 
+ * @param {string} url 
+ * @returns {string}
+ */
+const __playground_readBlobAsText = function (url) {
+	try {
+	  let xhr = new XMLHttpRequest();
+	  xhr.open('GET', url, false);
+	  xhr.overrideMimeType('text/plain;charset=utf-8');
+	  xhr.send();
+	  return xhr.responseText;
+	} catch(e) {
+	  return '';
+	} finally {
+	  URL.revokeObjectURL(url);
+	}
+}
+
+window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
+    const source = window.wp.element.useMemo(function () {
+        if (props.srcDoc) {
+            // WordPress <= 6.2 uses a srcDoc that only contains a doctype.
+            return '/wp-includes/empty.html';
+        } else if (props.src && props.src.startsWith('blob:')) {
+            // WordPress 6.3 uses a blob URL with doctype and a list of static assets.
+            // Let's pass the document content to empty.html and render it there.
+            return '/wp-includes/empty.html#' + encodeURIComponent(__playground_readBlobAsText(props.src));
+        } else {
+            // WordPress >= 6.4 uses a plain HTTPS URL that needs no correction.
+            return props.src;
+        }
+    }, [props.src]);
+	return (
+		window.wp.element.createElement('iframe', {
+			...props,
+			ref: ref,
+            src: source,
+            // Make sure there's no srcDoc, as it would interfere with the src.
+            srcDoc: undefined
+		})
+	)
+});/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 6411:
@@ -20940,11 +20983,11 @@ function Iframe(_ref3, ref) {
       key: id
     });
   }), head);
-  return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, tabIndex >= 0 && before, (0,external_wp_element_namespaceObject.createElement)("iframe", _extends({}, props, {
+  return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, tabIndex >= 0 && before, (0,external_wp_element_namespaceObject.createElement)(__playground_ControlledIframe, _extends({}, props, {
     ref: (0,external_wp_compose_namespaceObject.useMergeRefs)([ref, setRef]),
     tabIndex: tabIndex // Correct doctype is required to enable rendering in standards mode
     ,
-    src:"/wp-includes/empty.html",
+    srcDoc: "<!doctype html>",
     title: (0,external_wp_i18n_namespaceObject.__)('Editor canvas')
   }), iframeDocument && (0,external_wp_element_namespaceObject.createPortal)((0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)("head", {
     ref: headRef
