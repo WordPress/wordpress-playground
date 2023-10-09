@@ -483,6 +483,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-ctype     \
     --disable-mbregex  \
     --enable-tokenizer \
+	--with-iconv       \
     $(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -523,17 +524,19 @@ RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
 
-RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+ARG WITH_SOURCEMAPS
+RUN set -euxo pipefail; \
+	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         # Add nodefs when building for node.js
         echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
         # Preserve symbol names in node.js build – the bundle size doesn't matter as much
         # as on the web, and this makes debugging **much** easier.
-		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-        	echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
-		else \
-        	echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
-		fi; \
-    fi
+    fi; \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+		echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
+	else \
+		echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
+	fi;
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
 # unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in

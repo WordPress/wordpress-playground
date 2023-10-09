@@ -763,9 +763,9 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		it('Does not leak memory when creating and destroying instances', async () => {
 			if (!global.gc) {
 				console.error(
-					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n`
-					+ `\u001b[33mnx can pass the switch with:\u001b[0m\n`
-					+ `\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
+					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
+						`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
+						`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
 				);
 			}
 
