@@ -107,17 +107,17 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="temporary"
-							id="storage-temporary"
+							value="none"
+							id="storage-none"
 							className={forms.radioInput}
 							onChange={handleStorageChange}
-							checked={storage === 'temporary'}
+							checked={storage === 'none'}
 						/>
 						<label
-							htmlFor="storage-temporary"
+							htmlFor="storage-none"
 							className={forms.radioLabel}
 						>
-							Temporary: reset on page refresh
+							None: changes will be lost on page refresh.
 						</label>
 					</li>
 					<li>
@@ -134,7 +134,7 @@ export function PlaygroundConfigurationForm({
 							htmlFor="storage-browser"
 							className={forms.radioLabel}
 						>
-							Persistent: stored in this browser
+							Browser: stored in this browser (cookies).
 						</label>
 					</li>
 					{storage === 'opfs-browser' ? (
@@ -183,7 +183,7 @@ export function PlaygroundConfigurationForm({
 							disabled={!liveDirectoryAvailable}
 						/>
 						<label htmlFor="device" className={forms.radioLabel}>
-							Live directory from your computer (beta)
+							Device: stored locally in your device (beta).
 							{'not-available' === onSelectLocalDirectory && (
 								<span>
 									<br />
