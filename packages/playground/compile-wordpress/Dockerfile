@@ -69,10 +69,16 @@ RUN cp -r wordpress wordpress-static && \
 # below would be removed.
 # 
 # See https://github.com/WordPress/wordpress-playground/issues/42 for more details
+COPY ./build-assets/controlled-iframe.js /root/
 
-RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
-    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
-    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
+RUN echo '<!doctype html><script>const hash = window.location.hash.substring(1); if ( hash ) document.write(decodeURIComponent(hash))</script>' > wordpress-static/wp-includes/empty.html
+# Replace a vanilla HTML iframe with Playground's ControlledIframe component in the block editor.
+RUN sed -E 's#\(\s*"iframe",#(__playground_ControlledIframe,#g' -i wordpress-static/wp-includes/js/dist/block-editor.js && \
+    cat /root/controlled-iframe.js wordpress-static/wp-includes/js/dist/block-editor.js >> /root/block-editor.js && \
+    mv /root/block-editor.js wordpress-static/wp-includes/js/dist/ && \
+    sed -E 's#\(\s*"iframe",#(__playground_ControlledIframe,#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
+    cat /root/controlled-iframe.js wordpress-static/wp-includes/js/dist/block-editor.min.js >> /root/block-editor.min.js && \
+    mv /root/block-editor.min.js wordpress-static/wp-includes/js/dist/;
 
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
