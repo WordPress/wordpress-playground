@@ -483,8 +483,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-ctype     \
     --disable-mbregex  \
     --enable-tokenizer \
-	--with-iconv       \
-    $(cat /root/.php-configure-flags)
+	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
