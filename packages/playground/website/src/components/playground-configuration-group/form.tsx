@@ -182,7 +182,7 @@ export function PlaygroundConfigurationForm({
 							checked={storage === 'device'}
 							disabled={!liveDirectoryAvailable}
 						/>
-						<label htmlFor="opfs-host" className={forms.radioLabel}>
+						<label htmlFor="device" className={forms.radioLabel}>
 							Live directory from your computer (beta)
 							{'not-available' === onSelectLocalDirectory && (
 								<span>
