@@ -1,4 +1,16 @@
 /**
+ * Ensures the block editor iframe is controlled by the playground
+ * service worker. The block-editor.js is patched to use `__playground_ControlledIframe`
+ * instead of the plain HTML iframe element.
+ * 
+ * @see https://github.com/WordPress/wordpress-playground/pull/668
+ * @see https://github.com/WordPress/wordpress-playground/issues/42
+ * 
+ * This code is repeated in the Gutenberg plugin patcher in
+ * playground/blueprints/src/lib/steps/install-plugin.ts
+ */
+
+/**
  * A synchronous function to read a blob URL as text.
  * 
  * @param {string} url 
