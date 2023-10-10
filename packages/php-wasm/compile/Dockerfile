@@ -889,7 +889,8 @@ fi;
 RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 # Get emcc to generate and cache libraries used 
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN set -euxo pipefail; \
+    source /root/emsdk/emsdk_env.sh && \
     echo '#include <stdio.h>' >> test.c; \
     echo '#include <dlfcn.h>' >> test.c; \
     echo '#include <unistd.h>' >> test.c; \
@@ -902,7 +903,9 @@ RUN source /root/emsdk/emsdk_env.sh && \
         -s MAIN_MODULE=2; \
     rm test.js
 
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN set -euxo pipefail; \
+	mkdir -p /build/output; \
+    source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
