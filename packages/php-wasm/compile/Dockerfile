@@ -556,14 +556,22 @@ RUN set -euxo pipefail; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         # Add nodefs when building for node.js
         echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
-        # Preserve symbol names in node.js build – the bundle size doesn't matter as much
-        # as on the web, and this makes debugging **much** easier.
     fi; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 		echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
+        # Ensure source maps are loaded from the correct URL on the web.
+        # Without this, browsers will try the wasm:// protocol and never load the source map.
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "web" ]; then \
+            export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}"; \
+            echo -n ' --source-map-base http://localhost:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
+        fi; \
 	else \
-		echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
-	fi;
+        # Preserve symbol names in node.js build – the bundle size doesn't matter as much
+        # as on the web, and this makes debugging **much** easier.
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+            echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
+        fi; \
+    fi;
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
 # unless EMULATE_FUNCTION_POINTER_CASTS is enabled. The error originates in
@@ -973,7 +981,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-		export OPTIMIZATION_FLAGS="-O0"; \
+        export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
     emcc $OPTIMIZATION_FLAGS \
     --js-library /root/phpwasm-emscripten-library.js \
@@ -1008,7 +1016,6 @@ RUN set -euxo pipefail; \
     # are actually used and delisting them breaks php_pollfd_for().
     # Sooo... just ignore Emscripten's warnings.
 
-RUN ls /root/output/
 # # At the moment terminfo is baked into the repository in
 # # src/php-cli/terminfo, but if we ever need to update it, we can
 # # use the terminfo database produced by the ncurses make script:
@@ -1036,21 +1043,21 @@ RUN set -euxo pipefail; \
         export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
         export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
     # Make the php.wasm URL configurable via the dependencyFilename loader argument:
-        /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js && \
+        /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
     # Patch a "property undefined" error
         # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
         # tolerate a null stream.stream_ops value.
-        /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js && \
+        /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
     # Make Emscripten websockets configurable
         # Emscripten makes the Websocket proxy connect to a fixed URL.
         # This assumes the traffic is always forwarded to the same target.
         # However, we want to support arbitrary targets, so we need to
         # replace the hardcoded websocket target URL with a dynamic callback.
         /root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
-            /root/output/php.js && \
+            /root/output/php.js; \
         # Enable custom WebSocket constructors to support socket options.
-        /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
+        /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js; \
         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
             /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
         fi; \
@@ -1066,8 +1073,8 @@ RUN set -euxo pipefail; \
         # status line.
         # We need to patch the syscall to support the MSG_PEEK flag.
         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-            /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js && \
-            /root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js && \
+            /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js; \
+            /root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js; \
             /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
         fi ; \
     # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
@@ -1081,8 +1088,8 @@ RUN set -euxo pipefail; \
         # separate copies of the code. Instead, we use a dynamic computation of the
         # environment, based on the `RuntimeName` variable, which is an argument to the
         # wrapper function.
-        /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js && \
-        /root/replace.sh 's/var ENV\s*=\s*\{\}/var ENV = PHPLoader.ENV || {}/g' /root/output/php.js && \
+        /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
+        /root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
     # Turn the php.js file into an ES module
         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
         # which pollutes the global namespace and does not play well with import() mechanics.
@@ -1091,7 +1098,6 @@ RUN set -euxo pipefail; \
         else \
             echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
         fi; \
-		echo " export { dependencyFilename }; " >> /root/output/php-module.js && \
         echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
         cat /root/esm-prefix.js >> /root/output/php-module.js && \
         cat /root/output/php.js >> /root/output/php-module.js && \
@@ -1105,8 +1111,10 @@ RUN set -euxo pipefail; \
         mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
 		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-			sed -i 's/..\/php-src/php-src/g' /root/output/php.wasm.map; \
+            # Make the source map paths relative to the .wasm file, not the build directory
+            sed -i 's#"\.\./\.\./root/#"#g' /root/output/php.wasm.map; \
 			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
+            rm -rf /root/php-src/.git; \
 			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
 			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
 		fi;

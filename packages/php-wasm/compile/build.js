@@ -109,6 +109,7 @@ const platformDefaults = {
 	},
 	web: {},
 	node: {
+		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
 		WITH_MBSTRING: 'yes',
