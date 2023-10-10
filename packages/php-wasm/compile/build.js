@@ -44,7 +44,6 @@ const argParser = yargs(process.argv.slice(2))
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
-			default: 'yes',
 			description: 'Build with CLI SAPI',
 		},
 		WITH_OPENSSL: {
@@ -109,14 +108,13 @@ const platformDefaults = {
 	},
 	web: {},
 	node: {
-		WITH_ICONV: 'yes',
-		WITH_LIBXML: 'yes',
-		WITH_LIBPNG: 'yes',
+		WITH_LIBXML: 'no',
+		WITH_LIBPNG: 'no',
 		WITH_MBSTRING: 'yes',
 		WITH_CLI_SAPI: 'yes',
-		WITH_OPENSSL: 'yes',
+		WITH_OPENSSL: 'no',
 		WITH_NODEFS: 'yes',
-		WITH_MYSQL: 'yes',
+		WITH_MYSQL: 'no',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 };

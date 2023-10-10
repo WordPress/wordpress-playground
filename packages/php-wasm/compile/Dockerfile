@@ -95,69 +95,33 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure --prefix=/root/lib && \
     # emmake make fails, but only after it builds the library files.
     # Let's just ignore the errors and proceed with the built libraries.
-    (EMCC_FLAGS="-fPIC" emmake make || true) && \
-    EMCC_FLAGS="-fPIC" emmake make install
+    (EMCC_FLAGS="-sSIDE_MODULE" emmake make || true) && \
+    EMCC_FLAGS="-sSIDE_MODULE" emmake make install
 
-# Compile ncurses
-FROM emscripten AS emscripten-ncurses
-COPY ./build-assets/ncurses.patch /root/
-RUN     set -euxo pipefail &&\
-        # Install libncurses
-        wget https://ftp.gnu.org/gnu/ncurses/ncurses-6.2.tar.gz && \
-        tar -xzf ncurses-6.2.tar.gz && \
-        # https://github.com/jamesbiv/ncurses-emscripten
-        # https://github.com/ilyaigpetrov/ncurses-for-emscripten/blob/27fefcd3784e7375212b75f444def4518ddabc21/COMPILE.md
-        cd ncurses-6.2 && \
-        ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build i386-pc-linux-gnu \
-            --prefix=/root/lib/ \
-            --enable-database && \
-        make && \
-        make install  && \
-        cd ncurses  && \
-        cp make_hash make_hash_x86  && \
-        cp make_keys make_keys_x86  && \
-        cp report_offsets report_offsets_x86   && \
-        cd /root/ncurses-6.2 && \
-        make clean && \
-        git apply --ignore-space-change --ignore-whitespace --no-index /root/ncurses.patch && \
+# Compile libzip
+FROM emscripten AS emscripten-libzip
+ARG PHP_VERSION
+COPY --from=emscripten-libz /root/lib /root/lib-libz
+RUN /root/copy-lib.sh lib-libz
+RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+            export LIBZIP_VERSION=1.2.0; \
+        else \
+            export LIBZIP_VERSION=1.9.2; \
+        fi && \
+        cd /root && \
+        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
+        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
+        mv libzip-$LIBZIP_VERSION libzip;
+RUN mkdir -p libzip/build
+RUN cd libzip/build && \
         source /root/emsdk/emsdk_env.sh && \
-        emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build i386-pc-linux-gnu \
-            --prefix=/root/lib && \
-        /root/replace.sh $'s/^\s+cd man.*$//g' Makefile && \
-        /root/replace.sh $'s/^\s+cd progs.*$//g' Makefile && \
-        /root/replace.sh $'s/^\s+cd test.*$//g' Makefile && \
-        /root/replace.sh $'s/^\s+cd misc.*$//g' Makefile && \
-        /root/replace.sh $'s/^\s+cd c\+\+.*$//g' Makefile && \
-        emmake make && \
-        emmake make install
-
-# Compile libedit (readline alternative)
-FROM emscripten AS emscripten-libedit
-COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
-RUN /root/copy-lib.sh lib-ncurses
-RUN     wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \
-        tar -xzf libedit-20221030-3.1.tar.gz  && \
-        source /root/emsdk/emsdk_env.sh && \
-        cd libedit-20221030-3.1 && \
-        CFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        CPPFLAGS="-I/root/lib/include -I/root/lib/include/ncurses -I/root/lib/include/termcap " \
-        LDFLAGS="-L/root/lib/lib " emconfigure ./configure \
-            PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --build i386-pc-linux-gnu \
-            --prefix=/root/lib/ && \
-        # -D__STDC_ISO_10646__=201103L is needed because
-        # Libedit build fails when __STDC_ISO_10646__ is not defined, and that is
-        # the case when compiling with musl toolchains.
-        # Musl is ISO 10646 compliant but doesn't define __STDC_ISO_10646__, so
-        # let's define it manually. Learn more at:
-        # http://lists.busybox.net/pipermail/buildroot/2016-January/149100.html
-        EMCC_SKIP="-lc -lncurses " EMCC_FLAGS=" -sSIDE_MODULE -D__STDC_ISO_10646__=201103L " \
-        emmake make && \
-        emmake make install
+        emcmake cmake \
+            -DCMAKE_INSTALL_PREFIX=/root/lib \
+            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
+            -DZLIB_INCLUDE_DIR=/root/lib/include \
+            ..
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
+RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
 # Compile Libxml2
 FROM emscripten AS emscripten-libxml
@@ -235,31 +199,6 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --prefix=/root/lib/
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
-
-# Compile libzip
-FROM emscripten AS emscripten-libzip
-ARG PHP_VERSION
-COPY --from=emscripten-libz /root/lib /root/lib-libz
-RUN /root/copy-lib.sh lib-libz
-RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            export LIBZIP_VERSION=1.2.0; \
-        else \
-            export LIBZIP_VERSION=1.9.2; \
-        fi && \
-        cd /root && \
-        curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
-        tar -xzf libzip-$LIBZIP_VERSION.tar.gz && \
-        mv libzip-$LIBZIP_VERSION libzip;
-RUN mkdir -p libzip/build
-RUN cd libzip/build && \
-        source /root/emsdk/emsdk_env.sh && \
-        emcmake cmake \
-            -DCMAKE_INSTALL_PREFIX=/root/lib \
-            -DZLIB_LIBRARY=/root/lib/lib/libz.a \
-            -DZLIB_INCLUDE_DIR=/root/lib/include \
-            ..
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
-RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
 # Compile libiconv
 FROM emscripten AS emscripten-iconv
@@ -356,19 +295,14 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         /root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
     fi;
 
-# Add ncurses if needed and libedit if needed
-COPY --from=emscripten-libedit /root/lib /root/lib-libedit
-COPY --from=emscripten-ncurses /root/lib /root/lib-ncurses
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
     then \
-        /root/copy-lib.sh lib-ncurses && \
-        /root/copy-lib.sh lib-libedit && \
         # Configure build flags
-        echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
+        echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-        echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags && \
+        echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
         # Disable dlopen() in the readline PHP extension
         echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h && \
         /root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
@@ -477,6 +411,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 
 # Build the patched PHP
 WORKDIR /root/php-src
+RUN sed -i 's/HARDCODED_INI/HARDCODED_INI2/g' /root/php-src/sapi/cli/php_cli.c
 RUN source /root/emsdk/emsdk_env.sh && \
 	emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
@@ -543,7 +478,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
     EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
-    EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
+    EMCC_SKIP="-lz -ldl -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
@@ -947,16 +882,27 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
         export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
     fi; \
-    echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags; \
+    # echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags; \
 fi;
 
 # Build the final .wasm file
 RUN mkdir /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
-ARG WITH_SOURCEMAPS
-RUN set -euxo pipefail; \
-	mkdir -p /build/output; \
-	source /root/emsdk/emsdk_env.sh; \
+# Get emcc to generate and cache libraries used 
+RUN source /root/emsdk/emsdk_env.sh && \
+    echo '#include <stdio.h>' >> test.c; \
+    echo '#include <dlfcn.h>' >> test.c; \
+    echo '#include <unistd.h>' >> test.c; \
+    echo 'int main () { printf("Hello"); return 0; }' >> test.c; \
+    emcc \
+        test.c \
+        -O0 -g0 \
+        -lc -lstubs \
+        -o test.js \
+        -s MAIN_MODULE=2; \
+    rm test.js
+
+RUN source /root/emsdk/emsdk_env.sh && \
     export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
@@ -1000,6 +946,7 @@ RUN set -euxo pipefail; \
     -s INITIAL_MEMORY=1024MB \
     -s ALLOW_MEMORY_GROWTH=1         \
     -s ASSERTIONS=0                  \
+    -s MAIN_MODULE=2                 \
     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
     -s NODEJS_CATCH_EXIT=0           \
 	-s NODEJS_CATCH_REJECTION=0      \
