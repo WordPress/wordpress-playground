@@ -175,7 +175,7 @@ export default function PlaygroundConfigurationGroup({
 				PHP {currentConfiguration.php} {' - '}
 				WP {runningWp || currentConfiguration.wp} {' - '}
 				{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device')
-					? 'Storage: Device (${dirName})'
+					? `Storage: Device (${dirName})`
 					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
 					? 'Storage: Browser'
 					: '⚠️ Storage: None'}
