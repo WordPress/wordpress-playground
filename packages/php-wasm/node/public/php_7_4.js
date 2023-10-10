@@ -1,5 +1,5 @@
 const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
-export const dependenciesTotalSize = 10559075; 
+export const dependenciesTotalSize = 7978380; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -911,6 +911,15 @@ function loadWebAssemblyModule(binary, flags, libName, localScope, handle) {
    if (!resolved) {
     resolved = moduleExports[sym];
    }
+    if (!resolved && sym === 'emscripten_builtin_malloc') {
+      resolved = _malloc;
+    }
+    if (!resolved && sym === '_emscripten_get_progname') {
+      resolved = function () { return 0; };
+    }
+    if (!resolved) {
+      console.log({ sym });
+    }
    return resolved;
   }
   var proxyHandler = {
@@ -929,6 +938,7 @@ function loadWebAssemblyModule(binary, flags, libName, localScope, handle) {
      var resolved;
      stubs[prop] = function() {
       if (!resolved) resolved = resolveSymbol(prop);
+      
       return resolved.apply(null, arguments);
      };
     }
@@ -5579,16 +5589,13 @@ function dlopenInternal(handle, jsflags) {
 }
 
 var __dlopen_js = function(handle) {
- return Asyncify.handleSleep((wakeUp => {
-  dlopenInternal(handle, {
-   loadAsync: true
-  }).then(wakeUp).catch((() => wakeUp(0)));
- }));
+  var jsflags = { loadAsync: false }
+  return dlopenInternal(handle, jsflags);
 };
 
 __dlopen_js.sig = "pp";
 
-__dlopen_js.isAsync = true;
+__dlopen_js.isAsync = false;
 
 function __dlsym_js(handle, symbol, symbolIndex) {
  symbol = UTF8ToString(symbol);
@@ -7652,12 +7659,76 @@ var ___wasm_apply_data_relocs = Module["___wasm_apply_data_relocs"] = function()
  return (___wasm_apply_data_relocs = Module["___wasm_apply_data_relocs"] = Module["asm"]["__wasm_apply_data_relocs"]).apply(null, arguments);
 };
 
+var _zend_eval_string = Module["_zend_eval_string"] = function() {
+ return (_zend_eval_string = Module["_zend_eval_string"] = Module["asm"]["zend_eval_string"]).apply(null, arguments);
+};
+
+var _zval_get_string_func = Module["_zval_get_string_func"] = function() {
+ return (_zval_get_string_func = Module["_zval_get_string_func"] = Module["asm"]["zval_get_string_func"]).apply(null, arguments);
+};
+
+var _zend_read_property_ex = Module["_zend_read_property_ex"] = function() {
+ return (_zend_read_property_ex = Module["_zend_read_property_ex"] = Module["asm"]["zend_read_property_ex"]).apply(null, arguments);
+};
+
+var _zend_ini_boolean_displayer_cb = Module["_zend_ini_boolean_displayer_cb"] = function() {
+ return (_zend_ini_boolean_displayer_cb = Module["_zend_ini_boolean_displayer_cb"] = Module["asm"]["zend_ini_boolean_displayer_cb"]).apply(null, arguments);
+};
+
+var _OnUpdateBool = Module["_OnUpdateBool"] = function() {
+ return (_OnUpdateBool = Module["_OnUpdateBool"] = Module["asm"]["OnUpdateBool"]).apply(null, arguments);
+};
+
+var _OnUpdateLong = Module["_OnUpdateLong"] = function() {
+ return (_OnUpdateLong = Module["_OnUpdateLong"] = Module["asm"]["OnUpdateLong"]).apply(null, arguments);
+};
+
+var _OnUpdateString = Module["_OnUpdateString"] = function() {
+ return (_OnUpdateString = Module["_OnUpdateString"] = Module["asm"]["OnUpdateString"]).apply(null, arguments);
+};
+
+var _zend_sort = Module["_zend_sort"] = function() {
+ return (_zend_sort = Module["_zend_sort"] = Module["asm"]["zend_sort"]).apply(null, arguments);
+};
+
+var _zend_get_exception_base = Module["_zend_get_exception_base"] = function() {
+ return (_zend_get_exception_base = Module["_zend_get_exception_base"] = Module["asm"]["zend_get_exception_base"]).apply(null, arguments);
+};
+
+var _zend_clear_exception = Module["_zend_clear_exception"] = function() {
+ return (_zend_clear_exception = Module["_zend_clear_exception"] = Module["asm"]["zend_clear_exception"]).apply(null, arguments);
+};
+
 var _wasm_popen = Module["_wasm_popen"] = function() {
  return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["wasm_popen"]).apply(null, arguments);
 };
 
 var ___errno_location = function() {
  return (___errno_location = Module["asm"]["__errno_location"]).apply(null, arguments);
+};
+
+var _emscripten_console_log = Module["_emscripten_console_log"] = function() {
+ return (_emscripten_console_log = Module["_emscripten_console_log"] = Module["asm"]["emscripten_console_log"]).apply(null, arguments);
+};
+
+var _emscripten_console_warn = Module["_emscripten_console_warn"] = function() {
+ return (_emscripten_console_warn = Module["_emscripten_console_warn"] = Module["asm"]["emscripten_console_warn"]).apply(null, arguments);
+};
+
+var _emscripten_console_error = Module["_emscripten_console_error"] = function() {
+ return (_emscripten_console_error = Module["_emscripten_console_error"] = Module["asm"]["emscripten_console_error"]).apply(null, arguments);
+};
+
+var _emscripten_out = Module["_emscripten_out"] = function() {
+ return (_emscripten_out = Module["_emscripten_out"] = Module["asm"]["emscripten_out"]).apply(null, arguments);
+};
+
+var _emscripten_err = Module["_emscripten_err"] = function() {
+ return (_emscripten_err = Module["_emscripten_err"] = Module["asm"]["emscripten_err"]).apply(null, arguments);
+};
+
+var _emscripten_dbg = Module["_emscripten_dbg"] = function() {
+ return (_emscripten_dbg = Module["_emscripten_dbg"] = Module["asm"]["emscripten_dbg"]).apply(null, arguments);
 };
 
 var _wasm_pclose = Module["_wasm_pclose"] = function() {
@@ -7794,6 +7865,10 @@ var _wasm_sapi_handle_request = Module["_wasm_sapi_handle_request"] = function()
 
 var _php_wasm_init = Module["_php_wasm_init"] = function() {
  return (_php_wasm_init = Module["_php_wasm_init"] = Module["asm"]["php_wasm_init"]).apply(null, arguments);
+};
+
+var _emscripten_builtin_malloc = Module["_emscripten_builtin_malloc"] = function() {
+ return (_emscripten_builtin_malloc = Module["_emscripten_builtin_malloc"] = Module["asm"]["emscripten_builtin_malloc"]).apply(null, arguments);
 };
 
 var ___funcs_on_exit = function() {
@@ -8063,6 +8138,60 @@ var _asyncify_start_rewind = function() {
 var _asyncify_stop_rewind = function() {
  return (_asyncify_stop_rewind = Module["asm"]["asyncify_stop_rewind"]).apply(null, arguments);
 };
+
+var _core_globals = Module["_core_globals"] = 2402216;
+
+var _php_ini_opened_path = Module["_php_ini_opened_path"] = 2383064;
+
+var _php_ini_scanned_path = Module["_php_ini_scanned_path"] = 2383068;
+
+var _php_ini_scanned_files = Module["_php_ini_scanned_files"] = 2383072;
+
+var _sapi_module = Module["_sapi_module"] = 2396680;
+
+var _sapi_globals = Module["_sapi_globals"] = 2396824;
+
+var _compiler_globals = Module["_compiler_globals"] = 2381464;
+
+var _executor_globals = Module["_executor_globals"] = 2381832;
+
+var _zend_compile_file = Module["_zend_compile_file"] = 2382880;
+
+var _zend_execute_ex = Module["_zend_execute_ex"] = 2375960;
+
+var _zend_execute_internal = Module["_zend_execute_internal"] = 2375964;
+
+var _zend_write = Module["_zend_write"] = 2381400;
+
+var _zend_error_cb = Module["_zend_error_cb"] = 2381408;
+
+var _zend_post_startup_cb = Module["_zend_post_startup_cb"] = 2381380;
+
+var _module_registry = Module["_module_registry"] = 2382888;
+
+var _zend_extensions = Module["_zend_extensions"] = 2372760;
+
+var _zend_ce_error = Module["_zend_ce_error"] = 2373408;
+
+var _zend_ce_throwable = Module["_zend_ce_throwable"] = 2373260;
+
+var _zend_throw_exception_hook = Module["_zend_throw_exception_hook"] = 2373272;
+
+var _gc_collect_cycles = Module["_gc_collect_cycles"] = 2377172;
+
+var _zend_ce_closure = Module["_zend_ce_closure"] = 2375968;
+
+var _zend_empty_string = Module["_zend_empty_string"] = 2371668;
+
+var _zend_known_strings = Module["_zend_known_strings"] = 2371672;
+
+var _zend_string_init_interned = Module["_zend_string_init_interned"] = 2371724;
+
+var _zend_pass_function = Module["_zend_pass_function"] = 2046664;
+
+var ___THREW__ = Module["___THREW__"] = 2416100;
+
+var ___threwValue = Module["___threwValue"] = 2416104;
 
 function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
  var sp = stackSave();

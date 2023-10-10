@@ -44,9 +44,10 @@ php.useHostFilesystem();
 
 const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 if (!hasMinusCOption) {
-	args.unshift('-c', defaultPhpIniPath);
+	// args.unshift('-c', defaultPhpIniPath);
 }
 
+console.log({args})
 php.cli(['php', ...args]).catch((result) => {
 	if (result.name === 'ExitStatus') {
 		process.exit(result.status === undefined ? 1 : result.status);

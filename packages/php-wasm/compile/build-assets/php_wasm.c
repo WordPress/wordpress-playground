@@ -56,6 +56,13 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
     return fp;
 }
 
+EMSCRIPTEN_KEEPALIVE void emscripten_console_log(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_console_warn(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_console_error(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_out(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_err(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_dbg(char *a){}
+
 EMSCRIPTEN_KEEPALIVE uint8_t wasm_pclose(FILE *stream)
 {
 	fclose(stream);

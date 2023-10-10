@@ -600,6 +600,8 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
     export ASYNCIFY_ONLY=$'"zif_array_filter",\
+"dlopen",\
+"zend_load_extension",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -882,7 +884,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
         export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
     fi; \
-    # echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags; \
+    echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags; \
 fi;
 
 # Build the final .wasm file
@@ -927,6 +929,52 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_method", \n\
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
+"_compiler_globals", \n\
+"_zend_write", \n\
+"_executor_globals", \n\
+"_zend_post_startup_cb", \n\
+"_OnUpdateString", \n\
+"_OnUpdateBool", \n\
+"_OnUpdateLong", \n\
+"_zend_ini_boolean_displayer_cb", \n\
+"_zend_pass_function", \n\
+"_zend_error_cb", \n\
+"_zend_execute_ex", \n\
+"_zend_ce_error", \n\
+"_module_registry", \n\
+"_zend_execute_internal", \n\
+"_zend_compile_file", \n\
+"_core_globals", \n\
+"_zend_throw_exception_hook", \n\
+"_zend_ce_closure", \n\
+"_zend_empty_string", \n\
+"_zend_startup_module", \n\
+"_calloc", \n\
+"_sapi_module", \n\
+"_php_ini_opened_path", \n\
+"_php_ini_scanned_path", \n\
+"_php_ini_scanned_files", \n\
+"_zend_string_init_interned", \n\
+"_zend_sort", \n\
+"_zend_extensions", \n\
+"_sapi_globals", \n\
+"___THREW__", \n\
+"_zend_eval_string", \n\
+"___threwValue", \n\
+"_zend_get_exception_base", \n\
+"_zend_known_strings", \n\
+"_zend_read_property_ex", \n\
+"_zval_get_string_func", \n\
+"_zend_clear_exception", \n\
+"_zend_ce_throwable", \n\
+"_gc_collect_cycles", \n\
+"_emscripten_console_log", \n\
+"_emscripten_console_error", \n\
+"_emscripten_console_warn", \n\
+"_emscripten_out", \n\
+"_emscripten_err", \n\
+"_emscripten_dbg", \n\
+"_emscripten_builtin_malloc", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
