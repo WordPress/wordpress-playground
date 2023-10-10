@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 10310374; 
+export const dependenciesTotalSize = 11239474; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6579,7 +6579,7 @@ var wasmImports = {
  U: __munmap_js,
  I: __setitimer_js,
  na: __tzset_js,
- l: _abort,
+ f: _abort,
  C: _emscripten_date_now,
  ma: _emscripten_get_heap_max,
  v: _emscripten_get_now,
@@ -6603,11 +6603,11 @@ var wasmImports = {
  x: _getnameinfo,
  ea: _getprotobyname,
  da: _getprotobynumber,
- i: invoke_i,
+ j: invoke_i,
  c: invoke_ii,
  b: invoke_iii,
- f: invoke_iiii,
- h: invoke_iiiii,
+ g: invoke_iiii,
+ i: invoke_iiiii,
  q: invoke_iiiiii,
  s: invoke_iiiiiii,
  w: invoke_iiiiiiii,
@@ -6616,10 +6616,10 @@ var wasmImports = {
  a: invoke_vi,
  d: invoke_vii,
  B: invoke_viidii,
- g: invoke_viii,
- k: invoke_viiii,
+ h: invoke_viii,
+ l: invoke_viiii,
  n: invoke_viiiii,
- j: invoke_viiiiii,
+ k: invoke_viiiiii,
  ca: invoke_viiiiiii,
  A: invoke_viiiiiiiii,
  ba: _js_module_onMessage,

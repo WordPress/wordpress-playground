@@ -72,6 +72,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with source maps',
 		},
+		WITH_ICONV: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
+		},
 		WITH_MYSQL: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -172,6 +177,8 @@ await asyncSpawn(
 		getArg('WITH_SQLITE'),
 		'--build-arg',
 		getArg('WITH_SOURCEMAPS'),
+		'--build-arg',
+		getArg('WITH_ICONV'),
 		'--build-arg',
 		getArg('WITH_MYSQL'),
 		'--build-arg',

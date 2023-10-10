@@ -261,7 +261,26 @@ RUN cd libzip/build && \
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
-
+# Compile libiconv
+FROM emscripten AS emscripten-iconv
+RUN set -euxo pipefail; \
+	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
+	tar -xvf libiconv-1.17.tar.gz; \
+	rm libiconv-1.17.tar.gz;
+WORKDIR /root/libiconv-1.17
+RUN set -euxo pipefail; \
+	source /root/emsdk/emsdk_env.sh; \
+	CPPFLAGS="-I/root/lib/include " \
+	LDFLAGS="-L/root/lib/lib " \
+	emconfigure ./configure \
+		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+		--build i386-pc-linux-gnu \
+		--target wasm32-unknown-emscripten \
+		--prefix=/root/lib/ \
+		--enable-shared=no \
+		--enable-static=yes; \
+	EMCC_FLAGS="-fPIC" emmake make; \
+	emmake make install;
 
 # Clone PHP
 FROM emscripten AS emscripten-php-src
@@ -270,7 +289,6 @@ RUN git clone https://github.com/php/php-src.git php-src \
     --branch PHP-$PHP_VERSION   \
     --single-branch          \
     --depth 1;
-
 
 # Build PHP
 FROM emscripten AS emscripten-php
@@ -293,6 +311,7 @@ ARG WITH_CLI_SAPI
 ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
+ARG WITH_ICONV
 ARG WITH_SOURCEMAPS
 ARG WITH_WS_NETWORKING_PROXY
 
@@ -407,6 +426,15 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
         echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
     fi;
 
+# Add openssl if needed
+COPY --from=emscripten-iconv /root/lib /root/lib-iconv
+RUN if [ "$WITH_ICONV" = "yes" ]; \
+    then \
+        bash /root/copy-lib.sh lib-iconv; \
+        echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
+    fi;
+
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 COPY --from=emscripten-bison-2-7 /usr/local/bison /root/linked-bison-27
@@ -450,7 +478,7 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-    emconfigure ./configure \
+	emconfigure ./configure \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     # Fibers are a PHP 8.1+ feature. They are compiled as
     # a custom assembly implementation by default. However,
@@ -992,7 +1020,7 @@ RUN ls /root/output/
 # Postprocess the build php.js module:
 COPY ./build-assets/esm-prefix.js /root/esm-prefix.js
 COPY ./build-assets/esm-suffix.js /root/esm-suffix.js
-RUN set -eux -o pipefail; \
+RUN set -euxo pipefail; \
 	cp -rfv /build/output/* /root/output/; \
     # Figure out the target file names and URLs
         # The .js and .wasm filenames should reflect the build configuration, e.g.:

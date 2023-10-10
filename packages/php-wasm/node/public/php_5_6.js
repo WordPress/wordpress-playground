@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/5_6_40/php_5_6.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 10314578; 
+export const dependenciesTotalSize = 11259780; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6352,7 +6352,7 @@ ERRNO_CODES = {
 };
 
 var wasmImports = {
- l: ___assert_fail,
+ m: ___assert_fail,
  Sa: ___call_sighandler,
  Ra: ___syscall__newselect,
  Qa: ___syscall_accept4,
@@ -6366,7 +6366,7 @@ var wasmImports = {
  Ja: ___syscall_fchmod,
  Ia: ___syscall_fchown32,
  M: ___syscall_fchownat,
- n: ___syscall_fcntl64,
+ o: ___syscall_fcntl64,
  Ha: ___syscall_fstat64,
  X: ___syscall_ftruncate64,
  Ga: ___syscall_getcwd,
@@ -6402,7 +6402,7 @@ var wasmImports = {
  R: __munmap_js,
  F: __setitimer_js,
  ia: __tzset_js,
- o: _abort,
+ f: _abort,
  B: _emscripten_date_now,
  ha: _emscripten_get_heap_max,
  v: _emscripten_get_now,
@@ -6424,25 +6424,25 @@ var wasmImports = {
  ca: _getnameinfo,
  ba: _getprotobyname,
  aa: _getprotobynumber,
- j: invoke_i,
+ k: invoke_i,
  c: invoke_ii,
  b: invoke_iii,
- g: invoke_iiii,
- h: invoke_iiiii,
+ h: invoke_iiii,
+ i: invoke_iiiii,
  t: invoke_iiiiii,
  $: invoke_iiiiiii,
- m: invoke_iiiiiiii,
+ n: invoke_iiiiiiii,
  _: invoke_iiiiiiiii,
  z: invoke_iiiiiiiiii,
  Q: invoke_iiji,
  P: invoke_iijiji,
- f: invoke_v,
+ g: invoke_v,
  a: invoke_vi,
  e: invoke_vii,
- i: invoke_viii,
+ j: invoke_viii,
  s: invoke_viiii,
  p: invoke_viiiii,
- k: invoke_viiiiii,
+ l: invoke_viiiiii,
  y: invoke_viiiiiiiii,
  Z: _js_module_onMessage,
  Y: _js_popen_to_file,

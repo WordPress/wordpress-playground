@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 10053782; 
+export const dependenciesTotalSize = 10982293; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -3453,7 +3453,7 @@ url = Module["websocket"]["url"](...arguments);
     throw new FS.ErrnoError(28);
    }
   },
-  recvmsg(sock, length) {
+  recvmsg(sock, length, flags) {
    if (sock.type === 1 && sock.server) {
     throw new FS.ErrnoError(53);
    }
@@ -3480,7 +3480,7 @@ url = Module["websocket"]["url"](...arguments);
     addr: queued.addr,
     port: queued.port
    };
-   if (sock.type === 1 && bytesRead < queuedLength) {
+   if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength) {
     var bytesRemaining = queuedLength - bytesRead;
     queued.data = new Uint8Array(queuedBuffer, queuedOffset + bytesRead, bytesRemaining);
     sock.recv_queue.unshift(queued);
@@ -6522,7 +6522,7 @@ ERRNO_CODES = {
 };
 
 var wasmImports = {
- l: ___assert_fail,
+ m: ___assert_fail,
  Ya: ___call_sighandler,
  Xa: ___syscall__newselect,
  Wa: ___syscall_accept4,
@@ -6574,7 +6574,7 @@ var wasmImports = {
  U: __munmap_js,
  I: __setitimer_js,
  ma: __tzset_js,
- n: _abort,
+ f: _abort,
  C: _emscripten_date_now,
  la: _emscripten_get_heap_max,
  v: _emscripten_get_now,
@@ -6597,11 +6597,11 @@ var wasmImports = {
  x: _getnameinfo,
  ea: _getprotobyname,
  da: _getprotobynumber,
- i: invoke_i,
+ j: invoke_i,
  c: invoke_ii,
  b: invoke_iii,
- f: invoke_iiii,
- h: invoke_iiiii,
+ g: invoke_iiii,
+ i: invoke_iiiii,
  s: invoke_iiiiii,
  r: invoke_iiiiiii,
  w: invoke_iiiiiiii,
@@ -6610,10 +6610,10 @@ var wasmImports = {
  a: invoke_vi,
  d: invoke_vii,
  B: invoke_viidii,
- g: invoke_viii,
- k: invoke_viiii,
- m: invoke_viiiii,
- j: invoke_viiiiii,
+ h: invoke_viii,
+ l: invoke_viiii,
+ n: invoke_viiiii,
+ k: invoke_viiiiii,
  ca: invoke_viiiiiii,
  A: invoke_viiiiiiiii,
  ba: _js_module_onMessage,
