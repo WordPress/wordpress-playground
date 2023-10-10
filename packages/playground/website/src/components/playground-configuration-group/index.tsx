@@ -175,10 +175,10 @@ export default function PlaygroundConfigurationGroup({
 				PHP {currentConfiguration.php} {' - '}
 				WP {runningWp || currentConfiguration.wp} {' - '}
 				{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device')
-					? `Local (${dirName})`
+					? 'Storage: Device (${dirName})'
 					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
-					? 'Persistent'
-					: '⚠️ Temporary'}
+					? 'Storage: Browser'
+					: '⚠️ Storage: None'}
 			</Button>
 			{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device') ? (
 				<SyncLocalFilesButton />
