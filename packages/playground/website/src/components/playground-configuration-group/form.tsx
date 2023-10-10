@@ -107,17 +107,17 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="temporary"
-							id="storage-temporary"
+							value="none"
+							id="storage-none"
 							className={forms.radioInput}
 							onChange={handleStorageChange}
-							checked={storage === 'temporary'}
+							checked={storage === 'none'}
 						/>
 						<label
-							htmlFor="storage-temporary"
+							htmlFor="storage-none"
 							className={forms.radioLabel}
 						>
-							Temporary: reset on page refresh
+							None: changes will be lost on page refresh.
 						</label>
 					</li>
 					<li>
@@ -134,7 +134,7 @@ export function PlaygroundConfigurationForm({
 							htmlFor="storage-browser"
 							className={forms.radioLabel}
 						>
-							Persistent: stored in this browser
+							Browser: stored in this browser (cookies).
 						</label>
 					</li>
 					{storage === 'opfs-browser' ? (
@@ -171,19 +171,19 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="opfs-host"
-							id="opfs-host"
+							value="device"
+							id="device"
 							className={
 								liveDirectoryAvailable
 									? forms.radioInput
 									: `${forms.radioInput} ${forms.notAvailable}`
 							}
 							onChange={handleStorageChange}
-							checked={storage === 'opfs-host'}
+							checked={storage === 'device'}
 							disabled={!liveDirectoryAvailable}
 						/>
-						<label htmlFor="opfs-host" className={forms.radioLabel}>
-							Live directory from your computer (beta)
+						<label htmlFor="device" className={forms.radioLabel}>
+							Device: stored locally in your device (beta).
 							{'not-available' === onSelectLocalDirectory && (
 								<span>
 									<br />
@@ -198,7 +198,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{storage === 'opfs-host' ? (
+					{(storage === 'opfs-host' || storage === 'device') ? (
 						<li>
 							<div>
 								<p>
@@ -243,8 +243,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-
-			{storage !== 'opfs-host' ? (
+			{(storage === 'opfs-host' || storage === 'device') ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}

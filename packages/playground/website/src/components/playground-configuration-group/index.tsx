@@ -61,7 +61,7 @@ export default function PlaygroundConfigurationGroup({
 	}, [!!playground]);
 
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		initialConfiguration.storage === 'opfs-host' && !!lastDirectoryHandle
+		(initialConfiguration.storage === 'opfs-host' || initialConfiguration.storage === 'device') && !!lastDirectoryHandle
 	);
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
@@ -140,13 +140,13 @@ export default function PlaygroundConfigurationGroup({
 
 			setCurrentConfiguration({
 				...currentConfiguration,
-				storage: 'opfs-host',
+				storage: 'device',
 			});
 			await playground.goTo('/');
 
-			// Read current querystring and replace storage=browser with storage=opfs-host.
+			// Read current querystring and replace storage=browser with storage=device.
 			const url = new URL(window.location.href);
-			url.searchParams.set('storage', 'opfs-host');
+			url.searchParams.set('storage', 'device');
 			window.history.pushState({}, '', url.toString());
 
 			alert('You are now using WordPress from your local directory.');
@@ -174,13 +174,13 @@ export default function PlaygroundConfigurationGroup({
 			<Button onClick={openModal}>
 				PHP {currentConfiguration.php} {' - '}
 				WP {runningWp || currentConfiguration.wp} {' - '}
-				{currentConfiguration.storage === 'opfs-host'
+				{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device')
 					? `Local (${dirName})`
 					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
 					? 'Persistent'
 					: '⚠️ Temporary'}
 			</Button>
-			{currentConfiguration.storage === 'opfs-host' ? (
+			{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device') ? (
 				<SyncLocalFilesButton />
 			) : null}
 			{currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser' ? (
