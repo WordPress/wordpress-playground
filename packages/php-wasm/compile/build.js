@@ -109,12 +109,12 @@ const platformDefaults = {
 	web: {},
 	node: {
 		WITH_LIBXML: 'yes',
-		WITH_LIBPNG: 'no',
-		WITH_MBSTRING: 'no',
+		WITH_LIBPNG: 'yes',
+		WITH_MBSTRING: 'yes',
 		WITH_CLI_SAPI: 'yes',
-		WITH_OPENSSL: 'no',
+		WITH_OPENSSL: 'yes',
 		WITH_NODEFS: 'yes',
-		WITH_MYSQL: 'no',
+		WITH_MYSQL: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 };

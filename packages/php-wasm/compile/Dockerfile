@@ -280,7 +280,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
             apt install -y zlib1g zlib1g-dev; \
             # https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
-            echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
+            echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags-bundled-extensions; \
             echo -n ' -I /root/zlib -I /root/libzip ' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
             cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
@@ -289,7 +289,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
             cp /root/lib/include/*.h /root/php-src; \
         else \
             # https://www.php.net/manual/en/zlib.installation.php
-            echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip' >> /root/.php-configure-flags; \
+            echo -n ' --with-zlib --with-zlib-dir=/root/lib --with-zip' >> /root/.php-configure-flags-bundled-extensions; \
             echo -n ' -I /root/zlib -I /root/libzip' >> /root/.emcc-php-wasm-flags; \
             echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
         fi && \
@@ -300,7 +300,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
     then \
         # Configure build flags
-        echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
+        echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags-bundled-extensions && \
         echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
             >> /root/.emcc-php-wasm-sources && \
         echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
@@ -309,7 +309,7 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
         echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h && \
         /root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
     else \
-        echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+        echo -n ' --disable-cli ' >> /root/.php-configure-flags-bundled-extensions; \
     fi;
 
 # Add Libxml2 if needed
@@ -318,7 +318,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
     then \
         set -euxo pipefail;\
         bash /root/copy-lib.sh lib-libxml && \
-        echo -n ' --enable-libxml=shared --with-libxml=shared --with-libxml-dir=/root/lib --enable-dom=shared --enable-xml=shared --enable-simplexml=shared --enable-xmlreader=shared --enable-xmlwriter=shared' >> /root/.php-configure-flags && \
+        echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom=shared --enable-xml=shared --enable-simplexml=shared --enable-xmlreader=shared --enable-xmlwriter=shared' >> /root/.php-configure-flags-shared-extensions && \
         # Libxml check is wrong in PHP < 7.4.0.
         # In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
         perl -pi.bak -e 's/char xmlInitParser/void xmlInitParser/g' /root/php-src/configure; \
@@ -327,7 +327,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
             /root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
         fi; \
     else \
-        echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
+        echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags-bundled-extensions; \
     fi
 
 # Add sqlite3 if needed
@@ -335,7 +335,7 @@ COPY --from=emscripten-sqlite3 /root/lib /root/lib-sqlite3
 RUN if [ "$WITH_SQLITE" = "yes" ]; \
     then \
         bash /root/copy-lib.sh lib-sqlite3 && \
-        echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags && \
+        echo -n ' --with-sqlite3 --enable-pdo --with-pdo-sqlite=/root/lib ' >> /root/.php-configure-flags-bundled-extensions && \
         echo -n ' -I ext/pdo_sqlite ' >> /root/.emcc-php-wasm-flags; \
         if [[ "${PHP_VERSION:0:1}" -eq "7" && "${PHP_VERSION:2:1}" -ge "4" ]] || [ "${PHP_VERSION:0:1}" -eq "8" ]; then \
             echo -n ' -lsqlite3 ' >> /root/.emcc-php-wasm-flags; \
@@ -347,7 +347,7 @@ COPY --from=emscripten-libpng /root/lib /root/lib-libpng
 RUN if [ "$WITH_LIBPNG" = "yes" ]; \
     then \
         bash /root/copy-lib.sh lib-libpng && \
-        echo -n ' --with-png-dir=/root/lib --with-gd=shared --enable-gd=shared ' >> /root/.php-configure-flags; \
+        echo -n ' --with-png-dir=/root/lib --with-gd=shared --enable-gd=shared ' >> /root/.php-configure-flags-shared-extensions; \
     fi;
 
 # Add openssl if needed
@@ -355,15 +355,15 @@ COPY --from=emscripten-openssl /root/lib /root/lib-openssl
 RUN if [ "$WITH_OPENSSL" = "yes" ]; \
     then \
         bash /root/copy-lib.sh lib-openssl; \
-        echo -n ' --with-openssl=shared --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
+        echo -n ' --with-openssl=shared --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags-shared-extensions; \
     fi;
 
-# Add openssl if needed
+# Add iconv if needed
 COPY --from=emscripten-iconv /root/lib /root/lib-iconv
 RUN if [ "$WITH_ICONV" = "yes" ]; \
     then \
         bash /root/copy-lib.sh lib-iconv; \
-        echo -n ' --with-iconv=shared ' >> /root/.php-configure-flags; \
+        echo -n ' --with-iconv=shared ' >> /root/.php-configure-flags-shared-extensions; \
     fi;
 
 # PHP <= 7.3 requires Bison 2.7
@@ -379,8 +379,7 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "
 
 # Add mbstring if needed
 RUN if [ "$WITH_MBSTRING" = "yes" ]; \
-    then echo -n ' --enable-mbstring=shared ' >> /root/.php-configure-flags; \
-    else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
+    then echo -n ' --enable-mbstring=shared ' >> /root/.php-configure-flags-shared-extensions; \
     fi;
 
 # Get and patch PHP
@@ -403,15 +402,13 @@ RUN if [ "$WITH_VRZNO" = "yes" ]; \
 
 # Install Mysql support if needed
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
-        echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
+        echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags-bundled-extensions; \
     fi
 
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN sed -i 's/HARDCODED_INI/HARDCODED_INI2/g' /root/php-src/sapi/cli/php_cli.c
-RUN source /root/emsdk/emsdk_env.sh && \
-	emconfigure ./configure \
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+RUN echo \
     # Fibers are a PHP 8.1+ feature. They are compiled as
     # a custom assembly implementation by default. However,
     # that implementation does not work with emscripten.
@@ -430,7 +427,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --disable-all      \
     --enable-hash      \
     --enable-static=yes \
-    --enable-shared=no \
+    --enable-shared=yes \
     --enable-session   \
     --enable-filter    \
     --enable-calendar  \
@@ -442,8 +439,54 @@ RUN source /root/emsdk/emsdk_env.sh && \
     --enable-bcmath    \
     --enable-ctype     \
     --disable-mbregex  \
-    --enable-tokenizer \
-	$(cat /root/.php-configure-flags)
+    --enable-tokenizer >> /root/.php-configure-flags-bundled-extensions
+
+RUN source /root/emsdk/emsdk_env.sh && \
+	emconfigure ./configure \
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+	$(cat /root/.php-configure-flags-bundled-extensions) \
+    $(cat /root/.php-configure-flags-shared-extensions)
+
+# Build PHP modules as shared libraries
+RUN source /root/emsdk/emsdk_env.sh && \
+    # We're compiling PHP as emscripten's side module...
+    EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
+    # ...which means we must skip all the libraries - they will be provided in the final linking step.
+    EMCC_SKIP="-lz -ldl -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
+    emmake make build-modules
+
+RUN mkdir -p /root/output
+
+# Build iconv as a shared extension
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd /root/php-src/ext/iconv; \
+    emcc -sSIDE_MODULE -I./ -I/root/php-src -I/root/php-src/TSRM -I/root/php-src/main -I/root/php-src/Zend -I/root/lib/iconv ./iconv.c -o iconv.so; \
+    cp /root/php-src/ext/iconv/iconv.so /root/output
+
+# Build libxml as a shared extension
+RUN source /root/emsdk/emsdk_env.sh && \
+    cd /root/php-src/ext/libxml; \
+    emcc -sSIDE_MODULE \
+        -I./ -I/root/php-src \
+        -I/root/php-src/TSRM \
+        -I/root/php-src/main \
+        -I/root/php-src/Zend \
+        -I/root/php-src/ext \
+        -I/root/lib/libxml \
+        -I/root/lib/include/libxml2 \
+        ./libxml.c -o libxml.so; \
+    cp /root/php-src/ext/libxml/libxml.so /root/output/libxml-php.so;
+
+# RUN ls /root/php-src/ext/libxml; exit 1
+
+# The shared extensions are now built, great!
+# Now let's reconfigure PHP without them. Otherwise
+# it includes them in the final bundle, which is not
+# what we want.
+RUN source /root/emsdk/emsdk_env.sh && \
+	emconfigure ./configure \
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+	$(cat /root/.php-configure-flags-bundled-extensions)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
 # @TODO: Identify the root cause behind these errors and fix them properly
@@ -885,7 +928,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 fi;
 
 # Build the final .wasm file
-RUN mkdir /root/output
+RUN mkdir -p /root/output
 COPY ./build-assets/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 # Get emcc to generate and cache libraries used 
 RUN set -euxo pipefail; \
@@ -905,8 +948,8 @@ RUN set -euxo pipefail; \
 # RUN ls -asgh /root/php-src/ext/libxml ; exit 1
 # RUN ls -a /root/php-src/modules/* ; exit 1
 RUN mkdir -p /root/output;
-RUN cp /root/php-src/ext/libxml/libxml.o /root/output
 RUN cp /root/php-src/modules/* /root/output
+# RUN cp /root/php-src/ext/iconv/* /root/output
 
 # RUN set -euxo pipefail; \
 #     source /root/emsdk/emsdk_env.sh && \
