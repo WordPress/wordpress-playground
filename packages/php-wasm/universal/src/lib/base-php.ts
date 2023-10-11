@@ -101,6 +101,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+
 		runtime['onMessage'] = (data: string) => {
 			for (const listener of this.#messageListeners) {
 				listener(data);
@@ -108,6 +109,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
+	}
+
+	dlOpen(path: string) {
+		return this[__private__dont__use]._dlopen(
+			path
+		);
 	}
 
 	/** @inheritDoc */

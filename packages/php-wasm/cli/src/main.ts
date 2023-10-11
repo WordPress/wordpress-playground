@@ -26,8 +26,7 @@ args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 
 // @ts-ignore
 const defaultPhpIniPath = await import('./php.ini');
-const phpVersion = (process.env['PHP'] ||
-	LatestSupportedPHPVersion) as SupportedPHPVersion;
+const phpVersion = '8.2' as SupportedPHPVersion;
 if (!SupportedPHPVersionsList.includes(phpVersion)) {
 	throw new Error(`Unsupported PHP version ${phpVersion}`);
 }

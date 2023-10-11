@@ -108,9 +108,9 @@ const platformDefaults = {
 	},
 	web: {},
 	node: {
-		WITH_LIBXML: 'no',
+		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'no',
-		WITH_MBSTRING: 'yes',
+		WITH_MBSTRING: 'no',
 		WITH_CLI_SAPI: 'yes',
 		WITH_OPENSSL: 'no',
 		WITH_NODEFS: 'yes',
