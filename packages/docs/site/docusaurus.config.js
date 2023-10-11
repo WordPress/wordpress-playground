@@ -103,10 +103,11 @@ const config = {
 				schedule: 'every 1 day',
 			},
 			navbar: {
-				title: 'WordPress Playground',
+				title: 'Playground',
 				logo: {
 					alt: 'WordPress Playground',
 					src: 'img/wordpress.svg',
+					srcDark: 'img/wordpress-dark.svg',
 				},
 				items: [
 					{
@@ -127,13 +128,20 @@ const config = {
 					},
 					{
 						href: 'https://github.com/WordPress/wordpress-playground',
-						label: 'GitHub',
 						position: 'right',
+						className: 'header-github-link',
+						'aria-label': 'GitHub repository',
 					},
 				],
 			},
 			footer: {
 				style: 'dark',
+				logo: {
+					alt: 'Code Is Poetry',
+					src: 'https://s.w.org/style/images/code-is-poetry-for-dark-bg.svg',
+					href: 'https://wordpress.org',
+					height: 12,
+				},
 				links: [
 					{
 						title: 'Docs',
