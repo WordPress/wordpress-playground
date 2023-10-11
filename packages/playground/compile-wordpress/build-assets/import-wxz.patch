@@ -200,7 +200,7 @@ index 1120e12..b816826 100644
 +		}
 +
 +		if ( ! $mimetype_exists ) {
-+			return new WP_Error( 'invalid-file', 'Invalid WXZ fiel, mimetype declaration missing.' );
++			return new WP_Error( 'invalid-file', 'Invalid WXZ field, mimetype declaration missing.' );
 +		}
 +
  		foreach ( $archive_files as $file ) {
