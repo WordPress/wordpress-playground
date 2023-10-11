@@ -2,7 +2,6 @@ import {
 	WebPHP,
 	WebPHPEndpoint,
 	exposeAPI,
-	parseWorkerStartupOptions,
 } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
@@ -15,6 +14,7 @@ import {
 	SupportedWordPressVersionsList,
 } from './get-wordpress-module';
 import {
+	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
@@ -29,11 +29,20 @@ import { applyWordPressPatches } from '@wp-playground/blueprints';
 // post message to parent
 self.postMessage('worker-script-started');
 
-const startupOptions = parseWorkerStartupOptions<{
+type StartupOptions = {
 	wpVersion?: string;
 	phpVersion?: string;
 	storage?: string;
-}>();
+	phpExtension?: string[];
+};
+const startupOptions: StartupOptions = {};
+if (typeof self?.location?.href !== 'undefined') {
+	const params = new URL(self.location.href).searchParams;
+	startupOptions.wpVersion = params.get('wpVersion') || undefined;
+	startupOptions.phpVersion = params.get('phpVersion') || undefined;
+	startupOptions.storage = params.get('storage') || undefined;
+	startupOptions.phpExtension = params.getAll('php-extension');
+}
 
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
@@ -50,14 +59,17 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
+const phpExtensions = (startupOptions.phpExtension || []) as SupportedPHPExtension[];
+
 let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
 let virtualOpfsDir: FileSystemDirectoryHandle | undefined;
 let lastOpfsDir: FileSystemDirectoryHandle | undefined;
 let wordPressAvailableInOPFS = false;
 if (
-  (startupOptions.storage === 'opfs-browser' || startupOptions.storage === 'browser') &&
-  // @ts-ignore
-  typeof navigator?.storage?.getDirectory !== 'undefined'
+	(startupOptions.storage === 'opfs-browser' ||
+		startupOptions.storage === 'browser') &&
+	// @ts-ignore
+	typeof navigator?.storage?.getDirectory !== 'undefined'
 ) {
 	virtualOpfsRoot = await navigator.storage.getDirectory();
 	virtualOpfsDir = await virtualOpfsRoot.getDirectoryHandle('wordpress', {
@@ -78,6 +90,7 @@ const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
+	extensions: phpExtensions,
 	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 

@@ -2,6 +2,8 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import { useEffect, useState } from 'react';
 import {
+	SupportedPHPExtension,
+	SupportedPHPExtensionsList,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
@@ -28,6 +30,7 @@ export type SupportedWordPressVersion =
 export interface PlaygroundConfiguration {
 	wp: SupportedWordPressVersion;
 	php: SupportedPHPVersion;
+	phpExtensions: SupportedPHPExtension[];
 	storage: StorageType;
 	resetSite?: boolean;
 }
@@ -54,6 +57,9 @@ export function PlaygroundConfigurationForm({
 }: PlaygroundConfigurationFormProps) {
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
+	const [loadExtensions, setLoadExtensions] = useState<boolean>(
+		initialData.phpExtensions?.length > 0
+	);
 	const [wp, setWp] = useState(
 		initialData.wp || LatestSupportedWordPressVersion
 	);
@@ -76,7 +82,13 @@ export function PlaygroundConfigurationForm({
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		onSubmit({ php, storage, wp, resetSite });
+		onSubmit({
+			php,
+			storage,
+			wp,
+			resetSite,
+			phpExtensions: loadExtensions ? SupportedPHPExtensionsList : [],
+		});
 	}
 
 	async function handleSelectLocalDirectory(
@@ -198,7 +210,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{(storage === 'opfs-host' || storage === 'device') ? (
+					{storage === 'opfs-host' || storage === 'device' ? (
 						<li>
 							<div>
 								<p>
@@ -243,7 +255,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-			{(storage === 'opfs-host' || storage === 'device') ? (
+			{storage !== 'opfs-host' && storage !== 'device' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
@@ -272,6 +284,19 @@ export function PlaygroundConfigurationForm({
 								</option>
 							))}
 						</select>
+						<label
+							className={forms.groupLabel}
+							style={{ marginTop: 15 }}
+						>
+							<input
+								type="checkbox"
+								checked={loadExtensions}
+								onChange={() =>
+									setLoadExtensions(!loadExtensions)
+								}
+							/>
+							&nbsp; Load extensions: libxml, mbstring, gd (3MB)
+						</label>
 					</div>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear} ${forms.formGroupLast}`}

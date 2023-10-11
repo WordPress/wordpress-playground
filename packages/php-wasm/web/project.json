@@ -49,23 +49,43 @@
 		"recompile-php": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/php-wasm/compile/build.js --output-dir=packages/php-wasm/web/public",
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --output-dir=packages/php-wasm/web/public/regular",
+				],
 				"parallel": false
 			}
 		},
-		"recompile-php:all": {
+		"recompile-php:light": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=5.6 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public",
-					"node packages/php-wasm/compile/build.js --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public"
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=5.6 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/light",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/light"
+				],
+				"parallel": false
+			}
+		},
+		"recompile-php:regular": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=5.6 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=7.0 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=7.1 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=7.2 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=7.3 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=7.4 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=8.0 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=8.1 --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --PHP_VERSION=8.2 --output-dir=packages/php-wasm/web/public/regular"
 				],
 				"parallel": false
 			}

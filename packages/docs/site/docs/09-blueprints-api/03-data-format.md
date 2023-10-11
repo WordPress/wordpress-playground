@@ -21,6 +21,11 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 		"php": "7.4",
 		"wp": "5.9"
 	},
+	"phpExtensions": [
+		"gd",
+		"xml-bundle",
+		"mbstring"
+	],
 	"steps": [
 		{
 			"step": "login",
@@ -48,3 +53,11 @@ The `preferredVersions` property, unsurprisingly, declares the preferred of PHP 
 
 -   `php` (string): The preferred PHP version to use. Defaults to 'latest'. Only accepts major versions like "7.4" or "8.0". Minor versions like "7.4.1" are not supported.
 -   `wp` (string): The preferred WordPress version to use. Defaults to 'latest'. Only accepts major versions like "5.9" or "6.0". Minor versions like "5.9.1" are not supported.
+
+## PHP extensions
+
+The `phpExtensions` property is an array of PHP extensions to load. It can contain the following values:
+
+-   `gd`: Installs the GD extension.
+-   `xml-bundle`: Installs the XML bundle extension (libxml, xml, dom, simplexml, xmlreader, xmlwriter).
+-   `mbstring`: Installs the mbstring extension.

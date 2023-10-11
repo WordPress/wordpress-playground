@@ -2,6 +2,8 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import {
 	LatestSupportedPHPVersion,
+	SupportedPHPExtension,
+	SupportedPHPExtensionsList,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
@@ -43,6 +45,8 @@ export interface CompiledBlueprint {
 		php: SupportedPHPVersion;
 		wp: supportedWordPressVersion;
 	};
+	/** The requested PHP extensions to load */
+	phpExtensions: SupportedPHPExtension[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -116,6 +120,7 @@ export function compileBlueprint(
 				'6.3'
 			),
 		},
+		phpExtensions: compilePHPExtensions(blueprint.phpExtensions || []),
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
@@ -210,6 +215,19 @@ function compileVersion<T>(
 		return value as T;
 	}
 	return latest as T;
+}
+
+/**
+ * Compiles a list of requested PHP extensions provided as strings
+ * into a valid list of supported PHP extensions.
+ *
+ * @param extensions The extensions to compile
+ * @returns The compiled extensions
+ */
+function compilePHPExtensions(extensions: string[]): SupportedPHPExtension[] {
+	return SupportedPHPExtensionsList.filter((extension) =>
+		extensions.includes(extension)
+	);
 }
 
 /**
