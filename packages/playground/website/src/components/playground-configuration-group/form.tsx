@@ -295,7 +295,7 @@ export function PlaygroundConfigurationForm({
 									setLoadExtensions(!loadExtensions)
 								}
 							/>
-							&nbsp; Load extensions: libxml, mbstring, gd (3MB)
+							&nbsp; Load extensions: libxml, mbstring, gd
 						</label>
 					</div>
 					<div
