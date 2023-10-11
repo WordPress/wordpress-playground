@@ -16,11 +16,7 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 		"php": "8.0",
 		"wp": "latest"
 	},
-	"phpExtensions": [
-		"gd",
-		"xml-bundle",
-		"mbstring"
-	],
+	"phpExtensions": ["gd", "xml-bundle", "mbstring"],
 	"steps": [
 		{
 			"step": "login",

@@ -1,4 +1,7 @@
-import { SupportedPHPExtension, SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	SupportedPHPExtension,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import { StepDefinition } from './steps';
 
 export interface Blueprint {

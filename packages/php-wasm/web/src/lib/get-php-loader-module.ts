@@ -6,14 +6,14 @@ import {
 
 /**
  * Loads the PHP loader module for the given PHP version.
- * 
+ *
  * @param version The PHP version to load.
  * @param variant Internal. Do not use.
  * @returns The PHP loader module.
  */
 export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion,
-	variant: 'light' | 'regular' = 'light',
+	variant: 'light' | 'regular' = 'light'
 ): Promise<PHPLoaderModule> {
 	if (variant === 'regular') {
 		switch (version) {

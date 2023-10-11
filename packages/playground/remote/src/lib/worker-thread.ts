@@ -1,8 +1,4 @@
-import {
-	WebPHP,
-	WebPHPEndpoint,
-	exposeAPI,
-} from '@php-wasm/web';
+import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -59,7 +55,8 @@ const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	? (requestedPhpVersion as SupportedPHPVersion)
 	: '8.0';
 
-const phpExtensions = (startupOptions.phpExtension || []) as SupportedPHPExtension[];
+const phpExtensions = (startupOptions.phpExtension ||
+	[]) as SupportedPHPExtension[];
 
 let virtualOpfsRoot: FileSystemDirectoryHandle | undefined;
 let virtualOpfsDir: FileSystemDirectoryHandle | undefined;

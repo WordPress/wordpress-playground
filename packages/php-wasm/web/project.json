@@ -51,7 +51,7 @@
 			"options": {
 				"commands": [
 					"node packages/php-wasm/compile/build.js --PLATFORM=web-light --output-dir=packages/php-wasm/web/public/light",
-					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --output-dir=packages/php-wasm/web/public/regular",
+					"node packages/php-wasm/compile/build.js --PLATFORM=web-regular --output-dir=packages/php-wasm/web/public/regular"
 				],
 				"parallel": false
 			}
