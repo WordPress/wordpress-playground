@@ -949,221 +949,222 @@ RUN set -euxo pipefail; \
 # RUN ls -a /root/php-src/modules/* ; exit 1
 RUN mkdir -p /root/output;
 RUN cp /root/php-src/modules/* /root/output
+RUN mkdir -p /build/output
 # RUN cp /root/php-src/ext/iconv/* /root/output
 
-# RUN set -euxo pipefail; \
-#     source /root/emsdk/emsdk_env.sh && \
-#     export EXPORTED_FUNCTIONS=$'["_exit", \n\
-# "_php_wasm_init", \n\
-# "_phpwasm_destroy_uploaded_files_hash", \n\
-# "_phpwasm_init_uploaded_files_hash", \n\
-# "_phpwasm_register_uploaded_file", \n\
-# "_wasm_set_phpini_path", \n\
-# "_wasm_set_phpini_entries", \n\
-# "_wasm_add_SERVER_entry", \n\
-# "_wasm_add_uploaded_file", \n\
-# "_wasm_sapi_handle_request", \n\
-# "_wasm_set_content_length", \n\
-# "_wasm_set_content_type", \n\
-# "_wasm_set_cookies", \n\
-# "_wasm_set_path_translated", \n\
-# "_wasm_set_php_code", \n\
-# "_wasm_set_query_string", \n\
-# "_wasm_set_request_body", \n\
-# "_wasm_set_request_host", \n\
-# "_wasm_set_request_method", \n\
-# "_wasm_set_request_port", \n\
-# "_wasm_set_request_uri", \n\
-# "_compiler_globals", \n\
-# "_zend_write", \n\
-# "_executor_globals", \n\
-# "_zend_post_startup_cb", \n\
-# "_OnUpdateString", \n\
-# "_OnUpdateBool", \n\
-# "_OnUpdateLong", \n\
-# "_zend_ini_boolean_displayer_cb", \n\
-# "_zend_pass_function", \n\
-# "_zend_error_cb", \n\
-# "_zend_execute_ex", \n\
-# "_zend_ce_error", \n\
-# "_module_registry", \n\
-# "_zend_execute_internal", \n\
-# "_zend_compile_file", \n\
-# "_core_globals", \n\
-# "_zend_throw_exception_hook", \n\
-# "_zend_ce_closure", \n\
-# "_zend_empty_string", \n\
-# "_zend_startup_module", \n\
-# "_calloc", \n\
-# "_sapi_module", \n\
-# "_php_ini_opened_path", \n\
-# "_php_ini_scanned_path", \n\
-# "_php_ini_scanned_files", \n\
-# "_zend_string_init_interned", \n\
-# "_zend_sort", \n\
-# "_zend_extensions", \n\
-# "_sapi_globals", \n\
-# "___THREW__", \n\
-# "_zend_eval_string", \n\
-# "___threwValue", \n\
-# "_zend_get_exception_base", \n\
-# "_zend_known_strings", \n\
-# "_zend_read_property_ex", \n\
-# "_zval_get_string_func", \n\
-# "_zend_clear_exception", \n\
-# "_zend_ce_throwable", \n\
-# "_gc_collect_cycles", \n\
-# "_emscripten_console_log", \n\
-# "_emscripten_console_error", \n\
-# "_emscripten_console_warn", \n\
-# "_emscripten_out", \n\
-# "_emscripten_err", \n\
-# "_emscripten_dbg", \n\
-# "_emscripten_builtin_malloc", \n\
-# "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-# 	export OPTIMIZATION_FLAGS="-O3"; \
-# 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-#         export OPTIMIZATION_FLAGS="-O0"; \
-# 	fi; \
-#     emcc $OPTIMIZATION_FLAGS \
-#     --js-library /root/phpwasm-emscripten-library.js \
-#     -I .  \
-#     -I ext   \
-#     -I ext/json   \
-#     -I Zend  \
-#     -I main  \
-#     -I TSRM/ \
-#     -I /root/lib/include \
-#     -L/root/lib -L/root/lib/lib/ \
-#     $(cat /root/.emcc-php-wasm-flags) \
-#     -o /build/output/php.js \
-#     -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
-#     -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
-#     -s INITIAL_MEMORY=1024MB \
-#     -s ALLOW_MEMORY_GROWTH=1         \
-#     -s ASSERTIONS=0                  \
-#     -s MAIN_MODULE                 \
-#     -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
-#     -s NODEJS_CATCH_EXIT=0           \
-# 	-s NODEJS_CATCH_REJECTION=0      \
-#     -s INVOKE_RUN=0                  \
-#     -s EXIT_RUNTIME=1                \
-#         /root/lib/libphp.a \
-#         /root/php_wasm.c \
-#         $(cat /root/.emcc-php-wasm-sources) \
-#     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
-#     -s FORCE_FILESYSTEM=1 \
-#     -s EXPORT_NAME="'PHPLoader'"
-#     # Emscripten complains it can't find some Asyncify functions
-#     # listed in ASYNCIFY_IMPORTS. The culprit is those functions
-#     # are actually used and delisting them breaks php_pollfd_for().
-#     # Sooo... just ignore Emscripten's warnings.
+RUN set -euxo pipefail; \
+    source /root/emsdk/emsdk_env.sh && \
+    export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_php_wasm_init", \n\
+"_phpwasm_destroy_uploaded_files_hash", \n\
+"_phpwasm_init_uploaded_files_hash", \n\
+"_phpwasm_register_uploaded_file", \n\
+"_wasm_set_phpini_path", \n\
+"_wasm_set_phpini_entries", \n\
+"_wasm_add_SERVER_entry", \n\
+"_wasm_add_uploaded_file", \n\
+"_wasm_sapi_handle_request", \n\
+"_wasm_set_content_length", \n\
+"_wasm_set_content_type", \n\
+"_wasm_set_cookies", \n\
+"_wasm_set_path_translated", \n\
+"_wasm_set_php_code", \n\
+"_wasm_set_query_string", \n\
+"_wasm_set_request_body", \n\
+"_wasm_set_request_host", \n\
+"_wasm_set_request_method", \n\
+"_wasm_set_request_port", \n\
+"_wasm_set_request_uri", \n\
+"_compiler_globals", \n\
+"_zend_write", \n\
+"_executor_globals", \n\
+"_zend_post_startup_cb", \n\
+"_OnUpdateString", \n\
+"_OnUpdateBool", \n\
+"_OnUpdateLong", \n\
+"_zend_ini_boolean_displayer_cb", \n\
+"_zend_pass_function", \n\
+"_zend_error_cb", \n\
+"_zend_execute_ex", \n\
+"_zend_ce_error", \n\
+"_module_registry", \n\
+"_zend_execute_internal", \n\
+"_zend_compile_file", \n\
+"_core_globals", \n\
+"_zend_throw_exception_hook", \n\
+"_zend_ce_closure", \n\
+"_zend_empty_string", \n\
+"_zend_startup_module", \n\
+"_calloc", \n\
+"_sapi_module", \n\
+"_php_ini_opened_path", \n\
+"_php_ini_scanned_path", \n\
+"_php_ini_scanned_files", \n\
+"_zend_string_init_interned", \n\
+"_zend_sort", \n\
+"_zend_extensions", \n\
+"_sapi_globals", \n\
+"___THREW__", \n\
+"_zend_eval_string", \n\
+"___threwValue", \n\
+"_zend_get_exception_base", \n\
+"_zend_known_strings", \n\
+"_zend_read_property_ex", \n\
+"_zval_get_string_func", \n\
+"_zend_clear_exception", \n\
+"_zend_ce_throwable", \n\
+"_gc_collect_cycles", \n\
+"_emscripten_console_log", \n\
+"_emscripten_console_error", \n\
+"_emscripten_console_warn", \n\
+"_emscripten_out", \n\
+"_emscripten_err", \n\
+"_emscripten_dbg", \n\
+"_emscripten_builtin_malloc", \n\
+"_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
+	export OPTIMIZATION_FLAGS="-O3"; \
+	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+        export OPTIMIZATION_FLAGS="-O0"; \
+	fi; \
+    emcc $OPTIMIZATION_FLAGS \
+    --js-library /root/phpwasm-emscripten-library.js \
+    -I .  \
+    -I ext   \
+    -I ext/json   \
+    -I Zend  \
+    -I main  \
+    -I TSRM/ \
+    -I /root/lib/include \
+    -L/root/lib -L/root/lib/lib/ \
+    $(cat /root/.emcc-php-wasm-flags) \
+    -o /build/output/php.js \
+    -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
+    -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
+    -s INITIAL_MEMORY=1024MB \
+    -s ALLOW_MEMORY_GROWTH=1         \
+    -s ASSERTIONS=0                  \
+    -s MAIN_MODULE                 \
+    -s ERROR_ON_UNDEFINED_SYMBOLS=0  \
+    -s NODEJS_CATCH_EXIT=0           \
+	-s NODEJS_CATCH_REJECTION=0      \
+    -s INVOKE_RUN=0                  \
+    -s EXIT_RUNTIME=1                \
+        /root/lib/libphp.a \
+        /root/php_wasm.c \
+        $(cat /root/.emcc-php-wasm-sources) \
+    -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
+    -s FORCE_FILESYSTEM=1 \
+    -s EXPORT_NAME="'PHPLoader'"
+    # Emscripten complains it can't find some Asyncify functions
+    # listed in ASYNCIFY_IMPORTS. The culprit is those functions
+    # are actually used and delisting them breaks php_pollfd_for().
+    # Sooo... just ignore Emscripten's warnings.
 
 
-# COPY --from=emscripten-libpng /root/lib /root/lib-libpng
-# RUN cp /root/lib-libpng/lib/*.so /build/output
+COPY --from=emscripten-libpng /root/lib /root/lib-libpng
+RUN cp /root/lib-libpng/lib/*.so /build/output
 
-# # COPY --from=emscripten-libxml /root/lib /root/lib-libxml
-# # RUN cp /root/lib-libxml/lib/libxml2.* /build/output
+# COPY --from=emscripten-libxml /root/lib /root/lib-libxml
+# RUN cp /root/lib-libxml/lib/libxml2.* /build/output
 
-# # # At the moment terminfo is baked into the repository in
-# # # src/php-cli/terminfo, but if we ever need to update it, we can
-# # # use the terminfo database produced by the ncurses make script:
-# # RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-# #         mkdir -p /root/output/terminfo/x && \
-# #         cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/; \
-# #     fi
-# # Postprocess the build php.js module:
-# COPY ./build-assets/esm-prefix.js /root/esm-prefix.js
-# COPY ./build-assets/esm-suffix.js /root/esm-suffix.js
-# RUN set -euxo pipefail; \
-# 	cp -rfv /build/output/* /root/output/; \
-#     # Figure out the target file names and URLs
-#         # The .js and .wasm filenames should reflect the build configuration, e.g.:
-#         # * `php-7.4.node.js` and `php-7.4.node.wasm`
-#         # * `php-8.0.js` and `php-8.0.wasm`
-#         # In addition, the `.wasm` file URL should have a "cache busting" query string on the
-#         # web, so that web browsers will reload it when the file contents change.
-#     # Precompute export variables:
-#         export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
-#         export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
-#         export FILENAME_PREFIX="php_${PHP_VERSION_ESCAPED:0:3}"; \
-#         export EXT_PREFIX=""; \
-#         export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
-#         export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
-#     # Make the php.wasm URL configurable via the dependencyFilename loader argument:
-#         /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
-#     # Patch a "property undefined" error
-#         # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
-#         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
-#         # tolerate a null stream.stream_ops value.
-#         /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
-#     # Make Emscripten websockets configurable
-#         # Emscripten makes the Websocket proxy connect to a fixed URL.
-#         # This assumes the traffic is always forwarded to the same target.
-#         # However, we want to support arbitrary targets, so we need to
-#         # replace the hardcoded websocket target URL with a dynamic callback.
-#         /root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
-#             /root/output/php.js; \
-#         # Enable custom WebSocket constructors to support socket options.
-#         /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js; \
-#         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-#             /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
-#         fi; \
-#     # Add MSG_PEEK flag support in recvfrom
-#         #
-#         # Emscripten ignores the flags argument to ___syscall_recvfrom.
-#         # However, PHP relies on passing the MSG_PEEK (== integer 2) flag when polling
-#         # the stream for data.
-#         # MSG_PEEK enables reading bytes without moving the stream pointer forward.
-#         # Without the patch below, PHP consumes the first byte from the top of the
-#         # response stream, typically "H" in "HTTP/1.1 200 OK", and then fails after
-#         # reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
-#         # status line.
-#         # We need to patch the syscall to support the MSG_PEEK flag.
-#         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
-#             /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js; \
-#             /root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js; \
-#             /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
-#         fi ; \
-#     # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
-#         #
-#         # The JavaScript code of the web loader and web worker loader is identical,
-#         # but Emscripten forces running different code paths by setting
-#         #
-#         # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
-#         #
-#         # This project supports both environments and would have to maintain two
-#         # separate copies of the code. Instead, we use a dynamic computation of the
-#         # environment, based on the `RuntimeName` variable, which is an argument to the
-#         # wrapper function.
-#         /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
-#         /root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
-#     # Turn the php.js file into an ES module
-#         # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
-#         # which pollutes the global namespace and does not play well with import() mechanics.
-#         if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-#             echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-#         else \
-#             echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-#         fi; \
-#         echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
-#         cat /root/esm-prefix.js >> /root/output/php-module.js && \
-#         cat /root/output/php.js >> /root/output/php-module.js && \
-#         cat /root/esm-suffix.js >> /root/output/php-module.js && \
-#         \
-#         # Remove the old php.js file
-#         rm /root/output/php.js && \
-#         \
-#         # Rename the build files to their final names
-#         mv /root/output/php-module.js "/root/output/$JS_FILENAME"; \
-#         mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
-# 		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
-# 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-#             # Make the source map paths relative to the .wasm file, not the build directory
-#             sed -i 's#"\.\./\.\./root/#"#g' /root/output/php.wasm.map; \
-# 			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
-#             rm -rf /root/php-src/.git; \
-# 			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
-# 			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
-# 		fi;
+# # At the moment terminfo is baked into the repository in
+# # src/php-cli/terminfo, but if we ever need to update it, we can
+# # use the terminfo database produced by the ncurses make script:
+# RUN if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+#         mkdir -p /root/output/terminfo/x && \
+#         cp -v /root/lib/share/terminfo/x/xterm* /root/output/terminfo/x/; \
+#     fi
+# Postprocess the build php.js module:
+COPY ./build-assets/esm-prefix.js /root/esm-prefix.js
+COPY ./build-assets/esm-suffix.js /root/esm-suffix.js
+RUN set -euxo pipefail; \
+	cp -rfv /build/output/* /root/output/; \
+    # Figure out the target file names and URLs
+        # The .js and .wasm filenames should reflect the build configuration, e.g.:
+        # * `php-7.4.node.js` and `php-7.4.node.wasm`
+        # * `php-8.0.js` and `php-8.0.wasm`
+        # In addition, the `.wasm` file URL should have a "cache busting" query string on the
+        # web, so that web browsers will reload it when the file contents change.
+    # Precompute export variables:
+        export FILE_SIZE=$(stat -c%s "/root/output/php.wasm") && \
+        export PHP_VERSION_ESCAPED="${PHP_VERSION//./_}" && \
+        export FILENAME_PREFIX="php_${PHP_VERSION_ESCAPED:0:3}"; \
+        export EXT_PREFIX=""; \
+        export JS_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.js"; \
+        export WASM_FILENAME="${FILENAME_PREFIX}${EXT_PREFIX}.wasm"; \
+    # Make the php.wasm URL configurable via the dependencyFilename loader argument:
+        /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js; \
+    # Patch a "property undefined" error
+        # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
+        # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
+        # tolerate a null stream.stream_ops value.
+        /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js; \
+    # Make Emscripten websockets configurable
+        # Emscripten makes the Websocket proxy connect to a fixed URL.
+        # This assumes the traffic is always forwarded to the same target.
+        # However, we want to support arbitrary targets, so we need to
+        # replace the hardcoded websocket target URL with a dynamic callback.
+        /root/replace.sh $'s/if\s*\(\s*["\']string["\']\s*===\s*typeof Module\[["\']websocket["\']\]\[["\']url["\']\]\s*\)/if("function"===typeof Module["websocket"]["url"]) {\nurl = Module["websocket"]["url"](...arguments);\n}else if ("string" === typeof Module["websocket"]["url"])/g' \
+            /root/output/php.js; \
+        # Enable custom WebSocket constructors to support socket options.
+        /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js; \
+        if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+            /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+        fi; \
+    # Add MSG_PEEK flag support in recvfrom
+        #
+        # Emscripten ignores the flags argument to ___syscall_recvfrom.
+        # However, PHP relies on passing the MSG_PEEK (== integer 2) flag when polling
+        # the stream for data.
+        # MSG_PEEK enables reading bytes without moving the stream pointer forward.
+        # Without the patch below, PHP consumes the first byte from the top of the
+        # response stream, typically "H" in "HTTP/1.1 200 OK", and then fails after
+        # reading the remaining "TTP/1.1 200 OK" and not recognizing it as a valid
+        # status line.
+        # We need to patch the syscall to support the MSG_PEEK flag.
+        if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
+            /root/replace.sh 's/sock\.sock_ops\.recvmsg\(sock,\s*len\);/sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);/g' /root/output/php.js; \
+            /root/replace.sh 's/recvmsg\(sock,\s*length\)\s*{/recvmsg(sock, length, flags) {/g' /root/output/php.js; \
+            /root/replace.sh 's/if\s*\(sock\.type\s*===\s*1\s*&&\s*bytesRead\s*<\s*queuedLength\)/if (flags&2) {bytesRead = 0;} if (sock.type === 1 && bytesRead < queuedLength)/g' /root/output/php.js; \
+        fi ; \
+    # Replace the hardcoded ENVIRONMENT variable with a dynamic computation
+        #
+        # The JavaScript code of the web loader and web worker loader is identical,
+        # but Emscripten forces running different code paths by setting
+        #
+        # ENVIRONMENT_IS_WEB = true; ENVIRONMENT_IS_WORKER = false
+        #
+        # This project supports both environments and would have to maintain two
+        # separate copies of the code. Instead, we use a dynamic computation of the
+        # environment, based on the `RuntimeName` variable, which is an argument to the
+        # wrapper function.
+        /root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
+        /root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+    # Turn the php.js file into an ES module
+        # Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
+        # which pollutes the global namespace and does not play well with import() mechanics.
+        if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+            echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+        else \
+            echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
+        fi; \
+        echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
+        cat /root/esm-prefix.js >> /root/output/php-module.js && \
+        cat /root/output/php.js >> /root/output/php-module.js && \
+        cat /root/esm-suffix.js >> /root/output/php-module.js && \
+        \
+        # Remove the old php.js file
+        rm /root/output/php.js && \
+        \
+        # Rename the build files to their final names
+        mv /root/output/php-module.js "/root/output/$JS_FILENAME"; \
+        mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
+		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
+		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
+            # Make the source map paths relative to the .wasm file, not the build directory
+            sed -i 's#"\.\./\.\./root/#"#g' /root/output/php.wasm.map; \
+			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
+            rm -rf /root/php-src/.git; \
+			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
+			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
+		fi;
