@@ -123,6 +123,27 @@ RUN cd libzip/build && \
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
+# Compile libiconv
+FROM emscripten AS emscripten-iconv
+RUN set -euxo pipefail; \
+	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
+	tar -xvf libiconv-1.17.tar.gz; \
+	rm libiconv-1.17.tar.gz;
+WORKDIR /root/libiconv-1.17
+RUN set -euxo pipefail; \
+	source /root/emsdk/emsdk_env.sh; \
+	CPPFLAGS="-I/root/lib/include " \
+	LDFLAGS="-L/root/lib/lib " \
+	emconfigure ./configure \
+		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+		--build i386-pc-linux-gnu \
+		--target wasm32-unknown-emscripten \
+		--prefix=/root/lib/ \
+		--enable-shared=no \
+		--enable-static=yes; \
+	EMCC_FLAGS="-fPIC" emmake make; \
+	emmake make install;
+
 # Compile ncurses
 FROM emscripten AS emscripten-ncurses
 COPY ./build-assets/ncurses.patch /root/
@@ -292,6 +313,7 @@ ARG WITH_CLI_SAPI
 ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
+ARG WITH_ICONV
 ARG WITH_WS_NETWORKING_PROXY
 
 # The platform to build for: web or node
@@ -403,6 +425,15 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
         bash /root/copy-lib.sh lib-openssl; \
         echo -n ' --with-openssl --with-openssl-dir=/root/lib ' >> /root/.php-configure-flags; \
         echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
+    fi;
+
+# Add iconv if needed
+COPY --from=emscripten-iconv /root/lib /root/lib-iconv
+RUN if [ "$WITH_ICONV" = "yes" ]; \
+    then \
+        bash /root/copy-lib.sh lib-iconv; \
+        echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
     fi;
 
 # PHP <= 7.3 requires Bison 2.7

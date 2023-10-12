@@ -36,6 +36,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libpng support',
 		},
+		WITH_ICONV: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with iconv support',
+		},
 		WITH_MBSTRING: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -100,12 +105,14 @@ const platformDefaults = {
 	['web-kitchen-sink']: {
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
+		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 	node: {
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
+		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_CLI_SAPI: 'yes',
 		WITH_OPENSSL: 'yes',
@@ -171,6 +178,8 @@ await asyncSpawn(
 		getArg('WITH_CURL'),
 		'--build-arg',
 		getArg('WITH_SQLITE'),
+		'--build-arg',
+		getArg('WITH_ICONV'),
 		'--build-arg',
 		getArg('WITH_MYSQL'),
 		'--build-arg',
