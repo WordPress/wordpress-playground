@@ -17,8 +17,7 @@
 			"outputs": ["{options.outputPath}"],
 			"options": {
 				"outputPath": "dist/packages/playground/blueprints"
-			},
-			"dependsOn": ["^build"]
+			}
 		},
 		"build:blueprint-schema": {
 			"executor": "nx:run-commands",
