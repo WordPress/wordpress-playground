@@ -82,7 +82,7 @@ export class WebPHP extends BasePHP {
 		const php = new WebPHP(undefined, options.requestHandler);
 
 		// Determine which variant to load based on the requested extensions
-		const variant = options.extensions?.length ? 'regular' : 'light';
+		const variant = options.extensions?.length ? 'kitchen-sink' : 'light';
 
 		const doLoad = async () => {
 			const allModules = await Promise.all([

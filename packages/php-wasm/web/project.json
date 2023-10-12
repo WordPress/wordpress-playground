@@ -73,7 +73,7 @@
 				"parallel": false
 			}
 		},
-		"recompile-php:regular": {
+		"recompile-php:kitchen-sink": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
