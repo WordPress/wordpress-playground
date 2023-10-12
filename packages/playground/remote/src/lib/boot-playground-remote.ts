@@ -1,6 +1,7 @@
 import {
 	LatestSupportedPHPVersion,
 	MessageListener,
+	SupportedPHPExtensionsList,
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
@@ -60,10 +61,15 @@ export async function bootPlaygroundRemote() {
 		query.get('php'),
 		LatestSupportedPHPVersion
 	);
+	const phpExtensions = parseList(
+		query.getAll('php-extension'),
+		SupportedPHPExtensionsList
+	);
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
+			['php-extension']: phpExtensions,
 			storage: query.get('storage') || '',
 		})
 	);
@@ -217,6 +223,13 @@ function parseVersion<T>(value: string | undefined | null, latest: T) {
 	 * it with an underscore
 	 */
 	return value.replace('.', '_');
+}
+
+function parseList<T>(value: string[], list: readonly T[]) {
+	if (!value) {
+		return [];
+	}
+	return value.filter((item) => list.includes(item as any));
 }
 
 /**

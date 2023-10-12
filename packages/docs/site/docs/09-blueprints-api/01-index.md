@@ -16,6 +16,7 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 		"php": "8.0",
 		"wp": "latest"
 	},
+	"phpExtensionBundles": ["kitchen-sink"],
 	"steps": [
 		{
 			"step": "login",

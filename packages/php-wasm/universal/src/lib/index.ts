@@ -25,6 +25,14 @@ export {
 	SupportedPHPVersionsList,
 } from './supported-php-versions';
 export type { SupportedPHPVersion } from './supported-php-versions';
+export {
+	SupportedPHPExtensionsList,
+	SupportedPHPExtensionBundles,
+} from './supported-php-extensions';
+export type {
+	SupportedPHPExtension,
+	SupportedPHPExtensionBundle,
+} from './supported-php-extensions';
 export { BasePHP, __private__dont__use } from './base-php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type {

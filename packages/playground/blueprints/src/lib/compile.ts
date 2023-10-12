@@ -2,6 +2,10 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import {
 	LatestSupportedPHPVersion,
+	SupportedPHPExtension,
+	SupportedPHPExtensionsList,
+	SupportedPHPExtensionBundle,
+	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
@@ -43,6 +47,8 @@ export interface CompiledBlueprint {
 		php: SupportedPHPVersion;
 		wp: supportedWordPressVersion;
 	};
+	/** The requested PHP extensions to load */
+	phpExtensions: SupportedPHPExtension[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -116,6 +122,10 @@ export function compileBlueprint(
 				'6.3'
 			),
 		},
+		phpExtensions: compilePHPExtensions(
+			[],
+			blueprint.phpExtensionBundles || []
+		),
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
@@ -210,6 +220,31 @@ function compileVersion<T>(
 		return value as T;
 	}
 	return latest as T;
+}
+
+/**
+ * Compiles a list of requested PHP extensions provided as strings
+ * into a valid list of supported PHP extensions.
+ *
+ * @param requestedExtensions The extensions to compile
+ * @returns The compiled extensions
+ */
+function compilePHPExtensions(
+	requestedExtensions: string[],
+	requestedBundles: string[]
+): SupportedPHPExtension[] {
+	const extensions = SupportedPHPExtensionsList.filter((extension) =>
+		requestedExtensions.includes(extension)
+	);
+	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
+		bundle in SupportedPHPExtensionBundles
+			? SupportedPHPExtensionBundles[
+					bundle as SupportedPHPExtensionBundle
+			  ]
+			: []
+	);
+	// Deduplicate
+	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
 
 /**

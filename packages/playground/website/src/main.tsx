@@ -45,6 +45,7 @@ try {
 		theme: query.get('theme') || undefined,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
+		phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 		gutenbergPR: query.has('gutenberg-pr')
 			? Number(query.get('gutenberg-pr'))
 			: undefined,
@@ -71,6 +72,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	),
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'temporary',
+	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
 };
 
 /*

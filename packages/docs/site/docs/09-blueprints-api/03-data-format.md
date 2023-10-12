@@ -21,6 +21,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 		"php": "7.4",
 		"wp": "5.9"
 	},
+	"phpExtensionBundles": ["kitchen-sink"],
 	"steps": [
 		{
 			"step": "login",
@@ -48,3 +49,9 @@ The `preferredVersions` property, unsurprisingly, declares the preferred of PHP 
 
 -   `php` (string): The preferred PHP version to use. Defaults to 'latest'. Only accepts major versions like "7.4" or "8.0". Minor versions like "7.4.1" are not supported.
 -   `wp` (string): The preferred WordPress version to use. Defaults to 'latest'. Only accepts major versions like "5.9" or "6.0". Minor versions like "5.9.1" are not supported.
+
+## PHP extensions
+
+The `phpExtensionBundles` property is an array of PHP extension bundles to load. The following bundles are supported:
+
+-   `kitchen-sink`: Installs `gd`, `mbstring`, `libxml`, `xml`, `dom`, `simplexml`, `xmlreader`, `xmlwriter`
