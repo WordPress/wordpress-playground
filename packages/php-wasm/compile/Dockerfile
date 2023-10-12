@@ -992,7 +992,7 @@ RUN \
     # Make the php.wasm URL configurable via the dependencyFilename loader argument:
         /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js && \
     # Patch a "property undefined" error
-        # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
+        # Emscripten produces an if that checks a stream.stream_ops.poll property. However,
         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
         # tolerate a null stream.stream_ops value.
         /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js && \
