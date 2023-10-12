@@ -4,12 +4,12 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPExtension,
 	SupportedPHPExtensionsList,
-	SupportedPHPExtensionBundle,
 	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
 } from '@php-wasm/universal';
+import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as stepHandlers from './steps/handlers';
