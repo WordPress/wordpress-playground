@@ -1,10 +1,8 @@
-export const supportedPHPExtensions = ['mbstring', 'xml-bundle', 'gd'] as const;
-export type SupportedPHPExtension = (typeof supportedPHPExtensions)[number];
-export const SupportedPHPExtensionsList =
-	supportedPHPExtensions as any as string[];
+export type SupportedPHPExtension = 'mbstring' | 'xml-bundle' | 'gd';
+export const SupportedPHPExtensionsList = ['mbstring', 'xml-bundle', 'gd'];
 
 export const SupportedPHPExtensionBundles = {
-	'kitchen-sink': supportedPHPExtensions,
+	'kitchen-sink': SupportedPHPExtensionsList,
 } as const;
 export type SupportedPHPExtensionBundle =
 	keyof typeof SupportedPHPExtensionBundles;
