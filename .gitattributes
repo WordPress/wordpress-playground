@@ -1,0 +1,10 @@
+package-lock.json linguist-generated
+packages/docs/site/static/diagrams.excalidraw linguist-vendored
+packages/php-wasm/compile/build-assets/zlib/ linguist-vendored
+packages/php-wasm/node/public/ linguist-generated
+packages/php-wasm/node/src/test/test-data/ linguist-generated
+packages/php-wasm/web/public/kitchen-sink/ linguist-generated
+packages/php-wasm/web/public/light/ linguist-generated
+packages/playground/remote/public/wp-* linguist-generated
+packages/playground/remote/src/wordpress/ linguist-generated
+packages/playground/blueprints/public/ linguist-generated
