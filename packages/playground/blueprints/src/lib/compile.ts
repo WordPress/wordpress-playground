@@ -235,14 +235,14 @@ function compilePHPExtensions(
 ): SupportedPHPExtension[] {
 	const extensions = SupportedPHPExtensionsList.filter((extension) =>
 		requestedExtensions.includes(extension)
-	);
+	) as SupportedPHPExtension[];
 	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
 		bundle in SupportedPHPExtensionBundles
 			? SupportedPHPExtensionBundles[
 					bundle as SupportedPHPExtensionBundle
 			  ]
 			: []
-	);
+	) as SupportedPHPExtension[];
 	// Deduplicate
 	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
