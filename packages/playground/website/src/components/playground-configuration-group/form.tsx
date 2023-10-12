@@ -2,8 +2,6 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import { useEffect, useState } from 'react';
 import {
-	SupportedPHPExtension,
-	SupportedPHPExtensionsList,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
@@ -30,7 +28,7 @@ export type SupportedWordPressVersion =
 export interface PlaygroundConfiguration {
 	wp: SupportedWordPressVersion;
 	php: SupportedPHPVersion;
-	phpExtensions: SupportedPHPExtension[];
+	withExtensions: boolean;
 	storage: StorageType;
 	resetSite?: boolean;
 }
@@ -57,8 +55,8 @@ export function PlaygroundConfigurationForm({
 }: PlaygroundConfigurationFormProps) {
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
-	const [loadExtensions, setLoadExtensions] = useState<boolean>(
-		initialData.phpExtensions?.length > 0
+	const [withExtensions, setWithExtensions] = useState<boolean>(
+		initialData.withExtensions
 	);
 	const [wp, setWp] = useState(
 		initialData.wp || LatestSupportedWordPressVersion
@@ -87,7 +85,7 @@ export function PlaygroundConfigurationForm({
 			storage,
 			wp,
 			resetSite,
-			phpExtensions: loadExtensions ? SupportedPHPExtensionsList : [],
+			withExtensions: withExtensions,
 		});
 	}
 
@@ -290,9 +288,9 @@ export function PlaygroundConfigurationForm({
 						>
 							<input
 								type="checkbox"
-								checked={loadExtensions}
+								checked={withExtensions}
 								onChange={() =>
-									setLoadExtensions(!loadExtensions)
+									setWithExtensions(!withExtensions)
 								}
 							/>
 							&nbsp; Load extensions: libxml, mbstring, gd

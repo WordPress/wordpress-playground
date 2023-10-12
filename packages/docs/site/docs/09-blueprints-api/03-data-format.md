@@ -21,11 +21,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 		"php": "7.4",
 		"wp": "5.9"
 	},
-	"phpExtensions": [
-		"gd",
-		"xml-bundle",
-		"mbstring"
-	],
+	"phpExtensionBundles": ["kitchen-sink"],
 	"steps": [
 		{
 			"step": "login",
@@ -56,8 +52,6 @@ The `preferredVersions` property, unsurprisingly, declares the preferred of PHP 
 
 ## PHP extensions
 
-The `phpExtensions` property is an array of PHP extensions to load. It can contain the following values:
+The `phpExtensionBundles` property is an array of PHP extension bundles to load. The following bundles are supported:
 
--   `gd`: Installs the GD extension.
--   `xml-bundle`: Installs the XML bundle extension (libxml, xml, dom, simplexml, xmlreader, xmlwriter).
--   `mbstring`: Installs the mbstring extension.
+-   `kitchen-sink`: Installs `gd`, `mbstring`, `libxml`, `xml`, `dom`, `simplexml`, `xmlreader`, `xmlwriter`

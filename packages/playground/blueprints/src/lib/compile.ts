@@ -4,6 +4,8 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPExtension,
 	SupportedPHPExtensionsList,
+	SupportedPHPExtensionBundle,
+	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
@@ -120,7 +122,10 @@ export function compileBlueprint(
 				'6.3'
 			),
 		},
-		phpExtensions: compilePHPExtensions(blueprint.phpExtensions || []),
+		phpExtensions: compilePHPExtensions(
+			[],
+			blueprint.phpExtensionBundles || []
+		),
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
@@ -221,13 +226,25 @@ function compileVersion<T>(
  * Compiles a list of requested PHP extensions provided as strings
  * into a valid list of supported PHP extensions.
  *
- * @param extensions The extensions to compile
+ * @param requestedExtensions The extensions to compile
  * @returns The compiled extensions
  */
-function compilePHPExtensions(extensions: string[]): SupportedPHPExtension[] {
-	return SupportedPHPExtensionsList.filter((extension) =>
-		extensions.includes(extension)
+function compilePHPExtensions(
+	requestedExtensions: string[],
+	requestedBundles: string[]
+): SupportedPHPExtension[] {
+	const extensions = SupportedPHPExtensionsList.filter((extension) =>
+		requestedExtensions.includes(extension)
 	);
+	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
+		bundle in SupportedPHPExtensionBundles
+			? SupportedPHPExtensionBundles[
+					bundle as SupportedPHPExtensionBundle
+			  ]
+			: []
+	);
+	// Deduplicate
+	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
 
 /**

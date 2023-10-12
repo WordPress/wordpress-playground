@@ -45,7 +45,7 @@ try {
 		theme: query.get('theme') || undefined,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
-		phpExtensions: query.getAll('php-extension') || [],
+		phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 		gutenbergPR: query.has('gutenberg-pr')
 			? Number(query.get('gutenberg-pr'))
 			: undefined,
@@ -72,7 +72,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	),
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'temporary',
-	phpExtensions: blueprint.phpExtensions || [],
+	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
 };
 
 /*
