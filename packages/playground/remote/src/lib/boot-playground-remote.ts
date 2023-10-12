@@ -182,7 +182,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/*
-	 * An asssertion to make sure Playground Client is compatible
+	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;

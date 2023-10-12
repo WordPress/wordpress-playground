@@ -258,7 +258,7 @@ export const rm: StepHandler<RmStep> = async (playground, { path }) => {
  *
  * <code>
  * {
- * 		"step": "rm",
+ * 		"step": "rmdir",
  * 		"path": "/wordpress/wp-admin"
  * }
  * </code>
