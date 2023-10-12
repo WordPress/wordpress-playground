@@ -10,6 +10,8 @@ import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw'
 import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
 /** @ts-ignore */
 import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php?raw';
+/** @ts-ignore */
+import linksTargetingTopFrameShouldTargetPlaygroundIframe from './wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php?raw';
 
 import { DOCROOT } from '../config';
 
@@ -79,6 +81,10 @@ class WordPressPatcher {
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
 			niceErrorMessagesForPluginsAndThemesDirectories
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
+			linksTargetingTopFrameShouldTargetPlaygroundIframe
 		);
 	}
 
