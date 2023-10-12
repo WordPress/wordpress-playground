@@ -34,3 +34,7 @@ const response = await php.request({
 });
 console.log(response.text);
 ```
+
+## Attribution
+
+`@php-wasm/node` started as a fork of the original PHP to WebAssembly build published by Oraoto in https://github.com/oraoto/pib and modified by Sean Morris in https://github.com/seanmorris/php-wasm.
