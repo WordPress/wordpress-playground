@@ -4,12 +4,12 @@ import {
 	LatestSupportedPHPVersion,
 	SupportedPHPExtension,
 	SupportedPHPExtensionsList,
-	SupportedPHPExtensionBundle,
 	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
 } from '@php-wasm/universal';
+import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as stepHandlers from './steps/handlers';
@@ -235,14 +235,14 @@ function compilePHPExtensions(
 ): SupportedPHPExtension[] {
 	const extensions = SupportedPHPExtensionsList.filter((extension) =>
 		requestedExtensions.includes(extension)
-	);
+	) as SupportedPHPExtension[];
 	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
 		bundle in SupportedPHPExtensionBundles
 			? SupportedPHPExtensionBundles[
 					bundle as SupportedPHPExtensionBundle
 			  ]
 			: []
-	);
+	) as SupportedPHPExtension[];
 	// Deduplicate
 	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
