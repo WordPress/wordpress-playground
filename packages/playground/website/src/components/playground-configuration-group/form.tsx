@@ -293,7 +293,7 @@ export function PlaygroundConfigurationForm({
 									setWithExtensions(!withExtensions)
 								}
 							/>
-							&nbsp; Load extensions: libxml, mbstring, gd
+							&nbsp; Load extensions: libxml, mbstring, iconv, gd
 						</label>
 					</div>
 					<div
