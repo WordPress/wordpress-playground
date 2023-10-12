@@ -8,7 +8,6 @@
  * https://github.com/WordPress/wordpress-playground/issues/266
  */
 
-// Add a script to the footer that listens to clicks on links with target="_top"
 add_action('admin_print_scripts', function () {
     ?>
     <script>
