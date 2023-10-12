@@ -1,5 +1,6 @@
 package-lock.json linguist-generated
-packages/docs/site/static/diagrams.excalidraw linguist-vendored
+packages/docs/site/docs/site/docs/ linguist-documentation
+packages/docs/site/static/diagrams.excalidraw linguist-documentation
 packages/php-wasm/compile/build-assets/zlib/ linguist-vendored
 packages/php-wasm/node/public/ linguist-generated
 packages/php-wasm/node/src/test/test-data/ linguist-generated
