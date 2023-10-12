@@ -87,7 +87,12 @@ const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 		absoluteUrl: scopedSiteUrl,
 		isStaticFilePath: isUploadedFilePath,
 	},
-	extensions: phpExtensions,
+	// This script receives a resolved list of PHP extensions to load.
+	// Since we don't support cherry-picking specific extensions and
+	// only support loading the kitchen sink, let's just pass the
+	// kitchen sink if any extensions are requested to keep it simple
+	// for now.
+	extensionBundles: phpExtensions.length ? ['kitchen-sink'] : undefined,
 	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 
