@@ -253,7 +253,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-			{(storage !== 'device' && storage !== 'opfs-host') ? (
+			{storage !== 'device' && storage !== 'opfs-host' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
