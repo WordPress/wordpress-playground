@@ -1,15 +1,14 @@
-export const supportedPHPExtensions = [
+// The extensions list is repeated on purpose to avoid CI errors
+// @see https://github.com/WordPress/wordpress-playground/pull/687
+export type SupportedPHPExtension = 'iconv' | 'mbstring' | 'xml-bundle' | 'gd';
+export const SupportedPHPExtensionsList = [
 	'iconv',
 	'mbstring',
 	'xml-bundle',
 	'gd',
-] as const;
-export type SupportedPHPExtension = (typeof supportedPHPExtensions)[number];
-export const SupportedPHPExtensionsList =
-	supportedPHPExtensions as any as SupportedPHPExtension[];
+];
 
 export const SupportedPHPExtensionBundles = {
-	'kitchen-sink': supportedPHPExtensions,
-} as const;
-export type SupportedPHPExtensionBundle =
-	keyof typeof SupportedPHPExtensionBundles;
+	'kitchen-sink': SupportedPHPExtensionsList,
+};
+export type SupportedPHPExtensionBundle = 'kitchen-sink';
