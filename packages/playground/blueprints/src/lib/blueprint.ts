@@ -1,4 +1,7 @@
-import { SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	SupportedPHPExtensionBundle,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import { StepDefinition } from './steps';
 
 export interface Blueprint {
@@ -21,6 +24,10 @@ export interface Blueprint {
 		 */
 		wp: string | 'latest';
 	};
+	/**
+	 * The PHP extensions to use.
+	 */
+	phpExtensionBundles?: SupportedPHPExtensionBundle[];
 	/**
 	 * The steps to run.
 	 */

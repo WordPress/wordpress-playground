@@ -63,20 +63,12 @@ export default defineConfig(({ command, mode }) => {
 		preview: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy: {
 				...proxy,
 				// Proxy requests to the remote content through this server for dev builds.

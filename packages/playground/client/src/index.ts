@@ -82,6 +82,7 @@ export async function startPlaygroundWeb({
 		setQueryParams(remoteUrl, {
 			php: compiled.versions.php,
 			wp: compiled.versions.wp,
+			['php-extension']: compiled.phpExtensions,
 		}),
 		progressTracker
 	);
@@ -162,7 +163,13 @@ function setQueryParams(url: string, params: Record<string, unknown>) {
 	const qs = new URLSearchParams(urlObject.search);
 	for (const [key, value] of Object.entries(params)) {
 		if (value !== undefined && value !== null && value !== false) {
-			qs.set(key, value.toString());
+			if (Array.isArray(value)) {
+				for (const item of value) {
+					qs.append(key, item.toString());
+				}
+			} else {
+				qs.set(key, value.toString());
+			}
 		}
 	}
 	urlObject.search = qs.toString();

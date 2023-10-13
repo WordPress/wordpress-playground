@@ -28,6 +28,7 @@ export type SupportedWordPressVersion =
 export interface PlaygroundConfiguration {
 	wp: SupportedWordPressVersion;
 	php: SupportedPHPVersion;
+	withExtensions: boolean;
 	storage: StorageType;
 	resetSite?: boolean;
 }
@@ -54,6 +55,9 @@ export function PlaygroundConfigurationForm({
 }: PlaygroundConfigurationFormProps) {
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
+	const [withExtensions, setWithExtensions] = useState<boolean>(
+		initialData.withExtensions
+	);
 	const [wp, setWp] = useState(
 		initialData.wp || LatestSupportedWordPressVersion
 	);
@@ -76,7 +80,13 @@ export function PlaygroundConfigurationForm({
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		onSubmit({ php, storage, wp, resetSite });
+		onSubmit({
+			php,
+			storage,
+			wp,
+			resetSite,
+			withExtensions: withExtensions,
+		});
 	}
 
 	async function handleSelectLocalDirectory(
@@ -198,7 +208,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{(storage === 'opfs-host' || storage === 'device') ? (
+					{storage === 'opfs-host' || storage === 'device' ? (
 						<li>
 							<div>
 								<p>
@@ -243,7 +253,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-			{(storage !== 'device' && storage !== 'opfs-host') ? (
+			{storage !== 'device' && storage !== 'opfs-host' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
@@ -272,6 +282,19 @@ export function PlaygroundConfigurationForm({
 								</option>
 							))}
 						</select>
+						<label
+							className={forms.groupLabel}
+							style={{ marginTop: 15 }}
+						>
+							<input
+								type="checkbox"
+								checked={withExtensions}
+								onChange={() =>
+									setWithExtensions(!withExtensions)
+								}
+							/>
+							&nbsp; Load extensions: libxml, mbstring, iconv, gd
+						</label>
 					</div>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear} ${forms.formGroupLast}`}

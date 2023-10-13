@@ -615,7 +615,7 @@ void wasm_set_request_port(int port) {
 /*
  * Function: redirect_stream_to_file
  * ----------------------------
- *   Redirects writes from a given stream to a file with a speciied path.
+ *   Redirects writes from a given stream to a file with a specified path.
  *   Think of it as a the ">" operator in "echo foo > bar.txt" bash command.
  *
  *   This is useful to pass streams of bytes containing null bytes to JavaScript

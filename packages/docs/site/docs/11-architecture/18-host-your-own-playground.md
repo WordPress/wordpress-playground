@@ -109,8 +109,6 @@ The combined Apache `.htaccess` file looks like this.
 AddType application/wasm .wasm
 AddType	application/octet-stream .data
 
-Header set Cross-Origin-Resource-Policy: cross-origin
-Header set Cross-Origin-Embedder-Policy: credentialless
 RewriteEngine on
 RewriteRule ^plugin-proxy$ plugin-proxy.php [NC]
 ```
@@ -139,9 +137,6 @@ location /plugin-proxy {
 location /scope:.* {
   rewrite ^scope:.*?/(.*)$ $1 last;
 }
-
-add_header "Cross-Origin-Resource-Policy" "cross-origin";
-add_header "Cross-Origin-Embedder-Policy" "credentialless";
 ```
 
 You may need to adjust the above according to server specifics, particularly how to invoke PHP for the path `/plugin-proxy`.
