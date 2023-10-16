@@ -74,6 +74,9 @@ RUN cd wordpress && \
     find ./ -type f -name '*.js' \
     -not -path '*/wp-includes/blocks/*/*.min.js' \
     -not -name 'wp-emoji-loader.min.js' \
+    # This file is patched in JavaScript and needs to
+    # be served from VFS. See #703
+    -not -path '*/wp-includes/js/dist/block-editor*.js' \
     -delete
 
 RUN cd wordpress && \
