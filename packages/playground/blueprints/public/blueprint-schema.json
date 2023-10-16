@@ -190,6 +190,9 @@
 						},
 						"disableWpNewBlogNotification": {
 							"type": "boolean"
+						},
+						"makeEditorFrameControlled": {
+							"type": "boolean"
 						}
 					},
 					"required": ["step"]
