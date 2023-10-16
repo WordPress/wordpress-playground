@@ -19,7 +19,6 @@ export function applyWebWordPressPatches(php: UniversalPHP) {
 	const patch = new WordPressPatcher(php, DOCROOT);
 
 	patch.replaceRequestsTransports();
-	patch.addMissingSvgs();
 }
 
 class WordPressPatcher {
@@ -86,21 +85,6 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
 			linksTargetingTopFrameShouldTargetPlaygroundIframe
 		);
-	}
-
-	async addMissingSvgs() {
-		// @TODO: use only on the web version, or not even there – just include these
-		// in WordPress build:
-		this.php.mkdirTree(`${this.wordpressPath}/wp-admin/images`);
-		const missingSvgs = [
-			`${this.wordpressPath}/wp-admin/images/about-header-about.svg`,
-			`${this.wordpressPath}/wp-admin/images/dashboard-background.svg`,
-		];
-		for (const missingSvg of missingSvgs) {
-			if (!(await this.php.fileExists(missingSvg))) {
-				await this.php.writeFile(missingSvg, '');
-			}
-		}
 	}
 }
 
