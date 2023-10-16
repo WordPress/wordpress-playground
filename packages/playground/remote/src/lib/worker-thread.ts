@@ -13,7 +13,6 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import { applyWebWordPressPatches } from './web-wordpress-patches';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -175,13 +174,13 @@ try {
 		 * already applied.
 		 */
 		await wordPressModule;
-		applyWebWordPressPatches(php);
 		await applyWordPressPatches(php, {
 			wordpressPath: DOCROOT,
 			patchSecrets: true,
 			disableWpNewBlogNotification: true,
 			addPhpInfo: true,
 			disableSiteHealth: true,
+			prepareForRunningInsideWebBrowser: true,
 		});
 	}
 

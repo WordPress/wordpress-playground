@@ -3,6 +3,19 @@ import { StepHandler } from '..';
 import { updateFile } from '../common';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
+/** @ts-ignore */
+import transportFetch from './wp-content/mu-plugins/includes/requests_transport_fetch.php?raw';
+/** @ts-ignore */
+import transportDummy from './wp-content/mu-plugins/includes/requests_transport_dummy.php?raw';
+/** @ts-ignore */
+import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw';
+/** @ts-ignore */
+import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
+/** @ts-ignore */
+import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php?raw';
+/** @ts-ignore */
+import linksTargetingTopFrameShouldTargetPlaygroundIframe from './wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php?raw';
+
 /**
  * @private
  */
@@ -15,6 +28,7 @@ export interface ApplyWordPressPatchesStep {
 	disableSiteHealth?: boolean;
 	disableWpNewBlogNotification?: boolean;
 	makeEditorFrameControlled?: boolean;
+	prepareForRunningInsideWebBrowser?: boolean;
 }
 
 export const applyWordPressPatches: StepHandler<
@@ -46,6 +60,9 @@ export const applyWordPressPatches: StepHandler<
 			`${patch.wordpressPath}/wp-includes/js/dist/block-editor.js`,
 			`${patch.wordpressPath}/wp-includes/js/dist/block-editor.min.js`,
 		]);
+	}
+	if (options.prepareForRunningInsideWebBrowser === true) {
+		await patch.prepareForRunningInsideWebBrowser();
 	}
 };
 
@@ -118,6 +135,63 @@ class WordPressPatcher {
 			// The original version of this function crashes WASM PHP, let's define an empty one instead.
 			(contents) =>
 				`${contents} function wp_new_blog_notification(...$args){} `
+		);
+	}
+
+	async prepareForRunningInsideWebBrowser() {
+		await updateFile(
+			this.php,
+			`${this.wordpressPath}/wp-config.php`,
+			(contents) => `${contents} define('USE_FETCH_FOR_REQUESTS', false);`
+		);
+
+		// Force the fsockopen and cUrl transports to report they don't work:
+		const transports = [
+			`${this.wordpressPath}/wp-includes/Requests/Transport/fsockopen.php`,
+			`${this.wordpressPath}/wp-includes/Requests/Transport/cURL.php`,
+		];
+		for (const transport of transports) {
+			// One of the transports might not exist in the latest WordPress version.
+			if (!(await this.php.fileExists(transport))) {
+				continue;
+			}
+			await updateFile(this.php, transport, (contents) =>
+				contents.replace(
+					'public static function test',
+					'public static function test( $capabilities = array() ) { return false; } public static function test2'
+				)
+			);
+		}
+
+		// Add fetch and dummy transports for HTTP requests
+		await this.php.mkdirTree(
+			`${this.wordpressPath}/wp-content/mu-plugins/includes`
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_fetch.php`,
+			transportFetch
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_dummy.php`,
+			transportDummy
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/add_requests_transport.php`,
+			addRequests
+		);
+
+		// Various tweaks
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
+			showAdminCredentialsOnWpLogin
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
+			niceErrorMessagesForPluginsAndThemesDirectories
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
+			linksTargetingTopFrameShouldTargetPlaygroundIframe
 		);
 	}
 }
