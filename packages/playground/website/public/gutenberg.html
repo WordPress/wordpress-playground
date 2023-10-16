@@ -7,7 +7,7 @@
 		rel="stylesheet"
 		href="https://fonts.googleapis.com/css?family=Noto+Serif:400,700"
 	/>
-	<link rel="stylesheet" href="./gutenberg.css" />
+	<link rel="stylesheet" href="./previewer.css" />
 </head>
 <body>
 	<div id="main">
@@ -27,12 +27,12 @@
 			action="https://playground.wordpress.net"
 			method="GET"
 		>
-			<label for="gutenberg-pr">Pull request number or URL:</label>
+			<label for="pr-number">Pull request number or URL:</label>
 			<div id="createFields">
 				<input
-					id="gutenberg-pr"
+					id="pr-number"
 					type="text"
-					name="gutenberg-pr"
+					name="pr-number"
 					value=""
 					required
 					autofocus
@@ -92,7 +92,7 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
-			let prNumber = document.getElementById('gutenberg-pr').value;
+			let prNumber = document.getElementById('pr-number').value;
 
 			// Extract number from a GitHub URL
 			if (
