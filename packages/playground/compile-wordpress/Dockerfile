@@ -62,7 +62,7 @@ RUN cd wordpress && \
     -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
     -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
     \) \
-    # Preserve the wp-admin SVG files that are read by PHP
+    # Preserve the wp-admin SVG files that are read  by PHP
     -not -path '*/wp-admin/images/*.svg' \
     -delete
 
