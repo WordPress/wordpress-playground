@@ -193,6 +193,9 @@
 						},
 						"makeEditorFrameControlled": {
 							"type": "boolean"
+						},
+						"prepareForRunningInsideWebBrowser": {
+							"type": "boolean"
 						}
 					},
 					"required": ["step"]
