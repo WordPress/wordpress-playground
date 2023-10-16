@@ -5,7 +5,7 @@ import {
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 
-describe.each([SupportedPHPVersions])(
+describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
 		let php: NodePHP;
