@@ -252,7 +252,13 @@ try {
                 'repo' => 'woocommerce',
                 'workflow' => 'Build Live Branch',
                 'artifact' => 'plugins'
-            ]
+            ],
+            [
+                'org' => 'WordPress',
+                'repo' => 'wordpress-develop',
+                'workflow' => 'Test npm',
+                'artifact' => 'wordpress-build-dev'
+            ],
         ];
         $allowed = false;
         foreach ($allowedInputs as $allowedInput) {
@@ -267,6 +273,7 @@ try {
             }
         }
         if (!$allowed) {
+            header('HTTP/1.1 400 Invalid request');
             die('Invalid request');
         }
         $downloader->streamFromGithubPR(
