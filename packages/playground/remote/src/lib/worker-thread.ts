@@ -180,6 +180,7 @@ try {
 			disableWpNewBlogNotification: true,
 			addPhpInfo: true,
 			disableSiteHealth: true,
+			prepareForRunningInsideWebBrowser: true,
 		});
 	}
 
