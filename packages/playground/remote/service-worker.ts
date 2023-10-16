@@ -7,11 +7,9 @@ import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
-	seemsLikeAPHPRequestHandlerPath,
 	cloneRequest,
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
-import { isUploadedFilePath } from './src/lib/is-uploaded-file-path';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -40,23 +38,21 @@ initializeServiceWorker({
 		}
 		event.preventDefault();
 		async function asyncHandler() {
-			const { staticAssetsDirectory, defaultTheme } =
-				await getScopedWpDetails(scope!);
+			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
+			const workerResponse = await convertFetchEventToPHPRequest(event);
 			if (
-				(seemsLikeAPHPRequestHandlerPath(unscopedUrl.pathname) ||
-					isUploadedFilePath(unscopedUrl.pathname)) &&
-				!unscopedUrl.pathname.startsWith(
-					`/wp-content/themes/${defaultTheme}`
-				)
+				workerResponse.status === 404 &&
+				workerResponse.headers.get('x-file-type') === 'static'
 			) {
-				const response = await convertFetchEventToPHPRequest(event);
-				return response;
+				// If we get a 404 for a static file, try to fetch it from
+				// the from the static assets directory at the remote server.
+				const request = await rewriteRequest(
+					event.request,
+					staticAssetsDirectory
+				);
+				return fetch(request);
 			}
-			const request = await rewriteRequest(
-				event.request,
-				staticAssetsDirectory
-			);
-			return fetch(request);
+			return workerResponse;
 		}
 		return asyncHandler();
 	},

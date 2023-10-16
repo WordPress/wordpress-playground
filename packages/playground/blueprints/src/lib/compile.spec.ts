@@ -16,7 +16,6 @@ describe('Blueprints', () => {
 		php = await NodePHP.load(phpVersion, {
 			requestHandler: {
 				documentRoot: '/',
-				isStaticFilePath: (path) => !path.endsWith('.php'),
 			},
 		});
 	});
