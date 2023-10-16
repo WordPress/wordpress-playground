@@ -150,7 +150,7 @@
 						path: '/wordpress-new/pr.zip',
 						data: {
 							resource: 'url',
-							url: zipArtifactUrl,
+							url: '/website-server/wordpress-build-dev', //zipArtifactUrl,
 							caption: `Downloading WordPress PR ${prNumber}`,
 						},
 						progress: {
@@ -190,11 +190,6 @@
 					},
 					{
 						step: 'mv',
-						fromPath: '/wordpress/wp-content/mu-plugins',
-						toPath: '/wordpress-new/wp-content/mu-plugins',
-					},
-					{
-						step: 'mv',
 						fromPath: '/wordpress/wp-config.php',
 						toPath: '/wordpress-new/wp-config.php',
 					},
@@ -228,6 +223,7 @@
 						addPhpInfo: true,
 						disableSiteHealth: true,
 						makeEditorFrameControlled: true,
+						prepareForRunningInsideWebBrowser: true,
 					},
 				],
 			};

@@ -99,20 +99,26 @@ class WordPressPatcher {
 	}
 
 	async patchSecrets() {
+		await defineWpConfigConsts(this.php, {
+			consts: {
+				AUTH_KEY: randomString(40),
+				SECURE_AUTH_KEY: randomString(40),
+				LOGGED_IN_KEY: randomString(40),
+				NONCE_KEY: randomString(40),
+				AUTH_SALT: randomString(40),
+				SECURE_AUTH_SALT: randomString(40),
+				LOGGED_IN_SALT: randomString(40),
+				NONCE_SALT: randomString(40),
+			},
+		});
 		await updateFile(
 			this.php,
 			`${this.wordpressPath}/wp-config.php`,
 			(contents) =>
-				`<?php
-					define('AUTH_KEY',         '${randomString(40)}');
-					define('SECURE_AUTH_KEY',  '${randomString(40)}');
-					define('LOGGED_IN_KEY',    '${randomString(40)}');
-					define('NONCE_KEY',        '${randomString(40)}');
-					define('AUTH_SALT',        '${randomString(40)}');
-					define('SECURE_AUTH_SALT', '${randomString(40)}');
-					define('LOGGED_IN_SALT',   '${randomString(40)}');
-					define('NONCE_SALT',       '${randomString(40)}');
-				?>${contents.replaceAll("', 'put your unique phrase here'", "__', ''")}`
+				contents.replaceAll(
+					"', 'put your unique phrase here'",
+					"__', ''"
+				)
 		);
 	}
 
@@ -139,11 +145,11 @@ class WordPressPatcher {
 	}
 
 	async prepareForRunningInsideWebBrowser() {
-		await updateFile(
-			this.php,
-			`${this.wordpressPath}/wp-config.php`,
-			(contents) => `${contents} define('USE_FETCH_FOR_REQUESTS', false);`
-		);
+		await defineWpConfigConsts(this.php, {
+			consts: {
+				USE_FETCH_FOR_REQUESTS: false,
+			},
+		});
 
 		// Force the fsockopen and cUrl transports to report they don't work:
 		const transports = [
