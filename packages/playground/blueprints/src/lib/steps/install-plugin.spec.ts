@@ -8,7 +8,6 @@ describe('Blueprint step installPlugin', () => {
 		php = await NodePHP.load(phpVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
-				isStaticFilePath: (path) => !path.endsWith('.php'),
 			},
 		});
 	});
