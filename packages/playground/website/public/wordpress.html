@@ -93,18 +93,28 @@
 		const form = document.getElementById('create');
 		const errorDiv = document.getElementById('error');
 
-		form.addEventListener('submit', async function previewPr(e) {
+		form.addEventListener('submit', async function onSubmit(e) {
 			e.preventDefault();
 			if (submitting) {
 				return;
 			}
 
+			previewPr(document.getElementById('pr-number').value);
+		});
+
+		// If there's a PR query parameter, call previewPr with its value
+		const urlParams = new URLSearchParams(window.location.search);
+		const prNumber = urlParams.get('pr');
+		if (prNumber) {
+			document.getElementById('pr-number').value = prNumber;
+			previewPr(prNumber);
+		}
+
+		async function previewPr(prNumber) {
 			submitting = true;
 			errorDiv.innerText = '';
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
-
-			let prNumber = document.getElementById('pr-number').value;
 
 			// Extract number from a GitHub URL
 			if (
@@ -131,7 +141,7 @@
 			const blueprint = {
 				$schema:
 					'https://playground.wordpress.net/blueprint-schema.json',
-				landingPage: '/wp-admin/post-new.php',
+				landingPage: urlParams.get('url') || '/wp-admin',
 				steps: [
 					{
 						step: 'mkdir',
@@ -150,7 +160,7 @@
 						path: '/wordpress-new/pr.zip',
 						data: {
 							resource: 'url',
-							url: '/website-server/wordpress-build-5481.zip', // zipArtifactUrl,
+							url: zipArtifactUrl,
 							caption: `Downloading WordPress PR ${prNumber}`,
 						},
 						progress: {
@@ -223,11 +233,6 @@
 						toPath: '/wordpress',
 					},
 					{
-						step: 'login',
-						username: 'admin',
-						password: 'password',
-					},
-					{
 						step: 'applyWordPressPatches',
 						wordpressPath: '/wordpress',
 						addPhpInfo: true,
@@ -235,10 +240,15 @@
 						makeEditorFrameControlled: true,
 						prepareForRunningInsideWebBrowser: true,
 					},
+					{
+						step: 'login',
+						username: 'admin',
+						password: 'password',
+					},
 				],
 			};
 			const encoded = JSON.stringify(blueprint);
 			window.location = '/#' + encodeURI(encoded);
-		});
+		}
 	</script>
 </body>
