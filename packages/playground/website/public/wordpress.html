@@ -164,7 +164,7 @@
 							caption: `Downloading WordPress PR ${prNumber}`,
 						},
 						progress: {
-							weight: 2,
+							weight: 20,
 							caption: `Applying WordPress PR ${prNumber}`,
 						},
 					},
@@ -253,8 +253,9 @@
 			const targetParams = new URLSearchParams();
 			if (urlParams.has('mode')) {
 				targetParams.set('mode', urlParams.get('mode'));
-			} 
-			window.location = './?' + targetParams.toString() + '#' + encodeURI(encoded);
+			}
+			window.location =
+				'./?' + targetParams.toString() + '#' + encodeURI(encoded);
 		}
 	</script>
 </body>
