@@ -69,7 +69,7 @@ class PluginDownloader
             }
 
             foreach ($artifacts->artifacts as $artifact) {
-                if ($artifact->name === $artifact_name) {
+                if ($artifact_name === $artifact->name) {
                     $zip_download_api_endpoint = $artifact->archive_download_url;
                     break;
                 }
@@ -245,19 +245,19 @@ try {
                 'org' => 'WordPress',
                 'repo' => 'gutenberg',
                 'workflow' => 'Build Gutenberg Plugin Zip',
-                'artifact' => 'gutenberg-plugin'
+                'artifact' => '#gutenberg-plugin#'
             ],
             [
                 'org' => 'woocommerce',
                 'repo' => 'woocommerce',
                 'workflow' => 'Build Live Branch',
-                'artifact' => 'plugins'
+                'artifact' => '#plugins#'
             ],
             [
                 'org' => 'WordPress',
                 'repo' => 'wordpress-develop',
-                'workflow' => 'Test npm',
-                'artifact' => 'wordpress-build-dev'
+                'workflow' => 'Build WordPress',
+                'artifact' => '#wordpress-build-\d+#'
             ],
         ];
         $allowed = false;
@@ -266,7 +266,7 @@ try {
                 $_GET['org'] === $allowedInput['org'] &&
                 $_GET['repo'] === $allowedInput['repo'] &&
                 $_GET['workflow'] === $allowedInput['workflow'] &&
-                $_GET['artifact'] === $allowedInput['artifact']
+                preg_match($allowedInput['artifact'], $_GET['artifact'])
             ) {
                 $allowed = true;
                 break;

@@ -116,7 +116,7 @@
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=wordpress-develop&workflow=Test%20npm&artifact=wordpress-build-dev&pr=${prNumber}`;
+			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=wordpress-develop&workflow=Build%20WordPress&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
 			if (response.status !== 200) {
@@ -150,7 +150,7 @@
 						path: '/wordpress-new/pr.zip',
 						data: {
 							resource: 'url',
-							url: '/website-server/wordpress-build-dev', //zipArtifactUrl,
+							url: '/website-server/wordpress-build-5481.zip', // zipArtifactUrl,
 							caption: `Downloading WordPress PR ${prNumber}`,
 						},
 						progress: {
@@ -167,6 +167,16 @@
 					{
 						step: 'rm',
 						path: '/wordpress-new/pr.zip',
+					},
+					// GitHub artifacts are doubly zipped
+					{
+						step: 'unzip',
+						zipPath: '/wordpress-new/wordpress.zip',
+						extractToPath: '/wordpress-new',
+					},
+					{
+						step: 'rm',
+						path: '/wordpress-new/wordpress.zip',
 					},
 					/**
 					 * Configure the extracted WordPress to run in Playground. This
