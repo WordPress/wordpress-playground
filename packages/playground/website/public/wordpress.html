@@ -248,7 +248,13 @@
 				],
 			};
 			const encoded = JSON.stringify(blueprint);
-			window.location = '/#' + encodeURI(encoded);
+
+			// Passthrough the mode query parameter if it exists
+			const targetParams = new URLSearchParams();
+			if (urlParams.has('mode')) {
+				targetParams.set('mode', urlParams.get('mode'));
+			} 
+			window.location = './?' + targetParams.toString() + '#' + encodeURI(encoded);
 		}
 	</script>
 </body>
