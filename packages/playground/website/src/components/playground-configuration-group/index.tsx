@@ -60,8 +60,34 @@ export default function PlaygroundConfigurationGroup({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
 
+	const [wpVersionChoices, setWPVersionChoices] = useState<
+		Record<string, string>
+	>({});
+	useEffect(() => {
+		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
+			const formOptions: Record<string, string> = {};
+			for (const version of Object.keys(all)) {
+				if (version === 'beta') {
+					formOptions[version] = all.beta;
+				} else {
+					formOptions[version] = version;
+				}
+			}
+			setWPVersionChoices(formOptions);
+			if (currentConfiguration.wp === 'latest') {
+				setCurrentConfiguration({
+					...currentConfiguration,
+					wp: latest,
+				});
+			}
+		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [!!playground]);
+
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		(initialConfiguration.storage === 'opfs-host' || initialConfiguration.storage === 'device') && !!lastDirectoryHandle
+		(initialConfiguration.storage === 'opfs-host' ||
+			initialConfiguration.storage === 'device') &&
+			!!lastDirectoryHandle
 	);
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
@@ -74,7 +100,6 @@ export default function PlaygroundConfigurationGroup({
 	const [currentConfiguration, setCurrentConfiguration] =
 		useState(initialConfiguration);
 
-	const runningWp = useCurrentlyRunningWordPressVersion();
 	const isSameOriginAsPlayground = useIsSameOriginAsPlayground(playground);
 
 	async function handleSelectLocalDirectory() {
@@ -157,7 +182,10 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const playground = await playgroundRef.current!.promise;
-		if (config.resetSite && (config.storage === 'opfs-browser' || config.storage === 'browser')) {
+		if (
+			config.resetSite &&
+			(config.storage === 'opfs-browser' || config.storage === 'browser')
+		) {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
@@ -169,21 +197,28 @@ export default function PlaygroundConfigurationGroup({
 
 		reloadWithNewConfiguration(playground!, config);
 	}
+	const WPLabel =
+		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
+
 	return (
 		<>
 			<Button onClick={openModal}>
 				PHP {currentConfiguration.php} {' - '}
-				WP {runningWp || currentConfiguration.wp} {' - '}
-				{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device')
+				WP {WPLabel} {' - '}
+				{currentConfiguration.storage === 'opfs-host' ||
+				currentConfiguration.storage === 'device'
 					? `Storage: Device (${dirName})`
-					: currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser'
+					: currentConfiguration.storage === 'opfs-browser' ||
+					  currentConfiguration.storage === 'browser'
 					? 'Storage: Browser'
 					: '⚠️ Storage: None'}
 			</Button>
-			{(currentConfiguration.storage === 'opfs-host' || currentConfiguration.storage === 'device') ? (
+			{currentConfiguration.storage === 'opfs-host' ||
+			currentConfiguration.storage === 'device' ? (
 				<SyncLocalFilesButton />
 			) : null}
-			{currentConfiguration.storage === 'opfs-browser' || currentConfiguration.storage === 'browser' ? (
+			{currentConfiguration.storage === 'opfs-browser' ||
+			currentConfiguration.storage === 'browser' ? (
 				<StartOverButton />
 			) : null}
 			{isResumeLastDirOpen ? (
@@ -216,7 +251,7 @@ export default function PlaygroundConfigurationGroup({
 							onClick={() => {
 								reloadWithNewConfiguration(playground!, {
 									...initialConfiguration,
-									storage: 'temporary',
+									storage: 'none',
 								});
 							}}
 						>
@@ -247,7 +282,8 @@ export default function PlaygroundConfigurationGroup({
 				}}
 			>
 				<PlaygroundConfigurationForm
-					currentlyRunningWordPressVersion={runningWp}
+					supportedWPVersions={wpVersionChoices}
+					currentlyRunningWordPressVersion={currentConfiguration.wp}
 					initialData={currentConfiguration}
 					onSubmit={handleSubmit}
 					isMountingLocalDirectory={mounting}
@@ -263,24 +299,6 @@ export default function PlaygroundConfigurationGroup({
 			</Modal>
 		</>
 	);
-}
-
-function useCurrentlyRunningWordPressVersion(playground?: PlaygroundClient) {
-	const [
-		currentlyRunningWordPressVersion,
-		setCurrentlyRunningWordPressVersion,
-	] = useState<string | undefined>();
-
-	useEffect(() => {
-		if (playground) {
-			playground.getWordPressModuleDetails().then((details) => {
-				setCurrentlyRunningWordPressVersion(details.majorVersion);
-			});
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [!playground]);
-
-	return currentlyRunningWordPressVersion;
 }
 
 function useIsSameOriginAsPlayground(playground?: PlaygroundClient) {

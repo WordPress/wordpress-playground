@@ -32,20 +32,11 @@ import type { ValidateFunction } from 'ajv';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
-const supportedWordPressVersions = [
-	'6.3',
-	'6.2',
-	'6.1',
-	'6.0',
-	'5.9',
-	'nightly',
-] as const;
-type supportedWordPressVersion = (typeof supportedWordPressVersions)[number];
 export interface CompiledBlueprint {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
-		wp: supportedWordPressVersion;
+		wp: string;
 	};
 	/** The requested PHP extensions to load */
 	phpExtensions: SupportedPHPExtension[];
@@ -116,11 +107,7 @@ export function compileBlueprint(
 				SupportedPHPVersions,
 				LatestSupportedPHPVersion
 			),
-			wp: compileVersion(
-				blueprint.preferredVersions?.wp,
-				supportedWordPressVersions,
-				'6.3'
-			),
+			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
 		phpExtensions: compilePHPExtensions(
 			[],

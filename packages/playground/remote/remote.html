@@ -58,6 +58,7 @@
 			try {
 				await bootPlaygroundRemote();
 			} catch (e) {
+				console.error(e);
 				document.body.className = 'has-error';
 				document.body.innerHTML = '';
 

@@ -60,7 +60,6 @@ initializeServiceWorker({
 
 type WPModuleDetails = {
 	staticAssetsDirectory: string;
-	defaultTheme: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};

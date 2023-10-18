@@ -5,9 +5,9 @@ import { DOCROOT, wordPressSiteUrl } from './config';
 import {
 	getWordPressModule,
 	LatestSupportedWordPressVersion,
-	SupportedWordPressVersion,
+	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
-} from './get-wordpress-module';
+} from '../wordpress/get-wordpress-module';
 import {
 	SupportedPHPExtension,
 	SupportedPHPVersion,
@@ -41,10 +41,11 @@ if (typeof self?.location?.href !== 'undefined') {
 // Expect underscore, not a dot. Vite doesn't deal well with the dot in the
 // parameters names passed to the worker via a query string.
 const requestedWPVersion = (startupOptions.wpVersion || '').replace('_', '.');
-const wpVersion: SupportedWordPressVersion =
-	SupportedWordPressVersionsList.includes(requestedWPVersion)
-		? (requestedWPVersion as SupportedWordPressVersion)
-		: LatestSupportedWordPressVersion;
+const wpVersion: string = SupportedWordPressVersionsList.includes(
+	requestedWPVersion
+)
+	? requestedWPVersion
+	: LatestSupportedWordPressVersion;
 
 const requestedPhpVersion = (startupOptions.phpVersion || '').replace('_', '.');
 const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
@@ -130,8 +131,14 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 				'_',
 				'.'
 			)}`,
-			defaultTheme: (await wordPressModule)?.defaultThemeName,
 		};
+	}
+
+	async getSupportedWordPressVersions() {
+		return {
+			all: SupportedWordPressVersions,
+			latest: LatestSupportedWordPressVersion
+		}
 	}
 
 	async resetVirtualOpfs() {

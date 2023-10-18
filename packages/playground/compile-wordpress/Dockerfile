@@ -8,9 +8,6 @@ ENV WP_ZIP_URL ${WP_ZIP_URL}
 ARG OUT_FILENAME=wp
 ENV OUT_FILENAME ${OUT_FILENAME}
 
-ARG KEEP_THEME
-ENV KEEP_THEME ${KEEP_THEME}
-
 RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
@@ -50,7 +47,11 @@ RUN mv wordpress-static/* /root/output/$OUT_FILENAME/
 # === Minify WordPress ===
 
 # Remove non-default themes
-RUN cd wordpress/wp-content/themes && \
+
+RUN cat wordpress/wp-includes/default-constants.php | awk -F"'" "/define\( 'WP_DEFAULT_THEME'/"'{print $4}' > wordpress/.default_theme
+
+RUN export KEEP_THEME=$(cat wordpress/.default_theme); \
+    cd wordpress/wp-content/themes && \
     rm -r $(ls | grep -v $KEEP_THEME)
 
 # Remove unused static files
@@ -186,7 +187,6 @@ RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
     export FILE_SIZE=$(stat -c%s "/root/output/$OUT_FILENAME.data") && \
     cat /tmp/esm-prefix.js \
     | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" \
-    | sed "s#WP_THEME_NAME#'$KEEP_THEME'#g" \
     > /root/esm-prefix.js
 
 # Filename of the main dependency
