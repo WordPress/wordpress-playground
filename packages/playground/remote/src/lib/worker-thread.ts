@@ -137,8 +137,8 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	async getSupportedWordPressVersions() {
 		return {
 			all: SupportedWordPressVersions,
-			latest: LatestSupportedWordPressVersion
-		}
+			latest: LatestSupportedWordPressVersion,
+		};
 	}
 
 	async resetVirtualOpfs() {

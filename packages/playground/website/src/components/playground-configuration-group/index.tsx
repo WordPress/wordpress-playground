@@ -68,7 +68,10 @@ export default function PlaygroundConfigurationGroup({
 			const formOptions: Record<string, string> = {};
 			for (const version of Object.keys(all)) {
 				if (version === 'beta') {
-					formOptions[version] = all.beta;
+					// Don't show beta versions related to supported major releases
+					if (!(all.beta.substring(0, 3) in all)) {
+						formOptions[version] = all.beta;
+					}
 				} else {
 					formOptions[version] = version;
 				}

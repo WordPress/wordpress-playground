@@ -301,7 +301,8 @@ export function PlaygroundConfigurationForm({
 						>
 							{Object.keys(supportedWPVersions).map((version) => (
 								<option key={version} value={version}>
-									WordPress {supportedWPVersions[version]}&nbsp;&nbsp;
+									WordPress {supportedWPVersions[version]}
+									&nbsp;&nbsp;
 								</option>
 							))}
 						</select>
