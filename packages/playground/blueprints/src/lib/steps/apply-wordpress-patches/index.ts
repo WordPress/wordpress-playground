@@ -295,7 +295,6 @@ export async function makeEditorFrameControlled(
 		if (!(await php.fileExists(filePath))) {
 			continue;
 		}
-
 		await updateFile(
 			php,
 			filePath,

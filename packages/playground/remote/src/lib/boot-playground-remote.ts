@@ -26,7 +26,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from './get-wordpress-module';
+import { LatestSupportedWordPressVersion } from '../wordpress/get-wordpress-module';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 

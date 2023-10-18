@@ -9,24 +9,8 @@ import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
 
-// This is duplicated in @wp-playground/remote
-// @TODO: move to a shared package like @wp-playground/wordpress
-export const SupportedWordPressVersions = [
-	'nightly',
-	'6.3',
-	'6.2',
-	'6.1',
-	'6.0',
-	'5.9',
-] as const;
-export const LatestSupportedWordPressVersion = '6.3';
-export const SupportedWordPressVersionsList =
-	SupportedWordPressVersions as any as string[];
-export type SupportedWordPressVersion =
-	(typeof SupportedWordPressVersions)[number];
-
 export interface PlaygroundConfiguration {
-	wp: SupportedWordPressVersion;
+	wp: string;
 	php: SupportedPHPVersion;
 	withExtensions: boolean;
 	storage: StorageType;
@@ -34,6 +18,7 @@ export interface PlaygroundConfiguration {
 }
 
 export interface PlaygroundConfigurationFormProps {
+	supportedWPVersions: Record<string, string>;
 	currentlyRunningWordPressVersion: string | undefined;
 	initialData: PlaygroundConfiguration;
 	onSubmit: (config: PlaygroundConfiguration) => void;
@@ -46,6 +31,7 @@ export interface PlaygroundConfigurationFormProps {
 }
 
 export function PlaygroundConfigurationForm({
+	supportedWPVersions,
 	currentlyRunningWordPressVersion,
 	isMountingLocalDirectory = false,
 	mountProgress,
@@ -58,9 +44,7 @@ export function PlaygroundConfigurationForm({
 	const [withExtensions, setWithExtensions] = useState<boolean>(
 		initialData.withExtensions
 	);
-	const [wp, setWp] = useState(
-		initialData.wp || LatestSupportedWordPressVersion
-	);
+	const [wp, setWp] = useState(initialData.wp);
 	const handleStorageChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {
@@ -312,15 +296,13 @@ export function PlaygroundConfigurationForm({
 							onChange={(
 								event: React.ChangeEvent<HTMLSelectElement>
 							) => {
-								setWp(
-									event.target
-										.value as SupportedWordPressVersion
-								);
+								setWp(event.target.value as string);
 							}}
 						>
-							{SupportedWordPressVersions.map((version) => (
+							{Object.keys(supportedWPVersions).map((version) => (
 								<option key={version} value={version}>
-									WordPress {version}&nbsp;&nbsp;
+									WordPress {supportedWPVersions[version]}
+									&nbsp;&nbsp;
 								</option>
 							))}
 						</select>
