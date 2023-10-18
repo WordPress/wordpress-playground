@@ -6,6 +6,9 @@ export const dependenciesTotalSize = 13146228;
 import dependencyFilename from './wp-5.9.data?url';
 export { dependencyFilename };
 
+// The default theme name – populated by Dockerfile.
+export const defaultThemeName = 'twentytwentyone';
+
 // Prepending this to the built php.js file manually turns it
 // into an ESM module.
 // This replaces the Emscripten's MODULARIZE=1 which pollutes the
