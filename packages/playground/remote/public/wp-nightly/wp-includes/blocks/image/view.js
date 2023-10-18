@@ -94,9 +94,8 @@ function handleScroll(context) {
           context.core.image.initialized = true;
           context.core.image.lastFocusedElement = window.document.activeElement;
           context.core.image.scrollDelta = 0;
-          context.core.image.pointerType = event.pointerType;
           context.core.image.lightboxEnabled = true;
-          setStyles(context, context.core.image.imageRef);
+          setStyles(context, event.target.previousElementSibling);
           context.core.image.scrollTopReset = window.pageYOffset || document.documentElement.scrollTop;
 
           // In most cases, this value will be 0, but this is included
@@ -117,8 +116,7 @@ function handleScroll(context) {
           window.addEventListener('scroll', scrollCallback, false);
         },
         hideLightbox: async ({
-          context,
-          event
+          context
         }) => {
           context.core.image.hideAnimationEnabled = true;
           if (context.core.image.lightboxEnabled) {
@@ -132,16 +130,9 @@ function handleScroll(context) {
               window.removeEventListener('scroll', scrollCallback);
             }, 450);
             context.core.image.lightboxEnabled = false;
-
-            // We want to avoid drawing attention to the button
-            // after the lightbox closes for mouse and touch users.
-            // Note that the `event.pointerType` property returns
-            // as an empty string if a keyboard fired the event.
-            if (event.pointerType === '') {
-              context.core.image.lastFocusedElement.focus({
-                preventScroll: true
-              });
-            }
+            context.core.image.lastFocusedElement.focus({
+              preventScroll: true
+            });
           }
         },
         handleKeydown: ({
@@ -168,9 +159,8 @@ function handleScroll(context) {
             }
           }
         },
-        // This is fired just by lazily loaded
-        // images on the page, not all images.
         handleLoad: ({
+          state,
           context,
           effects,
           ref
@@ -178,6 +168,7 @@ function handleScroll(context) {
           context.core.image.imageLoaded = true;
           context.core.image.imageCurrentSrc = ref.currentSrc;
           effects.core.image.setButtonStyles({
+            state,
             context,
             ref
           });
@@ -245,11 +236,10 @@ function handleScroll(context) {
   effects: {
     core: {
       image: {
-        initOriginImage: ({
+        setCurrentSrc: ({
           context,
           ref
         }) => {
-          context.core.image.imageRef = ref;
           if (ref.complete) {
             context.core.image.imageLoaded = true;
             context.core.image.imageCurrentSrc = ref.currentSrc;
@@ -259,22 +249,17 @@ function handleScroll(context) {
           context,
           ref
         }) => {
+          context.core.image.figureRef = ref.querySelector('figure');
+          context.core.image.imageRef = ref.querySelector('img');
           if (context.core.image.lightboxEnabled) {
             const focusableElements = ref.querySelectorAll(focusableSelectors);
             context.core.image.firstFocusableElement = focusableElements[0];
             context.core.image.lastFocusableElement = focusableElements[focusableElements.length - 1];
-
-            // We want to avoid drawing unnecessary attention to the close
-            // button for mouse and touch users. Note that even if opening
-            // the lightbox via keyboard, the event fired is of type
-            // `pointerEvent`, so we need to rely on the `event.pointerType`
-            // property, which returns an empty string for keyboard events.
-            if (context.core.image.pointerType === '') {
-              ref.querySelector('.close-button').focus();
-            }
+            ref.querySelector('.close-button').focus();
           }
         },
         setButtonStyles: ({
+          state,
           context,
           ref
         }) => {
@@ -286,51 +271,43 @@ function handleScroll(context) {
           } = ref;
 
           // If the image isn't loaded yet, we can't
-          // calculate where the button should be.
+          // calculate how big the button should be.
           if (naturalWidth === 0 || naturalHeight === 0) {
             return;
           }
-          const figure = ref.parentElement;
-          const figureWidth = ref.parentElement.clientWidth;
 
-          // We need special handling for the height because
-          // a caption will cause the figure to be taller than
-          // the image, which means we need to account for that
-          // when calculating the placement of the button in the
-          // top right corner of the image.
-          let figureHeight = ref.parentElement.clientHeight;
-          const caption = figure.querySelector('figcaption');
-          if (caption) {
-            const captionComputedStyle = window.getComputedStyle(caption);
-            figureHeight = figureHeight - caption.offsetHeight - parseFloat(captionComputedStyle.marginTop) - parseFloat(captionComputedStyle.marginBottom);
-          }
-          const buttonOffsetTop = figureHeight - offsetHeight;
-          const buttonOffsetRight = figureWidth - offsetWidth;
+          // Subscribe to the window dimensions so we can
+          // recalculate the styles if the window is resized.
+          if ((state.core.image.windowWidth || state.core.image.windowHeight) && context.core.image.scaleAttr === 'contain') {
+            // In the case of an image with object-fit: contain, the
+            // size of the img element can be larger than the image itself,
+            // so we need to calculate the size of the button to match.
 
-          // In the case of an image with object-fit: contain, the
-          // size of the <img> element can be larger than the image itself,
-          // so we need to calculate where to place the button.
-          if (context.core.image.scaleAttr === 'contain') {
             // Natural ratio of the image.
             const naturalRatio = naturalWidth / naturalHeight;
             // Offset ratio of the image.
             const offsetRatio = offsetWidth / offsetHeight;
-            if (naturalRatio >= offsetRatio) {
+            if (naturalRatio > offsetRatio) {
               // If it reaches the width first, keep
-              // the width and compute the height.
-              const referenceHeight = offsetWidth / naturalRatio;
-              context.core.image.imageButtonTop = (offsetHeight - referenceHeight) / 2 + buttonOffsetTop + 10;
-              context.core.image.imageButtonRight = buttonOffsetRight + 10;
+              // the width and recalculate the height.
+              context.core.image.imageButtonWidth = offsetWidth;
+              const buttonHeight = offsetWidth / naturalRatio;
+              context.core.image.imageButtonHeight = buttonHeight;
+              context.core.image.imageButtonTop = (offsetHeight - buttonHeight) / 2;
             } else {
               // If it reaches the height first, keep
-              // the height and compute the width.
-              const referenceWidth = offsetHeight * naturalRatio;
-              context.core.image.imageButtonTop = buttonOffsetTop + 10;
-              context.core.image.imageButtonRight = (offsetWidth - referenceWidth) / 2 + buttonOffsetRight + 10;
+              // the height and recalculate the width.
+              context.core.image.imageButtonHeight = offsetHeight;
+              const buttonWidth = offsetHeight * naturalRatio;
+              context.core.image.imageButtonWidth = buttonWidth;
+              context.core.image.imageButtonLeft = (offsetWidth - buttonWidth) / 2;
             }
           } else {
-            context.core.image.imageButtonTop = buttonOffsetTop + 10;
-            context.core.image.imageButtonRight = buttonOffsetRight + 10;
+            // In all other cases, we can trust that the size of
+            // the image is the right size for the button as well.
+
+            context.core.image.imageButtonWidth = offsetWidth;
+            context.core.image.imageButtonHeight = offsetHeight;
           }
         },
         setStylesOnResize: ({

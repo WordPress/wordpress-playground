@@ -251,7 +251,7 @@
 			}
 
 			mousemoveTimer = setTimeout( function ( theEvent, originalMousemoveStart ) {
-				var now = ( new Date() ).getTime() - 500; // To account for the timer delay.
+				var now = ( new Date() ).getTime() - 250; // To account for the timer delay.
 
 				var mousemove = [];
 				mousemove.push( now - originalMousemoveStart );
@@ -271,7 +271,7 @@
 
 				mousemoveStart = null;
 				mousemoveTimer = null;
-			}, 500, e, mousemoveStart );
+			}, 250, e, mousemoveStart );
 		}, supportsPassive ? { passive: true } : false  );
 
 		document.addEventListener( 'touchmove', function ( e ) {
@@ -281,7 +281,7 @@
 
 			touchmoveCountTimer = setTimeout( function () {
 				touchmoveCount++;
-			}, 500 );
+			}, 250 );
 		}, supportsPassive ? { passive: true } : false );
 
 		document.addEventListener( 'touchstart', function ( e ) {
@@ -320,7 +320,7 @@
 
 			scrollCountTimer = setTimeout( function () {
 				scrollCount++;
-			}, 500 );
+			}, 250 );
 		}, supportsPassive ? { passive: true } : false );
 	}
 

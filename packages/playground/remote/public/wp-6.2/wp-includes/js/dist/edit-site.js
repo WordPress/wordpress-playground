@@ -6986,7 +6986,8 @@ function NewTemplate(_ref) {
     createSuccessNotice
   } = (0,external_wp_data_namespaceObject.useDispatch)(external_wp_notices_namespaceObject.store);
   const {
-    setTemplate
+    setTemplate,
+    setCanvasMode
   } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store_store));
 
   async function createTemplate(template) {
@@ -7031,12 +7032,13 @@ function NewTemplate(_ref) {
         throwOnError: true
       }); // Set template before navigating away to avoid initial stale value.
 
-      setTemplate(newTemplate.id, newTemplate.slug); // Navigate to the created template editor.
+      setTemplate(newTemplate.id, newTemplate.slug); // Switch to edit mode.
+
+      setCanvasMode('edit'); // Navigate to the created template editor.
 
       history.push({
         postId: newTemplate.id,
-        postType: newTemplate.type,
-        canvas: 'edit'
+        postType: newTemplate.type
       });
       createSuccessNotice((0,external_wp_i18n_namespaceObject.sprintf)( // translators: %s: Title of the created template e.g: "Category".
       (0,external_wp_i18n_namespaceObject.__)('"%s" successfully created.'), title), {
@@ -7344,6 +7346,8 @@ const getCleanTemplatePartSlug = title => {
 
 
 
+
+
 function NewTemplatePart(_ref) {
   let {
     postType,
@@ -7358,6 +7362,9 @@ function NewTemplatePart(_ref) {
   const {
     saveEntityRecord
   } = (0,external_wp_data_namespaceObject.useDispatch)(external_wp_coreData_namespaceObject.store);
+  const {
+    setCanvasMode
+  } = unlock((0,external_wp_data_namespaceObject.useDispatch)(store_store));
   const existingTemplateParts = useExistingTemplateParts();
 
   async function createTemplatePart(_ref2) {
@@ -7384,12 +7391,13 @@ function NewTemplatePart(_ref) {
       }, {
         throwOnError: true
       });
-      setIsModalOpen(false); // Navigate to the created template part editor.
+      setIsModalOpen(false); // Switch to edit mode.
+
+      setCanvasMode('edit'); // Navigate to the created template part editor.
 
       history.push({
         postId: templatePart.id,
-        postType: 'wp_template_part',
-        canvas: 'edit'
+        postType: 'wp_template_part'
       }); // TODO: Add a success notice?
     } catch (error) {
       const errorMessage = error.message && error.code !== 'unknown_error' ? error.message : (0,external_wp_i18n_namespaceObject.__)('An error occurred while creating the template part.');
@@ -17179,15 +17187,13 @@ function useInitEditedEntityFromURL() {
     url
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
-      getSite,
-      getUnstableBase
+      getSite
     } = select(external_wp_coreData_namespaceObject.store);
     const siteData = getSite();
-    const base = getUnstableBase();
     return {
-      isRequestingSite: !base,
+      isRequestingSite: !siteData,
       homepageId: (siteData === null || siteData === void 0 ? void 0 : siteData.show_on_front) === 'page' ? siteData.page_on_front : null,
-      url: base === null || base === void 0 ? void 0 : base.home
+      url: siteData === null || siteData === void 0 ? void 0 : siteData.url
     };
   }, []);
   const {
@@ -17324,7 +17330,6 @@ function SiteIcon(_ref) {
 
 
 
-
 /**
  * Internal dependencies
  */
@@ -17400,7 +17405,7 @@ const SiteHub = (0,external_wp_element_namespaceObject.forwardRef)((props, ref) 
     className: "edit-site-layout__view-mode-toggle-icon"
   }))), showLabels && (0,external_wp_element_namespaceObject.createElement)("div", {
     className: "edit-site-site-hub__site-title"
-  }, (0,external_wp_htmlEntities_namespaceObject.decodeEntities)(siteTitle))));
+  }, siteTitle)));
 });
 /* harmony default export */ var site_hub = (SiteHub);
 
