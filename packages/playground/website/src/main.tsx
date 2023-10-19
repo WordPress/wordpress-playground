@@ -42,9 +42,6 @@ try {
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
 		phpExtensionBundles: query.getAll('php-extension-bundle') || [],
-		gutenbergPR: query.has('gutenberg-pr')
-			? Number(query.get('gutenberg-pr'))
-			: undefined,
 	});
 }
 
