@@ -300,7 +300,7 @@ export class CoreThemeResource extends FetchResource {
 	}
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
-		if ( pluginProxyURL !== '' ) {
+		if (pluginProxyURL !== '') {
 			return `${pluginProxyURL}?theme=` + zipName;
 		}
 		return `https://downloads.wordpress.org/theme/${zipName}`;
@@ -326,7 +326,7 @@ export class CorePluginResource extends FetchResource {
 	/** @inheritDoc */
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
-		if ( pluginProxyURL !== '' ) {
+		if (pluginProxyURL !== '') {
 			return `${pluginProxyURL}?plugin=` + zipName;
 		}
 		return `https://downloads.wordpress.org/plugin/${zipName}`;

@@ -8,6 +8,7 @@ export type {
 	CompileBlueprintOptions,
 	OnStepCompleted,
 } from './lib/compile';
+export { setPluginProxyURL } from './lib/resources';
 export type {
 	CachedResource,
 	CorePluginReference,
