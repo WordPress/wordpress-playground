@@ -140,11 +140,16 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-config.php`,
 			// The original version of this function crashes WASM PHP, let's define an empty one instead.
 			(contents) =>
-				`${contents} function wp_new_blog_notification(...$args){} `
+				`${contents} if(!function_exists('wp_new_blog_notification')) { function wp_new_blog_notification(...$args){} } `
 		);
 	}
 
 	async prepareForRunningInsideWebBrowser() {
+		if (this.php.fileExists(`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_fetch.php`)) {
+			// Already patched
+			return;
+		}
+
 		await defineWpConfigConsts(this.php, {
 			consts: {
 				USE_FETCH_FOR_REQUESTS: false,
@@ -245,6 +250,10 @@ export async function makeEditorFrameControlled(
 	wordpressPath: string,
 	blockEditorScripts: string[]
 ) {
+	if (await php.fileExists(`${wordpressPath}/wp-includes/empty.html`)) {
+		// Already patched.
+		return;
+	}
 	const controlledIframe = `
 	/**
 	 * A synchronous function to read a blob URL as text.

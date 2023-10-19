@@ -4,6 +4,11 @@ import { StepHandler } from '.';
 
 // @ts-ignore
 import migrationsPHPCode from './migration';
+import { runPHP } from './run-php';
+import { mkdir } from './mkdir';
+import { applyWordPressPatches } from './apply-wordpress-patches';
+import { rmdir } from './rmdir';
+import { mv } from './mv';
 
 /**
  * Full site export support:
@@ -72,20 +77,57 @@ export const replaceSite: StepHandler<ReplaceSiteStep<File>> = async (
 	const documentRoot = await playground.documentRoot;
 
 	await playground.rmdir(documentRoot);
-	await unzip(playground, { zipPath, extractToPath: '/' });
+	await mkdir(playground, { path: '/wordpress-new' });
+	await unzip(playground, { zipPath, extractToPath: '/wordpress-new' });
+	const files = await playground.listFiles('/wordpress-new');
+	if (files[0] === 'wordpress') {
+		// Replace the entire site
+		await rmdir(playground, { path: '/wordpress' });
+		await mv(playground, {
+			fromPath: '/wordpress-new/wordpress',
+			toPath: '/wordpress',
+		});
+		await rmdir(playground, { path: '/wordpress-new' });
+		await applyWordPressPatches(playground, {
+			addPhpInfo: true,
+			disableSiteHealth: true,
+			makeEditorFrameControlled: true,
+			prepareForRunningInsideWebBrowser: true,
+		});
+	} else if (files[0] === 'wp-content') {
+		// Replace wp-content, except for the sqlite integration plugin
+		await playground.mkdir('/tmp');
+		await playground.mv('/wordpress/wp-content', '/tmp-wp-content');
+		await playground.rmdir('/wordpress/wp-content');
+		await playground.mv(
+			'/wordpress-new/wp-content',
+			'/wordpress/wp-content'
+		);
+		await playground.mv(
+			'/tmp-wp-content/sqlite-database-integration/',
+			'/wordpress/wp-content/plugins/sqlite-database-integration/'
+		);
+		await playground.mv(
+			'/tmp-wp-content/db.php',
+			'/wordpress/wp-content/db.php'
+		);
+	} else {
+		throw new Error(
+			'Could not find the WordPress directory in the zip file'
+		);
+	}
 
-	const js = phpVars({ absoluteUrl });
-	await updateFile(
-		playground,
-		`${documentRoot}/wp-config.php`,
-		(contents) =>
-			`<?php
-			if(!defined('WP_HOME')) {
-				define('WP_HOME', ${js.absoluteUrl});
-				define('WP_SITEURL', ${js.absoluteUrl});
-			}
-			?>${contents}`
-	);
+	await applyWordPressPatches(playground, {
+		siteUrl: absoluteUrl,
+	});
+
+	// Run the database upgrade to save two extra clicks.
+	await runPHP(playground, {
+		code: `<?php
+		$_GET['step'] = 'upgrade_db';
+		require '/wordpress/wp-admin/upgrade.php';
+		`,
+	});
 };
 
 /**
