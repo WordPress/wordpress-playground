@@ -235,6 +235,9 @@ $downloader = new PluginDownloader(
 header('Access-Control-Allow-Origin: *');
 $pluginResponse;
 try {
+    /** @deprecated Plugins and themes downloads are no longer needed now that WordPress.org serves
+     *              the proper CORS headers. This code will be removed in one of the next releases.
+     */
     if (isset($_GET['plugin'])) {
         $downloader->streamFromDirectory($_GET['plugin'], PluginDownloader::PLUGINS);
     } else if (isset($_GET['theme'])) {
