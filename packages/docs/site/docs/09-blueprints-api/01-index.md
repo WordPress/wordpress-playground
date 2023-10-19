@@ -50,7 +50,8 @@ Because Blueprints can be pasted in the URL, you can embed or link to a Playgrou
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
-		"php": "7.4"
+		"php": "7.4",
+  		"wp": "latest"
 	},
 	"steps": [
 		{
