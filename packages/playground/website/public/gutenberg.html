@@ -104,7 +104,7 @@
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
+			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
 			if (response.status !== 200) {
