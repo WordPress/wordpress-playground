@@ -281,6 +281,10 @@ export class UrlResource extends FetchResource {
 	}
 }
 
+let pluginProxyURL = '';
+export function setPluginProxyURL(url: string) {
+	pluginProxyURL = url;
+}
 /**
  * A `Resource` that represents a WordPress core theme.
  */
@@ -296,6 +300,9 @@ export class CoreThemeResource extends FetchResource {
 	}
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
+		if ( pluginProxyURL !== '' ) {
+			return `${pluginProxyURL}?theme=` + zipName;
+		}
 		return `https://downloads.wordpress.org/theme/${zipName}`;
 	}
 }
@@ -319,6 +326,9 @@ export class CorePluginResource extends FetchResource {
 	/** @inheritDoc */
 	getURL() {
 		const zipName = toDirectoryZipName(this.resource.slug);
+		if ( pluginProxyURL !== '' ) {
+			return `${pluginProxyURL}?plugin=` + zipName;
+		}
 		return `https://downloads.wordpress.org/plugin/${zipName}`;
 	}
 }
