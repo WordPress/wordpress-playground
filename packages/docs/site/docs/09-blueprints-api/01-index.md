@@ -54,10 +54,16 @@ Because Blueprints can be pasted in the URL, you can embed or link to a Playgrou
   		"wp": "latest"
 	},
 	"steps": [
-		{
-			"step": "installTheme",
-			"slug": "pendant"
-		}
+        {
+            "step": "installTheme",
+            "themeZipFile": {
+                "resource": "wordpress.org/themes",
+            	"slug": "pendant"
+            },
+            "options": {
+                "activate": true
+            }
+        }
 	]
 }} />
 
