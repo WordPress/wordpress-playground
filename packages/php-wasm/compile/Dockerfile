@@ -603,6 +603,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
         echo -n ' -lwebsocket.js ' >> /root/.emcc-php-wasm-flags; \
     fi
 
+# Always enable Asyncify since `post_message_to_js()` supports asynchronous handlers:
 RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
     # Emscripten supports yielding from sync functions to JavaScript event loop, but all
     # the synchronous functions doing that must be explicitly listed here. This is an
