@@ -53,6 +53,7 @@ export async function startPlaygroundNode(
 	});
 
 	await allowWpOrgHosts(playground, options.wordpressPathOnHost);
+	await gotUrlRewrite(playground, options.wordpressPathOnHost);
 
 	await runBlueprintSteps(compiled, playground);
 	return playground;
@@ -69,11 +70,23 @@ export async function allowWpOrgHosts(
 		// Needed because gethostbyname( 'wordpress.org' ) returns
 		// a private network IP address for some reason.
 		add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-			return array( 
+			return array(
 				'wordpress.org',
 				'api.wordpress.org',
 				'downloads.wordpress.org',
 			);
 		} );`
+	);
+}
+
+export async function gotUrlRewrite(
+	php: UniversalPHP,
+	wordpressPath: string
+) {
+	await php.mkdir(`${wordpressPath}/wp-content/mu-plugins`);
+	await php.writeFile(
+		`${wordpressPath}/wp-content/mu-plugins/1-got-url-rewrite.php`,
+		`<?php
+		add_filter( 'got_url_rewrite', '__return_true' );`
 	);
 }
