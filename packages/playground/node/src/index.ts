@@ -79,10 +79,7 @@ export async function allowWpOrgHosts(
 	);
 }
 
-export async function gotUrlRewrite(
-	php: UniversalPHP,
-	wordpressPath: string
-) {
+export async function gotUrlRewrite(php: UniversalPHP, wordpressPath: string) {
 	await php.mkdir(`${wordpressPath}/wp-content/mu-plugins`);
 	await php.writeFile(
 		`${wordpressPath}/wp-content/mu-plugins/1-got-url-rewrite.php`,
