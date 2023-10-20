@@ -15,6 +15,8 @@ import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-
 import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php?raw';
 /** @ts-ignore */
 import linksTargetingTopFrameShouldTargetPlaygroundIframe from './wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php?raw';
+/** @ts-ignore */
+import gotUrlRewrite from './wp-content/mu-plugins/got-url-rewrite.php?raw';
 
 /**
  * @private
@@ -199,6 +201,12 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
 			linksTargetingTopFrameShouldTargetPlaygroundIframe
 		);
+
+		// Activate URL rewriting.
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/got-url-rewrite.php`,
+			gotUrlRewrite
+		);
 	}
 }
 
@@ -248,8 +256,8 @@ export async function makeEditorFrameControlled(
 	const controlledIframe = `
 	/**
 	 * A synchronous function to read a blob URL as text.
-	 * 
-	 * @param {string} url 
+	 *
+	 * @param {string} url
 	 * @returns {string}
 	 */
 	const __playground_readBlobAsText = function (url) {
@@ -265,7 +273,7 @@ export async function makeEditorFrameControlled(
 		  URL.revokeObjectURL(url);
 		}
 	}
-	
+
 	window.__playground_ControlledIframe = window.wp.element.forwardRef(function (props, ref) {
 		const source = window.wp.element.useMemo(function () {
 			if (props.srcDoc) {
