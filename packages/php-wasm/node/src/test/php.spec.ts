@@ -862,30 +862,42 @@ bar1
 			expect(messageReceived).toBe('world');
 		});
 
-		if (parseFloat(phpVersion) >= 8) {
-			it('should return sync messages from JS', async () => {
-				php.onMessage(async (message) => message + '!');
-				const out = await php.run({
-					code: `<?php echo post_message_to_js('a');`,
-				});
-				expect(out.errors).toBe('');
-				expect(out.text).toBe('a!');
+		it('should return sync messages from JS', async () => {
+			php.onMessage(async (message) => message + '!');
+			const out = await php.run({
+				code: `<?php echo post_message_to_js('a');`,
 			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('a!');
+		});
 
-			it('should return async messages from JS', async () => {
-				php.onMessage(async (message) => {
-					// Simulate getting data asynchronously.
-					return await new Promise<string>((resolve) =>
-						setTimeout(() => resolve(message + '!'), 100)
-					);
-				});
-				const out = await php.run({
-					code: `<?php echo post_message_to_js('a');`,
-				});
-				expect(out.errors).toBe('');
-				expect(out.text).toBe('a!');
+		it('should return async messages from JS', async () => {
+			php.onMessage(async (message) => {
+				// Simulate getting data asynchronously.
+				return await new Promise<string>((resolve) =>
+					setTimeout(() => resolve(message + '!'), 100)
+				);
 			});
-		}
+			const out = await php.run({
+				code: `<?php echo post_message_to_js('a');`,
+			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('a!');
+		});
+
+		it('should return null when JS message handler throws an error', async () => {
+			php.onMessage(async () => {
+				// Simulate getting data asynchronously.
+				return await new Promise<string>((resolve, reject) =>
+					setTimeout(() => reject('Failure!'), 100)
+				);
+			});
+			const out = await php.run({
+				code: `<?php var_dump(post_message_to_js('a'));`,
+			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('NULL\n');
+		});
 	});
 
 	describe('CLI', () => {

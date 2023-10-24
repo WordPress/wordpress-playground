@@ -641,8 +641,9 @@ const LibraryExample = {
 				Module['onMessage'](dataStr).then((result) => {
 					wakeUp(allocateUTF8OnStack(result));
 				}).catch((e) => {
+					console.log("There's been an error in the onMessage handler:");
 					console.error(e);
-					wakeUp('error');
+					wakeUp(0);
 				} );
 			});
 		}
