@@ -54,14 +54,6 @@ php.setSpawnHandler((command: string) => {
 		/^(?:\\ |[^ ])*php\d?(\s|$)/,
 		phpWasmCommand
 	);
-	console.log({
-		phpWasmCommand,
-		command,
-		updatedCommand,
-		script: `#!/bin/sh
-	${updatedCommand} < /dev/stdin
-	`,
-	});
 
 	// Create a shell script in a temporary directory
 	const tempDir = mkdtempSync('php-wasm-');
