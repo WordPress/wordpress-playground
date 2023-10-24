@@ -8,6 +8,7 @@ import {
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { getPHPLoaderModule } from './get-php-loader-module';
+import { createSpawnHandler } from '@php-wasm/util';
 
 export interface PHPWebLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;

@@ -12,6 +12,7 @@ export type {
 	PHPRequest,
 	PHPRequestHeaders,
 	RequestHandler,
+	SpawnHandler,
 } from './universal-php';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';

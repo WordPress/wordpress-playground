@@ -23,44 +23,211 @@
 #include "zend_hash.h"
 #include "rfc1867.h"
 #include "SAPI.h"
+#include "proc_open.h"
 
-// popen() shim
-// -----------------------------------------------------------
-// emscripten does not support popen() yet, so we use a shim
-// that uses the JS API to run the command.
-//
-// js_popen_to_file is defined in js-shims.js. It runs the cmd
-// command and returns the path to a file that contains the
-// output. The exit code is assigned to the exit_code_ptr.
-//
-// The wasm_popen and wasm_pclose functions are called thanks
-// to -Dpopen=wasm_popen and -Dpclose=wasm_pclose in the Dockerfile.
+unsigned int wasm_sleep(unsigned int time) {
+	emscripten_sleep(time * 1000); // emscripten_sleep takes time in milliseconds
+	return time;
+}
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
 extern void *js_module_onMessage(const char *data);
 
-uint8_t last_exit_code;
+// popen() shim
+// -----------------------------------------------------------
+// We have a custom popen handler because the original one calls
+// fork() which emscripten does not support.
+//
+// This wasm_popen function is called by PHP_FUNCTION(popen) thanks
+// to a patch applied in the Dockerfile.
+//
+// The `js_popen_to_file` is defined in phpwasm-emscripten-library.js. 
+// It runs the `cmd` command and returns the path to a file that contains the
+// output. The exit code is assigned to the exit_code_ptr.
+
 EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 {
     FILE *fp;
     if (*mode == 'r') {
+		uint8_t last_exit_code;
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
-	} else {
+		FG(pclose_ret) = last_exit_code;
+	}
+	else if (*mode == 'w')
+	{
+		int current_procopen_call_id = ++procopen_call_id;
+		char *device_path = js_create_input_device(current_procopen_call_id);
+		int stdin_childend = current_procopen_call_id;
+		fp = fopen(device_path, mode);
+
+		php_file_descriptor_t stdout_pipe[2];
+		php_file_descriptor_t stderr_pipe[2];
+		if (0 != pipe(stdout_pipe) || 0 != pipe(stderr_pipe)) {
+			php_error_docref(NULL, E_WARNING, "unable to create pipe %s", strerror(errno));
+			errno = EINVAL;
+			return 0;
+		}
+
+		// the wasm way {{{
+		js_open_process(
+			cmd, 
+			stdin_childend,
+			// stdout. @TODO: Pipe to /dev/null
+			stdout_pipe[0], 
+			stdout_pipe[1],
+			// stderr. @TODO: Pipe to /dev/null
+			stderr_pipe[0],
+			stderr_pipe[1]
+		);
+		// }}}
+	}
+	else
+	{
 		printf("wasm_popen: mode '%s' not supported (cmd: %s)! \n", mode, cmd);
 		errno = EINVAL;
 		return 0;
 	}
 
-    return fp;
+	return fp;
 }
 
-EMSCRIPTEN_KEEPALIVE uint8_t wasm_pclose(FILE *stream)
-{
-	fclose(stream);
-    return last_exit_code;
+/**
+ * Ship php_exec, the function powering the following PHP
+ * functions:
+ * * exec()
+ * * passthru()
+ * * system()
+ * * shell_exec()
+ * 
+ * The wasm_php_exec function is called thanks 
+ * to -Dphp_exec=wasm_php_exec in the Dockerfile and also a
+ * small patch that removes php_exec and marks wasm_php_exec() 
+ * as external.
+ * 
+ * {{{
+ */
+
+// These utility functions are copied from php-src/ext/standard/exec.c
+static size_t strip_trailing_whitespace(char *buf, size_t bufl) {
+	size_t l = bufl;
+	while (l-- > 0 && isspace(((unsigned char *)buf)[l]));
+	if (l != (bufl - 1)) {
+		bufl = l + 1;
+		buf[bufl] = '\0';
+	}
+	return bufl;
 }
+
+static size_t handle_line(int type, zval *array, char *buf, size_t bufl) {
+	if (type == 1) {
+		PHPWRITE(buf, bufl);
+		if (php_output_get_level() < 1) {
+			sapi_flush();
+		}
+	} else if (type == 2) {
+		bufl = strip_trailing_whitespace(buf, bufl);
+		add_next_index_stringl(array, buf, bufl);
+	}
+	return bufl;
+}
+
+/*
+ * If type==0, only last line of output is returned (exec)
+ * If type==1, all lines will be printed and last lined returned (system)
+ * If type==2, all lines will be saved to given array (exec with &$array)
+ * If type==3, output will be printed binary, no lines will be saved or returned (passthru)
+ */
+EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, zval *return_value)
+{
+	FILE *fp;
+	char *buf;
+	int pclose_return;
+	char *b, *d=NULL;
+	php_stream *stream;
+	size_t buflen, bufl = 0;
+#if PHP_SIGCHILD
+	void (*sig_handler)() = NULL;
+#endif
+
+#if PHP_SIGCHILD
+	sig_handler = signal (SIGCHLD, SIG_DFL);
+#endif
+
+	// Reuse the process-opening logic
+	fp = wasm_popen(cmd, "r");
+	if (!fp) {
+		php_error_docref(NULL, E_WARNING, "Unable to fork [%s]", cmd);
+		goto err;
+	}
+
+	stream = php_stream_fopen_from_pipe(fp, "rb");
+
+	buf = (char *) emalloc(EXEC_INPUT_BUF);
+	buflen = EXEC_INPUT_BUF;
+
+	if (type != 3) {
+		b = buf;
+
+		while (php_stream_get_line(stream, b, EXEC_INPUT_BUF, &bufl)) {
+			/* no new line found, let's read some more */
+			if (b[bufl - 1] != '\n' && !php_stream_eof(stream)) {
+				if (buflen < (bufl + (b - buf) + EXEC_INPUT_BUF)) {
+					bufl += b - buf;
+					buflen = bufl + EXEC_INPUT_BUF;
+					buf = erealloc(buf, buflen);
+					b = buf + bufl;
+				} else {
+					b += bufl;
+				}
+				continue;
+			} else if (b != buf) {
+				bufl += b - buf;
+			}
+
+			bufl = handle_line(type, array, buf, bufl);
+			b = buf;
+		}
+		if (bufl) {
+			if (buf != b) {
+				/* Process remaining output */
+				bufl = handle_line(type, array, buf, bufl);
+			}
+
+			/* Return last line from the shell command */
+			bufl = strip_trailing_whitespace(buf, bufl);
+			RETVAL_STRINGL(buf, bufl);
+		} else { /* should return NULL, but for BC we return "" */
+			RETVAL_EMPTY_STRING();
+		}
+	} else {
+		ssize_t read;
+		while ((read = php_stream_read(stream, buf, EXEC_INPUT_BUF)) > 0) {
+			PHPWRITE(buf, read);
+		}
+	}
+
+	pclose_return = php_stream_close(stream);
+	efree(buf);
+
+done:
+#if PHP_SIGCHILD
+	if (sig_handler) {
+		signal(SIGCHLD, sig_handler);
+	}
+#endif
+	if (d) {
+		efree(d);
+	}
+	return pclose_return;
+err:
+	pclose_return = -1;
+	RETVAL_FALSE;
+	goto done;
+}
+
+// }}}
 
 // -----------------------------------------------------------
 
@@ -222,7 +389,7 @@ const char WASM_HARDCODED_INI[] =
 	"always_populate_raw_post_data = -1\n"
 	"upload_max_filesize = 2000M\n"
 	"post_max_size = 2000M\n"
-	"disable_functions = proc_open,popen,curl_exec,curl_multi_exec\n"
+	"disable_functions = curl_exec,curl_multi_exec\n"
 	"allow_url_fopen = Off\n"
 	"allow_url_include = Off\n"
 	"session.save_path = /home/web_user\n"

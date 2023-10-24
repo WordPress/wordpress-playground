@@ -16,6 +16,7 @@ import {
 	PHPRunOptions,
 	RmDirOptions,
 	ListFilesOptions,
+	SpawnHandler,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
@@ -68,6 +69,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	async onMessage(listener: MessageListener) {
 		this.#messageListeners.push(listener);
+	}
+
+	/** @inheritDoc */
+	async setSpawnHandler(handler: SpawnHandler) {
+		this[__private__dont__use].spawnProcess = handler;
 	}
 
 	/** @inheritDoc */
