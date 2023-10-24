@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/php_7_1.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 10594129; 
+export const dependenciesTotalSize = 11539083; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5533,10 +5533,15 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
  let offset = 0;
  while (true) {
   const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, offset, CHUNK_SIZE, null);
-  if (bytesRead === null) {
+  if (bytesRead === null || bytesRead === 0) {
    break;
   }
-  cp.stdin.write(buffer.subarray(0, bytesRead));
+  try {
+   cp.stdin.write(buffer.subarray(0, bytesRead));
+  } catch (e) {
+   console.error(e);
+   return 1;
+  }
   if (bytesRead < CHUNK_SIZE) {
    break;
   }
@@ -6604,7 +6609,7 @@ ERRNO_CODES = {
 };
 
 var asmLibraryArg = {
- "j": ___assert_fail,
+ "k": ___assert_fail,
  "Ua": ___call_sighandler,
  "Ta": ___syscall__newselect,
  "Sa": ___syscall_accept4,
@@ -6656,7 +6661,7 @@ var asmLibraryArg = {
  "da": __mmap_js,
  "ca": __munmap_js,
  "ba": __tzset_js,
- "m": _abort,
+ "e": _abort,
  "z": _emscripten_date_now,
  "aa": _emscripten_get_heap_max,
  "I": _emscripten_get_now,
@@ -6678,22 +6683,22 @@ var asmLibraryArg = {
  "Y": _getnameinfo,
  "X": _getprotobyname,
  "W": _getprotobynumber,
- "h": invoke_i,
+ "i": invoke_i,
  "d": invoke_ii,
  "b": invoke_iii,
- "f": invoke_iiii,
- "g": invoke_iiiii,
+ "g": invoke_iiii,
+ "h": invoke_iiiii,
  "v": invoke_iiiiii,
  "s": invoke_iiiiiii,
  "u": invoke_iiiiiiii,
  "y": invoke_iiiiiiiiii,
- "e": invoke_v,
+ "f": invoke_v,
  "a": invoke_vi,
  "c": invoke_vii,
- "l": invoke_viii,
- "k": invoke_viiii,
+ "m": invoke_viii,
+ "l": invoke_viiii,
  "n": invoke_viiiii,
- "i": invoke_viiiiii,
+ "j": invoke_viiiiii,
  "x": invoke_viiiiiiiii,
  "E": _js_create_input_device,
  "V": _js_module_onMessage,

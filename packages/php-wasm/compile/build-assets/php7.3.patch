@@ -1,3 +1,23 @@
+diff --git a/php-src/main/streams/plain_wrapper.c b/php-src/main/streams/plain_wrapper.c
+index 4d10e688b5..ca50261b8a 100644
+--- a/php-src/main/streams/plain_wrapper.c
++++ b/php-src/main/streams/plain_wrapper.c
+@@ -408,6 +408,15 @@ static ssize_t php_stdiop_read(php_stream *stream, char *buf, size_t count)
+ 		}
+ #endif
+ 		ret = read(data->fd, buf,  PLAIN_WRAP_BUF_SIZE(count));
++		if(
++			(errno == EAGAIN || errno == EWOULDBLOCK) &&
++			(stream->flags & O_NONBLOCK) == 0
++		) {
++			/* This is a blocking read in C but not in Emscripten.
++			   Let's poll for data and try once again */
++			php_pollfd_for(data->fd, POLLIN, NULL);
++			ret = read(data->fd, buf,  PLAIN_WRAP_BUF_SIZE(count));
++		}
+ 
+ 		if (ret == (size_t)-1 && errno == EINTR) {
+ 			/* Read was interrupted, retry once,
 diff --git a/php-src/ext/pdo_sqlite/sqlite_statement.c b/php-src/ext/pdo_sqlite/sqlite_statement.c
 --- a/php-src/ext/pdo_sqlite/sqlite_statement.c
 +++ b/php-src/ext/pdo_sqlite/sqlite_statement.c

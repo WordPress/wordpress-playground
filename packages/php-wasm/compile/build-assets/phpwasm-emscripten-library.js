@@ -368,8 +368,13 @@ const LibraryExample = {
             const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, offset, CHUNK_SIZE, null);
             if (bytesRead === null || bytesRead === 0) {
                 break;
-            }
-			cp.stdin.write(buffer.subarray(0, bytesRead));
+			}
+			try {
+				cp.stdin.write(buffer.subarray(0, bytesRead));
+			} catch (e) {
+				console.error(e);
+				return 1;
+			}
             if (bytesRead < CHUNK_SIZE) {
                 break;
             }
