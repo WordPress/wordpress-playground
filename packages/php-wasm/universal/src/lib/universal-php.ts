@@ -367,7 +367,8 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 
 	/**
 	 * Registers a handler to spawns a child process when
-	 * `proc_open()` is called.
+	 * `proc_open()`, `popen()`, `exec()`, `system()`, or `passthru()`
+	 * is called.
 	 *
 	 * @param handler Callback function to spawn a process.
 	 */
