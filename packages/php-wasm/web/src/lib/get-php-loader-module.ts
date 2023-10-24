@@ -41,9 +41,6 @@ export async function getPHPLoaderModule(
 			case '7.0':
 				// @ts-ignore
 				return await import('../../public/kitchen-sink/php_7_0.js');
-			case '5.6':
-				// @ts-ignore
-				return await import('../../public/kitchen-sink/php_5_6.js');
 		}
 	} else {
 		switch (version) {
@@ -71,9 +68,6 @@ export async function getPHPLoaderModule(
 			case '7.0':
 				// @ts-ignore
 				return await import('../../public/light/php_7_0.js');
-			case '5.6':
-				// @ts-ignore
-				return await import('../../public/light/php_5_6.js');
 		}
 	}
 	throw new Error(`Unsupported PHP version ${version}`);

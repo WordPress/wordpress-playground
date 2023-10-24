@@ -7,7 +7,6 @@ export const SupportedPHPVersions = [
 	'7.2',
 	'7.1',
 	'7.0',
-	'5.6',
 ] as const;
 export const LatestSupportedPHPVersion = SupportedPHPVersions[0];
 export const SupportedPHPVersionsList = SupportedPHPVersions as any as string[];
