@@ -520,8 +520,6 @@ RUN /root/replace.sh 's/define php_sleep sleep/define php_sleep wasm_sleep/g' /r
 RUN echo 'extern unsigned int wasm_sleep(unsigned int time);' >> /root/php-src/main/php.h; 
 
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
-RUN /root/replace.sh 's/\(proc_open\)/(php_proc_open)/g' /root/php-src/ext/standard/proc_open.c
-RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
@@ -535,6 +533,15 @@ RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_se
 
 # Provide a custom implementation of the php_select() function.
 RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
+
+# Provide a custom implementation of the php_exec() function that handles spawning
+# the process inside exec(), passthru(), system(), etc.
+# We effectively remove the php_exec() implementation from the build by renaming it
+# to an unused identifier "php_exec_old", and then we mark php_exec as extern.
+RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
+
+# Provide a custom implementation of the VCWD_POPEN() function that handles spawning
+# the process inside PHP_FUNCTION(popen).
 RUN /root/replace.sh 's/VCWD_POPEN\(/wasm_popen(/g' /root/php-src/ext/standard/file.c
 RUN /root/replace.sh 's/PHP_FUNCTION\(popen\)/extern FILE *wasm_popen(const char *cmd, const char *mode);PHP_FUNCTION(popen)/g' /root/php-src/ext/standard/file.c
 
@@ -544,7 +551,8 @@ RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/
 RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h; 
 RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h; 
 
-# Provide a custom implementation of the proc_open() function.
+# Don't ship PHP_FUNCTION(proc_open) with the PHP build
+# so that we can ship a patched version with php_wasm.c
 RUN echo '' > /root/php-src/ext/standard/proc_open.h;
 RUN echo '' > /root/php-src/ext/standard/proc_open.c; 
 
