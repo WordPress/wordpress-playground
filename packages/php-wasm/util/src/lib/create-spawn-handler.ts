@@ -28,7 +28,7 @@ export function createSpawnHandler(
 	};
 }
 
-class ProcessApi {
+export class ProcessApi {
 	private exited = false;
 	private stdinData: string[] = [];
 	constructor(private childProcess: ChildProcess) {
@@ -78,11 +78,11 @@ class EventEmitter {
 	}
 }
 
-type StdIn = {
+export type StdIn = {
 	write: (data: string) => void;
 };
 
-class ChildProcess extends EventEmitter {
+export class ChildProcess extends EventEmitter {
 	stdout: EventEmitter = new EventEmitter();
 	stderr: EventEmitter = new EventEmitter();
 	stdin: StdIn;
