@@ -10,7 +10,6 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-// SupportedPHPVersions
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
@@ -26,6 +25,40 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(result.text).toEqual('stdout: WordPress');
+		});
+	});
+
+	describe('popen()', () => {
+		it('popen("echo", "r")', async () => {
+			const result = await php.run({
+				code: `<?php
+				$fp = popen("echo WordPress", "r");
+				echo 'stdout: ' . fread($fp, 1024);
+				fclose($fp);
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+
+		it('popen("cat", "w")', async () => {
+			const result = await php.run({
+				code: `<?php
+				$path = __DIR__;
+				$fp = popen("cat > out", "w");
+				fwrite($fp, "WordPress\n");
+				fclose($fp);
+
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
+				sleep(1);
+
+				$fp = popen("cat out", "r");
+				echo 'stdout: ' . fread($fp, 1024);
+				fclose($fp);
+			`,
+			});
+
+			expect(result.text).toEqual('stdout: WordPress\n');
 		});
 	});
 
