@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/php_8_2.wasm'; 
  export { dependencyFilename }; 
-export const dependenciesTotalSize = 11238598; 
+export const dependenciesTotalSize = 11238946; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5587,9 +5587,20 @@ function _js_create_input_device(procopenCallId) {
 }
 
 function _js_module_onMessage(data) {
+ if (typeof Asyncify === "undefined") {
+  return;
+ }
  if (Module["onMessage"]) {
   const dataStr = UTF8ToString(data);
-  Module["onMessage"](dataStr);
+  return Asyncify.handleSleep(wakeUp => {
+   Module["onMessage"](dataStr).then(result => {
+    wakeUp(allocateUTF8OnStack(result));
+   }).catch(e => {
+    console.log("There's been an error in the onMessage handler:");
+    console.error(e);
+    wakeUp(0);
+   });
+  });
  }
 }
 
@@ -6378,7 +6389,7 @@ var Asyncify = {
   return id;
  },
  instrumentWasmImports: function(imports) {
-  var ASYNCIFY_IMPORTS = [ "env._dlopen_js", "env.invoke_i", "env.invoke_ii", "env.invoke_iii", "env.invoke_iiii", "env.invoke_iiiii", "env.invoke_iiiiii", "env.invoke_iiiiiii", "env.invoke_iiiiiiii", "env.invoke_iiiiiiiiii", "env.invoke_v", "env.invoke_vi", "env.invoke_vii", "env.invoke_viidii", "env.invoke_viii", "env.invoke_viiii", "env.invoke_viiiii", "env.invoke_viiiiii", "env.invoke_viiiiiii", "env.invoke_viiiiiiiii", "env.js_open_process", "env.js_popen_to_file", "env.wasm_poll_socket", "env.wasm_shutdown", "env.emscripten_sleep", "env.emscripten_wget", "env.emscripten_wget_data", "env.emscripten_idb_load", "env.emscripten_idb_store", "env.emscripten_idb_delete", "env.emscripten_idb_exists", "env.emscripten_idb_load_blob", "env.emscripten_idb_store_blob", "env.SDL_Delay", "env.emscripten_scan_registers", "env.emscripten_lazy_load_code", "env.emscripten_fiber_swap", "wasi_snapshot_preview1.fd_sync", "env.__wasi_fd_sync", "env._emval_await", "env._dlopen_js", "env.__asyncjs__*" ].map(x => x.split(".")[1]);
+  var ASYNCIFY_IMPORTS = [ "env._dlopen_js", "env.invoke_i", "env.invoke_ii", "env.invoke_iii", "env.invoke_iiii", "env.invoke_iiiii", "env.invoke_iiiiii", "env.invoke_iiiiiii", "env.invoke_iiiiiiii", "env.invoke_iiiiiiiiii", "env.invoke_v", "env.invoke_vi", "env.invoke_vii", "env.invoke_viidii", "env.invoke_viii", "env.invoke_viiii", "env.invoke_viiiii", "env.invoke_viiiiii", "env.invoke_viiiiiii", "env.invoke_viiiiiiiii", "env.js_open_process", "env.js_popen_to_file", "env.wasm_poll_socket", "env.js_module_onMessage", "env.wasm_shutdown", "env.emscripten_sleep", "env.emscripten_wget", "env.emscripten_wget_data", "env.emscripten_idb_load", "env.emscripten_idb_store", "env.emscripten_idb_delete", "env.emscripten_idb_exists", "env.emscripten_idb_load_blob", "env.emscripten_idb_store_blob", "env.SDL_Delay", "env.emscripten_scan_registers", "env.emscripten_lazy_load_code", "env.emscripten_fiber_swap", "wasi_snapshot_preview1.fd_sync", "env.__wasi_fd_sync", "env._emval_await", "env._dlopen_js", "env.__asyncjs__*" ].map(x => x.split(".")[1]);
   for (var x in imports) {
    (function(x) {
     var original = imports[x];

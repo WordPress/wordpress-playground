@@ -32,7 +32,7 @@ unsigned int wasm_sleep(unsigned int time) {
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
-extern void *js_module_onMessage(const char *data);
+extern char *js_module_onMessage(const char *data);
 
 // popen() shim
 // -----------------------------------------------------------
@@ -259,8 +259,8 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
+	ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
@@ -278,7 +278,19 @@ PHP_FUNCTION(post_message_to_js)
 		return;
 	}
 
-	js_module_onMessage(data);
+	char *result = js_module_onMessage(data);
+
+	if(result != NULL) {
+		// In PHP 7, the second parameter was removed and the string is always
+		// returned as a copy.
+		#if PHP_MAJOR_VERSION >= 7
+			RETURN_STRING(result);
+		#else
+			RETURN_STRING(result, 1);
+		#endif
+	} else {
+		RETURN_NULL();
+	}
 }
 /* }}} */
 
