@@ -87,7 +87,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		// This test fails
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+		// if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion))
+		{
 			it('cat – stdin=pipe, stdout=file, stderr=file', async () => {
 				const result = await php.run({
 					code: `<?php
