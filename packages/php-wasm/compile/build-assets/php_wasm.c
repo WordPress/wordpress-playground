@@ -445,13 +445,8 @@ int wasm_sapi_module_startup(sapi_module_struct *sapi_module);
 int wasm_sapi_shutdown_wrapper(sapi_module_struct *sapi_globals);
 void wasm_sapi_module_shutdown();
 static int wasm_sapi_deactivate(TSRMLS_D);
-#if PHP_MAJOR_VERSION == 5
-static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC);
-static int wasm_sapi_read_post_body(char *buffer, uint count_bytes);
-#else
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC);
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes);
-#endif
 #if PHP_MAJOR_VERSION >= 8
 static void wasm_sapi_log_message(const char *message TSRMLS_DC, int syslog_type_int);
 #else
@@ -852,11 +847,7 @@ static char *wasm_sapi_read_cookies(TSRMLS_D)
  *   buffer: the buffer to read the request body into
  *   count_bytes: the number of bytes to read
  */
-#if PHP_MAJOR_VERSION == 5
-static int wasm_sapi_read_post_body(char *buffer, uint count_bytes)
-#else
 static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
-#endif
 {
 	if (wasm_server_context == NULL || wasm_server_context->request_body == NULL)
 	{
@@ -928,11 +919,7 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
 {
 	HashTable *uploaded_files = NULL;
 	ALLOC_HASHTABLE(uploaded_files);
-	#if PHP_MAJOR_VERSION == 5
-		zend_hash_init(uploaded_files, 5, NULL, (dtor_func_t) free_estring, 0);
-	#else
-		zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
-	#endif
+	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
 	SG(rfc1867_uploaded_files) = uploaded_files;
 }
 
@@ -945,12 +932,8 @@ void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
  */
 void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
 {
-	#if PHP_MAJOR_VERSION == 5
-		zend_hash_add(SG(rfc1867_uploaded_files), tmp_path_char, strlen(tmp_path_char) + 1, &tmp_path_char, sizeof(char *), NULL);
-	#else
-		zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
-		zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
-	#endif
+	zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
+	zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
 }
 
 /*
@@ -1145,11 +1128,7 @@ int wasm_sapi_request_init()
 			phpwasm_init_uploaded_files_hash();
 		}
 
-		#if PHP_MAJOR_VERSION == 5
-		zval *files = PG(http_globals)[TRACK_VARS_FILES];
-		#else
 		zval *files = &PG(http_globals)[TRACK_VARS_FILES];
-		#endif
 		int max_param_size = strlen(entry->key) + 11 /*[tmp_name]\0*/;
 		char *param;
 		char *value_buf;
@@ -1349,11 +1328,7 @@ static inline size_t wasm_sapi_single_write(const char *str, uint str_length)
  *   str: the string to write.
  *   str_length: the length of the string.
  */
-#if PHP_MAJOR_VERSION == 5
-static int wasm_sapi_ub_write(const char *str, uint str_length TSRMLS_DC)
-#else
 static size_t wasm_sapi_ub_write(const char *str, size_t str_length TSRMLS_DC)
-#endif
 {
 	const char *ptr = str;
 	uint remaining = str_length;

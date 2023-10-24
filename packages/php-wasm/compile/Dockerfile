@@ -103,7 +103,7 @@ FROM emscripten AS emscripten-libzip
 ARG PHP_VERSION
 COPY --from=emscripten-libz /root/lib /root/lib-libz
 RUN /root/copy-lib.sh lib-libz
-RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+RUN     if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
             export LIBZIP_VERSION=1.2.0; \
         else \
             export LIBZIP_VERSION=1.9.2; \
@@ -334,10 +334,7 @@ COPY --from=emscripten-libzip /root/lib /root/lib-libzip
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         /root/copy-lib.sh lib-libz; \
         /root/copy-lib.sh lib-libzip && \
-        if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            /root/replace.sh 's/ZEND_MODULE_GLOBALS_CTOR_N/(void (*)(void *))ZEND_MODULE_GLOBALS_CTOR_N/g' /root/php-src/ext/zlib/zlib.c; \
-        fi;\
-        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
             apt install -y zlib1g zlib1g-dev; \
             # https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
             echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
@@ -390,7 +387,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         # In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
         perl -pi.bak -e 's/char xmlInitParser/void xmlInitParser/g' /root/php-src/configure; \
         # On PHP < 7.1.0, the dom_iterators.c file implicitly converts *char to const *char causing emcc error
-        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]]; then \
             /root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
         fi; \
     else \
@@ -439,7 +436,7 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 COPY --from=emscripten-bison-2-7 /usr/local/bison /root/linked-bison-27
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
         mv /root/linked-bison-27 /usr/local/bison && \
         ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
         ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
@@ -528,7 +525,7 @@ RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; i
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
         echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
     fi;
 
