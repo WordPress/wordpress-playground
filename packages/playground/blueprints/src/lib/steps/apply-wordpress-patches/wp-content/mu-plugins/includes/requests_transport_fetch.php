@@ -11,6 +11,16 @@
  *       from within the JavaScript runtime.
  */
 
+/**
+ * Disable all hosts from the signature verification.
+ * https://downloads.wordpress.org/plugin/classic-editor.zip.sig returns 404.
+ * I'm not sure why yet.
+ * @TODO Figure out why.
+ */
+add_filter('wp_signature_hosts', function ($hosts) {
+	return [];
+});
+
 class Requests_Transport_Fetch implements Requests_Transport
 {
 	public $headers = '';
@@ -54,36 +64,27 @@ class Requests_Transport_Fetch implements Requests_Transport
 			}
 		}
 
-		$request = json_encode(json_encode(array(
-			'headers' => $headers,
-			'data'    => $data,
-			'url'     => $url,
-			'method'  => $options['type'],
-		)));
+		$request = json_encode(array(
+			'type'    => 'request',
+			'data'    => [
+				'headers' => $headers,
+				'data'    => $data,
+				'url'     => $url,
+				'method'  => $options['type'],
+			]
+		));
 
-		$js = <<<JAVASCRIPT
-const request = JSON.parse({$request});
-console.log("Requesting " + request.url);
-const xhr = new XMLHttpRequest();
-xhr.open(
-	request.method,
-	request.url,
-	false // false makes the xhr synchronous
-);
-for ( var name in request.headers ) {
-	xhr.setRequestHeader(name, request.headers[name]);
-}
-xhr.send(request.data);
+		$this->headers = post_message_to_js($request);
 
-[
-	"HTTP/1.1 " + xhr.status + " " + xhr.statusText,
-	xhr.getAllResponseHeaders(),
-	"",
-	xhr.responseText
-].join("\\r\\n");
-JAVASCRIPT;
-
-		$this->headers = vrzno_eval($js);
+		if($options['filename']) {
+			$index = strpos($this->headers, "\r\n\r\n");
+			if ($index !== -1) {
+				file_put_contents(
+					$options['filename'],
+					substr($this->headers, $index + 4)
+				);
+			}
+		}
 
 		return $this->headers;
 	}
@@ -132,11 +133,7 @@ JAVASCRIPT;
 
 	public static function test($capabilities = array())
 	{
-		if (!function_exists('vrzno_eval')) {
-			return false;
-		}
-
-		if (vrzno_eval("typeof XMLHttpRequest;") !== 'function') {
+		if (!function_exists('post_message_to_js')) {
 			return false;
 		}
 

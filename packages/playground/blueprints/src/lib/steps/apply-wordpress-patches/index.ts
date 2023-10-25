@@ -149,7 +149,7 @@ class WordPressPatcher {
 	async prepareForRunningInsideWebBrowser() {
 		await defineWpConfigConsts(this.php, {
 			consts: {
-				USE_FETCH_FOR_REQUESTS: false,
+				USE_FETCH_FOR_REQUESTS: true,
 			},
 		});
 
@@ -157,6 +157,8 @@ class WordPressPatcher {
 		const transports = [
 			`${this.wordpressPath}/wp-includes/Requests/Transport/fsockopen.php`,
 			`${this.wordpressPath}/wp-includes/Requests/Transport/cURL.php`,
+			`${this.wordpressPath}/wp-includes/Requests/src/Transport/Fsockopen.php`,
+			`${this.wordpressPath}/wp-includes/Requests/src/Transport/Curl.php`,
 		];
 		for (const transport of transports) {
 			// One of the transports might not exist in the latest WordPress version.

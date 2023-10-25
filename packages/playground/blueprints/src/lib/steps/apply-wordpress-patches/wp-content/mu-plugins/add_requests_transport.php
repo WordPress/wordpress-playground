@@ -12,7 +12,7 @@
  * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
-if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
+if (1 || (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS)) {
     require(__DIR__ . '/includes/requests_transport_fetch.php');
 	Requests::add_transport('Requests_Transport_Fetch');
 	add_filter('http_request_host_is_external', function ($arg) {

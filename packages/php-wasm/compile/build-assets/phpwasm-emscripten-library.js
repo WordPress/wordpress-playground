@@ -629,7 +629,7 @@ const LibraryExample = {
 		});
 	},
 
-	js_module_onMessage: function (data) {
+	js_module_onMessage: function (data, bufPtr) {
 		if (typeof Asyncify === 'undefined') {
 			return;
 		}
@@ -639,9 +639,19 @@ const LibraryExample = {
 
 			return Asyncify.handleSleep((wakeUp) => {
 				Module['onMessage'](dataStr).then((result) => {
-					wakeUp(allocateUTF8OnStack(result));
+					const byteArray = typeof result === "string" ? new TextEncoder().encode(result) : result;
+					// Malloc byteArray.bytesLength bytes and write byteArray there
+					const size = byteArray.byteLength;
+					const ptr = _malloc(size + 1);
+					HEAPU8.set(byteArray, ptr);
+					HEAPU8[ptr + size] = 0; 
+					HEAPU8[bufPtr] = ptr;
+					HEAPU8[bufPtr + 1] = ptr >> 8;
+					HEAPU8[bufPtr + 2] = ptr >> 16;
+					HEAPU8[bufPtr + 3] = ptr >> 24;
+
+					wakeUp(size);
 				}).catch((e) => {
-					console.log("There's been an error in the onMessage handler:");
 					console.error(e);
 					wakeUp(0);
 				} );
