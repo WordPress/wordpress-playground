@@ -32,17 +32,6 @@ try {
 	// Ignore errors.
 }
 
-interface MessageEnvelope {
-	type: 'request';
-	data: RequestMessage;
-}
-interface RequestMessage {
-	url: string;
-	method: string;
-	headers: string[];
-	data: string;
-}
-
 export default function PlaygroundConfigurationGroup({
 	initialConfiguration,
 }: SiteSetupGroupProps) {
@@ -74,58 +63,8 @@ export default function PlaygroundConfigurationGroup({
 	const [wpVersionChoices, setWPVersionChoices] = useState<
 		Record<string, string>
 	>({});
+
 	useEffect(() => {
-		playground?.onMessage(async (message: string) => {
-			const envelope: MessageEnvelope = JSON.parse(message);
-			const { type, data } = envelope;
-			if (type !== 'request') {
-				return '';
-			}
-
-			try {
-				const hostname = new URL(data.url).hostname;
-				const fetchUrl = [
-					'api.wordpress.org',
-					'w.org',
-					's.w.org',
-				].includes(hostname)
-					? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
-					: data.url;
-
-				const response = await fetch(fetchUrl, {
-					method: data.method,
-					headers: Object.fromEntries(
-						data.headers.map((line) => line.split(': '))
-					),
-					body: data.data,
-				});
-				const responseHeaders: string[] = [];
-				response.headers.forEach((value, key) => {
-					responseHeaders.push(key + ': ' + value);
-				});
-
-				const headersText =
-					[
-						'HTTP/1.1 ' +
-							response.status +
-							' ' +
-							response.statusText,
-						...responseHeaders,
-					] + `\r\n\r\n`;
-				const headersBuffer = new TextEncoder().encode(headersText);
-				const bodyBuffer = new Uint8Array(await response.arrayBuffer());
-				const jointBuffer = new Uint8Array(
-					headersBuffer.byteLength + bodyBuffer.byteLength
-				);
-				jointBuffer.set(headersBuffer);
-				jointBuffer.set(bodyBuffer, headersBuffer.byteLength);
-
-				return jointBuffer;
-			} catch (e) {
-				console.error(e);
-				return '';
-			}
-		});
 		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
 			const formOptions: Record<string, string> = {};
 			for (const version of Object.keys(all)) {

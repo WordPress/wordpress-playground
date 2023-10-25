@@ -638,20 +638,26 @@ const LibraryExample = {
 			const dataStr = UTF8ToString(data);
 
 			return Asyncify.handleSleep((wakeUp) => {
-				Module['onMessage'](dataStr).then((result) => {
-					const byteArray = typeof result === "string" ? new TextEncoder().encode(result) : result;
-					// Malloc byteArray.bytesLength bytes and write byteArray there
-					const size = byteArray.byteLength;
-					const ptr = _malloc(size + 1);
-					HEAPU8.set(byteArray, ptr);
-					HEAPU8[ptr + size] = 0; 
-					HEAPU8[bufPtr] = ptr;
-					HEAPU8[bufPtr + 1] = ptr >> 8;
-					HEAPU8[bufPtr + 2] = ptr >> 16;
-					HEAPU8[bufPtr + 3] = ptr >> 24;
+				Module['onMessage'](dataStr).then((response) => {
+					const responseBytes = typeof response === "string"
+						? new TextEncoder().encode(response)
+						: response;
+					
+					// Copy the response bytes to heap
+					const responseSize = responseBytes.byteLength;
+					const responsePtr = _malloc(responseSize + 1);
+					HEAPU8.set(responseBytes, responsePtr);
+					HEAPU8[responsePtr + responseSize] = 0; 
+					HEAPU8[bufPtr] = responsePtr;
+					HEAPU8[bufPtr + 1] = responsePtr >> 8;
+					HEAPU8[bufPtr + 2] = responsePtr >> 16;
+					HEAPU8[bufPtr + 3] = responsePtr >> 24;
 
-					wakeUp(size);
+					wakeUp(responseSize);
 				}).catch((e) => {
+					// Log the error and return NULL. Message passing
+					// separates JS context from the PHP context so we
+					// don't let PHP crash here.
 					console.error(e);
 					wakeUp(0);
 				} );

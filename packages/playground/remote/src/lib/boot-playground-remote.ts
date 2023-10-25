@@ -2,6 +2,7 @@ import {
 	LatestSupportedPHPVersion,
 	MessageListener,
 	SupportedPHPExtensionsList,
+	UniversalPHP,
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
@@ -187,6 +188,7 @@ export async function bootPlaygroundRemote() {
 			serviceWorkerUrl + ''
 		);
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		setupFetchNetworkTransport(workerApi);
 
 		setAPIReady();
 	} catch (e) {
@@ -224,6 +226,66 @@ function setupPostMessageRelay(
 
 		window.parent.postMessage(event.data, '*');
 	});
+}
+
+/**
+ * Allow WordPress to make network requests via the fetch API.
+ * On the WordPress side, this is handled by Requests_Transport_Fetch
+ *
+ * @param playground the Playground instance to set up with network support.
+ */
+async function setupFetchNetworkTransport(playground: UniversalPHP) {
+	await playground.onMessage(async (message: string) => {
+		const envelope: RequestMessage = JSON.parse(message);
+		const { type, data } = envelope;
+		if (type !== 'request') {
+			return '';
+		}
+
+		const hostname = new URL(data.url).hostname;
+		const fetchUrl = ['api.wordpress.org', 'w.org', 's.w.org'].includes(
+			hostname
+		)
+			? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
+			: data.url;
+
+		const response = await fetch(fetchUrl, {
+			method: data.method,
+			headers: Object.fromEntries(
+				data.headers.map((line) => line.split(': '))
+			),
+			body: data.data,
+		});
+		const responseHeaders: string[] = [];
+		response.headers.forEach((value, key) => {
+			responseHeaders.push(key + ': ' + value);
+		});
+
+		const headersText =
+			[
+				'HTTP/1.1 ' + response.status + ' ' + response.statusText,
+				...responseHeaders,
+			] + `\r\n\r\n`;
+		const headersBuffer = new TextEncoder().encode(headersText);
+		const bodyBuffer = new Uint8Array(await response.arrayBuffer());
+		const jointBuffer = new Uint8Array(
+			headersBuffer.byteLength + bodyBuffer.byteLength
+		);
+		jointBuffer.set(headersBuffer);
+		jointBuffer.set(bodyBuffer, headersBuffer.byteLength);
+
+		return jointBuffer;
+	});
+}
+
+interface RequestMessage {
+	type: 'request';
+	data: {
+		url: string;
+		method: string;
+		headers: string[];
+		data: string;
+	};
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {

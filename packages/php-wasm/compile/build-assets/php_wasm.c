@@ -32,7 +32,25 @@ unsigned int wasm_sleep(unsigned int time) {
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
-extern size_t js_module_onMessage(const char *data, char **response_buf);
+
+/**
+ * Passes a message to the JavaScript module and writes the response
+ * data, if any, to the response_buffer pointer.
+ * 
+ * @param message The message to pass into JavaScript.
+ * @param response_buffer The address where the response will be stored. The
+ * JS module will allocate a memory block for the response buffer and write
+ * its address to **response_buffer. The caller is responsible for freeing 
+ * that memory after use.
+ * 
+ * @return The size of the response_buffer (it can contain null bytes).
+ * 
+ * @note The caller should ensure that the memory allocated for response_buffer 
+ * is freed after its use to prevent memory leaks. It's also recommended 
+ * to handle exceptions and errors gracefully within the function to ensure 
+ * the stability of the system.
+ */
+extern size_t js_module_onMessage(const char *data, char **response_buffer);
 
 // popen() shim
 // -----------------------------------------------------------
@@ -267,8 +285,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 	ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
-/* {{{ proto int strcmp(string str1, string str2)
-   Binary safe string comparison */
+/* Enable PHP to exchange messages with JavaScript */
 PHP_FUNCTION(post_message_to_js)
 {
 	char *data;
@@ -283,7 +300,7 @@ PHP_FUNCTION(post_message_to_js)
 	if (response != NULL)
 	{
 		zend_string *return_string = zend_string_init(response, response_len, 0);
-		// @TODO free the response buffer
+		free(response);
 		RETURN_NEW_STR(return_string);
 	}
 	else
@@ -291,7 +308,6 @@ PHP_FUNCTION(post_message_to_js)
 		RETURN_NULL();
 	}
 }
-/* }}} */
 
 
 #if WITH_CLI_SAPI == 1

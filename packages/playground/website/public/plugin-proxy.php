@@ -319,7 +319,8 @@ try {
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
     } else if (isset($_GET['url'])) {
-        // Proxy the current request to $_GET['url'] and return the response
+        // Proxy the current request to $_GET['url'] and return the response,
+        // but only if the URL is allowlisted.
         $url = $_GET['url'];
         $allowed_domains = ['api.wordpress.org', 'w.org', 's.w.org'];
         $parsed_url = parse_url($url);

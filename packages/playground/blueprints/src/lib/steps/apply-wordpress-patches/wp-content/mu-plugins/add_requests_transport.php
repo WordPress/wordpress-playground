@@ -12,13 +12,26 @@
  * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
-if (1 || (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS)) {
-    require(__DIR__ . '/includes/requests_transport_fetch.php');
+if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
+	require(__DIR__ . '/includes/requests_transport_fetch.php');
 	Requests::add_transport('Requests_Transport_Fetch');
+	/**
+	 * Disable signature verification as it doesn't seem to work with
+	 * fetch requests:
+	 * 
+	 * https://downloads.wordpress.org/plugin/classic-editor.zip returns no signature header.
+	 * https://downloads.wordpress.org/plugin/classic-editor.zip.sig returns 404.
+	 * 
+	 * @TODO Investigate why.
+	 */
+	add_filter('wp_signature_hosts', function ($hosts) {
+		return [];
+	});
+
 	add_filter('http_request_host_is_external', function ($arg) {
 		return true;
 	});
 } else {
-    require(__DIR__ . '/includes/requests_transport_dummy.php');
-    Requests::add_transport('Requests_Transport_Dummy');
+	require(__DIR__ . '/includes/requests_transport_dummy.php');
+	Requests::add_transport('Requests_Transport_Dummy');
 }

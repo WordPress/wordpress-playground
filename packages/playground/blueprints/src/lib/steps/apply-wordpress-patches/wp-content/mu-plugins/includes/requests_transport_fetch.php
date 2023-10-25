@@ -6,21 +6,7 @@
  * This file isn't actually used. It's just here for reference and development. The actual
  * PHP code used in WordPress is hardcoded copy residing in wordpress.mjs in the _patchWordPressCode
  * function.
- *
- * @TODO Make the build pipeline use this exact file instead of creating it
- *       from within the JavaScript runtime.
  */
-
-/**
- * Disable all hosts from the signature verification.
- * https://downloads.wordpress.org/plugin/classic-editor.zip.sig returns 404.
- * I'm not sure why yet.
- * @TODO Figure out why.
- */
-add_filter('wp_signature_hosts', function ($hosts) {
-	return [];
-});
-
 class Requests_Transport_Fetch implements Requests_Transport
 {
 	public $headers = '';
