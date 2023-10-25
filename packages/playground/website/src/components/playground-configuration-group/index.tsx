@@ -84,12 +84,13 @@ export default function PlaygroundConfigurationGroup({
 
 			try {
 				const hostname = new URL(data.url).hostname;
-				const fetchUrl =
-					hostname === 'downloads.wordpress.org'
-						? data.url
-						: `/plugin-proxy.php?url=${encodeURIComponent(
-								data.url
-						  )}`;
+				const fetchUrl = [
+					'api.wordpress.org',
+					'w.org',
+					's.w.org',
+				].includes(hostname)
+					? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
+					: data.url;
 
 				const response = await fetch(fetchUrl, {
 					method: data.method,
@@ -103,10 +104,14 @@ export default function PlaygroundConfigurationGroup({
 					responseHeaders.push(key + ': ' + value);
 				});
 
-				const headersText = [
-					'HTTP/1.1 ' + response.status + ' ' + response.statusText,
-					...responseHeaders,
-				] + `\r\n\r\n`;
+				const headersText =
+					[
+						'HTTP/1.1 ' +
+							response.status +
+							' ' +
+							response.statusText,
+						...responseHeaders,
+					] + `\r\n\r\n`;
 				const headersBuffer = new TextEncoder().encode(headersText);
 				const bodyBuffer = new Uint8Array(await response.arrayBuffer());
 				const jointBuffer = new Uint8Array(
@@ -114,7 +119,7 @@ export default function PlaygroundConfigurationGroup({
 				);
 				jointBuffer.set(headersBuffer);
 				jointBuffer.set(bodyBuffer, headersBuffer.byteLength);
-				
+
 				return jointBuffer;
 			} catch (e) {
 				console.error(e);

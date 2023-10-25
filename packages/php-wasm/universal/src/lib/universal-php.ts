@@ -416,7 +416,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 
 export type MessageListener = (
 	data: string
-) => Promise<string> | Promise<void> | string | void;
+) => Promise<string> | Promise<Uint8Array> | Promise<void> | string | void;
 interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;

@@ -209,6 +209,7 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-content/mu-plugins/4-enable-url-rewrite.php`,
 			enableUrlRewrite
 		);
+		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);
 	}
 }
 

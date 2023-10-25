@@ -321,7 +321,7 @@ try {
     } else if (isset($_GET['url'])) {
         // Proxy the current request to $_GET['url'] and return the response
         $url = $_GET['url'];
-        $allowed_domains = ['api.wordpress.org'];
+        $allowed_domains = ['api.wordpress.org', 'w.org', 's.w.org'];
         $parsed_url = parse_url($url);
         if (!in_array($parsed_url['host'], $allowed_domains)) {
             http_response_code(403);
