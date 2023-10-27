@@ -12,7 +12,9 @@ import {
 
 import type { PlaygroundWorkerEndpoint } from './worker-thread';
 import type { WebClientMixin } from './playground-client';
-import ProgressBar, { ProgressBarOptions } from './progress-bar';
+import { ProgressBarOptions } from './progress-bar';
+// @ts-ignore
+import css from './progress-bar/style.module.css';
 
 // Avoid literal "import.meta.url" on purpose as vite would attempt
 // to resolve it during build time. This should specifically be
@@ -47,10 +49,26 @@ export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 
 	const hasProgressBar = query.has('progressbar');
-	let bar: ProgressBar | undefined;
+	let progressbarElement: HTMLDivElement | undefined;
+	let meter: HTMLMeterElement | undefined;
+	let caption: HTMLHeadingElement | undefined;
 	if (hasProgressBar) {
-		bar = new ProgressBar();
-		document.body.prepend(bar.element);
+		progressbarElement = document.createElement('div');
+		progressbarElement.classList.add(css.overlay);
+
+		meter = document.createElement('meter');
+		meter.min = 0;
+		meter.max = 100;
+		meter.value = 0;
+		meter.classList.add(css.progressBar);
+
+		caption = document.createElement('h3');
+		caption.textContent = 'Preparing WordPress...';
+		caption.classList.add(css.caption);
+
+		progressbarElement.appendChild(caption);
+		progressbarElement.appendChild(meter);
+		document.body.prepend(progressbarElement);
 	}
 
 	const wpVersion = parseVersion(
@@ -80,16 +98,29 @@ export async function bootPlaygroundRemote() {
 			return workerApi.onDownloadProgress(fn);
 		},
 		async setProgress(options: ProgressBarOptions) {
-			if (!bar) {
+			if (!progressbarElement || !meter || !caption) {
 				throw new Error('Progress bar not available');
 			}
-			bar.setOptions(options);
+
+			options.caption =
+				'caption' in options && options.caption
+					? options.caption
+					: caption.textContent || 'Preparing WordPress';
+			options.progress =
+				'progress' in options ? options.progress : meter.value;
+			options.isIndefinite =
+				'isIndefinite' in options ? options.isIndefinite : false;
+			options.visible = 'visible' in options ? options.visible : true;
+			updateProgressBar(options);
 		},
 		async setLoaded() {
-			if (!bar) {
+			if (!progressbarElement) {
 				throw new Error('Progress bar not available');
 			}
-			bar.destroy();
+			this.setProgress({ visible: false });
+			setTimeout(() => {
+				progressbarElement!.remove();
+			}, 500);
 		},
 		async onNavigation(fn) {
 			// Manage the address bar
@@ -153,6 +184,26 @@ export async function bootPlaygroundRemote() {
 		) {
 			return await workerApi.bindOpfs(opfs, onProgress);
 		},
+	};
+	const updateProgressBar = (options: ProgressBarOptions) => {
+		if (!progressbarElement || !meter || !caption) {
+			throw new Error('Progress bar not available');
+		}
+
+		if (options.visible) {
+			progressbarElement.classList.remove(css.isHidden);
+		} else {
+			progressbarElement.classList.add(css.isHidden);
+		}
+
+		if (options.isIndefinite) {
+			meter.classList.add(css.isIndefinite);
+			meter.removeAttribute('value');
+		} else {
+			meter.classList.remove(css.isIndefinite);
+			meter.setAttribute('value', options.progress + '');
+		}
+		caption.textContent = options.caption + '...';
 	};
 
 	await workerApi.isConnected();

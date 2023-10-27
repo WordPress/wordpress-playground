@@ -19,16 +19,6 @@
 	pointer-events: none;
 }
 
-.wrapper {
-	position: relative;
-	width: 512px;
-	max-width: 60vw;
-	height: 4px;
-	margin: 4px auto;
-	border-radius: 10px;
-	background: #e0e0e0;
-}
-
 .wrapper-definite .progress-bar.is-indefinite,
 .wrapper-indefinite .progress-bar.is-definite {
 	opacity: 0;
@@ -40,12 +30,17 @@
 }
 
 .progress-bar {
-	position: absolute;
-	top: 0;
-	left: 0;
-	bottom: 0;
-	right: 100%;
-	width: 0;
+	width: 512px;
+	max-width: 60vw;
+	height: 12px;
+}
+
+.progress-bar::-webkit-meter-bar {
+	border-radius: 10px;
+	background: #e0e0e0;
+}
+
+.progress-bar::-webkit-meter-optimum-value {
 	background: #3858e9;
 	border-radius: 2px;
 	transition: opacity linear 0.2s, width ease-in 0.2s;
@@ -53,6 +48,10 @@
 
 .progress-bar.is-indefinite {
 	animation: indefinite-loading 2s linear infinite;
+}
+
+.progress-bar.is-indefinite::-webkit-meter-bar {
+	background: #3858e9;
 }
 
 @keyframes indefinite-loading {
