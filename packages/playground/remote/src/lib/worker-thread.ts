@@ -20,6 +20,7 @@ import {
 } from './opfs/bind-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { phpVars } from '@php-wasm/util';
+import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -218,7 +219,7 @@ try {
 			foreach($queries as $query) {
 				$wpdb->query($query);
 			}
-			`
+			`,
 		});
 	};
 	php.onMessage(function (messageString: string) {
@@ -230,6 +231,10 @@ try {
 				console.log('SQL', data.query);
 			}
 		}
+	});
+	(globalThis as any).journal = [];
+	php.addEventListener('fs', ({ data }) => {
+		(globalThis as any).journal.push(data);
 	});
 
 	setApiReady();
