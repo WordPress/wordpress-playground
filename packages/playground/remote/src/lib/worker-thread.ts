@@ -19,6 +19,7 @@ import {
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { phpVars } from '@php-wasm/util';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -204,6 +205,31 @@ try {
 	await applyWordPressPatches(php, {
 		wordpressPath: DOCROOT,
 		siteUrl: scopedSiteUrl,
+	});
+
+	const sqlLog: string[] = [];
+	(globalThis as any).sqlLog = sqlLog;
+	globalThis.runQueries = async (queries: string[]) => {
+		const js = phpVars({ queries });
+		return await php.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$queries = ${js.queries};
+			foreach($queries as $query) {
+				$wpdb->query($query);
+			}
+			`
+		});
+	};
+	php.onMessage(function (messageString: string) {
+		const { type, ...data } = JSON.parse(messageString) as any;
+		if (type === 'sql') {
+			const firstKeyword = data.query.trim().split(/\s/)[0].toLowerCase();
+			if (firstKeyword !== 'select') {
+				sqlLog.push(data.query);
+				console.log('SQL', data.query);
+			}
+		}
 	});
 
 	setApiReady();
