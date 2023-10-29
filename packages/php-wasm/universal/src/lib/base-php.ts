@@ -23,6 +23,7 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
+import { Semaphore } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -44,6 +45,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#serverEntries: Record<string, string> = {};
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
+	#semaphore: Semaphore;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -56,6 +58,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		PHPRuntimeId?: PHPRuntimeId,
 		serverOptions?: PHPRequestHandlerConfiguration
 	) {
+		this.#semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
@@ -161,32 +164,43 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		if (!this.#webSapiInitialized) {
-			this.#initWebRuntime();
-			this.#webSapiInitialized = true;
-		}
-		this.#setScriptPath(request.scriptPath || '');
-		this.#setRelativeRequestUri(request.relativeUri || '');
-		this.#setRequestMethod(request.method || 'GET');
-		const { host, ...headers } = {
-			host: 'example.com:443',
-			...normalizeHeaders(request.headers || {}),
-		};
-		this.#setRequestHostAndProtocol(host, request.protocol || 'http');
-		this.#setRequestHeaders(headers);
-		if (request.body) {
-			this.#setRequestBody(request.body);
-		}
-		if (request.fileInfos) {
-			for (const file of request.fileInfos) {
-				this.#addUploadedFile(file);
+		/*
+		 * Prevent multiple requests from running at the same time.
+		 * For example, if a request is made to a PHP file that
+		 * requests another PHP file, the second request may
+		 * be dispatched before the first one is finished.
+		 */
+		const release = await this.#semaphore.acquire();
+		try {
+			if (!this.#webSapiInitialized) {
+				this.#initWebRuntime();
+				this.#webSapiInitialized = true;
 			}
+			this.#setScriptPath(request.scriptPath || '');
+			this.#setRelativeRequestUri(request.relativeUri || '');
+			this.#setRequestMethod(request.method || 'GET');
+			const { host, ...headers } = {
+				host: 'example.com:443',
+				...normalizeHeaders(request.headers || {}),
+			};
+			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+			this.#setRequestHeaders(headers);
+			if (request.body) {
+				this.#setRequestBody(request.body);
+			}
+			if (request.fileInfos) {
+				for (const file of request.fileInfos) {
+					this.#addUploadedFile(file);
+				}
+			}
+			if (request.code) {
+				this.#setPHPCode(' ?>' + request.code);
+			}
+			this.#addServerGlobalEntriesInWasm();
+			return await this.#handleRequest();
+		} finally {
+			release();
 		}
-		if (request.code) {
-			this.#setPHPCode(' ?>' + request.code);
-		}
-		this.#addServerGlobalEntriesInWasm();
-		return await this.#handleRequest();
 	}
 
 	#initWebRuntime() {
