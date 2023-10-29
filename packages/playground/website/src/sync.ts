@@ -1,47 +1,59 @@
-import { PlaygroundClient, startPlaygroundWeb } from '@wp-playground/client';
+import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
 
-const [client1, client2] = await Promise.all([
-	startPlaygroundWeb({
-		iframe: document.getElementById('wp1') as HTMLIFrameElement,
-		remoteUrl: 'http://localhost:4400/remote.html',
-	}),
-	startPlaygroundWeb({
-		iframe: document.getElementById('wp2') as HTMLIFrameElement,
-		remoteUrl: 'http://localhost:4400/remote.html',
-	}),
-]);
-await Promise.all([
-	login(client1, { username: 'admin', password: 'password' }),
-	login(client2, { username: 'admin', password: 'password' }),
-]);
-await client1.goTo('/');
-await client2.goTo('/');
+const playground = await startPlaygroundWeb({
+	iframe: document.getElementById('wp') as HTMLIFrameElement,
+	remoteUrl: 'http://localhost:4400/remote.html',
+});
+await login(playground, { username: 'admin', password: 'password' });
+await playground.goTo('/');
 
-console.log({ client1, client2 });
+console.log({ playground });
 
 class Counter extends Map<string, number> {
-    increment(key: string) {
-        this.set(key, (this.get(key) ?? 0) + 1);
-    }
-    get(key: string): number {
-        return super.get(key) || 0;
-    }
-    decrement(key: string) {
-        const newValue = (this.get(key) ?? 0) - 1;
-        if (newValue > 0) {
-            this.set(key, newValue);
-        } else {
-            this.delete(key);
-        }
-    }
+	increment(key: string) {
+		this.set(key, (this.get(key) ?? 0) + 1);
+	}
+	get(key: string): number {
+		return super.get(key) || 0;
+	}
+	decrement(key: string) {
+		const newValue = (this.get(key) ?? 0) - 1;
+		if (newValue > 0) {
+			this.set(key, newValue);
+		} else {
+			this.delete(key);
+		}
+	}
 }
 
-const lastClient1ToClient2Sql = new Counter();
-const lastClient2ToClient1Sql = new Counter();
+function broadcastChange(scope: string, details: any) {
+	window.top?.postMessage(
+		{
+			type: 'playground-change',
+			scope,
+			details,
+		},
+		'*'
+	);
+}
 
-client1.onMessage(async (messageString) => {
+function onChangeReceived(scope: string, fn: (details: any) => void) {
+	window.addEventListener('message', (event) => {
+		if (event.data.type !== 'playground-change') {
+			return;
+		}
+		if (event.data.scope !== scope) {
+			return;
+		}
+		fn(event.data.details);
+	});
+}
+
+const replayedSqlQueries = new Counter();
+
+playground.onMessage(async (messageString) => {
 	const { type, ...data } = JSON.parse(messageString) as any;
 	if (type !== 'sql') {
 		return;
@@ -50,38 +62,22 @@ client1.onMessage(async (messageString) => {
 	if (firstKeyword === 'select') {
 		return;
 	}
-	if (lastClient2ToClient1Sql.get(data.query) > 0) {
+	if (replayedSqlQueries.get(data.query) > 0) {
 		return;
 	}
-	console.log('[SQL][Client 1]', data.query);
-	lastClient1ToClient2Sql.increment(data.query);
-    client2.runSqlQueries([data.query]).then(() => {
-        lastClient1ToClient2Sql.decrement(data.query);
-    });
+	broadcastChange('sql', data.query);
 });
 
-client2.onMessage(async (messageString) => {
-	const { type, ...data } = JSON.parse(messageString) as any;
-	if (type !== 'sql') {
-		return;
-	}
-	const firstKeyword = data.query.trim().split(/\s/)[0].toLowerCase();
-	if (firstKeyword === 'select') {
-		return;
-	}
-	if (lastClient1ToClient2Sql.get(data.query) > 0) {
-		return;
-	}
-	console.log('[SQL][Client 2]', data.query);
-	lastClient2ToClient1Sql.increment(data.query);
-    client1.runSqlQueries([data.query]).then(() => {
-        lastClient2ToClient1Sql.decrement(data.query);
-    });
+onChangeReceived('sql', async (sql) => {
+	console.log('[SQL][Client 2]', sql);
+	replayedSqlQueries.increment(sql);
+	playground.runSqlQueries([sql]).then(() => {
+		replayedSqlQueries.decrement(sql);
+	});
 });
 
-let lastClient1ToClient2Op = '';
-let lastClient2ToClient1Op = '';
-client1.journalMemfs(async (op: FilesystemOperation) => {
+let replayedFsOp = '';
+playground.journalMemfs(async (op: FilesystemOperation) => {
 	if (
 		op.path.endsWith('/.ht.sqlite') ||
 		op.path.endsWith('/.ht.sqlite-journal')
@@ -89,56 +85,32 @@ client1.journalMemfs(async (op: FilesystemOperation) => {
 		return;
 	}
 	const opString = JSON.stringify(op.path);
-	if (lastClient2ToClient1Op === opString) {
+	if (replayedFsOp === opString) {
 		return;
 	}
-	lastClient1ToClient2Op = opString;
-	if (op.operation === 'CREATE_DIRECTORY') {
-		await client2.mkdirTree(op.path);
-	} else if (op.operation === 'DELETE') {
-		if (op.nodeType === 'file') {
-			await client2.unlink(op.path);
-		} else {
-			await client2.rmdir(op.path, {
-				recursive: true,
-			});
-		}
-	} else if (op.operation === 'UPDATE_FILE') {
-		await client1
-			.readFileAsBuffer(op.path)
-			.then((data) => client2.writeFile(op.path, data));
-	} else if (op.operation === 'RENAME') {
-		await client2.mv(op.path, op.toPath);
+	if (op.operation === 'UPDATE_FILE') {
+		op.data = await playground.readFileAsBuffer(op.path);
 	}
+	broadcastChange('fs', op);
 });
-client2.journalMemfs(async (op: FilesystemOperation) => {
-	if (
-		op.path.endsWith('/.ht.sqlite') ||
-		op.path.endsWith('/.ht.sqlite-journal')
-	) {
-		return;
-	}
+onChangeReceived('fs', async (op) => {
+	console.log('[FS][Client 2]', op);
 	const opString = JSON.stringify(op.path);
-	if (lastClient1ToClient2Op === opString) {
-		return;
-	}
-	lastClient2ToClient1Op = opString;
+	replayedFsOp = opString;
 	if (op.operation === 'CREATE_DIRECTORY') {
-		await client1.mkdirTree(op.path);
+		await playground.mkdirTree(op.path);
 	} else if (op.operation === 'DELETE') {
 		if (op.nodeType === 'file') {
-			await client1.unlink(op.path);
+			await playground.unlink(op.path);
 		} else {
-			await client1.rmdir(op.path, {
+			await playground.rmdir(op.path, {
 				recursive: true,
 			});
 		}
 	} else if (op.operation === 'UPDATE_FILE') {
-		await client1
-			.readFileAsBuffer(op.path)
-			.then((data) => client1.writeFile(op.path, data));
+		await playground.writeFile(op.path, op.data);
 	} else if (op.operation === 'RENAME') {
-		await client1.mv(op.path, op.toPath);
+		await playground.mv(op.path, op.toPath);
 	}
 });
 
