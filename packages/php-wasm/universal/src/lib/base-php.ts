@@ -17,7 +17,6 @@ import {
 	RmDirOptions,
 	ListFilesOptions,
 	SpawnHandler,
-	PHPEventListener,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
@@ -43,9 +42,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
-	#eventListeners: Record<string, PHPEventListener<any>[]> = {};
 	#messageListeners: MessageListener[] = [];
-	#unbindMemfsEvents: () => void = () => {};
 	requestHandler?: PHPBrowser;
 
 	/**
