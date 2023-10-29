@@ -8,6 +8,9 @@ export type {
 	UniversalPHP,
 	ListFilesOptions,
 	RmDirOptions,
+	PHPEvent,
+	PHPFilesystemEvent,
+	PHPEventListener,
 	HTTPMethod,
 	PHPRequest,
 	PHPRequestHeaders,
@@ -15,6 +18,9 @@ export type {
 	SpawnHandler,
 } from './universal-php';
 
+export { journalMemfs } from './journal-memfs';
+export type { MemfsJournal } from './journal-memfs';
+export type { FilesystemOperation } from './journal-memfs';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 
 export { PHPResponse } from './php-response';

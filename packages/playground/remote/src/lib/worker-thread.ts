@@ -9,6 +9,7 @@ import {
 	SupportedWordPressVersionsList,
 } from '../wordpress/get-wordpress-module';
 import {
+	journalMemfs,
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
@@ -20,7 +21,6 @@ import {
 } from './opfs/bind-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
 import { phpVars } from '@php-wasm/util';
-import { journalMemfsToOpfs } from './opfs/journal-memfs-to-opfs';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -222,6 +222,17 @@ try {
 			`,
 		});
 	};
+
+	console.log(
+		(
+			await php.run({
+				code: `<?php
+		var_dump(PHP_INT_MAX);
+		`,
+			})
+		).text
+	);
+
 	php.onMessage(function (messageString: string) {
 		const { type, ...data } = JSON.parse(messageString) as any;
 		if (type === 'sql') {
@@ -232,10 +243,24 @@ try {
 			}
 		}
 	});
-	(globalThis as any).journal = [];
-	php.addEventListener('fs', ({ data }) => {
-		(globalThis as any).journal.push(data);
+
+	const journal = journalMemfs(php, '/wordpress/wp-content', () => {
+		if (journal.size() < 100) {
+			return;
+		}
 	});
+	(globalThis as any).journal = journal;
+	(globalThis as any).flushJournal = () => {
+		const entries = journal
+			.flush()
+			.flatMap((partition) => partition)
+			.filter(
+				({ path }) =>
+					!path.endsWith('/.ht.sqlite') &&
+					!path.endsWith('/.ht.sqlite-journal')
+			);
+		console.log(entries);
+	};
 
 	setApiReady();
 } catch (e) {

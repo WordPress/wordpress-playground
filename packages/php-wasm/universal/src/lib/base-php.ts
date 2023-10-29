@@ -17,24 +17,17 @@ import {
 	RmDirOptions,
 	ListFilesOptions,
 	SpawnHandler,
+	PHPEventListener,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { FilesystemEntry, observeMemfsEvents } from './observe-memfs-events';
 
 const STRING = 'string';
 const NUMBER = 'number';
 
-export type FSEvent = {
-	type: 'fs';
-	data: FilesystemEntry;
-};
-
-export type PHPEvent = FSEvent;
-export type PHPEventListener<T extends PHPEvent> = (event: T) => void;
 export const __private__dont__use = Symbol('__private__dont__use');
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -73,48 +66,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.requestHandler = new PHPBrowser(
 				new PHPRequestHandler(this, serverOptions)
 			);
-		}
-	}
-
-	addEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
-	) {
-		if (!(eventType in this.#eventListeners)) {
-			this.#eventListeners[eventType] = [];
-			if (eventType === 'fs') {
-				this.#unbindMemfsEvents = observeMemfsEvents(this);
-			}
-		}
-		this.#eventListeners[eventType].push(listener);
-	}
-
-	removeEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
-	) {
-		if (!(eventType in this.#eventListeners)) {
-			return;
-		}
-		const index = this.#eventListeners[eventType].indexOf(listener);
-		if (index > -1) {
-			this.#eventListeners[eventType].splice(index, 1);
-		}
-		if (eventType === 'fs' && this.#eventListeners[eventType].length === 0) {
-			this.#unbindMemfsEvents();
-			this.#unbindMemfsEvents = () => {};
-		}
-	}
-
-	dispatchEvent<Event extends PHPEvent>(
-		eventType: Event['type'],
-		data: Event['data']
-	) {
-		if (!(eventType in this.#eventListeners)) {
-			return;
-		}
-		for (const listener of this.#eventListeners[eventType]) {
-			listener({ type: eventType, data });
 		}
 	}
 
