@@ -79,6 +79,12 @@ export async function bootPlaygroundRemote() {
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},
+		async journalMemfs(callback) {
+			return workerApi.journalMemfs(callback);
+		},
+		async runSqlQueries(queries) {
+			return workerApi.runSqlQueries(queries);
+		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
 				throw new Error('Progress bar not available');

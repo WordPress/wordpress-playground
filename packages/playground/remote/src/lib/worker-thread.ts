@@ -167,6 +167,23 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 			onProgress,
 		});
 	}
+
+	async journalMemfs(callback) {
+		journalMemfs(php, '/wordpress/wp-content', callback);
+	}
+
+	async runSqlQueries(queries: string[]) {
+		const js = phpVars({ queries });
+		return await php.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			$queries = ${js.queries};
+			foreach($queries as $query) {
+				$wpdb->query($query);
+			}
+			`,
+		});
+	}
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
@@ -207,60 +224,6 @@ try {
 		wordpressPath: DOCROOT,
 		siteUrl: scopedSiteUrl,
 	});
-
-	const sqlLog: string[] = [];
-	(globalThis as any).sqlLog = sqlLog;
-	globalThis.runQueries = async (queries: string[]) => {
-		const js = phpVars({ queries });
-		return await php.run({
-			code: `<?php
-			require '/wordpress/wp-load.php';
-			$queries = ${js.queries};
-			foreach($queries as $query) {
-				$wpdb->query($query);
-			}
-			`,
-		});
-	};
-
-	console.log(
-		(
-			await php.run({
-				code: `<?php
-		var_dump(PHP_INT_MAX);
-		`,
-			})
-		).text
-	);
-
-	php.onMessage(function (messageString: string) {
-		const { type, ...data } = JSON.parse(messageString) as any;
-		if (type === 'sql') {
-			const firstKeyword = data.query.trim().split(/\s/)[0].toLowerCase();
-			if (firstKeyword !== 'select') {
-				sqlLog.push(data.query);
-				console.log('SQL', data.query);
-			}
-		}
-	});
-
-	const journal = journalMemfs(php, '/wordpress/wp-content', () => {
-		if (journal.size() < 100) {
-			return;
-		}
-	});
-	(globalThis as any).journal = journal;
-	(globalThis as any).flushJournal = () => {
-		const entries = journal
-			.flush()
-			.flatMap((partition) => partition)
-			.filter(
-				({ path }) =>
-					!path.endsWith('/.ht.sqlite') &&
-					!path.endsWith('/.ht.sqlite-journal')
-			);
-		console.log(entries);
-	};
 
 	setApiReady();
 } catch (e) {
