@@ -1,6 +1,6 @@
-import { startPlaygroundWeb } from '@wp-playground/client';
+import { phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { FilesystemOperation } from '@php-wasm/universal';
+import { FilesystemOperation, PHPResponse } from '@php-wasm/universal';
 /** @ts-ignore */
 import bumpAutoIncrements from './bump-auto-increment.php?raw';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
@@ -83,13 +83,32 @@ onChangeReceived('sql', async (data) => {
 	const queries = [data.query];
 	if (data.query_type === 'INSERT' && data.auto_increment_column) {
 		queries.push(
-            `UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE 
+			`UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE 
                 data.auto_increment_column = (SELECT MAX(${data.auto_increment_column}) FROM ${data.table_name});`
 		);
 	}
 	replayedSqlQueries.increment(data.query);
-    playground.runSqlQueries(queries).then((result) => {
-        console.log(result.text);
+
+	let promise;
+	if (data.auto_increment_column && data.last_insert_id) {
+		const js = phpVars(data);
+		promise = playground.run({
+			code: `<?php
+			require '/wordpress/wp-load.php';
+            $wpdb->query(${js.query});
+
+            $pdo = new PDO('sqlite://wordpress/wp-content/database/.ht.sqlite');
+            $stmt = $pdo->query("SELECT MAX(${data.auto_increment_column}) as max_id FROM ${data.table_name}");
+            $result = $stmt->fetch();
+
+            $pdo->exec("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = " . $result['max_id']);
+        `,
+		});
+	} else {
+		promise = playground.runSqlQueries(queries);
+	}
+
+	promise.then((result) => {
 		replayedSqlQueries.decrement(data.query);
 	});
 });
