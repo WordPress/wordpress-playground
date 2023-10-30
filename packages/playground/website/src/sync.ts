@@ -1,6 +1,9 @@
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
+/** @ts-ignore */
+import bumpAutoIncrements from './bump-auto-increment.php?raw';
+import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 
 const playground = await startPlaygroundWeb({
 	iframe: document.getElementById('wp') as HTMLIFrameElement,
@@ -9,7 +12,14 @@ const playground = await startPlaygroundWeb({
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
 
-console.log({ playground });
+await playground.writeFile(
+	'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
+	patchedSqliteTranslator
+);
+
+await playground.run({
+	code: bumpAutoIncrements,
+});
 
 class Counter extends Map<string, number> {
 	increment(key: string) {
@@ -65,14 +75,22 @@ playground.onMessage(async (messageString) => {
 	if (replayedSqlQueries.get(data.query) > 0) {
 		return;
 	}
-	broadcastChange('sql', data.query);
+	broadcastChange('sql', data);
 });
 
-onChangeReceived('sql', async (sql) => {
-	console.log('[SQL][Client 2]', sql);
-	replayedSqlQueries.increment(sql);
-	playground.runSqlQueries([sql]).then(() => {
-		replayedSqlQueries.decrement(sql);
+onChangeReceived('sql', async (data) => {
+	console.log('[SQL][Client 2]', data);
+	const queries = [data.query];
+	if (data.query_type === 'INSERT' && data.auto_increment_column) {
+		queries.push(
+            `UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE 
+                data.auto_increment_column = (SELECT MAX(${data.auto_increment_column}) FROM ${data.table_name});`
+		);
+	}
+	replayedSqlQueries.increment(data.query);
+    playground.runSqlQueries(queries).then((result) => {
+        console.log(result.text);
+		replayedSqlQueries.decrement(data.query);
 	});
 });
 
