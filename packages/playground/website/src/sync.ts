@@ -84,8 +84,9 @@ onChangeReceived('sql', async (data) => {
 	replayedSqlQueries.increment(data.query);
 	let promise;
 	if (data.auto_increment_column && data.last_insert_id) {
-        const js = phpVars(data);
-        // @TODO: handle escaping, use $wpdb instead of PDO
+		const js = phpVars(data);
+		// @TODO: handle escaping, use $wpdb instead of PDO
+		// @TODO: handle CREATE TABLE, ALTER TABLE, etc.
 		promise = playground.run({
 			code: `<?php
 			require '/wordpress/wp-load.php';
