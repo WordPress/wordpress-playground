@@ -1,6 +1,6 @@
 import { phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { FilesystemOperation, PHPResponse } from '@php-wasm/universal';
+import { FilesystemOperation } from '@php-wasm/universal';
 /** @ts-ignore */
 import bumpAutoIncrements from './bump-auto-increment.php?raw';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
@@ -79,19 +79,13 @@ playground.onMessage(async (messageString) => {
 });
 
 onChangeReceived('sql', async (data) => {
-	console.log('[SQL][Client 2]', data);
-	const queries = [data.query];
-	if (data.query_type === 'INSERT' && data.auto_increment_column) {
-		queries.push(
-			`UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE 
-                data.auto_increment_column = (SELECT MAX(${data.auto_increment_column}) FROM ${data.table_name});`
-		);
-	}
-	replayedSqlQueries.increment(data.query);
+	console.log('[SQL]', data);
 
+	replayedSqlQueries.increment(data.query);
 	let promise;
 	if (data.auto_increment_column && data.last_insert_id) {
-		const js = phpVars(data);
+        const js = phpVars(data);
+        // @TODO: handle escaping, use $wpdb instead of PDO
 		promise = playground.run({
 			code: `<?php
 			require '/wordpress/wp-load.php';
@@ -105,10 +99,10 @@ onChangeReceived('sql', async (data) => {
         `,
 		});
 	} else {
-		promise = playground.runSqlQueries(queries);
+		promise = playground.runSqlQueries([data.query]);
 	}
 
-	promise.then((result) => {
+	promise.then(() => {
 		replayedSqlQueries.decrement(data.query);
 	});
 });
