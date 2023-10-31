@@ -5,15 +5,23 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
-	<iframe src="./synced.html" style="width: 44vw; height: 80vh"></iframe>
-	<iframe src="./synced.html" style="width: 44vw; height: 80vh"></iframe>
+	<iframe
+		src="./synced.html"
+		style="width: 44vw; height: 80vh"
+		id="wp1"
+	></iframe>
+	<iframe
+		src="./synced.html"
+		style="width: 44vw; height: 80vh"
+		id="wp1"
+	></iframe>
 	<script type="module">
 		const iframes = Array.from(document.querySelectorAll('iframe'));
 		window.onmessage = (event) => {
 			if (event.data.type !== 'playground-change') {
 				return;
 			}
-			console.log('received message from iframe', event);
+			// console.log('[Synced parent] received message from iframe', event);
 			iframes.forEach((iframe) => {
 				if (iframe.contentWindow === event.source) {
 					return;

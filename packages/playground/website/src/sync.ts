@@ -49,7 +49,23 @@ function broadcastChange(scope: string, details: any) {
 	);
 }
 
-function onChangeReceived(scope: string, fn: (details: any) => void) {
+type SQLChange = {
+	type: 'sql';
+	query: string;
+	query_type: string;
+	table_name: string;
+	auto_increment_column: string;
+	last_insert_id: number;
+};
+type FSChange = {
+	type: 'fs';
+};
+
+type ChangeType = SQLChange | FSChange;
+function onChangeReceived<T extends ChangeType>(
+	scope: string,
+	fn: (details: T) => void
+) {
 	window.addEventListener('message', (event) => {
 		if (event.data.type !== 'playground-change') {
 			return;
@@ -78,8 +94,8 @@ playground.onMessage(async (messageString) => {
 	broadcastChange('sql', data);
 });
 
-onChangeReceived('sql', async (data) => {
-	console.log('[SQL]', data);
+onChangeReceived<SQLChange>('sql', async (data) => {
+	console.log('[onChangeReceived][SQL]', data);
 
 	replayedSqlQueries.increment(data.query);
 	let promise;
@@ -90,20 +106,58 @@ onChangeReceived('sql', async (data) => {
 		promise = playground.run({
 			code: `<?php
 			require '/wordpress/wp-load.php';
+
+			/**
+			 * If we're INSERT-ing to a table with an autoincrement
+			 * column, this peer uses a different sequence offset than
+			 * the remote peer. Simply replaying inserts won't suffice
+			 * to reconcile the changes as we're going to have different
+			 * IDs on both ends.
+			 * 
+			 * We need to:
+			 * * Store the autoincrement sequence value
+			 * * Replay INSERT
+			 * * Immediately update the ID to the same one as the remote assigned
+			 * * Restore the original autoincrement sequence value
+			 */
+			$rewrite_autoincrement = (
+				${js.query_type} === "INSERT" &&
+				!!${js.auto_increment_column} &&
+				!!${js.last_insert_id}
+			);
+			// Store the autoincrement sequence value:
+			if ( $rewrite_autoincrement ) {
+				$pdo = $GLOBALS['@pdo'];
+				$stmt = $pdo->prepare("SELECT seq FROM sqlite_sequence WHERE name = :table_name");
+				$table_name = ${js.table_name};
+				$stmt->bindParam("table_name", $table_name);
+				$stmt->execute();
+				$row = $stmt->fetch();
+				$original_sequence = $row['seq'];
+			}
+
+			// Replay INSERT
             $wpdb->query(${js.query});
 
-            $pdo = new PDO('sqlite://wordpress/wp-content/database/.ht.sqlite');
-            $stmt = $pdo->query("SELECT MAX(${data.auto_increment_column}) as max_id FROM ${data.table_name}");
-            $result = $stmt->fetch();
+			if ( $rewrite_autoincrement ) {
+				// Immediately update the ID to the same one as the remote assigned
+				$stmt = $pdo->prepare("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = :original_sequence");
+				$stmt->bindParam(':original_sequence', $original_sequence);
+				$stmt->execute();
 
-            $pdo->exec("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = " . $result['max_id']);
+				// Restore the original autoincrement sequence value
+				$stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :original_sequence WHERE name = :table_name");
+				$stmt->bindParam("original_sequence", $original_sequence);
+				$stmt->bindParam("table_name", $table_name);
+				$stmt->execute();
+			}
         `,
 		});
 	} else {
 		promise = playground.runSqlQueries([data.query]);
 	}
 
-	promise.then(() => {
+	promise.finally(() => {
 		replayedSqlQueries.decrement(data.query);
 	});
 });
