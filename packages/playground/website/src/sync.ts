@@ -21,23 +21,6 @@ await playground.run({
 	code: bumpAutoIncrements,
 });
 
-class Counter extends Map<string, number> {
-	increment(key: string) {
-		this.set(key, (this.get(key) ?? 0) + 1);
-	}
-	get(key: string): number {
-		return super.get(key) || 0;
-	}
-	decrement(key: string) {
-		const newValue = (this.get(key) ?? 0) - 1;
-		if (newValue > 0) {
-			this.set(key, newValue);
-		} else {
-			this.delete(key);
-		}
-	}
-}
-
 function broadcastChange(scope: string, details: any) {
 	window.top?.postMessage(
 		{
@@ -59,7 +42,7 @@ type SQLChange = {
 };
 type FSChange = {
 	type: 'fs';
-};
+} & FilesystemOperation;
 
 type ChangeType = SQLChange | FSChange;
 function onChangeReceived<T extends ChangeType>(
@@ -77,18 +60,12 @@ function onChangeReceived<T extends ChangeType>(
 	});
 }
 
-const replayedSqlQueries = new Counter();
-
 playground.onMessage(async (messageString) => {
-	const { type, ...data } = JSON.parse(messageString) as any;
+	const { type, ...data } = JSON.parse(messageString) as SQLChange;
 	if (type !== 'sql') {
 		return;
 	}
-	const firstKeyword = data.query.trim().split(/\s/)[0].toLowerCase();
-	if (firstKeyword === 'select') {
-		return;
-	}
-	if (replayedSqlQueries.get(data.query) > 0) {
+	if (data.query_type === 'SELECT') {
 		return;
 	}
 	broadcastChange('sql', data);
@@ -97,68 +74,62 @@ playground.onMessage(async (messageString) => {
 onChangeReceived<SQLChange>('sql', async (data) => {
 	console.log('[onChangeReceived][SQL]', data);
 
-	replayedSqlQueries.increment(data.query);
-	let promise;
-	if (data.auto_increment_column && data.last_insert_id) {
-		const js = phpVars(data);
-		// @TODO: handle escaping, use $wpdb instead of PDO
-		// @TODO: handle CREATE TABLE, ALTER TABLE, etc.
-		promise = playground.run({
-			code: `<?php
-			require '/wordpress/wp-load.php';
+	const js = phpVars(data);
+	// @TODO: handle escaping, use $wpdb instead of PDO
+	// @TODO: handle CREATE TABLE, ALTER TABLE, etc.
+	playground.run({
+		code: `<?php
+		// Prevent reporting changes from queries we're just replaying
+		$GLOBALS['@REPLAYING_SQL'] = true;
 
-			/**
-			 * If we're INSERT-ing to a table with an autoincrement
-			 * column, this peer uses a different sequence offset than
-			 * the remote peer. Simply replaying inserts won't suffice
-			 * to reconcile the changes as we're going to have different
-			 * IDs on both ends.
-			 * 
-			 * We need to:
-			 * * Store the autoincrement sequence value
-			 * * Replay INSERT
-			 * * Immediately update the ID to the same one as the remote assigned
-			 * * Restore the original autoincrement sequence value
-			 */
-			$rewrite_autoincrement = (
-				${js.query_type} === "INSERT" &&
-				!!${js.auto_increment_column} &&
-				!!${js.last_insert_id}
-			);
-			// Store the autoincrement sequence value:
-			if ( $rewrite_autoincrement ) {
-				$pdo = $GLOBALS['@pdo'];
-				$stmt = $pdo->prepare("SELECT seq FROM sqlite_sequence WHERE name = :table_name");
-				$table_name = ${js.table_name};
-				$stmt->bindParam("table_name", $table_name);
-				$stmt->execute();
-				$row = $stmt->fetch();
-				$original_sequence = $row['seq'];
-			}
+		// Only load WordPress now
+		require '/wordpress/wp-load.php';
 
-			// Replay INSERT
-            $wpdb->query(${js.query});
+		/**
+		 * If we're INSERT-ing to a table with an autoincrement
+		 * column, this peer uses a different sequence offset than
+		 * the remote peer. Simply replaying inserts won't suffice
+		 * to reconcile the changes as we're going to have different
+		 * IDs on both ends.
+		 * 
+		 * We need to:
+		 * * Store the autoincrement sequence value
+		 * * Replay INSERT
+		 * * Immediately update the ID to the same one as the remote assigned
+		 * * Restore the original autoincrement sequence value
+		 */
+		$rewrite_autoincrement = (
+			${js.query_type} === "INSERT" &&
+			!!${js.auto_increment_column} &&
+			!!${js.last_insert_id}
+		);
+		// Store the autoincrement sequence value:
+		if ( $rewrite_autoincrement ) {
+			$pdo = $GLOBALS['@pdo'];
+			$stmt = $pdo->prepare("SELECT seq FROM sqlite_sequence WHERE name = :table_name");
+			$table_name = ${js.table_name};
+			$stmt->bindParam("table_name", $table_name);
+			$stmt->execute();
+			$row = $stmt->fetch();
+			$original_sequence = $row['seq'];
+		}
 
-			if ( $rewrite_autoincrement ) {
-				// Immediately update the ID to the same one as the remote assigned
-				$stmt = $pdo->prepare("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = :original_sequence");
-				$stmt->bindParam(':original_sequence', $original_sequence);
-				$stmt->execute();
+		// Replay INSERT
+		$wpdb->query(${js.query});
 
-				// Restore the original autoincrement sequence value
-				$stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :original_sequence WHERE name = :table_name");
-				$stmt->bindParam("original_sequence", $original_sequence);
-				$stmt->bindParam("table_name", $table_name);
-				$stmt->execute();
-			}
-        `,
-		});
-	} else {
-		promise = playground.runSqlQueries([data.query]);
-	}
+		if ( $rewrite_autoincrement ) {
+			// Immediately update the ID to the same one as the remote assigned
+			$stmt = $pdo->prepare("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = :original_sequence");
+			$stmt->bindParam(':original_sequence', $original_sequence);
+			$stmt->execute();
 
-	promise.finally(() => {
-		replayedSqlQueries.decrement(data.query);
+			// Restore the original autoincrement sequence value
+			$stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :original_sequence WHERE name = :table_name");
+			$stmt->bindParam("original_sequence", $original_sequence);
+			$stmt->bindParam("table_name", $table_name);
+			$stmt->execute();
+		}
+	`,
 	});
 });
 
@@ -179,7 +150,7 @@ playground.journalMemfs(async (op: FilesystemOperation) => {
 	}
 	broadcastChange('fs', op);
 });
-onChangeReceived('fs', async (op) => {
+onChangeReceived<FSChange>('fs', async (op) => {
 	console.log('[FS][Client 2]', op);
 	const opString = JSON.stringify(op.path);
 	replayedFsOp = opString;

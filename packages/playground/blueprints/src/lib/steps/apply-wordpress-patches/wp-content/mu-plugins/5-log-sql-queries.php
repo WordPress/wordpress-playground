@@ -1,6 +1,7 @@
 <?php
 
-function findAutoIncrementColumns() {
+function findAutoIncrementColumns()
+{
     $pdo = new PDO('sqlite://wordpress/wp-content/database/.ht.sqlite');
     $columns = [];
 
@@ -28,7 +29,7 @@ function getTableInfo(PDO $pdo, $tableName)
         $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $primaryKeyAutoIncrement = null;
         foreach ($columns as $column) {
-            if ($column['pk'] == 1 && stripos($column['type'], 'INTEGER') !== false) { 
+            if ($column['pk'] == 1 && stripos($column['type'], 'INTEGER') !== false) {
                 $stmt = $pdo->prepare("SELECT count(*) as nb FROM sqlite_sequence WHERE name=:table_name");
                 $stmt->execute([':table_name' => $tableName]);
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -47,9 +48,6 @@ function getTableInfo(PDO $pdo, $tableName)
     }
 }
 
-$auto_increment_columns = findAutoIncrementColumns();
-
-
 function playground_report_queries($query, $query_type, $table_name, $insert_columns, $last_insert_id)
 {
     global $auto_increment_columns;
@@ -63,5 +61,11 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
         'last_insert_id' => $last_insert_id,
     ]));
 }
-add_filter('post_query_sqlite_db', 'playground_report_queries', -1000, 5);
+
+// Don't report SQL queries we're replaying from another peer.
+if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
+    $auto_increment_columns = findAutoIncrementColumns();
+    add_filter('post_query_sqlite_db', 'playground_report_queries', -1000, 5);
+}
+
 
