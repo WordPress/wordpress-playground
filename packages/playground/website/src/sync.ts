@@ -75,10 +75,10 @@ onChangeReceived<SQLChange>('sql', async (data) => {
 	console.log('[onChangeReceived][SQL]', data);
 
 	const js = phpVars(data);
-	// @TODO: handle escaping, use $wpdb instead of PDO
 	// @TODO: handle CREATE TABLE, ALTER TABLE, etc.
-	playground.run({
-		code: `<?php
+	playground
+		.run({
+			code: `<?php
 		// Prevent reporting changes from queries we're just replaying
 		$GLOBALS['@REPLAYING_SQL'] = true;
 
@@ -119,8 +119,11 @@ onChangeReceived<SQLChange>('sql', async (data) => {
 
 		if ( $rewrite_autoincrement ) {
 			// Immediately update the ID to the same one as the remote assigned
-			$stmt = $pdo->prepare("UPDATE ${data.table_name} SET ${data.auto_increment_column} = ${data.last_insert_id} WHERE ${data.auto_increment_column} = :original_sequence");
+			$auto_increment_column = ${js.auto_increment_column};
+			$stmt = $pdo->prepare("UPDATE $table_name SET $auto_increment_column = :last_insert_id WHERE $auto_increment_column = :original_sequence");
 			$stmt->bindParam(':original_sequence', $original_sequence);
+			$last_insert_id = ${js.last_insert_id};
+			$stmt->bindParam(':last_insert_id', $last_insert_id);
 			$stmt->execute();
 
 			// Restore the original autoincrement sequence value
@@ -130,7 +133,16 @@ onChangeReceived<SQLChange>('sql', async (data) => {
 			$stmt->execute();
 		}
 	`,
-	});
+		})
+		.then((r) => {
+			console.log({
+				text: r.text,
+				errors: r.errors,
+			});
+		})
+		.catch((e) => {
+			console.error(e);
+		});
 });
 
 let replayedFsOp = '';

@@ -171,19 +171,6 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	async journalMemfs(callback) {
 		journalMemfs(php, '/wordpress/wp-content', callback);
 	}
-
-	async runSqlQueries(queries: string[]) {
-		const js = phpVars({ queries });
-		return await php.run({
-			code: `<?php
-			require '/wordpress/wp-load.php';
-			$queries = ${js.queries};
-			foreach($queries as $query) {
-				$wpdb->query($query);
-			}
-			`,
-		});
-	}
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
