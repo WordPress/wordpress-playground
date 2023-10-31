@@ -2,7 +2,7 @@
 
 function findAutoIncrementColumns()
 {
-    $pdo = new PDO('sqlite://wordpress/wp-content/database/.ht.sqlite');
+    $pdo = $GLOBALS['@pdo'];
     $columns = [];
 
     $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
@@ -48,6 +48,25 @@ function getTableInfo(PDO $pdo, $tableName)
     }
 }
 
+function playground_bump_autoincrements_filter($query, $query_type)
+{
+    if($query_type !== 'CREATE TABLE' && $query_type !== 'ALTER TABLE') {
+        return;
+    }
+
+    playground_bump_autoincrements();
+}
+add_filter('post_query_sqlite_db', 'playground_bump_autoincrements_filter', -1000, 2);
+
+function playground_bump_autoincrements()
+{
+    $pdo = $GLOBALS['@pdo'];
+    $stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :new_seq where seq < :new_seq");
+    $new_seq = get_option('playground_id_offset');
+    $stmt->bindParam(':new_seq', $new_seq);
+    $stmt->execute();
+}
+
 function playground_report_queries($query, $query_type, $table_name, $insert_columns, $last_insert_id)
 {
     global $auto_increment_columns;
@@ -67,5 +86,4 @@ if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
     $auto_increment_columns = findAutoIncrementColumns();
     add_filter('post_query_sqlite_db', 'playground_report_queries', -1000, 5);
 }
-
 

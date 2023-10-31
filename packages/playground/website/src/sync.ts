@@ -1,25 +1,27 @@
-import { phpVars, startPlaygroundWeb } from '@wp-playground/client';
+import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
-/** @ts-ignore */
-import bumpAutoIncrements from './bump-auto-increment.php?raw';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 
 const playground = await startPlaygroundWeb({
 	iframe: document.getElementById('wp') as HTMLIFrameElement,
 	remoteUrl: 'http://localhost:4400/remote.html',
 });
-await login(playground, { username: 'admin', password: 'password' });
-await playground.goTo('/');
-
 await playground.writeFile(
 	'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
 	patchedSqliteTranslator
 );
-
+const idOffset = Math.round(Math.random() * 1_000_000);
 await playground.run({
-	code: bumpAutoIncrements,
+	code: `<?php
+	require '/wordpress/wp-load.php';
+	update_option('playground_id_offset', ${phpVar(idOffset)});
+	playground_bump_autoincrements();
+	`,
 });
+
+await login(playground, { username: 'admin', password: 'password' });
+await playground.goTo('/');
 
 function broadcastChange(scope: string, details: any) {
 	window.top?.postMessage(
@@ -75,7 +77,6 @@ onChangeReceived<SQLChange>('sql', async (data) => {
 	console.log('[onChangeReceived][SQL]', data);
 
 	const js = phpVars(data);
-	// @TODO: handle CREATE TABLE, ALTER TABLE, etc.
 	playground
 		.run({
 			code: `<?php
@@ -162,12 +163,15 @@ playground.journalMemfs(async (op: FilesystemOperation) => {
 	}
 	broadcastChange('fs', op);
 });
+
 onChangeReceived<FSChange>('fs', async (op) => {
 	console.log('[FS][Client 2]', op);
 	const opString = JSON.stringify(op.path);
 	replayedFsOp = opString;
 	if (op.operation === 'CREATE_DIRECTORY') {
 		await playground.mkdirTree(op.path);
+	} else if (op.operation === 'CREATE_FILE') {
+		await playground.writeFile(op.path, ' ');
 	} else if (op.operation === 'DELETE') {
 		if (op.nodeType === 'file') {
 			await playground.unlink(op.path);

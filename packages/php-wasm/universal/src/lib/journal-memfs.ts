@@ -68,6 +68,16 @@ export type CreateDirectoryOperation = {
 	path: string;
 };
 
+/**
+ * Represents a file operation.
+ */
+export type CreateFileOperation = {
+	/** The type of operation being performed. */
+	operation: 'CREATE_FILE';
+	/** The path of the node being updated. */
+	path: string;
+};
+
 export type DeleteOperation = {
 	/** The type of operation being performed. */
 	operation: 'DELETE';
@@ -108,6 +118,7 @@ export type FSNode = {
 export type FilesystemOperation =
 	| NoopOperation
 	| CreateDirectoryOperation
+	| CreateFileOperation
 	| UpdateFileOperation
 	| DeleteOperation
 	| RenameOperation;
@@ -177,6 +188,17 @@ export function journalMemfs(
 			nodeType: 'file',
 		});
 		return originalUnlink(path, ...rest);
+	};
+
+	const originalMknod = FS.mknod;
+	FS.mknod = function (path: string, mode: number, ...rest: any[]) {
+		if (FS.isFile(mode)) {
+			addEntry({
+				operation: 'CREATE_FILE',
+				path,
+			});
+		}
+		return originalMknod(path, mode, ...rest);
 	};
 
 	const originalMkdir = FS.mkdir;

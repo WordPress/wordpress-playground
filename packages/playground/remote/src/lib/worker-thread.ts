@@ -20,7 +20,6 @@ import {
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
 import { applyWordPressPatches } from '@wp-playground/blueprints';
-import { phpVars } from '@php-wasm/util';
 
 // post message to parent
 self.postMessage('worker-script-started');
