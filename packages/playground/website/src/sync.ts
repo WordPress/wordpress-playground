@@ -1,6 +1,7 @@
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
+import { Semaphore } from '@php-wasm/util';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 
 const playground = await startPlaygroundWeb({
@@ -164,26 +165,34 @@ playground.journalMemfs(async (op: FilesystemOperation) => {
 	broadcastChange('fs', op);
 });
 
+const fsLock = new Semaphore({ concurrency: 1 });
 onChangeReceived<FSChange>('fs', async (op) => {
-	console.log('[FS][Client 2]', op);
-	const opString = JSON.stringify(op.path);
-	replayedFsOp = opString;
-	if (op.operation === 'CREATE_DIRECTORY') {
-		await playground.mkdirTree(op.path);
-	} else if (op.operation === 'CREATE_FILE') {
-		await playground.writeFile(op.path, ' ');
-	} else if (op.operation === 'DELETE') {
-		if (op.nodeType === 'file') {
-			await playground.unlink(op.path);
-		} else {
-			await playground.rmdir(op.path, {
-				recursive: true,
-			});
+	const release = await fsLock.acquire();
+	try {
+		console.log('[FS][Client 2]', op);
+		const opString = JSON.stringify(op.path);
+		replayedFsOp = opString;
+		if (op.operation === 'CREATE') {
+			if (op.nodeType === 'file') {
+				await playground.writeFile(op.path, ' ');
+			} else {
+				await playground.mkdirTree(op.path);
+			}
+		} else if (op.operation === 'DELETE') {
+			if (op.nodeType === 'file') {
+				await playground.unlink(op.path);
+			} else {
+				await playground.rmdir(op.path, {
+					recursive: true,
+				});
+			}
+		} else if (op.operation === 'UPDATE_FILE') {
+			await playground.writeFile(op.path, op.data);
+		} else if (op.operation === 'RENAME') {
+			await playground.mv(op.path, op.toPath);
 		}
-	} else if (op.operation === 'UPDATE_FILE') {
-		await playground.writeFile(op.path, op.data);
-	} else if (op.operation === 'RENAME') {
-		await playground.mv(op.path, op.toPath);
+	} finally {
+		release();
 	}
 });
 

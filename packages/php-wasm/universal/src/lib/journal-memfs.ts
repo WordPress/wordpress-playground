@@ -61,21 +61,13 @@ export type UpdateFileOperation = {
 /**
  * Represents a directory operation.
  */
-export type CreateDirectoryOperation = {
+export type CreateOperation = {
 	/** The type of operation being performed. */
-	operation: 'CREATE_DIRECTORY';
-	/** The path of the node being updated. */
+	operation: 'CREATE';
+	/** The path of the node being created. */
 	path: string;
-};
-
-/**
- * Represents a file operation.
- */
-export type CreateFileOperation = {
-	/** The type of operation being performed. */
-	operation: 'CREATE_FILE';
-	/** The path of the node being updated. */
-	path: string;
+	/** The type of the node being created. */
+	nodeType: FSNodeType;
 };
 
 export type DeleteOperation = {
@@ -117,8 +109,7 @@ export type FSNode = {
 
 export type FilesystemOperation =
 	| NoopOperation
-	| CreateDirectoryOperation
-	| CreateFileOperation
+	| CreateOperation
 	| UpdateFileOperation
 	| DeleteOperation
 	| RenameOperation;
@@ -194,8 +185,9 @@ export function journalMemfs(
 	FS.mknod = function (path: string, mode: number, ...rest: any[]) {
 		if (FS.isFile(mode)) {
 			addEntry({
-				operation: 'CREATE_FILE',
+				operation: 'CREATE',
 				path,
+				nodeType: 'file',
 			});
 		}
 		return originalMknod(path, mode, ...rest);
@@ -204,8 +196,9 @@ export function journalMemfs(
 	const originalMkdir = FS.mkdir;
 	FS.mkdir = function (path: string, ...rest: any[]) {
 		addEntry({
-			operation: 'CREATE_DIRECTORY',
+			operation: 'CREATE',
 			path,
+			nodeType: 'directory',
 		});
 		return originalMkdir(path, ...rest);
 	};
@@ -220,54 +213,24 @@ export function journalMemfs(
 		return originalRmdir(path, ...rest);
 	};
 
-	const workingSet: Set<string> = new Set();
 	function addEntry(entry: FilesystemOperation) {
+		// Only journal entries inside the specified root directory.
 		if (!entry.path.startsWith(memfsRoot) || entry.path === memfsRoot) {
 			return;
 		}
-		// Partition the entries into groups of operations that can be
-		// performed in parallel.
-		const lastPartition = journal.partitions[journal.partitions.length - 1];
-		const lastEntry = lastPartition[lastPartition.length - 1];
-
-		// RENAME entries are always added to a new partition because
-		// parallelizing the following two RENAME operations only works
-		// if the first one is done before the second one:
-		//     RENAME /path_1 /path_2
-		//     RENAME /path_2 /path_3
-		if (
-			entry.operation === lastEntry.operation &&
-			entry.operation !== 'RENAME'
-		) {
-			// Don't add duplicate entries to the same partition.
-			// to make async processing easier later on.
-			if (workingSet.has(entry.path)) {
-				return;
-			}
-			workingSet.add(entry.path);
-			lastPartition.push(entry);
-			onEntry(entry);
-			return;
-		}
-
-		journal.partitions.push([entry]);
-		workingSet.clear();
+		journal.entries.push(entry);
 		onEntry(entry);
 	}
 
 	const journal = {
-		partitions: [
-			[{ operation: 'NOOP', path: '' }],
-		] as FilesystemOperation[][],
+		entries: [{ operation: 'NOOP', path: '' }] as FilesystemOperation[],
 		size() {
-			return journal.partitions
-				.map((p) => p.length)
-				.reduce((a, b) => a + b, 0);
+			return journal.entries.length;
 		},
-		flush(): FilesystemOperation[][] {
+		flush(): FilesystemOperation[] {
 			// Remove the NOOP partition
-			const entries = this.partitions.slice(1);
-			journal.partitions = [[{ operation: 'NOOP', path: '' }]];
+			const entries = journal.entries.slice(1);
+			journal.entries = [{ operation: 'NOOP', path: '' }];
 			return entries;
 		},
 		unbind() {
@@ -285,4 +248,83 @@ export function journalMemfs(
 
 function normalizeMemfsPath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
+}
+
+/**
+ * Rewrites a list of Filesystem operations to achieve the same
+ * result in less steps.
+ *
+ * For example, if a file is first created and then deleted, both
+ * operations can be skipped.
+ *
+ * @param ops A lengthy list of filesystem operations.
+ * @returns Normalized list of filesystem operations.
+ */
+export function normalize(ops: FilesystemOperation[]): FilesystemOperation[] {
+	// Skip creating files that are later removed.
+	const createdFiles = new Map<string, FilesystemOperation>();
+	const opsToRemove = new Set();
+	for (const op of ops) {
+		if (op.operation === 'CREATE' && op.nodeType === 'file') {
+			createdFiles.set(op.path, op);
+		} else if (
+			op.operation === 'RENAME' &&
+			createdFiles.has(op.path) &&
+			op.nodeType === 'file'
+		) {
+			createdFiles.set(op.toPath, op);
+		} else if (
+			op.operation === 'DELETE' &&
+			createdFiles.has(op.path) &&
+			op.nodeType === 'file'
+		) {
+			opsToRemove.add(op);
+
+			let currentPath = op.path;
+			while (createdFiles.has(currentPath)) {
+				const removedOp = createdFiles.get(currentPath);
+				opsToRemove.add(removedOp);
+				createdFiles.delete(currentPath);
+				if (removedOp!.operation === 'RENAME') {
+					currentPath = removedOp!.path;
+				}
+			}
+		}
+	}
+	return ops.filter((op) => !opsToRemove.has(op));
+}
+
+
+export function normalizeAll(ops: FilesystemOperation[]): FilesystemOperation[] {
+	// Skip creating files that are later removed.
+	const createdFiles = new Map<string, FilesystemOperation>();
+	const opsToRemove = new Set();
+	for (const op of ops) {
+		if (op.operation === 'CREATE' && op.nodeType === 'file') {
+			createdFiles.set(op.path, op);
+		} else if (
+			op.operation === 'RENAME' &&
+			createdFiles.has(op.path) &&
+			op.nodeType === 'file'
+		) {
+			createdFiles.set(op.toPath, op);
+		} else if (
+			op.operation === 'DELETE' &&
+			createdFiles.has(op.path) &&
+			op.nodeType === 'file'
+		) {
+			opsToRemove.add(op);
+
+			let currentPath = op.path;
+			while (createdFiles.has(currentPath)) {
+				const removedOp = createdFiles.get(currentPath);
+				opsToRemove.add(removedOp);
+				createdFiles.delete(currentPath);
+				if (removedOp!.operation === 'RENAME') {
+					currentPath = removedOp!.path;
+				}
+			}
+		}
+	}
+	return ops.filter((op) => !opsToRemove.has(op));
 }
