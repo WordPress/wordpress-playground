@@ -521,8 +521,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not write to "{path}"')
-	writeFile(path: string, data: string | Uint8Array, ...args: any[]) {
-		this[__private__dont__use].FS.writeFile(path, data, ...args);
+	writeFile(path: string, data: string | Uint8Array) {
+		this[__private__dont__use].FS.writeFile(path, data);
 	}
 
 	/** @inheritDoc */

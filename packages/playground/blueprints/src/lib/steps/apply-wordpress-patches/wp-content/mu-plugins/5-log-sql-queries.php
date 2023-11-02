@@ -65,6 +65,44 @@ function playground_bump_autoincrements()
     $new_seq = get_option('playground_id_offset');
     $stmt->bindParam(':new_seq', $new_seq);
     $stmt->execute();
+
+    /**
+     * We must force SQLite to use monotonically increasing values for
+     * autoincrement column. If sqlite_sequence says that wp_posts has
+     * seq=10, the next row should get id=11.
+     * 
+     * Huh? SQLite doesn't do that by default?
+     * 
+     * Well, no.
+     * 
+     * SQLite always uses max(id) + 1 for the next autoincrement value
+     * regardless of the seq value stored in sqlite_sequence.
+     * 
+     * This means trouble. Receiving a remote row with a high ID like 450000 
+     * changes the next locally assigned ID from 11 to 450001. This is a 
+     * certain way to get ID conflicts between peers.
+     * 
+     * Fortunately, we can create a trigger to force SQLite to use ID=seq+1
+     * instead of its default algorithm.
+     */
+    $autoincrement_columns = findAutoIncrementColumns();
+    foreach ($autoincrement_columns as $table => $column) {
+        $trigger_query = <<<SQL
+        CREATE TRIGGER IF NOT EXISTS 
+        force_seq_autoincrement_on_{$table}_{$column}
+        BEFORE INSERT ON $table
+        FOR EACH ROW
+        WHEN NEW.{$column} IS NULL
+        BEGIN
+            SET NEW.{$column} = (
+                SELECT seq FROM sqlite_sequence WHERE name = '$table'
+            ) + 1;
+            UPDATE sqlite_sequence set seq = seq + 1 WHERE name = '$table';
+        END;
+        SQL;
+        var_dump($trigger_query);
+        $pdo->query($trigger_query);
+    }
 }
 
 function playground_report_queries($query, $query_type, $table_name, $insert_columns, $last_insert_id)

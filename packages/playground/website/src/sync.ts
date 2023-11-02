@@ -28,13 +28,43 @@ await playground.writeFile(
 	patchedSqliteTranslator
 );
 const idOffset = Math.round(Math.random() * 1_000_000);
-await playground.run({
+const clientId = new URLSearchParams(document.location.search).get('id');
+console.log({
+	clientId,
+	idOffset,
+});
+const result2 = await playground.run({
 	code: `<?php
 	require '/wordpress/wp-load.php';
 	update_option('playground_id_offset', ${phpVar(idOffset)});
 	playground_bump_autoincrements();
 	`,
 });
+
+if (clientId === 'left') {
+	console.log(result2.text);
+
+	const result = await playground.run({
+		code: `<?php
+		require '/wordpress/wp-load.php';
+		$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+		var_dump($result);
+		var_dump($wpdb->insert_id);
+		var_dump($wpdb->last_error);
+		echo "\\nupdating sqlite_sequence ";
+		$result = $wpdb->query("update sqlite_sequence set seq=200;");
+		var_dump($result);
+		echo "\\ninserting new post into wp_posts ";
+		$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
+		var_dump($result);
+		var_dump($wpdb->insert_id);
+		`,
+	});
+	
+	
+	console.log(result.text);
+	throw new Error();
+}
 
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
@@ -98,12 +128,6 @@ type SQLTransactionCommand =
 			command: 'ROLLBACK';
 			success: boolean;
 	  };
-
-const clientId = new URLSearchParams(document.location.search).get('id');
-console.log({
-	clientId,
-	idOffset,
-});
 
 let committedQueries: SQLQueryMetadata[] = [];
 let activeTransaction: SQLQueryMetadata[] | null = null;
