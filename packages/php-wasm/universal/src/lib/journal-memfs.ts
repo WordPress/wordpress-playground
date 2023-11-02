@@ -294,37 +294,125 @@ export function normalize(ops: FilesystemOperation[]): FilesystemOperation[] {
 	return ops.filter((op) => !opsToRemove.has(op));
 }
 
+export type FileSystem = {
+	type: FSNodeType;
+	implicit?: boolean;
+	implicitNodeOperation?: FilesystemOperation['operation'];
+	children?: Record<string, FileSystem>;
+	contents?: string | Uint8Array;
+};
 
-export function normalizeAll(ops: FilesystemOperation[]): FilesystemOperation[] {
-	// Skip creating files that are later removed.
-	const createdFiles = new Map<string, FilesystemOperation>();
-	const opsToRemove = new Set();
-	for (const op of ops) {
-		if (op.operation === 'CREATE' && op.nodeType === 'file') {
-			createdFiles.set(op.path, op);
-		} else if (
-			op.operation === 'RENAME' &&
-			createdFiles.has(op.path) &&
-			op.nodeType === 'file'
-		) {
-			createdFiles.set(op.toPath, op);
-		} else if (
-			op.operation === 'DELETE' &&
-			createdFiles.has(op.path) &&
-			op.nodeType === 'file'
-		) {
-			opsToRemove.add(op);
+export function normalizeOperations(
+	operations: FilesystemOperation[]
+): FilesystemOperation[] {
+	const fileSystem: FileSystem = {
+		type: 'directory',
+		children: {},
+	};
 
-			let currentPath = op.path;
-			while (createdFiles.has(currentPath)) {
-				const removedOp = createdFiles.get(currentPath);
-				opsToRemove.add(removedOp);
-				createdFiles.delete(currentPath);
-				if (removedOp!.operation === 'RENAME') {
-					currentPath = removedOp!.path;
+	function getName(path: string) {
+		return path.split('/').pop() || '';
+	}
+
+	function getParent(path: string) {
+		const parts = path.split('/');
+		let current: FileSystem = fileSystem;
+		for (const part of parts.slice(0, -1)) {
+			if (!current.children) current.children = {};
+			if (!current.children[part]) {
+				current.children[part] = {
+					type: 'directory',
+					implicit: true,
+					children: {},
+				};
+			}
+			current = current.children[part];
+		}
+		return current;
+	}
+
+	for (const op of operations) {
+		switch (op.operation) {
+			case 'UPDATE_FILE':
+			case 'CREATE': {
+				const parent = getParent(op.path);
+				const name = getName(op.path);
+				parent['children']![name] =
+					'nodeType' in op && op.nodeType === 'directory'
+						? {
+								type: 'directory',
+								children: {},
+						  }
+						: {
+								type: 'file',
+								contents: '',
+						  };
+				break;
+			}
+			case 'DELETE': {
+				const parent = getParent(op.path);
+				const name = getName(op.path);
+				if (!(name in parent.children!)) {
+					// A node that implicitly exists in the original Filesystem, but
+					// haven't been mentioned in the stream of operations.
+					parent.children![name] = {
+						type: op.nodeType,
+						implicit: true,
+						implicitNodeOperation: op.operation,
+					};
+				} else {
+					// A node that was explicitly created in the stream of operations.
+					delete parent.children![name];
 				}
+				break;
+			}
+			case 'RENAME': {
+				const fromParent = getParent(op.path);
+				const fromName = getName(op.path);
+				const toParent = getParent(op.toPath);
+				const toName = getName(op.toPath);
+				toParent.children![toName] = fromParent.children![fromName];
+				delete fromParent.children![fromName];
+				break;
+			}
+			default:
+				console.error('Unknown operation type:', op.operation);
+		}
+	}
+
+	const normalizedOps: FilesystemOperation[] = [];
+	function traverse(path: string, node: FileSystem) {
+		if (node.implicit) {
+			if (node.implicitNodeOperation === 'DELETE') {
+				normalizedOps.push({
+					operation: 'DELETE',
+					path,
+					nodeType: node.type,
+				});
+			}
+		} else if (node.type === 'file') {
+			normalizedOps.push({
+				operation: 'UPDATE_FILE',
+				path,
+			});
+		} else if (node.type === 'directory') {
+			normalizedOps.push({
+				operation: 'CREATE',
+				path,
+				nodeType: 'directory',
+			});
+		}
+
+		if (node.type === 'directory') {
+			for (const [name, child] of Object.entries(node.children || {})) {
+				traverse(`${path}/${name}`, child as FileSystem);
 			}
 		}
 	}
-	return ops.filter((op) => !opsToRemove.has(op));
+
+	for (const [name, node] of Object.entries(fileSystem.children!)) {
+		traverse(name, node as FileSystem);
+	}
+
+	return normalizedOps;
 }
