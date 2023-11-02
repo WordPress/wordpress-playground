@@ -613,18 +613,19 @@ class WP_SQLite_Translator {
 					}
 				}
 			} while ( $error );
-
-			// Commit the nested transaction.
-			$this->commit();
 			
 			do_action(
-				'post_query_sqlite_db',
+				'sqlite_post_query',
 				$this->mysql_query,
 				$this->query_type,
 				$this->table_name,
 				$this->insert_columns, 
 				$this->last_insert_id
 			);
+
+			// Commit the nested transaction.
+			$this->commit();
+			
 			return $this->return_value;
 		} catch ( Exception $err ) {
 			// Rollback the nested transaction.
@@ -3601,6 +3602,7 @@ class WP_SQLite_Translator {
 		} finally {
 			if ( $success ) {
 				++$this->transaction_level;
+				do_action('sqlite_begin_transaction', !!$this->last_exec_returned, $this->transaction_level - 1);
 			}
 		}
 		return $success;
@@ -3622,6 +3624,8 @@ class WP_SQLite_Translator {
 		} else {
 			$this->execute_sqlite_query( 'RELEASE SAVEPOINT LEVEL' . $this->transaction_level );
 		}
+
+		do_action('sqlite_commit', !!$this->last_exec_returned, $this->transaction_level);
 		return $this->last_exec_returned;
 	}
 
@@ -3641,6 +3645,7 @@ class WP_SQLite_Translator {
 		} else {
 			$this->execute_sqlite_query( 'ROLLBACK TO SAVEPOINT LEVEL' . $this->transaction_level );
 		}
+		do_action('sqlite_rollback', !!$this->last_exec_returned, $this->transaction_level - 1);
 		return $this->last_exec_returned;
 	}
 }

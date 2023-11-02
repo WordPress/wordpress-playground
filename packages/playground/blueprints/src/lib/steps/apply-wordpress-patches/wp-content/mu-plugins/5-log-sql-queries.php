@@ -50,7 +50,7 @@ function getTableInfo(PDO $pdo, $tableName)
 
 function playground_bump_autoincrements_filter($query, $query_type)
 {
-    if($query_type !== 'CREATE TABLE' && $query_type !== 'ALTER TABLE') {
+    if ($query_type !== 'CREATE TABLE' && $query_type !== 'ALTER TABLE') {
         return;
     }
 
@@ -73,6 +73,7 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
     $auto_increment_column = $auto_increment_columns[$table_name] ?? null;
     post_message_to_js(json_encode([
         'type' => 'sql',
+        'subtype' => 'query',
         'query' => $query,
         'query_type' => $query_type,
         'table_name' => $table_name,
@@ -84,6 +85,36 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
 // Don't report SQL queries we're replaying from another peer.
 if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
     $auto_increment_columns = findAutoIncrementColumns();
-    add_filter('post_query_sqlite_db', 'playground_report_queries', -1000, 5);
-}
+    add_filter('sqlite_post_query', 'playground_report_queries', -1000, 5);
 
+    add_filter('sqlite_begin_transaction', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'START TRANSACTION',
+            ]));
+        }
+    }, 0, 2);
+    add_filter('sqlite_commit', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'COMMIT',
+            ]));
+        }
+    }, 0, 2);
+    add_filter('sqlite_rollback', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'ROLLBACK',
+            ]));
+        }
+    }, 0, 2);
+}
