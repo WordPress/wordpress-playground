@@ -95,7 +95,7 @@ console.log({
 });
 
 let committedQueries: SQLQueryMetadata[] = [];
-let activeTransaction: SQLQueryMetadata[] = [];
+let activeTransaction: SQLQueryMetadata[] | null = null;
 playground.onMessage(async (messageString) => {
 	const message = JSON.parse(messageString) as
 		| SQLQueryMetadata
@@ -112,18 +112,19 @@ playground.onMessage(async (messageString) => {
 		}
 		switch (message.command) {
 			case 'START TRANSACTION':
+				activeTransaction = [];
 				break;
 			case 'COMMIT':
-				if (activeTransaction.length) {
+				if (activeTransaction?.length) {
 					committedQueries = [
 						...committedQueries,
 						...activeTransaction,
 					];
-					activeTransaction = [];
 				}
+				activeTransaction = null;
 				break;
 			case 'ROLLBACK':
-				activeTransaction = [];
+				activeTransaction = null;
 				break;
 		}
 		// @TODO: also rollback any active transactions when PHP request
@@ -133,7 +134,11 @@ playground.onMessage(async (messageString) => {
 	}
 
 	// Otherwise, it's a regular query
-	activeTransaction.push(message);
+	if (activeTransaction) {
+		activeTransaction.push(message);
+	} else {
+		committedQueries.push(message);
+	}
 
 	// Flushing
 	debouncedFlushCommittedTransactions();
@@ -210,7 +215,7 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				//          it does that BEFORE inserting. Hmm! Hopefully there is a 
 				//          setting to make it more naive and just use seq + 1
 				$result = $wpdb->query($query['query']);
-				var_dump($result);
+				// var_dump($result);
 			} catch(PDOException $e) {
 				/**
 				 * Let's ignore errors related to UNIQUE constraints violation.
@@ -248,11 +253,11 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				);
 				$stmt->bindParam(':peer_pk', $query['last_insert_id']);
 				$stmt->bindParam(':next_local_pk', $next_local_pk);
-				echo "\\n\\nRestoring primary key value from peer\\n\\n";
-				echo "QUERY: \\n";
-				echo $query['query'] . "\\n\\n";
-				echo "REWIND: \\n";
-				echo "UPDATE $table_name SET $pk_column = ". $query['last_insert_id'] ." WHERE $pk_column = $next_local_pk\\n\\n";
+				// echo "\\n\\nRestoring primary key value from peer\\n\\n";
+				// echo "QUERY: \\n";
+				// echo $query['query'] . "\\n\\n";
+				// echo "REWIND: \\n";
+				// echo "UPDATE $table_name SET $pk_column = ". $query['last_insert_id'] ." WHERE $pk_column = $next_local_pk\\n\\n";
 				$stmt->execute();
 
 				// ===> Restore the previous autoincrement sequence value
@@ -282,6 +287,21 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 			console.error(e);
 		});
 }
+
+const result = await playground.run({
+	code: `<?php
+	require '/wordpress/wp-load.php';
+	$wpdb->query("BEGIN");
+	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+	var_dump($result);
+	$wpdb->query("ROLLBACK");
+	$wpdb->query("BEGIN");
+	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
+	var_dump($result);
+	$wpdb->query("COMMIT");
+	`,
+});
+console.log('I just executed the thing, here is the result: ', result.text);
 
 const journal: FilesystemOperation[] = [];
 playground.journalMemfs(async (op: FilesystemOperation) => {

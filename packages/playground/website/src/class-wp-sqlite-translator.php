@@ -3602,7 +3602,7 @@ class WP_SQLite_Translator {
 		} finally {
 			if ( $success ) {
 				++$this->transaction_level;
-				do_action('sqlite_begin_transaction', !!$this->last_exec_returned, $this->transaction_level - 1);
+				do_action( 'sqlite_begin_transaction', !!$this->last_exec_returned, $this->transaction_level - 1 );
 			}
 		}
 		return $success;
@@ -3625,7 +3625,7 @@ class WP_SQLite_Translator {
 			$this->execute_sqlite_query( 'RELEASE SAVEPOINT LEVEL' . $this->transaction_level );
 		}
 
-		do_action('sqlite_commit', !!$this->last_exec_returned, $this->transaction_level);
+		do_action( 'sqlite_commit', !!$this->last_exec_returned, $this->transaction_level );
 		return $this->last_exec_returned;
 	}
 
@@ -3645,7 +3645,7 @@ class WP_SQLite_Translator {
 		} else {
 			$this->execute_sqlite_query( 'ROLLBACK TO SAVEPOINT LEVEL' . $this->transaction_level );
 		}
-		do_action('sqlite_rollback', !!$this->last_exec_returned, $this->transaction_level - 1);
+		do_action( 'sqlite_rollback', !!$this->last_exec_returned, $this->transaction_level );
 		return $this->last_exec_returned;
 	}
 }
