@@ -1,6 +1,6 @@
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { FilesystemOperation } from '@php-wasm/universal';
+import { FilesystemOperation, IsomorphicLocalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 
@@ -147,7 +147,7 @@ onChangeReceived<SQLChange>('sql', async (data) => {
 		});
 });
 
-let replayedFsOp = '';
+const journal: FilesystemOperation[] = [];
 playground.journalMemfs(async (op: FilesystemOperation) => {
 	if (
 		op.path.endsWith('/.ht.sqlite') ||
@@ -155,13 +155,11 @@ playground.journalMemfs(async (op: FilesystemOperation) => {
 	) {
 		return;
 	}
-	const opString = JSON.stringify(op.path);
-	if (replayedFsOp === opString) {
-		return;
-	}
 	if (op.operation === 'UPDATE_FILE') {
 		op.data = await playground.readFileAsBuffer(op.path);
 	}
+	console.log('Journaling', op);
+	journal.push(op);
 	broadcastChange('fs', op);
 });
 
@@ -170,27 +168,35 @@ onChangeReceived<FSChange>('fs', async (op) => {
 	const release = await fsLock.acquire();
 	try {
 		console.log('[FS][Client 2]', op);
-		const opString = JSON.stringify(op.path);
-		replayedFsOp = opString;
-		if (op.operation === 'CREATE') {
-			if (op.nodeType === 'file') {
-				await playground.writeFile(op.path, ' ');
-			} else {
-				await playground.mkdirTree(op.path);
-			}
-		} else if (op.operation === 'DELETE') {
-			if (op.nodeType === 'file') {
-				await playground.unlink(op.path);
-			} else {
-				await playground.rmdir(op.path, {
-					recursive: true,
-				});
-			}
-		} else if (op.operation === 'UPDATE_FILE') {
-			await playground.writeFile(op.path, op.data);
-		} else if (op.operation === 'RENAME') {
-			await playground.mv(op.path, op.toPath);
-		}
+		await playground.atomic(
+			function (php: IsomorphicLocalPHP, op: FilesystemOperation) {
+				php.__journalingDisabled = true;
+				try {
+					if (op.operation === 'CREATE') {
+						if (op.nodeType === 'file') {
+							php.writeFile(op.path, ' ');
+						} else {
+							php.mkdirTree(op.path);
+						}
+					} else if (op.operation === 'DELETE') {
+						if (op.nodeType === 'file') {
+							php.unlink(op.path);
+						} else {
+							php.rmdir(op.path, {
+								recursive: true,
+							});
+						}
+					} else if (op.operation === 'UPDATE_FILE') {
+						php.writeFile(op.path, op.data);
+					} else if (op.operation === 'RENAME') {
+						php.mv(op.path, op.toPath);
+					}
+				} finally {
+					php.__journalingDisabled = false;
+				}
+			}.toString(),
+			[op]
+		);
 	} finally {
 		release();
 	}

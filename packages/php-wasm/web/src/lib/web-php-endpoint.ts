@@ -171,4 +171,20 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	onMessage(listener: MessageListener): void {
 		_private.get(this)!.php.onMessage(listener);
 	}
+
+	atomic(callbackStr: string, args: any[] = []): void {
+		try {
+			// Turn callbackStr into a function
+			const callbackFn = eval(`(${callbackStr})`);
+			if (typeof callbackFn === 'function') {
+				callbackFn(_private.get(this)!.php, ...args);
+			} else {
+				console.error(
+					'Provided string does not evaluate to a function'
+				);
+			}
+		} catch (error) {
+			console.error('Error evaluating the callback string:', error);
+		}
+	}
 }
