@@ -24244,7 +24244,7 @@ function image_Image({
     options: imageSizeOptions
   }), showLightboxToggle && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.__experimentalToolsPanelItem, {
     hasValue: () => !!lightbox,
-    label: (0,external_wp_i18n_namespaceObject.__)('Expand on Click'),
+    label: (0,external_wp_i18n_namespaceObject.__)('Expand on click'),
     onDeselect: () => {
       setAttributes({
         lightbox: undefined
@@ -24252,7 +24252,7 @@ function image_Image({
     },
     isShownByDefault: true
   }, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ToggleControl, {
-    label: (0,external_wp_i18n_namespaceObject.__)('Expand on Click'),
+    label: (0,external_wp_i18n_namespaceObject.__)('Expand on click'),
     checked: lightboxChecked,
     onChange: newValue => {
       setAttributes({
@@ -42521,19 +42521,41 @@ const usePatterns = (clientId, name) => {
 };
 
 /**
- * Hook that returns whether the Query Loop with the given `clientId` contains
- * any third-party block.
+ * The object returned by useUnsupportedBlocks with info about the type of
+ * unsupported blocks present inside the Query block.
+ *
+ * @typedef  {Object}  UnsupportedBlocksInfo
+ * @property {boolean} hasBlocksFromPlugins True if blocks from plugins are present.
+ * @property {boolean} hasPostContentBlock  True if a 'core/post-content' block is present.
+ * @property {boolean} hasUnsupportedBlocks True if there are any unsupported blocks.
+ */
+
+/**
+ * Hook that returns an object with information about the unsupported blocks
+ * present inside a Query Loop with the given `clientId`. The returned object
+ * contains props that are true when a certain type of unsupported block is
+ * present.
  *
  * @param {string} clientId The block's client ID.
- * @return {boolean} True if it contains third-party blocks.
+ * @return {UnsupportedBlocksInfo} The object containing the information.
  */
-const useContainsThirdPartyBlocks = clientId => {
+const useUnsupportedBlocks = clientId => {
   return (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
       getClientIdsOfDescendants,
       getBlockName
     } = select(external_wp_blockEditor_namespaceObject.store);
-    return getClientIdsOfDescendants(clientId).some(descendantClientId => !getBlockName(descendantClientId).startsWith('core/'));
+    const blocks = {};
+    getClientIdsOfDescendants(clientId).forEach(descendantClientId => {
+      const blockName = getBlockName(descendantClientId);
+      if (!blockName.startsWith('core/')) {
+        blocks.hasBlocksFromPlugins = true;
+      } else if (blockName === 'core/post-content') {
+        blocks.hasPostContentBlock = true;
+      }
+    });
+    blocks.hasUnsupportedBlocks = blocks.hasBlocksFromPlugins || blocks.hasPostContentBlock;
+    return blocks;
   }, [clientId]);
 };
 
@@ -43105,23 +43127,26 @@ function EnhancedPaginationControl({
   setAttributes,
   clientId
 }) {
-  const enhancedPaginationNotice = (0,external_wp_i18n_namespaceObject.__)("Enhanced pagination doesn't support plugin blocks yet. If you want to enable it, you have to remove all plugin blocks from the Query Loop.");
-  const containsThirdPartyBlocks = useContainsThirdPartyBlocks(clientId);
+  const {
+    hasUnsupportedBlocks
+  } = useUnsupportedBlocks(clientId);
+  let help = (0,external_wp_i18n_namespaceObject.__)('Browsing between pages requires a full page reload.');
+  if (enhancedPagination) {
+    help = (0,external_wp_i18n_namespaceObject.__)("Browsing between pages won't require a full page reload, unless non-compatible blocks are detected.");
+  } else if (hasUnsupportedBlocks) {
+    help = (0,external_wp_i18n_namespaceObject.__)("Force page reload can't be disabled because there are non-compatible blocks inside the Query block.");
+  }
   return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ToggleControl, {
-    label: (0,external_wp_i18n_namespaceObject.__)('Enhanced pagination'),
-    help: (0,external_wp_i18n_namespaceObject.__)('Browsing between pages won’t require a full page reload.'),
-    checked: !!enhancedPagination,
-    disabled: containsThirdPartyBlocks,
+    label: (0,external_wp_i18n_namespaceObject.__)('Force page reload'),
+    help: help,
+    checked: !enhancedPagination,
+    disabled: hasUnsupportedBlocks,
     onChange: value => {
       setAttributes({
-        enhancedPagination: !!value
+        enhancedPagination: !value
       });
     }
-  }), containsThirdPartyBlocks && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Notice, {
-    status: "warning",
-    isDismissible: false,
-    className: "wp-block-query__enhanced-pagination-notice"
-  }, enhancedPaginationNotice));
+  }));
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/query/edit/inspector-controls/create-new-post-link.js
@@ -43368,7 +43393,6 @@ function QueryInspectorControls(props) {
  * Internal dependencies
  */
 
-const disableEnhancedPaginationDescription = (0,external_wp_i18n_namespaceObject.__)('Plugin blocks are not supported yet. For the enhanced pagination to work, remove the plugin block, then re-enable "Enhanced pagination" in the Query Block settings.');
 const modalDescriptionId = 'wp-block-query-enhanced-pagination-modal__description';
 function EnhancedPaginationModal({
   clientId,
@@ -43378,31 +43402,44 @@ function EnhancedPaginationModal({
   setAttributes
 }) {
   const [isOpen, setOpen] = (0,external_wp_element_namespaceObject.useState)(false);
-  const containsThirdPartyBlocks = useContainsThirdPartyBlocks(clientId);
+  const {
+    hasBlocksFromPlugins,
+    hasPostContentBlock,
+    hasUnsupportedBlocks
+  } = useUnsupportedBlocks(clientId);
   (0,external_wp_element_namespaceObject.useEffect)(() => {
-    setOpen(containsThirdPartyBlocks && enhancedPagination);
-  }, [containsThirdPartyBlocks, enhancedPagination, setOpen]);
+    if (enhancedPagination && hasUnsupportedBlocks) {
+      setAttributes({
+        enhancedPagination: false
+      });
+      setOpen(true);
+    }
+  }, [enhancedPagination, hasUnsupportedBlocks, setAttributes]);
+  const closeModal = () => {
+    setOpen(false);
+  };
+  let notice = (0,external_wp_i18n_namespaceObject.__)('If you still want to prevent full page reloads, remove that block, then disable "Force page reload" again in the Query Block settings.');
+  if (hasBlocksFromPlugins) {
+    notice = (0,external_wp_i18n_namespaceObject.__)('Currently, avoiding full page reloads is not possible when blocks from plugins are present inside the Query block.') + ' ' + notice;
+  } else if (hasPostContentBlock) {
+    notice = (0,external_wp_i18n_namespaceObject.__)('Currently, avoiding full page reloads is not possible when a Content block is present inside the Query block.') + ' ' + notice;
+  }
   return isOpen && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Modal, {
-    title: (0,external_wp_i18n_namespaceObject.__)('Enhanced pagination will be disabled'),
+    title: (0,external_wp_i18n_namespaceObject.__)('Query block: Force page reload enabled'),
     className: "wp-block-query__enhanced-pagination-modal",
     aria: {
       describedby: modalDescriptionId
     },
     isDismissible: false,
-    shouldCloseOnEsc: false,
-    shouldCloseOnClickOutside: false
+    onRequestClose: closeModal
   }, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.__experimentalVStack, {
     alignment: "right",
     spacing: 5
   }, (0,external_wp_element_namespaceObject.createElement)("span", {
     id: modalDescriptionId
-  }, disableEnhancedPaginationDescription), (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
+  }, notice), (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
     variant: "primary",
-    onClick: () => {
-      setAttributes({
-        enhancedPagination: false
-      });
-    }
+    onClick: closeModal
   }, (0,external_wp_i18n_namespaceObject.__)('OK'))));
 }
 
@@ -55833,7 +55870,6 @@ function TermDescriptionEdit({
 const term_description_metadata = {
   $schema: "https://schemas.wp.org/trunk/block.json",
   apiVersion: 3,
-  __experimental: "fse",
   name: "core/term-description",
   title: "Term Description",
   category: "theme",
