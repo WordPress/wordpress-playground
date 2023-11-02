@@ -60,8 +60,7 @@ if (clientId === 'left') {
 		var_dump($wpdb->insert_id);
 		`,
 	});
-	
-	
+
 	console.log(result.text);
 	throw new Error();
 }

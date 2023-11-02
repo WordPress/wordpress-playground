@@ -28,6 +28,10 @@ import { Semaphore } from '@php-wasm/util';
 const STRING = 'string';
 const NUMBER = 'number';
 
+export type PHPEvent = {
+	type: '';
+};
+export type PHPEventListener<T extends PHPEvent> = (event: T) => void;
 export const __private__dont__use = Symbol('__private__dont__use');
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -43,6 +47,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
+	#eventListeners: Record<string, PHPEventListener<any>[]> = {};
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
 	#semaphore: Semaphore;
@@ -66,6 +71,38 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.requestHandler = new PHPBrowser(
 				new PHPRequestHandler(this, serverOptions)
 			);
+		}
+	}
+
+	addEventListener<Event extends PHPEvent>(
+		eventType: Event['type'],
+		listener: PHPEventListener<Event>
+	) {
+		if (!(eventType in this.#eventListeners)) {
+			this.#eventListeners[eventType] = [];
+		}
+		this.#eventListeners[eventType].push(listener);
+	}
+
+	removeEventListener<Event extends PHPEvent>(
+		eventType: Event['type'],
+		listener: PHPEventListener<Event>
+	) {
+		if (!(eventType in this.#eventListeners)) {
+			return;
+		}
+		const index = this.#eventListeners[eventType].indexOf(listener);
+		if (index > -1) {
+			this.#eventListeners[eventType].splice(index, 1);
+		}
+	}
+
+	dispatchEvent<Event extends PHPEvent>(event: Event) {
+		if (!(event.type in this.#eventListeners)) {
+			return;
+		}
+		for (const listener of this.#eventListeners[event.type]) {
+			listener(event);
 		}
 	}
 
@@ -111,6 +148,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 		this[__private__dont__use] = runtime;
 		runtime['onMessage'] = async (data: string): Promise<string> => {
+			// const event = {
+			// 	type: 'message',
+			// 	details: data,
+			// };
+			// this.dispatchEvent(event);
+			// if (event.result) {
+			// return event.result;
+			// }
 			for (const listener of this.#messageListeners) {
 				const returnData = await listener(data);
 
