@@ -1,5 +1,16 @@
 /*
- * IMPORTANT PROBLEM TO SOLVE: SQLITE stubbornly sets the sequence value to MAX(id)+1
+ * TODO:
+ * * !! SQLITE stubbornly sets the sequence value to MAX(id)+1
+ * * Add unit tests
+ * * Confirm everything works in cases like:
+ *   * Unique constraint violations
+ *   * Failed SQL queries
+ *   * Queries without transactions
+ *   * Commits and rollbacks in transactions
+ *   * Transactions without the final commit (request died prematurely)
+ *   * Nested transactions
+ *   * Conflicting SQL queries
+ *   * Conflicting FS operations
  */
 
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
