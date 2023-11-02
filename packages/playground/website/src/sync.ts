@@ -133,19 +133,18 @@ playground.onMessage(async (messageString) => {
 		return;
 	}
 
-	// Otherwise, it's a regular query
+	// It's a regular query
 	if (activeTransaction) {
 		activeTransaction.push(message);
 	} else {
 		committedQueries.push(message);
 	}
 
-	// Flushing
-	debouncedFlushCommittedTransactions();
+	debouncedFlushSQLQueries();
 });
 
 let flushTimeout: number | null = null;
-function debouncedFlushCommittedTransactions() {
+function debouncedFlushSQLQueries() {
 	if (null !== flushTimeout) {
 		clearTimeout(flushTimeout);
 	}
@@ -288,21 +287,6 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 		});
 }
 
-const result = await playground.run({
-	code: `<?php
-	require '/wordpress/wp-load.php';
-	$wpdb->query("BEGIN");
-	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
-	var_dump($result);
-	$wpdb->query("ROLLBACK");
-	$wpdb->query("BEGIN");
-	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
-	var_dump($result);
-	$wpdb->query("COMMIT");
-	`,
-});
-console.log('I just executed the thing, here is the result: ', result.text);
-
 const journal: FilesystemOperation[] = [];
 playground.journalMemfs(async (op: FilesystemOperation) => {
 	if (
@@ -358,6 +342,23 @@ onChangeReceived<FSChange>('fs', async (op) => {
 	}
 });
 
+// Use this as a unit test later on:
+// const result = await playground.run({
+// 	code: `<?php
+// 	require '/wordpress/wp-load.php';
+// 	$wpdb->query("BEGIN");
+// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+// 	var_dump($result);
+// 	$wpdb->query("ROLLBACK");
+// 	$wpdb->query("BEGIN");
+// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
+// 	var_dump($result);
+// 	$wpdb->query("COMMIT");
+// 	`,
+// });
+// console.log('I just executed the thing, here is the result: ', result.text);
+
+// Refresh after applying incoming changes. Is this actually useful, though?
 // let refreshTimeout: any = null;
 // if (refreshTimeout) {
 //     clearTimeout(refreshTimeout);
