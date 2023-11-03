@@ -1,17 +1,16 @@
 /*
  * TODO:
- * * !! SQLITE stubbornly sets the sequence value to MAX(id)+1
- * * Add unit tests
- * * Confirm everything works in cases like:
- *   * Unique constraint violations
+ * ✅ !! SQLITE stubbornly sets the sequence value to MAX(id)+1
+ * * Do not sync transients, site URL, etc.
+ * * Add unit tests for cases like:
  *   * Failed SQL queries
- *   * Queries without transactions
- *   * Commits and rollbacks in transactions
  *   * Transactions without the final commit (request died prematurely)
- *   * Nested transactions
  *   * Conflicting SQL queries
  *   * Conflicting FS operations
- * * Do not sync transients, site URL, etc.
+ *   * Nested transactions
+ *   * Unique constraint violations
+ *   * Queries without transactions
+ *   * Commits and rollbacks in transactions
  */
 
 /**
@@ -24,8 +23,7 @@
  *       relevant value from playground_sequence.
  *    2. We fetch the entire row from the database and transmit it as
  *       JSON to the remote peer.
- * * When the remote peer receives a query, it replays it on its end
- *   as it is.
+ * * The remote peer receives the query and executes it.
  */
 
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
@@ -139,6 +137,12 @@ type SQLTransactionCommand =
 
 let committedQueries: SQLQueryMetadata[] = [];
 let activeTransaction: SQLQueryMetadata[] | null = null;
+
+// When PHP request terminates, any uncommitted
+// queries in the active transaction are rolled back.
+playground.addEventListener('request.end', () => {
+	activeTransaction = null;
+});
 playground.onMessage(async (messageString) => {
 	const message = JSON.parse(messageString) as
 		| SQLQueryMetadata
@@ -167,9 +171,6 @@ playground.onMessage(async (messageString) => {
 				activeTransaction = null;
 				break;
 		}
-		// @TODO: also rollback any active transactions when PHP request
-		//        terminates. For example, by implementing
-		//        php.addEventListener('request.done', () => { ... });
 		return;
 	}
 

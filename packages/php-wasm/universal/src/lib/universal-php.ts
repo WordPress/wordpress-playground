@@ -1,19 +1,11 @@
 import { Remote } from 'comlink';
 import { PHPResponse } from './php-response';
-import type { FilesystemOperation } from './journal-memfs';
 
 /**
  * Represents an event related to the PHP filesystem.
  */
-export interface PHPFilesystemEvent {
-	/**
-	 * The type of the event.
-	 */
-	type: 'fs';
-	/**
-	 * Details about the filesystem operation.
-	 */
-	details: FilesystemOperation;
+export interface PHPRequestEndEvent {
+	type: 'request.end';
 }
 
 /**
@@ -21,7 +13,7 @@ export interface PHPFilesystemEvent {
  * This is intentionally not an extension of CustomEvent
  * to make it isomorphic between different JavaScript runtimes.
  */
-export type PHPEvent = PHPFilesystemEvent;
+export type PHPEvent = PHPRequestEndEvent;
 
 /**
  * A callback function that handles PHP events.

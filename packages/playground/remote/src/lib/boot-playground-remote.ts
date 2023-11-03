@@ -85,6 +85,12 @@ export async function bootPlaygroundRemote() {
 		async atomic(callback, args) {
 			return workerApi.atomic(callback, args);
 		},
+		async addEventListener(event, listener) {
+			return await workerApi.addEventListener(event, listener);
+		},
+		async removeEventListener(event, listener) {
+			return await workerApi.removeEventListener(event, listener);
+		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
 				throw new Error('Progress bar not available');

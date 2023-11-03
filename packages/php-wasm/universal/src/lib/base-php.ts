@@ -17,6 +17,8 @@ import {
 	RmDirOptions,
 	ListFilesOptions,
 	SpawnHandler,
+	PHPEventListener,
+	PHPEvent,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
@@ -28,10 +30,6 @@ import { Semaphore } from '@php-wasm/util';
 const STRING = 'string';
 const NUMBER = 'number';
 
-export type PHPEvent = {
-	type: '';
-};
-export type PHPEventListener<T extends PHPEvent> = (event: T) => void;
 export const __private__dont__use = Symbol('__private__dont__use');
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
@@ -245,6 +243,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			return await this.#handleRequest();
 		} finally {
 			release();
+			this.dispatchEvent({
+				type: 'request.end',
+			});
 		}
 	}
 
