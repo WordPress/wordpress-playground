@@ -53,7 +53,7 @@ const initializationResult = await playground.run({
 	code: `<?php
 	require '/wordpress/wp-load.php';
 
-	playground_override_autoincrement_algorithm(${phpVar(idOffset)});
+	playground_sync_override_autoincrement_algorithm(${phpVar(idOffset)});
 	`,
 });
 if (clientId === 'left') {
@@ -215,12 +215,11 @@ onChangeReceived<SQLQueryMetadata[]>('sql', async (queries) => {
 
 async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 	const js = phpVars({ queries });
-	console.log(js);
 	await playground
 		.run({
 			code: `<?php
 		// Prevent reporting changes from queries we're just replaying
-		$GLOBALS['@REPLAYING_SQL'] = true;
+		define('REPLAYING_SQL', true);
 
 		// Only load WordPress and replay the SQL queries now
 		require '/wordpress/wp-load.php';
