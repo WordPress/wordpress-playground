@@ -189,7 +189,7 @@ function playground_sync_ensure_required_tables()
             WHERE
                 m.type = 'table' AND
                 m.name NOT LIKE 'sqlite_%' AND
-                ti.pk = 1 AND 
+                ti.pk = 1 AND -- pk stands for primary key
                 ti.type LIKE '%INTEGER%'
             ORDER BY 1
     ;
