@@ -11,6 +11,7 @@
  *   * Nested transactions
  *   * Conflicting SQL queries
  *   * Conflicting FS operations
+ * * Do not sync transients, site URL, etc.
  */
 
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
@@ -36,6 +37,7 @@ console.log({
 const result2 = await playground.run({
 	code: `<?php
 	require '/wordpress/wp-load.php';
+	$pdo = $GLOBALS['@pdo'];
 	update_option('playground_id_offset', ${phpVar(idOffset)});
 	playground_bump_autoincrements();
 	`,
@@ -44,30 +46,30 @@ const result2 = await playground.run({
 if (clientId === 'left') {
 	console.log(result2.text);
 
-	const result = await playground.run({
-		code: `<?php
-		require '/wordpress/wp-load.php';
-		$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
-		echo "\\ninserting new post into wp_posts: ";
-		var_dump($result);
-		echo "Insert id: \\n";
-		var_dump($wpdb->insert_id);
-		echo "Last error: \\n";
-		var_dump($wpdb->last_error);
-		echo "\\nupdating playground_sequence ";
-		$result = $wpdb->query("update playground_sequence set seq=200;");
-		var_dump($result);
-		echo "\\ninserting new post into wp_posts ";
-		$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
-		var_dump($result);
-		var_dump($wpdb->insert_id);
-		echo "\\ninserting another new post into wp_posts ";
-		$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see 33this', '', 'publish')");
-		var_dump($result);
-		var_dump($wpdb->insert_id);
+	// const result = await playground.run({
+	// 	code: `<?php
+	// 	require '/wordpress/wp-load.php';
+	// 	$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+	// 	echo "\\ninserting new post into wp_posts: ";
+	// 	var_dump($result);
+	// 	echo "Insert id: \\n";
+	// 	var_dump($wpdb->insert_id);
+	// 	echo "Last error: \\n";
+	// 	var_dump($wpdb->last_error);
+	// 	echo "\\nupdating playground_sequence ";
+	// 	$result = $wpdb->query("update playground_sequence set seq=200;");
+	// 	var_dump($result);
+	// 	echo "\\ninserting new post into wp_posts ";
+	// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
+	// 	var_dump($result);
+	// 	var_dump($wpdb->insert_id);
+	// 	echo "\\ninserting another new post into wp_posts ";
+	// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see 33this', '', 'publish')");
+	// 	var_dump($result);
+	// 	var_dump($wpdb->insert_id);
 
-		`,
-	});
+	// 	`,
+	// });
 
 	// console.log(result.text);
 	// throw new Error();
@@ -106,15 +108,24 @@ type FSChange = {
 	type: 'fs';
 } & FilesystemOperation;
 
-type SQLQueryMetadata = {
-	type: 'sql';
-	subtype: 'query';
-	query: string;
-	query_type: string;
-	table_name: string;
-	auto_increment_column: string;
-	last_insert_id: number;
-};
+type SQLQueryMetadata =
+	| {
+			type: 'sql';
+			subtype: 'replay-query';
+			query: string;
+			query_type: string;
+			table_name: string;
+			auto_increment_column: string;
+			last_insert_id: number;
+	  }
+	| {
+			type: 'sql';
+			subtype: 'insert-row';
+			row: Record<string, unknown>;
+			table_name: string;
+			auto_increment_column: string;
+			last_insert_id: number;
+	  };
 
 type SQLTransactionCommand =
 	| {
@@ -145,9 +156,6 @@ playground.onMessage(async (messageString) => {
 	if (message.type !== 'sql') {
 		return;
 	}
-	if (message.subtype === 'query' && message.query_type === 'SELECT') {
-		return;
-	}
 	if (message.subtype === 'transaction') {
 		if (!message.success) {
 			return;
@@ -174,7 +182,9 @@ playground.onMessage(async (messageString) => {
 		//        php.addEventListener('request.done', () => { ... });
 		return;
 	}
-
+	if (message.subtype === 'replay-query' && message.query_type === 'SELECT') {
+		return;
+	}
 	// It's a regular query
 	if (activeTransaction) {
 		activeTransaction.push(message);
@@ -209,6 +219,7 @@ onChangeReceived<SQLQueryMetadata[]>('sql', async (queries) => {
 
 async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 	const js = phpVars({ queries });
+	console.log(js);
 	await playground
 		.run({
 			code: `<?php
@@ -238,14 +249,15 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				!!$query['auto_increment_column'] &&
 				!!$query['last_insert_id']
 			);
+			$pdo = $GLOBALS['@pdo'];
 			// Store the autoincrement sequence value:
 			if ( $assign_peer_pk ) {
-				$pdo = $GLOBALS['@pdo'];
 				$stmt = $pdo->prepare("SELECT seq FROM playground_sequence WHERE table_name = :table_name");
 				$table_name = $query['table_name'];
 				$stmt->bindParam("table_name", $table_name);
 				$stmt->execute();
 				$row = $stmt->fetch();
+				var_dump($row);
 				$last_local_pk = $row['seq'];
 				$next_local_pk = $last_local_pk + 1;
 			}
@@ -255,8 +267,23 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				// PROBLEM: SQLITE stubbornly sets the sequence value to MAX(id)+1 and 
 				//          it does that BEFORE inserting. Hmm! Hopefully there is a 
 				//          setting to make it more naive and just use seq + 1
-				$result = $wpdb->query($query['query']);
-				// var_dump($result);
+				if($query['subtype'] === 'insert-row') {
+					// Execute the query
+					$columns = implode(', ', array_keys($query['row']));
+					$placeholders = ':' . implode(', :', array_keys($query['row']));
+					
+					// echo 'INSERT ROW';
+					// var_dump("INSERT INTO $table_name ($columns) VALUES ($placeholders)");
+
+					$stmt = $pdo->prepare(
+						"INSERT INTO $table_name ($columns) VALUES ($placeholders)"
+					);
+					$stmt->execute($query['row']);
+				} else {
+					// echo 'REPLAY';
+					// var_dump($query);
+					$wpdb->query($query['query']);
+				}
 			} catch(PDOException $e) {
 				/**
 				 * Let's ignore errors related to UNIQUE constraints violation.
@@ -266,10 +293,11 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				 * In the future, let's implement pattern matching on queries and
 				 * prevent synchronizing things like transients.
 				 */
-				var_dump($query['query']);
 				var_dump("PDO Exception! " . $e->getMessage());
 				var_dump($e->getCode());
-				if($e->getCode() === 19) {
+				var_dump($query);
+				// SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed
+				if($e->getCode() === "23000") {
 					continue;
 				}
 				throw $e;
@@ -318,7 +346,7 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 		.then((r) => {
 			if (r.text.trim() || r.errors.trim()) {
 				console.log(`[${clientId}] `, r.text);
-				console.log(`[${clientId}] `, r.errors);
+				// console.log(`[${clientId}] `, r.errors);
 			}
 		})
 		.catch((e) => {

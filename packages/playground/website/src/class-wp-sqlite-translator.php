@@ -619,8 +619,9 @@ class WP_SQLite_Translator {
 				$this->mysql_query,
 				$this->query_type,
 				$this->table_name,
-				$this->insert_columns, 
-				$this->last_insert_id
+				$this->insert_columns,
+				$this->last_insert_id,
+				$this->affected_rows,
 			);
 
 			// Commit the nested transaction.
@@ -822,6 +823,12 @@ class WP_SQLite_Translator {
 				break;
 
 			default:
+				var_dump($query);
+				try {
+					throw new Exception();
+				} catch(\Exception $e) {
+					echo $e->getTraceAsString();
+				}
 				throw new Exception( 'Unknown query type: ' . $this->query_type );
 		}
 	}
@@ -3574,6 +3581,7 @@ class WP_SQLite_Translator {
 		$this->last_exec_returned          = null;
 		$this->last_insert_id              = null;
 		$this->affected_rows               = null;
+		$this->insert_columns              = array();
 		$this->column_data                 = array();
 		$this->num_rows                    = null;
 		$this->return_value                = null;

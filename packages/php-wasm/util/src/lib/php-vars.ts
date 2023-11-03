@@ -2,11 +2,8 @@ const literal = Symbol('literal');
 
 export function phpVar(value: unknown): string {
 	if (typeof value === 'string') {
-		if (value.startsWith('$')) {
-			return value;
-		} else {
-			return JSON.stringify(value);
-		}
+		const escapedValue = JSON.stringify(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+		return `json_decode('${escapedValue}')`;
 	} else if (typeof value === 'number') {
 		return value.toString();
 	} else if (Array.isArray(value)) {
@@ -19,7 +16,7 @@ export function phpVar(value: unknown): string {
 			return value.toString();
 		} else {
 			const phpAssocArray = Object.entries(value)
-				.map(([key, val]) => `${JSON.stringify(key)} => ${phpVar(val)}`)
+				.map(([key, val]) => `${phpVar(key)} => ${phpVar(val)}`)
 				.join(', ');
 			return `array(${phpAssocArray})`;
 		}
