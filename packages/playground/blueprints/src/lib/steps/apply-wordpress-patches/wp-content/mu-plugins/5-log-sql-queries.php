@@ -68,6 +68,7 @@ function playground_bump_autoincrements()
      * * Update ID with a trigger BEFORE INSERT
      * * Update ID with a trigger AFTER INSERT in a way that preserves last_insert_rowid()
      * * Use INSTEAD OF triggers on a table
+     * * Use sqlite_temp_master or any temporary tables in triggers
      * 
      * Here's what we can do:
      * * Read the entire row after INSERTing it, and reconstruct the query
@@ -80,6 +81,7 @@ function playground_bump_autoincrements()
         seq int default 0 not null,
         PRIMARY KEY (table_name, column_name)
     )");
+    // Rewrite the 
     foreach (findAutoIncrementColumns() as $table => $column) {
         $stmt = $pdo->prepare(<<<SQL
         INSERT INTO playground_sequence 
@@ -91,16 +93,8 @@ function playground_bump_autoincrements()
             ':column_name' => $column,
             ':seq' => $new_seq,
         ]);
-        var_dump([
-            ':table_name' => $table,
-            ':column_name' => $column,
-            ':seq' => $new_seq,
-        ]);
     }
 
-    // $stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :new_seq where seq < :new_seq");
-    // $stmt->bindParam(':new_seq', $new_seq);
-    // $stmt->execute();
 
     /**
      * We must force SQLite to use monotonically increasing values for
@@ -128,16 +122,23 @@ function playground_bump_autoincrements()
         force_seq_autoincrement_on_{$table}_{$column}
         AFTER INSERT ON $table
         FOR EACH ROW
-        --WHEN NEW.{$column} IS NULL
+        WHEN
+            -- Don't run this trigger when we're replaying queries from another peer
+            (SELECT value FROM playground_variables WHERE name = 'is_replaying') = 'no'
         BEGIN
             UPDATE {$table} SET {$column} = (
-                SELECT seq FROM playground_sequence WHERE table_name = '{$table}' AND column_name = '{$column}'
+                SELECT seq FROM playground_sequence WHERE table_name = '{$table}'
             ) + 1 WHERE rowid = NEW.rowid;
-            UPDATE playground_sequence SET seq = seq + 1 WHERE table_name = '{$table}' AND column_name = '{$column}';
+            UPDATE playground_sequence SET seq = seq + 1 WHERE table_name = '{$table}';
         END;
         SQL;
-        var_dump($trigger_query);
-        $pdo->query($trigger_query);
+        echo $trigger_query;
+        try {
+            $pdo->query($trigger_query);
+        } catch(PDOException $e) {
+            // The trigger might already exist
+            var_dump($e->getTraceAsString());
+        }
     }
 }
 
@@ -148,16 +149,15 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
 
     // @TODO: Replace this with SQLite's update hook:
     $was_pk_generated = $query_type === 'INSERT' && $auto_increment_column && !in_array($auto_increment_column, $insert_columns, true);
-    if ($was_pk_generated) {
+    if($was_pk_generated) {
         $rows = $GLOBALS['@pdo']->query("SELECT * FROM $table_name WHERE $auto_increment_column <= $last_insert_id ORDER BY $auto_increment_column DESC LIMIT $affected_rows")->fetchAll(PDO::FETCH_ASSOC);
         foreach($rows as $row) {
             $row[$auto_increment_column] = (int) $row[$auto_increment_column];
             post_message_to_js(json_encode([
                 'type' => 'sql',
-                'subtype' => 'insert-row',
+                'subtype' => 'reconstruct-query',
                 'row' => $row,
                 'query_type' => $query_type,
-                'insert_columns' => $insert_columns,
                 'table_name' => $table_name,
                 'auto_increment_column' => $auto_increment_column,
                 'last_insert_id' => $last_insert_id,
@@ -166,23 +166,26 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
         return;
     }
 
-    if ($query) {
-        post_message_to_js(json_encode([
-            'type' => 'sql',
-            'subtype' => 'replay-query',
-            'query' => $query,
-            'query_type' => $query_type,
-            'insert_columns' => $insert_columns,
-            'table_name' => $table_name,
-            'auto_increment_column' => $auto_increment_column,
-            'last_insert_id' => $last_insert_id,
-        ]));
-        // @TODO: Why is $query null sometimes?
-    }
+    post_message_to_js(json_encode([
+        'type' => 'sql',
+        'subtype' => 'replay-query',
+        'query' => $query,
+        'query_type' => $query_type,
+        'table_name' => $table_name,
+        'auto_increment_column' => $auto_increment_column,
+        'last_insert_id' => $last_insert_id,
+    ]));
 }
 
+$is_replaying = isset($GLOBALS['@REPLAYING_SQL']) && $GLOBALS['@REPLAYING_SQL'];
+
+$pdo = $GLOBALS['@pdo'];
+$pdo->query("CREATE TABLE IF NOT EXISTS playground_variables (name TEXT PRIMARY KEY, value TEXT);");
+$stmt = $pdo->prepare("INSERT OR REPLACE INTO playground_variables VALUES ('is_replaying', :is_replaying);");
+$stmt->execute([':is_replaying' => $is_replaying ? 'yes' : 'no']);
+
 // Don't report SQL queries we're replaying from another peer.
-if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
+if (!$is_replaying) {
     $auto_increment_columns = findAutoIncrementColumns();
     add_filter('sqlite_post_query', 'playground_report_queries', -1000, 6);
     add_filter('sqlite_last_insert_id', function ($last_insert_id, $table_name) {
@@ -202,34 +205,34 @@ if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
     }, 0, 2);
 
 
-    // add_filter('sqlite_begin_transaction', function ($success, $level) {
-    //     if (0 === $level) {
-    //         post_message_to_js(json_encode([
-    //             'type' => 'sql',
-    //             'subtype' => 'transaction',
-    //             'success' => $success,
-    //             'command' => 'START TRANSACTION',
-    //         ]));
-    //     }
-    // }, 0, 2);
-    // add_filter('sqlite_commit', function ($success, $level) {
-    //     if (0 === $level) {
-    //         post_message_to_js(json_encode([
-    //             'type' => 'sql',
-    //             'subtype' => 'transaction',
-    //             'success' => $success,
-    //             'command' => 'COMMIT',
-    //         ]));
-    //     }
-    // }, 0, 2);
-    // add_filter('sqlite_rollback', function ($success, $level) {
-    //     if (0 === $level) {
-    //         post_message_to_js(json_encode([
-    //             'type' => 'sql',
-    //             'subtype' => 'transaction',
-    //             'success' => $success,
-    //             'command' => 'ROLLBACK',
-    //         ]));
-    //     }
-    // }, 0, 2);
+    add_filter('sqlite_begin_transaction', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'START TRANSACTION',
+            ]));
+        }
+    }, 0, 2);
+    add_filter('sqlite_commit', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'COMMIT',
+            ]));
+        }
+    }, 0, 2);
+    add_filter('sqlite_rollback', function ($success, $level) {
+        if (0 === $level) {
+            post_message_to_js(json_encode([
+                'type' => 'sql',
+                'subtype' => 'transaction',
+                'success' => $success,
+                'command' => 'ROLLBACK',
+            ]));
+        }
+    }, 0, 2);
 }

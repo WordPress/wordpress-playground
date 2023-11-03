@@ -2,7 +2,9 @@ const literal = Symbol('literal');
 
 export function phpVar(value: unknown): string {
 	if (typeof value === 'string') {
-		const escapedValue = JSON.stringify(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+		const escapedValue = JSON.stringify(value)
+			.replace(/\\/g, '\\\\')
+			.replace(/'/g, "\\'");
 		return `json_decode('${escapedValue}')`;
 	} else if (typeof value === 'number') {
 		return value.toString();

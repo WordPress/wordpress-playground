@@ -14,6 +14,20 @@
  * * Do not sync transients, site URL, etc.
  */
 
+/**
+ * SQL syncing strategy:
+ *
+ * * When the local WordPress issues a query, we record it in a buffer
+ *   and broadcast it to the remote peer.
+ * * Whenever an autoincrement value is generated:
+ *    1. We override the SQLite-assigned sequence value with the next
+ *       relevant value from playground_sequence.
+ *    2. We fetch the entire row from the database and transmit it as
+ *       JSON to the remote peer.
+ * * When the remote peer receives a query, it replays it on its end
+ *   as it is.
+ */
+
 import { phpVar, phpVars, startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation, IsomorphicLocalPHP } from '@php-wasm/universal';
@@ -34,46 +48,21 @@ console.log({
 	clientId,
 	idOffset,
 });
-const result2 = await playground.run({
+await playground.run({
 	code: `<?php
 	require '/wordpress/wp-load.php';
 	$pdo = $GLOBALS['@pdo'];
+
+	// Store the initial autoincrement offset for this peer:
 	update_option('playground_id_offset', ${phpVar(idOffset)});
 	playground_bump_autoincrements();
 	`,
 });
 
-if (clientId === 'left') {
-	console.log(result2.text);
-
-	// const result = await playground.run({
-	// 	code: `<?php
-	// 	require '/wordpress/wp-load.php';
-	// 	$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
-	// 	echo "\\ninserting new post into wp_posts: ";
-	// 	var_dump($result);
-	// 	echo "Insert id: \\n";
-	// 	var_dump($wpdb->insert_id);
-	// 	echo "Last error: \\n";
-	// 	var_dump($wpdb->last_error);
-	// 	echo "\\nupdating playground_sequence ";
-	// 	$result = $wpdb->query("update playground_sequence set seq=200;");
-	// 	var_dump($result);
-	// 	echo "\\ninserting new post into wp_posts ";
-	// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
-	// 	var_dump($result);
-	// 	var_dump($wpdb->insert_id);
-	// 	echo "\\ninserting another new post into wp_posts ";
-	// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see 33this', '', 'publish')");
-	// 	var_dump($result);
-	// 	var_dump($wpdb->insert_id);
-
-	// 	`,
-	// });
-
-	// console.log(result.text);
-	// throw new Error();
-}
+// if (clientId === 'left') {
+// 	console.log(result2.text);
+// 	console.log(result2.errors);
+// }
 
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
@@ -120,7 +109,8 @@ type SQLQueryMetadata =
 	  }
 	| {
 			type: 'sql';
-			subtype: 'insert-row';
+			subtype: 'reconstruct-query';
+			query_type: 'INSERT';
 			row: Record<string, unknown>;
 			table_name: string;
 			auto_increment_column: string;
@@ -229,70 +219,30 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 		// Only load WordPress now
 		require '/wordpress/wp-load.php';
 
+		$pdo = $GLOBALS['@pdo'];
 		$queries = ${js.queries};
 		foreach($queries as $query) {
-			/**
-			 * If we're INSERT-ing to a table with an autoincrement
-			 * column, this peer uses a different sequence offset than
-			 * the remote peer. Simply replaying inserts won't suffice
-			 * to reconcile the changes as we're going to have different
-			 * IDs on both ends.
-			 * 
-			 * We need to:
-			 * * Store the autoincrement sequence value
-			 * * Replay INSERT
-			 * * Immediately update the ID to the same one as the remote assigned
-			 * * Restore the original autoincrement sequence value
-			 */
-			$assign_peer_pk = (
-				$query['query_type'] === "INSERT" &&
-				!!$query['auto_increment_column'] &&
-				!!$query['last_insert_id']
-			);
-			$pdo = $GLOBALS['@pdo'];
-			// Store the autoincrement sequence value:
-			if ( $assign_peer_pk ) {
-				$stmt = $pdo->prepare("SELECT seq FROM playground_sequence WHERE table_name = :table_name");
-				$table_name = $query['table_name'];
-				$stmt->bindParam("table_name", $table_name);
-				$stmt->execute();
-				$row = $stmt->fetch();
-				var_dump($row);
-				$last_local_pk = $row['seq'];
-				$next_local_pk = $last_local_pk + 1;
-			}
-
-			// Replay query
 			try {
-				// PROBLEM: SQLITE stubbornly sets the sequence value to MAX(id)+1 and 
-				//          it does that BEFORE inserting. Hmm! Hopefully there is a 
-				//          setting to make it more naive and just use seq + 1
-				if($query['subtype'] === 'insert-row') {
-					// Execute the query
+				// If another peer assigned an autoincrement value, we don't get
+				// the query but a key/value representation of the inserted row.
+				// Let's reconstruct the INSERT query from that.
+				if($query['subtype'] === 'reconstruct-query') {
+					$table_name = $query['table_name'];
 					$columns = implode(', ', array_keys($query['row']));
 					$placeholders = ':' . implode(', :', array_keys($query['row']));
 					
-					// echo 'INSERT ROW';
-					// var_dump("INSERT INTO $table_name ($columns) VALUES ($placeholders)");
-
-					$stmt = $pdo->prepare(
-						"INSERT INTO $table_name ($columns) VALUES ($placeholders)"
-					);
+					$stmt = $pdo->prepare("INSERT INTO $table_name ($columns) VALUES ($placeholders)");
 					$stmt->execute($query['row']);
 				} else {
-					// echo 'REPLAY';
-					// var_dump($query);
 					$wpdb->query($query['query']);
 				}
 			} catch(PDOException $e) {
-				/**
-				 * Let's ignore errors related to UNIQUE constraints violation.
-				 * Sometimes we'll ignore something we shouldn't, but for the most
-				 * part, they are related to surface-level core mechanics like transients.
-				 * 
-				 * In the future, let's implement pattern matching on queries and
-				 * prevent synchronizing things like transients.
-				 */
+				// Let's ignore errors related to UNIQUE constraints violation.
+				// Sometimes we'll ignore something we shouldn't, but for the most
+				// part, they are related to surface-level core mechanics like transients.
+				// 
+				// In the future, let's implement pattern matching on queries and
+				// prevent synchronizing things like transients.
 				var_dump("PDO Exception! " . $e->getMessage());
 				var_dump($e->getCode());
 				var_dump($query);
@@ -302,51 +252,13 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 				}
 				throw $e;
 			}
-
-			if ( $assign_peer_pk ) {
-				// Two things just happened:
-				// 1. The autoincrement sequence value was bumped
-				// 2. A record was created with that bumped value as primary key
-				// 
-				// Let's:
-				// 1. Update that record to have the same ID as assigned by the remote peer
-				// 2. Restore the previous autoincrement sequence value
-
-				// ===> Update that record to have the same ID as assigned by the remote peer
-				$pk_column = $query['auto_increment_column'];
-				$stmt = $pdo->prepare(<<<SQL
-					UPDATE $table_name 
-						SET $pk_column = :peer_pk
-						WHERE $pk_column = :next_local_pk
-				SQL
-				);
-				$stmt->bindParam(':peer_pk', $query['last_insert_id']);
-				$stmt->bindParam(':next_local_pk', $next_local_pk);
-				// echo "\\n\\nRestoring primary key value from peer\\n\\n";
-				// echo "QUERY: \\n";
-				// echo $query['query'] . "\\n\\n";
-				// echo "REWIND: \\n";
-				// echo "UPDATE $table_name SET $pk_column = ". $query['last_insert_id'] ." WHERE $pk_column = $next_local_pk\\n\\n";
-				$stmt->execute();
-
-				// ===> Restore the previous autoincrement sequence value
-				$stmt = $pdo->prepare(<<<SQL
-					UPDATE playground_sequence
-						SET seq = :last_local_pk
-						WHERE table_name = :table_name
-				SQL
-				);
-				$stmt->bindParam("last_local_pk", $last_local_pk);
-				$stmt->bindParam("table_name", $table_name);
-				$stmt->execute();
-			}
 		}
 	`,
 		})
 		.then((r) => {
 			if (r.text.trim() || r.errors.trim()) {
 				console.log(`[${clientId}] `, r.text);
-				// console.log(`[${clientId}] `, r.errors);
+				console.log(`[${clientId}] `, r.errors);
 			}
 		})
 		.catch((e) => {
@@ -438,3 +350,28 @@ onChangeReceived<FSChange>('fs', async (op) => {
 //         client2.goTo(url);
 //     });
 // }, 150);
+
+// const result = await playground.run({
+// 	code: `<?php
+// 	require '/wordpress/wp-load.php';
+// 	$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+// 	echo "\\ninserting new post into wp_posts: ";
+// 	var_dump($result);
+// 	echo "Insert id: \\n";
+// 	var_dump($wpdb->insert_id);
+// 	echo "Last error: \\n";
+// 	var_dump($wpdb->last_error);
+// 	echo "\\nupdating playground_sequence ";
+// 	$result = $wpdb->query("update playground_sequence set seq=200;");
+// 	var_dump($result);
+// 	echo "\\ninserting new post into wp_posts ";
+// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
+// 	var_dump($result);
+// 	var_dump($wpdb->insert_id);
+// 	echo "\\ninserting another new post into wp_posts ";
+// 	$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see 33this', '', 'publish')");
+// 	var_dump($result);
+// 	var_dump($wpdb->insert_id);
+
+// 	`,
+// });
