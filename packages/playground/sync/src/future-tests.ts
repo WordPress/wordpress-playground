@@ -1,4 +1,3 @@
-
 // Use this as a unit test later on:
 // const result = await playground.run({
 // 	code: `<?php
