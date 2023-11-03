@@ -1638,6 +1638,7 @@ class WP_SQLite_Translator {
 		if ( is_numeric( $this->last_insert_id ) ) {
 			$this->last_insert_id = (int) $this->last_insert_id;
 		}
+		$this->last_insert_id = apply_filters('sqlite_last_insert_id', $this->last_insert_id, $this->table_name);
 	}
 
 	/**

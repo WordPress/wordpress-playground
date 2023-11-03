@@ -48,21 +48,29 @@ if (clientId === 'left') {
 		code: `<?php
 		require '/wordpress/wp-load.php';
 		$result = $wpdb->query("INSERT INTO wp_posts(ID,to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES(10000000,'','','','', 1, 'this is rolled back and we dont want to see this', '', 'publish')");
+		echo "\\ninserting new post into wp_posts: ";
 		var_dump($result);
+		echo "Insert id: \\n";
 		var_dump($wpdb->insert_id);
+		echo "Last error: \\n";
 		var_dump($wpdb->last_error);
-		echo "\\nupdating sqlite_sequence ";
-		$result = $wpdb->query("update sqlite_sequence set seq=200;");
+		echo "\\nupdating playground_sequence ";
+		$result = $wpdb->query("update playground_sequence set seq=200;");
 		var_dump($result);
 		echo "\\ninserting new post into wp_posts ";
 		$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see this', '', 'publish')");
 		var_dump($result);
 		var_dump($wpdb->insert_id);
+		echo "\\ninserting another new post into wp_posts ";
+		$result = $wpdb->query("INSERT INTO wp_posts(to_ping,pinged,post_content_filtered,post_excerpt, post_author, post_title, post_content, post_status) VALUES('','','','', 1, 'this is committed and we do want to see 33this', '', 'publish')");
+		var_dump($result);
+		var_dump($wpdb->insert_id);
+
 		`,
 	});
 
-	console.log(result.text);
-	throw new Error();
+	// console.log(result.text);
+	// throw new Error();
 }
 
 await login(playground, { username: 'admin', password: 'password' });
@@ -233,7 +241,7 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 			// Store the autoincrement sequence value:
 			if ( $assign_peer_pk ) {
 				$pdo = $GLOBALS['@pdo'];
-				$stmt = $pdo->prepare("SELECT seq FROM sqlite_sequence WHERE name = :table_name");
+				$stmt = $pdo->prepare("SELECT seq FROM playground_sequence WHERE table_name = :table_name");
 				$table_name = $query['table_name'];
 				$stmt->bindParam("table_name", $table_name);
 				$stmt->execute();
@@ -295,9 +303,9 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 
 				// ===> Restore the previous autoincrement sequence value
 				$stmt = $pdo->prepare(<<<SQL
-					UPDATE sqlite_sequence
+					UPDATE playground_sequence
 						SET seq = :last_local_pk
-						WHERE name = :table_name
+						WHERE table_name = :table_name
 				SQL
 				);
 				$stmt->bindParam("last_local_pk", $last_local_pk);

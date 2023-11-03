@@ -58,13 +58,45 @@ function playground_bump_autoincrements_filter($query, $query_type)
 }
 add_filter('post_query_sqlite_db', 'playground_bump_autoincrements_filter', -1000, 2);
 
+
 function playground_bump_autoincrements()
 {
     $pdo = $GLOBALS['@pdo'];
-    $stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :new_seq where seq < :new_seq");
     $new_seq = get_option('playground_id_offset');
-    $stmt->bindParam(':new_seq', $new_seq);
-    $stmt->execute();
+    /*
+     * In SQLite we can't:
+     * * Set a custom default value for a PRIMARY KEY column
+     * * Update ID with a trigger BEFORE INSERT
+     * * Update ID with a trigger AFTER INSERT in a way that preserves last_insert_rowid()
+     * * Use INSTEAD OF triggers on a table
+     * 
+     * Here's what we can do:
+     * * Read the entire row after INSERTing it, and reconstruct the query
+     * * Rename the ID column to ID2 and create an ID column with a custom default value
+     * * Use that AFTER INSERT trigger and filter last_insert_id from class-wp-sqlite-translator.php
+     */
+    $pdo->query("CREATE TABLE IF NOT EXISTS playground_sequence (
+        table_name varchar(255),
+        column_name varchar(255),
+        seq int default 0,
+        PRIMARY KEY (table_name, column_name)
+    )");
+    foreach(findAutoIncrementColumns() as $table => $column) {
+        $stmt = $pdo->prepare(<<<SQL
+        INSERT INTO playground_sequence 
+        VALUES (:table_name, :column_name, :seq) 
+        SQL
+        );
+        $stmt->execute([
+            ':table_name' => $table,
+            ':column_name' => $column,
+            ':seq' => $new_seq,
+        ]);
+    }
+
+    // $stmt = $pdo->prepare("UPDATE sqlite_sequence SET seq = :new_seq where seq < :new_seq");
+    // $stmt->bindParam(':new_seq', $new_seq);
+    // $stmt->execute();
 
     /**
      * We must force SQLite to use monotonically increasing values for
@@ -90,14 +122,14 @@ function playground_bump_autoincrements()
         $trigger_query = <<<SQL
         CREATE TRIGGER IF NOT EXISTS 
         force_seq_autoincrement_on_{$table}_{$column}
-        BEFORE INSERT ON $table
+        AFTER INSERT ON $table
         FOR EACH ROW
         WHEN NEW.{$column} IS NULL
         BEGIN
-            SET NEW.{$column} = (
-                SELECT seq FROM sqlite_sequence WHERE name = '$table'
-            ) + 1;
-            UPDATE sqlite_sequence set seq = seq + 1 WHERE name = '$table';
+            UPDATE {$table} SET {$column} = (
+                SELECT seq FROM playground_sequence WHERE table_name = '{$table}' AND column_name = '{$column}'
+            ) + 1 WHERE rowid = NEW.rowid;
+            UPDATE playground_sequence SET seq = seq + 1 WHERE table_name = '{$table}' AND column_name = '{$column}';
         END;
         SQL;
         var_dump($trigger_query);
@@ -124,6 +156,21 @@ function playground_report_queries($query, $query_type, $table_name, $insert_col
 if (!isset($GLOBALS['@REPLAYING_SQL']) || !$GLOBALS['@REPLAYING_SQL']) {
     $auto_increment_columns = findAutoIncrementColumns();
     add_filter('sqlite_post_query', 'playground_report_queries', -1000, 5);
+    add_filter('sqlite_last_insert_id', function ($last_insert_id, $table_name) {
+        // Get last relevant value from playground_sequence
+        $pdo = $GLOBALS['@pdo'];
+        $stmt = $pdo->prepare("SELECT * FROM playground_sequence WHERE table_name = :table_name");
+        $stmt->execute([':table_name' => $table_name]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        echo 'table_name:';
+        var_dump($table_name);
+        var_dump($result);
+        if ($result) {
+            return $result['seq'];
+        }
+        return $last_insert_id;
+    }, 0, 2);
+    
 
     add_filter('sqlite_begin_transaction', function ($success, $level) {
         if (0 === $level) {
