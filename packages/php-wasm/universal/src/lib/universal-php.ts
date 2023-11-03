@@ -18,7 +18,7 @@ export type PHPEvent = PHPRequestEndEvent;
 /**
  * A callback function that handles PHP events.
  */
-export type PHPEventListener<T extends PHPEvent> = (event: T) => void;
+export type PHPEventListener = (event: PHPEvent) => void;
 
 /**
  * Handles HTTP requests using PHP runtime as a backend.

@@ -114,8 +114,6 @@ export type FilesystemOperation =
 	| DeleteOperation
 	| RenameOperation;
 
-export type MemfsJournal = ReturnType<typeof journalMemfs>;
-
 declare module './universal-php' {
 	export interface IsomorphicLocalPHP {
 		__journalingDisabled?: boolean;

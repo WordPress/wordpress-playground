@@ -9,6 +9,7 @@ import {
 	SupportedWordPressVersionsList,
 } from '../wordpress/get-wordpress-module';
 import {
+	FilesystemOperation,
 	journalMemfs,
 	SupportedPHPExtension,
 	SupportedPHPVersion,
@@ -167,7 +168,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		});
 	}
 
-	async journalMemfs(callback) {
+	async journalMemfs(callback: (op: FilesystemOperation) => void) {
 		journalMemfs(php, '/wordpress/wp-content', callback);
 	}
 }

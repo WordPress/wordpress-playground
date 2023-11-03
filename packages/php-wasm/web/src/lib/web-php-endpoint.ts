@@ -175,17 +175,17 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
-	addEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
+	addEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
 	): void {
 		_private.get(this)!.php.addEventListener(eventType, listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
-	removeEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
 	): void {
 		_private.get(this)!.php.removeEventListener(eventType, listener);
 	}

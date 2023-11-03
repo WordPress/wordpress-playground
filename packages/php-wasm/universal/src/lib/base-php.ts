@@ -45,7 +45,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
-	#eventListeners: Record<string, PHPEventListener<any>[]> = {};
+	#eventListeners: Record<string, PHPEventListener[]> = {};
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
 	#semaphore: Semaphore;
@@ -72,19 +72,16 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	addEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
-	) {
+	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
 		if (!(eventType in this.#eventListeners)) {
 			this.#eventListeners[eventType] = [];
 		}
 		this.#eventListeners[eventType].push(listener);
 	}
 
-	removeEventListener<Event extends PHPEvent>(
-		eventType: Event['type'],
-		listener: PHPEventListener<Event>
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
 	) {
 		if (!(eventType in this.#eventListeners)) {
 			return;

@@ -11,11 +11,7 @@
 /* eslint-disable prefer-rest-params */
 import type { WebPHP } from '@php-wasm/web';
 import type { EmscriptenFS } from './types';
-import {
-	PHPFilesystemEvent,
-	journalMemfs,
-	MemfsJournal,
-} from '@php-wasm/universal';
+import { FilesystemOperation, journalMemfs } from '@php-wasm/universal';
 import { __private__dont__use } from '@php-wasm/universal';
 import { copyMemfsToOpfs, overwriteOpfsFile } from './bind-opfs';
 
@@ -24,8 +20,11 @@ export function journalMemfsToOpfs(
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string
 ) {
-	const journal = journalMemfs(php, memfsRoot);
-	const rewriter = new OpfsRewriter(php, journal, opfsRoot, memfsRoot);
+	const journal: FilesystemOperation[] = [];
+	const unbind = journalMemfs(php, memfsRoot, (entry) => {
+		journal.push(entry);
+	});
+	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
 	/**
 	 * Calls the observer with the current delta each time PHP is ran.
 	 *
@@ -38,24 +37,29 @@ export function journalMemfsToOpfs(
 	const originalRun = php.run;
 	php.run = async function (...args) {
 		const response = await originalRun.apply(php, args);
-		await rewriter.flush();
+		// @TODO This is way too slow in practice, we need to batch the 
+		// changes into groups of parallelizable operations.
+		while (true) {
+			const entry = journal.shift();
+			if (!entry) {
+				break;
+			}
+			await rewriter.processEntry(entry);
+		}
 		return response;
 	};
-	return () => {
-		journal.unbind();
-	};
+
+	return unbind;
 }
 
-type JournalEntry = PHPFilesystemEvent['details'];
+type JournalEntry = FilesystemOperation;
 
 class OpfsRewriter {
 	private FS: EmscriptenFS;
-	private entries: JournalEntry[][] = [];
 	private memfsRoot: string;
 
 	constructor(
 		private php: WebPHP,
-		private journal: MemfsJournal,
 		private opfs: FileSystemDirectoryHandle,
 		memfsRoot: string
 	) {
@@ -63,21 +67,11 @@ class OpfsRewriter {
 		this.FS = this.php[__private__dont__use].FS;
 	}
 
-	async flush() {
-		const partitions = this.journal.flush();
-
-		for (const partition of partitions) {
-			await asyncMap(partition, async (entry) => {
-				await this.processEntry(entry);
-			});
-		}
-	}
-
 	private toOpfsPath(path: string) {
 		return normalizeMemfsPath(path.substring(this.memfsRoot.length));
 	}
 
-	private async processEntry(entry: JournalEntry) {
+	public async processEntry(entry: JournalEntry) {
 		if (
 			!entry.path.startsWith(this.memfsRoot) ||
 			entry.path === this.memfsRoot
@@ -100,10 +94,16 @@ class OpfsRewriter {
 				} catch (e) {
 					// If the directory already doesn't exist, it's fine
 				}
-			} else if (entry.operation === 'CREATE_DIRECTORY') {
-				await opfsParent.getDirectoryHandle(name, {
-					create: true,
-				});
+			} else if (entry.operation === 'CREATE') {
+				if (entry.nodeType === 'directory') {
+					await opfsParent.getDirectoryHandle(name, {
+						create: true,
+					});
+				} else {
+					await opfsParent.getFileHandle(name, {
+						create: true,
+					});
+				}
 			} else if (entry.operation === 'UPDATE_FILE') {
 				await overwriteOpfsFile(opfsParent, name, this.FS, entry.path);
 			} else if (
@@ -173,13 +173,17 @@ async function resolveParent(
 	return handle as any;
 }
 
-async function asyncMap<T, U>(
-	iter: Iterable<T>,
-	asyncFunc: (value: T) => Promise<U>
-): Promise<U[]> {
-	const promises: Promise<U>[] = [];
-	for (const value of iter) {
-		promises.push(asyncFunc(value));
-	}
-	return await Promise.all(promises);
-}
+// Commenting this out for now to keep TS happy, but we
+// definitely need to start processing journal entries
+// in parallel again.
+//
+// async function asyncMap<T, U>(
+// 	iter: Iterable<T>,
+// 	asyncFunc: (value: T) => Promise<U>
+// ): Promise<U[]> {
+// 	const promises: Promise<U>[] = [];
+// 	for (const value of iter) {
+// 		promises.push(asyncFunc(value));
+// 	}
+// 	return await Promise.all(promises);
+// }
