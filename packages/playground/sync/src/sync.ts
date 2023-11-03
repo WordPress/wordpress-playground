@@ -29,14 +29,14 @@
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
-import { recordFSOperations, replayFSOperations } from './sync/fs';
+import { recordFSOperations, replayFSOperations } from './fs';
 import {
 	idOffset,
 	SQLQueryMetadata,
 	recordSQLQueries,
 	replaySQLQueries,
-} from './sync/sql';
-import { ParentWindowTransport } from './sync/transports';
+} from './sql';
+import { ParentWindowTransport } from './transports';
 
 const playground = await startPlaygroundWeb({
 	iframe: document.getElementById('wp') as HTMLIFrameElement,
