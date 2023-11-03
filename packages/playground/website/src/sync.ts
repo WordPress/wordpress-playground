@@ -48,21 +48,21 @@ console.log({
 	clientId,
 	idOffset,
 });
-await playground.run({
+
+const initializationResult = await playground.run({
 	code: `<?php
 	require '/wordpress/wp-load.php';
-	$pdo = $GLOBALS['@pdo'];
 
-	// Store the initial autoincrement offset for this peer:
-	update_option('playground_id_offset', ${phpVar(idOffset)});
-	playground_bump_autoincrements();
+	playground_override_autoincrement_algorithm(${phpVar(idOffset)});
 	`,
 });
-
-// if (clientId === 'left') {
-// 	console.log(result2.text);
-// 	console.log(result2.errors);
-// }
+if (clientId === 'left') {
+	if (initializationResult.errors) {
+		console.log(initializationResult.text);
+		console.log(initializationResult.errors);
+		throw new Error();
+	}
+}
 
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
@@ -172,14 +172,20 @@ playground.onMessage(async (messageString) => {
 		//        php.addEventListener('request.done', () => { ... });
 		return;
 	}
-	if (message.subtype === 'replay-query' && message.query_type === 'SELECT') {
-		return;
-	}
-	// It's a regular query
-	if (activeTransaction) {
-		activeTransaction.push(message);
-	} else {
-		committedQueries.push(message);
+
+	if (
+		message.subtype === 'replay-query' ||
+		message.subtype === 'reconstruct-query'
+	) {
+		if (message.query_type === 'SELECT') {
+			return;
+		}
+
+		if (activeTransaction) {
+			activeTransaction.push(message);
+		} else {
+			committedQueries.push(message);
+		}
 	}
 
 	debouncedFlushSQLQueries();
@@ -216,43 +222,9 @@ async function replaySqlQuery(queries: SQLQueryMetadata[]) {
 		// Prevent reporting changes from queries we're just replaying
 		$GLOBALS['@REPLAYING_SQL'] = true;
 
-		// Only load WordPress now
+		// Only load WordPress and replay the SQL queries now
 		require '/wordpress/wp-load.php';
-
-		$pdo = $GLOBALS['@pdo'];
-		$queries = ${js.queries};
-		foreach($queries as $query) {
-			try {
-				// If another peer assigned an autoincrement value, we don't get
-				// the query but a key/value representation of the inserted row.
-				// Let's reconstruct the INSERT query from that.
-				if($query['subtype'] === 'reconstruct-query') {
-					$table_name = $query['table_name'];
-					$columns = implode(', ', array_keys($query['row']));
-					$placeholders = ':' . implode(', :', array_keys($query['row']));
-					
-					$stmt = $pdo->prepare("INSERT INTO $table_name ($columns) VALUES ($placeholders)");
-					$stmt->execute($query['row']);
-				} else {
-					$wpdb->query($query['query']);
-				}
-			} catch(PDOException $e) {
-				// Let's ignore errors related to UNIQUE constraints violation.
-				// Sometimes we'll ignore something we shouldn't, but for the most
-				// part, they are related to surface-level core mechanics like transients.
-				// 
-				// In the future, let's implement pattern matching on queries and
-				// prevent synchronizing things like transients.
-				var_dump("PDO Exception! " . $e->getMessage());
-				var_dump($e->getCode());
-				var_dump($query);
-				// SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed
-				if($e->getCode() === "23000") {
-					continue;
-				}
-				throw $e;
-			}
-		}
+		playground_sync_replay_queries(${js.queries});
 	`,
 		})
 		.then((r) => {
