@@ -1545,6 +1545,17 @@ class WP_SQLite_Translator {
 				break;
 			}
 
+			// Record the table name
+			if (
+				!$this->table_name &&
+				!$token->matches(
+					WP_SQLite_Token::TYPE_KEYWORD,
+					WP_SQLite_Token::FLAG_KEYWORD_RESERVED
+				)
+			) {
+				$this->table_name = $token->value;
+			}
+			
 			$this->remember_last_reserved_keyword( $token );
 
 			if (
@@ -3591,6 +3602,7 @@ class WP_SQLite_Translator {
 		$this->mysql_query                 = '';
 		$this->results                     = null;
 		$this->last_exec_returned          = null;
+		$this->table_name                  = null;
 		$this->last_insert_id              = null;
 		$this->affected_rows               = null;
 		$this->insert_columns              = array();

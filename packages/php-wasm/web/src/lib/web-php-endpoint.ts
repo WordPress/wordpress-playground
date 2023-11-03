@@ -173,7 +173,7 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	onMessage(listener: MessageListener): void {
 		_private.get(this)!.php.onMessage(listener);
 	}
-	
+
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
 	addEventListener<Event extends PHPEvent>(
 		eventType: Event['type'],

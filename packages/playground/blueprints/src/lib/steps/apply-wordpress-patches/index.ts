@@ -17,8 +17,6 @@ import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plu
 import linksTargetingTopFrameShouldTargetPlaygroundIframe from './wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php?raw';
 /** @ts-ignore */
 import enableUrlRewrite from './wp-content/mu-plugins/4-enable-url-rewrite.php?raw';
-/** @ts-ignore */
-import logSqlQueries from './wp-content/mu-plugins/5-log-sql-queries.php?raw';
 
 /**
  * @private
@@ -208,11 +206,6 @@ class WordPressPatcher {
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/4-enable-url-rewrite.php`,
 			enableUrlRewrite
-		);
-
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/5-log-sql-queries.php`,
-			logSqlQueries
 		);
 	}
 }

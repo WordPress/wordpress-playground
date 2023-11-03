@@ -239,7 +239,7 @@ function playground_sync_emit_mysql_query($query, $query_type, $table_name, $ins
             $row[$auto_increment_column] = (int) $row[$auto_increment_column];
             post_message_to_js(json_encode([
                 'type' => 'sql',
-                'subtype' => 'reconstruct-query',
+                'subtype' => 'reconstruct-insert',
                 'row' => $row,
                 'query_type' => $query_type,
                 'table_name' => $table_name,
@@ -302,8 +302,10 @@ function playground_sync_replay_queries($queries)
         try {
             // If another peer assigned an autoincrement value, we don't get
             // the query but a key/value representation of the inserted row.
-            // Let's reconstruct the INSERT query from that.
-            if ($query['subtype'] === 'reconstruct-query') {
+            // Let's reconstruct the INSERT query using that data.
+            // Because we use prepared statements here, we cannot simply reconstruct the
+            // insert on the other end.
+            if ($query['subtype'] === 'reconstruct-insert') {
                 $table_name = $query['table_name'];
                 $columns = implode(', ', array_keys($query['row']));
                 $placeholders = ':' . implode(', :', array_keys($query['row']));
