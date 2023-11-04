@@ -218,9 +218,7 @@ export type SQLReconstructInsert = {
 	last_insert_id: number;
 };
 
-export type SQLQueryMetadata =
-	| SQLReplayQuery
-	| SQLReconstructInsert
+export type SQLQueryMetadata = SQLReplayQuery | SQLReconstructInsert;
 
 export type SQLTransactionCommand =
 	| {
