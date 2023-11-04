@@ -40,8 +40,7 @@ export const idOffset = Math.round(Math.random() * 1_000_000);
 
 export async function recordSQLQueries(
 	playground: PlaygroundClient,
-	onFlush: any,
-	debounceDelay = 3000
+	onCommit: (queries: SQLQueryMetadata[]) => void
 ) {
 	await playground.writeFile(
 		'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
@@ -70,7 +69,6 @@ export async function recordSQLQueries(
 		throw new Error();
 	}
 
-	let committedQueries: SQLQueryMetadata[] = [];
 	let activeTransaction: SQLQueryMetadata[] | null = null;
 
 	// When PHP request terminates, any uncommitted
@@ -95,10 +93,7 @@ export async function recordSQLQueries(
 					break;
 				case 'COMMIT':
 					if (activeTransaction?.length) {
-						committedQueries = [
-							...committedQueries,
-							...activeTransaction,
-						];
+						onCommit(activeTransaction);
 					}
 					activeTransaction = null;
 					break;
@@ -120,25 +115,10 @@ export async function recordSQLQueries(
 			if (activeTransaction) {
 				activeTransaction.push(message);
 			} else {
-				committedQueries.push(message);
+				onCommit([message]);
 			}
 		}
-
-		debouncedFlush();
 	});
-
-	let flushTimeout: number | null = null;
-	function debouncedFlush() {
-		if (null !== flushTimeout) {
-			clearTimeout(flushTimeout);
-		}
-		flushTimeout = setTimeout(() => {
-			flushTimeout = null;
-			const dataToBroadcast = committedQueries;
-			committedQueries = [];
-			onFlush(dataToBroadcast);
-		}, debounceDelay) as any;
-	}
 }
 
 function shouldSyncQuery(query: SQLQueryMetadata) {

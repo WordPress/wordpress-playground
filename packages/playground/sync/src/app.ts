@@ -47,3 +47,19 @@ transport.onChangeReceived(async ({ scope, details }) => {
 
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
+
+/*
+
+	let flushTimeout: number | null = null;
+	function debouncedFlush() {
+		if (null !== flushTimeout) {
+			clearTimeout(flushTimeout);
+		}
+		flushTimeout = setTimeout(() => {
+			flushTimeout = null;
+			const dataToBroadcast = committedQueries;
+			committedQueries = [];
+			onFlush(dataToBroadcast);
+		}, debounceDelay) as any;
+	}
+*/

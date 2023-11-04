@@ -32,7 +32,7 @@ import { PlaygroundClient } from '@wp-playground/client';
 
 export async function recordFSOperations(
 	playground: PlaygroundClient,
-	onFlush: any
+	onOperation: (op: FilesystemOperation) => void
 ) {
 	playground.journalMemfs(async (op: FilesystemOperation) => {
 		if (
@@ -44,7 +44,7 @@ export async function recordFSOperations(
 		if (op.operation === 'UPDATE_FILE') {
 			op.data = await playground.readFileAsBuffer(op.path);
 		}
-		onFlush(op);
+		onOperation(op);
 	});
 }
 
@@ -86,7 +86,7 @@ async function replayFSOperation(
 						});
 					}
 				} else if (op.operation === 'UPDATE_FILE') {
-					php.writeFile(op.path, op.data);
+					php.writeFile(op.path, op.data!);
 				} else if (op.operation === 'RENAME') {
 					php.mv(op.path, op.toPath);
 				}

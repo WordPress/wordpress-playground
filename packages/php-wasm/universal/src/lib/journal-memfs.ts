@@ -56,6 +56,8 @@ export type UpdateFileOperation = {
 	operation: 'UPDATE_FILE';
 	/** The path of the node being updated. */
 	path: string;
+	/** Optional. The new contents of the file. */
+	data?: Uint8Array;
 };
 
 /**

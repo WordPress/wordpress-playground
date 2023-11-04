@@ -37,7 +37,7 @@ export function journalMemfsToOpfs(
 	const originalRun = php.run;
 	php.run = async function (...args) {
 		const response = await originalRun.apply(php, args);
-		// @TODO This is way too slow in practice, we need to batch the 
+		// @TODO This is way too slow in practice, we need to batch the
 		// changes into groups of parallelizable operations.
 		while (true) {
 			const entry = journal.shift();
