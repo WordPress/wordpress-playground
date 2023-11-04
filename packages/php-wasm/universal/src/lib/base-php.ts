@@ -143,14 +143,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 		this[__private__dont__use] = runtime;
 		runtime['onMessage'] = async (data: string): Promise<string> => {
-			// const event = {
-			// 	type: 'message',
-			// 	details: data,
-			// };
-			// this.dispatchEvent(event);
-			// if (event.result) {
-			// return event.result;
-			// }
 			for (const listener of this.#messageListeners) {
 				const returnData = await listener(data);
 
