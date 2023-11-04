@@ -1,4 +1,4 @@
-import { FilesystemOperation, IsomorphicLocalPHP } from '@php-wasm/universal';
+import { BasePHP, FilesystemOperation } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { PlaygroundClient } from '@wp-playground/client';
 
@@ -54,8 +54,9 @@ async function replayFSJournalEntry(
 	entry: FilesystemOperation
 ) {
 	await playground.atomic(
-		function (php: IsomorphicLocalPHP, entry: FilesystemOperation) {
-			php.__journalingDisabled = true;
+		function (php: BasePHP, entry: FilesystemOperation) {
+			const wasAllowed = php.journalingAllowed;
+			php.journalingAllowed = false;
 			try {
 				if (entry.operation === 'CREATE') {
 					if (entry.nodeType === 'file') {
@@ -77,7 +78,7 @@ async function replayFSJournalEntry(
 					php.mv(entry.path, entry.toPath);
 				}
 			} finally {
-				php.__journalingDisabled = false;
+				php.journalingAllowed = wasAllowed;
 			}
 		}.toString(),
 		[entry]

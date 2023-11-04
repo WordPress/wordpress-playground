@@ -105,18 +105,6 @@ export type FilesystemOperation =
 	| DeleteOperation
 	| RenameOperation;
 
-declare module './universal-php' {
-	export interface IsomorphicLocalPHP {
-		__journalingDisabled?: boolean;
-	}
-}
-
-declare module './base-php' {
-	interface BasePHP {
-		__journalingDisabled?: boolean;
-	}
-}
-
 export function journalMemfs(
 	php: BasePHP,
 	memfsRoot: string,
@@ -230,15 +218,15 @@ export function journalMemfs(
 	for (const [name, hook] of Object.entries(FSHooks)) {
 		originalFunctions[name] = FS[name];
 		FS[name] = function (...args: any[]) {
-			if (!php.__journalingDisabled) {
+			if (php.journalingAllowed) {
 				hook(...args);
 			}
 			return originalFunctions[name].apply(this, args);
 		};
 	}
+	php.journalingAllowed = true;
 
 	return function unbind() {
-		delete php.__journalingDisabled;
 		// Restore the original FS functions.
 		for (const [name, fn] of Object.entries(originalFunctions)) {
 			php[__private__dont__use].FS[name] = fn;
