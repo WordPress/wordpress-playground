@@ -9,9 +9,11 @@ import { SyncMiddleware, loggerMiddleware } from '../middleware';
 
 const clientId = 'time-traveling';
 
-export async function restartAndReplay(initialJournal: TransportEnvelope[] = []) {
-    const autoincrementOffset = Math.round((1 + Math.random()) * 1_000_000);
-    console.log({autoincrementOffset})
+export async function restartAndReplay(
+	initialJournal: TransportEnvelope[] = []
+) {
+	const autoincrementOffset = Math.round((1 + Math.random()) * 1_000_000);
+	console.log({ autoincrementOffset });
 	const iframe = document.getElementById('wp') as HTMLIFrameElement;
 	const playground = await startPlaygroundWeb({
 		iframe,

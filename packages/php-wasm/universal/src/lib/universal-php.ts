@@ -157,6 +157,26 @@ export interface RequestHandler {
 
 export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
+	 * Adds an event listener for a PHP event.
+	 * @param eventType - The type of event to listen for.
+	 * @param listener - The listener function to be called when the event is triggered.
+	 */
+	addEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void;
+
+	/**
+	 * Removes an event listener for a PHP event.
+	 * @param eventType - The type of event to remove the listener from.
+	 * @param listener - The listener function to be removed.
+	 */
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void;
+
+	/**
 	 * Sets the path to the php.ini file to use for the PHP instance.
 	 *
 	 * @param path - The path to the php.ini file.

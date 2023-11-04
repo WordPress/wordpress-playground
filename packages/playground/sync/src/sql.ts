@@ -1,6 +1,7 @@
 import {
 	PHPResponse,
 	PlaygroundClient,
+	UniversalPHP,
 	phpVar,
 	phpVars,
 } from '@wp-playground/client';
@@ -8,7 +9,7 @@ import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 
-export async function installSqlSyncMuPlugin(playground: PlaygroundClient) {
+export async function installSqlSyncMuPlugin(playground: UniversalPHP) {
 	await playground.writeFile(
 		'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
 		patchedSqliteTranslator
@@ -20,7 +21,7 @@ export async function installSqlSyncMuPlugin(playground: PlaygroundClient) {
 }
 
 export async function overrideAutoincrementSequences(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	baseOffset: number,
 	knownIds: Record<string, number> = {}
 ) {
@@ -57,7 +58,7 @@ export async function overrideAutoincrementSequences(
  * @param onCommit The callback to invoke when a transaction is committed.
  */
 export async function journalSQLQueries(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	onCommit: (queries: SQLJournalEntry) => void
 ) {
 	let activeTransaction: SQLJournalEntry[] | null = null;
