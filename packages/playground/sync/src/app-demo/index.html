@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<head>
+	<title>Playground Sync demo</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			display: flex;
+			gap: 2vw;
+		}
+		iframe {
+			width: 100%;
+			height: 96vh;
+			border: 1px solid black;
+		}
+	</style>
+</head>
+<body>
+	<iframe
+		src="./peer.html?client-id=left&autoincrement-offset=1234500001"
+	></iframe>
+	<iframe
+		src="./peer.html?client-id=right&autoincrement-offset=1543200001"
+	></iframe>
+	<script type="module">
+		const iframes = Array.from(document.querySelectorAll('iframe'));
+		window.onmessage = (event) => {
+			if (event.data.type !== 'playground-change') {
+				return;
+			}
+			iframes.forEach((iframe) => {
+				if (iframe.contentWindow === event.source) {
+					return;
+				}
+				iframe.contentWindow.postMessage(event.data, '*');
+			});
+		};
+	</script>
+</body>

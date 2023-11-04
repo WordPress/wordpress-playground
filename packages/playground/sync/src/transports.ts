@@ -5,9 +5,10 @@ export type TransportEnvelope =
 	| { scope: 'fs'; contents: FilesystemOperation }
 	| { scope: 'sql'; contents: SQLJournalEntry };
 
+export type ChangesCallback = (changes: TransportEnvelope[]) => void;
 export interface PlaygroundSyncTransport {
 	sendChanges(data: TransportEnvelope[]): void;
-	onChangesReceived(fn: (data: TransportEnvelope[]) => void): void;
+	onChangesReceived(fn: ChangesCallback): void;
 }
 
 export class ParentWindowTransport implements PlaygroundSyncTransport {
@@ -29,4 +30,12 @@ export class ParentWindowTransport implements PlaygroundSyncTransport {
 			fn(event.data.envelope);
 		});
 	}
+}
+
+export class NoopTransport implements PlaygroundSyncTransport {
+	sendChanges() {}
+	onChangesReceived(callback: ChangesCallback) {
+		this.injectChanges = callback;
+	}
+	injectChanges(changes: TransportEnvelope[]) {}
 }

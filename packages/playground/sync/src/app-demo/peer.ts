@@ -1,9 +1,8 @@
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { setupPlaygroundSync } from '.';
-import { ParentWindowTransport } from './transports';
-import { loggerMiddleware, marshallSiteURLMiddleware } from './middleware';
-import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
+import { setupPlaygroundSync } from '..';
+import { ParentWindowTransport } from '../transports';
+import { loggerMiddleware } from '../middleware';
 
 export async function runDemo(
 	iframe: HTMLIFrameElement,
@@ -19,11 +18,7 @@ export async function runDemo(
 	await setupPlaygroundSync(playground, {
 		autoincrementOffset,
 		transport: new ParentWindowTransport(),
-		middlewares: [
-			pruneSQLQueriesMiddleware(),
-			marshallSiteURLMiddleware(siteURL),
-			loggerMiddleware(clientId),
-		],
+		middlewares: [loggerMiddleware(clientId)],
 	});
 
 	await login(playground, { username: 'admin', password: 'password' });

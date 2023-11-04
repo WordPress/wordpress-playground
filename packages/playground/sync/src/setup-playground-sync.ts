@@ -4,7 +4,8 @@ import { journalFSOperations, replayFSJournal } from './fs';
 import { SQLJournalEntry, journalSQLQueries, replaySQLJournal } from './sql';
 import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
 import { FilesystemOperation } from '@php-wasm/universal';
-import type { SyncMiddleware } from './middleware';
+import { SyncMiddleware, marshallSiteURLMiddleware } from './middleware';
+import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
 
 export interface SyncOptions {
 	autoincrementOffset: number;
@@ -16,6 +17,12 @@ export async function setupPlaygroundSync(
 	playground: PlaygroundClient,
 	{ autoincrementOffset, transport, middlewares = [] }: SyncOptions
 ) {
+	middlewares = [
+		pruneSQLQueriesMiddleware(),
+		marshallSiteURLMiddleware(await playground.absoluteUrl),
+		...middlewares,
+	];
+
 	await installSqlSyncMuPlugin(playground);
 	await overrideAutoincrementSequences(playground, autoincrementOffset);
 

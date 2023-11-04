@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<head>
+	<title>WordPress PR Previewer</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			display: flex;
+			gap: 2vw;
+			font-family: Helvetica, sans-serif;
+		}
+		iframe {
+			width: 50%;
+			height: 100vh;
+			border: 0;
+		}
+		#logs {
+			width: 50%;
+			height: 100vh;
+			border: 1px solid black;
+			overflow: scroll;
+			text-wrap: nowrap;
+			white-space: pre;
+			padding: 20px;
+		}
+		#logs li {
+			margin-bottom: 4px;
+		}
+	</style>
+</head>
+<body>
+	<iframe id="wp"></iframe>
+	<div id="logs"></div>
+	<script type="module">
+		const { restartAndReplay } = await import('./time-traveling.tsx');
+		restartAndReplay();
+	</script>
+</body>
