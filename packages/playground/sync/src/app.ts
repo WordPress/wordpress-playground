@@ -8,7 +8,8 @@ import {
 	recordSQLQueries,
 	replaySQLQueries,
 } from './sql';
-import { ParentWindowTransport } from './transports';
+import { ParentWindowTransport, TransportMessage } from './transports';
+import { debounce } from './utils';
 
 const playground = await startPlaygroundWeb({
 	iframe: document.getElementById('wp') as HTMLIFrameElement,
@@ -23,23 +24,35 @@ const clientId: string | null = new URLSearchParams(
 
 console.log({ clientId, idOffset });
 
-recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
-	console.log(`[${clientId}] Sending SQL!`, {
-		debugClientId: clientId,
-		queries,
-	});
-	transport.broadcastChange({ scope: 'sql', details: queries });
+const changes: TransportMessage[] = [];
+const debouncedFlush = debounce(() => {
+	while (true) {
+		const change = changes.shift();
+		if (!change) {
+			break;
+		}
+		console.log(
+			`[${clientId}] Sending ${change.scope} change!`,
+			change.details
+		);
+		transport.broadcastChange(change);
+	}
+}, 3000);
+
+await recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
+	changes.push({ scope: 'sql', details: queries });
+	debouncedFlush();
 });
-recordFSOperations(playground, (op: FilesystemOperation) => {
-	console.log(`[${clientId}] Sending file`, op);
-	transport.broadcastChange({ scope: 'fs', details: op });
+recordFSOperations(playground, (ops: FilesystemOperation[]) => {
+	changes.push({ scope: 'fs', details: ops });
+	debouncedFlush();
 });
 
 const transport = new ParentWindowTransport();
 transport.onChangeReceived(async ({ scope, details }) => {
 	console.log(`[${clientId}][onChangeReceived][${scope}]`, details);
 	if (scope === 'fs') {
-		await replayFSOperations(playground, [details]);
+		await replayFSOperations(playground, details);
 	} else if (scope === 'sql') {
 		await replaySQLQueries(playground, details);
 	}
@@ -47,19 +60,3 @@ transport.onChangeReceived(async ({ scope, details }) => {
 
 await login(playground, { username: 'admin', password: 'password' });
 await playground.goTo('/');
-
-/*
-
-	let flushTimeout: number | null = null;
-	function debouncedFlush() {
-		if (null !== flushTimeout) {
-			clearTimeout(flushTimeout);
-		}
-		flushTimeout = setTimeout(() => {
-			flushTimeout = null;
-			const dataToBroadcast = committedQueries;
-			committedQueries = [];
-			onFlush(dataToBroadcast);
-		}, debounceDelay) as any;
-	}
-*/

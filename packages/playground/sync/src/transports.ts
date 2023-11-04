@@ -2,7 +2,7 @@ import { FilesystemOperation } from '@php-wasm/universal';
 import { SQLQueryMetadata } from './sql';
 
 export type TransportMessage =
-	| { scope: 'fs'; details: FilesystemOperation }
+	| { scope: 'fs'; details: FilesystemOperation[] }
 	| { scope: 'sql'; details: SQLQueryMetadata[] };
 
 export interface PlaygroundSyncTransport {

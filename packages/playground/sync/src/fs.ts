@@ -32,7 +32,7 @@ import { PlaygroundClient } from '@wp-playground/client';
 
 export async function recordFSOperations(
 	playground: PlaygroundClient,
-	onOperation: (op: FilesystemOperation) => void
+	onOperations: (op: FilesystemOperation[]) => void
 ) {
 	playground.journalMemfs(async (op: FilesystemOperation) => {
 		if (
@@ -44,7 +44,7 @@ export async function recordFSOperations(
 		if (op.operation === 'UPDATE_FILE') {
 			op.data = await playground.readFileAsBuffer(op.path);
 		}
-		onOperation(op);
+		onOperations([op]);
 	});
 }
 

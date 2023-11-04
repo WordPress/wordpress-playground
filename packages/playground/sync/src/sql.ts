@@ -77,17 +77,17 @@ export async function recordSQLQueries(
 		activeTransaction = null;
 	});
 	playground.onMessage(async (messageString: string) => {
-		const message = JSON.parse(messageString) as
+		const queryOp = JSON.parse(messageString) as
 			| SQLQueryMetadata
 			| SQLTransactionCommand;
-		if (message.type !== 'sql') {
+		if (queryOp.type !== 'sql') {
 			return;
 		}
-		if (message.subtype === 'transaction') {
-			if (!message.success) {
+		if (queryOp.subtype === 'transaction') {
+			if (!queryOp.success) {
 				return;
 			}
-			switch (message.command) {
+			switch (queryOp.command) {
 				case 'START TRANSACTION':
 					activeTransaction = [];
 					break;
@@ -105,45 +105,56 @@ export async function recordSQLQueries(
 		}
 
 		if (
-			message.subtype === 'replay-query' ||
-			message.subtype === 'reconstruct-insert'
+			queryOp.subtype === 'replay-query' ||
+			queryOp.subtype === 'reconstruct-insert'
 		) {
-			if (!shouldSyncQuery(message)) {
+			if (!shouldSyncQuery(queryOp)) {
 				return;
 			}
 
 			if (activeTransaction) {
-				activeTransaction.push(message);
+				activeTransaction.push(queryOp);
 			} else {
-				onCommit([message]);
+				onCommit([queryOp]);
 			}
 		}
 	});
 }
 
-function shouldSyncQuery(query: SQLQueryMetadata) {
-	if (query.query_type === 'SELECT') {
+function shouldSyncQuery(meta: SQLQueryMetadata) {
+	if (meta.query_type === 'SELECT') {
 		return false;
 	}
-	if (query.subtype === 'replay-query') {
+	const queryType = meta.query_type;
+	const tableName = meta.table_name.toLowerCase();
+
+	if (meta.subtype === 'replay-query') {
+		const query = meta.query.trim();
 		// Don't sync cron updates
 		if (
-			query.query_type === 'UPDATE' &&
-			query.table_name.toLowerCase() === 'wp_options' &&
-			query.query.trim().endsWith("`option_name` = 'cron'")
+			queryType === 'UPDATE' &&
+			tableName === 'wp_options' &&
+			query.endsWith("`option_name` = 'cron'")
 		) {
 			return false;
 		}
 	}
-	if (query.subtype === 'reconstruct-insert') {
+	if (meta.subtype === 'reconstruct-insert') {
 		// Don't sync transients
-		const isTransient =
-			query.table_name.toLowerCase() === 'wp_options' &&
-			typeof query.row.option_name === 'string' &&
-			(query.row.option_name.startsWith('_transient_') ||
-				query.row.option_name.startsWith('_site_transient_'));
-		if (isTransient) {
-			return false;
+		if (tableName === 'wp_options') {
+			const optionName = meta.row.option_name + '';
+			if (
+				optionName.startsWith('_transient_') ||
+				optionName.startsWith('_site_transient_')
+			) {
+				return false;
+			}
+		}
+		// Don't sync session tokens
+		if (tableName === 'wp_usermeta') {
+			if (meta.row.meta_key === 'session_tokens') {
+				return false;
+			}
 		}
 	}
 	return true;
@@ -183,7 +194,7 @@ export type SQLQueryMetadata =
 			type: 'sql';
 			subtype: 'reconstruct-insert';
 			query_type: 'INSERT';
-			row: Record<string, unknown>;
+			row: Record<string, string | number | null>;
 			table_name: string;
 			auto_increment_column: string;
 			last_insert_id: number;
