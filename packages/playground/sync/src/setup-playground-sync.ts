@@ -3,7 +3,6 @@ import { installSqlSyncMuPlugin, overrideAutoincrementSequences } from './sql';
 import { recordFSOperations, replayFSOperations } from './fs';
 import { SQLQueryMetadata, recordSQLQueries, replaySQLQueries } from './sql';
 import { PlaygroundSyncTransport, TransportMessage } from './transports';
-import { debounce } from './utils';
 import { FilesystemOperation } from '@php-wasm/universal';
 import type { SyncMiddleware } from './middleware';
 
@@ -35,21 +34,30 @@ export async function setupPlaygroundSync(
 	});
 
 	let localChanges: TransportMessage[] = [];
-	const debouncedFlush = debounce(() => {
+	recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
+		localChanges.push({ scope: 'sql', details: queries });
+	});
+	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
+		localChanges.push({ scope: 'fs', details: ops });
+	});
+
+	// Flush the journal at most every 3 seconds
+	const flushJournal = () => {
 		localChanges = middlewares.reduce(
 			(acc, middleware) => middleware.beforeSend(acc),
 			localChanges
 		);
+		if (!localChanges.length) {
+			return;
+		}
 		transport.sendChanges(localChanges);
 		localChanges = [];
-	}, 3000);
+	};
 
-	recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
-		localChanges.push({ scope: 'sql', details: queries });
-		debouncedFlush();
-	});
-	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
-		localChanges.push({ scope: 'fs', details: ops });
-		debouncedFlush();
-	});
+	const loopAfterInterval = (f: Function, ms: number) => {
+		f();
+		setTimeout(f, ms);
+	};
+
+	loopAfterInterval(flushJournal, 3000);
 }
