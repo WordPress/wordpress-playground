@@ -2,7 +2,7 @@
 	"name": "playground-sync",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/sync/src",
-	"projectType": "application",
+	"projectType": "lib",
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",

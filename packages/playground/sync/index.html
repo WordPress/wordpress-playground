@@ -1,27 +1,29 @@
 <!DOCTYPE html>
 <head>
-	<title>Playground sync</title>
+	<title>Playground Sync demo</title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			display: flex;
+			gap: 2vw;
+		}
+		iframe {
+			width: 100%;
+			height: 96vh;
+			border: 1px solid black;
+		}
+	</style>
 </head>
 <body>
-	<iframe
-		src="./synced.html?id=left"
-		style="width: 44vw; height: 80vh"
-		id="wp1"
-	></iframe>
-	<iframe
-		src="./synced.html?id=right"
-		style="width: 44vw; height: 80vh"
-		id="wp1"
-	></iframe>
+	<iframe src="./peer.html?id=left"></iframe>
+	<iframe src="./peer.html?id=right"></iframe>
 	<script type="module">
 		const iframes = Array.from(document.querySelectorAll('iframe'));
 		window.onmessage = (event) => {
 			if (event.data.type !== 'playground-change') {
 				return;
 			}
-			// console.log('[Synced parent] received message from iframe', event);
 			iframes.forEach((iframe) => {
 				if (iframe.contentWindow === event.source) {
 					return;

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+	<title>WordPress PR Previewer</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		iframe {
+			width: 100vw;
+			height: 100vh;
+			border: 0;
+		}
+	</style>
+</head>
+<body>
+	<iframe id="wp" style="width: 100vw; height: 100vh"></iframe>
+	<script type="module">
+		const { runDemo } = await import('./src/app-demo.ts');
+		runDemo(
+			document.getElementById('wp'),
+			new URLSearchParams(document.location.search).get('id') || 'unknown client'
+		);
+	</script>
+</body>
