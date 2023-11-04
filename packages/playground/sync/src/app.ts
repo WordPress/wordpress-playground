@@ -3,10 +3,10 @@ import { login } from '@wp-playground/blueprints';
 import { FilesystemOperation } from '@php-wasm/universal';
 import { recordFSOperations, replayFSOperations } from './fs';
 import {
-	idOffset,
 	SQLQueryMetadata,
 	recordSQLQueries,
 	replaySQLQueries,
+	installSqlSyncMuPlugin,
 } from './sql';
 import { ParentWindowTransport, TransportMessage } from './transports';
 import { debounce } from './utils';
@@ -22,7 +22,15 @@ const clientId: string | null = new URLSearchParams(
 	document.location.search
 ).get('id');
 
+// @TODO: Offset strategy. If we just discard this after each session and then
+//        pick a new one, we'll quickly run into conflicts. Let's figure out
+//        what is needed here. Do we have to synchronize this with the remote peer?
+//        Remember it for later? How do we restore the values from the local playground_sequence
+//        table? etc.
+export const idOffset = Math.round(Math.random() * 1_000_000);
 console.log({ clientId, idOffset });
+
+await installSqlSyncMuPlugin(playground, idOffset);
 
 const changes: TransportMessage[] = [];
 const debouncedFlush = debounce(() => {
@@ -39,7 +47,7 @@ const debouncedFlush = debounce(() => {
 	}
 }, 3000);
 
-await recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
+recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
 	changes.push({ scope: 'sql', details: queries });
 	debouncedFlush();
 });

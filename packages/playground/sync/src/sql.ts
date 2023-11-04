@@ -26,21 +26,19 @@
  * * The remote peer receives the query and executes it.
  */
 
-import { PlaygroundClient, phpVar, phpVars } from '@wp-playground/client';
+import {
+	PHPResponse,
+	PlaygroundClient,
+	phpVar,
+	phpVars,
+} from '@wp-playground/client';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 
-// @TODO: Offset strategy. If we just discard this after each session and then
-//        pick a new one, we'll quickly run into conflicts. Let's figure out
-//        what is needed here. Do we have to synchronize this with the remote peer?
-//        Remember it for later? How do we restore the values from the local playground_sequence
-//        table? etc.
-export const idOffset = Math.round(Math.random() * 1_000_000);
-
-export async function recordSQLQueries(
+export async function installSqlSyncMuPlugin(
 	playground: PlaygroundClient,
-	onCommit: (queries: SQLQueryMetadata[]) => void
+	idOffset: number
 ) {
 	await playground.writeFile(
 		'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
@@ -50,25 +48,19 @@ export async function recordSQLQueries(
 		`/wordpress/wp-content/mu-plugins/sync-mu-plugin.php`,
 		logSqlQueries
 	);
-
 	const initializationResult = await playground.run({
 		code: `<?php
         require '/wordpress/wp-load.php';
         playground_sync_override_autoincrement_algorithm(${phpVar(idOffset)});
 	    `,
 	});
-	if (
-		initializationResult.text.trim() ||
-		initializationResult.errors.trim()
-	) {
-		console.log(
-			'Initialization failed ',
-			initializationResult.text,
-			initializationResult.errors
-		);
-		throw new Error();
-	}
+	assertEmptyOutput(initializationResult, 'Initialization failed.');
+}
 
+export async function recordSQLQueries(
+	playground: PlaygroundClient,
+	onCommit: (queries: SQLQueryMetadata[]) => void
+) {
 	let activeTransaction: SQLQueryMetadata[] | null = null;
 
 	// When PHP request terminates, any uncommitted
@@ -175,8 +167,16 @@ export async function replaySQLQueries(
 		playground_sync_replay_queries(${js.queries});
 	`,
 	});
+	assertEmptyOutput(result, 'Replay error.');
+}
+
+function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 	if (result.text.trim() || result.errors.trim()) {
-		console.log(`Replay error `, result.text, result.errors);
+		console.error({
+			text: result.text,
+			errors: result.errors,
+		});
+		throw new Error(`${errorMessage}. See the console for more details.`);
 	}
 }
 

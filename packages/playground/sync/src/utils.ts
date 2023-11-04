@@ -1,9 +1,9 @@
 /**
  * Debounce a function.
- * 
- * @param fn 
- * @param delay 
- * @returns 
+ *
+ * @param fn
+ * @param delay
+ * @returns
  */
 export function debounce(fn: () => void, delay: number) {
 	let timeout: number | null = null;
