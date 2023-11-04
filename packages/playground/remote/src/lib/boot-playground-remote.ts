@@ -79,8 +79,8 @@ export async function bootPlaygroundRemote() {
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},
-		async journalMemfs(callback) {
-			return workerApi.journalMemfs(callback);
+		async journalMemfs(root: string, callback) {
+			return workerApi.journalMemfs(root, callback);
 		},
 		async atomic(callback, args) {
 			return workerApi.atomic(callback, args);

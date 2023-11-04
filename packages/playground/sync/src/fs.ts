@@ -34,18 +34,32 @@ export async function recordFSOperations(
 	playground: PlaygroundClient,
 	onOperations: (op: FilesystemOperation[]) => void
 ) {
-	playground.journalMemfs(async (op: FilesystemOperation) => {
-		if (
-			op.path.endsWith('/.ht.sqlite') ||
-			op.path.endsWith('/.ht.sqlite-journal')
-		) {
-			return;
+	await playground.journalMemfs(
+		'/wordpress/wp-content',
+		async (op: FilesystemOperation) => {
+			if (
+				op.path.endsWith('/.ht.sqlite') ||
+				op.path.endsWith('/.ht.sqlite-journal')
+			) {
+				return;
+			}
+			if (op.operation === 'UPDATE_FILE') {
+				// @TODO: If the file was removed in the meantime, we won't
+				// be able to read it. We can't easily provide the contents
+				// with the operation because it would create a ton of partial
+				// content copies on each write. It seems like the only way
+				// to solve this is to have a function like "normalizeFilesystemOperations"
+				// that would prune the list of operations and merge them together as needed.
+				try {
+					op.data = await playground.readFileAsBuffer(op.path);
+				} catch (e) {
+					// Log the error but don't throw.
+					console.error(e);
+				}
+			}
+			onOperations([op]);
 		}
-		if (op.operation === 'UPDATE_FILE') {
-			op.data = await playground.readFileAsBuffer(op.path);
-		}
-		onOperations([op]);
-	});
+	);
 }
 
 const fsLock = new Semaphore({ concurrency: 1 });

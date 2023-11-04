@@ -52,7 +52,7 @@ export async function setupPlaygroundSync(
 		// 	}
 		// }
 	});
-	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
+	await recordFSOperations(playground, (ops: FilesystemOperation[]) => {
 		localChanges.push({ scope: 'fs', details: ops });
 		debouncedFlush();
 	});

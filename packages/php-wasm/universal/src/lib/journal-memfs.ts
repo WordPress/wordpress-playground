@@ -1,5 +1,5 @@
 import { BasePHP, __private__dont__use } from './base-php';
-import { joinPaths } from '@php-wasm/util';
+import { basename, joinPaths } from '@php-wasm/util';
 
 export type EmscriptenFS = any;
 
@@ -133,11 +133,9 @@ export function journalMemfs(
 	memfsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
-	memfsRoot = normalizeMemfsPath(memfsRoot);
-
 	const FSHooks: Record<string, Function> = {
 		write(stream: EmscriptenFSStream) {
-			addEntry({
+			recordEntry({
 				operation: 'UPDATE_FILE',
 				path: stream.path,
 			});
@@ -152,84 +150,111 @@ export function journalMemfs(
 			} else {
 				node = path;
 			}
-			addEntry({
+			recordEntry({
 				operation: 'UPDATE_FILE',
 				path: FS.getPath(node),
 			});
 		},
 		unlink(path: string) {
-			addEntry({
+			recordEntry({
 				operation: 'DELETE',
 				path,
 				nodeType: 'file',
 			});
 		},
 		mkdir(path: string) {
-			addEntry({
+			recordEntry({
 				operation: 'CREATE',
 				path,
-				nodeType: 'file',
+				nodeType: 'directory',
 			});
 		},
 		rmdir(path: string) {
-			addEntry({
+			recordEntry({
 				operation: 'DELETE',
 				path,
 				nodeType: 'directory',
 			});
 		},
+		rename(old_path: string, new_path: string) {
+			try {
+				const oldLookup = FS.lookupPath(old_path, {
+					follow: true,
+				});
+				const newParentPath = FS.lookupPath(new_path, {
+					parent: true,
+				}).path;
+
+				recordEntry({
+					operation: 'RENAME',
+					nodeType: FS.isDir(oldLookup.node.mode)
+						? 'directory'
+						: 'file',
+					path: oldLookup.path,
+					toPath: joinPaths(newParentPath, basename(new_path)),
+				});
+			} catch (e) {
+				// We're running a bunch of FS lookups that may fail at this point.
+				// Let's ignore the failures and let the actual rename operation
+				// fail if it needs to.
+			}
+		},
 	};
 
-	function addEntry(entry: FilesystemOperation) {
+	memfsRoot = normalizeMemfsPath(memfsRoot);
+	function recordEntry(entry: FilesystemOperation) {
 		// Only journal entries inside the specified root directory.
-		if (!entry.path.startsWith(memfsRoot) || entry.path === memfsRoot) {
-			return;
+		if (entry.path.startsWith(memfsRoot)) {
+			onEntry(entry);
+		} else if (
+			entry.operation === 'RENAME' &&
+			entry.toPath.startsWith(memfsRoot)
+		) {
+			if (entry.nodeType === 'file') {
+				// The rename operation moved a file from outside root directory
+				// into the root directory. Let's rewrite it as a create operation.
+				onEntry({
+					operation: 'UPDATE_FILE',
+					path: entry.toPath,
+				});
+			} else {
+				// The rename operation moved a directory from outside root directory
+				// into the root directory. We need to traverse the entire tree
+				// and provide a create operation for each file and directory.
+				//
+				// This can be done, but for now let's just give up.
+				// @TODO implement this
+				console.warn(
+					`Journaling a rename operation that moved a directory into the root directory is not supported yet.`
+				);
+			}
 		}
-		onEntry(entry);
 	}
 
+	/**
+	 * Override the original FS functions with ones running the hooks.
+	 * We could use a Proxy object here if the Emscripten JavaScript module
+	 * did not use hard-coded references to the FS object.
+	 */
 	const FS = php[__private__dont__use].FS;
-	const FSwithJournal = new Proxy(FS, {
-		get(target, prop, receiver) {
-			const originalValue = Reflect.get(target, prop, receiver);
-			if (typeof originalValue === 'function') {
-				return function (...args: any[]) {
-					if (!php.__journalingDisabled && prop in FSHooks) {
-						FSHooks[prop as string](...args);
-					}
-					return originalValue.apply(target, args);
-				};
+	const originalFunctions: Record<string, Function> = {};
+	for (const [name, hook] of Object.entries(FSHooks)) {
+		originalFunctions[name] = FS[name];
+		FS[name] = function (...args: any[]) {
+			if (!php.__journalingDisabled) {
+				hook(...args);
 			}
-			return originalValue;
-		},
-	});
-	php[__private__dont__use].FS = FSwithJournal;
-
-	const MEMFS = FS.filesystems.MEMFS;
-	const originalRename = MEMFS.ops_table.dir.node.rename;
-	MEMFS.ops_table.dir.node.rename = function (
-		old_node: EmscriptenFSNode,
-		new_dir: EmscriptenFSNode,
-		new_name: string,
-		...rest: any[]
-	) {
-		if (!php.__journalingDisabled) {
-			const old_path = FS.getPath(old_node);
-			const new_path = joinPaths(FS.getPath(new_dir), new_name);
-			addEntry({
-				operation: 'RENAME',
-				nodeType: FS.isDir(old_node.mode) ? 'directory' : 'file',
-				path: old_path,
-				toPath: new_path,
-			});
-		}
-		return originalRename(old_node, new_dir, new_name, ...rest);
-	};
+			return originalFunctions[name].apply(this, args);
+		};
+	}
 
 	return function unbind() {
-		php[__private__dont__use].FS = FS;
-		MEMFS.ops_table.dir.node.rename = originalRename;
-		FS.hasJournal = false;
+		delete php.__journalingDisabled;
+		// Restore the original FS functions.
+		for (const [name, fn] of Object.entries(originalFunctions)) {
+			php[__private__dont__use].FS[name] = fn;
+			delete originalFunctions[name];
+		}
 	};
 }
 

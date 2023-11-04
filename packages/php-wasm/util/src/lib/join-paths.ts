@@ -49,7 +49,7 @@ export function joinPaths(...paths: string[]) {
  * @param allowAboveRoot allow paths above the root
  * @returns normalized paths
  */
-function normalizePathsArray(parts: string[], allowAboveRoot: boolean) {
+export function normalizePathsArray(parts: string[], allowAboveRoot: boolean) {
 	let up = 0;
 	for (let i = parts.length - 1; i >= 0; i--) {
 		const last = parts[i];

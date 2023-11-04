@@ -168,8 +168,11 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		});
 	}
 
-	async journalMemfs(callback: (op: FilesystemOperation) => void) {
-		journalMemfs(php, '/wordpress/wp-content', callback);
+	async journalMemfs(
+		root: string,
+		callback: (op: FilesystemOperation) => void
+	) {
+		return journalMemfs(php, root, callback);
 	}
 }
 
