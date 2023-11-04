@@ -12,12 +12,10 @@ const playground = await startPlaygroundWeb({
 const clientId: string | null =
 	new URLSearchParams(document.location.search).get('id') || 'local';
 
-// @TODO: Store this idOffset and all SQL and FS between page refreshes.
-//        Use them to reinstate the state after a refresh.
-const autoincrementOffset = Math.round(Math.random() * 1_000_000);
-
 await setupPlaygroundSync(playground, {
-	autoincrementOffset,
+	// @TODO: Store this idOffset and all SQL and FS between page refreshes.
+	//        Use them to reinstate the state after a refresh.
+	autoincrementOffset: Math.round(Math.random() * 1_000_000),
 	transport: new ParentWindowTransport(),
 	logger: {
 		log(...args: any[]) {

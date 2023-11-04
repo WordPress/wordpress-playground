@@ -13,7 +13,7 @@ export interface Logger {
 export interface SyncOptions {
 	autoincrementOffset: number;
 	transport: PlaygroundSyncTransport;
-	logger: Logger;
+	logger?: Logger;
 }
 
 export async function setupPlaygroundSync(
@@ -22,29 +22,6 @@ export async function setupPlaygroundSync(
 ) {
 	await installSqlSyncMuPlugin(playground);
 	await overrideAutoincrementSequences(playground, autoincrementOffset);
-
-	let changes: TransportMessage[] = [];
-	const debouncedFlush = debounce(() => {
-		logger?.log(`Sending changes`, changes);
-		transport.sendChanges(changes);
-		changes = [];
-	}, 3000);
-
-	recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
-		changes.push({ scope: 'sql', details: queries });
-		debouncedFlush();
-
-		// Track autoincrement values like this:
-		// for (const query of queries) {
-		// 	if (query.subtype === 'reconstruct-insert') {
-		// 		storedIds[query.table_name] = query.last_insert_id;
-		// 	}
-		// }
-	});
-	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
-		changes.push({ scope: 'fs', details: ops });
-		debouncedFlush();
-	});
 
 	transport.onChangesReceived(async (changes) => {
 		logger?.log(`Received changes`, changes);
@@ -55,5 +32,28 @@ export async function setupPlaygroundSync(
 				await replaySQLQueries(playground, details);
 			}
 		}
+	});
+
+	let localChanges: TransportMessage[] = [];
+	const debouncedFlush = debounce(() => {
+		logger?.log(`Sending changes`, localChanges);
+		transport.sendChanges(localChanges);
+		localChanges = [];
+	}, 3000);
+
+	recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
+		localChanges.push({ scope: 'sql', details: queries });
+		debouncedFlush();
+
+		// Track autoincrement values like this:
+		// for (const query of queries) {
+		// 	if (query.subtype === 'reconstruct-insert') {
+		// 		storedIds[query.table_name] = query.last_insert_id;
+		// 	}
+		// }
+	});
+	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
+		localChanges.push({ scope: 'fs', details: ops });
+		debouncedFlush();
 	});
 }
