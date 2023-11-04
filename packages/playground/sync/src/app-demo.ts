@@ -3,6 +3,7 @@ import { login } from '@wp-playground/blueprints';
 import { setupPlaygroundSync } from '.';
 import { ParentWindowTransport } from './transports';
 import { loggerMiddleware, marshallSiteURLMiddleware } from './middleware';
+import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
 
 export async function runDemo(iframe: HTMLIFrameElement, clientId: string) {
 	const playground = await startPlaygroundWeb({
@@ -20,6 +21,7 @@ export async function runDemo(iframe: HTMLIFrameElement, clientId: string) {
 		autoincrementOffset: Math.round((1 + Math.random()) * 1_000_000),
 		transport: new ParentWindowTransport(),
 		middlewares: [
+			pruneSQLQueriesMiddleware(),
 			marshallSiteURLMiddleware(siteURL),
 			loggerMiddleware(clientId),
 		],
