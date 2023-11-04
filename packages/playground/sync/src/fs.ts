@@ -2,20 +2,20 @@ import { FilesystemOperation, IsomorphicLocalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { PlaygroundClient } from '@wp-playground/client';
 
-export async function recordFSOperations(
+export async function journalFSOperations(
 	playground: PlaygroundClient,
-	onOperations: (op: FilesystemOperation) => void
+	onEntry: (op: FilesystemOperation) => void
 ) {
 	await playground.journalMemfs(
 		'/wordpress/wp-content',
-		async (op: FilesystemOperation) => {
+		async (entry: FilesystemOperation) => {
 			if (
-				op.path.endsWith('/.ht.sqlite') ||
-				op.path.endsWith('/.ht.sqlite-journal')
+				entry.path.endsWith('/.ht.sqlite') ||
+				entry.path.endsWith('/.ht.sqlite-journal')
 			) {
 				return;
 			}
-			if (op.operation === 'UPDATE_FILE') {
+			if (entry.operation === 'UPDATE_FILE') {
 				// @TODO: If the file was removed in the meantime, we won't
 				// be able to read it. We can't easily provide the contents
 				// with the operation because it would create a ton of partial
@@ -23,63 +23,63 @@ export async function recordFSOperations(
 				// to solve this is to have a function like "normalizeFilesystemOperations"
 				// that would prune the list of operations and merge them together as needed.
 				try {
-					op.data = await playground.readFileAsBuffer(op.path);
+					entry.data = await playground.readFileAsBuffer(entry.path);
 				} catch (e) {
 					// Log the error but don't throw.
 					console.error(e);
 				}
 			}
-			onOperations(op);
+			onEntry(entry);
 		}
 	);
 }
 
 const fsLock = new Semaphore({ concurrency: 1 });
-export async function replayFSOperations(
+export async function replayFSJournal(
 	playground: PlaygroundClient,
-	ops: FilesystemOperation[]
+	entries: FilesystemOperation[]
 ) {
-	for (const op of ops) {
+	for (const entry of entries) {
 		const release = await fsLock.acquire();
 		try {
-			await replayFSOperation(playground, op);
+			await replayFSJournalEntry(playground, entry);
 		} finally {
 			release();
 		}
 	}
 }
 
-async function replayFSOperation(
+async function replayFSJournalEntry(
 	playground: PlaygroundClient,
-	op: FilesystemOperation
+	entry: FilesystemOperation
 ) {
 	await playground.atomic(
-		function (php: IsomorphicLocalPHP, op: FilesystemOperation) {
+		function (php: IsomorphicLocalPHP, entry: FilesystemOperation) {
 			php.__journalingDisabled = true;
 			try {
-				if (op.operation === 'CREATE') {
-					if (op.nodeType === 'file') {
-						php.writeFile(op.path, ' ');
+				if (entry.operation === 'CREATE') {
+					if (entry.nodeType === 'file') {
+						php.writeFile(entry.path, ' ');
 					} else {
-						php.mkdir(op.path);
+						php.mkdir(entry.path);
 					}
-				} else if (op.operation === 'DELETE') {
-					if (op.nodeType === 'file') {
-						php.unlink(op.path);
+				} else if (entry.operation === 'DELETE') {
+					if (entry.nodeType === 'file') {
+						php.unlink(entry.path);
 					} else {
-						php.rmdir(op.path, {
+						php.rmdir(entry.path, {
 							recursive: true,
 						});
 					}
-				} else if (op.operation === 'UPDATE_FILE') {
-					php.writeFile(op.path, op.data!);
-				} else if (op.operation === 'RENAME') {
-					php.mv(op.path, op.toPath);
+				} else if (entry.operation === 'UPDATE_FILE') {
+					php.writeFile(entry.path, entry.data!);
+				} else if (entry.operation === 'RENAME') {
+					php.mv(entry.path, entry.toPath);
 				}
 			} finally {
 				php.__journalingDisabled = false;
 			}
 		}.toString(),
-		[op]
+		[entry]
 	);
 }

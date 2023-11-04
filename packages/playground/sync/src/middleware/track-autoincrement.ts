@@ -1,14 +1,14 @@
 import { SyncMiddleware } from '.';
-import { mapSQLMeta } from './utils';
+import { mapSQLJournal } from './utils';
 
 export const trackAutoincrementMiddleware = (
 	onAutoincrementChange: (table: string, value: number) => void
 ): SyncMiddleware => ({
-	beforeSend: mapSQLMeta((meta) => {
-		if (meta.subtype === 'reconstruct-insert') {
-			onAutoincrementChange(meta.table_name, meta.last_insert_id);
+	beforeSend: mapSQLJournal((entry) => {
+		if (entry.subtype === 'reconstruct-insert') {
+			onAutoincrementChange(entry.table_name, entry.last_insert_id);
 		}
-		return meta;
+		return entry;
 	}),
-	afterReceive: (message) => message,
+	afterReceive: (envelopes) => envelopes,
 });

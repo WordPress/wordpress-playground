@@ -1,15 +1,15 @@
-import { SQLQueryMetadata } from '../sql';
-import { TransportMessage } from '../transports';
+import { SQLJournalEntry } from '../sql';
+import { TransportEnvelope } from '../transports';
 
-export function mapSQLMeta(
-	mapper: (message: SQLQueryMetadata) => SQLQueryMetadata
+export function mapSQLJournal(
+	mapper: (entry: SQLJournalEntry) => SQLJournalEntry
 ) {
-	return (messages: TransportMessage[]) =>
-		messages.map((message) => {
+	return (envelopes: TransportEnvelope[]) =>
+		envelopes.map((message) => {
 			if (message.scope === 'sql') {
 				return {
 					...message,
-					details: mapper(message.details),
+					contents: mapper(message.contents),
 				};
 			}
 			return message;

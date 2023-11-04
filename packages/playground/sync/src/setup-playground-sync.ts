@@ -1,8 +1,8 @@
 import { PlaygroundClient } from '@wp-playground/remote';
 import { installSqlSyncMuPlugin, overrideAutoincrementSequences } from './sql';
-import { recordFSOperations, replayFSOperations } from './fs';
-import { SQLQueryMetadata, recordSQLQueries, replaySQLQueries } from './sql';
-import { PlaygroundSyncTransport, TransportMessage } from './transports';
+import { journalFSOperations, replayFSJournal } from './fs';
+import { SQLJournalEntry, journalSQLQueries, replaySQLJournal } from './sql';
+import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
 import { FilesystemOperation } from '@php-wasm/universal';
 import type { SyncMiddleware } from './middleware';
 
@@ -26,21 +26,21 @@ export async function setupPlaygroundSync(
 		);
 		const fsOperations = changes
 			.filter(({ scope }) => scope === 'fs')
-			.map(({ details }) => details) as FilesystemOperation[];
-		await replayFSOperations(playground, fsOperations);
+			.map(({ contents: details }) => details) as FilesystemOperation[];
+		await replayFSJournal(playground, fsOperations);
 
 		const sqlQueries = changes
 			.filter(({ scope }) => scope === 'sql')
-			.map(({ details }) => details) as SQLQueryMetadata[];
-		await replaySQLQueries(playground, sqlQueries);
+			.map(({ contents: details }) => details) as SQLJournalEntry[];
+		await replaySQLJournal(playground, sqlQueries);
 	});
 
-	let localChanges: TransportMessage[] = [];
-	recordSQLQueries(playground, (query: SQLQueryMetadata) => {
-		localChanges.push({ scope: 'sql', details: query });
+	let localChanges: TransportEnvelope[] = [];
+	journalSQLQueries(playground, (query: SQLJournalEntry) => {
+		localChanges.push({ scope: 'sql', contents: query });
 	});
-	recordFSOperations(playground, (op: FilesystemOperation) => {
-		localChanges.push({ scope: 'fs', details: op });
+	journalFSOperations(playground, (op: FilesystemOperation) => {
+		localChanges.push({ scope: 'fs', contents: op });
 	});
 
 	// Flush the journal at most every 3 seconds

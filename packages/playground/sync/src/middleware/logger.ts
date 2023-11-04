@@ -2,15 +2,15 @@ import { SyncMiddleware } from '.';
 
 export function loggerMiddleware(clientId: string): SyncMiddleware {
 	return {
-		beforeSend: (message) => {
-			if (message.length > 0) {
-				console.log(`[${clientId}] Sending changes`, message);
+		beforeSend: (envelope) => {
+			if (envelope.length > 0) {
+				console.log(`[${clientId}] Sending changes`, envelope);
 			}
-			return message;
+			return envelope;
 		},
-		afterReceive: (message) => {
-			console.log(`[${clientId}] Received changes`, message);
-			return message;
+		afterReceive: (envelope) => {
+			console.log(`[${clientId}] Received changes`, envelope);
+			return envelope;
 		},
 	};
 }

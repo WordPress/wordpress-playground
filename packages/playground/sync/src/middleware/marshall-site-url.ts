@@ -1,4 +1,4 @@
-import { mapSQLMeta } from './utils';
+import { mapSQLJournal } from './utils';
 
 export const marshallSiteURLMiddleware = (
 	localSiteUrl: string,
@@ -10,25 +10,33 @@ export const marshallSiteURLMiddleware = (
 	};
 };
 
-function siteURLMapper(from: string, to: string) {
+/**
+ * Maps the WordPress site URL from one value to another in SQL
+ * query journal.
+ *
+ * @param fromURL - The original site URL to be replaced.
+ * @param toURL - The new site URL to replace the original.
+ * @returns Mapper function.
+ */
+function siteURLMapper(fromURL: string, toURL: string) {
 	// Remove trailing slashes for consistency
-	from = from.replace(/\/$/, '');
-	to = to.replace(/\/$/, '');
+	fromURL = fromURL.replace(/\/$/, '');
+	toURL = toURL.replace(/\/$/, '');
 
 	const urlRegexp = new RegExp(
-		`(^|[^0-9a-zA-Z])(?:${escapeRegex(from)})($|[^0-9a-zA-Z])`,
+		`(^|[^0-9a-zA-Z])(?:${escapeRegex(fromURL)})($|[^0-9a-zA-Z])`,
 		'g'
 	);
-	const urlReplacement = `$1${to}$2`;
+	const urlReplacement = `$1${toURL}$2`;
 
-	return mapSQLMeta(function (meta) {
-		if (meta.subtype === 'replay-query') {
+	return mapSQLJournal(function (entry) {
+		if (entry.subtype === 'replay-query') {
 			return {
-				...meta,
-				query: meta.query.replace(from, to),
+				...entry,
+				query: entry.query.replace(fromURL, toURL),
 			};
-		} else if (meta.subtype === 'reconstruct-insert') {
-			const row = { ...meta.row };
+		} else if (entry.subtype === 'reconstruct-insert') {
+			const row = { ...entry.row };
 			for (const key in row) {
 				if (typeof row[key] === 'string') {
 					row[key] = (row[key] as string).replace(
@@ -38,11 +46,11 @@ function siteURLMapper(from: string, to: string) {
 				}
 			}
 			return {
-				...meta,
+				...entry,
 				row,
 			};
 		}
-		return meta;
+		return entry;
 	});
 }
 

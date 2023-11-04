@@ -48,11 +48,19 @@ export async function overrideAutoincrementSequences(
 	return response.json;
 }
 
-export async function recordSQLQueries(
+/**
+ * Listens to SQL queries and transactions on a PlaygroundClient instance,
+ * and records them in a journal. When a transaction is committed, the
+ * provided callback is called for every query in the transaction.
+ *
+ * @param playground The PlaygroundClient instance to listen to.
+ * @param onCommit The callback to invoke when a transaction is committed.
+ */
+export async function journalSQLQueries(
 	playground: PlaygroundClient,
-	onCommit: (queries: SQLQueryMetadata) => void
+	onCommit: (queries: SQLJournalEntry) => void
 ) {
-	let activeTransaction: SQLQueryMetadata[] | null = null;
+	let activeTransaction: SQLJournalEntry[] | null = null;
 
 	// When PHP request terminates, any uncommitted
 	// queries in the active transaction are rolled back.
@@ -60,17 +68,16 @@ export async function recordSQLQueries(
 		activeTransaction = null;
 	});
 	playground.onMessage(async (messageString: string) => {
-		const queryOp = JSON.parse(messageString) as
-			| SQLQueryMetadata
-			| SQLTransactionCommand;
-		if (queryOp.type !== 'sql') {
+		const message = JSON.parse(messageString) as any;
+		if (message?.type !== 'sql') {
 			return;
 		}
-		if (queryOp.subtype === 'transaction') {
-			if (!queryOp.success) {
+		if (message.subtype === 'transaction') {
+			const command = message as SQLTransactionCommand;
+			if (!command.success) {
 				return;
 			}
-			switch (queryOp.command) {
+			switch (command.command) {
 				case 'START TRANSACTION':
 					activeTransaction = [];
 					break;
@@ -88,23 +95,24 @@ export async function recordSQLQueries(
 		}
 
 		if (
-			queryOp.subtype === 'replay-query' ||
-			queryOp.subtype === 'reconstruct-insert'
+			message.subtype === 'replay-query' ||
+			message.subtype === 'reconstruct-insert'
 		) {
+			const entry = message as SQLJournalEntry;
 			if (activeTransaction) {
-				activeTransaction.push(queryOp);
+				activeTransaction.push(entry);
 			} else {
-				onCommit(queryOp);
+				onCommit(entry);
 			}
 		}
 	});
 }
 
-export async function replaySQLQueries(
+export async function replaySQLJournal(
 	playground: PlaygroundClient,
-	queries: SQLQueryMetadata[]
+	journal: SQLJournalEntry[]
 ) {
-	const js = phpVars({ queries });
+	const js = phpVars({ journal });
 	const result = await playground.run({
 		code: `<?php
 		// Prevent reporting changes from queries we're just replaying
@@ -112,7 +120,7 @@ export async function replaySQLQueries(
 
 		// Only load WordPress and replay the SQL queries now
 		require '/wordpress/wp-load.php';
-		playground_sync_replay_queries(${js.queries});
+		playground_sync_replay_sql_journal(${js.journal});
 	`,
 	});
 	assertEmptyOutput(result, 'Replay error.');
@@ -128,7 +136,7 @@ function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 	}
 }
 
-export type SQLReplayQuery = {
+export type ReplayQuery = {
 	type: 'sql';
 	subtype: 'replay-query';
 	query: string;
@@ -137,7 +145,8 @@ export type SQLReplayQuery = {
 	auto_increment_column: string;
 	last_insert_id: number;
 };
-export type SQLReconstructInsert = {
+
+export type ReconstructInsert = {
 	type: 'sql';
 	subtype: 'reconstruct-insert';
 	query_type: 'INSERT';
@@ -147,7 +156,7 @@ export type SQLReconstructInsert = {
 	last_insert_id: number;
 };
 
-export type SQLQueryMetadata = SQLReplayQuery | SQLReconstructInsert;
+export type SQLJournalEntry = ReplayQuery | ReconstructInsert;
 
 export type SQLTransactionCommand =
 	| {

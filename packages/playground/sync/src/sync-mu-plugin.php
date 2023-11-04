@@ -303,7 +303,7 @@ function playground_sync_emit_transaction_query($command, $success, $nesting_lev
  * @param array $queries An array of SQL queries to run.
  * @return void
  */
-function playground_sync_replay_queries($queries)
+function playground_sync_replay_sql_journal($queries)
 {
     global $wpdb;
     $pdo = $GLOBALS['@pdo'];

@@ -19,10 +19,16 @@
 	<iframe id="wp" style="width: 100vw; height: 100vh"></iframe>
 	<script type="module">
 		const { runDemo } = await import('./src/app-demo.ts');
+		const searchParams = new URLSearchParams(document.location.search);
 		runDemo(
 			document.getElementById('wp'),
-			new URLSearchParams(document.location.search).get('id') ||
-				'unknown client'
+			searchParams.get('client-id'),
+			// To build a multi-session app with seamless page refresh
+			// and transitions between devices, store this idOffset and
+			// all SQL and FS between page refreshes.
+			// Use them to reinstate the state on new devices and after a
+			// page refresh.
+			parseInt(searchParams.get('autoincrement-offset'))
 		);
 	</script>
 </body>

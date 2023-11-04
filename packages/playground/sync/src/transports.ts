@@ -1,32 +1,32 @@
 import { FilesystemOperation } from '@php-wasm/universal';
-import { SQLQueryMetadata } from './sql';
+import { SQLJournalEntry } from './sql';
 
-export type TransportMessage =
-	| { scope: 'fs'; details: FilesystemOperation }
-	| { scope: 'sql'; details: SQLQueryMetadata };
+export type TransportEnvelope =
+	| { scope: 'fs'; contents: FilesystemOperation }
+	| { scope: 'sql'; contents: SQLJournalEntry };
 
 export interface PlaygroundSyncTransport {
-	sendChanges(data: TransportMessage[]): void;
-	onChangesReceived(fn: (data: TransportMessage[]) => void): void;
+	sendChanges(data: TransportEnvelope[]): void;
+	onChangesReceived(fn: (data: TransportEnvelope[]) => void): void;
 }
 
 export class ParentWindowTransport implements PlaygroundSyncTransport {
-	sendChanges(message: TransportMessage[]) {
+	sendChanges(envelope: TransportEnvelope[]) {
 		window.top!.postMessage(
 			{
 				type: 'playground-change',
-				message,
+				envelope,
 			},
 			'*'
 		);
 	}
 
-	onChangesReceived(fn: (details: TransportMessage[]) => void): void {
+	onChangesReceived(fn: (details: TransportEnvelope[]) => void): void {
 		window.addEventListener('message', (event) => {
 			if (event.data.type !== 'playground-change') {
 				return;
 			}
-			fn(event.data.message);
+			fn(event.data.envelope);
 		});
 	}
 }

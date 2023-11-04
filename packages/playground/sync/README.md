@@ -12,11 +12,11 @@ nx dev playground-sync
 
 We record local changes, send them to over a remote peer, and replay them there. The following changes are supported:
 
-* SQL Queries (INSERT, DELETE, ALTER TABLE etc)
-* Filesystem changes (create, delete, rename, etc)
+-   SQL Queries (INSERT, DELETE, ALTER TABLE etc)
+-   Filesystem changes (create, delete, rename, etc)
 
 ### SQL syncing strategy:
- 
+
 Whenever the local WordPress issues a query, we record it in a buffer and broadcast it to the remote peer. The remote peer then receives the query and executes it.
 
 Whenever a local autoincrement value is generated:
@@ -28,7 +28,7 @@ See `src/sync-mu-plugin.php` for the implementation.
 
 ### What about conflicting autoincrement IDs?
 
-We're sharding IDs to avoid conflicts. For example, peer 1 could start all autoincrement sequences at `12345000001`, while peer 2 could start at `54321000001`. This gives both peers have a lot of space to create records without assigning the same IDs. 
+We're sharding IDs to avoid conflicts. For example, peer 1 could start all autoincrement sequences at `12345000001`, while peer 2 could start at `54321000001`. This gives both peers have a lot of space to create records without assigning the same IDs.
 
 In some ways, this is similar to [ID sharding once described on Instagram's engineering blog](https://instagram-engineering.com/sharding-ids-at-instagram-1cf5a71e5a5c?gi=2f1ad5d97db2).
 
