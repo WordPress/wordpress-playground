@@ -17,12 +17,12 @@ export async function runDemo(iframe: HTMLIFrameElement, clientId: string) {
 		// all SQL and FS between page refreshes.
 		// Use them to reinstate the state on new devices and after a
 		// page refresh.
-		autoincrementOffset: Math.round(Math.random() * 1_000_000),
+		autoincrementOffset: Math.round((1 + Math.random()) * 1_000_000),
 		transport: new ParentWindowTransport(),
 		middlewares: [
 			marshallSiteURLMiddleware(siteURL),
 			loggerMiddleware(clientId),
-		]
+		],
 	});
 
 	await login(playground, { username: 'admin', password: 'password' });
