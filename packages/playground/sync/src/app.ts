@@ -32,19 +32,11 @@ console.log({ clientId, idOffset });
 
 await installSqlSyncMuPlugin(playground, idOffset);
 
-const changes: TransportMessage[] = [];
+let changes: TransportMessage[] = [];
 const debouncedFlush = debounce(() => {
-	while (true) {
-		const change = changes.shift();
-		if (!change) {
-			break;
-		}
-		console.log(
-			`[${clientId}] Sending ${change.scope} change!`,
-			change.details
-		);
-		transport.broadcastChange(change);
-	}
+	console.log(`[${clientId}] Sending changes!`, changes);
+	transport.sendChanges(changes);
+	changes = [];
 }, 3000);
 
 recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
@@ -57,12 +49,14 @@ recordFSOperations(playground, (ops: FilesystemOperation[]) => {
 });
 
 const transport = new ParentWindowTransport();
-transport.onChangeReceived(async ({ scope, details }) => {
-	console.log(`[${clientId}][onChangeReceived][${scope}]`, details);
-	if (scope === 'fs') {
-		await replayFSOperations(playground, details);
-	} else if (scope === 'sql') {
-		await replaySQLQueries(playground, details);
+transport.onChangesReceived(async (changes) => {
+	for (const { scope, details } of changes) {
+		console.log(`[${clientId}][onChangeReceived][${scope}]`, details);
+		if (scope === 'fs') {
+			await replayFSOperations(playground, details);
+		} else if (scope === 'sql') {
+			await replaySQLQueries(playground, details);
+		}
 	}
 });
 

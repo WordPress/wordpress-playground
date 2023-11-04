@@ -6,12 +6,12 @@ export type TransportMessage =
 	| { scope: 'sql'; details: SQLQueryMetadata[] };
 
 export interface PlaygroundSyncTransport {
-	broadcastChange(data: TransportMessage): void;
-	onChangeReceived(fn: (data: TransportMessage) => void): void;
+	sendChanges(data: TransportMessage[]): void;
+	onChangesReceived(fn: (data: TransportMessage[]) => void): void;
 }
 
 export class ParentWindowTransport implements PlaygroundSyncTransport {
-	broadcastChange(message: TransportMessage) {
+	sendChanges(message: TransportMessage[]) {
 		window.top!.postMessage(
 			{
 				type: 'playground-change',
@@ -21,7 +21,7 @@ export class ParentWindowTransport implements PlaygroundSyncTransport {
 		);
 	}
 
-	onChangeReceived(fn: (details: TransportMessage) => void): void {
+	onChangesReceived(fn: (details: TransportMessage[]) => void): void {
 		window.addEventListener('message', (event) => {
 			if (event.data.type !== 'playground-change') {
 				return;
