@@ -134,21 +134,78 @@ export function journalMemfs(
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
 	memfsRoot = normalizeMemfsPath(memfsRoot);
-	const FS = php[__private__dont__use].FS;
-	const MEMFS = FS.filesystems.MEMFS;
 
-	// Bind the journal to the filesystem
-	const originalWrite = FS.write;
-	FS.write = function (stream: EmscriptenFSStream, ...rest: any[]) {
-		if (!php.__journalingDisabled) {
+	const FSHooks: Record<string, Function> = {
+		write(stream: EmscriptenFSStream) {
 			addEntry({
 				operation: 'UPDATE_FILE',
 				path: stream.path,
 			});
-		}
-		return originalWrite(stream, ...rest);
+		},
+		truncate(path: string) {
+			let node;
+			if (typeof path == 'string') {
+				const lookup = FS.lookupPath(path, {
+					follow: true,
+				});
+				node = lookup.node;
+			} else {
+				node = path;
+			}
+			addEntry({
+				operation: 'UPDATE_FILE',
+				path: FS.getPath(node),
+			});
+		},
+		unlink(path: string) {
+			addEntry({
+				operation: 'DELETE',
+				path,
+				nodeType: 'file',
+			});
+		},
+		mkdir(path: string) {
+			addEntry({
+				operation: 'CREATE',
+				path,
+				nodeType: 'file',
+			});
+		},
+		rmdir(path: string) {
+			addEntry({
+				operation: 'DELETE',
+				path,
+				nodeType: 'directory',
+			});
+		},
 	};
 
+	function addEntry(entry: FilesystemOperation) {
+		// Only journal entries inside the specified root directory.
+		if (!entry.path.startsWith(memfsRoot) || entry.path === memfsRoot) {
+			return;
+		}
+		onEntry(entry);
+	}
+
+	const FS = php[__private__dont__use].FS;
+	const FSwithJournal = new Proxy(FS, {
+		get(target, prop, receiver) {
+			const originalValue = Reflect.get(target, prop, receiver);
+			if (typeof originalValue === 'function') {
+				return function (...args: any[]) {
+					if (!php.__journalingDisabled && prop in FSHooks) {
+						FSHooks[prop as string](...args);
+					}
+					return originalValue.apply(target, args);
+				};
+			}
+			return originalValue;
+		},
+	});
+	php[__private__dont__use].FS = FSwithJournal;
+
+	const MEMFS = FS.filesystems.MEMFS;
 	const originalRename = MEMFS.ops_table.dir.node.rename;
 	MEMFS.ops_table.dir.node.rename = function (
 		old_node: EmscriptenFSNode,
@@ -166,92 +223,12 @@ export function journalMemfs(
 				toPath: new_path,
 			});
 		}
-		return originalWrite(old_node, new_dir, new_name, ...rest);
+		return originalRename(old_node, new_dir, new_name, ...rest);
 	};
-
-	const originalTruncate = FS.truncate;
-	FS.truncate = function (path: string, ...rest: any[]) {
-		let node;
-		if (typeof path == 'string') {
-			const lookup = FS.lookupPath(path, {
-				follow: true,
-			});
-			node = lookup.node;
-		} else {
-			node = path;
-		}
-		if (!php.__journalingDisabled) {
-			addEntry({
-				operation: 'UPDATE_FILE',
-				path: FS.getPath(node),
-			});
-		}
-		return originalTruncate(path, ...rest);
-	};
-
-	const originalUnlink = FS.unlink;
-	FS.unlink = function (path: string, ...rest: any[]) {
-		if (!php.__journalingDisabled) {
-			addEntry({
-				operation: 'DELETE',
-				path,
-				nodeType: 'file',
-			});
-		}
-		return originalUnlink(path, ...rest);
-	};
-
-	const originalMknod = FS.mknod;
-	FS.mknod = function (path: string, mode: number, ...rest: any[]) {
-		if (FS.isFile(mode) && !php.__journalingDisabled) {
-			addEntry({
-				operation: 'CREATE',
-				path,
-				nodeType: 'file',
-			});
-		}
-		return originalMknod(path, mode, ...rest);
-	};
-
-	const originalMkdir = FS.mkdir;
-	FS.mkdir = function (path: string, ...rest: any[]) {
-		if (!php.__journalingDisabled) {
-			addEntry({
-				operation: 'CREATE',
-				path,
-				nodeType: 'directory',
-			});
-		}
-		return originalMkdir(path, ...rest);
-	};
-
-	const originalRmdir = FS.rmdir;
-	FS.rmdir = function (path: string, ...rest: any[]) {
-		if (!php.__journalingDisabled) {
-			addEntry({
-				operation: 'DELETE',
-				path,
-				nodeType: 'directory',
-			});
-		}
-		return originalRmdir(path, ...rest);
-	};
-
-	function addEntry(entry: FilesystemOperation) {
-		// Only journal entries inside the specified root directory.
-		if (!entry.path.startsWith(memfsRoot) || entry.path === memfsRoot) {
-			return;
-		}
-		onEntry(entry);
-	}
 
 	return function unbind() {
-		FS.write = originalWrite;
+		php[__private__dont__use].FS = FS;
 		MEMFS.ops_table.dir.node.rename = originalRename;
-		FS.truncate = originalTruncate;
-		FS.unlink = originalUnlink;
-		FS.mkdir = originalMkdir;
-		FS.rmdir = originalRmdir;
 		FS.hasJournal = false;
 	};
 }
