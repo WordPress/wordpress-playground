@@ -1,0 +1,329 @@
+<html>
+	<button id="create-pr">Create a pull request with changes</button>
+	<iframe
+		id="wp"
+		style="width: 100%; height: 90%; border: 1px solid #ccc"
+	></iframe>
+	<script type="module">
+		const TOKEN_KEY = 'githubToken';
+
+		// OAUTH FLOW {{{
+		// If there is a code in the URL, store it in localStorage
+		const urlParams = new URLSearchParams(window.location.search);
+		const code = urlParams.get('code');
+		if (code) {
+			// Fetch https://github.com/login/oauth/access_token
+			// with clientId, clientSecret and code
+			// to get the access token
+			const response = await fetch('oauth.php?code=' + code, {
+				headers: {
+					'Content-Type': 'application/json',
+					Accept: 'application/json',
+				},
+			});
+			const body = await response.json();
+			localStorage.setItem(TOKEN_KEY, body.access_token);
+			// Redirect to the same page but without "code" in the URL
+			const url = new URL(window.location.href);
+			url.searchParams.delete('code');
+			window.location = url;
+		} else if (!localStorage.getItem(TOKEN_KEY)) {
+			// If no token in localStorage, redirect to GitHub OAuth
+			window.location = 'oauth.php?redirect=1';
+		}
+		// }}} /OAUTH FLOW
+
+		// Use unpkg for convenience
+		import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+		import {
+			activateTheme,
+			login,
+		} from 'https://unpkg.com/@wp-playground/blueprints/index.js';
+
+		const client = await startPlaygroundWeb({
+			iframe: document.getElementById('wp'),
+			remoteUrl: `https://playground.wordpress.net/remote.html`,
+			blueprint: {
+				steps: [
+					{
+						step: 'installPlugin',
+						pluginZipFile: {
+							resource: 'wordpress.org/plugins',
+							slug: 'create-block-theme',
+						},
+					},
+				],
+			},
+		});
+
+		// Start with a modal that asks for:
+		// * A repo link or a PR link
+		// * A path in that repo where either of these are located:
+		//     a single theme (installs create-block-theme by default)
+		//     a single plugin
+		//     an entire wp-content directory
+		// [Start Playground]
+
+		import { Octokit } from 'https://esm.sh/@octokit/rest';
+		import { createPullRequest } from 'https://cdn.pika.dev/octokit-plugin-create-pull-request';
+		const MyOctokit = Octokit.plugin(createPullRequest);
+		const octokit = new MyOctokit({
+			auth: localStorage.getItem(TOKEN_KEY),
+		});
+
+		const { data: pullRequest } = await octokit.rest.pulls.get({
+			owner: 'Automattic',
+			repo: 'themes',
+			pull_number: '7434',
+		});
+
+		const { data: files } = await octokit.rest.pulls.listFiles({
+			owner: 'Automattic',
+			repo: 'themes',
+			pull_number: '7434',
+		});
+
+		function findThemeDirectories(files) {
+			const uniqueDirectories = new Set();
+
+			for (let i = 0; i < files.length; i++) {
+				const dir = files[i].filename.split('/')[0];
+				uniqueDirectories.add(dir);
+			}
+			return Array.from(uniqueDirectories);
+		}
+		const themeDirs = findThemeDirectories(files);
+
+		const CONCURRENCY_LIMIT = 15;
+
+		const themeFiles = await getFilesFromDirectory(
+			'Automattic',
+			'themes',
+			pullRequest.head.ref,
+			themeDirs[0]
+		);
+
+		async function getFilesFromDirectory(owner, repo, ref, path) {
+			let allFiles = [];
+
+			try {
+				// Fetch the content of the directory
+				const { data: content } = await octokit.repos.getContent({
+					owner,
+					repo,
+					path,
+					ref,
+				});
+
+				const filePromises = [];
+				for (const item of content) {
+					if (item.type === 'file') {
+						filePromises.push(
+							getFileContent(owner, repo, ref, item)
+						);
+						if (filePromises.length >= CONCURRENCY_LIMIT) {
+							const results = await Promise.all(filePromises);
+							allFiles.push(...results);
+							filePromises.length = 0; // Clear the array
+						}
+					} else if (item.type === 'dir') {
+						const filesInSubdir = await getFilesFromDirectory(
+							owner,
+							repo,
+							ref,
+							item.path
+						);
+						allFiles = allFiles.concat(filesInSubdir);
+					}
+				}
+
+				// Process remaining file promises
+				if (filePromises.length > 0) {
+					const results = await Promise.all(filePromises);
+					allFiles.push(...results);
+				}
+			} catch (error) {
+				console.error('Error fetching files:', error);
+			}
+
+			return allFiles;
+		}
+
+		async function getFileContent(owner, repo, ref, item) {
+			const { data: fileContent } = await octokit.repos.getContent({
+				owner,
+				repo,
+				ref,
+				path: item.path,
+			});
+			return {
+				name: item.name,
+				path: item.path,
+				content: base64ToUint8Array(fileContent.content),
+			};
+		}
+
+		function base64ToUint8Array(base64) {
+			var binaryString = window.atob(base64); // This will convert base64 to binary string
+			var len = binaryString.length;
+			var bytes = new Uint8Array(len);
+			for (var i = 0; i < len; i++) {
+				bytes[i] = binaryString.charCodeAt(i);
+			}
+			return bytes;
+		}
+
+		// Let's wait until Playground is fully loaded
+		await client.isReady();
+		console.log('Playground is ready!');
+
+		for (const file of themeFiles) {
+			const filePath = `/wordpress/wp-content/themes/${file.path}`;
+			const parentPath = filePath.split('/').slice(0, -1).join('/');
+			await client.mkdirTree(parentPath);
+			await client.writeFile(filePath, file.content);
+		}
+
+		await activateTheme(client, {
+			step: 'activateTheme',
+			themeFolderName: themeDirs[0],
+		});
+
+		await login(client, {
+			step: 'login',
+			username: 'admin',
+			password: 'password',
+		});
+
+		client.goTo('/wp-admin/site-editor.php');
+
+		document
+			.getElementById('create-pr')
+			.addEventListener('click', async () => {
+				// CREATE A PULL REQUEST {{{
+
+				// 1. Compute the changeset
+				const ghPaths = new Set();
+				const changes = {};
+				for (const file of themeFiles) {
+					const filePath = `/wordpress/wp-content/themes/${file.path}`;
+					ghPaths.add(file.path);
+
+					// 1.1 Find deleted files
+					if (!(await client.fileExists(filePath))) {
+						changes[file.path] = DELETE_FILE;
+						continue;
+					}
+
+					// 1.2 Get any updated files
+					const contents = await client.readFileAsBuffer(filePath);
+					if (!uint8arraysEqual(contents, file.content)) {
+						changes[file.path] = contents;
+					}
+				}
+
+				// 1.3 Add any newly created files
+				const pgRoot = `/wordpress/wp-content/themes`;
+				const pgDirStack = [themeDirs[0]];
+				while (pgDirStack.length) {
+					const pgRelativeDir = pgDirStack.pop();
+					const pgFilesInDir = await client.listFiles(
+						`${pgRoot}/${pgRelativeDir}`
+					);
+					for (const file of pgFilesInDir) {
+						const ghFilePath = `${pgRelativeDir}/${file}`;
+						if (!ghPaths.has(ghFilePath)) {
+							const pgFilePath = `${pgRoot}/${pgRelativeDir}/${file}`;
+							if (await client.isDir(pgFilePath)) {
+								pgDirStack.push(pgFilePath);
+							} else {
+								changes[ghFilePath] =
+									await client.readFileAsBuffer(pgFilePath);
+							}
+						}
+					}
+				}
+				console.log({ changes });
+
+				function uint8arraysEqual(a, b) {
+					return (
+						a.length === b.length &&
+						a.every((val, index) => val === b[index])
+					);
+				}
+
+				// Show a modal:
+				//
+				// You've modified the following files:
+				// * ...
+				// * ....
+				//
+				// You can now export them to GitHub:
+				//
+				// Commit message
+				//   [e.g. "Fix bug in the header"]
+				//
+				// Smart select with more options (a'la "Squash and merge" on GitHub)
+				//   [Push to PR #6573]
+				//       Pushes and shows a link to the PR
+				//   [Create a new branch in Automattic/themes]
+				//       Pushes and shows a link to "create new PR"
+				//   [Create a new branch in adamziel/themes] (forks if needed)
+				//       Forks, pushes, and shows a link to "create new PR"
+				//   [Download my changes as a zip file]
+				//       Just downloads the zip file
+				//
+				// [Cancel]
+
+				return;
+
+				// 2. Fork the repo (if needed)
+
+				// 3. Create a branch
+				const newBranchName = `playground-changes-at-${Date.now()}`;
+				await createBranch(
+					'Automattic',
+					'themes',
+					newBranchName,
+					'trunk'
+				);
+
+				// 4. Create (or update!) the PR
+				// See https://github.com/type-challenges/octokit-create-pull-request
+				await octokit
+					.createPullRequest({
+						owner: 'Automattic',
+						repo: 'themes',
+						title: 'Test PR from Playground',
+						body: 'This is a description',
+						head: newBranchName,
+						// base: 'trunk' /* optional: defaults to default branch */,
+						update: true /* optional: set to `true` to enable updating existing pull requests */,
+						forceFork: false /* optional: force creating fork even when user has write rights */,
+						labels: [
+							'bug',
+						] /* optional: applies the given labels when user has permissions. When updating an existing pull request, already present labels will not be deleted. */,
+						changes: [
+							{
+								/* optional: if `files` is not passed, an empty commit is created instead */
+								files: changes,
+								commit: 'Test commit desc file1.txt, file2.png, deleting file3.txt, updating file4.txt (if it exists), file5.sh',
+								/* optional: if not passed, will be the authenticated user and the current date */
+								author: {
+									name: 'Adam Zielinski',
+									email: 'adam@adamziel.com',
+									date: new Date().toISOString(), // must be ISO date string
+								},
+								/* optional: if not passed, will use the information set in author */
+								committer: {
+									name: 'Adam Zielinski',
+									email: 'adam@adamziel.com',
+									date: new Date().toISOString(), // must be ISO date string
+								},
+							},
+						],
+					})
+					.then((pr) => console.log(`PR #${pr.data.number} created`));
+			});
+	</script>
+</html>

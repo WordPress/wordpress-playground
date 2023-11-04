@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script type="module">
+			const TOKEN_KEY = 'githubToken';
+
+			// OAUTH FLOW {{{
+			// If there is a code in the URL, store it in localStorage
+			const urlParams = new URLSearchParams(window.location.search);
+			const code = urlParams.get('code');
+			if (code) {
+				// Fetch https://github.com/login/oauth/access_token
+				// with clientId, clientSecret and code
+				// to get the access token
+				const response = await fetch('oauth.php?code=' + code, {
+					headers: {
+						'Content-Type': 'application/json',
+						Accept: 'application/json',
+					},
+				});
+				const body = await response.json();
+				localStorage.setItem(TOKEN_KEY, body.access_token);
+				// Redirect to the same page but without "code" in the URL
+				const url = new URL(window.location.href);
+				url.searchParams.delete('code');
+				window.location = url;
+			} else if (!localStorage.getItem(TOKEN_KEY)) {
+				// If no token in localStorage, redirect to GitHub OAuth
+				window.location = 'oauth.php?redirect=1';
+			}
+			// }}} /OAUTH FLOW
+
+			import { Octokit } from 'https://esm.sh/@octokit/rest';
+			import {
+				createPullRequest,
+				DELETE_FILE,
+			} from 'https://cdn.pika.dev/octokit-plugin-create-pull-request';
+
+			const MyOctokit = Octokit.plugin(createPullRequest);
+			const octokit = new MyOctokit({
+				auth: localStorage.getItem(TOKEN_KEY),
+			});
+
+			const CONCURRENCY_LIMIT = 15;
+			const { data: pullRequest } = await octokit.rest.pulls.get({
+				owner: 'Automattic',
+				repo: 'themes',
+				pull_number: '7434',
+			});
+
+			const themeFiles = await getFilesFromDirectory(
+				'Automattic',
+				'themes',
+				pullRequest.head.ref,
+				'hevor'
+			);
+
+			console.log(themeFiles);
+
+			async function getFilesFromDirectory(owner, repo, ref, path) {
+				let allFiles = [];
+
+				try {
+					// Fetch the content of the directory
+					const { data: content } = await octokit.repos.getContent({
+						owner,
+						repo,
+						path,
+						ref,
+					});
+
+					const filePromises = [];
+					for (const item of content) {
+						if (item.type === 'file') {
+							filePromises.push(
+								getFileContent(owner, repo, ref, item)
+							);
+							if (filePromises.length >= CONCURRENCY_LIMIT) {
+								const results = await Promise.all(filePromises);
+								allFiles.push(...results);
+								filePromises.length = 0; // Clear the array
+							}
+						} else if (item.type === 'dir') {
+							const filesInSubdir = await getFilesFromDirectory(
+								owner,
+								repo,
+								ref,
+								item.path
+							);
+							allFiles = allFiles.concat(filesInSubdir);
+						}
+					}
+
+					// Process remaining file promises
+					if (filePromises.length > 0) {
+						const results = await Promise.all(filePromises);
+						allFiles.push(...results);
+					}
+				} catch (error) {
+					console.error('Error fetching files:', error);
+				}
+
+				return allFiles;
+			}
+
+			async function getFileContent(owner, repo, ref, item) {
+				const { data: fileContent } = await octokit.repos.getContent({
+					owner,
+					repo,
+					ref,
+					path: item.path,
+				});
+				return {
+					name: item.name,
+					path: item.path,
+					content: base64ToUint8Array(fileContent.content),
+				};
+			}
+
+			function base64ToUint8Array(base64) {
+				var binaryString = window.atob(base64); // This will convert base64 to binary string
+				var len = binaryString.length;
+				var bytes = new Uint8Array(len);
+				for (var i = 0; i < len; i++) {
+					bytes[i] = binaryString.charCodeAt(i);
+				}
+				return bytes;
+			}
+			throw new Error('done');
+
+			// CREATE A PULL REQUEST {{{
+			const newBranchName = `playground-test-branch-${Date.now()}`;
+			await createBranch(
+				'adamziel',
+				'wordpress-develop',
+				newBranchName,
+				'trunk'
+			);
+
+			// See https://github.com/type-challenges/octokit-create-pull-request
+			await octokit
+				.createPullRequest({
+					owner: 'adamziel',
+					repo: 'wordpress-develop',
+					title: 'Test PR from Playground',
+					body: 'This is a description',
+					head: newBranchName,
+					// base: 'trunk' /* optional: defaults to default branch */,
+					update: true /* optional: set to `true` to enable updating existing pull requests */,
+					forceFork: false /* optional: force creating fork even when user has write rights */,
+					labels: [
+						'bug',
+					] /* optional: applies the given labels when user has permissions. When updating an existing pull request, already present labels will not be deleted. */,
+					changes: [
+						{
+							/* optional: if `files` is not passed, an empty commit is created instead */
+							files: {
+								'test.txt': 'Content for file1',
+								'README.md': '# Test',
+								'src/index.php': '# Test',
+								'Gruntfile.js': DELETE_FILE,
+							},
+							commit: 'Test commit desc file1.txt, file2.png, deleting file3.txt, updating file4.txt (if it exists), file5.sh',
+							/* optional: if not passed, will be the authenticated user and the current date */
+							author: {
+								name: 'Adam Zielinski',
+								email: 'adam@adamziel.com',
+								date: new Date().toISOString(), // must be ISO date string
+							},
+							/* optional: if not passed, will use the information set in author */
+							committer: {
+								name: 'Adam Zielinski',
+								email: 'adam@adamziel.com',
+								date: new Date().toISOString(), // must be ISO date string
+							},
+						},
+					],
+				})
+				.then((pr) => console.log(`PR #${pr.data.number} created`));
+			// }}} /CREATE A PULL REQUEST
+
+			// Get a build artifact from the specified PR
+			console.log(
+				await getArtifact(
+					'wordpress',
+					'wordpress-develop',
+					5511,
+					'build.yml'
+				)
+			);
+			async function getArtifact(owner, repo, prNumber, workflow_id) {
+				const { data: pullRequest } = await octokit.rest.pulls.get({
+					owner,
+					repo,
+					pull_number: prNumber,
+				});
+				const workflowRuns =
+					await octokit.rest.actions.listWorkflowRuns({
+						owner,
+						repo,
+						branch: pullRequest.head.ref,
+						workflow_id,
+					});
+				const runId = workflowRuns.data.workflow_runs[0]?.id;
+				const artifacts =
+					await octokit.rest.actions.listWorkflowRunArtifacts({
+						owner,
+						repo,
+						run_id: runId,
+					});
+
+				const artifact = await octokit.rest.actions.downloadArtifact({
+					owner,
+					repo,
+					artifact_id: artifacts.data.artifacts[0].id,
+					archive_format: 'zip',
+				});
+				return artifact;
+			}
+
+			async function createBranch(
+				owner,
+				repo,
+				newBranchName,
+				baseBranchName = 'main'
+			) {
+				try {
+					// 1. Get the latest commit SHA from the base branch
+					const { data: refData } = await octokit.git.getRef({
+						owner,
+						repo,
+						ref: `heads/${baseBranchName}`,
+					});
+					const sha = refData.object.sha;
+
+					// 2. Create a new branch pointing to the obtained SHA
+					await octokit.git.createRef({
+						owner,
+						repo,
+						ref: `refs/heads/${newBranchName}`,
+						sha,
+					});
+
+					console.log(
+						`Branch ${newBranchName} created successfully!`
+					);
+				} catch (error) {
+					console.error('Error creating branch:', error);
+				}
+			}
+		</script>
+	</head>
+	<body>
+		Test
+	</body>
+</html>
