@@ -49,7 +49,7 @@
  * @param int|null $local_id_offset The offset to use for the first AUTOINCREMENT value.
  * @return void
  */
-function playground_sync_override_autoincrement_algorithm($local_id_offset = null)
+function playground_sync_override_autoincrement_algorithm($local_id_offset = null, $known_autoincrement_values = null)
 {
     if (null !== $local_id_offset) {
         if (get_option('playground_id_offset')) {
@@ -66,14 +66,24 @@ function playground_sync_override_autoincrement_algorithm($local_id_offset = nul
         update_option('playground_id_offset', $local_id_offset);
     }
 
+    if (null !== $known_autoincrement_values) {
+        foreach ($known_autoincrement_values as $table_name => $seq) {
+            $stmt = $GLOBALS['@pdo']->prepare(<<<SQL
+                INSERT OR REPLACE INTO playground_sequence VALUES (:table_name, :seq)
+            SQL
+            );
+            $stmt->execute([':table_name' => $table_name, ':seq' => $seq]);
+        }
+    }
+
     // Insert all the AUTOINCREMENT table/column pairs that are not
     // already tracked in playground_sequence:
     $pdo = $GLOBALS['@pdo'];
     $stmt = $pdo->prepare(<<<SQL
         INSERT INTO playground_sequence 
-        SELECT table_name, column_name, :seq FROM autoincrement_columns
+        SELECT table_name, :seq FROM autoincrement_columns
         WHERE 1=1 -- Needed because of the ambiguous ON clause, see https://sqlite.org/lang_upsert.html
-        ON CONFLICT(table_name, column_name) DO NOTHING;
+        ON CONFLICT(table_name) DO NOTHING;
     SQL);
     $stmt->execute([':seq' => get_option('playground_id_offset')]);
 
@@ -174,14 +184,13 @@ function playground_sync_ensure_required_tables()
     );");
     $pdo->query("CREATE TABLE IF NOT EXISTS playground_sequence (
         table_name varchar(255),
-        column_name varchar(255),
         seq int default 0 not null,
-        PRIMARY KEY (table_name, column_name)
+        PRIMARY KEY (table_name)
     )");
 
     $pdo->query(<<<SQL
     CREATE VIEW IF NOT EXISTS autoincrement_columns AS 
-        SELECT DISTINCT m.name as 'table_name', ti.name AS 'column_name', seq.seq AS 'seq'
+        SELECT DISTINCT m.name as 'table_name', ti.name AS 'column_name'
             FROM
                 sqlite_schema AS m,
                 pragma_table_info(m.name) AS ti

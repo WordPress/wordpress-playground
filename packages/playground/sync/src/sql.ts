@@ -36,10 +36,7 @@ import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 
-export async function installSqlSyncMuPlugin(
-	playground: PlaygroundClient,
-	idOffset: number
-) {
+export async function installSqlSyncMuPlugin(playground: PlaygroundClient) {
 	await playground.writeFile(
 		'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
 		patchedSqliteTranslator
@@ -48,13 +45,35 @@ export async function installSqlSyncMuPlugin(
 		`/wordpress/wp-content/mu-plugins/sync-mu-plugin.php`,
 		logSqlQueries
 	);
+}
+
+export async function overrideAutoincrementSequences(
+	playground: PlaygroundClient,
+	baseOffset: number,
+	knownIds: Record<string, number> = {}
+) {
 	const initializationResult = await playground.run({
 		code: `<?php
         require '/wordpress/wp-load.php';
-        playground_sync_override_autoincrement_algorithm(${phpVar(idOffset)});
+        playground_sync_override_autoincrement_algorithm(
+			${phpVar(baseOffset)},
+			${phpVar(knownIds)}
+		);
 	    `,
 	});
 	assertEmptyOutput(initializationResult, 'Initialization failed.');
+
+	// Get the current autoincrement ID value for all tables
+	const response = await playground.run({
+		code: `<?php
+        require '/wordpress/wp-load.php';
+		$data = $GLOBALS['@pdo']
+			->query('SELECT * FROM playground_sequence')
+			->fetchAll(PDO::FETCH_KEY_PAIR);
+		echo json_encode($data);
+		`,
+	});
+	return response.json;
 }
 
 export async function recordSQLQueries(
