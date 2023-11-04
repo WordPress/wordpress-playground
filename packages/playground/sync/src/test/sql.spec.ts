@@ -67,8 +67,8 @@ async function getWordPressDataModule() {
 		wpData.byteOffset,
 		wpData.byteOffset + wpData.byteLength
 	);
-    shimXHR(wpDataArrayBuffer);
-    // @ts-ignore
+	shimXHR(wpDataArrayBuffer);
+	// @ts-ignore
 	return await import('./wp-6.3.js');
 }
 
@@ -76,8 +76,8 @@ function shimXHR(response: ArrayBuffer) {
 	// Shim XMLHttpRequest to return a fixed response
 	// @ts-ignore
 	globalThis.XMLHttpRequest = class XMLHttpRequest {
-        response?: ArrayBuffer;
-        onload() {}
+		response?: ArrayBuffer;
+		onload() {}
 		open() {
 			setTimeout(() => {
 				this.response = response;
@@ -97,7 +97,7 @@ function shimXHR(response: ArrayBuffer) {
 		}
 		get status() {
 			return 200;
-        }
+		}
 	};
 }
 

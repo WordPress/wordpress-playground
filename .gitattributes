@@ -7,5 +7,6 @@ packages/php-wasm/node/src/test/test-data/ linguist-generated
 packages/php-wasm/web/public/kitchen-sink/ linguist-generated
 packages/php-wasm/web/public/light/ linguist-generated
 packages/playground/remote/public/wp-* linguist-generated
+packages/playground/sync/src/test/wp-* linguist-generated
 packages/playground/remote/src/wordpress/ linguist-generated
 packages/playground/blueprints/public/ linguist-generated
