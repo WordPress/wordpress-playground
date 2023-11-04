@@ -1,7 +1,7 @@
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
 import { setupPlaygroundSync } from '.';
-import { ParentWindowTransport, withMiddleware } from './transports';
+import { ParentWindowTransport } from './transports';
 
 const playground = await startPlaygroundWeb({
 	iframe: document.getElementById('wp') as HTMLIFrameElement,
@@ -18,19 +18,12 @@ const autoincrementOffset = Math.round(Math.random() * 1_000_000);
 
 await setupPlaygroundSync(playground, {
 	autoincrementOffset,
-	transport: withMiddleware(new ParentWindowTransport(), [
-		// Logging
-		{
-			sendChanges(messages, next) {
-				console.log(`[${clientId}] Sending changes!`, messages);
-				next(messages);
-			},
-			receiveChanges(messages, next) {
-				console.log(`[${clientId}] Received changes!`, messages);
-				next(messages);
-			},
+	transport: new ParentWindowTransport(),
+	logger: {
+		log(...args: any[]) {
+			console.log(`[${clientId}]`, ...args);
 		},
-	]),
+	},
 });
 
 await login(playground, { username: 'admin', password: 'password' });

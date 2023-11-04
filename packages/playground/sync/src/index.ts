@@ -6,20 +6,26 @@ import { PlaygroundSyncTransport, TransportMessage } from './transports';
 import { debounce } from './utils';
 import { FilesystemOperation } from '@php-wasm/universal';
 
+export interface Logger {
+	log(...args: any[]): void;
+}
+
 export interface SyncOptions {
 	autoincrementOffset: number;
 	transport: PlaygroundSyncTransport;
+	logger: Logger;
 }
 
 export async function setupPlaygroundSync(
 	playground: PlaygroundClient,
-	{ autoincrementOffset, transport }: SyncOptions
+	{ autoincrementOffset, transport, logger }: SyncOptions
 ) {
 	await installSqlSyncMuPlugin(playground);
 	await overrideAutoincrementSequences(playground, autoincrementOffset);
 
 	let changes: TransportMessage[] = [];
 	const debouncedFlush = debounce(() => {
+		logger?.log(`Sending changes`, changes);
 		transport.sendChanges(changes);
 		changes = [];
 	}, 3000);
@@ -41,6 +47,7 @@ export async function setupPlaygroundSync(
 	});
 
 	transport.onChangesReceived(async (changes) => {
+		logger?.log(`Received changes`, changes);
 		for (const { scope, details } of changes) {
 			if (scope === 'fs') {
 				await replayFSOperations(playground, details);

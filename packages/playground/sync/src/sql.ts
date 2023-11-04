@@ -137,7 +137,7 @@ function shouldSyncQuery(meta: SQLQueryMetadata) {
 		return false;
 	}
 	const queryType = meta.query_type;
-	const tableName = meta.table_name.toLowerCase();
+	const tableName = meta.table_name?.toLowerCase();
 
 	if (meta.subtype === 'replay-query') {
 		const query = meta.query.trim();
