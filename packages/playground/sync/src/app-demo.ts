@@ -11,7 +11,7 @@ export async function runDemo(iframe: HTMLIFrameElement, clientId: string) {
 
 	await setupPlaygroundSync(playground, {
 		// To build a multi-session app with seamless page refresh
-		// and transitions between devices, store this idOffset and 
+		// and transitions between devices, store this idOffset and
 		// all SQL and FS between page refreshes.
 		// Use them to reinstate the state on new devices and after a
 		// page refresh.

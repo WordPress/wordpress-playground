@@ -21,7 +21,8 @@
 		const { runDemo } = await import('./src/app-demo.ts');
 		runDemo(
 			document.getElementById('wp'),
-			new URLSearchParams(document.location.search).get('id') || 'unknown client'
+			new URLSearchParams(document.location.search).get('id') ||
+				'unknown client'
 		);
 	</script>
 </body>

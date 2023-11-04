@@ -1,7 +1,7 @@
 /*
  * TODO:
  * ✅ !! SQLITE stubbornly sets the sequence value to MAX(id)+1
- * * Do not sync transients, site URL, etc.
+ * ✅ * Do not sync transients, site URL, etc.
  * * Add unit tests for cases like:
  *   * Failed SQL queries
  *   * Transactions without the final commit (request died prematurely)
