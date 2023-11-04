@@ -58,7 +58,7 @@ export async function setupPlaygroundSync(
 
 	const loopAfterInterval = (f: Function, ms: number) => {
 		f();
-		setTimeout(f, ms);
+		setTimeout(loopAfterInterval, ms, f, ms);
 	};
 
 	loopAfterInterval(flushJournal, 3000);
