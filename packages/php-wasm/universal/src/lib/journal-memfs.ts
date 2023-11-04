@@ -112,7 +112,7 @@ declare module './universal-php' {
 }
 
 declare module './base-php' {
-	export interface BasePHP {
+	interface BasePHP {
 		__journalingDisabled?: boolean;
 	}
 }
