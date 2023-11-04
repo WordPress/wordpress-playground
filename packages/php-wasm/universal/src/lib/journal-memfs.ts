@@ -39,16 +39,6 @@ export type EmscriptenFSNode = {
 export type FSNodeType = 'file' | 'directory';
 
 /**
- * Represents a no-operation operation.
- */
-export type NoopOperation = {
-	/** The type of operation. */
-	operation: 'NOOP';
-	/** The path of the operation. */
-	path: '';
-};
-
-/**
  * Represents an update operation on a file system node.
  */
 export type UpdateFileOperation = {
@@ -110,7 +100,6 @@ export type FSNode = {
 };
 
 export type FilesystemOperation =
-	| NoopOperation
 	| CreateOperation
 	| UpdateFileOperation
 	| DeleteOperation
