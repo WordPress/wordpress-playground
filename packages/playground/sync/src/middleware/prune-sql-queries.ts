@@ -1,14 +1,23 @@
 import { SyncMiddleware } from '.';
-import { asSQLFlatMapper } from './utils';
+import { SQLQueryMetadata } from '../sql';
 
 export const pruneSQLQueriesMiddleware = (): SyncMiddleware => ({
-	beforeSend: pruneSQLQueries,
+	beforeSend: (messages) =>
+		messages.filter((message) => {
+			if (message.scope !== 'sql') {
+				return true;
+			}
+			if (shouldReplayQuery(message.details)) {
+				return true;
+			}
+			return false;
+		}),
 	afterReceive: (query) => query,
 });
 
-const pruneSQLQueries = asSQLFlatMapper((meta) => {
+const shouldReplayQuery = (meta: SQLQueryMetadata) => {
 	if (meta.query_type === 'SELECT') {
-		return [];
+		return false;
 	}
 	const queryType = meta.query_type;
 	const tableName = meta.table_name?.toLowerCase();
@@ -21,7 +30,7 @@ const pruneSQLQueries = asSQLFlatMapper((meta) => {
 			tableName === 'wp_options' &&
 			query.endsWith("`option_name` = 'cron'")
 		) {
-			return [];
+			return false;
 		}
 	}
 	if (meta.subtype === 'reconstruct-insert') {
@@ -32,15 +41,15 @@ const pruneSQLQueries = asSQLFlatMapper((meta) => {
 				optionName.startsWith('_transient_') ||
 				optionName.startsWith('_site_transient_')
 			) {
-				return [];
+				return false;
 			}
 		}
 		// Don't sync session tokens
 		if (tableName === 'wp_usermeta') {
 			if (meta.row.meta_key === 'session_tokens') {
-				return [];
+				return false;
 			}
 		}
 	}
-	return [meta];
-});
+	return true;
+};

@@ -24,21 +24,23 @@ export async function setupPlaygroundSync(
 			(acc, middleware) => middleware.afterReceive(acc),
 			changes
 		);
-		for (const { scope, details } of changes) {
-			if (scope === 'fs') {
-				await replayFSOperations(playground, details);
-			} else if (scope === 'sql') {
-				await replaySQLQueries(playground, details);
-			}
-		}
+		const fsOperations = changes
+			.filter(({ scope }) => scope === 'fs')
+			.map(({ details }) => details) as FilesystemOperation[];
+		await replayFSOperations(playground, fsOperations);
+
+		const sqlQueries = changes
+			.filter(({ scope }) => scope === 'sql')
+			.map(({ details }) => details) as SQLQueryMetadata[];
+		await replaySQLQueries(playground, sqlQueries);
 	});
 
 	let localChanges: TransportMessage[] = [];
-	recordSQLQueries(playground, (queries: SQLQueryMetadata[]) => {
-		localChanges.push({ scope: 'sql', details: queries });
+	recordSQLQueries(playground, (query: SQLQueryMetadata) => {
+		localChanges.push({ scope: 'sql', details: query });
 	});
-	recordFSOperations(playground, (ops: FilesystemOperation[]) => {
-		localChanges.push({ scope: 'fs', details: ops });
+	recordFSOperations(playground, (op: FilesystemOperation) => {
+		localChanges.push({ scope: 'fs', details: op });
 	});
 
 	// Flush the journal at most every 3 seconds

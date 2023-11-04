@@ -78,7 +78,7 @@ export async function overrideAutoincrementSequences(
 
 export async function recordSQLQueries(
 	playground: PlaygroundClient,
-	onCommit: (queries: SQLQueryMetadata[]) => void
+	onCommit: (queries: SQLQueryMetadata) => void
 ) {
 	let activeTransaction: SQLQueryMetadata[] | null = null;
 
@@ -104,7 +104,7 @@ export async function recordSQLQueries(
 					break;
 				case 'COMMIT':
 					if (activeTransaction?.length) {
-						onCommit(activeTransaction);
+						activeTransaction.forEach(onCommit);
 					}
 					activeTransaction = null;
 					break;
@@ -122,7 +122,7 @@ export async function recordSQLQueries(
 			if (activeTransaction) {
 				activeTransaction.push(queryOp);
 			} else {
-				onCommit([queryOp]);
+				onCommit(queryOp);
 			}
 		}
 	});

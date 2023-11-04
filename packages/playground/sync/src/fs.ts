@@ -32,7 +32,7 @@ import { PlaygroundClient } from '@wp-playground/client';
 
 export async function recordFSOperations(
 	playground: PlaygroundClient,
-	onOperations: (op: FilesystemOperation[]) => void
+	onOperations: (op: FilesystemOperation) => void
 ) {
 	await playground.journalMemfs(
 		'/wordpress/wp-content',
@@ -57,7 +57,7 @@ export async function recordFSOperations(
 					console.error(e);
 				}
 			}
-			onOperations([op]);
+			onOperations(op);
 		}
 	);
 }

@@ -1,31 +1,27 @@
-import { asSQLMapper } from './utils';
+import { mapSQLMeta } from './utils';
 
 export const marshallSiteURLMiddleware = (
 	localSiteUrl: string,
 	placeholderUrl = 'https://playground.wordpress.net'
 ) => {
 	return {
-		beforeSend: replaceURL(localSiteUrl, placeholderUrl),
-		afterReceive: replaceURL(placeholderUrl, localSiteUrl),
+		beforeSend: siteURLMapper(localSiteUrl, placeholderUrl),
+		afterReceive: siteURLMapper(placeholderUrl, localSiteUrl),
 	};
 };
 
-function replaceURL(from: string, to: string) {
+function siteURLMapper(from: string, to: string) {
 	// Remove trailing slashes for consistency
 	from = from.replace(/\/$/, '');
 	to = to.replace(/\/$/, '');
 
-	return replaceString(
-		new RegExp(
-			`(^|[^0-9a-zA-Z])(?:${escapeRegex(from)})($|[^0-9a-zA-Z])`,
-			'g'
-		),
-		`$1${to}$2`
+	const urlRegexp = new RegExp(
+		`(^|[^0-9a-zA-Z])(?:${escapeRegex(from)})($|[^0-9a-zA-Z])`,
+		'g'
 	);
-}
+	const urlReplacement = `$1${to}$2`;
 
-function replaceString(from: string | RegExp, to: string) {
-	return asSQLMapper(function (meta) {
+	return mapSQLMeta(function (meta) {
 		if (meta.subtype === 'replay-query') {
 			return {
 				...meta,
@@ -35,7 +31,10 @@ function replaceString(from: string | RegExp, to: string) {
 			const row = { ...meta.row };
 			for (const key in row) {
 				if (typeof row[key] === 'string') {
-					row[key] = (row[key] as string).replace(from, to);
+					row[key] = (row[key] as string).replace(
+						urlRegexp,
+						urlReplacement
+					);
 				}
 			}
 			return {
