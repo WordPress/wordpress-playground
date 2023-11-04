@@ -30,3 +30,55 @@ export class ParentWindowTransport implements PlaygroundSyncTransport {
 		});
 	}
 }
+
+export class MiddlewareTransport implements PlaygroundSyncTransport {
+	constructor(
+		private readonly transport: PlaygroundSyncTransport,
+		private readonly sendChangesMiddleware: (
+			message: TransportMessage[],
+			next: (message: TransportMessage[]) => void
+		) => void,
+		private readonly receiveChangesMiddleware: (
+			message: TransportMessage[],
+			next: (message: TransportMessage[]) => void
+		) => void
+	) {}
+
+	sendChanges(message: TransportMessage[]) {
+		this.sendChangesMiddleware(message, (message) => {
+			this.transport.sendChanges(message);
+		});
+	}
+
+	onChangesReceived(fn: (details: TransportMessage[]) => void): void {
+		this.transport.onChangesReceived((message) => {
+			this.receiveChangesMiddleware(message, (message) => {
+				fn(message);
+			});
+		});
+	}
+}
+
+export function withMiddleware(
+	transport: PlaygroundSyncTransport,
+	middleware: Array<{
+		sendChanges?: (
+			message: TransportMessage[],
+			next: (message: TransportMessage[]) => void
+		) => void;
+		receiveChanges?: (
+			message: TransportMessage[],
+			next: (message: TransportMessage[]) => void
+		) => void;
+	}>
+): PlaygroundSyncTransport {
+	return middleware.reduce(
+		(transport, middleware) =>
+			new MiddlewareTransport(
+				transport,
+				middleware.sendChanges ?? ((message, next) => next(message)),
+				middleware.receiveChanges ?? ((message, next) => next(message))
+			),
+		transport
+	);
+}

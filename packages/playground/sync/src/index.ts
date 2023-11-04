@@ -9,22 +9,17 @@ import { FilesystemOperation } from '@php-wasm/universal';
 export interface SyncOptions {
 	autoincrementOffset: number;
 	transport: PlaygroundSyncTransport;
-	verbose?: boolean;
-	logPrefix?: string;
 }
 
 export async function setupPlaygroundSync(
 	playground: PlaygroundClient,
-	{ autoincrementOffset, logPrefix, verbose, transport }: SyncOptions
+	{ autoincrementOffset, transport }: SyncOptions
 ) {
 	await installSqlSyncMuPlugin(playground);
 	await overrideAutoincrementSequences(playground, autoincrementOffset);
 
 	let changes: TransportMessage[] = [];
 	const debouncedFlush = debounce(() => {
-		if (verbose) {
-			console.log(`[${logPrefix}] Sending changes!`, changes);
-		}
 		transport.sendChanges(changes);
 		changes = [];
 	}, 3000);
@@ -47,12 +42,6 @@ export async function setupPlaygroundSync(
 
 	transport.onChangesReceived(async (changes) => {
 		for (const { scope, details } of changes) {
-			if (verbose) {
-				console.log(
-					`[${logPrefix}][onChangeReceived][${scope}]`,
-					details
-				);
-			}
 			if (scope === 'fs') {
 				await replayFSOperations(playground, details);
 			} else if (scope === 'sql') {
