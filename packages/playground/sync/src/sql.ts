@@ -199,25 +199,28 @@ function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 	}
 }
 
+export type SQLReplayQuery = {
+	type: 'sql';
+	subtype: 'replay-query';
+	query: string;
+	query_type: string;
+	table_name: string;
+	auto_increment_column: string;
+	last_insert_id: number;
+};
+export type SQLReconstructInsert = {
+	type: 'sql';
+	subtype: 'reconstruct-insert';
+	query_type: 'INSERT';
+	row: Record<string, string | number | null>;
+	table_name: string;
+	auto_increment_column: string;
+	last_insert_id: number;
+};
+
 export type SQLQueryMetadata =
-	| {
-			type: 'sql';
-			subtype: 'replay-query';
-			query: string;
-			query_type: string;
-			table_name: string;
-			auto_increment_column: string;
-			last_insert_id: number;
-	  }
-	| {
-			type: 'sql';
-			subtype: 'reconstruct-insert';
-			query_type: 'INSERT';
-			row: Record<string, string | number | null>;
-			table_name: string;
-			auto_increment_column: string;
-			last_insert_id: number;
-	  };
+	| SQLReplayQuery
+	| SQLReconstructInsert
 
 export type SQLTransactionCommand =
 	| {
