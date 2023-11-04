@@ -5,7 +5,11 @@ import { ParentWindowTransport } from './transports';
 import { loggerMiddleware, marshallSiteURLMiddleware } from './middleware';
 import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
 
-export async function runDemo(iframe: HTMLIFrameElement, clientId: string, autoincrementOffset: number) {
+export async function runDemo(
+	iframe: HTMLIFrameElement,
+	clientId: string,
+	autoincrementOffset: number
+) {
 	const playground = await startPlaygroundWeb({
 		iframe,
 		remoteUrl: 'http://localhost:4400/remote.html',

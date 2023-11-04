@@ -16,8 +16,12 @@
 	</style>
 </head>
 <body>
-	<iframe src="./peer.html?client-id=left&autoincrement-offset=1234500001"></iframe>
-	<iframe src="./peer.html?client-id=right&autoincrement-offset=1543200001"></iframe>
+	<iframe
+		src="./peer.html?client-id=left&autoincrement-offset=1234500001"
+	></iframe>
+	<iframe
+		src="./peer.html?client-id=right&autoincrement-offset=1543200001"
+	></iframe>
 	<script type="module">
 		const iframes = Array.from(document.querySelectorAll('iframe'));
 		window.onmessage = (event) => {

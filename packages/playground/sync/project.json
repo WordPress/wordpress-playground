@@ -3,6 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/sync/src",
 	"projectType": "lib",
+	"implicitDependencies": ["playground-remote"],
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
