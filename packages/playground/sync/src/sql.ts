@@ -1,31 +1,3 @@
-/*
- * TODO:
- * ✅ !! SQLITE stubbornly sets the sequence value to MAX(id)+1
- * ✅ * Do not sync transients, site URL, etc.
- * * Add unit tests for cases like:
- *   * Failed SQL queries
- *   * Transactions without the final commit (request died prematurely)
- *   * Conflicting SQL queries
- *   * Conflicting FS operations
- *   * Nested transactions
- *   * Unique constraint violations
- *   * Queries without transactions
- *   * Commits and rollbacks in transactions
- */
-
-/**
- * SQL syncing strategy:
- *
- * * When the local WordPress issues a query, we record it in a buffer
- *   and broadcast it to the remote peer.
- * * Whenever an autoincrement value is generated:
- *    1. We override the SQLite-assigned sequence value with the next
- *       relevant value from playground_sequence.
- *    2. We fetch the entire row from the database and transmit it as
- *       JSON to the remote peer.
- * * The remote peer receives the query and executes it.
- */
-
 import {
 	PHPResponse,
 	PlaygroundClient,

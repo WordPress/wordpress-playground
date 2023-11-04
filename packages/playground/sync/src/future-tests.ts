@@ -1,3 +1,13 @@
+// * * Add unit tests for cases like:
+// *   * Failed SQL queries
+// *   * Transactions without the final commit (request died prematurely)
+// *   * Conflicting SQL queries
+// *   * Conflicting FS operations
+// *   * Nested transactions
+// *   * Unique constraint violations
+// *   * Queries without transactions
+// *   * Commits and rollbacks in transactions
+
 // Use this as a unit test later on:
 // const result = await playground.run({
 // 	code: `<?php
