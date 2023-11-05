@@ -45,7 +45,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
-	#eventListeners: Record<string, PHPEventListener[]> = {};
+	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
 	#semaphore: Semaphore;
@@ -73,30 +73,26 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
-		if (!(eventType in this.#eventListeners)) {
-			this.#eventListeners[eventType] = [];
+		if (!this.#eventListeners.has(eventType)) {
+			this.#eventListeners.set(eventType, new Set());
 		}
-		this.#eventListeners[eventType].push(listener);
+		this.#eventListeners.get(eventType)!.add(listener);
 	}
 
 	removeEventListener(
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	) {
-		if (!(eventType in this.#eventListeners)) {
-			return;
-		}
-		const index = this.#eventListeners[eventType].indexOf(listener);
-		if (index > -1) {
-			this.#eventListeners[eventType].splice(index, 1);
-		}
+		this.#eventListeners.get(eventType)?.delete(listener);
 	}
 
 	dispatchEvent<Event extends PHPEvent>(event: Event) {
-		if (!(event.type in this.#eventListeners)) {
+		const listeners = this.#eventListeners.get(event.type);
+		if (!listeners) {
 			return;
 		}
-		for (const listener of this.#eventListeners[event.type]) {
+
+		for (const listener of listeners) {
 			listener(event);
 		}
 	}
