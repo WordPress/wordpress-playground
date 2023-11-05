@@ -1,4 +1,4 @@
-import { FilesystemOperation } from '@php-wasm/universal';
+import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { SQLJournalEntry } from './sql';
 
 export type TransportEnvelope =

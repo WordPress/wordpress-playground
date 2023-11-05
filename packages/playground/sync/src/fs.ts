@@ -1,4 +1,5 @@
-import { BasePHP, FilesystemOperation } from '@php-wasm/universal';
+import { BasePHP } from '@php-wasm/universal';
+import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { Semaphore } from '@php-wasm/util';
 import { PlaygroundClient } from '@wp-playground/client';
 
@@ -6,7 +7,7 @@ export async function journalFSOperations(
 	playground: PlaygroundClient,
 	onEntry: (op: FilesystemOperation) => void
 ) {
-	await playground.journalMemfs(
+	await playground.journalFSEvents(
 		'/wordpress/wp-content',
 		async (entry: FilesystemOperation) => {
 			if (

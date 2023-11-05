@@ -1,4 +1,5 @@
-import { BasePHP, __private__dont__use } from './base-php';
+import { BasePHP, __private__dont__use } from '@php-wasm/universal';
+import type { IsomorphicLocalPHP } from '@php-wasm/universal';
 import { basename, joinPaths } from '@php-wasm/util';
 
 export type EmscriptenFS = any;
@@ -86,14 +87,14 @@ export type RenameOperation = {
 };
 
 /**
- * Represents a node in the in-memory file system.
+ * Represents a node in the file system.
  */
 export type FSNode = {
 	/** The name of this file or directory. */
 	name: string;
 	/** The type of this node (file or directory). */
 	type: FSNodeType;
-	/** The contents of the file, if it is a file. */
+	/** The contents of the file, if it is a file and it's stored in memory. */
 	contents?: string;
 	/** The child nodes of the directory, if it is a directory. */
 	children?: FSNode[];
@@ -105,11 +106,14 @@ export type FilesystemOperation =
 	| DeleteOperation
 	| RenameOperation;
 
-export function journalMemfs(
+export function journalFSEvents(
 	php: BasePHP,
-	memfsRoot: string,
+	fsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
+	fsRoot = normalizePath(fsRoot);
+	const FS = php[__private__dont__use].FS;
+
 	const FSHooks: Record<string, Function> = {
 		write(stream: EmscriptenFSStream) {
 			recordEntry({
@@ -138,6 +142,15 @@ export function journalMemfs(
 				path,
 				nodeType: 'file',
 			});
+		},
+		mknod(path: string, mode: number) {
+			if (FS.isFile(mode)) {
+				recordEntry({
+					operation: 'CREATE',
+					path,
+					nodeType: 'file',
+				});
+			}
 		},
 		mkdir(path: string) {
 			recordEntry({
@@ -178,32 +191,16 @@ export function journalMemfs(
 		},
 	};
 
-	memfsRoot = normalizeMemfsPath(memfsRoot);
 	function recordEntry(entry: FilesystemOperation) {
 		// Only journal entries inside the specified root directory.
-		if (entry.path.startsWith(memfsRoot)) {
+		if (entry.path.startsWith(fsRoot)) {
 			onEntry(entry);
 		} else if (
 			entry.operation === 'RENAME' &&
-			entry.toPath.startsWith(memfsRoot)
+			entry.toPath.startsWith(fsRoot)
 		) {
-			if (entry.nodeType === 'file') {
-				// The rename operation moved a file from outside root directory
-				// into the root directory. Let's rewrite it as a create operation.
-				onEntry({
-					operation: 'UPDATE_FILE',
-					path: entry.toPath,
-				});
-			} else {
-				// The rename operation moved a directory from outside root directory
-				// into the root directory. We need to traverse the entire tree
-				// and provide a create operation for each file and directory.
-				//
-				// This can be done, but for now let's just give up.
-				// @TODO implement this
-				console.warn(
-					`Journaling a rename operation that moved a directory into the root directory is not supported yet.`
-				);
+			for (const op of recordExistingPath(php, entry.toPath)) {
+				onEntry(op);
 			}
 		}
 	}
@@ -213,7 +210,6 @@ export function journalMemfs(
 	 * We could use a Proxy object here if the Emscripten JavaScript module
 	 * did not use hard-coded references to the FS object.
 	 */
-	const FS = php[__private__dont__use].FS;
 	const originalFunctions: Record<string, Function> = {};
 	for (const [name, hook] of Object.entries(FSHooks)) {
 		originalFunctions[name] = FS[name];
@@ -235,6 +231,39 @@ export function journalMemfs(
 	};
 }
 
-function normalizeMemfsPath(path: string) {
+
+export function* recordExistingPath(
+	php: IsomorphicLocalPHP,
+	path: string
+): Generator<FilesystemOperation> {
+	if (php.isDir(path)) {
+		// The rename operation moved a directory from outside root directory
+		// into the root directory. We need to traverse the entire tree
+		// and provide a create operation for each file and directory.
+		yield {
+			operation: 'CREATE',
+			path: path,
+			nodeType: 'directory',
+		};
+		for (const file of php.listFiles(path)) {
+			const filePath = joinPaths(path, file);
+			yield* recordExistingPath(php, filePath);
+		}
+	} else {
+		// The rename operation moved a file from outside root directory
+		// into the root directory. Let's rewrite it as a create operation.
+		yield {
+			operation: 'CREATE',
+			path,
+			nodeType: 'file',
+		};
+		yield {
+			operation: 'UPDATE_FILE',
+			path,
+		};
+	}
+}
+
+function normalizePath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
 }

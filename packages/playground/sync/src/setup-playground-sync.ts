@@ -3,7 +3,7 @@ import { installSqlSyncMuPlugin, overrideAutoincrementSequences } from './sql';
 import { journalFSOperations, replayFSJournal } from './fs';
 import { SQLJournalEntry, journalSQLQueries, replaySQLJournal } from './sql';
 import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
-import { FilesystemOperation } from '@php-wasm/universal';
+import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { SyncMiddleware, marshallSiteURLMiddleware } from './middleware';
 import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
 

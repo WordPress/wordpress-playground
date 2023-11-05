@@ -9,12 +9,11 @@ import {
 	SupportedWordPressVersionsList,
 } from '../wordpress/get-wordpress-module';
 import {
-	FilesystemOperation,
-	journalMemfs,
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
+import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -168,11 +167,11 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		});
 	}
 
-	async journalMemfs(
+	async journalFSEvents(
 		root: string,
 		callback: (op: FilesystemOperation) => void
 	) {
-		return journalMemfs(php, root, callback);
+		return journalFSEvents(php, root, callback);
 	}
 }
 

@@ -11,17 +11,17 @@
 /* eslint-disable prefer-rest-params */
 import type { WebPHP } from '@php-wasm/web';
 import type { EmscriptenFS } from './types';
-import { FilesystemOperation, journalMemfs } from '@php-wasm/universal';
+import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 import { __private__dont__use } from '@php-wasm/universal';
 import { copyMemfsToOpfs, overwriteOpfsFile } from './bind-opfs';
 
-export function journalMemfsToOpfs(
+export function journalFSEventsToOpfs(
 	php: WebPHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string
 ) {
 	const journal: FilesystemOperation[] = [];
-	const unbind = journalMemfs(php, memfsRoot, (entry) => {
+	const unbind = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
