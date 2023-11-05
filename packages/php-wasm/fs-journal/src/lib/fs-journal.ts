@@ -1,6 +1,10 @@
-import { BasePHP, __private__dont__use } from '@php-wasm/universal';
+import {
+	BasePHP,
+	UniversalPHP,
+	__private__dont__use,
+} from '@php-wasm/universal';
 import type { IsomorphicLocalPHP } from '@php-wasm/universal';
-import { basename, joinPaths } from '@php-wasm/util';
+import { Semaphore, basename, joinPaths } from '@php-wasm/util';
 
 export type EmscriptenFS = any;
 
@@ -274,6 +278,20 @@ function normalizePath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
 }
 
+/**
+ * Normalizes a list of filesystem operations to remove
+ * redundant operations.
+ *
+ * This is crucial because the journal doesn't store the file contents
+ * on write, but only the information that the write happened. We only
+ * read the contents of the file on flush. However, at that time the file
+ * could have been moved to another location so we need this function to
+ * rewrite the journal to reflect the current file location. Only then
+ * will the hydrateUpdateFileOps() function be able to do its job.
+ *
+ * @param originalJournal The original journal.
+ * @returns The normalized journal.
+ */
 export function normalizeFilesystemOperations(
 	originalJournal: FilesystemOperation[]
 ): FilesystemOperation[] {
@@ -326,7 +344,10 @@ export function normalizeFilesystemOperations(
 					continue;
 				}
 
-				if (former.operation === 'CREATE' || former.operation === 'WRITE') {
+				if (
+					former.operation === 'CREATE' ||
+					former.operation === 'WRITE'
+				) {
 					if (latter.operation === 'RENAME') {
 						if (formerType === 'same_node') {
 							// Creating a node and then renaming it is equivalent to creating it in
@@ -383,7 +404,7 @@ export function normalizeFilesystemOperations(
 			rev.splice(i, 0, ...accumulatedOps);
 		}
 		rev = rev.filter((op) => !op.__remove);
-	} while(changed);
+	} while (changed);
 	return rev.reverse();
 }
 
@@ -433,31 +454,54 @@ function checkRelationship(
 //  * @param php
 //  * @param entries
 //  */
-// const hydrateLock = new Semaphore({ concurrency: 15 });
-// export async function hydrateUpdateFileOps(php: BasePHP, entries: FilesystemOperation[]) {
-// 	for (const entry of entries) {
-// 		if(entry.operation === 'WRITE') {
-// 			await hydrateLock.acquire();
-// 			try {
+export async function hydrateUpdateFileOps(
+	php: UniversalPHP,
+	entries: FilesystemOperation[]
+) {
+	const updateFileOps = entries.filter(
+		(op): op is UpdateFileOperation => op.operation === 'WRITE'
+	);
+	const updates = updateFileOps.map((op) => hydrateOp(php, op));
+	await Promise.all(updates);
+}
 
-// 			}
-// 				hydrateUpdateFileOp(php, entry).finally(release);
-// 			});
-// 		}
-// 	}
+const hydrateLock = new Semaphore({ concurrency: 15 });
+async function hydrateOp(php: UniversalPHP, op: UpdateFileOperation) {
+	const release = await hydrateLock.acquire();
 
-// 	if (entry.operation === 'WRITE') {
-// 		// @TODO: If the file was removed in the meantime, we won't
-// 		// be able to read it. We can't easily provide the contents
-// 		// with the operation because it would create a ton of partial
-// 		// content copies on each write. It seems like the only way
-// 		// to solve this is to have a function like "normalizeFilesystemOperations"
-// 		// that would prune the list of operations and merge them together as needed.
-// 		try {
-// 			entry.data = await playground.readFileAsBuffer(entry.path);
-// 		} catch (e) {
-// 			// Log the error but don't throw.
-// 			console.error(e);
-// 		}
-// 	}
-// }
+	// There is a race condition here:
+	// The file could have been removed from the filesystem
+	// between the flush() call and now. If that happens, we won't
+	// be able to read it here.
+	//
+	// If the file was DELETEd, we're fine as the next flush() will
+	// propagate the DELETE operation.
+	//
+	// If the file was RENAMEd, we're in trouble as we're about to
+	// tell the other peer to create an empty file and the next
+	// flush() will rename that empty file.
+	//
+	// This issue requires a particular timing and is unlikely to ever happen,
+	// but is definitely possible. We could mitigate it by either:
+	//
+	// * Peeking into the buffered journal entries since the last flush() to
+	//   source the file path from
+	// * Storing the data at the journaling stage instead of the flush() stage,
+	//   (and using potentially a lot of additional memory to keep track of all
+	//    the intermediate stages)
+	//
+	// For now, htough, let's just add error logging and keep an eye on this
+	// to see if this actually ever happens.
+	try {
+		op.data = await php.readFileAsBuffer(op.path);
+	} catch (e) {
+		// Log the error but don't throw.
+		console.warn(
+			`Journal failed to hydrate a file on flush: the ` +
+				`path ${op.path} no longer exists`
+		);
+		console.error(e);
+	}
+
+	release();
+}

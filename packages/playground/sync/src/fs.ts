@@ -16,20 +16,6 @@ export async function journalFSOperations(
 			) {
 				return;
 			}
-			if (entry.operation === 'WRITE') {
-				// @TODO: If the file was removed in the meantime, we won't
-				// be able to read it. We can't easily provide the contents
-				// with the operation because it would create a ton of partial
-				// content copies on each write. It seems like the only way
-				// to solve this is to have a function like "normalizeFilesystemOperations"
-				// that would prune the list of operations and merge them together as needed.
-				try {
-					entry.data = await playground.readFileAsBuffer(entry.path);
-				} catch (e) {
-					// Log the error but don't throw.
-					console.error(e);
-				}
-			}
 			onEntry(entry);
 		}
 	);

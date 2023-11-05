@@ -6,6 +6,7 @@ import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { SyncMiddleware, marshallSiteURLMiddleware } from './middleware';
 import { pruneSQLQueriesMiddleware } from './middleware/prune-sql-queries';
+import { hydrateFsWritesMiddleware } from './middleware/hydrate-fs-writes';
 
 export interface SyncOptions {
 	autoincrementOffset: number;
@@ -20,6 +21,7 @@ export async function setupPlaygroundSync(
 	middlewares = [
 		pruneSQLQueriesMiddleware(),
 		marshallSiteURLMiddleware(await playground.absoluteUrl),
+		hydrateFsWritesMiddleware(playground),
 		...middlewares,
 	];
 
@@ -27,10 +29,9 @@ export async function setupPlaygroundSync(
 	await overrideAutoincrementSequences(playground, autoincrementOffset);
 
 	transport.onChangesReceived(async (changes) => {
-		changes = middlewares.reduce(
-			(acc, middleware) => middleware.afterReceive(acc),
-			changes
-		);
+		for (const middleware of middlewares) {
+			changes = await middleware.afterReceive(changes);
+		}
 		const fsOperations = changes
 			.filter(({ scope }) => scope === 'fs')
 			.map(({ contents: details }) => details) as FilesystemOperation[];
@@ -51,20 +52,20 @@ export async function setupPlaygroundSync(
 	});
 
 	// Flush the journal at most every 3 seconds
-	const flushJournal = () => {
-		localChanges = middlewares.reduce(
-			(acc, middleware) => middleware.beforeSend(acc),
-			localChanges
-		);
-		if (!localChanges.length) {
+	const flushJournal = async () => {
+		let flushedChanges = localChanges;
+		localChanges = [];
+		for (const middleware of middlewares) {
+			flushedChanges = await middleware.beforeSend(flushedChanges);
+		}
+		if (!flushedChanges.length) {
 			return;
 		}
-		transport.sendChanges(localChanges);
-		localChanges = [];
+		transport.sendChanges(flushedChanges);
 	};
 
-	const loopAfterInterval = (f: Function, ms: number) => {
-		f();
+	const loopAfterInterval = async (f: Function, ms: number) => {
+		await f();
 		setTimeout(loopAfterInterval, ms, f, ms);
 	};
 

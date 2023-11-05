@@ -5,7 +5,7 @@ import {
 	journalFSEvents,
 	normalizeFilesystemOperations,
 	recordExistingPath,
-} from '../lib/journal-fs';
+} from '../lib/fs-journal';
 
 describe('Journal MemFS', () => {
 	let php: NodePHP;

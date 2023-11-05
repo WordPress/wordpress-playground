@@ -1,8 +1,12 @@
 import { TransportEnvelope } from '../transports';
 
 export type SyncMiddleware = {
-	beforeSend: (envelopes: TransportEnvelope[]) => TransportEnvelope[];
-	afterReceive: (envelopes: TransportEnvelope[]) => TransportEnvelope[];
+	beforeSend: (
+		message: TransportEnvelope[]
+	) => TransportEnvelope[] | Promise<TransportEnvelope[]>;
+	afterReceive: (
+		message: TransportEnvelope[]
+	) => TransportEnvelope[] | Promise<TransportEnvelope[]>;
 };
 
 export { trackAutoincrementMiddleware } from './track-autoincrement';

@@ -1,2 +1,6 @@
-export { journalFSEvents } from './journal-fs';
-export type { FilesystemOperation } from './journal-fs';
+export {
+	journalFSEvents,
+	hydrateUpdateFileOps,
+	normalizeFilesystemOperations,
+} from './fs-journal';
+export type { FilesystemOperation } from './fs-journal';
