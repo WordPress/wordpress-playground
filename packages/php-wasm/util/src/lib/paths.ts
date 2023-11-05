@@ -22,12 +22,9 @@
  */
 export function joinPaths(...paths: string[]) {
 	let path = paths.join('/');
-	const isAbsolute = path.charAt(0) === '/';
+	const isAbsolute = path[0] === '/';
 	const trailingSlash = path.substring(path.length - 1) === '/';
-	path = normalizePathsArray(
-		path.split('/').filter((p: any) => !!p),
-		!isAbsolute
-	).join('/');
+	path = normalizePath(path);
 	if (!path && !isAbsolute) {
 		path = '.';
 	}
@@ -35,6 +32,46 @@ export function joinPaths(...paths: string[]) {
 		path += '/';
 	}
 	return (isAbsolute ? '/' : '') + path;
+}
+
+/**
+ * Returns the last portion of a path.
+ *
+ * @param path - The path to extract the basename from.
+ * @returns The basename of the path.
+ */
+export function basename(path: string) {
+	if (path === '/') {
+		return '/';
+	}
+
+	path = normalizePath(path);
+
+	const lastSlash = path.lastIndexOf('/');
+	if (lastSlash === -1) {
+		return path;
+	}
+	return path.substr(lastSlash + 1);
+}
+
+/**
+ * Normalizes a path.
+ *
+ * For example:
+ *
+ * > normalizePath('wordpress/wp-content/../')
+ * 'wordpress'
+ *
+ * @param path
+ * @returns
+ */
+export function normalizePath(path: string) {
+	const isAbsolute = path[0] === '/';
+	path = normalizePathsArray(
+		path.split('/').filter((p: any) => !!p),
+		!isAbsolute
+	).join('/');
+	return path.replace(/\/$/, '');
 }
 
 /**
