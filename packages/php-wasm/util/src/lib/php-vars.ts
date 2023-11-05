@@ -2,10 +2,7 @@ const literal = Symbol('literal');
 
 export function phpVar(value: unknown): string {
 	if (typeof value === 'string') {
-		const escapedValue = JSON.stringify(value)
-			.replace(/\\/g, '\\\\')
-			.replace(/'/g, "\\'");
-		return `json_decode('${escapedValue}')`;
+		return `base64_decode('${stringToBase64(value)}')`;
 	} else if (typeof value === 'number') {
 		return value.toString();
 	} else if (Array.isArray(value)) {
@@ -24,6 +21,10 @@ export function phpVar(value: unknown): string {
 		}
 	} else if (typeof value === 'function') {
 		return value();
+	} else if (ArrayBuffer.isView(value)) {
+		return `base64_decode("'${bytesToBase64(
+			new Uint8Array(value as any)
+		)}'")`;
 	}
 	throw new Error(`Unsupported value: ${value}`);
 }
@@ -36,4 +37,13 @@ export function phpVars<T extends Record<string, unknown>>(
 		result[key] = phpVar(vars[key]);
 	}
 	return result as Record<keyof T, string>;
+}
+
+function stringToBase64(str: string) {
+	return bytesToBase64(new TextEncoder().encode(str));
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+	const binString = String.fromCodePoint(...bytes);
+	return btoa(binString);
 }
