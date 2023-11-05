@@ -104,7 +104,7 @@ class OpfsRewriter {
 						create: true,
 					});
 				}
-			} else if (entry.operation === 'UPDATE_FILE') {
+			} else if (entry.operation === 'WRITE') {
 				await overwriteOpfsFile(opfsParent, name, this.FS, entry.path);
 			} else if (
 				entry.operation === 'RENAME' &&

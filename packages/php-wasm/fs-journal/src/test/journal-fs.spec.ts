@@ -3,6 +3,7 @@ import { NodePHP } from '@php-wasm/node';
 import {
 	FilesystemOperation,
 	journalFSEvents,
+	normalizeFilesystemOperations,
 	recordExistingPath,
 } from '../lib/journal-fs';
 
@@ -23,14 +24,22 @@ describe('Journal MemFS', () => {
 		expect(Array.from(recordExistingPath(php, '/test'))).toEqual([
 			{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
 			{ operation: 'CREATE', path: '/test/file.txt', nodeType: 'file' },
-			{ operation: 'UPDATE_FILE', path: '/test/file.txt' },
+			{
+				operation: 'WRITE',
+				path: '/test/file.txt',
+				nodeType: 'file',
+			},
 			{ operation: 'CREATE', path: '/test/first', nodeType: 'directory' },
 			{
 				operation: 'CREATE',
 				path: '/test/first/file.txt',
 				nodeType: 'file',
 			},
-			{ operation: 'UPDATE_FILE', path: '/test/first/file.txt' },
+			{
+				operation: 'WRITE',
+				path: '/test/first/file.txt',
+				nodeType: 'file',
+			},
 			{
 				operation: 'CREATE',
 				path: '/test/second',
@@ -41,7 +50,11 @@ describe('Journal MemFS', () => {
 				path: '/test/second/file.txt',
 				nodeType: 'file',
 			},
-			{ operation: 'UPDATE_FILE', path: '/test/second/file.txt' },
+			{
+				operation: 'WRITE',
+				path: '/test/second/file.txt',
+				nodeType: 'file',
+			},
 			{ operation: 'CREATE', path: '/test/third', nodeType: 'directory' },
 		]);
 	});
@@ -72,13 +85,21 @@ describe('Journal MemFS', () => {
 				path: '/test/first/file.txt',
 				nodeType: 'file',
 			},
-			{ operation: 'UPDATE_FILE', path: '/test/first/file.txt' },
+			{
+				operation: 'WRITE',
+				path: '/test/first/file.txt',
+				nodeType: 'file',
+			},
 			{
 				operation: 'CREATE',
 				path: '/test/first/second.txt',
 				nodeType: 'file',
 			},
-			{ operation: 'UPDATE_FILE', path: '/test/first/second.txt' },
+			{
+				operation: 'WRITE',
+				path: '/test/first/second.txt',
+				nodeType: 'file',
+			},
 			{
 				operation: 'DELETE',
 				path: '/test/first/second.txt',
@@ -102,5 +123,162 @@ describe('Journal MemFS', () => {
 			},
 			{ operation: 'DELETE', path: '/test', nodeType: 'directory' },
 		]);
+	});
+});
+
+describe('normalizeFilesystemOperations()', () => {
+	it('Normalizes CREATE and RENAME to a single CREATE (file)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'file' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([{ operation: 'CREATE', path: '/test2', nodeType: 'file' }]);
+	});
+	it('Normalizes CREATE and RENAME to a single CREATE (directory)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'directory',
+				},
+			])
+		).toEqual([
+			{ operation: 'CREATE', path: '/test2', nodeType: 'directory' },
+		]);
+	});
+	it('Normalizes CREATE and RENAME to a single CREATE (directory with contents)', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/subdir',
+					nodeType: 'directory',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/subdir/subfile.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'directory',
+				},
+			])
+		).toEqual([
+			{ operation: 'CREATE', path: '/test2', nodeType: 'directory' },
+			{ operation: 'CREATE', path: '/test2/file1.txt', nodeType: 'file' },
+			{ operation: 'CREATE', path: '/test2/file2.txt', nodeType: 'file' },
+			{
+				operation: 'CREATE',
+				path: '/test2/subdir',
+				nodeType: 'directory',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test2/subdir/subfile.txt',
+				nodeType: 'file',
+			},
+		]);
+	});
+	it('Normalizes CREATE/WRITE and DELETE to an empty list', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'WRITE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+			])
+		).toEqual([]);
+	});
+	it('Normalizes a more complex scenario', () => {
+		expect(
+			normalizeFilesystemOperations([
+				{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
+				{
+					operation: 'CREATE',
+					path: '/test/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/subdir',
+					nodeType: 'directory',
+				},
+				{
+					operation: 'CREATE',
+					path: '/test/subdir/subfile.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'RENAME',
+					path: '/test',
+					toPath: '/test2',
+					nodeType: 'directory',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test2/file1.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test2/file2.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test2/subdir/subfile.txt',
+					nodeType: 'file',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test2/subdir',
+					nodeType: 'directory',
+				},
+				{
+					operation: 'DELETE',
+					path: '/test2',
+					nodeType: 'directory',
+				},
+			])
+		).toEqual([]);
 	});
 });

@@ -16,7 +16,7 @@ export async function journalFSOperations(
 			) {
 				return;
 			}
-			if (entry.operation === 'UPDATE_FILE') {
+			if (entry.operation === 'WRITE') {
 				// @TODO: If the file was removed in the meantime, we won't
 				// be able to read it. We can't easily provide the contents
 				// with the operation because it would create a ton of partial
@@ -73,7 +73,7 @@ async function replayFSJournalEntry(
 							recursive: true,
 						});
 					}
-				} else if (entry.operation === 'UPDATE_FILE') {
+				} else if (entry.operation === 'WRITE') {
 					php.writeFile(entry.path, entry.data!);
 				} else if (entry.operation === 'RENAME') {
 					php.mv(entry.path, entry.toPath);

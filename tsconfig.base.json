@@ -19,12 +19,14 @@
 		"baseUrl": ".",
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
+			"@php-wasm/fs-journal": [
+				"packages/php-wasm/fs-journal/src/index.ts"
+			],
 			"@php-wasm/node": ["packages/php-wasm/node/src/index.ts"],
 			"@php-wasm/private": ["packages/php-wasm/private/src/index.ts"],
 			"@php-wasm/progress": ["packages/php-wasm/progress/src/index.ts"],
 			"@php-wasm/scopes": ["packages/php-wasm/scopes/src/index.ts"],
 			"@php-wasm/universal": ["packages/php-wasm/universal/src/index.ts"],
-			"@php-wasm/fs-journal": ["packages/php-wasm/fs-journal/src/index.ts"],
 			"@php-wasm/util": ["packages/php-wasm/util/src/index.ts"],
 			"@php-wasm/web": ["packages/php-wasm/web/src/index.ts"],
 			"@php-wasm/web-service-worker": [

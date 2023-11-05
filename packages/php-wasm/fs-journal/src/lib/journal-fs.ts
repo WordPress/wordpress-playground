@@ -44,11 +44,12 @@ export type FSNodeType = 'file' | 'directory';
  */
 export type UpdateFileOperation = {
 	/** The type of operation being performed. */
-	operation: 'UPDATE_FILE';
+	operation: 'WRITE';
 	/** The path of the node being updated. */
 	path: string;
 	/** Optional. The new contents of the file. */
 	data?: Uint8Array;
+	nodeType: 'file';
 };
 
 /**
@@ -100,11 +101,14 @@ export type FSNode = {
 	children?: FSNode[];
 };
 
-export type FilesystemOperation =
+export type FilesystemOperation = (
 	| CreateOperation
 	| UpdateFileOperation
 	| DeleteOperation
-	| RenameOperation;
+	| RenameOperation
+) & {
+	__remove?: boolean;
+};
 
 export function journalFSEvents(
 	php: BasePHP,
@@ -117,8 +121,9 @@ export function journalFSEvents(
 	const FSHooks: Record<string, Function> = {
 		write(stream: EmscriptenFSStream) {
 			recordEntry({
-				operation: 'UPDATE_FILE',
+				operation: 'WRITE',
 				path: stream.path,
+				nodeType: 'file',
 			});
 		},
 		truncate(path: string) {
@@ -132,8 +137,9 @@ export function journalFSEvents(
 				node = path;
 			}
 			recordEntry({
-				operation: 'UPDATE_FILE',
+				operation: 'WRITE',
 				path: FS.getPath(node),
+				nodeType: 'file',
 			});
 		},
 		unlink(path: string) {
@@ -231,7 +237,6 @@ export function journalFSEvents(
 	};
 }
 
-
 export function* recordExistingPath(
 	php: IsomorphicLocalPHP,
 	path: string
@@ -258,7 +263,8 @@ export function* recordExistingPath(
 			nodeType: 'file',
 		};
 		yield {
-			operation: 'UPDATE_FILE',
+			operation: 'WRITE',
+			nodeType: 'file',
 			path,
 		};
 	}
@@ -267,3 +273,191 @@ export function* recordExistingPath(
 function normalizePath(path: string) {
 	return path.replace(/\/$/, '').replace(/\/\/+/g, '/');
 }
+
+export function normalizeFilesystemOperations(
+	originalJournal: FilesystemOperation[]
+): FilesystemOperation[] {
+	let changed;
+	let rev: FilesystemOperation[] = [...originalJournal].reverse();
+	do {
+		changed = false;
+		for (let i = 0; i < rev.length; i++) {
+			const accumulatedOps: FilesystemOperation[] = [];
+			for (let j = i + 1; j < rev.length; j++) {
+				const formerType = checkRelationship(rev[i], rev[j]);
+				if (formerType === 'none') {
+					continue;
+				}
+
+				const latter = rev[i];
+				const former = rev[j];
+				if (
+					latter.operation === 'RENAME' &&
+					former.operation === 'RENAME'
+				) {
+					// Normalizing a double rename is a complex scenario so let's just give up.
+					// There's just too many possible scenarios to handle.
+					//
+					// For example, the following scenario may not be possible to normalize:
+					// RENAME /dir_a /dir_b
+					// RENAME /dir_b/subdir /dir_c
+					// RENAME /dir_b /dir_d
+					//
+					// Similarly, how should we normalize the following list?
+					// CREATE_FILE /file
+					// CREATE_DIR /dir_a
+					// RENAME /file /dir_a/file
+					// RENAME /dir_a /dir_b
+					// RENAME /dir_b/file /dir_b/file_2
+					//
+					// The shortest way to recreate the same structure would be this:
+					// CREATE_DIR /dir_b
+					// CREATE_FILE /dir_b/file_2
+					//
+					// But that's not a straightforward transformation so let's just not handle
+					// it for now.
+					console.warn(
+						'[FS Journal] Normalizing a double rename is not yet supported:',
+						{
+							current: latter,
+							last: former,
+						}
+					);
+					continue;
+				}
+
+				if (former.operation === 'CREATE' || former.operation === 'WRITE') {
+					if (latter.operation === 'RENAME') {
+						if (formerType === 'same_node') {
+							// Creating a node and then renaming it is equivalent to creating it in
+							// the new location.
+							rev.splice(j, 1);
+							j -= 1;
+							accumulatedOps.push({
+								...former,
+								path: latter.toPath,
+							});
+							latter.__remove = true;
+							changed = true;
+							continue;
+						}
+
+						if (formerType === 'descendant') {
+							// Creating a node and then renaming its parent directory is equivalent
+							// to creating it in the new location.
+							rev.splice(j, 1);
+							j -= 1;
+							accumulatedOps.push({
+								...former,
+								path: joinPaths(
+									latter.toPath,
+									former.path.substring(latter.path.length)
+								),
+							});
+							changed = true;
+							continue;
+						}
+					} else if (
+						latter.operation === 'WRITE' &&
+						formerType === 'same_node'
+					) {
+						// Updating the same node twice is equivalent to updating it once
+						// at the later time.
+						rev.splice(j, 1);
+						j -= 1;
+						changed = true;
+						continue;
+					} else if (
+						latter.operation === 'DELETE' &&
+						formerType === 'same_node'
+					) {
+						// Creating a node and then deleting it is equivalent to doing nothing.
+						rev.splice(j, 1);
+						j -= 1;
+						latter.__remove = true;
+						changed = true;
+						continue;
+					}
+				}
+			}
+			rev.splice(i, 0, ...accumulatedOps);
+		}
+		rev = rev.filter((op) => !op.__remove);
+	} while(changed);
+	return rev.reverse();
+}
+
+type RelatedOperationInfo = 'same_node' | 'ancestor' | 'descendant' | 'none';
+function checkRelationship(
+	latter: FilesystemOperation,
+	former: FilesystemOperation
+): RelatedOperationInfo {
+	const latterPath = latter.path;
+	const latterIsDir =
+		latter.operation !== 'WRITE' && latter.nodeType === 'directory';
+	const formerIsDir =
+		former.operation !== 'WRITE' && former.nodeType === 'directory';
+	const formerPath =
+		former.operation === 'RENAME' ? former.toPath : former.path;
+
+	if (formerPath === latterPath) {
+		return 'same_node';
+	} else if (formerIsDir && latterPath.startsWith(formerPath + '/')) {
+		return 'ancestor';
+	} else if (latterIsDir && formerPath.startsWith(latterPath + '/')) {
+		return 'descendant';
+	}
+	// console.log({
+	// 	cmpPath: formerPath,
+	// 	refPath: latterPath,
+	// 	cmpIsDir: formerIsDir,
+	// 	refIsDir: latterIsDir,
+	// });
+	return 'none';
+}
+
+// /**
+//  * Populates in-place each WRITE operation with the contents of
+//  * said file.
+//  *
+//  * Memory bloat caveats:
+//  * * If a file was created and then renamed, this function
+//  *   will populate both the original file and the renamed file.
+//  * * If a file was created and then removed, this function
+//  *   will still populate the original file.
+//  *
+//  * To avoid these caveats, we may need to implement a function like
+//  * `normalizeFilesystemOperations` to only leave one relevant operation
+//  * per file.
+//  *
+//  * @param php
+//  * @param entries
+//  */
+// const hydrateLock = new Semaphore({ concurrency: 15 });
+// export async function hydrateUpdateFileOps(php: BasePHP, entries: FilesystemOperation[]) {
+// 	for (const entry of entries) {
+// 		if(entry.operation === 'WRITE') {
+// 			await hydrateLock.acquire();
+// 			try {
+
+// 			}
+// 				hydrateUpdateFileOp(php, entry).finally(release);
+// 			});
+// 		}
+// 	}
+
+// 	if (entry.operation === 'WRITE') {
+// 		// @TODO: If the file was removed in the meantime, we won't
+// 		// be able to read it. We can't easily provide the contents
+// 		// with the operation because it would create a ton of partial
+// 		// content copies on each write. It seems like the only way
+// 		// to solve this is to have a function like "normalizeFilesystemOperations"
+// 		// that would prune the list of operations and merge them together as needed.
+// 		try {
+// 			entry.data = await playground.readFileAsBuffer(entry.path);
+// 		} catch (e) {
+// 			// Log the error but don't throw.
+// 			console.error(e);
+// 		}
+// 	}
+// }
