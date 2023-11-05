@@ -296,19 +296,19 @@ export function normalizeFilesystemOperations(
 	originalJournal: FilesystemOperation[]
 ): FilesystemOperation[] {
 	let changed;
-	let rev: FilesystemOperation[] = [...originalJournal].reverse();
+	let entries: FilesystemOperation[] = [...originalJournal];
 	do {
 		changed = false;
-		for (let i = 0; i < rev.length; i++) {
+		for (let i = entries.length - 1; i >= 0; i--) {
 			const replacements: any = {};
-			for (let j = i + 1; j < rev.length; j++) {
-				const formerType = checkRelationship(rev[i], rev[j]);
+			for (let j = i - 1; j >= 0; j--) {
+				const formerType = checkRelationship(entries[i], entries[j]);
 				if (formerType === 'none') {
 					continue;
 				}
 
-				const latter = rev[i];
-				const former = rev[j];
+				const latter = entries[i];
+				const former = entries[j];
 				if (
 					latter.operation === 'RENAME' &&
 					former.operation === 'RENAME'
@@ -354,11 +354,11 @@ export function normalizeFilesystemOperations(
 							// the new location.
 							replacements[j] = [];
 							replacements[i] = [
-								...(replacements[i] || []),
 								{
 									...former,
 									path: latter.toPath,
 								},
+								...(replacements[i] || []),
 							];
 							continue;
 						}
@@ -368,7 +368,6 @@ export function normalizeFilesystemOperations(
 							// to creating it in the new location.
 							replacements[j] = [];
 							replacements[i] = [
-								...(replacements[i] || []),
 								{
 									...former,
 									path: joinPaths(
@@ -378,6 +377,7 @@ export function normalizeFilesystemOperations(
 										)
 									),
 								},
+								...(replacements[i] || []),
 							];
 							continue;
 						}
@@ -402,7 +402,7 @@ export function normalizeFilesystemOperations(
 			}
 			if (Object.entries(replacements).length > 0) {
 				changed = true;
-				rev = rev.flatMap((op, index) => {
+				entries = entries.flatMap((op, index) => {
 					if (!(index in replacements)) {
 						return [op];
 					}
@@ -412,7 +412,7 @@ export function normalizeFilesystemOperations(
 			}
 		}
 	} while (changed);
-	return rev.reverse();
+	return entries;
 }
 
 type RelatedOperationInfo = 'same_node' | 'ancestor' | 'descendant' | 'none';
