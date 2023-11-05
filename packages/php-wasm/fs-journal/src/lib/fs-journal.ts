@@ -118,87 +118,7 @@ export function journalFSEvents(
 ) {
 	fsRoot = normalizePath(fsRoot);
 	const FS = php[__private__dont__use].FS;
-
-	const FSHooks: Record<string, Function> = {
-		write(stream: EmscriptenFSStream) {
-			recordEntry({
-				operation: 'WRITE',
-				path: stream.path,
-				nodeType: 'file',
-			});
-		},
-		truncate(path: string) {
-			let node;
-			if (typeof path == 'string') {
-				const lookup = FS.lookupPath(path, {
-					follow: true,
-				});
-				node = lookup.node;
-			} else {
-				node = path;
-			}
-			recordEntry({
-				operation: 'WRITE',
-				path: FS.getPath(node),
-				nodeType: 'file',
-			});
-		},
-		unlink(path: string) {
-			recordEntry({
-				operation: 'DELETE',
-				path,
-				nodeType: 'file',
-			});
-		},
-		mknod(path: string, mode: number) {
-			if (FS.isFile(mode)) {
-				recordEntry({
-					operation: 'CREATE',
-					path,
-					nodeType: 'file',
-				});
-			}
-		},
-		mkdir(path: string) {
-			recordEntry({
-				operation: 'CREATE',
-				path,
-				nodeType: 'directory',
-			});
-		},
-		rmdir(path: string) {
-			recordEntry({
-				operation: 'DELETE',
-				path,
-				nodeType: 'directory',
-			});
-		},
-		rename(old_path: string, new_path: string) {
-			try {
-				const oldLookup = FS.lookupPath(old_path, {
-					follow: true,
-				});
-				const newParentPath = FS.lookupPath(new_path, {
-					parent: true,
-				}).path;
-
-				recordEntry({
-					operation: 'RENAME',
-					nodeType: FS.isDir(oldLookup.node.mode)
-						? 'directory'
-						: 'file',
-					path: oldLookup.path,
-					toPath: joinPaths(newParentPath, basename(new_path)),
-				});
-			} catch (e) {
-				// We're running a bunch of FS lookups that may fail at this point.
-				// Let's ignore the failures and let the actual rename operation
-				// fail if it needs to.
-			}
-		},
-	};
-
-	function recordEntry(entry: FilesystemOperation) {
+	const FSHooks = createFSHooks(FS, (entry: FilesystemOperation) => {
 		// Only journal entries inside the specified root directory.
 		if (entry.path.startsWith(fsRoot)) {
 			onEntry(entry);
@@ -210,7 +130,7 @@ export function journalFSEvents(
 				onEntry(op);
 			}
 		}
-	}
+	});
 
 	/**
 	 * Override the original FS functions with ones running the hooks.
@@ -218,24 +138,154 @@ export function journalFSEvents(
 	 * did not use hard-coded references to the FS object.
 	 */
 	const originalFunctions: Record<string, Function> = {};
-	for (const [name, hook] of Object.entries(FSHooks)) {
+	for (const [name] of Object.entries(FSHooks)) {
 		originalFunctions[name] = FS[name];
-		FS[name] = function (...args: any[]) {
-			if (php.journalingAllowed) {
-				hook(...args);
-			}
-			return originalFunctions[name].apply(this, args);
-		};
 	}
-	php.journalingAllowed = true;
 
-	return function unbind() {
+	// eslint-disable-next-line no-inner-declarations
+	function bind() {
+		for (const [name, hook] of Object.entries(FSHooks)) {
+			FS[name] = function (...args: any[]) {
+				// @ts-ignore
+				hook(...args);
+				return originalFunctions[name].apply(this, args);
+			};
+		}
+	}
+	// eslint-disable-next-line no-inner-declarations
+	function unbind() {
 		// Restore the original FS functions.
 		for (const [name, fn] of Object.entries(originalFunctions)) {
 			php[__private__dont__use].FS[name] = fn;
-			delete originalFunctions[name];
 		}
+	}
+
+	php[__private__dont__use].journal = {
+		bind,
+		unbind,
 	};
+
+	bind();
+	return unbind;
+}
+
+const createFSHooks = (
+	FS: EmscriptenFS,
+	recordEntry: (entry: FilesystemOperation) => void = () => {}
+) => ({
+	write(stream: EmscriptenFSStream) {
+		recordEntry({
+			operation: 'WRITE',
+			path: stream.path,
+			nodeType: 'file',
+		});
+	},
+	truncate(path: string) {
+		let node;
+		if (typeof path == 'string') {
+			const lookup = FS.lookupPath(path, {
+				follow: true,
+			});
+			node = lookup.node;
+		} else {
+			node = path;
+		}
+		recordEntry({
+			operation: 'WRITE',
+			path: FS.getPath(node),
+			nodeType: 'file',
+		});
+	},
+	unlink(path: string) {
+		recordEntry({
+			operation: 'DELETE',
+			path,
+			nodeType: 'file',
+		});
+	},
+	mknod(path: string, mode: number) {
+		if (FS.isFile(mode)) {
+			recordEntry({
+				operation: 'CREATE',
+				path,
+				nodeType: 'file',
+			});
+		}
+	},
+	mkdir(path: string) {
+		recordEntry({
+			operation: 'CREATE',
+			path,
+			nodeType: 'directory',
+		});
+	},
+	rmdir(path: string) {
+		recordEntry({
+			operation: 'DELETE',
+			path,
+			nodeType: 'directory',
+		});
+	},
+	rename(old_path: string, new_path: string) {
+		try {
+			const oldLookup = FS.lookupPath(old_path, {
+				follow: true,
+			});
+			const newParentPath = FS.lookupPath(new_path, {
+				parent: true,
+			}).path;
+
+			recordEntry({
+				operation: 'RENAME',
+				nodeType: FS.isDir(oldLookup.node.mode) ? 'directory' : 'file',
+				path: oldLookup.path,
+				toPath: joinPaths(newParentPath, basename(new_path)),
+			});
+		} catch (e) {
+			// We're running a bunch of FS lookups that may fail at this point.
+			// Let's ignore the failures and let the actual rename operation
+			// fail if it needs to.
+		}
+	},
+});
+
+/**
+ * Replays a list of filesystem operations on a PHP instance.
+ *
+ * @param php
+ * @param entries
+ */
+export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
+	// We need to restore the original functions to the FS object
+	// before proceeding, or each replayer FS operation will be journaled.
+	//
+	// Unfortunately we can't just call the non-journaling versions directly,
+	// because they call other low-level FS functions like `FS.mkdir()`
+	// and will trigger the journaling hooks anyway.
+	php[__private__dont__use].journal.unbind();
+	try {
+		for (const entry of entries) {
+			if (entry.operation === 'CREATE') {
+				if (entry.nodeType === 'file') {
+					php.writeFile(entry.path, ' ');
+				} else {
+					php.mkdir(entry.path);
+				}
+			} else if (entry.operation === 'DELETE') {
+				if (entry.nodeType === 'file') {
+					php.unlink(entry.path);
+				} else {
+					php.rmdir(entry.path);
+				}
+			} else if (entry.operation === 'WRITE') {
+				php.writeFile(entry.path, entry.data!);
+			} else if (entry.operation === 'RENAME') {
+				php.mv(entry.path, entry.toPath);
+			}
+		}
+	} finally {
+		php[__private__dont__use].journal.bind();
+	}
 }
 
 export function* recordExistingPath(

@@ -1,5 +1,6 @@
 export {
 	journalFSEvents,
+	replayFSJournal,
 	hydrateUpdateFileOps,
 	normalizeFilesystemOperations,
 } from './fs-journal';

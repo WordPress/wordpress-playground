@@ -41,7 +41,6 @@ export const __private__dont__use = Symbol('__private__dont__use');
  */
 export abstract class BasePHP implements IsomorphicLocalPHP {
 	protected [__private__dont__use]: any;
-	journalingAllowed = false;
 	#phpIniOverrides: [string, string][] = [];
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;

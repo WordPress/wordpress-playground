@@ -1,6 +1,6 @@
 import { PlaygroundClient } from '@wp-playground/remote';
 import { installSqlSyncMuPlugin, overrideAutoincrementSequences } from './sql';
-import { journalFSOperations, replayFSJournal } from './fs';
+import { journalFSOperations } from './fs';
 import { SQLJournalEntry, journalSQLQueries, replaySQLJournal } from './sql';
 import { PlaygroundSyncTransport, TransportEnvelope } from './transports';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
@@ -32,7 +32,7 @@ export async function setupPlaygroundSync(
 		for (const middleware of middlewares) {
 			changes = await middleware.afterReceive(changes);
 		}
-		await replayFSJournal(playground, changes.fs);
+		await playground.replayFSJournal(changes.fs);
 		await replaySQLJournal(playground, changes.sql);
 	});
 

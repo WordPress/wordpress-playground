@@ -13,7 +13,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
-import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
+import { FilesystemOperation, journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -172,6 +172,10 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		callback: (op: FilesystemOperation) => void
 	) {
 		return journalFSEvents(php, root, callback);
+	}
+
+	async replayFSJournal(events: FilesystemOperation[]) {
+		return replayFSJournal(php, events);
 	}
 }
 

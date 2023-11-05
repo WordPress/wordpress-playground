@@ -49,7 +49,7 @@ export interface WebClientMixin extends ProgressReceiver {
 	onDownloadProgress: PlaygroundWorkerEndpoint['onDownloadProgress'];
 
 	journalFSEvents: PlaygroundWorkerEndpoint['journalFSEvents'];
-	atomic: PlaygroundWorkerEndpoint['atomic'];
+	replayFSJournal: PlaygroundWorkerEndpoint['replayFSJournal'];
 	addEventListener: PlaygroundWorkerEndpoint['addEventListener'];
 	removeEventListener: PlaygroundWorkerEndpoint['removeEventListener'];
 
