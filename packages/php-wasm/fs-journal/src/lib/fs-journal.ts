@@ -300,7 +300,7 @@ export function normalizeFilesystemOperations(
 	do {
 		changed = false;
 		for (let i = 0; i < rev.length; i++) {
-			const accumulatedOps: FilesystemOperation[] = [];
+			const replacements: any = {};
 			for (let j = i + 1; j < rev.length; j++) {
 				const formerType = checkRelationship(rev[i], rev[j]);
 				if (formerType === 'none') {
@@ -352,30 +352,33 @@ export function normalizeFilesystemOperations(
 						if (formerType === 'same_node') {
 							// Creating a node and then renaming it is equivalent to creating it in
 							// the new location.
-							rev.splice(j, 1);
-							j -= 1;
-							accumulatedOps.push({
-								...former,
-								path: latter.toPath,
-							});
-							latter.__remove = true;
-							changed = true;
+							replacements[j] = [];
+							replacements[i] = [
+								...(replacements[i] || []),
+								{
+									...former,
+									path: latter.toPath,
+								},
+							];
 							continue;
 						}
 
 						if (formerType === 'descendant') {
 							// Creating a node and then renaming its parent directory is equivalent
 							// to creating it in the new location.
-							rev.splice(j, 1);
-							j -= 1;
-							accumulatedOps.push({
-								...former,
-								path: joinPaths(
-									latter.toPath,
-									former.path.substring(latter.path.length)
-								),
-							});
-							changed = true;
+							replacements[j] = [];
+							replacements[i] = [
+								...(replacements[i] || []),
+								{
+									...former,
+									path: joinPaths(
+										latter.toPath,
+										former.path.substring(
+											latter.path.length
+										)
+									),
+								},
+							];
 							continue;
 						}
 					} else if (
@@ -384,26 +387,30 @@ export function normalizeFilesystemOperations(
 					) {
 						// Updating the same node twice is equivalent to updating it once
 						// at the later time.
-						rev.splice(j, 1);
-						j -= 1;
-						changed = true;
+						replacements[j] = [];
 						continue;
 					} else if (
 						latter.operation === 'DELETE' &&
 						formerType === 'same_node'
 					) {
 						// Creating a node and then deleting it is equivalent to doing nothing.
-						rev.splice(j, 1);
-						j -= 1;
-						latter.__remove = true;
-						changed = true;
+						replacements[j] = [];
+						replacements[i] = [];
 						continue;
 					}
 				}
 			}
-			rev.splice(i, 0, ...accumulatedOps);
+			if (Object.entries(replacements).length > 0) {
+				changed = true;
+				rev = rev.flatMap((op, index) => {
+					if (!(index in replacements)) {
+						return [op];
+					}
+					return replacements[index];
+				});
+				break;
+			}
 		}
-		rev = rev.filter((op) => !op.__remove);
 	} while (changed);
 	return rev.reverse();
 }
@@ -428,32 +435,18 @@ function checkRelationship(
 	} else if (latterIsDir && formerPath.startsWith(latterPath + '/')) {
 		return 'descendant';
 	}
-	// console.log({
-	// 	cmpPath: formerPath,
-	// 	refPath: latterPath,
-	// 	cmpIsDir: formerIsDir,
-	// 	refIsDir: latterIsDir,
-	// });
 	return 'none';
 }
 
-// /**
-//  * Populates in-place each WRITE operation with the contents of
-//  * said file.
-//  *
-//  * Memory bloat caveats:
-//  * * If a file was created and then renamed, this function
-//  *   will populate both the original file and the renamed file.
-//  * * If a file was created and then removed, this function
-//  *   will still populate the original file.
-//  *
-//  * To avoid these caveats, we may need to implement a function like
-//  * `normalizeFilesystemOperations` to only leave one relevant operation
-//  * per file.
-//  *
-//  * @param php
-//  * @param entries
-//  */
+/**
+ * Populates each WRITE operation with the contents of
+ * said file.
+ *
+ * Mutates the original array.
+ *
+ * @param php
+ * @param entries
+ */
 export async function hydrateUpdateFileOps(
 	php: UniversalPHP,
 	entries: FilesystemOperation[]
