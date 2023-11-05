@@ -1,18 +1,13 @@
 import { SyncMiddleware } from '.';
 import { SQLJournalEntry } from '../sql';
-import { TransportEnvelope } from '../transports';
 
 export const pruneSQLQueriesMiddleware = (): SyncMiddleware => ({
-	beforeSend: (envelopes) => envelopes.filter(shouldSyncEnvelope),
-	afterReceive: (envelopes) => envelopes,
+	beforeSend: (envelope) => ({
+		...envelope,
+		sql: envelope.sql.filter(shouldSyncQuery),
+	}),
+	afterReceive: (envelope) => envelope,
 });
-
-function shouldSyncEnvelope(envelope: TransportEnvelope) {
-	if (envelope.scope === 'sql') {
-		return shouldSyncQuery(envelope.contents);
-	}
-	return true;
-}
 
 /**
  * Determines whether a SQL query should be considered private

@@ -32,33 +32,26 @@ export async function setupPlaygroundSync(
 		for (const middleware of middlewares) {
 			changes = await middleware.afterReceive(changes);
 		}
-		const fsOperations = changes
-			.filter(({ scope }) => scope === 'fs')
-			.map(({ contents: details }) => details) as FilesystemOperation[];
-		await replayFSJournal(playground, fsOperations);
-
-		const sqlQueries = changes
-			.filter(({ scope }) => scope === 'sql')
-			.map(({ contents: details }) => details) as SQLJournalEntry[];
-		await replaySQLJournal(playground, sqlQueries);
+		await replayFSJournal(playground, changes.fs);
+		await replaySQLJournal(playground, changes.sql);
 	});
 
-	let localChanges: TransportEnvelope[] = [];
+	let localChanges: TransportEnvelope = { fs: [], sql: [] };
 	journalSQLQueries(playground, (query: SQLJournalEntry) => {
-		localChanges.push({ scope: 'sql', contents: query });
+		localChanges.sql.push(query);
 	});
 	journalFSOperations(playground, (op: FilesystemOperation) => {
-		localChanges.push({ scope: 'fs', contents: op });
+		localChanges.fs.push(op);
 	});
 
 	// Flush the journal at most every 3 seconds
 	const flushJournal = async () => {
 		let flushedChanges = localChanges;
-		localChanges = [];
+		localChanges = { fs: [], sql: [] };
 		for (const middleware of middlewares) {
 			flushedChanges = await middleware.beforeSend(flushedChanges);
 		}
-		if (!flushedChanges.length) {
+		if (!flushedChanges.sql.length && !flushedChanges.fs.length) {
 			return;
 		}
 		transport.sendChanges(flushedChanges);

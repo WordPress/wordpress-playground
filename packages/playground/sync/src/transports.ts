@@ -1,18 +1,19 @@
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { SQLJournalEntry } from './sql';
 
-export type TransportEnvelope =
-	| { scope: 'fs'; contents: FilesystemOperation }
-	| { scope: 'sql'; contents: SQLJournalEntry };
+export type TransportEnvelope = {
+	fs: FilesystemOperation[];
+	sql: SQLJournalEntry[];
+};
 
-export type ChangesCallback = (changes: TransportEnvelope[]) => void;
+export type ChangesCallback = (changes: TransportEnvelope) => void;
 export interface PlaygroundSyncTransport {
-	sendChanges(data: TransportEnvelope[]): void;
+	sendChanges(data: TransportEnvelope): void;
 	onChangesReceived(fn: ChangesCallback): void;
 }
 
 export class ParentWindowTransport implements PlaygroundSyncTransport {
-	sendChanges(envelope: TransportEnvelope[]) {
+	sendChanges(envelope: TransportEnvelope) {
 		window.top!.postMessage(
 			{
 				type: 'playground-change',
@@ -22,7 +23,7 @@ export class ParentWindowTransport implements PlaygroundSyncTransport {
 		);
 	}
 
-	onChangesReceived(fn: (details: TransportEnvelope[]) => void): void {
+	onChangesReceived(fn: ChangesCallback): void {
 		window.addEventListener('message', (event) => {
 			if (event.data.type !== 'playground-change') {
 				return;
@@ -37,5 +38,5 @@ export class NoopTransport implements PlaygroundSyncTransport {
 	onChangesReceived(callback: ChangesCallback) {
 		this.injectChanges = callback;
 	}
-	injectChanges(changes: TransportEnvelope[]) {}
+	injectChanges(changes: TransportEnvelope) {}
 }

@@ -1,4 +1,4 @@
-import { mapSQLJournal } from './utils';
+import { TransportEnvelope } from '../transports';
 
 export const marshallSiteURLMiddleware = (
 	localSiteUrl: string,
@@ -29,28 +29,31 @@ function siteURLMapper(fromURL: string, toURL: string) {
 	);
 	const urlReplacement = `$1${toURL}$2`;
 
-	return mapSQLJournal(function (entry) {
-		if (entry.subtype === 'replay-query') {
-			return {
-				...entry,
-				query: entry.query.replace(fromURL, toURL),
-			};
-		} else if (entry.subtype === 'reconstruct-insert') {
-			const row = { ...entry.row };
-			for (const key in row) {
-				if (typeof row[key] === 'string') {
-					row[key] = (row[key] as string).replace(
-						urlRegexp,
-						urlReplacement
-					);
+	return (envelope: TransportEnvelope) => ({
+		...envelope,
+		sql: envelope.sql.map((entry) => {
+			if (entry.subtype === 'replay-query') {
+				return {
+					...entry,
+					query: entry.query.replace(fromURL, toURL),
+				};
+			} else if (entry.subtype === 'reconstruct-insert') {
+				const row = { ...entry.row };
+				for (const key in row) {
+					if (typeof row[key] === 'string') {
+						row[key] = (row[key] as string).replace(
+							urlRegexp,
+							urlReplacement
+						);
+					}
 				}
+				return {
+					...entry,
+					row,
+				};
 			}
-			return {
-				...entry,
-				row,
-			};
-		}
-		return entry;
+			return entry;
+		}),
 	});
 }
 

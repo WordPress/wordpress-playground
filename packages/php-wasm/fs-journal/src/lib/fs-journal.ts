@@ -105,12 +105,11 @@ export type FSNode = {
 	children?: FSNode[];
 };
 
-export type FilesystemOperation = (
+export type FilesystemOperation =
 	| CreateOperation
 	| UpdateFileOperation
 	| DeleteOperation
-	| RenameOperation
-);
+	| RenameOperation;
 
 export function journalFSEvents(
 	php: BasePHP,
@@ -440,6 +439,7 @@ export async function hydrateUpdateFileOps(
 	);
 	const updates = updateFileOps.map((op) => hydrateOp(php, op));
 	await Promise.all(updates);
+	return entries;
 }
 
 const hydrateLock = new Semaphore({ concurrency: 15 });
