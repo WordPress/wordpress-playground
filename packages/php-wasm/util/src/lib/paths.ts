@@ -1,4 +1,11 @@
 /**
+ * The functions in this module are mostly copied from the generated
+ * Emscripten PHP module. This enables features like filesystem journaling,
+ * which use some low-level Emscripten APIs and need access to the
+ * same path helpers.
+ */
+
+/**
  * Joins paths together.
  *
  * For example:
