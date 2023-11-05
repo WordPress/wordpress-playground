@@ -207,10 +207,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#setScriptPath(request.scriptPath || '');
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
-			const { host, ...headers } = {
-				host: 'example.com:443',
-				...normalizeHeaders(request.headers || {}),
-			};
+			const host = 'example.com:443';
+			const headers = normalizeHeaders(request.headers || {});
 			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
 			this.#setRequestHeaders(headers);
 			if (request.body) {
@@ -632,9 +630,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 }
 
 export function normalizeHeaders(
-	headers: PHPRunOptions['headers']
-): PHPRunOptions['headers'] {
-	const normalized: PHPRunOptions['headers'] = {};
+	headers: PHPRequestHeaders
+): PHPRequestHeaders {
+	const normalized: PHPRequestHeaders = {};
 	for (const key in headers) {
 		normalized[key.toLowerCase()] = headers[key];
 	}
