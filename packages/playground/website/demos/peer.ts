@@ -5,6 +5,7 @@ import {
 	ParentWindowTransport,
 	loggerMiddleware,
 } from '@wp-playground/sync';
+import { getRemoteUrl } from '../src/lib/config';
 
 export async function runDemo(
 	iframe: HTMLIFrameElement,
@@ -13,7 +14,7 @@ export async function runDemo(
 ) {
 	const playground = await startPlaygroundWeb({
 		iframe,
-		remoteUrl: 'http://localhost:4400/remote.html',
+		remoteUrl: getRemoteUrl().toString(),
 	});
 	const siteURL = await playground.absoluteUrl;
 	console.log({ clientId, siteURL });
