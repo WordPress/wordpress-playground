@@ -1,13 +1,8 @@
-import {
-	PHPResponse,
-	PlaygroundClient,
-	UniversalPHP,
-	phpVar,
-	phpVars,
-} from '@wp-playground/client';
+import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
+import { phpVar, phpVars } from '@php-wasm/util';
 
 export async function installSqlSyncMuPlugin(playground: UniversalPHP) {
 	await playground.writeFile(
@@ -110,7 +105,7 @@ export async function journalSQLQueries(
 }
 
 export async function replaySQLJournal(
-	playground: PlaygroundClient,
+	playground: UniversalPHP,
 	journal: SQLJournalEntry[]
 ) {
 	const js = phpVars({ journal });

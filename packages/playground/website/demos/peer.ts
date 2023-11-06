@@ -1,8 +1,10 @@
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { setupPlaygroundSync } from '..';
-import { ParentWindowTransport } from '../transports';
-import { loggerMiddleware } from '../middleware';
+import {
+	setupPlaygroundSync,
+	ParentWindowTransport,
+	loggerMiddleware,
+} from '@wp-playground/sync';
 
 export async function runDemo(
 	iframe: HTMLIFrameElement,

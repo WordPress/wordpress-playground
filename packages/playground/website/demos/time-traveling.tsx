@@ -3,9 +3,13 @@ import { createRoot } from 'react-dom/client';
 
 import { startPlaygroundWeb } from '@wp-playground/client';
 import { login } from '@wp-playground/blueprints';
-import { setupPlaygroundSync } from '..';
-import { NoopTransport, TransportEnvelope } from '../transports';
-import { SyncMiddleware, loggerMiddleware } from '../middleware';
+import {
+	setupPlaygroundSync,
+	NoopTransport,
+	loggerMiddleware,
+} from '@wp-playground/sync';
+import type { TransportEnvelope, SyncMiddleware } from '@wp-playground/sync';
+import { getRemoteUrl } from '../src/lib/config';
 
 const clientId = 'time-traveling';
 
@@ -15,7 +19,7 @@ export async function restartDemo(initialJournal: TransportEnvelope[] = []) {
 	const iframe = document.getElementById('wp') as HTMLIFrameElement;
 	const playground = await startPlaygroundWeb({
 		iframe,
-		remoteUrl: 'http://localhost:4400/remote.html',
+		remoteUrl: getRemoteUrl().toString(),
 	});
 	const transport = new NoopTransport();
 	await setupPlaygroundSync(playground, {
@@ -69,7 +73,6 @@ const EnvelopeList: React.FC<EnvelopeListProps> = ({
 	}
 	return (
 		<>
-			<h2>The list</h2>
 			<button type="button" onClick={replay}>
 				Replay selected
 			</button>
@@ -78,15 +81,18 @@ const EnvelopeList: React.FC<EnvelopeListProps> = ({
 					<li key={envelope.id}>
 						<label>
 							<div>
-								<input
-									type="checkbox"
-									checked={
-										!uncheckedEnvelopes.has(envelope.id)
-									}
-									onChange={() => toggleEnvelope(envelope.id)}
-								/>
-								&nbsp;
-								<h4>Batch of changes #${envelope.id}</h4>
+								<h4>
+									<input
+										type="checkbox"
+										checked={
+											!uncheckedEnvelopes.has(envelope.id)
+										}
+										onChange={() =>
+											toggleEnvelope(envelope.id)
+										}
+									/>
+									&nbsp; Batch of changes #${envelope.id}
+								</h4>
 							</div>
 							<h5>SQL changes</h5>
 							<ul>

@@ -3,7 +3,7 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/sync/src",
 	"projectType": "lib",
-	"implicitDependencies": ["playground-remote"],
+	"tags": ["scope:web-client"],
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
@@ -84,6 +84,5 @@
 				]
 			}
 		}
-	},
-	"tags": ["scope:web-client"]
+	}
 }

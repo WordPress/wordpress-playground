@@ -14,7 +14,6 @@
 		"src/**/*.spec.js",
 		"src/**/*.test.jsx",
 		"src/**/*.spec.jsx",
-		"src/**/*.d.ts",
-		"../node/src/test/php-vars.spec.ts"
+		"src/**/*.d.ts"
 	]
 }

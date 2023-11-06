@@ -14,6 +14,7 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../vite-virtual-module';
+import { fileURLToPath } from 'node:url';
 
 const proxy = {
 	'^/plugin-proxy.*&artifact=.*': {
@@ -99,6 +100,29 @@ export default defineConfig(({ command, mode }) => {
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
 			rollupOptions: {
+				input: {
+					index: fileURLToPath(
+						new URL('./index.html', import.meta.url)
+					),
+					'sync.html': fileURLToPath(
+						new URL('./demos/sync.html', import.meta.url)
+					),
+					'peer.html': fileURLToPath(
+						new URL('./demos/peer.html', import.meta.url)
+					),
+					'time-traveling.html': fileURLToPath(
+						new URL('./demos/time-traveling.html', import.meta.url)
+					),
+				},
+				// output: {
+				// 	entryFileNames: (assetInfo) => {
+				// 		const isHTML = assetInfo?.facadeModuleId?.endsWith('.html');
+				// 		if (isHTML) {
+				// 			return '[name].html';
+				// 		}
+				// 		return '[name]-[hash].js';
+				// 	},
+				// },
 				external: [],
 			},
 		},

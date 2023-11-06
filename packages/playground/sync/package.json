@@ -15,6 +15,23 @@
 			"url": "https://github.com/adamziel"
 		}
 	],
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"typedoc": {
+		"entryPoint": "./src/index.ts",
+		"readmeFile": "./README.md",
+		"displayName": "@wp-playground/sync",
+		"tsconfig": "./tsconfig.lib.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/client"
+	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"private": true

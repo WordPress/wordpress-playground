@@ -9,7 +9,10 @@
 					"error",
 					{
 						"enforceBuildableLibDependency": true,
-						"allow": ["@wp-playground/client"],
+						"allow": [
+							"@wp-playground/client",
+							"@wp-playground/sync"
+						],
 						"depConstraints": [
 							{
 								"sourceTag": "*",
