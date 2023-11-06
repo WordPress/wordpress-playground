@@ -2,6 +2,25 @@ import { Remote } from 'comlink';
 import { PHPResponse } from './php-response';
 
 /**
+ * Represents an event related to the PHP filesystem.
+ */
+export interface PHPRequestEndEvent {
+	type: 'request.end';
+}
+
+/**
+ * Represents an event related to the PHP instance.
+ * This is intentionally not an extension of CustomEvent
+ * to make it isomorphic between different JavaScript runtimes.
+ */
+export type PHPEvent = PHPRequestEndEvent;
+
+/**
+ * A callback function that handles PHP events.
+ */
+export type PHPEventListener = (event: PHPEvent) => void;
+
+/**
  * Handles HTTP requests using PHP runtime as a backend.
  *
  * @public
@@ -137,6 +156,26 @@ export interface RequestHandler {
 }
 
 export interface IsomorphicLocalPHP extends RequestHandler {
+	/**
+	 * Adds an event listener for a PHP event.
+	 * @param eventType - The type of event to listen for.
+	 * @param listener - The listener function to be called when the event is triggered.
+	 */
+	addEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void;
+
+	/**
+	 * Removes an event listener for a PHP event.
+	 * @param eventType - The type of event to remove the listener from.
+	 * @param listener - The listener function to be removed.
+	 */
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void;
+
 	/**
 	 * Sets the path to the php.ini file to use for the PHP instance.
 	 *
@@ -375,7 +414,9 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	setSpawnHandler(handler: SpawnHandler): void;
 }
 
-export type MessageListener = (data: string) => Promise<string> | string | void;
+export type MessageListener = (
+	data: string
+) => Promise<string> | Promise<void> | string | void;
 interface EventEmitter {
 	on(event: string, listener: (...args: any[]) => void): this;
 	emit(event: string, ...args: any[]): boolean;

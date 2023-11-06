@@ -8,6 +8,8 @@ export type {
 	UniversalPHP,
 	ListFilesOptions,
 	RmDirOptions,
+	PHPEvent,
+	PHPEventListener,
 	HTTPMethod,
 	PHPRequest,
 	PHPRequestHeaders,

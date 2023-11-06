@@ -28,6 +28,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from '../wordpress/get-wordpress-module';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
+import { FilesystemOperation } from '@php-wasm/fs-journal';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -78,6 +79,18 @@ export async function bootPlaygroundRemote() {
 	const webApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
+		},
+		async journalFSEvents(root: string, callback) {
+			return workerApi.journalFSEvents(root, callback);
+		},
+		async replayFSJournal(events: FilesystemOperation[]) {
+			return workerApi.replayFSJournal(events);
+		},
+		async addEventListener(event, listener) {
+			return await workerApi.addEventListener(event, listener);
+		},
+		async removeEventListener(event, listener) {
+			return await workerApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {

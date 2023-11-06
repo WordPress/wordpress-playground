@@ -10,237 +10,68 @@
 
 /* eslint-disable prefer-rest-params */
 import type { WebPHP } from '@php-wasm/web';
-import type {
-	EmscriptenFS,
-	EmscriptenFSNode,
-	EmscriptenFSStream,
-} from './types';
+import type { EmscriptenFS } from './types';
+import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 import { __private__dont__use } from '@php-wasm/universal';
-import { joinPaths } from '@php-wasm/util';
 import { copyMemfsToOpfs, overwriteOpfsFile } from './bind-opfs';
 
-export function journalMemfsToOpfs(
+export function journalFSEventsToOpfs(
 	php: WebPHP,
 	opfsRoot: FileSystemDirectoryHandle,
 	memfsRoot: string
 ) {
-	const journal = FilesystemJournal.createFor(php, opfsRoot, memfsRoot);
-	return () => {
-		journal.unbind();
+	const journal: FilesystemOperation[] = [];
+	const unbind = journalFSEvents(php, memfsRoot, (entry) => {
+		journal.push(entry);
+	});
+	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
+	/**
+	 * Calls the observer with the current delta each time PHP is ran.
+	 *
+	 * Do not do this in external code. This is a private code path that
+	 * will be maintained alongside Playground code and likely removed
+	 * in the future. It is not part of the public API. The goal is to
+	 * allow some time for a few more use-cases to emerge before
+	 * proposing a new public API like php.addEventListener( 'run' ).
+	 */
+	const originalRun = php.run;
+	php.run = async function (...args) {
+		const response = await originalRun.apply(php, args);
+		// @TODO This is way too slow in practice, we need to batch the
+		// changes into groups of parallelizable operations.
+		while (true) {
+			const entry = journal.shift();
+			if (!entry) {
+				break;
+			}
+			await rewriter.processEntry(entry);
+		}
+		return response;
 	};
+
+	return unbind;
 }
 
-type NodeType = 'file' | 'directory';
-type NoopEntry = {
-	type: 'NOOP';
-	path: '';
-};
-type UpdateEntry = {
-	type: 'UPDATE';
-	path: string;
-	nodeType: NodeType;
-};
+type JournalEntry = FilesystemOperation;
 
-type DeleteEntry = {
-	type: 'DELETE';
-	path: string;
-	nodeType: NodeType;
-};
-
-type RenameEntry = {
-	type: 'RENAME';
-	path: string;
-	toPath: string;
-	nodeType: NodeType;
-};
-
-type JournalEntry = NoopEntry | UpdateEntry | DeleteEntry | RenameEntry;
-
-class FilesystemJournal {
+class OpfsRewriter {
 	private FS: EmscriptenFS;
-	private workingSet: Set<string> = new Set();
-	private entries: JournalEntry[][] = [];
 	private memfsRoot: string;
-	unbind: () => void = () => {};
 
-	public static createFor(
-		php: WebPHP,
-		opfsRoot: FileSystemDirectoryHandle,
-		memfsRoot: string
-	) {
-		const FS = php[__private__dont__use].FS;
-		if (FS.hasJournal) {
-			throw new Error('Journal already bound');
-		}
-		FS.hasJournal = true;
-
-		const journal = new FilesystemJournal(php, opfsRoot, memfsRoot);
-		journal.bind();
-		return journal;
-	}
-
-	private constructor(
+	constructor(
 		private php: WebPHP,
 		private opfs: FileSystemDirectoryHandle,
 		memfsRoot: string
 	) {
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
 		this.FS = this.php[__private__dont__use].FS;
-		this.reset();
-	}
-
-	private bind() {
-		const FS = this.FS;
-		const MEMFS = FS.filesystems.MEMFS;
-
-		// eslint-disable-next-line @typescript-eslint/no-this-alias
-		const journal = this;
-
-		// Bind the journal to the filesystem
-		const originalWrite = FS.write;
-		FS.write = function (stream: EmscriptenFSStream) {
-			journal.addEntry({
-				type: 'UPDATE',
-				path: stream.path,
-				nodeType: 'file',
-			});
-			return originalWrite(...arguments);
-		};
-
-		const originalRename = MEMFS.ops_table.dir.node.rename;
-		MEMFS.ops_table.dir.node.rename = function (
-			old_node: EmscriptenFSNode,
-			new_dir: EmscriptenFSNode,
-			new_name: string
-		) {
-			const old_path = FS.getPath(old_node);
-			const new_path = joinPaths(FS.getPath(new_dir), new_name);
-			journal.addEntry({
-				type: 'RENAME',
-				nodeType: FS.isDir(old_node.mode) ? 'directory' : 'file',
-				path: old_path,
-				toPath: new_path,
-			});
-			return originalRename(...arguments);
-		};
-
-		const originalTruncate = FS.truncate;
-		FS.truncate = function (path: string) {
-			let node;
-			if (typeof path == 'string') {
-				const lookup = FS.lookupPath(path, {
-					follow: true,
-				});
-				node = lookup.node;
-			} else {
-				node = path;
-			}
-			journal.addEntry({
-				type: 'UPDATE',
-				path: FS.getPath(node),
-				nodeType: 'file',
-			});
-			return originalTruncate(...arguments);
-		};
-
-		const originalUnlink = FS.unlink;
-		FS.unlink = function (path: string) {
-			journal.addEntry({
-				type: 'DELETE',
-				path,
-				nodeType: 'file',
-			});
-			return originalUnlink(...arguments);
-		};
-
-		const originalMkdir = FS.mkdir;
-		FS.mkdir = function (path: string) {
-			journal.addEntry({
-				type: 'UPDATE',
-				path,
-				nodeType: 'directory',
-			});
-			return originalMkdir(...arguments);
-		};
-
-		const originalRmdir = FS.rmdir;
-		FS.rmdir = function (path: string) {
-			journal.addEntry({
-				type: 'DELETE',
-				path,
-				nodeType: 'directory',
-			});
-			return originalRmdir(...arguments);
-		};
-
-		/**
-		 * Calls the observer with the current delta each time PHP is ran.
-		 *
-		 * Do not do this in external code. This is a private code path that
-		 * will be maintained alongside Playground code and likely removed
-		 * in the future. It is not part of the public API. The goal is to
-		 * allow some time for a few more use-cases to emerge before
-		 * proposing a new public API like php.addEventListener( 'run' ).
-		 */
-		const originalRun = this.php.run;
-		this.php.run = async function (...args) {
-			const response = await originalRun.apply(this, args);
-			await journal.flush();
-			return response;
-		};
-
-		journal.unbind = () => {
-			this.php.run = originalRun;
-
-			FS.write = originalWrite;
-			MEMFS.ops_table.dir.node.rename = originalRename;
-			FS.truncate = originalTruncate;
-			FS.unlink = originalUnlink;
-			FS.mkdir = originalMkdir;
-			FS.rmdir = originalRmdir;
-			FS.hasJournal = false;
-		};
-		return journal;
-	}
-
-	addEntry(entry: JournalEntry) {
-		const lastPartition = this.entries[this.entries.length - 1];
-		const lastEntry = lastPartition[lastPartition.length - 1];
-
-		// Partition by entry type for easier processing later.
-		// RENAME entries are always added to a new partition because
-		// they can collide with each other.
-		if (entry.type === lastEntry.type && entry.type !== 'RENAME') {
-			// Don't add duplicate entries to the same partition.
-			// to make async processing easier later on.
-			if (this.workingSet.has(entry.path)) {
-				return;
-			}
-			this.workingSet.add(entry.path);
-			lastPartition.push(entry);
-		} else {
-			this.entries.push([entry]);
-			this.workingSet.clear();
-		}
-	}
-
-	async flush() {
-		// Remove the NOOP partition
-		const entries = this.entries.slice(1);
-		this.reset();
-
-		for (const partition of entries) {
-			await asyncMap(partition, async (entry) => {
-				await this.processEntry(entry);
-			});
-		}
 	}
 
 	private toOpfsPath(path: string) {
 		return normalizeMemfsPath(path.substring(this.memfsRoot.length));
 	}
 
-	private async processEntry(entry: JournalEntry) {
+	public async processEntry(entry: JournalEntry) {
 		if (
 			!entry.path.startsWith(this.memfsRoot) ||
 			entry.path === this.memfsRoot
@@ -255,7 +86,7 @@ class FilesystemJournal {
 		}
 
 		try {
-			if (entry.type === 'DELETE') {
+			if (entry.operation === 'DELETE') {
 				try {
 					await opfsParent.removeEntry(name, {
 						recursive: true,
@@ -263,21 +94,20 @@ class FilesystemJournal {
 				} catch (e) {
 					// If the directory already doesn't exist, it's fine
 				}
-			} else if (entry.type === 'UPDATE') {
+			} else if (entry.operation === 'CREATE') {
 				if (entry.nodeType === 'directory') {
 					await opfsParent.getDirectoryHandle(name, {
 						create: true,
 					});
 				} else {
-					await overwriteOpfsFile(
-						opfsParent,
-						name,
-						this.FS,
-						entry.path
-					);
+					await opfsParent.getFileHandle(name, {
+						create: true,
+					});
 				}
+			} else if (entry.operation === 'WRITE') {
+				await overwriteOpfsFile(opfsParent, name, this.FS, entry.path);
 			} else if (
-				entry.type === 'RENAME' &&
+				entry.operation === 'RENAME' &&
 				entry.toPath.startsWith(this.memfsRoot)
 			) {
 				const opfsTargetPath = this.toOpfsPath(entry.toPath);
@@ -314,12 +144,6 @@ class FilesystemJournal {
 			throw e;
 		}
 	}
-
-	private reset() {
-		// Always have at least one entry to avoid having to check for
-		// empty partitions in the code.
-		this.entries = [[{ type: 'NOOP', path: '' }]];
-	}
 }
 
 function normalizeMemfsPath(path: string) {
@@ -349,13 +173,17 @@ async function resolveParent(
 	return handle as any;
 }
 
-async function asyncMap<T, U>(
-	iter: Iterable<T>,
-	asyncFunc: (value: T) => Promise<U>
-): Promise<U[]> {
-	const promises: Promise<U>[] = [];
-	for (const value of iter) {
-		promises.push(asyncFunc(value));
-	}
-	return await Promise.all(promises);
-}
+// Commenting this out for now to keep TS happy, but we
+// definitely need to start processing journal entries
+// in parallel again.
+//
+// async function asyncMap<T, U>(
+// 	iter: Iterable<T>,
+// 	asyncFunc: (value: T) => Promise<U>
+// ): Promise<U[]> {
+// 	const promises: Promise<U>[] = [];
+// 	for (const value of iter) {
+// 		promises.push(asyncFunc(value));
+// 	}
+// 	return await Promise.all(promises);
+// }

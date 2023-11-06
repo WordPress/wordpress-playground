@@ -14,6 +14,11 @@ import {
 	SupportedPHPVersionsList,
 } from '@php-wasm/universal';
 import {
+	FilesystemOperation,
+	journalFSEvents,
+	replayFSJournal,
+} from '@php-wasm/fs-journal';
+import {
 	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
@@ -164,6 +169,17 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 			opfs,
 			onProgress,
 		});
+	}
+
+	async journalFSEvents(
+		root: string,
+		callback: (op: FilesystemOperation) => void
+	) {
+		return journalFSEvents(php, root, callback);
+	}
+
+	async replayFSJournal(events: FilesystemOperation[]) {
+		return replayFSJournal(php, events);
 	}
 }
 

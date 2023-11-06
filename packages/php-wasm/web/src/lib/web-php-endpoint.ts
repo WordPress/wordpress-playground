@@ -8,6 +8,8 @@ import type {
 	PHPRunOptions,
 	RmDirOptions,
 	SpawnHandler,
+	PHPEventListener,
+	PHPEvent,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
@@ -170,5 +172,21 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
 	onMessage(listener: MessageListener): void {
 		_private.get(this)!.php.onMessage(listener);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
+	addEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void {
+		_private.get(this)!.php.addEventListener(eventType, listener);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void {
+		_private.get(this)!.php.removeEventListener(eventType, listener);
 	}
 }
