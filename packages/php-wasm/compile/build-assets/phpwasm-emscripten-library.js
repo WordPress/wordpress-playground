@@ -629,7 +629,7 @@ const LibraryExample = {
 		});
 	},
 
-	js_module_onMessage: function (data) {
+	js_module_onMessage: function (data, bufPtr) {
 		if (typeof Asyncify === 'undefined') {
 			return;
 		}
@@ -638,10 +638,26 @@ const LibraryExample = {
 			const dataStr = UTF8ToString(data);
 
 			return Asyncify.handleSleep((wakeUp) => {
-				Module['onMessage'](dataStr).then((result) => {
-					wakeUp(allocateUTF8OnStack(result));
+				Module['onMessage'](dataStr).then((response) => {
+					const responseBytes = typeof response === "string"
+						? new TextEncoder().encode(response)
+						: response;
+					
+					// Copy the response bytes to heap
+					const responseSize = responseBytes.byteLength;
+					const responsePtr = _malloc(responseSize + 1);
+					HEAPU8.set(responseBytes, responsePtr);
+					HEAPU8[responsePtr + responseSize] = 0; 
+					HEAPU8[bufPtr] = responsePtr;
+					HEAPU8[bufPtr + 1] = responsePtr >> 8;
+					HEAPU8[bufPtr + 2] = responsePtr >> 16;
+					HEAPU8[bufPtr + 3] = responsePtr >> 24;
+
+					wakeUp(responseSize);
 				}).catch((e) => {
-					console.log("There's been an error in the onMessage handler:");
+					// Log the error and return NULL. Message passing
+					// separates JS context from the PHP context so we
+					// don't let PHP crash here.
 					console.error(e);
 					wakeUp(0);
 				} );

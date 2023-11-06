@@ -138,7 +138,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
-		runtime['onMessage'] = async (data: string): Promise<string> => {
+		runtime['onMessage'] = async (
+			data: string
+		): Promise<string | Uint8Array> => {
 			for (const listener of this.#messageListeners) {
 				const returnData = await listener(data);
 
