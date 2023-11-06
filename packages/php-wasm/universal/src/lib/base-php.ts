@@ -209,7 +209,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#setRequestMethod(request.method || 'GET');
 			const headers = normalizeHeaders(request.headers || {});
 			const host = headers['host'] || 'example.com:443';
-			
+
 			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
 			this.#setRequestHeaders(headers);
 			if (request.body) {

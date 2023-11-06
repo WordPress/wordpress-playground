@@ -115,7 +115,7 @@ root.render(<EnvelopeList envelopes={[]} />);
 type EnvelopeWithId = TransportEnvelope & { id: number };
 const storedEnvelopes: EnvelopeWithId[] = [];
 function storeEnvelopes(envelope: TransportEnvelope) {
-	if(!envelope.sql.length && !envelope.fs.length) return;
+	if (!envelope.sql.length && !envelope.fs.length) return;
 	storedEnvelopes.push({ ...envelope, id: storedEnvelopes.length });
 	root.render(<EnvelopeList envelopes={storedEnvelopes} />);
 }
