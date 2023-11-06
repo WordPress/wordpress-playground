@@ -61,14 +61,12 @@ class Requests_Transport_Fetch implements Requests_Transport
 
 		$this->headers = post_message_to_js($request);
 
-		if($options['filename']) {
-			$index = strpos($this->headers, "\r\n\r\n");
-			if (false !== $index) {
-				file_put_contents(
-					$options['filename'],
-					substr($this->headers, $index + 4)
-				);
-			}
+		// Store a file if the request specifies it.
+		// Are we sure that `$this->headers` includes the body of the response?
+		$before_response_body = strpos( $this->headers, "\r\n\r\n" );
+		if ( isset( $options['filename'] ) && $options['filename'] && false !== $before_response_body ) {
+			$response_body = substr( $this->headers, $before_response_body + 4 );
+			file_put_contents($options['filename'], $response_body);
 		}
 
 		return $this->headers;
