@@ -330,14 +330,37 @@ try {
             exit;
         }
 
-        function get_all_headers()
+        /**
+         * Pass through the request headers we got from WordPress via fetch(),
+         * then filter out:
+         * 
+         * * The browser-specific headers
+         * * Headers related to security to avoid leaking any auth information
+         * 
+         * ...and pass the rest to the proxied request.
+         * 
+         * @return array
+         */
+        function get_request_headers()
         {
             $headers = [];
             foreach ($_SERVER as $name => $value) {
-                if (substr($name, 0, 5) == 'HTTP_') {
-                    $name = str_replace(' ', '-', ucwords(str_replace('_', ' ', strtolower(substr($name, 5)))));
-                    $headers[$name] = $value;
+                if (substr($name, 0, 5) !== 'HTTP_') {
+                    continue;
                 }
+                $name = str_replace(' ', '-', ucwords(str_replace('_', ' ', strtolower(substr($name, 5)))));
+                $lcname = strtolower($name);
+                if (
+                    $lcname === 'authorization'
+                    || $lcname === 'cookie'
+                    || $lcname === 'host' 
+                    || $lcname === 'origin' 
+                    || $lcname === 'referer'
+                    || 0 === strpos($lcname, 'sec-')
+                ) {
+                    continue;
+                }
+                $headers[$name] = $value;
             }
             return $headers;
         }
@@ -345,7 +368,7 @@ try {
         streamHttpResponse(
             $url,
             $_SERVER['REQUEST_METHOD'],
-            get_all_headers(),
+            get_request_headers(),
             file_get_contents('php://input'),
             null
         );
