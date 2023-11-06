@@ -63,7 +63,7 @@ class Requests_Transport_Fetch implements Requests_Transport
 
 		if($options['filename']) {
 			$index = strpos($this->headers, "\r\n\r\n");
-			if ($index !== -1) {
+			if (false !== $index) {
 				file_put_contents(
 					$options['filename'],
 					substr($this->headers, $index + 4)
