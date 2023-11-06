@@ -8,7 +8,6 @@
 		"build:docs": "nx build docs-site",
 		"deploy:docs": "gh-pages -d dist/docs/build -t true",
 		"dev": "nx dev playground-website",
-		"dev:sync": "nx dev playground-sync",
 		"dev:interactivity": "nx dev interactive-block-playground",
 		"format": "nx format",
 		"format:uncommitted": "nx format --fix --parallel --uncommitted",
