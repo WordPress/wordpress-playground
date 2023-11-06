@@ -27,7 +27,7 @@ export interface Blueprint {
 	features?: {
 		/** Should boot with support for network request via wp_safe_remote_get? */
 		networking?: boolean;
-	},
+	};
 	/**
 	 * The PHP extensions to use.
 	 */
