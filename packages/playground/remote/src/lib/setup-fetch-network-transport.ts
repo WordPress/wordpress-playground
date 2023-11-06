@@ -57,6 +57,20 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 		responseHeaders.push(key + ': ' + value);
 	});
 
+	/*
+	 * Technically we should only send ASCII here and ensure we don't send control
+	 * characters or newlines. We ought to be very careful with HTTP headers since
+	 * some attacks rely on assumed processing of them to let things slip in that
+	 * would end the headers section before its done. e.g. we don't want to allow
+	 * emoji in a header and we don't want to allow \r\n\r\n in a header.
+	 *
+	 * That being said, the browser takes care of it for us.
+	 * response.headers is an instance of the Headers class, and you just can't
+	 * construct the Headers instance if the values are malformed:
+	 *
+	 * > new Headers({'Content-type': 'text/html\r\n\r\nBreakout!'})
+	 * Failed to construct 'Headers': Invalid value
+	 */
 	const headersText =
 		[
 			'HTTP/1.1 ' + response.status + ' ' + response.statusText,
