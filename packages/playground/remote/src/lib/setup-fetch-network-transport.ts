@@ -3,7 +3,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 export interface RequestData {
 	url: string;
 	method?: string;
-	headers?: string[];
+	headers?: Record<string, string>;
 	data?: string;
 }
 
@@ -42,9 +42,7 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	try {
 		response = await fetchFn(fetchUrl, {
 			method: data.method || 'GET',
-			headers: Object.fromEntries(
-				(data.headers || []).map((line) => line.split(': '))
-			),
+			headers: data.headers,
 			body: data.data,
 			credentials: 'omit',
 		});

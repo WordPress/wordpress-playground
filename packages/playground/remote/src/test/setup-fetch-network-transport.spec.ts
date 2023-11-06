@@ -17,7 +17,7 @@ describe('handleRequest', () => {
 		const response = await handleRequest(
 			{
 				url: 'https://playground.wordpress.net/',
-				headers: ['Content-type: text/html'],
+				headers: { 'Content-type': 'text/html' },
 			},
 			fetchMock as any
 		);
@@ -41,7 +41,7 @@ describe('handleRequest', () => {
 		const response = await handleRequest(
 			{
 				url: 'https://playground.wordpress.net/',
-				headers: ['Content-type: text/html'],
+				headers: { 'Content-type': 'text/html' },
 			},
 			fetchMock as any
 		);

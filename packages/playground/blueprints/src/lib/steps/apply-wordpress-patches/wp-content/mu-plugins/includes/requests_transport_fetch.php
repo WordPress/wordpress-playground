@@ -39,7 +39,6 @@ class Requests_Transport_Fetch implements Requests_Transport
 			return false;
 		}
 
-		$headers = Requests::flatten($headers);
 		if (!empty($data)) {
 			$data_format = $options['data_format'];
 			if ($data_format === 'query') {
