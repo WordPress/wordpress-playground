@@ -9,9 +9,7 @@ import { SyncMiddleware, loggerMiddleware } from '../middleware';
 
 const clientId = 'time-traveling';
 
-export async function restartAndReplay(
-	initialJournal: TransportEnvelope[] = []
-) {
+export async function restartDemo(initialJournal: TransportEnvelope[] = []) {
 	const autoincrementOffset = Math.round((1 + Math.random()) * 1_000_000);
 	console.log({ autoincrementOffset });
 	const iframe = document.getElementById('wp') as HTMLIFrameElement;
@@ -25,7 +23,7 @@ export async function restartAndReplay(
 		transport,
 		middlewares: [loggerMiddleware(clientId), timeTravellingMiddleware],
 	});
-	transport.injectChanges(initialJournal);
+	initialJournal.forEach((envelope) => transport.injectChanges(envelope));
 
 	await login(playground, { username: 'admin', password: 'password' });
 	await playground.goTo('/');
@@ -67,7 +65,7 @@ const EnvelopeList: React.FC<EnvelopeListProps> = ({
 			(envelope) => !uncheckedEnvelopes.has(envelope.id)
 		);
 		console.log('Replaying');
-		restartAndReplay(checkedEnvelopes);
+		restartDemo(checkedEnvelopes);
 	}
 	return (
 		<>
@@ -79,13 +77,29 @@ const EnvelopeList: React.FC<EnvelopeListProps> = ({
 				{[...envelopes].reverse().map((envelope) => (
 					<li key={envelope.id}>
 						<label>
-							<input
-								type="checkbox"
-								checked={!uncheckedEnvelopes.has(envelope.id)}
-								onChange={() => toggleEnvelope(envelope.id)}
-							/>
-							&nbsp;
-							{JSON.stringify(envelope.contents)}
+							<div>
+								<input
+									type="checkbox"
+									checked={
+										!uncheckedEnvelopes.has(envelope.id)
+									}
+									onChange={() => toggleEnvelope(envelope.id)}
+								/>
+								&nbsp;
+								<h4>Batch of changes #${envelope.id}</h4>
+							</div>
+							<h5>SQL changes</h5>
+							<ul>
+								{envelope.sql.map((sql, idx) => (
+									<li key={idx}>{JSON.stringify(sql)}</li>
+								))}
+							</ul>
+							<h5>FS changes</h5>
+							<ul>
+								{envelope.fs.map((fs, idx) => (
+									<li key={idx}>{JSON.stringify(fs)}</li>
+								))}
+							</ul>
 						</label>
 					</li>
 				))}
@@ -100,9 +114,8 @@ root.render(<EnvelopeList envelopes={[]} />);
 
 type EnvelopeWithId = TransportEnvelope & { id: number };
 const storedEnvelopes: EnvelopeWithId[] = [];
-function storeEnvelopes(envelopes: TransportEnvelope[]) {
-	for (const envelope of envelopes) {
-		storedEnvelopes.push({ ...envelope, id: storedEnvelopes.length });
-	}
+function storeEnvelopes(envelope: TransportEnvelope) {
+	if(!envelope.sql.length && !envelope.fs.length) return;
+	storedEnvelopes.push({ ...envelope, id: storedEnvelopes.length });
 	root.render(<EnvelopeList envelopes={storedEnvelopes} />);
 }

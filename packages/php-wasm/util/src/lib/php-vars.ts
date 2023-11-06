@@ -1,6 +1,7 @@
-
 export function phpVar(value: unknown): string {
-	return `json_decode(base64_decode('${stringToBase64(JSON.stringify(value))}'), true)`;
+	return `json_decode(base64_decode('${stringToBase64(
+		JSON.stringify(value)
+	)}'), true)`;
 }
 
 export function phpVars<T extends Record<string, unknown>>(

@@ -3,7 +3,9 @@ import { phpVar } from './php-vars';
 describe('phpVar', () => {
 	test('translates strings', () => {
 		const result = phpVar('Hello, World!');
-		expect(result).toBe(`json_decode(base64_decode('IkhlbGxvLCBXb3JsZCEi'), true)`);
+		expect(result).toBe(
+			`json_decode(base64_decode('IkhlbGxvLCBXb3JsZCEi'), true)`
+		);
 	});
 
 	test('escapes single quotes in strings (simple)', () => {
@@ -29,7 +31,9 @@ describe('phpVar', () => {
 
 	test('translates arrays', () => {
 		const result = phpVar([5, 'test']);
-		expect(result).toBe(`json_decode(base64_decode('WzUsInRlc3QiXQ=='), true)`);
+		expect(result).toBe(
+			`json_decode(base64_decode('WzUsInRlc3QiXQ=='), true)`
+		);
 	});
 
 	test('translates objects', () => {
@@ -55,16 +59,22 @@ describe('phpVar', () => {
 
 	test('properly encodes strings', () => {
 		const result = phpVar('Hello, "World!"');
-		expect(result).toBe(`json_decode(base64_decode('IkhlbGxvLCBcIldvcmxkIVwiIg=='), true)`);
+		expect(result).toBe(
+			`json_decode(base64_decode('IkhlbGxvLCBcIldvcmxkIVwiIg=='), true)`
+		);
 	});
 
 	test('properly encodes strings with special characters', () => {
 		const result = phpVar('Hello,\nWorld!');
-		expect(result).toBe(`json_decode(base64_decode('IkhlbGxvLFxuV29ybGQhIg=='), true)`);
+		expect(result).toBe(
+			`json_decode(base64_decode('IkhlbGxvLFxuV29ybGQhIg=='), true)`
+		);
 	});
 
 	test('properly enchodes strings with uniresult characters', () => {
 		const result = phpVar('こんにちは');
-		expect(result).toBe(`json_decode(base64_decode('IuOBk+OCk+OBq+OBoeOBryI='), true)`);
+		expect(result).toBe(
+			`json_decode(base64_decode('IuOBk+OCk+OBq+OBoeOBryI='), true)`
+		);
 	});
 });
