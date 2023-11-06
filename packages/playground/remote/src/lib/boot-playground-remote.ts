@@ -67,11 +67,13 @@ export async function bootPlaygroundRemote() {
 		query.getAll('php-extension'),
 		SupportedPHPExtensionsList
 	);
+	const withNetworking = query.get('networking') === 'yes';
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
 			['php-extension']: phpExtensions,
+			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
 		})
 	);
@@ -188,7 +190,9 @@ export async function bootPlaygroundRemote() {
 			serviceWorkerUrl + ''
 		);
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
-		setupFetchNetworkTransport(workerApi);
+		if (withNetworking) {
+			setupFetchNetworkTransport(workerApi);
+		}
 
 		setAPIReady();
 	} catch (e) {
@@ -249,13 +253,20 @@ async function setupFetchNetworkTransport(playground: UniversalPHP) {
 			? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
 			: data.url;
 
-		const response = await fetch(fetchUrl, {
-			method: data.method,
-			headers: Object.fromEntries(
-				data.headers.map((line) => line.split(': '))
-			),
-			body: data.data,
-		});
+		let response;
+		try {
+			response = await fetch(fetchUrl, {
+				method: data.method,
+				headers: Object.fromEntries(
+					data.headers.map((line) => line.split(': '))
+				),
+				body: data.data,
+				credentials: 'omit',
+			});
+		} catch (e) {
+			console.error(e);
+			return `HTTP/1.1 400 Internal Server Error\r\nContent-type: text/plain\r\n\r\nPlayground could not serve the request.`;
+		}
 		const responseHeaders: string[] = [];
 		response.headers.forEach((value, key) => {
 			responseHeaders.push(key + ': ' + value);
