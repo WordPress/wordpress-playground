@@ -17,27 +17,10 @@ import virtualModule from '../vite-virtual-module';
 import { fileURLToPath } from 'node:url';
 
 const proxy = {
-	'^/plugin-proxy.*&artifact=.*': {
+	'^/plugin-proxy': {
 		target: 'https://playground.wordpress.net',
 		changeOrigin: true,
 		secure: true,
-	},
-	'/plugin-proxy.php': {
-		target: 'https://downloads.wordpress.org',
-		changeOrigin: true,
-		secure: true,
-		rewrite: (path: string) => {
-			const url = new URL(path, 'http://example.com');
-			if (url.searchParams.has('plugin')) {
-				return `/plugin/${url.searchParams.get('plugin')}`;
-			} else if (url.searchParams.has('theme')) {
-				return `/theme/${url.searchParams.get('theme')}`;
-			} else if (url.searchParams.has('url')) {
-				// Network proxy, don't rewrite the path.
-				return path;
-			}
-			throw new Error('Invalid request');
-		},
 	},
 };
 
