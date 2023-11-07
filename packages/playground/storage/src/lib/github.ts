@@ -60,25 +60,17 @@ export async function resolveGitHubURL(
 }
 
 export type Files = Record<string, Uint8Array>;
-export function filesListToObject(files: any[]) {
+export function filesListToObject(files: any[], root = '') {
+	if (root.length && !root.endsWith('/')) {
+		root += '/';
+	}
 	const result: Files = {};
 	for (const file of files) {
-		result[file.path] = file.content;
-	}
-	return result;
-}
-
-export function filesSubObject(files: Files, path: string) {
-	if (!path.endsWith('/')) {
-		path += '/';
-	}
-	const subTree: Files = {};
-	for (const [filePath, content] of Object.entries(files)) {
-		if (filePath.startsWith(path)) {
-			subTree[filePath.substring(path.length)] = content;
+		if (file.path.startsWith(root)) {
+			result[file.path.substring(root.length)] = file.content;
 		}
 	}
-	return subTree;
+	return result;
 }
 
 export async function getFilesFromDirectory(
