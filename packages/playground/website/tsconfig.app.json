@@ -23,6 +23,7 @@
 		"src/**/*.jsx",
 		"src/**/*.ts",
 		"src/**/*.tsx",
+		"demos/github.ts",
 		"demos/time-traveling.tsx",
 		"demos/peer.ts"
 	]

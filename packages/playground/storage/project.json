@@ -1,0 +1,31 @@
+{
+	"name": "playground-storage",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/storage/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/playground/storage"
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["coverage/packages/playground/storage"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/storage"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/playground/storage/**/*.ts"]
+			}
+		}
+	},
+	"tags": []
+}
