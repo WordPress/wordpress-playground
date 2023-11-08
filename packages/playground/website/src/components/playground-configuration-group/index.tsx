@@ -63,6 +63,7 @@ export default function PlaygroundConfigurationGroup({
 	const [wpVersionChoices, setWPVersionChoices] = useState<
 		Record<string, string>
 	>({});
+
 	useEffect(() => {
 		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
 			const formOptions: Record<string, string> = {};

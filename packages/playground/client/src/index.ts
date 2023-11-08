@@ -83,6 +83,7 @@ export async function startPlaygroundWeb({
 			php: compiled.versions.php,
 			wp: compiled.versions.wp,
 			['php-extension']: compiled.phpExtensions,
+			['networking']: compiled.features.networking ? 'yes' : 'no',
 		}),
 		progressTracker
 	);
