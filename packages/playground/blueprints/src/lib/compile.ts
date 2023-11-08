@@ -2,10 +2,14 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import {
 	LatestSupportedPHPVersion,
+	SupportedPHPExtension,
+	SupportedPHPExtensionsList,
+	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
 } from '@php-wasm/universal';
+import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as stepHandlers from './steps/handlers';
@@ -28,21 +32,14 @@ import type { ValidateFunction } from 'ajv';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
-const supportedWordPressVersions = [
-	'6.3',
-	'6.2',
-	'6.1',
-	'6.0',
-	'5.9',
-	'nightly',
-] as const;
-type supportedWordPressVersion = (typeof supportedWordPressVersions)[number];
 export interface CompiledBlueprint {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
-		wp: supportedWordPressVersion;
+		wp: string;
 	};
+	/** The requested PHP extensions to load */
+	phpExtensions: SupportedPHPExtension[];
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -110,12 +107,12 @@ export function compileBlueprint(
 				SupportedPHPVersions,
 				LatestSupportedPHPVersion
 			),
-			wp: compileVersion(
-				blueprint.preferredVersions?.wp,
-				supportedWordPressVersions,
-				'6.3'
-			),
+			wp: blueprint.preferredVersions?.wp || 'latest',
 		},
+		phpExtensions: compilePHPExtensions(
+			[],
+			blueprint.phpExtensionBundles || []
+		),
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early
@@ -210,6 +207,31 @@ function compileVersion<T>(
 		return value as T;
 	}
 	return latest as T;
+}
+
+/**
+ * Compiles a list of requested PHP extensions provided as strings
+ * into a valid list of supported PHP extensions.
+ *
+ * @param requestedExtensions The extensions to compile
+ * @returns The compiled extensions
+ */
+function compilePHPExtensions(
+	requestedExtensions: string[],
+	requestedBundles: string[]
+): SupportedPHPExtension[] {
+	const extensions = SupportedPHPExtensionsList.filter((extension) =>
+		requestedExtensions.includes(extension)
+	) as SupportedPHPExtension[];
+	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
+		bundle in SupportedPHPExtensionBundles
+			? SupportedPHPExtensionBundles[
+					bundle as SupportedPHPExtensionBundle
+			  ]
+			: []
+	) as SupportedPHPExtension[];
+	// Deduplicate
+	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
 
 /**

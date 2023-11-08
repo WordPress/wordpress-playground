@@ -4,5 +4,4 @@ export {
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
 	LatestSupportedWordPressVersion,
-} from './get-wordpress-module';
-export type { SupportedWordPressVersion } from './get-wordpress-module';
+} from '../wordpress/get-wordpress-module';

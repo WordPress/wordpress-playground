@@ -98,6 +98,27 @@ RUN source /root/emsdk/emsdk_env.sh && \
     (EMCC_FLAGS="-fPIC" emmake make || true) && \
     EMCC_FLAGS="-fPIC" emmake make install
 
+# Compile libiconv
+FROM emscripten AS emscripten-iconv
+RUN set -euxo pipefail; \
+	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
+	tar -xvf libiconv-1.17.tar.gz; \
+	rm libiconv-1.17.tar.gz;
+WORKDIR /root/libiconv-1.17
+RUN set -euxo pipefail; \
+	source /root/emsdk/emsdk_env.sh; \
+	CPPFLAGS="-I/root/lib/include " \
+	LDFLAGS="-L/root/lib/lib " \
+	emconfigure ./configure \
+		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+		--build i386-pc-linux-gnu \
+		--target wasm32-unknown-emscripten \
+		--prefix=/root/lib/ \
+		--enable-shared=no \
+		--enable-static=yes; \
+	EMCC_FLAGS="-fPIC" emmake make; \
+	emmake make install;
+
 # Compile ncurses
 FROM emscripten AS emscripten-ncurses
 COPY ./build-assets/ncurses.patch /root/
@@ -261,27 +282,6 @@ RUN cd libzip/build && \
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make
 RUN cd libzip/build && source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make install
 
-# Compile libiconv
-FROM emscripten AS emscripten-iconv
-RUN set -euxo pipefail; \
-	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
-	tar -xvf libiconv-1.17.tar.gz; \
-	rm libiconv-1.17.tar.gz;
-WORKDIR /root/libiconv-1.17
-RUN set -euxo pipefail; \
-	source /root/emsdk/emsdk_env.sh; \
-	CPPFLAGS="-I/root/lib/include " \
-	LDFLAGS="-L/root/lib/lib " \
-	emconfigure ./configure \
-		PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-		--build i386-pc-linux-gnu \
-		--target wasm32-unknown-emscripten \
-		--prefix=/root/lib/ \
-		--enable-shared=no \
-		--enable-static=yes; \
-	EMCC_FLAGS="-fPIC" emmake make; \
-	emmake make install;
-
 # Clone PHP
 FROM emscripten AS emscripten-php-src
 ARG PHP_VERSION
@@ -333,10 +333,7 @@ COPY --from=emscripten-libzip /root/lib /root/lib-libzip
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
         /root/copy-lib.sh lib-libz; \
         /root/copy-lib.sh lib-libzip && \
-        if [ "${PHP_VERSION:0:1}" -le "5" ]; then \
-            /root/replace.sh 's/ZEND_MODULE_GLOBALS_CTOR_N/(void (*)(void *))ZEND_MODULE_GLOBALS_CTOR_N/g' /root/php-src/ext/zlib/zlib.c; \
-        fi;\
-        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
             apt install -y zlib1g zlib1g-dev; \
             # https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
             echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
@@ -389,7 +386,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
         # In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
         perl -pi.bak -e 's/char xmlInitParser/void xmlInitParser/g' /root/php-src/configure; \
         # On PHP < 7.1.0, the dom_iterators.c file implicitly converts *char to const *char causing emcc error
-        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+        if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "0" ]]; then \
             /root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
         fi; \
     else \
@@ -426,7 +423,7 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
         echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
     fi;
 
-# Add openssl if needed
+# Add iconv if needed
 COPY --from=emscripten-iconv /root/lib /root/lib-iconv
 RUN if [ "$WITH_ICONV" = "yes" ]; \
     then \
@@ -438,7 +435,7 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 COPY --from=emscripten-bison-2-7 /usr/local/bison /root/linked-bison-27
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
         mv /root/linked-bison-27 /usr/local/bison && \
         ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
         ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
@@ -518,11 +515,14 @@ RUN source /root/emsdk/emsdk_env.sh && \
 RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
 
 # With HAVE_UNISTD_H=1 PHP complains about the missing getdtablesize() function
+RUN /root/replace.sh 's/define php_sleep sleep/define php_sleep wasm_sleep/g' /root/php-src/main/php.h
+RUN echo 'extern unsigned int wasm_sleep(unsigned int time);' >> /root/php-src/main/php.h;
+
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
 # so we need to force it to be enabled.
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]] || [ "${PHP_VERSION:0:1}" -le "5" ]; then \
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
         echo '#define HAVE_POSIX_READDIR_R 1' >> /root/php-src/main/php_config.h; \
     fi;
 
@@ -533,15 +533,31 @@ RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_se
 # Provide a custom implementation of the php_select() function.
 RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
+# Provide a custom implementation of the php_exec() function that handles spawning
+# the process inside exec(), passthru(), system(), etc.
+# We effectively remove the php_exec() implementation from the build by renaming it
+# to an unused identifier "php_exec_old", and then we mark php_exec as extern.
+RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; int php_exec_old\1/g' /root/php-src/ext/standard/exec.c
+
+# Provide a custom implementation of the VCWD_POPEN() function that handles spawning
+# the process inside PHP_FUNCTION(popen).
+RUN /root/replace.sh 's/VCWD_POPEN\(/wasm_popen(/g' /root/php-src/ext/standard/file.c
+RUN /root/replace.sh 's/PHP_FUNCTION\(popen\)/extern FILE *wasm_popen(const char *cmd, const char *mode);PHP_FUNCTION(popen)/g' /root/php-src/ext/standard/file.c
+
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN perl -pi.bak -e $'s/(\s+)closesocket\(/$1 wasm_close(/g' /root/php-src/sapi/cli/php_cli_server.c
 RUN echo 'extern int wasm_shutdown(int fd, int how);' >> /root/php-src/main/php_config.h;
 RUN echo 'extern int wasm_close(int fd);' >> /root/php-src/main/php_config.h;
 
+# Don't ship PHP_FUNCTION(proc_open) with the PHP build
+# so that we can ship a patched version with php_wasm.c
+RUN echo '' > /root/php-src/ext/standard/proc_open.h;
+RUN echo '' > /root/php-src/ext/standard/proc_open.c;
+
 RUN source /root/emsdk/emsdk_env.sh && \
     # We're compiling PHP as emscripten's side module...
-    EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dpopen=wasm_popen -Dpclose=wasm_pclose " \
+    EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec " \
     # ...which means we must skip all the libraries - they will be provided in the final linking step.
     EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
     emmake make -j8
@@ -550,6 +566,16 @@ RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./build-assets/php_wasm.c /root/
+COPY ./build-assets/proc_open* /root/
+
+RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+         cp /root/proc_open7.0.c /root/proc_open.c; \
+         cp /root/proc_open7.0.h /root/proc_open.h; \
+    else \
+         cp /root/proc_open7.4.c /root/proc_open.c; \
+         cp /root/proc_open7.4.h /root/proc_open.h; \
+    fi
+
 
 ARG WITH_SOURCEMAPS
 RUN set -euxo pipefail; \
@@ -579,30 +605,34 @@ RUN if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 # Add ws networking proxy support if needed
 RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     then \
-        echo -n ' -lwebsocket.js -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
-        # Emscripten supports yielding from sync functions to JavaScript event loop, but all
-        # the synchronous functions doing that must be explicitly listed here. This is an
-        # exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
-        # uses networking, observing the error, and listing the missing functions.
-        #
-        # If you a get an error similar to the one below, you need to add all the function on
-        # the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
-        #
-        # RuntimeError: unreachable
-        # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
-        # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
-        # at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
-        #
-        # Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
-        # to get the entire stack.
-        #
-        # -------
-        #
-        # Related: Any errors like Fatal error: Cannot redeclare function ...
-        # are caused by dispatching a PHP request while an execution is paused
-        # due to an async call – it means the same PHP files are loaded before
-        # the previous request, where they're already loaded, is concluded.
-        export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
+        echo -n ' -lwebsocket.js ' >> /root/.emcc-php-wasm-flags; \
+    fi
+
+# Always enable Asyncify since `post_message_to_js()` supports asynchronous handlers:
+RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-wasm-flags; \
+    # Emscripten supports yielding from sync functions to JavaScript event loop, but all
+    # the synchronous functions doing that must be explicitly listed here. This is an
+    # exhaustive list that was created by compiling PHP with ASYNCIFY, running code that
+    # uses networking, observing the error, and listing the missing functions.
+    #
+    # If you a get an error similar to the one below, you need to add all the function on
+    # the stack to the "ASYNCIFY_ONLY" list below (in this case, it's php_mysqlnd_net_open_tcp_or_unix_pub):
+    #
+    # RuntimeError: unreachable
+    # at php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[9341]:0x5e42b8)
+    # at byn$fpcast-emu$php_mysqlnd_net_open_tcp_or_unix_pub (<anonymous>:wasm-function[17222]:0x7795e9)
+    # at php_mysqlnd_net_connect_ex_pub (<anonymous>:wasm-function[9338]:0x5e3f02)
+    #
+    # Node cuts the trace short by default so use the --stack-trace-limit=50 CLI flag
+    # to get the entire stack.
+    #
+    # -------
+    #
+    # Related: Any errors like Fatal error: Cannot redeclare function ...
+    # are caused by dispatching a PHP request while an execution is paused
+    # due to an async call – it means the same PHP files are loaded before
+    # the previous request, where they're already loaded, is concluded.
+    export ASYNCIFY_IMPORTS=$'["_dlopen_js",\n\
 "invoke_i",\n\
 "invoke_ii",\n\
 "invoke_iii",\n\
@@ -622,9 +652,12 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "invoke_viiiiii",\n\
 "invoke_viiiiiii",\n\
 "invoke_viiiiiiiii",\n\
+"js_open_process",\n\
+"js_popen_to_file",\n\
 "wasm_poll_socket",\n\
+"js_module_onMessage",\n\
 "wasm_shutdown"]'; \
-        echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
+    echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
     export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
 "dynCall_i",\
 "dynCall_ii",\
@@ -656,7 +689,14 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-    export ASYNCIFY_ONLY=$'"zif_array_filter",\
+    export ASYNCIFY_ONLY=$'"__fwritex",\
+"zif_sleep",\
+"zif_stream_get_contents",\
+"php_stdiop_read",\
+"fwrite",\
+"zif_fwrite",\
+"php_stdiop_write",\
+"zif_array_filter",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -712,6 +752,8 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_CONST_HANDLER",\
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
 "cli",\
+"wasm_sleep",\
+"wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
@@ -797,6 +839,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "php_cli_server_do_event_for_each_fd_callback",\
 "php_cli_server_poller_poll",\
 "php_cli_server_recv_event_read_request",\
+"php_exec",\
 "php_execute_script",\
 "php_fsockopen_stream",\
 "php_getimagesize_from_any",\
@@ -895,6 +938,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zif_fclose",\
 "zif_feof",\
 "zif_file_get_contents",\
+"zif_post_message_to_js",\
 "zif_fopen",\
 "zif_fread",\
 "zif_fsockopen",\
@@ -919,6 +963,15 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
 "zif_mysqli_stmt_execute",\
 "zif_mysqli_stmt_fetch",\
 "zif_preg_replace_callback",\
+"zif_popen",\
+"php_exec_ex",\
+"wasm_popen",\
+"zif_wasm_popen",\
+"zif_system",\
+"zif_exec",\
+"zif_passthru",\
+"zif_shell_exec",\
+"zif_proc_open",\
 "zif_stream_socket_client",\
 "zim_PDOStatement_execute",\
 "zim_PDO___construct",\
@@ -939,8 +992,7 @@ RUN if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; \
     if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
         export ASYNCIFY_ONLY="$ASYNCIFY_ONLY,"$(echo "$ASYNCIFY_ONLY" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \
     fi; \
-    echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags; \
-fi;
+    echo -n ' -s ASYNCIFY_ONLY=['$ASYNCIFY_ONLY_UNPREFIXED$ASYNCIFY_ONLY'] '| tr -d "\n" >> /root/.emcc-php-wasm-flags;
 
 # Build the final .wasm file
 RUN mkdir /root/output
@@ -954,6 +1006,8 @@ RUN set -euxo pipefail; \
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
+"_emscripten_sleep", \n\
+"_wasm_sleep", \n\
 "_wasm_set_phpini_path", \n\
 "_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
@@ -998,6 +1052,7 @@ RUN set -euxo pipefail; \
     -s INVOKE_RUN=0                  \
     -s EXIT_RUNTIME=1                \
         /root/lib/libphp.a \
+        /root/proc_open.c \
         /root/php_wasm.c \
         $(cat /root/.emcc-php-wasm-sources) \
     -s ENVIRONMENT=$EMSCRIPTEN_ENVIRONMENT \
@@ -1038,7 +1093,7 @@ RUN set -euxo pipefail; \
     # Make the php.wasm URL configurable via the dependencyFilename loader argument:
         /root/replace.sh $'s/["\']php\.wasm[\'"]/dependencyFilename/g' /root/output/php.js && \
     # Patch a "property undefined" error
-        # Emscripten produces an if that checkes a stream.stream_ops.poll property. However,
+        # Emscripten produces an if that checks a stream.stream_ops.poll property. However,
         # stream.stream_ops is sometimes undefined and the check fails. Let's adjust it to
         # tolerate a null stream.stream_ops value.
         /root/replace.sh "s/if\s*\(stream\.stream_ops\.poll\)/if (stream.stream_ops?.poll)/g" /root/output/php.js && \

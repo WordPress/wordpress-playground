@@ -69,7 +69,7 @@ class PluginDownloader
             }
 
             foreach ($artifacts->artifacts as $artifact) {
-                if ($artifact->name === $artifact_name) {
+                if ($artifact_name === $artifact->name) {
                     $zip_download_api_endpoint = $artifact->archive_download_url;
                     break;
                 }
@@ -235,6 +235,9 @@ $downloader = new PluginDownloader(
 header('Access-Control-Allow-Origin: *');
 $pluginResponse;
 try {
+    /** @deprecated Plugins and themes downloads are no longer needed now that WordPress.org serves
+     *              the proper CORS headers. This code will be removed in one of the next releases.
+     */
     if (isset($_GET['plugin'])) {
         $downloader->streamFromDirectory($_GET['plugin'], PluginDownloader::PLUGINS);
     } else if (isset($_GET['theme'])) {
@@ -245,14 +248,20 @@ try {
                 'org' => 'WordPress',
                 'repo' => 'gutenberg',
                 'workflow' => 'Build Gutenberg Plugin Zip',
-                'artifact' => 'gutenberg-plugin'
+                'artifact' => '#gutenberg-plugin#'
             ],
             [
                 'org' => 'woocommerce',
                 'repo' => 'woocommerce',
                 'workflow' => 'Build Live Branch',
-                'artifact' => 'plugins'
-            ]
+                'artifact' => '#plugins#'
+            ],
+            [
+                'org' => 'WordPress',
+                'repo' => 'wordpress-develop',
+                'workflow' => 'Build WordPress',
+                'artifact' => '#wordpress-build-\d+#'
+            ],
         ];
         $allowed = false;
         foreach ($allowedInputs as $allowedInput) {
@@ -260,13 +269,14 @@ try {
                 $_GET['org'] === $allowedInput['org'] &&
                 $_GET['repo'] === $allowedInput['repo'] &&
                 $_GET['workflow'] === $allowedInput['workflow'] &&
-                $_GET['artifact'] === $allowedInput['artifact']
+                preg_match($allowedInput['artifact'], $_GET['artifact'])
             ) {
                 $allowed = true;
                 break;
             }
         }
         if (!$allowed) {
+            header('HTTP/1.1 400 Invalid request');
             die('Invalid request');
         }
         $downloader->streamFromGithubPR(

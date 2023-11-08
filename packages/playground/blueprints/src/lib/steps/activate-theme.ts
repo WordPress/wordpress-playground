@@ -2,6 +2,15 @@ import { StepHandler } from '.';
 
 /**
  * @inheritDoc activateTheme
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "activateTheme",
+ * 		"pluginName": "Storefront",
+ * 		"pluginPath": "/wordpress/wp-content/themes/storefront"
+ * }
+ * </code>
  */
 export interface ActivateThemeStep {
 	step: 'activateTheme';

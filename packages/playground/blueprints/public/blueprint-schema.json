@@ -36,6 +36,13 @@
           "additionalProperties": false,
           "description": "The preferred PHP and WordPress versions to use."
         },
+        "phpExtensionBundles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SupportedPHPExtensionBundle"
+          },
+          "description": "The PHP extensions to use."
+        },
         "steps": {
           "type": "array",
           "items": {
@@ -79,6 +86,10 @@
         "7.0",
         "5.6"
       ]
+    },
+    "SupportedPHPExtensionBundle": {
+      "type": "string",
+      "const": "kitchen-sink"
     },
     "StepDefinition": {
       "type": "object",
@@ -189,6 +200,12 @@
               "type": "boolean"
             },
             "disableWpNewBlogNotification": {
+              "type": "boolean"
+            },
+            "makeEditorFrameControlled": {
+              "type": "boolean"
+            },
+            "prepareForRunningInsideWebBrowser": {
               "type": "boolean"
             }
           },

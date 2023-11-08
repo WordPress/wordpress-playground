@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { buildVersion } from './config';
+import { getRemoteUrl } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	storage?: 'opfs-host' | 'opfs-browser' | 'temporary';
+	storage?:
+		| 'opfs-host'
+		| 'opfs-browser'
+		| 'browser'
+		| 'device'
+		| 'none'
+		| 'temporary';
 }
 export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -29,9 +35,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 		}
 		started.current = true;
 
-		const remoteUrl = new URL(window.location.origin);
-		remoteUrl.pathname = '/remote.html';
-		remoteUrl.searchParams.set('v', buildVersion);
+		const remoteUrl = getRemoteUrl();
 		if (storage) {
 			remoteUrl.searchParams.set('storage', storage);
 		}

@@ -13,18 +13,16 @@ import {
 	WordPressInstallationOptions,
 } from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
-import {
-	RmStep,
-	CpStep,
-	MkdirStep,
-	RmdirStep,
-	MvStep,
-	SetPhpIniEntryStep,
-	RunPHPStep,
-	RunPHPWithOptionsStep,
-	RequestStep,
-	WriteFileStep,
-} from './client-methods';
+import { RmStep } from './rm';
+import { CpStep } from './cp';
+import { RmdirStep } from './rmdir';
+import { MkdirStep } from './mkdir';
+import { MvStep } from './mv';
+import { SetPhpIniEntryStep } from './set-php-ini-entry';
+import { RunPHPStep } from './run-php';
+import { RunPHPWithOptionsStep } from './run-php-with-options';
+import { RequestStep } from './request';
+import { WriteFileStep } from './write-file';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 

@@ -61,15 +61,17 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 async function defaultRequestHandler(event: FetchEvent) {
 	event.preventDefault();
 	const url = new URL(event.request.url);
-	const unscopedUrl = removeURLScope(url);
-	if (!seemsLikeAPHPRequestHandlerPath(unscopedUrl.pathname)) {
-		return fetch(
-			await cloneRequest(event.request, {
-				url,
-			})
-		);
+	const workerResponse = await convertFetchEventToPHPRequest(event);
+	if (
+		workerResponse.status === 404 &&
+		workerResponse.headers.get('x-file-type') === 'static'
+	) {
+		const request = await cloneRequest(event.request, {
+			url,
+		});
+		return fetch(request);
 	}
-	return convertFetchEventToPHPRequest(event);
+	return workerResponse;
 }
 
 export async function convertFetchEventToPHPRequest(event: FetchEvent) {
@@ -190,35 +192,6 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 
 interface ServiceWorkerConfiguration {
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
-}
-
-/**
- * Guesses whether the given path looks like a PHP file.
- *
- * @example
- * ```js
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
- * seemsLikeAPHPRequestHandlerPath('/index.html') // false
- * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
- * seemsLikeAPHPRequestHandlerPath('/') // true
- * ```
- *
- * @param  path The path to check.
- * @returns Whether the path seems like a PHP server path.
- */
-export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
-	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
-}
-
-function seemsLikeAPHPFile(path: string) {
-	return path.endsWith('.php') || path.includes('.php/');
-}
-
-function seemsLikeADirectoryRoot(path: string) {
-	const lastSegment = path.split('/').pop();
-	return !lastSegment!.includes('.');
 }
 
 async function rewritePost(request: Request) {

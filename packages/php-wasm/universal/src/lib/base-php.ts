@@ -16,12 +16,16 @@ import {
 	PHPRunOptions,
 	RmDirOptions,
 	ListFilesOptions,
+	SpawnHandler,
+	PHPEventListener,
+	PHPEvent,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
+import { Semaphore } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -41,8 +45,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
+	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
+	#semaphore: Semaphore;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -55,6 +61,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		PHPRuntimeId?: PHPRuntimeId,
 		serverOptions?: PHPRequestHandlerConfiguration
 	) {
+		this.#semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
@@ -65,9 +72,39 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
+	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
+		if (!this.#eventListeners.has(eventType)) {
+			this.#eventListeners.set(eventType, new Set());
+		}
+		this.#eventListeners.get(eventType)!.add(listener);
+	}
+
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	) {
+		this.#eventListeners.get(eventType)?.delete(listener);
+	}
+
+	dispatchEvent<Event extends PHPEvent>(event: Event) {
+		const listeners = this.#eventListeners.get(event.type);
+		if (!listeners) {
+			return;
+		}
+
+		for (const listener of listeners) {
+			listener(event);
+		}
+	}
+
 	/** @inheritDoc */
 	async onMessage(listener: MessageListener) {
 		this.#messageListeners.push(listener);
+	}
+
+	/** @inheritDoc */
+	async setSpawnHandler(handler: SpawnHandler) {
+		this[__private__dont__use].spawnProcess = handler;
 	}
 
 	/** @inheritDoc */
@@ -101,10 +138,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
-		runtime['onMessage'] = (data: string) => {
+		runtime['onMessage'] = async (
+			data: string
+		): Promise<string | Uint8Array> => {
 			for (const listener of this.#messageListeners) {
-				listener(data);
+				const returnData = await listener(data);
+
+				if (returnData) {
+					return returnData;
+				}
 			}
+
+			return '';
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
@@ -149,32 +194,45 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		if (!this.#webSapiInitialized) {
-			this.#initWebRuntime();
-			this.#webSapiInitialized = true;
-		}
-		this.#setScriptPath(request.scriptPath || '');
-		this.#setRelativeRequestUri(request.relativeUri || '');
-		this.#setRequestMethod(request.method || 'GET');
-		const { host, ...headers } = {
-			host: 'example.com:443',
-			...normalizeHeaders(request.headers || {}),
-		};
-		this.#setRequestHostAndProtocol(host, request.protocol || 'http');
-		this.#setRequestHeaders(headers);
-		if (request.body) {
-			this.#setRequestBody(request.body);
-		}
-		if (request.fileInfos) {
-			for (const file of request.fileInfos) {
-				this.#addUploadedFile(file);
+		/*
+		 * Prevent multiple requests from running at the same time.
+		 * For example, if a request is made to a PHP file that
+		 * requests another PHP file, the second request may
+		 * be dispatched before the first one is finished.
+		 */
+		const release = await this.#semaphore.acquire();
+		try {
+			if (!this.#webSapiInitialized) {
+				this.#initWebRuntime();
+				this.#webSapiInitialized = true;
 			}
+			this.#setScriptPath(request.scriptPath || '');
+			this.#setRelativeRequestUri(request.relativeUri || '');
+			this.#setRequestMethod(request.method || 'GET');
+			const headers = normalizeHeaders(request.headers || {});
+			const host = headers['host'] || 'example.com:443';
+
+			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+			this.#setRequestHeaders(headers);
+			if (request.body) {
+				this.#setRequestBody(request.body);
+			}
+			if (request.fileInfos) {
+				for (const file of request.fileInfos) {
+					this.#addUploadedFile(file);
+				}
+			}
+			if (request.code) {
+				this.#setPHPCode(' ?>' + request.code);
+			}
+			this.#addServerGlobalEntriesInWasm();
+			return await this.#handleRequest();
+		} finally {
+			release();
+			this.dispatchEvent({
+				type: 'request.end',
+			});
 		}
-		if (request.code) {
-			this.#setPHPCode(' ?>' + request.code);
-		}
-		this.#addServerGlobalEntriesInWasm();
-		return await this.#handleRequest();
 	}
 
 	#initWebRuntime() {
@@ -580,9 +638,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 }
 
 export function normalizeHeaders(
-	headers: PHPRunOptions['headers']
-): PHPRunOptions['headers'] {
-	const normalized: PHPRunOptions['headers'] = {};
+	headers: PHPRequestHeaders
+): PHPRequestHeaders {
+	const normalized: PHPRequestHeaders = {};
 	for (const key in headers) {
 		normalized[key.toLowerCase()] = headers[key];
 	}

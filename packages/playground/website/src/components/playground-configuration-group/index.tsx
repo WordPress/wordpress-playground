@@ -60,8 +60,37 @@ export default function PlaygroundConfigurationGroup({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
 
+	const [wpVersionChoices, setWPVersionChoices] = useState<
+		Record<string, string>
+	>({});
+	useEffect(() => {
+		playground?.getSupportedWordPressVersions().then(({ all, latest }) => {
+			const formOptions: Record<string, string> = {};
+			for (const version of Object.keys(all)) {
+				if (version === 'beta') {
+					// Don't show beta versions related to supported major releases
+					if (!(all.beta.substring(0, 3) in all)) {
+						formOptions[version] = all.beta;
+					}
+				} else {
+					formOptions[version] = version;
+				}
+			}
+			setWPVersionChoices(formOptions);
+			if (currentConfiguration.wp === 'latest') {
+				setCurrentConfiguration({
+					...currentConfiguration,
+					wp: latest,
+				});
+			}
+		});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [!!playground]);
+
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		initialConfiguration.storage === 'opfs-host' && !!lastDirectoryHandle
+		(initialConfiguration.storage === 'opfs-host' ||
+			initialConfiguration.storage === 'device') &&
+			!!lastDirectoryHandle
 	);
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
@@ -74,7 +103,6 @@ export default function PlaygroundConfigurationGroup({
 	const [currentConfiguration, setCurrentConfiguration] =
 		useState(initialConfiguration);
 
-	const runningWp = useCurrentlyRunningWordPressVersion();
 	const isSameOriginAsPlayground = useIsSameOriginAsPlayground(playground);
 
 	async function handleSelectLocalDirectory() {
@@ -140,13 +168,13 @@ export default function PlaygroundConfigurationGroup({
 
 			setCurrentConfiguration({
 				...currentConfiguration,
-				storage: 'opfs-host',
+				storage: 'device',
 			});
 			await playground.goTo('/');
 
-			// Read current querystring and replace storage=opfs-browser with storage=opfs-host.
+			// Read current querystring and replace storage=browser with storage=device.
 			const url = new URL(window.location.href);
-			url.searchParams.set('storage', 'opfs-host');
+			url.searchParams.set('storage', 'device');
 			window.history.pushState({}, '', url.toString());
 
 			alert('You are now using WordPress from your local directory.');
@@ -157,7 +185,10 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const playground = await playgroundRef.current!.promise;
-		if (config.resetSite && config.storage === 'opfs-browser') {
+		if (
+			config.resetSite &&
+			(config.storage === 'opfs-browser' || config.storage === 'browser')
+		) {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
@@ -169,21 +200,28 @@ export default function PlaygroundConfigurationGroup({
 
 		reloadWithNewConfiguration(playground!, config);
 	}
+	const WPLabel =
+		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
+
 	return (
 		<>
 			<Button onClick={openModal}>
 				PHP {currentConfiguration.php} {' - '}
-				WP {runningWp || currentConfiguration.wp} {' - '}
-				{currentConfiguration.storage === 'opfs-host'
-					? `Local (${dirName})`
-					: currentConfiguration.storage === 'opfs-browser'
-					? 'Persistent'
-					: '⚠️ Temporary'}
+				WP {WPLabel} {' - '}
+				{currentConfiguration.storage === 'opfs-host' ||
+				currentConfiguration.storage === 'device'
+					? `Storage: Device (${dirName})`
+					: currentConfiguration.storage === 'opfs-browser' ||
+					  currentConfiguration.storage === 'browser'
+					? 'Storage: Browser'
+					: '⚠️ Storage: None'}
 			</Button>
-			{currentConfiguration.storage === 'opfs-host' ? (
+			{currentConfiguration.storage === 'opfs-host' ||
+			currentConfiguration.storage === 'device' ? (
 				<SyncLocalFilesButton />
 			) : null}
-			{currentConfiguration.storage === 'opfs-browser' ? (
+			{currentConfiguration.storage === 'opfs-browser' ||
+			currentConfiguration.storage === 'browser' ? (
 				<StartOverButton />
 			) : null}
 			{isResumeLastDirOpen ? (
@@ -216,7 +254,7 @@ export default function PlaygroundConfigurationGroup({
 							onClick={() => {
 								reloadWithNewConfiguration(playground!, {
 									...initialConfiguration,
-									storage: 'temporary',
+									storage: 'none',
 								});
 							}}
 						>
@@ -247,7 +285,8 @@ export default function PlaygroundConfigurationGroup({
 				}}
 			>
 				<PlaygroundConfigurationForm
-					currentlyRunningWordPressVersion={runningWp}
+					supportedWPVersions={wpVersionChoices}
+					currentlyRunningWordPressVersion={currentConfiguration.wp}
 					initialData={currentConfiguration}
 					onSubmit={handleSubmit}
 					isMountingLocalDirectory={mounting}
@@ -263,24 +302,6 @@ export default function PlaygroundConfigurationGroup({
 			</Modal>
 		</>
 	);
-}
-
-function useCurrentlyRunningWordPressVersion(playground?: PlaygroundClient) {
-	const [
-		currentlyRunningWordPressVersion,
-		setCurrentlyRunningWordPressVersion,
-	] = useState<string | undefined>();
-
-	useEffect(() => {
-		if (playground) {
-			playground.getWordPressModuleDetails().then((details) => {
-				setCurrentlyRunningWordPressVersion(details.majorVersion);
-			});
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [!playground]);
-
-	return currentlyRunningWordPressVersion;
 }
 
 function useIsSameOriginAsPlayground(playground?: PlaygroundClient) {

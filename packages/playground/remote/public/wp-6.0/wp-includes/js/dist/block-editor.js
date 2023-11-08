@@ -20944,7 +20944,7 @@ function Iframe(_ref3, ref) {
     ref: (0,external_wp_compose_namespaceObject.useMergeRefs)([ref, setRef]),
     tabIndex: tabIndex // Correct doctype is required to enable rendering in standards mode
     ,
-    src:"/wp-includes/empty.html",
+    srcDoc: "<!doctype html>",
     title: (0,external_wp_i18n_namespaceObject.__)('Editor canvas')
   }), iframeDocument && (0,external_wp_element_namespaceObject.createPortal)((0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)("head", {
     ref: headRef

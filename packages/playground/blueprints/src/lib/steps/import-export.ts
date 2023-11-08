@@ -35,6 +35,14 @@ export async function zipEntireSite(playground: UniversalPHP) {
 
 /**
  * @inheritDoc replaceSite
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "replaceSite",
+ * 		"fullSiteZip": "https://mysite.com/import.zip"
+ * }
+ * </code>
  */
 export interface ReplaceSiteStep<ResourceType> {
 	step: 'replaceSite';
@@ -82,6 +90,15 @@ export const replaceSite: StepHandler<ReplaceSiteStep<File>> = async (
 
 /**
  * @inheritDoc unzip
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "unzip",
+ * 		"zipPath": "/wordpress/data.zip",
+ * 		"extractToPath": "/wordpress"
+ * }
+ * </code>
  */
 export interface UnzipStep {
 	step: 'unzip';
@@ -146,6 +163,14 @@ export async function exportWXZ(playground: UniversalPHP) {
 
 /**
  * @inheritDoc importFile
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "importFile",
+ * 		"file": "https://mysite.com/import.WXR"
+ * }
+ * </code>
  */
 export interface ImportFileStep<ResourceType> {
 	step: 'importFile';

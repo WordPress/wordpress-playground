@@ -1,18 +1,16 @@
 export { activatePlugin } from './activate-plugin';
 export { activateTheme } from './activate-theme';
 export { applyWordPressPatches } from './apply-wordpress-patches';
-export {
-	rm,
-	cp,
-	mkdir,
-	rmdir,
-	mv,
-	setPhpIniEntry,
-	runPHP,
-	runPHPWithOptions,
-	request,
-	writeFile,
-} from './client-methods';
+export { runPHP } from './run-php';
+export { runPHPWithOptions } from './run-php-with-options';
+export { setPhpIniEntry } from './set-php-ini-entry';
+export { request } from './request';
+export { cp } from './cp';
+export { mv } from './mv';
+export { rm } from './rm';
+export { mkdir } from './mkdir';
+export { rmdir } from './rmdir';
+export { writeFile } from './write-file';
 export { defineSiteUrl } from './define-site-url';
 export { importFile, unzip, replaceSite, zipEntireSite } from './import-export';
 export { installPlugin } from './install-plugin';

@@ -2,9 +2,9 @@
 
 Contributors:      wordpressdotorg, aristath
 Requires at least: 6.0
-Tested up to:      6.1
+Tested up to:      6.4
 Requires PHP:      5.6
-Stable tag:        2.1.1
+Stable tag:        2.1.2
 License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 Tags:              performance, database

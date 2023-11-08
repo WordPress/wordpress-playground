@@ -7,11 +7,7 @@ import './styles.css';
 import { makeBlueprint } from './lib/make-blueprint';
 import type { Blueprint } from '@wp-playground/blueprints';
 import PlaygroundConfigurationGroup from './components/playground-configuration-group';
-import {
-	LatestSupportedWordPressVersion,
-	PlaygroundConfiguration,
-	SupportedWordPressVersions,
-} from './components/playground-configuration-group/form';
+import { PlaygroundConfiguration } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
 
@@ -45,9 +41,7 @@ try {
 		theme: query.get('theme') || undefined,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
-		gutenbergPR: query.has('gutenberg-pr')
-			? Number(query.get('gutenberg-pr'))
-			: undefined,
+		phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 	});
 }
 
@@ -55,22 +49,19 @@ try {
 const opfsSupported = typeof navigator?.storage?.getDirectory !== 'undefined';
 let storageRaw = query.get('storage');
 if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
-	storageRaw = 'temporary';
+	storageRaw = 'none';
 } else if (!StorageTypes.includes(storageRaw as any)) {
-	storageRaw = 'temporary';
+	storageRaw = 'none';
 }
 const storage = storageRaw as StorageType;
 
 const isSeamless = (query.get('mode') || 'browser') === 'seamless';
 
 const currentConfiguration: PlaygroundConfiguration = {
-	wp: resolveVersion(
-		blueprint.preferredVersions?.wp,
-		SupportedWordPressVersions,
-		LatestSupportedWordPressVersion
-	),
+	wp: blueprint.preferredVersions?.wp || 'latest',
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
-	storage: storage || 'temporary',
+	storage: storage || 'none',
+	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
 };
 
 /*

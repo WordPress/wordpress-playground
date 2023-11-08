@@ -8,9 +8,6 @@ ENV WP_ZIP_URL ${WP_ZIP_URL}
 ARG OUT_FILENAME=wp
 ENV OUT_FILENAME ${OUT_FILENAME}
 
-ARG KEEP_THEME
-ENV KEEP_THEME ${KEEP_THEME}
-
 RUN mkdir /root/output
 
 RUN set -euxo pipefail;\
@@ -43,37 +40,6 @@ RUN cp -r wordpress wordpress-static && \
     # Remove all empty directories
     find . -type d -empty -delete
 
-# Pair the site editor's nested iframe to the Service Worker.
-# 
-# Without the patch below, the site editor initiates network requests that
-# aren't routed through the service worker. That's a known browser issue:
-# 
-# * https://bugs.chromium.org/p/chromium/issues/detail?id=880768
-# * https://bugzilla.mozilla.org/show_bug.cgi?id=1293277
-# * https://github.com/w3c/ServiceWorker/issues/765
-# 
-# The problem with iframes using srcDoc and src="about:blank" as they
-# fail to inherit the root site's service worker.
-# 
-# Gutenberg loads the site editor using <iframe srcDoc="<!doctype html">
-# to force the standards mode and not the quirks mode:
-# 
-# https://github.com/WordPress/gutenberg/pull/38855
-# 
-# This commit patches the site editor to achieve the same result via
-# <iframe src="/doctype.html"> and a doctype.html file containing just
-# `<!doctype html>`. This allows the iframe to inherit the service worker
-# and correctly load all the css, js, fonts, images, and other assets.
-# 
-# Ideally this issue would be fixed directly in Gutenberg and the patch
-# below would be removed.
-# 
-# See https://github.com/WordPress/wordpress-playground/issues/42 for more details
-
-RUN echo '<!doctype html>' > wordpress-static/wp-includes/empty.html &&  \
-    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.min.js && \
-    sed -E 's#srcDoc:\s*("[^"]+"|[^,\n}]+)#src:"/wp-includes/empty.html"#g' -i wordpress-static/wp-includes/js/dist/block-editor.js
-
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
 RUN mv wordpress-static/* /root/output/$OUT_FILENAME/
@@ -81,7 +47,11 @@ RUN mv wordpress-static/* /root/output/$OUT_FILENAME/
 # === Minify WordPress ===
 
 # Remove non-default themes
-RUN cd wordpress/wp-content/themes && \
+
+RUN cat wordpress/wp-includes/default-constants.php | awk -F"'" "/define\( 'WP_DEFAULT_THEME'/"'{print $4}' > wordpress/.default_theme
+
+RUN export KEEP_THEME=$(cat wordpress/.default_theme); \
+    cd wordpress/wp-content/themes && \
     rm -r $(ls | grep -v $KEEP_THEME)
 
 # Remove unused static files
@@ -92,7 +62,10 @@ RUN cd wordpress && \
     -o -name '*.scss' -o -name '*.stylelintignore' -o -name '*.svg' \
     -o -name '*.ttf' -o -name '*.txt' -o -name '*.woff' \
     -o -name '*.woff2' -o -name '*.jpeg' -o -name '*.jpg' \
-    \) -delete
+    \) \
+    # Preserve the wp-admin SVG files that are read  by PHP
+    -not -path '*/wp-admin/images/*.svg' \
+    -delete
 
 # Keep only the CSS files that are read by PHP
 RUN cd wordpress && \
@@ -105,6 +78,9 @@ RUN cd wordpress && \
     find ./ -type f -name '*.js' \
     -not -path '*/wp-includes/blocks/*/*.min.js' \
     -not -name 'wp-emoji-loader.min.js' \
+    # This file is patched in JavaScript and needs to
+    # be served from VFS. See #703
+    -not -path '*/wp-includes/js/dist/block-editor*.js' \
     -delete
 
 RUN cd wordpress && \
@@ -211,7 +187,6 @@ RUN cp /root/esm-prefix.js /tmp/esm-prefix.js && \
     export FILE_SIZE=$(stat -c%s "/root/output/$OUT_FILENAME.data") && \
     cat /tmp/esm-prefix.js \
     | sed "s#WP_DATA_SIZE#$FILE_SIZE#g" \
-    | sed "s#WP_THEME_NAME#'$KEEP_THEME'#g" \
     > /root/esm-prefix.js
 
 # Filename of the main dependency
