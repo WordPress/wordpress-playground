@@ -15,6 +15,7 @@ import { StorageType, StorageTypes } from './types';
 import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
+import { ImportFromGitHubMenuItem } from './components/toolbar-buttons/import-from-github';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -124,6 +125,7 @@ root.render(
 						/>
 						<DownloadAsZipMenuItem onClose={onClose} />
 						<RestoreFromZipMenuItem onClose={onClose} />
+						<ImportFromGitHubMenuItem onClose={onClose} />
 					</MenuGroup>
 				)}
 			</DropdownMenu>,
