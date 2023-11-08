@@ -31,6 +31,7 @@ export interface ApplyWordPressPatchesStep {
 	disableWpNewBlogNotification?: boolean;
 	makeEditorFrameControlled?: boolean;
 	prepareForRunningInsideWebBrowser?: boolean;
+	addFetchNetworkTransport?: boolean;
 }
 
 export const applyWordPressPatches: StepHandler<
@@ -65,6 +66,9 @@ export const applyWordPressPatches: StepHandler<
 	}
 	if (options.prepareForRunningInsideWebBrowser === true) {
 		await patch.prepareForRunningInsideWebBrowser();
+	}
+	if (options.addFetchNetworkTransport === true) {
+		await patch.addFetchNetworkTransport();
 	}
 };
 
@@ -147,6 +151,28 @@ class WordPressPatcher {
 	}
 
 	async prepareForRunningInsideWebBrowser() {
+		// Various tweaks
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
+			showAdminCredentialsOnWpLogin
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
+			niceErrorMessagesForPluginsAndThemesDirectories
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
+			linksTargetingTopFrameShouldTargetPlaygroundIframe
+		);
+
+		// Activate URL rewriting.
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/4-enable-url-rewrite.php`,
+			enableUrlRewrite
+		);
+	}
+
+	async addFetchNetworkTransport() {
 		await defineWpConfigConsts(this.php, {
 			consts: {
 				USE_FETCH_FOR_REQUESTS: true,
@@ -190,25 +216,6 @@ class WordPressPatcher {
 			addRequests
 		);
 
-		// Various tweaks
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
-			showAdminCredentialsOnWpLogin
-		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
-			niceErrorMessagesForPluginsAndThemesDirectories
-		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
-			linksTargetingTopFrameShouldTargetPlaygroundIframe
-		);
-
-		// Activate URL rewriting.
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/4-enable-url-rewrite.php`,
-			enableUrlRewrite
-		);
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);
 	}
 }
