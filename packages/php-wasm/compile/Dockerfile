@@ -1162,6 +1162,7 @@ RUN set -euxo pipefail; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 			sed -i 's/..\/php-src/php-src/g' /root/output/php.wasm.map; \
 			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
+			rm -rf /root/php-src/.git; \
 			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \
 			cp -r /root/emsdk/upstream/emscripten/system "/root/output/${PHP_VERSION_ESCAPED}/php-src/system"; \
 		fi;
