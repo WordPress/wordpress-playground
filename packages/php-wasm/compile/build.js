@@ -236,10 +236,7 @@ function asyncSpawn(...args) {
 		const child = spawn(...args);
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
-			else {
-				console.log({args});
-				reject(new Error(`Process exited with code ${code}`));
-			}
+			else reject(new Error(`Process exited with code ${code}`));
 		});
 	});
 }
