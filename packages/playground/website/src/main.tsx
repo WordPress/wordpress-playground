@@ -10,6 +10,7 @@ import PlaygroundConfigurationGroup from './components/playground-configuration-
 import { PlaygroundConfiguration } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
+import GitHubButton from './components/github-button';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -97,6 +98,7 @@ root.render(
 			/>,
 			<ImportButton key="import" />,
 			<ExportButton key="export" />,
+			<GitHubButton key="github" />,
 		]}
 	/>
 );
