@@ -1106,8 +1106,10 @@ RUN set -euxo pipefail; \
             /root/output/php.js && \
         # Enable custom WebSocket constructors to support socket options.
         /root/replace.sh "s/ws\s*=\s*new WebSocketConstructor/if (Module['websocket']['decorator']) {WebSocketConstructor = Module['websocket']['decorator'](WebSocketConstructor);}ws = new WebSocketConstructor/g" /root/output/php.js && \
+		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         if [ "$WITH_WS_NETWORKING_PROXY" = "yes" ]; then \
             /root/replace.sh "s/sock\.server\s*=\s*new WebSocketServer/if (Module['websocket']['serverDecorator']) {WebSocketServer = Module['websocket']['serverDecorator'](WebSocketServer);}sock.server = new WebSocketServer/g" /root/output/php.js; \
+        fi; \
         fi; \
     # Add MSG_PEEK flag support in recvfrom
         #
