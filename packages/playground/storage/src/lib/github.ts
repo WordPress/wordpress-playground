@@ -18,47 +18,6 @@ export function createClient(
 	return octokit;
 }
 
-export interface GitHubPointer {
-	owner: string;
-	repo: string;
-	ref: string;
-	path: string;
-	pr?: number;
-}
-
-export async function resolveGitHubURL(
-	octokit: GithubClient,
-	url: string
-): Promise<GitHubPointer> {
-	const urlObj = new URL(url);
-	const [owner, repo, ...rest] = urlObj.pathname.split('/');
-
-	let prNumber,
-		ref,
-		path = '/';
-	if (rest[0] === 'pull') {
-		prNumber = parseInt(rest[1]);
-		if (isNaN(prNumber) || !prNumber) {
-			throw new Error(
-				`Invalid Pull Request  number ${prNumber} parsed from the following GitHub URL: ${url}`
-			);
-		}
-		const { data: pullRequest } = await octokit.rest.pulls.get({
-			owner,
-			repo,
-			pull_number: prNumber,
-		});
-		ref = pullRequest.head.ref;
-	} else if (rest[1] === 'tree') {
-		ref = rest[1];
-		path = rest.slice(2).join('/');
-	} else {
-		throw new Error(`Unrecognized GitHub URL: ${url}`);
-	}
-
-	return { owner, repo, ref, path };
-}
-
 export type Files = Record<string, Uint8Array>;
 export function filesListToObject(files: any[], root = '') {
 	if (root.length && !root.endsWith('/')) {

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import css from './style.module.css';
-import Modal from '../modal';
-import { usePlaygroundContext } from '../playground-viewport/context';
+import Modal from '../../components/modal';
+import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import GitHubForm from '../github-form';
+import GitHubOAuthGuard from '../github-oauth-guard';
 
 export default function GitHubButton() {
-	const [isOpen, setOpen] = useState(false);
+	const [isOpen, setOpen] = useState(true);
 	const openModal = () => setOpen(true);
 	const closeModal = () => setOpen(false);
 	const { playground } = usePlaygroundContext();
@@ -32,12 +33,28 @@ export default function GitHubButton() {
 			</button>
 
 			<Modal isOpen={isOpen} onRequestClose={closeModal}>
-				<GitHubForm
-					playground={playground!}
-					onClose={closeModal}
-					onImported={handleImported}
-				/>
+				<GitHubOAuthGuard AuthRequest={Authenticate}>
+					<GitHubForm
+						playground={playground!}
+						onClose={closeModal}
+						onImported={handleImported}
+					/>
+				</GitHubOAuthGuard>
 			</Modal>
 		</>
+	);
+}
+
+function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
+	return (
+		<div>
+			<p>
+				You can connect your GitHub repositories it you authorize
+				Playground to access your GitHub account
+			</p>
+			<p>
+				<a href={authenticateUrl}>Authenticate with GitHub</a>
+			</p>
+		</div>
 	);
 }
