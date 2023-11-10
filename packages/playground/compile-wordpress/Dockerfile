@@ -128,18 +128,12 @@ COPY ./build-assets/export-wxz.php /root/
 RUN cd wordpress && \
     cp /root/export-wxz.php wp-content/mu-plugins/export-wxz.php
 
-# Strip whitespaces from PHP files.
-# PHP 7.4 is a safe choice here: `php -w` ran on 7.4
-# produces code compatible with PHP 8+, but the reverse
-# isn't true.
 RUN cd wordpress && \
     for phpfile in $(find ./ -type f -name '*.php' -not -path '*wordpress-importer*' ); do \
-    # Remove whitespace from PHP files
-    php -w $phpfile > $phpfile.small && \
     # remove set_time_limit function calls as they invoke the
     # setitimer system call unsupported by emscripten
-    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
-    rm $phpfile.small; \
+    perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile > $phpfile.patched && \
+    mv $phpfile.patched $phpfile; \
     done
 
 FROM emscripten as emscripten2
