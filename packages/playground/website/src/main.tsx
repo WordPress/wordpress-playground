@@ -11,6 +11,8 @@ import { PlaygroundConfiguration } from './components/playground-configuration-g
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
 
+import { PreviewService } from './lib/preview-service';
+
 const query = new URL(document.location.href).searchParams;
 
 /*
@@ -115,3 +117,15 @@ function resolveVersion<T>(
 	}
 	return version as T;
 }
+
+const listenForPreview = (event:MessageEvent) => {
+	if(event.data?.type !== 'collector-zip-package')
+	{
+		return;
+	}
+
+	PreviewService.setPreview(event.data);
+	window.removeEventListener('message', listenForPreview);
+};
+
+window.addEventListener('message', listenForPreview);

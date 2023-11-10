@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
+import { PreviewService } from './preview-service';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -20,6 +21,11 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const [url, setUrl] = useState<string>();
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
+
+	if(PreviewService.hasPreview)
+	{
+		PreviewService.installPreview(playground);
+	}
 
 	useEffect(() => {
 		if (started.current) {
