@@ -118,9 +118,8 @@ function resolveVersion<T>(
 	return version as T;
 }
 
-const listenForPreview = (event:MessageEvent) => {
-	if(event.data?.type !== 'collector-zip-package')
-	{
+const listenForPreview = (event: MessageEvent) => {
+	if (event.data?.type !== 'collector-zip-package') {
 		return;
 	}
 

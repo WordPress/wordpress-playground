@@ -22,8 +22,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
 
-	if(PreviewService.hasPreview)
-	{
+	if (PreviewService.hasPreview) {
 		PreviewService.installPreview(playground);
 	}
 
