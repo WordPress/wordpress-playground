@@ -122,7 +122,7 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-config.php`,
 			(contents) =>
 				contents.replaceAll(
-					"', 'put your unique phrase here'",
+					/',\s+'put your unique phrase here'/g,
 					"__', ''"
 				)
 		);
