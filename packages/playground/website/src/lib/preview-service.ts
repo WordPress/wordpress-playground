@@ -13,6 +13,8 @@ type previewData = {
 	pluginName: string;
 };
 
+const COLLECOTOR_PLAYROUND_FLAG = '/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb';
+
 export class PreviewService {
 	static preloader: ArrayBuffer | null;
 	static postloader: ArrayBuffer | null;
@@ -86,98 +88,66 @@ export class PreviewService {
 			return Promise.resolve();
 		}
 
-		return playground
-			.writeFile('/wordpress/collector-loading.html', preloader)
-			.then(() =>
-				playground.writeFile(
-					'/wordpress/collector-activate.html',
-					postloader
-				)
-			)
-			.then(() => playground.goTo(`/collector-loading.html`))
-			.then(() =>
-				playground.writeFile(
-					'/wordpress/data.zip',
-					new Uint8Array(zipPackage)
-				)
-			)
-			.then(() =>
-				unzip(playground, {
-					zipPath: '/wordpress/data.zip',
-					extractToPath: '/wordpress',
-				})
-			)
-			.then(() =>
-				rm(playground, {
-					path: '/wordpress/data.zip',
-				})
-			)
-			.then(() => playground.goTo(`/collector-activate.html`))
-			.then(() =>
-				playground.writeFile(
-					'/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
-					''
-				)
-			)
-			.then(() =>
-				activatePlugin(playground, {
-					pluginName: 'Collector',
-					pluginPath: '/wordpress/wp-content/plugins/Collector',
-				})
-			)
-			.then(() =>
-				rm(playground, {
-					path: '/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
-				})
-			)
-			.then(() => {
-				if (plugin && pluginName) {
-					return playground
-						.writeFile('/plugin.zip', new Uint8Array(plugin))
-						.then(() =>
-							unzip(playground, {
-								extractToPath: '/wordpress/wp-content/plugins',
-								zipPath: '/plugin.zip',
-							})
-						)
-						.then(() =>
-							rm(playground, {
-								path: '/plugin.zip',
-							})
-						)
-						.then(() =>
-							activatePlugin(playground, {
-								pluginPath:
-									'/wordpress/wp-content/plugins/' +
-									pluginName,
-								pluginName,
-							})
-						);
-				} else {
-					return Promise.resolve();
-				}
-			})
-			.then(() =>
-				login(playground, {
-					username: String(username),
-					password: String(fakepass),
-				})
-			)
-			.then(() => playground?.goTo(`/wp-admin/plugins.php`))
-			.then(() =>
-				rm(playground, {
-					path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php',
-				})
-			)
-			.then(() =>
-				rm(playground, {
-					path: '/wordpress/collector-loading.html',
-				})
-			)
-			.then(() =>
-				rm(playground, {
-					path: '/wordpress/collector-activate.html',
-				})
+		return (async () => {
+			await playground.writeFile(
+				'/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
+				''
 			);
+
+			await playground.writeFile(
+				'/wordpress/collector-loading.html',
+				preloader
+			);
+
+			rm(playground, {
+				path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php',
+			});
+
+			await playground.goTo(`/collector-loading.html`);
+
+			await playground.writeFile('/data.zip', new Uint8Array(zipPackage));
+			await unzip(playground, {
+				zipPath: '/data.zip',
+				extractToPath: '/wordpress',
+			});
+			await rm(playground, { path: '/data.zip' });
+			await activatePlugin(playground, {
+				pluginName: 'Collector',
+				pluginPath: '/wordpress/wp-content/plugins/Collector',
+			});
+
+			await playground.writeFile(
+				'/wordpress/collector-activate.html',
+				postloader
+			);
+			await playground.goTo(`/collector-activate.html`);
+
+			if (plugin && pluginName) {
+				await playground.writeFile(
+					'/plugin.zip',
+					new Uint8Array(plugin)
+				);
+				await unzip(playground, {
+					extractToPath: '/wordpress/wp-content/plugins',
+					zipPath: '/plugin.zip',
+				});
+				await rm(playground, { path: '/plugin.zip' });
+				await activatePlugin(playground, {
+					pluginPath: '/wordpress/wp-content/plugins/' + pluginName,
+					pluginName,
+				});
+			}
+
+			await login(playground, {
+				username: String(username),
+				password: String(fakepass),
+			});
+
+			await playground.goTo(`/wp-admin/plugins.php`);
+
+			rm(playground, { path: '/wordpress/collector-loading.html' });
+			rm(playground, { path: '/wordpress/collector-activate.html' });
+			rm(playground, { path: COLLECOTOR_PLAYROUND_FLAG });
+		})();
 	}
 }
