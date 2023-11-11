@@ -1,6 +1,7 @@
 import { unzip } from '@wp-playground/blueprints';
 import { activatePlugin } from '@wp-playground/blueprints';
 import { login } from '@wp-playground/blueprints';
+import { rm } from '@wp-playground/blueprints';
 
 type previewData = {
 	preloader: ArrayBuffer;
@@ -23,12 +24,10 @@ export class PreviewService {
 	static hasPreview: boolean | null;
 
 	static listen() {
-
-		if(window.parent)
-		{
+		if (window.parent) {
 			window.parent.postMessage(
-				{type:'preview-service-listening'},
-				new URL(document.referrer).origin,
+				{ type: 'preview-service-listening' },
+				new URL(document.referrer).origin
 			);
 		}
 
@@ -143,12 +142,17 @@ export class PreviewService {
 					return Promise.resolve();
 				}
 			})
-			.then(() => login(
-				playground, {
+			.then(() =>
+				login(playground, {
 					username: String(username),
 					password: String(fakepass),
-				}
-			))
-			.then(() => playground?.goTo(`/wp-admin/plugins.php`));
+				})
+			)
+			.then(() => playground?.goTo(`/wp-admin/plugins.php`))
+			.then(() =>
+				rm(playground, {
+					path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php'
+				})
+			);
 	}
 }
