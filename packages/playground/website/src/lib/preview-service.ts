@@ -89,10 +89,7 @@ export class PreviewService {
 		}
 
 		return (async () => {
-			await playground.writeFile(
-				'/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
-				''
-			);
+			await playground.writeFile(COLLECTOR_PLAYGROUND_FLAG, '');
 
 			await playground.writeFile(
 				'/wordpress/collector-loading.html',
