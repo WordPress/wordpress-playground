@@ -5,6 +5,7 @@ interface MakeBlueprintOptions {
 	wp?: string;
 	phpExtensionBundles?: string[];
 	landingPage?: string;
+	features?: Blueprint['features'];
 	theme?: string;
 	plugins?: string[];
 }
@@ -17,6 +18,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			wp: options.wp as any,
 		},
 		phpExtensionBundles: options.phpExtensionBundles as any,
+		features: options.features,
 		steps: [
 			{
 				step: 'login',

@@ -6,11 +6,7 @@
  * This file isn't actually used. It's just here for reference and development. The actual
  * PHP code used in WordPress is hardcoded copy residing in wordpress.mjs in the _patchWordPressCode
  * function.
- *
- * @TODO Make the build pipeline use this exact file instead of creating it
- *       from within the JavaScript runtime.
  */
-
 class Requests_Transport_Fetch implements Requests_Transport
 {
 	public $headers = '';
@@ -43,7 +39,6 @@ class Requests_Transport_Fetch implements Requests_Transport
 			return false;
 		}
 
-		$headers = Requests::flatten($headers);
 		if (!empty($data)) {
 			$data_format = $options['data_format'];
 			if ($data_format === 'query') {
@@ -54,36 +49,25 @@ class Requests_Transport_Fetch implements Requests_Transport
 			}
 		}
 
-		$request = json_encode(json_encode(array(
-			'headers' => $headers,
-			'data'    => $data,
-			'url'     => $url,
-			'method'  => $options['type'],
-		)));
+		$request = json_encode(array(
+			'type'    => 'request',
+			'data'    => [
+				'headers' => $headers,
+				'data'    => $data,
+				'url'     => $url,
+				'method'  => $options['type'],
+			]
+		));
 
-		$js = <<<JAVASCRIPT
-const request = JSON.parse({$request});
-console.log("Requesting " + request.url);
-const xhr = new XMLHttpRequest();
-xhr.open(
-	request.method,
-	request.url,
-	false // false makes the xhr synchronous
-);
-for ( var name in request.headers ) {
-	xhr.setRequestHeader(name, request.headers[name]);
-}
-xhr.send(request.data);
+		$this->headers = post_message_to_js($request);
 
-[
-	"HTTP/1.1 " + xhr.status + " " + xhr.statusText,
-	xhr.getAllResponseHeaders(),
-	"",
-	xhr.responseText
-].join("\\r\\n");
-JAVASCRIPT;
-
-		$this->headers = vrzno_eval($js);
+		// Store a file if the request specifies it.
+		// Are we sure that `$this->headers` includes the body of the response?
+		$before_response_body = strpos( $this->headers, "\r\n\r\n" );
+		if ( isset( $options['filename'] ) && $options['filename'] && false !== $before_response_body ) {
+			$response_body = substr( $this->headers, $before_response_body + 4 );
+			file_put_contents($options['filename'], $response_body);
+		}
 
 		return $this->headers;
 	}
@@ -132,11 +116,7 @@ JAVASCRIPT;
 
 	public static function test($capabilities = array())
 	{
-		if (!function_exists('vrzno_eval')) {
-			return false;
-		}
-
-		if (vrzno_eval("typeof XMLHttpRequest;") !== 'function') {
+		if (!function_exists('post_message_to_js')) {
 			return false;
 		}
 

@@ -33,6 +33,16 @@
 					"additionalProperties": false,
 					"description": "The preferred PHP and WordPress versions to use."
 				},
+				"features": {
+					"type": "object",
+					"properties": {
+						"networking": {
+							"type": "boolean",
+							"description": "Should boot with support for network request via wp_safe_remote_get?"
+						}
+					},
+					"additionalProperties": false
+				},
 				"phpExtensionBundles": {
 					"type": "array",
 					"items": {
