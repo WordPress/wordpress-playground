@@ -11,10 +11,6 @@ import { PlaygroundConfiguration } from './components/playground-configuration-g
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
 
-import { PreviewService } from './lib/preview-service';
-
-PreviewService.listen();
-
 const query = new URL(document.location.href).searchParams;
 
 /*

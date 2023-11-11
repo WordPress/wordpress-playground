@@ -37,7 +37,6 @@ export class PreviewService {
 			if (event.data?.type !== 'collector-init') {
 				return;
 			}
-			PreviewService.setPreview(event.data);
 			window.removeEventListener('message', listenForInit);
 		};
 
@@ -52,7 +51,6 @@ export class PreviewService {
 		};
 
 		window.addEventListener('message', listenForPreview);
-
 	}
 
 	static setPreview(previewData: previewData) {
