@@ -151,7 +151,7 @@ export class PreviewService {
 			.then(() => playground?.goTo(`/wp-admin/plugins.php`))
 			.then(() =>
 				rm(playground, {
-					path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php'
+					path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php',
 				})
 			);
 	}
