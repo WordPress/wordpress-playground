@@ -13,7 +13,7 @@ type previewData = {
 	pluginName: string;
 };
 
-const COLLECOTOR_PLAYROUND_FLAG = '/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb';
+const COLLECTOR_PLAYGROUND_FLAG = '/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb';
 
 export class PreviewService {
 	static preloader: ArrayBuffer | null;
@@ -147,7 +147,7 @@ export class PreviewService {
 
 			rm(playground, { path: '/wordpress/collector-loading.html' });
 			rm(playground, { path: '/wordpress/collector-activate.html' });
-			rm(playground, { path: COLLECOTOR_PLAYROUND_FLAG });
+			rm(playground, { path: COLLECTOR_PLAYGROUND_FLAG });
 		})();
 	}
 }
