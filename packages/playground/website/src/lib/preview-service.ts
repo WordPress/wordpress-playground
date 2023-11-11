@@ -97,12 +97,6 @@ export class PreviewService {
 			.then(() => playground.goTo(`/collector-loading.html`))
 			.then(() =>
 				playground.writeFile(
-					'/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
-					''
-				)
-			)
-			.then(() =>
-				playground.writeFile(
 					'/wordpress/data.zip',
 					new Uint8Array(zipPackage)
 				)
@@ -113,11 +107,27 @@ export class PreviewService {
 					extractToPath: '/wordpress',
 				})
 			)
+			.then(() =>
+				rm(playground, {
+					path: '/wordpress/data.zip',
+				})
+			)
 			.then(() => playground.goTo(`/collector-activate.html`))
+			.then(() =>
+				playground.writeFile(
+					'/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
+					''
+				)
+			)
 			.then(() =>
 				activatePlugin(playground, {
 					pluginName: 'Collector',
 					pluginPath: '/wordpress/wp-content/plugins/Collector',
+				})
+			)
+			.then(() =>
+				rm(playground, {
+					path: '/tmp/690013d3-b53b-43f2-8371-b293a3bdc4fb',
 				})
 			)
 			.then(() => {
@@ -128,6 +138,11 @@ export class PreviewService {
 							unzip(playground, {
 								extractToPath: '/wordpress/wp-content/plugins',
 								zipPath: '/plugin.zip',
+							})
+						)
+						.then(() =>
+							rm(playground, {
+								path: '/plugin.zip',
 							})
 						)
 						.then(() =>
@@ -152,6 +167,16 @@ export class PreviewService {
 			.then(() =>
 				rm(playground, {
 					path: '/wordpress/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php',
+				})
+			)
+			.then(() =>
+				rm(playground, {
+					path: '/wordpress/collector-loading.html',
+				})
+			)
+			.then(() =>
+				rm(playground, {
+					path: '/wordpress/collector-activate.html',
 				})
 			);
 	}
