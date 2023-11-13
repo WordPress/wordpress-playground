@@ -99,7 +99,7 @@ class WordPressPatcher {
 			consts: {
 				WP_HOME: this.scopedSiteUrl,
 				WP_SITEURL: this.scopedSiteUrl,
-			}
+			},
 		});
 	}
 
