@@ -1,6 +1,19 @@
 import { analyzeGitHubURL, GitHubPointer } from './analyze-github-url';
 
 describe('analyzeGitHubURL', () => {
+	it('should return correct GitHubPointer for a repo URL', () => {
+		const url = 'https://github.com/owner/repo/';
+		const expected: GitHubPointer = {
+			owner: 'owner',
+			repo: 'repo',
+			type: 'repo',
+			ref: 'unknown',
+			path: '',
+			pr: undefined,
+		};
+		expect(analyzeGitHubURL(url)).toEqual(expected);
+	});
+
 	it('should return correct GitHubPointer for a PR URL', () => {
 		const url = 'https://github.com/owner/repo/pull/123';
 		const expected: GitHubPointer = {
@@ -8,7 +21,7 @@ describe('analyzeGitHubURL', () => {
 			repo: 'repo',
 			type: 'pr',
 			ref: 'unknown',
-			path: '/',
+			path: '',
 			pr: 123,
 		};
 		expect(analyzeGitHubURL(url)).toEqual(expected);
@@ -36,25 +49,25 @@ describe('analyzeGitHubURL', () => {
 
 	it('should return correct GitHubPointer for a raw file URL', () => {
 		const url =
-			'https://raw.githubusercontent.com/owner/repo/branch/path/to/file';
+			'https://raw.githubusercontent.com/owner/repo/branch/path/to/file.zip';
 		const expected: GitHubPointer = {
 			owner: 'owner',
 			repo: 'repo',
-			type: 'zip',
+			type: 'rawfile',
 			ref: 'unknown',
-			path: 'path/to/file',
+			path: 'owner/repo/branch/path/to/file.zip',
 		};
 		expect(analyzeGitHubURL(url)).toEqual(expected);
 	});
 
-	it('should return correct GitHubPointer for an unknown URL', () => {
+	it('should return correct GitHubPointer for a repo URL', () => {
 		const url = 'https://github.com/owner/repo';
 		const expected: GitHubPointer = {
 			owner: 'owner',
 			repo: 'repo',
-			type: 'unknown',
+			type: 'repo',
 			ref: 'unknown',
-			path: '/',
+			path: '',
 		};
 		expect(analyzeGitHubURL(url)).toEqual(expected);
 	});

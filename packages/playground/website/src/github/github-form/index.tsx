@@ -1,11 +1,20 @@
 import React from 'react';
 import { useRef, useState } from 'react';
-import type { PlaygroundClient } from '@wp-playground/client';
+import { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
 import { GitHubPointer, analyzeGitHubURL } from '../analyze-github-url';
+import {
+	GetFilesProgress,
+	createClient,
+	getFilesFromDirectory,
+} from '@wp-playground/storage';
+import { getOAuthToken } from '../token';
+import { GitHubFormDetails } from './form-details';
+import { ContentType, importFromGitHub } from '../import-from-github';
+import { Spinner } from '../../components/spinner';
 
 interface GitHubFormProps {
 	playground: PlaygroundClient;
@@ -13,8 +22,7 @@ interface GitHubFormProps {
 	onClose: () => void;
 }
 
-type ContentType = 'theme' | 'plugin' | 'wp-content';
-
+const octokit = createClient(getOAuthToken()!);
 export default function GitHubForm({
 	playground,
 	onImported,
@@ -23,9 +31,16 @@ export default function GitHubForm({
 	const form = useRef<any>();
 	const [error] = useState<string>('');
 	const [url, setUrl] = useState<string>('');
-	const [urlType, setUrlType] = useState<GitHubPointer['type'] | null>();
-	const [contentType, setContentType] = useState<ContentType | null>();
+	const [urlType, setUrlType] = useState<GitHubPointer['type'] | undefined>();
+	const [contentType, setContentType] = useState<ContentType | undefined>();
+	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const [isImporting, setIsImporting] = useState<boolean>(false);
+	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
+		downloadedFiles: 0,
+		foundFiles: 0,
+	});
 	const [repoPath, setRepoPath] = useState<string>('');
+	const [repoBranch, setRepoBranch] = useState<string>('');
 	const [pristine, setPristine] = useState<boolean>(true);
 	function handleChangeUrl(e: React.ChangeEvent<HTMLInputElement>) {
 		const newUrl = e.target.value;
@@ -33,7 +48,7 @@ export default function GitHubForm({
 
 		console.log({ pristine });
 		if (!pristine) {
-			return;
+			// return;
 		}
 
 		const seemsLikeAProperURL =
@@ -48,7 +63,41 @@ export default function GitHubForm({
 		// PR or repo URL?
 		const details = analyzeGitHubURL(newUrl);
 		setUrlType(details.type);
-		setRepoPath(details.path);
+		setRepoPath('/' + details.path.replace(/^\//, ''));
+
+		async function loadRest() {
+			setIsLoading(true);
+			// Get default branch from the repo
+			const repo = await octokit.rest.repos.get({
+				owner: details.owner,
+				repo: details.repo,
+			});
+			setRepoBranch(repo.data.default_branch);
+
+			const { data: files } = await octokit.rest.repos.getContent({
+				owner: details.owner,
+				repo: details.repo,
+				path: details.path,
+				ref: repo.data.default_branch,
+			});
+			if (Array.isArray(files)) {
+				for (const { name } of files) {
+					if (name === 'theme.json') {
+						setContentType('theme');
+					} else if (
+						['plugins', 'themes', 'mu-plugins'].includes(name)
+					) {
+						setContentType('wp-content');
+					} else if (name.endsWith('.php')) {
+						setContentType('plugin');
+					}
+				}
+			}
+
+			setIsLoading(false);
+			console.log({ repo, files });
+		}
+		loadRest();
 	}
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -56,7 +105,28 @@ export default function GitHubForm({
 		if (!url) {
 			return;
 		}
+		setIsImporting(true);
+		const { owner, repo } = analyzeGitHubURL(url);
 
+		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
+		const relativeRepoPath = repoPath.replace(/^\//g, '');
+		const ghFiles = await getFilesFromDirectory(
+			octokit,
+			owner,
+			repo,
+			repoBranch,
+			relativeRepoPath,
+			(progress) => setImportProgress({ ...progress })
+		);
+		console.log(ghFiles);
+		await importFromGitHub(
+			playground,
+			ghFiles,
+			contentType!,
+			repo,
+			relativeRepoPath
+		);
+		setIsImporting(false);
 		onImported();
 	}
 
@@ -79,63 +149,31 @@ export default function GitHubForm({
 					autoFocus
 				/>
 			</div>
-			{url ? (
-				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
-					{urlType === 'pr' ? (
-						<>Looks like that's a PR</>
-					) : urlType === 'branch' ? (
-						<>Looks like that's a branch</>
-					) : urlType === 'zip' ? (
-						<>Looks like that's an artifact</>
-					) : (
-						<>Playground doesn't recognize this URL</>
-					)}
-				</div>
-			) : null}
-			{urlType === 'pr' || urlType === 'branch' ? (
-				<>
-					<div
-						className={`${forms.formGroup} ${forms.formGroupLast}`}
-					>
-						What path in the repo do you want to load?
-						<input
-							type="text"
-							value={repoPath}
-							onChange={(e) => setRepoPath(e.target.value)}
-						/>
-						<ul>
-							<li>We've guessed this for you ^</li>
-						</ul>
-					</div>
-					<div
-						className={`${forms.formGroup} ${forms.formGroupLast}`}
-					>
-						What is it?
-						<select
-							value={contentType as string}
-							onChange={(e) =>
-								setContentType(e.target.value as ContentType)
-							}
-						>
-							<option value="theme">Theme</option>
-							<option value="plugin">Plugin</option>
-							<option value="wp-content">
-								wp-content directory
-							</option>
-						</select>
-						We've guessed this for you ^
-					</div>
-				</>
-			) : null}
+			<GitHubFormDetails
+				contentType={contentType}
+				setContentType={setContentType}
+				repoPath={repoPath}
+				setRepoPath={setRepoPath}
+				url={url}
+				isLoading={isLoading}
+				urlType={urlType}
+			/>
 			{urlType !== 'unknown' ? (
 				<div className={forms.submitRow}>
 					<Button
 						className={forms.btn}
-						disabled={!url}
+						disabled={!url || isLoading || isImporting}
 						variant="primary"
 						size="large"
 					>
-						Import
+						{isImporting ? (
+							<>
+								<Spinner size={20} />
+								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+							</>
+						) : (
+							'Import'
+						)}
 					</Button>
 				</div>
 			) : null}

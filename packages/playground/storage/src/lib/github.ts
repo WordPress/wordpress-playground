@@ -32,12 +32,21 @@ export function filesListToObject(files: any[], root = '') {
 	return result;
 }
 
+export interface GetFilesProgress {
+	foundFiles: number;
+	downloadedFiles: number;
+}
 export async function getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
 	ref: string,
-	path: string
+	path: string,
+	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void,
+	progress: GetFilesProgress = {
+		foundFiles: 0,
+		downloadedFiles: 0,
+	}
 ) {
 	const filePromises: Promise<any>[] = [];
 	const directoryPromises: Promise<any>[] = [];
@@ -57,10 +66,26 @@ export async function getFilesFromDirectory(
 
 	for (const item of content) {
 		if (item.type === 'file') {
-			filePromises.push(getFileContent(octokit, owner, repo, ref, item));
+			++progress.foundFiles;
+			onProgress?.(progress);
+			filePromises.push(
+				getFileContent(octokit, owner, repo, ref, item).then((file) => {
+					++progress.downloadedFiles;
+					onProgress?.(progress);
+					return file;
+				})
+			);
 		} else if (item.type === 'dir') {
 			directoryPromises.push(
-				getFilesFromDirectory(octokit, owner, repo, ref, item.path)
+				getFilesFromDirectory(
+					octokit,
+					owner,
+					repo,
+					ref,
+					item.path,
+					onProgress,
+					progress
+				)
 			);
 		}
 	}

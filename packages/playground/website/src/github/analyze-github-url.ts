@@ -1,7 +1,7 @@
 export interface GitHubPointer {
 	owner: string;
 	repo: string;
-	type: 'pr' | 'branch' | 'zip' | 'unknown';
+	type: 'pr' | 'repo' | 'branch' | 'rawfile' | 'unknown';
 	ref: string | 'unknown';
 	path: string;
 	pr?: number;
@@ -9,14 +9,15 @@ export interface GitHubPointer {
 
 export function analyzeGitHubURL(url: string): GitHubPointer {
 	const urlObj = new URL(url);
-	const [owner, repo, ...rest] = urlObj.pathname.substring(1).split('/');
+	const [owner, repo, ...rest] = urlObj.pathname.replace(/^\/+|\/+$/g, '').split('/');
 
 	let pr,
 		ref = 'unknown',
 		type: GitHubPointer['type'] = 'unknown',
-		path = '/';
+		path = '';
 	if (urlObj.hostname === 'raw.githubusercontent.com') {
-		type = 'zip';
+		type = 'rawfile';
+		path = urlObj.pathname.substring(1);
 	} else if (rest[0] === 'pull') {
 		type = 'pr';
 		pr = parseInt(rest[1]);
@@ -29,6 +30,8 @@ export function analyzeGitHubURL(url: string): GitHubPointer {
 		type = 'branch';
 		ref = rest[1];
 		path = rest.slice(2).join('/');
+	} else if (rest.length === 0) {
+		type = 'repo';
 	}
 
 	return { owner, repo, type, ref, path, pr };

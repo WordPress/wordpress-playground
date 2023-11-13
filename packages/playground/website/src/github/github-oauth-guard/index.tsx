@@ -1,7 +1,5 @@
-import { cloneElement, useEffect } from 'react';
-
-export const TOKEN_KEY = 'github-token';
-export const oauthToken = localStorage.getItem(TOKEN_KEY);
+import { useEffect } from 'react';
+import { getOAuthToken, setOAuthToken } from '../token';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
@@ -17,7 +15,7 @@ export default function GitHubOAuthGuard({
 	AuthRequest,
 }: GitHubOAuthGuardProps) {
 	useEffect(() => {
-		async function getOAuthToken() {
+		async function acquireOAuthToken() {
 			// OAUTH FLOW {{{
 			// If there is a code in the URL, store it in localStorage
 			if (oauthCode) {
@@ -31,14 +29,14 @@ export default function GitHubOAuthGuard({
 					},
 				});
 				const body = await response.json();
-				localStorage.setItem(TOKEN_KEY, body.access_token);
+				setOAuthToken(body.access_token);
 				// Redirect to the same page but without "code" in the URL
 				const url = new URL(window.location.href);
 				url.searchParams.delete('code');
 				(window as any).location = url;
 			}
 		}
-		getOAuthToken();
+		acquireOAuthToken();
 		// }}} /OAUTH FLOW
 	}, []);
 
@@ -46,7 +44,7 @@ export default function GitHubOAuthGuard({
 		return <div>Loading...</div>;
 	}
 
-	if (oauthToken) {
+	if (getOAuthToken()) {
 		return <div>{children}</div>;
 	}
 
