@@ -13,8 +13,7 @@ export const VFS_TMP_DIRECTORY = '/vfs-blueprints';
  * 		"step": "defineWpConfigConsts",
  * 		"consts": {
  *          "WP_DEBUG": true
- *      },
- *      "virtualize": true
+ *      }
  * }
  * </code>
  */
@@ -23,39 +22,34 @@ export interface DefineWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 	/**
-	 * Enables the virtualization of wp-config.php and playground-consts.json files, leaving the local system files untouched.
-	 * The variables defined in the /vfs-blueprints/playground-consts.json file are loaded via the auto_prepend_file directive in the php.ini file.
-	 * @default false
-	 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+	 * @deprecated This option is noop and will be removed in a future version.
+	 * This option is only kept in here to avoid breaking Blueprint schema validation
+	 * for existing apps using this option.
 	 */
 	virtualize?: boolean;
 }
 
 /**
- * Defines the wp-config.php constants
+ * Defines constants to be used in wp-config.php file.
+ *
+ * Technically, this creates a wp-consts.php file in an in-memory
+ * /vfs-blueprints directory and sets the auto_prepend_file PHP option
+ * to always load that file.
+ * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+ *
+ * This step can be called multiple times, and the constants will be merged.
  *
  * @param playground The playground client.
  * @param wpConfigConst
  */
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
-> = async (playground, { consts, virtualize = false }) => {
-	const documentRoot = await playground.documentRoot;
-	const basePath = virtualize ? VFS_TMP_DIRECTORY : documentRoot;
-	const jsonPath = `${basePath}/playground-consts.json`;
-	const configFilePath = `${basePath}/wp-config.php`;
-	if (virtualize) {
-		playground.mkdir(VFS_TMP_DIRECTORY);
-		playground.setPhpIniEntry('auto_prepend_file', configFilePath);
-	}
-	await updateFile(playground, jsonPath, (contents) =>
-		JSON.stringify({
-			...JSON.parse(contents || '{}'),
-			...consts,
-		})
-	);
-	await updateFile(playground, configFilePath, (contents) => {
-		if (!contents.includes('playground-consts.json')) {
+> = async (playground, { consts }) => {
+	await playground.mkdir(VFS_TMP_DIRECTORY);
+	const phpConstsFilePath = `${VFS_TMP_DIRECTORY}/wp-consts.php`;
+	const jsonPath = `${VFS_TMP_DIRECTORY}/playground-consts.json`;
+	await updateFile(playground, phpConstsFilePath, (contents) => {
+		if (!contents.includes(jsonPath)) {
 			return `<?php
 	$consts = json_decode(file_get_contents('${jsonPath}'), true);
 	foreach ($consts as $const => $value) {
@@ -67,5 +61,13 @@ export const defineWpConfigConsts: StepHandler<
 		}
 		return contents;
 	});
-	return configFilePath;
+	await updateFile(playground, jsonPath, (contents) =>
+		JSON.stringify({
+			...JSON.parse(contents || '{}'),
+			...consts,
+		})
+	);
+
+	await playground.setPhpIniEntry('auto_prepend_file', phpConstsFilePath);
+	return phpConstsFilePath;
 };
