@@ -86,8 +86,7 @@ if (currentConfiguration.wp === '6.3') {
 		step: 'defineWpConfigConsts',
 		consts: {
 			WP_DEVELOPMENT_MODE: 'all',
-		},
-		virtualize: true,
+		}
 	});
 }
 

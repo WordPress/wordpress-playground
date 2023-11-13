@@ -51,7 +51,6 @@ describe('Blueprints', () => {
 		// Step1: define the constants
 		const configFile = await defineWpConfigConsts(php, {
 			consts,
-			virtualize: true,
 		});
 		expect(configFile.startsWith(VFS_TMP_DIRECTORY)).toBe(true);
 		expect(

@@ -99,8 +99,7 @@ class WordPressPatcher {
 			consts: {
 				WP_HOME: this.scopedSiteUrl,
 				WP_SITEURL: this.scopedSiteUrl,
-			},
-			virtualize: true,
+			}
 		});
 	}
 
@@ -152,6 +151,7 @@ class WordPressPatcher {
 
 	async prepareForRunningInsideWebBrowser() {
 		// Various tweaks
+		await this.php.mkdir(`${this.wordpressPath}/wp-content/mu-plugins`);
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
 			showAdminCredentialsOnWpLogin
