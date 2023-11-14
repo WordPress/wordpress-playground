@@ -7,9 +7,24 @@ export interface GitHubPointer {
 	pr?: number;
 }
 
+const invalidPointer: GitHubPointer = {
+	owner: '',
+	repo: '',
+	type: 'unknown',
+	ref: 'unknown',
+	path: '',
+	pr: undefined,
+};
 export function analyzeGitHubURL(url: string): GitHubPointer {
-	const urlObj = new URL(url);
-	const [owner, repo, ...rest] = urlObj.pathname.replace(/^\/+|\/+$/g, '').split('/');
+	let urlObj;
+	try {
+		urlObj = new URL(url);
+	} catch (e) {
+		return invalidPointer;
+	}
+	const [owner, repo, ...rest] = urlObj.pathname
+		.replace(/^\/+|\/+$/g, '')
+		.split('/');
 
 	let pr,
 		ref = 'unknown',

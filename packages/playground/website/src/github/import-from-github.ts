@@ -74,6 +74,7 @@ export async function importWpContent(php: UniversalPHP, files: Files) {
 		'wp-content/db.php',
 		'wp-config.php',
 	];
+	// Backup the required Playground PHP files
 	for (const restorePath of restorePaths) {
 		const parentPath = restorePath.split('/').slice(0, -1).join('/');
 		await php.mkdir(`/tmp/${parentPath}`);

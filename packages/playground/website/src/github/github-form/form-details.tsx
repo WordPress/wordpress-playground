@@ -1,12 +1,9 @@
-import { Spinner } from '../../components/spinner';
 import forms from '../../forms.module.css';
 import { GitHubPointer } from '../analyze-github-url';
 
 export type ContentType = 'theme' | 'plugin' | 'wp-content';
 
 export interface DetailsProps {
-	isLoading: boolean;
-	url: string;
 	urlType?: GitHubPointer['type'];
 	repoPath: string;
 	setRepoPath: (path: string) => void;
@@ -15,25 +12,13 @@ export interface DetailsProps {
 }
 
 export function GitHubFormDetails({
-	isLoading,
-	url,
 	urlType,
 	repoPath,
 	setRepoPath,
 	contentType,
 	setContentType,
 }: DetailsProps) {
-	if (!url) {
-		return <div />;
-	}
-	if (isLoading) {
-		return (
-			<div>
-				<Spinner />
-				Analyzing the URL
-			</div>
-		);
-	}
+	console.log('urlType', urlType, contentType);
 	if (['pr', 'branch', 'repo'].includes(urlType as any)) {
 		return (
 			<>
@@ -54,6 +39,7 @@ export function GitHubFormDetails({
 							setContentType(e.target.value as ContentType)
 						}
 					>
+						<option value=""></option>
 						<option value="theme">Theme</option>
 						<option value="plugin">Plugin</option>
 						<option value="wp-content">wp-content directory</option>

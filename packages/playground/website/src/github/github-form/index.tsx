@@ -15,6 +15,7 @@ import { getOAuthToken } from '../token';
 import { GitHubFormDetails } from './form-details';
 import { ContentType, importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
+import { normalizePath } from '@php-wasm/util';
 
 interface GitHubFormProps {
 	playground: PlaygroundClient;
@@ -33,7 +34,7 @@ export default function GitHubForm({
 	const [url, setUrl] = useState<string>('');
 	const [urlType, setUrlType] = useState<GitHubPointer['type'] | undefined>();
 	const [contentType, setContentType] = useState<ContentType | undefined>();
-	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isImporting, setIsImporting] = useState<boolean>(false);
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
@@ -41,63 +42,10 @@ export default function GitHubForm({
 	});
 	const [repoPath, setRepoPath] = useState<string>('');
 	const [repoBranch, setRepoBranch] = useState<string>('');
-	const [pristine, setPristine] = useState<boolean>(true);
+	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(false);
 	function handleChangeUrl(e: React.ChangeEvent<HTMLInputElement>) {
-		const newUrl = e.target.value;
-		setUrl(newUrl);
-
-		console.log({ pristine });
-		if (!pristine) {
-			// return;
-		}
-
-		const seemsLikeAProperURL =
-			newUrl.startsWith('https://') || newUrl.startsWith('github.com');
-		if (!seemsLikeAProperURL) {
-			return;
-		}
-
-		setPristine(false);
-
-		// Make guesses about the repo
-		// PR or repo URL?
-		const details = analyzeGitHubURL(newUrl);
-		setUrlType(details.type);
-		setRepoPath('/' + details.path.replace(/^\//, ''));
-
-		async function loadRest() {
-			setIsLoading(true);
-			// Get default branch from the repo
-			const repo = await octokit.rest.repos.get({
-				owner: details.owner,
-				repo: details.repo,
-			});
-			setRepoBranch(repo.data.default_branch);
-
-			const { data: files } = await octokit.rest.repos.getContent({
-				owner: details.owner,
-				repo: details.repo,
-				path: details.path,
-				ref: repo.data.default_branch,
-			});
-			if (Array.isArray(files)) {
-				for (const { name } of files) {
-					if (name === 'theme.json') {
-						setContentType('theme');
-					} else if (
-						['plugins', 'themes', 'mu-plugins'].includes(name)
-					) {
-						setContentType('wp-content');
-					} else if (name.endsWith('.php')) {
-						setContentType('plugin');
-					}
-				}
-			}
-
-			setIsLoading(false);
-			console.log({ repo, files });
-		}
-		loadRest();
+		setUrl(e.target.value.trim());
+		setURLNeedsAnalyzing(true);
 	}
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -105,6 +53,55 @@ export default function GitHubForm({
 		if (!url) {
 			return;
 		}
+		if (URLNeedsAnalyzing) {
+			analyzeUrl();
+			return;
+		}
+		await importUrl();
+	}
+
+	async function analyzeUrl() {
+		setUrlType(undefined);
+		setURLNeedsAnalyzing(false);
+
+		const details = analyzeGitHubURL(url);
+		setUrlType(details.type);
+		if (details.type === 'unknown') {
+			return;
+		}
+
+		setRepoPath(normalizePath('/' + details.path));
+
+		setIsAnalyzing(true);
+		// Get default branch from the repo
+		const repo = await octokit.rest.repos.get({
+			owner: details.owner,
+			repo: details.repo,
+		});
+		setRepoBranch(repo.data.default_branch);
+
+		const { data: files } = await octokit.rest.repos.getContent({
+			owner: details.owner,
+			repo: details.repo,
+			path: details.path,
+			ref: repo.data.default_branch,
+		});
+		if (Array.isArray(files)) {
+			for (const { name } of files) {
+				if (name === 'theme.json') {
+					setContentType('theme');
+				} else if (['plugins', 'themes', 'mu-plugins'].includes(name)) {
+					setContentType('wp-content');
+				} else if (name.endsWith('.php')) {
+					setContentType('plugin');
+				}
+			}
+		}
+
+		setIsAnalyzing(false);
+	}
+
+	async function importUrl() {
 		setIsImporting(true);
 		const { owner, repo } = analyzeGitHubURL(url);
 
@@ -118,7 +115,6 @@ export default function GitHubForm({
 			relativeRepoPath,
 			(progress) => setImportProgress({ ...progress })
 		);
-		console.log(ghFiles);
 		await importFromGitHub(
 			playground,
 			ghFiles,
@@ -149,24 +145,31 @@ export default function GitHubForm({
 					autoFocus
 				/>
 			</div>
-			<GitHubFormDetails
-				contentType={contentType}
-				setContentType={setContentType}
-				repoPath={repoPath}
-				setRepoPath={setRepoPath}
-				url={url}
-				isLoading={isLoading}
-				urlType={urlType}
-			/>
+			{url && !URLNeedsAnalyzing && !isAnalyzing ? (
+				<GitHubFormDetails
+					contentType={contentType}
+					setContentType={setContentType}
+					repoPath={repoPath}
+					setRepoPath={setRepoPath}
+					urlType={urlType}
+				/>
+			) : (
+				false
+			)}
 			{urlType !== 'unknown' ? (
 				<div className={forms.submitRow}>
 					<Button
 						className={forms.btn}
-						disabled={!url || isLoading || isImporting}
+						disabled={!url || isAnalyzing || isImporting}
 						variant="primary"
 						size="large"
 					>
-						{isImporting ? (
+						{isAnalyzing ? (
+							<>
+								<Spinner size={20} />
+								Analyzing the URL...
+							</>
+						) : isImporting ? (
 							<>
 								<Spinner size={20} />
 								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
@@ -176,7 +179,9 @@ export default function GitHubForm({
 						)}
 					</Button>
 				</div>
-			) : null}
+			) : (
+				<div>Unknown URL type</div>
+			)}
 		</form>
 	);
 }
