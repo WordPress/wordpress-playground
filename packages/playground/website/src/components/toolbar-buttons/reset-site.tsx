@@ -16,7 +16,7 @@ export function ResetSiteMenuItem({ onClose, storage }: Props) {
 		<MenuItem
 			icon={trash}
 			iconPosition="left"
-            aria-label="Resets the current playground site and starts a new one."
+			aria-label="Resets the current playground site and starts a new one."
 			onClick={async () => {
 				if (
 					!window.confirm(
