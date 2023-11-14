@@ -118,7 +118,10 @@ root.render(
 			>
 				{({ onClose }) => (
 					<MenuGroup>
-						<ResetSiteMenuItem storage={ currentConfiguration.storage } onClose={onClose} />
+						<ResetSiteMenuItem
+							storage={currentConfiguration.storage}
+							onClose={onClose}
+						/>
 						<DownloadAsZipMenuItem onClose={onClose} />
 						<RestoreFromZipMenuItem onClose={onClose} />
 					</MenuGroup>

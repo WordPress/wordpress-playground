@@ -9,13 +9,13 @@ import { usePlaygroundContext } from '../playground-viewport/context';
 type Props = { onClose: () => void };
 export function RestoreFromZipMenuItem({ onClose }: Props) {
 	const [isOpen, setOpen] = useState(false);
-    const openModal = () => {
-        setOpen(true);
-    }
-    const closeModal = () => {
-        setOpen(false);
-        onClose();
-    }
+	const openModal = () => {
+		setOpen(true);
+	};
+	const closeModal = () => {
+		setOpen(false);
+		onClose();
+	};
 	const { playground } = usePlaygroundContext();
 	function handleImported() {
 		// eslint-disable-next-line no-alert
@@ -36,8 +36,8 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 				id="import-open-modal--btn"
 				aria-label="Download the current playground as a .zip file"
 				onClick={openModal}
-            >
-                Restore from .zip
+			>
+				Restore from .zip
 			</MenuItem>
 
 			<Modal

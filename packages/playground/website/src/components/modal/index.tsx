@@ -25,7 +25,7 @@ export const defaultStyles: ReactModal.Styles = {
 	},
 	overlay: {
 		background: '#1e2327d0',
-		zIndex: 10
+		zIndex: 10,
 	},
 };
 export default function Modal(props: ModalProps) {
