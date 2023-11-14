@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import css from './style.module.css';
+import { MenuItem } from '@wordpress/components';
+import { upload } from '@wordpress/icons';
+
 import ImportForm from '../import-form';
 import Modal from '../modal';
 import { usePlaygroundContext } from '../playground-viewport/context';
 
-export default function ImportButton() {
+type Props = { onClose: () => void };
+export function RestoreFromZipMenuItem({ onClose }: Props) {
 	const [isOpen, setOpen] = useState(false);
-	const openModal = () => setOpen(true);
-	const closeModal = () => setOpen(false);
+    const openModal = () => {
+        setOpen(true);
+    }
+    const closeModal = () => {
+        setOpen(false);
+        onClose();
+    }
 	const { playground } = usePlaygroundContext();
 	function handleImported() {
 		// eslint-disable-next-line no-alert
@@ -22,26 +30,15 @@ export default function ImportButton() {
 	}
 	return (
 		<>
-			<button
+			<MenuItem
+				icon={upload}
+				iconPosition="left"
 				id="import-open-modal--btn"
-				className={css.btn}
-				aria-label="Open Playground import window"
+				aria-label="Download the current playground as a .zip file"
 				onClick={openModal}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 24 24"
-					width="28"
-					height="28"
-					aria-hidden="true"
-					focusable="false"
-				>
-					<path
-						fill="#ffffff"
-						d="M18.5 15v3.5H13V6.7l4.5 4.1 1-1.1-6.2-5.8-5.8 5.8 1 1.1 4-4v11.7h-6V15H4v5h16v-5z"
-					></path>
-				</svg>
-			</button>
+            >
+                Restore from .zip
+			</MenuItem>
 
 			<Modal
 				isOpen={isOpen}
