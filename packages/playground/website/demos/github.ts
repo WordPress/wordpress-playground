@@ -10,7 +10,7 @@ import { login, startPlaygroundWeb } from '@wp-playground/client';
 
 // Boot Playground
 const client = await startPlaygroundWeb({
-	iframe: document.getElementById('wp')!,
+	iframe: document.getElementById('wp')! as any,
 	remoteUrl: `https://playground.wordpress.net/remote.html`,
 });
 await client.isReady();
@@ -80,6 +80,6 @@ async function getThemesFilesFromPR(
 			theme
 		);
 		allThemes[theme] = filesListToObject(files, theme);
-    }
+	}
 	return allThemes;
 }
