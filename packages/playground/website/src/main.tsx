@@ -15,7 +15,8 @@ import { StorageType, StorageTypes } from './types';
 import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
-import { ImportFromGitHubMenuItem } from './components/toolbar-buttons/import-from-github';
+import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
+import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -97,6 +98,8 @@ if (currentConfiguration.wp === '6.3') {
 	});
 }
 
+acquireOAuthTokenIfNeeded();
+
 const root = createRoot(document.getElementById('root')!);
 root.render(
 	<PlaygroundViewport
@@ -114,7 +117,7 @@ root.render(
 				label="Additional actions"
 				className={css.dropdownMenu}
 				toggleProps={{
-					className: buttonCss.button,
+					className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
 				}}
 			>
 				{({ onClose }) => (
@@ -125,7 +128,7 @@ root.render(
 						/>
 						<DownloadAsZipMenuItem onClose={onClose} />
 						<RestoreFromZipMenuItem onClose={onClose} />
-						<ImportFromGitHubMenuItem onClose={onClose} />
+						<GithubImportMenuItem onClose={onClose} />
 					</MenuGroup>
 				)}
 			</DropdownMenu>,

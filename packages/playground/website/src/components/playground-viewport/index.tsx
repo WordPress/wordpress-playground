@@ -7,6 +7,7 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
+import { GithubImportModal } from '../../github/github-import-modal';
 
 interface PlaygroundViewportProps {
 	storage?: StorageType;
@@ -45,6 +46,7 @@ export default function PlaygroundViewport({
 					<JustViewport iframeRef={iframeRef} />
 				</BrowserChrome>
 			)}
+			<GithubImportModal />
 		</PlaygroundContext.Provider>
 	);
 }

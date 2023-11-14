@@ -10,3 +10,50 @@
 .modal-text-list {
 	padding-left: 15px;
 }
+
+.github-button {
+	padding: 10px 20px;
+	background-color: #000;
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	text-decoration: none;
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
+}
+
+.github-button:hover {
+	background-color: #24292e;
+}
+
+.repo-input {
+	width: 100%;
+	font-size: 18px;
+	padding: 5px;
+	margin-top: 5px;
+}
+
+.notice {
+	margin: 20px 0 !important;
+}
+
+.examples-dl {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+}
+
+.examples-dl dt {
+	font-weight: 500;
+	margin-bottom: 2px;
+}
+
+.examples-dl dd {
+	margin-bottom: 10px;
+}
