@@ -11,8 +11,12 @@ export const oAuthState = signal<GitHubOAuthState>({
 	isAuthorizing: false,
 });
 
-export function setOAuthToken(token: string) {
-	localStorage.setItem(TOKEN_KEY, token);
+export function setOAuthToken(token?: string) {
+	if (typeof token === 'string') {
+		localStorage.setItem(TOKEN_KEY, token);
+	} else {
+		localStorage.removeItem(TOKEN_KEY);
+	}
 	oAuthState.value = {
 		...oAuthState.value,
 		token,

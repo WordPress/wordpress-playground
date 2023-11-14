@@ -12,7 +12,7 @@ import {
 	createClient,
 	getFilesFromDirectory,
 } from '@wp-playground/storage';
-import { oAuthState } from '../token';
+import { oAuthState, setOAuthToken } from '../token';
 import { GitHubFormDetails } from './form-details';
 import { ContentType, importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
@@ -117,10 +117,7 @@ export default function GitHubForm({
 		} catch (e: any) {
 			// Handle the "Bad Credentials" error
 			if (e && e.status && e.status === 401) {
-				oAuthState.value = {
-					...oAuthState.value,
-					token: undefined,
-				};
+				setOAuthToken(undefined);
 			}
 		} finally {
 			setIsAnalyzing(false);

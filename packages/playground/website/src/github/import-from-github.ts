@@ -17,10 +17,6 @@ export async function importFromGitHub(
 ) {
 	repoPath = repoPath.replace(/^\//, '');
 	const playgroundFiles = filesListToObject(gitHubFiles, repoPath);
-	console.log({
-		playgroundFiles,
-		repoPath,
-	});
 	if (contentType === 'theme') {
 		const themeName = repoPath.split('/').pop() || repo;
 		await importTheme(php, themeName, playgroundFiles);
@@ -53,12 +49,6 @@ export async function importTheme(
 		php,
 		`/wordpress/wp-content/themes/${themeName}`,
 		files
-	);
-	console.log({ themeName });
-	console.log(files);
-	console.log(await php.listFiles(`/wordpress/wp-content/themes/`));
-	console.log(
-		await php.listFiles(`/wordpress/wp-content/themes/${themeName}`)
 	);
 	await activateTheme(php, {
 		themeFolderName: themeName,
