@@ -1,6 +1,6 @@
-import { setOAuthToken, oAuthState } from './token';
+import { setOAuthToken, oAuthState } from './state';
 import { oauthCode } from './github-oauth-guard';
-import { isGitHubModalOpen } from './github-import-modal';
+import { isGitHubModalOpen } from './github-import-form/modal';
 
 export async function acquireOAuthTokenIfNeeded() {
 	if (!oauthCode) {

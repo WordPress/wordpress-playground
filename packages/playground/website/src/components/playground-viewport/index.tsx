@@ -7,7 +7,7 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
-import { GithubImportModal } from '../../github/github-import-modal';
+import { GithubImportModal } from '../../github/github-import-form/modal';
 
 interface PlaygroundViewportProps {
 	storage?: StorageType;

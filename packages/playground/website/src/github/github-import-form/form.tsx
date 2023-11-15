@@ -12,7 +12,7 @@ import {
 	createClient,
 	getFilesFromDirectory,
 } from '@wp-playground/storage';
-import { oAuthState, setOAuthToken } from '../token';
+import { oAuthState, setOAuthToken } from '../state';
 import { GitHubFormDetails } from './form-details';
 import { ContentType, importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';

@@ -1,6 +1,6 @@
 import { MenuItem } from '@wordpress/components';
 import { cloud } from '@wordpress/icons';
-import { isGitHubModalOpen } from '../../github/github-import-modal';
+import { isGitHubModalOpen } from '../../github/github-import-form/modal';
 
 interface Props {
 	onClose: () => void;

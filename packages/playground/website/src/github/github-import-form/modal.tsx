@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals-react';
 import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import Modal, { defaultStyles } from '../../components/modal';
-import GitHubForm from '../github-form';
+import GitHubForm from './form';
 
 export const isGitHubModalOpen = signal(false);
 

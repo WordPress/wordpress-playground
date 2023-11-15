@@ -1,5 +1,5 @@
 import { Spinner } from '@wordpress/components';
-import { oAuthState } from '../token';
+import { oAuthState } from '../state';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
