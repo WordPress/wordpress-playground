@@ -34,7 +34,7 @@ export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 	{ path },
 	progress?
 ) => {
-	progress?.tracker.setCaption(`Executing SQL`);
+	progress?.tracker.setCaption(`Executing SQL File`);
 
 	const runPhp = await playground.run({
 		code: `<?php
