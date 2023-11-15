@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Icon, Notice, Button as WPButton } from '@wordpress/components';
 import { PlaygroundClient } from '@wp-playground/client';
 
@@ -13,16 +13,16 @@ import {
 	getFilesFromDirectory,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { GitHubFormDetails } from './form-details';
 import { ContentType, importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
-import { normalizePath } from '@php-wasm/util';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { GitHubIcon } from './github';
+import { normalizePath } from '@php-wasm/util';
+import { signal } from '@preact/signals-react';
 
 interface GitHubFormProps {
 	playground: PlaygroundClient;
-	onImported: () => void;
+	onImported: (pointer: GitHubPointer) => void;
 	onClose: () => void;
 }
 
@@ -34,102 +34,81 @@ function getClient() {
 	return octokitClient;
 }
 
+const url = signal('');
+const errors = signal<Record<string, string>>({});
+const pointer = signal<GitHubPointer | undefined>(undefined);
+
 export default function GitHubForm({
 	playground,
 	onImported,
-	onClose,
 }: GitHubFormProps) {
-	const form = useRef<any>();
-	const [error] = useState<string>('');
-	const [url, setUrl] = useState<string>('');
-	const [urlType, setUrlType] = useState<GitHubPointer['type'] | undefined>();
-	const [contentType, setContentType] = useState<ContentType | undefined>();
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isImporting, setIsImporting] = useState<boolean>(false);
-	const [urlDetails, setURLDetails] = useState<GitHubPointer>();
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
 	});
-	const [repoPath, setRepoPath] = useState<string>('');
-	const [repoBranch, setRepoBranch] = useState<string>('');
 	const [showExample, setShowExample] = useState<boolean>(false);
 	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(false);
-	function handleChangeUrl(e: React.ChangeEvent<HTMLInputElement>) {
-		setUrl(e.target.value.trim());
-		setURLNeedsAnalyzing(true);
-	}
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		if (!url) {
+		url.value = url.value.trim();
+		errors.value = {};
+		if (!url.value) {
+			errors.value = {
+				url: 'Please enter a URL',
+			};
 			return;
 		}
 		if (URLNeedsAnalyzing) {
-			analyzeUrl();
+			await analyzeUrl();
+			if (pointer.value?.type === 'unknown') {
+				errors.value = {
+					url: 'This URL is not supported',
+				};
+			}
+			return;
+		}
+		if (!pointer.value?.contentType) {
+			errors.value = {
+				contentType: 'Please select what you want to import',
+			};
 			return;
 		}
 		await importUrl();
 	}
 
 	async function analyzeUrl() {
-		setUrlType(undefined);
 		setURLNeedsAnalyzing(false);
-
-		const details = analyzeGitHubURL(url);
-		setURLDetails(details);
-		setUrlType(details.type);
-		if (details.type === 'unknown') {
-			return;
-		}
-
-		setRepoPath(normalizePath('/' + details.path));
+		pointer.value = undefined;
 
 		setIsAnalyzing(true);
-		const octokit = getClient();
 		try {
-			// Get the requested branch name
-			let branch: string;
-			if (details.type === 'pr') {
-				const { data: pr } = await octokit.rest.pulls.get({
-					owner: details.owner,
-					repo: details.repo,
-					pull_number: details.pr,
-				});
-				branch = pr.head.ref;
-			} else {
-				const repo = await octokit.rest.repos.get({
-					owner: details.owner,
-					repo: details.repo,
-				});
-				branch = repo.data.default_branch;
+			const octokit = getClient();
+			pointer.value = await analyzeGitHubURL(octokit, url.value);
+			if (pointer.value.type === 'unknown') {
+				return;
 			}
-			setRepoBranch(branch);
 
-			const { data: files } = await octokit.rest.repos.getContent({
-				owner: details.owner,
-				repo: details.repo,
-				path: details.path,
-				ref: branch,
-			});
-			if (Array.isArray(files)) {
-				for (const { name } of files) {
-					if (name === 'theme.json') {
-						setContentType('theme');
-					} else if (
-						['plugins', 'themes', 'mu-plugins'].includes(name)
-					) {
-						setContentType('wp-content');
-					} else if (name.endsWith('.php')) {
-						setContentType('plugin');
-					}
+			return pointer;
+		} catch (e: any) {
+			console.error(e);
+			// Handle the "Bad Credentials" error
+			if (e && e.status) {
+				switch (e.status) {
+					case 401:
+						setOAuthToken(undefined);
+						return;
+					case 404:
+						errors.value = {
+							url: "This repo (or the resource in it) doesn't exist",
+						};
+						return;
 				}
 			}
-		} catch (e: any) {
-			// Handle the "Bad Credentials" error
-			if (e && e.status && e.status === 401) {
-				setOAuthToken(undefined);
-			}
+			errors.value = { url: e.message };
+			throw e;
 		} finally {
 			setIsAnalyzing(false);
 		}
@@ -137,37 +116,43 @@ export default function GitHubForm({
 
 	async function importUrl() {
 		setIsImporting(true);
-		const octokit = getClient();
-		const { owner, repo } = analyzeGitHubURL(url);
-
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
-		const relativeRepoPath = repoPath.replace(/^\//g, '');
-		const ghFiles = await getFilesFromDirectory(
-			octokit,
-			owner,
-			repo,
-			repoBranch,
-			relativeRepoPath,
-			(progress) => setImportProgress({ ...progress })
-		);
-		await importFromGitHub(
-			playground,
-			ghFiles,
-			contentType!,
-			repo,
-			relativeRepoPath
-		);
-		setIsImporting(false);
-		onImported();
+		try {
+			const octokit = getClient();
+
+			const immutablePointer = pointer.value!;
+
+			const relativeRepoPath = immutablePointer.path.replace(/^\//g, '');
+			const ghFiles = await getFilesFromDirectory(
+				octokit,
+				immutablePointer.owner,
+				immutablePointer.repo,
+				immutablePointer.ref,
+				relativeRepoPath,
+				(progress) => setImportProgress({ ...progress })
+			);
+			await importFromGitHub(
+				playground,
+				ghFiles,
+				immutablePointer.contentType!,
+				immutablePointer.repo,
+				relativeRepoPath
+			);
+			setIsImporting(false);
+			onImported(immutablePointer);
+		} catch (e) {
+			let eMessage = (e as any)?.message;
+			eMessage = eMessage ? `(${eMessage})` : '';
+			errors.value = {
+				url: `There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`,
+			};
+			throw e;
+		}
 	}
 
 	return (
 		<GitHubOAuthGuard AuthRequest={Authenticate}>
-			<form
-				id="import-playground-form"
-				ref={form}
-				onSubmit={handleSubmit}
-			>
+			<form id="import-playground-form" onSubmit={handleSubmit}>
 				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
 					Import from GitHub
 				</h2>
@@ -176,19 +161,26 @@ export default function GitHubForm({
 					wp-content directories from any public GitHub repository.
 				</p>
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
-					{error ? <div className={forms.error}>{error}</div> : null}
 					<label>
 						{' '}
 						I want to import from this GitHub URL:
 						<input
 							type="text"
-							value={url}
+							value={url.value}
 							className={css.repoInput}
-							onChange={handleChangeUrl}
+							onChange={(
+								e: React.ChangeEvent<HTMLInputElement>
+							) => {
+								url.value = e.target.value;
+								setURLNeedsAnalyzing(true);
+							}}
 							placeholder="https://github.com/my-org/my-repo/..."
 							autoFocus
 						/>
 					</label>
+					{'url' in errors.value ? (
+						<div className={forms.error}>{errors.value.url}</div>
+					) : null}
 					<WPButton
 						variant="link"
 						style={{ marginTop: 5 }}
@@ -218,74 +210,138 @@ export default function GitHubForm({
 				) : (
 					false
 				)}
-				{url && !URLNeedsAnalyzing && !isAnalyzing ? (
+				{pointer.value && !URLNeedsAnalyzing && !isAnalyzing ? (
 					<>
-						{urlDetails ? (
+						{pointer.value ? (
 							<div>
 								<h3>
-									{urlType === 'pr' ? (
+									{pointer.value.type === 'pr' ? (
 										<>
 											Importing from Pull Request #
-											{urlDetails.pr} to{' '}
-											{urlDetails.owner}/{urlDetails.repo}
+											{pointer.value.pr} at{' '}
+											{pointer.value.owner}/
+											{pointer.value.repo}
 										</>
-									) : urlType === 'branch' ? (
+									) : pointer.value.type === 'branch' ? (
 										<>
 											Importing from branch{' '}
-											{urlDetails.ref} at{' '}
-											{urlDetails.owner}/{urlDetails.repo}
+											{pointer.value.ref} at{' '}
+											{pointer.value.owner}/
+											{pointer.value.repo}
 										</>
-									) : urlType === 'repo' ? (
+									) : pointer.value.type === 'repo' ? (
 										<>
 											Importing from the{' '}
-											{urlDetails.owner}/{urlDetails.repo}{' '}
-											repository
+											{pointer.value.owner}/
+											{pointer.value.repo} repository
 										</>
 									) : (
-										<>Playground doesn't support this URL</>
+										false
 									)}
 								</h3>
 							</div>
 						) : (
 							false
 						)}
-						<GitHubFormDetails
-							contentType={contentType}
-							setContentType={setContentType}
-							repoPath={repoPath}
-							setRepoPath={setRepoPath}
-							urlType={urlType}
-						/>
+						{['pr', 'branch', 'repo'].includes(
+							pointer.value.type as any
+						) ? (
+							<>
+								<div
+									className={`${forms.formGroup} ${forms.formGroupLast}`}
+								>
+									<label>
+										I am importing a:
+										<select
+											value={
+												pointer.value
+													.contentType as string
+											}
+											className={css.repoInput}
+											onChange={(e) => {
+												pointer.value = {
+													...pointer.value!,
+													contentType: e.target
+														.value as ContentType,
+												};
+											}}
+										>
+											<option value="">
+												-- Select an option --
+											</option>
+											<option value="theme">Theme</option>
+											<option value="plugin">
+												Plugin
+											</option>
+											<option value="wp-content">
+												wp-content directory
+											</option>
+										</select>
+									</label>
+									{'contentType' in errors.value ? (
+										<div className={forms.error}>
+											{errors.value.contentType}
+										</div>
+									) : null}
+								</div>
+								<div
+									className={`${forms.formGroup} ${forms.formGroupLast}`}
+								>
+									<label>
+										From the following path in the repo:
+										<input
+											type="text"
+											className={css.repoInput}
+											value={normalizePath(
+												'/' + pointer.value.path
+											)}
+											onChange={(e) => {
+												pointer.value = {
+													...pointer.value!,
+													path: e.target.value.replace(
+														/^\/+/,
+														''
+													),
+												};
+											}}
+										/>
+									</label>
+									{'path' in errors.value ? (
+										<div className={forms.error}>
+											{errors.value.path}
+										</div>
+									) : null}
+								</div>
+							</>
+						) : (
+							false
+						)}
 					</>
 				) : (
 					false
 				)}
-				{urlType !== 'unknown' ? (
-					<div className={forms.submitRow}>
-						<Button
-							disabled={!url || isAnalyzing || isImporting}
-							type="submit"
-							variant="primary"
-							size="large"
-						>
-							{isAnalyzing ? (
-								<>
-									<Spinner size={20} />
-									Analyzing the URL...
-								</>
-							) : isImporting ? (
-								<>
-									<Spinner size={20} />
-									{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
-								</>
-							) : (
-								'Import'
-							)}
-						</Button>
-					</div>
-				) : (
-					false
-				)}
+				<div className={forms.submitRow}>
+					<Button
+						disabled={!url || isAnalyzing || isImporting}
+						type="submit"
+						variant="primary"
+						size="large"
+					>
+						{isAnalyzing ? (
+							<>
+								<Spinner size={20} />
+								Analyzing the URL...
+							</>
+						) : isImporting ? (
+							<>
+								<Spinner size={20} />
+								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+							</>
+						) : (
+							'Import'
+						)}
+					</Button>
+				</div>
 			</form>
 		</GitHubOAuthGuard>
 	);

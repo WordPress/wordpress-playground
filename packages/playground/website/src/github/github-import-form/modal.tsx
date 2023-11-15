@@ -2,17 +2,15 @@ import { signal } from '@preact/signals-react';
 import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import Modal, { defaultStyles } from '../../components/modal';
 import GitHubForm from './form';
+import { GitHubPointer } from '../analyze-github-url';
 
 export const isGitHubModalOpen = signal(false);
 
-export function GithubImportModal() {
+interface GithubImportModalProps {
+	onImported?: (pointer: GitHubPointer) => void;
+}
+export function GithubImportModal({ onImported }: GithubImportModalProps) {
 	const { playground } = usePlaygroundContext();
-	function handleImported() {
-		playground!.goTo('/');
-		// eslint-disable-next-line no-alert
-		alert('Import finished! Your Playground site has been updated.');
-		isGitHubModalOpen.value = false;
-	}
 	return (
 		<Modal
 			style={{
@@ -29,7 +27,15 @@ export function GithubImportModal() {
 				onClose={() => {
 					isGitHubModalOpen.value = false;
 				}}
-				onImported={handleImported}
+				onImported={(pointer) => {
+					playground!.goTo('/');
+					// eslint-disable-next-line no-alert
+					alert(
+						'Import finished! Your Playground site has been updated.'
+					);
+					isGitHubModalOpen.value = false;
+					onImported?.(pointer);
+				}}
 			/>
 		</Modal>
 	);

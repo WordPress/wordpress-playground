@@ -7,13 +7,13 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
-import { GithubImportModal } from '../../github/github-import-form/modal';
 
 interface PlaygroundViewportProps {
 	storage?: StorageType;
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
+	children?: React.ReactNode;
 }
 
 export default function PlaygroundViewport({
@@ -21,6 +21,7 @@ export default function PlaygroundViewport({
 	isSeamless,
 	storage,
 	toolbarButtons,
+	children,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
@@ -46,7 +47,7 @@ export default function PlaygroundViewport({
 					<JustViewport iframeRef={iframeRef} />
 				</BrowserChrome>
 			)}
-			<GithubImportModal />
+			{children}
 		</PlaygroundContext.Provider>
 	);
 }

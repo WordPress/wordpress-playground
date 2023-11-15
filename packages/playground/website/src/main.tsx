@@ -17,6 +17,7 @@ import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
+import { GithubImportModal } from './github/github-import-form';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -133,7 +134,9 @@ root.render(
 				)}
 			</DropdownMenu>,
 		]}
-	/>
+	>
+		<GithubImportModal />
+	</PlaygroundViewport>
 );
 
 function resolveVersion<T>(
