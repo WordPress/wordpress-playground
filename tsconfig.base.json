@@ -45,6 +45,9 @@
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
 			],
+			"@wp-playground/storage": [
+				"packages/playground/storage/src/index.ts"
+			],
 			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"

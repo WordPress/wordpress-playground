@@ -38,7 +38,29 @@ export function joinPaths(...paths: string[]) {
 	if (path && trailingSlash) {
 		path += '/';
 	}
-	return (isAbsolute ? '/' : '') + path;
+	return path;
+}
+
+/**
+ * Returns the directory name of a path.
+ *
+ * @param path
+ * @returns
+ */
+export function dirname(path: string) {
+	if (path === '/') {
+		return '/';
+	}
+
+	path = normalizePath(path);
+
+	const lastSlash = path.lastIndexOf('/');
+	if (lastSlash === -1) {
+		return '';
+	} else if (lastSlash === 0) {
+		return '/';
+	}
+	return path.substr(0, lastSlash);
 }
 
 /**
@@ -78,7 +100,7 @@ export function normalizePath(path: string) {
 		path.split('/').filter((p: any) => !!p),
 		!isAbsolute
 	).join('/');
-	return path.replace(/\/$/, '');
+	return (isAbsolute ? '/' : '') + path.replace(/\/$/, '');
 }
 
 /**

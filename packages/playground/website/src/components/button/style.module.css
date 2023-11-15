@@ -1,23 +1,37 @@
 /* Specificity hack: Override @wordpress/components styles for the button component */
 .button.button.button {
 	flex-grow: 1;
-	padding: 0px 15px;
 	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
 	height: auto;
 	width: auto;
-	min-height: 26px;
-	min-width: 26px;
 	white-space: nowrap;
 	cursor: pointer;
 	color-scheme: dark;
 	border-radius: 6px;
 	border: 0;
-	background: revert;
 	appearance: button;
 	-webkit-appearance: button;
 	color: revert;
+}
+
+.button:global(.components-button) {
+	background: revert;
+}
+
+.button.button.button.is-browser-chrome {
+	min-height: 26px;
+	min-width: 26px;
+	padding: 0px 15px;
+}
+
+.button.button.button:not(.is-browser-chrome) {
+	padding: 12px 7px;
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
 }
 
 .button[disabled] {
