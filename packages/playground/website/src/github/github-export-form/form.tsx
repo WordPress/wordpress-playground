@@ -1,22 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { Notice, Button as WPButton } from '@wordpress/components';
 import { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import { GitHubPointer, analyzeGitHubURL } from '../analyze-github-url';
-import { GetFilesProgress, createClient } from '@wp-playground/storage';
+import {
+	ContentType,
+	GitHubPointer,
+	analyzeGitHubURL,
+} from '../analyze-github-url';
+import {
+	GetFilesProgress,
+	changeset,
+	createClient,
+	filesListToObject,
+	getFilesFromDirectory,
+	iterateFiles,
+} from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { ContentType } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { normalizePath } from '@php-wasm/util';
-import { signal } from '@preact/signals-react';
+import { basename, normalizePath } from '@php-wasm/util';
 
-interface GitHubFormProps {
+export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
+	initialValues?: Partial<ExportFormValues>;
 	onExported: (pointer: GitHubPointer) => void;
 	onClose: () => void;
 }
@@ -29,64 +38,181 @@ function getClient() {
 	return octokitClient;
 }
 
-const url = signal('');
-const errors = signal<Record<string, string>>({});
-const pointer = signal<GitHubPointer | undefined>(undefined);
+export type PullRequestAction = 'update' | 'create';
+
+export interface ExportFormValues {
+	repoUrl: string;
+	prAction?: PullRequestAction;
+	prNumber: string;
+	branchName: string;
+	contentType?: GitHubPointer['contentType'];
+	pathInRepo: string;
+	commitMessage: string;
+	plugin: string;
+	theme: string;
+}
+
+export function githubPointerToExportFormValues(
+	pointer: GitHubPointer
+): Partial<ExportFormValues> {
+	const shouldCreatePr = !pointer.pr;
+	const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
+	return {
+		pathInRepo: normalizePath('/' + pointer.path || '/'),
+		contentType: pointer.contentType,
+		prAction: shouldCreatePr ? 'create' : 'update',
+		branchName: shouldCreatePr
+			? `playground-changes-${isoDateSlug}`
+			: pointer.ref || '',
+		prNumber: pointer ? pointer.pr + '' : '',
+		plugin: pointer.contentType === 'plugin' ? basename(pointer.path) : '',
+		theme: pointer.contentType === 'theme' ? basename(pointer.path) : '',
+	};
+}
 
 export default function GitHubExportForm({
 	playground,
 	onExported,
-}: GitHubFormProps) {
+	initialValues = {},
+}: GitHubExportFormProps) {
+	const [formValues, setFormValues] = useState<ExportFormValues>({
+		repoUrl: 'https://github.com/WordPress/community-themes/pull/51',
+		prAction: 'create',
+		prNumber: '',
+		branchName: '',
+		pathInRepo: '',
+		commitMessage: 'Changes made in WordPress Playground',
+		plugin: '',
+		theme: '',
+		...initialValues,
+	});
+
+	const [errors, setErrors] = useState<Record<string, string>>({});
+
+	const [plugins, setPlugins] = useState<string[]>([]);
+	const [themes, setThemes] = useState<string[]>([]);
+
+	useEffect(() => {
+		if (!playground) return;
+		async function computePluginsAndThemes() {
+			const docRoot = await playground.documentRoot;
+			const plugins = (
+				await playground.listFiles(`${docRoot}/wp-content/plugins`)
+			).filter(
+				(pluginName) =>
+					![
+						'akismet',
+						'wordpress-importer',
+						'sqlite-database-integration',
+						'hello.php',
+						'index.php',
+					].includes(pluginName)
+			);
+			const themes = await playground.listFiles(
+				`${docRoot}/wp-content/themes`
+			);
+			console.log({ themes });
+			setPlugins(plugins);
+			setThemes(themes);
+		}
+		computePluginsAndThemes();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [!playground]);
+
+	// Function to update form field values
+	const setValue = <Field extends keyof ExportFormValues>(
+		field: Field,
+		value: ExportFormValues[Field]
+	) => {
+		setFormValues({
+			...formValues,
+			[field]: value,
+		});
+	};
+	const setError = <Field extends keyof ExportFormValues>(
+		field: Field,
+		value: string
+	) => {
+		setErrors({
+			...errors,
+			[field]: value,
+		});
+	};
+
+	const [ghPointer, setGhPointer] = useState<GitHubPointer>();
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isExporting, setIsExporting] = useState<boolean>(false);
 	const [exportProgress, setExportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
 	});
-	const [showExample, setShowExample] = useState<boolean>(false);
 	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(false);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		url.value = url.value.trim();
-		errors.value = {};
-		if (!url.value) {
-			errors.value = {
-				url: 'Please enter a URL',
-			};
+		setErrors({});
+		const url = formValues.repoUrl?.trim();
+		if (!url) {
+			setError('repoUrl', 'Please enter a URL');
 			return;
 		}
 		if (URLNeedsAnalyzing) {
-			await analyzeUrl();
-			if (pointer.value?.type === 'unknown') {
-				errors.value = {
-					url: 'This URL is not supported',
-				};
+			setGhPointer(undefined);
+			const pointer = await analyzeUrl();
+			if (pointer?.type === 'unknown') {
+				setError('repoUrl', 'This URL is not supported');
+				return;
 			}
+			setGhPointer(pointer);
+			setFormValues({
+				...formValues,
+				...githubPointerToExportFormValues(pointer!),
+				prAction: pointer?.pr ? 'update' : 'create',
+			});
 			return;
 		}
-		if (!pointer.value?.contentType) {
-			errors.value = {
-				contentType: 'Please select what you want to export',
-			};
+		if (!formValues.prAction) {
+			setError('prAction', 'Please select an option');
 			return;
 		}
-		await exportUrl();
+		if (formValues.prAction === 'update' && !formValues.prNumber) {
+			setError('prNumber', 'Please enter a PR number');
+			return;
+		}
+		if (formValues.prAction === 'create' && !formValues.branchName) {
+			setError('branchName', 'Please enter a branch name');
+			return;
+		}
+		if (!formValues.contentType) {
+			setError('contentType', 'Specify what you want to export');
+			return;
+		}
+		if (formValues.contentType === 'theme' && !formValues.theme) {
+			setError('theme', 'Specify the theme to export');
+			return;
+		}
+		if (formValues.contentType === 'plugin' && !formValues.plugin) {
+			setError('plugin', 'Specify the plugin to export');
+			return;
+		}
+		if (!formValues.pathInRepo) {
+			setError('pathInRepo', 'Specify the path in the repo');
+			return;
+		}
+		if (!formValues.commitMessage) {
+			setError('commitMessage', 'Specify a commit message');
+			return;
+		}
+
+		await doExport();
 	}
 
 	async function analyzeUrl() {
 		setURLNeedsAnalyzing(false);
-		pointer.value = undefined;
-
 		setIsAnalyzing(true);
 		try {
 			const octokit = getClient();
-			pointer.value = await analyzeGitHubURL(octokit, url.value);
-			if (pointer.value.type === 'unknown') {
-				return;
-			}
-
-			return pointer;
+			return await analyzeGitHubURL(octokit, formValues.repoUrl);
 		} catch (e: any) {
 			console.error(e);
 			// Handle the "Bad Credentials" error
@@ -96,33 +222,112 @@ export default function GitHubExportForm({
 						setOAuthToken(undefined);
 						return;
 					case 404:
-						errors.value = {
-							url: "This repo (or the resource in it) doesn't exist",
-						};
+						setError(
+							'repoUrl',
+							"This repo (or the resource in it) doesn't exist"
+						);
 						return;
 				}
 			}
-			errors.value = { url: e.message };
+			setError('repoUrl', e.message);
 			throw e;
 		} finally {
 			setIsAnalyzing(false);
 		}
 	}
 
-	async function exportUrl() {
+	async function doExport() {
 		setIsExporting(true);
 		setExportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
-			// const octokit = getClient();
+			const octokit = getClient();
+
+			const relativeRepoPath = ghPointer!.path.replace(/^\//g, '');
+			const ghRawFiles = await getFilesFromDirectory(
+				octokit,
+				ghPointer!.owner,
+				ghPointer!.repo,
+				ghPointer!.ref,
+				relativeRepoPath,
+				{
+					fetchFilesContents: false,
+				}
+			);
+			const comparableFiles = filesListToObject(ghRawFiles);
+			console.log(comparableFiles);
+
+			const playgroundPath =
+				formValues.contentType === 'wp-content'
+					? '/wordpress/wp-content'
+					: formValues.contentType === 'theme'
+					? `/wordpress/wp-content/themes/${formValues.theme}`
+					: formValues.contentType === 'plugin'
+					? `/wordpress/wp-content/plugins/${formValues.plugin}`
+					: '';
+			const changes = await changeset(
+				new Map(Object.entries(comparableFiles)),
+				await iterateFiles(playground, playgroundPath)
+			);
+
+			console.log({ changes });
+
+			return;
+
+			// const newBranchName = `playground-changes-at-${Date.now()}`;
+			// await createBranch(
+			// 	'Automattic',
+			// 	'themes',
+			// 	newBranchName,
+			// 	'trunk'
+			// );
+
+			// 4. Create (or update!) the PR
+			// See https://github.com/type-challenges/octokit-create-pull-request
+			await octokit
+				.createPullRequest({
+					owner: 'Automattic',
+					repo: 'themes',
+					title: 'Test PR from Playground',
+					body: 'This is a description',
+					head: newBranchName,
+					// base: 'trunk' /* optional: defaults to default branch */,
+					update: true /* optional: set to `true` to enable updating existing pull requests */,
+					forceFork:
+						false /* optional: force creating fork even when user has write rights */,
+					labels: [
+						'bug',
+					] /* optional: applies the given labels when user has permissions. When updating an existing pull request, already present labels will not be deleted. */,
+					changes: [
+						{
+							/* optional: if `files` is not passed, an empty commit is created instead */
+							files: changes,
+							commit: 'Test commit desc file1.txt, file2.png, deleting file3.txt, updating file4.txt (if it exists), file5.sh',
+							/* optional: if not passed, will be the authenticated user and the current date */
+							author: {
+								name: 'Adam Zielinski',
+								email: 'adam@adamziel.com',
+								date: new Date().toISOString(), // must be ISO date string
+							},
+							/* optional: if not passed, will use the information set in author */
+							committer: {
+								name: 'Adam Zielinski',
+								email: 'adam@adamziel.com',
+								date: new Date().toISOString(), // must be ISO date string
+							},
+						},
+					],
+				})
+				.then((pr) => console.log(`PR #${pr.data.number} created`));
 
 			setIsExporting(false);
 			// onExported(immutablePointer);
 		} catch (e) {
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
-			errors.value = {
-				url: `There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`,
-			};
+			setError(
+				'repoUrl',
+				`There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`
+			);
 			throw e;
 		}
 	}
@@ -131,175 +336,241 @@ export default function GitHubExportForm({
 		<GitHubOAuthGuard>
 			<form id="export-playground-form" onSubmit={handleSubmit}>
 				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-					Export from GitHub
+					Export to GitHub
 				</h2>
 				<p className={css.modalText}>
 					You may export WordPress plugins, themes, and entire
-					wp-content directories from any public GitHub repository.
+					wp-content directories as pull requests to any public GitHub
+					repository.
 				</p>
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
 						{' '}
-						I want to export from this GitHub URL:
+						I want to export to this GitHub repo:
 						<input
 							type="text"
-							value={url.value}
+							value={formValues.repoUrl}
 							className={css.repoInput}
 							onChange={(
 								e: React.ChangeEvent<HTMLInputElement>
 							) => {
-								url.value = e.target.value;
+								setValue('repoUrl', e.target.value);
 								setURLNeedsAnalyzing(true);
 							}}
 							placeholder="https://github.com/my-org/my-repo/..."
 							autoFocus
 						/>
 					</label>
-					{'url' in errors.value ? (
-						<div className={forms.error}>{errors.value.url}</div>
+					{'repoUrl' in errors ? (
+						<div className={forms.error}>{errors.url}</div>
 					) : null}
-					<WPButton
-						variant="link"
-						style={{ marginTop: 5 }}
-						onClick={() => setShowExample(!showExample)}
-					>
-						{showExample ? 'Hide examples' : 'Need an example?'}
-					</WPButton>
 				</div>
-				{showExample ? (
-					<Notice isDismissible={false} className={css.notice}>
-						<p style={{ marginTop: 0 }}>
-							Here's a few examples of URLs you can use:
-						</p>
-						<dl className={css.examplesDl}>
-							<dt>A repository:</dt>
-							<dd>https://github.com/org/repo-name</dd>
 
-							<dt>A path inside a repository:</dt>
-							<dd>
-								https://github.com/org/repo-name/tree/trunk/my-theme
-							</dd>
-
-							<dt>A Pull Request:</dt>
-							<dd>https://github.com/org/repo-name/pull/733</dd>
-						</dl>
-					</Notice>
-				) : (
-					false
+				{formValues.repoUrl && !errors.repoUrl && (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							Do you want to update an existing PR or create a new
+							one?
+							<select
+								className={css.repoInput}
+								value={formValues.prAction}
+								onChange={(e) =>
+									setValue(
+										'prAction',
+										e.target.value as PullRequestAction
+									)
+								}
+							>
+								<option value="update">
+									Update an existing PR
+								</option>
+								<option value="create">Create a new PR</option>
+							</select>
+						</label>
+					</div>
 				)}
-				{pointer.value && !URLNeedsAnalyzing && !isAnalyzing ? (
-					<>
-						{pointer.value ? (
-							<div>
-								<h3>
-									{pointer.value.type === 'pr' ? (
-										<>
-											Exporting from Pull Request #
-											{pointer.value.pr} at{' '}
-											{pointer.value.owner}/
-											{pointer.value.repo}
-										</>
-									) : pointer.value.type === 'branch' ? (
-										<>
-											Exporting from branch{' '}
-											{pointer.value.ref} at{' '}
-											{pointer.value.owner}/
-											{pointer.value.repo}
-										</>
-									) : pointer.value.type === 'repo' ? (
-										<>
-											Exporting from the{' '}
-											{pointer.value.owner}/
-											{pointer.value.repo} repository
-										</>
-									) : (
-										false
-									)}
-								</h3>
+				{formValues.prAction === 'update' && (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							I want to update the PR number:
+							<input
+								type="text"
+								className={css.repoInput}
+								value={formValues.prNumber}
+								onChange={(e) =>
+									setValue('prNumber', e.target.value)
+								}
+							/>
+						</label>
+						{errors.prNumber && (
+							<div className={forms.error}>{errors.prNumber}</div>
+						)}
+					</div>
+				)}
+				{formValues.prAction === 'create' && (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							I want to push to the following branch (new or existing):
+							<input
+								type="text"
+								className={css.repoInput}
+								value={formValues.branchName}
+								onChange={(e) =>
+									setValue('branchName', e.target.value)
+								}
+							/>
+						</label>
+						{errors.branchName && (
+							<div className={forms.error}>
+								{errors.branchName}
 							</div>
-						) : (
-							false
 						)}
-						{['pr', 'branch', 'repo'].includes(
-							pointer.value.type as any
-						) ? (
-							<>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										I am exporting a:
-										<select
-											value={
-												pointer.value
-													.contentType as string
-											}
-											className={css.repoInput}
-											onChange={(e) => {
-												pointer.value = {
-													...pointer.value!,
-													contentType: e.target
-														.value as ContentType,
-												};
-											}}
-										>
-											<option value="">
-												-- Select an option --
-											</option>
-											<option value="theme">Theme</option>
-											<option value="plugin">
-												Plugin
-											</option>
-											<option value="wp-content">
-												wp-content directory
-											</option>
-										</select>
-									</label>
-									{'contentType' in errors.value ? (
-										<div className={forms.error}>
-											{errors.value.contentType}
-										</div>
-									) : null}
-								</div>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										From the following path in the repo:
-										<input
-											type="text"
-											className={css.repoInput}
-											value={normalizePath(
-												'/' + pointer.value.path
-											)}
-											onChange={(e) => {
-												pointer.value = {
-													...pointer.value!,
-													path: e.target.value.replace(
-														/^\/+/,
-														''
-													),
-												};
-											}}
-										/>
-									</label>
-									{'path' in errors.value ? (
-										<div className={forms.error}>
-											{errors.value.path}
-										</div>
-									) : null}
-								</div>
-							</>
-						) : (
-							false
-						)}
-					</>
-				) : (
-					false
+					</div>
 				)}
+				{formValues.repoUrl && !errors.repoUrl ? (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							I am exporting a:
+							<select
+								className={css.repoInput}
+								value={formValues.contentType}
+								onChange={(e) =>
+									setValue(
+										'contentType',
+										e.target.value as
+											| ContentType
+											| undefined
+									)
+								}
+							>
+								<option value="">-- Select an option --</option>
+								<option value="theme">Theme</option>
+								<option value="plugin">Plugin</option>
+								<option value="wp-content">
+									wp-content directory
+								</option>
+							</select>
+						</label>
+						{errors.contentType && (
+							<div className={forms.error}>
+								{errors.contentType}
+							</div>
+						)}
+					</div>
+				) : null}
+				{formValues.contentType === 'theme' && (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							Which theme?
+							<select
+								className={css.repoInput}
+								value={formValues.theme}
+								onChange={(e) =>
+									setValue('theme', e.target.value)
+								}
+							>
+								<option value="">-- Select a theme --</option>
+								{themes.map((theme) => (
+									<option key={theme} value={theme}>
+										{theme}
+									</option>
+								))}
+							</select>
+						</label>
+						{errors.theme && (
+							<div className={forms.error}>{errors.theme}</div>
+						)}
+					</div>
+				)}
+				{formValues.contentType === 'plugin' && (
+					<div
+						className={`${forms.formGroup} ${forms.formGroupLast}`}
+					>
+						<label>
+							Which plugin?
+							<select
+								className={css.repoInput}
+								value={formValues.plugin}
+								onChange={(e) =>
+									setValue('plugin', e.target.value)
+								}
+							>
+								<option value="">-- Select a plugin --</option>
+								{plugins.map((plugin) => (
+									<option key={plugin} value={plugin}>
+										{plugin}
+									</option>
+								))}
+							</select>
+						</label>
+						{errors.plugin && (
+							<div className={forms.error}>{errors.plugin}</div>
+						)}
+					</div>
+				)}
+				{formValues.repoUrl && !errors.repoUrl ? (
+					<>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<label>
+								Enter the path in the repository where the
+								changes should be committed:
+								<input
+									type="text"
+									className={css.repoInput}
+									value={formValues.pathInRepo}
+									onChange={(e) =>
+										setValue('pathInRepo', e.target.value)
+									}
+								/>
+							</label>
+							{errors.pathInRepo && (
+								<div className={forms.error}>
+									{errors.pathInRepo}
+								</div>
+							)}
+						</div>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<label>
+								Commit message:
+								<textarea
+									className={css.repoInput}
+									rows={4}
+									value={formValues.commitMessage}
+									onChange={(e) =>
+										setValue(
+											'commitMessage',
+											e.target.value
+										)
+									}
+								/>
+							</label>
+							{errors.commitMessage && (
+								<div className={forms.error}>
+									{errors.commitMessage}
+								</div>
+							)}
+						</div>
+					</>
+				) : null}
 				<div className={forms.submitRow}>
 					<Button
-						disabled={!url || isAnalyzing || isExporting}
+						disabled={
+							!formValues.repoUrl || isAnalyzing || isExporting
+						}
 						type="submit"
 						variant="primary"
 						size="large"

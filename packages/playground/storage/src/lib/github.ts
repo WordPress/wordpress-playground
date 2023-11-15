@@ -36,18 +36,29 @@ export interface GetFilesProgress {
 	foundFiles: number;
 	downloadedFiles: number;
 }
+export interface GetFilesOptions {
+	fetchFilesContents?: boolean;
+	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void;
+	progress?: GetFilesProgress;
+}
 export async function getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
 	ref: string,
 	path: string,
-	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void,
-	progress: GetFilesProgress = {
-		foundFiles: 0,
-		downloadedFiles: 0,
-	}
+	options: GetFilesOptions = {}
 ) {
+	if (!('fetchFilesContents' in options)) {
+		options.fetchFilesContents = true;
+	}
+	if (!options.progress) {
+		options.progress = {
+			foundFiles: 0,
+			downloadedFiles: 0,
+		};
+	}
+	const { onProgress } = options;
 	const filePromises: Promise<any>[] = [];
 	const directoryPromises: Promise<any>[] = [];
 
@@ -65,13 +76,13 @@ export async function getFilesFromDirectory(
 	}
 
 	for (const item of content) {
-		if (item.type === 'file') {
-			++progress.foundFiles;
-			onProgress?.(progress);
+		if (item.type === 'file' && options.fetchFilesContents) {
+			++options.progress.foundFiles;
+			onProgress?.(options.progress);
 			filePromises.push(
 				getFileContent(octokit, owner, repo, ref, item).then((file) => {
-					++progress.downloadedFiles;
-					onProgress?.(progress);
+					++options.progress!.downloadedFiles;
+					onProgress?.(options.progress!);
 					return file;
 				})
 			);
@@ -83,8 +94,7 @@ export async function getFilesFromDirectory(
 					repo,
 					ref,
 					item.path,
-					onProgress,
-					progress
+					options
 				)
 			);
 		}

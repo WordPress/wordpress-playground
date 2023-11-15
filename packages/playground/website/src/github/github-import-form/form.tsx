@@ -6,22 +6,26 @@ import { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import { GitHubPointer, analyzeGitHubURL } from '../analyze-github-url';
+import {
+	ContentType,
+	GitHubPointer,
+	analyzeGitHubURL,
+} from '../analyze-github-url';
 import {
 	GetFilesProgress,
 	createClient,
 	getFilesFromDirectory,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { ContentType, importFromGitHub } from '../import-from-github';
+import { importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { normalizePath } from '@php-wasm/util';
+import { basename, normalizePath } from '@php-wasm/util';
 import { signal } from '@preact/signals-react';
 
-interface GitHubFormProps {
+export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
-	onImported: (pointer: GitHubPointer) => void;
+	onImported: (url: string, ghPointer: GitHubPointer) => void;
 	onClose: () => void;
 }
 
@@ -37,10 +41,10 @@ const url = signal('');
 const errors = signal<Record<string, string>>({});
 const pointer = signal<GitHubPointer | undefined>(undefined);
 
-export default function GitHubForm({
+export default function GitHubImportForm({
 	playground,
 	onImported,
-}: GitHubFormProps) {
+}: GitHubImportFormProps) {
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isImporting, setIsImporting] = useState<boolean>(false);
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
@@ -118,6 +122,11 @@ export default function GitHubForm({
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
+			pointer.value = {
+				...pointer.value!,
+				pluginOrThemeName:
+					basename(pointer.value!.path) || pointer.value!.repo,
+			};
 
 			const immutablePointer = pointer.value!;
 
@@ -128,17 +137,20 @@ export default function GitHubForm({
 				immutablePointer.repo,
 				immutablePointer.ref,
 				relativeRepoPath,
-				(progress) => setImportProgress({ ...progress })
+				{
+					onProgress: (progress) =>
+						setImportProgress({ ...progress }),
+				}
 			);
 			await importFromGitHub(
 				playground,
 				ghFiles,
 				immutablePointer.contentType!,
-				immutablePointer.repo,
-				relativeRepoPath
+				relativeRepoPath,
+				immutablePointer.pluginOrThemeName
 			);
 			setIsImporting(false);
-			onImported(immutablePointer);
+			onImported(url.value, immutablePointer);
 		} catch (e) {
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';

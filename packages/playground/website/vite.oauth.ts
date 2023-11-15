@@ -20,8 +20,8 @@ export const oAuthMiddleware = async (
 			client_id: CLIENT_ID!,
 			scope: 'public_repo',
 		};
-		if (query.has('redirect_uri')) {
-			params.redirect_uri = query.get('redirect_uri')!;
+		if (query.has('redirect_url')) {
+			params.redirect_uri = query.get('redirect_url')!;
 		}
 		const redirectQS = new URLSearchParams(params).toString();
 		res.writeHead(302, {

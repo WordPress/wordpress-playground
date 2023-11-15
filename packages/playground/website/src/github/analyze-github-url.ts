@@ -1,5 +1,7 @@
 import { GithubClient } from '@wp-playground/storage';
 
+export type ContentType = 'theme' | 'plugin' | 'wp-content';
+
 export interface GitHubPointer {
 	owner: string;
 	repo: string;
@@ -7,7 +9,8 @@ export interface GitHubPointer {
 	ref: string | 'unknown';
 	path: string;
 	pr?: number;
-	contentType?: 'theme' | 'plugin' | 'wp-content';
+	contentType?: ContentType;
+	pluginOrThemeName: string;
 }
 
 const invalidPointer: GitHubPointer = {
@@ -18,6 +21,7 @@ const invalidPointer: GitHubPointer = {
 	path: '',
 	pr: undefined,
 	contentType: undefined,
+	pluginOrThemeName: '',
 };
 
 export async function analyzeGitHubURL(

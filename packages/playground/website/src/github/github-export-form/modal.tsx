@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals-react';
 import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import Modal, { defaultStyles } from '../../components/modal';
-import GitHubExportForm from './form';
+import GitHubExportForm, { GitHubExportFormProps } from './form';
 import { GitHubPointer } from '../analyze-github-url';
 
 const query = new URLSearchParams(window.location.search);
@@ -11,6 +11,7 @@ export const isGitHubExportModalOpen = signal(
 
 interface GithubExportModalProps {
 	onExported?: (pointer: GitHubPointer) => void;
+	initialValues?: GitHubExportFormProps['initialValues'];
 }
 export function closeModal() {
 	isGitHubExportModalOpen.value = false;
@@ -27,7 +28,10 @@ export function openModal() {
 	url.searchParams.set('state', 'github-export');
 	window.history.replaceState({}, '', url.href);
 }
-export function GithubExportModal({ onExported }: GithubExportModalProps) {
+export function GithubExportModal({
+	onExported,
+	initialValues,
+}: GithubExportModalProps) {
 	const { playground } = usePlaygroundContext();
 	return (
 		<Modal
@@ -41,6 +45,7 @@ export function GithubExportModal({ onExported }: GithubExportModalProps) {
 			<GitHubExportForm
 				playground={playground!}
 				onClose={closeModal}
+				initialValues={initialValues}
 				onExported={(pointer) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
