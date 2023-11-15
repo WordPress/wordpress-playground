@@ -1,6 +1,6 @@
 import { MenuItem } from '@wordpress/components';
 import { cloud } from '@wordpress/icons';
-import { isGitHubModalOpen } from '../../github/github-import-form/modal';
+import { openModal } from '../../github/github-import-form/modal';
 
 interface Props {
 	onClose: () => void;
@@ -12,7 +12,7 @@ export function GithubImportMenuItem({ onClose }: Props) {
 			iconPosition="left"
 			aria-label="Import WordPress theme, plugin, or wp-content directory from a GitHub repository."
 			onClick={() => {
-				isGitHubModalOpen.value = true;
+				openModal();
 				onClose();
 			}}
 		>

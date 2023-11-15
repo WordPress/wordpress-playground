@@ -372,9 +372,8 @@ function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
 				</a>
 			</p>
 			<p>
-				The access token will be stored in your browser's local storage.
-				WordPress Playground will utilize it solely when you actively
-				engage with GitHub repositories.
+				Your access token is not stored anywhere, which means you'll
+				have to re-authenticate after every page refresh.
 			</p>
 		</div>
 	);

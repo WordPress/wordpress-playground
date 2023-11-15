@@ -16,8 +16,16 @@ export const oAuthMiddleware = async (
 
 	const query = new URL(req.url, 'http://example.com').searchParams;
 	if (query.get('redirect') === '1') {
+		const params: Record<string, string> = {
+			client_id: CLIENT_ID!,
+			scope: 'public_repo',
+		};
+		if (query.has('redirect_uri')) {
+			params.redirect_uri = query.get('redirect_uri')!;
+		}
+		const redirectQS = new URLSearchParams(params).toString();
 		res.writeHead(302, {
-			location: `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=repo`,
+			location: `https://github.com/login/oauth/authorize?${redirectQS}`,
 		});
 		res.end();
 	} else if (query.has('code')) {
