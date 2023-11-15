@@ -95,7 +95,6 @@ if (currentConfiguration.wp === '6.3') {
 		consts: {
 			WP_DEVELOPMENT_MODE: 'all',
 		},
-		virtualize: true,
 	});
 }
 
