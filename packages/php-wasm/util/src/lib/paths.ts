@@ -38,7 +38,7 @@ export function joinPaths(...paths: string[]) {
 	if (path && trailingSlash) {
 		path += '/';
 	}
-	return (isAbsolute ? '/' : '') + path;
+	return path;
 }
 
 /**
@@ -56,7 +56,9 @@ export function dirname(path: string) {
 
 	const lastSlash = path.lastIndexOf('/');
 	if (lastSlash === -1) {
-		return path;
+		return '';
+	} else if (lastSlash === 0) {
+		return '/';
 	}
 	return path.substr(0, lastSlash);
 }
