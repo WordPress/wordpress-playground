@@ -271,15 +271,21 @@ export default function GitHubExportForm({
 			const octokit = getClient();
 
 			const relativeRepoPath = formValues.pathInRepo.replace(/^\//g, '');
-			const ghRawFiles =
-				filesBeforeChanges ||
-				(await getFilesFromDirectory(
-					octokit,
-					ghPointer!.owner,
-					ghPointer!.repo,
-					ghPointer!.ref,
-					relativeRepoPath
-				));
+
+			let ghRawFiles: any[];
+			try {
+				ghRawFiles =
+					filesBeforeChanges ||
+					(await getFilesFromDirectory(
+						octokit,
+						ghPointer!.owner,
+						ghPointer!.repo,
+						ghPointer!.ref,
+						relativeRepoPath
+					));
+			} catch (e) {
+				ghRawFiles = [];
+			}
 			console.log({ ghRawFiles });
 			const comparableFiles = filesListToObject(ghRawFiles);
 			console.log({ comparableFiles });
