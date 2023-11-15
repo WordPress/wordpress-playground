@@ -7,13 +7,9 @@ import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
 import { GitHubPointer, analyzeGitHubURL } from '../analyze-github-url';
-import {
-	GetFilesProgress,
-	createClient,
-	getFilesFromDirectory,
-} from '@wp-playground/storage';
+import { GetFilesProgress, createClient } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
-import { ContentType, importFromGitHub } from '../import-from-github';
+import { ContentType } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { normalizePath } from '@php-wasm/util';
@@ -21,7 +17,7 @@ import { signal } from '@preact/signals-react';
 
 interface GitHubFormProps {
 	playground: PlaygroundClient;
-	onImported: (pointer: GitHubPointer) => void;
+	onExported: (pointer: GitHubPointer) => void;
 	onClose: () => void;
 }
 
@@ -37,13 +33,13 @@ const url = signal('');
 const errors = signal<Record<string, string>>({});
 const pointer = signal<GitHubPointer | undefined>(undefined);
 
-export default function GitHubForm({
+export default function GitHubExportForm({
 	playground,
-	onImported,
+	onExported,
 }: GitHubFormProps) {
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-	const [isImporting, setIsImporting] = useState<boolean>(false);
-	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
+	const [isExporting, setIsExporting] = useState<boolean>(false);
+	const [exportProgress, setExportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
 	});
@@ -71,11 +67,11 @@ export default function GitHubForm({
 		}
 		if (!pointer.value?.contentType) {
 			errors.value = {
-				contentType: 'Please select what you want to import',
+				contentType: 'Please select what you want to export',
 			};
 			return;
 		}
-		await importUrl();
+		await exportUrl();
 	}
 
 	async function analyzeUrl() {
@@ -113,32 +109,14 @@ export default function GitHubForm({
 		}
 	}
 
-	async function importUrl() {
-		setIsImporting(true);
-		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
+	async function exportUrl() {
+		setIsExporting(true);
+		setExportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
-			const octokit = getClient();
+			// const octokit = getClient();
 
-			const immutablePointer = pointer.value!;
-
-			const relativeRepoPath = immutablePointer.path.replace(/^\//g, '');
-			const ghFiles = await getFilesFromDirectory(
-				octokit,
-				immutablePointer.owner,
-				immutablePointer.repo,
-				immutablePointer.ref,
-				relativeRepoPath,
-				(progress) => setImportProgress({ ...progress })
-			);
-			await importFromGitHub(
-				playground,
-				ghFiles,
-				immutablePointer.contentType!,
-				immutablePointer.repo,
-				relativeRepoPath
-			);
-			setIsImporting(false);
-			onImported(immutablePointer);
+			setIsExporting(false);
+			// onExported(immutablePointer);
 		} catch (e) {
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
@@ -151,18 +129,18 @@ export default function GitHubForm({
 
 	return (
 		<GitHubOAuthGuard>
-			<form id="import-playground-form" onSubmit={handleSubmit}>
+			<form id="export-playground-form" onSubmit={handleSubmit}>
 				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-					Import from GitHub
+					Export from GitHub
 				</h2>
 				<p className={css.modalText}>
-					You may import WordPress plugins, themes, and entire
+					You may export WordPress plugins, themes, and entire
 					wp-content directories from any public GitHub repository.
 				</p>
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
 						{' '}
-						I want to import from this GitHub URL:
+						I want to export from this GitHub URL:
 						<input
 							type="text"
 							value={url.value}
@@ -216,21 +194,21 @@ export default function GitHubForm({
 								<h3>
 									{pointer.value.type === 'pr' ? (
 										<>
-											Importing from Pull Request #
+											Exporting from Pull Request #
 											{pointer.value.pr} at{' '}
 											{pointer.value.owner}/
 											{pointer.value.repo}
 										</>
 									) : pointer.value.type === 'branch' ? (
 										<>
-											Importing from branch{' '}
+											Exporting from branch{' '}
 											{pointer.value.ref} at{' '}
 											{pointer.value.owner}/
 											{pointer.value.repo}
 										</>
 									) : pointer.value.type === 'repo' ? (
 										<>
-											Importing from the{' '}
+											Exporting from the{' '}
 											{pointer.value.owner}/
 											{pointer.value.repo} repository
 										</>
@@ -250,7 +228,7 @@ export default function GitHubForm({
 									className={`${forms.formGroup} ${forms.formGroupLast}`}
 								>
 									<label>
-										I am importing a:
+										I am exporting a:
 										<select
 											value={
 												pointer.value
@@ -321,7 +299,7 @@ export default function GitHubForm({
 				)}
 				<div className={forms.submitRow}>
 					<Button
-						disabled={!url || isAnalyzing || isImporting}
+						disabled={!url || isAnalyzing || isExporting}
 						type="submit"
 						variant="primary"
 						size="large"
@@ -331,13 +309,13 @@ export default function GitHubForm({
 								<Spinner size={20} />
 								Analyzing the URL...
 							</>
-						) : isImporting ? (
+						) : isExporting ? (
 							<>
 								<Spinner size={20} />
-								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
+								{` Exporting... ${exportProgress.downloadedFiles}/${exportProgress.foundFiles} files downloaded`}
 							</>
 						) : (
-							'Import'
+							'Export'
 						)}
 					</Button>
 				</div>

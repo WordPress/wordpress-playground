@@ -18,6 +18,8 @@ import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-fro
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
 import { GithubImportModal } from './github/github-import-form';
+import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
+import { GithubExportModal } from './github/github-export-form';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -129,12 +131,14 @@ root.render(
 						<DownloadAsZipMenuItem onClose={onClose} />
 						<RestoreFromZipMenuItem onClose={onClose} />
 						<GithubImportMenuItem onClose={onClose} />
+						<GithubExportMenuItem onClose={onClose} />
 					</MenuGroup>
 				)}
 			</DropdownMenu>,
 		]}
 	>
 		<GithubImportModal />
+		<GithubExportModal />
 	</PlaygroundViewport>
 );
 
