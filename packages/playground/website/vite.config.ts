@@ -1,8 +1,10 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import type { ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -14,6 +16,7 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../vite-virtual-module';
+import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 
 const proxy = {
@@ -70,7 +73,9 @@ export default defineConfig(({ command, mode }) => {
 		},
 
 		plugins: [
-			react(),
+			react({
+				jsxRuntime: 'classic',
+			}),
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
@@ -80,6 +85,13 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const buildVersion = ${JSON.stringify(buildVersion)};`,
 			}),
+			// GitHub OAuth flow
+			{
+				name: 'configure-server',
+				configureServer(server: ViteDevServer) {
+					server.middlewares.use(oAuthMiddleware);
+				},
+			},
 		],
 
 		// Configuration for building your library.

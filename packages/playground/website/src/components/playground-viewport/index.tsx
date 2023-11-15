@@ -13,6 +13,7 @@ interface PlaygroundViewportProps {
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
+	children?: React.ReactNode;
 }
 
 export default function PlaygroundViewport({
@@ -20,6 +21,7 @@ export default function PlaygroundViewport({
 	isSeamless,
 	storage,
 	toolbarButtons,
+	children,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
@@ -45,6 +47,7 @@ export default function PlaygroundViewport({
 					<JustViewport iframeRef={iframeRef} />
 				</BrowserChrome>
 			)}
+			{children}
 		</PlaygroundContext.Provider>
 	);
 }
