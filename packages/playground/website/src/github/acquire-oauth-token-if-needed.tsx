@@ -8,14 +8,14 @@ export async function acquireOAuthTokenIfNeeded() {
 	}
 
 	// If there is a code in the URL, exchange it for an access token.
-	
+
 	oAuthState.value = {
 		...oAuthState.value,
 		isAuthorizing: true,
 	};
 
 	// Open the modal if we're authenticating the user.
-	openModal()
+	openModal();
 	try {
 		// Fetch https://github.com/login/oauth/access_token
 		// with clientId, clientSecret and code
