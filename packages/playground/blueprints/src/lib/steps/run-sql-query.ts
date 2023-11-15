@@ -43,17 +43,8 @@ export const runSqlQuery: StepHandler<RunSqlQueryStep> = async (
 	const code =
 		`<?php
 	require_once '/wordpress/wp-load.php';
-	require_once '/wordpress/wp-content/plugins/Collector/Collector_Restore.php';
 	global $wpdb;\n` +
 		query.map((q) => `$wpdb->query(${JSON.stringify(q)});`).join('\n');
 
-	console.log(code);
-
-	const runPhp = await playground.run({ code });
-
-	console.log({ runPhp });
-
-	console.log(new TextDecoder('utf-8').decode(new Uint8Array(runPhp.bytes)));
-
-	return runPhp;
+	return await playground.run({ code });
 };
