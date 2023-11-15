@@ -14,7 +14,7 @@ interface GitHubOAuthGuardProps {
 }
 export default function GitHubOAuthGuard({
 	children,
-	AuthRequest: AuthComponent=Authenticate,
+	AuthRequest: AuthComponent = Authenticate,
 }: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (

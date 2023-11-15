@@ -161,8 +161,9 @@ export default function GitHubForm({
 					Submit a Pull Request to GitHub
 				</h2>
 				<p className={css.modalText}>
-					You may submit your changes to WordPress plugins, themes, and entire
-					wp-content directories to your public GitHub repositories.
+					You may submit your changes to WordPress plugins, themes,
+					and entire wp-content directories to your public GitHub
+					repositories.
 				</p>
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
@@ -220,30 +221,36 @@ export default function GitHubForm({
 						) : (
 							false
 						)}
-						<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
 							<label>
 								{' '}
 								I want to:
 								<select
-									value={
-										values.intent
-									}
+									value={values.intent}
 									className={css.repoInput}
 									onChange={(e) => {
-										setValues({ intent: e.target.value as any })
+										setValues({
+											intent: e.target.value as any,
+										});
 									}}
 								>
 									<option value="">
 										-- Select an option --
 									</option>
-									<option value="create-pr">Create a Pull Request</option>
+									<option value="create-pr">
+										Create a Pull Request
+									</option>
 									<option value="update-pr">
 										Update an existing Pull Request
 									</option>
 								</select>
 							</label>
 							{'intent' in errors.value ? (
-								<div className={forms.error}>{errors.value.intent}</div>
+								<div className={forms.error}>
+									{errors.value.intent}
+								</div>
 							) : null}
 						</div>
 						{['pr', 'branch', 'repo'].includes(
