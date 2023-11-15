@@ -1,4 +1,3 @@
-import { normalizePath } from '@php-wasm/util';
 import { GithubClient } from '@wp-playground/storage';
 
 export interface GitHubPointer {
