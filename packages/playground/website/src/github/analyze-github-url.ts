@@ -103,9 +103,5 @@ export function staticAnalyzeGitHubURL(url: string): Partial<GitHubPointer> {
 		type = 'repo';
 	}
 
-	if (path) {
-		path = normalizePath('/' + path);
-	}
-
 	return { owner, repo, type, ref, path, pr };
 }
