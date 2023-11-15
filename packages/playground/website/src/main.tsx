@@ -21,11 +21,12 @@ import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
 import { GitHubPointer } from './github/analyze-github-url';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	ExportFormValues,
 	githubPointerToExportFormValues,
 } from './github/github-export-form/form';
+import { basename } from '@php-wasm/util';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -112,13 +113,26 @@ function Main() {
 	const [lastGitHubImportFrom, setLastGitHubImportFrom] = useState<{
 		url: string;
 		pointer?: GitHubPointer;
+		files?: any[];
 	}>({
 		url: '',
 	});
-	const initialExportFormValues: Partial<ExportFormValues> =
-		lastGitHubImportFrom.pointer
-			? githubPointerToExportFormValues(lastGitHubImportFrom.pointer)
-			: {};
+	const initialExportFormValues: Partial<ExportFormValues> = useMemo(() => {
+		const pointer = lastGitHubImportFrom.pointer;
+		if (!pointer) {
+			return {};
+		}
+		const values = githubPointerToExportFormValues(pointer);
+		return {
+			...values,
+			contentType: pointer.contentType,
+			plugin:
+				pointer.contentType === 'plugin' ? basename(pointer.path) : '',
+			theme:
+				pointer.contentType === 'theme' ? basename(pointer.path) : '',
+		};
+	}, [lastGitHubImportFrom.pointer]);
+
 	return (
 		<PlaygroundViewport
 			storage={storage}
@@ -154,11 +168,12 @@ function Main() {
 			]}
 		>
 			<GithubImportModal
-				onImported={(url, pointer) => {
-					setLastGitHubImportFrom({ url, pointer });
+				onImported={(url, pointer, files) => {
+					setLastGitHubImportFrom({ url, pointer, files });
 				}}
 			/>
 			<GithubExportModal
+				initialFilesBeforeChanges={lastGitHubImportFrom.files}
 				initialValues={{
 					repoUrl: lastGitHubImportFrom.url || '',
 					...initialExportFormValues,

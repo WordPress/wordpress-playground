@@ -37,7 +37,6 @@ export interface GetFilesProgress {
 	downloadedFiles: number;
 }
 export interface GetFilesOptions {
-	fetchFilesContents?: boolean;
 	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void;
 	progress?: GetFilesProgress;
 }
@@ -49,9 +48,6 @@ export async function getFilesFromDirectory(
 	path: string,
 	options: GetFilesOptions = {}
 ) {
-	if (!('fetchFilesContents' in options)) {
-		options.fetchFilesContents = true;
-	}
 	if (!options.progress) {
 		options.progress = {
 			foundFiles: 0,
@@ -76,7 +72,7 @@ export async function getFilesFromDirectory(
 	}
 
 	for (const item of content) {
-		if (item.type === 'file' && options.fetchFilesContents) {
+		if (item.type === 'file') {
 			++options.progress.foundFiles;
 			onProgress?.(options.progress);
 			filePromises.push(
@@ -190,15 +186,37 @@ export async function getArtifact(
 }
 
 export function changesetToPRFiles(changeset: Changeset) {
-	const files: Record<string, string | Uint8Array | typeof DELETE_FILE> = {};
+	const files: Record<
+		string,
+		string | typeof DELETE_FILE | { content: string; encoding: string }
+	> = {};
 	for (const [path, content] of changeset.create) {
-		files[path] = content;
+		files[path] = encodeChangesetContent(content);
 	}
 	for (const [path, content] of changeset.update) {
-		files[path] = content;
+		files[path] = encodeChangesetContent(content);
 	}
 	for (const path of changeset.delete) {
 		files[path] = DELETE_FILE;
 	}
 	return files;
+}
+
+function encodeChangesetContent(content: string | Uint8Array) {
+	if (typeof content === 'string') {
+		return content;
+	}
+	return {
+		content: uint8ArrayToBase64(content),
+		encoding: 'base64',
+	};
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array) {
+	const binary = [];
+	const len = bytes.byteLength;
+	for (let i = 0; i < len; i++) {
+		binary.push(String.fromCharCode(bytes[i]));
+	}
+	return window.btoa(binary.join(''));
 }

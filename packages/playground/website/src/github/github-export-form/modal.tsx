@@ -11,6 +11,7 @@ export const isGitHubExportModalOpen = signal(
 
 interface GithubExportModalProps {
 	onExported?: (pointer: GitHubPointer) => void;
+	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
 	initialValues?: GitHubExportFormProps['initialValues'];
 }
 export function closeModal() {
@@ -31,6 +32,7 @@ export function openModal() {
 export function GithubExportModal({
 	onExported,
 	initialValues,
+	initialFilesBeforeChanges,
 }: GithubExportModalProps) {
 	const { playground } = usePlaygroundContext();
 	return (
@@ -46,6 +48,7 @@ export function GithubExportModal({
 				playground={playground!}
 				onClose={closeModal}
 				initialValues={initialValues}
+				initialFilesBeforeChanges={initialFilesBeforeChanges}
 				onExported={(pointer) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
@@ -53,7 +56,7 @@ export function GithubExportModal({
 						'Export finished! Your Playground site has been updated.'
 					);
 					closeModal();
-					onExported?.(pointer);
+					// onExported?.(pointer);
 				}}
 			/>
 		</Modal>

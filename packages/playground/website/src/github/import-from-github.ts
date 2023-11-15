@@ -16,7 +16,7 @@ export async function importFromGitHub(
 ) {
 	repoPath = repoPath.replace(/^\//, '');
 	const playgroundFiles = filesListToObject(gitHubFiles, repoPath);
-	console.log({contentType})
+	console.log({ contentType });
 	if (contentType === 'theme') {
 		await importTheme(php, pluginOrThemeName, playgroundFiles);
 	} else if (contentType === 'plugin') {

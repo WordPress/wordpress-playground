@@ -25,7 +25,7 @@ import { signal } from '@preact/signals-react';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
-	onImported: (url: string, ghPointer: GitHubPointer) => void;
+	onImported: (url: string, ghPointer: GitHubPointer, files: any[]) => void;
 	onClose: () => void;
 }
 
@@ -150,7 +150,7 @@ export default function GitHubImportForm({
 				immutablePointer.pluginOrThemeName
 			);
 			setIsImporting(false);
-			onImported(url.value, immutablePointer);
+			onImported(url.value, immutablePointer, ghFiles);
 		} catch (e) {
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
@@ -341,7 +341,7 @@ export default function GitHubImportForm({
 						{isAnalyzing ? (
 							<>
 								<Spinner size={20} />
-								Analyzing the URL...
+								Analyzing the repository...
 							</>
 						) : isImporting ? (
 							<>
