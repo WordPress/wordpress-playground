@@ -3,8 +3,13 @@
 $client_id = getenv('CLIENT_ID');
 if (array_key_exists('redirect', $_GET) && $_GET["redirect"] === "1") {
     http_response_code(302);
-    $redirect_param = isset($_GET['redirect_url']) ? "&redirect_url=" . urlencode($_GET['redirect_url']) : '';
-    header("Location: https://github.com/login/oauth/authorize?client_id=${client_id}&scope=repo" . $redirect_param);
+    // Always redirect to the current host, even if the redirect_url is set to a different host.
+    // Also, do not allow any custom path segments in the redirect_url.
+    $redirect_host = $_SERVER['HTTP_HOST'];
+    $redirect_query = parse_url($_GET['redirect_url'], PHP_URL_QUERY);
+    $redirect_url = 'https://' . $redirect_host . '?' . $redirect_query;
+    $redirect_param = isset($_GET['redirect_url']) ? "&redirect_url=" . urlencode($redirect_url) : '';
+    header("Location: https://github.com/login/oauth/authorize?client_id={$client_id}&scope=repo" . $redirect_param);
     die();
 }
 
