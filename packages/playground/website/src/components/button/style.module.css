@@ -1,15 +1,23 @@
-.button {
+/* Specificity hack: Override @wordpress/components styles for the button component */
+.button.button.button {
 	flex-grow: 1;
 	padding: 0px 15px;
 	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
+	height: auto;
+	width: auto;
 	min-height: 26px;
+	min-width: 26px;
 	white-space: nowrap;
 	cursor: pointer;
 	color-scheme: dark;
 	border-radius: 6px;
 	border: 0;
+	background: revert;
+	appearance: button;
+	-webkit-appearance: button;
+	color: revert;
 }
 
 .button[disabled] {
@@ -17,8 +25,11 @@
 }
 
 .button:hover,
-.button:active {
+.button:focus,
+.button:active,
+.button[aria-expanded='true'] {
 	opacity: 0.8;
+	color: revert !important;
 }
 
 .button.is-large {

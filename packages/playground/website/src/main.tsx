@@ -1,7 +1,9 @@
 import { createRoot } from 'react-dom/client';
+import { DropdownMenu, MenuGroup } from '@wordpress/components';
+import { menu } from '@wordpress/icons';
 import PlaygroundViewport from './components/playground-viewport';
-import ExportButton from './components/export-button';
-import ImportButton from './components/import-button';
+import css from './style.module.css';
+import buttonCss from './components/button/style.module.css';
 import './styles.css';
 
 import { makeBlueprint } from './lib/make-blueprint';
@@ -10,6 +12,9 @@ import PlaygroundConfigurationGroup from './components/playground-configuration-
 import { PlaygroundConfiguration } from './components/playground-configuration-group/form';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { StorageType, StorageTypes } from './types';
+import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
+import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
+import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -101,8 +106,26 @@ root.render(
 				key="configuration"
 				initialConfiguration={currentConfiguration}
 			/>,
-			<ImportButton key="import" />,
-			<ExportButton key="export" />,
+			<DropdownMenu
+				key="menu"
+				icon={menu}
+				label="Additional actions"
+				className={css.dropdownMenu}
+				toggleProps={{
+					className: buttonCss.button,
+				}}
+			>
+				{({ onClose }) => (
+					<MenuGroup>
+						<ResetSiteMenuItem
+							storage={currentConfiguration.storage}
+							onClose={onClose}
+						/>
+						<DownloadAsZipMenuItem onClose={onClose} />
+						<RestoreFromZipMenuItem onClose={onClose} />
+					</MenuGroup>
+				)}
+			</DropdownMenu>,
 		]}
 	/>
 );
