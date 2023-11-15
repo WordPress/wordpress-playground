@@ -1,6 +1,6 @@
-import { analyzeGitHubURL, GitHubPointer } from './analyze-github-url';
+import { staticAnalyzeGitHubURL, GitHubPointer } from './analyze-github-url';
 
-describe('analyzeGitHubURL', () => {
+describe('staticAnalyzeGitHubURL', () => {
 	it('should return correct GitHubPointer for a repo URL', () => {
 		const url = 'https://github.com/owner/repo/';
 		const expected: GitHubPointer = {
@@ -11,7 +11,7 @@ describe('analyzeGitHubURL', () => {
 			path: '',
 			pr: undefined,
 		};
-		expect(analyzeGitHubURL(url)).toEqual(expected);
+		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
 	it('should return correct GitHubPointer for a PR URL', () => {
@@ -24,12 +24,12 @@ describe('analyzeGitHubURL', () => {
 			path: '',
 			pr: 123,
 		};
-		expect(analyzeGitHubURL(url)).toEqual(expected);
+		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
 	it('should throw an error for an invalid PR URL', () => {
 		const url = 'https://github.com/owner/repo/pull/invalid';
-		expect(() => analyzeGitHubURL(url)).toThrowError(
+		expect(() => staticAnalyzeGitHubURL(url)).toThrowError(
 			'Invalid Pull Request  number NaN parsed from the following GitHub URL: https://github.com/owner/repo/pull/invalid'
 		);
 	});
@@ -44,7 +44,7 @@ describe('analyzeGitHubURL', () => {
 			path: 'path/to/file',
 			pr: undefined,
 		};
-		expect(analyzeGitHubURL(url)).toEqual(expected);
+		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
 	it('should return correct GitHubPointer for a raw file URL', () => {
@@ -57,7 +57,7 @@ describe('analyzeGitHubURL', () => {
 			ref: 'unknown',
 			path: 'owner/repo/branch/path/to/file.zip',
 		};
-		expect(analyzeGitHubURL(url)).toEqual(expected);
+		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
 	it('should return correct GitHubPointer for a repo URL', () => {
@@ -69,6 +69,6 @@ describe('analyzeGitHubURL', () => {
 			ref: 'unknown',
 			path: '',
 		};
-		expect(analyzeGitHubURL(url)).toEqual(expected);
+		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 });
