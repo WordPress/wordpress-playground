@@ -24,6 +24,7 @@ import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
 import { WriteFileStep } from './write-file';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
+export { phpConstsFilePath } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 
 export type Step = GenericStep<FileReference>;

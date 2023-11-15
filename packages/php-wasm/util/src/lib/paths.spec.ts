@@ -1,4 +1,4 @@
-import { basename, joinPaths, normalizePath } from './paths';
+import { basename, dirname, joinPaths, normalizePath } from './paths';
 
 describe('joinPaths', () => {
 	it('should join paths correctly', () => {
@@ -48,5 +48,17 @@ describe('basename', () => {
 
 	it('should return the basename of a path with multiple slashes', () => {
 		expect(basename('/path/to//file')).toEqual('file');
+	});
+});
+
+describe('dirname', () => {
+	it('should return the directory name of a path', () => {
+		expect(dirname('/path/to/file.txt')).toEqual('/path/to');
+		expect(dirname('/path/to/directory/')).toEqual('/path/to');
+		expect(dirname('/path/to//file')).toEqual('/path/to');
+		expect(dirname('/path/to/')).toEqual('/path');
+		expect(dirname('/path/to')).toEqual('/path');
+		expect(dirname('/')).toEqual('/');
+		expect(dirname('')).toEqual('');
 	});
 });

@@ -2,6 +2,8 @@ import { StepHandler } from '.';
 import { updateFile } from './common';
 
 export const VFS_TMP_DIRECTORY = '/vfs-blueprints';
+export const phpConstsFilePath = `${VFS_TMP_DIRECTORY}/wp-consts.php`;
+export const phpConstsJsonPath = `${VFS_TMP_DIRECTORY}/playground-consts.json`;
 
 /**
  * @inheritDoc defineWpConfigConsts
@@ -46,12 +48,10 @@ export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
 > = async (playground, { consts }) => {
 	await playground.mkdir(VFS_TMP_DIRECTORY);
-	const phpConstsFilePath = `${VFS_TMP_DIRECTORY}/wp-consts.php`;
-	const jsonPath = `${VFS_TMP_DIRECTORY}/playground-consts.json`;
 	await updateFile(playground, phpConstsFilePath, (contents) => {
-		if (!contents.includes(jsonPath)) {
+		if (!contents.includes(phpConstsJsonPath)) {
 			return `<?php
-	$consts = json_decode(file_get_contents('${jsonPath}'), true);
+	$consts = json_decode(file_get_contents('${phpConstsJsonPath}'), true);
 	foreach ($consts as $const => $value) {
 		if (!defined($const)) {
 			define($const, $value);
@@ -61,13 +61,13 @@ export const defineWpConfigConsts: StepHandler<
 		}
 		return contents;
 	});
-	await updateFile(playground, jsonPath, (contents) =>
+	await updateFile(playground, phpConstsJsonPath, (contents) =>
 		JSON.stringify({
 			...JSON.parse(contents || '{}'),
 			...consts,
 		})
 	);
 
-	await playground.setPhpIniEntry('auto_prepend_file', phpConstsFilePath);
+	// await playground.setPhpIniEntry('auto_prepend_file', phpConstsFilePath);
 	return phpConstsFilePath;
 };
