@@ -1,15 +1,15 @@
 import { signal } from '@preact/signals-react';
 import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import Modal, { defaultStyles } from '../../components/modal';
-import GitHubImportForm from './form';
+import GitHubExportForm from './form';
 import { GitHubPointer } from '../analyze-github-url';
 
-export const isGitHubImportModalOpen = signal(false);
+export const isGitHubExportModalOpen = signal(false);
 
-interface GithubImportModalProps {
-	onImported?: (pointer: GitHubPointer) => void;
+interface GithubExportModalProps {
+	onExported?: (pointer: GitHubPointer) => void;
 }
-export function GithubImportModal({ onImported }: GithubImportModalProps) {
+export function GithubExportModal({ onExported }: GithubExportModalProps) {
 	const { playground } = usePlaygroundContext();
 	return (
 		<Modal
@@ -17,24 +17,24 @@ export function GithubImportModal({ onImported }: GithubImportModalProps) {
 				...defaultStyles,
 				content: { ...defaultStyles.content, width: 600 },
 			}}
-			isOpen={isGitHubImportModalOpen.value}
+			isOpen={isGitHubExportModalOpen.value}
 			onRequestClose={() => {
-				isGitHubImportModalOpen.value = false;
+				isGitHubExportModalOpen.value = false;
 			}}
 		>
-			<GitHubImportForm
+			<GitHubExportForm
 				playground={playground!}
 				onClose={() => {
-					isGitHubImportModalOpen.value = false;
+					isGitHubExportModalOpen.value = false;
 				}}
-				onImported={(pointer) => {
+				onExported={(pointer) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
 					alert(
-						'Import finished! Your Playground site has been updated.'
+						'Export finished! Your Playground site has been updated.'
 					);
-					isGitHubImportModalOpen.value = false;
-					onImported?.(pointer);
+					isGitHubExportModalOpen.value = false;
+					onExported?.(pointer);
 				}}
 			/>
 		</Modal>

@@ -1,6 +1,6 @@
 import { setOAuthToken, oAuthState } from './state';
 import { oauthCode } from './github-oauth-guard';
-import { isGitHubModalOpen } from './github-import-form/modal';
+import { isGitHubImportModalOpen } from './github-import-form/modal';
 
 export async function acquireOAuthTokenIfNeeded() {
 	if (!oauthCode) {
@@ -14,7 +14,7 @@ export async function acquireOAuthTokenIfNeeded() {
 	};
 
 	// Open the modal if we're authenticating the user.
-	isGitHubModalOpen.value = true;
+	isGitHubImportModalOpen.value = true;
 	try {
 		// Fetch https://github.com/login/oauth/access_token
 		// with clientId, clientSecret and code

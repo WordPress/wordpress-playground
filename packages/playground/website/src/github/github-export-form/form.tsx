@@ -1,6 +1,5 @@
 import React from 'react';
 import { useState } from 'react';
-import { Notice, Button as WPButton } from '@wordpress/components';
 import { PlaygroundClient } from '@wp-playground/client';
 
 import css from './style.module.css';
@@ -21,7 +20,7 @@ import { signal } from '@preact/signals-react';
 
 interface GitHubFormProps {
 	playground: PlaygroundClient;
-	onImported: (pointer: GitHubPointer) => void;
+	onExported: (pointer: GitHubPointer) => void;
 	onClose: () => void;
 }
 
@@ -37,17 +36,23 @@ const url = signal('');
 const errors = signal<Record<string, string>>({});
 const pointer = signal<GitHubPointer | undefined>(undefined);
 
+interface ExportFormState {
+	intent: 'create-pr' | 'update-pr';
+}
+
 export default function GitHubForm({
 	playground,
-	onImported,
+	onExported,
 }: GitHubFormProps) {
+	const [values, setValues] = useState<ExportFormState>({
+		intent: 'create-pr',
+	});
 	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-	const [isImporting, setIsImporting] = useState<boolean>(false);
+	const [isExporting, setIsExporting] = useState<boolean>(false);
 	const [importProgress, setImportProgress] = useState<GetFilesProgress>({
 		downloadedFiles: 0,
 		foundFiles: 0,
 	});
-	const [showExample, setShowExample] = useState<boolean>(false);
 	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(false);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -71,11 +76,11 @@ export default function GitHubForm({
 		}
 		if (!pointer.value?.contentType) {
 			errors.value = {
-				contentType: 'Please select what you want to import',
+				contentType: 'Please select what you want to export',
 			};
 			return;
 		}
-		await importUrl();
+		await exportUrl();
 	}
 
 	async function analyzeUrl() {
@@ -113,8 +118,8 @@ export default function GitHubForm({
 		}
 	}
 
-	async function importUrl() {
-		setIsImporting(true);
+	async function exportUrl() {
+		setIsExporting(true);
 		setImportProgress({ downloadedFiles: 0, foundFiles: 0 });
 		try {
 			const octokit = getClient();
@@ -137,8 +142,8 @@ export default function GitHubForm({
 				immutablePointer.repo,
 				relativeRepoPath
 			);
-			setIsImporting(false);
-			onImported(immutablePointer);
+			setIsExporting(false);
+			onExported(immutablePointer);
 		} catch (e) {
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
@@ -151,18 +156,18 @@ export default function GitHubForm({
 
 	return (
 		<GitHubOAuthGuard>
-			<form id="import-playground-form" onSubmit={handleSubmit}>
+			<form onSubmit={handleSubmit}>
 				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
-					Import from GitHub
+					Submit a Pull Request to GitHub
 				</h2>
 				<p className={css.modalText}>
-					You may import WordPress plugins, themes, and entire
-					wp-content directories from any public GitHub repository.
+					You may submit your changes to WordPress plugins, themes, and entire
+					wp-content directories to your public GitHub repositories.
 				</p>
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
 						{' '}
-						I want to import from this GitHub URL:
+						I want to target this GitHub repository or PR:
 						<input
 							type="text"
 							value={url.value}
@@ -180,35 +185,8 @@ export default function GitHubForm({
 					{'url' in errors.value ? (
 						<div className={forms.error}>{errors.value.url}</div>
 					) : null}
-					<WPButton
-						variant="link"
-						style={{ marginTop: 5 }}
-						onClick={() => setShowExample(!showExample)}
-					>
-						{showExample ? 'Hide examples' : 'Need an example?'}
-					</WPButton>
 				</div>
-				{showExample ? (
-					<Notice isDismissible={false} className={css.notice}>
-						<p style={{ marginTop: 0 }}>
-							Here's a few examples of URLs you can use:
-						</p>
-						<dl className={css.examplesDl}>
-							<dt>A repository:</dt>
-							<dd>https://github.com/org/repo-name</dd>
 
-							<dt>A path inside a repository:</dt>
-							<dd>
-								https://github.com/org/repo-name/tree/trunk/my-theme
-							</dd>
-
-							<dt>A Pull Request:</dt>
-							<dd>https://github.com/org/repo-name/pull/733</dd>
-						</dl>
-					</Notice>
-				) : (
-					false
-				)}
 				{pointer.value && !URLNeedsAnalyzing && !isAnalyzing ? (
 					<>
 						{pointer.value ? (
@@ -242,6 +220,32 @@ export default function GitHubForm({
 						) : (
 							false
 						)}
+						<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
+							<label>
+								{' '}
+								I want to:
+								<select
+									value={
+										values.intent
+									}
+									className={css.repoInput}
+									onChange={(e) => {
+										setValues({ intent: e.target.value as any })
+									}}
+								>
+									<option value="">
+										-- Select an option --
+									</option>
+									<option value="create-pr">Create a Pull Request</option>
+									<option value="update-pr">
+										Update an existing Pull Request
+									</option>
+								</select>
+							</label>
+							{'intent' in errors.value ? (
+								<div className={forms.error}>{errors.value.intent}</div>
+							) : null}
+						</div>
 						{['pr', 'branch', 'repo'].includes(
 							pointer.value.type as any
 						) ? (
@@ -250,7 +254,7 @@ export default function GitHubForm({
 									className={`${forms.formGroup} ${forms.formGroupLast}`}
 								>
 									<label>
-										I am importing a:
+										I am submitting a:
 										<select
 											value={
 												pointer.value
@@ -287,7 +291,7 @@ export default function GitHubForm({
 									className={`${forms.formGroup} ${forms.formGroupLast}`}
 								>
 									<label>
-										From the following path in the repo:
+										To the following path in the repo:
 										<input
 											type="text"
 											className={css.repoInput}
@@ -321,7 +325,7 @@ export default function GitHubForm({
 				)}
 				<div className={forms.submitRow}>
 					<Button
-						disabled={!url || isAnalyzing || isImporting}
+						disabled={!url || isAnalyzing || isExporting}
 						type="submit"
 						variant="primary"
 						size="large"
@@ -331,13 +335,13 @@ export default function GitHubForm({
 								<Spinner size={20} />
 								Analyzing the URL...
 							</>
-						) : isImporting ? (
+						) : isExporting ? (
 							<>
 								<Spinner size={20} />
 								{` Importing... ${importProgress.downloadedFiles}/${importProgress.foundFiles} files downloaded`}
 							</>
 						) : (
-							'Import'
+							'Next'
 						)}
 					</Button>
 				</div>
@@ -345,4 +349,3 @@ export default function GitHubForm({
 		</GitHubOAuthGuard>
 	);
 }
-
