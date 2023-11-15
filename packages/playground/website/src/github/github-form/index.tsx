@@ -88,18 +88,29 @@ export default function GitHubForm({
 		setIsAnalyzing(true);
 		const octokit = getClient();
 		try {
-			// Get default branch from the repo
-			const repo = await octokit.rest.repos.get({
-				owner: details.owner,
-				repo: details.repo,
-			});
-			setRepoBranch(repo.data.default_branch);
+			// Get the requested branch name
+			let branch: string;
+			if (details.type === 'pr') {
+				const { data: pr } = await octokit.rest.pulls.get({
+					owner: details.owner,
+					repo: details.repo,
+					pull_number: details.pr,
+				});
+				branch = pr.head.ref;
+			} else {
+				const repo = await octokit.rest.repos.get({
+					owner: details.owner,
+					repo: details.repo,
+				});
+				branch = repo.data.default_branch;
+			}
+			setRepoBranch(branch);
 
 			const { data: files } = await octokit.rest.repos.getContent({
 				owner: details.owner,
 				repo: details.repo,
 				path: details.path,
-				ref: repo.data.default_branch,
+				ref: branch,
 			});
 			if (Array.isArray(files)) {
 				for (const { name } of files) {
