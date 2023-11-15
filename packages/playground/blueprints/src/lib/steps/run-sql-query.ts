@@ -1,0 +1,59 @@
+import { StepHandler } from '.';
+
+/**
+ * @inheritDoc runSqlQuery
+ * @hasRunnableExample
+ * @example
+ *
+ * <code>
+ * {
+ * 	    "step": "runSqlQuery",
+ * 		"path": "wordpress.org/plugins"
+ * }
+ * </code>
+ */
+export interface RunSqlQueryStep {
+	/**
+	 * The step identifier.
+	 */
+	step: 'runSqlQuery';
+	/**
+	 * The SQL query to run.
+	 */
+	query: string | string[];
+}
+
+/**
+ * Run one or more SQL queries.
+ *
+ * @param playground The playground client.
+ * @param query The query/queries to run.
+ */
+export const runSqlQuery: StepHandler<RunSqlQueryStep> = async (
+	playground,
+	{ query },
+	progress?
+) => {
+	if (!Array.isArray(query)) {
+		query = [query];
+	}
+
+	progress?.tracker.setCaption(`Executing SQL Queries`);
+
+	const code =
+		`<?php
+	require_once '/wordpress/wp-load.php';
+	require_once '/wordpress/wp-content/plugins/Collector/Collector_Restore.php';
+	global $wpdb;\n` +
+		query.map((q) => `$wpdb->query(${JSON.stringify(q)});`).join('\n');
+
+	console.log(code);
+
+	const runPhp = await playground.run({ code });
+
+	console.log({ runPhp });
+
+	console.log(new TextDecoder('utf-8').decode(new Uint8Array(runPhp.bytes)));
+
+	return runPhp;
+};

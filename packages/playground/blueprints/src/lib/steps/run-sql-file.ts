@@ -18,17 +18,16 @@ export interface RunSqlFileStep {
 	 */
 	step: 'runSqlFile';
 	/**
-	 * The plugin zip file to install.
+	 * The SQL file to run.
 	 */
 	path: string;
 }
 
 /**
- * Installs a WordPress plugin in the Playground.
+ * Run an SQL file.
  *
  * @param playground The playground client.
- * @param pluginZipFile The plugin zip file.
- * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
+ * @param path The path to the SQL file.
  */
 export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 	playground,
@@ -37,11 +36,13 @@ export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Executing SQL`);
 
-	const runPhp = await playground.run({code:`<?php
-	require_once '/wordpress/wp-load.php';
-	require_once '/wordpress//wp-content/plugins/Collector/Collector_Restore.php';
-	collector_restore_backup(${JSON.stringify(path)});
-	`});
+	const runPhp = await playground.run({
+		code: `<?php
+		require_once '/wordpress/wp-load.php';
+		require_once '/wordpress//wp-content/plugins/Collector/Collector_Restore.php';
+		collector_restore_backup(${JSON.stringify(path)});
+	`,
+	});
 
 	return runPhp;
 };
