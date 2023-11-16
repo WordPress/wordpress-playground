@@ -7,8 +7,8 @@ import { StepHandler } from '.';
  *
  * <code>
  * {
- * 	    "step": "runSqlQuery",
- * 		"path": "wordpress.org/plugins"
+ * 	    "step":  "runSqlQuery",
+ * 		"query": "SELECT * FROM..."
  * }
  * </code>
  */
