@@ -7,8 +7,8 @@ import { StepHandler } from '.';
  *
  * <code>
  * {
- * 	    "step":  "runSqlQuery",
- * 		"query": "SELECT * FROM..."
+ *		"step":  "runSqlQuery",
+ *		"query": "SELECT * FROM..."
  * }
  * </code>
  */
