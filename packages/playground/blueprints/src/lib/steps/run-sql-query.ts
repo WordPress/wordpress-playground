@@ -18,7 +18,7 @@ export interface RunSqlQueryStep {
 	 */
 	step: 'runSqlQuery';
 	/**
-	 * The SQL query to run.
+	 * The SQL query string or array of queries to run.
 	 */
 	query: string | string[];
 }
@@ -40,11 +40,10 @@ export const runSqlQuery: StepHandler<RunSqlQueryStep> = async (
 
 	progress?.tracker.setCaption(`Executing SQL Queries`);
 
-	const code =
-		`<?php
-	require_once '/wordpress/wp-load.php';
-	global $wpdb;\n` +
-		query.map((q) => `$wpdb->query(${JSON.stringify(q)});`).join('\n');
+	const code = `<?php
+	require_once ${JSON.stringify(playground.documentRoot)} . '/wp-load.php';
+	global $wpdb;
+	${query.map((q) => `$wpdb->query(${JSON.stringify(q)});`).join('\n')};`;
 
 	return await playground.run({ code });
 };

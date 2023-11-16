@@ -8,7 +8,7 @@ import { StepHandler } from '.';
  * <code>
  * {
  * 	    "step": "runSqlFile",
- * 		"path": "wordpress.org/plugins"
+ * 		"path": "/tmp/my-backup.sql"
  * }
  * </code>
  */
@@ -27,7 +27,7 @@ export interface RunSqlFileStep {
  * Run an SQL file.
  *
  * @param playground The playground client.
- * @param path The path to the SQL file.
+ * @param path The filepath of the SQL file.
  */
 export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 	playground,
@@ -38,9 +38,28 @@ export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 
 	const runPhp = await playground.run({
 		code: `<?php
-		require_once '/wordpress/wp-load.php';
-		require_once '/wordpress//wp-content/plugins/Collector/Collector_Restore.php';
-		collector_restore_backup(${JSON.stringify(path)});
+		require_once ${JSON.stringify(playground.documentRoot)} . '/wp-load.php';
+
+		$handle = fopen(${JSON.stringify(path)}, 'r');
+		$buffer = '';
+
+		global $wpdb;
+
+		while ($bytes = fgets($handle)) {
+			$buffer .= $bytes;
+
+			if (substr($buffer, -1, 1) !== "\n") {
+				continue;
+			}
+
+			if (substr($buffer, 0, 2) === '--') {
+				$buffer = '';
+				continue;
+			}
+
+			$wpdb->query($buffer);
+			$buffer = '';
+		}
 	`,
 	});
 
