@@ -36,9 +36,11 @@ export const runSqlFile: StepHandler<RunSqlFileStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Executing SQL File`);
 
+	const docroot = await playground.documentRoot;
+
 	const runPhp = await playground.run({
 		code: `<?php
-		require_once ${JSON.stringify(playground.documentRoot)} . '/wp-load.php';
+		require_once ${JSON.stringify(docroot)} . '/wp-load.php';
 
 		$handle = fopen(${JSON.stringify(path)}, 'r');
 		$buffer = '';

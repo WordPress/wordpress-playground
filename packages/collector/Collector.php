@@ -15,9 +15,9 @@ Author URI: https://github.com/seanmorris/
 const COLLECTOR_DOWNLOAD_PATH   = '/wp-admin/?page=collector_download_package';
 const COLLECTOR_FINAL_ZIP       = '/tmp/collector-package.zip';
 
-define('COLLECTOR_PLAYGROUND_URL', ($_SERVER['SERVER_NAME'] === 'localhost')
-	? 'http://localhost:5400/website-server/'
-	: 'https://playground.wordpress.net/'
+define('COLLECTOR_PLAYGROUND_PACKAGE', ($_SERVER['SERVER_NAME'] === 'localhost')
+	? 'http://localhost:8081/index.js'
+	: 'https://unpkg.com/@wp-playground/client/index.js'
 );
 
 global $wp_version;
@@ -28,7 +28,6 @@ define('COLLECTOR_PHP_VERSION', implode('.',sscanf(phpversion(), '%d.%d')));
 require __DIR__ . '/Collector_Content.php';
 require __DIR__ . '/Collector_Db.php';
 require __DIR__ . '/Collector_Helpers.php';
-require __DIR__ . '/Collector_Restore.php';
 require __DIR__ . '/Collector_Zip.php';
 
 add_action('admin_menu', 'collector_plugin_menu');
@@ -84,15 +83,9 @@ function collector_render_playground_page()
         const pluginName = new URLSearchParams(window.location.search).get('pluginName');
 
 		(async () => {
-			// const  { startPlaygroundWeb } = await import('https://unpkg.com/@wp-playground/client/index.js');
-			const  { startPlaygroundWeb } = await import('http://localhost:8081/index.js');
+			const  { startPlaygroundWeb } = await import(<?=json_encode(COLLECTOR_PLAYGROUND_PACKAGE);?>);
 
 			const steps = [
-				{
-					step: 'writeFile',
-					path: <?=json_encode(COLLECTOR_PLAYGROUND_FLAG);?>,
-					data: '',
-				},
 				{
 					step: 'writeFile',
 					path: '/data.zip',
@@ -153,10 +146,6 @@ function collector_render_playground_page()
 					step: 'login',
 					username: username,
 					password: fakepass,
-				},
-				{
-					step: 'rm',
-					path: <?=json_encode(COLLECTOR_PLAYGROUND_FLAG);?>,
 				}
 			]);
 
