@@ -236,6 +236,30 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	#initWebRuntime() {
+		/**
+		 * This creates a consts.php file in an in-memory
+		 * /tmp directory and sets the auto_prepend_file PHP option
+	 	 * to always load that file.
+	 	 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+		 *
+		 * Technically, this is a workaround. In the future, let's implement a 
+		 * WASM SAPI method to pass consts directly.
+		 * @see https://github.com/WordPress/wordpress-playground/issues/750
+		 */
+		this.setPhpIniEntry('auto_prepend_file', '/tmp/consts.php');
+		if (!this.fileExists('/tmp/consts.php')) {
+			this.writeFile(
+				'/tmp/consts.php',
+				`<?php
+			$consts = json_decode(file_get_contents('/tmp/consts.json'), true);
+			foreach ($consts as $const => $value) {
+				if (!defined($const) && is_scalar($value)) {
+					define($const, $value);
+				}
+			}`
+			);
+		}
+
 		if (this.#phpIniOverrides.length > 0) {
 			const overridesAsIni =
 				this.#phpIniOverrides
@@ -418,6 +442,26 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				[key, this.#serverEntries[key]]
 			);
 		}
+	}
+
+	defineConstant(key: string, value: string) {
+		let consts = {};
+		try {
+			consts = JSON.parse(
+				this.fileExists('/tmp/consts.json')
+					? this.readFileAsText('/tmp/consts.json') || '{}'
+					: '{}'
+			);
+		} catch (e) {
+			// ignore
+		}
+		this.writeFile(
+			'/tmp/consts.json',
+			JSON.stringify({
+				...consts,
+				[key]: value,
+			})
+		);
 	}
 
 	/**

@@ -1,5 +1,4 @@
 import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
-import { dirname } from '@php-wasm/util';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -24,10 +23,7 @@ import {
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import {
-	applyWordPressPatches,
-	phpConstsFilePath,
-} from '@wp-playground/blueprints';
+import { applyWordPressPatches } from '@wp-playground/blueprints';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -193,14 +189,6 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 try {
 	await phpReady;
-
-	// Set up the auto_prepend_file PHP.ini option that is necessary for the
-	// defineWpConfigConsts Blueprint step to work. We can't define it in that
-	// step because `setPhpIniEntry` can only be called before the first php.run()
-	// call. We do it now, because when the step runs it may be too late.
-	php.mkdir(dirname(phpConstsFilePath));
-	php.writeFile(phpConstsFilePath, '');
-	php.setPhpIniEntry('auto_prepend_file', phpConstsFilePath);
 
 	if (!wordPressAvailableInOPFS) {
 		/**

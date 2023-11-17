@@ -1,9 +1,4 @@
 import { StepHandler } from '.';
-import { updateFile } from './common';
-
-export const VFS_TMP_DIRECTORY = '/vfs-blueprints';
-export const phpConstsFilePath = `${VFS_TMP_DIRECTORY}/wp-consts.php`;
-export const phpConstsJsonPath = `${VFS_TMP_DIRECTORY}/playground-consts.json`;
 
 /**
  * @inheritDoc defineWpConfigConsts
@@ -34,11 +29,6 @@ export interface DefineWpConfigConstsStep {
 /**
  * Defines constants to be used in wp-config.php file.
  *
- * Technically, this creates a wp-consts.php file in an in-memory
- * /vfs-blueprints directory and sets the auto_prepend_file PHP option
- * to always load that file.
- * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
- *
  * This step can be called multiple times, and the constants will be merged.
  *
  * @param playground The playground client.
@@ -47,26 +37,7 @@ export interface DefineWpConfigConstsStep {
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
 > = async (playground, { consts }) => {
-	await playground.mkdir(VFS_TMP_DIRECTORY);
-	await updateFile(playground, phpConstsFilePath, (contents) => {
-		if (!contents.includes(phpConstsJsonPath)) {
-			return `<?php
-	$consts = json_decode(file_get_contents('${phpConstsJsonPath}'), true);
-	foreach ($consts as $const => $value) {
-		if (!defined($const)) {
-			define($const, $value);
-		}
+	for (const key in consts) {
+		await playground.defineConstant(key, consts[key] as string);
 	}
-?>${contents}`;
-		}
-		return contents;
-	});
-	await updateFile(playground, phpConstsJsonPath, (contents) =>
-		JSON.stringify({
-			...JSON.parse(contents || '{}'),
-			...consts,
-		})
-	);
-
-	return phpConstsFilePath;
 };
