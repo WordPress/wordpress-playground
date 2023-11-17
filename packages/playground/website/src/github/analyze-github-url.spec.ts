@@ -1,26 +1,29 @@
-import { staticAnalyzeGitHubURL, GitHubPointer } from './analyze-github-url';
+import {
+	staticAnalyzeGitHubURL,
+	GitHubURLInformation,
+} from './analyze-github-url';
 
 describe('staticAnalyzeGitHubURL', () => {
-	it('should return correct GitHubPointer for a repo URL', () => {
+	it('should return correct GitHubURLInformation for a repo URL', () => {
 		const url = 'https://github.com/owner/repo/';
-		const expected: GitHubPointer = {
+		const expected: GitHubURLInformation = {
 			owner: 'owner',
 			repo: 'repo',
 			type: 'repo',
-			ref: 'unknown',
+			ref: undefined,
 			path: '',
 			pr: undefined,
 		};
 		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
-	it('should return correct GitHubPointer for a PR URL', () => {
+	it('should return correct GitHubURLInformation for a PR URL', () => {
 		const url = 'https://github.com/owner/repo/pull/123';
-		const expected: GitHubPointer = {
+		const expected: GitHubURLInformation = {
 			owner: 'owner',
 			repo: 'repo',
 			type: 'pr',
-			ref: 'unknown',
+			ref: undefined,
 			path: '',
 			pr: 123,
 		};
@@ -34,9 +37,9 @@ describe('staticAnalyzeGitHubURL', () => {
 		);
 	});
 
-	it('should return correct GitHubPointer for a branch URL', () => {
+	it('should return correct GitHubURLInformation for a branch URL', () => {
 		const url = 'https://github.com/owner/repo/tree/branch/path/to/file';
-		const expected: GitHubPointer = {
+		const expected: GitHubURLInformation = {
 			owner: 'owner',
 			repo: 'repo',
 			type: 'branch',
@@ -47,26 +50,26 @@ describe('staticAnalyzeGitHubURL', () => {
 		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
-	it('should return correct GitHubPointer for a raw file URL', () => {
+	it('should return correct GitHubURLInformation for a raw file URL', () => {
 		const url =
 			'https://raw.githubusercontent.com/owner/repo/branch/path/to/file.zip';
-		const expected: GitHubPointer = {
+		const expected: GitHubURLInformation = {
 			owner: 'owner',
 			repo: 'repo',
 			type: 'rawfile',
-			ref: 'unknown',
+			ref: undefined,
 			path: 'owner/repo/branch/path/to/file.zip',
 		};
 		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);
 	});
 
-	it('should return correct GitHubPointer for a repo URL', () => {
+	it('should return correct GitHubURLInformation for a repo URL', () => {
 		const url = 'https://github.com/owner/repo';
-		const expected: GitHubPointer = {
+		const expected: GitHubURLInformation = {
 			owner: 'owner',
 			repo: 'repo',
 			type: 'repo',
-			ref: 'unknown',
+			ref: undefined,
 			path: '',
 		};
 		expect(staticAnalyzeGitHubURL(url)).toEqual(expected);

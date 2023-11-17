@@ -38,14 +38,14 @@ export function GithubImportModal({ onImported }: GithubImportModalProps) {
 			<GitHubImportForm
 				playground={playground!}
 				onClose={closeModal}
-				onImported={(url, pointer, files) => {
+				onImported={(details) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
 					alert(
 						'Import finished! Your Playground site has been updated.'
 					);
 					closeModal();
-					onImported?.(url, pointer, files);
+					onImported?.(details);
 				}}
 			/>
 		</Modal>

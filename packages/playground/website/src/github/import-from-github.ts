@@ -5,8 +5,8 @@ import {
 	filesListToObject,
 	overwritePath,
 } from '@wp-playground/storage';
-import { ContentType } from './analyze-github-url';
 
+export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(
 	php: UniversalPHP,
 	gitHubFiles: any[],

@@ -5,11 +5,7 @@ import { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
 import forms from '../../forms.module.css';
 import Button from '../../components/button';
-import {
-	ContentType,
-	GitHubPointer,
-	staticAnalyzeGitHubURL,
-} from '../analyze-github-url';
+import { staticAnalyzeGitHubURL } from '../analyze-github-url';
 import {
 	Changeset,
 	GithubClient,
@@ -27,6 +23,7 @@ import {
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
+import { ContentType } from '../import-from-github';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
@@ -50,7 +47,7 @@ export interface ExportFormValues {
 	repoUrl: string;
 	prAction?: PullRequestAction;
 	prNumber: string;
-	contentType?: GitHubPointer['contentType'];
+	contentType?: ContentType;
 	pathInRepo: string;
 	commitMessage: string;
 	plugin?: string;
@@ -228,10 +225,6 @@ export default function GitHubExportForm({
 			return;
 		}
 
-		await doExport();
-	}
-
-	async function doExport() {
 		setIsExporting(true);
 		try {
 			const octokit = getClient();
@@ -305,7 +298,6 @@ export default function GitHubExportForm({
 
 			setPushResult(pushResult);
 			onExported?.(pushResult.url, formValues);
-			setIsExporting(false);
 			return;
 		} catch (e: any) {
 			// Handle the "Bad Credentials" error
@@ -321,6 +313,8 @@ export default function GitHubExportForm({
 				`There was an unexpected error ${eMessage}, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.`
 			);
 			throw e;
+		} finally {
+			setIsExporting(false);
 		}
 	}
 
@@ -474,36 +468,33 @@ export default function GitHubExportForm({
 						<div className={forms.error}>{errors.repoUrl}</div>
 					) : null}
 				</div>
-				{!URLNeedsAnalyzing ? (
+				{formValues.repoUrl && !URLNeedsAnalyzing ? (
 					<>
-						{formValues.repoUrl && !errors.repoUrl && (
-							<div
-								className={`${forms.formGroup} ${forms.formGroupLast}`}
-							>
-								<label>
-									Do you want to update an existing PR or
-									create a new one?
-									<select
-										className={css.repoInput}
-										value={formValues.prAction}
-										onChange={(e) =>
-											setValue(
-												'prAction',
-												e.target
-													.value as PullRequestAction
-											)
-										}
-									>
-										<option value="update">
-											Update an existing PR
-										</option>
-										<option value="create">
-											Create a new PR
-										</option>
-									</select>
-								</label>
-							</div>
-						)}
+						<div
+							className={`${forms.formGroup} ${forms.formGroupLast}`}
+						>
+							<label>
+								Do you want to update an existing PR or create a
+								new one?
+								<select
+									className={css.repoInput}
+									value={formValues.prAction}
+									onChange={(e) =>
+										setValue(
+											'prAction',
+											e.target.value as PullRequestAction
+										)
+									}
+								>
+									<option value="update">
+										Update an existing PR
+									</option>
+									<option value="create">
+										Create a new PR
+									</option>
+								</select>
+							</label>
+						</div>
 						{formValues.prAction === 'update' && (
 							<div
 								className={`${forms.formGroup} ${forms.formGroupLast}`}
@@ -694,6 +685,11 @@ async function pushToGithub(
 			parentSha,
 			changeset
 		);
+		if (!newTreeSha) {
+			throw new Error(
+				'No changes were detected so there is nothing to commit.'
+			);
+		}
 		const commitSha = await createCommit(
 			octokit,
 			pushToOwner,

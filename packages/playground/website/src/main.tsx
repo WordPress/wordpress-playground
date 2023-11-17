@@ -22,7 +22,6 @@ import { GithubExportMenuItem } from './components/toolbar-buttons/github-export
 import { GithubExportModal } from './github/github-export-form';
 import { useState } from 'react';
 import { ExportFormValues } from './github/github-export-form/form';
-import { basename } from '@php-wasm/util';
 
 const query = new URL(document.location.href).searchParams;
 
@@ -146,21 +145,22 @@ function Main() {
 			]}
 		>
 			<GithubImportModal
-				onImported={(url, pointer, files) => {
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
 					setGithubExportValues({
 						repoUrl: url,
-						prNumber: pointer.pr?.toString(),
-						pathInRepo: pointer.path,
-						prAction: pointer.pr ? 'update' : 'create',
-						contentType: pointer.contentType,
-						plugin:
-							pointer.contentType === 'plugin'
-								? basename(pointer.path)
-								: '',
-						theme:
-							pointer.contentType === 'theme'
-								? basename(pointer.path)
-								: '',
+						prNumber: pr?.toString(),
+						pathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
 					});
 					setGithubExportFiles(files);
 				}}
