@@ -8,21 +8,25 @@ import Button from '../../components/button';
 import {
 	ContentType,
 	GitHubPointer,
-	analyzeGitHubURL,
+	staticAnalyzeGitHubURL,
 } from '../analyze-github-url';
 import {
+	Changeset,
 	GithubClient,
 	changeset,
-	changesetToPRFiles,
 	createClient,
+	createCommit,
+	createOrUpdateBranch,
+	createTree,
 	filesListToObject,
+	fork,
 	getFilesFromDirectory,
 	iterateFiles,
+	mayPush,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
-import { normalizePath } from '@php-wasm/util';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
@@ -46,27 +50,11 @@ export interface ExportFormValues {
 	repoUrl: string;
 	prAction?: PullRequestAction;
 	prNumber: string;
-	branchName: string;
 	contentType?: GitHubPointer['contentType'];
 	pathInRepo: string;
 	commitMessage: string;
-	plugin: string;
-	theme: string;
-}
-
-export function githubPointerToExportFormValues(
-	pointer: GitHubPointer
-): Partial<ExportFormValues> {
-	const shouldCreatePr = !pointer.pr;
-	const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
-	return {
-		pathInRepo: normalizePath('/' + pointer.path || '/'),
-		prAction: shouldCreatePr ? 'create' : 'update',
-		branchName: shouldCreatePr
-			? `playground-changes-${isoDateSlug}`
-			: pointer.ref || '',
-		prNumber: pointer.pr ? pointer.pr + '' : '',
-	};
+	plugin?: string;
+	theme?: string;
 }
 
 export default function GitHubExportForm({
@@ -76,15 +64,19 @@ export default function GitHubExportForm({
 	initialFilesBeforeChanges,
 }: GitHubExportFormProps) {
 	const [formValues, _setFormValues] = useState<ExportFormValues>({
-		repoUrl: 'https://github.com/WordPress/community-themes/pull/51',
-		prAction: 'create',
+		repoUrl: '',
 		prNumber: '',
-		branchName: '',
-		pathInRepo: '',
-		commitMessage: 'Changes made in WordPress Playground',
-		plugin: '',
-		theme: '',
+		prAction: 'create',
+		commitMessage: 'Changes from WordPress Playground',
+		pathInRepo: '/',
 		...initialValues,
+	});
+	const [repoDetails, setRepoDetails] = useState<{
+		owner: string;
+		repo: string;
+	}>({
+		owner: 'adamziel',
+		repo: 'themes',
 	});
 	function setFormValues(values: ExportFormValues) {
 		if (values.theme && !themes.includes(values.theme)) {
@@ -159,27 +151,15 @@ export default function GitHubExportForm({
 		});
 	};
 
-	const [ghPointer, setGhPointer] = useState<GitHubPointer>();
-	const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 	const [isExporting, setIsExporting] = useState<boolean>(false);
-	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(true);
-
-	useEffect(() => {
-		if (!formValues.repoUrl) return;
-		async function setPointer() {
-			const pointer = await analyzeUrl();
-			if (pointer?.type === 'unknown') {
-				setURLNeedsAnalyzing(true);
-				return;
-			}
-			setGhPointer(pointer);
-		}
-		setPointer();
-	}, []);
+	const [URLNeedsAnalyzing, setURLNeedsAnalyzing] = useState<boolean>(
+		!initialValues.repoUrl || !initialValues.prAction
+	);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
 		setErrors({});
+
 		const url = formValues.repoUrl?.trim();
 		if (!url) {
 			setError('repoUrl', 'Please enter a URL');
@@ -198,18 +178,25 @@ export default function GitHubExportForm({
 			return;
 		}
 		if (URLNeedsAnalyzing) {
-			setGhPointer(undefined);
-			const pointer = await analyzeUrl();
-			if (pointer?.type === 'unknown') {
+			const { type, owner, repo, path, pr } = staticAnalyzeGitHubURL(
+				formValues.repoUrl
+			);
+			if (type === 'unknown') {
 				setError('repoUrl', 'This URL is not supported');
 				return;
 			}
-			setGhPointer(pointer);
-			setFormValues({
-				...formValues,
-				...githubPointerToExportFormValues(pointer!),
-				prAction: pointer?.pr ? 'update' : 'create',
+			setRepoDetails({
+				owner: owner || '',
+				repo: repo || '',
 			});
+			if (pr) {
+				setValue('prNumber', pr + '');
+				setValue('prAction', 'update');
+			}
+			if (path) {
+				setValue('pathInRepo', path);
+			}
+			setURLNeedsAnalyzing(false);
 			return;
 		}
 		if (!formValues.prAction) {
@@ -218,10 +205,6 @@ export default function GitHubExportForm({
 		}
 		if (formValues.prAction === 'update' && !formValues.prNumber) {
 			setError('prNumber', 'Please enter a PR number');
-			return;
-		}
-		if (formValues.prAction === 'create' && !formValues.branchName) {
-			setError('branchName', 'Please enter a branch name');
 			return;
 		}
 		if (!formValues.pathInRepo) {
@@ -236,39 +219,16 @@ export default function GitHubExportForm({
 		await doExport();
 	}
 
-	async function analyzeUrl() {
-		setURLNeedsAnalyzing(false);
-		setIsAnalyzing(true);
-		try {
-			const octokit = getClient();
-			return await analyzeGitHubURL(octokit, formValues.repoUrl);
-		} catch (e: any) {
-			console.error(e);
-			// Handle the "Bad Credentials" error
-			if (e && e.status) {
-				switch (e.status) {
-					case 401:
-						setOAuthToken(undefined);
-						return;
-					case 404:
-						setError(
-							'repoUrl',
-							"This repo (or the resource in it) doesn't exist"
-						);
-						return;
-				}
-			}
-			setError('repoUrl', e.message);
-			throw e;
-		} finally {
-			setIsAnalyzing(false);
-		}
-	}
-
 	async function doExport() {
 		setIsExporting(true);
 		try {
 			const octokit = getClient();
+
+			const { data: ghRepo } = await octokit.rest.repos.get({
+				owner: repoDetails.owner,
+				repo: repoDetails.repo,
+			});
+			const defaultBranch = ghRepo.default_branch;
 
 			const relativeRepoPath = formValues.pathInRepo.replace(/^\//g, '');
 
@@ -278,9 +238,9 @@ export default function GitHubExportForm({
 					filesBeforeChanges ||
 					(await getFilesFromDirectory(
 						octokit,
-						ghPointer!.owner,
-						ghPointer!.repo,
-						ghPointer!.ref,
+						repoDetails.owner,
+						repoDetails.repo,
+						defaultBranch,
 						relativeRepoPath
 					));
 			} catch (e) {
@@ -314,64 +274,31 @@ export default function GitHubExportForm({
 					pathPrefix: relativeRepoPath,
 				})
 			);
-			console.log({ changes, playgroundPath: playgroundPath! });
 
-			// @TODO: Use https://github.com/mheap/octokit-commit-multiple-files
-			//        to avoid overwriting the existing commits in a PR.
-			const prConfig: Parameters<
-				(typeof octokit)['createPullRequest']
-			>[0] = {
-				owner: ghPointer!.owner,
-				repo: ghPointer!.repo,
-				title: prTitle!,
-				body: formValues.commitMessage,
-				head: formValues.branchName,
-				// update: formValues.prAction === 'update',
-				forceFork: false,
-				changes: [
-					{
-						files: changesetToPRFiles(changes) as any,
-						commit: formValues.commitMessage,
-					},
-				],
-			};
+			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
+			const pushResult = await pushToGithub(getClient(), {
+				owner: repoDetails.owner,
+				repo: repoDetails.repo,
+				commitMessage: formValues.commitMessage,
+				changeset: changes,
 
-			let prResponse: Awaited<
-				ReturnType<(typeof octokit)['createPullRequest']>
-			>;
-			try {
-				prResponse = await octokit.createPullRequest(prConfig);
-			} catch (e: any) {
-				console.log(e);
-				console.dir(e);
-				if (
-					e &&
-					e.status === 403 &&
-					e.message?.includes(
-						'organization has enabled OAuth App access restrictions'
-					)
-				) {
-					// OAuth token is not allowed to create PRs in this repo, try again with forceFork
-					// to create a fork and create the PR from there.
-					prResponse = await octokit.createPullRequest({
-						...prConfig,
-						forceFork: true,
-					});
-				} else {
-					throw e;
-				}
-			}
+				shouldCreateNewPR: formValues.prAction === 'create',
+				create: {
+					againstBranch: defaultBranch,
+					branchName: `playground-changes-${isoDateSlug}`,
+					title: prTitle,
+				},
+				update: {
+					prNumber: parseInt(formValues.prNumber),
+				},
+			});
 
-			if (prResponse) {
-				// Open the PR in a new tab
-				const prURL = prResponse.data.url;
-				window.open(prURL, '_blank');
+			// Open the PR in a new tab
+			console.log({ pushResult });
+			const prURL = pushResult.url;
+			window.open(prURL, '_blank');
 
-				console.log({ prResponse });
-				onExported(prURL);
-			} else {
-				console.log('PR creation failed');
-			}
+			onExported(prURL);
 
 			setIsExporting(false);
 			return;
@@ -478,8 +405,7 @@ export default function GitHubExportForm({
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
 						{' '}
-						I want to create or update a Pull Request for this
-						GitHub repo:
+						I want my Pull Request to target this GitHub repo:
 						<input
 							type="text"
 							value={formValues.repoUrl}
@@ -495,10 +421,10 @@ export default function GitHubExportForm({
 						/>
 					</label>
 					{'repoUrl' in errors ? (
-						<div className={forms.error}>{errors.url}</div>
+						<div className={forms.error}>{errors.repoUrl}</div>
 					) : null}
 				</div>
-				{!URLNeedsAnalyzing && !isAnalyzing ? (
+				{!URLNeedsAnalyzing ? (
 					<>
 						{formValues.repoUrl && !errors.repoUrl && (
 							<div
@@ -546,32 +472,6 @@ export default function GitHubExportForm({
 								{errors.prNumber && (
 									<div className={forms.error}>
 										{errors.prNumber}
-									</div>
-								)}
-							</div>
-						)}
-						{formValues.prAction === 'create' && (
-							<div
-								className={`${forms.formGroup} ${forms.formGroupLast}`}
-							>
-								<label>
-									I want to push to the following branch (new
-									or existing):
-									<input
-										type="text"
-										className={css.repoInput}
-										value={formValues.branchName}
-										onChange={(e) =>
-											setValue(
-												'branchName',
-												e.target.value
-											)
-										}
-									/>
-								</label>
-								{errors.branchName && (
-									<div className={forms.error}>
-										{errors.branchName}
 									</div>
 								)}
 							</div>
@@ -631,23 +531,23 @@ export default function GitHubExportForm({
 				) : null}
 				<div className={forms.submitRow}>
 					<Button
-						disabled={
-							!formValues.repoUrl || isAnalyzing || isExporting
-						}
+						disabled={!formValues.repoUrl || isExporting}
 						type="submit"
 						variant="primary"
 						size="large"
 					>
-						{isAnalyzing ? (
-							<>
-								<Spinner size={20} />
-								Analyzing the repository...
-							</>
-						) : isExporting ? (
-							<>
-								<Spinner size={20} />
-								Creating the Pull Request
-							</>
+						{isExporting ? (
+							formValues.prAction === 'update' ? (
+								<>
+									<Spinner size={20} />
+									Updating the Pull Request
+								</>
+							) : (
+								<>
+									<Spinner size={20} />
+									Creating the Pull Request
+								</>
+							)
 						) : URLNeedsAnalyzing ? (
 							'Next step'
 						) : formValues.prAction === 'update' ? (
@@ -660,4 +560,136 @@ export default function GitHubExportForm({
 			</form>
 		</GitHubOAuthGuard>
 	);
+}
+
+type CreatePROptions = {
+	title: string;
+	branchName: string;
+	againstBranch: string;
+};
+type UpdatePROptions = {
+	prNumber: number;
+};
+type PushToGitHubOptions = {
+	owner: string;
+	repo: string;
+	commitMessage: string;
+	changeset: Changeset;
+	shouldCreateNewPR: boolean;
+	create: CreatePROptions;
+	update: UpdatePROptions;
+	shouldFork?: boolean;
+};
+
+interface PushResult {
+	url: string;
+	forked: boolean;
+}
+
+async function pushToGithub(
+	octokit: GithubClient,
+	options: PushToGitHubOptions
+): Promise<PushResult> {
+	const {
+		owner,
+		repo,
+		shouldCreateNewPR,
+		commitMessage,
+		changeset,
+		shouldFork,
+		create: { againstBranch, branchName: branchToCreate, title: prTitle },
+		update: { prNumber },
+	} = options;
+
+	let pushToOwner = owner;
+	if (shouldFork || !(await mayPush(octokit, owner, repo))) {
+		pushToOwner = await fork(octokit, owner, repo);
+	}
+	try {
+		let parentSha: string;
+		let pushToBranch: string;
+		let PR: Awaited<
+			ReturnType<GithubClient['rest']['pulls']['create']>
+		>['data'];
+		if (shouldCreateNewPR) {
+			const { data: branch } = await octokit.rest.repos.getBranch({
+				owner,
+				repo,
+				branch: againstBranch,
+			});
+
+			parentSha = branch.commit.sha;
+			pushToBranch = branchToCreate!;
+			await octokit.rest.git.createRef({
+				owner: pushToOwner,
+				repo,
+				sha: parentSha,
+				ref: `refs/heads/${pushToBranch}`,
+			});
+		} else {
+			const { data } = await octokit.rest.pulls.get({
+				owner,
+				repo,
+				pull_number: prNumber!,
+			});
+			PR = data;
+			parentSha = PR.head.sha;
+			pushToBranch = PR.head.ref;
+		}
+
+		const newTreeSha = await createTree(
+			octokit,
+			pushToOwner,
+			repo,
+			parentSha,
+			changeset
+		);
+		console.log({ newTreeSha });
+		const commitSha = await createCommit(
+			octokit,
+			pushToOwner,
+			repo,
+			commitMessage,
+			parentSha,
+			newTreeSha || parentSha
+		);
+		console.log({ commitSha });
+		await createOrUpdateBranch(
+			octokit,
+			pushToOwner,
+			repo,
+			pushToBranch,
+			commitSha
+		);
+
+		if (shouldCreateNewPR) {
+			const { data } = await octokit.rest.pulls.create({
+				owner,
+				repo,
+				title: prTitle || commitMessage,
+				body: commitMessage,
+				head: `${pushToOwner}:${pushToBranch}`,
+				base: againstBranch,
+			});
+			PR = data;
+		}
+		return {
+			url: PR!.url,
+			forked: pushToOwner !== owner,
+		};
+	} catch (e: any) {
+		if (
+			e.status === 403 &&
+			e.message?.includes(
+				'organization has enabled OAuth App access restrictions'
+			) &&
+			!shouldFork
+		) {
+			return await pushToGithub(octokit, {
+				...options,
+				shouldFork: true,
+			});
+		}
+		throw e;
+	}
 }

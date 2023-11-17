@@ -20,12 +20,8 @@ import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-neede
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { GitHubPointer } from './github/analyze-github-url';
-import { useMemo, useState } from 'react';
-import {
-	ExportFormValues,
-	githubPointerToExportFormValues,
-} from './github/github-export-form/form';
+import { useState } from 'react';
+import { ExportFormValues } from './github/github-export-form/form';
 import { basename } from '@php-wasm/util';
 
 const query = new URL(document.location.href).searchParams;
@@ -110,28 +106,10 @@ if (currentConfiguration.wp === '6.3') {
 acquireOAuthTokenIfNeeded();
 
 function Main() {
-	const [lastGitHubImportFrom, setLastGitHubImportFrom] = useState<{
-		url: string;
-		pointer?: GitHubPointer;
-		files?: any[];
-	}>({
-		url: '',
-	});
-	const initialExportFormValues: Partial<ExportFormValues> = useMemo(() => {
-		const pointer = lastGitHubImportFrom.pointer;
-		if (!pointer) {
-			return {};
-		}
-		const values = githubPointerToExportFormValues(pointer);
-		return {
-			...values,
-			contentType: pointer.contentType,
-			plugin:
-				pointer.contentType === 'plugin' ? basename(pointer.path) : '',
-			theme:
-				pointer.contentType === 'theme' ? basename(pointer.path) : '',
-		};
-	}, [lastGitHubImportFrom.pointer]);
+	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
+	const [githubExportValues, setGithubExportValues] = useState<
+		Partial<ExportFormValues>
+	>({});
 
 	return (
 		<PlaygroundViewport
@@ -169,15 +147,27 @@ function Main() {
 		>
 			<GithubImportModal
 				onImported={(url, pointer, files) => {
-					setLastGitHubImportFrom({ url, pointer, files });
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pointer.pr?.toString(),
+						pathInRepo: pointer.path,
+						prAction: pointer.pr ? 'update' : 'create',
+						contentType: pointer.contentType,
+						plugin:
+							pointer.contentType === 'plugin'
+								? basename(pointer.path)
+								: '',
+						theme:
+							pointer.contentType === 'theme'
+								? basename(pointer.path)
+								: '',
+					});
+					setGithubExportFiles(files);
 				}}
 			/>
 			<GithubExportModal
-				initialFilesBeforeChanges={lastGitHubImportFrom.files}
-				initialValues={{
-					repoUrl: lastGitHubImportFrom.url || '',
-					...initialExportFormValues,
-				}}
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
 			/>
 		</PlaygroundViewport>
 	);
