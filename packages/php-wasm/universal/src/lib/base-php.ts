@@ -239,10 +239,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		/**
 		 * This creates a consts.php file in an in-memory
 		 * /tmp directory and sets the auto_prepend_file PHP option
-	 	 * to always load that file.
-	 	 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+		 * to always load that file.
+		 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
 		 *
-		 * Technically, this is a workaround. In the future, let's implement a 
+		 * Technically, this is a workaround. In the future, let's implement a
 		 * WASM SAPI method to pass consts directly.
 		 * @see https://github.com/WordPress/wordpress-playground/issues/750
 		 */
@@ -444,7 +444,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	defineConstant(key: string, value: string) {
+	defineConstant(key: string, value: string | number | null) {
 		let consts = {};
 		try {
 			consts = JSON.parse(

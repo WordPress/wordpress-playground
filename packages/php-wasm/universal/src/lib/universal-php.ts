@@ -144,13 +144,6 @@ export interface RequestHandler {
 	internalUrlToPath(internalUrl: string): string;
 
 	/**
-	 * Defines a constant in the PHP runtime.
-	 * @param key The constant name.
-	 * @param value The constant value.
-	 */
-	defineConstant(key: string, value: string | number | null): void;
-
-	/**
 	 * The absolute URL of this PHPRequestHandler instance.
 	 */
 	absoluteUrl: string;
