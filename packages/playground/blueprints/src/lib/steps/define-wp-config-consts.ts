@@ -68,6 +68,5 @@ export const defineWpConfigConsts: StepHandler<
 		})
 	);
 
-	// await playground.setPhpIniEntry('auto_prepend_file', phpConstsFilePath);
 	return phpConstsFilePath;
 };
