@@ -32,7 +32,7 @@ export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
-	onExported: (prURL: string) => void;
+	onExported?: (prURL: string) => void;
 	onClose: () => void;
 }
 
@@ -60,9 +60,11 @@ export interface ExportFormValues {
 export default function GitHubExportForm({
 	playground,
 	onExported,
+	onClose,
 	initialValues = {},
 	initialFilesBeforeChanges,
 }: GitHubExportFormProps) {
+	const [pushResult, setPushResult] = useState<PushResult>();
 	const [formValues, _setFormValues] = useState<ExportFormValues>({
 		repoUrl: '',
 		prNumber: '',
@@ -123,7 +125,6 @@ export default function GitHubExportForm({
 			const themes = await playground.listFiles(
 				`${docRoot}/wp-content/themes`
 			);
-			console.log({ themes });
 			setPlugins(plugins);
 			setThemes(themes);
 		}
@@ -195,6 +196,12 @@ export default function GitHubExportForm({
 			}
 			if (path) {
 				setValue('pathInRepo', path);
+			} else if (formValues.contentType === 'theme') {
+				setValue('pathInRepo', `/${formValues.theme}`);
+			} else if (formValues.contentType === 'plugin') {
+				setValue('pathInRepo', `/${formValues.plugin}`);
+			} else {
+				setValue('pathInRepo', '/my-directory');
 			}
 			setURLNeedsAnalyzing(false);
 			return;
@@ -246,9 +253,7 @@ export default function GitHubExportForm({
 			} catch (e) {
 				ghRawFiles = [];
 			}
-			console.log({ ghRawFiles });
 			const comparableFiles = filesListToObject(ghRawFiles);
-			console.log({ comparableFiles });
 
 			let playgroundPath: string;
 			let prTitle: string;
@@ -293,16 +298,17 @@ export default function GitHubExportForm({
 				},
 			});
 
-			// Open the PR in a new tab
-			console.log({ pushResult });
-			const prURL = pushResult.url;
-			window.open(prURL, '_blank');
-
-			onExported(prURL);
-
+			setPushResult(pushResult);
+			onExported?.(pushResult.url);
 			setIsExporting(false);
 			return;
-		} catch (e) {
+		} catch (e: any) {
+			// Handle the "Bad Credentials" error
+			if (e && e.status === 401) {
+				setOAuthToken(undefined);
+				throw e;
+			}
+
 			let eMessage = (e as any)?.message;
 			eMessage = eMessage ? `(${eMessage})` : '';
 			setError(
@@ -311,6 +317,45 @@ export default function GitHubExportForm({
 			);
 			throw e;
 		}
+	}
+
+	if (pushResult) {
+		return (
+			<form id="export-playground-form" onSubmit={handleSubmit}>
+				<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
+					Pull Request{' '}
+					{formValues.prAction === 'create' ? 'created' : 'updated'}!
+				</h2>
+				<p>
+					Your changes have been submitted to GitHub. You can view
+					them here:{' '}
+					<a
+						href={pushResult.url}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						{pushResult.url}
+					</a>
+				</p>
+
+				{pushResult.forked ? (
+					<p>
+						Because of access restrictions set by your organization,
+						these changes could not be submitted directly to the
+						repository. Instead, they were submitted to your fork of
+						the repository.
+					</p>
+				) : (
+					false
+				)}
+
+				<div className={forms.submitRow}>
+					<Button variant="primary" size="large" onClick={onClose}>
+						Close this modal
+					</Button>
+				</div>
+			</form>
+		);
 	}
 
 	return (
@@ -644,7 +689,6 @@ async function pushToGithub(
 			parentSha,
 			changeset
 		);
-		console.log({ newTreeSha });
 		const commitSha = await createCommit(
 			octokit,
 			pushToOwner,
@@ -653,7 +697,6 @@ async function pushToGithub(
 			parentSha,
 			newTreeSha || parentSha
 		);
-		console.log({ commitSha });
 		await createOrUpdateBranch(
 			octokit,
 			pushToOwner,
@@ -673,8 +716,9 @@ async function pushToGithub(
 			});
 			PR = data;
 		}
+		
 		return {
-			url: PR!.url,
+			url: PR!.html_url,
 			forked: pushToOwner !== owner,
 		};
 	} catch (e: any) {

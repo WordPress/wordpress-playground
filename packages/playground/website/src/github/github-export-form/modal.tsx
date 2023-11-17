@@ -49,15 +49,6 @@ export function GithubExportModal({
 				onClose={closeModal}
 				initialValues={initialValues}
 				initialFilesBeforeChanges={initialFilesBeforeChanges}
-				onExported={(pointer) => {
-					playground!.goTo('/');
-					// eslint-disable-next-line no-alert
-					alert(
-						'Export finished! Your Playground site has been updated.'
-					);
-					closeModal();
-					// onExported?.(pointer);
-				}}
 			/>
 		</Modal>
 	);

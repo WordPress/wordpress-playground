@@ -333,7 +333,6 @@ export async function createTreeNodes(
 		blobsPromises.push(createTreeNode(octokit, owner, repo, path, content));
 	}
 	for (const path of changeset.delete) {
-		console.log({ path });
 		blobsPromises.push(deleteFile(octokit, owner, repo, parentSha, path));
 	}
 	return Promise.all(blobsPromises).then(
@@ -357,7 +356,6 @@ export async function createTreeNode(
 				const stringContent = new TextDecoder('utf-8', {
 					fatal: true,
 				}).decode(content);
-				console.log({ stringContent });
 				return {
 					path,
 					content: stringContent,
