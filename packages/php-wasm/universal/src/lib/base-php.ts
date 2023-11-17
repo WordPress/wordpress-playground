@@ -251,12 +251,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.writeFile(
 				'/tmp/consts.php',
 				`<?php
-			$consts = json_decode(file_get_contents('/tmp/consts.json'), true);
-			foreach ($consts as $const => $value) {
-				if (!defined($const) && is_scalar($value)) {
-					define($const, $value);
-				}
-			}`
+				if(file_exists('/tmp/consts.json')) {
+					$consts = json_decode(file_get_contents('/tmp/consts.json'), true);
+					foreach ($consts as $const => $value) {
+						if (!defined($const) && is_scalar($value)) {
+							define($const, $value);
+						}
+					}
+				}`
 			);
 		}
 
