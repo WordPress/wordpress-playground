@@ -42,6 +42,28 @@ export function joinPaths(...paths: string[]) {
 }
 
 /**
+ * Returns the directory name of a path.
+ *
+ * @param path
+ * @returns
+ */
+export function dirname(path: string) {
+	if (path === '/') {
+		return '/';
+	}
+
+	path = normalizePath(path);
+
+	const lastSlash = path.lastIndexOf('/');
+	if (lastSlash === -1) {
+		return '';
+	} else if (lastSlash === 0) {
+		return '/';
+	}
+	return path.substr(0, lastSlash);
+}
+
+/**
  * Returns the last portion of a path.
  *
  * @param path - The path to extract the basename from.
