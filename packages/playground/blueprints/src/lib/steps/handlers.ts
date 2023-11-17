@@ -3,6 +3,7 @@ export { activateTheme } from './activate-theme';
 export { applyWordPressPatches } from './apply-wordpress-patches';
 export { runPHP } from './run-php';
 export { runPHPWithOptions } from './run-php-with-options';
+export { runSql } from './run-sql';
 export { runSqlFile } from './run-sql-file';
 export { runSqlQuery } from './run-sql-query';
 export { setPhpIniEntry } from './set-php-ini-entry';

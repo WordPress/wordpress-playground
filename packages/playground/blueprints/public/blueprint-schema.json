@@ -758,6 +758,37 @@
             },
             "step": {
               "type": "string",
+              "const": "runSql",
+              "description": "The step identifier."
+            },
+            "sql": {
+              "$ref": "#/definitions/FileReference",
+              "description": "The SQL to run."
+            }
+          },
+          "required": [
+            "sql",
+            "step"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "progress": {
+              "type": "object",
+              "properties": {
+                "weight": {
+                  "type": "number"
+                },
+                "caption": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "step": {
+              "type": "string",
               "const": "runSqlFile",
               "description": "The step identifier."
             },
