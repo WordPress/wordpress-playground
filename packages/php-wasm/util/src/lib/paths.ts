@@ -84,29 +84,6 @@ export function basename(path: string) {
 }
 
 /**
- * Returns the directory name of a path.
- *
- * @param path - The path to extract the directory name from.
- * @returns The directory name of the path.
- */
-export function dirname(path: string) {
-	if (path === '/') {
-		return '/';
-	}
-
-	path = normalizePath(path);
-
-	const lastSlash = path.lastIndexOf('/');
-	if (lastSlash === -1) {
-		return '';
-	}
-	if (lastSlash === 0) {
-		return '/';
-	}
-	return path.substr(0, lastSlash);
-}
-
-/**
  * Normalizes a path.
  *
  * For example:
