@@ -4,10 +4,7 @@ import {
 	runBlueprintSteps,
 	validateBlueprint,
 } from './compile';
-import {
-	VFS_TMP_DIRECTORY,
-	defineWpConfigConsts,
-} from './steps/define-wp-config-consts';
+import { defineWpConfigConsts } from './steps/define-wp-config-consts';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -39,7 +36,7 @@ describe('Blueprints', () => {
 		);
 	});
 
-	it('should define the consts in a json and auto load the constants in VFS_TMP_DIRECTORY/wp-config.php file', async () => {
+	it('should define the consts in a json and auto load the defined constants', async () => {
 		// Define the constants to be tested
 		const consts = {
 			TEST_CONST: 'test_value',
@@ -49,16 +46,9 @@ describe('Blueprints', () => {
 
 		// Call the function with the constants and the playground client
 		// Step1: define the constants
-		const configFile = await defineWpConfigConsts(php, {
+		await defineWpConfigConsts(php, {
 			consts,
 		});
-		expect(configFile.startsWith(VFS_TMP_DIRECTORY)).toBe(true);
-		expect(
-			php.fileExists(`${VFS_TMP_DIRECTORY}/playground-consts.json`)
-		).toBe(true);
-		expect(
-			php.fileExists(`${php.documentRoot}/playground-consts.json`)
-		).toBe(false);
 
 		// Assert execution of echo statements
 		php.writeFile('/index.php', '<?php echo TEST_CONST;');
