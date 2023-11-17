@@ -71,7 +71,6 @@
 		"follow-redirects": "1.15.2",
 		"fs-extra": "11.1.1",
 		"octokit": "3.1.1",
-		"octokit-commit-multiple-files": "github:mheap/octokit-commit-multiple-files",
 		"octokit-plugin-create-pull-request": "5.1.1",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
