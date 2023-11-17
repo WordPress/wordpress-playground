@@ -168,6 +168,10 @@ function Main() {
 			<GithubExportModal
 				initialValues={githubExportValues}
 				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
 			/>
 		</PlaygroundViewport>
 	);

@@ -32,7 +32,7 @@ export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
-	onExported?: (prURL: string) => void;
+	onExported?: (prURL: string, formValues: ExportFormValues) => void;
 	onClose: () => void;
 }
 
@@ -190,19 +190,24 @@ export default function GitHubExportForm({
 				owner: owner || '',
 				repo: repo || '',
 			});
+			const updatedValues: Partial<ExportFormValues> = {};
 			if (pr) {
-				setValue('prNumber', pr + '');
-				setValue('prAction', 'update');
+				updatedValues['prNumber'] = pr + '';
+				updatedValues['prAction'] = 'update';
 			}
 			if (path) {
-				setValue('pathInRepo', path);
+				updatedValues['pathInRepo'] = path;
 			} else if (formValues.contentType === 'theme') {
-				setValue('pathInRepo', `/${formValues.theme}`);
+				updatedValues['pathInRepo'] = `/${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				setValue('pathInRepo', `/${formValues.plugin}`);
+				updatedValues['pathInRepo'] = `/${formValues.plugin}`;
 			} else {
-				setValue('pathInRepo', '/my-directory');
+				updatedValues['pathInRepo'] = '/my-directory';
 			}
+			setFormValues({
+				...formValues,
+				...updatedValues,
+			});
 			setURLNeedsAnalyzing(false);
 			return;
 		}
@@ -299,7 +304,7 @@ export default function GitHubExportForm({
 			});
 
 			setPushResult(pushResult);
-			onExported?.(pushResult.url);
+			onExported?.(pushResult.url, formValues);
 			setIsExporting(false);
 			return;
 		} catch (e: any) {
@@ -716,7 +721,7 @@ async function pushToGithub(
 			});
 			PR = data;
 		}
-		
+
 		return {
 			url: PR!.html_url,
 			forked: pushToOwner !== owner,

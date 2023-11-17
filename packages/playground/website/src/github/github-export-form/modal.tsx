@@ -10,7 +10,7 @@ export const isGitHubExportModalOpen = signal(
 );
 
 interface GithubExportModalProps {
-	onExported?: (pointer: GitHubPointer) => void;
+	onExported?: GitHubExportFormProps['onExported'];
 	initialFilesBeforeChanges?: GitHubExportFormProps['initialFilesBeforeChanges'];
 	initialValues?: GitHubExportFormProps['initialValues'];
 }
@@ -45,8 +45,9 @@ export function GithubExportModal({
 			onRequestClose={closeModal}
 		>
 			<GitHubExportForm
-				playground={playground!}
 				onClose={closeModal}
+				onExported={onExported}
+				playground={playground!}
 				initialValues={initialValues}
 				initialFilesBeforeChanges={initialFilesBeforeChanges}
 			/>
