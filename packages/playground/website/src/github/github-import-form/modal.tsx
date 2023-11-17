@@ -1,14 +1,13 @@
 import { signal } from '@preact/signals-react';
 import { usePlaygroundContext } from '../../components/playground-viewport/context';
 import Modal, { defaultStyles } from '../../components/modal';
-import GitHubForm from './form';
-import { GitHubPointer } from '../analyze-github-url';
+import GitHubImportForm, { GitHubImportFormProps } from './form';
 
 const query = new URLSearchParams(window.location.search);
 export const isGitHubModalOpen = signal(query.get('state') === 'github-import');
 
 interface GithubImportModalProps {
-	onImported?: (pointer: GitHubPointer) => void;
+	onImported?: GitHubImportFormProps['onImported'];
 }
 export function closeModal() {
 	isGitHubModalOpen.value = false;
@@ -36,17 +35,17 @@ export function GithubImportModal({ onImported }: GithubImportModalProps) {
 			isOpen={isGitHubModalOpen.value}
 			onRequestClose={closeModal}
 		>
-			<GitHubForm
+			<GitHubImportForm
 				playground={playground!}
 				onClose={closeModal}
-				onImported={(pointer) => {
+				onImported={(details) => {
 					playground!.goTo('/');
 					// eslint-disable-next-line no-alert
 					alert(
 						'Import finished! Your Playground site has been updated.'
 					);
 					closeModal();
-					onImported?.(pointer);
+					onImported?.(details);
 				}}
 			/>
 		</Modal>

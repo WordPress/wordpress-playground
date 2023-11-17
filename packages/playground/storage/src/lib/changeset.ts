@@ -1,5 +1,5 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 
 export type IterateFilesOptions = {
 	/**
@@ -7,6 +7,12 @@ export type IterateFilesOptions = {
 	 * If false, all paths will be absolute.
 	 */
 	relativePaths?: boolean;
+
+	/**
+	 * A prefix to add to all paths.
+	 * Only used if `relativePaths` is true.
+	 */
+	pathPrefix?: string;
 };
 
 /**
@@ -20,7 +26,7 @@ export type IterateFilesOptions = {
 export async function* iterateFiles(
 	playground: UniversalPHP,
 	root: string,
-	{ relativePaths = true }: IterateFilesOptions = {}
+	{ relativePaths = true, pathPrefix }: IterateFilesOptions = {}
 ): AsyncGenerator<FileEntry> {
 	root = normalizePath(root);
 	const stack: string[] = [root];
@@ -38,7 +44,10 @@ export async function* iterateFiles(
 			} else {
 				yield {
 					path: relativePaths
-						? absPath.substring(root.length + 1)
+						? joinPaths(
+								pathPrefix || '',
+								absPath.substring(root.length + 1)
+						  )
 						: absPath,
 					read: async () =>
 						await playground.readFileAsBuffer(absPath),

@@ -17,6 +17,10 @@ import { resolveBlueprint } from './lib/resolve-blueprint';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
 import { GithubImportModal } from './github/github-import-form';
+import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
+import { GithubExportModal } from './github/github-export-form';
+import { useState } from 'react';
+import { ExportFormValues } from './github/github-export-form/form';
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
@@ -61,43 +65,81 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
-const root = createRoot(document.getElementById('root')!);
-root.render(
-	<PlaygroundViewport
-		storage={storage}
-		isSeamless={isSeamless}
-		blueprint={blueprint}
-		toolbarButtons={[
-			<PlaygroundConfigurationGroup
-				key="configuration"
-				initialConfiguration={currentConfiguration}
-			/>,
-			<DropdownMenu
-				key="menu"
-				icon={menu}
-				label="Additional actions"
-				className={css.dropdownMenu}
-				toggleProps={{
-					className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
+function Main() {
+	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
+	const [githubExportValues, setGithubExportValues] = useState<
+		Partial<ExportFormValues>
+	>({});
+
+	return (
+		<PlaygroundViewport
+			storage={storage}
+			isSeamless={isSeamless}
+			blueprint={blueprint}
+			toolbarButtons={[
+				<PlaygroundConfigurationGroup
+					key="configuration"
+					initialConfiguration={currentConfiguration}
+				/>,
+				<DropdownMenu
+					key="menu"
+					icon={menu}
+					label="Additional actions"
+					className={css.dropdownMenu}
+					toggleProps={{
+						className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
+					}}
+				>
+					{({ onClose }) => (
+						<MenuGroup>
+							<ResetSiteMenuItem
+								storage={currentConfiguration.storage}
+								onClose={onClose}
+							/>
+							<DownloadAsZipMenuItem onClose={onClose} />
+							<RestoreFromZipMenuItem onClose={onClose} />
+							<GithubImportMenuItem onClose={onClose} />
+							<GithubExportMenuItem onClose={onClose} />
+						</MenuGroup>
+					)}
+				</DropdownMenu>,
+			]}
+		>
+			<GithubImportModal
+				onImported={({
+					url,
+					path,
+					files,
+					pluginOrThemeName,
+					contentType,
+					urlInformation: { owner, repo, type, pr },
+				}) => {
+					setGithubExportValues({
+						repoUrl: url,
+						prNumber: pr?.toString(),
+						pathInRepo: path,
+						prAction: pr ? 'update' : 'create',
+						contentType,
+						plugin: pluginOrThemeName,
+						theme: pluginOrThemeName,
+					});
+					setGithubExportFiles(files);
 				}}
-			>
-				{({ onClose }) => (
-					<MenuGroup>
-						<ResetSiteMenuItem
-							storage={currentConfiguration.storage}
-							onClose={onClose}
-						/>
-						<DownloadAsZipMenuItem onClose={onClose} />
-						<RestoreFromZipMenuItem onClose={onClose} />
-						<GithubImportMenuItem onClose={onClose} />
-					</MenuGroup>
-				)}
-			</DropdownMenu>,
-		]}
-	>
-		<GithubImportModal />
-	</PlaygroundViewport>
-);
+			/>
+			<GithubExportModal
+				initialValues={githubExportValues}
+				initialFilesBeforeChanges={githubExportFiles}
+				onExported={(prUrl, formValues) => {
+					setGithubExportValues(formValues);
+					setGithubExportFiles(undefined);
+				}}
+			/>
+		</PlaygroundViewport>
+	);
+}
+
+const root = createRoot(document.getElementById('root')!);
+root.render(<Main />);
 
 function resolveVersion<T>(
 	version: string | undefined,

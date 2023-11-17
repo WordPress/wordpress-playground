@@ -6,25 +6,25 @@ import {
 	overwritePath,
 } from '@wp-playground/storage';
 
-export type ContentType = 'theme' | 'plugin' | 'wp-content';
-
+export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(
 	php: UniversalPHP,
 	gitHubFiles: any[],
 	contentType: ContentType,
-	repo: string,
-	repoPath: string
+	repoPath: string,
+	pluginOrThemeName: string
 ) {
 	repoPath = repoPath.replace(/^\//, '');
 	const playgroundFiles = filesListToObject(gitHubFiles, repoPath);
+	console.log({ contentType });
 	if (contentType === 'theme') {
-		const themeName = repoPath.split('/').pop() || repo;
-		await importTheme(php, themeName, playgroundFiles);
+		await importTheme(php, pluginOrThemeName, playgroundFiles);
 	} else if (contentType === 'plugin') {
-		const pluginName = repoPath.split('/').pop() || repo;
-		await importPlugin(php, pluginName, playgroundFiles);
+		await importPlugin(php, pluginOrThemeName, playgroundFiles);
 	} else if (contentType === 'wp-content') {
 		await importWpContent(php, playgroundFiles);
+	} else {
+		throw new Error(`Unknown content type: ${contentType}`);
 	}
 }
 

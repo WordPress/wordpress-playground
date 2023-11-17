@@ -1,18 +1,11 @@
 import { Semaphore } from '@php-wasm/util';
 import { Octokit } from 'octokit';
-import {
-	DELETE_FILE,
-	createPullRequest,
-} from 'octokit-plugin-create-pull-request';
 import { Changeset } from './changeset';
 
 export type GithubClient = ReturnType<typeof createClient>;
 
-export function createClient(
-	githubToken: string
-): Octokit & ReturnType<typeof createPullRequest> {
-	const MyOctokit = Octokit.plugin(createPullRequest as any);
-	const octokit = new MyOctokit({
+export function createClient(githubToken: string): Octokit {
+	const octokit = new Octokit({
 		auth: githubToken,
 	});
 	return octokit;
@@ -36,18 +29,25 @@ export interface GetFilesProgress {
 	foundFiles: number;
 	downloadedFiles: number;
 }
+export interface GetFilesOptions {
+	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void;
+	progress?: GetFilesProgress;
+}
 export async function getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
 	ref: string,
 	path: string,
-	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void,
-	progress: GetFilesProgress = {
-		foundFiles: 0,
-		downloadedFiles: 0,
-	}
+	options: GetFilesOptions = {}
 ) {
+	if (!options.progress) {
+		options.progress = {
+			foundFiles: 0,
+			downloadedFiles: 0,
+		};
+	}
+	const { onProgress } = options;
 	const filePromises: Promise<any>[] = [];
 	const directoryPromises: Promise<any>[] = [];
 
@@ -66,12 +66,12 @@ export async function getFilesFromDirectory(
 
 	for (const item of content) {
 		if (item.type === 'file') {
-			++progress.foundFiles;
-			onProgress?.(progress);
+			++options.progress.foundFiles;
+			onProgress?.(options.progress);
 			filePromises.push(
 				getFileContent(octokit, owner, repo, ref, item).then((file) => {
-					++progress.downloadedFiles;
-					onProgress?.(progress);
+					++options.progress!.downloadedFiles;
+					onProgress?.(options.progress!);
 					return file;
 				})
 			);
@@ -83,8 +83,7 @@ export async function getFilesFromDirectory(
 					repo,
 					ref,
 					item.path,
-					onProgress,
-					progress
+					options
 				)
 			);
 		}
@@ -179,16 +178,255 @@ export async function getArtifact(
 	return artifact.data;
 }
 
-export function changesetToPRFiles(changeset: Changeset) {
-	const files: Record<string, string | Uint8Array | typeof DELETE_FILE> = {};
+export async function mayPush(octokit: Octokit, owner: string, repo: string) {
+	const { data: repository, headers } = await octokit.request(
+		'GET /repos/{owner}/{repo}',
+		{
+			owner,
+			repo,
+		}
+	);
+	if (!headers['x-oauth-scopes'] || !repository.permissions?.push) {
+		return false;
+	}
+
+	// @TODO Find a way to bubble up the following error earlier than on the
+	//       first push attempt:
+	//       "organization has enabled OAuth App access restrictions"
+	return true;
+}
+
+export async function createOrUpdateBranch(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	branch: string,
+	newHead: string
+) {
+	const branchExists = await octokit
+		.request('GET /repos/{owner}/{repo}/branches/{branch}', {
+			owner,
+			repo,
+			branch,
+		})
+		.then(
+			() => true,
+			() => false
+		);
+
+	if (branchExists) {
+		await octokit.request('PATCH /repos/{owner}/{repo}/git/refs/{ref}', {
+			owner,
+			repo,
+			sha: newHead,
+			ref: `heads/${branch}`,
+		});
+	} else {
+		await octokit.request('POST /repos/{owner}/{repo}/git/refs', {
+			owner,
+			repo,
+			sha: newHead,
+			ref: `refs/heads/${branch}`,
+		});
+	}
+}
+
+/**
+ * @param octokit
+ * @param owner
+ * @param repo
+ * @returns The owner of the forked repository
+ */
+export async function fork(octokit: Octokit, owner: string, repo: string) {
+	const user = await octokit.request('GET /user');
+	const forks = await octokit.request('GET /repos/{owner}/{repo}/forks', {
+		owner,
+		repo,
+	});
+	const hasFork = forks.data.find(
+		(fork: any) => fork.owner && fork.owner.login === user.data.login
+	);
+
+	if (!hasFork) {
+		await octokit.request('POST /repos/{owner}/{repo}/forks', {
+			owner,
+			repo,
+		});
+	}
+
+	return user.data.login;
+}
+
+export async function createCommit(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	message: string,
+	parentSha: string,
+	treeSha: string
+): Promise<string> {
+	const {
+		data: { sha },
+	} = await octokit.request('POST /repos/{owner}/{repo}/git/commits', {
+		owner,
+		repo,
+		message,
+		tree: treeSha,
+		parents: [parentSha],
+	});
+
+	return sha;
+}
+
+export async function createTree(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	parentSha: string,
+	changeset: Changeset
+) {
+	const tree = await createTreeNodes(
+		octokit,
+		owner,
+		repo,
+		parentSha,
+		changeset
+	);
+	if (tree.length === 0) {
+		return null;
+	}
+
+	const {
+		data: { sha: newTreeSha },
+	} = await octokit.request('POST /repos/{owner}/{repo}/git/trees', {
+		owner,
+		repo,
+		base_tree: parentSha,
+		tree,
+	});
+	return newTreeSha;
+}
+
+export type GitHubTreeNode = {
+	path: string;
+	mode: '100644';
+} & (
+	| {
+			sha: string | null;
+	  }
+	| {
+			content: string;
+	  }
+);
+export async function createTreeNodes(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	parentSha: string,
+	changeset: Changeset
+): Promise<GitHubTreeNode[]> {
+	const blobsPromises = [];
 	for (const [path, content] of changeset.create) {
-		files[path] = content;
+		blobsPromises.push(createTreeNode(octokit, owner, repo, path, content));
 	}
 	for (const [path, content] of changeset.update) {
-		files[path] = content;
+		blobsPromises.push(createTreeNode(octokit, owner, repo, path, content));
 	}
 	for (const path of changeset.delete) {
-		files[path] = DELETE_FILE;
+		blobsPromises.push(deleteFile(octokit, owner, repo, parentSha, path));
 	}
-	return files;
+	return Promise.all(blobsPromises).then(
+		(blobs) => blobs.filter((blob) => !!blob) as GitHubTreeNode[]
+	);
+}
+
+const blobSemaphore = new Semaphore({ concurrency: 10 });
+export async function createTreeNode(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	path: string,
+	content: string | Uint8Array
+): Promise<GitHubTreeNode> {
+	const release = await blobSemaphore.acquire();
+	try {
+		if (ArrayBuffer.isView(content)) {
+			try {
+				// Attempt to decode the byteArray as a UTF-8 string
+				const stringContent = new TextDecoder('utf-8', {
+					fatal: true,
+				}).decode(content);
+				return {
+					path,
+					content: stringContent,
+					mode: '100644',
+				};
+			} catch (e) {
+				// If an error occurs, the byteArray is not valid UTF-8 and we must
+				// create a blob first
+				const {
+					data: { sha },
+				} = await octokit.rest.git.createBlob({
+					owner,
+					repo,
+					encoding: 'base64',
+					content: uint8ArrayToBase64(content),
+				});
+				return {
+					path,
+					sha,
+					mode: '100644',
+				};
+			}
+		} else {
+			// Content is a string
+			return {
+				path,
+				content,
+				mode: '100644',
+			};
+		}
+	} finally {
+		release();
+	}
+}
+
+export async function deleteFile(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+	parentSha: string,
+	path: string
+): Promise<GitHubTreeNode | undefined> {
+	const release = await blobSemaphore.acquire();
+	try {
+		// Deleting a non-existent file from a tree leads to an "GitRPC::BadObjectState" error,
+		// so we only attempt to delete the file if it exists.
+		await octokit.request('HEAD /repos/{owner}/{repo}/contents/:path', {
+			owner,
+			repo,
+			ref: parentSha,
+			path,
+		});
+
+		return {
+			path,
+			mode: '100644',
+			sha: null,
+		};
+	} catch (error) {
+		// Pass
+		return undefined;
+	} finally {
+		release();
+	}
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array) {
+	const binary = [];
+	const len = bytes.byteLength;
+	for (let i = 0; i < len; i++) {
+		binary.push(String.fromCharCode(bytes[i]));
+	}
+	return window.btoa(binary.join(''));
 }
