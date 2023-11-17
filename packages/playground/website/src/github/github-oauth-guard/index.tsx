@@ -24,7 +24,7 @@ export default function GitHubOAuthGuard({ children }: GitHubOAuthGuardProps) {
 	}
 
 	const urlParams = new URLSearchParams();
-	urlParams.set('redirect_url', window.location.href);
+	urlParams.set('redirect_uri', window.location.href);
 	const oauthUrl = `${OAUTH_FLOW_URL}&${urlParams.toString()}`;
 	return <Authenticate authenticateUrl={oauthUrl} />;
 }
