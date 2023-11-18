@@ -8,9 +8,6 @@ import saveAs from 'file-saver';
 type Props = { onClose: () => void };
 export function DownloadAsZipMenuItem({ onClose }: Props) {
 	const { playground } = usePlaygroundContext();
-	if (!playground) {
-		return null;
-	}
 	return (
 		<MenuItem
 			icon={download}
@@ -18,6 +15,7 @@ export function DownloadAsZipMenuItem({ onClose }: Props) {
 			id="import-open-modal--btn"
 			aria-label="Download the current playground as a .zip file"
 			onClick={() => {
+				if(!playground) return;
 				startDownload(playground);
 				onClose();
 			}}

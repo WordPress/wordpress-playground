@@ -8,15 +8,16 @@ import { usePlaygroundContext } from '../playground-viewport/context';
 
 type Props = { onClose: () => void };
 export function RestoreFromZipMenuItem({ onClose }: Props) {
+	const { playground } = usePlaygroundContext();
 	const [isOpen, setOpen] = useState(false);
 	const openModal = () => {
+		if (!playground) return;
 		setOpen(true);
 	};
 	const closeModal = () => {
 		setOpen(false);
 		onClose();
 	};
-	const { playground } = usePlaygroundContext();
 	function handleImported() {
 		// eslint-disable-next-line no-alert
 		alert(
@@ -24,9 +25,6 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 		);
 		closeModal();
 		playground!.goTo('/');
-	}
-	if (!playground) {
-		return null;
 	}
 	return (
 		<>
