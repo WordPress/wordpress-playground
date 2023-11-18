@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
-import { DropdownMenu, MenuGroup } from '@wordpress/components';
-import { menu } from '@wordpress/icons';
+import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
+import { menu, external } from '@wordpress/icons';
 import PlaygroundViewport from './components/playground-viewport';
 import css from './style.module.css';
 import buttonCss from './components/button/style.module.css';
@@ -21,6 +21,7 @@ import { GithubExportMenuItem } from './components/toolbar-buttons/github-export
 import { GithubExportModal } from './github/github-export-form';
 import { useState } from 'react';
 import { ExportFormValues } from './github/github-export-form/form';
+import { joinPaths } from '@php-wasm/util';
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
@@ -91,16 +92,59 @@ function Main() {
 					}}
 				>
 					{({ onClose }) => (
-						<MenuGroup>
-							<ResetSiteMenuItem
-								storage={currentConfiguration.storage}
-								onClose={onClose}
-							/>
-							<DownloadAsZipMenuItem onClose={onClose} />
-							<RestoreFromZipMenuItem onClose={onClose} />
-							<GithubImportMenuItem onClose={onClose} />
-							<GithubExportMenuItem onClose={onClose} />
-						</MenuGroup>
+						<>
+							<MenuGroup>
+								<ResetSiteMenuItem
+									storage={currentConfiguration.storage}
+									onClose={onClose}
+								/>
+								<DownloadAsZipMenuItem onClose={onClose} />
+								<RestoreFromZipMenuItem onClose={onClose} />
+								<GithubImportMenuItem onClose={onClose} />
+								<GithubExportMenuItem onClose={onClose} />
+							</MenuGroup>
+							<MenuGroup label="More resources">
+								<MenuItem
+									icon={external}
+									iconPosition="left"
+									aria-label="Go to WordPress PR previewer"
+									href={
+										joinPaths(
+											document.location.pathname,
+											'wordpress.html'
+										) as any
+									}
+									target="_blank"
+								>
+									Preview WordPress Pull Request
+								</MenuItem>
+								<MenuItem
+									icon={external}
+									iconPosition="left"
+									aria-label="Go to a list of Playground demos"
+									href={
+										joinPaths(
+											document.location.pathname,
+											'demos/index.html'
+										) as any
+									}
+									target="_blank"
+								>
+									More demos
+								</MenuItem>
+								<MenuItem
+									icon={external}
+									iconPosition="left"
+									aria-label="Go to Playground documentation"
+									href={
+										'https://wordpress.github.io/wordpress-playground/' as any
+									}
+									target="_blank"
+								>
+									Documentation
+								</MenuItem>
+							</MenuGroup>
+						</>
 					)}
 				</DropdownMenu>,
 			]}
