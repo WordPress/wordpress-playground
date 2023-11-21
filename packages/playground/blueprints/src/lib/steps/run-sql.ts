@@ -26,6 +26,10 @@ export interface RunSqlStep<ResourceType> {
 	 * The SQL to run.
 	 */
 	sql: ResourceType;
+	/**
+	 * Whether to stop on errors
+	 */
+	stopOnErrors?: boolean;
 }
 
 /**
@@ -33,15 +37,14 @@ export interface RunSqlStep<ResourceType> {
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
-	{ sql },
+	{ sql, stopOnErrors = true },
 	progress?
 ) => {
 	progress?.tracker.setCaption(`Executing SQL File`);
 
-	await playground.writeFile(
-		'/tmp/___schema-backup___.sql',
-		new Uint8Array(await sql.arrayBuffer())
-	);
+	const sqlFilename = `/tmp/${crypto.randomUUID()}.sql`;
+
+	await playground.writeFile(sqlFilename, new Uint8Array(await sql.arrayBuffer()));
 
 	const docroot = await playground.documentRoot;
 
@@ -49,7 +52,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		code: `<?php
 		require_once ${JSON.stringify(docroot)} . '/wp-load.php';
 
-		$handle = fopen('/tmp/___schema-backup___.sql', 'r');
+		$handle = fopen(${JSON.stringify(sqlFilename)}, 'r');
 		$buffer = '';
 
 		global $wpdb;
@@ -66,12 +69,19 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 				continue;
 			}
 
+			echo $buffer;
+
 			$wpdb->query($buffer);
 			$buffer = '';
 		}
-	`});
+	`,
+	});
 
-	await rm(playground, { path: '/tmp/___schema-backup___.sql' });
+	if(stopOnErrors && runPhp.errors) {
+		throw new Error(runPhp.errors);
+	}
+
+	await rm(playground, { path: sqlFilename});
 
 	return runPhp;
 };

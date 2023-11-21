@@ -764,6 +764,10 @@
             "sql": {
               "$ref": "#/definitions/FileReference",
               "description": "The SQL to run."
+            },
+            "stopOnErrors": {
+              "type": "boolean",
+              "description": "Whether to stop on errors"
             }
           },
           "required": [
