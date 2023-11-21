@@ -30,9 +30,6 @@ export interface RunSqlStep<ResourceType> {
 
 /**
  * Run an SQL file.
- *
- * @param playground The playground client.
- * @param path The filepath of the SQL file.
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
@@ -60,7 +57,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		while ($bytes = fgets($handle)) {
 			$buffer .= $bytes;
 
-			if (substr($buffer, -1, 1) !== "\n") {
+			if (!feof($handle) && substr($buffer, -1, 1) !== "\n") {
 				continue;
 			}
 
@@ -74,7 +71,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		}
 	`});
 
-	await rm (playground, {path:'/tmp/___schema-backup___.sql'});
+	await rm(playground, { path: '/tmp/___schema-backup___.sql' });
 
 	return runPhp;
 };
