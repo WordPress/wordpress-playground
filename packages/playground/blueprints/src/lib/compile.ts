@@ -40,6 +40,10 @@ export interface CompiledBlueprint {
 	};
 	/** The requested PHP extensions to load */
 	phpExtensions: SupportedPHPExtension[];
+	features: {
+		/** Should boot with support for network request via wp_safe_remote_get? */
+		networking: boolean;
+	};
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
 }
@@ -113,6 +117,10 @@ export function compileBlueprint(
 			[],
 			blueprint.phpExtensionBundles || []
 		),
+		features: {
+			// Enable networking by default
+			networking: blueprint.features?.networking ?? true,
+		},
 		run: async (playground: UniversalPHP) => {
 			try {
 				// Start resolving resources early

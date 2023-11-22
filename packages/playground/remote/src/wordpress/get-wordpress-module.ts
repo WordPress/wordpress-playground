@@ -23,6 +23,9 @@ export function getWordPressModule(wpVersion: string) {
 		case 'beta':
 			/** @ts-ignore */
 			return import('./wp-beta.js');
+		case '6.4':
+			/** @ts-ignore */
+			return import('./wp-6.4.js');
 		case '6.3':
 			/** @ts-ignore */
 			return import('./wp-6.3.js');

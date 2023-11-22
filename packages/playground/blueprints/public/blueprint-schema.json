@@ -33,6 +33,16 @@
 					"additionalProperties": false,
 					"description": "The preferred PHP and WordPress versions to use."
 				},
+				"features": {
+					"type": "object",
+					"properties": {
+						"networking": {
+							"type": "boolean",
+							"description": "Should boot with support for network request via wp_safe_remote_get?"
+						}
+					},
+					"additionalProperties": false
+				},
 				"phpExtensionBundles": {
 					"type": "array",
 					"items": {
@@ -72,17 +82,7 @@
 		},
 		"SupportedPHPVersion": {
 			"type": "string",
-			"enum": [
-				"8.2",
-				"8.1",
-				"8.0",
-				"7.4",
-				"7.3",
-				"7.2",
-				"7.1",
-				"7.0",
-				"5.6"
-			]
+			"enum": ["8.2", "8.1", "8.0", "7.4", "7.3", "7.2", "7.1", "7.0"]
 		},
 		"SupportedPHPExtensionBundle": {
 			"type": "string",
@@ -196,6 +196,9 @@
 						},
 						"prepareForRunningInsideWebBrowser": {
 							"type": "boolean"
+						},
+						"addFetchNetworkTransport": {
+							"type": "boolean"
 						}
 					},
 					"required": ["step"]
@@ -258,8 +261,7 @@
 						},
 						"virtualize": {
 							"type": "boolean",
-							"description": "Enables the virtualization of wp-config.php and playground-consts.json files, leaving the local system files untouched. The variables defined in the /vfs-blueprints/playground-consts.json file are loaded via the auto_prepend_file directive in the php.ini file.",
-							"default": false
+							"deprecated": "This option is noop and will be removed in a future version.\nThis option is only kept in here to avoid breaking Blueprint schema validation\nfor existing apps using this option."
 						}
 					},
 					"required": ["consts", "step"]
@@ -666,6 +668,34 @@
 						}
 					},
 					"required": ["options", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "runSqlFile",
+							"description": "The step identifier."
+						},
+						"path": {
+							"type": "string",
+							"description": "The plugin zip file to install."
+						}
+					},
+					"required": ["path", "step"]
 				},
 				{
 					"type": "object",

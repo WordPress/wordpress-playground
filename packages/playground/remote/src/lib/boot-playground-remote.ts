@@ -29,6 +29,7 @@ import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import { LatestSupportedWordPressVersion } from '../wordpress/get-wordpress-module';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
+import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -66,11 +67,13 @@ export async function bootPlaygroundRemote() {
 		query.getAll('php-extension'),
 		SupportedPHPExtensionsList
 	);
+	const withNetworking = query.get('networking') === 'yes';
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
 			['php-extension']: phpExtensions,
+			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
 		})
 	);
@@ -187,6 +190,9 @@ export async function bootPlaygroundRemote() {
 			serviceWorkerUrl + ''
 		);
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		if (withNetworking) {
+			setupFetchNetworkTransport(workerApi);
+		}
 
 		setAPIReady();
 	} catch (e) {

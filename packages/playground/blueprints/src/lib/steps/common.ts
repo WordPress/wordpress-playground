@@ -25,6 +25,12 @@ export async function fileToUint8Array(file: File) {
 	return new Uint8Array(await file.arrayBuffer());
 }
 
+export async function fileToString(file: File) {
+	return new TextDecoder('utf-8').decode(
+		new Uint8Array(await file.arrayBuffer())
+	);
+}
+
 /**
  * Polyfill the File class in JSDOM which lacks arrayBuffer() method
  *

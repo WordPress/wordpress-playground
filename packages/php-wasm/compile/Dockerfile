@@ -582,12 +582,12 @@ RUN set -euxo pipefail; \
 	if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
         # Add nodefs when building for node.js
         echo -n ' -lnodefs.js ' >> /root/.emcc-php-wasm-flags; \
-        # Preserve symbol names in node.js build – the bundle size doesn't matter as much
-        # as on the web, and this makes debugging **much** easier.
     fi; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 		echo -n ' -g3 -gsource-map' >> /root/.emcc-php-wasm-flags; \
-	else \
+	elif [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
+        # Preserve symbol names in node.js build – the bundle size doesn't matter as much
+        # as on the web, and this makes debugging **much** easier.
 		echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
@@ -1162,7 +1162,8 @@ RUN set -euxo pipefail; \
         mkdir -p /root/output/${PHP_VERSION_ESCAPED}/; \
 		mv /root/output/php.wasm "/root/output/${PHP_VERSION_ESCAPED}/$WASM_FILENAME"; \
 		if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
-			sed -i 's/..\/php-src/php-src/g' /root/output/php.wasm.map; \
+			# Make the source map paths relative to the .wasm file, not the build directory
+			sed -i 's#"\.\./\.\./root/#"#g' /root/output/php.wasm.map; \
 			mv /root/output/php.wasm.map "/root/output/${PHP_VERSION_ESCAPED}/php.wasm.map"; \
 			rm -rf /root/php-src/.git; \
 			cp -r /root/php-src "/root/output/${PHP_VERSION_ESCAPED}/php-src"; \

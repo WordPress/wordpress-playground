@@ -35,10 +35,17 @@ try {
 			query.get('wp') || blueprint.preferredVersions!.wp || 'latest';
 	}
 } catch (e) {
+	const features: Blueprint['features'] = {};
+	// Networking is enabled by default, so we only need to disable it
+	// if the query param is explicitly set to "no".
+	if (query.get('networking') === 'no') {
+		features['networking'] = false;
+	}
 	blueprint = makeBlueprint({
 		php: query.get('php') || '8.0',
 		wp: query.get('wp') || 'latest',
 		theme: query.get('theme') || undefined,
+		features,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
 		phpExtensionBundles: query.getAll('php-extension-bundle') || [],
@@ -80,7 +87,6 @@ if (currentConfiguration.wp === '6.3') {
 		consts: {
 			WP_DEVELOPMENT_MODE: 'all',
 		},
-		virtualize: true,
 	});
 }
 
