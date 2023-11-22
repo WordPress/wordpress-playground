@@ -4,55 +4,74 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WordPress Playground Blueprint Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/css/ace.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/src-min-noconflict/ace.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/src-min-noconflict/ext-language_tools.js"></script>
+    <link rel = "manifest" href = "./manifest.json">
     <link rel="stylesheet" type="text/css" href="style.css" />
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretty-print-json@2.0/dist/css/pretty-print-json.css" /> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@2.0/dist/pretty-print-json.min.js"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/really-relaxed-json@0.3.2/src/umd.bundle.js" type="text/javascript"></script> -->
     <script src="index.js" type="text/javascript"></script>
   </head>
   <body>
     <div class = "playground-wrapper">
       <main>
-        <div class="column" style="flex-direction: column;">
-          <div style="flex:1">
-            <div class="toolbar">
-              <span>⌘ ctrl + space: show autocomplete</span>
-              <span class = "spacer"></span>
-              <span>⌘ ctrl + enter:</span>
-              <button id = "run" class = "cta run">RUN IT</button>
-            </div>
-            <h2 style="color:white">Describe your website</h2>
-            <textarea id="prompt" placeholder="What website do you want?" style="width:95%;height:60%"></textarea>
+        <div class="column editor">
+          <div class="toolbar">
+            <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <!-- Spinner Adapted from: https://github.com/n3r4zzurr0/svg-spinners/ -->
+              <g>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" opacity=".14"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(30 12 12)" opacity=".29"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(60 12 12)" opacity=".43"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(90 12 12)" opacity=".57"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(120 12 12)" opacity=".71"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(150 12 12)" opacity=".86"/>
+                <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(180 12 12)"/>
+                <animateTransform attributeName="transform" type="rotate" calcMode="discrete" dur="0.333s" values="0 12 12;30 12 12;60 12 12;90 12 12;120 12 12;150 12 12;180 12 12;210 12 12;240 12 12;270 12 12;300 12 12;330 12 12" repeatCount="indefinite"/>
+              </g>
+            </svg>
+            <span>⌘ ctrl + space: show autocomplete</span>
+            <span class = "spacer"></span>
+            <span>⌘ ctrl + enter:</span>
+            <button id = "run" class = "cta run">RUN IT</button>
+            <button id = "save" aria-label="save"></button>
+            <button id = "open" aria-label="open"></button>
+            <button id = "open-ai" class = "ai">AI</button>
           </div>
-          <div class="editor"  style="flex:1">
-            <h2 style="color:white">Blueprint Schema</h2>
-            <pre id="jsontext" class="json-container" contenteditable="true" style="color:white"></pre>
-            <pre id="error-output"></pre>
+          <section id = "ai">
+            <textarea id="prompt" placeholder="What kind of website do you want?"></textarea>
+            <div class="toolbar">
+              <button id = "close-ai" class = "close"></button>
+              <span class = "spacer"></span>
+              <button id = "generate" class = "generate">GENERATE</button>
+            </div>
+          </section>
+          <pre id="jsontext" class="json-container" contenteditable="true"></pre>
+          <div class = "frame-wrapper">
+            <iframe id="error-output"></iframe>
           </div>
         </div>
         <div class = "separator"></div>
         <div class="column viewer">
           <div class="toolbar">
+            <button class = "zoom" id = "zoom-out">-</button>
+            <span id = "zoom"></span>
+            <button class = "zoom" id = "zoom-in">+</button>
+            <span class = "spacer"></span>
             <button id = "new-tab">NEW TAB</button>
           </div>
           <div class = "frame-wrapper">
             <div class = "frame-center">
-              <svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.0" width="32px" height="32px" viewBox="0 0 128 128" xml:space="preserve">
-                <rect x="0" y="0"/>
+              <svg width="32" height="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <!-- Spinner Adapted from: https://github.com/n3r4zzurr0/svg-spinners/ -->
                 <g>
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#999999" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#f5f5f5" transform="rotate(30 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#f5f5f5" transform="rotate(60 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#f5f5f5" transform="rotate(90 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#ebebeb" transform="rotate(120 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#e2e2e2" transform="rotate(150 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#d9d9d9" transform="rotate(180 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#d0d0d0" transform="rotate(210 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#c7c7c7" transform="rotate(240 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#bebebe" transform="rotate(270 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#b4b4b4" transform="rotate(300 64 64)" />
-                  <path d="M56.9-.1h15.17V37H56.9V-.1z" fill="#ababab" transform="rotate(330 64 64)" />
-                  <animateTransform attributeName="transform" type="rotate" values="0 64 64;30 64 64;60 64 64;90 64 64;120 64 64;150 64 64;180 64 64;210 64 64;240 64 64;270 64 64;300 64 64;330 64 64" calcMode="discrete" dur="480ms" repeatCount="indefinite"></animateTransform>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" opacity=".14"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(30 12 12)" opacity=".29"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(60 12 12)" opacity=".43"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(90 12 12)" opacity=".57"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(120 12 12)" opacity=".71"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(150 12 12)" opacity=".86"/>
+                  <rect fill="#fff" x="11" y="1" width="2" height="5" transform="rotate(180 12 12)"/>
+                  <animateTransform attributeName="transform" type="rotate" calcMode="discrete" dur="0.5s" values="0 12 12;30 12 12;60 12 12;90 12 12;120 12 12;150 12 12;180 12 12;210 12 12;240 12 12;270 12 12;300 12 12;330 12 12" repeatCount="indefinite"/>
                 </g>
               </svg>
             </div>

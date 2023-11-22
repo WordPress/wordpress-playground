@@ -3,6 +3,10 @@ html {
   font-family: sans-serif;
 }
 
+html, body {
+  overflow: hidden;
+}
+
 html, body, .playground-wrapper {
   height: 100%;
 }
@@ -33,6 +37,7 @@ main {
 
 .column {
   display: flex;
+  flex: 1;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
@@ -63,8 +68,6 @@ main {
 
 .frame-wrapper {
   position: relative;
-  width: 100%;
-  height: 100%;
 }
 
 .frame-center {
@@ -76,7 +79,7 @@ main {
   align-items: center;
 }
 
-.frame-center > svg {
+svg {
   filter: brightness(0.333) contrast(2) brightness(3);
   mix-blend-mode: lighten;
 }
@@ -85,13 +88,22 @@ iframe {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  height: calc(100% / var(--zoom, 1));
+  width: calc(100% / var(--zoom, 1));
+  transform-origin: top left;
+  transform: scale(var(--zoom, 1));
   box-sizing: border-box;
   border: 0;
+  background-color: rgba(0,0,0, 0.25);
+  transition: transform 0.5s linear,  width 0.5s linear,  height 0.5s linear;
+}
+
+.column.viewer {
+  overflow: hidden;
 }
 
 button {
+  white-space: pre;
   font-weight: bold;
   background: none;
   border: none;
@@ -100,6 +112,8 @@ button {
   padding: 8px;
   margin: 7px;
   box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.25);
+  user-select: none;
+  border-radius: 2px;
 }
 
 button:active {
@@ -126,6 +140,29 @@ button.run {
   padding-left: 1.85em;
 }
 
+button#open-ai {
+  background-image: url('./brain.svg');
+  background-size: auto 75%;
+  background-position: 0.325em center;
+  background-repeat: no-repeat;
+  padding-left: 2.85em;
+}
+
+button#save {
+  background-image: url('./save.svg');
+  background-size: auto 60%;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 2.25rem;
+}
+button#open {
+  background-image: url('./open.svg');
+  background-size: auto 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 2.25rem;
+}
+
 button#new-tab {
   background-image: url('./new-tab-button.svg');
   background-size: auto 55%;
@@ -134,22 +171,20 @@ button#new-tab {
   padding-right: 2.1em;
 }
 
-.jsontext, #error-output {
+.jsontext, .frame-wrapper {
   width: 100%;
   height: 100%;
   transition: height 0.25s ease-out, padding 0.25s ease-out, background-color 0.25s ease-in;
 }
 
-#error-output {
+.frame-wrapper:has( #error-output ) {
   background-color: rgba(0, 0, 0, 0.25);
   margin: 0;
   padding: 1rem;
   box-sizing: border-box;
-  color: #F00;
-  white-space: pre-wrap;
 }
 
-#error-output:empty {
+.frame-wrapper:has( #error-output[srcdoc=""] ) {
   background-color: rgba(255, 255, 255, 0.75);
   height: 0%;
   padding: 0rem;
@@ -163,6 +198,8 @@ button#new-tab {
 }
 
 .toolbar {
+  position: relative;
+  z-index: 1;
   background-color: #40464d;
   text-align: right;
   display: flex;
@@ -176,7 +213,19 @@ button#new-tab {
   font-size: 0.8rem;
   font-style: italic;
   white-space: pre;
-  margin-left: 1rem;
+}
+
+.toolbar svg,
+.toolbar span {
+  margin-left: 0.5rem;
+}
+
+.toolbar svg {
+  display: none;
+}
+
+body[data-loading="true"] .toolbar svg {
+  display: initial;
 }
 
 .toolbar span.spacer {
@@ -191,6 +240,30 @@ pre {
 
 button {
   transition: opacity 0.5s ease-in-out;
+  height: 2rem;
+}
+
+button.zoom {
+  color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 63%;
+  width: 2rem;
+}
+
+#zoom {
+  font-style: normal;
+  text-align: center;
+  width: 2.25rem;
+  margin: 0;
+}
+
+button#zoom-in {
+  background-image: url(./zoom-in.svg);
+}
+
+button#zoom-out {
+  background-image: url(./zoom-out.svg);
 }
 
 [data-starting=true] button.run {
@@ -206,4 +279,119 @@ button {
 @keyframes button-pulse {
   from { opacity: 1; }
   to { opacity: 0.5; }
+}
+
+section#ai {
+  display: flex;
+  flex-direction: column;
+  height: 0rem;
+	overflow: hidden;
+	transition: height 0.25s ease-in;
+}
+
+body[data-show-ai=true] section#ai {
+  height: 35rem;
+}
+
+#prompt {
+  font-family: sans-serif;
+  font-size: 1.1rem;
+  background-color: #CCC;
+  width: 100%;
+  resize: none;
+  box-sizing: border-box;
+  margin: 0;
+  flex: 1;
+  padding: 1rem;
+  border-radius: 0;
+  border: 0;
+}
+
+button.close {
+  background-image: url(./x.svg);
+  background-size: auto 55%;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 2.2rem;
+}
+
+section.fly-in {
+  position: absolute;
+  left: 0;
+  top:0;
+  height: 100%;
+  min-width: 20rem;
+  background-color: #1e2327;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  z-index: 10;
+  color: white;
+  padding: 20px;
+  box-sizing: border-box;
+  transition: transform 0.125s ease-out;
+}
+
+section.fly-in p {
+  margin: 0;
+}
+
+section.fly-in ul {
+  padding: 0; 
+  display: flex;
+  flex-direction: column;
+}
+
+section.fly-in ul li {
+  list-style: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 2rem;
+  white-space: pre;
+}
+
+section.fly-in ul li span {
+  flex: 1;
+}
+
+section.fly-in ul li button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+section.fly-in ul li:hover button {
+  opacity: 0.5;
+  visibility: initial;
+  pointer-events: initial;
+}
+
+section.fly-in ul li:hover button:hover {
+  opacity: 1;
+  filter: invert(1);
+}
+
+section.fly-in ul li button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: invert(1);
+  
+  background-size: auto 55%;
+  background-position: center;
+  background-repeat: no-repeat;
+  width: 1.25rem;
+}
+
+section.fly-in ul li:hover button.rename {
+  background-image: url(./edit.svg);  
+}
+section.fly-in ul li:hover button.download {
+  background-image: url(./download.svg);  
+}
+section.fly-in ul li:hover button.delete {
+  background-image: url(./x.svg);  
+}
+
+body[data-menu=false] section.fly-in {
+  transform: translateX(-100%);  
 }
