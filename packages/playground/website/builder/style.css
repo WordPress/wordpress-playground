@@ -166,26 +166,26 @@ button#open {
 }
 
 button#open-ai {
-  background-image: url('./brain.svg');
-  background-size: auto 75%;
-  background-position: 0.325em center;
-  background-repeat: no-repeat;
-  padding-left: 2.85em;
+	background-image: url('./brain.svg');
+	background-size: auto 75%;
+	background-position: 0.325em center;
+	background-repeat: no-repeat;
+	padding-left: 2.85em;
 }
 
 button#save {
-  background-image: url('./save.svg');
-  background-size: auto 60%;
-  background-position: center;
-  background-repeat: no-repeat;
-  width: 2.25rem;
+	background-image: url('./save.svg');
+	background-size: auto 60%;
+	background-position: center;
+	background-repeat: no-repeat;
+	width: 2.25rem;
 }
 button#open {
-  background-image: url('./open.svg');
-  background-size: auto 50%;
-  background-position: center;
-  background-repeat: no-repeat;
-  width: 2.25rem;
+	background-image: url('./open.svg');
+	background-size: auto 50%;
+	background-position: center;
+	background-repeat: no-repeat;
+	width: 2.25rem;
 }
 
 button#new-tab {
