@@ -33,6 +33,4 @@ export type {
  * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.
  *             To be removed in v0.3.0
  */
-export function setPluginProxyURL() {
-
-}
+export function setPluginProxyURL() {}

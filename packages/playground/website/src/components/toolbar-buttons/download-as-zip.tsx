@@ -15,7 +15,7 @@ export function DownloadAsZipMenuItem({ onClose }: Props) {
 			id="import-open-modal--btn"
 			aria-label="Download the current playground as a .zip file"
 			onClick={() => {
-				if(!playground) return;
+				if (!playground) return;
 				startDownload(playground);
 				onClose();
 			}}
