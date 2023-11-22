@@ -228,11 +228,12 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
+const _args = args;
+
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
-
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
 			else reject(new Error(`Process exited with code ${code}`));
