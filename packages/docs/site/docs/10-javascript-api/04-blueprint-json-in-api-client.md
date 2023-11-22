@@ -14,9 +14,11 @@ const client = await startPlaygroundWeb({
 	remoteUrl: `https://playground.wordpress.net/remote.html`,
 	blueprint: {
 		preferredVersions: {
-			wordpress: '6.3',
+			wp: '6.3',
 			php: '8.0',
 		},
+		// Optional: downloads additional PHP extensions like DOMDocument, mbstring, etc.
+		extensionBundles: ['kitchen-sink'],
 		steps: [
 			{ step: 'login' },
 			{

@@ -85,8 +85,7 @@ You can deploy the content of the folder to your server using SSH, such as `scp`
 
 It is a static site, except for these dynamic aspects.
 
--   Apache server directive `.htaccess` file - the result of combining `.htaccess` from the packages `remote` and `website`
--   Plugin download proxy, `plugin-proxy.php`
+-   Apache server directive `.htaccess` file from the package `remote`
 
 For these to work, you need a server environment with Apache and PHP installed.
 
@@ -99,7 +98,6 @@ As an alternative to Apache, here is an example of using NGINX to serve the Play
 This example may go out of date. It is recommended to refer to the source files.
 
 -   [packages/playground/remote/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/public/.htaccess)
--   [packages/playground/website/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/.htaccess)
 
 :::
 
@@ -108,11 +106,6 @@ The combined Apache `.htaccess` file looks like this.
 ```htaccess
 AddType application/wasm .wasm
 AddType	application/octet-stream .data
-
-Header set Cross-Origin-Resource-Policy: cross-origin
-Header set Cross-Origin-Embedder-Policy: credentialless
-RewriteEngine on
-RewriteRule ^plugin-proxy$ plugin-proxy.php [NC]
 ```
 
 An equivalent in NGINX.
@@ -130,18 +123,9 @@ location ~* .data$ {
   }
 }
 
-location /plugin-proxy {
-  try_files plugin-proxy.php /plugin-proxy.php$is_args$args;
-  include fastcgi_params;
-  fastcgi_pass php;
-}
-
 location /scope:.* {
   rewrite ^scope:.*?/(.*)$ $1 last;
 }
-
-add_header "Cross-Origin-Resource-Policy" "cross-origin";
-add_header "Cross-Origin-Embedder-Policy" "credentialless";
 ```
 
 You may need to adjust the above according to server specifics, particularly how to invoke PHP for the path `/plugin-proxy`.

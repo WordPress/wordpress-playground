@@ -24,6 +24,7 @@ export default defineConfig(() => {
 					'net',
 					'fs',
 					'path',
+					'child_process',
 					'http',
 					'tls',
 					'util',

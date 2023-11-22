@@ -13,7 +13,7 @@ import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, joinPaths } from '@php-wasm/util';
 import type { WebPHP } from '@php-wasm/web';
 import { EmscriptenFS } from './types';
-import { journalMemfsToOpfs } from './journal-memfs-to-opfs';
+import { journalFSEventsToOpfs } from './journal-memfs-to-opfs';
 
 let unbindOpfs: (() => void) | undefined;
 export type SyncProgress = {
@@ -66,7 +66,7 @@ export async function bindOpfs({
 		await copyMemfsToOpfs(php, opfs, docroot, onProgress);
 	}
 
-	unbindOpfs = journalMemfsToOpfs(php, opfs, docroot);
+	unbindOpfs = journalFSEventsToOpfs(php, opfs, docroot);
 }
 
 export async function copyOpfsToMemfs(

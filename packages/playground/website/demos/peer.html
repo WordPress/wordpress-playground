@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<head>
+	<title>Playground Sync Peer</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		iframe {
+			width: 100vw;
+			height: 100vh;
+			border: 0;
+		}
+	</style>
+</head>
+<body>
+	<iframe id="wp" style="width: 100vw; height: 100vh"></iframe>
+	<script type="module">
+		const { runDemo } = await import('./peer.ts');
+		const searchParams = new URLSearchParams(document.location.search);
+
+		runDemo(
+			document.getElementById('wp'),
+			searchParams.get('client-id') || 'solo',
+			// To build a multi-session app with seamless page refresh
+			// and transitions between devices, store this idOffset and
+			// all SQL and FS between page refreshes.
+			// Use them to reinstate the state on new devices and after a
+			// page refresh.
+			parseInt(searchParams.get('autoincrement-offset')) || 1_000_000
+		);
+	</script>
+</body>

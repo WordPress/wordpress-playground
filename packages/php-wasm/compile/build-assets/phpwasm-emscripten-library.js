@@ -135,6 +135,31 @@ const LibraryExample = {
 			return [promise, cancel];
 		},
 		noop: function () { },
+
+		spawnProcess: function (command) {
+			if (Module['spawnProcess']) {
+				const spawned = Module['spawnProcess'](command);
+				if (!spawned || !spawned.on) {
+					throw new Error("spawnProcess() must return an EventEmitter but returned a different type.");
+				}
+				return spawned;
+			}
+
+			if (ENVIRONMENT_IS_NODE) {
+				return require("child_process").spawn(command, [], {
+					shell: true,
+					stdio: ["pipe", "pipe", "pipe"],
+					timeout: 100
+				});
+			}
+			const e = new Error(
+				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
+				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+				'and similar functions via php.ini.'
+			);
+			e.code = "SPAWN_UNSUPPORTED";
+			throw e;
+		},
 		
 		/**
 		 * Shims unix shutdown(2) functionallity for asynchronous websockets:
@@ -166,6 +191,200 @@ const LibraryExample = {
 	},
 
 	/**
+	 * Creates an emscripten input device for the purposes of PHP's 
+	 * proc_open() function.
+	 * 
+	 * @param {int} procopenCallId 
+	 * @returns {int} The path of the input devicex (string pointer).
+	 */
+	js_create_input_device: function (procopenCallId) {
+		if (!PHPWASM.callback_pipes) {
+			PHPWASM.callback_pipes = {};
+		}
+		let dataBuffer = [];
+		let dataCallback;
+		const filename = "proc_id_" + procopenCallId;
+		const device = FS.createDevice("/dev", filename, function () {
+		}, function (byte) {
+			try {
+				dataBuffer.push(byte);
+				if (dataCallback) {
+					dataCallback(new Uint8Array(dataBuffer));
+					dataBuffer = [];
+				}
+			} catch (e) {
+				console.error(e);
+				throw e;
+			}
+		});
+		
+		const devicePath = "/dev/" + filename;
+		PHPWASM.callback_pipes[procopenCallId] = {
+			devicePath: devicePath,
+			onData: function(cb) {
+				dataCallback = cb;
+				dataBuffer.forEach(function(data) {
+					cb(data);
+				});
+				dataBuffer.length = 0;
+			}
+		};
+		return allocateUTF8OnStack(devicePath);
+	},
+
+	/**
+	 * Enables the C code to spawn a Node.js child process for the
+	 * purposes of PHP's proc_open() function.
+	 * 
+	 * @param {int} command Command to execute (string pointer).
+	 * @param {int} procopenCallId Child process end of the stdin pipe (the one to read from).
+	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
+	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
+	 * @param {int} stderrChildFd Child process end of the stderr pipe (the one to write to).
+	 * @param {int} stderrParentFd PHP's end of the stderr pipe (the one to read from).
+	 * @returns {int} 0 on success, 1 on failure.
+	 */
+	js_open_process: function (
+		command,
+		procopenCallId,
+		stdoutChildFd,
+		stdoutParentFd,
+		stderrChildFd,
+		stderrParentFd
+	) {
+	    if (!PHPWASM.proc_fds) {
+			PHPWASM.proc_fds = {};
+		}
+		if (!command) {
+			return 1;
+		}
+		
+		const cmdstr = UTF8ToString(command);
+		if (!cmdstr.length) {
+			return 0;
+		}
+
+		let cp;
+		try {
+			cp = PHPWASM.spawnProcess(cmdstr);
+		} catch (e) {
+			if (e.code === "SPAWN_UNSUPPORTED") {
+				return 1;
+			}
+			throw e;
+		}
+	   
+		let EventEmitter;
+		if (ENVIRONMENT_IS_NODE) {
+			EventEmitter = require('events').EventEmitter;
+		} else {
+			EventEmitter = function() {
+				this.listeners = {};
+			}
+			EventEmitter.prototype.emit = function(eventName, data) {
+				if (this.listeners[eventName]) {
+					this.listeners[eventName].forEach(function (callback) {
+						callback(data);
+					});
+				}
+			}
+			EventEmitter.prototype.once = function (eventName, callback) {
+				const self = this;
+				function removedCallback() {
+					callback(...arguments);
+					self.removeListener(eventName, removedCallback);
+				}
+				this.on(eventName, removedCallback)
+			}
+			EventEmitter.prototype.on = function(eventName, callback) {
+				if (!this.listeners[eventName]) {
+					this.listeners[eventName] = [];
+				}
+				this.listeners[eventName].push(callback);
+			}
+			EventEmitter.prototype.removeListener = function (eventName, callback) {
+				const idx = this.listeners[eventName].indexOf(callback);
+				if (idx !== -1) {
+					this.listeners[eventName].splice(
+						idx,
+						1
+					);
+				}
+			}
+		}
+		PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter();
+		PHPWASM.proc_fds[stderrParentFd] = new EventEmitter();
+
+		const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
+		cp.on("exit", function (data) {
+			PHPWASM.proc_fds[stdoutParentFd].exited = true;
+			PHPWASM.proc_fds[stdoutParentFd].emit("data");
+			PHPWASM.proc_fds[stderrParentFd].exited = true;
+			PHPWASM.proc_fds[stderrParentFd].emit("data");
+		});
+	
+		// Pass data from child process's stdout to PHP's end of the stdout pipe.
+		cp.stdout.on("data", function (data) {
+			PHPWASM.proc_fds[stdoutParentFd].hasData = true;
+			PHPWASM.proc_fds[stdoutParentFd].emit("data");
+			stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, 0);
+		});
+	
+		// Pass data from child process's stderr to PHP's end of the stdout pipe.
+		const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
+		cp.stderr.on("data", function(data) {
+			console.log("Writing error", data.toString());
+			PHPWASM.proc_fds[stderrParentFd].hasData = true;
+			PHPWASM.proc_fds[stderrParentFd].emit("data");
+			stderrStream.stream_ops.write(stderrStream, data, 0, data.length, 0);
+		});
+    
+		// Pass data from stdin fd to child process's stdin.
+		if (PHPWASM.callback_pipes && procopenCallId in PHPWASM.callback_pipes) {
+
+			// It is a "pipe". By now it is listed in `callback_pipes`.
+			// Let's listen to anything it outputs and pass it to the child process.
+			PHPWASM.callback_pipes[procopenCallId].onData(function(data) {
+				if (!data) return;
+				const dataStr = new TextDecoder("utf-8").decode(data);
+				cp.stdin.write(dataStr);
+			});
+			return 0;
+		}
+
+		// It is a file descriptor.
+		// Let's pass the already read contents to the child process.
+		const stdinStream = SYSCALLS.getStreamFromFD(procopenCallId);
+		if (!stdinStream.node) {
+			return 0;
+		}
+
+        // Pipe the entire stdinStream to cp.stdin
+        const CHUNK_SIZE = 1024;
+        const buffer = Buffer.alloc(CHUNK_SIZE);
+        let offset = 0;
+  		
+        while (true) {
+            const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, offset, CHUNK_SIZE, null);
+            if (bytesRead === null || bytesRead === 0) {
+                break;
+			}
+			try {
+				cp.stdin.write(buffer.subarray(0, bytesRead));
+			} catch (e) {
+				console.error(e);
+				return 1;
+			}
+            if (bytesRead < CHUNK_SIZE) {
+                break;
+            }
+            offset += bytesRead;
+        }
+
+		return 0;
+	},
+
+	/**
 	 * Shims poll(2) functionallity for asynchronous websockets:
 	 * https://man7.org/linux/man-pages/man2/poll.2.html
 	 * 
@@ -191,49 +410,60 @@ const LibraryExample = {
 		const POLLNVAL = 0x0020; /* Invalid request: fd not open */
 
 		return Asyncify.handleSleep((wakeUp) => {
-			const sock = getSocketFromFD(socketd);
-			if (!sock) {
-				wakeUp(0);
-				return;
-			}
 			const polls = [];
-			const lookingFor = new Set();
-	
-			if (events & POLLIN || events & POLLPRI) {
-				if (sock.server) {
-					for (const client of sock.pending) {
-						if ((client.recv_queue || []).length > 0) {
-							wakeUp(1);
-							return;
-						}
-					}
-				} else if ((sock.recv_queue || []).length > 0) {
-					wakeUp(1);
+			if (PHPWASM.proc_fds && socketd in PHPWASM.proc_fds) {
+				const emitter = PHPWASM.proc_fds[socketd];
+				if (emitter.exited) {
+					wakeUp(0);
 					return;
 				}
-			}
-
-			const webSockets = PHPWASM.getAllWebSockets(sock);
-			if (!webSockets.length) {
-				wakeUp(0);
-				return;
-			}
-			for (const ws of webSockets) {
+				polls.push(
+					PHPWASM.awaitWsEvent(emitter, 'data')
+				);
+			} else {
+				const sock = getSocketFromFD(socketd);
+				if (!sock) {
+					wakeUp(0);
+					return;
+				}
+				const lookingFor = new Set();
+		
 				if (events & POLLIN || events & POLLPRI) {
-					polls.push(PHPWASM.awaitData(ws));
-					lookingFor.add("POLLIN");
+					if (sock.server) {
+						for (const client of sock.pending) {
+							if ((client.recv_queue || []).length > 0) {
+								wakeUp(1);
+								return;
+							}
+						}
+					} else if ((sock.recv_queue || []).length > 0) {
+						wakeUp(1);
+						return;
+					}
 				}
-				if (events & POLLOUT) {
-					polls.push(PHPWASM.awaitConnection(ws));
-					lookingFor.add("POLLOUT");
+
+				const webSockets = PHPWASM.getAllWebSockets(sock);
+				if (!webSockets.length) {
+					wakeUp(0);
+					return;
 				}
-				if (events & POLLHUP) {
-					polls.push(PHPWASM.awaitClose(ws));
-					lookingFor.add("POLLHUP");
-				}
-				if (events & POLLERR || events & POLLNVAL) {
-					polls.push(PHPWASM.awaitError(ws));
-					lookingFor.add("POLLERR");
+				for (const ws of webSockets) {
+					if (events & POLLIN || events & POLLPRI) {
+						polls.push(PHPWASM.awaitData(ws));
+						lookingFor.add("POLLIN");
+					}
+					if (events & POLLOUT) {
+						polls.push(PHPWASM.awaitConnection(ws));
+						lookingFor.add("POLLOUT");
+					}
+					if (events & POLLHUP) {
+						polls.push(PHPWASM.awaitClose(ws));
+						lookingFor.add("POLLHUP");
+					}
+					if (events & POLLERR || events & POLLNVAL) {
+						polls.push(PHPWASM.awaitError(ws));
+						lookingFor.add("POLLERR");
+					}
 				}
 			}
 			if (polls.length === 0) {
@@ -247,22 +477,27 @@ const LibraryExample = {
 			const promises = polls.map(([promise]) => promise);
 			const clearPolling = () => polls.forEach(([, clear]) => clear());
 			let awaken = false;
+			let timeoutId;
 			Promise.race(promises).then(function(results) {
 				if (!awaken) {
 					awaken = true;
 					wakeUp(1);
-					clearTimeout(timeoutId);
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+					}
 					clearPolling();
 				}
 			});
 
-			const timeoutId = setTimeout(function() {
-				if (!awaken) {
-					awaken = true;
-					wakeUp(0);
-					clearPolling();
-				}
-			}, timeout);
+			if (timeout !== -1) {
+				timeoutId = setTimeout(function () {
+					if (!awaken) {
+						awaken = true;
+						wakeUp(0);
+						clearPolling();
+					}
+				}, timeout);
+			}
 		});
 	},
 
@@ -343,7 +578,7 @@ const LibraryExample = {
 	 * @param {int} exitCodePtr Pointer to the exit code
 	 * @returns {int} File descriptor of the command output
 	 */
-	js_popen_to_file: function(command, mode, exitCodePtr) {
+	js_popen_to_file: function (command, mode, exitCodePtr) {
 		// Parse args
 		if (!command) return 1; // shell is available
 
@@ -352,59 +587,81 @@ const LibraryExample = {
 
 		const modestr = UTF8ToString(mode);
 		if (!modestr.length) return 0; // this is what glibc seems to do (shell works test?)
-
-		if (Module['popen_to_file']) {
-			const {
-				path,
-				exitCode
-			} = Module['popen_to_file'](cmdstr, modestr);
-			HEAPU8[exitCodePtr] = exitCode;
-			return allocateUTF8OnStack(path);
+		if (modestr === 'w') {
+			console.error('popen($cmd, "w") is not implemented yet');
 		}
 
-#if ENVIRONMENT_MAY_BE_NODE
-		if (ENVIRONMENT_IS_NODE) {
-			// Create a temporary file to read stdin from or write stdout to
-			const tmp = require('os').tmpdir();
-			const tmpFileName = 'php-process-stream';
-			const pipeFilePath = tmp + '/' + tmpFileName;
-
-			const cp = require('child_process');
-			let ret;
-			if (modestr === 'r') {
-				ret = cp.spawnSync(cmdstr, [], {
-					shell: true,
-					stdio: ["inherit", "pipe", "inherit"],
-				});
-				HEAPU8[exitCodePtr] = ret.status;
-				require('fs').writeFileSync(pipeFilePath, ret.stdout, {
-					encoding: 'utf8',
-					flag: 'w+',
-				});
-			} else if (modestr === 'w') {
-				console.error('popen mode w not implemented yet');
-				return _W_EXITCODE(0, 2); // 2 is SIGINT
-			} else {
-				console.error('invalid mode ' + modestr + ' (should be r or w)');
-				return _W_EXITCODE(0, 2); // 2 is SIGINT
+		return Asyncify.handleSleep((wakeUp) => {
+			let cp;
+			try {
+				cp = PHPWASM.spawnProcess(cmdstr);
+			} catch (e) {
+				console.error(e);
+				if (e.code === "SPAWN_UNSUPPORTED") {
+					return 1;
+				}
+				throw e;
 			}
+		
+			const outByteArrays = [];
+			cp.stdout.on("data", function (data) {
+				outByteArrays.push(data);
+			});
 
-			return allocateUTF8OnStack(pipeFilePath);
-		}
-#endif // ENVIRONMENT_MAY_BE_NODE
+			const outputPath = "/tmp/popen_output";
+			cp.on("exit", function (exitCode) {
+				// Concat outByteArrays, an array of UInt8Arrays
+				// into a single Uint8Array.
+				const outBytes = new Uint8Array(
+					outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
+				);
+				let offset = 0;
+				for (const byteArray of outByteArrays) {
+					outBytes.set(byteArray, offset);
+					offset += byteArray.length;
+				}
 
-		throw new Error(
-			'popen() is unsupported in the browser. Implement popen_to_file in your Module ' +
-			'or disable shell_exec() and similar functions via php.ini.'
-		);
-		return _W_EXITCODE(0, 2); // 2 is SIGINT
+				FS.writeFile(outputPath, outBytes);
+
+				HEAPU8[exitCodePtr] = exitCode;
+				wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
+			});
+		});
 	},
 
-	js_module_onMessage: function (data) {
+	js_module_onMessage: function (data, bufPtr) {
+		if (typeof Asyncify === 'undefined') {
+			return;
+		}
+
 		if (Module['onMessage']) {
 			const dataStr = UTF8ToString(data);
-			
-			Module['onMessage'](dataStr);
+
+			return Asyncify.handleSleep((wakeUp) => {
+				Module['onMessage'](dataStr).then((response) => {
+					const responseBytes = typeof response === "string"
+						? new TextEncoder().encode(response)
+						: response;
+					
+					// Copy the response bytes to heap
+					const responseSize = responseBytes.byteLength;
+					const responsePtr = _malloc(responseSize + 1);
+					HEAPU8.set(responseBytes, responsePtr);
+					HEAPU8[responsePtr + responseSize] = 0; 
+					HEAPU8[bufPtr] = responsePtr;
+					HEAPU8[bufPtr + 1] = responsePtr >> 8;
+					HEAPU8[bufPtr + 2] = responsePtr >> 16;
+					HEAPU8[bufPtr + 3] = responsePtr >> 24;
+
+					wakeUp(responseSize);
+				}).catch((e) => {
+					// Log the error and return NULL. Message passing
+					// separates JS context from the PHP context so we
+					// don't let PHP crash here.
+					console.error(e);
+					wakeUp(0);
+				} );
+			});
 		}
 	}
 };

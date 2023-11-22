@@ -36,6 +36,23 @@
           "additionalProperties": false,
           "description": "The preferred PHP and WordPress versions to use."
         },
+        "features": {
+          "type": "object",
+          "properties": {
+            "networking": {
+              "type": "boolean",
+              "description": "Should boot with support for network request via wp_safe_remote_get?"
+            }
+          },
+          "additionalProperties": false
+        },
+        "phpExtensionBundles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SupportedPHPExtensionBundle"
+          },
+          "description": "The PHP extensions to use."
+        },
         "steps": {
           "type": "array",
           "items": {
@@ -76,9 +93,12 @@
         "7.3",
         "7.2",
         "7.1",
-        "7.0",
-        "5.6"
+        "7.0"
       ]
+    },
+    "SupportedPHPExtensionBundle": {
+      "type": "string",
+      "const": "kitchen-sink"
     },
     "StepDefinition": {
       "type": "object",
@@ -190,6 +210,15 @@
             },
             "disableWpNewBlogNotification": {
               "type": "boolean"
+            },
+            "makeEditorFrameControlled": {
+              "type": "boolean"
+            },
+            "prepareForRunningInsideWebBrowser": {
+              "type": "boolean"
+            },
+            "addFetchNetworkTransport": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -258,8 +287,7 @@
             },
             "virtualize": {
               "type": "boolean",
-              "description": "Enables the virtualization of wp-config.php and playground-consts.json files, leaving the local system files untouched. The variables defined in the /vfs-blueprints/playground-consts.json file are loaded via the auto_prepend_file directive in the php.ini file.",
-              "default": false
+              "deprecated": "This option is noop and will be removed in a future version.\nThis option is only kept in here to avoid breaking Blueprint schema validation\nfor existing apps using this option."
             }
           },
           "required": [

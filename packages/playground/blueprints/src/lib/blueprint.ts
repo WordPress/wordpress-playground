@@ -1,4 +1,7 @@
-import { SupportedPHPVersion } from '@php-wasm/universal';
+import {
+	SupportedPHPExtensionBundle,
+	SupportedPHPVersion,
+} from '@php-wasm/universal';
 import { StepDefinition } from './steps';
 
 export interface Blueprint {
@@ -21,6 +24,14 @@ export interface Blueprint {
 		 */
 		wp: string | 'latest';
 	};
+	features?: {
+		/** Should boot with support for network request via wp_safe_remote_get? */
+		networking?: boolean;
+	};
+	/**
+	 * The PHP extensions to use.
+	 */
+	phpExtensionBundles?: SupportedPHPExtensionBundle[];
 	/**
 	 * The steps to run.
 	 */

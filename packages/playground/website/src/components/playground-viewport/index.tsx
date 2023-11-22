@@ -13,6 +13,7 @@ interface PlaygroundViewportProps {
 	isSeamless?: boolean;
 	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
+	children?: React.ReactNode;
 }
 
 export default function PlaygroundViewport({
@@ -20,6 +21,7 @@ export default function PlaygroundViewport({
 	isSeamless,
 	storage,
 	toolbarButtons,
+	children,
 }: PlaygroundViewportProps) {
 	const { playground, url, iframeRef } = usePlayground({
 		blueprint,
@@ -45,6 +47,7 @@ export default function PlaygroundViewport({
 					<JustViewport iframeRef={iframeRef} />
 				</BrowserChrome>
 			)}
+			{children}
 		</PlaygroundContext.Provider>
 	);
 }
@@ -59,7 +62,7 @@ const JustViewport = function LoadedViewportComponent({
 	return (
 		<div className={css.fullSize}>
 			<iframe
-				title="Playground Viewport"
+				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={css.fullSize}
 				ref={iframeRef}
 			></iframe>

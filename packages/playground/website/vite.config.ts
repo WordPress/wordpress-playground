@@ -1,8 +1,10 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import type { ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import ignoreWasmImports from '../ignore-wasm-imports';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -14,26 +16,14 @@ import {
 } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../vite-virtual-module';
+import { oAuthMiddleware } from './vite.oauth';
+import { fileURLToPath } from 'node:url';
 
 const proxy = {
-	'^/plugin-proxy.*&artifact=.*': {
+	'^/plugin-proxy': {
 		target: 'https://playground.wordpress.net',
 		changeOrigin: true,
 		secure: true,
-	},
-	'/plugin-proxy': {
-		target: 'https://downloads.wordpress.org',
-		changeOrigin: true,
-		secure: true,
-		rewrite: (path: string) => {
-			const url = new URL(path, 'http://example.com');
-			if (url.searchParams.has('plugin')) {
-				return `/plugin/${url.searchParams.get('plugin')}`;
-			} else if (url.searchParams.has('theme')) {
-				return `/theme/${url.searchParams.get('theme')}`;
-			}
-			throw new Error('Invalid request');
-		},
 	},
 };
 
@@ -63,20 +53,12 @@ export default defineConfig(({ command, mode }) => {
 		preview: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy: {
 				...proxy,
 				// Proxy requests to the remote content through this server for dev builds.
@@ -91,7 +73,9 @@ export default defineConfig(({ command, mode }) => {
 		},
 
 		plugins: [
-			react(),
+			react({
+				jsxRuntime: 'classic',
+			}),
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
@@ -101,12 +85,42 @@ export default defineConfig(({ command, mode }) => {
 				content: `
 				export const buildVersion = ${JSON.stringify(buildVersion)};`,
 			}),
+			// GitHub OAuth flow
+			{
+				name: 'configure-server',
+				configureServer(server: ViteDevServer) {
+					server.middlewares.use(oAuthMiddleware);
+				},
+			},
 		],
 
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
 			rollupOptions: {
+				input: {
+					index: fileURLToPath(
+						new URL('./index.html', import.meta.url)
+					),
+					'sync.html': fileURLToPath(
+						new URL('./demos/sync.html', import.meta.url)
+					),
+					'peer.html': fileURLToPath(
+						new URL('./demos/peer.html', import.meta.url)
+					),
+					'time-traveling.html': fileURLToPath(
+						new URL('./demos/time-traveling.html', import.meta.url)
+					),
+				},
+				// output: {
+				// 	entryFileNames: (assetInfo) => {
+				// 		const isHTML = assetInfo?.facadeModuleId?.endsWith('.html');
+				// 		if (isHTML) {
+				// 			return '[name].html';
+				// 		}
+				// 		return '[name]-[hash].js';
+				// 	},
+				// },
 				external: [],
 			},
 		},
