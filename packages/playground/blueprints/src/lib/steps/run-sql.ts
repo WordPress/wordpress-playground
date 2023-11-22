@@ -44,7 +44,10 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 
 	const sqlFilename = `/tmp/${crypto.randomUUID()}.sql`;
 
-	await playground.writeFile(sqlFilename, new Uint8Array(await sql.arrayBuffer()));
+	await playground.writeFile(
+		sqlFilename,
+		new Uint8Array(await sql.arrayBuffer())
+	);
 
 	const docroot = await playground.documentRoot;
 
@@ -77,11 +80,11 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 	`,
 	});
 
-	if(stopOnErrors && runPhp.errors) {
+	if (stopOnErrors && runPhp.errors) {
 		throw new Error(runPhp.errors);
 	}
 
-	await rm(playground, { path: sqlFilename});
+	await rm(playground, { path: sqlFilename });
 
 	return runPhp;
 };
