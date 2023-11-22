@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WordPress Playground Blueprint Builder</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/pretty-print-json@2.0/dist/css/pretty-print-json.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/pretty-print-json@2.0/dist/pretty-print-json.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/really-relaxed-json@0.3.2/src/umd.bundle.js"
+      type="text/javascript"
+    ></script>
+    <script src="index.js" type="text/javascript"></script>
+  </head>
+  <body>
+    <div id="url-preview">
+      <a href="https://playground.wordpress.net/" target="_blank"
+        >https://playground.wordpress.net/</a
+      >
+    </div>
+    <main>
+      <div class="column editor">
+        <pre id="jsontext" class="json-container" contenteditable="true"></pre>
+      </div>
+      <div class="separator">
+        <button>▶️</button>
+      </div>
+      <div class="column">
+        <iframe src="https://playground.wordpress.net/?mode=seamless"></iframe>
+      </div>
+    </main>
+  </body>
+</html>
