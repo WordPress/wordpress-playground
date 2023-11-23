@@ -1,7 +1,8 @@
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
-@@ -1691,18 +1691,32 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+@@ -1625,17 +1625,31 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+ {
  	php_stream *srcstream = NULL, *deststream = NULL;
  	int ret = FAILURE;
  	php_stream_statbuf src_s, dest_s;

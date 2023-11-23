@@ -8,7 +8,7 @@
 'use strict';
 
 import * as dns from 'dns';
-import * as util from 'util';
+import * as util from 'node:util';
 import * as net from 'net';
 import * as http from 'http';
 import { WebSocketServer } from 'ws';

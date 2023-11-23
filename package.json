@@ -43,7 +43,7 @@
 		"recompile:php:node:8.1": "nx recompile-php php-wasm-node --PHP_VERSION=8.1",
 		"recompile:php:node:8.2": "nx recompile-php php-wasm-node --PHP_VERSION=8.2",
 		"release": "lerna publish patch --yes --no-private --loglevel=verbose",
-		"test": "nx run-many --all --target=test",
+		"test": "node --expose-gc node_modules/nx/bin/nx run-many --all --target=test",
 		"fix-asyncify": "node packages/php-wasm/node/bin/rebuild-while-asyncify-functions-missing.mjs",
 		"typecheck": "nx run-many --all --target=typecheck",
 		"prepare": "husky install"

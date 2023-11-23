@@ -71,6 +71,16 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with SQLite support',
 		},
+		WITH_SOURCEMAPS: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
+		},
+		WITH_ICONV: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
+		},
 		WITH_MYSQL: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -107,9 +117,9 @@ const platformDefaults = {
 		WITH_LIBPNG: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
-		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 	node: {
+		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
 		WITH_ICONV: 'yes',
@@ -179,6 +189,8 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SQLITE'),
 		'--build-arg',
+		getArg('WITH_SOURCEMAPS'),
+		'--build-arg',
 		getArg('WITH_ICONV'),
 		'--build-arg',
 		getArg('WITH_MYSQL'),
@@ -207,7 +219,7 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
+		`cp -rf /root/output/* /output && mkdir -p /output/terminfo/x ${
 			getArg('WITH_CLI_SAPI') === 'yes'
 				? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
 				: ''
@@ -216,11 +228,12 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
+const _args = args;
+
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
-
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
 			else reject(new Error(`Process exited with code ${code}`));
