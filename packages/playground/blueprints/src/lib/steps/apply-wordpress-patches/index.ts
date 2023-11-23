@@ -4,19 +4,11 @@ import { updateFile } from '../common';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
 /** @ts-ignore */
-import transportFetch from './wp-content/mu-plugins/includes/requests_transport_fetch.php?raw';
+import transportFetch from './wp-content/mu-plugins/playground-includes/requests_transport_fetch.php?raw';
 /** @ts-ignore */
-import transportDummy from './wp-content/mu-plugins/includes/requests_transport_dummy.php?raw';
+import transportDummy from './wp-content/mu-plugins/playground-includes/requests_transport_dummy.php?raw';
 /** @ts-ignore */
-import addRequests from './wp-content/mu-plugins/add_requests_transport.php?raw';
-/** @ts-ignore */
-import showAdminCredentialsOnWpLogin from './wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php?raw';
-/** @ts-ignore */
-import niceErrorMessagesForPluginsAndThemesDirectories from './wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php?raw';
-/** @ts-ignore */
-import linksTargetingTopFrameShouldTargetPlaygroundIframe from './wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php?raw';
-/** @ts-ignore */
-import enableUrlRewrite from './wp-content/mu-plugins/4-enable-url-rewrite.php?raw';
+import playgroundMuPlugin from './wp-content/mu-plugins/0-playground.php?raw';
 
 /**
  * @private
@@ -153,22 +145,8 @@ class WordPressPatcher {
 		// Various tweaks
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/mu-plugins`);
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/1-show-admin-credentials-on-wp-login.php`,
-			showAdminCredentialsOnWpLogin
-		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/2-nice-error-messages-for-plugins-and-themes-directories.php`,
-			niceErrorMessagesForPluginsAndThemesDirectories
-		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/3-links-targeting-top-frame-should-target-playground-iframe.php`,
-			linksTargetingTopFrameShouldTargetPlaygroundIframe
-		);
-
-		// Activate URL rewriting.
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/4-enable-url-rewrite.php`,
-			enableUrlRewrite
+			`${this.wordpressPath}/wp-content/mu-plugins/0-playground.php`,
+			playgroundMuPlugin
 		);
 	}
 
@@ -200,22 +178,17 @@ class WordPressPatcher {
 		}
 
 		// Add fetch and dummy transports for HTTP requests
-		await this.php.mkdirTree(
-			`${this.wordpressPath}/wp-content/mu-plugins/includes`
+		await this.php.mkdir(
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes`
 		);
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_fetch.php`,
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_fetch.php`,
 			transportFetch
 		);
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/includes/requests_transport_dummy.php`,
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`,
 			transportDummy
 		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/add_requests_transport.php`,
-			addRequests
-		);
-
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);
 	}
 }
