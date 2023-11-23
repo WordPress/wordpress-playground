@@ -1,6 +1,6 @@
 import type { UniversalPHP } from '@php-wasm/universal';
 import { writeFile } from './write-file';
-import { unzip } from './import-export';
+import { unzip } from './unzip';
 
 export interface InstallAssetOptions {
 	/**

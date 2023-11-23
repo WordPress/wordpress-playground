@@ -1,10 +1,9 @@
 import React from 'react';
 import { useRef, useState } from 'react';
-import type { PlaygroundClient } from '@wp-playground/client';
+import { PlaygroundClient, importWpContent } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
-import { replaceSite } from '@wp-playground/client';
 import Button from '../button';
 
 interface ImportFormProps {
@@ -33,8 +32,9 @@ export default function ImportForm({
 		}
 
 		try {
-			await replaceSite(playground, { fullSiteZip: file });
+			await importWpContent(playground, { wpContentZip: file });
 		} catch (error) {
+			console.error(error);
 			setError(
 				'Unable to import file. Is it a valid WordPress Playground export?'
 			);

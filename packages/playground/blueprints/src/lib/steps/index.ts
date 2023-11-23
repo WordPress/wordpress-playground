@@ -4,7 +4,6 @@ import { FileReference } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
 import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
 import { DefineSiteUrlStep } from './define-site-url';
-import { ImportFileStep, ReplaceSiteStep, UnzipStep } from './import-export';
 import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
 import { InstallThemeStep, InstallThemeOptions } from './install-theme';
 import { LoginStep } from './login';
@@ -25,6 +24,9 @@ import { RequestStep } from './request';
 import { WriteFileStep } from './write-file';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
+import { ImportFileStep } from './import-file';
+import { UnzipStep } from './unzip';
+import { ImportWpContentStep } from './import-wp-content';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -46,13 +48,13 @@ export type GenericStep<Resource> =
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
+	| ImportWpContentStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
 	| RequestStep
-	| ReplaceSiteStep<Resource>
 	| RmStep
 	| RmdirStep
 	| RunPHPStep
@@ -72,6 +74,7 @@ export type {
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
 	ImportFileStep,
+	ImportWpContentStep,
 	InstallPluginStep,
 	InstallPluginOptions,
 	InstallThemeStep,
@@ -80,7 +83,6 @@ export type {
 	MkdirStep,
 	MvStep,
 	RequestStep,
-	ReplaceSiteStep,
 	RmStep,
 	RmdirStep,
 	RunPHPStep,
