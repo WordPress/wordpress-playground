@@ -47,21 +47,36 @@ export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
 	await unzip(playground, { zipPath, extractToPath: importPath });
 	await playground.unlink(zipPath);
 
-	// Swap wp-content with the imported one
-	const wpContentSwapPath = joinPaths('/tmp', 'swap');
+	const importedWpContentPath = joinPaths(importPath, 'wp-content');
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
-	await playground.mv(wpContentPath, wpContentSwapPath);
-	await playground.mv(importPath, wpContentPath);
-	await playground.mkdir(joinPaths(wpContentPath, 'mu-plugins'));
-
-	// Restore the required php files from the swap
 	for (const relativePath of wpContentFilesExcludedFromExport) {
-		await playground.mv(
-			joinPaths(wpContentSwapPath, relativePath),
-			joinPaths(wpContentPath, relativePath)
+		// Remove any paths that were supposed to be excluded from the export
+		// but maybe weren't
+		const excludedImportPath = joinPaths(
+			importedWpContentPath,
+			relativePath
 		);
+		if (await playground.fileExists(excludedImportPath)) {
+			if (await playground.isDir(excludedImportPath)) {
+				await playground.rmdir(excludedImportPath);
+			} else {
+				await playground.unlink(excludedImportPath);
+			}
+		}
+
+		// Replace them with files sourced from the live wp-content directory
+		const restoreFromPath = joinPaths(wpContentPath, relativePath);
+		if (await playground.fileExists(restoreFromPath)) {
+			await playground.mv(restoreFromPath, excludedImportPath);
+		}
 	}
-	await playground.rmdir(wpContentSwapPath);
+
+	// Swap wp-content with the imported one
+	await playground.rmdir(wpContentPath);
+	await playground.mv(importedWpContentPath, wpContentPath);
+
+	// Clean up any remaining files
+	await playground.rmdir(importPath);
 
 	// Upgrade the database
 	const upgradePhp = phpVar(

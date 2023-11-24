@@ -19,15 +19,18 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 	const js = phpVars({
 		zipPath,
 		wpContentPath,
+		documentRoot,
 		exceptPaths: wpContentFilesExcludedFromExport.map((path) =>
 			joinPaths(documentRoot, 'wp-content', path)
 		),
 	});
 	await runPhpWithZipFunctions(
 		playground,
-		`zipDir(${js.wpContentPath}, ${js.zipPath}, ${js.exceptPaths});`
+		`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
+			'exclude_paths' => ${js.exceptPaths},
+			'zip_root'      => ${js.documentRoot}
+		));`
 	);
-	console.log(wpContentPath);
 
 	const fileBuffer = await playground.readFileAsBuffer(zipPath);
 	playground.unlink(zipPath);
