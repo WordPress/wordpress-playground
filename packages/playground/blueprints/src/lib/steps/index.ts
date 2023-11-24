@@ -26,7 +26,7 @@ import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { ImportFileStep } from './import-file';
 import { UnzipStep } from './unzip';
-import { ImportWpContentStep } from './import-wp-content';
+import { ImportWordPressFilesStep } from './import-wp-content';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -48,7 +48,7 @@ export type GenericStep<Resource> =
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
-	| ImportWpContentStep<Resource>
+	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
 	| LoginStep
@@ -74,7 +74,7 @@ export type {
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
 	ImportFileStep,
-	ImportWpContentStep,
+	ImportWordPressFilesStep as ImportWpContentStep,
 	InstallPluginStep,
 	InstallPluginOptions,
 	InstallThemeStep,

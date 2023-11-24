@@ -32,7 +32,7 @@ export default function ImportForm({
 		}
 
 		try {
-			await importWpContent(playground, { wpContentZip: file });
+			await importWpContent(playground, { wpFilesZip: file });
 		} catch (error) {
 			console.error(error);
 			setError(
