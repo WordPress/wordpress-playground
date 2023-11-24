@@ -1,8 +1,11 @@
 <?php
 
-function zipDir($root, $output, $excludePaths = array())
+function zipDir($root, $output, $options = array())
 {
     $root = rtrim($root, '/');
+    $excludePaths = array_key_exists('exclude_paths', $options) ? $options['exclude_paths'] : array();
+    $zip_root = array_key_exists('zip_root', $options) ? $options['zip_root'] : $root;
+
     $zip = new ZipArchive;
     $res = $zip->open($output, ZipArchive::CREATE);
     if ($res === TRUE) {
@@ -27,7 +30,7 @@ function zipDir($root, $output, $excludePaths = array())
                         $directory_path = $entry . '/';
                         array_push($directories, $directory_path);
                     } else if (is_file($entry)) {
-                        $zip->addFile($entry, substr($entry, strlen($root)));
+                        $zip->addFile($entry, substr($entry, strlen($zip_root)));
                     }
                 }
                 closedir($handle);
