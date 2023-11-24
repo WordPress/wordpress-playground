@@ -46,6 +46,67 @@
           },
           "additionalProperties": false
         },
+        "constants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "PHP Constants to define on every request",
+          "deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+        },
+        "plugins": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/FileReference"
+              }
+            ]
+          },
+          "description": "WordPress plugins to install and activate",
+          "deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+        },
+        "siteOptions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "properties": {
+            "blogname": {
+              "type": "string",
+              "description": "The site title"
+            }
+          },
+          "description": "WordPress site options to define",
+          "deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+        },
+        "login": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "username",
+                "password"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "User to log in as. If true, logs the user in as admin/password."
+        },
         "phpExtensionBundles": {
           "type": "array",
           "items": {
@@ -75,7 +136,7 @@
               }
             ]
           },
-          "description": "The steps to run."
+          "description": "The steps to run after every other operation in this Blueprint was executed."
         },
         "$schema": {
           "type": "string"
@@ -95,6 +156,172 @@
         "7.1",
         "7.0"
       ]
+    },
+    "FileReference": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/VFSReference"
+        },
+        {
+          "$ref": "#/definitions/LiteralReference"
+        },
+        {
+          "$ref": "#/definitions/CoreThemeReference"
+        },
+        {
+          "$ref": "#/definitions/CorePluginReference"
+        },
+        {
+          "$ref": "#/definitions/UrlReference"
+        }
+      ]
+    },
+    "VFSReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "vfs",
+          "description": "Identifies the file resource as Virtual File System (VFS)"
+        },
+        "path": {
+          "type": "string",
+          "description": "The path to the file in the VFS"
+        }
+      },
+      "required": [
+        "resource",
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "LiteralReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "literal",
+          "description": "Identifies the file resource as a literal file"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the file"
+        },
+        "contents": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "BYTES_PER_ELEMENT": {
+                  "type": "number"
+                },
+                "buffer": {
+                  "type": "object",
+                  "properties": {
+                    "byteLength": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "byteLength"
+                  ],
+                  "additionalProperties": false
+                },
+                "byteLength": {
+                  "type": "number"
+                },
+                "byteOffset": {
+                  "type": "number"
+                },
+                "length": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "BYTES_PER_ELEMENT",
+                "buffer",
+                "byteLength",
+                "byteOffset",
+                "length"
+              ],
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          ],
+          "description": "The contents of the file"
+        }
+      },
+      "required": [
+        "resource",
+        "name",
+        "contents"
+      ],
+      "additionalProperties": false
+    },
+    "CoreThemeReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "wordpress.org/themes",
+          "description": "Identifies the file resource as a WordPress Core theme"
+        },
+        "slug": {
+          "type": "string",
+          "description": "The slug of the WordPress Core theme"
+        }
+      },
+      "required": [
+        "resource",
+        "slug"
+      ],
+      "additionalProperties": false
+    },
+    "CorePluginReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "wordpress.org/plugins",
+          "description": "Identifies the file resource as a WordPress Core plugin"
+        },
+        "slug": {
+          "type": "string",
+          "description": "The slug of the WordPress Core plugin"
+        }
+      },
+      "required": [
+        "resource",
+        "slug"
+      ],
+      "additionalProperties": false
+    },
+    "UrlReference": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "type": "string",
+          "const": "url",
+          "description": "Identifies the file resource as a URL"
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL of the file"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Optional caption for displaying a progress message"
+        }
+      },
+      "required": [
+        "resource",
+        "url"
+      ],
+      "additionalProperties": false
     },
     "SupportedPHPExtensionBundle": {
       "type": "string",
@@ -960,172 +1187,6 @@
           ]
         }
       ]
-    },
-    "FileReference": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/VFSReference"
-        },
-        {
-          "$ref": "#/definitions/LiteralReference"
-        },
-        {
-          "$ref": "#/definitions/CoreThemeReference"
-        },
-        {
-          "$ref": "#/definitions/CorePluginReference"
-        },
-        {
-          "$ref": "#/definitions/UrlReference"
-        }
-      ]
-    },
-    "VFSReference": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string",
-          "const": "vfs",
-          "description": "Identifies the file resource as Virtual File System (VFS)"
-        },
-        "path": {
-          "type": "string",
-          "description": "The path to the file in the VFS"
-        }
-      },
-      "required": [
-        "resource",
-        "path"
-      ],
-      "additionalProperties": false
-    },
-    "LiteralReference": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string",
-          "const": "literal",
-          "description": "Identifies the file resource as a literal file"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the file"
-        },
-        "contents": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "BYTES_PER_ELEMENT": {
-                  "type": "number"
-                },
-                "buffer": {
-                  "type": "object",
-                  "properties": {
-                    "byteLength": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "byteLength"
-                  ],
-                  "additionalProperties": false
-                },
-                "byteLength": {
-                  "type": "number"
-                },
-                "byteOffset": {
-                  "type": "number"
-                },
-                "length": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "BYTES_PER_ELEMENT",
-                "buffer",
-                "byteLength",
-                "byteOffset",
-                "length"
-              ],
-              "additionalProperties": {
-                "type": "number"
-              }
-            }
-          ],
-          "description": "The contents of the file"
-        }
-      },
-      "required": [
-        "resource",
-        "name",
-        "contents"
-      ],
-      "additionalProperties": false
-    },
-    "CoreThemeReference": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string",
-          "const": "wordpress.org/themes",
-          "description": "Identifies the file resource as a WordPress Core theme"
-        },
-        "slug": {
-          "type": "string",
-          "description": "The slug of the WordPress Core theme"
-        }
-      },
-      "required": [
-        "resource",
-        "slug"
-      ],
-      "additionalProperties": false
-    },
-    "CorePluginReference": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string",
-          "const": "wordpress.org/plugins",
-          "description": "Identifies the file resource as a WordPress Core plugin"
-        },
-        "slug": {
-          "type": "string",
-          "description": "The slug of the WordPress Core plugin"
-        }
-      },
-      "required": [
-        "resource",
-        "slug"
-      ],
-      "additionalProperties": false
-    },
-    "UrlReference": {
-      "type": "object",
-      "properties": {
-        "resource": {
-          "type": "string",
-          "const": "url",
-          "description": "Identifies the file resource as a URL"
-        },
-        "url": {
-          "type": "string",
-          "description": "The URL of the file"
-        },
-        "caption": {
-          "type": "string",
-          "description": "Optional caption for displaying a progress message"
-        }
-      },
-      "required": [
-        "resource",
-        "url"
-      ],
-      "additionalProperties": false
     },
     "InstallPluginOptions": {
       "type": "object",
