@@ -10,7 +10,7 @@ import {
 	UniversalPHP,
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
-import { isFileReference, Resource } from './resources';
+import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as stepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
@@ -79,6 +79,44 @@ export function compileBlueprint(
 		...blueprint,
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
+	// Experimental declarative syntax {{{
+	if (blueprint.constants) {
+		blueprint.steps?.unshift({
+			step: 'defineWpConfigConsts',
+			consts: blueprint.constants,
+		});
+	}
+	if (blueprint.siteOptions) {
+		blueprint.steps?.unshift({
+			step: 'setSiteOptions',
+			options: blueprint.siteOptions,
+		});
+	}
+	if (blueprint.plugins) {
+		for (const pluginName in blueprint.plugins) {
+			const value = blueprint.plugins[pluginName];
+			let resource: FileReference;
+			if (typeof value === 'string') {
+				resource = {
+					resource: 'url',
+					url: value,
+				};
+			} else if (typeof value === 'boolean') {
+				resource = {
+					resource: 'wordpress.org/plugins',
+					slug: pluginName,
+				};
+			} else {
+				resource = value;
+			}
+			blueprint.steps?.unshift({
+				step: 'installPlugin',
+				pluginZipFile: resource,
+			});
+		}
+	}
+	// }}}
+
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
 		const e = new Error(

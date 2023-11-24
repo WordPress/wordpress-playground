@@ -11,6 +11,8 @@ const config = {
 
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
+const declarative_output_path =
+	'packages/playground/blueprints/public/blueprint-declarative-schema.json';
 
 const schema = tsj.createGenerator(config).createSchema(config.type);
 schema.$schema = 'http://json-schema.org/schema';
@@ -36,5 +38,63 @@ const schemaString = JSON.stringify(schema, null, 2)
 	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
 	.replaceAll(/<[a-zA-Z]+>/g, '');
 fs.writeFile(output_path, schemaString, (err) => {
+	if (err) throw err;
+});
+
+// Create a declarative schema that is easier to use.
+const declarativeSchema = tsj
+	.createGenerator({
+		...config,
+		topRef: false,
+		type: 'Blueprint',
+	})
+	.createSchema(config.type);
+const allowedProps = ['siteOptions', 'plugins', 'login'];
+for (const prop in declarativeSchema.properties) {
+	if (!allowedProps.includes(prop)) {
+		delete declarativeSchema.properties[prop];
+	}
+}
+// Simplify declarativeSchema:
+// * Replace all references with the actual schema definition.
+// * Remove deprecation notices
+const walk = (obj, callback) => {
+	for (const key in obj) {
+		const value = obj[key];
+		if (value && typeof value === 'object') {
+			if (value.$ref) {
+				const ref = value.$ref.replace('#/definitions/', '');
+				obj[key] = callback(ref);
+			} else {
+				walk(value, callback);
+			}
+
+			if (value.deprecated) {
+				delete value.deprecated;
+			}
+		}
+	}
+};
+walk(declarativeSchema, (ref) => declarativeSchema.definitions[ref]);
+delete declarativeSchema.definitions;
+
+// Remove reference types from the plugins schema.
+declarativeSchema.properties.plugins.additionalProperties.anyOf =
+	declarativeSchema.properties.plugins.additionalProperties.anyOf.filter(
+		({ type }) => type === 'boolean'
+	);
+
+// Add an empty required list to each property
+for (const prop in declarativeSchema.properties) {
+	if (!declarativeSchema.properties[prop].required) {
+		declarativeSchema.properties[prop].required = [];
+	}
+}
+
+const declarativeSchemaString = JSON.stringify(declarativeSchema, null, 2)
+	// Naively remove TypeScript generics <T> from the schema:
+	.replaceAll(/%3C[a-zA-Z]+%3E/g, '')
+	.replaceAll(/<[a-zA-Z]+>/g, '');
+fs.writeFile(declarative_output_path, declarativeSchemaString, (err) => {
 	if (err) throw err;
 });

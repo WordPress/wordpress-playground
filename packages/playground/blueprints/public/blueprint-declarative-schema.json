@@ -1,0 +1,55 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"properties": {
+		"plugins": {
+			"type": "object",
+			"additionalProperties": {
+				"anyOf": [
+					{
+						"type": "boolean"
+					}
+				]
+			},
+			"description": "WordPress plugins to install and activate",
+			"required": []
+		},
+		"siteOptions": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "string"
+			},
+			"properties": {
+				"blogname": {
+					"type": "string",
+					"description": "The site title"
+				}
+			},
+			"description": "WordPress site options to define",
+			"required": []
+		},
+		"login": {
+			"anyOf": [
+				{
+					"type": "boolean"
+				},
+				{
+					"type": "object",
+					"properties": {
+						"username": {
+							"type": "string"
+						},
+						"password": {
+							"type": "string"
+						}
+					},
+					"required": ["username", "password"],
+					"additionalProperties": false
+				}
+			],
+			"description": "User to log in as. If true, logs the user in as admin/password.",
+			"required": []
+		}
+	},
+	"additionalProperties": false
+}
