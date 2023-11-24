@@ -2,41 +2,51 @@ import { StepHandler } from '.';
 import { unzip } from './unzip';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from './common';
+import { UniversalPHP } from '@php-wasm/universal';
 
 /**
- * @inheritDoc importWpContent
+ * @inheritDoc importWordPressFiles
  * @example
  *
  * <code>
  * {
- * 		"step": "importWpContentStep",
- * 		"wpContentZip": {
+ * 		"step": "importWordPressFilesStep",
+ * 		"wordPressFilesZip": {
  *         "resource": "fetch",
  *         "url": "https://mysite.com/import.zip"
  *      }
  * }
  * </code>
  */
-export interface ImportWpContentStep<ResourceType> {
-	step: 'importWpContent';
-	/** The zip file containing the wp-content directory */
-	wpContentZip: ResourceType;
+export interface ImportWordPressFilesStep<ResourceType> {
+	step: 'importWordPressFiles';
+	/**
+	 * The zip file containing the top-level WordPress files and
+	 * directories.
+	 */
+	wordPressFilesZip: ResourceType;
 }
 
 /**
- * Replace the current wp-content directory with one from the provided zip file.
+ * Imports top-level WordPress files from a given zip file into
+ * the documentRoot. For example, if a zip file contains the
+ * `wp-content` and `wp-includes` directories, they will replace
+ * the corresponding directories in Playground's documentRoot.
+ *
+ * Any files that Playground recognizes as "excluded from the export"
+ * will carry over from the existing document root into the imported
+ * directories. For example, the sqlite-database-integration plugin.
  *
  * @param playground Playground client.
- * @param wpContentZip Zipped WordPress site.
+ * @param wordPressFilesZip Zipped WordPress site.
  */
-export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
-	playground,
-	{ wpContentZip }
-) => {
+export const importWordPressFiles: StepHandler<
+	ImportWordPressFilesStep<File>
+> = async (playground, { wordPressFilesZip }) => {
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,
-		new Uint8Array(await wpContentZip.arrayBuffer())
+		new Uint8Array(await wordPressFilesZip.arrayBuffer())
 	);
 
 	const documentRoot = await playground.documentRoot;
@@ -47,6 +57,9 @@ export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
 	await unzip(playground, { zipPath, extractToPath: importPath });
 	await playground.unlink(zipPath);
 
+	// Carry over any Playground-related files, such as the
+	// SQLite database plugin, from the current wp-content
+	// into the one that's about to be imported
 	const importedWpContentPath = joinPaths(importPath, 'wp-content');
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 	for (const relativePath of wpContentFilesExcludedFromExport) {
@@ -56,13 +69,7 @@ export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
 			importedWpContentPath,
 			relativePath
 		);
-		if (await playground.fileExists(excludedImportPath)) {
-			if (await playground.isDir(excludedImportPath)) {
-				await playground.rmdir(excludedImportPath);
-			} else {
-				await playground.unlink(excludedImportPath);
-			}
-		}
+		await removePath(playground, excludedImportPath);
 
 		// Replace them with files sourced from the live wp-content directory
 		const restoreFromPath = joinPaths(wpContentPath, relativePath);
@@ -71,11 +78,18 @@ export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
 		}
 	}
 
-	// Swap wp-content with the imported one
-	await playground.rmdir(wpContentPath);
-	await playground.mv(importedWpContentPath, wpContentPath);
+	// Move all the paths from the imported directory into the document root.
+	// Overwrite, if needed.
+	const importedFilenames = await playground.listFiles(importPath);
+	for (const fileName of importedFilenames) {
+		await removePath(playground, joinPaths(documentRoot, fileName));
+		await playground.mv(
+			joinPaths(importPath, fileName),
+			joinPaths(documentRoot, fileName)
+		);
+	}
 
-	// Clean up any remaining files
+	// Remove the directory where we unzipped the imported zip file.
 	await playground.rmdir(importPath);
 
 	// Upgrade the database
@@ -89,3 +103,13 @@ export const importWpContent: StepHandler<ImportWpContentStep<File>> = async (
             `,
 	});
 };
+
+async function removePath(playground: UniversalPHP, path: string) {
+	if (await playground.fileExists(path)) {
+		if (await playground.isDir(path)) {
+			await playground.rmdir(path);
+		} else {
+			await playground.unlink(path);
+		}
+	}
+}
