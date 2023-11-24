@@ -4,7 +4,7 @@ import {
 	runBlueprintSteps,
 	validateBlueprint,
 } from './compile';
-import { defineWpConfigConsts } from './steps/define-wp-config-consts';
+import { defineConstants } from './steps/define-constants';
 
 const phpVersion = '8.0';
 describe('Blueprints', () => {
@@ -46,7 +46,7 @@ describe('Blueprints', () => {
 
 		// Call the function with the constants and the playground client
 		// Step1: define the constants
-		await defineWpConfigConsts(php, {
+		await defineConstants(php, {
 			consts,
 		});
 

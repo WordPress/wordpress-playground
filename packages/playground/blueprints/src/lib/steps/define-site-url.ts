@@ -1,5 +1,5 @@
 import { StepHandler } from '.';
-import { defineWpConfigConsts } from './define-wp-config-consts';
+import { defineConstants } from './define-constants';
 
 /**
  * @inheritDoc defineSiteUrl
@@ -29,7 +29,7 @@ export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {
-	await defineWpConfigConsts(playground, {
+	await defineConstants(playground, {
 		consts: {
 			WP_HOME: siteUrl,
 			WP_SITEURL: siteUrl,

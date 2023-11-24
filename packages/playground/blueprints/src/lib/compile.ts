@@ -29,6 +29,7 @@ import Ajv from 'ajv';
  */
 import blueprintSchema from '../../public/blueprint-schema.json';
 import type { ValidateFunction } from 'ajv';
+import { migrateDeprecatedJSONSteps } from './steps/define-constants';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
@@ -79,6 +80,7 @@ export function compileBlueprint(
 		...blueprint,
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
+	blueprint = migrateDeprecatedJSONSteps(blueprint);
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
 		const e = new Error(

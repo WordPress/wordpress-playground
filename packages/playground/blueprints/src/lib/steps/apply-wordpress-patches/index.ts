@@ -1,7 +1,7 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '..';
 import { updateFile } from '../common';
-import { defineWpConfigConsts } from '../define-wp-config-consts';
+import { defineConstants } from '../define-constants';
 
 /** @ts-ignore */
 import transportFetch from './wp-content/mu-plugins/includes/requests_transport_fetch.php?raw';
@@ -95,7 +95,7 @@ class WordPressPatcher {
 	}
 
 	async patchSiteUrl() {
-		await defineWpConfigConsts(this.php, {
+		await defineConstants(this.php, {
 			consts: {
 				WP_HOME: this.scopedSiteUrl,
 				WP_SITEURL: this.scopedSiteUrl,
@@ -104,7 +104,7 @@ class WordPressPatcher {
 	}
 
 	async patchSecrets() {
-		await defineWpConfigConsts(this.php, {
+		await defineConstants(this.php, {
 			consts: {
 				AUTH_KEY: randomString(40),
 				SECURE_AUTH_KEY: randomString(40),
@@ -173,7 +173,7 @@ class WordPressPatcher {
 	}
 
 	async addFetchNetworkTransport() {
-		await defineWpConfigConsts(this.php, {
+		await defineConstants(this.php, {
 			consts: {
 				USE_FETCH_FOR_REQUESTS: true,
 			},

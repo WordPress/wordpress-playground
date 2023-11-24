@@ -23,7 +23,7 @@ import { RunPHPStep } from './run-php';
 import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
 import { WriteFileStep } from './write-file';
-import { DefineWpConfigConstsStep } from './define-wp-config-consts';
+import { DefineConstantsStep } from './define-constants';
 import { ActivateThemeStep } from './activate-theme';
 
 export type Step = GenericStep<FileReference>;
@@ -43,7 +43,7 @@ export type GenericStep<Resource> =
 	| ActivateThemeStep
 	| ApplyWordPressPatchesStep
 	| CpStep
-	| DefineWpConfigConstsStep
+	| DefineConstantsStep
 	| DefineSiteUrlStep
 	| ImportFileStep<Resource>
 	| InstallPluginStep<Resource>
@@ -69,7 +69,7 @@ export type {
 	ActivateThemeStep,
 	ApplyWordPressPatchesStep,
 	CpStep,
-	DefineWpConfigConstsStep,
+	DefineConstantsStep as DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
 	ImportFileStep,
 	InstallPluginStep,
