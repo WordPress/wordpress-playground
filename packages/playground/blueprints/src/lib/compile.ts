@@ -115,6 +115,14 @@ export function compileBlueprint(
 			});
 		}
 	}
+	if (blueprint.login) {
+		blueprint.steps?.push({
+			step: 'login',
+			...(blueprint.login === true
+				? { username: 'admin', password: 'password' }
+				: blueprint.login),
+		});
+	}
 	// }}}
 
 	const { valid, errors } = validateBlueprint(blueprint);
