@@ -12,7 +12,30 @@ const config = {
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
 
-const schema = tsj.createGenerator(config).createSchema(config.type);
+const maxRetries = 5;
+async function exponentialBackoff(callback, retries = 0, delay = 1000) {
+	try {
+		return await callback();
+	} catch (e) {
+		if (retries >= maxRetries) {
+			throw e;
+		}
+		await new Promise((resolve) => setTimeout(resolve, delay));
+		return exponentialBackoff(callback, retries + 1, delay * 2);
+	}
+}
+
+/**
+ * Schema creation sometimes fails in CI, most likely
+ * due to a race condition. Let's retry a few times before
+ * giving up.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/789
+ */
+const schema = await exponentialBackoff(() =>
+	tsj.createGenerator(config).createSchema(config.type)
+);
+
 schema.$schema = 'http://json-schema.org/schema';
 schema.definitions.Blueprint.properties.$schema = {
 	type: 'string',
