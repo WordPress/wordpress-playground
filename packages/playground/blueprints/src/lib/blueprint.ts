@@ -42,7 +42,7 @@ export interface Blueprint {
 	 * @deprecated This experimental option will change without warning.
 	 *             Use `steps` instead.
 	 */
-	plugins?: Record<string, string | boolean | FileReference>;
+	plugins?: Array<string | FileReference>;
 
 	/**
 	 * WordPress site options to define

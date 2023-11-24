@@ -81,42 +81,45 @@ export function compileBlueprint(
 	};
 	// Experimental declarative syntax {{{
 	if (blueprint.constants) {
-		blueprint.steps?.unshift({
+		blueprint.steps!.unshift({
 			step: 'defineWpConfigConsts',
 			consts: blueprint.constants,
 		});
 	}
 	if (blueprint.siteOptions) {
-		blueprint.steps?.unshift({
+		blueprint.steps!.unshift({
 			step: 'setSiteOptions',
 			options: blueprint.siteOptions,
 		});
 	}
 	if (blueprint.plugins) {
-		for (const pluginName in blueprint.plugins) {
-			const value = blueprint.plugins[pluginName];
-			let resource: FileReference;
-			if (typeof value === 'string') {
-				resource = {
-					resource: 'url',
-					url: value,
-				};
-			} else if (typeof value === 'boolean') {
-				resource = {
-					resource: 'wordpress.org/plugins',
-					slug: pluginName,
-				};
-			} else {
-				resource = value;
-			}
-			blueprint.steps?.unshift({
+		// Translate an array of strings into a map of pluginName => true to
+		// install the latest version of the plugin from wordpress.org
+		const steps = blueprint.plugins
+			.map((value) => {
+				if (typeof value === 'string') {
+					if (value.startsWith('https://')) {
+						return {
+							resource: 'url',
+							url: value,
+						} as FileReference;
+					} else {
+						return {
+							resource: 'wordpress.org/plugins',
+							slug: value,
+						} as FileReference;
+					}
+				}
+				return value;
+			})
+			.map((resource) => ({
 				step: 'installPlugin',
 				pluginZipFile: resource,
-			});
-		}
+			})) as StepDefinition[];
+		blueprint.steps!.unshift(...steps);
 	}
 	if (blueprint.login) {
-		blueprint.steps?.push({
+		blueprint.steps!.push({
 			step: 'login',
 			...(blueprint.login === true
 				? { username: 'admin', password: 'password' }

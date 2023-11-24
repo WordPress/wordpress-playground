@@ -49,7 +49,7 @@ const declarativeSchema = tsj
 		type: 'Blueprint',
 	})
 	.createSchema(config.type);
-const allowedProps = ['siteOptions', 'plugins', 'login'];
+const allowedProps = ['landingPage', 'siteOptions', 'plugins', 'login'];
 for (const prop in declarativeSchema.properties) {
 	if (!allowedProps.includes(prop)) {
 		delete declarativeSchema.properties[prop];
@@ -78,11 +78,7 @@ const walk = (obj, callback) => {
 walk(declarativeSchema, (ref) => declarativeSchema.definitions[ref]);
 delete declarativeSchema.definitions;
 
-// Remove reference types from the plugins schema.
-declarativeSchema.properties.plugins.additionalProperties.anyOf =
-	declarativeSchema.properties.plugins.additionalProperties.anyOf.filter(
-		({ type }) => type === 'boolean'
-	);
+declarativeSchema.properties.plugins.items = { type: 'string' };
 
 // Add an empty required list to each property
 for (const prop in declarativeSchema.properties) {
@@ -90,6 +86,7 @@ for (const prop in declarativeSchema.properties) {
 		declarativeSchema.properties[prop].required = [];
 	}
 }
+declarativeSchema.properties.siteOptions.additionalProperties = false;
 
 const declarativeSchemaString = JSON.stringify(declarativeSchema, null, 2)
 	// Naively remove TypeScript generics <T> from the schema:
