@@ -15,6 +15,10 @@ declare namespace Cypress {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface Chainable<Subject> {
 		login(email: string, password: string): void;
+		/**
+		 * Custom command to get into an iframe.
+		 */
+		iframe(iframeSelector: string): Chainable<Element>;
 	}
 }
 
@@ -33,3 +37,11 @@ Cypress.Commands.add('login', (email, password) => {
 //
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
+
+Cypress.Commands.add('iframe', (iframeSelector: string) => {
+	return cy
+		.get(iframeSelector)
+		.its('0.contentDocument.body')
+		.should('be.visible')
+		.then(cy.wrap) as Cypress.Chainable<Element>;
+});
