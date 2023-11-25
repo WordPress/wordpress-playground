@@ -570,16 +570,20 @@
             },
             "step": {
               "type": "string",
-              "const": "importFile"
+              "const": "importWordPressFiles"
             },
-            "file": {
+            "wordPressFilesZip": {
               "$ref": "#/definitions/FileReference",
-              "description": "The file to import"
+              "description": "The zip file containing the top-level WordPress files and directories."
+            },
+            "pathInZip": {
+              "type": "string",
+              "description": "The path inside the zip file where the WordPress files are."
             }
           },
           "required": [
-            "file",
-            "step"
+            "step",
+            "wordPressFilesZip"
           ]
         },
         {
@@ -784,36 +788,6 @@
           },
           "required": [
             "request",
-            "step"
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "progress": {
-              "type": "object",
-              "properties": {
-                "weight": {
-                  "type": "number"
-                },
-                "caption": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
-            },
-            "step": {
-              "type": "string",
-              "const": "replaceSite"
-            },
-            "fullSiteZip": {
-              "$ref": "#/definitions/FileReference",
-              "description": "The zip file containing the new WordPress site"
-            }
-          },
-          "required": [
-            "fullSiteZip",
             "step"
           ]
         },

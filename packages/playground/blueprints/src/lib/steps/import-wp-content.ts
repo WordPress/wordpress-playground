@@ -1,6 +1,6 @@
 import { StepHandler } from '.';
 import { unzip } from './unzip';
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from './common';
 import { UniversalPHP } from '@php-wasm/universal';
 
@@ -25,6 +25,10 @@ export interface ImportWordPressFilesStep<ResourceType> {
 	 * directories.
 	 */
 	wordPressFilesZip: ResourceType;
+	/**
+	 * The path inside the zip file where the WordPress files are.
+	 */
+	pathInZip?: string;
 }
 
 /**
@@ -42,7 +46,7 @@ export interface ImportWordPressFilesStep<ResourceType> {
  */
 export const importWordPressFiles: StepHandler<
 	ImportWordPressFilesStep<File>
-> = async (playground, { wordPressFilesZip }) => {
+> = async (playground, { wordPressFilesZip, pathInZip = '' }) => {
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,
@@ -52,10 +56,11 @@ export const importWordPressFiles: StepHandler<
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
-	const importPath = joinPaths('/tmp', 'import');
+	let importPath = joinPaths('/tmp', 'import');
 	await playground.mkdir(importPath);
 	await unzip(playground, { zipPath, extractToPath: importPath });
 	await playground.unlink(zipPath);
+	importPath = joinPaths(importPath, pathInZip);
 
 	// Carry over any Playground-related files, such as the
 	// SQLite database plugin, from the current wp-content
@@ -74,8 +79,23 @@ export const importWordPressFiles: StepHandler<
 		// Replace them with files sourced from the live wp-content directory
 		const restoreFromPath = joinPaths(wpContentPath, relativePath);
 		if (await playground.fileExists(restoreFromPath)) {
+			await playground.mkdir(dirname(excludedImportPath));
 			await playground.mv(restoreFromPath, excludedImportPath);
 		}
+	}
+
+	// Carry over the database directory if the imported zip file doesn't
+	// already contain one.
+	const importedDatabasePath = joinPaths(
+		importPath,
+		'wp-content',
+		'database'
+	);
+	if (!(await playground.fileExists(importedDatabasePath))) {
+		await playground.mv(
+			joinPaths(documentRoot, 'wp-content', 'database'),
+			importedDatabasePath
+		);
 	}
 
 	// Move all the paths from the imported directory into the document root.
