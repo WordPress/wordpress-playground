@@ -14,34 +14,49 @@
 declare namespace Cypress {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	interface Chainable<Subject> {
-		login(email: string, password: string): void;
-		/**
-		 * Custom command to get into an iframe.
-		 */
-		iframe(iframeSelector: string): Chainable<Element>;
+		getIframeBody(selector: string): Chainable<Element>;
+		inRemoteIframe(
+			callback: (wordPressiFrame: Chainable<Element>) => void
+		): void;
+		inWordPressIframe(callback: Function): void;
+		setWordPressUrl(url: string): void;
 	}
 }
 
-// -- This is a parent command --
-Cypress.Commands.add('login', (email, password) => {
-	console.log('Custom command example: Login', email, password);
-});
-//
-// -- This is a child command --
-// Cypress.Commands.add("drag", { prevSubject: 'element'}, (subject, options) => { ... })
-//
-//
-// -- This is a dual command --
-// Cypress.Commands.add("dismiss", { prevSubject: 'optional'}, (subject, options) => { ... })
-//
-//
-// -- This will overwrite an existing command --
-// Cypress.Commands.overwrite("visit", (originalFn, url, options) => { ... })
-
-Cypress.Commands.add('iframe', (iframeSelector: string) => {
+Cypress.Commands.add('getIframeBody', (iframeSelector: string) => {
 	return cy
 		.get(iframeSelector)
 		.its('0.contentDocument.body')
-		.should('be.visible')
+		.should('not.be.empty')
 		.then(cy.wrap) as Cypress.Chainable<Element>;
+});
+
+Cypress.Commands.add('inRemoteIframe', (callback: Function) => {
+	cy.getIframeBody('iframe#playground-viewport').should('exist');
+	cy.getIframeBody('iframe#playground-viewport').within(() => {
+		callback();
+	});
+});
+
+Cypress.Commands.add('inWordPressIframe', (callback: Function) => {
+	cy.inRemoteIframe(() => {
+		cy.getIframeBody('iframe#wp').should('exist');
+		cy.getIframeBody('iframe#wp').within(() => {
+			cy.document().should('exist');
+			// For some reason we need to wait a few ms here, even
+			// though Cypress should be waiting for the iframe to load
+			// eslint-disable-next-line cypress/no-unnecessary-waiting
+			// cy.wait(50);
+			callback();
+		});
+	});
+});
+
+Cypress.Commands.add('setWordPressUrl', (url: string) => {
+	cy.get('input[name=url]').should('be.visible').type(url);
+	cy.get('input[name=url]').type('{enter}');
+	// Wait for WordPress to reload
+	cy.inWordPressIframe(() => {
+		cy.document().should('exist');
+	});
 });
