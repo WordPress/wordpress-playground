@@ -284,7 +284,7 @@ try {
             [
                 'org' => 'WordPress',
                 'repo' => 'wordpress-develop',
-                'workflow' => 'Build WordPress',
+                'workflow' => 'Test Build Processes',
                 'artifact' => '#wordpress-build-\d+#'
             ],
         ];
