@@ -80,7 +80,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/website"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/website"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/website"

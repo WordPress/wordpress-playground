@@ -24,7 +24,9 @@
 		},
 		"test:vite": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/fs-journal"],
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/fs-journal"
+			],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/fs-journal"

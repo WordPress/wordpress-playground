@@ -74,7 +74,7 @@ export default defineConfig(({ command, mode }) => {
 
 		plugins: [
 			react({
-				jsxRuntime: 'classic',
+				jsxRuntime: 'automatic',
 			}),
 			viteTsConfigPaths({
 				root: '../../../',

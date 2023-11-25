@@ -87,7 +87,7 @@
 		},
 		"test:vite": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/client"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/client"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/client"

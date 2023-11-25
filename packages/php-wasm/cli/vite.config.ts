@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => {
 	return {
@@ -8,9 +8,7 @@ export default defineConfig(() => {
 		cacheDir: '../../../node_modules/.vite/php-cli',
 
 		plugins: [
-			viteTsConfigPaths({
-				root: '../../../',
-			}),
+			nxViteTsPaths(),
 		],
 
 		// Configuration for building your library.

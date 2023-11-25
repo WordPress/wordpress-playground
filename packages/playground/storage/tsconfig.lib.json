@@ -3,7 +3,12 @@
 	"compilerOptions": {
 		"outDir": "../../../dist/out-tsc",
 		"declaration": true,
-		"types": ["node", "vite/client"]
+		"types": [
+			"node",
+			"vite/client",
+			"@nx/react/typings/cssmodule.d.ts",
+			"@nx/react/typings/image.d.ts"
+		]
 	},
 	"include": ["src/**/*.ts"],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]

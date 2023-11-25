@@ -62,7 +62,9 @@
 		},
 		"test:vite": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/blueprints"],
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/blueprints"
+			],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/blueprints"
