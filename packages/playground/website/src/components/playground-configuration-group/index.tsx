@@ -205,7 +205,11 @@ export default function PlaygroundConfigurationGroup({
 
 	return (
 		<>
-			<Button onClick={openModal} variant="browser-chrome" id="configurator">
+			<Button
+				onClick={openModal}
+				variant="browser-chrome"
+				id="configurator"
+			>
 				PHP {currentConfiguration.php} {' - '}
 				WP {WPLabel} {' - '}
 				{currentConfiguration.storage === 'opfs-host' ||
