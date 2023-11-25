@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRef, useState } from 'react';
-import { PlaygroundClient, importWpContent } from '@wp-playground/client';
+import { PlaygroundClient, importWordPressFiles } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
@@ -32,7 +32,7 @@ export default function ImportForm({
 		}
 
 		try {
-			await importWpContent(playground, { wpFilesZip: file });
+			await importWordPressFiles(playground, { wordPressFilesZip: file });
 		} catch (error) {
 			console.error(error);
 			setError(
