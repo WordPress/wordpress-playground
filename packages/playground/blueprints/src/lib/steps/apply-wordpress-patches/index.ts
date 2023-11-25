@@ -28,7 +28,7 @@ export interface ApplyWordPressPatchesStep {
 
 export const applyWordPressPatches: StepHandler<
 	ApplyWordPressPatchesStep
-> = async (php, options) => {
+	> = async (php, options) => {
 	const patch = new WordPressPatcher(
 		php,
 		options.wordpressPath || '/wordpress',
@@ -167,7 +167,7 @@ class WordPressPatcher {
 		for (const transport of transports) {
 			// One of the transports might not exist in the latest WordPress version.
 			if (!(await this.php.fileExists(transport))) {
-				continue;
+				continue
 			}
 			await updateFile(this.php, transport, (contents) =>
 				contents.replace(
