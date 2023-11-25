@@ -191,7 +191,7 @@ export async function bootPlaygroundRemote() {
 		);
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 		if (withNetworking) {
-			setupFetchNetworkTransport(workerApi);
+			await setupFetchNetworkTransport(workerApi);
 		}
 
 		setAPIReady();
