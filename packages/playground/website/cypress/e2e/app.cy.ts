@@ -4,7 +4,8 @@ describe('playground-website', () => {
 	it('should navigate to WordPress sites when a URL is updated', () => {
 		cy.get('input[name=url]').type('/wp-admin');
 		cy.get('input[name=url]').type('{enter}');
-		cy.get('iframe')
+		cy.iframe('iframe')
+			.iframe('iframe')
 			.should('have.attr', 'src')
 			.and('match', /\/wp-admin$/);
 	});
