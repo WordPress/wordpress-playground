@@ -7,9 +7,7 @@ export default defineConfig(() => {
 		assetsInclude: ['**/*.ini'],
 		cacheDir: '../../../node_modules/.vite/php-cli',
 
-		plugins: [
-			nxViteTsPaths(),
-		],
+		plugins: [nxViteTsPaths()],
 
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
