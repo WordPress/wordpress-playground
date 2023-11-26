@@ -108,12 +108,13 @@
 			"executor": "nx:noop",
 			"dependsOn": ["dev", "e2e:cypress"]
 		},
-		"e2e:cypress": {
-			"executor": "@nx/cypress:cypress",
+		"e2e:playwright": {
+			"executor": "@nx/playwright:playwright",
+			"outputs": [
+				"{workspaceRoot}/dist/.playwright/packages/playground/website"
+			],
 			"options": {
-				"cypressConfig": "packages/playground/website/cypress.config.ts",
-				"testingType": "e2e",
-				"baseUrl": "http://localhost:5400/website-server/",
+				"config": "packages/playground/website/playwright.config.ts"
 			}
 		}
 	},

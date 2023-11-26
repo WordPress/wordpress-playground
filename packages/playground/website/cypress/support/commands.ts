@@ -46,7 +46,7 @@ Cypress.Commands.add('inWordPressIframe', (callback: Function) => {
 			// For some reason we need to wait a few ms here, even
 			// though Cypress should be waiting for the iframe to load
 			// eslint-disable-next-line cypress/no-unnecessary-waiting
-			// cy.wait(50);
+			cy.wait(50);
 			callback();
 		});
 	});

@@ -1,5 +1,7 @@
 {
 	"extends": [
+		"plugin:playwright/recommended",
+		"plugin:playwright/recommended",
 		"plugin:cypress/recommended",
 		"plugin:cypress/recommended",
 		"plugin:cypress/recommended",
@@ -47,6 +49,14 @@
 		},
 		{
 			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
+			"rules": {}
+		},
+		{
+			"files": ["e2e/**/*.{ts,js,tsx,jsx}"],
+			"rules": {}
+		},
+		{
+			"files": ["e2e/**/*.{ts,js,tsx,jsx}"],
 			"rules": {}
 		}
 	]

@@ -301,10 +301,10 @@ export function PlaygroundConfigurationForm({
 							}}
 						>
 							{/*
-							  * Without an empty option, React sometimes says
-							  * the current selected version is "nightly" when
-							  * `wp` is actually "6.4".
-							  */}
+							 * Without an empty option, React sometimes says
+							 * the current selected version is "nightly" when
+							 * `wp` is actually "6.4".
+							 */}
 							<option value="">-- Select a version --</option>
 							{Object.keys(supportedWPVersions).map((version) => (
 								<option key={version} value={version}>
