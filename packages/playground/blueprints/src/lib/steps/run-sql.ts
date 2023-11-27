@@ -1,5 +1,6 @@
 import { StepHandler } from '.';
 import { rm } from './rm';
+import { phpVars } from '@php-wasm/util';
 
 /**
  * @inheritDoc runSql
@@ -12,7 +13,7 @@ import { rm } from './rm';
  *		"sql": {
  *			"resource": "literal",
  *			"name": "schema.sql",
- *			"contents": "SELECT * FROM wp_posts"
+ *			"contents": "DELETE FROM wp_posts"
  *		},
  * }
  * </code>
@@ -23,24 +24,20 @@ export interface RunSqlStep<ResourceType> {
 	 */
 	step: 'runSql';
 	/**
-	 * The SQL to run.
+	 * The SQL to run. Each non-empty line must contain a valid SQL query.
 	 */
 	sql: ResourceType;
-	/**
-	 * Whether to stop on errors
-	 */
-	stopOnErrors?: boolean;
 }
 
 /**
- * Run an SQL file.
+ * Run one or more SQL queries.
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
-	{ sql, stopOnErrors = true },
+	{ sql },
 	progress?
 ) => {
-	progress?.tracker.setCaption(`Executing SQL File`);
+	progress?.tracker.setCaption(`Executing SQL queries`);
 
 	const sqlFilename = `/tmp/${crypto.randomUUID()}.sql`;
 
@@ -51,11 +48,13 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 
 	const docroot = await playground.documentRoot;
 
+	const js = phpVars({ docroot, sqlFilename });
+
 	const runPhp = await playground.run({
 		code: `<?php
-		require_once ${JSON.stringify(docroot)} . '/wp-load.php';
+		require_once ${js.docroot} . '/wp-load.php';
 
-		$handle = fopen(${JSON.stringify(sqlFilename)}, 'r');
+		$handle = fopen(${js.sqlFilename}, 'r');
 		$buffer = '';
 
 		global $wpdb;
@@ -67,11 +66,6 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 				continue;
 			}
 
-			if (substr($buffer, 0, 2) === '--') {
-				$buffer = '';
-				continue;
-			}
-
 			echo $buffer;
 
 			$wpdb->query($buffer);
@@ -79,10 +73,6 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		}
 	`,
 	});
-
-	if (stopOnErrors && runPhp.errors) {
-		throw new Error(runPhp.errors);
-	}
 
 	await rm(playground, { path: sqlFilename });
 
