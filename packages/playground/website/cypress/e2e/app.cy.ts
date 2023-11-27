@@ -196,7 +196,7 @@ describe('Playground import/export to zip', () => {
 		);
 	});
 
-	it.only('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
+	it('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
 		cy.visit(
 			'/?networking=no#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
 		);
