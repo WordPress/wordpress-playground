@@ -66,12 +66,6 @@ export default defineConfig(({ command }) => {
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
-			// Without this option, Vite may occasionally fail with the following error:
-			// ENOTEMPTY: directory not empty, rmdir dist/packages/php-wasm/web/light
-			// That directory is implicitly created by preserve-php-loaders-imports plugin
-			// and it's fine to override it during the build.
-			// @TODO: Figure out why Vite fails only occasionally, not consistently.
-			emptyOutDir: false,
 			lib: {
 				// Could also be a dictionary or array of multiple entry points.
 				entry: 'src/index.ts',
