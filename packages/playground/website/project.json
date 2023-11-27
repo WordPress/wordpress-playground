@@ -37,7 +37,8 @@
 					"mode": "development"
 				},
 				"production": {
-					"mode": "production"
+					"mode": "production",
+					"logLevel": "info"
 				}
 			},
 			"dependsOn": ["^build"]

@@ -17,6 +17,7 @@ declare namespace Cypress {
 		setWordPressUrl(url: string): void;
 		wordPressDocument(): Chainable<Element>;
 		wordpressPath(): Chainable<string>;
+		relativeUrl(): Chainable<string>;
 	}
 }
 
@@ -44,4 +45,13 @@ Cypress.Commands.add('wordpressPath', () => {
 		.its('0.contentDocument')
 		.find('#wp')
 		.its('0.contentWindow.location.pathname');
+});
+
+Cypress.Commands.add('relativeUrl', () => {
+	// relative part of the current top-level URL
+	return cy.url().then((href) => {
+		const url = new URL(href);
+		console.log({ href });
+		return href.substring(url.origin.length);
+	});
 });

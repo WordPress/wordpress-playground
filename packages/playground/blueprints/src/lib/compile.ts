@@ -167,8 +167,8 @@ export function compileBlueprint(
 			blueprint.phpExtensionBundles || []
 		),
 		features: {
-			// Enable networking by default
-			networking: blueprint.features?.networking ?? true,
+			// Disable networking by default
+			networking: blueprint.features?.networking ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
 			try {

@@ -49,8 +49,8 @@ export async function resolveBlueprint() {
 		const features: Blueprint['features'] = {};
 		// Networking is enabled by default, so we only need to disable it
 		// if the query param is explicitly set to "no".
-		if (query.get('networking') === 'no') {
-			features['networking'] = false;
+		if (query.get('networking') === 'yes') {
+			features['networking'] = true;
 		}
 		blueprint = makeBlueprint({
 			php: query.get('php') || '8.0',

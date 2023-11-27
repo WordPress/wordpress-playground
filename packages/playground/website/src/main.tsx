@@ -43,6 +43,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'none',
 	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
+	withNetworking: blueprint.features?.networking || false,
 };
 
 /*

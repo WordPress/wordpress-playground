@@ -33,7 +33,7 @@ describe('Query API', () => {
 
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
-			cy.visit('/?networking=no&url=/wp-admin/');
+			cy.visit('/?url=/wp-admin/');
 			const expectedBodyClass =
 				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
 			cy.wordPressDocument()
@@ -42,16 +42,14 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?networking=no&wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
 
 	describe('option `php-extension-bundle`', () => {
 		it('should load the specified PHP extensions', () => {
-			cy.visit(
-				'/?networking=no&php-extension-bundle=kitchen-sink&url=/phpinfo.php'
-			);
+			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
 			cy.wordPressDocument()
 				.its('body')
 				.should('contain', '--enable-xmlwriter');
@@ -60,13 +58,10 @@ describe('Query API', () => {
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
-			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
+			cy.visit('/?url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
-				.should(
-					'contain',
-					'does not yet support connecting to the plugin directory'
-				);
+				.should('contain', 'Enable networking support in Playground');
 		});
 
 		it('should enable networking when requested', () => {
@@ -97,7 +92,7 @@ describe('Query API', () => {
 
 	describe('option `url`', () => {
 		it('should load the specified URL', () => {
-			cy.visit('/?url=/wp-admin/&networking=no');
+			cy.visit('/?url=/wp-admin/');
 			cy.wordpressPath().should('contain', '/wp-admin/');
 			cy.wordPressDocument()
 				.find('#adminmenu')
@@ -107,11 +102,11 @@ describe('Query API', () => {
 
 	describe('option `mode`', () => {
 		it('lack of mode=seamless should a WordPress in a simulated browser UI', () => {
-			cy.visit('/?networking=no');
+			cy.visit('/');
 			cy.get('[data-cy="simulated-browser"]').should('exist');
 		});
 		it('mode=seamless should load a fullscreen WordPress', () => {
-			cy.visit('/?networking=no&mode=seamless');
+			cy.visit('/?mode=seamless');
 			cy.get('[data-cy="simulated-browser"]').should('not.exist');
 		});
 	});
@@ -187,7 +182,7 @@ describe('Query API', () => {
 });
 
 describe('playground-website', () => {
-	beforeEach(() => cy.visit('/?networking=no'));
+	beforeEach(() => cy.visit('/'));
 
 	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
 		cy.setWordPressUrl('/wp-admin');
@@ -195,83 +190,141 @@ describe('playground-website', () => {
 	});
 
 	// Test all PHP versions for completeness
-	SupportedPHPVersions.forEach((version) => {
-		it('should switch PHP version to ' + version, () => {
+	describe('PHP version switcher', () => {
+		SupportedPHPVersions.forEach((version) => {
+			it('should switch PHP version to ' + version, () => {
+				// Update settings in Playground configurator
+				cy.get('button#configurator').click();
+				cy.get('select#php-version').select(version);
+				cy.get('#modal-content button[type=submit]').click();
+				// Wait for the page to finish reloading
+				cy.url().should('contain', `php=${version}`);
+				cy.document().should('exist');
+
+				// Go to phpinfo
+				cy.setWordPressUrl('/phpinfo.php');
+				cy.wordPressDocument()
+					.find('h1')
+					.should('contain', 'PHP Version ' + version);
+			});
+		});
+	});
+
+	// Only test the latest PHP version to save time
+	describe('PHP extensions bundle', () => {
+		it('should load additional PHP extensions when requested', () => {
 			// Update settings in Playground configurator
 			cy.get('button#configurator').click();
-			cy.get('select#php-version').select(version);
+			cy.get('select#php-version').select(LatestSupportedPHPVersion);
+			cy.get('input[name=with-extensions]').check();
 			cy.get('#modal-content button[type=submit]').click();
-			// Wait for the page to finish reloading
-			cy.url().should('contain', `&php=${version}`);
+			// Wait for the page to finish loading
 			cy.document().should('exist');
 
 			// Go to phpinfo
 			cy.setWordPressUrl('/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1')
-				.should('contain', 'PHP Version ' + version);
+				.its('body')
+				.should('contain', '--enable-xmlwriter');
 		});
-	});
 
-	// Only test the latest PHP version to save time
-	it('should load additional PHP extensions when requested', () => {
-		// Update settings in Playground configurator
-		cy.get('button#configurator').click();
-		cy.get('select#php-version').select(LatestSupportedPHPVersion);
-		cy.get('input[name=with-extensions]').check();
-		cy.get('#modal-content button[type=submit]').click();
-		// Wait for the page to finish loading
-		cy.document().should('exist');
+		it('should not load additional PHP extensions when not requested', () => {
+			// Update settings in Playground configurator
+			cy.get('button#configurator').click();
+			cy.get('select#php-version').select(LatestSupportedPHPVersion);
+			cy.get('#modal-content button[type=submit]').click();
+			// Wait for the page to finish loading
+			cy.document().should('exist');
 
-		// Go to phpinfo
-		cy.setWordPressUrl('/phpinfo.php');
-		cy.wordPressDocument()
-			.its('body')
-			.should('contain', '--enable-xmlwriter');
-	});
-
-	it('should not load additional PHP extensions when not requested', () => {
-		// Update settings in Playground configurator
-		cy.get('button#configurator').click();
-		cy.get('select#php-version').select(LatestSupportedPHPVersion);
-		cy.get('#modal-content button[type=submit]').click();
-		// Wait for the page to finish loading
-		cy.document().should('exist');
-
-		// Go to phpinfo
-		cy.setWordPressUrl('/phpinfo.php');
-		cy.wordPressDocument()
-			.its('body')
-			.should('contain', '--without-libxml');
+			// Go to phpinfo
+			cy.setWordPressUrl('/phpinfo.php');
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', '--without-libxml');
+		});
 	});
 
 	// Test all WordPress versions for completeness
-	for (const version in SupportedWordPressVersions) {
-		if (version === 'beta') {
-			continue;
-		}
-		// @ts-ignore
-		let versionMessage = 'Version ' + version;
-		if (version === 'nightly') {
-			versionMessage = 'You are using a development version';
-		}
+	describe('WordPress version selector', () => {
+		for (const version in SupportedWordPressVersions) {
+			if (version === 'beta') {
+				continue;
+			}
+			// @ts-ignore
+			let versionMessage = 'Version ' + version;
+			if (version === 'nightly') {
+				versionMessage = 'You are using a development version';
+			}
 
-		it('should switch WordPress version to ' + version, () => {
-			// Update settings in Playground configurator
-			cy.get('button#configurator').click();
-			cy.get(`select#wp-version option[value="${version}"]`).should(
-				'exist'
-			);
-			cy.get('select#wp-version').select(`${version}`);
-			cy.get('#modal-content button[type=submit]').click();
-			// Wait for the page to finish loading
-			cy.url().should('contain', `&wp=${version}`);
+			it('should switch WordPress version to ' + version, () => {
+				// Update settings in Playground configurator
+				cy.get('button#configurator').click();
+				cy.get(`select#wp-version option[value="${version}"]`).should(
+					'exist'
+				);
+				cy.get('select#wp-version').select(`${version}`);
+				cy.get('#modal-content button[type=submit]').click();
+				// Wait for the page to finish loading
+				cy.url().should('contain', `&wp=${version}`);
 
-			// Go to phpinfo
-			cy.setWordPressUrl('/wp-admin');
-			cy.wordPressDocument()
-				.find('#footer-upgrade')
-				.should('contain', versionMessage);
-		});
-	}
+				// Go to phpinfo
+				cy.setWordPressUrl('/wp-admin');
+				cy.wordPressDocument()
+					.find('#footer-upgrade')
+					.should('contain', versionMessage);
+			});
+		}
+	});
+});
+
+/**
+ * These tests only check if the modal UI updates the URL correctly.
+ * The actual networking functionality is tested in the Query API tests.
+ */
+describe('Website UI – Networking support', () => {
+	it('should display an unchecked networking checkbox by default', () => {
+		cy.visit('/');
+
+		cy.get('button#configurator').click();
+		cy.get('input[name=with-networking]').should('not.be.checked');
+	});
+
+	it('should display a checked networking checkbox when networking is enabled', () => {
+		cy.visit('/?networking=yes');
+
+		cy.get('button#configurator').click();
+		cy.get('input[name=with-networking]').should('be.checked');
+	});
+
+	it('should enable networking when requested', () => {
+		cy.visit('/');
+
+		// Update settings in Playground configurator
+		cy.get('button#configurator').click();
+		cy.get('input[name=with-networking]').check();
+		cy.get('#modal-content button[type=submit]').click();
+
+		// Wait for the page to reload
+		cy.document().should('exist');
+		cy.get('#modal-content button[type=submit]').should('not.exist');
+
+		// Confirm the URL was updated correctly
+		cy.relativeUrl().should('contain', 'networking=yes');
+	});
+
+	it('should disable networking when requested', () => {
+		cy.visit('/?networking=yes');
+
+		// Update settings in Playground configurator
+		cy.get('button#configurator').click();
+		cy.get('input[name=with-networking]').uncheck();
+		cy.get('#modal-content button[type=submit]').click();
+
+		// Wait for the page to reload
+		cy.document().should('exist');
+		cy.get('#modal-content button[type=submit]').should('not.exist');
+
+		// Confirm the URL was updated correctly
+		cy.relativeUrl().should('not.contain', 'networking=yes');
+	});
 });
