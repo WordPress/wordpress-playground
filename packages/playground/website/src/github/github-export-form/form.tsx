@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { PlaygroundClient } from '@wp-playground/client';
+import { PlaygroundClient, zipEntireSite } from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
@@ -24,6 +24,7 @@ import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
+import { joinPaths } from '@php-wasm/util';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
@@ -52,6 +53,7 @@ export interface ExportFormValues {
 	commitMessage: string;
 	plugin?: string;
 	theme?: string;
+	includeZip: boolean;
 }
 
 export default function GitHubExportForm({
@@ -68,6 +70,7 @@ export default function GitHubExportForm({
 		prAction: 'create',
 		commitMessage: 'Changes from WordPress Playground',
 		pathInRepo: '/',
+		includeZip: false,
 		...initialValues,
 	});
 	const [repoDetails, setRepoDetails] = useState<{
@@ -270,6 +273,17 @@ export default function GitHubExportForm({
 					`Unknown content type ${formValues.contentType}`
 				);
 			}
+
+			if (formValues.includeZip) {
+				const zipPath = joinPaths(playgroundPath, 'playground.zip');
+				if (await playground.fileExists(zipPath)) {
+					await playground.unlink(zipPath);
+				}
+				const zipContents = await zipEntireSite(playground);
+				const zipBuffer = await zipContents.arrayBuffer();
+				await playground.writeFile(zipPath, new Uint8Array(zipBuffer));
+			}
+			
 			const changes = await changeset(
 				new Map(Object.entries(comparableFiles)),
 				iterateFiles(playground, playgroundPath!, {
@@ -565,6 +579,25 @@ export default function GitHubExportForm({
 											{errors.commitMessage}
 										</div>
 									)}
+								</div>
+								<div
+									className={`${forms.formGroup} ${forms.formGroupLast}`}
+								>
+									<label>
+										<input
+											type="checkbox"
+											checked={formValues.includeZip}
+											onChange={(e) =>
+												setValue(
+													'includeZip',
+													e.target.checked
+												)
+											}
+										/>
+										Also export the changes as a zip file,
+										so they can be imported into another
+										Playground instance.
+									</label>
 								</div>
 							</>
 						) : null}
