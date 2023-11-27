@@ -198,7 +198,7 @@ describe('playground-website', () => {
 				cy.get('select#php-version').select(version);
 				cy.get('#modal-content button[type=submit]').click();
 				// Wait for the page to finish reloading
-				cy.url().should('contain', `&php=${version}`);
+				cy.url().should('contain', `php=${version}`);
 				cy.document().should('exist');
 
 				// Go to phpinfo
