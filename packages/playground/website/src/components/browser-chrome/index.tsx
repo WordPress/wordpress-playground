@@ -22,7 +22,7 @@ export default function BrowserChrome({
 		[css.isHidden]: !showAddressBar,
 	});
 	return (
-		<div className={css.wrapper}>
+		<div className={css.wrapper} data-cy="simulated-browser">
 			<div className={css.window}>
 				<div className={css.toolbar}>
 					<WindowControls />

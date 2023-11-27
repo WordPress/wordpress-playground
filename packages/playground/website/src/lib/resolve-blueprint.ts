@@ -56,6 +56,7 @@ export async function resolveBlueprint() {
 			php: query.get('php') || '8.0',
 			wp: query.get('wp') || 'latest',
 			theme: query.get('theme') || undefined,
+			login: !query.has('login') || query.get('login') === 'yes',
 			features,
 			plugins: query.getAll('plugin'),
 			landingPage: query.get('url') || undefined,

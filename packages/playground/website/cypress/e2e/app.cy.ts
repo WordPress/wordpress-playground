@@ -3,7 +3,11 @@ import {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 
+// We can't import the WordPress versions directly from the remote package because
+// of ESModules vs CommonJS incompatibilities. Let's just import the JSON file
+// directly.
 // @ts-ignore
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import * as SupportedWordPressVersions from '../../../remote/src/wordpress/wp-versions.json';
 
 const LatestSupportedWordPressVersion = Object.keys(
@@ -11,114 +15,172 @@ const LatestSupportedWordPressVersion = Object.keys(
 ).filter((x) => !['nightly', 'beta'].includes(x))[0];
 
 describe('Query API', () => {
-	/*
-	 Test this: 
-
-## Available options
-
-| Option                 | Default Value | Description                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `php`                  | `8.0`         | Loads the specified PHP version. Supported values: `5.6`, `7.0`, `7.1`, `7.2`, `7.3`, `7.4`, `8.0`, `8.1`, `8.2`, `latest`                                                                                                                                                                                                                                     |
-| `wp`                   | `latest`      | Loads the specified WordPress version. Supported values: `5.9`, `6.0`, `6.1`, `6.2`, `6.3`, `latest`, `nightly`, `beta`                                                                                                                                                                                                                                        |
-| `blueprint-url`        |               | The URL of the Blueprint that will be used to configure this Playground instance.                                                                                                                                                                                                                                                                              |
-| `php-extension-bundle` |               | Loads a bundle of PHP extensions. Supported bundles: `kitchen-sink` (for gd, mbstring, iconv, libxml, xml, dom, simplexml, xmlreader, xmlwriter)                                                                                                                                                                                                               |
-| `networking`           | `yes` or `no` | Enables or disables the networking support for Playground. Defaults to `yes`                                                                                                                                                                                                                                                                                   |
-| `plugin`               |               | Installs the specified plugin. Use the plugin name from the plugins directory URL, e.g. for a URL like `https://wordpress.org/plugins/wp-lazy-loading/`, the plugin name would be `wp-lazy-loading`. You can pre-install multiple plugins by saying `plugin=coblocks&plugin=wp-lazy-loading&…`. Installing a plugin automatically logs the user in as an admin |
-| `theme`                |               | Installs the specified theme. Use the theme name from the themes directory URL, e.g. for a URL like `https://wordpress.org/themes/disco/`, the theme name would be `disco`. Installing a theme automatically logs the user in as an admin                                                                                                                      |
-| `url`                  | `/wp-admin/`  | Load the specified initial page displaying WordPress                                                                                                                                                                                                                                                                                                           |
-| `mode`                 | `seamless`    | Displays WordPress on a full-page or wraps it in a browser UI                                                                                                                                                                                                                                                                                                  |
-| `lazy`                 |               | Defer loading the Playground assets until someone clicks on the "Run" button                                                                                                                                                                                                                                                                                   |
-| `login`                | `1`           | Logs the user in as an admin                                                                                                                                                                                                                                                                                                                                   |
-| `storage`              |               | Selects the storage for Playground: `none` gets erased on page refresh, `browser` is stored in the browser, and `device` is stored in the selected directory on a device. The last two protect the user from accidentally losing their work upon page refresh.                                                                                                 |
-
-For example, the following code embeds a Playground with a preinstalled Gutenberg plugin, and opens the post editor:
-
-```html
-<iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
-```
-	 */
-
 	describe('option `php`', () => {
 		it('should load PHP 8.0 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
-			// cy.waitForWordPress('/phpinfo.php');
-			cy.inWordPressIframe(() => {
-				cy.get('h1').should('contain', 'PHP Version 8.0');
-			});
+			cy.wordPressDocument()
+				.find('h1')
+				.should('contain', 'PHP Version 8.0');
 		});
 
 		it('should load PHP 7.4 when requested', () => {
 			cy.visit('/?php=7.4&url=/phpinfo.php');
-			cy.inWordPressIframe(() => {
-				cy.get('h1').should('contain', 'PHP Version 7.4');
-			});
+			cy.wordPressDocument()
+				.find('h1')
+				.should('contain', 'PHP Version 7.4');
 		});
 	});
 
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
-			cy.visit('/?url=/wp-admin');
-			cy.inWordPressIframe(() => {
-				cy.pause();
-				cy.get(
-					'body.branch-' +
-						LatestSupportedWordPressVersion.replace('.', '-')
-				).should('exist');
-			});
+			cy.visit('/?networking=no&url=/wp-admin/');
+			const expectedBodyClass =
+				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
+			cy.wordPressDocument()
+				.find(`body.${expectedBodyClass}`)
+				.should('exist');
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?wp=6.3&url=/wp-admin');
-			cy.inWordPressIframe(() => {
-				cy.get('body.branch-6-3').should('exist');
-			});
+			cy.visit('/?networking=no&wp=6.3&url=/wp-admin');
+			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
 
 	describe('option `php-extension-bundle`', () => {
 		it('should load the specified PHP extensions', () => {
-			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
-			cy.inWordPressIframe(() => {
-				cy.get('td.v').should('contain', '--enable-xmlwriter');
-			});
+			cy.visit(
+				'/?networking=no&php-extension-bundle=kitchen-sink&url=/phpinfo.php'
+			);
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', '--enable-xmlwriter');
 		});
 	});
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
 			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
-			cy.inWordPressIframe(() => {
-				cy.get('.notice.error').should('exist');
-				cy.get('.notice.error').should(
+			cy.wordPressDocument()
+				.find('.notice.error')
+				.should(
 					'contain',
 					'does not yet support connecting to the plugin directory'
 				);
-			});
 		});
 
 		it('should enable networking when requested', () => {
 			cy.visit('/?networking=yes&url=/wp-admin/plugin-install.php');
-			cy.inWordPressIframe(() => {
-				cy.get('.plugin-card').should('exist');
-				cy.get('.plugin-card').should('have.length.above', 4);
-			});
+			cy.wordPressDocument()
+				.find('.plugin-card')
+				.should('have.length.above', 4);
 		});
 	});
 
 	describe('option `plugin`', () => {
 		it('should install the specified plugin', () => {
 			cy.visit('/?plugin=gutenberg&url=/wp-admin/plugins.php');
-			cy.inWordPressIframe(() => {
-				cy.get('[data-slug=gutenberg].active').should('exist');
-			});
+			cy.wordPressDocument()
+				.find('[data-slug=gutenberg].active')
+				.should('exist');
 		});
 	});
 
 	describe('option `theme`', () => {
 		it('should install the specified theme', () => {
 			cy.visit('/?theme=twentytwentyone&url=/wp-admin/themes.php');
-			cy.inWordPressIframe(() => {
-				cy.get('[data-slug=twentytwentyone].active').should('exist');
+			cy.wordPressDocument()
+				.find('[data-slug=twentytwentyone].active')
+				.should('exist');
+		});
+	});
+
+	describe('option `url`', () => {
+		it('should load the specified URL', () => {
+			cy.visit('/?url=/wp-admin/&networking=no');
+			cy.wordpressPath().should('contain', '/wp-admin/');
+			cy.wordPressDocument()
+				.find('#adminmenu')
+				.should('contain', 'Dashboard');
+		});
+	});
+
+	describe('option `mode`', () => {
+		it('lack of mode=seamless should a WordPress in a simulated browser UI', () => {
+			cy.visit('/?networking=no');
+			cy.get('[data-cy="simulated-browser"]').should('exist');
+		});
+		it('mode=seamless should load a fullscreen WordPress', () => {
+			cy.visit('/?networking=no&mode=seamless');
+			cy.get('[data-cy="simulated-browser"]').should('not.exist');
+		});
+	});
+
+	describe('option `login`', () => {
+		it('should log the user in as an admin', () => {
+			cy.visit('/');
+			cy.wordPressDocument()
+				.its('body')
+				.should('have.class', 'logged-in');
+		});
+
+		it('should not log the user in as an admin when not requested', () => {
+			cy.visit('/?login=no');
+			cy.wordPressDocument()
+				.its('body')
+				.should('not.have.class', 'logged-in');
+		});
+	});
+
+	describe('option `lazy`', () => {
+		it('should defer loading the Playground assets until someone clicks on the "Run" button', () => {
+			cy.visit('/?lazy');
+			cy.get('#lazy-load-initiator').should('exist');
+			cy.get('#playground-viewport').should('not.exist');
+
+			cy.get('#lazy-load-initiator').click();
+			cy.get('#playground-viewport').should('exist');
+			cy.wordPressDocument().its('body').should('have.class', 'home');
+		});
+	});
+
+	describe('option `storage`', () => {
+		describe('storage=none', () => {
+			it('should reset Playground data after every refresh', () => {
+				// Create a Playground site with a custom title
+				cy.visit(
+					'/?storage=none#{"siteOptions":{"blogname":"persistent storage"}}'
+				);
+				cy.wordPressDocument().its('body').should('have.class', 'home');
+				cy.wordPressDocument()
+					.its('body')
+					.should('contain', 'persistent storage');
+
+				// Reload the page and verify that the title is not there anymore
+				cy.visit('/?storage=none');
+				cy.wordPressDocument().its('body').should('have.class', 'home');
+				cy.wordPressDocument()
+					.its('body')
+					.should('not.contain', 'persistent storage');
+			});
+		});
+		describe('storage=browser', () => {
+			it('should store the Playground data in the browser', () => {
+				// Create a Playground site with a custom title
+				cy.visit(
+					'/?storage=browser#{"siteOptions":{"blogname":"persistent storage"}}'
+				);
+				cy.wordPressDocument().its('body').should('have.class', 'home');
+				cy.wordPressDocument()
+					.its('body')
+					.should('contain', 'persistent storage');
+
+				// Reload the page and verify that the title is still there
+				cy.visit('/?storage=browser');
+				cy.wordPressDocument().its('body').should('have.class', 'home');
+				cy.wordPressDocument()
+					.its('body')
+					.should('contain', 'persistent storage');
 			});
 		});
 	});
@@ -129,11 +191,7 @@ describe('playground-website', () => {
 
 	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
 		cy.setWordPressUrl('/wp-admin');
-		cy.inRemoteIframe(() => {
-			cy.get('iframe#wp')
-				.should('have.attr', 'src')
-				.and('match', /\/wp-admin\/?$/);
-		});
+		cy.wordpressPath().should('contain', '/wp-admin');
 	});
 
 	// Test all PHP versions for completeness
@@ -143,14 +201,15 @@ describe('playground-website', () => {
 			cy.get('button#configurator').click();
 			cy.get('select#php-version').select(version);
 			cy.get('#modal-content button[type=submit]').click();
-			// Wait for the page to finish loading
+			// Wait for the page to finish reloading
+			cy.url().should('contain', `&php=${version}`);
 			cy.document().should('exist');
 
 			// Go to phpinfo
 			cy.setWordPressUrl('/phpinfo.php');
-			cy.inWordPressIframe(() => {
-				cy.get('h1').should('contain', 'PHP Version ' + version);
-			});
+			cy.wordPressDocument()
+				.find('h1')
+				.should('contain', 'PHP Version ' + version);
 		});
 	});
 
@@ -166,9 +225,9 @@ describe('playground-website', () => {
 
 		// Go to phpinfo
 		cy.setWordPressUrl('/phpinfo.php');
-		cy.inWordPressIframe(() => {
-			cy.get('td.v').should('contain', '--enable-xmlwriter');
-		});
+		cy.wordPressDocument()
+			.its('body')
+			.should('contain', '--enable-xmlwriter');
 	});
 
 	it('should not load additional PHP extensions when not requested', () => {
@@ -181,9 +240,9 @@ describe('playground-website', () => {
 
 		// Go to phpinfo
 		cy.setWordPressUrl('/phpinfo.php');
-		cy.inWordPressIframe(() => {
-			cy.get('td.v').should('contain', '--without-libxml');
-		});
+		cy.wordPressDocument()
+			.its('body')
+			.should('contain', '--without-libxml');
 	});
 
 	// Test all WordPress versions for completeness
@@ -210,10 +269,9 @@ describe('playground-website', () => {
 
 			// Go to phpinfo
 			cy.setWordPressUrl('/wp-admin');
-			cy.inWordPressIframe(() => {
-				cy.get('#footer-upgrade').should('exist');
-				cy.get('#footer-upgrade').should('contain', versionMessage);
-			});
+			cy.wordPressDocument()
+				.find('#footer-upgrade')
+				.should('contain', versionMessage);
 		});
 	}
 });
