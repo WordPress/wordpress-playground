@@ -40,8 +40,7 @@ const isValidEvent = event => event.button === 0 &&
           ref,
           context
         }) => {
-          const isDisabled = ref.closest('[data-wp-navigation-id]')?.dataset.wpNavigationDisabled;
-          if (isValidLink(ref) && isValidEvent(event) && !isDisabled) {
+          if (isValidLink(ref) && isValidEvent(event)) {
             event.preventDefault();
             const id = ref.closest('[data-wp-navigation-id]').dataset.wpNavigationId;
 
@@ -70,8 +69,7 @@ const isValidEvent = event => event.button === 0 &&
         prefetch: async ({
           ref
         }) => {
-          const isDisabled = ref.closest('[data-wp-navigation-id]')?.dataset.wpNavigationDisabled;
-          if (isValidLink(ref) && !isDisabled) {
+          if (isValidLink(ref)) {
             await (0,_wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__/* .prefetch */ .tL)(ref.href);
           }
         }

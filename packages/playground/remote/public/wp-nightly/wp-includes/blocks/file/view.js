@@ -66,7 +66,7 @@ const createActiveXObject = type => {
   selectors: {
     core: {
       file: {
-        hasPdfPreview: browserSupportsPdfs
+        hasPdfPreview: browserSupportsPdfs() ? 'inherit' : 'none'
       }
     }
   }
