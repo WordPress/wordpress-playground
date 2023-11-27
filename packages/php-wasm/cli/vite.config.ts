@@ -1,17 +1,13 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => {
 	return {
 		assetsInclude: ['**/*.ini'],
 		cacheDir: '../../../node_modules/.vite/php-cli',
 
-		plugins: [
-			viteTsConfigPaths({
-				root: '../../../',
-			}),
-		],
+		plugins: [nxViteTsPaths()],
 
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
@@ -21,6 +17,7 @@ export default defineConfig(() => {
 			rollupOptions: {
 				external: [
 					'@php-wasm/node',
+					'@php-wasm/universal',
 					'net',
 					'fs',
 					'path',
