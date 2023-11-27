@@ -37,7 +37,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 	{ sql },
 	progress?
 ) => {
-	progress?.tracker.setCaption(`Executing SQL queries`);
+	progress?.tracker.setCaption(`Executing SQL Queries`);
 
 	const sqlFilename = `/tmp/${crypto.randomUUID()}.sql`;
 

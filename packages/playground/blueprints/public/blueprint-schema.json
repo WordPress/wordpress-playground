@@ -898,11 +898,7 @@
 						},
 						"sql": {
 							"$ref": "#/definitions/FileReference",
-							"description": "The SQL to run."
-						},
-						"stopOnErrors": {
-							"type": "boolean",
-							"description": "Whether to stop on errors"
+							"description": "The SQL to run. Each non-empty line must contain a valid SQL query."
 						}
 					},
 					"required": ["sql", "step"]
