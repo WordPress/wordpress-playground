@@ -33,7 +33,7 @@ describe('Query API', () => {
 
 	describe('option `wp`', () => {
 		it('should load WordPress latest by default', () => {
-			cy.visit('/?networking=no&url=/wp-admin/');
+			cy.visit('/?url=/wp-admin/');
 			const expectedBodyClass =
 				'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
 			cy.wordPressDocument()
@@ -42,16 +42,14 @@ describe('Query API', () => {
 		});
 
 		it('should load WordPress 6.3 when requested', () => {
-			cy.visit('/?networking=no&wp=6.3&url=/wp-admin');
+			cy.visit('/?wp=6.3&url=/wp-admin');
 			cy.wordPressDocument().find(`body.branch-6-3`).should('exist');
 		});
 	});
 
 	describe('option `php-extension-bundle`', () => {
 		it('should load the specified PHP extensions', () => {
-			cy.visit(
-				'/?networking=no&php-extension-bundle=kitchen-sink&url=/phpinfo.php'
-			);
+			cy.visit('/?php-extension-bundle=kitchen-sink&url=/phpinfo.php');
 			cy.wordPressDocument()
 				.its('body')
 				.should('contain', '--enable-xmlwriter');
@@ -60,13 +58,10 @@ describe('Query API', () => {
 
 	describe('option `networking`', () => {
 		it('should disable networking when requested', () => {
-			cy.visit('/?networking=no&url=/wp-admin/plugin-install.php');
+			cy.visit('/?url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
-				.should(
-					'contain',
-					'does not yet support connecting to the plugin directory'
-				);
+				.should('contain', 'Enable networking support in Playground');
 		});
 
 		it('should enable networking when requested', () => {
@@ -97,7 +92,7 @@ describe('Query API', () => {
 
 	describe('option `url`', () => {
 		it('should load the specified URL', () => {
-			cy.visit('/?url=/wp-admin/&networking=no');
+			cy.visit('/?url=/wp-admin/');
 			cy.wordpressPath().should('contain', '/wp-admin/');
 			cy.wordPressDocument()
 				.find('#adminmenu')
@@ -107,11 +102,11 @@ describe('Query API', () => {
 
 	describe('option `mode`', () => {
 		it('lack of mode=seamless should a WordPress in a simulated browser UI', () => {
-			cy.visit('/?networking=no');
+			cy.visit('/');
 			cy.get('[data-cy="simulated-browser"]').should('exist');
 		});
 		it('mode=seamless should load a fullscreen WordPress', () => {
-			cy.visit('/?networking=no&mode=seamless');
+			cy.visit('/?mode=seamless');
 			cy.get('[data-cy="simulated-browser"]').should('not.exist');
 		});
 	});
@@ -187,7 +182,7 @@ describe('Query API', () => {
 });
 
 describe('playground-website', () => {
-	beforeEach(() => cy.visit('/?networking=no'));
+	beforeEach(() => cy.visit('/'));
 
 	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
 		cy.setWordPressUrl('/wp-admin');
