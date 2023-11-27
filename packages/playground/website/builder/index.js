@@ -1,9 +1,5 @@
-const importStartPlaygroundWeb = import(
-	'https://unpkg.com/@wp-playground/client/index.js'
-);
-const fetchBlueprintSchema = fetch(
-	'https://unpkg.com/@wp-playground/blueprints/blueprint-schema.json'
-).then((r) => r.json());
+const importStartPlaygroundWeb = import('https://playground.wordpress.net/client/index.js');
+const fetchBlueprintSchema = fetch('https://playground.wordpress.net/blueprint-schema.json').then(r=>r.json());
 
 const FALLBACK_TIMEOUT = 30 * 1000;
 
