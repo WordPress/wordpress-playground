@@ -81,6 +81,14 @@ RUN cd wordpress && \
     # This file is patched in JavaScript and needs to
     # be served from VFS. See #703
     -not -path '*/wp-includes/js/dist/block-editor*.js' \
+    # Some plugins use the dashicons font. See #729.
+    -not -path '*/wp-includes/fonts/dashicons.svg' \
+    # WordPress functions like wp_mime_type_icon() use
+    # the icons shipped in images/media. See #770.
+    -not -path '*/wp-includes/images/media/*' \
+    # Akismet is shipped with WordPress and it
+    # requires the included files to be present
+    -not -path '*/wp-content/plugins/akismet/*' \
     -delete
 
 RUN cd wordpress && \
