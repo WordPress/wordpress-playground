@@ -21,13 +21,21 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
-    test:
+    test-unit:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+    test-e2e:
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck]
+        steps:
+            - uses: actions/checkout@v3
+            - uses: ./.github/actions/prepare-playground
+            - run: ./node_modules/.bin/cypress install --force
+            - run: npx nx affected --target=e2e --configuration=ci
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
@@ -40,7 +48,7 @@ jobs:
     deploy_docs:
         if: github.ref == 'refs/heads/trunk' && github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test, build]
+        needs: [test-unit, test-e2e, build]
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment

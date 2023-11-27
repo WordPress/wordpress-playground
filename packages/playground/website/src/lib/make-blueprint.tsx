@@ -3,6 +3,7 @@ import { Blueprint, StepDefinition } from '@wp-playground/client';
 interface MakeBlueprintOptions {
 	php?: string;
 	wp?: string;
+	login: boolean;
 	phpExtensionBundles?: string[];
 	landingPage?: string;
 	features?: Blueprint['features'];
@@ -20,7 +21,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 		phpExtensionBundles: options.phpExtensionBundles as any,
 		features: options.features,
 		steps: [
-			{
+			options.login && {
 				step: 'login',
 				username: 'admin',
 				password: 'password',

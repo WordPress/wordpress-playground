@@ -26,6 +26,7 @@
 		"src/**/*.tsx",
 		"demos/github.ts",
 		"demos/time-traveling.tsx",
-		"demos/peer.ts"
+		"demos/peer.ts",
+		"./cypress.config.ts"
 	]
 }
