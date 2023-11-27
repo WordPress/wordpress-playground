@@ -157,80 +157,35 @@
 					 */
 					{
 						step: 'writeFile',
-						path: '/wordpress-new/pr.zip',
+						path: '/tmp/pr.zip',
 						data: {
 							resource: 'url',
 							url: zipArtifactUrl,
 							caption: `Downloading WordPress PR ${prNumber}`,
 						},
-						progress: {
-							weight: 20,
-							caption: `Applying WordPress PR ${prNumber}`,
-						},
 					},
 					// Extract and remove the zip file.
 					{
 						step: 'unzip',
-						zipPath: '/wordpress-new/pr.zip',
-						extractToPath: '/wordpress-new',
+						zipPath: '/tmp/pr.zip',
+						extractToPath: '/tmp',
 					},
 					{
 						step: 'rm',
-						path: '/wordpress-new/pr.zip',
+						path: '/tmp/pr.zip',
 					},
-					// GitHub artifacts are doubly zipped
+					// Import the unzipped PR.
 					{
-						step: 'unzip',
-						zipPath: '/wordpress-new/wordpress.zip',
-						extractToPath: '/wordpress-new',
-					},
-					{
-						step: 'rm',
-						path: '/wordpress-new/wordpress.zip',
-					},
-					/**
-					 * Configure the extracted WordPress to run in Playground. This
-					 * requires moving a couple of files from the regular Playground build.
-					 */
-					{
-						step: 'mv',
-						fromPath: '/wordpress/wp-content/db.php',
-						toPath: '/wordpress-new/wp-content/db.php',
-					},
-					{
-						step: 'mv',
-						fromPath:
-							'/wordpress/wp-content/plugins/sqlite-database-integration',
-						toPath: '/wordpress-new/wp-content/plugins/sqlite-database-integration',
-					},
-					{
-						step: 'mv',
-						fromPath: '/wordpress/wp-content/database',
-						toPath: '/wordpress-new/wp-content/database',
-					},
-					{
-						step: 'mv',
-						fromPath: '/wordpress/wp-config.php',
-						toPath: '/wordpress-new/wp-config.php',
-					},
-					// Run the database upgrade to save two extra clicks.
-					{
-						step: 'runPHP',
-						code: `<?php
-						$_GET['step'] = 'upgrade_db';
-						require '/wordpress-new/wp-admin/upgrade.php';
-						`,
-					},
-					// Finally, remove the original WordPress and replace it with the
-					// one from GitHub branch.
-					{
-						step: 'rmdir',
-						path: '/wordpress',
-					},
-					{
-						step: 'mv',
-						fromPath: '/wordpress-new',
-						toPath: '/wordpress',
+						step: 'importWordPressFiles',
+						wordPressFilesZip: {
+							resource: 'vfs',
+							path: '/tmp/wordpress.zip',
+						},
+						pathInZip: '/build',
+						progress: {
+							weight: 20,
+							caption: `Applying WordPress PR ${prNumber}`,
+						},
 					},
 					{
 						step: 'applyWordPressPatches',

@@ -112,6 +112,18 @@
 				"devServerTarget": "playground-website:preview"
 			},
 			"dependsOn": ["build"]
+		},
+		"e2e:dev": {
+			"executor": "nx:noop",
+			"dependsOn": ["dev", "e2e:dev:cypress"]
+		},
+		"e2e:dev:cypress": {
+			"executor": "@nx/cypress:cypress",
+			"options": {
+				"cypressConfig": "packages/playground/website/cypress.config.ts",
+				"testingType": "e2e",
+				"baseUrl": "http://localhost:5400/website-server/"
+			}
 		}
 	},
 	"tags": ["scope:web-client"]

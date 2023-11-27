@@ -36,6 +36,12 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: ./node_modules/.bin/cypress install --force
             - run: npx nx affected --target=e2e --configuration=ci
+            # Upload the Cypress screenshots as artifacts
+            - uses: actions/upload-artifact@v2
+              with:
+                  name: cypress-screenshots
+                  path: dist/cypress/packages/playground/website/screenshots
+
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
