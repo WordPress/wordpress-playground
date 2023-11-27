@@ -197,9 +197,7 @@ describe('Playground import/export to zip', () => {
 	});
 
 	it('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
-		cy.visit(
-			'/#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
-		);
+		cy.visit('/#{"siteOptions":{"blogname":"Cypress tests – site title"}}');
 
 		// Wait for the Playground to finish loading
 		cy.wordPressDocument()
