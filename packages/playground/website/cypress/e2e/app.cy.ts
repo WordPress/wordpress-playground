@@ -183,7 +183,7 @@ describe('Query API', () => {
 
 describe('Playground import/export to zip', () => {
 	it('should export a zipped wp-content directory when the "Download as .zip" button is clicked', () => {
-		cy.visit('/?networking=no');
+		cy.visit('/');
 		// Wait for the Playground to finish loading
 		cy.wordPressDocument().its('body').should('exist');
 
@@ -198,7 +198,7 @@ describe('Playground import/export to zip', () => {
 
 	it('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
 		cy.visit(
-			'/?networking=no#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
+			'/#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
 		);
 
 		// Wait for the Playground to finish loading
@@ -216,8 +216,8 @@ describe('Playground import/export to zip', () => {
 		);
 
 		// Reload the page
-		cy.visit('/?networking=no');
-		cy.url().should('match', /\?networking=no$/);
+		cy.visit('/?cy-reloaded');
+		cy.url().should('match', /\?cy-reloaded/);
 		cy.get('input[name=url]').should('be.visible');
 		cy.wordPressDocument()
 			.its('body')
