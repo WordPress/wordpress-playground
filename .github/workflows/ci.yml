@@ -42,7 +42,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: npx nx affected --target=build --parallel=3
+            - run: npx nx affected --target=build --parallel=3 --verbose
 
     # Deploy documentation job
     deploy_docs:
