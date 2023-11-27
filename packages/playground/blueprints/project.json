@@ -12,13 +12,6 @@
 				"build:rollup-declarations"
 			]
 		},
-		"build:bundle": {
-			"executor": "@nx/vite:build",
-			"outputs": ["{options.outputPath}"],
-			"options": {
-				"outputPath": "dist/packages/playground/blueprints"
-			}
-		},
 		"build:blueprint-schema": {
 			"executor": "nx:run-commands",
 			"options": {
@@ -40,6 +33,14 @@
 					"mv packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
 				],
 				"parallel": false
+			},
+			"dependsOn": ["build:bundle"]
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/playground/blueprints"
 			}
 		},
 		"publish": {
