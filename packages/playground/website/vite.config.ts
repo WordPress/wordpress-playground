@@ -97,6 +97,7 @@ export default defineConfig(({ command, mode }) => {
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
+			target: 'esnext',
 			rollupOptions: {
 				input: {
 					index: fileURLToPath(
