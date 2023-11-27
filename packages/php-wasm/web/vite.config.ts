@@ -67,7 +67,6 @@ export default defineConfig(({ command }) => {
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
-			target: 'web',
 			lib: {
 				// Could also be a dictionary or array of multiple entry points.
 				entry: 'src/index.ts',

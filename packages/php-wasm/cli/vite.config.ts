@@ -19,6 +19,7 @@ export default defineConfig(() => {
 			rollupOptions: {
 				external: [
 					'@php-wasm/node',
+					'@php-wasm/universal',
 					'net',
 					'fs',
 					'path',
