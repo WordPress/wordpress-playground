@@ -12,7 +12,7 @@ export function DownloadAsZipMenuItem({ onClose }: Props) {
 		<MenuItem
 			icon={download}
 			iconPosition="left"
-			id="import-open-modal--btn"
+			data-cy="download-as-zip"
 			aria-label="Download the current playground as a .zip file"
 			onClick={() => {
 				if (!playground) return;

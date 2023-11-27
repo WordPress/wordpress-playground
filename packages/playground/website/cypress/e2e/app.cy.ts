@@ -181,8 +181,68 @@ describe('Query API', () => {
 	});
 });
 
-describe('playground-website', () => {
-	beforeEach(() => cy.visit('/'));
+describe('Playground import/export to zip', () => {
+	it('should export a zipped wp-content directory when the "Download as .zip" button is clicked', () => {
+		cy.visit('/?networking=no');
+		// Wait for the Playground to finish loading
+		cy.wordPressDocument().its('body').should('exist');
+
+		cy.get('[data-cy="dropdown-menu"]').click();
+		cy.get('[data-cy="download-as-zip"]').click();
+		const downloadsFolder = Cypress.config('downloadsFolder');
+		cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
+			'have.length.above',
+			1000
+		);
+	});
+
+	it.only('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
+		cy.visit(
+			'/?networking=no#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
+		);
+
+		// Wait for the Playground to finish loading
+		cy.wordPressDocument()
+			.its('body')
+			.should('contain', 'Cypress tests – site title');
+
+		// Download a zip file
+		cy.get('[data-cy="dropdown-menu"]').click();
+		cy.get('[data-cy="download-as-zip"]').click();
+		const downloadsFolder = Cypress.config('downloadsFolder');
+		cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
+			'have.length.above',
+			1000
+		);
+
+		// Reload the page
+		cy.visit('/?networking=no');
+		cy.url().should('match', /\?networking=no$/);
+		cy.get('input[name=url]').should('be.visible');
+		cy.wordPressDocument()
+			.its('body')
+			.should('not.contain', 'Cypress tests – site title');
+
+		// Import the zip file
+		cy.get('[data-cy="dropdown-menu"]').click();
+		cy.get('[data-cy="restore-from-zip"]').click();
+		cy.get('#import-select-file').selectFile(
+			downloadsFolder + '/wordpress-playground.zip'
+		);
+		cy.get('#import-submit--btn').click();
+
+		// Wait for the Playground to reload
+		cy.wordPressDocument().its('body').should('exist');
+
+		// Confirm the site title is the one we exported
+		cy.wordPressDocument()
+			.its('body')
+			.should('contain', 'Cypress tests – site title');
+	});
+});
+
+describe('Playground website UI', () => {
+	beforeEach(() => cy.visit('/?networking=no'));
 
 	it('should reflect the URL update from the navigation bar in the WordPress site', () => {
 		cy.setWordPressUrl('/wp-admin');
