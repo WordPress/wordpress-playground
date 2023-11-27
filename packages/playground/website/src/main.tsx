@@ -87,10 +87,12 @@ function Main() {
 					icon={menu}
 					label="Additional actions"
 					className={css.dropdownMenu}
-					toggleProps={{
-						className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
-						'data-cy': "dropdown-menu"
-					} as any}
+					toggleProps={
+						{
+							className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
+							'data-cy': 'dropdown-menu',
+						} as any
+					}
 				>
 					{({ onClose }) => (
 						<>
