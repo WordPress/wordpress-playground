@@ -25,6 +25,7 @@ export const defaultStyles: ReactModal.Styles = {
 	},
 	overlay: {
 		background: '#1e2327d0',
+		zIndex: 10,
 	},
 };
 export default function Modal(props: ModalProps) {
@@ -35,7 +36,8 @@ export default function Modal(props: ModalProps) {
 					id="import-close-modal--btn"
 					onClick={props.onRequestClose}
 					className={`${css.btn} ${css.btnClose}`}
-					aria-label="Close import window"
+					aria-label="Close"
+					title="Close"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

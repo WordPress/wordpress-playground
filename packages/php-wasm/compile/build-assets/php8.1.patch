@@ -4,24 +4,26 @@ diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
 @@ -246,8 +246,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
  		return FAILURE;
  	}
- 
+
 -	SG(headers_sent) = 1;
 -	SG(request_info).no_headers = 1;
 +	SG(headers_sent) = 0;
 +	SG(request_info).no_headers = 0;
  	php_register_variable("PHP_SELF", "-", NULL);
- 
+
  	return SUCCESS;
 
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
-@@ -1691,18 +1691,32 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+@@ -1667,20 +1667,34 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php_stream_context *ctx)
+ {
  	php_stream *srcstream = NULL, *deststream = NULL;
  	int ret = FAILURE;
  	php_stream_statbuf src_s, dest_s;
+ 	int src_stat_flags = (src_flg & STREAM_DISABLE_OPEN_BASEDIR) ? PHP_STREAM_URL_STAT_IGNORE_OPEN_BASEDIR : 0;
  
- 	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
+ 	switch (php_stream_stat_path_ex(src, src_stat_flags, &src_s, ctx)) {
  		case -1:
  			/* non-statable stream */
  			goto safe_to_copy;

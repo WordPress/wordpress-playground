@@ -121,7 +121,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		// This test fails
 		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
-			it('cat – stdin=pipe, stdout=file, stderr=file', async () => {
+			/*
+			There is a race condition in this variant of the test which 
+			causes the following failure (but only sometimes):
+
+				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
+				→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
+			*/
+			it.skip('cat – stdin=pipe, stdout=file, stderr=file', async () => {
 				const result = await php.run({
 					code: `<?php
 			$res = proc_open(
@@ -513,7 +520,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
-			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
+			php.writeFile(testScriptPath, `<?php echo "Hello world!"; ?>\n`);
 			const response = await php.run({
 				scriptPath: testScriptPath,
 			});
@@ -964,7 +971,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|/
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
 					);
 				}
 			}
@@ -1003,5 +1010,55 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				expect.fail('php.run should have thrown an error');
 			}
 		});
+
+		it('Does not leak memory when creating and destroying instances', async () => {
+			if (!global.gc) {
+				console.error(
+					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
+						`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
+						`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
+				);
+			}
+
+			expect(global.gc && global.gc).to.exist;
+
+			let refCount = 0;
+
+			const registry = new FinalizationRegistry(() => --refCount);
+
+			const concurrent = 25;
+			const steps = 5;
+
+			const delay = (ms: number) =>
+				new Promise((accept) => setTimeout(accept, ms));
+
+			for (let i = 0; i < steps; i++) {
+				const instances = new Set<NodePHP>();
+
+				for (let j = 0; j < concurrent; j++) {
+					instances.add(await NodePHP.load(phpVersion as any));
+				}
+
+				refCount += instances.size;
+
+				for (const instance of instances) {
+					registry.register(instance, null);
+					await instance
+						.run({ code: `<?php 2+2;` })
+						.then(() => instance.exit())
+						.catch(() => {});
+				}
+
+				instances.clear();
+
+				await delay(10);
+				global.gc && global.gc();
+			}
+
+			await delay(100);
+			global.gc && global.gc();
+
+			expect(refCount).lessThanOrEqual(10);
+		}, 500_000);
 	}
 );

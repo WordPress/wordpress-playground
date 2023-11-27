@@ -15,7 +15,6 @@ import {
 import { OPFSButton } from './opfs-button';
 import { usePlaygroundContext } from '../playground-viewport/context';
 import { SyncLocalFilesButton } from './sync-local-files-button';
-import { StartOverButton } from './start-over-button';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -206,7 +205,7 @@ export default function PlaygroundConfigurationGroup({
 
 	return (
 		<>
-			<Button onClick={openModal}>
+			<Button onClick={openModal} variant="browser-chrome">
 				PHP {currentConfiguration.php} {' - '}
 				WP {WPLabel} {' - '}
 				{currentConfiguration.storage === 'opfs-host' ||
@@ -220,10 +219,6 @@ export default function PlaygroundConfigurationGroup({
 			{currentConfiguration.storage === 'opfs-host' ||
 			currentConfiguration.storage === 'device' ? (
 				<SyncLocalFilesButton />
-			) : null}
-			{currentConfiguration.storage === 'opfs-browser' ||
-			currentConfiguration.storage === 'browser' ? (
-				<StartOverButton />
 			) : null}
 			{isResumeLastDirOpen ? (
 				<Modal

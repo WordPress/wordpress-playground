@@ -168,7 +168,10 @@ export async function exportWXZ(playground: UniversalPHP) {
  * <code>
  * {
  * 		"step": "importFile",
- * 		"file": "https://mysite.com/import.WXR"
+ * 		"file": {
+ * 			"resource": "url",
+ * 			"url": "https://your-site.com/starter-content.wxz"
+ * 		}
  * }
  * </code>
  */

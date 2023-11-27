@@ -157,6 +157,13 @@ export interface RequestHandler {
 
 export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
+	 * Defines a constant in the PHP runtime.
+	 * @param key - The name of the constant.
+	 * @param value - The value of the constant.
+	 */
+	defineConstant(key: string, value: string | number | null): void;
+
+	/**
 	 * Adds an event listener for a PHP event.
 	 * @param eventType - The type of event to listen for.
 	 * @param listener - The listener function to be called when the event is triggered.

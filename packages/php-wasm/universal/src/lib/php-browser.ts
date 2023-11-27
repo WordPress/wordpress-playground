@@ -62,12 +62,12 @@ export class PHPBrowser implements RequestHandler {
 			...request,
 			headers: {
 				...request.headers,
-				cookie: this.#serializeCookies(),
+				cookie: this.serializeCookies(),
 			},
 		});
 
 		if (response.headers['set-cookie']) {
-			this.#setCookies(response.headers['set-cookie']);
+			this.setCookies(response.headers['set-cookie']);
 		}
 
 		if (
@@ -111,7 +111,8 @@ export class PHPBrowser implements RequestHandler {
 	get documentRoot() {
 		return this.requestHandler.documentRoot;
 	}
-	#setCookies(cookies: string[]) {
+
+	setCookies(cookies: string[]) {
 		for (const cookie of cookies) {
 			try {
 				if (!cookie.includes('=')) {
@@ -127,7 +128,7 @@ export class PHPBrowser implements RequestHandler {
 		}
 	}
 
-	#serializeCookies() {
+	serializeCookies() {
 		const cookiesArray: string[] = [];
 		for (const name in this.#cookies) {
 			cookiesArray.push(`${name}=${this.#cookies[name]}`);

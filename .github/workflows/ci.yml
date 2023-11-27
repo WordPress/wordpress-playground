@@ -27,7 +27,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: npx nx affected --target=test --configuration=ci
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
     build:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
