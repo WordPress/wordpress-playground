@@ -1,6 +1,10 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { PlaygroundClient, zipEntireSite } from '@wp-playground/client';
+import {
+	Blueprint,
+	PlaygroundClient,
+	zipEntireSite,
+} from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
@@ -274,6 +278,10 @@ export default function GitHubExportForm({
 				);
 			}
 
+			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
+			const newBranchName = `playground-changes-${isoDateSlug}`;
+			let commitMessage = formValues.commitMessage;
+
 			if (formValues.includeZip) {
 				const zipPath = joinPaths(playgroundPath, 'playground.zip');
 				if (await playground.fileExists(zipPath)) {
@@ -282,8 +290,48 @@ export default function GitHubExportForm({
 				const zipContents = await zipEntireSite(playground);
 				const zipBuffer = await zipContents.arrayBuffer();
 				await playground.writeFile(zipPath, new Uint8Array(zipBuffer));
+
+				const branchPreviewLink = (branchName: string) =>
+					document.location.origin +
+					'#' +
+					JSON.stringify({
+						steps: [
+							{
+								step: 'importWordPressFiles',
+								wordPressFilesZip: {
+									resource: 'url',
+									url: `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}`,
+								},
+							},
+						],
+					} as Blueprint);
+
+				let targetBranchName = '';
+				if (parseInt(formValues.prNumber)) {
+					const { data } = await octokit.rest.pulls.get({
+						owner: repoDetails.owner,
+						repo: repoDetails.repo,
+						pull_number: parseInt(formValues.prNumber),
+					});
+					targetBranchName = data.head.ref;
+				} else {
+					targetBranchName = newBranchName;
+				}
+
+				commitMessage +=
+					'\n\n' +
+					[
+						'Also exported as a zip file.',
+						'',
+						`* [Preview from this branch](${branchPreviewLink(
+							targetBranchName
+						)})`,
+						`* [Preview from the main branch (once this PR merges)](${branchPreviewLink(
+							defaultBranch
+						)})`,
+					].join('\n');
 			}
-			
+
 			const changes = await changeset(
 				new Map(Object.entries(comparableFiles)),
 				iterateFiles(playground, playgroundPath!, {
@@ -292,17 +340,16 @@ export default function GitHubExportForm({
 				})
 			);
 
-			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
 			const pushResult = await pushToGithub(getClient(), {
 				owner: repoDetails.owner,
 				repo: repoDetails.repo,
-				commitMessage: formValues.commitMessage,
+				commitMessage,
 				changeset: changes,
 
 				shouldCreateNewPR: formValues.prAction === 'create',
 				create: {
 					againstBranch: defaultBranch,
-					branchName: `playground-changes-${isoDateSlug}`,
+					branchName: newBranchName,
 					title: prTitle,
 				},
 				update: {
