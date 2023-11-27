@@ -89,7 +89,8 @@ function Main() {
 					className={css.dropdownMenu}
 					toggleProps={{
 						className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
-					}}
+						'data-cy': "dropdown-menu"
+					} as any}
 				>
 					{({ onClose }) => (
 						<>

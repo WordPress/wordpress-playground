@@ -148,6 +148,13 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-content/mu-plugins/0-playground.php`,
 			playgroundMuPlugin
 		);
+		await this.php.mkdir(
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes`
+		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`,
+			transportDummy
+		);
 	}
 
 	async addFetchNetworkTransport() {
@@ -178,16 +185,9 @@ class WordPressPatcher {
 		}
 
 		// Add fetch and dummy transports for HTTP requests
-		await this.php.mkdir(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes`
-		);
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_fetch.php`,
 			transportFetch
-		);
-		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`,
-			transportDummy
 		);
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);
 	}

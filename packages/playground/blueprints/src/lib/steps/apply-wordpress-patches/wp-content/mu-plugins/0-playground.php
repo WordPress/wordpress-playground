@@ -107,6 +107,6 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return true;
 	});
 } else {
-	require(__DIR__ . '/includes/requests_transport_dummy.php');
+	require(__DIR__ . '/playground-includes/requests_transport_dummy.php');
 	Requests::add_transport('Requests_Transport_Dummy');
 }
