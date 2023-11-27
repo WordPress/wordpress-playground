@@ -748,15 +748,13 @@ document.addEventListener('DOMContentLoaded', () => {
 				prevKey[0] === 'step' &&
 				prevKey[1] === 'steps'
 			) {
-				editor
-					.getSession()
-					.insert(
-						{
-							row: event.start.row,
-							column: event.start.column + 1,
-						},
-						' ""'
-					);
+				editor.getSession().insert(
+					{
+						row: event.start.row,
+						column: event.start.column + 1,
+					},
+					' ""'
+				);
 				editor.moveCursorTo(event.end.row, 1 + event.end.column);
 				editor.execCommand('startAutocomplete');
 			} else if (prevKey.length === 2 && prevKey[1] === 'steps') {
@@ -844,13 +842,29 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	});
 
-	genButton.addEventListener('click', () => {
+	genButton.addEventListener('click', async () => {
 		try {
 			clearError();
-			fetchBluePrintFromAI(editor).then(({ blueprint }) => {
-				formatJson(editor, blueprint);
-				runBlueprint(editor);
-			});
+			const { blueprint } = await fetchBluePrintFromAI(editor);
+			const loginStep = {
+				step: 'login',
+				username: 'admin',
+				password: 'password',
+			};
+			if (blueprint.steps) {
+				let loginFound = false;
+				for (const step of blueprint.steps) {
+					if (step?.step === 'login') {
+						Object.assign(step, loginStep);
+						loginFound = true;
+					}
+				}
+				if (!loginFound) {
+					blueprint.steps.push(loginStep);
+				}
+			}
+			formatJson(editor, blueprint);
+			runBlueprint(editor);
 		} catch (error) {
 			showError(error);
 		}
@@ -914,33 +928,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		exec: (editor) => runBlueprint(editor),
 		readOnly: false,
 	});
-
-	const zIn = document.querySelector('button#zoom-in');
-	const zOut = document.querySelector('button#zoom-out');
-	const zoomLevel = document.querySelector('span#zoom');
-	if (zIn && zOut && zoomLevel) {
-		let zoom = 1;
-
-		zoomLevel.innerText = (100 * zoom).toFixed(0) + '%';
-
-		zIn.addEventListener('click', () => {
-			if (zoom > 3) {
-				return;
-			}
-			zoom += 0.1;
-			iframe.style.setProperty('--zoom', zoom);
-			zoomLevel.innerText = (100 * zoom).toFixed(0) + '%';
-		});
-
-		zOut.addEventListener('click', () => {
-			if (zoom < 0.35) {
-				return;
-			}
-			zoom -= 0.1;
-			iframe.style.setProperty('--zoom', zoom);
-			zoomLevel.innerText = (100 * zoom).toFixed(0) + '%';
-		});
-	}
 
 	const save = document.querySelector('button#save');
 	const open = document.querySelector('button#open');
