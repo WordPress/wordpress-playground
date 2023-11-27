@@ -74,8 +74,8 @@ export default function GitHubExportForm({
 		owner: string;
 		repo: string;
 	}>({
-		owner: 'adamziel',
-		repo: 'themes',
+		owner: '',
+		repo: '',
 	});
 	function setFormValues(values: ExportFormValues) {
 		if (values.theme && !themes.includes(values.theme)) {
