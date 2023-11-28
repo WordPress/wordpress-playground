@@ -181,11 +181,11 @@ describe('Query API', () => {
 	});
 });
 
-describe('Playground import/export to zip', () => {
-	// Let's disable this test in GitHub actions.
-	// The browser process crashes there, presumably to insufficient
-	// memory for the purposes of the readFile() line.
-	if (!Cypress.env('GITHUB_ACTIONS')) {
+// Let's disable this test in GitHub actions.
+// The browser process crashes there, presumably to insufficient
+// memory for the purposes of the readFile() line.
+if (!Cypress.env('CI')) {
+	describe('Playground import/export to zip', () => {
 		it('should export a zipped wp-content directory when the "Download as .zip" button is clicked', () => {
 			cy.visit('/');
 			// Wait for the Playground to finish loading
@@ -199,46 +199,52 @@ describe('Playground import/export to zip', () => {
 				1000
 			);
 		});
-	}
 
-	it('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
-		cy.visit('/#{"siteOptions":{"blogname":"Cypress tests – site title"}}');
+		it('should import a previously exported wp-content directory when the "Restore from .zip" feature is used', () => {
+			cy.visit(
+				'/#{"siteOptions":{"blogname":"Cypress tests – site title"}}'
+			);
 
-		// Wait for the Playground to finish loading
-		cy.wordPressDocument()
-			.its('body')
-			.should('contain', 'Cypress tests – site title');
+			// Wait for the Playground to finish loading
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', 'Cypress tests – site title');
 
-		// Download a zip file
-		cy.get('[data-cy="dropdown-menu"]').click();
-		cy.get('[data-cy="download-as-zip"]').click();
+			// Download a zip file
+			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[data-cy="download-as-zip"]').click();
+			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
+				'have.length.above',
+				1000
+			);
 
-		// Reload the page
-		cy.visit('/?cy-reloaded');
-		cy.url().should('match', /\?cy-reloaded/);
-		cy.get('input[name=url]').should('be.visible');
-		cy.wordPressDocument()
-			.its('body')
-			.should('not.contain', 'Cypress tests – site title');
+			// Reload the page
+			cy.visit('/?cy-reloaded');
+			cy.url().should('match', /\?cy-reloaded/);
+			cy.get('input[name=url]').should('be.visible');
+			cy.wordPressDocument()
+				.its('body')
+				.should('not.contain', 'Cypress tests – site title');
 
-		// Import the zip file
-		cy.get('[data-cy="dropdown-menu"]').click();
-		cy.get('[data-cy="restore-from-zip"]').click();
-		const downloadsFolder = Cypress.config('downloadsFolder');
-		cy.get('#import-select-file').selectFile(
-			`${downloadsFolder}/wordpress-playground.zip`
-		);
-		cy.get('#import-submit--btn').click();
+			// Import the zip file
+			cy.get('[data-cy="dropdown-menu"]').click();
+			cy.get('[data-cy="restore-from-zip"]').click();
+			const downloadsFolder = Cypress.config('downloadsFolder');
+			cy.get('#import-select-file').selectFile(
+				`${downloadsFolder}/wordpress-playground.zip`
+			);
+			cy.get('#import-submit--btn').click();
 
-		// Wait for the Playground to reload
-		cy.wordPressDocument().its('body').should('exist');
+			// Wait for the Playground to reload
+			cy.wordPressDocument().its('body').should('exist');
 
-		// Confirm the site title is the one we exported
-		cy.wordPressDocument()
-			.its('body')
-			.should('contain', 'Cypress tests – site title');
+			// Confirm the site title is the one we exported
+			cy.wordPressDocument()
+				.its('body')
+				.should('contain', 'Cypress tests – site title');
+		});
 	});
-});
+}
 
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
