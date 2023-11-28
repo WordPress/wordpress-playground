@@ -1,7 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
 import { menu, external } from '@wordpress/icons';
-import PlaygroundViewport from './components/playground-viewport';
+import PlaygroundViewport, {
+	DisplayMode,
+	supportedDisplayModes,
+} from './components/playground-viewport';
 import css from './style.module.css';
 import buttonCss from './components/button/style.module.css';
 import './styles.css';
@@ -36,7 +39,11 @@ if (StorageTypes.includes(storageRaw as any) && !opfsSupported) {
 }
 const storage = storageRaw as StorageType;
 
-const isSeamless = (query.get('mode') || 'browser') === 'seamless';
+const displayMode: DisplayMode = supportedDisplayModes.includes(
+	query.get('mode') as any
+)
+	? (query.get('mode') as DisplayMode)
+	: 'browser';
 
 const currentConfiguration: PlaygroundConfiguration = {
 	wp: blueprint.preferredVersions?.wp || 'latest',
@@ -76,7 +83,7 @@ function Main() {
 	return (
 		<PlaygroundViewport
 			storage={storage}
-			isSeamless={isSeamless}
+			displayMode={displayMode}
 			blueprint={blueprint}
 			toolbarButtons={[
 				<PlaygroundConfigurationGroup
