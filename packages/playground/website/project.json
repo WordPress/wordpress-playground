@@ -110,7 +110,8 @@
 			"options": {
 				"cypressConfig": "packages/playground/website/cypress.config.ts",
 				"testingType": "e2e",
-				"devServerTarget": "playground-website:preview"
+				"devServerTarget": "playground-website:preview",
+				"browser": "chrome"
 			},
 			"dependsOn": ["build"]
 		},
