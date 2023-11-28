@@ -36,6 +36,8 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: ./node_modules/.bin/cypress install --force
             - run: npx nx affected --target=e2e --configuration=ci --verbose
+              env:
+                  GITHUB_ACTIONS: true
             # Upload the Cypress screenshots as artifacts if the job fails
             - uses: actions/upload-artifact@v2
               if: ${{ failure() }}

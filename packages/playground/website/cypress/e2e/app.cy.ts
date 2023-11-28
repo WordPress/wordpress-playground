@@ -184,7 +184,7 @@ describe('Query API', () => {
 // Let's disable this test in GitHub actions.
 // The browser process crashes there, presumably to insufficient
 // memory for the purposes of the readFile() line.
-if (!Cypress.env('CI')) {
+if (!Cypress.env('GITHUB_ACTIONS')) {
 	describe('Playground import/export to zip', () => {
 		it('should export a zipped wp-content directory when the "Download as .zip" button is clicked', () => {
 			cy.visit('/');
