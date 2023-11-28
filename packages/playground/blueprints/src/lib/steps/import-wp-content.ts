@@ -12,8 +12,8 @@ import { UniversalPHP } from '@php-wasm/universal';
  * {
  * 		"step": "importWordPressFilesStep",
  * 		"wordPressFilesZip": {
- *         "resource": "fetch",
- *         "url": "https://mysite.com/import.zip"
+ * 		"resource": "fetch",
+ * 		"url": "https://mysite.com/import.zip"
  *      }
  * }
  * </code>
