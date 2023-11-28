@@ -7,7 +7,7 @@ add_action(
 	function () {
 		return <<<EOT
 <div class="message info">
-	<strong>username:</strong> <code>admin</code><br /><strong>password</strong>: <code>password</code>
+	<strong>username:</strong> <code>admin</code><br><strong>password</strong>: <code>password</code>
 </div>
 EOT;
 	}
