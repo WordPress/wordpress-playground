@@ -185,7 +185,7 @@ describe('Query API', () => {
 // The browser process crashes there, presumably to insufficient
 // memory for the purposes of the readFile() line.
 if (!Cypress.env('CI')) {
-	describe.only('Playground import/export to zip', () => {
+	describe('Playground import/export to zip', () => {
 		it('should export a zipped wp-content directory when the "Download as .zip" button is clicked', () => {
 			cy.visit('/');
 			// Wait for the Playground to finish loading
