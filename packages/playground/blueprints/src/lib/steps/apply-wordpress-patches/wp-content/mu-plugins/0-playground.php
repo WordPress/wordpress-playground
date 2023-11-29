@@ -81,15 +81,24 @@ add_filter('got_url_rewrite', '__return_true');
  * 
  * This mu-plugin provides that transport. It's one of the two:
  * 
- * * Requests_Transport_Fetch – Sends requests using browser's fetch() function.
- *                              Only enabled when PHP was compiled with the VRZNO
- * 								extension.
+ * * WP_Http_Fetch – Sends requests using browser's fetch() function.
+ *                   Only enabled when PHP was compiled with the VRZNO
+ * 					 extension.
  * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
-	require(__DIR__ . '/playground-includes/requests_transport_fetch.php');
-	Requests::add_transport('Requests_Transport_Fetch');
+	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
+	Requests::add_transport('WP_Http_Fetch');
+
+	/**
+	 * Add Fetch transport to the list of transports that WordPress
+	 * will test for in the _get_first_available_transport() function.
+	 */
+	add_filter('http_api_transports', function ($transports) {
+		$transports[] = 'Fetch';
+		return $transports;
+	});
 	/**
 	 * Disable signature verification as it doesn't seem to work with
 	 * fetch requests:
