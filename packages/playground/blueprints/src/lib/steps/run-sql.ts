@@ -32,9 +32,9 @@ export interface RunSqlStep<ResourceType> {
 /**
  * Run one or more SQL queries.
  *
- * This step will treat each non-empty line in the input SQL as a query and 
+ * This step will treat each non-empty line in the input SQL as a query and
  * try to execute it using `$wpdb`. Queries spanning multiple lines are not
- * yet supported.    
+ * yet supported.
  */
 export const runSql: StepHandler<RunSqlStep<File>> = async (
 	playground,
@@ -69,8 +69,6 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 			if (!feof($handle) && substr($buffer, -1, 1) !== "\n") {
 				continue;
 			}
-
-			echo $buffer;
 
 			$wpdb->query($buffer);
 			$buffer = '';
