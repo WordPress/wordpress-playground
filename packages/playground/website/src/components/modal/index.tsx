@@ -31,7 +31,7 @@ export const defaultStyles: ReactModal.Styles = {
 export default function Modal(props: ModalProps) {
 	return (
 		<ReactModal style={defaultStyles} {...props}>
-			<div className={css.modalInner}>
+			<div className={css.modalInner} id="modal-content">
 				<button
 					id="import-close-modal--btn"
 					onClick={props.onRequestClose}

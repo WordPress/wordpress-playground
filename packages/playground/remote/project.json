@@ -89,7 +89,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/remote"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/remote"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/remote"

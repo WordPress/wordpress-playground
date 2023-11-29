@@ -24,7 +24,7 @@
 		},
 		"test:vite": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/universal"],
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/universal"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/universal"

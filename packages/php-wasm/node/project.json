@@ -137,7 +137,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/node"],
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node"

@@ -13,6 +13,7 @@ export interface PlaygroundConfiguration {
 	wp: string;
 	php: SupportedPHPVersion;
 	withExtensions: boolean;
+	withNetworking: boolean;
 	storage: StorageType;
 	resetSite?: boolean;
 }
@@ -44,6 +45,9 @@ export function PlaygroundConfigurationForm({
 	const [withExtensions, setWithExtensions] = useState<boolean>(
 		initialData.withExtensions
 	);
+	const [withNetworking, setWithNetworking] = useState<boolean>(
+		initialData.withNetworking
+	);
 	const [wp, setWp] = useState(initialData.wp);
 	const handleStorageChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
@@ -69,7 +73,8 @@ export function PlaygroundConfigurationForm({
 			storage,
 			wp,
 			resetSite,
-			withExtensions: withExtensions,
+			withExtensions,
+			withNetworking,
 		});
 	}
 
@@ -128,7 +133,7 @@ export function PlaygroundConfigurationForm({
 							htmlFor="storage-browser"
 							className={forms.radioLabel}
 						>
-							Browser: stored in this browser (cookies).
+							Browser: stored in this browser.
 						</label>
 					</li>
 					{storage === 'opfs-browser' ? (
@@ -272,12 +277,27 @@ export function PlaygroundConfigurationForm({
 						>
 							<input
 								type="checkbox"
+								name="with-extensions"
 								checked={withExtensions}
 								onChange={() =>
 									setWithExtensions(!withExtensions)
 								}
 							/>
 							&nbsp; Load extensions: libxml, mbstring, iconv, gd
+						</label>
+						<label
+							className={forms.groupLabel}
+							style={{ marginTop: 15 }}
+						>
+							<input
+								type="checkbox"
+								name="with-networking"
+								checked={withNetworking}
+								onChange={() =>
+									setWithNetworking(!withNetworking)
+								}
+							/>
+							&nbsp; Network access (e.g. for browsing plugins)
 						</label>
 					</div>
 					<div
@@ -299,6 +319,12 @@ export function PlaygroundConfigurationForm({
 								setWp(event.target.value as string);
 							}}
 						>
+							{/*
+							 * Without an empty option, React sometimes says
+							 * the current selected version is "nightly" when
+							 * `wp` is actually "6.4".
+							 */}
+							<option value="">-- Select a version --</option>
 							{Object.keys(supportedWPVersions).map((version) => (
 								<option key={version} value={version}>
 									WordPress {supportedWPVersions[version]}

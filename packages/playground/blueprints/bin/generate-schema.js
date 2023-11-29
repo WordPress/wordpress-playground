@@ -12,7 +12,7 @@ const config = {
 const output_path =
 	'packages/playground/blueprints/public/blueprint-schema.json';
 
-const maxRetries = 5;
+const maxRetries = 2;
 async function exponentialBackoff(callback, retries = 0, delay = 1000) {
 	try {
 		return await callback();

@@ -1,6 +1,7 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
 # compiled output
+.nx
 /dist
 tmp
 var
@@ -45,6 +46,7 @@ testem.log
 /typings
 *.timestamp-1678999213403.mjs
 /.env
+packages/playground/website/cypress/downloads
 
 # System Files
 .DS_Store

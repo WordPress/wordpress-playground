@@ -24,17 +24,32 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .wrapper {
-	padding: 15px 60px 55px 60px;
 	height: 100%;
+}
+
+.wrapper.has-small-window {
+	padding: 15px 60px 55px 60px;
+
+	.window {
+		max-width: 1200px;
+		height: 100%;
+		border-radius: 6px;
+	}
+}
+
+.wrapper.has-full-size-window {
+	padding: 0;
+	.window {
+		width: 100%;
+		height: 100%;
+		border-radius: 0;
+	}
 }
 
 .window {
 	display: flex;
 	flex-direction: column;
 	margin: 0 auto;
-	max-width: 1200px;
-	height: 100%;
-	border-radius: 6px;
 	overflow: hidden;
 
 	animation: pulse 6s ease-in infinite;

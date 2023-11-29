@@ -20,5 +20,10 @@ export async function reloadWithNewConfiguration(
 	if (config.withExtensions) {
 		url.searchParams.append('php-extension-bundle', 'kitchen-sink');
 	}
+	if (config.withNetworking) {
+		url.searchParams.append('networking', 'yes');
+	} else {
+		url.searchParams.delete('networking');
+	}
 	window.location.assign(url);
 }

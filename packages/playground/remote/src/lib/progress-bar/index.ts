@@ -51,18 +51,18 @@ class ProgressBar {
 
 	updateElement() {
 		this.element.className = '';
-		this.element.classList.add(css.overlay);
+		this.element.classList.add(css['overlay']);
 
 		if (!this.visible) {
-			this.element.classList.add(css.isHidden);
+			this.element.classList.add(css['isHidden']);
 		}
 
 		this.captionElement.className = '';
-		this.captionElement.classList.add(css.caption);
+		this.captionElement.classList.add(css['caption']);
 		this.captionElement.textContent = this.caption + '...';
 
 		const progressBarWrapper = this.element.querySelector(
-			`.${css.wrapper}`
+			`.${css['wrapper']}`
 		);
 		if (progressBarWrapper) {
 			this.element.removeChild(progressBarWrapper);
@@ -77,10 +77,10 @@ class ProgressBar {
 
 	createProgress() {
 		const wrapper = document.createElement('div');
-		wrapper.classList.add(css.wrapper, css.wrapperDefinite);
+		wrapper.classList.add(css['wrapper'], css['wrapperDefinite']);
 
 		const progressBar = document.createElement('div');
-		progressBar.classList.add(css.progressBar, css.isDefinite);
+		progressBar.classList.add(css['progressBar'], css['isDefinite']);
 		progressBar.style.width = this.progress + '%';
 
 		wrapper.appendChild(progressBar);
@@ -89,10 +89,10 @@ class ProgressBar {
 
 	createProgressIndefinite() {
 		const wrapper = document.createElement('div');
-		wrapper.classList.add(css.wrapper, css.wrapperIndefinite);
+		wrapper.classList.add(css['wrapper'], css['wrapperIndefinite']);
 
 		const progressBar = document.createElement('div');
-		progressBar.classList.add(css.progressBar, css.isIndefinite);
+		progressBar.classList.add(css['progressBar'], css['isIndefinite']);
 
 		wrapper.appendChild(progressBar);
 		return wrapper;

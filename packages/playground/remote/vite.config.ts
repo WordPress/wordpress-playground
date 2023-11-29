@@ -14,8 +14,7 @@ const plugins = [
 	}),
 	dts({
 		entryRoot: 'src',
-		tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
-		skipDiagnostics: true,
+		tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 	}),
 ];
 export default defineConfig({
@@ -63,6 +62,7 @@ export default defineConfig({
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
+		target: 'esnext',
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: {
