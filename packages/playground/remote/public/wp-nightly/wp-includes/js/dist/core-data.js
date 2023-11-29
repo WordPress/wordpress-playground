@@ -5829,8 +5829,7 @@ const resolvers_getUserPatternCategories = () => async ({
 }) => {
   const patternCategories = await resolveSelect.getEntityRecords('taxonomy', 'wp_pattern_category', {
     per_page: -1,
-    _fields: 'id,name,description,slug',
-    context: 'view'
+    _fields: 'id,name,description,slug'
   });
   const mappedPatternCategories = patternCategories?.map(userCategory => ({
     ...userCategory,
