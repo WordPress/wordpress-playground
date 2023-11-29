@@ -228,29 +228,33 @@ const completeStepSubProperty = async (
 
 const completeStep = async (prefix) => {
 	const schema = await fetchBlueprintSchema;
-	return schema.definitions.StepDefinition.oneOf
+	const reader = getSchemaReader(schema);
+	return reader.definitions.StepDefinition.oneOf
 		.map((s) => s.properties.step['const'])
 		.filter((s) => s.substr(0, prefix.length) === prefix);
 };
 
 const completePhpVersion = async (prefix) => {
 	const schema = await fetchBlueprintSchema;
-	return schema.definitions.SupportedPHPVersion.enum.filter(
+	const reader = getSchemaReader(schema);
+	return reader.definitions.SupportedPHPVersion.enum.filter(
 		(s) => s.substr(0, prefix.length) === prefix
 	);
 };
 
 const completeRootKey = async (prefix) => {
 	const schema = await fetchBlueprintSchema;
-	return Object.keys(schema.definitions.Blueprint.properties).filter(
+	const reader = getSchemaReader(schema);
+	return Object.keys(reader.definitions.Blueprint.properties).filter(
 		(s) => s[0] !== '$' && s.substr(0, prefix.length) === prefix
 	);
 };
 
 const completeFeature = async (prefix) => {
 	const schema = await fetchBlueprintSchema;
+	const reader = getSchemaReader(schema);
 	return Object.keys(
-		schema.definitions.Blueprint.properties.features.properties
+		reader.definitions.Blueprint.properties.features.properties
 	).filter((s) => s[0] !== '$' && s.substr(0, prefix.length) === prefix);
 };
 
