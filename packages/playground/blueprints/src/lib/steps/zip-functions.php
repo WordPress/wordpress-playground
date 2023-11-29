@@ -1,32 +1,36 @@
-export default `<?php
+<?php
 
-function zipDir($dir, $output, $additionalFiles = array())
+function zipDir($root, $output, $options = array())
 {
+    $root = rtrim($root, '/');
+    $excludePaths = array_key_exists('exclude_paths', $options) ? $options['exclude_paths'] : array();
+    $zip_root = array_key_exists('zip_root', $options) ? $options['zip_root'] : $root;
+
     $zip = new ZipArchive;
     $res = $zip->open($output, ZipArchive::CREATE);
     if ($res === TRUE) {
-        foreach ($additionalFiles as $file) {
-            $zip->addFile($file);
-        }
         $directories = array(
-            rtrim($dir, '/') . '/'
+            $root . '/'
         );
         while (sizeof($directories)) {
-            $dir = array_pop($directories);
+            $current_dir = array_pop($directories);
 
-            if ($handle = opendir($dir)) {
+            if ($handle = opendir($current_dir)) {
                 while (false !== ($entry = readdir($handle))) {
                     if ($entry == '.' || $entry == '..') {
                         continue;
                     }
 
-                    $entry = $dir . $entry;
+                    $entry = join_paths($current_dir, $entry);
+                    if (in_array($entry, $excludePaths)) {
+                        continue;
+                    }
 
                     if (is_dir($entry)) {
                         $directory_path = $entry . '/';
                         array_push($directories, $directory_path);
                     } else if (is_file($entry)) {
-                        $zip->addFile($entry);
+                        $zip->addFile($entry, substr($entry, strlen($zip_root)));
                     }
                 }
                 closedir($handle);
@@ -37,9 +41,22 @@ function zipDir($dir, $output, $additionalFiles = array())
     }
 }
 
+function join_paths()
+{
+    $paths = array();
+
+    foreach (func_get_args() as $arg) {
+        if ($arg !== '') {
+            $paths[] = $arg;
+        }
+    }
+
+    return preg_replace('#/+#', '/', join('/', $paths));
+}
+
 function unzip($zipPath, $extractTo, $overwrite = true)
 {
-    if(!is_dir($extractTo)) {
+    if (!is_dir($extractTo)) {
         mkdir($extractTo, 0777, true);
     }
     $zip = new ZipArchive;
@@ -60,4 +77,3 @@ function delTree($dir)
     }
     return rmdir($dir);
 }
-`;

@@ -31,7 +31,7 @@ export function RestoreFromZipMenuItem({ onClose }: Props) {
 			<MenuItem
 				icon={upload}
 				iconPosition="left"
-				id="import-open-modal--btn"
+				data-cy="restore-from-zip"
 				aria-label="Download the current playground as a .zip file"
 				onClick={openModal}
 			>

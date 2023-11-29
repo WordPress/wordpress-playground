@@ -110,9 +110,22 @@
 			"options": {
 				"cypressConfig": "packages/playground/website/cypress.config.ts",
 				"testingType": "e2e",
-				"devServerTarget": "playground-website:preview"
+				"devServerTarget": "playground-website:preview",
+				"browser": "chrome"
 			},
 			"dependsOn": ["build"]
+		},
+		"e2e:dev": {
+			"executor": "nx:noop",
+			"dependsOn": ["dev", "e2e:dev:cypress"]
+		},
+		"e2e:dev:cypress": {
+			"executor": "@nx/cypress:cypress",
+			"options": {
+				"cypressConfig": "packages/playground/website/cypress.config.ts",
+				"testingType": "e2e",
+				"baseUrl": "http://localhost:5400/website-server/"
+			}
 		}
 	},
 	"tags": ["scope:web-client"]
