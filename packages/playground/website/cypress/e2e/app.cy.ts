@@ -71,6 +71,11 @@ describe('Query API', () => {
 				.should('have.length.above', 4);
 		});
 
+		/**
+		 * @see https://github.com/WordPress/wordpress-playground/pull/819
+		 * @TODO: Turn this into a unit test once WordPress modules are available
+		 *        for import.
+		 */
 		it('should return true from wp_http_supports(array( "ssl" ))', () => {
 			const blueprint = {
 				landingPage: '/test.php',
