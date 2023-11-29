@@ -70,6 +70,32 @@ describe('Query API', () => {
 				.find('.plugin-card')
 				.should('have.length.above', 4);
 		});
+
+		/**
+		 * @see https://github.com/WordPress/wordpress-playground/pull/819
+		 * @TODO: Turn this into a unit test once WordPress modules are available
+		 *        for import.
+		 */
+		it('should return true from wp_http_supports(array( "ssl" ))', () => {
+			const blueprint = {
+				landingPage: '/test.php',
+				features: {
+					networking: true,
+				},
+				steps: [
+					{
+						step: 'writeFile',
+						path: '/wordpress/test.php',
+						data: `<?php 
+						require("/wordpress/wp-load.php");
+						echo wp_http_supports(array( "ssl" )) ? "true" : "false";
+						`,
+					},
+				],
+			};
+			cy.visit('/#' + JSON.stringify(blueprint));
+			cy.wordPressDocument().its('body').should('contain', 'true');
+		});
 	});
 
 	describe('option `plugin`', () => {
@@ -211,6 +237,7 @@ if (!Cypress.env('CI')) {
 				.should('contain', 'Cypress tests – site title');
 
 			// Download a zip file
+			const downloadsFolder = Cypress.config('downloadsFolder');
 			cy.get('[data-cy="dropdown-menu"]').click();
 			cy.get('[data-cy="download-as-zip"]').click();
 			cy.readFile(downloadsFolder + '/wordpress-playground.zip').should(
@@ -229,7 +256,6 @@ if (!Cypress.env('CI')) {
 			// Import the zip file
 			cy.get('[data-cy="dropdown-menu"]').click();
 			cy.get('[data-cy="restore-from-zip"]').click();
-			const downloadsFolder = Cypress.config('downloadsFolder');
 			cy.get('#import-select-file').selectFile(
 				`${downloadsFolder}/wordpress-playground.zip`
 			);

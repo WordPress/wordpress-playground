@@ -4,7 +4,7 @@ import { updateFile } from '../common';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
 /** @ts-ignore */
-import transportFetch from './wp-content/mu-plugins/playground-includes/requests_transport_fetch.php?raw';
+import transportFetch from './wp-content/mu-plugins/playground-includes/wp_http_fetch.php?raw';
 /** @ts-ignore */
 import transportDummy from './wp-content/mu-plugins/playground-includes/requests_transport_dummy.php?raw';
 /** @ts-ignore */
@@ -186,7 +186,7 @@ class WordPressPatcher {
 
 		// Add fetch and dummy transports for HTTP requests
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_fetch.php`,
+			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/wp_http_fetch.php`,
 			transportFetch
 		);
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);
