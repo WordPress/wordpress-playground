@@ -133,7 +133,7 @@ export function PlaygroundConfigurationForm({
 							htmlFor="storage-browser"
 							className={forms.radioLabel}
 						>
-							Browser: stored in this browser (cookies).
+							Browser: stored in this browser.
 						</label>
 					</li>
 					{storage === 'opfs-browser' ? (
