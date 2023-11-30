@@ -273,7 +273,7 @@ export function PlaygroundConfigurationForm({
 						</select>
 						<label
 							className={forms.groupLabel}
-							style={{ marginTop: 15 }}
+							style={{ marginTop: 15, cursor: 'pointer' }}
 						>
 							<input
 								type="checkbox"
@@ -287,7 +287,7 @@ export function PlaygroundConfigurationForm({
 						</label>
 						<label
 							className={forms.groupLabel}
-							style={{ marginTop: 15 }}
+							style={{ marginTop: 15, cursor: 'pointer' }}
 						>
 							<input
 								type="checkbox"
@@ -306,6 +306,7 @@ export function PlaygroundConfigurationForm({
 						<label
 							htmlFor="wp-version"
 							className={forms.groupLabel}
+							style={{ marginTop: 15, cursor: 'pointer' }}
 						>
 							WordPress Version
 						</label>
