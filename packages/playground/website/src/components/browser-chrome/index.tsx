@@ -41,7 +41,7 @@ export default function BrowserChrome({
 							className={`${css.windowControl} ${css.isNeutral}`}
 						></div>
 						<div
-							className={`${css.windowControl} ${css.isNeutral} ${css.isActive}`}
+							className={`${css.windowControl} ${css.isGreen} ${css.isActive}`}
 							onClick={() => setIsFullSize(!isFullSize)}
 						></div>
 					</div>

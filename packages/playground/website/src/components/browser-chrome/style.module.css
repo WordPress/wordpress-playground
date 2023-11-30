@@ -30,7 +30,7 @@ body.is-embedded .fake-window-wrapper {
 
 .wrapper.has-small-window {
 	padding: 15px 60px 55px 60px;
-	
+
 	.window {
 		max-width: 1200px;
 		height: 100%;
@@ -134,7 +134,7 @@ body.is-embedded .fake-window-wrapper {
 }
 
 .window-control::before {
-	content: "";
+	content: '';
 	position: absolute;
 	box-sizing: border-box;
 	top: 50%;
