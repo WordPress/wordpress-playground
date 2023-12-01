@@ -16,7 +16,8 @@ export default defineConfig(({ command }) => {
 			}),
 			dts({
 				entryRoot: 'src',
-				tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
+				tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
+				skipDiagnostics: true,
 			}),
 			{
 				name: 'ignore-wasm-imports',
@@ -66,6 +67,7 @@ export default defineConfig(({ command }) => {
 		// Configuration for building your library.
 		// See: https://vitejs.dev/guide/build.html#library-mode
 		build: {
+			target: 'web',
 			lib: {
 				// Could also be a dictionary or array of multiple entry points.
 				entry: 'src/index.ts',

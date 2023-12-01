@@ -1,7 +1,32 @@
+const literal = Symbol('literal');
+
 export function phpVar(value: unknown): string {
-	return `json_decode(base64_decode('${stringToBase64(
-		JSON.stringify(value)
-	)}'), true)`;
+	if (typeof value === 'string') {
+		if (value.startsWith('$')) {
+			return value;
+		} else {
+			return JSON.stringify(value);
+		}
+	} else if (typeof value === 'number') {
+		return value.toString();
+	} else if (Array.isArray(value)) {
+		const phpArray = value.map(phpVar).join(', ');
+		return `array(${phpArray})`;
+	} else if (value === null) {
+		return 'null';
+	} else if (typeof value === 'object') {
+		if (literal in value) {
+			return value.toString();
+		} else {
+			const phpAssocArray = Object.entries(value)
+				.map(([key, val]) => `${JSON.stringify(key)} => ${phpVar(val)}`)
+				.join(', ');
+			return `array(${phpAssocArray})`;
+		}
+	} else if (typeof value === 'function') {
+		return value();
+	}
+	throw new Error(`Unsupported value: ${value}`);
 }
 
 export function phpVars<T extends Record<string, unknown>>(
@@ -12,13 +37,4 @@ export function phpVars<T extends Record<string, unknown>>(
 		result[key] = phpVar(vars[key]);
 	}
 	return result as Record<keyof T, string>;
-}
-
-function stringToBase64(str: string) {
-	return bytesToBase64(new TextEncoder().encode(str));
-}
-
-function bytesToBase64(bytes: Uint8Array) {
-	const binString = String.fromCodePoint(...bytes);
-	return btoa(binString);
 }

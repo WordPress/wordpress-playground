@@ -7,7 +7,7 @@
  */
 export async function spawnPHPWorkerThread(
 	workerUrl: string,
-	startupOptions: Record<string, string | string[]> = {}
+	startupOptions: Record<string, string> = {}
 ) {
 	workerUrl = addQueryParams(workerUrl, startupOptions);
 	const worker = new Worker(workerUrl, { type: 'module' });
@@ -35,20 +35,14 @@ export async function spawnPHPWorkerThread(
 
 function addQueryParams(
 	url: string | URL,
-	searchParams: Record<string, string | string[]>
+	searchParams: Record<string, string>
 ): string {
 	if (!Object.entries(searchParams).length) {
 		return url + '';
 	}
 	const urlWithOptions = new URL(url);
 	for (const [key, value] of Object.entries(searchParams)) {
-		if (Array.isArray(value)) {
-			for (const item of value) {
-				urlWithOptions.searchParams.append(key, item);
-			}
-		} else {
-			urlWithOptions.searchParams.set(key, value);
-		}
+		urlWithOptions.searchParams.set(key, value);
 	}
 	return urlWithOptions.toString();
 }

@@ -29,6 +29,9 @@ export async function getPHPLoaderModule(
 		case '7.0':
 			// @ts-ignore
 			return await import(`../../public/php_7_0.js`);
+		case '5.6':
+			// @ts-ignore
+			return await import('../../public/php_5_6.js');
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

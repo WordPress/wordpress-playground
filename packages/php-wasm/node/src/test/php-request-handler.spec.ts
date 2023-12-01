@@ -16,6 +16,7 @@ describe.each(SupportedPHPVersions)(
 			php = new NodePHP(runtimeId);
 			handler = new PHPRequestHandler(php, {
 				documentRoot: '/',
+				isStaticFilePath: (path) => !path.endsWith('.php'),
 			});
 		});
 
@@ -51,34 +52,6 @@ describe.each(SupportedPHPVersions)(
 					'content-length': ['11'],
 				},
 				bytes: new TextEncoder().encode('Hello World'),
-				errors: '',
-				exitCode: 0,
-			});
-		});
-
-		it('should yield x-file-type=static when a static file is not found', async () => {
-			const response = await handler.request({
-				url: '/index.html',
-			});
-			expect(response).toEqual({
-				httpStatusCode: 404,
-				headers: {
-					'x-file-type': ['static'],
-				},
-				bytes: expect.any(Uint8Array),
-				errors: '',
-				exitCode: 0,
-			});
-		});
-
-		it('should not yield x-file-type=static when a PHP file is not found', async () => {
-			const response = await handler.request({
-				url: '/index.php',
-			});
-			expect(response).toEqual({
-				httpStatusCode: 404,
-				headers: {},
-				bytes: expect.any(Uint8Array),
 				errors: '',
 				exitCode: 0,
 			});
@@ -198,6 +171,8 @@ describe.each(SupportedPHPVersions)(
 			php.mkdirTree('/var/www');
 			handler = new PHPRequestHandler(php, {
 				documentRoot: '/var/www',
+				// Treat all files as dynamic
+				isStaticFilePath: () => false,
 			});
 		});
 

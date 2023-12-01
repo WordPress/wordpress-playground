@@ -12,8 +12,8 @@ const argParser = yargs(process.argv.slice(2))
 	.options({
 		PLATFORM: {
 			type: 'string',
-			choices: ['web-light', 'web-kitchen-sink', 'node'],
-			default: 'web-light',
+			choices: ['web', 'node'],
+			default: 'web',
 			description: 'The platform to build for',
 		},
 		DEBUG: {
@@ -35,11 +35,6 @@ const argParser = yargs(process.argv.slice(2))
 			type: 'string',
 			choices: ['yes', 'no'],
 			description: 'Build with libpng support',
-		},
-		WITH_ICONV: {
-			type: 'string',
-			choices: ['yes', 'no'],
-			description: 'Build with iconv support',
 		},
 		WITH_MBSTRING: {
 			type: 'string',
@@ -111,18 +106,10 @@ const platformDefaults = {
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 	},
-	['web-light']: {},
-	['web-kitchen-sink']: {
-		WITH_LIBXML: 'yes',
-		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
-		WITH_MBSTRING: 'yes',
-	},
+	web: {},
 	node: {
-		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_CLI_SAPI: 'yes',
 		WITH_OPENSSL: 'yes',
@@ -131,8 +118,7 @@ const platformDefaults = {
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 };
-const platform = args.PLATFORM;
-
+const platform = args.PLATFORM === 'node' ? 'node' : 'web';
 /* eslint-disable prettier/prettier */
 const getArg = (name) => {
 	let value =
@@ -197,7 +183,7 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
-		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
+		`EMSCRIPTEN_ENVIRONMENT=${platform}`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
@@ -228,12 +214,11 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
-const _args = args;
-
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
+
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
 			else reject(new Error(`Process exited with code ${code}`));

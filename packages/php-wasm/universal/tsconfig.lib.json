@@ -3,11 +3,7 @@
 	"compilerOptions": {
 		"outDir": "../../../dist/out-tsc",
 		"declaration": true,
-		"types": [
-			"node",
-			"@nx/react/typings/cssmodule.d.ts",
-			"@nx/react/typings/image.d.ts"
-		]
+		"types": ["node"]
 	},
 	"include": [
 		"src/**/*.ts",

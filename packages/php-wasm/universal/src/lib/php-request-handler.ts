@@ -24,6 +24,11 @@ export interface PHPRequestHandlerConfiguration {
 	 * Request Handler URL. Used to populate $_SERVER details like HTTP_HOST.
 	 */
 	absoluteUrl?: string;
+	/**
+	 * Callback used by the PHPRequestHandler to decide whether
+	 * the requested path refers to a PHP file or a static file.
+	 */
+	isStaticFilePath?: (path: string) => boolean;
 }
 
 /** @inheritDoc */
@@ -41,6 +46,7 @@ export class PHPRequestHandler implements RequestHandler {
 	 * The PHP instance
 	 */
 	php: BasePHP;
+	#isStaticFilePath: (path: string) => boolean;
 
 	/**
 	 * @param  php    - The PHP instance.
@@ -51,9 +57,11 @@ export class PHPRequestHandler implements RequestHandler {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
+			isStaticFilePath = () => false,
 		} = config;
 		this.php = php;
 		this.#DOCROOT = documentRoot;
+		this.#isStaticFilePath = isStaticFilePath;
 
 		const url = new URL(absoluteUrl);
 		this.#HOSTNAME = url.hostname;
@@ -114,32 +122,29 @@ export class PHPRequestHandler implements RequestHandler {
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
-		const normalizedRequestedPath = removePathPrefix(
+		const normalizedRelativeUrl = removePathPrefix(
 			requestedUrl.pathname,
 			this.#PATHNAME
 		);
-		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
-		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return await this.#dispatchToPHP(request, requestedUrl);
+		if (this.#isStaticFilePath(normalizedRelativeUrl)) {
+			return this.#serveStaticFile(normalizedRelativeUrl);
 		}
-		return this.#serveStaticFile(fsPath);
+		return await this.#dispatchToPHP(request, requestedUrl);
 	}
 
 	/**
 	 * Serves a static file from the PHP filesystem.
 	 *
-	 * @param  fsPath - Absolute path of the static file to serve.
+	 * @param  path - The requested static file path.
 	 * @returns The response.
 	 */
-	#serveStaticFile(fsPath: string): PHPResponse {
+	#serveStaticFile(path: string): PHPResponse {
+		const fsPath = `${this.#DOCROOT}${path}`;
+
 		if (!this.php.fileExists(fsPath)) {
 			return new PHPResponse(
 				404,
-				// Let the service worker know that no static file was found
-				// and that it's okay to issue a real fetch() to the server.
-				{
-					'x-file-type': ['static'],
-				},
+				{},
 				new TextEncoder().encode('404 File not found')
 			);
 		}
@@ -388,33 +393,4 @@ function inferMimeType(path: string): string {
 		default:
 			return 'application-octet-stream';
 	}
-}
-
-/**
- * Guesses whether the given path looks like a PHP file.
- *
- * @example
- * ```js
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
- * seemsLikeAPHPRequestHandlerPath('/index.html') // false
- * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
- * seemsLikeAPHPRequestHandlerPath('/') // true
- * ```
- *
- * @param  path The path to check.
- * @returns Whether the path seems like a PHP server path.
- */
-export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
-	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
-}
-
-function seemsLikeAPHPFile(path: string) {
-	return path.endsWith('.php') || path.includes('.php/');
-}
-
-function seemsLikeADirectoryRoot(path: string) {
-	const lastSegment = path.split('/').pop();
-	return !lastSegment!.includes('.');
 }

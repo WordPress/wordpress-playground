@@ -14,8 +14,6 @@ export interface PHPWebLoaderOptions {
 	downloadMonitor?: EmscriptenDownloadMonitor;
 	requestHandler?: PHPRequestHandlerConfiguration;
 	dataModules?: Array<DataModule | Promise<DataModule>>;
-	/** @deprecated To be replaced with `extensions` in the future */
-	loadAllExtensions?: boolean;
 }
 
 /**
@@ -81,12 +79,9 @@ export class WebPHP extends BasePHP {
 		 */
 		const php = new WebPHP(undefined, options.requestHandler);
 
-		// Determine which variant to load based on the requested extensions
-		const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
-
 		const doLoad = async () => {
 			const allModules = await Promise.all([
-				getPHPLoaderModule(phpVersion, variant),
+				getPHPLoaderModule(phpVersion),
 				...(options.dataModules || []),
 			]);
 			const [phpLoaderModule, ...dataModules] = allModules;

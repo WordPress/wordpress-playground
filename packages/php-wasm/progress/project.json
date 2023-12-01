@@ -29,7 +29,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/progress"],
+			"outputs": ["coverage/packages/php-wasm/progress"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/progress"
