@@ -1,18 +1,3 @@
-diff --git a/php-src/ext/pdo/config.m4 b/php-src/ext/pdo/config.m4
---- a/php-src/ext/pdo/config.m4
-+++ b/php-src/ext/pdo/config.m4
-@@ -4,15 +4,14 @@ PHP_ARG_ENABLE([pdo],
-diff --git a/php-src/ext/pdo_sqlite/config.m4 b/php-src/ext/pdo_sqlite/config.m4
---- a/php-src/ext/pdo_sqlite/config.m4
-+++ b/php-src/ext/pdo_sqlite/config.m4
-@@ -10,25 +10,7 @@ if test "$PHP_PDO_SQLITE" != "no"; then
-     AC_MSG_ERROR([PDO is not enabled! Add --enable-pdo to your configure line.])
-   fi
- 
--  PHP_CHECK_PDO_INCLUDES
--
--  PKG_CHECK_MODULES([SQLITE], [sqlite3 >= 3.7.7])
--
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
