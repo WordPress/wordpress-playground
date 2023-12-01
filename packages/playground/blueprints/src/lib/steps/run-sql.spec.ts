@@ -1,6 +1,7 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from '../compile';
 import { phpVars } from '@php-wasm/util';
+import { runSql } from './run-sql';
 
 const phpVersion = '8.0';
 describe('Blueprint step runSql', () => {
@@ -15,7 +16,6 @@ describe('Blueprint step runSql', () => {
 	});
 
 	it('should split and "run" sql queries', async () => {
-		const encoder = new TextEncoder();
 		const docroot = '/wordpress';
 		const sqlFilename = `/tmp/${crypto.randomUUID()}.sql`;
 		const resFilename = `/tmp/${crypto.randomUUID()}.json`;
@@ -47,69 +47,43 @@ describe('Blueprint step runSql', () => {
 		);
 
 		// Test a single query
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'runSql',
-						sql: {
-							resource: 'literal',
-							contents: encoder.encode(`SELECT * FROM wp_users;`),
-							name: 'single-query.sql',
-						},
-					},
-				],
-			}),
-			php
-		);
+		const mockFileSingle = {
+			name: 'single-query.sql',
+			async arrayBuffer() { return new TextEncoder().encode('SELECT * FROM wp_users;').buffer; },
+			type: 'text/plain',
+		} as any;
+
+		await runSql( php, { sql: mockFileSingle });
+
 		const singleQueryResult = await php.readFileAsText(resFilename);
 		const singleQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;"]}\n`;
 		expect(singleQueryResult).toBe(singleQueryExpect);
 
 		// Test a multiple queries
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'runSql',
-						sql: {
-							resource: 'literal',
-							contents: encoder.encode(
-								`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`
-							),
-							name: 'single-query.sql',
-						},
-					},
-				],
-			}),
-			php
-		);
+		const mockFileMultiple = {
+			name: 'single-query.sql',
+			async arrayBuffer() { return new TextEncoder().encode(`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`).buffer; },
+			type: 'text/plain',
+		} as any;
+
+		await runSql( php, { sql: mockFileMultiple });
+
 		const multiQueryResult = await php.readFileAsText(resFilename);
 		const multiQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;\\n"]}\n`;
 		expect(multiQueryResult).toBe(multiQueryExpect);
 
 		// Ensure it works the same if the last query is missing a trailing newline
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'runSql',
-						sql: {
-							resource: 'literal',
-							contents: encoder.encode(
-								`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;`
-							),
-							name: 'single-query.sql',
-						},
-					},
-				],
-			}),
-			php
-		);
+		const mockFileNoTrailingSpace = {
+			name: 'single-query.sql',
+			async arrayBuffer() { return new TextEncoder().encode(`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`).buffer; },
+			type: 'text/plain',
+		} as any;
+
+		await runSql( php, { sql: mockFileNoTrailingSpace });
 		const noTrailingNewlineQueryResult = await php.readFileAsText(
 			resFilename
 		);
-		const noTrailingNewlineQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;"]}\n`;
+		const noTrailingNewlineQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;\\n"]}\n`;
 		expect(noTrailingNewlineQueryResult).toBe(noTrailingNewlineQueryExpect);
 	});
 });
