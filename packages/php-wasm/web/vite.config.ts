@@ -57,7 +57,7 @@ export default defineConfig(({ command }) => {
 						 * and not
 						 * import("php_8_2.js")
 						 */
-						return '../' + specifier.split('/').pop();
+						return '../' + specifier.split('/').slice(-2).join('/');
 					}
 				},
 			},
