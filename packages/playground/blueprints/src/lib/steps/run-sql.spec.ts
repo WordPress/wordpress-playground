@@ -49,11 +49,14 @@ describe('Blueprint step runSql', () => {
 		// Test a single query
 		const mockFileSingle = {
 			name: 'single-query.sql',
-			async arrayBuffer() { return new TextEncoder().encode('SELECT * FROM wp_users;').buffer; },
+			async arrayBuffer() {
+				return new TextEncoder().encode('SELECT * FROM wp_users;')
+					.buffer;
+			},
 			type: 'text/plain',
 		} as any;
 
-		await runSql( php, { sql: mockFileSingle });
+		await runSql(php, { sql: mockFileSingle });
 
 		const singleQueryResult = await php.readFileAsText(resFilename);
 		const singleQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;"]}\n`;
@@ -61,12 +64,16 @@ describe('Blueprint step runSql', () => {
 
 		// Test a multiple queries
 		const mockFileMultiple = {
-			name: 'single-query.sql',
-			async arrayBuffer() { return new TextEncoder().encode(`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`).buffer; },
+			name: 'multiple-queries.sql',
+			async arrayBuffer() {
+				return new TextEncoder().encode(
+					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`
+				).buffer;
+			},
 			type: 'text/plain',
 		} as any;
 
-		await runSql( php, { sql: mockFileMultiple });
+		await runSql(php, { sql: mockFileMultiple });
 
 		const multiQueryResult = await php.readFileAsText(resFilename);
 		const multiQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;\\n"]}\n`;
@@ -74,16 +81,20 @@ describe('Blueprint step runSql', () => {
 
 		// Ensure it works the same if the last query is missing a trailing newline
 		const mockFileNoTrailingSpace = {
-			name: 'single-query.sql',
-			async arrayBuffer() { return new TextEncoder().encode(`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`).buffer; },
+			name: 'no-trailing-newline.sql',
+			async arrayBuffer() {
+				return new TextEncoder().encode(
+					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;`
+				).buffer;
+			},
 			type: 'text/plain',
 		} as any;
 
-		await runSql( php, { sql: mockFileNoTrailingSpace });
+		await runSql(php, { sql: mockFileNoTrailingSpace });
 		const noTrailingNewlineQueryResult = await php.readFileAsText(
 			resFilename
 		);
-		const noTrailingNewlineQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;\\n"]}\n`;
+		const noTrailingNewlineQueryExpect = `{"type":"CALL","function":"query","args":["SELECT * FROM wp_users;\\n"]}\n{"type":"CALL","function":"query","args":["SELECT * FROM wp_posts;"]}\n`;
 		expect(noTrailingNewlineQueryResult).toBe(noTrailingNewlineQueryExpect);
 	});
 });
