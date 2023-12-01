@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<head>
+	<title>Playground Time Traveling Demo</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		* {
+			box-sizing: border-box;
+		}
+		body {
+			width: 100vw;
+			height: 100vh;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 2vw;
+			font-family: Helvetica, sans-serif;
+		}
+		#desc {
+			padding: 0 2vw;
+		}
+		#desc-inner {
+			max-width: 500px;
+		}
+		#content {
+			display: flex;
+			flex-direction: row;
+			flex-grow: 1;
+		}
+		iframe {
+			width: 50%;
+			height: 100%;
+			border: 0;
+		}
+		#logs {
+			width: 50%;
+			height: 100%;
+			border: 1px solid black;
+			overflow: scroll;
+			text-wrap: nowrap;
+			white-space: pre;
+			padding: 20px;
+		}
+		#logs li {
+			margin-bottom: 4px;
+		}
+	</style>
+</head>
+<body>
+	<div id="desc">
+		<div id="desc-inner">
+			<h2>Time traveling demo</h2>
+			<p>
+				As you interact with Playground, the changes are recorded here.
+				You can then uncheck some of them and replay the remaining ones
+				– effectively allowing you to undo any changes you've made to
+				the WordPress site. This includes installing plugins, creating
+				pages, changing themes, etc.
+			</p>
+			<p>
+				For more context, see the original
+				<a
+					target="_blank"
+					rel="noreferrer noopener"
+					href="https://github.com/WordPress/wordpress-playground/pull/727"
+				>
+					Pull Request
+				</a>
+				.
+			</p>
+		</div>
+	</div>
+	<div id="content">
+		<iframe id="wp"></iframe>
+		<div id="logs"></div>
+	</div>
+	<script type="module">
+		const { restartDemo } = await import('./time-traveling.tsx');
+		restartDemo();
+	</script>
+</body>
