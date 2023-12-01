@@ -1,4 +1,4 @@
-//*/// Prod
+/*/// Prod
 const importStartPlaygroundWeb = import(
 	'https://playground.wordpress.net/client/index.js'
 );
@@ -8,7 +8,7 @@ const fetchBlueprintSchema = fetch(
 /*/ // Dev
 const importStartPlaygroundWeb = import('//localhost:7001/client/index.js');
 const fetchBlueprintSchema = fetch(
-	'//localhost:7001/blueprint/blueprint-schema.json'
+	'//localhost:7001/blueprints/blueprint-schema.json'
 ).then((r) => r.json());
 //*/
 const FALLBACK_TIMEOUT = 30 * 1000;
