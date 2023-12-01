@@ -5,10 +5,8 @@ const importStartPlaygroundWeb = import(
 const fetchBlueprintSchema = fetch(
 	'https://playground.wordpress.net/blueprint-schema.json'
 ).then((r) => r.json());
-/*/// Dev
-const importStartPlaygroundWeb = import(
-	'//localhost:7001/client/index.js'
-);
+/*/ // Dev
+const importStartPlaygroundWeb = import('//localhost:7001/client/index.js');
 const fetchBlueprintSchema = fetch(
 	'//localhost:7001/blueprint/blueprint-schema.json'
 ).then((r) => r.json());

@@ -53,15 +53,21 @@ export async function fileToUint8Array(file: File) {
  * functions like writeFile (./client-methods.ts) and fileToUint8Array (above).
  */
 
-globalThis.File = globalThis.File || class extends Blob {
-	lastModified = 0;
-	constructor(bits:any, name:string, options:{type?:string, lastModified?:number}) {
-		super(bits);
-		if (options.lastModified) {
-			this.lastModified = options.lastModified;
+globalThis.File =
+	globalThis.File ||
+	class extends Blob {
+		lastModified = 0;
+		constructor(
+			bits: any,
+			name: string,
+			options: { type?: string; lastModified?: number }
+		) {
+			super(bits);
+			if (options.lastModified) {
+				this.lastModified = options.lastModified;
+			}
 		}
-	}
-}
+	};
 
 class FilePolyfill extends File {
 	buffers: BlobPart[];
