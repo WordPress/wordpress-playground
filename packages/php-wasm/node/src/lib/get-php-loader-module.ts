@@ -5,9 +5,6 @@ export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	switch (version) {
-		case '8.3':
-			// @ts-ignore
-			return await import(`../../public/php_8_3.js`);
 		case '8.2':
 			// @ts-ignore
 			return await import(`../../public/php_8_2.js`);

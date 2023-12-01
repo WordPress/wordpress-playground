@@ -17,9 +17,6 @@ export async function getPHPLoaderModule(
 ): Promise<PHPLoaderModule> {
 	if (variant === 'kitchen-sink') {
 		switch (version) {
-			case '8.3':
-				// @ts-ignore
-				return await import('../../public/kitchen-sink/php_8_3.js');
 			case '8.2':
 				// @ts-ignore
 				return await import('../../public/kitchen-sink/php_8_2.js');
@@ -47,9 +44,6 @@ export async function getPHPLoaderModule(
 		}
 	} else {
 		switch (version) {
-			case '8.3':
-				// @ts-ignore
-				return await import('../../public/light/php_8_3.js');
 			case '8.2':
 				// @ts-ignore
 				return await import('../../public/light/php_8_2.js');
