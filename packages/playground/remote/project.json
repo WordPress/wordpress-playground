@@ -39,7 +39,7 @@
 		"recompile-wordpress": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/playground/compile-wordpress/build.js --preset={args.preset} --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+				"command": "node packages/playground/compile-wordpress/build.js --wp-version={args.wp-version} --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
 				"parallel": false
 			}
 		},
@@ -47,12 +47,12 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/compile-wordpress/build.js --preset=5.9 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.0 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.1 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.2 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.3 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=nightly --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public"
+					"node packages/playground/compile-wordpress/build.js --wp-version=latest-minus-3 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --wp-version=latest-minus-2 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --wp-version=latest-minus-1 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --wp-version=latest --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --wp-version=beta --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
+					"node packages/playground/compile-wordpress/build.js --wp-version=nightly --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public"
 				],
 				"parallel": false
 			}
@@ -89,7 +89,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/remote"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/remote"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/remote"

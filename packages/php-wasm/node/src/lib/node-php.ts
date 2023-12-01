@@ -7,6 +7,7 @@ import {
 	rethrowFileSystemError,
 	__private__dont__use,
 	isExitCodeZero,
+	DataModule,
 } from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
@@ -16,6 +17,7 @@ import { withNetworking } from './networking/with-networking.js';
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	requestHandler?: PHPRequestHandlerConfiguration;
+	dataModules?: Array<DataModule | Promise<DataModule>>;
 }
 
 export type MountSettings = {
@@ -76,14 +78,19 @@ export class NodePHP extends BasePHP {
 		const php = new NodePHP(undefined, options.requestHandler);
 
 		const doLoad = async () => {
-			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
+			const allModules = await Promise.all([
+				getPHPLoaderModule(phpVersion),
+				...(options.dataModules || []),
+			]);
+			const [phpLoaderModule, ...dataModules] = allModules;
 
 			let emscriptenOptions = options.emscriptenOptions || {};
 			emscriptenOptions = await withNetworking(emscriptenOptions);
 
 			const runtimeId = await loadPHPRuntime(
 				phpLoaderModule,
-				emscriptenOptions
+				emscriptenOptions,
+				dataModules
 			);
 			php.initializeRuntime(runtimeId);
 		};

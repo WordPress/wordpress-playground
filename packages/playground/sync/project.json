@@ -1,0 +1,88 @@
+{
+	"name": "playground-sync",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/sync/src",
+	"projectType": "lib",
+	"tags": ["scope:web-client"],
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/sync"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			},
+			"dependsOn": ["^build"]
+		},
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"nx dev playground-remote --configuration=development-for-website",
+					"sleep 1; nx dev:standalone playground-sync --hmr --output-style=stream-without-prefixes"
+				],
+				"parallel": true,
+				"color": true
+			}
+		},
+		"dev:standalone": {
+			"executor": "@nx/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-sync:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "playground-sync:build:standalone:development",
+					"hmr": true
+				},
+				"production": {
+					"buildTarget": "playground-sync:build:standalone:production",
+					"hmr": false
+				}
+			}
+		},
+		"preview": {
+			"executor": "@nx/vite:preview-server",
+			"options": {
+				"buildTarget": "playground-sync:build",
+				"staticFilePath": "dist/packages/playground/sync",
+				"port": 5932
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/sync"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/sync"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/playground/sync/**/*.{ts,tsx,js,jsx}"
+				]
+			}
+		},
+		"typecheck": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"tsc -p packages/playground/sync/tsconfig.spec.json --noEmit",
+					"tsc -p packages/playground/sync/tsconfig.app.json --noEmit"
+				]
+			}
+		}
+	}
+}

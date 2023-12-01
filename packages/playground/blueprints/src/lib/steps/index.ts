@@ -4,7 +4,6 @@ import { FileReference } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
 import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
 import { DefineSiteUrlStep } from './define-site-url';
-import { ImportFileStep, ReplaceSiteStep, UnzipStep } from './import-export';
 import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
 import { InstallThemeStep, InstallThemeOptions } from './install-theme';
 import { LoginStep } from './login';
@@ -13,20 +12,20 @@ import {
 	WordPressInstallationOptions,
 } from './run-wp-installation-wizard';
 import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
-import {
-	RmStep,
-	CpStep,
-	MkdirStep,
-	RmdirStep,
-	MvStep,
-	SetPhpIniEntryStep,
-	RunPHPStep,
-	RunPHPWithOptionsStep,
-	RequestStep,
-	WriteFileStep,
-} from './client-methods';
+import { RmStep } from './rm';
+import { CpStep } from './cp';
+import { RmdirStep } from './rmdir';
+import { MkdirStep } from './mkdir';
+import { MvStep } from './mv';
+import { SetPhpIniEntryStep } from './set-php-ini-entry';
+import { RunPHPStep } from './run-php';
+import { RunPHPWithOptionsStep } from './run-php-with-options';
+import { RequestStep } from './request';
+import { WriteFileStep } from './write-file';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
+import { UnzipStep } from './unzip';
+import { ImportWordPressFilesStep } from './import-wp-content';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -47,14 +46,13 @@ export type GenericStep<Resource> =
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
-	| ImportFileStep<Resource>
+	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
 	| LoginStep
 	| MkdirStep
 	| MvStep
 	| RequestStep
-	| ReplaceSiteStep<Resource>
 	| RmStep
 	| RmdirStep
 	| RunPHPStep
@@ -73,7 +71,7 @@ export type {
 	CpStep,
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
-	ImportFileStep,
+	ImportWordPressFilesStep,
 	InstallPluginStep,
 	InstallPluginOptions,
 	InstallThemeStep,
@@ -82,7 +80,6 @@ export type {
 	MkdirStep,
 	MvStep,
 	RequestStep,
-	ReplaceSiteStep,
 	RmStep,
 	RmdirStep,
 	RunPHPStep,

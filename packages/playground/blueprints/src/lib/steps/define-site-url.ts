@@ -29,7 +29,7 @@ export const defineSiteUrl: StepHandler<DefineSiteUrlStep> = async (
 	playground,
 	{ siteUrl }
 ) => {
-	return await defineWpConfigConsts(playground, {
+	await defineWpConfigConsts(playground, {
 		consts: {
 			WP_HOME: siteUrl,
 			WP_SITEURL: siteUrl,

@@ -2777,7 +2777,7 @@ var external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
 const {
   lock,
   unlock
-} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my plugin or theme will inevitably break on the next WordPress release.', '@wordpress/block-library');
+} = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.', '@wordpress/block-library');
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/embed/util.js
 
@@ -6078,7 +6078,7 @@ const fullscreen = (0,external_wp_element_namespaceObject.createElement)(externa
   xmlns: "http://www.w3.org/2000/svg",
   viewBox: "0 0 24 24"
 }, (0,external_wp_element_namespaceObject.createElement)(external_wp_primitives_namespaceObject.Path, {
-  d: "M4.2 9h1.5V5.8H9V4.2H4.2V9zm14 9.2H15v1.5h4.8V15h-1.5v3.2zM15 4.2v1.5h3.2V9h1.5V4.2H15zM5.8 15H4.2v4.8H9v-1.5H5.8V15z"
+  d: "M6 4a2 2 0 0 0-2 2v3h1.5V6a.5.5 0 0 1 .5-.5h3V4H6Zm3 14.5H6a.5.5 0 0 1-.5-.5v-3H4v3a2 2 0 0 0 2 2h3v-1.5Zm6 1.5v-1.5h3a.5.5 0 0 0 .5-.5v-3H20v3a2 2 0 0 1-2 2h-3Zm3-16a2 2 0 0 1 2 2v3h-1.5V6a.5.5 0 0 0-.5-.5h-3V4h3Z"
 }));
 /* harmony default export */ var library_fullscreen = (fullscreen);
 
@@ -13098,7 +13098,7 @@ function CoverInspectorControls({
   const colorGradientSettings = (0,external_wp_blockEditor_namespaceObject.__experimentalUseMultipleOriginColorsAndGradients)();
   const htmlElementMessages = {
     header: (0,external_wp_i18n_namespaceObject.__)('The <header> element should represent introductory content, typically a group of introductory or navigational aids.'),
-    main: (0,external_wp_i18n_namespaceObject.__)('The <main> element should be used for the primary content of your document only. '),
+    main: (0,external_wp_i18n_namespaceObject.__)('The <main> element should be used for the primary content of your document only.'),
     section: (0,external_wp_i18n_namespaceObject.__)("The <section> element should represent a standalone portion of the document that can't be better represented by another element."),
     article: (0,external_wp_i18n_namespaceObject.__)('The <article> element should represent a self-contained, syndicatable portion of the document.'),
     aside: (0,external_wp_i18n_namespaceObject.__)("The <aside> element should represent a portion of a document whose content is only indirectly related to the document's main content."),
@@ -15146,6 +15146,7 @@ class EmbedPreview extends external_wp_element_namespaceObject.Component {
 
 
 
+
 const EmbedEdit = props => {
   const {
     attributes: {
@@ -15243,6 +15244,22 @@ const EmbedEdit = props => {
       url: newURL
     });
   }, [preview?.html, attributesUrl, cannotEmbed, fetching]);
+
+  // Try a different provider in case the embed url is not supported.
+  (0,external_wp_element_namespaceObject.useEffect)(() => {
+    if (!cannotEmbed || fetching || !url) {
+      return;
+    }
+
+    // Until X provider is supported in WordPress, as a workaround we use Twitter provider.
+    if ((0,external_wp_url_namespaceObject.getAuthority)(url) === 'x.com') {
+      const newURL = new URL(url);
+      newURL.host = 'twitter.com';
+      setAttributes({
+        url: newURL.toString()
+      });
+    }
+  }, [url, cannotEmbed, fetching, setAttributes]);
 
   // Handle incoming preview.
   (0,external_wp_element_namespaceObject.useEffect)(() => {
@@ -23653,6 +23670,14 @@ const deprecated_v8 = {
     height,
     ...attributes
   }) {
+    // We need to perform a check here because in cases
+    // where attributes are added dynamically to blocks,
+    // block invalidation overrides the isEligible() method
+    // and forces the migration to run, so it's not guaranteed
+    // that `behaviors` or `behaviors.lightbox` will be defined.
+    if (!attributes.behaviors?.lightbox) {
+      return attributes;
+    }
     const {
       behaviors: {
         lightbox: {
@@ -23844,6 +23869,10 @@ const scaleOptions = [{
   label: (0,external_wp_i18n_namespaceObject._x)('Contain', 'Scale option for dimensions control'),
   help: (0,external_wp_i18n_namespaceObject.__)('Image is contained without distortion.')
 }];
+const disabledClickProps = {
+  onClick: event => event.preventDefault(),
+  'aria-disabled': true
+};
 function image_Image({
   temporaryURL,
   attributes,
@@ -24104,7 +24133,8 @@ function image_Image({
   });
   const lightboxSetting = (0,external_wp_blockEditor_namespaceObject.useSetting)('lightbox');
   const showLightboxToggle = !!lightbox || lightboxSetting?.allowEditing === true;
-  const lightboxChecked = lightbox?.enabled || !lightbox && lightboxSetting?.enabled;
+  const lightboxChecked = !!lightbox?.enabled || !lightbox && !!lightboxSetting?.enabled;
+  const lightboxToggleDisabled = linkDestination !== 'none';
   const dimensionsControl = (0,external_wp_element_namespaceObject.createElement)(DimensionsTool, {
     value: {
       width,
@@ -24222,7 +24252,7 @@ function image_Image({
     options: imageSizeOptions
   }), showLightboxToggle && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.__experimentalToolsPanelItem, {
     hasValue: () => !!lightbox,
-    label: (0,external_wp_i18n_namespaceObject.__)('Expand on Click'),
+    label: (0,external_wp_i18n_namespaceObject.__)('Expand on click'),
     onDeselect: () => {
       setAttributes({
         lightbox: undefined
@@ -24230,7 +24260,7 @@ function image_Image({
     },
     isShownByDefault: true
   }, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ToggleControl, {
-    label: (0,external_wp_i18n_namespaceObject.__)('Expand on Click'),
+    label: (0,external_wp_i18n_namespaceObject.__)('Expand on click'),
     checked: lightboxChecked,
     onChange: newValue => {
       setAttributes({
@@ -24238,7 +24268,9 @@ function image_Image({
           enabled: newValue
         }
       });
-    }
+    },
+    disabled: lightboxToggleDisabled,
+    help: lightboxToggleDisabled ? (0,external_wp_i18n_namespaceObject.__)('“Expand on click” scales the image up, and can’t be combined with a link.') : ''
   })))), (0,external_wp_element_namespaceObject.createElement)(external_wp_blockEditor_namespaceObject.InspectorControls, {
     group: "advanced"
   }, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.TextControl, {
@@ -24361,7 +24393,6 @@ function image_Image({
       }
     }
     /* eslint-enable no-lonely-if */
-
     img = (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ResizableBox, {
       style: {
         display: 'block',
@@ -24403,7 +24434,10 @@ function image_Image({
   if (!url && !temporaryURL) {
     return sizeControls;
   }
-  return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, !temporaryURL && controls, img, showCaption && (!external_wp_blockEditor_namespaceObject.RichText.isEmpty(caption) || isSelected) && (0,external_wp_element_namespaceObject.createElement)(external_wp_blockEditor_namespaceObject.RichText, {
+  return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, !temporaryURL && controls, !!href ? (0,external_wp_element_namespaceObject.createElement)("a", {
+    href: href,
+    ...disabledClickProps
+  }, img) : img, showCaption && (!external_wp_blockEditor_namespaceObject.RichText.isEmpty(caption) || isSelected) && (0,external_wp_element_namespaceObject.createElement)(external_wp_blockEditor_namespaceObject.RichText, {
     identifier: "caption",
     className: (0,external_wp_blockEditor_namespaceObject.__experimentalGetElementClassName)('caption'),
     ref: captionRef,
@@ -25942,14 +25976,18 @@ function LatestPostsEdit({
       }
     });
     const needsReadMore = excerptLength < excerpt.trim().split(' ').length && post.excerpt.raw === '';
-    const postExcerpt = needsReadMore ? (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, excerpt.trim().split(' ', excerptLength).join(' '), (0,external_wp_element_namespaceObject.createInterpolateElement)( /* translators: excerpt truncation character, default …  */
-    (0,external_wp_i18n_namespaceObject.__)(' … <a>Read more</a>'), {
+    const postExcerpt = needsReadMore ? (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, excerpt.trim().split(' ', excerptLength).join(' '), (0,external_wp_element_namespaceObject.createInterpolateElement)((0,external_wp_i18n_namespaceObject.sprintf)( /* translators: 1: Hidden accessibility text: Post title */
+    (0,external_wp_i18n_namespaceObject.__)('… <a>Read more<span>: %1$s</span></a>'), titleTrimmed || (0,external_wp_i18n_namespaceObject.__)('(no title)')), {
       a:
       // eslint-disable-next-line jsx-a11y/anchor-has-content
       (0,external_wp_element_namespaceObject.createElement)("a", {
+        className: "wp-block-latest-posts__read-more",
         href: post.link,
         rel: "noopener noreferrer",
         onClick: showRedirectionPreventedNotice
+      }),
+      span: (0,external_wp_element_namespaceObject.createElement)("span", {
+        className: "screen-reader-text"
       })
     })) : excerpt;
     return (0,external_wp_element_namespaceObject.createElement)("li", {
@@ -27550,6 +27588,19 @@ function useMerge(clientId, onMerge) {
     return getBlockOrder(order[0])[0];
   }
   return forward => {
+    function mergeWithNested(clientIdA, clientIdB) {
+      registry.batch(() => {
+        // When merging a sub list item with a higher next list item, we
+        // also need to move any nested list items. Check if there's a
+        // listed list, and append its nested list items to the current
+        // list.
+        const [nestedListClientId] = getBlockOrder(clientIdB);
+        if (nestedListClientId) {
+          moveBlocksToPosition(getBlockOrder(nestedListClientId), nestedListClientId, getBlockRootClientId(clientIdA));
+        }
+        mergeBlocks(clientIdA, clientIdB);
+      });
+    }
     if (forward) {
       const nextBlockClientId = getNextId(clientId);
       if (!nextBlockClientId) {
@@ -27559,10 +27610,7 @@ function useMerge(clientId, onMerge) {
       if (getParentListItemId(nextBlockClientId)) {
         outdentListItem(nextBlockClientId);
       } else {
-        registry.batch(() => {
-          moveBlocksToPosition(getBlockOrder(nextBlockClientId), nextBlockClientId, getPreviousBlockClientId(nextBlockClientId));
-          mergeBlocks(clientId, nextBlockClientId);
-        });
+        mergeWithNested(clientId, nextBlockClientId);
       }
     } else {
       // Merging is only done from the top level. For lowel levels, the
@@ -27572,17 +27620,7 @@ function useMerge(clientId, onMerge) {
         outdentListItem(clientId);
       } else if (previousBlockClientId) {
         const trailingId = getTrailingId(previousBlockClientId);
-        registry.batch(() => {
-          // When merging a list item with a previous trailing list
-          // item, we also need to move any nested list items. First,
-          // check if there's a listed list. If there's a nested list,
-          // append its nested list items to the trailing list.
-          const [nestedListClientId] = getBlockOrder(clientId);
-          if (nestedListClientId) {
-            moveBlocksToPosition(getBlockOrder(nestedListClientId), nestedListClientId, getBlockRootClientId(trailingId));
-          }
-          mergeBlocks(trailingId, clientId);
-        });
+        mergeWithNested(trailingId, clientId);
       } else {
         onMerge(forward);
       }
@@ -29175,7 +29213,7 @@ function MediaTextEdit({
   }), mediaType === 'image' && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ToggleControl, {
     __nextHasNoMarginBottom: true,
     label: (0,external_wp_i18n_namespaceObject.__)('Crop image to fill entire column'),
-    checked: imageFill,
+    checked: !!imageFill,
     onChange: () => setAttributes({
       imageFill: !imageFill
     })
@@ -30791,7 +30829,8 @@ function NavigationInnerBlocks({
     // Show the appender while dragging to allow inserting element between item and the appender.
     parentOrChildHasSelection ? external_wp_blockEditor_namespaceObject.InnerBlocks.ButtonBlockAppender : false,
     placeholder: showPlaceholder ? placeholder : undefined,
-    __experimentalCaptureToolbars: true
+    __experimentalCaptureToolbars: true,
+    __unstableDisableLayoutClassNames: true
   });
   return (0,external_wp_element_namespaceObject.createElement)("div", {
     ...innerBlocksProps
@@ -31786,13 +31825,16 @@ const ManageMenusButton = ({
 
 
 
+
 function DeletedNavigationWarning({
   onCreateNew
 }) {
-  return (0,external_wp_element_namespaceObject.createElement)(external_wp_blockEditor_namespaceObject.Warning, null, (0,external_wp_i18n_namespaceObject.__)('Navigation menu has been deleted or is unavailable. '), (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
-    onClick: onCreateNew,
-    variant: "link"
-  }, (0,external_wp_i18n_namespaceObject.__)('Create a new menu?')));
+  return (0,external_wp_element_namespaceObject.createElement)(external_wp_blockEditor_namespaceObject.Warning, null, (0,external_wp_element_namespaceObject.createInterpolateElement)((0,external_wp_i18n_namespaceObject.__)('Navigation menu has been deleted or is unavailable. <button>Create a new menu?</button>'), {
+    button: (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
+      onClick: onCreateNew,
+      variant: "link"
+    })
+  }));
 }
 /* harmony default export */ var deleted_navigation_warning = (DeletedNavigationWarning);
 
@@ -32492,7 +32534,8 @@ function Navigation({
   // These props are used by the navigation editor to override specific
   // navigation block settings.
   hasSubmenuIndicatorSetting = true,
-  customPlaceholder: CustomPlaceholder = null
+  customPlaceholder: CustomPlaceholder = null,
+  __unstableLayoutClassNames: layoutClassNames
 }) {
   const {
     openSubmenusOnClick,
@@ -32656,7 +32699,7 @@ function Navigation({
       [(0,external_wp_blockEditor_namespaceObject.getColorClassName)('background-color', backgroundColor?.slug)]: !!backgroundColor?.slug,
       [`has-text-decoration-${textDecoration}`]: textDecoration,
       'block-editor-block-content-overlay': hasBlockOverlay
-    }),
+    }, layoutClassNames),
     style: {
       color: !textColor?.slug && textColor?.color,
       backgroundColor: !backgroundColor?.slug && backgroundColor?.color
@@ -32987,7 +33030,6 @@ function Navigation({
   }), (0,external_wp_element_namespaceObject.createElement)(ResponsiveWrapper, {
     id: clientId,
     onToggle: setResponsiveMenuVisibility,
-    label: (0,external_wp_i18n_namespaceObject.__)('Menu'),
     hasIcon: hasIcon,
     icon: icon,
     isOpen: isResponsiveMenuOpen,
@@ -35328,7 +35370,7 @@ const PatternEdit = ({
   clientId
 }) => {
   const selectedPattern = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_blockEditor_namespaceObject.store).__experimentalGetParsedPattern(attributes.slug), [attributes.slug]);
-  const currentThemeStylesheet = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_coreData_namespaceObject.store).getCurrentTheme().stylesheet);
+  const currentThemeStylesheet = (0,external_wp_data_namespaceObject.useSelect)(select => select(external_wp_coreData_namespaceObject.store).getCurrentTheme()?.stylesheet);
   const {
     replaceBlocks,
     __unstableMarkNextChangeAsNotPersistent
@@ -42487,19 +42529,41 @@ const usePatterns = (clientId, name) => {
 };
 
 /**
- * Hook that returns whether the Query Loop with the given `clientId` contains
- * any third-party block.
+ * The object returned by useUnsupportedBlocks with info about the type of
+ * unsupported blocks present inside the Query block.
+ *
+ * @typedef  {Object}  UnsupportedBlocksInfo
+ * @property {boolean} hasBlocksFromPlugins True if blocks from plugins are present.
+ * @property {boolean} hasPostContentBlock  True if a 'core/post-content' block is present.
+ * @property {boolean} hasUnsupportedBlocks True if there are any unsupported blocks.
+ */
+
+/**
+ * Hook that returns an object with information about the unsupported blocks
+ * present inside a Query Loop with the given `clientId`. The returned object
+ * contains props that are true when a certain type of unsupported block is
+ * present.
  *
  * @param {string} clientId The block's client ID.
- * @return {boolean} True if it contains third-party blocks.
+ * @return {UnsupportedBlocksInfo} The object containing the information.
  */
-const useContainsThirdPartyBlocks = clientId => {
+const useUnsupportedBlocks = clientId => {
   return (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
       getClientIdsOfDescendants,
       getBlockName
     } = select(external_wp_blockEditor_namespaceObject.store);
-    return getClientIdsOfDescendants(clientId).some(descendantClientId => !getBlockName(descendantClientId).startsWith('core/'));
+    const blocks = {};
+    getClientIdsOfDescendants(clientId).forEach(descendantClientId => {
+      const blockName = getBlockName(descendantClientId);
+      if (!blockName.startsWith('core/')) {
+        blocks.hasBlocksFromPlugins = true;
+      } else if (blockName === 'core/post-content') {
+        blocks.hasPostContentBlock = true;
+      }
+    });
+    blocks.hasUnsupportedBlocks = blocks.hasBlocksFromPlugins || blocks.hasPostContentBlock;
+    return blocks;
   }, [clientId]);
 };
 
@@ -43071,23 +43135,26 @@ function EnhancedPaginationControl({
   setAttributes,
   clientId
 }) {
-  const enhancedPaginationNotice = (0,external_wp_i18n_namespaceObject.__)("Enhanced pagination doesn't support plugin blocks yet. If you want to enable it, you have to remove all plugin blocks from the Query Loop.");
-  const containsThirdPartyBlocks = useContainsThirdPartyBlocks(clientId);
+  const {
+    hasUnsupportedBlocks
+  } = useUnsupportedBlocks(clientId);
+  let help = (0,external_wp_i18n_namespaceObject.__)('Browsing between pages requires a full page reload.');
+  if (enhancedPagination) {
+    help = (0,external_wp_i18n_namespaceObject.__)("Browsing between pages won't require a full page reload, unless non-compatible blocks are detected.");
+  } else if (hasUnsupportedBlocks) {
+    help = (0,external_wp_i18n_namespaceObject.__)("Force page reload can't be disabled because there are non-compatible blocks inside the Query block.");
+  }
   return (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.Fragment, null, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.ToggleControl, {
-    label: (0,external_wp_i18n_namespaceObject.__)('Enhanced pagination'),
-    help: (0,external_wp_i18n_namespaceObject.__)('Browsing between pages won’t require a full page reload.'),
-    checked: !!enhancedPagination,
-    disabled: containsThirdPartyBlocks,
+    label: (0,external_wp_i18n_namespaceObject.__)('Force page reload'),
+    help: help,
+    checked: !enhancedPagination,
+    disabled: hasUnsupportedBlocks,
     onChange: value => {
       setAttributes({
-        enhancedPagination: !!value
+        enhancedPagination: !value
       });
     }
-  }), containsThirdPartyBlocks && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Notice, {
-    status: "warning",
-    isDismissible: false,
-    className: "wp-block-query__enhanced-pagination-notice"
-  }, enhancedPaginationNotice));
+  }));
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/query/edit/inspector-controls/create-new-post-link.js
@@ -43334,7 +43401,6 @@ function QueryInspectorControls(props) {
  * Internal dependencies
  */
 
-const disableEnhancedPaginationDescription = (0,external_wp_i18n_namespaceObject.__)('Plugin blocks are not supported yet. For the enhanced pagination to work, remove the plugin block, then re-enable "Enhanced pagination" in the Query Block settings.');
 const modalDescriptionId = 'wp-block-query-enhanced-pagination-modal__description';
 function EnhancedPaginationModal({
   clientId,
@@ -43344,31 +43410,44 @@ function EnhancedPaginationModal({
   setAttributes
 }) {
   const [isOpen, setOpen] = (0,external_wp_element_namespaceObject.useState)(false);
-  const containsThirdPartyBlocks = useContainsThirdPartyBlocks(clientId);
+  const {
+    hasBlocksFromPlugins,
+    hasPostContentBlock,
+    hasUnsupportedBlocks
+  } = useUnsupportedBlocks(clientId);
   (0,external_wp_element_namespaceObject.useEffect)(() => {
-    setOpen(containsThirdPartyBlocks && enhancedPagination);
-  }, [containsThirdPartyBlocks, enhancedPagination, setOpen]);
+    if (enhancedPagination && hasUnsupportedBlocks) {
+      setAttributes({
+        enhancedPagination: false
+      });
+      setOpen(true);
+    }
+  }, [enhancedPagination, hasUnsupportedBlocks, setAttributes]);
+  const closeModal = () => {
+    setOpen(false);
+  };
+  let notice = (0,external_wp_i18n_namespaceObject.__)('If you still want to prevent full page reloads, remove that block, then disable "Force page reload" again in the Query Block settings.');
+  if (hasBlocksFromPlugins) {
+    notice = (0,external_wp_i18n_namespaceObject.__)('Currently, avoiding full page reloads is not possible when blocks from plugins are present inside the Query block.') + ' ' + notice;
+  } else if (hasPostContentBlock) {
+    notice = (0,external_wp_i18n_namespaceObject.__)('Currently, avoiding full page reloads is not possible when a Content block is present inside the Query block.') + ' ' + notice;
+  }
   return isOpen && (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Modal, {
-    title: (0,external_wp_i18n_namespaceObject.__)('Enhanced pagination will be disabled'),
+    title: (0,external_wp_i18n_namespaceObject.__)('Query block: Force page reload enabled'),
     className: "wp-block-query__enhanced-pagination-modal",
     aria: {
       describedby: modalDescriptionId
     },
     isDismissible: false,
-    shouldCloseOnEsc: false,
-    shouldCloseOnClickOutside: false
+    onRequestClose: closeModal
   }, (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.__experimentalVStack, {
     alignment: "right",
     spacing: 5
   }, (0,external_wp_element_namespaceObject.createElement)("span", {
     id: modalDescriptionId
-  }, disableEnhancedPaginationDescription), (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
+  }, notice), (0,external_wp_element_namespaceObject.createElement)(external_wp_components_namespaceObject.Button, {
     variant: "primary",
-    onClick: () => {
-      setAttributes({
-        enhancedPagination: false
-      });
-    }
+    onClick: closeModal
   }, (0,external_wp_i18n_namespaceObject.__)('OK'))));
 }
 
@@ -55799,7 +55878,6 @@ function TermDescriptionEdit({
 const term_description_metadata = {
   $schema: "https://schemas.wp.org/trunk/block.json",
   apiVersion: 3,
-  __experimental: "fse",
   name: "core/term-description",
   title: "Term Description",
   category: "theme",

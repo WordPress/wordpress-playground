@@ -9,30 +9,17 @@ import { StorageType } from '../../types';
 import { OPFSButton } from './opfs-button';
 import Button from '../button';
 
-// This is duplicated in @wp-playground/remote
-// @TODO: move to a shared package like @wp-playground/wordpress
-export const SupportedWordPressVersions = [
-	'nightly',
-	'6.3',
-	'6.2',
-	'6.1',
-	'6.0',
-	'5.9',
-] as const;
-export const LatestSupportedWordPressVersion = '6.3';
-export const SupportedWordPressVersionsList =
-	SupportedWordPressVersions as any as string[];
-export type SupportedWordPressVersion =
-	(typeof SupportedWordPressVersions)[number];
-
 export interface PlaygroundConfiguration {
-	wp: SupportedWordPressVersion;
+	wp: string;
 	php: SupportedPHPVersion;
+	withExtensions: boolean;
+	withNetworking: boolean;
 	storage: StorageType;
 	resetSite?: boolean;
 }
 
 export interface PlaygroundConfigurationFormProps {
+	supportedWPVersions: Record<string, string>;
 	currentlyRunningWordPressVersion: string | undefined;
 	initialData: PlaygroundConfiguration;
 	onSubmit: (config: PlaygroundConfiguration) => void;
@@ -45,6 +32,7 @@ export interface PlaygroundConfigurationFormProps {
 }
 
 export function PlaygroundConfigurationForm({
+	supportedWPVersions,
 	currentlyRunningWordPressVersion,
 	isMountingLocalDirectory = false,
 	mountProgress,
@@ -54,9 +42,13 @@ export function PlaygroundConfigurationForm({
 }: PlaygroundConfigurationFormProps) {
 	const [php, setPhp] = useState(initialData.php);
 	const [storage, setStorage] = useState<StorageType>(initialData.storage);
-	const [wp, setWp] = useState(
-		initialData.wp || LatestSupportedWordPressVersion
+	const [withExtensions, setWithExtensions] = useState<boolean>(
+		initialData.withExtensions
 	);
+	const [withNetworking, setWithNetworking] = useState<boolean>(
+		initialData.withNetworking
+	);
+	const [wp, setWp] = useState(initialData.wp);
 	const handleStorageChange = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {
@@ -76,7 +68,14 @@ export function PlaygroundConfigurationForm({
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
-		onSubmit({ php, storage, wp, resetSite });
+		onSubmit({
+			php,
+			storage,
+			wp,
+			resetSite,
+			withExtensions,
+			withNetworking,
+		});
 	}
 
 	async function handleSelectLocalDirectory(
@@ -107,17 +106,17 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="temporary"
-							id="storage-temporary"
+							value="none"
+							id="storage-none"
 							className={forms.radioInput}
 							onChange={handleStorageChange}
-							checked={storage === 'temporary'}
+							checked={storage === 'none'}
 						/>
 						<label
-							htmlFor="storage-temporary"
+							htmlFor="storage-none"
 							className={forms.radioLabel}
 						>
-							Temporary: reset on page refresh
+							None: changes will be lost on page refresh.
 						</label>
 					</li>
 					<li>
@@ -134,7 +133,7 @@ export function PlaygroundConfigurationForm({
 							htmlFor="storage-browser"
 							className={forms.radioLabel}
 						>
-							Persistent: stored in this browser
+							Browser: stored in this browser.
 						</label>
 					</li>
 					{storage === 'opfs-browser' ? (
@@ -171,19 +170,19 @@ export function PlaygroundConfigurationForm({
 						<input
 							type="radio"
 							name="storage"
-							value="opfs-host"
-							id="opfs-host"
+							value="device"
+							id="device"
 							className={
 								liveDirectoryAvailable
 									? forms.radioInput
 									: `${forms.radioInput} ${forms.notAvailable}`
 							}
 							onChange={handleStorageChange}
-							checked={storage === 'opfs-host'}
+							checked={storage === 'device'}
 							disabled={!liveDirectoryAvailable}
 						/>
-						<label htmlFor="opfs-host" className={forms.radioLabel}>
-							Live directory from your computer (beta)
+						<label htmlFor="device" className={forms.radioLabel}>
+							Device: stored locally in your device (beta).
 							{'not-available' === onSelectLocalDirectory && (
 								<span>
 									<br />
@@ -198,7 +197,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{storage === 'opfs-host' ? (
+					{storage === 'opfs-host' || storage === 'device' ? (
 						<li>
 							<div>
 								<p>
@@ -243,8 +242,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-
-			{storage !== 'opfs-host' ? (
+			{storage !== 'device' && storage !== 'opfs-host' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
@@ -273,6 +271,34 @@ export function PlaygroundConfigurationForm({
 								</option>
 							))}
 						</select>
+						<label
+							className={forms.groupLabel}
+							style={{ marginTop: 15, cursor: 'pointer' }}
+						>
+							<input
+								type="checkbox"
+								name="with-extensions"
+								checked={withExtensions}
+								onChange={() =>
+									setWithExtensions(!withExtensions)
+								}
+							/>
+							&nbsp; Load extensions: libxml, mbstring, iconv, gd
+						</label>
+						<label
+							className={forms.groupLabel}
+							style={{ marginTop: 15, cursor: 'pointer' }}
+						>
+							<input
+								type="checkbox"
+								name="with-networking"
+								checked={withNetworking}
+								onChange={() =>
+									setWithNetworking(!withNetworking)
+								}
+							/>
+							&nbsp; Network access (e.g. for browsing plugins)
+						</label>
 					</div>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear} ${forms.formGroupLast}`}
@@ -280,6 +306,7 @@ export function PlaygroundConfigurationForm({
 						<label
 							htmlFor="wp-version"
 							className={forms.groupLabel}
+							style={{ marginTop: 15, cursor: 'pointer' }}
 						>
 							WordPress Version
 						</label>
@@ -290,15 +317,19 @@ export function PlaygroundConfigurationForm({
 							onChange={(
 								event: React.ChangeEvent<HTMLSelectElement>
 							) => {
-								setWp(
-									event.target
-										.value as SupportedWordPressVersion
-								);
+								setWp(event.target.value as string);
 							}}
 						>
-							{SupportedWordPressVersions.map((version) => (
+							{/*
+							 * Without an empty option, React sometimes says
+							 * the current selected version is "nightly" when
+							 * `wp` is actually "6.4".
+							 */}
+							<option value="">-- Select a version --</option>
+							{Object.keys(supportedWPVersions).map((version) => (
 								<option key={version} value={version}>
-									WordPress {version}&nbsp;&nbsp;
+									WordPress {supportedWPVersions[version]}
+									&nbsp;&nbsp;
 								</option>
 							))}
 						</select>

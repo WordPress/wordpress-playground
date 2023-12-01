@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import viteTsConfigPaths from 'vite-tsconfig-paths';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import {
 	websiteDevServerHost,
@@ -47,27 +47,17 @@ export default defineConfig(({ command }) => {
 		preview: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy,
 		},
 
 		server: {
 			port: websiteDevServerPort,
 			host: websiteDevServerHost,
-			headers: {
-				'Cross-Origin-Resource-Policy': 'cross-origin',
-				'Cross-Origin-Embedder-Policy': 'credentialless',
-			},
 			proxy,
 		},
 
 		plugins: [
-			viteTsConfigPaths({
-				root: '../../../',
-			}),
+			nxViteTsPaths(),
 			virtualModule({
 				name: 'interactive-block-playground-config',
 				content: `export const remotePlaygroundOrigin = ${JSON.stringify(

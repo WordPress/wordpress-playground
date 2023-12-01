@@ -19,6 +19,9 @@
 		"baseUrl": ".",
 		"paths": {
 			"@php-wasm/cli": ["packages/php-wasm/cli/src/main.ts"],
+			"@php-wasm/fs-journal": [
+				"packages/php-wasm/fs-journal/src/index.ts"
+			],
 			"@php-wasm/node": ["packages/php-wasm/node/src/index.ts"],
 			"@php-wasm/private": ["packages/php-wasm/private/src/index.ts"],
 			"@php-wasm/progress": ["packages/php-wasm/progress/src/index.ts"],
@@ -42,6 +45,10 @@
 			"@wp-playground/remote": [
 				"packages/playground/remote/src/index.ts"
 			],
+			"@wp-playground/storage": [
+				"packages/playground/storage/src/index.ts"
+			],
+			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
 			]

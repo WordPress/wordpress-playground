@@ -114,8 +114,7 @@
 					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.3 --output-dir=packages/php-wasm/node/public",
 					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.2 --output-dir=packages/php-wasm/node/public",
 					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.1 --output-dir=packages/php-wasm/node/public",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.0 --output-dir=packages/php-wasm/node/public",
-					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=5.6 --output-dir=packages/php-wasm/node/public"
+					"node packages/php-wasm/compile/build.js --PLATFORM=node --PHP_VERSION=7.0 --output-dir=packages/php-wasm/node/public"
 				],
 				"parallel": false
 			}
@@ -138,7 +137,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/node"],
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node"

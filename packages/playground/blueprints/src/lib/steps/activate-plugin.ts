@@ -2,6 +2,15 @@ import { StepHandler } from '.';
 
 /**
  * @inheritDoc activatePlugin
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "activatePlugin",
+ * 		"pluginName": "Gutenberg",
+ * 		"pluginPath": "/wordpress/wp-content/plugins/gutenberg"
+ * }
+ * </code>
  */
 export interface ActivatePluginStep {
 	step: 'activatePlugin';

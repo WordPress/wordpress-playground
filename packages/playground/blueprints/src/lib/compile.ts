@@ -2,11 +2,15 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import {
 	LatestSupportedPHPVersion,
+	SupportedPHPExtension,
+	SupportedPHPExtensionsList,
+	SupportedPHPExtensionBundles,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 	UniversalPHP,
 } from '@php-wasm/universal';
-import { isFileReference, Resource } from './resources';
+import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
+import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as stepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
@@ -28,20 +32,17 @@ import type { ValidateFunction } from 'ajv';
 
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
-const supportedWordPressVersions = [
-	'6.3',
-	'6.2',
-	'6.1',
-	'6.0',
-	'5.9',
-	'nightly',
-] as const;
-type supportedWordPressVersion = (typeof supportedWordPressVersions)[number];
 export interface CompiledBlueprint {
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;
-		wp: supportedWordPressVersion;
+		wp: string;
+	};
+	/** The requested PHP extensions to load */
+	phpExtensions: SupportedPHPExtension[];
+	features: {
+		/** Should boot with support for network request via wp_safe_remote_get? */
+		networking: boolean;
 	};
 	/** The compiled steps for the blueprint */
 	run: (playground: UniversalPHP) => Promise<void>;
@@ -78,6 +79,55 @@ export function compileBlueprint(
 		...blueprint,
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
+	// Experimental declarative syntax {{{
+	if (blueprint.constants) {
+		blueprint.steps!.unshift({
+			step: 'defineWpConfigConsts',
+			consts: blueprint.constants,
+		});
+	}
+	if (blueprint.siteOptions) {
+		blueprint.steps!.unshift({
+			step: 'setSiteOptions',
+			options: blueprint.siteOptions,
+		});
+	}
+	if (blueprint.plugins) {
+		// Translate an array of strings into a map of pluginName => true to
+		// install the latest version of the plugin from wordpress.org
+		const steps = blueprint.plugins
+			.map((value) => {
+				if (typeof value === 'string') {
+					if (value.startsWith('https://')) {
+						return {
+							resource: 'url',
+							url: value,
+						} as FileReference;
+					} else {
+						return {
+							resource: 'wordpress.org/plugins',
+							slug: value,
+						} as FileReference;
+					}
+				}
+				return value;
+			})
+			.map((resource) => ({
+				step: 'installPlugin',
+				pluginZipFile: resource,
+			})) as StepDefinition[];
+		blueprint.steps!.unshift(...steps);
+	}
+	if (blueprint.login) {
+		blueprint.steps!.push({
+			step: 'login',
+			...(blueprint.login === true
+				? { username: 'admin', password: 'password' }
+				: blueprint.login),
+		});
+	}
+	// }}}
+
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
 		const e = new Error(
@@ -110,11 +160,15 @@ export function compileBlueprint(
 				SupportedPHPVersions,
 				LatestSupportedPHPVersion
 			),
-			wp: compileVersion(
-				blueprint.preferredVersions?.wp,
-				supportedWordPressVersions,
-				'6.3'
-			),
+			wp: blueprint.preferredVersions?.wp || 'latest',
+		},
+		phpExtensions: compilePHPExtensions(
+			[],
+			blueprint.phpExtensionBundles || []
+		),
+		features: {
+			// Disable networking by default
+			networking: blueprint.features?.networking ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
 			try {
@@ -210,6 +264,31 @@ function compileVersion<T>(
 		return value as T;
 	}
 	return latest as T;
+}
+
+/**
+ * Compiles a list of requested PHP extensions provided as strings
+ * into a valid list of supported PHP extensions.
+ *
+ * @param requestedExtensions The extensions to compile
+ * @returns The compiled extensions
+ */
+function compilePHPExtensions(
+	requestedExtensions: string[],
+	requestedBundles: string[]
+): SupportedPHPExtension[] {
+	const extensions = SupportedPHPExtensionsList.filter((extension) =>
+		requestedExtensions.includes(extension)
+	) as SupportedPHPExtension[];
+	const extensionsFromBundles = requestedBundles.flatMap((bundle) =>
+		bundle in SupportedPHPExtensionBundles
+			? SupportedPHPExtensionBundles[
+					bundle as SupportedPHPExtensionBundle
+			  ]
+			: []
+	) as SupportedPHPExtension[];
+	// Deduplicate
+	return Array.from(new Set([...extensions, ...extensionsFromBundles]));
 }
 
 /**

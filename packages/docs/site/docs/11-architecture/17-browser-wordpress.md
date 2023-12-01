@@ -7,10 +7,10 @@ The [web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/b
 -   Runs the WordPress installation wizard.
 -   Bundles WordPress as a [data dependency](./06-wasm-php-data-dependencies.md)
 
-Build a new bundle with `nx recompile-wordpress playground-remote --preset=<version>`, e.g.:
+Build a new bundle with `nx recompile-wordpress playground-remote --wp-version=<version>`, e.g.:
 
 ```
-nx recompile-wordpress playground-remote --preset=6.1
+nx recompile-wordpress playground-remote --wp-version=6.1
 ```
 
 The bundler outputs:

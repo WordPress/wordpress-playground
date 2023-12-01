@@ -14,8 +14,7 @@ const plugins = [
 	}),
 	dts({
 		entryRoot: 'src',
-		tsConfigFilePath: join(__dirname, 'tsconfig.lib.json'),
-		skipDiagnostics: true,
+		tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 	}),
 ];
 export default defineConfig({
@@ -36,10 +35,6 @@ export default defineConfig({
 	server: {
 		port: remoteDevServerPort,
 		host: remoteDevServerHost,
-		headers: {
-			'Cross-Origin-Resource-Policy': 'cross-origin',
-			'Cross-Origin-Embedder-Policy': 'credentialless',
-		},
 		fs: {
 			// Allow serving files from the 'packages' directory
 			allow: ['../../'],
@@ -67,6 +62,7 @@ export default defineConfig({
 	// Configuration for building your library.
 	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
+		target: 'esnext',
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: {
