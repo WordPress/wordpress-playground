@@ -18,19 +18,22 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			wp: options.wp as any,
 		},
 		steps: [
-			options.import && /^(http(s?)):\/\//i.test(options.import)
-				? {
-						step: 'importFile',
-						file: {
-							resource: 'url',
-							url: options.import,
-						} as UrlReference,
-				  }
-				: {
-						step: 'login',
-						username: 'admin',
-						password: 'password',
-				  },
+			...(options.import && /^(http(s?)):\/\//i.test(options.import)
+				? [
+						{
+							step: 'importFile',
+							file: {
+								resource: 'url',
+								url: options.import,
+							} as UrlReference,
+						},
+				  ]
+				: []),
+			{
+				step: 'login',
+				username: 'admin',
+				password: 'password',
+			},
 			options.theme && {
 				step: 'installTheme',
 				themeZipFile: {
