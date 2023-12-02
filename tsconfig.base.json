@@ -49,6 +49,9 @@
 				"packages/playground/storage/src/index.ts"
 			],
 			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
+			"@wp-playground/unit-test-utils": [
+				"packages/playground/unit-test-utils/src/index.ts"
+			],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
 			]
