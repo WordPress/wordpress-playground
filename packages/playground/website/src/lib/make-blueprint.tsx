@@ -6,6 +6,7 @@ interface MakeBlueprintOptions {
 	landingPage?: string;
 	theme?: string;
 	importFile?: string;
+	login?: boolean;
 	plugins?: string[];
 	gutenbergPR?: number;
 }
@@ -30,11 +31,15 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 						},
 				  ]
 				: []),
-			{
-				step: 'login',
-				username: 'admin',
-				password: 'password',
-			},
+			...(typeof options.login === 'undefined' || options.login === true
+				? [
+						{
+							step: 'login',
+							username: 'admin',
+							password: 'password',
+						},
+				  ]
+				: []),
 			options.theme && {
 				step: 'installTheme',
 				themeZipFile: {
