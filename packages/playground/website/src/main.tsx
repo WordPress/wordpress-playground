@@ -43,7 +43,6 @@ try {
 		php: query.get('php') || '8.0',
 		wp: query.get('wp') || 'latest',
 		importFile: query.get('importFile') || undefined,
-		login: query.get('login') !== '0',
 		theme: query.get('theme') || undefined,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
