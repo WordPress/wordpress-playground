@@ -13,6 +13,7 @@ export { mkdir } from './mkdir';
 export { rmdir } from './rmdir';
 export { writeFile } from './write-file';
 export { defineSiteUrl } from './define-site-url';
+export { importFile } from './import-file';
 export { importWordPressFiles } from './import-wp-content';
 export { exportWXR } from './export-wxr';
 export { exportWXZ } from './export-wxz';
