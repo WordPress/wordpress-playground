@@ -1,18 +1,3 @@
-diff --git a/php-src/sapi/embed/php_embed.c b/php-src/sapi/embed/php_embed.c
---- a/php-src/sapi/embed/php_embed.c
-+++ b/php-src/sapi/embed/php_embed.c
-@@ -246,8 +246,8 @@ EMBED_SAPI_API int php_embed_init(int argc, char **argv)
- 		return FAILURE;
- 	}
-
--	SG(headers_sent) = 1;
--	SG(request_info).no_headers = 1;
-+	SG(headers_sent) = 0;
-+	SG(request_info).no_headers = 0;
- 	php_register_variable("PHP_SELF", "-", NULL);
-
- 	return SUCCESS;
-
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 --- a/php-src/ext/standard/file.c
 +++ b/php-src/ext/standard/file.c
