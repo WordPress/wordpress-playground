@@ -1,16 +1,10 @@
-//*/// Prod
 const importStartPlaygroundWeb = import(
 	'https://playground.wordpress.net/client/index.js'
 );
 const fetchBlueprintSchema = fetch(
 	'https://playground.wordpress.net/blueprint-schema.json'
 ).then((r) => r.json());
-/*/ // Dev
-const importStartPlaygroundWeb = import('//localhost:7001/client/index.js');
-const fetchBlueprintSchema = fetch(
-	'//localhost:7001/blueprints/blueprint-schema.json'
-).then((r) => r.json());
-//*/
+
 const FALLBACK_TIMEOUT = 30 * 1000;
 
 const deref = (obj, root) => {
