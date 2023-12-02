@@ -1,4 +1,4 @@
-/*/// Prod
+//*/// Prod
 const importStartPlaygroundWeb = import(
 	'https://playground.wordpress.net/client/index.js'
 );
