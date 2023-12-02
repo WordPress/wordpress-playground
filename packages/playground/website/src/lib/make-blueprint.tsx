@@ -5,7 +5,7 @@ interface MakeBlueprintOptions {
 	wp?: string;
 	landingPage?: string;
 	theme?: string;
-	import?: string;
+	importFile?: string;
 	plugins?: string[];
 	gutenbergPR?: number;
 }
@@ -18,13 +18,14 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 			wp: options.wp as any,
 		},
 		steps: [
-			...(options.import && /^(http(s?)):\/\//i.test(options.import)
+			...(options.importFile &&
+			/^(http(s?)):\/\//i.test(options.importFile)
 				? [
 						{
 							step: 'importFile',
 							file: {
 								resource: 'url',
-								url: options.import,
+								url: options.importFile,
 							} as UrlReference,
 						},
 				  ]

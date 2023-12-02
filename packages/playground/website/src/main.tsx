@@ -42,7 +42,7 @@ try {
 	blueprint = makeBlueprint({
 		php: query.get('php') || '8.0',
 		wp: query.get('wp') || 'latest',
-		import: query.get('import') || undefined,
+		importFile: query.get('importFile') || undefined,
 		theme: query.get('theme') || undefined,
 		plugins: query.getAll('plugin'),
 		landingPage: query.get('url') || undefined,
