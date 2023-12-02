@@ -54,6 +54,9 @@
 			],
 			"@wp-playground/website": [
 				"packages/playground/website/src/index.ts"
+			],
+			"@wp-playground/wordpress": [
+				"packages/playground/wordpress/src/index.ts"
 			]
 		}
 	},

@@ -1,0 +1,48 @@
+{
+	"name": "playground-wordpress",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/wordpress/src",
+	"projectType": "library",
+	"targets": {
+		"bundle": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/wordpress/build/build.js --wp-version={args.wp-version} --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+				"parallel": false
+			}
+		},
+		"bundle:all": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-3 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+					"node packages/playground/wordpress/build/build.js --wp-version=latest --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
+					"node packages/playground/wordpress/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
+				],
+				"parallel": false
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{options.reportsDirectory}"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/wordpress"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/playground/wordpress/**/*.ts",
+					"packages/playground/wordpress/package.json"
+				]
+			}
+		}
+	},
+	"tags": []
+}
