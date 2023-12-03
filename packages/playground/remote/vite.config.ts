@@ -66,10 +66,12 @@ export default defineConfig({
 		},
 	},
 
-	// Configuration for building your library.
-	// See: https://vitejs.dev/guide/build.html#library-mode
 	build: {
 		target: 'esnext',
+		// Important: Vite does not extract static assets as separate files
+		//            in the library mode. assetsInlineLimit: 0 only works
+		//            in the app mode.
+		// @see https://github.com/vitejs/vite/issues/3295
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: {

@@ -15,8 +15,8 @@ import { getWordPressModule } from './wordpress/get-wordpress-module';
 describe('getWordPressModule()', () => {
 	it('should return a data loader module', async () => {
 		const module = await getWordPressModule();
-		expect(module.dependencyFilename).toBe('wp-6.4.js');
-		expect(module.default).toBe(expect.any(Function));
+		expect(module.dependencyFilename).toMatch(/\/wp-\d.\d.data$/);
+		expect(typeof module.default).toBe('function');
 	});
 	it('should create WordPress files in PHP VFS', async () => {
 		const php = await NodePHP.load(LatestSupportedPHPVersion, {
