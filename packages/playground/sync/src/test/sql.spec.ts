@@ -10,12 +10,9 @@ import { getWordPressModule } from '@wp-playground/wordpress';
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		const wpData = await getWordPressModule();
-		console.log({ wpData });
 		php = await NodePHP.load('8.0', {
-			dataModules: [wpData],
+			dataModules: [await getWordPressModule()],
 		});
-		console.log('Loaded PHP');
 	});
 	it.only('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');
