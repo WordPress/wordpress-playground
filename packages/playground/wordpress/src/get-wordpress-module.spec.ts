@@ -25,17 +25,12 @@ describe('getWordPressModule()', () => {
 
 		// Let's test
 		expect(await php.fileExists('/wordpress/wp-load.php')).toBe(true);
-		expect(await php.fileExists('/wordpress/wp-admin/login.php')).toBe(
-			true
-		);
+		expect(await php.fileExists('/wordpress/wp-login.php')).toBe(true);
 	});
 
 	it('running WordPress functions should work', async () => {
 		const php = await NodePHP.load(LatestSupportedPHPVersion, {
 			dataModules: [await getWordPressModule()],
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
 		});
 
 		// Instead of merely checking whether specific files exist,
@@ -44,7 +39,7 @@ describe('getWordPressModule()', () => {
 		const response = await php.run({
 			code: `<?php
                 require '/wordpress/wp-load.php';
-				update_option('blogname', 'My test site!')
+				update_option('blogname', 'My test site!');
                 echo get_option('blogname');
 			`,
 		});
