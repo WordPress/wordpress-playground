@@ -1,7 +1,8 @@
 package-lock.json linguist-generated=true
 packages/docs/site/docs/site/docs/ linguist-documentation=true
 packages/docs/site/static/diagrams.excalidraw linguist-documentation=true
-packages/php-wasm/compile/build-assets/zlib/ linguist-vendored=true
+packages/php-wasm/compile/*/dist linguist-vendored
+packages/php-wasm/compile/libz/zlib-src linguist-vendored
 packages/php-wasm/node/public/ linguist-generated=true
 packages/php-wasm/node/src/test/test-data/ linguist-generated=true
 packages/php-wasm/web/public/kitchen-sink/ linguist-generated=true  -diff
