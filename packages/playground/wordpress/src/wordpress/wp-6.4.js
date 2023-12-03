@@ -111,7 +111,7 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
         }
       }, handleError);
 
-    function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS() {
+      function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS() {
 
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
@@ -344,7 +344,7 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
           this.requests[this.name] = null;
         }
       };
-
+        
       var files = metadata['files'];
       for (var i = 0; i < files.length; ++i) {
         new DataRequest(files[i]['start'], files[i]['end'], files[i]['audio'] || 0).open('GET', files[i]['filename']);
@@ -367,7 +367,7 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
 
       if (!Module.preloadResults) Module.preloadResults = {};
 
-      Module.preloadResults[PACKAGE_NAME] = {fromCache: false};
+      Module.preloadResults[PACKAGE_NAME] = { fromCache: false };
       if (fetched) {
         processPackageData(fetched);
         fetched = null;

@@ -1,18 +1,23 @@
 import { NodePHP } from '@php-wasm/node';
-import { readFileSync } from 'fs';
 import {
 	SQLJournalEntry,
 	installSqlSyncMuPlugin,
 	journalSQLQueries,
 } from '../sql';
+import { getWordPressModuleInNode } from '@wp-playground/wordpress';
 
 // Shim XMLHttpRequest to return a fixed response
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await loadPHP();
+		const wpData = await getWordPressModuleInNode();
+		console.log({ wpData });
+		php = await NodePHP.load('8.0', {
+			dataModules: [wpData],
+		});
+		console.log("Loaded PHP");
 	});
-	it('Loads WordPress', async () => {
+	it.only('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');
 	});
 	it('Journals SQL queries', async () => {
@@ -99,51 +104,3 @@ describe('Sync tests', () => {
 		);
 	});
 });
-
-async function loadPHP() {
-	const wp = await getWordPressDataModule();
-	const php = await NodePHP.load('8.0', {
-		dataModules: [wp],
-	});
-	return php;
-}
-
-async function getWordPressDataModule() {
-	const wpData = readFileSync(__dirname + '/wp-6.3.data');
-	const wpDataArrayBuffer = wpData.buffer.slice(
-		wpData.byteOffset,
-		wpData.byteOffset + wpData.byteLength
-	);
-	shimXHR(wpDataArrayBuffer);
-	// @ts-ignore
-	return await import('./wp-6.3.js');
-}
-
-function shimXHR(response: ArrayBuffer) {
-	// Shim XMLHttpRequest to return a fixed response
-	// @ts-ignore
-	globalThis.XMLHttpRequest = class XMLHttpRequest {
-		response?: ArrayBuffer;
-		onload() {}
-		open() {
-			setTimeout(() => {
-				this.response = response;
-				this.onload();
-			}, 100);
-		}
-		send() {}
-		setRequestHeader() {}
-		getResponseHeader() {}
-		getAllResponseHeaders() {}
-		abort() {}
-		addEventListener() {}
-		removeEventListener() {}
-		dispatchEvent() {}
-		get readyState() {
-			return 4;
-		}
-		get status() {
-			return 200;
-		}
-	};
-}
