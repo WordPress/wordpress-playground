@@ -35,8 +35,8 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: recompile:php:web:light:8.0
-            - run: recompile:php:web:light:8.1
+            - run: npm run recompile:php:web:light:8.0
+            - run: npm run recompile:php:web:light:8.1
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
