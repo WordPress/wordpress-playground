@@ -75,7 +75,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 			# https://php-legacy-docs.zend.com/manual/php5/en/zlib.installation
 			echo -n ' --with-zlib --with-zlib-dir=/root/lib --enable-zip --with-libzip=/root/lib ' >> /root/.php-configure-flags; \
 			echo -n ' -I /root/lib -I /root/lib ' >> /root/.emcc-php-wasm-flags; \
-			echo -n ' /root/lib/lib/libzip.a /root/libz/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
+			echo -n ' /root/lib/lib/libzip.a /root/lib/lib/libz.a' >> /root/.emcc-php-wasm-sources; \
 			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/lib; \
 			cp /root/lib/lib/libzip/include/zipconf.h /root/lib/include; \
 			echo '#define LIBZIP_VERSION "1.2.0"' >> /root/lib/include/zipconf.h; \
