@@ -176,7 +176,7 @@ versions = Object.keys(versions)
 // Write the updated JSON back to the file
 await fs.writeFile(versionsPath, JSON.stringify(versions, null, 2));
 
-const latestStableVersion = versions.filter((v) => v.match(/^\d/))[0];
+const latestStableVersion = Object.keys(versions).filter((v) => v.match(/^\d/))[0];
 
 // Refresh get-wordpress-module.ts
 const getWordPressModulePath = `${outputJsDir}/get-wordpress-module.ts`;
