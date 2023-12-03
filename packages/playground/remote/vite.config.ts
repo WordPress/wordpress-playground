@@ -6,6 +6,8 @@ import dts from 'vite-plugin-dts';
 import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { copyFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
@@ -16,6 +18,20 @@ const plugins = [
 		entryRoot: 'src',
 		tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 	}),
+	/**
+	 * Copy the `.htaccess` file to the `dist` directory.
+	 */
+	{
+		name: 'htaccess-plugin',
+		apply: 'build',
+		writeBundle({ dir: outputDir }) {
+			const htaccessPath = path('.htaccess');
+
+			if (existsSync(htaccessPath)) {
+				copyFileSync(htaccessPath, join(outputDir, '.htaccess'));
+			}
+		},
+	},
 ];
 export default defineConfig({
 	assetsInclude: ['**/*.wasm', '*.data'],
