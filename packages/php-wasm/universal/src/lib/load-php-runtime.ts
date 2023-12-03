@@ -155,10 +155,11 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
-	const dataDeps = dataDependenciesModules.map(({ default: dataModule }) =>
-		dataModule(PHPRuntime)
+	await Promise.all(
+		dataDependenciesModules.map(({ default: dataModule }) =>
+			dataModule(PHPRuntime)
+		)
 	);
-	await Promise.all(dataDeps);
 
 	if (!dataDependenciesModules.length) {
 		resolveDeps();
