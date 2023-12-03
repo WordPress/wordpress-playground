@@ -56,11 +56,12 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
 
+
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		mv /libs/bison2.7 /usr/local/bison && \
-		ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+		mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
+        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
 		ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
 	else \
 		apt install -y bison; \
