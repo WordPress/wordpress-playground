@@ -5,7 +5,7 @@ import { NodePHP } from '..';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import InitialDockerfile from '../../../compile/Dockerfile?raw';
+import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
 
 // Start a server to test network functions
 const server = http.createServer((req, res) => {
@@ -240,7 +240,10 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 });
 
 let Dockerfile = InitialDockerfile;
-const DockerfilePath = path.resolve(__dirname, '../../../compile/Dockerfile');
+const DockerfilePath = path.resolve(
+	__dirname,
+	'../../../compile/php/Dockerfile'
+);
 function addAsyncifyFunctionsToDockerfile(functions: string[]) {
 	const currentDockerfile = fs.readFileSync(DockerfilePath, 'utf8') + '';
 	const lookup = `export ASYNCIFY_ONLY=$'`;

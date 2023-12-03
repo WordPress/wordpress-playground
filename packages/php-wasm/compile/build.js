@@ -159,13 +159,7 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
 // Build the base image
-await asyncSpawn(
-	'make',
-	[
-		'base-image',
-	],
-	{ cwd: sourceDir, stdio: 'inherit' }
-);
+await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
 
 await asyncSpawn(
 	'docker',
