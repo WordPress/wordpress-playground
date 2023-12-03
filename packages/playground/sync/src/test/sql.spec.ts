@@ -4,12 +4,15 @@ import {
 	installSqlSyncMuPlugin,
 	journalSQLQueries,
 } from '../sql';
-import { getWordPressModule } from '@wp-playground/wordpress';
+import {
+	RecommendedPHPVersion,
+	getWordPressModule,
+} from '@wp-playground/wordpress';
 
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load('8.0', {
+		php = await NodePHP.load(RecommendedPHPVersion, {
 			dataModules: [await getWordPressModule()],
 		});
 	});
