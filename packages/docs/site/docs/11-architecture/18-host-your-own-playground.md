@@ -97,7 +97,7 @@ As an alternative to Apache, here is an example of using NGINX to serve the Play
 
 This example may go out of date. It is recommended to refer to the source files.
 
--   [packages/playground/remote/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/public/.htaccess)
+-   [packages/playground/wordpress/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/wordpress/public/.htaccess)
 
 :::
 
