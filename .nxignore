@@ -3,7 +3,7 @@ dist
 packages/php-wasm/node/public
 packages/php-wasm/web/public
 packages/php-wasm/compile/build-assets
-packages/playground/wordpress/build/build-assets
+packages/playground/wordpress/build
 __pycache__
 packages/playground/wordpress/src/wordpress
 packages/playground/wordpress/public
