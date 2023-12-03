@@ -4,6 +4,23 @@
 	"sourceRoot": "packages/playground/wordpress/src",
 	"projectType": "library",
 	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/wordpress"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			},
+			"dependsOn": ["^build"]
+		},
 		"bundle": {
 			"executor": "nx:run-commands",
 			"options": {
@@ -26,8 +43,21 @@
 			}
 		},
 		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/playground/wordpress"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:vite": {
 			"executor": "@nx/vite:test",
-			"outputs": ["{options.reportsDirectory}"],
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/wordpress"
+			],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/wordpress"

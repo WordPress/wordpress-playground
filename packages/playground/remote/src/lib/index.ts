@@ -4,4 +4,4 @@ export {
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
 	LatestSupportedWordPressVersion,
-} from '../wordpress/get-wordpress-module';
+} from '@wp-playground/wordpress';

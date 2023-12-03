@@ -3,7 +3,6 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/remote/src",
 	"projectType": "library",
-	"implicitDependencies": ["playground-wordpress"],
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
