@@ -20,6 +20,13 @@ const plugins = [
 export default defineConfig({
 	assetsInclude: ['**/*.wasm', '*.data'],
 	cacheDir: '../../../node_modules/.vite/playground',
+	// Bundled WordPress files live in a separate dependency-free `wordpress`
+	// package so that every package may use them without causing circular
+	// dependencies.
+	// Other than that, the `remote` package has no public assets of its own.
+	// Therefore, let's just point the `remote` public directory to the `wordpress`
+	// package to make WordPress assets available.
+	publicDir: path('../wordpress/public'),
 
 	css: {
 		modules: {

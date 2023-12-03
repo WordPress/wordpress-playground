@@ -1,1 +1,1 @@
-export * from './lib/playground-wordpress';
+export * from './wordpress/get-wordpress-module';
