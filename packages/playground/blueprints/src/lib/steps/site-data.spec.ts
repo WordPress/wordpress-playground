@@ -1,5 +1,8 @@
 import { NodePHP } from '@php-wasm/node';
-import { RecommendedPHPVersion, getWordPressModule } from '@wp-playground/wordpress';
+import {
+	RecommendedPHPVersion,
+	getWordPressModule,
+} from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
 
 describe('Blueprint step setSiteOptions()', () => {
