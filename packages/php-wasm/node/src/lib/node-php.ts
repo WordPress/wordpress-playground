@@ -10,9 +10,11 @@ import {
 	DataModule,
 } from '@php-wasm/universal';
 
-import { lstatSync, readdirSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
+import { patchXHRClassToReadDataFromFilesystem } from './patch-xhr-with-readFileSync';
+// import { patchXHRClassToReadDataFromFilesystem } from './patch-xhr-with-readFileSync';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -26,6 +28,11 @@ export type MountSettings = {
 
 const STRING = 'string';
 const NUMBER = 'number';
+
+/**
+ * @see patchXHRClassToReadDataFromFilesystem
+ */
+let xhrPatched = false;
 
 export class NodePHP extends BasePHP {
 	/**
@@ -71,6 +78,11 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
+		if (!xhrPatched) {
+			patchXHRClassToReadDataFromFilesystem();
+			xhrPatched = true;
+		}
+
 		/**
 		 * Keep any changes to the signature of this method in sync with the
 		 * `PHP.load` method in the @php-wasm/node package.

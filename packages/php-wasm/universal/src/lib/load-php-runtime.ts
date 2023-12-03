@@ -124,7 +124,7 @@ export async function loadPHPRuntime(
 	phpModuleArgs: EmscriptenOptions = {},
 	dataDependenciesModules: DataModule[] = []
 ): Promise<number> {
-	console.log("loadPHPRuntime");
+	console.log('loadPHPRuntime');
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 	const [depsReady, resolveDeps] = makePromise();
 
@@ -150,28 +150,29 @@ export async function loadPHPRuntime(
 			resolvePHP();
 		},
 		monitorRunDependencies(nbLeft) {
+			console.log({ nbLeft });
 			if (nbLeft === 0) {
 				delete PHPRuntime.monitorRunDependencies;
 				resolveDeps();
 			}
 		},
 	});
-	console.log("post init");
-	const dataDeps =
-		dataDependenciesModules.map(({ default: dataModule }) =>
-			dataModule(PHPRuntime)
-		);
+	console.log('post init');
+	const dataDeps = dataDependenciesModules.map(({ default: dataModule }) =>
+		dataModule(PHPRuntime)
+	);
 	await Promise.all(dataDeps);
-	console.log("all default calls done");
+	console.log('all default calls done');
 
 	if (!dataDependenciesModules.length) {
 		resolveDeps();
 	}
 
-	console.log("Deps ready pre");
+	console.log('Deps ready pre');
 	await depsReady;
-	console.log("Deps ready post");
+	console.log('Deps ready post');
 	await phpReady;
+	console.log('PHP ready');
 
 	const id = loadedRuntimes.size;
 

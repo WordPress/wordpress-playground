@@ -4,18 +4,18 @@ import {
 	installSqlSyncMuPlugin,
 	journalSQLQueries,
 } from '../sql';
-import { getWordPressModuleInNode } from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress';
 
 // Shim XMLHttpRequest to return a fixed response
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		const wpData = await getWordPressModuleInNode();
+		const wpData = await getWordPressModule();
 		console.log({ wpData });
 		php = await NodePHP.load('8.0', {
 			dataModules: [wpData],
 		});
-		console.log("Loaded PHP");
+		console.log('Loaded PHP');
 	});
 	it.only('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');
