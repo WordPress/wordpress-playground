@@ -33,12 +33,12 @@ libpng16/dist/root/lib/lib/libpng16.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libpng16/dist/root/lib
 
 libxml2: libxml2/dist/root/lib/lib/libxml2.a
-libxml2/dist/root/lib/lib/libxml2.a: base-image libz
+libxml2/dist/root/lib/lib/libxml2.a: base-image
 	mkdir -p ./libxml2/dist/root/lib
 	docker build -f ./libxml2/Dockerfile -t playground-php-wasm:libxml2 . --progress=plain
-	docker cp $$(docker create playground-php-wasm:libxml2):/root/install/bin ./libxml2/dist/root/lib
-	docker cp $$(docker create playground-php-wasm:libxml2):/root/install/lib ./libxml2/dist/root/lib
-	docker cp $$(docker create playground-php-wasm:libxml2):/root/install/include ./libxml2/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/bin ./libxml2/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/lib ./libxml2/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/include ./libxml2/dist/root/lib
 
 libopenssl: libopenssl/dist/root/lib/lib/libssl.a
 libopenssl/dist/root/lib/lib/libssl.a: base-image libz
