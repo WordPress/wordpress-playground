@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import type { Plugin } from 'vite';
 import { join } from 'path';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -7,7 +8,6 @@ import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
-import { join } from 'path';
 
 const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 const plugins = [
@@ -27,11 +27,11 @@ const plugins = [
 		writeBundle({ dir: outputDir }) {
 			const htaccessPath = path('.htaccess');
 
-			if (existsSync(htaccessPath)) {
+			if (existsSync(htaccessPath) && outputDir) {
 				copyFileSync(htaccessPath, join(outputDir, '.htaccess'));
 			}
 		},
-	},
+	} as Plugin,
 ];
 export default defineConfig({
 	assetsInclude: ['**/*.wasm', '*.data'],

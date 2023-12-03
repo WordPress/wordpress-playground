@@ -1,5 +1,6 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
+import type { Plugin } from 'vite';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
@@ -35,7 +36,7 @@ export default defineConfig({
 				}
 				return code;
 			},
-		},
+		} as Plugin,
 	],
 
 	build: {
