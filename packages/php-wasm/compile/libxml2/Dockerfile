@@ -14,4 +14,6 @@ RUN source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure --with-http=no --with-ftp=no --with-python=no --with-threads=no --enable-shared=no --prefix=/root/install/ &&\
     EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
     emmake make install
+
+RUN echo 1
 RUN ls -R /root/install

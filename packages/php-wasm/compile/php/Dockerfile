@@ -25,8 +25,7 @@ COPY ../libncurses/dist/root/lib /root/lib
 COPY ../libopenssl/dist/root/lib /root/lib
 COPY ../libpng16/dist/root/lib /root/lib
 COPY ../libsqlite3/dist/root/lib /root/lib
-COPY ../libxml2/dist/root/lib/include/libxml2 /root/lib/include
-COPY ../libxml2/dist/root/lib/lib /root/lib/lib
+COPY ../libxml2/dist/root/lib /root/lib
 COPY ../libz/dist/root/lib /root/lib
 COPY ../libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
 COPY ../libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
@@ -112,7 +111,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 	then \
 		set -euxo pipefail;\
 		echo -n ' --enable-libxml --with-libxml --with-libxml-dir=/root/lib --enable-dom --enable-xml --enable-simplexml --enable-xmlreader --enable-xmlwriter' >> /root/.php-configure-flags && \
-		echo -n ' -I /root/lib -lxml2' >> /root/.emcc-php-wasm-flags && \
+		echo -n ' -I /root/lib -I /root/lib/include/libxml2 -lxml2' >> /root/.emcc-php-wasm-flags && \
 		echo -n ' /root/lib/lib/libxml2.a' >> /root/.emcc-php-wasm-sources && \
 		# Libxml check is wrong in PHP < 7.4.0.
 		# In the regular cc it's just a warning, but in the emscripten's emcc that's an error:
