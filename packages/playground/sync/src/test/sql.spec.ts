@@ -6,7 +6,6 @@ import {
 } from '../sql';
 import { getWordPressModule } from '@wp-playground/wordpress';
 
-// Shim XMLHttpRequest to return a fixed response
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
@@ -14,7 +13,7 @@ describe('Sync tests', () => {
 			dataModules: [await getWordPressModule()],
 		});
 	});
-	it.only('Loads WordPress', async () => {
+	it('Loads WordPress', async () => {
 		expect(php.listFiles('/')).toContain('wordpress');
 	});
 	it('Journals SQL queries', async () => {
