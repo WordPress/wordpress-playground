@@ -53,6 +53,11 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>
 				</div>
 				<div className={css.content}>{children}</div>
+				<div className={css.experimentalNotice}>
+					This is a cool fun experimental WordPress running in your
+					browser :) All your changes are private and gone after a
+					page refresh.
+				</div>
 			</div>
 		</div>
 	);
