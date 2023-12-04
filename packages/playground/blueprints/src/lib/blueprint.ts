@@ -61,6 +61,13 @@ export interface Blueprint {
 	};
 
 	/**
+	 * WordPress post types to register
+	 * @deprecated This experimental option will change without warning.
+	 *             Use `steps` instead.
+	 */
+	postTypes?: Record<string, Record<string, any>>;
+
+	/**
 	 * User to log in as.
 	 * If true, logs the user in as admin/password.
 	 */
