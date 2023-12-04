@@ -575,12 +575,12 @@ document.addEventListener('DOMContentLoaded', () => {
 	const button = document.querySelector('button#run');
 	const newTab = document.querySelector('button#new-tab');
 
-	// @ts-ignore no-undef
+	// eslint-disable-next-line @typescript-eslint/no-undef
 	const editor = ace.edit('jsontext');
 	editor.setTheme('ace/theme/github_dark');
 	editor.session.setMode('ace/mode/json');
 
-	// @ts-ignore no-undef
+	// eslint-disable-next-line @typescript-eslint/no-undef
 	const langTools = ace.require('ace/ext/language_tools');
 
 	langTools.setCompleters([]);
