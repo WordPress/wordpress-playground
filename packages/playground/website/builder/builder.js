@@ -1,8 +1,6 @@
-const importStartPlaygroundWeb = import(
-	'https://playground.wordpress.net/client/index.js'
-);
+const importStartPlaygroundWeb = import('//localhost:7001/client/index.js');
 const fetchBlueprintSchema = fetch(
-	'https://playground.wordpress.net/blueprint-schema.json'
+	'//localhost:7001/blueprints/blueprint-schema.json'
 ).then((r) => r.json());
 
 const FALLBACK_TIMEOUT = 30 * 1000;
@@ -521,30 +519,6 @@ function getCurrentBlueprint(editor) {
 	return blueprint;
 }
 
-const fetchBluePrintFromAI = async (editor) => {
-	const prompt = document.getElementById('prompt').value;
-	const blueprint = getCurrentBlueprint(editor);
-	document.body.setAttribute('data-starting', true);
-	document.getElementById('prompt').setAttribute('disabled', true);
-
-	console.log('Calling AI', prompt, blueprint);
-	const response = await fetch(
-		'https://public-api.wordpress.com/wpcom/v2/playground/ai/blueprint',
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ prompt, blueprint }),
-		}
-	);
-	const json = await response.json();
-	document.getElementById('prompt').removeAttribute('disabled');
-	document.getElementById('prompt').innerText = '';
-	console.log('Returned AI blueprint', json);
-	return json;
-};
-
 const runBlueprint = async (editor) => {
 	const fallback = setTimeout(() => {
 		document.body.setAttribute('data-starting', false);
@@ -597,20 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	const iframe = document.querySelector('iframe#wp-playground');
 	const textarea = document.querySelector('#jsontext');
 	const button = document.querySelector('button#run');
-	const aiButton = document.querySelector('button#open-ai');
-	const closeAi = document.querySelector('button#close-ai');
-	const genButton = document.querySelector('button#generate');
 	const newTab = document.querySelector('button#new-tab');
-
-	let aiOpen = false;
-
-	aiButton.addEventListener('click', (event) => {
-		document.body.setAttribute('data-show-ai', (aiOpen = !aiOpen));
-	});
-
-	closeAi.addEventListener('click', (event) => {
-		document.body.setAttribute('data-show-ai', (aiOpen = false));
-	});
 
 	const editor = ace.edit('jsontext');
 	editor.setTheme('ace/theme/github_dark');
@@ -835,34 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	button.addEventListener('click', () => {
 		try {
 			clearError();
-			runBlueprint(editor);
-		} catch (error) {
-			showError(error);
-		}
-	});
-
-	genButton.addEventListener('click', async () => {
-		try {
-			clearError();
-			const { blueprint } = await fetchBluePrintFromAI(editor);
-			const loginStep = {
-				step: 'login',
-				username: 'admin',
-				password: 'password',
-			};
-			if (blueprint.steps) {
-				let loginFound = false;
-				for (const step of blueprint.steps) {
-					if (step?.step === 'login') {
-						Object.assign(step, loginStep);
-						loginFound = true;
-					}
-				}
-				if (!loginFound) {
-					blueprint.steps.push(loginStep);
-				}
-			}
-			formatJson(editor, blueprint);
 			runBlueprint(editor);
 		} catch (error) {
 			showError(error);
