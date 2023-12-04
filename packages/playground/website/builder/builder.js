@@ -67,7 +67,7 @@ const getPrevKeys = (editor, { column, row }) => {
 
 	let indent = 0;
 
-	while (line[indent] == ' ' || line[indent] == '\t') {
+	while (line[indent] === ' ' || line[indent] === '\t') {
 		indent++;
 	}
 
@@ -106,8 +106,8 @@ const getLastOfType = (editor, type, { column, row }, skip = 0) => {
 		let indent = 0;
 
 		while (
-			lines[checkRow][indent] == ' ' ||
-			lines[checkRow][indent] == '\t'
+			lines[checkRow][indent] === ' ' ||
+			lines[checkRow][indent] === '\t'
 		) {
 			indent++;
 		}
@@ -117,7 +117,7 @@ const getLastOfType = (editor, type, { column, row }, skip = 0) => {
 		const openVQuote = lines[checkRow].indexOf('"', 1 + closeQuote);
 		const closeVQuote = lines[checkRow].indexOf('"', 1 + openVQuote);
 
-		if (openQuote > -1 && openQuote == indent) {
+		if (openQuote > -1 && openQuote === indent) {
 			const checkType = lines[checkRow].substring(
 				1 + openQuote,
 				closeQuote
@@ -140,7 +140,7 @@ const getPrevSiblings = (editor, { column, row }) => {
 	let checkRow = -1 + row;
 	let indent = 0;
 
-	while (lines[row][indent] == ' ' || lines[row][indent] == '\t') {
+	while (lines[row][indent] === ' ' || lines[row][indent] === '\t') {
 		indent++;
 	}
 
@@ -156,7 +156,7 @@ const getPrevSiblings = (editor, { column, row }) => {
 		const openQuote = lines[checkRow].indexOf('"');
 		const closeQuote = lines[checkRow].indexOf('"', 1 + openQuote);
 
-		if (openQuote > -1 && openQuote == indent) {
+		if (openQuote > -1 && openQuote === indent) {
 			siblings.push(lines[checkRow].substring(1 + openQuote, closeQuote));
 		}
 
