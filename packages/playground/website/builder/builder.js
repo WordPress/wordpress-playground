@@ -312,7 +312,7 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
 				const json = await res.json();
-				json?.plugins.map((p) => {
+				json?.plugins.forEach((p) => {
 					var doc = new DOMParser().parseFromString(
 						p.name,
 						'text/html'
@@ -364,7 +364,7 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 					`https://playground.wordpress.net/plugin-proxy.php?${proxyParams}`
 				);
 				const json = await res.json();
-				json?.themes.map((p) => {
+				json?.themes.forEach((p) => {
 					var doc = new DOMParser().parseFromString(
 						p.name,
 						'text/html'
@@ -601,7 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const content = editor.getValue();
 		const lines = content.split('\n');
-		const quoteCount = (lines[event.start.row].match(/"/g) || []).length;
 
 		if (
 			event.start.row === event.end.row &&
@@ -842,10 +841,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	runBlueprint(editor);
-
-	const editorState = {
-		current: null,
-	};
 
 	window.addEventListener('hashchange', () => {
 		loadFromHash(editor);
