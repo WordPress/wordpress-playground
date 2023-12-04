@@ -37,6 +37,33 @@ export async function fileToUint8Array(file: File) {
  * Import the polyfilled File class below to ensure its buffer is available to
  * functions like writeFile (./client-methods.ts) and fileToUint8Array (above).
  */
+
+globalThis.File =
+	globalThis.File ||
+	class extends Blob {
+		_name: string;
+		lastModified: number|undefined;
+		constructor(
+			bits: any,
+			name: string,
+			options: { type?: string; lastModified?: number } = {}
+		) {
+			super(bits);
+			if (options.lastModified) {
+				this.lastModified = options.lastModified;
+			}
+			if (name) {
+				this._name = name;
+			}
+			else {
+				this._name = '';
+			}
+		}
+		override get name() {
+			return this._name;
+		}
+	};
+
 class FilePolyfill extends File {
 	buffers: BlobPart[];
 	constructor(buffers: BlobPart[], name: string) {

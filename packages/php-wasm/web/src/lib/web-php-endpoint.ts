@@ -89,6 +89,11 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.mv(fromPath, toPath);
 	}
 
+	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.cp  */
+	cp(fromPath: string, toPath: string) {
+		return _private.get(this)!.php.cp(fromPath, toPath);
+	}
+
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
 	rmdir(path: string, options?: RmDirOptions) {
 		return _private.get(this)!.php.rmdir(path, options);

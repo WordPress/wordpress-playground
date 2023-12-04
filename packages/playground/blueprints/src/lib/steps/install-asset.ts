@@ -33,8 +33,10 @@ export async function installAsset(
 	const zipFileName = zipFile.name;
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
-	const tmpUnzippedFilesPath = `/tmp/assets/${assetNameGuess}`;
-	const tmpZipPath = `/tmp/${zipFileName}`;
+	playground.mkdir(`/var/tmp`);
+
+	const tmpUnzippedFilesPath = `/var/tmp/assets/${assetNameGuess}`;
+	const tmpZipPath = `/var/tmp/${zipFileName}`;
 
 	const removeTmpFolder = () =>
 		playground.rmdir(tmpUnzippedFilesPath, {
@@ -83,6 +85,7 @@ export async function installAsset(
 
 		// Move asset folder to target path
 		const assetFolderPath = `${targetPath}/${assetFolderName}`;
+		console.log({tmpAssetPath, assetFolderPath});
 		await playground.mv(tmpAssetPath, assetFolderPath);
 		await cleanup();
 
