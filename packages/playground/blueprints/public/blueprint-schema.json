@@ -9,6 +9,10 @@
 					"type": "string",
 					"description": "The URL to navigate to after the blueprint has been run."
 				},
+				"description": {
+					"type": "string",
+					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what."
+				},
 				"preferredVersions": {
 					"type": "object",
 					"properties": {
