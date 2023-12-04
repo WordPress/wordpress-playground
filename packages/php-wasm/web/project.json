@@ -30,6 +30,7 @@
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
+				"emptyOutDir": false,
 				"outputPath": "dist/packages/php-wasm/web"
 			}
 		},
@@ -113,7 +114,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/web"],
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/web"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../coverage/packages/php-wasm/web"

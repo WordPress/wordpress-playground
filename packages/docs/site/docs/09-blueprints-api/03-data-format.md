@@ -63,4 +63,4 @@ The `phpExtensionBundles` property is an array of PHP extension bundles to load.
 
 The `features` property is used to enable or disable certain features of the Playground. It can contain the following properties:
 
--   `networking`: Defaults to `true`. Enables or disables the networking support for Playground. If enabled, `wp_safe_remote_get` and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead.
+-   `networking`: Defaults to `false`. Enables or disables the networking support for Playground. If enabled, `wp_safe_remote_get` and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead.

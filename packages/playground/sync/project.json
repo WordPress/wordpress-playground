@@ -60,7 +60,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/sync"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/sync"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/sync"

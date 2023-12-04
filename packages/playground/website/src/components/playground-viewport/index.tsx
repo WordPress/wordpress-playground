@@ -8,9 +8,15 @@ import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
 
+export const supportedDisplayModes = [
+	'browser',
+	'browser-full-screen',
+	'seamless',
+] as const;
+export type DisplayMode = (typeof supportedDisplayModes)[number];
 interface PlaygroundViewportProps {
 	storage?: StorageType;
-	isSeamless?: boolean;
+	displayMode?: DisplayMode;
 	blueprint?: Blueprint;
 	toolbarButtons?: Array<React.ReactElement | false | null>;
 	children?: React.ReactNode;
@@ -18,7 +24,7 @@ interface PlaygroundViewportProps {
 
 export default function PlaygroundViewport({
 	blueprint,
-	isSeamless,
+	displayMode = 'browser',
 	storage,
 	toolbarButtons,
 	children,
@@ -35,10 +41,11 @@ export default function PlaygroundViewport({
 				currentUrl: url,
 			}}
 		>
-			{isSeamless ? (
+			{displayMode === 'seamless' ? (
 				<JustViewport iframeRef={iframeRef} />
 			) : (
 				<BrowserChrome
+					isFullSize={displayMode === 'browser-full-screen'}
 					showAddressBar={!!playground}
 					url={url}
 					toolbarButtons={toolbarButtons}
@@ -62,6 +69,7 @@ const JustViewport = function LoadedViewportComponent({
 	return (
 		<div className={css.fullSize}>
 			<iframe
+				id="playground-viewport"
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={css.fullSize}
 				ref={iframeRef}

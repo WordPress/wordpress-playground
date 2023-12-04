@@ -13,7 +13,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/storage"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/storage"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/storage"

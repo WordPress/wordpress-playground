@@ -1,4 +1,19 @@
-import type { UniversalPHP } from '@php-wasm/universal';
+import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+
+/**
+ * Used by the export step to exclude the Playground-specific files
+ * from the zip file. Keep it in sync with the list of files created
+ * by WordPressPatcher.
+ */
+export const wpContentFilesExcludedFromExport = [
+	'db.php',
+	'plugins/sqlite-database-integration',
+	'mu-plugins/playground-includes',
+	'mu-plugins/0-playground.php',
+];
+
+// @ts-ignore
+import zipFunctions from './zip-functions.php?raw';
 
 export function zipNameToHumanName(zipName: string) {
 	const mixedCaseName = zipName.split('.').shift()!.replace(/-/g, ' ');
@@ -52,3 +67,27 @@ const FileWithArrayBuffer =
 	File.prototype.arrayBuffer instanceof Function ? File : FilePolyfill;
 
 export { FileWithArrayBuffer as File };
+
+export async function runPhpWithZipFunctions(
+	playground: UniversalPHP,
+	code: string
+) {
+	const result = await playground.run({
+		code: zipFunctions + code,
+	});
+	if (result.exitCode !== 0) {
+		console.log(zipFunctions + code);
+		console.log(code + '');
+		console.log(result.errors);
+		throw result.errors;
+	}
+	return result;
+}
+
+export function DOM(response: PHPResponse) {
+	return new DOMParser().parseFromString(response.text, 'text/html');
+}
+
+export function getFormData(form: HTMLFormElement): Record<string, unknown> {
+	return Object.fromEntries((new FormData(form) as any).entries());
+}
