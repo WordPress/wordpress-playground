@@ -84,6 +84,14 @@
 					"description": "WordPress site options to define",
 					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
 				},
+				"postTypes": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "object"
+					},
+					"description": "WordPress post types to register",
+					"deprecated": "This experimental option will change without warning.\nUse `steps` instead."
+				},
 				"login": {
 					"anyOf": [
 						{
@@ -703,6 +711,35 @@
 						}
 					},
 					"required": ["fromPath", "step", "toPath"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "registerPostType"
+						},
+						"name": {
+							"type": "string"
+						},
+						"args": {
+							"type": "object"
+						}
+					},
+					"required": ["args", "name", "step"]
 				},
 				{
 					"type": "object",

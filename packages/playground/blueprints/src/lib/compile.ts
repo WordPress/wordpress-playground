@@ -92,6 +92,15 @@ export function compileBlueprint(
 			options: blueprint.siteOptions,
 		});
 	}
+	if (blueprint.postTypes) {
+		for (const name in blueprint.postTypes) {
+			blueprint.steps!.unshift({
+				step: 'registerPostType',
+				name,
+				args: blueprint.postTypes[name],
+			});
+		}
+	}
 	if (blueprint.plugins) {
 		// Translate an array of strings into a map of pluginName => true to
 		// install the latest version of the plugin from wordpress.org

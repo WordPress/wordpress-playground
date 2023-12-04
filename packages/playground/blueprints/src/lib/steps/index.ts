@@ -27,6 +27,7 @@ import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wp-content';
+import { RegisterPostTypeStep } from './register-post-type';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -53,6 +54,7 @@ export type GenericStep<Resource> =
 	| LoginStep
 	| MkdirStep
 	| MvStep
+	| RegisterPostTypeStep
 	| RequestStep
 	| RmStep
 	| RmdirStep
@@ -81,6 +83,7 @@ export type {
 	LoginStep,
 	MkdirStep,
 	MvStep,
+	RegisterPostTypeStep,
 	RequestStep,
 	RmStep,
 	RmdirStep,
