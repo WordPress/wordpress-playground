@@ -510,7 +510,6 @@ const formatJson = (editor, jsonObject = {}) => {
 			editor.getSession().setValue(formatted);
 		}
 	}
-	// document.getElementById('jsontext').innerText = formatted;
 };
 
 function getCurrentBlueprint(editor) {
@@ -813,8 +812,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		const query = new URLSearchParams();
 
 		query.set('mode', 'seamless');
-		// query.set('php', blueprint?.preferredVersions?.php);
-		// query.set('wp', blueprint?.preferredVersions?.wp);
 		const url =
 			`https://playground.wordpress.net/?${query}#` +
 			JSON.stringify(getCurrentBlueprint(editor));
