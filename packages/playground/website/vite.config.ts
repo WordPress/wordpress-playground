@@ -112,7 +112,6 @@ export default defineConfig(({ command, mode }) => {
 					'time-traveling.html': fileURLToPath(
 						new URL('./demos/time-traveling.html', import.meta.url)
 					),
-
 					'builder/builder.html': fileURLToPath(
 						new URL('./builder/builder.html', import.meta.url)
 					),
