@@ -1,5 +1,4 @@
 import { NodePHP } from '@php-wasm/node';
-import { compileBlueprint, runBlueprintSteps } from '../compile';
 import { phpVars } from '@php-wasm/util';
 import { runSql } from './run-sql';
 
