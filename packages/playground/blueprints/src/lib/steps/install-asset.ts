@@ -85,7 +85,7 @@ export async function installAsset(
 
 		// Move asset folder to target path
 		const assetFolderPath = `${targetPath}/${assetFolderName}`;
-		console.log({tmpAssetPath, assetFolderPath});
+		console.log({ tmpAssetPath, assetFolderPath });
 		await playground.mv(tmpAssetPath, assetFolderPath);
 		await cleanup();
 

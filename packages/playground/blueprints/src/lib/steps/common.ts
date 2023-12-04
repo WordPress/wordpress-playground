@@ -42,7 +42,7 @@ globalThis.File =
 	globalThis.File ||
 	class extends Blob {
 		_name: string;
-		lastModified: number|undefined;
+		lastModified: number | undefined;
 		constructor(
 			bits: any,
 			name: string,
@@ -54,8 +54,7 @@ globalThis.File =
 			}
 			if (name) {
 				this._name = name;
-			}
-			else {
+			} else {
 				this._name = '';
 			}
 		}

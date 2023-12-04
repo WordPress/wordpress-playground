@@ -619,7 +619,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not copy "{path}"')
 	async cp(fromPath: string, toPath: string) {
-
 		const FS = this[__private__dont__use].FS;
 
 		const stat = FS.stat(fromPath);
@@ -627,15 +626,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		const isDir = FS.isDir(fromPath);
 		const isFile = FS.isFile(fromPath);
 
-		console.log({fromPath, toPath, isDir, isFile, stat, mode });
+		console.log({ fromPath, toPath, isDir, isFile, stat, mode });
 
-		if(isFile) {
+		if (isFile) {
 			FS.copyFile(fromPath, toPath);
-		}
-		else if(isDir) {
+		} else if (isDir) {
 			FS.mkdir(toPath);
-			FS.readdir(fromPath).forEach((entry:string) => {
-				if(entry === '.' || entry === '..') {
+			FS.readdir(fromPath).forEach((entry: string) => {
+				if (entry === '.' || entry === '..') {
 					return;
 				}
 				this.cp(fromPath + '/' + entry, toPath + '/' + entry);
