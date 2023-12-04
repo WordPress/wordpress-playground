@@ -45,7 +45,7 @@ export default function PlaygroundViewport({
 				<JustViewport iframeRef={iframeRef} />
 			) : (
 				<BrowserChrome
-					isFullSize={displayMode === 'browser-full-screen'}
+					initialIsFullSize={displayMode === 'browser-full-screen'}
 					showAddressBar={!!playground}
 					url={url}
 					toolbarButtons={toolbarButtons}

@@ -11,6 +11,12 @@ export interface Blueprint {
 	 */
 	landingPage?: string;
 	/**
+	 * Optional description. It doesn't do anything but is exposed as
+	 * a courtesy to developers who may want to document which blueprint
+	 * file does what.
+	 */
+	description?: string;
+	/**
 	 * The preferred PHP and WordPress versions to use.
 	 */
 	preferredVersions?: {
