@@ -230,6 +230,20 @@ function setupPostMessageRelay(
 
 		window.parent.postMessage(event.data, '*');
 	});
+
+	window.addEventListener('message', (event) => {
+		if (event.source !== window.parent) {
+			return;
+		}
+
+		if (typeof event.data !== 'object' || event.data.type !== 'relay') {
+			return;
+		}
+
+		console.log("passing message to iframe's window", event);
+
+		wpFrame?.contentWindow?.postMessage(event.data, event.origin);
+	});
 }
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
