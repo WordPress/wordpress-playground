@@ -5,12 +5,12 @@ import {
 	validateBlueprint,
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 
-const phpVersion = '8.0';
 describe('Blueprints', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
+		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/',
 			},

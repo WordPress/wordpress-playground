@@ -111,7 +111,7 @@ And here's a few more interesting CLI commands, which expect that you have `nx` 
 nx start php-wasm-cli
 
 # Build latest WordPress releases
-nx recompile-wordpress:all playground-remote
+nx bundle-wordpress:all playground-wordpress
 
 # Recompile PHP 5.6 - 8.2 releases to .wasm for web
 nx recompile-php:all php-wasm-web

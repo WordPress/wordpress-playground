@@ -47,6 +47,7 @@ testem.log
 *.timestamp-1678999213403.mjs
 /.env
 packages/playground/website/cypress/downloads
+vite.config.ts.timestamp-*.mjs
 
 # System Files
 .DS_Store
