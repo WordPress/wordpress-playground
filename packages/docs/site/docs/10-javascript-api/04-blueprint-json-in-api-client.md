@@ -7,7 +7,7 @@ sidebar_position: 3
 The Playground API client can be initialized with a [JSON Blueprint](../09-blueprints-api/01-index.md). This is a convenient way of preconfiguring it in any way you like without worrying about progress bars and fetching remote files:
 
 ```ts
-import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
 const client = await startPlaygroundWeb({
 	iframe: document.getElementById('wp'),

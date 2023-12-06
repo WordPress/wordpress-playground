@@ -56,8 +56,11 @@ export default defineConfig(({ command }) => {
 						 * import("./php_8_2.js")
 						 * and not
 						 * import("php_8_2.js")
+						 *
+						 * The slice(-2) will ensure the 'kitchen-sink' or 'light'
+						 * portion of the path is preserved.
 						 */
-						return '../' + specifier.split('/').pop();
+						return '../' + specifier.split('/').slice(-2).join('/');
 					}
 				},
 			},
