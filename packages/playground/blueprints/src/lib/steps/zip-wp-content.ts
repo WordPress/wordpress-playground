@@ -10,7 +10,7 @@ import { UniversalPHP } from '@php-wasm/universal';
  * @param wpContentZip Zipped WordPress site.
  */
 export const zipWpContent = async (playground: UniversalPHP) => {
-	const zipPath = `/tmp/wordpress-playground.zip`;
+	const zipPath = '/tmp/wordpress-playground.zip';
 
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
