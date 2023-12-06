@@ -43,7 +43,7 @@ const displayMode: DisplayMode = supportedDisplayModes.includes(
 	query.get('mode') as any
 )
 	? (query.get('mode') as DisplayMode)
-	: 'browser';
+	: 'browser-full-screen';
 
 const currentConfiguration: PlaygroundConfiguration = {
 	wp: blueprint.preferredVersions?.wp || 'latest',

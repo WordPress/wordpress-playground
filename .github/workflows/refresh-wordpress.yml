@@ -28,7 +28,7 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: 'Recompile WordPress'
               shell: bash
-              run: npx nx recompile-wordpress:all playground-remote
+              run: npx nx bundle-wordpress:all playground-wordpress
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"

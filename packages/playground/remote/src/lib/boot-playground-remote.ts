@@ -26,7 +26,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from '../wordpress/get-wordpress-module';
+import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';

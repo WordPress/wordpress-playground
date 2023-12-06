@@ -15,6 +15,7 @@ import { SetSiteOptionsStep, UpdateUserMetaStep } from './site-data';
 import { RmStep } from './rm';
 import { CpStep } from './cp';
 import { RmdirStep } from './rmdir';
+import { RunSqlStep } from './run-sql';
 import { MkdirStep } from './mkdir';
 import { MvStep } from './mv';
 import { SetPhpIniEntryStep } from './set-php-ini-entry';
@@ -58,6 +59,7 @@ export type GenericStep<Resource> =
 	| RunPHPStep
 	| RunPHPWithOptionsStep
 	| RunWpInstallationWizardStep
+	| RunSqlStep<Resource>
 	| SetPhpIniEntryStep
 	| SetSiteOptionsStep
 	| UnzipStep
@@ -85,6 +87,7 @@ export type {
 	RunPHPStep,
 	RunPHPWithOptionsStep,
 	RunWpInstallationWizardStep,
+	RunSqlStep,
 	WordPressInstallationOptions,
 	SetPhpIniEntryStep,
 	SetSiteOptionsStep,

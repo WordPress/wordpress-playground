@@ -13,6 +13,7 @@ import {
 import { lstatSync, readdirSync } from 'node:fs';
 import { getPHPLoaderModule } from '.';
 import { withNetworking } from './networking/with-networking.js';
+import { withLocalDataModuleLoader } from './with-local-data-module-loader';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
@@ -86,6 +87,7 @@ export class NodePHP extends BasePHP {
 
 			let emscriptenOptions = options.emscriptenOptions || {};
 			emscriptenOptions = await withNetworking(emscriptenOptions);
+			emscriptenOptions = withLocalDataModuleLoader(emscriptenOptions);
 
 			const runtimeId = await loadPHPRuntime(
 				phpLoaderModule,

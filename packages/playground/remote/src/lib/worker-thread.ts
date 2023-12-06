@@ -7,7 +7,7 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
-} from '../wordpress/get-wordpress-module';
+} from '@wp-playground/wordpress';
 import {
 	SupportedPHPExtension,
 	SupportedPHPVersion,

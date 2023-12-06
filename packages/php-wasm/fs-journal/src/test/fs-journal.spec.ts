@@ -6,11 +6,12 @@ import {
 	normalizeFilesystemOperations,
 	recordExistingPath,
 } from '../lib/fs-journal';
+import { LatestSupportedPHPVersion } from '@php-wasm/universal';
 
 describe('Journal MemFS', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load('8.0');
+		php = await NodePHP.load(LatestSupportedPHPVersion);
 	});
 	it('Can recreate an existing directory structure', async () => {
 		php.mkdir('/test');
