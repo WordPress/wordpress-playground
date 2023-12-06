@@ -2,8 +2,9 @@ node_modules
 dist
 packages/php-wasm/node/public
 packages/php-wasm/web/public
-packages/php-wasm/compile/build-assets
+packages/php-wasm/compile/php
 packages/playground/wordpress/build
+packages/playground/compile-wordpress/build-assets
 __pycache__
 packages/playground/wordpress/src/wordpress
 packages/playground/wordpress/public

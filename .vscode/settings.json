@@ -27,5 +27,6 @@
 			"path": "[[workspace]]/packages/docs/site/docs/01-start-here"
 		}
 	],
-	"git.ignoreLimitWarning": true
+	"git.ignoreLimitWarning": true,
+	"C_Cpp.errorSquiggles": "disabled"
 }
