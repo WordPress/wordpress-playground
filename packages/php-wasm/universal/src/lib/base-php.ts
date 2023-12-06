@@ -622,7 +622,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			try {
 				toStat = FS.stat(toPath);
 			} catch {
-				toStat = { dev: NaN };
+				const parentPath = toPath.split('/').slice(0, -1).join('/');
+				try {
+					toStat = FS.stat(parentPath);
+				} catch {
+					toStat = { dev: NaN };
+				}
 			}
 
 			const fromMode = parseInt(
@@ -635,13 +640,16 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			} else if (fromIsDir) {
 				try {
 					FS.mkdir(toPath);
-				} catch {}
+				} catch {
+					void 0;
+				}
 				const files = FS.readdir(fromPath);
 				files
 					.filter((f: string) => !['.', '..'].includes(f))
 					.forEach((f: string) =>
 						mv(fromPath + '/' + f, toPath + '/' + f)
 					);
+				FS.rmdir(fromPath);
 			} else {
 				const file = FS.readFile(fromPath, { encoding: 'binary' });
 				FS.writeFile(toPath, file);
