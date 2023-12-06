@@ -95,7 +95,7 @@ function replaceResourcesWithPlaceholders(json) {
 
 interface BlueprintStepDetails {
 	name: string;
-	summary: string;
+	summary: Array<{ kind: string; text: string }>;
 	examples: Array<{
 		raw: string;
 		json?: Record<string, any> & { step: string };
@@ -116,7 +116,7 @@ function getBlueprintStepDetails(name: string): BlueprintStepDetails {
 		entry.name.match(/Step$/)
 	);
 	const Step = StepDefinitions.find((entry) => entry.name === name);
-	const summary = Step?.comment?.summary?.[0]?.text || '';
+	const summary = Step?.comment?.summary?.filter((part) => part);
 
 	const children =
 		Step?.children ||

@@ -14,7 +14,7 @@ import { phpVars } from '@php-wasm/util';
  *			"resource": "literal",
  *			"name": "schema.sql",
  *			"contents": "DELETE FROM wp_posts"
- *		},
+ *		}
  * }
  * </code>
  */
