@@ -22,20 +22,24 @@ Each step is an object that contains a `step` property that specifies the type o
 
 import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
 import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
+import UpdateTopLevelToc from '@site/src/components/UpdateTopLevelToc';
 
-<span>{!toc.length && BlueprintSteps.map((name) => {
-toc.push(
-{
+<UpdateTopLevelToc
+toc={toc}
+tocItems={
+BlueprintSteps
+.map(name => ({
 value: name,
 id: name,
 level: 2
-}
-)
-return (
-<>
-<BlueprintStep name={name} key={name} />
+}))
+} />
 
-<hr/>
-</>
-);
-})}</span>
+<span>
+	{BlueprintSteps.map((name) => (
+		<>
+			<BlueprintStep name={name} key={name} />
+			<hr/>
+		</>
+	))}
+</span>
