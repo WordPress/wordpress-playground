@@ -117,7 +117,6 @@ function getBlueprintStepDetails(name: string): BlueprintStepDetails {
 	);
 	const Step = StepDefinitions.find((entry) => entry.name === name);
 	const summary = Step?.comment?.summary?.filter((part) => part);
-	console;
 
 	const children =
 		Step?.children ||
