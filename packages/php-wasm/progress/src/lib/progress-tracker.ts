@@ -69,6 +69,24 @@ export interface ProgressReceiver {
  */
 const PROGRESS_EPSILON = 0.00001;
 
+const CustomEvent =
+	globalThis.CustomEvent ??
+	class extends globalThis.Event {
+		detail = null;
+		constructor(
+			name: string,
+			options: {
+				detail?: any;
+				bubbles?: boolean;
+				cancellable?: boolean;
+				composed?: boolean;
+			} = {}
+		) {
+			super(name, options);
+			this.detail = options.detail;
+		}
+	};
+
 /**
  * The ProgressTracker class is a tool for tracking progress in an operation that is
  * divided into multiple stages. It allows you to create sub-trackers for each stage,
