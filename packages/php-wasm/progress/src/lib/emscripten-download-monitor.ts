@@ -1,3 +1,5 @@
+import { CustomEvent } from './custom-event';
+
 /*
  * An approximate total file size to use when the actual
  * total number of bytes is missing.
@@ -10,24 +12,6 @@
  * of #progress.
  */
 const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
-
-const CustomEvent =
-	globalThis.CustomEvent ??
-	class extends globalThis.Event {
-		detail = null;
-		constructor(
-			name: string,
-			options: {
-				detail?: any;
-				bubbles?: boolean;
-				cancellable?: boolean;
-				composed?: boolean;
-			} = {}
-		) {
-			super(name, options);
-			this.detail = options.detail;
-		}
-	};
 
 export interface MonitoredModule {
 	dependencyFilename: string;

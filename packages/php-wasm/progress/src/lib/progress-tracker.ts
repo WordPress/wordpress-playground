@@ -1,3 +1,4 @@
+import { CustomEvent } from './custom-event';
 /**
  * Options for customizing the progress tracker.
  */
@@ -68,24 +69,6 @@ export interface ProgressReceiver {
  * considered to be below 100 – this is highly undeisrable.
  */
 const PROGRESS_EPSILON = 0.00001;
-
-const CustomEvent =
-	globalThis.CustomEvent ??
-	class extends globalThis.Event {
-		detail = null;
-		constructor(
-			name: string,
-			options: {
-				detail?: any;
-				bubbles?: boolean;
-				cancellable?: boolean;
-				composed?: boolean;
-			} = {}
-		) {
-			super(name, options);
-			this.detail = options.detail;
-		}
-	};
 
 /**
  * The ProgressTracker class is a tool for tracking progress in an operation that is

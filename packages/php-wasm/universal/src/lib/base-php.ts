@@ -645,6 +645,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			} else {
 				const file = FS.readFile(fromPath, { encoding: 'binary' });
 				FS.writeFile(toPath, file);
+				FS.unlink(fromPath);
 			}
 		};
 

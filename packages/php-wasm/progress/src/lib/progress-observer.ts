@@ -1,3 +1,4 @@
+import { CustomEvent } from './custom-event';
 import { DownloadProgress } from './emscripten-download-monitor';
 
 export type ProgressMode =
@@ -19,24 +20,6 @@ export type ProgressObserverEvent = {
 	mode: ProgressMode;
 	caption: string;
 };
-
-const CustomEvent =
-	globalThis.CustomEvent ??
-	class extends globalThis.Event {
-		detail = null;
-		constructor(
-			name: string,
-			options: {
-				detail?: any;
-				bubbles?: boolean;
-				cancellable?: boolean;
-				composed?: boolean;
-			} = {}
-		) {
-			super(name, options);
-			this.detail = options.detail;
-		}
-	};
 
 export class ProgressObserver extends EventTarget {
 	#observedProgresses: Record<number, number> = {};
