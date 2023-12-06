@@ -1,4 +1,4 @@
-import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * Used by the export step to exclude the Playground-specific files
@@ -82,12 +82,4 @@ export async function runPhpWithZipFunctions(
 		throw result.errors;
 	}
 	return result;
-}
-
-export function DOM(response: PHPResponse) {
-	return new DOMParser().parseFromString(response.text, 'text/html');
-}
-
-export function getFormData(form: HTMLFormElement): Record<string, unknown> {
-	return Object.fromEntries((new FormData(form) as any).entries());
 }
