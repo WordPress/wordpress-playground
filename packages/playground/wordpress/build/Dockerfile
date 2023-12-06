@@ -31,6 +31,10 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     cp wordpress/wp-content/plugins/sqlite-database-integration/db.copy wordpress/wp-content/db.php && \
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
+# Remove the akismet plugin as it's not likely Playground sites will
+# get many spammy comments :-)
+RUN rm -rf wordpress/wp-content/plugins/akismet
+
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
     cd wordpress-static && \ 
