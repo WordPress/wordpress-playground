@@ -3,6 +3,7 @@ import { useState } from 'react';
 import {
 	Blueprint,
 	PlaygroundClient,
+	wpContentFilesExcludedFromExport,
 	zipWpContent,
 } from '@wp-playground/client';
 
@@ -347,6 +348,7 @@ export default function GitHubExportForm({
 				iterateFiles(playground, playgroundPath!, {
 					relativePaths: true,
 					pathPrefix: relativeRepoPath,
+					exceptPaths: wpContentFilesExcludedFromExport,
 				})
 			);
 

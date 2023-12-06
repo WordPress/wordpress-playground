@@ -1,5 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { activatePlugin, activateTheme } from '@wp-playground/blueprints';
+import { dirname, joinPaths } from '@php-wasm/util';
+import {
+	activatePlugin,
+	activateTheme,
+	login,
+	wpContentFilesExcludedFromExport,
+} from '@wp-playground/blueprints';
 import {
 	Files,
 	filesListToObject,
@@ -56,33 +62,26 @@ export async function importTheme(
 }
 
 export async function importWpContent(php: UniversalPHP, files: Files) {
-	const restorePaths = [
-		'wp-content/plugins/sqlite-database-integration',
-		'wp-content/database',
-		'wp-content/themes',
-		'wp-content/mu-plugins',
-		'wp-content/db.php',
-		'wp-config.php',
-	];
+	const restorePaths = wpContentFilesExcludedFromExport.map((path) =>
+		joinPaths('wp-content', path)
+	);
+
 	// Backup the required Playground PHP files
 	for (const restorePath of restorePaths) {
-		const parentPath = restorePath.split('/').slice(0, -1).join('/');
-		await php.mkdir(`/tmp/${parentPath}`);
-		await php.mv(`/wordpress/${restorePath}`, `/tmp/${restorePath}`);
+		if (await php.fileExists(`/wordpress/${restorePath}`)) {
+			await php.mkdir(`/tmp/${dirname(restorePath)}`);
+			await php.mv(`/wordpress/${restorePath}`, `/tmp/${restorePath}`);
+		}
 	}
 
 	await overwritePath(php, '/wordpress/wp-content', files);
 
-	// Restore the required php files
-	const muPlugins = await php.listFiles('/tmp/mu-plugins');
-	for (const fileName of muPlugins) {
-		await php.mv(
-			`/tmp/mu-plugins/${fileName}`,
-			`/wordpress/wp-content/mu-plugins/${fileName}`
-		);
-	}
 	for (const restorePath of restorePaths) {
-		if (!(await php.fileExists(`/wordpress/${restorePath}`))) {
+		if (
+			(await php.fileExists(`/tmp/${restorePath}`)) &&
+			!(await php.fileExists(`/wordpress/${restorePath}`))
+		) {
+			await php.mkdir(`/wordpress/${dirname(restorePath)}`);
 			await php.mv(`/tmp/${restorePath}`, `/wordpress/${restorePath}`);
 		}
 	}
@@ -93,4 +92,6 @@ export async function importWpContent(php: UniversalPHP, files: Files) {
             require '/wordpress/wp-admin/upgrade.php';
             `,
 	});
+
+	await login(php, {});
 }
