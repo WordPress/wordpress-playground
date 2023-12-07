@@ -240,7 +240,7 @@ function setupPostMessageRelay(
 			return;
 		}
 
-		wpFrame?.contentWindow?.postMessage(event.data, event.origin);
+		wpFrame?.contentWindow?.postMessage(event.data);
 	});
 }
 
