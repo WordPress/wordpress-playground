@@ -240,8 +240,6 @@ function setupPostMessageRelay(
 			return;
 		}
 
-		console.log("passing message to iframe's window", event);
-
 		wpFrame?.contentWindow?.postMessage(event.data, event.origin);
 	});
 }
