@@ -215,6 +215,7 @@ function setupPostMessageRelay(
 	wpFrame: HTMLIFrameElement,
 	expectedOrigin: string
 ) {
+	// Relay Messages from WP to Parent
 	window.addEventListener('message', (event) => {
 		if (event.source !== wpFrame.contentWindow) {
 			return;
@@ -231,6 +232,7 @@ function setupPostMessageRelay(
 		window.parent.postMessage(event.data, '*');
 	});
 
+	// Relay Messages from Parent to WP
 	window.addEventListener('message', (event) => {
 		if (event.source !== window.parent) {
 			return;
