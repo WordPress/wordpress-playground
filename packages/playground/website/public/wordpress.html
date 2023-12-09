@@ -103,6 +103,7 @@
 		});
 
 		// If there's a PR query parameter, call previewPr with its value
+		let cleanupRetry = null;
 		const urlParams = new URLSearchParams(window.location.search);
 		const prNumber = urlParams.get('pr');
 		if (prNumber) {
@@ -111,6 +112,10 @@
 		}
 
 		async function previewPr(prNumber) {
+			if (cleanupRetry) {
+				cleanupRetry();
+			}
+
 			submitting = true;
 			errorDiv.innerText = '';
 			submitButton.classList.add('loading');
@@ -120,7 +125,7 @@
 			if (
 				prNumber
 					.toLowerCase()
-					.includes('github.com/wordpress/gutenberg/pull')
+					.includes('github.com/wordpress/wordpress-develop/pull')
 			) {
 				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 			}
@@ -128,9 +133,54 @@
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
-			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
+			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
-				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
+				let error = 'invalid_pr_number';
+				try {
+					const json = await response.json();
+					if (json.error) {
+						error = json.error;
+					}
+				} catch (e) {}
+
+				if (error === 'invalid_pr_number') {
+					errorDiv.innerText = `The PR ${prNumber} does not exist.`;
+				} else if (
+					error === 'artifact_not_found' ||
+					error === 'artifact_not_available'
+				) {
+					if (parseInt(prNumber) < 5749) {
+						errorDiv.innerText = `The PR ${prNumber} predates the Pull Request previewer and requires a rebase before it can be previewed.`;
+					} else {
+						let retryIn = 30000;
+						function renderRetryIn() {
+							errorDiv.innerText = `Waiting for GitHub to finish building PR ${prNumber}. Retrying in ${
+								retryIn / 1000
+							}...`;
+						}
+						renderRetryIn();
+						const timerInterval = setInterval(() => {
+							retryIn -= 1000;
+							if (retryIn <= 0) {
+								retryIn = 0;
+							}
+							renderRetryIn();
+						}, 1000);
+						const scheduledRetry = setTimeout(() => {
+							previewPr(prNumber);
+						}, retryIn);
+						cleanupRetry = () => {
+							clearInterval(timerInterval);
+							clearTimeout(scheduledRetry);
+							cleanupRetry = null;
+						};
+					}
+				} else if (error === 'artifact_invalid') {
+					errorDiv.innerText = `The PR ${prNumber} requires a rebase before it can be previewed.`;
+				} else {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed due to an unexpected error. Please try again later or fill an issue in the WordPress Playground repository.`;
+					// https://github.com/WordPress/wordpress-playground/issues/new
+				}
 				submitting = false;
 				submitButton.classList.remove('loading');
 				submitButton.disabled = false;

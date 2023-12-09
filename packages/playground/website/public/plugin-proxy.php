@@ -48,12 +48,12 @@ class PluginDownloader
     {
         $prDetails = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/pulls/$pr")['body'];
         if (!$prDetails) {
-            throw new ApiException('Invalid PR number');
+            throw new ApiException('invalid_pr_number');
         }
         $branchName = $prDetails->head->ref;
         $ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
         if (!$ciRuns) {
-            throw new ApiException('No CI runs found');
+            throw new ApiException('no_ci_runs');
         }
 
         $artifactsUrls = [];
@@ -63,7 +63,7 @@ class PluginDownloader
             }
         }
         if (!$artifactsUrls) {
-            throw new ApiException('No artifact URL found');
+            throw new ApiException('artifact_not_found');
         }
 
         foreach ($artifactsUrls as $artifactsUrl) {
@@ -76,6 +76,9 @@ class PluginDownloader
 
             foreach ($artifacts->artifacts as $artifact) {
                 if ($artifact_name === $artifact->name) {
+                    if ($artifact->size_in_bytes < 3000) {
+                        throw new ApiException('artifact_invalid');
+                    }
                     $zip_download_api_endpoint = $artifact->archive_download_url;
                     break;
                 }
@@ -85,11 +88,11 @@ class PluginDownloader
             }
 
             /*
-             * HEAD method is used when we only want to verify whether the CI 
-             * artifact seems to exist – we don't want to download it. Let's
-             * short-circuit with HTTP 200 OK.
+             * Short-circuit with HTTP 200 OK when we only want to 
+             * verify whether the CI artifact seems to exist but we 
+             * don't want to download it yet.
              */
-            if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+            if (array_key_exists('verify_only', $_GET)) {
                 header('HTTP/1.1 200 OK');
                 return;
             }
@@ -118,13 +121,13 @@ class PluginDownloader
             return;
         }
         if (!$artifacts) {
-            throw new ApiException('No artifacts found under the URL');
+            throw new ApiException('artifact_not_available');
         }
         if (!$zip_download_api_endpoint) {
-            throw new ApiException('No artifact download URL found with the name');
+            throw new ApiException('artifact_not_available');
         }
         if (!$zip_url) {
-            throw new ApiException('No zip location returned by the artifact download API');
+            throw new ApiException('artifact_not_available');
         }
     }
 
@@ -353,8 +356,8 @@ try {
                 if (
                     $lcname === 'authorization'
                     || $lcname === 'cookie'
-                    || $lcname === 'host' 
-                    || $lcname === 'origin' 
+                    || $lcname === 'host'
+                    || $lcname === 'origin'
                     || $lcname === 'referer'
                     || 0 === strpos($lcname, 'sec-')
                 ) {
