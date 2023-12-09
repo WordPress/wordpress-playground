@@ -1,12 +1,16 @@
-import type { UniversalPHP } from '@php-wasm/universal';
-import { writeFile } from './write-file';
-import { unzip } from './unzip';
+import { writeToPath, type UniversalPHP, FileEntry } from '@php-wasm/universal';
+import { dirname, joinPaths } from '@php-wasm/util';
 
 export interface InstallAssetOptions {
 	/**
-	 * The zip file to install.
+	 * The files to install.
 	 */
-	zipFile: File;
+	files: AsyncIterable<FileEntry>;
+	/**
+	 * The default name of the asset.
+	 * Used if the zip file contains more than one folder.
+	 */
+	defaultAssetName: string;
 	/**
 	 * Target path to extract the main folder.
 	 * @example
@@ -23,75 +27,33 @@ export interface InstallAssetOptions {
  */
 export async function installAsset(
 	playground: UniversalPHP,
-	{ targetPath, zipFile }: InstallAssetOptions
-): Promise<{
-	assetFolderPath: string;
-	assetFolderName: string;
-}> {
-	// Extract to temporary folder so we can find asset folder name
+	{ targetPath, files, defaultAssetName }: InstallAssetOptions
+): Promise<string> {
+	const extractionPath = joinPaths(targetPath, crypto.randomUUID());
+	await writeToPath(playground, extractionPath, files);
+	return await flattenDirectory(playground, extractionPath, defaultAssetName);
+}
 
-	const zipFileName = zipFile.name;
-	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
+export async function flattenDirectory(
+	php: UniversalPHP,
+	directoryPath: string,
+	defaultName: string
+) {
+	const parentPath = dirname(directoryPath);
 
-	const tmpUnzippedFilesPath = `/tmp/assets/${assetNameGuess}`;
-	const tmpZipPath = `/tmp/${zipFileName}`;
-
-	const removeTmpFolder = () =>
-		playground.rmdir(tmpUnzippedFilesPath, {
-			recursive: true,
-		});
-
-	if (await playground.fileExists(tmpUnzippedFilesPath)) {
-		await removeTmpFolder();
-	}
-
-	await writeFile(playground, {
-		path: tmpZipPath,
-		data: zipFile,
-	});
-
-	const cleanup = () =>
-		Promise.all([removeTmpFolder, () => playground.unlink(tmpZipPath)]);
-
-	try {
-		await unzip(playground, {
-			zipPath: tmpZipPath,
-			extractToPath: tmpUnzippedFilesPath,
-		});
-
-		// Find the path asset folder name
-		const files = await playground.listFiles(tmpUnzippedFilesPath, {
-			prependPath: true,
-		});
-
-		/**
-		 * If the zip only contains a single entry that is directory,
-		 * we assume that's the asset folder. Otherwise, the zip
-		 * probably contains the plugin files without an intermediate folder.
-		 */
-		const zipHasRootFolder =
-			files.length === 1 && (await playground.isDir(files[0]));
-		let assetFolderName;
-		let tmpAssetPath = '';
-		if (zipHasRootFolder) {
-			tmpAssetPath = files[0];
-			assetFolderName = files[0].split('/').pop()!;
-		} else {
-			tmpAssetPath = tmpUnzippedFilesPath;
-			assetFolderName = assetNameGuess;
+	const filesInside = await php.listFiles(directoryPath);
+	if (filesInside.length === 1) {
+		const onlyFilePath = joinPaths(directoryPath, filesInside[0]);
+		const isDir = await php.isDir(onlyFilePath);
+		if (isDir) {
+			const finalPath = joinPaths(parentPath, filesInside[0]);
+			await php.mv(onlyFilePath, finalPath);
+			await php.rmdir(directoryPath, { recursive: true });
+			return finalPath;
 		}
-
-		// Move asset folder to target path
-		const assetFolderPath = `${targetPath}/${assetFolderName}`;
-		await playground.mv(tmpAssetPath, assetFolderPath);
-		await cleanup();
-
-		return {
-			assetFolderPath,
-			assetFolderName,
-		};
-	} catch (error) {
-		await cleanup();
-		throw error;
 	}
+
+	const finalPath = joinPaths(parentPath, defaultName);
+	await php.mv(directoryPath, finalPath);
+	return finalPath;
 }

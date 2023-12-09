@@ -1,6 +1,7 @@
 import { Semaphore } from '@php-wasm/util';
 import { Octokit } from 'octokit';
 import { Changeset } from './changeset';
+import { FileEntry } from '@php-wasm/universal';
 
 export type GithubClient = ReturnType<typeof createClient>;
 
@@ -33,7 +34,38 @@ export interface GetFilesOptions {
 	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void;
 	progress?: GetFilesProgress;
 }
-export async function getFilesFromDirectory(
+
+type InternalFile = ReturnType<typeof getFileContent>;
+export async function* iterateFilesFromDirectory(
+	octokit: GithubClient,
+	owner: string,
+	repo: string,
+	ref: string,
+	path: string,
+	options: GetFilesOptions = {}
+): AsyncIterable<FileEntry> {
+	const files = (await __getFilesFromDirectory(
+		octokit,
+		owner,
+		repo,
+		ref,
+		path,
+		options
+	)) as InternalFile[];
+
+	let repoRootPrefix = path;
+	if (repoRootPrefix.length && !repoRootPrefix.endsWith('/')) {
+		repoRootPrefix += '/';
+	}
+
+	for await (const file of files) {
+		yield {
+			path: file.path.substring(repoRootPrefix.length),
+			read: async () => file.content,
+		};
+	}
+}
+async function __getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
@@ -77,7 +109,7 @@ export async function getFilesFromDirectory(
 			);
 		} else if (item.type === 'dir') {
 			directoryPromises.push(
-				getFilesFromDirectory(
+				__getFilesFromDirectory(
 					octokit,
 					owner,
 					repo,

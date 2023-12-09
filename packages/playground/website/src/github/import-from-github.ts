@@ -1,28 +1,36 @@
-import { UniversalPHP } from '@php-wasm/universal';
 import { activatePlugin, activateTheme } from '@wp-playground/blueprints';
+import { Files, overwritePath } from '@wp-playground/storage';
+import { FileEntry, UniversalPHP } from '@php-wasm/universal';
 import {
-	Files,
-	filesListToObject,
-	overwritePath,
-} from '@wp-playground/storage';
+	importWordPressFiles,
+	installPlugin,
+	installTheme,
+	login,
+} from '@wp-playground/blueprints';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(
 	php: UniversalPHP,
-	gitHubFiles: any[],
+	gitHubFiles: AsyncIterable<FileEntry>,
 	contentType: ContentType,
 	repoPath: string,
 	pluginOrThemeName: string
 ) {
-	repoPath = repoPath.replace(/^\//, '');
-	const playgroundFiles = filesListToObject(gitHubFiles, repoPath);
-	console.log({ contentType });
 	if (contentType === 'theme') {
-		await importTheme(php, pluginOrThemeName, playgroundFiles);
+		await installTheme(php, {
+			files: gitHubFiles,
+			// pluginOrThemeName
+		});
 	} else if (contentType === 'plugin') {
-		await importPlugin(php, pluginOrThemeName, playgroundFiles);
+		await installPlugin(php, {
+			files: gitHubFiles,
+			// pluginOrThemeName
+		});
 	} else if (contentType === 'wp-content') {
-		await importWpContent(php, playgroundFiles);
+		await importWordPressFiles(php, {
+			files: gitHubFiles,
+		});
+		await login(php, {});
 	} else {
 		throw new Error(`Unknown content type: ${contentType}`);
 	}

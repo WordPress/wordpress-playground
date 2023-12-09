@@ -14,7 +14,7 @@ import {
 	GetFilesProgress,
 	GithubClient,
 	createClient,
-	getFilesFromDirectory,
+	iterateFilesFromDirectory,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
 import { ContentType, importFromGitHub } from '../import-from-github';
@@ -31,7 +31,6 @@ export interface GitHubImportFormProps {
 		path: string;
 		contentType: ContentType;
 		pluginOrThemeName: string;
-		files: any[];
 	}) => void;
 	onClose: () => void;
 }
@@ -133,7 +132,7 @@ export default function GitHubImportForm({
 			const pluginOrThemeName = basename(path!) || urlInformation!.repo!;
 
 			const relativeRepoPath = path!.replace(/^\//g, '');
-			const ghFiles = await getFilesFromDirectory(
+			const ghFiles = await iterateFilesFromDirectory(
 				octokit,
 				urlInformation!.owner!,
 				urlInformation!.repo!,
@@ -158,7 +157,6 @@ export default function GitHubImportForm({
 				contentType,
 				branch: branch!,
 				pluginOrThemeName,
-				files: ghFiles,
 			});
 		} catch (e) {
 			let eMessage = (e as any)?.message;

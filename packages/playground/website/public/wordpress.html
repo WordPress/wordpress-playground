@@ -126,7 +126,7 @@
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
+			const zipArtifactUrl = `/plugin-proxy.php?org=adamziel&repo=wordpress-develop&workflow=Test%20Build%20Processes&artifact=wordpress-build-${prNumber}&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
 			if (response.status !== 200) {

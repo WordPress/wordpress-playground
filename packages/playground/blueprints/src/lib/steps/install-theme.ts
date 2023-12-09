@@ -2,6 +2,9 @@ import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
 import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
+import { basename } from '@php-wasm/util';
+import { iterateZipFiles } from '../zip';
+import { FileEntry } from '@php-wasm/universal';
 
 /**
  * @inheritDoc installTheme
@@ -30,7 +33,8 @@ export interface InstallThemeStep<ResourceType> {
 	/**
 	 * The theme zip file to install.
 	 */
-	themeZipFile: ResourceType;
+	themeZipFile?: ResourceType;
+	files?: AsyncIterable<FileEntry>;
 	/**
 	 * Optional installation options.
 	 */
@@ -58,16 +62,22 @@ export interface InstallThemeOptions {
  */
 export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	playground,
-	{ themeZipFile, options = {} },
+	{ themeZipFile, files, options = {} },
 	progress
 ) => {
-	const zipNiceName = zipNameToHumanName(themeZipFile.name);
+	if (!files && themeZipFile) {
+		files = iterateZipFiles(themeZipFile.stream());
+	}
+	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
+	const zipNiceName = zipNameToHumanName(zipFileName);
+	const defaultAssetName = zipFileName.replace(/\.zip$/, '');
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 
 	try {
-		const { assetFolderName } = await installAsset(playground, {
-			zipFile: themeZipFile,
+		const themePath = await installAsset(playground, {
+			files: files!,
+			defaultAssetName,
 			targetPath: `${await playground.documentRoot}/wp-content/themes`,
 		});
 
@@ -79,7 +89,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			await activateTheme(
 				playground,
 				{
-					themeFolderName: assetFolderName,
+					themeFolderName: basename(themePath),
 				},
 				progress
 			);

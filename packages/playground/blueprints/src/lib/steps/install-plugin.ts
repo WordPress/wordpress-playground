@@ -1,9 +1,11 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { FileEntry, UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from './common';
-import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
+import { joinPaths } from '@php-wasm/util';
+import { installAsset } from './install-asset';
+import { iterateZipFiles } from '../zip';
 
 /**
  * @inheritDoc installPlugin
@@ -33,7 +35,8 @@ export interface InstallPluginStep<ResourceType> {
 	/**
 	 * The plugin zip file to install.
 	 */
-	pluginZipFile: ResourceType;
+	pluginZipFile?: ResourceType;
+	files?: AsyncIterable<FileEntry>;
 	/**
 	 * Optional installation options.
 	 */
@@ -56,28 +59,35 @@ export interface InstallPluginOptions {
  */
 export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	playground,
-	{ pluginZipFile, options = {} },
+	{ pluginZipFile, files, options = {} },
 	progress?
 ) => {
-	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
+	if (!files && pluginZipFile) {
+		files = iterateZipFiles(pluginZipFile.stream());
+	}
+	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
+	const defaultAssetName = zipFileName.replace(/\.zip$/, '');
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	try {
-		const { assetFolderPath } = await installAsset(playground, {
-			zipFile: pluginZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+		const pluginPath = await installAsset(playground, {
+			files: files!,
+			defaultAssetName,
+			targetPath: joinPaths(
+				await playground.documentRoot,
+				'wp-content/plugins'
+			),
 		});
 
 		// Activate
-
 		const activate = 'activate' in options ? options.activate : true;
 
 		if (activate) {
 			await activatePlugin(
 				playground,
 				{
-					pluginPath: assetFolderPath,
+					pluginPath,
 					pluginName: zipNiceName,
 				},
 				progress
@@ -90,7 +100,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
 				`The original error was: ${error}`
 		);
-		console.error(error);
+		console.trace(error);
 	}
 };
 

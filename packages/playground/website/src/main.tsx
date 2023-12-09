@@ -75,7 +75,6 @@ if (currentConfiguration.wp === '6.3') {
 acquireOAuthTokenIfNeeded();
 
 function Main() {
-	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
 	>({});
@@ -164,7 +163,6 @@ function Main() {
 				onImported={({
 					url,
 					path,
-					files,
 					pluginOrThemeName,
 					contentType,
 					urlInformation: { owner, repo, type, pr },
@@ -178,15 +176,12 @@ function Main() {
 						plugin: pluginOrThemeName,
 						theme: pluginOrThemeName,
 					});
-					setGithubExportFiles(files);
 				}}
 			/>
 			<GithubExportModal
 				initialValues={githubExportValues}
-				initialFilesBeforeChanges={githubExportFiles}
 				onExported={(prUrl, formValues) => {
 					setGithubExportValues(formValues);
-					setGithubExportFiles(undefined);
 				}}
 			/>
 		</PlaygroundViewport>
