@@ -14,49 +14,63 @@ describe('Journal MemFS', () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
 	});
 	it('Can recreate an existing directory structure', async () => {
-		php.mkdir('/test');
-		php.writeFile('/test/file.txt', 'Hello, world!');
-		php.mkdir('/test/first');
-		php.writeFile('/test/first/file.txt', 'Hello, world!');
-		php.mkdir('/test/second');
-		php.writeFile('/test/second/file.txt', 'Hello, world!');
-		php.mkdir('/test/third');
+		php.mkdir('/test-ref');
+		php.writeFile('/test-ref/file.txt', 'Hello, world!');
+		php.mkdir('/test-ref/first');
+		php.writeFile('/test-ref/first/file.txt', 'Hello, world!');
+		php.mkdir('/test-ref/second');
+		php.writeFile('/test-ref/second/file.txt', 'Hello, world!');
+		php.mkdir('/test-ref/third');
 
-		expect(Array.from(recordExistingPath(php, '/test'))).toEqual([
-			{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
-			{ operation: 'CREATE', path: '/test/file.txt', nodeType: 'file' },
-			{
-				operation: 'WRITE',
-				path: '/test/file.txt',
-				nodeType: 'file',
-			},
-			{ operation: 'CREATE', path: '/test/first', nodeType: 'directory' },
+		expect(
+			Array.from(recordExistingPath(php, '/test-ref', '/test-new'))
+		).toEqual([
+			{ operation: 'CREATE', path: '/test-new', nodeType: 'directory' },
 			{
 				operation: 'CREATE',
-				path: '/test/first/file.txt',
+				path: '/test-new/file.txt',
 				nodeType: 'file',
 			},
 			{
 				operation: 'WRITE',
-				path: '/test/first/file.txt',
+				path: '/test-new/file.txt',
 				nodeType: 'file',
 			},
 			{
 				operation: 'CREATE',
-				path: '/test/second',
+				path: '/test-new/first',
 				nodeType: 'directory',
 			},
 			{
 				operation: 'CREATE',
-				path: '/test/second/file.txt',
+				path: '/test-new/first/file.txt',
 				nodeType: 'file',
 			},
 			{
 				operation: 'WRITE',
-				path: '/test/second/file.txt',
+				path: '/test-new/first/file.txt',
 				nodeType: 'file',
 			},
-			{ operation: 'CREATE', path: '/test/third', nodeType: 'directory' },
+			{
+				operation: 'CREATE',
+				path: '/test-new/second',
+				nodeType: 'directory',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test-new/second/file.txt',
+				nodeType: 'file',
+			},
+			{
+				operation: 'WRITE',
+				path: '/test-new/second/file.txt',
+				nodeType: 'file',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test-new/third',
+				nodeType: 'directory',
+			},
 		]);
 	});
 
@@ -67,7 +81,15 @@ describe('Journal MemFS', () => {
 		});
 		await php.run({
 			code: `<?php
+			mkdir('/tmp');
+			mkdir('/tmp/temp-1');
+			file_put_contents('/tmp/temp-1/file.txt', 'Hello, world!');
+			mkdir('/tmp/temp-1/nested');
+			file_put_contents('/tmp/temp-1/nested/nested-file.txt', 'Hello, world!');
+
 			mkdir('/test');
+			rename('/tmp/temp-1', '/test/temp-1');
+
 			mkdir('/test/first');
 			file_put_contents('/test/first/file.txt', 'Hello, world!');
 			file_put_contents('/test/first/second.txt', 'Hello, world!');
@@ -75,11 +97,42 @@ describe('Journal MemFS', () => {
 			rename('/test/first', '/test/second');
 			unlink('/test/second/file.txt');
 			rmdir('/test/second');
+
 			rmdir('/test');
 			`,
 		});
 		expect(events).toEqual([
 			{ operation: 'CREATE', path: '/test', nodeType: 'directory' },
+			{
+				operation: 'CREATE',
+				path: '/test/temp-1',
+				nodeType: 'directory',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test/temp-1/file.txt',
+				nodeType: 'file',
+			},
+			{
+				operation: 'WRITE',
+				path: '/test/temp-1/file.txt',
+				nodeType: 'file',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test/temp-1/nested',
+				nodeType: 'directory',
+			},
+			{
+				operation: 'CREATE',
+				path: '/test/temp-1/nested/nested-file.txt',
+				nodeType: 'file',
+			},
+			{
+				operation: 'WRITE',
+				path: '/test/temp-1/nested/nested-file.txt',
+				nodeType: 'file',
+			},
 			{ operation: 'CREATE', path: '/test/first', nodeType: 'directory' },
 			{
 				operation: 'CREATE',
