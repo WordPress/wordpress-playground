@@ -13,6 +13,11 @@ export type IterateFilesOptions = {
 	 * Only used if `relativePaths` is true.
 	 */
 	pathPrefix?: string;
+
+	/**
+	 * A list of paths to exclude from the results.
+	 */
+	exceptPaths?: string[];
 };
 
 /**
@@ -26,7 +31,11 @@ export type IterateFilesOptions = {
 export async function* iterateFiles(
 	playground: UniversalPHP,
 	root: string,
-	{ relativePaths = true, pathPrefix }: IterateFilesOptions = {}
+	{
+		relativePaths = true,
+		pathPrefix,
+		exceptPaths = [],
+	}: IterateFilesOptions = {}
 ): AsyncGenerator<FileEntry> {
 	root = normalizePath(root);
 	const stack: string[] = [root];
@@ -38,6 +47,9 @@ export async function* iterateFiles(
 		const files = await playground.listFiles(currentParent);
 		for (const file of files) {
 			const absPath = `${currentParent}/${file}`;
+			if (exceptPaths.includes(absPath.substring(root.length + 1))) {
+				continue;
+			}
 			const isDir = await playground.isDir(absPath);
 			if (isDir) {
 				stack.push(absPath);

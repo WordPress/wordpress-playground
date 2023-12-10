@@ -1,6 +1,11 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
-import { PlaygroundClient } from '@wp-playground/client';
+import {
+	Blueprint,
+	PlaygroundClient,
+	wpContentFilesExcludedFromExport,
+	zipWpContent,
+} from '@wp-playground/client';
 
 import css from './style.module.css';
 import forms from '../../forms.module.css';
@@ -24,6 +29,7 @@ import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
+import { joinPaths } from '@php-wasm/util';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
@@ -52,6 +58,7 @@ export interface ExportFormValues {
 	commitMessage: string;
 	plugin?: string;
 	theme?: string;
+	includeZip: boolean;
 }
 
 export default function GitHubExportForm({
@@ -68,14 +75,25 @@ export default function GitHubExportForm({
 		prAction: 'create',
 		commitMessage: 'Changes from WordPress Playground',
 		pathInRepo: '/',
+		includeZip: false,
 		...initialValues,
 	});
 	const [repoDetails, setRepoDetails] = useState<{
 		owner: string;
 		repo: string;
-	}>({
-		owner: '',
-		repo: '',
+	}>(() => {
+		if (formValues.repoUrl) {
+			try {
+				const { owner, repo } = staticAnalyzeGitHubURL(
+					formValues.repoUrl
+				);
+				return { owner: owner!, repo: repo! };
+			} catch (e) {
+				// Ignore
+			}
+		}
+
+		return { owner: '', repo: '' };
 	});
 	function setFormValues(values: ExportFormValues) {
 		if (values.theme && !themes.includes(values.theme)) {
@@ -199,7 +217,7 @@ export default function GitHubExportForm({
 			} else if (formValues.contentType === 'plugin') {
 				updatedValues['pathInRepo'] = `/${formValues.plugin}`;
 			} else {
-				updatedValues['pathInRepo'] = '/my-directory';
+				updatedValues['pathInRepo'] = '/playground';
 			}
 			setFormValues({
 				...formValues,
@@ -270,25 +288,80 @@ export default function GitHubExportForm({
 					`Unknown content type ${formValues.contentType}`
 				);
 			}
+
+			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
+			const newBranchName = `playground-changes-${isoDateSlug}`;
+			let commitMessage = formValues.commitMessage;
+
+			if (formValues.includeZip) {
+				const zipFilename = `playground.zip`;
+				const zipPath = joinPaths(playgroundPath, zipFilename);
+				if (await playground.fileExists(zipPath)) {
+					await playground.unlink(zipPath);
+				}
+				const zipContents = await zipWpContent(playground);
+				await playground.writeFile(zipPath, zipContents);
+
+				const branchPreviewLink = (branchName: string) =>
+					document.location.origin +
+					'#' +
+					JSON.stringify({
+						steps: [
+							{
+								step: 'importWordPressFiles',
+								wordPressFilesZip: {
+									resource: 'url',
+									url: `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}/${zipFilename}`,
+								},
+							},
+						],
+					} as Blueprint);
+
+				let targetBranchName = '';
+				if (parseInt(formValues.prNumber, 10)) {
+					const { data } = await octokit.rest.pulls.get({
+						owner: repoDetails.owner,
+						repo: repoDetails.repo,
+						pull_number: parseInt(formValues.prNumber),
+					});
+					targetBranchName = data.head.ref;
+				} else {
+					targetBranchName = newBranchName;
+				}
+
+				commitMessage +=
+					'\n\n' +
+					[
+						'Also exported as a zip file.',
+						'',
+						`* [Preview from this branch](${branchPreviewLink(
+							targetBranchName
+						)})`,
+						`* [Preview from the main branch (once this PR merges)](${branchPreviewLink(
+							defaultBranch
+						)})`,
+					].join('\n');
+			}
+
 			const changes = await changeset(
 				new Map(Object.entries(comparableFiles)),
 				iterateFiles(playground, playgroundPath!, {
 					relativePaths: true,
 					pathPrefix: relativeRepoPath,
+					exceptPaths: wpContentFilesExcludedFromExport,
 				})
 			);
 
-			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
 			const pushResult = await pushToGithub(getClient(), {
 				owner: repoDetails.owner,
 				repo: repoDetails.repo,
-				commitMessage: formValues.commitMessage,
+				commitMessage,
 				changeset: changes,
 
 				shouldCreateNewPR: formValues.prAction === 'create',
 				create: {
 					againstBranch: defaultBranch,
-					branchName: `playground-changes-${isoDateSlug}`,
+					branchName: newBranchName,
 					title: prTitle,
 				},
 				update: {
@@ -565,6 +638,25 @@ export default function GitHubExportForm({
 											{errors.commitMessage}
 										</div>
 									)}
+								</div>
+								<div
+									className={`${forms.formGroup} ${forms.formGroupLast}`}
+								>
+									<label>
+										<input
+											type="checkbox"
+											checked={formValues.includeZip}
+											onChange={(e) =>
+												setValue(
+													'includeZip',
+													e.target.checked
+												)
+											}
+										/>
+										Also export the changes as a zip file,
+										so they can be imported into another
+										Playground instance.
+									</label>
 								</div>
 							</>
 						) : null}
