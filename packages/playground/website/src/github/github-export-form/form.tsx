@@ -318,7 +318,7 @@ export default function GitHubExportForm({
 					} as Blueprint);
 
 				let targetBranchName = '';
-				if (parseInt(formValues.prNumber)) {
+				if (parseInt(formValues.prNumber, 10)) {
 					const { data } = await octokit.rest.pulls.get({
 						owner: repoDetails.owner,
 						repo: repoDetails.repo,
