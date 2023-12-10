@@ -26,7 +26,6 @@ export function DownloadAsZipMenuItem({ onClose }: Props) {
 }
 
 async function startDownload(playground: PlaygroundClient) {
-	const file = await zipWpContent(playground);
-	console.log({ file });
-	saveAs(file);
+	const bytes = await zipWpContent(playground);
+	saveAs(new File([bytes], 'wordpress-playground.zip'));
 }
