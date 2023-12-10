@@ -246,6 +246,13 @@
 						prepareForRunningInsideWebBrowser: true,
 					},
 					{
+						step: 'runPHP',
+						code: `<?php
+							$_GET['step'] = 'upgrade_db';
+							require '/wordpress/wp-admin/upgrade.php';
+						`,
+					},
+					{
 						step: 'login',
 						username: 'admin',
 						password: 'password',
