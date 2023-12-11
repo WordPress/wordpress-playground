@@ -289,58 +289,20 @@ export default function GitHubExportForm({
 				);
 			}
 
+			const prNumber = parseInt(formValues.prNumber, 10);
+			const shouldCreateNewPR = formValues.prAction === 'create';
+
 			const isoDateSlug = new Date().toISOString().replace(/[:.]/g, '-');
 			const newBranchName = `playground-changes-${isoDateSlug}`;
-			let commitMessage = formValues.commitMessage;
 
+			const zipFilename = `playground.zip`;
 			if (formValues.includeZip) {
-				const zipFilename = `playground.zip`;
 				const zipPath = joinPaths(playgroundPath, zipFilename);
 				if (await playground.fileExists(zipPath)) {
 					await playground.unlink(zipPath);
 				}
 				const zipContents = await zipWpContent(playground);
 				await playground.writeFile(zipPath, zipContents);
-
-				const branchPreviewLink = (branchName: string) =>
-					document.location.origin +
-					'#' +
-					JSON.stringify({
-						steps: [
-							{
-								step: 'importWordPressFiles',
-								wordPressFilesZip: {
-									resource: 'url',
-									url: `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}/${zipFilename}`,
-								},
-							},
-						],
-					} as Blueprint);
-
-				let targetBranchName = '';
-				if (parseInt(formValues.prNumber, 10)) {
-					const { data } = await octokit.rest.pulls.get({
-						owner: repoDetails.owner,
-						repo: repoDetails.repo,
-						pull_number: parseInt(formValues.prNumber),
-					});
-					targetBranchName = data.head.ref;
-				} else {
-					targetBranchName = newBranchName;
-				}
-
-				commitMessage +=
-					'\n\n' +
-					[
-						'Also exported as a zip file.',
-						'',
-						`* [Preview from this branch](${branchPreviewLink(
-							targetBranchName
-						)})`,
-						`* [Preview from the main branch (once this PR merges)](${branchPreviewLink(
-							defaultBranch
-						)})`,
-					].join('\n');
 			}
 
 			const changes = await changeset(
@@ -355,17 +317,47 @@ export default function GitHubExportForm({
 			const pushResult = await pushToGithub(getClient(), {
 				owner: repoDetails.owner,
 				repo: repoDetails.repo,
-				commitMessage,
+				commitMessage: ({ owner, repo, branch }) => {
+					let message = formValues.commitMessage;
+					if (formValues.includeZip) {
+						const branchPreviewLink = (branchName: string) =>
+							document.location.origin +
+							'#' +
+							JSON.stringify({
+								steps: [
+									{
+										step: 'importWordPressFiles',
+										wordPressFilesZip: {
+											resource: 'url',
+											url: `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${relativeRepoPath}/${zipFilename}`,
+										},
+									},
+								],
+							} as Blueprint);
+						message +=
+							'\n\n' +
+							[
+								'Also exported as a zip file.',
+								'',
+								`* [Preview from this branch](${branchPreviewLink(
+									branch
+								)})`,
+								`* [Preview from the main branch (once this PR merges)](${branchPreviewLink(
+									defaultBranch
+								)})`,
+							].join('\n');
+					}
+					return message;
+				},
 				changeset: changes,
-
-				shouldCreateNewPR: formValues.prAction === 'create',
+				shouldCreateNewPR,
 				create: {
 					againstBranch: defaultBranch,
 					branchName: newBranchName,
 					title: prTitle,
 				},
 				update: {
-					prNumber: parseInt(formValues.prNumber),
+					prNumber,
 				},
 			});
 
@@ -706,7 +698,9 @@ type UpdatePROptions = {
 type PushToGitHubOptions = {
 	owner: string;
 	repo: string;
-	commitMessage: string;
+	commitMessage:
+		| string
+		| ((args: { owner: string; repo: string; branch: string }) => string);
 	changeset: Changeset;
 	shouldCreateNewPR: boolean;
 	create: CreatePROptions;
@@ -727,7 +721,7 @@ async function pushToGithub(
 		owner,
 		repo,
 		shouldCreateNewPR,
-		commitMessage,
+		commitMessage: commitMessageRaw,
 		changeset,
 		shouldFork,
 		create: { againstBranch, branchName: branchToCreate, title: prTitle },
@@ -782,6 +776,16 @@ async function pushToGithub(
 				'No changes were detected so there is nothing to commit.'
 			);
 		}
+		let commitMessage = '';
+		if (typeof commitMessageRaw === 'function') {
+			commitMessage = commitMessageRaw({
+				owner: pushToOwner,
+				repo,
+				branch: pushToBranch,
+			});
+		} else {
+			commitMessage = commitMessageRaw;
+		}
 		const commitSha = await createCommit(
 			octokit,
 			pushToOwner,
@@ -825,6 +829,7 @@ async function pushToGithub(
 			return await pushToGithub(octokit, {
 				...options,
 				shouldFork: true,
+				shouldCreateNewPR: true,
 			});
 		}
 		throw e;
