@@ -1,6 +1,5 @@
 import { FileEntry, readAllBytes } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
-import { getData } from 'ajv/dist/compile/validate';
 
 export interface ZipFileHeader {
 	startsAt?: number;
@@ -222,6 +221,45 @@ async function createFileDataStream(
 	return subStream.pipeThrough(new DecompressionStream('deflate-raw'));
 }
 
+export async function concatBytesStream(
+	stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+	let size = 0;
+	const chunks: Uint8Array[] = [];
+	const reader = stream.getReader();
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) {
+			break;
+		}
+		chunks.push(value);
+		size += value.length;
+	}
+	const result = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		result.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return result;
+}
+
+async function concatStringStream(stream: ReadableStream<string>) {
+	let result = '';
+	const reader = stream.getReader();
+	while (true) {
+		// The `read()` method returns a promise that
+		// resolves when a value has been received.
+		const { done, value } = await reader.read();
+		// Result objects contain two properties:
+		// `done`  - `true` if the stream has already given you all its data.
+		// `value` - Some data. Always `undefined` when `done` is `true`.
+		if (done) return result;
+		result += value;
+		console.log(`Read ${result.length} characters so far`);
+		console.log(`Most recently read chunk: ${value}`);
+	}
+}
 class BufferedReadableStream {
 	reader: ReadableStreamDefaultReader<Uint8Array>;
 	buffer: Uint8Array;
@@ -315,7 +353,6 @@ class ZipScanner {
 			bufferedEntries.push(zipEntry);
 		}
 		chunks.push(this.fetchFilesChunk(bufferedEntries));
-		console.log('chunks', chunks);
 
 		for (const chunk of chunks) {
 			for await (const file of chunk) {
@@ -325,6 +362,8 @@ class ZipScanner {
 	}
 
 	private async *fetchFilesChunk(zipEntries: CentralDirectoryEntry[]) {
+		console.log('chunks', zipEntries);
+
 		if (!zipEntries.length) {
 			return;
 		}
@@ -365,11 +404,17 @@ class ZipScanner {
 						dataStream: fileDataStream,
 						async text() {
 							return new TextDecoder().decode(await this.bytes());
+							// return await concatStringStream(
+							// 	fileDataStream.pipeThrough(
+							// 		new TextDecoderStream()
+							// 	)
+							// );
 						},
 						async bytes() {
 							return await readAllBytes(
 								fileDataStream.getReader()
 							);
+							// return await concatBytesStream(fileDataStream);
 						},
 					} as ZipFileEntry;
 				}
@@ -435,6 +480,7 @@ async function fetchBytes(url: string): Promise<RangeGetter> {
 		await fetch(url, {
 			headers: {
 				Range: `bytes=${from}-${to}`,
+				'Accept-Encoding': 'none',
 			},
 		})
 			.then((response) => response.arrayBuffer())
@@ -444,6 +490,7 @@ async function fetchBytes(url: string): Promise<RangeGetter> {
 		await fetch(url, {
 			headers: {
 				Range: `bytes=${from}-${to}`,
+				'Accept-Encoding': 'none',
 			},
 		}).then((response) => response.body!);
 
