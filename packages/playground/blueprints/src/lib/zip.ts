@@ -298,17 +298,7 @@ class ZipScanner {
 				centralDirectoryEndPos - 1
 			)
 		);
-		for await (const zipEntry of iterateCentralDirectory(
-			centralDirectoryStream
-		)) {
-			if (
-				zipEntry.fileName.endsWith('/') ||
-				zipEntry.uncompressedSize === 0
-			) {
-				continue;
-			}
-			yield zipEntry;
-		}
+		yield* iterateCentralDirectory(centralDirectoryStream);
 	}
 
 	async *fetchFiles(zipEntries: CentralDirectoryEntry[]) {
@@ -479,6 +469,9 @@ for await (const zipEntry of scanner.listFiles()) {
 		!zipEntry.fileName.includes('gutenberg/lib/experimental') &&
 		!zipEntry.fileName.includes('gutenberg/README.md')
 	) {
+		continue;
+	}
+	if (zipEntry.fileName.endsWith('/') || zipEntry.uncompressedSize === 0) {
 		continue;
 	}
 	entries.push(zipEntry);
