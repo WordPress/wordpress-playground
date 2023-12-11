@@ -48,17 +48,14 @@ export interface CompiledBlueprint {
 	run: (playground: UniversalPHP) => Promise<void>;
 }
 
+export type OnStepProgress = (
+	promise: Promise<void>,
+	step: StepDefinition
+) => void;
 export type OnStepCompleted = (output: any, step: StepDefinition) => any;
-
-export type CompletedStatus = Map<StepDefinition, boolean>;
-export type OnStepsCompleted = (completedStatus: CompletedStatus) => void;
-export type OnRunningSteps = (progressMap: PromiseMap) => void;
-
-export type PromiseMap = Map<StepDefinition, Promise<void>>;
-export type PromiseExecutor = {
-	resolve: (result: any) => void;
-	reject: (error: any) => void;
-};
+export type OnStepsCompleted = (
+	completedStatus: Map<StepDefinition, boolean>
+) => void;
 
 export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
@@ -66,8 +63,8 @@ export interface CompileBlueprintOptions {
 	/** Optional semaphore to control access to a shared resource */
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
+	onStepProgress?: OnStepProgress;
 	onStepCompleted?: OnStepCompleted;
-	onRunningSteps?: OnRunningSteps;
 	onStepsCompleted?: OnStepsCompleted;
 }
 
@@ -94,13 +91,7 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onRunningSteps = (progressMap: PromiseMap) => {
-			for (const promise of progressMap.values()) {
-				promise.catch((error) => {
-					throw error;
-				});
-			}
-		},
+		onStepProgress = () => {},
 		onStepsCompleted,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
@@ -200,29 +191,31 @@ export function compileBlueprint(
 			networking: blueprint.features?.networking ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
-			const progressMap = new Map<StepDefinition, Promise<void>>();
-			const progressPromises = new Map<StepDefinition, PromiseExecutor>();
+			const progressStatus = new Map<StepDefinition, Promise<void>>();
+			const progressPromises = new Map<
+				StepDefinition,
+				{
+					resolve: (result: any) => void;
+					reject: (error: any) => void;
+				}
+			>();
 			for (const { step } of compiled) {
-				progressMap.set(
-					step,
-					new Promise((resolve, reject) => {
-						progressPromises.set(step, { resolve, reject });
-					})
-				);
+				const promise = new Promise<void>((resolve, reject) => {
+					progressPromises.set(step, { resolve, reject });
+				});
+				progressStatus.set(step, promise);
+				onStepProgress(promise, step);
 			}
-			onRunningSteps(progressMap);
 
 			try {
 				// Start resolving resources early
 				for (const { resources, step } of compiled) {
-					const stepPromise = progressPromises.get(
-						step
-					) as PromiseExecutor;
+					const stepPromise = progressPromises.get(step);
 					for (const resource of resources) {
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
 							resource.resolve().catch(function (error) {
-								stepPromise.reject(error);
+								stepPromise?.reject(error);
 							});
 						}
 					}
@@ -233,15 +226,13 @@ export function compileBlueprint(
 				 * uses `resolveArguments` to await dependent resources.
 				 */
 				for (const { run, step } of compiled) {
-					const stepPromise = progressPromises.get(
-						step
-					) as PromiseExecutor;
+					const stepPromise = progressPromises.get(step);
 					try {
 						const result = await run(playground);
-						stepPromise.resolve(result);
+						stepPromise?.resolve(result);
 						onStepCompleted(result, step);
 					} catch (error) {
-						stepPromise.reject(error);
+						stepPromise?.reject(error);
 					}
 				}
 			} finally {
@@ -249,14 +240,18 @@ export function compileBlueprint(
 				for (const { step } of compiled) {
 					completedStatus.set(
 						step,
-						await didResolve(progressMap.get(step) as Promise<any>)
+						await didResolve(
+							progressStatus.get(step) as Promise<any>
+						)
 					);
 				}
 
 				// Either someone made a choice to boot or all steps succeeded.
 				const shouldBoot = onStepsCompleted
 					? await onStepsCompleted(completedStatus)
-					: await didResolve(Promise.all([...progressMap.values()]));
+					: await didResolve(
+							Promise.all([...progressStatus.values()])
+					  );
 
 				if (shouldBoot) {
 					try {

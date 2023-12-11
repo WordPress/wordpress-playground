@@ -8,10 +8,7 @@ export type {
 	CompileBlueprintOptions,
 	OnStepCompleted,
 	OnStepsCompleted,
-	OnRunningSteps,
-	PromiseMap,
-	PromiseExecutor,
-	CompletedStatus,
+	OnStepProgress,
 } from './lib/compile';
 export type {
 	CachedResource,
