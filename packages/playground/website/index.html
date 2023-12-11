@@ -15,7 +15,7 @@
 				const query = new URLSearchParams(window.location.search);
 				const shouldLazyLoadPlayground =
 					query.has('lazy') ||
-					// Initial API used "start_button" - this preserves compatability.
+					// Initial API used "start_button" - this preserves compatibility.
 					'1' === query.get('start_button');
 
 				if (

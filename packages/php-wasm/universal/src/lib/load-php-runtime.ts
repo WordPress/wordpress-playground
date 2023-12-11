@@ -1,3 +1,6 @@
+const RuntimeId = Symbol('RuntimeId');
+const loadedRuntimes: Map<number, PHPRuntime> = new Map();
+
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
  *
@@ -152,7 +155,6 @@ export async function loadPHPRuntime(
 			}
 		},
 	});
-
 	await Promise.all(
 		dataDependenciesModules.map(({ default: dataModule }) =>
 			dataModule(PHPRuntime)
@@ -166,8 +168,18 @@ export async function loadPHPRuntime(
 	await depsReady;
 	await phpReady;
 
-	loadedRuntimes.push(PHPRuntime);
-	return loadedRuntimes.length - 1;
+	const id = loadedRuntimes.size;
+
+	PHPRuntime.originalExit = PHPRuntime._exit;
+
+	PHPRuntime._exit = function (code: number) {
+		loadedRuntimes.delete(id);
+		return PHPRuntime.originalExit(code);
+	};
+
+	PHPRuntime[RuntimeId] = id;
+	loadedRuntimes.set(id, PHPRuntime);
+	return id;
 }
 
 export type RuntimeType = 'NODE' | 'WEB' | 'WORKER';
@@ -176,10 +188,9 @@ declare const self: WindowOrWorkerGlobalScope;
 declare const WorkerGlobalScope: object | undefined;
 
 export type PHPRuntimeId = number;
-const loadedRuntimes: PHPRuntime[] = [];
 
 export function getLoadedRuntime(id: PHPRuntimeId): PHPRuntime {
-	return loadedRuntimes[id];
+	return loadedRuntimes.get(id);
 }
 
 export const currentJsRuntime = (function () {

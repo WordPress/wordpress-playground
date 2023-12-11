@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<head>
+	<title>Playground Sync demo</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		* {
+			box-sizing: border-box;
+		}
+		body {
+			width: 100vw;
+			height: 100vh;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 2vw;
+			font-family: Helvetica, sans-serif;
+		}
+		#desc {
+			padding: 0 2vw;
+		}
+		#desc-inner {
+			max-width: 500px;
+		}
+		#content {
+			display: flex;
+			flex-direction: row;
+			flex-grow: 1;
+			gap: 2vw;
+		}
+		iframe {
+			width: 100%;
+			height: 96vh;
+			border: 1px solid black;
+		}
+	</style>
+</head>
+<body>
+	<div id="desc">
+		<div id="desc-inner">
+			<h2>Playground Synchronization</h2>
+			<p>
+				As you interact with either Playground below, the changes are
+				recorded and replayed in the other one. This includes installing
+				plugins, creating pages, changing themes, etc. For more context,
+				see the original
+				<a
+					target="_blank"
+					rel="noreferrer noopener"
+					href="https://github.com/WordPress/wordpress-playground/pull/727"
+				>
+					Pull Request
+				</a>
+				.
+			</p>
+		</div>
+	</div>
+	<div id="content">
+		<iframe
+			src="./peer.html?client-id=left&autoincrement-offset=1234500001"
+		></iframe>
+		<iframe
+			src="./peer.html?client-id=right&autoincrement-offset=1543200001"
+		></iframe>
+	</div>
+	<script type="module">
+		const iframes = Array.from(document.querySelectorAll('iframe'));
+		window.onmessage = (event) => {
+			if (event.data.type !== 'playground-change') {
+				return;
+			}
+			iframes.forEach((iframe) => {
+				if (iframe.contentWindow === event.source) {
+					return;
+				}
+				iframe.contentWindow.postMessage(event.data, '*');
+			});
+		};
+	</script>
+</body>

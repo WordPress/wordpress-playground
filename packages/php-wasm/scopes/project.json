@@ -28,7 +28,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/php-wasm/scopes"],
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/scopes"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/scopes"

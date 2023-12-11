@@ -1,0 +1,58 @@
+diff --git a/php-src/main/streams/plain_wrapper.c b/php-src/main/streams/plain_wrapper.c
+index 4d10e688b5..ca50261b8a 100644
+--- a/php-src/main/streams/plain_wrapper.c
++++ b/php-src/main/streams/plain_wrapper.c
+@@ -408,6 +408,15 @@ static ssize_t php_stdiop_read(php_stream *stream, char *buf, size_t count)
+ 		}
+ #endif
+ 		ret = read(data->fd, buf,  PLAIN_WRAP_BUF_SIZE(count));
++		if(
++			(errno == EAGAIN || errno == EWOULDBLOCK) &&
++			(stream->flags & O_NONBLOCK) == 0
++		) {
++			/* This is a blocking read in C but not in Emscripten.
++			   Let's poll for data and try once again */
++			php_pollfd_for(data->fd, POLLIN, NULL);
++			ret = read(data->fd, buf,  PLAIN_WRAP_BUF_SIZE(count));
++		}
+ 
+ 		if (ret == (size_t)-1 && errno == EINTR) {
+ 			/* Read was interrupted, retry once,
+diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
+--- a/php-src/ext/standard/file.c
++++ b/php-src/ext/standard/file.c
+@@ -1691,20 +1691,34 @@ PHPAPI int php_copy_file_ctx(const char *src, const char *dest, int src_flg, php
+ 	php_stream *srcstream = NULL, *deststream = NULL;
+ 	int ret = FAILURE;
+ 	php_stream_statbuf src_s, dest_s;
+
+ 	switch (php_stream_stat_path_ex(src, 0, &src_s, ctx)) {
+ 		case -1:
+ 			/* non-statable stream */
+ 			goto safe_to_copy;
+ 			break;
+ 		case 0:
++			// Fix for https://github.com/WordPress/wordpress-playground/issues/54:
++			// Problem: Calling copy() on an empty source file crashes the JavaScript
++			//          runtime.
++			// Solution: Avoid copying empty files. Just create create an empty
++			//           destination file and return.
++			if (src_s.sb.st_size == 0) {
++				zend_string *opened_path = zend_string_init("", strlen(""), 0);
++				php_stream *stream = php_stream_open_wrapper(dest, "w", REPORT_ERRORS, &opened_path);
++				if (stream) {
++					php_stream_close(stream);
++					return SUCCESS;
++				}
++				return FAILURE;
++			}
+ 			break;
+ 		default: /* failed to stat file, does not exist? */
+ 			return ret;
+ 	}
+ 	if (S_ISDIR(src_s.sb.st_mode)) {
+ 		php_error_docref(NULL, E_WARNING, "The first argument to copy() function cannot be a directory");
+ 		return FAILURE;
+ 	}
+
+ 	switch (php_stream_stat_path_ex(dest, PHP_STREAM_URL_STAT_QUIET | PHP_STREAM_URL_STAT_NOCACHE, &dest_s, ctx)) {

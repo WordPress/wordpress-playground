@@ -5,9 +5,9 @@
 /packages/php-wasm/node/public
 /packages/php-wasm/web/public
 /packages/php-wasm/compile/build-assets
-/packages/playground/compile-wordpress/build-assets
-/packages/playground/remote/src/wordpress
-/packages/playground/remote/public/
+/packages/playground/wordpress/build/build-assets
+/packages/playground/wordpress/src/wordpress
+/packages/playground/wordpress/public/
 /packages/php-wasm/node/src/test/__test*
 __pycache__
 *.timestamp-1678999213403.mjs

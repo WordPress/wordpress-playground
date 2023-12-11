@@ -22,7 +22,7 @@ Let's see some cool things you can do with Blueprints.
 		},
 		{
 			"step": "installTheme",
-			"pluginZipFile": {
+			"themeZipFile": {
 				"resource": "wordpress.org/themes",
 				"slug": "pendant"
 			}
@@ -79,14 +79,14 @@ wp_insert_post(array(
 		},
 		{
 			"step": "installTheme",
-			"pluginZipFile": {
+			"themeZipFile": {
 				"resource": "url",
 				"url": "https://your-site.com/your-theme.zip"
 			}
 		},
 		{
 			"step": "importFile",
-			"pluginZipFile": {
+			"file": {
 				"resource": "url",
 				"url": "https://your-site.com/starter-content.wxz"
 			}

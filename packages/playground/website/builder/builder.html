@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>WordPress Playground Blueprint Builder</title>
+		<link
+			href="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/css/ace.min.css"
+			rel="stylesheet"
+		/>
+		<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/src-min-noconflict/ace.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.31.2/src-min-noconflict/ext-language_tools.js"></script>
+		<link rel="stylesheet" type="text/css" href="style.css" />
+		<script src="builder.js" type="module"></script>
+	</head>
+	<body>
+		<div class="playground-wrapper">
+			<main>
+				<div class="column editor">
+					<div class="toolbar">
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<!-- Spinner Adapted from: https://github.com/n3r4zzurr0/svg-spinners/ -->
+							<g>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									opacity=".14"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(30 12 12)"
+									opacity=".29"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(60 12 12)"
+									opacity=".43"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(90 12 12)"
+									opacity=".57"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(120 12 12)"
+									opacity=".71"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(150 12 12)"
+									opacity=".86"
+								/>
+								<rect
+									fill="#fff"
+									x="11"
+									y="1"
+									width="2"
+									height="5"
+									transform="rotate(180 12 12)"
+								/>
+								<animateTransform
+									attributeName="transform"
+									type="rotate"
+									calcMode="discrete"
+									dur="0.333s"
+									values="0 12 12;30 12 12;60 12 12;90 12 12;120 12 12;150 12 12;180 12 12;210 12 12;240 12 12;270 12 12;300 12 12;330 12 12"
+									repeatCount="indefinite"
+								/>
+							</g>
+						</svg>
+						<span>⌘ ctrl + space: show autocomplete</span>
+						<span class="spacer"></span>
+						<span>⌘ ctrl + enter:</span>
+						<button id="run" class="cta run">RUN IT</button>
+						<button id="save" aria-label="save"></button>
+						<button id="open" aria-label="open"></button>
+					</div>
+					<section id="ai">
+						<textarea
+							id="prompt"
+							placeholder="What kind of website do you want?"
+						></textarea>
+						<div class="toolbar">
+							<button id="close-ai" class="close"></button>
+							<span class="spacer"></span>
+							<button id="generate" class="generate">
+								GENERATE
+							</button>
+						</div>
+					</section>
+					<pre
+						id="jsontext"
+						class="json-container"
+						contenteditable="true"
+					></pre>
+					<div class="frame-wrapper">
+						<iframe id="error-output"></iframe>
+					</div>
+				</div>
+				<div class="separator"></div>
+				<div class="column viewer">
+					<div class="toolbar">
+						<span class="spacer"></span>
+						<button id="new-tab">OPEN IN NEW TAB</button>
+					</div>
+					<div class="frame-wrapper">
+						<div class="frame-center">
+							<svg
+								width="32"
+								height="32"
+								viewBox="0 0 24 24"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<!-- Spinner Adapted from: https://github.com/n3r4zzurr0/svg-spinners/ -->
+								<g>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										opacity=".14"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(30 12 12)"
+										opacity=".29"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(60 12 12)"
+										opacity=".43"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(90 12 12)"
+										opacity=".57"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(120 12 12)"
+										opacity=".71"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(150 12 12)"
+										opacity=".86"
+									/>
+									<rect
+										fill="#fff"
+										x="11"
+										y="1"
+										width="2"
+										height="5"
+										transform="rotate(180 12 12)"
+									/>
+									<animateTransform
+										attributeName="transform"
+										type="rotate"
+										calcMode="discrete"
+										dur="0.5s"
+										values="0 12 12;30 12 12;60 12 12;90 12 12;120 12 12;150 12 12;180 12 12;210 12 12;240 12 12;270 12 12;300 12 12;330 12 12"
+										repeatCount="indefinite"
+									/>
+								</g>
+							</svg>
+						</div>
+						<iframe id="wp-playground"></iframe>
+					</div>
+				</div>
+			</main>
+		</div>
+	</body>
+</html>

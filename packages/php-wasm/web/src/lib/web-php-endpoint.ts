@@ -7,6 +7,9 @@ import type {
 	PHPResponse,
 	PHPRunOptions,
 	RmDirOptions,
+	SpawnHandler,
+	PHPEventListener,
+	PHPEvent,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
@@ -101,6 +104,11 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.run(request);
 	}
 
+	/** @inheritDoc @php-wasm/web!WebPHP.setSpawnHandler */
+	setSpawnHandler(listener: SpawnHandler) {
+		_private.get(this)!.php.setSpawnHandler(listener);
+	}
+
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
@@ -164,5 +172,26 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
 	onMessage(listener: MessageListener): void {
 		_private.get(this)!.php.onMessage(listener);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
+	defineConstant(key: string, value: string | number | null): void {
+		_private.get(this)!.php.defineConstant(key, value);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
+	addEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void {
+		_private.get(this)!.php.addEventListener(eventType, listener);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
+	removeEventListener(
+		eventType: PHPEvent['type'],
+		listener: PHPEventListener
+	): void {
+		_private.get(this)!.php.removeEventListener(eventType, listener);
 	}
 }
