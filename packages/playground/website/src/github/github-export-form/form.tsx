@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useState } from 'react';
 import {
-	Blueprint,
 	PlaygroundClient,
 	wpContentFilesExcludedFromExport,
 	zipWpContent,
@@ -302,20 +301,13 @@ export default function GitHubExportForm({
 				const zipContents = await zipWpContent(playground);
 				await playground.writeFile(zipPath, zipContents);
 
-				const branchPreviewLink = (branchName: string) =>
-					document.location.origin +
-					'#' +
-					JSON.stringify({
-						steps: [
-							{
-								step: 'importWordPressFiles',
-								wordPressFilesZip: {
-									resource: 'url',
-									url: `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}/${zipFilename}`,
-								},
-							},
-						],
-					} as Blueprint);
+				const branchPreviewUrl = (branchName: string) => {
+					const zipballURL = `https://raw.githubusercontent.com/${repoDetails.owner}/${repoDetails.repo}/${branchName}/${relativeRepoPath}/${zipFilename}`;
+					const url = new URL(document.location.origin);
+					url.pathname = document.location.pathname;
+					url.searchParams.set('import-site', zipballURL);
+					return url.toString();
+				};
 
 				let targetBranchName = '';
 				if (parseInt(formValues.prNumber, 10)) {
@@ -334,10 +326,10 @@ export default function GitHubExportForm({
 					[
 						'Also exported as a zip file.',
 						'',
-						`* [Preview from this branch](${branchPreviewLink(
+						`* [Preview from this branch](${branchPreviewUrl(
 							targetBranchName
 						)})`,
-						`* [Preview from the main branch (once this PR merges)](${branchPreviewLink(
+						`* [Preview from the main branch (once this PR merges)](${branchPreviewUrl(
 							defaultBranch
 						)})`,
 					].join('\n');
