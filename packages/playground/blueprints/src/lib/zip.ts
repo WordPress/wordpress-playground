@@ -529,3 +529,32 @@ for await (const file of scanner.fetchFiles(entries)) {
 }
 
 throw new Error('Expected halt');
+
+// Explore also:
+
+// The following function returns readable byte streams that allow
+// for efficient zero - copy reading of a randomly generated array.
+// Instead of using a predetermined chunk size of 1,024, it attempts
+// to fill the developer - supplied buffer, allowing for full control.
+
+// const reader = readableStream.getReader({ mode: "byob" });
+
+// let startingAB = new ArrayBuffer(1_024);
+// const buffer = await readInto(startingAB);
+// console.log("The first 1024 bytes, or less:", buffer);
+
+// async function readInto(buffer) {
+//   let offset = 0;
+
+//   while (offset < buffer.byteLength) {
+//     const { value: view, done } =
+//         await reader.read(new Uint8Array(buffer, offset, buffer.byteLength - offset));
+//     buffer = view.buffer;
+//     if (done) {
+//       break;
+//     }
+//     offset += view.byteLength;
+//   }
+
+//   return buffer;
+// }
