@@ -1,4 +1,4 @@
-import { Blueprint, StepDefinition, UrlReference } from '@wp-playground/client';
+import { Blueprint, StepDefinition } from '@wp-playground/client';
 
 interface MakeBlueprintOptions {
 	php?: string;
@@ -8,9 +8,11 @@ interface MakeBlueprintOptions {
 	landingPage?: string;
 	features?: Blueprint['features'];
 	theme?: string;
-	importFile?: string;
 	plugins?: string[];
+	importSite?: string;
+	importContent?: string;
 }
+
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 	const plugins = options.plugins || [];
 	return {
@@ -22,23 +24,27 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 		phpExtensionBundles: options.phpExtensionBundles as any,
 		features: options.features,
 		steps: [
-			...(options.importFile &&
-			/^(http(s?)):\/\//i.test(options.importFile)
-				? [
-						{
-							step: 'importFile',
-							file: {
-								resource: 'url',
-								url: options.importFile,
-							} as UrlReference,
-						},
-				  ]
-				: []),
+			options.importSite &&
+				/^(http(s?)):\/\//i.test(options.importSite) && {
+					step: 'importWordPressFiles',
+					wordPressFilesZip: {
+						resource: 'url',
+						url: options.importSite,
+					},
+				},
 			options.login && {
 				step: 'login',
 				username: 'admin',
 				password: 'password',
 			},
+			options.importContent &&
+				/^(http(s?)):\/\//i.test(options.importContent) && {
+					step: 'importFile',
+					file: {
+						resource: 'url',
+						url: options.importContent,
+					},
+				},
 			options.theme && {
 				step: 'installTheme',
 				themeZipFile: {
