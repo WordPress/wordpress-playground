@@ -326,10 +326,10 @@ export default function GitHubExportForm({
 					[
 						'Also exported as a zip file.',
 						'',
-						`* [Preview from this branch](${branchPreviewUrl(
+						`* [Preview loaded from this PR – available **before** this PR is merged](${branchPreviewUrl(
 							targetBranchName
 						)})`,
-						`* [Preview from the main branch (once this PR merges)](${branchPreviewUrl(
+						`* [Preview loaded from the main branch – available **after** this PR is merged](${branchPreviewUrl(
 							defaultBranch
 						)})`,
 					].join('\n');
