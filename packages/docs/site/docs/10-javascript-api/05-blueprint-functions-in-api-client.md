@@ -9,7 +9,7 @@ Every Blueprint step you can declare in the JSON object also provides a handler 
 For example:
 
 ```ts
-import { startPlaygroundWeb, login, installPlugin } from 'https://unpkg.com/@wp-playground/client/index.js';
+import { startPlaygroundWeb, login, installPlugin } from 'https://playground.wordpress.net/client/index.js';
 
 const client = await startPlaygroundWeb({
 	iframe: document.getElementById('wp'),

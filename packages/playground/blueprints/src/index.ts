@@ -1,7 +1,6 @@
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export { runBlueprintSteps, compileBlueprint } from './lib/compile';
-export { setPluginProxyURL } from './lib/resources';
 export type { Blueprint } from './lib/blueprint';
 export type {
 	CompiledStep,
@@ -29,3 +28,9 @@ export type {
 	VFSReference,
 	VFSResource,
 } from './lib/resources';
+
+/**
+ * @deprecated This function is a no-op. Playground no longer uses a proxy to download plugins and themes.
+ *             To be removed in v0.3.0
+ */
+export function setPluginProxyURL() {}

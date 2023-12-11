@@ -23,7 +23,7 @@ class PluginDownloader
         $name = preg_replace('#[^a-zA-Z0-9\.\-_]#', '', $name);
         $zipUrl = "https://downloads.wordpress.org/$directory/$name";
         try {
-            $this->streamHttpResponse($zipUrl, [
+            $info = streamHttpResponse($zipUrl, 'GET', [], NULL, [
                 'content-length',
                 'x-frame-options',
                 'last-modified',
@@ -32,7 +32,13 @@ class PluginDownloader
                 'age',
                 'vary',
                 'cache-Control'
+            ], [
+                'Content-Type: application/zip',
+                'Content-Disposition: attachment; filename="plugin.zip"',
             ]);
+            if ($info['http_code'] > 299 || $info['http_code'] < 200) {
+                throw new ApiException('Request failed');
+            }
         } catch (ApiException $e) {
             throw new ApiException("Plugin or theme '$name' not found");
         }
@@ -42,12 +48,12 @@ class PluginDownloader
     {
         $prDetails = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/pulls/$pr")['body'];
         if (!$prDetails) {
-            throw new ApiException('Invalid PR number');
+            throw new ApiException('invalid_pr_number');
         }
         $branchName = $prDetails->head->ref;
         $ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
         if (!$ciRuns) {
-            throw new ApiException('No CI runs found');
+            throw new ApiException('no_ci_runs');
         }
 
         $artifactsUrls = [];
@@ -57,7 +63,7 @@ class PluginDownloader
             }
         }
         if (!$artifactsUrls) {
-            throw new ApiException('No artifact URL found');
+            throw new ApiException('artifact_not_found');
         }
 
         foreach ($artifactsUrls as $artifactsUrl) {
@@ -69,7 +75,10 @@ class PluginDownloader
             }
 
             foreach ($artifacts->artifacts as $artifact) {
-                if ($artifact->name === $artifact_name) {
+                if ($artifact_name === $artifact->name) {
+                    if ($artifact->size_in_bytes < 3000) {
+                        throw new ApiException('artifact_invalid');
+                    }
                     $zip_download_api_endpoint = $artifact->archive_download_url;
                     break;
                 }
@@ -79,11 +88,11 @@ class PluginDownloader
             }
 
             /*
-             * HEAD method is used when we only want to verify whether the CI 
-             * artifact seems to exist – we don't want to download it. Let's
-             * short-circuit with HTTP 200 OK.
+             * Short-circuit with HTTP 200 OK when we only want to 
+             * verify whether the CI artifact seems to exist but we 
+             * don't want to download it yet.
              */
-            if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
+            if (array_key_exists('verify_only', $_GET)) {
                 header('HTTP/1.1 200 OK');
                 return;
             }
@@ -112,13 +121,13 @@ class PluginDownloader
             return;
         }
         if (!$artifacts) {
-            throw new ApiException('No artifacts found under the URL');
+            throw new ApiException('artifact_not_available');
         }
         if (!$zip_download_api_endpoint) {
-            throw new ApiException('No artifact download URL found with the name');
+            throw new ApiException('artifact_not_available');
         }
         if (!$zip_url) {
-            throw new ApiException('No zip location returned by the artifact download API');
+            throw new ApiException('artifact_not_available');
         }
     }
 
@@ -126,7 +135,7 @@ class PluginDownloader
     {
         $zipUrl = "https://github.com/$repo/releases/latest/download/$name";
         try {
-            $this->streamHttpResponse($zipUrl, [
+            $info = streamHttpResponse($zipUrl, 'GET', [], NULL, [
                 'content-length',
                 'x-frame-options',
                 'last-modified',
@@ -135,7 +144,13 @@ class PluginDownloader
                 'age',
                 'vary',
                 'cache-Control'
+            ], [
+                'Content-Type: application/zip',
+                'Content-Disposition: attachment; filename="plugin.zip"',
             ]);
+            if ($info['http_code'] > 299 || $info['http_code'] < 200) {
+                throw new ApiException('Request failed');
+            }
         } catch (ApiException $e) {
             throw new ApiException("Plugin or theme '$name' not found");
         }
@@ -168,63 +183,74 @@ class PluginDownloader
         ];
     }
 
-    private function streamHttpResponse($url, $allowed_headers = [], $default_headers = [])
-    {
-        $default_headers = array_merge([
-            'Content-Type: application/zip',
-            'Content-Disposition: attachment; filename="plugin.zip"',
-        ], $default_headers);
-        $ch = curl_init($url);
-        curl_setopt_array(
-            $ch,
-            [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 30,
-                CURLOPT_FAILONERROR => true,
-                CURLOPT_FOLLOWLOCATION => true,
-            ]
-        );
+}
+function streamHttpResponse($url, $request_method = 'GET', $request_headers = [], $request_body = null, $allowed_response_headers = [], $default_response_headers = [])
+{
+    $ch = curl_init($url);
+    curl_setopt_array(
+        $ch,
+        [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_FAILONERROR => true,
+            CURLOPT_FOLLOWLOCATION => true,
+        ]
+    );
 
-        $seen_headers = [];
-        curl_setopt(
-            $ch,
-            CURLOPT_HEADERFUNCTION,
-            function ($curl, $header_line) use ($seen_headers, $allowed_headers) {
-                $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-                $seen_headers[$header_name] = true;
-                if (in_array($header_name, $allowed_headers)) {
-                    header($header_line);
-                }
-                return strlen($header_line);
-            }
-        );
-        $extra_headers_sent = false;
-        curl_setopt(
-            $ch,
-            CURLOPT_WRITEFUNCTION,
-            function ($curl, $body) use (&$extra_headers_sent, $default_headers) {
-                if (!$extra_headers_sent) {
-                    foreach ($default_headers as $header_line) {
-                        $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-                        if (!isset($seen_headers[strtolower($header_name)])) {
-                            header($header_line);
-                        }
-                    }
-                    $extra_headers_sent = true;
-                }
-                echo $body;
-                flush();
-                return strlen($body);
-            }
-        );
-        curl_exec($ch);
-        $info = curl_getinfo($ch);
-        curl_close($ch);
-        if ($info['http_code'] > 299 || $info['http_code'] < 200) {
-            throw new ApiException('Request failed');
-        }
+    if ($request_method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $request_body);
+    } else if ($request_method === 'HEAD') {
+        curl_setopt($ch, CURLOPT_NOBODY, true);
     }
 
+    if (count($request_headers)) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $request_headers);
+    }
+
+    $seen_headers = [];
+    curl_setopt(
+        $ch,
+        CURLOPT_HEADERFUNCTION,
+        function ($curl, $header_line) use ($seen_headers, $allowed_response_headers) {
+            if (strpos($header_line, ':') === false) {
+                return strlen($header_line);
+            }
+            $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+            $seen_headers[$header_name] = true;
+            $illegal_headers = ['transfer-encoding'];
+            $header_allowed = (
+                NULL === $allowed_response_headers || in_array($header_name, $allowed_response_headers)
+            ) && !in_array($header_name, $illegal_headers);
+            if ($header_allowed) {
+                header($header_line);
+            }
+            return strlen($header_line);
+        }
+    );
+    $extra_headers_sent = false;
+    curl_setopt(
+        $ch,
+        CURLOPT_WRITEFUNCTION,
+        function ($curl, $body) use (&$extra_headers_sent, $default_response_headers) {
+            if (!$extra_headers_sent) {
+                foreach ($default_response_headers as $header_line) {
+                    $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+                    if (!isset($seen_headers[$header_name])) {
+                        header($header_line);
+                    }
+                }
+                $extra_headers_sent = true;
+            }
+            echo $body;
+            flush();
+            return strlen($body);
+        }
+    );
+    curl_exec($ch);
+    $info = curl_getinfo($ch);
+    curl_close($ch);
+    return $info;
 }
 
 $downloader = new PluginDownloader(
@@ -232,9 +258,14 @@ $downloader = new PluginDownloader(
 );
 
 // Serve the request:
-header('Access-Control-Allow-Origin: *');
+if (!array_key_exists('url', $_GET)) {
+    header('Access-Control-Allow-Origin: *');
+}
 $pluginResponse;
 try {
+    /** @deprecated Plugins and themes downloads are no longer needed now that WordPress.org serves
+     *              the proper CORS headers. This code will be removed in one of the next releases.
+     */
     if (isset($_GET['plugin'])) {
         $downloader->streamFromDirectory($_GET['plugin'], PluginDownloader::PLUGINS);
     } else if (isset($_GET['theme'])) {
@@ -245,14 +276,20 @@ try {
                 'org' => 'WordPress',
                 'repo' => 'gutenberg',
                 'workflow' => 'Build Gutenberg Plugin Zip',
-                'artifact' => 'gutenberg-plugin'
+                'artifact' => '#gutenberg-plugin#'
             ],
             [
                 'org' => 'woocommerce',
                 'repo' => 'woocommerce',
                 'workflow' => 'Build Live Branch',
-                'artifact' => 'plugins'
-            ]
+                'artifact' => '#plugins#'
+            ],
+            [
+                'org' => 'WordPress',
+                'repo' => 'wordpress-develop',
+                'workflow' => 'Test Build Processes',
+                'artifact' => '#wordpress-build-\d+#'
+            ],
         ];
         $allowed = false;
         foreach ($allowedInputs as $allowedInput) {
@@ -260,13 +297,14 @@ try {
                 $_GET['org'] === $allowedInput['org'] &&
                 $_GET['repo'] === $allowedInput['repo'] &&
                 $_GET['workflow'] === $allowedInput['workflow'] &&
-                $_GET['artifact'] === $allowedInput['artifact']
+                preg_match($allowedInput['artifact'], $_GET['artifact'])
             ) {
                 $allowed = true;
                 break;
             }
         }
         if (!$allowed) {
+            header('HTTP/1.1 400 Invalid request');
             die('Invalid request');
         }
         $downloader->streamFromGithubPR(
@@ -277,14 +315,66 @@ try {
             $_GET['artifact']
         );
     } else if (isset($_GET['repo']) && isset($_GET['name'])) {
-
-      // Only allow downloads from the block-interactivity-experiments repo for now.
+        // Only allow downloads from the block-interactivity-experiments repo for now.
         if ($_GET['repo'] !== 'WordPress/block-interactivity-experiments') {
             throw new ApiException('Invalid repo. Only "WordPress/block-interactivity-experiments" is allowed.');
         }
 
         $downloader->streamFromGithubReleases($_GET['repo'], $_GET['name']);
+    } else if (isset($_GET['url'])) {
+        // Proxy the current request to $_GET['url'] and return the response,
+        // but only if the URL is allowlisted.
+        $url = $_GET['url'];
+        $allowed_domains = ['api.wordpress.org', 'w.org', 's.w.org'];
+        $parsed_url = parse_url($url);
+        if (!in_array($parsed_url['host'], $allowed_domains)) {
+            http_response_code(403);
+            echo "Error: The specified URL is not allowed.";
+            exit;
+        }
 
+        /**
+         * Pass through the request headers we got from WordPress via fetch(),
+         * then filter out:
+         * 
+         * * The browser-specific headers
+         * * Headers related to security to avoid leaking any auth information
+         * 
+         * ...and pass the rest to the proxied request.
+         * 
+         * @return array
+         */
+        function get_request_headers()
+        {
+            $headers = [];
+            foreach ($_SERVER as $name => $value) {
+                if (substr($name, 0, 5) !== 'HTTP_') {
+                    continue;
+                }
+                $name = str_replace(' ', '-', ucwords(str_replace('_', ' ', strtolower(substr($name, 5)))));
+                $lcname = strtolower($name);
+                if (
+                    $lcname === 'authorization'
+                    || $lcname === 'cookie'
+                    || $lcname === 'host'
+                    || $lcname === 'origin'
+                    || $lcname === 'referer'
+                    || 0 === strpos($lcname, 'sec-')
+                ) {
+                    continue;
+                }
+                $headers[$name] = $value;
+            }
+            return $headers;
+        }
+
+        streamHttpResponse(
+            $url,
+            $_SERVER['REQUEST_METHOD'],
+            get_request_headers(),
+            file_get_contents('php://input'),
+            null
+        );
     } else {
         throw new ApiException('Invalid query parameters');
     }

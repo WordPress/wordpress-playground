@@ -5,6 +5,9 @@ export async function getPHPLoaderModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<PHPLoaderModule> {
 	switch (version) {
+		case '8.3':
+			// @ts-ignore
+			return await import(`../../public/php_8_3.js`);
 		case '8.2':
 			// @ts-ignore
 			return await import(`../../public/php_8_2.js`);
@@ -29,9 +32,6 @@ export async function getPHPLoaderModule(
 		case '7.0':
 			// @ts-ignore
 			return await import(`../../public/php_7_0.js`);
-		case '5.6':
-			// @ts-ignore
-			return await import('../../public/php_5_6.js');
 	}
 	throw new Error(`Unsupported PHP version ${version}`);
 }

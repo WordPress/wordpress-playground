@@ -1,6 +1,7 @@
 import {
 	LatestSupportedPHPVersion,
 	MessageListener,
+	SupportedPHPExtensionsList,
 } from '@php-wasm/universal';
 import {
 	registerServiceWorker,
@@ -25,8 +26,10 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from './get-wordpress-module';
+import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
+import { FilesystemOperation } from '@php-wasm/fs-journal';
+import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
 export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
 
 // Prevent Vite from hot-reloading this file – it would
@@ -60,10 +63,17 @@ export async function bootPlaygroundRemote() {
 		query.get('php'),
 		LatestSupportedPHPVersion
 	);
+	const phpExtensions = parseList(
+		query.getAll('php-extension'),
+		SupportedPHPExtensionsList
+	);
+	const withNetworking = query.get('networking') === 'yes';
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
 			phpVersion,
+			['php-extension']: phpExtensions,
+			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
 		})
 	);
@@ -72,6 +82,18 @@ export async function bootPlaygroundRemote() {
 	const webApi: WebClientMixin = {
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
+		},
+		async journalFSEvents(root: string, callback) {
+			return workerApi.journalFSEvents(root, callback);
+		},
+		async replayFSJournal(events: FilesystemOperation[]) {
+			return workerApi.replayFSJournal(events);
+		},
+		async addEventListener(event, listener) {
+			return await workerApi.addEventListener(event, listener);
+		},
+		async removeEventListener(event, listener) {
+			return await workerApi.removeEventListener(event, listener);
 		},
 		async setProgress(options: ProgressBarOptions) {
 			if (!bar) {
@@ -168,6 +190,9 @@ export async function bootPlaygroundRemote() {
 			serviceWorkerUrl + ''
 		);
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		if (withNetworking) {
+			await setupFetchNetworkTransport(workerApi);
+		}
 
 		setAPIReady();
 	} catch (e) {
@@ -176,7 +201,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	/*
-	 * An asssertion to make sure Playground Client is compatible
+	 * An assertion to make sure Playground Client is compatible
 	 * with Remote<PlaygroundClient>
 	 */
 	return playground;
@@ -217,6 +242,13 @@ function parseVersion<T>(value: string | undefined | null, latest: T) {
 	 * it with an underscore
 	 */
 	return value.replace('.', '_');
+}
+
+function parseList<T>(value: string[], list: readonly T[]) {
+	if (!value) {
+		return [];
+	}
+	return value.filter((item) => list.includes(item as any));
 }
 
 /**

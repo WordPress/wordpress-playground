@@ -3,7 +3,6 @@
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/remote/src",
 	"projectType": "library",
-	"implicitDependencies": ["playground-compile-wordpress"],
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
@@ -34,26 +33,6 @@
 					"buildTarget": "playground-remote:build:production",
 					"hmr": false
 				}
-			}
-		},
-		"recompile-wordpress": {
-			"executor": "nx:run-commands",
-			"options": {
-				"command": "node packages/playground/compile-wordpress/build.js --preset={args.preset} --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-				"parallel": false
-			}
-		},
-		"recompile-wordpress:all": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"node packages/playground/compile-wordpress/build.js --preset=5.9 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.0 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.1 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=6.2 --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public",
-					"node packages/playground/compile-wordpress/build.js --preset=nightly --output-js=packages/playground/remote/src/wordpress --output-assets=packages/playground/remote/public"
-				],
-				"parallel": false
 			}
 		},
 		"preview": {
@@ -88,7 +67,7 @@
 		},
 		"test": {
 			"executor": "@nx/vite:test",
-			"outputs": ["coverage/packages/playground/remote"],
+			"outputs": ["{workspaceRoot}/coverage/packages/playground/remote"],
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/remote"

@@ -1,14 +1,13 @@
 import { NodePHP } from '@php-wasm/node';
 import { compileBlueprint, runBlueprintSteps } from '../compile';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 
-const phpVersion = '8.0';
 describe('Blueprint step installPlugin', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
+		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
-				isStaticFilePath: (path) => !path.endsWith('.php'),
 			},
 		});
 	});

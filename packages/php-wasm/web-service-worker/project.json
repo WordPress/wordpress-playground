@@ -19,7 +19,8 @@
 				"outputPath": "dist/packages/php-wasm/web-service-worker",
 				"main": "packages/php-wasm/web-service-worker/src/index.ts",
 				"tsConfig": "packages/php-wasm/web-service-worker/tsconfig.lib.json",
-				"assets": ["packages/php-wasm/web-service-worker/*.md"]
+				"assets": ["packages/php-wasm/web-service-worker/*.md"],
+				"updateBuildableProjectDepsInPackageJson": true
 			}
 		},
 		"lint": {

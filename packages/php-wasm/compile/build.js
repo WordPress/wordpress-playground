@@ -12,8 +12,8 @@ const argParser = yargs(process.argv.slice(2))
 	.options({
 		PLATFORM: {
 			type: 'string',
-			choices: ['web', 'node'],
-			default: 'web',
+			choices: ['web-light', 'web-kitchen-sink', 'node'],
+			default: 'web-light',
 			description: 'The platform to build for',
 		},
 		DEBUG: {
@@ -36,6 +36,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with libpng support',
 		},
+		WITH_ICONV: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with iconv support',
+		},
 		WITH_MBSTRING: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -44,7 +49,6 @@ const argParser = yargs(process.argv.slice(2))
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
-			default: 'yes',
 			description: 'Build with CLI SAPI',
 		},
 		WITH_OPENSSL: {
@@ -66,6 +70,16 @@ const argParser = yargs(process.argv.slice(2))
 			type: 'string',
 			choices: ['yes', 'no'],
 			description: 'Build with SQLite support',
+		},
+		WITH_SOURCEMAPS: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
+		},
+		WITH_ICONV: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with source maps',
 		},
 		WITH_MYSQL: {
 			type: 'string',
@@ -97,10 +111,18 @@ const platformDefaults = {
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
 	},
-	web: {},
-	node: {
+	['web-light']: {},
+	['web-kitchen-sink']: {
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
+		WITH_ICONV: 'yes',
+		WITH_MBSTRING: 'yes',
+	},
+	node: {
+		WITH_ICONV: 'yes',
+		WITH_LIBXML: 'yes',
+		WITH_LIBPNG: 'yes',
+		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_CLI_SAPI: 'yes',
 		WITH_OPENSSL: 'yes',
@@ -109,7 +131,8 @@ const platformDefaults = {
 		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 };
-const platform = args.PLATFORM === 'node' ? 'node' : 'web';
+const platform = args.PLATFORM;
+
 /* eslint-disable prettier/prettier */
 const getArg = (name) => {
 	let value =
@@ -135,11 +158,15 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
-// Build PHP
+// Build the base image
+await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+
 await asyncSpawn(
 	'docker',
 	[
 		'build',
+		'-f',
+		'php/Dockerfile',
 		'.',
 		'--tag=php-wasm',
 		args.DEBUG ? '--progress=plain' : '--progress=auto',
@@ -166,11 +193,15 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('WITH_SQLITE'),
 		'--build-arg',
+		getArg('WITH_SOURCEMAPS'),
+		'--build-arg',
+		getArg('WITH_ICONV'),
+		'--build-arg',
 		getArg('WITH_MYSQL'),
 		'--build-arg',
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
-		`EMSCRIPTEN_ENVIRONMENT=${platform}`,
+		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
@@ -192,7 +223,7 @@ await asyncSpawn(
 		// they don't work without running cp through shell.
 		'sh',
 		'-c',
-		`cp /root/output/php* /output && mkdir -p /output/terminfo/x ${
+		`cp -rf /root/output/* /output && mkdir -p /output/terminfo/x ${
 			getArg('WITH_CLI_SAPI') === 'yes'
 				? '&& cp /root/lib/share/terminfo/x/xterm /output/terminfo/x'
 				: ''
@@ -201,11 +232,12 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
+const _args = args;
+
 function asyncSpawn(...args) {
 	console.log('Running', args[0], args[1].join(' '), '...');
 	return new Promise((resolve, reject) => {
 		const child = spawn(...args);
-
 		child.on('close', (code) => {
 			if (code === 0) resolve(code);
 			else reject(new Error(`Process exited with code ${code}`));

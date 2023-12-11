@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Without this, git is reporting that the files formatted in the
+# pre-commit hook are still modified after committing
+UPDATED_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD)
+git update-index $UPDATED_FILES

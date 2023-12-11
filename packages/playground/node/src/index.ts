@@ -27,7 +27,7 @@ export async function startPlaygroundNode(
 	 * @TODO figure out how to handle:
 	 * * WordPress installation? There are no wp.data files like in the web version
 	 * * Managing WordPress versions
-	 * * Exisiting WordPress installations
+	 * * Existing WordPress installations
 	 * * Mounting existing themes, plugins, and core WP files
 	 *
 	 * Perhaps there is too much custom logic to be able to even have

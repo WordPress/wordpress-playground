@@ -5,7 +5,7 @@ slug: /
 
 # WordPress Playground
 
-👋 Hi! Welcome to WordPress Playground documentation.
+👋 Hi! Welcome to WordPress Playground documentation. Playground is an online tool to experiment and learn about WordPress – learn more in the [overview section](./02-overview.md).
 
 The documentation consists of two major sections:
 

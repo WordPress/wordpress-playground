@@ -7,6 +7,7 @@ export function SyncLocalFilesButton() {
 	const [isSyncing, setIsSyncing] = useState(false);
 	return (
 		<Button
+			variant="browser-chrome"
 			onClick={async () => {
 				setIsSyncing(true);
 				try {

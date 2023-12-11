@@ -7,7 +7,7 @@
 		rel="stylesheet"
 		href="https://fonts.googleapis.com/css?family=Noto+Serif:400,700"
 	/>
-	<link rel="stylesheet" href="./gutenberg.css" />
+	<link rel="stylesheet" href="./previewer.css" />
 </head>
 <body>
 	<div id="main">
@@ -27,12 +27,12 @@
 			action="https://playground.wordpress.net"
 			method="GET"
 		>
-			<label for="gutenberg-pr">Pull request number or URL:</label>
+			<label for="pr-number">Pull request number or URL:</label>
 			<div id="createFields">
 				<input
-					id="gutenberg-pr"
+					id="pr-number"
 					type="text"
-					name="gutenberg-pr"
+					name="pr-number"
 					value=""
 					required
 					autofocus
@@ -92,7 +92,7 @@
 			submitButton.classList.add('loading');
 			submitButton.disabled = true;
 
-			let prNumber = document.getElementById('gutenberg-pr').value;
+			let prNumber = document.getElementById('pr-number').value;
 
 			// Extract number from a GitHub URL
 			if (
@@ -104,7 +104,7 @@
 			}
 
 			// Verify that the PR exists and that GitHub CI finished building it
-			const zipArtifactUrl = `/plugin-proxy?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
+			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
 			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
 			if (response.status !== 200) {

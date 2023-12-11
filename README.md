@@ -32,7 +32,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 <!DOCTYPE html>
 <iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
 <script type="module">
-	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp-playground'),
@@ -61,7 +61,8 @@ You can connect to the Playground using the JavaScript client. Here's an example
 	});
 
 	const response = await client.run({
-		code: '<?php echo "Hi!"; ',
+		// wp-load.php is only required if you want to interact with WordPress.
+		code: '<?php require_once "/wordpress/wp-load.php"; $posts = get_posts(); echo "Post Title: " . $posts[0]->post_title;',
 	});
 	console.log(response.text);
 </script>
@@ -110,7 +111,7 @@ And here's a few more interesting CLI commands, which expect that you have `nx` 
 nx start php-wasm-cli
 
 # Build latest WordPress releases
-nx recompile-wordpress:all playground-remote
+nx bundle-wordpress:all playground-wordpress
 
 # Recompile PHP 5.6 - 8.2 releases to .wasm for web
 nx recompile-php:all php-wasm-web
@@ -160,6 +161,6 @@ A worthy mention is Wasm Labs’s closed-source [WordPress in the browser](https
 
 ## Governance
 
-[WordPress Playground](https://github.com/WordPress/wordpress-playground) is a WordPress.org project started and maintained by [Adam Zielinski](https://github.com/adamziel). As Adam is on sabbatical until September 26th, [https://github.com/dmsnell](Dennis Snell) is the current maintainer.
+[WordPress Playground](https://github.com/WordPress/wordpress-playground) is a WordPress.org project started and led by [Adam Zielinski](https://github.com/adamziel).
 
 [Playground tools](https://github.com/WordPress/playground-tools) like `wp-now` or the interactive code block are maintained by their authors in the [playground-tools monorepo](https://github.com/WordPress/playground-tools).

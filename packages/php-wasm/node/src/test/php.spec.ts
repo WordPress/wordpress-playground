@@ -10,10 +10,220 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion);
+		php = await NodePHP.load(phpVersion as any);
+		php.setPhpIniEntry('disable_functions', '');
+	});
+
+	describe('exec()', () => {
+		it('echo', async () => {
+			const result = await php.run({
+				code: `<?php
+				echo 'stdout: ' . exec("echo WordPress");
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress');
+		});
+	});
+
+	describe('popen()', () => {
+		it('popen("echo", "r")', async () => {
+			const result = await php.run({
+				code: `<?php
+				$fp = popen("echo WordPress", "r");
+				echo 'stdout: ' . fread($fp, 1024);
+				fclose($fp);
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+
+		it('popen("cat", "w")', async () => {
+			const result = await php.run({
+				code: `<?php
+				$path = __DIR__;
+				$fp = popen("cat > out", "w");
+				fwrite($fp, "WordPress\n");
+				fclose($fp);
+
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
+				sleep(1);
+
+				$fp = popen("cat out", "r");
+				echo 'stdout: ' . fread($fp, 1024);
+				fclose($fp);
+			`,
+			});
+
+			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+	});
+
+	describe('proc_open()', () => {
+		it('echo – stdin=file (empty), stdout=file, stderr=file', async () => {
+			const result = await php.run({
+				code: `<?php
+				file_put_contents('/tmp/process_in', '');
+				$res = proc_open(
+					"echo WordPress",
+					array(
+						array("file","/tmp/process_in", "r"),
+						array("file","/tmp/process_out", "w"),
+						array("file","/tmp/process_err", "w"),
+					),
+					$pipes
+				);
+
+				// Yields back to JS event loop to capture and process the 
+				// child_process output. This is fine. Regular PHP scripts
+				// typically wait for the child process to finish.
+				sleep(1);
+
+				$stdout = file_get_contents("/tmp/process_out");
+				$stderr = file_get_contents("/tmp/process_err");
+
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		it('echo – stdin=file (empty), stdout=pipe, stderr=pipe', async () => {
+			const result = await php.run({
+				code: `<?php
+				file_put_contents('/tmp/process_in', '');
+				$res = proc_open(
+					"echo WordPress",
+					array(
+						array("file","/tmp/process_in", "r"),
+						array("pipe","w"),
+						array("pipe","w"),
+					),
+					$pipes
+				);
+
+				// stream_get_contents yields back to JS event loop internally.
+				sleep(1);
+				$stdout = stream_get_contents($pipes[1]);
+				$stderr = stream_get_contents($pipes[2]);
+				proc_close($res);
+
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		// This test fails
+		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+			/*
+			There is a race condition in this variant of the test which 
+			causes the following failure (but only sometimes):
+
+				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
+				→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
+			*/
+			it.skip('cat – stdin=pipe, stdout=file, stderr=file', async () => {
+				const result = await php.run({
+					code: `<?php
+			$res = proc_open(
+				"cat",
+				array(
+					array("pipe","r"),
+					array("file","/tmp/process_out", "w"),
+					array("file","/tmp/process_err", "w"),
+				),
+				$pipes
+			);
+			fwrite($pipes[0], 'WordPress\n');
+
+			// Yields back to JS event loop to capture and process the 
+			// child_process output. This is fine. Regular PHP scripts
+			// typically wait for the child process to finish.
+			sleep(1);
+
+			$stdout = file_get_contents("/tmp/process_out");
+			$stderr = file_get_contents("/tmp/process_err");
+			proc_close($res);
+
+			echo 'stdout: ' . $stdout . "";
+			echo 'stderr: ' . $stderr . PHP_EOL;
+		`,
+				});
+				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+			});
+		}
+
+		it('cat – stdin=file, stdout=file, stderr=file', async () => {
+			const result = await php.run({
+				code: `<?php
+				file_put_contents('/tmp/process_in', 'WordPress\n');
+				$res = proc_open(
+					"cat",
+					array(
+						array("file","/tmp/process_in", "r"),
+						array("file","/tmp/process_out", "w"),
+						array("file","/tmp/process_err", "w"),
+					),
+					$pipes
+				);
+
+				// Yields back to JS event loop to capture and process the 
+				// child_process output. This is fine. Regular PHP scripts
+				// typically wait for the child process to finish.
+				sleep(1);
+
+				$stdout = file_get_contents("/tmp/process_out");
+				$stderr = file_get_contents("/tmp/process_err");
+				proc_close($res);
+
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		it('Uses the specified spawn handler', async () => {
+			let spawnHandlerCalled = false;
+			php.setSpawnHandler(() => {
+				spawnHandlerCalled = true;
+				return {
+					stdout: {
+						on: () => {},
+					},
+					stderr: {
+						on: () => {},
+					},
+					stdin: {
+						write: () => {},
+					},
+					on: () => {},
+					kill: () => {},
+				} as any;
+			});
+			await php.run({
+				code: `<?php
+				$res = proc_open(
+					"echo 'Hello World!'",
+					array(
+						array("pipe","r"),
+						array("pipe","w"),
+						array("pipe","w"),
+					),
+					$pipes
+				);
+				proc_close($res);
+			`,
+			});
+			expect(spawnHandlerCalled).toEqual(true);
+		});
 	});
 
 	describe('Filesystem', () => {
@@ -261,10 +471,14 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		 * the first call.
 		 */
 		it('Should spawn two PHP runtimes', async () => {
-			const phpLoaderModule1 = await getPHPLoaderModule(phpVersion);
+			const phpLoaderModule1 = await getPHPLoaderModule(
+				phpVersion as any
+			);
 			const runtimeId1 = await loadPHPRuntime(phpLoaderModule1);
 
-			const phpLoaderModule2 = await getPHPLoaderModule(phpVersion);
+			const phpLoaderModule2 = await getPHPLoaderModule(
+				phpVersion as any
+			);
 			const runtimeId2 = await loadPHPRuntime(phpLoaderModule2);
 
 			expect(runtimeId1).not.toEqual(runtimeId2);
@@ -306,7 +520,7 @@ describe.each([SupportedPHPVersions])('PHP %s', (phpVersion) => {
 		});
 
 		it('Should run a script when no code snippet is provided', async () => {
-			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
+			php.writeFile(testScriptPath, `<?php echo "Hello world!"; ?>\n`);
 			const response = await php.run({
 				scriptPath: testScriptPath,
 			});
@@ -654,6 +868,43 @@ bar1
 			expect(out.errors).toBe('');
 			expect(messageReceived).toBe('world');
 		});
+
+		it('should return sync messages from JS', async () => {
+			php.onMessage(async (message) => message + '!');
+			const out = await php.run({
+				code: `<?php echo post_message_to_js('a');`,
+			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('a!');
+		});
+
+		it('should return async messages from JS', async () => {
+			php.onMessage(async (message) => {
+				// Simulate getting data asynchronously.
+				return await new Promise<string>((resolve) =>
+					setTimeout(() => resolve(message + '!'), 100)
+				);
+			});
+			const out = await php.run({
+				code: `<?php echo post_message_to_js('a');`,
+			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('a!');
+		});
+
+		it('should return null when JS message handler throws an error', async () => {
+			php.onMessage(async () => {
+				// Simulate getting data asynchronously.
+				return await new Promise<string>((resolve, reject) =>
+					setTimeout(() => reject('Failure!'), 100)
+				);
+			});
+			const out = await php.run({
+				code: `<?php var_dump(post_message_to_js('a'));`,
+			});
+			expect(out.errors).toBe('');
+			expect(out.text).toBe('NULL\n');
+		});
 	});
 
 	describe('CLI', () => {
@@ -720,7 +971,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				caughtError = error;
 				if (error instanceof Error) {
 					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|/
+						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
 					);
 				}
 			}
@@ -759,5 +1010,55 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				expect.fail('php.run should have thrown an error');
 			}
 		});
+
+		it('Does not leak memory when creating and destroying instances', async () => {
+			if (!global.gc) {
+				console.error(
+					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
+						`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
+						`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
+				);
+			}
+
+			expect(global.gc && global.gc).to.exist;
+
+			let refCount = 0;
+
+			const registry = new FinalizationRegistry(() => --refCount);
+
+			const concurrent = 25;
+			const steps = 5;
+
+			const delay = (ms: number) =>
+				new Promise((accept) => setTimeout(accept, ms));
+
+			for (let i = 0; i < steps; i++) {
+				const instances = new Set<NodePHP>();
+
+				for (let j = 0; j < concurrent; j++) {
+					instances.add(await NodePHP.load(phpVersion as any));
+				}
+
+				refCount += instances.size;
+
+				for (const instance of instances) {
+					registry.register(instance, null);
+					await instance
+						.run({ code: `<?php 2+2;` })
+						.then(() => instance.exit())
+						.catch(() => {});
+				}
+
+				instances.clear();
+
+				await delay(10);
+				global.gc && global.gc();
+			}
+
+			await delay(100);
+			global.gc && global.gc();
+
+			expect(refCount).lessThanOrEqual(10);
+		}, 500_000);
 	}
 );

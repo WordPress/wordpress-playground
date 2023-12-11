@@ -44,7 +44,7 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 ```html
 <iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
 <script type="module">
-	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp-playground'),
@@ -73,7 +73,8 @@ You can also use Blueprints with the JavaScript API using the `startPlaygroundWe
 	});
 
 	const response = await client.run({
-		code: '<?php echo "Hi!"; ',
+		// wp-load.php is only required if you want to interact with WordPress.
+		code: '<?php require_once "/wordpress/wp-load.php"; $posts = get_posts(); echo "Post Title: " . $posts[0]->post_title;',
 	});
 	console.log(response.text);
 </script>
