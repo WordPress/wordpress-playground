@@ -1,4 +1,5 @@
 import { FileEntry, readAllBytes } from '@php-wasm/universal';
+import { Semaphore } from '@php-wasm/util';
 
 export interface ZipFileHeader {
 	startsAt?: number;
@@ -26,8 +27,7 @@ const SIGNATURE_FILE = 0x04034b50;
 const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50;
 const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50;
 
-async function* iterateZipEntries(stream: ReadableStream<Uint8Array>) {
-	const zipStream = new BufferedReadableStream(stream.getReader());
+async function* iterateZipEntries(zipStream: BufferedReadableStream) {
 	while (true) {
 		const signature = await zipStream.readUint32();
 		// console.log({ signature });
@@ -42,17 +42,19 @@ async function* iterateZipEntries(stream: ReadableStream<Uint8Array>) {
 				dataStream: fileDataStream,
 			} as ZipFileEntry;
 		} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_START) {
-			break;
+			yield await readCentralDirectory(zipStream);
 		} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_END) {
-			break;
+			yield await readEndCentralDirectory(zipStream);
 		} else {
-			throw new Error(`Unknown signature: ${signature}`);
+			break; // throw new Error(`Unknown signature: ${signature}`);
 		}
 	}
 }
 
 export async function* iterateZipFiles(stream: ReadableStream<Uint8Array>) {
-	for await (const entry of iterateZipEntries(stream)) {
+	for await (const entry of iterateZipEntries(
+		BufferedReadableStream.fromStream(stream)
+	)) {
 		yield toZipFile(entry);
 	}
 }
@@ -90,6 +92,89 @@ async function readFileHeader(
 	return entry as ZipFileHeader;
 }
 
+interface CentralDirectoryEntry {
+	versionCreated: number;
+	versionNeeded: number;
+	generalPurpose: number;
+	compressionMethod: number;
+	lastModifiedTime: number;
+	lastModifiedDate: number;
+	crc: number;
+	compressedSize: number;
+	uncompressedSize: number;
+	fileNameLength: number;
+	extraLength: number;
+	fileCommentLength: number;
+	diskNumber: number;
+	internalAttributes: number;
+	externalAttributes: number;
+	offset: number;
+	fileName: string;
+	extra: string;
+	fileComment: string;
+}
+
+async function readCentralDirectory(
+	stream: BufferedReadableStream
+): Promise<CentralDirectoryEntry> {
+	const centralDirectory: Partial<CentralDirectoryEntry> = {
+		versionCreated: await stream.readUint16(),
+		versionNeeded: await stream.readUint16(),
+		generalPurpose: await stream.readUint16(),
+		compressionMethod: await stream.readUint16(),
+		lastModifiedTime: await stream.readUint16(),
+		lastModifiedDate: await stream.readUint16(),
+		crc: await stream.readUint32(),
+		compressedSize: await stream.readUint32(),
+		uncompressedSize: await stream.readUint32(),
+		fileNameLength: await stream.readUint16(),
+		extraLength: await stream.readUint16(),
+		fileCommentLength: await stream.readUint16(),
+		diskNumber: await stream.readUint16(),
+		internalAttributes: await stream.readUint16(),
+		externalAttributes: await stream.readUint32(),
+	};
+	centralDirectory['offset'] = await stream.readUint32();
+	centralDirectory['fileName'] = new TextDecoder().decode(
+		await stream.read(centralDirectory.fileNameLength!)
+	);
+	centralDirectory['extra'] = new TextDecoder().decode(
+		await stream.read(centralDirectory.extraLength!)
+	);
+	centralDirectory['fileComment'] = new TextDecoder().decode(
+		await stream.read(centralDirectory.fileCommentLength!)
+	);
+	return centralDirectory as CentralDirectoryEntry;
+}
+
+interface CentralDirectoryEndEntry {
+	numberOfDisks: number;
+	centralDirectoryStartDisk: number;
+	numberCentralDirectoryRecordsOnThisDisk: number;
+	numberCentralDirectoryRecords: number;
+	centralDirectorySize: number;
+	centralDirectoryOffset: number;
+	commentLength: number;
+	comment: string;
+}
+
+async function readEndCentralDirectory(stream: BufferedReadableStream) {
+	const endOfDirectory: Partial<CentralDirectoryEndEntry> = {
+		numberOfDisks: await stream.readUint16(),
+		centralDirectoryStartDisk: await stream.readUint16(),
+		numberCentralDirectoryRecordsOnThisDisk: await stream.readUint16(),
+		numberCentralDirectoryRecords: await stream.readUint16(),
+		centralDirectorySize: await stream.readUint32(),
+		centralDirectoryOffset: await stream.readUint32(),
+		commentLength: await stream.readUint16(),
+	};
+	endOfDirectory['comment'] = new TextDecoder().decode(
+		await stream.read(endOfDirectory.commentLength!)
+	);
+
+	return endOfDirectory as CentralDirectoryEndEntry;
+}
+
 async function createFileDataStream(
 	stream: BufferedReadableStream,
 	header: ZipFileHeader
@@ -124,6 +209,10 @@ class BufferedReadableStream {
 	constructor(reader: ReadableStreamDefaultReader<Uint8Array>) {
 		this.reader = reader;
 		this.buffer = new Uint8Array();
+	}
+
+	static fromStream(stream: ReadableStream<Uint8Array>) {
+		return new BufferedReadableStream(stream.getReader());
 	}
 
 	async read(n: number) {
@@ -168,3 +257,170 @@ class BufferedReadableStream {
 		this.reader.releaseLock();
 	}
 }
+
+class ZipScanner {
+	constructor(private source: RangeGetter) {}
+
+	async *listFiles(): AsyncGenerator<CentralDirectoryEntry> {
+		const endSignaturePos = await this.scanZipFileCentralDirectory();
+		if (!endSignaturePos) throw new Error('End signature not found');
+		console.log({ endSignaturePos });
+
+		const endSignature = await readEndCentralDirectory(
+			BufferedReadableStream.fromStream(
+				await this.source.readStream(
+					endSignaturePos + 4, // Skip the signature
+					this.source.length - 1
+				)
+			)
+		);
+		console.log({ endSignature });
+
+		const centralDirectoryStream = BufferedReadableStream.fromStream(
+			await this.source.readStream(
+				endSignature['centralDirectoryOffset'],
+				endSignaturePos - 1
+			)
+		);
+
+		yield* iterateZipEntries(
+			centralDirectoryStream
+		) as AsyncGenerator<CentralDirectoryEntry>;
+	}
+
+	async readFile(
+		record: CentralDirectoryEntry
+	): Promise<ZipFileEntry | undefined> {
+		const fileStream = BufferedReadableStream.fromStream(
+			await this.source.readStream(
+				record.offset,
+				record.offset + record.compressedSize - 1
+			)
+		);
+
+		for await (const file of iterateZipEntries(fileStream)) {
+			return file as ZipFileEntry;
+		}
+	}
+
+	private async scanZipFileCentralDirectory() {
+		const signature = 0x06054b50;
+		const chunkSize = 1024; // Size of each chunk to scan, adjust as needed
+
+		// Scan from the end using Byte Range headers
+		for (
+			let start = this.source.length - chunkSize;
+			start >= 0;
+			start -= chunkSize
+		) {
+			const end = Math.min(start + chunkSize - 1, this.source.length - 1);
+			const view = await this.source.read(start, end);
+
+			// Scan the buffer for the signature
+			for (let i = 0; i < view.byteLength - 4; i++) {
+				if (view.getUint32(i, true) === signature) {
+					console.log({ start, i });
+					return start + i; // Return the position of the signature
+				}
+			}
+		}
+
+		return null; // Signature not found
+	}
+
+	private async findCentralDirectoryStart(
+		endSignaturePos: number
+	): Promise<number | null> {
+		const startSignature = 0x02014b50;
+		const chunkSize = 1024; // Adjust as needed
+
+		// Calculate the start position for scanning the central directory start
+		let start = Math.max(0, endSignaturePos - chunkSize);
+
+		while (start >= 0) {
+			const end = endSignaturePos - 1;
+			const view = await this.source.read(start, end);
+
+			// Scan the buffer backwards for the start signature
+			for (let i = view.byteLength - 1; i >= 4; i--) {
+				if (view.getUint32(i - 4, true) === startSignature) {
+					return start + i - 4; // Return the position of the start signature
+				}
+			}
+
+			// Update the positions for the next iteration
+			endSignaturePos = start;
+			start = Math.max(0, start - chunkSize);
+		}
+
+		return null; // Start signature not found
+	}
+}
+
+type RangeGetter = {
+	length: number;
+	read: (start: number, end: number) => Promise<DataView>;
+	readStream: (
+		start: number,
+		end: number
+	) => Promise<ReadableStream<Uint8Array>>;
+};
+
+async function fetchBytes(url: string): Promise<RangeGetter> {
+	const response = await fetch(url, { method: 'HEAD' });
+	if (!response.ok) throw new Error('Failed to fetch the ZIP file');
+
+	const contentLength = response.headers.get('Content-Length');
+	if (!contentLength) throw new Error('Content-Length header is missing');
+
+	const read = async (from: number, to: number) =>
+		await fetch(url, {
+			headers: {
+				Range: `bytes=${from}-${to}`,
+			},
+		})
+			.then((response) => response.arrayBuffer())
+			.then((buffer) => new DataView(buffer));
+
+	const readStream = async (from: number, to: number) =>
+		await fetch(url, {
+			headers: {
+				Range: `bytes=${from}-${to}`,
+			},
+		}).then((response) => response.body!);
+
+	return {
+		read,
+		readStream,
+		length: parseInt(contentLength, 10),
+	};
+}
+
+const scanner = new ZipScanner(
+	await fetchBytes(
+		'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
+		// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+	)
+);
+
+const sem = new Semaphore({ concurrency: 10 });
+
+for await (const cdr of scanner.listFiles()) {
+	if (cdr.fileName.startsWith('gutenberg/lib/experimental')) {
+		if (cdr.uncompressedSize > 0) {
+			sem.acquire().then(async (release) => {
+				try {
+					const file = await scanner.readFile(cdr);
+					console.log(
+						{ file }
+						// await readAllBytes(file!.dataStream.getReader())
+					);
+				} finally {
+					release();
+				}
+			});
+		}
+	}
+}
+
+throw new Error();
