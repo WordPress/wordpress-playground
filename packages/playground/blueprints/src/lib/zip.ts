@@ -1,5 +1,6 @@
 import { FileEntry, readAllBytes } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { getData } from 'ajv/dist/compile/validate';
 
 export interface ZipFileHeader {
 	startsAt?: number;
@@ -21,6 +22,8 @@ export interface ZipFileHeader {
 
 export interface ZipFileEntry extends ZipFileHeader {
 	dataStream: ReadableStream<Uint8Array>;
+	text(): Promise<string>;
+	bytes(): Promise<Uint8Array>;
 }
 
 const FILE_HEADER_SIZE = 32;
@@ -60,7 +63,6 @@ async function* iterateCentralDirectory(zipStream: BufferedReadableStream) {
 	while (true) {
 		const signature = await zipStream.readUint32();
 		if (signature === SIGNATURE_CENTRAL_DIRECTORY_START) {
-			console.log('SIGNATURE_CENTRAL_DIRECTORY_START');
 			yield await readCentralDirectory(zipStream);
 		} else {
 			console.log('Unrecognized');
@@ -276,10 +278,12 @@ class BufferedReadableStream {
 	}
 }
 
+const sem = new Semaphore({ concurrency: 10 });
+
 class ZipScanner {
 	constructor(private source: RangeGetter) {}
 
-	async listFiles() {
+	async *listFiles() {
 		const centralDirectoryEndPos =
 			await this.findCentralDirectoryEndSignature();
 		if (!centralDirectoryEndPos) {
@@ -294,53 +298,95 @@ class ZipScanner {
 				centralDirectoryEndPos - 1
 			)
 		);
-
-		let i = 0;
 		for await (const zipEntry of iterateCentralDirectory(
 			centralDirectoryStream
 		)) {
-			console.log({ zipEntry });
-			if (i > 0) {
-				const file = await this.readFile(zipEntry);
-				console.log({ file });
-				const bytes = await readAllBytes(file.dataStream.getReader());
-				console.log(new TextDecoder().decode(bytes).substring(0, 1000));
+			if (
+				zipEntry.fileName.endsWith('/') ||
+				zipEntry.uncompressedSize === 0
+			) {
+				continue;
 			}
-			if (++i > 3) {
-				break;
-			}
+			yield zipEntry;
 		}
-
-		// yield* iterateZipEntries(
-		// 	centralDirectoryStream
-		// ) as AsyncGenerator<CentralDirectoryEntry>;
 	}
 
-	private async readFile(zipEntry: CentralDirectoryEntry) {
-		const fileStream = BufferedReadableStream.fromStream(
-			await this.source.readStream(
-				zipEntry.offset!,
-				zipEntry.offset! +
-					FILE_HEADER_SIZE +
-					zipEntry.fileNameLength +
-					zipEntry.extraLength +
-					zipEntry.fileCommentLength +
-					zipEntry.compressedSize -
-					1
-			)
-		);
-		const signature = await fileStream.readUint32();
-		if (signature !== SIGNATURE_FILE) {
-			throw new Error('Unrecognized signature ' + signature);
+	async *fetchFiles(zipEntries: CentralDirectoryEntry[]) {
+		const chunks = [];
+		let bufferedEntries: CentralDirectoryEntry[] = [];
+		let lastOffset = 0;
+		for (const zipEntry of zipEntries) {
+			const currentOffset = zipEntry.offset!;
+			if (lastOffset > currentOffset + 5 * 1024) {
+				chunks.push(this.fetchFilesChunk(bufferedEntries));
+				bufferedEntries = [];
+			}
+			lastOffset = currentOffset;
+			bufferedEntries.push(zipEntry);
 		}
-		console.log('SIGNATURE_FILE');
-		const header = await readFileHeader(fileStream);
-		console.log({ header });
-		const fileDataStream = await createFileDataStream(fileStream, header);
-		return {
-			...header,
-			dataStream: fileDataStream,
-		} as ZipFileEntry;
+		chunks.push(this.fetchFilesChunk(bufferedEntries));
+		console.log('chunks', chunks);
+
+		for (const chunk of chunks) {
+			for await (const file of chunk) {
+				yield file;
+			}
+		}
+	}
+
+	private async *fetchFilesChunk(zipEntries: CentralDirectoryEntry[]) {
+		if (!zipEntries.length) {
+			return;
+		}
+
+		const release = await sem.acquire();
+		try {
+			const lastZipEntry = zipEntries[zipEntries.length - 1];
+			const fileStream = BufferedReadableStream.fromStream(
+				await this.source.readStream(
+					zipEntries[0].offset!,
+					lastZipEntry.offset! +
+						FILE_HEADER_SIZE +
+						lastZipEntry.fileNameLength +
+						lastZipEntry.extraLength +
+						lastZipEntry.fileCommentLength +
+						lastZipEntry.compressedSize -
+						1
+				)
+			);
+
+			while (true) {
+				const signature = await fileStream.readUint32();
+				if (signature !== SIGNATURE_FILE) {
+					return;
+				}
+				const header = await readFileHeader(fileStream);
+				const fileDataStream = await createFileDataStream(
+					fileStream,
+					header
+				);
+
+				const isOneOfRequestedFiles = zipEntries.find(
+					(entry) => entry.fileName === header.fileName
+				);
+				if (isOneOfRequestedFiles) {
+					yield {
+						...header,
+						dataStream: fileDataStream,
+						async text() {
+							return new TextDecoder().decode(await this.bytes());
+						},
+						async bytes() {
+							return await readAllBytes(
+								fileDataStream.getReader()
+							);
+						},
+					} as ZipFileEntry;
+				}
+			}
+		} finally {
+			release();
+		}
 	}
 
 	private async readCentralDirectoryEnd(centralDirectoryEndPos: number) {
@@ -420,31 +466,26 @@ async function fetchBytes(url: string): Promise<RangeGetter> {
 
 const scanner = new ZipScanner(
 	await fetchBytes(
-		'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
-		// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
+		// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
+		// 'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
+		'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
 		// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
 	)
 );
 
-scanner.listFiles();
+const entries: CentralDirectoryEntry[] = [];
+for await (const zipEntry of scanner.listFiles()) {
+	if (
+		!zipEntry.fileName.includes('gutenberg/lib/experimental') &&
+		!zipEntry.fileName.includes('gutenberg/README.md')
+	) {
+		continue;
+	}
+	entries.push(zipEntry);
+}
 
-// const sem = new Semaphore({ concurrency: 10 });
-// for await (const cdr of scanner.listFiles()) {
-// 	if (cdr.fileName.startsWith('gutenberg/lib/experimental')) {
-// 		if (cdr.uncompressedSize > 0) {
-// 			sem.acquire().then(async (release) => {
-// 				try {
-// 					const file = await scanner.readFile(cdr);
-// 					console.log(
-// 						{ file }
-// 						// await readAllBytes(file!.dataStream.getReader())
-// 					);
-// 				} finally {
-// 					release();
-// 				}
-// 			});
-// 		}
-// 	}
-// }
+for await (const file of scanner.fetchFiles(entries)) {
+	console.log(file.fileName);
+}
 
-throw new Error();
+throw new Error('Expected halt');
