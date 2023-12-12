@@ -256,22 +256,14 @@ function concatNBytes(totalBytes?: number) {
 }
 
 export function concatBytesStream() {
-	const chunks: Uint8Array[] = [];
-	let size = 0;
+	let acc = new Uint8Array();
 	return new TransformStream<Uint8Array, Uint8Array>({
 		transform(chunk) {
-			chunks.push(chunk);
-			size += chunk.length;
+			acc = concatUint8Array(acc, chunk);
 		},
 
 		flush(controller) {
-			const result = new Uint8Array(size);
-			let offset = 0;
-			for (const chunk of chunks) {
-				result.set(chunk, offset);
-				offset += chunk.length;
-			}
-			controller.enqueue(new Uint8Array(result));
+			controller.enqueue(acc);
 		},
 	});
 }
