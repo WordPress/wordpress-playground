@@ -4,7 +4,7 @@
 
 import { Semaphore } from '@php-wasm/util';
 
-const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 50 * 1024;
+const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
 const PREFER_RANGES_IF_FILE_LARGER_THAN = 1024 * 1024 * 1;
 
@@ -12,31 +12,6 @@ const FILE_HEADER_SIZE = 32;
 const SIGNATURE_FILE = 0x04034b50 as const;
 const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50 as const;
 const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50 as const;
-
-export function fileEntries(stream: ReadableStream<Uint8Array>) {
-	return zipEntries(stream).pipeThrough(
-		filterStream(({ signature }) => signature === SIGNATURE_FILE)
-	) as IterableReadableStream<FileEntry>;
-}
-
-export function zipEntries(stream: ReadableStream<Uint8Array>) {
-	return new ReadableStream<ZipEntry>({
-		async pull(controller) {
-			try {
-				const entry = await readNextEntry(stream);
-				if (!entry) {
-					controller.close();
-					return;
-				}
-				controller.enqueue(entry);
-			} catch (e) {
-				console.error(e);
-				controller.error(e);
-				throw e;
-			}
-		},
-	}) as IterableReadableStream<ZipEntry>;
-}
 
 async function readNextEntry(stream: ReadableStream<Uint8Array>) {
 	const sigData = new DataView((await readBytes(stream, 4))!.buffer);
@@ -675,14 +650,35 @@ export async function iterateFromUrl(
 			) as IterableReadableStream<FileEntry>;
 	} else {
 		const response = await fetch(url);
-		return zipEntries(response.body!)
-			.pipeThrough(
-				filterStream(({ signature }) => signature === SIGNATURE_FILE)
-			)
-			.pipeThrough(
-				filterStream(predicate)
-			) as IterableReadableStream<FileEntry>;
+		return fileEntries(response.body!).pipeThrough(
+			filterStream(predicate)
+		) as IterableReadableStream<FileEntry>;
 	}
+}
+
+export function fileEntries(stream: ReadableStream<Uint8Array>) {
+	return zipEntries(stream).pipeThrough(
+		filterStream(({ signature }) => signature === SIGNATURE_FILE)
+	) as IterableReadableStream<FileEntry>;
+}
+
+export function zipEntries(stream: ReadableStream<Uint8Array>) {
+	return new ReadableStream<ZipEntry>({
+		async pull(controller) {
+			try {
+				const entry = await readNextEntry(stream);
+				if (!entry) {
+					controller.close();
+					return;
+				}
+				controller.enqueue(entry);
+			} catch (e) {
+				console.error(e);
+				controller.error(e);
+				throw e;
+			}
+		},
+	}) as IterableReadableStream<ZipEntry>;
 }
 
 async function getContentLength(url: string) {
