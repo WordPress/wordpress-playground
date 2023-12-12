@@ -287,7 +287,7 @@ function listZipFiles(source: RangeGetter) {
 
 	return new ReadableStream<CentralDirectoryEntry>({
 		async start() {
-			centralDirectoryStream = await findCentralDirectory(source);
+			centralDirectoryStream = await streamCentralDirectory(source);
 		},
 		async pull(controller) {
 			try {
@@ -309,7 +309,7 @@ function listZipFiles(source: RangeGetter) {
 	});
 }
 
-async function findCentralDirectory(source: RangeGetter) {
+async function streamCentralDirectory(source: RangeGetter) {
 	const chunkSize = CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE;
 	let centralDirectory: Uint8Array = new Uint8Array();
 
@@ -326,7 +326,7 @@ async function findCentralDirectory(source: RangeGetter) {
 		centralDirectory = concatUint8Array(bytes, centralDirectory);
 
 		// Scan the buffer for the signature
-		for (let i = 0; i < view.byteLength - 4; i++) {
+		for (let i = view.byteLength - 4; i >= 0; i--) {
 			if (view.getUint32(i, true) === SIGNATURE_CENTRAL_DIRECTORY_END) {
 				const centralDirectoryLengthAt = i + 4 + 2 + 2 + 2 + 2;
 				const centralDirectoryOffsetAt = centralDirectoryLengthAt + 4;
