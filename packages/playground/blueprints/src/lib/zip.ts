@@ -5,6 +5,8 @@
 import { Semaphore } from '@php-wasm/util';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 50 * 1024;
+const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
+const PREFER_RANGES_IF_FILE_LARGER_THAN = 1024 * 1024 * 1;
 
 const FILE_HEADER_SIZE = 32;
 const SIGNATURE_FILE = 0x04034b50 as const;
@@ -454,7 +456,9 @@ function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	});
 }
 
-function partitionNearbyEntries({ maxGap = -10 * 1024 } = {}) {
+function partitionNearbyEntries({
+	maxGap = BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN,
+} = {}) {
 	let lastFileEndsAt = 0;
 	let currentChunk: CentralDirectoryEntry[] = [];
 	return new TransformStream<CentralDirectoryEntry, CentralDirectoryEntry[]>({
@@ -585,24 +589,23 @@ type BytesSource = {
 	) => Promise<ReadableStream<Uint8Array>>;
 };
 
-async function createFetchSource(url: string): Promise<BytesSource> {
-	const response = await fetch(url, { method: 'HEAD' });
-	if (!response.ok) throw new Error('Failed to fetch the ZIP file');
-
-	const contentLength = response.headers.get('Content-Length');
-	if (!contentLength) throw new Error('Content-Length header is missing');
-
-	const streamBytes = async (from: number, to: number) =>
-		await fetch(url, {
-			headers: {
-				Range: `bytes=${from}-${to}`,
-				'Accept-Encoding': 'none',
-			},
-		}).then((response) => response.body!);
+async function createFetchSource(
+	url: string,
+	contentLength?: number
+): Promise<BytesSource> {
+	if (contentLength === undefined) {
+		contentLength = await getContentLength(url);
+	}
 
 	return {
-		streamBytes,
-		length: parseInt(contentLength, 10),
+		length: contentLength,
+		streamBytes: async (from: number, to: number) =>
+			await fetch(url, {
+				headers: {
+					Range: `bytes=${from}-${to}`,
+					'Accept-Encoding': 'none',
+				},
+			}).then((response) => response.body!),
 	};
 }
 
@@ -651,53 +654,54 @@ function filterStream<T>(filter: (chunk: T) => boolean) {
 	});
 }
 
-const predicate = ({ isDirectory, uncompressedSize }: CentralDirectoryEntry) =>
-	!isDirectory || uncompressedSize !== 0;
-
-// Get specific files from a ZIP archive
-function iterateZipFiles2(
-	source: BytesSource,
-	predicate: (dirEntry: CentralDirectoryEntry) => boolean
+export async function iterateFromUrl(
+	url: string,
+	predicate: (dirEntry: CentralDirectoryEntry | FileEntry) => boolean
 ) {
-	return centralDirectoryEntries(source)
-		.pipeThrough(filterStream(predicate))
-		.pipeThrough(partitionNearbyEntries())
-		.pipeThrough(
-			fetchPartitionedEntries(source)
-		) as IterableReadableStream<FileEntry>;
-}
-const source = await createFetchSource(
-	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
-	// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
-	// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
-	// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
-);
-const files = iterateZipFiles2(source, predicate);
-console.log('iterateZipFiles2');
-for await (const file of files) {
-	console.log(file.fileName);
-}
-
-// Read an entire ZIP archive
-function readEntireZip(
-	stream: ReadableStream<Uint8Array>,
-	predicate: (entry: FileEntry) => boolean
-) {
-	return zipEntries(stream)
-		.pipeThrough(
-			filterStream(({ signature }) => signature === SIGNATURE_FILE)
-		)
-		.pipeThrough(
-			filterStream(predicate)
-		) as IterableReadableStream<FileEntry>;
+	const contentLength = await getContentLength(url);
+	if (contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN) {
+		const source = await createFetchSource(url, contentLength);
+		return centralDirectoryEntries(source)
+			.pipeThrough(filterStream(predicate))
+			.pipeThrough(partitionNearbyEntries())
+			.pipeThrough(
+				fetchPartitionedEntries(source)
+			) as IterableReadableStream<FileEntry>;
+	} else {
+		const response = await fetch(url);
+		return zipEntries(response.body!)
+			.pipeThrough(
+				filterStream(({ signature }) => signature === SIGNATURE_FILE)
+			)
+			.pipeThrough(
+				filterStream(predicate)
+			) as IterableReadableStream<FileEntry>;
+	}
 }
 
-const response = await fetch(
-	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
+async function getContentLength(url: string) {
+	return await fetch(url, { method: 'HEAD' })
+		.then((response) => response.headers.get('Content-Length'))
+		.then((contentLength) => {
+			if (!contentLength) {
+				throw new Error('Content-Length header is missing');
+			}
+			return parseInt(contentLength, 10);
+		});
+}
+
+// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
+// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
+// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+const zipFiles = await iterateFromUrl(
+	// 'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip',
+	'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip',
+	({ isDirectory, uncompressedSize, fileName }) =>
+		!isDirectory &&
+		uncompressedSize > 0 &&
+		fileName.startsWith('gutenberg/lib/experiment')
 );
-const allFiles = readEntireZip(response.body!, predicate as any);
-console.log('readEntireZip');
-for await (const file of allFiles) {
+for await (const file of zipFiles) {
 	console.log(file.fileName);
 }
 
