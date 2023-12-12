@@ -613,51 +613,41 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not move "{path}"')
 	mv(fromPath: string, toPath: string) {
-		const mv = (fromPath: string, toPath: string) => {
-			const FS = this[__private__dont__use].FS;
+		this[__private__dont__use].FS.rename(fromPath, toPath);
+	}
 
-			const fromStat = FS.stat(fromPath);
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not copy "{path}"')
+	cp(fromPath: string, toPath: string) {
+		const FS = this[__private__dont__use].FS;
 
-			let toStat;
+		const fromStat = FS.stat(fromPath);
+
+		const fromMode = parseInt(fromStat.mode.toString(8).substring(0, 1));
+
+		const fromIsDir = fromMode === 4;
+
+		if (fromIsDir) {
 			try {
-				toStat = FS.stat(toPath);
+				FS.mkdir(toPath);
 			} catch {
-				const parentPath = toPath.split('/').slice(0, -1).join('/');
-				try {
-					toStat = FS.stat(parentPath);
-				} catch {
-					toStat = { dev: NaN };
-				}
+				void 0;
 			}
 
-			const fromMode = parseInt(
-				fromStat.mode.toString(8).substring(0, 1)
-			);
-			const fromIsDir = fromMode === 4;
+			const files = FS.readdir(fromPath);
 
-			if (fromStat.dev === toStat.dev) {
-				FS.rename(fromPath, toPath);
-			} else if (fromIsDir) {
-				try {
-					FS.mkdir(toPath);
-				} catch {
-					void 0;
-				}
-				const files = FS.readdir(fromPath);
-				files
-					.filter((f: string) => !['.', '..'].includes(f))
-					.forEach((f: string) =>
-						mv(fromPath + '/' + f, toPath + '/' + f)
-					);
-				FS.rmdir(fromPath);
-			} else {
-				const file = FS.readFile(fromPath, { encoding: 'binary' });
-				FS.writeFile(toPath, file);
-				FS.unlink(fromPath);
-			}
-		};
+			files
+				.filter((f: string) => !['.', '..'].includes(f))
+				.forEach((f: string) =>
+					this.cp(fromPath + '/' + f, toPath + '/' + f)
+				);
 
-		mv(fromPath, toPath);
+			FS.rmdir(fromPath);
+		} else {
+			const file = FS.readFile(fromPath, { encoding: 'binary' });
+			FS.writeFile(toPath, file);
+			FS.unlink(fromPath);
+		}
 	}
 
 	/** @inheritDoc */

@@ -257,6 +257,15 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	mv(oldPath: string, newPath: string): void;
 
 	/**
+	 * Copies a file or directory in the PHP filesystem to a
+	 * new location.
+	 *
+	 * @param oldPath The path to rename.
+	 * @param newPath The new path.
+	 */
+	cp(oldPath: string, newPath: string): void;
+
+	/**
 	 * Removes a directory from the PHP filesystem.
 	 *
 	 * @param path The directory path to remove.
