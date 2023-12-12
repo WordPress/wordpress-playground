@@ -1,16 +1,57 @@
+/**
+ * @TODO: Errors thrown inside streams are ignored
+ */
+
 import { Semaphore } from '@php-wasm/util';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 50 * 1024;
 
 const FILE_HEADER_SIZE = 32;
-const SIGNATURE_FILE = 0x04034b50;
-const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50;
-const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50;
+const SIGNATURE_FILE = 0x04034b50 as const;
+const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50 as const;
+const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50 as const;
+
+function zipEntries(stream: ReadableStream<Uint8Array>) {
+	return new ReadableStream<ZipEntry>({
+		async pull(controller) {
+			try {
+				const entry = await readNextEntry(stream);
+				if (!entry) {
+					controller.close();
+					return;
+				}
+				controller.enqueue(entry);
+			} catch (e) {
+				console.error(e);
+				controller.error(e);
+				throw e;
+			}
+		},
+	});
+}
+
+async function readNextEntry(stream: ReadableStream<Uint8Array>) {
+	const sigData = new DataView((await readBytes(stream, 4))!.buffer);
+	const signature = sigData.getUint32(0, true);
+	if (signature === SIGNATURE_FILE) {
+		return await readFileEntry(stream, true);
+	} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_START) {
+		return await readCentralDirectory(stream, true);
+	} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_END) {
+		return await readEndCentralDirectory(stream, true);
+	}
+	return null;
+}
+
+export type ZipEntry =
+	| FileEntry
+	| CentralDirectoryEntry
+	| CentralDirectoryEndEntry;
 
 export interface FileEntry {
+	signature: typeof SIGNATURE_FILE;
 	startsAt?: number;
 	extract?: any;
-	signature: string;
 	version: number;
 	generalPurpose: number;
 	compressionMethod: number;
@@ -33,35 +74,30 @@ async function readFileEntry(
 	skipSignature = false
 ): Promise<FileEntry | null> {
 	if (!skipSignature) {
-		const signature = await readUint32(stream);
+		const sigData = new DataView((await readBytes(stream, 4))!.buffer);
+		const signature = sigData.getUint32(0, true);
 		if (signature !== SIGNATURE_FILE) {
 			return null;
 		}
 	}
-	const data = await pullBytesAsDataView(stream, 26);
-	const entry: Partial<FileEntry> = {};
-	entry['version'] = data.getUint32(0, true);
-	entry['generalPurpose'] = data.getUint16(2, true);
-	entry['compressionMethod'] = data.getUint16(4, true);
-	entry['lastModifiedTime'] = data.getUint16(6, true);
-	entry['lastModifiedDate'] = data.getUint16(8, true);
-	entry['crc'] = data.getUint32(10, true);
-	entry['compressedSize'] = data.getUint32(14, true);
-	entry['uncompressedSize'] = data.getUint32(18, true);
-	entry['fileNameLength'] = data.getUint16(22, true);
-	entry['extraLength'] = data.getUint16(24, true);
-	entry['fileName'] = await pullBytes(stream, entry['fileNameLength'])
-		.pipeThrough(new TextDecoderStream())
-		.pipeThrough(concatString())
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	const data = new DataView((await readBytes(stream, 26))!.buffer);
+	const entry: Partial<FileEntry> = {
+		signature: SIGNATURE_FILE,
+		version: data.getUint32(0, true),
+		generalPurpose: data.getUint16(2, true),
+		compressionMethod: data.getUint16(4, true),
+		lastModifiedTime: data.getUint16(6, true),
+		lastModifiedDate: data.getUint16(8, true),
+		crc: data.getUint32(10, true),
+		compressedSize: data.getUint32(14, true),
+		uncompressedSize: data.getUint32(18, true),
+		fileNameLength: data.getUint16(22, true),
+		extraLength: data.getUint16(24, true),
+	};
+
+	entry['fileName'] = await readString(stream, entry['fileNameLength']!);
 	entry['isDirectory'] = entry.fileName!.endsWith('/');
-	entry['extra'] = await pullBytes(stream, entry['extraLength'])
-		.pipeThrough(concatBytes(entry['extraLength']))
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	entry['extra'] = await readBytes(stream, entry['extraLength']);
 
 	// Make sure we consume the body stream or else
 	// we'll start reading the next file at the wrong
@@ -69,11 +105,13 @@ async function readFileEntry(
 	// @TODO: Expose the body stream instead of reading it all
 	//        eagerly. Ensure the next iteration exhausts
 	//        the last body stream before moving on.
-	const body = await createFileDataStream(
-		stream,
-		entry['compressedSize'],
-		entry['compressionMethod']
-	)
+	let bodyStream = limitBytes(stream, entry['compressedSize']!);
+	if (entry['compressionMethod'] === 8) {
+		bodyStream = bodyStream.pipeThrough(
+			new DecompressionStream('deflate-raw')
+		);
+	}
+	const body = await bodyStream
 		.pipeThrough(concatBytesStream())
 		.getReader()
 		.read()
@@ -83,27 +121,8 @@ async function readFileEntry(
 	return entry as FileEntry;
 }
 
-function createFileDataStream(
-	stream: ReadableStream<Uint8Array>,
-	compressedSize: number,
-	compressionMethod: number
-): ReadableStream<Uint8Array> {
-	if (compressedSize === 0) {
-		return new ReadableStream({
-			start(controller) {
-				controller.close();
-			},
-		});
-	}
-
-	const bytesStream = pullBytes(stream, compressedSize);
-	if (compressionMethod === 0) {
-		return bytesStream;
-	}
-	return bytesStream.pipeThrough(new DecompressionStream('deflate-raw'));
-}
-
-interface CentralDirectoryEntry {
+export interface CentralDirectoryEntry {
+	signature: typeof SIGNATURE_CENTRAL_DIRECTORY_START;
 	versionCreated: number;
 	versionNeeded: number;
 	generalPurpose: number;
@@ -132,13 +151,15 @@ async function readCentralDirectory(
 	skipSignature = false
 ): Promise<CentralDirectoryEntry | null> {
 	if (!skipSignature) {
-		const signature = await readUint32(stream);
+		const sigData = new DataView((await readBytes(stream, 4))!.buffer);
+		const signature = sigData.getUint32(0, true);
 		if (signature !== SIGNATURE_CENTRAL_DIRECTORY_START) {
 			return null;
 		}
 	}
-	const data = await pullBytesAsDataView(stream, 42);
+	const data = new DataView((await readBytes(stream, 42))!.buffer);
 	const centralDirectory: Partial<CentralDirectoryEntry> = {
+		signature: SIGNATURE_CENTRAL_DIRECTORY_START,
 		versionCreated: data.getUint16(0, true),
 		versionNeeded: data.getUint16(2, true),
 		generalPurpose: data.getUint16(4, true),
@@ -165,38 +186,24 @@ async function readCentralDirectory(
 		centralDirectory.compressedSize! -
 		1;
 
-	centralDirectory['fileName'] = await pullBytes(
+	centralDirectory['fileName'] = await readString(
 		stream,
 		centralDirectory.fileNameLength!
-	)
-		.pipeThrough(new TextDecoderStream())
-		.pipeThrough(concatString())
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	);
 	centralDirectory['isDirectory'] = centralDirectory.fileName!.endsWith('/');
-	centralDirectory['extra'] = await pullBytes(
+	centralDirectory['extra'] = await readBytes(
 		stream,
 		centralDirectory.extraLength!
-	)
-		.pipeThrough(new TextDecoderStream())
-		.pipeThrough(concatString())
-		.getReader()
-		.read()
-		.then(({ value }) => value);
-	centralDirectory['fileComment'] = await pullBytes(
+	);
+	centralDirectory['fileComment'] = await readString(
 		stream,
 		centralDirectory.fileCommentLength!
-	)
-		.pipeThrough(new TextDecoderStream())
-		.pipeThrough(concatString())
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	);
 	return centralDirectory as CentralDirectoryEntry;
 }
 
-interface CentralDirectoryEndEntry {
+export interface CentralDirectoryEndEntry {
+	signature: typeof SIGNATURE_CENTRAL_DIRECTORY_END;
 	numberOfDisks: number;
 	centralDirectoryStartDisk: number;
 	numberCentralDirectoryRecordsOnThisDisk: number;
@@ -207,33 +214,39 @@ interface CentralDirectoryEndEntry {
 	comment: string;
 }
 
-async function readEndCentralDirectory(stream: ReadableStream<Uint8Array>) {
+async function readEndCentralDirectory(
+	stream: ReadableStream<Uint8Array>,
+	skipSignature = false
+) {
+	if (!skipSignature) {
+		const sigData = new DataView((await readBytes(stream, 4))!.buffer);
+		const signature = sigData.getUint32(0, true);
+		if (signature !== SIGNATURE_CENTRAL_DIRECTORY_END) {
+			return null;
+		}
+	}
+	const data = new DataView((await readBytes(stream, 18))!.buffer);
 	const endOfDirectory: Partial<CentralDirectoryEndEntry> = {
-		numberOfDisks: await readUint16(stream),
-		centralDirectoryStartDisk: await readUint16(stream),
-		numberCentralDirectoryRecordsOnThisDisk: await readUint16(stream),
-		numberCentralDirectoryRecords: await readUint16(stream),
-		centralDirectorySize: await readUint32(stream),
-		centralDirectoryOffset: await readUint32(stream),
-		commentLength: await readUint16(stream),
+		signature: SIGNATURE_CENTRAL_DIRECTORY_END,
+		numberOfDisks: data.getUint16(0, true),
+		centralDirectoryStartDisk: data.getUint16(2, true),
+		numberCentralDirectoryRecordsOnThisDisk: data.getUint16(4, true),
+		numberCentralDirectoryRecords: data.getUint16(6, true),
+		centralDirectorySize: data.getUint32(8, true),
+		centralDirectoryOffset: data.getUint32(12, true),
+		commentLength: data.getUint16(16, true),
 	};
-	endOfDirectory['comment'] = await pullBytes(
+	endOfDirectory['comment'] = await readString(
 		stream,
 		endOfDirectory.commentLength!
-	)
-		.pipeThrough(new TextDecoderStream())
-		.pipeThrough(concatString())
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	);
 	return endOfDirectory as CentralDirectoryEndEntry;
 }
 
 function concatString() {
 	const chunks: string[] = [];
-	return new TransformStream({
+	return new TransformStream<string, string>({
 		transform(chunk) {
-			console.log('chunk', chunk);
 			chunks.push(chunk);
 		},
 
@@ -243,10 +256,10 @@ function concatString() {
 	});
 }
 
-function concatBytes(totalBytes?: number) {
+function concatNBytes(totalBytes?: number) {
 	const buffer = new ArrayBuffer(totalBytes || 0);
 	let offset = 0;
-	return new TransformStream({
+	return new TransformStream<Uint8Array, Uint8Array>({
 		transform(chunk) {
 			const view = new Uint8Array(buffer);
 			view.set(chunk, offset);
@@ -254,7 +267,6 @@ function concatBytes(totalBytes?: number) {
 		},
 
 		flush(controller) {
-			console.log('flush', buffer);
 			controller.enqueue(new Uint8Array(buffer));
 		},
 	});
@@ -281,8 +293,7 @@ export function concatBytesStream() {
 	});
 }
 
-export function iterateZipFiles() {}
-function listZipFiles(source: RangeGetter) {
+function centralDirectoryEntries(source: BytesSource) {
 	let centralDirectoryStream: ReadableStream<Uint8Array>;
 
 	return new ReadableStream<CentralDirectoryEntry>({
@@ -294,7 +305,6 @@ function listZipFiles(source: RangeGetter) {
 				const entry = await readCentralDirectory(
 					centralDirectoryStream
 				);
-				console.log({ entry });
 				if (!entry) {
 					controller.close();
 					return;
@@ -309,7 +319,7 @@ function listZipFiles(source: RangeGetter) {
 	});
 }
 
-async function streamCentralDirectory(source: RangeGetter) {
+async function streamCentralDirectory(source: BytesSource) {
 	const chunkSize = CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE;
 	let centralDirectory: Uint8Array = new Uint8Array();
 
@@ -320,41 +330,44 @@ async function streamCentralDirectory(source: RangeGetter) {
 			chunkStart + chunkSize - 1,
 			source.length - 1
 		);
-		const view = await source.read(chunkStart, chunkEnd);
-
-		const bytes = new Uint8Array(view.buffer);
-		centralDirectory = concatUint8Array(bytes, centralDirectory);
+		const bytes = await readBytes(
+			await source.streamBytes(chunkStart, chunkEnd)
+		);
+		centralDirectory = concatUint8Array(bytes!, centralDirectory);
 
 		// Scan the buffer for the signature
+		const view = new DataView(bytes!.buffer);
 		for (let i = view.byteLength - 4; i >= 0; i--) {
-			if (view.getUint32(i, true) === SIGNATURE_CENTRAL_DIRECTORY_END) {
-				const centralDirectoryLengthAt = i + 4 + 2 + 2 + 2 + 2;
-				const centralDirectoryOffsetAt = centralDirectoryLengthAt + 4;
-				if (
-					centralDirectory.byteLength <
-					centralDirectoryOffsetAt + 4
-				) {
-					throw new Error('Central directory not found');
-				}
-
-				const dirStart = view.getUint32(centralDirectoryOffsetAt, true);
-				if (dirStart < chunkStart) {
-					// We're missing some bytes, let's grab them
-					const missingBytes = await source
-						.read(dirStart, chunkStart - 1)
-						.then((view) => new Uint8Array(view.buffer));
-					centralDirectory = concatUint8Array(
-						missingBytes,
-						centralDirectory
-					);
-				} else if (dirStart > chunkStart) {
-					// We've read too many bytes, let's trim them
-					centralDirectory = centralDirectory.slice(
-						dirStart - chunkStart
-					);
-				}
-				return new Blob([centralDirectory]).stream();
+			if (view.getUint32(i, true) !== SIGNATURE_CENTRAL_DIRECTORY_END) {
+				continue;
 			}
+
+			// Confirm we have enough data to read the offset and the
+			// length of the central directory.
+			const centralDirectoryLengthAt = i + 12;
+			const centralDirectoryOffsetAt = centralDirectoryLengthAt + 4;
+			if (centralDirectory.byteLength < centralDirectoryOffsetAt + 4) {
+				throw new Error('Central directory not found');
+			}
+
+			// Read where the central directory starts
+			const dirStart = view.getUint32(centralDirectoryOffsetAt, true);
+			if (dirStart < chunkStart) {
+				// We're missing some bytes, let's grab them
+				const missingBytes = await readBytes(
+					await source.streamBytes(dirStart, chunkStart - 1)
+				);
+				centralDirectory = concatUint8Array(
+					missingBytes!,
+					centralDirectory
+				);
+			} else if (dirStart > chunkStart) {
+				// We've read too many bytes, let's trim them
+				centralDirectory = centralDirectory.slice(
+					dirStart - chunkStart
+				);
+			}
+			return new Blob([centralDirectory]).stream();
 		}
 	} while (chunkStart >= 0);
 
@@ -382,66 +395,32 @@ if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 	};
 }
 
-type RangeGetter = {
-	length: number;
-	read: (start: number, end: number) => Promise<DataView>;
-	readStream: (
-		start: number,
-		end: number
-	) => Promise<ReadableStream<Uint8Array>>;
-};
-
-async function fetchBytes(url: string): Promise<RangeGetter> {
-	const response = await fetch(url, { method: 'HEAD' });
-	if (!response.ok) throw new Error('Failed to fetch the ZIP file');
-
-	const contentLength = response.headers.get('Content-Length');
-	if (!contentLength) throw new Error('Content-Length header is missing');
-
-	const read = async (from: number, to: number) =>
-		await fetch(url, {
-			headers: {
-				Range: `bytes=${from}-${to}`,
-				'Accept-Encoding': 'none',
-			},
-		})
-			.then((response) => response.arrayBuffer())
-			.then((buffer) => new DataView(buffer));
-
-	const readStream = async (from: number, to: number) =>
-		await fetch(url, {
-			headers: {
-				Range: `bytes=${from}-${to}`,
-				'Accept-Encoding': 'none',
-			},
-		}).then((response) => response.body!);
-
-	return {
-		read,
-		readStream,
-		length: parseInt(contentLength, 10),
-	};
-}
-
-async function readUint32(stream: ReadableStream<Uint8Array>) {
-	return (await pullBytesAsDataView(stream, 4)).getUint32(0, true);
-}
-
-async function readUint16(stream: ReadableStream<Uint8Array>) {
-	return (await pullBytesAsDataView(stream, 2)).getUint16(0, true);
-}
-
-async function pullBytesAsDataView(
-	stream: ReadableStream<Uint8Array>,
-	bytes: number
-) {
-	return await pullBytes(stream, bytes)
+async function readString(stream: ReadableStream<Uint8Array>, bytes: number) {
+	return await limitBytes(stream, bytes)
+		.pipeThrough(new TextDecoderStream())
+		.pipeThrough(concatString())
 		.getReader()
 		.read()
-		.then(({ value }) => new DataView(value.buffer));
+		.then(({ value }) => value);
 }
 
-function pullBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
+async function readBytes(stream: ReadableStream<Uint8Array>, bytes?: number) {
+	if (bytes === undefined) {
+		return await stream
+			.pipeThrough(concatBytesStream())
+			.getReader()
+			.read()
+			.then(({ value }) => value);
+	}
+
+	return await limitBytes(stream, bytes)
+		.pipeThrough(concatNBytes(bytes))
+		.getReader()
+		.read()
+		.then(({ value }) => value);
+}
+
+function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	if (bytes === 0) {
 		return new ReadableStream({
 			start(controller) {
@@ -449,7 +428,6 @@ function pullBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 			},
 		});
 	}
-	// const buffer = new ArrayBuffer(bytes);
 	const reader = stream.getReader({ mode: 'byob' });
 	let offset = 0;
 	return new ReadableStream({
@@ -476,16 +454,6 @@ function pullBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	});
 }
 
-function filterStream<T>(filter: (chunk: T) => boolean) {
-	return new TransformStream<T, T>({
-		transform(chunk, controller) {
-			if (filter(chunk)) {
-				controller.enqueue(chunk);
-			}
-		},
-	});
-}
-
 function partitionNearbyEntries({ maxGap = -10 * 1024 } = {}) {
 	let lastFileEndsAt = 0;
 	let currentChunk: CentralDirectoryEntry[] = [];
@@ -506,12 +474,14 @@ function partitionNearbyEntries({ maxGap = -10 * 1024 } = {}) {
 }
 
 function fetchPartitionedEntries(
-	source: RangeGetter
+	source: BytesSource
 ): ReadableWritablePair<FileEntry, CentralDirectoryEntry[]> {
 	let isWritableClosed = false;
 	let requestsInProgress = 0;
 	let readableController: ReadableStreamDefaultController<FileEntry>;
-	const byteStreams: ReadableStream<Uint8Array>[] = [];
+	const byteStreams: Array<
+		[CentralDirectoryEntry[], ReadableStream<Uint8Array>]
+	> = [];
 	const readable = new ReadableStream<FileEntry>({
 		start(controller) {
 			readableController = controller;
@@ -532,13 +502,19 @@ function fetchPartitionedEntries(
 					continue;
 				}
 
-				const stream = byteStreams[0];
+				const [zipEntries, stream] = byteStreams[0];
 				const file = await readFileEntry(stream);
 				if (!file) {
 					byteStreams.shift();
 					continue;
 				}
 
+				const isOneOfRequestedFiles = zipEntries.find(
+					(entry) => entry.fileName === file.fileName
+				);
+				if (!isOneOfRequestedFiles) {
+					continue;
+				}
 				controller.enqueue(file);
 				break;
 			}
@@ -556,7 +532,7 @@ function fetchPartitionedEntries(
 			// This will effectively issue many requests in parallel.
 			requestChunkRange(source, zipEntries)
 				.then((byteStream) => {
-					byteStreams.push(byteStream);
+					byteStreams.push([zipEntries, byteStream]);
 				})
 				.catch((e) => {
 					controller.error(e);
@@ -582,13 +558,13 @@ function fetchPartitionedEntries(
 
 const sem = new Semaphore({ concurrency: 10 });
 async function requestChunkRange(
-	source: RangeGetter,
+	source: BytesSource,
 	zipEntries: CentralDirectoryEntry[]
 ) {
 	const release = await sem.acquire();
 	try {
 		const lastZipEntry = zipEntries[zipEntries.length - 1];
-		const substream = await source.readStream(
+		const substream = await source.streamBytes(
 			zipEntries[0].firstByteAt,
 			lastZipEntry.lastByteAt
 		);
@@ -599,6 +575,35 @@ async function requestChunkRange(
 	} finally {
 		release();
 	}
+}
+
+type BytesSource = {
+	length: number;
+	streamBytes: (
+		start: number,
+		end: number
+	) => Promise<ReadableStream<Uint8Array>>;
+};
+
+async function createFetchSource(url: string): Promise<BytesSource> {
+	const response = await fetch(url, { method: 'HEAD' });
+	if (!response.ok) throw new Error('Failed to fetch the ZIP file');
+
+	const contentLength = response.headers.get('Content-Length');
+	if (!contentLength) throw new Error('Content-Length header is missing');
+
+	const streamBytes = async (from: number, to: number) =>
+		await fetch(url, {
+			headers: {
+				Range: `bytes=${from}-${to}`,
+				'Accept-Encoding': 'none',
+			},
+		}).then((response) => response.body!);
+
+	return {
+		streamBytes,
+		length: parseInt(contentLength, 10),
+	};
 }
 
 function concatUint8Array(...arrays: Uint8Array[]) {
@@ -613,12 +618,6 @@ function concatUint8Array(...arrays: Uint8Array[]) {
 	return result;
 }
 
-const source = await fetchBytes(
-	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
-	// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
-	// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
-	// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
-);
 // @ts-ignore
 if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 	// @ts-ignore
@@ -642,21 +641,66 @@ type IterableReadableStream<R> = ReadableStream<R> & {
 	[Symbol.asyncIterator](): AsyncIterableIterator<R>;
 };
 
-const zipEntries = listZipFiles(source)
-	.pipeThrough(
-		filterStream(
-			({ fileName, uncompressedSize }) =>
-				!fileName.endsWith('/') || uncompressedSize !== 0
-		)
-	)
-	.pipeThrough(partitionNearbyEntries())
-	.pipeThrough(
-		fetchPartitionedEntries(source)
-	) as IterableReadableStream<FileEntry>;
-
-for await (const chunk of zipEntries) {
-	console.log({ chunk });
-	console.log(await chunk.text());
+function filterStream<T>(filter: (chunk: T) => boolean) {
+	return new TransformStream<T, T>({
+		transform(chunk, controller) {
+			if (filter(chunk)) {
+				controller.enqueue(chunk);
+			}
+		},
+	});
 }
+
+const predicate = ({ isDirectory, uncompressedSize }: CentralDirectoryEntry) =>
+	!isDirectory || uncompressedSize !== 0;
+
+// Get specific files from a ZIP archive
+function iterateZipFiles2(
+	source: BytesSource,
+	predicate: (dirEntry: CentralDirectoryEntry) => boolean
+) {
+	return centralDirectoryEntries(source)
+		.pipeThrough(filterStream(predicate))
+		.pipeThrough(partitionNearbyEntries())
+		.pipeThrough(
+			fetchPartitionedEntries(source)
+		) as IterableReadableStream<FileEntry>;
+}
+const source = await createFetchSource(
+	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
+	// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
+	// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
+	// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
+);
+const files = iterateZipFiles2(source, predicate);
+console.log('iterateZipFiles2');
+for await (const file of files) {
+	console.log(file.fileName);
+}
+
+// Read an entire ZIP archive
+function readEntireZip(
+	stream: ReadableStream<Uint8Array>,
+	predicate: (entry: FileEntry) => boolean
+) {
+	return zipEntries(stream)
+		.pipeThrough(
+			filterStream(({ signature }) => signature === SIGNATURE_FILE)
+		)
+		.pipeThrough(
+			filterStream(predicate)
+		) as IterableReadableStream<FileEntry>;
+}
+
+const response = await fetch(
+	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
+);
+const allFiles = readEntireZip(response.body!, predicate as any);
+console.log('readEntireZip');
+for await (const file of allFiles) {
+	console.log(file.fileName);
+}
+
+export function iterateZipFiles(a: any): any {}
 
 throw new Error('Expected halt');
