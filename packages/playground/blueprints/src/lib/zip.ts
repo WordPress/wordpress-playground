@@ -19,7 +19,6 @@ export interface ZipFileHeader {
 }
 
 export interface ZipFileEntry extends ZipFileHeader {
-	body: ReadableStream<Uint8Array>;
 	text(): Promise<string>;
 	bytes(): Promise<Uint8Array>;
 }
@@ -110,10 +109,10 @@ async function readCentralDirectory(
 	return centralDirectory as CentralDirectoryEntry;
 }
 
-async function readFileHeader(
+async function readFileEntry(
 	stream: ReadableStream<Uint8Array>,
 	skipSignature = false
-): Promise<ZipFileHeader | null> {
+): Promise<ZipFileEntry | null> {
 	if (!skipSignature) {
 		const signature = await readUint32(stream);
 		if (signature !== SIGNATURE_FILE) {
@@ -143,8 +142,45 @@ async function readFileHeader(
 		.getReader()
 		.read()
 		.then(({ value }) => value);
-	console.log({ entry });
-	return entry as ZipFileHeader;
+
+	// Make sure we consume the body stream or else
+	// we'll start reading the next file at the wrong
+	// offset.
+	// @TODO: Expose the body stream instead of reading it all
+	//        eagerly. Ensure the next iteration exhausts
+	//        the last body stream before moving on.
+	const body = await createFileDataStream(
+		stream,
+		entry['compressedSize'],
+		entry['compressionMethod']
+	)
+		.pipeThrough(concatBytesStream())
+		.getReader()
+		.read()
+		.then(({ value }) => value!);
+	entry['bytes'] = () => Promise.resolve(body);
+	entry['text'] = () => Promise.resolve(new TextDecoder().decode(body));
+	return entry as ZipFileEntry;
+}
+
+function createFileDataStream(
+	stream: ReadableStream<Uint8Array>,
+	compressedSize: number,
+	compressionMethod: number
+): ReadableStream<Uint8Array> {
+	if (compressedSize === 0) {
+		return new ReadableStream({
+			start(controller) {
+				controller.close();
+			},
+		});
+	}
+
+	const bytesStream = pullBytes(stream, compressedSize);
+	if (compressionMethod === 0) {
+		return bytesStream;
+	}
+	return bytesStream.pipeThrough(new DecompressionStream('deflate-raw'));
 }
 
 interface CentralDirectoryEndEntry {
@@ -227,25 +263,6 @@ async function readEndCentralDirectory(stream: ReadableStream<Uint8Array>) {
 	return endOfDirectory as CentralDirectoryEndEntry;
 }
 
-function createFileDataStream(
-	stream: ReadableStream<Uint8Array>,
-	header: ZipFileHeader
-): ReadableStream<Uint8Array> {
-	if (header.compressedSize === 0) {
-		return new ReadableStream({
-			start(controller) {
-				controller.close();
-			},
-		});
-	}
-
-	const bytesStream = pullBytes(stream, header.compressedSize);
-	if (header.compressionMethod === 0) {
-		return bytesStream;
-	}
-	return bytesStream.pipeThrough(new DecompressionStream('deflate-raw'));
-}
-
 function ignore() {
 	return new WritableStream({
 		write() {},
@@ -285,7 +302,7 @@ function concatBytes(totalBytes?: number) {
 export function concatBytesStream() {
 	const chunks: Uint8Array[] = [];
 	let size = 0;
-	return new TransformStream({
+	return new TransformStream<Uint8Array, Uint8Array>({
 		transform(chunk) {
 			chunks.push(chunk);
 			size += chunk.length;
@@ -462,7 +479,7 @@ function mapStream<T, R>(map: (chunk: T) => R) {
 	});
 }
 
-function chunkZipEntries({ maxGap = 10 * 1024 } = {}) {
+function partitionNearbyEntries({ maxGap = -10 * 1024 } = {}) {
 	let lastFileEndsAt = 0;
 	let currentChunk: CentralDirectoryEntry[] = [];
 	return new TransformStream<CentralDirectoryEntry, CentralDirectoryEntry[]>({
@@ -489,21 +506,92 @@ function chunkZipEntries({ maxGap = 10 * 1024 } = {}) {
 	});
 }
 
-function fetchChunkedEntries(source: RangeGetter) {
-	return mapStream((chunk: CentralDirectoryEntry[]) =>
-		doFetchChunkedEntries(source, chunk)
-	);
+function fetchPartitionedEntries(
+	source: RangeGetter
+): ReadableWritablePair<ZipFileEntry, CentralDirectoryEntry[]> {
+	let isWritableClosed = false;
+	let requestsInProgress = 0;
+	let readableController: ReadableStreamDefaultController<ZipFileEntry>;
+	const byteStreams: ReadableStream<Uint8Array>[] = [];
+	const readable = new ReadableStream<ZipFileEntry>({
+		start(controller) {
+			readableController = controller;
+		},
+		async pull(controller) {
+			while (true) {
+				if (
+					isWritableClosed &&
+					!byteStreams.length &&
+					requestsInProgress === 0
+				) {
+					controller.close();
+					return;
+				}
+
+				if (!byteStreams.length) {
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					continue;
+				}
+
+				const stream = byteStreams[0];
+				const file = await readFileEntry(stream);
+				if (!file) {
+					byteStreams.shift();
+					continue;
+				}
+
+				controller.enqueue(file);
+				break;
+			}
+		},
+	});
+	const writable = new WritableStream<CentralDirectoryEntry[]>({
+		write(zipEntries, controller) {
+			if (!zipEntries.length) {
+				return;
+			}
+			++requestsInProgress;
+			// If the write() method returns a promise, the next
+			// call will be delayed until the promise resolves.
+			// Let's not return the promise, then.
+			// This will effectively issue many requests in parallel.
+			requestChunkRange(source, zipEntries)
+				.then((byteStream) => {
+					byteStreams.push(byteStream);
+				})
+				.catch((e) => {
+					controller.error(e);
+				})
+				.finally(() => {
+					--requestsInProgress;
+				});
+		},
+		abort() {
+			isWritableClosed = true;
+			readableController.close();
+		},
+		async close() {
+			isWritableClosed = true;
+		},
+	});
+
+	return {
+		readable,
+		writable,
+	};
 }
 
 const sem = new Semaphore({ concurrency: 10 });
-async function* doFetchChunkedEntries(
+async function requestChunkRange(
 	source: RangeGetter,
 	zipEntries: CentralDirectoryEntry[]
 ) {
+	console.log('Calling sem.acquire');
 	const release = await sem.acquire();
 	try {
 		const lastZipEntry = zipEntries[zipEntries.length - 1];
-		const fileStream = await source.readStream(
+		console.log('Calling readStream');
+		const substream = await source.readStream(
 			zipEntries[0].offset!,
 			lastZipEntry.offset! +
 				FILE_HEADER_SIZE +
@@ -514,31 +602,13 @@ async function* doFetchChunkedEntries(
 				1
 		);
 
-		while (true) {
-			const header = await readFileHeader(fileStream, false);
-			if (!header) {
-				break;
-			}
-			const body = await createFileDataStream(fileStream, header);
-
-			const isOneOfRequestedFiles = zipEntries.find(
-				(entry) => entry.fileName === header.fileName
-			);
-			if (isOneOfRequestedFiles) {
-				const file = {
-					...header,
-					body,
-				} as ZipFileEntry;
-				yield file;
-			}
-			// Make sure we consume the body stream or else
-			// we'll start reading the next file at the wrong
-			// offset.
-			if (!body.locked) {
-				await body.pipeTo(ignore());
-			}
-		}
+		console.log('did fetch!');
+		return substream;
+	} catch (e) {
+		console.error(e);
+		throw e;
 	} finally {
+		console.log('Calling release');
 		release();
 	}
 }
@@ -549,24 +619,6 @@ const source = await fetchBytes(
 	// 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
 	// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
 );
-
-function readChunkedEntries() {
-	return new TransformStream<AsyncGenerator<ZipFileEntry>, ZipFileEntry>({
-		async transform(entries, controller) {
-			for await (const entry of entries) {
-				const data = await entry.body
-					.pipeThrough(concatBytesStream())
-					.getReader()
-					.read()
-					.then(({ value }) => value);
-				controller.enqueue({
-					...entry,
-					data,
-				});
-			}
-		},
-	});
-}
 
 if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 	ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
@@ -585,55 +637,19 @@ if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 	};
 }
 
-const entries = listZipFiles(source)
+const zipEntries: AsyncGenerator<ZipFileEntry> = listZipFiles(source)
 	.pipeThrough(
 		filterStream(
 			({ fileName, uncompressedSize }) =>
 				!fileName.endsWith('/') || uncompressedSize !== 0
 		)
 	)
-	.pipeThrough(chunkZipEntries())
-	.pipeThrough(fetchChunkedEntries(source))
-	.pipeThrough(readChunkedEntries());
+	.pipeThrough(partitionNearbyEntries())
+	.pipeThrough(fetchPartitionedEntries(source)) as any;
 
-for await (const entry of entries) {
-	console.log(entry);
-	console.log(new TextDecoder().decode(entry.data));
+for await (const chunk of zipEntries) {
+	console.log({ chunk });
+	// console.log(await chunk.text());
 }
 
 throw new Error('Expected halt');
-
-/*
-
-const source = await fetchBytes(
-	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
-);
-
-const stream = await source.readStream(0, 25000);
-async function __readEntry() {
-	console.log((await readUint32(stream)) === SIGNATURE_FILE);
-	const header = await readFileHeader(stream);
-	console.log(header);
-	if (header.compressedSize > 0) {
-		const { value } = await pullBytes(stream, header.compressedSize)
-			.pipeThrough(new DecompressionStream('deflate-raw'))
-			.pipeThrough(new TextDecoderStream())
-			.pipeThrough(concatString())
-			.getReader()
-			.read();
-		console.log({ value });
-	}
-}
-
-await __readEntry();
-await __readEntry();
-
-throw new Error('Expected halt');
-*/
-
-// const file = await readFileHeader(
-// 	await this.source.readStream(
-// 		dirEntry.offset,
-// 		dirEntry.compressedSize
-// 	)
-// );
