@@ -1,3 +1,4 @@
+import { CustomEvent } from './custom-event';
 import { DownloadProgress } from './emscripten-download-monitor';
 
 export type ProgressMode =

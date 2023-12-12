@@ -1,3 +1,4 @@
+import { CustomEvent } from './custom-event';
 /**
  * Options for customizing the progress tracker.
  */
