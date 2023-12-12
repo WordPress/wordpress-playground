@@ -4,7 +4,7 @@ import { UniversalPHP } from './universal-php';
 export type FileEntry = {
 	path: string;
 	isDirectory?: boolean;
-	read: () => Promise<Uint8Array>;
+	bytes: () => Promise<Uint8Array>;
 };
 
 export type IterateFilesOptions = {
@@ -67,7 +67,7 @@ export async function* iterateFiles(
 								absPath.substring(root.length + 1)
 						  )
 						: absPath,
-					read: async () => await php.readFileAsBuffer(absPath),
+					bytes: async () => await php.readFileAsBuffer(absPath),
 				};
 			}
 		}
@@ -115,7 +115,7 @@ export async function writeToPath(
 			await client.mkdir(filePath);
 		} else {
 			await client.mkdir(dirname(filePath));
-			await client.writeFile(filePath, await file.read());
+			await client.writeFile(filePath, await file.bytes());
 		}
 	}
 }

@@ -13,7 +13,13 @@ const SIGNATURE_FILE = 0x04034b50 as const;
 const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50 as const;
 const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50 as const;
 
-function zipEntries(stream: ReadableStream<Uint8Array>) {
+export function fileEntries(stream: ReadableStream<Uint8Array>) {
+	return zipEntries(stream).pipeThrough(
+		filterStream(({ signature }) => signature === SIGNATURE_FILE)
+	) as IterableReadableStream<FileEntry>;
+}
+
+export function zipEntries(stream: ReadableStream<Uint8Array>) {
 	return new ReadableStream<ZipEntry>({
 		async pull(controller) {
 			try {
@@ -29,7 +35,7 @@ function zipEntries(stream: ReadableStream<Uint8Array>) {
 				throw e;
 			}
 		},
-	});
+	}) as IterableReadableStream<ZipEntry>;
 }
 
 async function readNextEntry(stream: ReadableStream<Uint8Array>) {
@@ -62,8 +68,8 @@ export interface FileEntry {
 	crc: number;
 	compressedSize: number;
 	uncompressedSize: number;
-	fileNameLength: number;
-	fileName: string;
+	pathLength: number;
+	path: string;
 	isDirectory: boolean;
 	extraLength: number;
 	extra: Uint8Array;
@@ -93,12 +99,12 @@ async function readFileEntry(
 		crc: data.getUint32(10, true),
 		compressedSize: data.getUint32(14, true),
 		uncompressedSize: data.getUint32(18, true),
-		fileNameLength: data.getUint16(22, true),
+		pathLength: data.getUint16(22, true),
 		extraLength: data.getUint16(24, true),
 	};
 
-	entry['fileName'] = await readString(stream, entry['fileNameLength']!);
-	entry['isDirectory'] = entry.fileName!.endsWith('/');
+	entry['path'] = await readString(stream, entry['pathLength']!);
+	entry['isDirectory'] = entry.path!.endsWith('/');
 	entry['extra'] = await readBytes(stream, entry['extraLength']);
 
 	// Make sure we consume the body stream or else
@@ -134,7 +140,7 @@ export interface CentralDirectoryEntry {
 	crc: number;
 	compressedSize: number;
 	uncompressedSize: number;
-	fileNameLength: number;
+	pathLength: number;
 	extraLength: number;
 	fileCommentLength: number;
 	diskNumber: number;
@@ -142,7 +148,7 @@ export interface CentralDirectoryEntry {
 	externalAttributes: number;
 	firstByteAt: number;
 	lastByteAt: number;
-	fileName: string;
+	path: string;
 	extra: Uint8Array;
 	fileComment: string;
 	isDirectory: boolean;
@@ -171,7 +177,7 @@ async function readCentralDirectory(
 		crc: data.getUint32(12, true),
 		compressedSize: data.getUint32(16, true),
 		uncompressedSize: data.getUint32(20, true),
-		fileNameLength: data.getUint16(24, true),
+		pathLength: data.getUint16(24, true),
 		extraLength: data.getUint16(26, true),
 		fileCommentLength: data.getUint16(28, true),
 		diskNumber: data.getUint16(30, true),
@@ -182,17 +188,17 @@ async function readCentralDirectory(
 	centralDirectory['lastByteAt'] =
 		centralDirectory.firstByteAt! +
 		FILE_HEADER_SIZE +
-		centralDirectory.fileNameLength! +
+		centralDirectory.pathLength! +
 		centralDirectory.fileCommentLength! +
 		centralDirectory.extraLength! +
 		centralDirectory.compressedSize! -
 		1;
 
-	centralDirectory['fileName'] = await readString(
+	centralDirectory['path'] = await readString(
 		stream,
-		centralDirectory.fileNameLength!
+		centralDirectory.pathLength!
 	);
-	centralDirectory['isDirectory'] = centralDirectory.fileName!.endsWith('/');
+	centralDirectory['isDirectory'] = centralDirectory.path!.endsWith('/');
 	centralDirectory['extra'] = await readBytes(
 		stream,
 		centralDirectory.extraLength!
@@ -514,7 +520,7 @@ function fetchPartitionedEntries(
 				}
 
 				const isOneOfRequestedFiles = zipEntries.find(
-					(entry) => entry.fileName === file.fileName
+					(entry) => entry.path === file.path
 				);
 				if (!isOneOfRequestedFiles) {
 					continue;
@@ -642,7 +648,7 @@ if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 
 type IterableReadableStream<R> = ReadableStream<R> & {
 	[Symbol.asyncIterator](): AsyncIterableIterator<R>;
-};
+} & AsyncIterable<R>;
 
 function filterStream<T>(filter: (chunk: T) => boolean) {
 	return new TransformStream<T, T>({
@@ -696,15 +702,10 @@ async function getContentLength(url: string) {
 const zipFiles = await iterateFromUrl(
 	// 'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip',
 	'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip',
-	({ isDirectory, uncompressedSize, fileName }) =>
-		!isDirectory &&
-		uncompressedSize > 0 &&
-		fileName.startsWith('gutenberg/lib/experiment')
+	({ path }) => path.startsWith('gutenberg/lib/experiment')
 );
 for await (const file of zipFiles) {
-	console.log(file.fileName);
+	console.log(file.path);
 }
-
-export function iterateZipFiles(a: any): any {}
 
 throw new Error('Expected halt');

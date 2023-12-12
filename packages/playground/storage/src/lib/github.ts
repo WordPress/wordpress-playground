@@ -61,7 +61,7 @@ export async function* iterateFilesFromDirectory(
 	for await (const file of files) {
 		yield {
 			path: file.path.substring(repoRootPrefix.length),
-			read: async () => file.content,
+			bytes: async () => file.content,
 		};
 	}
 }
