@@ -62,23 +62,24 @@ async function readCentralDirectory(
 			throw new Error('Invalid signature');
 		}
 	}
+	const data = await pullBytesAsDataView(stream, 42);
 	const centralDirectory: Partial<CentralDirectoryEntry> = {
-		versionCreated: await readUint16(stream),
-		versionNeeded: await readUint16(stream),
-		generalPurpose: await readUint16(stream),
-		compressionMethod: await readUint16(stream),
-		lastModifiedTime: await readUint16(stream),
-		lastModifiedDate: await readUint16(stream),
-		crc: await readUint32(stream),
-		compressedSize: await readUint32(stream),
-		uncompressedSize: await readUint32(stream),
-		fileNameLength: await readUint16(stream),
-		extraLength: await readUint16(stream),
-		fileCommentLength: await readUint16(stream),
-		diskNumber: await readUint16(stream),
-		internalAttributes: await readUint16(stream),
-		externalAttributes: await readUint32(stream),
-		offset: await readUint32(stream),
+		versionCreated: data.getUint16(0, true),
+		versionNeeded: data.getUint16(2, true),
+		generalPurpose: data.getUint16(4, true),
+		compressionMethod: data.getUint16(6, true),
+		lastModifiedTime: data.getUint16(8, true),
+		lastModifiedDate: data.getUint16(10, true),
+		crc: data.getUint32(12, true),
+		compressedSize: data.getUint32(16, true),
+		uncompressedSize: data.getUint32(20, true),
+		fileNameLength: data.getUint16(24, true),
+		extraLength: data.getUint16(26, true),
+		fileCommentLength: data.getUint16(28, true),
+		diskNumber: data.getUint16(30, true),
+		internalAttributes: data.getUint16(32, true),
+		externalAttributes: data.getUint32(34, true),
+		offset: data.getUint32(38, true),
 	};
 	centralDirectory['fileName'] = (
 		await pullBytes(stream, centralDirectory.fileNameLength!)
@@ -107,17 +108,18 @@ async function readCentralDirectory(
 async function readFileHeader(
 	stream: ReadableStream<Uint8Array>
 ): Promise<ZipFileHeader> {
+	const data = await pullBytesAsDataView(stream, 26);
 	const entry: Partial<ZipFileEntry> = {};
-	entry['version'] = await readUint16(stream);
-	entry['generalPurpose'] = await readUint16(stream);
-	entry['compressionMethod'] = await readUint16(stream);
-	entry['lastModifiedTime'] = await readUint16(stream);
-	entry['lastModifiedDate'] = await readUint16(stream);
-	entry['crc'] = await readUint32(stream);
-	entry['compressedSize'] = await readUint32(stream);
-	entry['uncompressedSize'] = await readUint32(stream);
-	entry['fileNameLength'] = await readUint16(stream);
-	entry['extraLength'] = await readUint16(stream);
+	entry['version'] = data.getUint16(0, true);
+	entry['generalPurpose'] = data.getUint16(2, true);
+	entry['compressionMethod'] = data.getUint16(4, true);
+	entry['lastModifiedTime'] = data.getUint16(6, true);
+	entry['lastModifiedDate'] = data.getUint16(8, true);
+	entry['crc'] = data.getUint32(10);
+	entry['compressedSize'] = data.getUint32(14);
+	entry['uncompressedSize'] = data.getUint32(18);
+	entry['fileNameLength'] = data.getUint16(20, true);
+	entry['extraLength'] = data.getUint16(22, true);
 	entry['fileName'] = await pullBytes(stream, entry['fileNameLength'])
 		.pipeThrough(new TextDecoderStream())
 		.pipeThrough(concatString())
@@ -447,14 +449,17 @@ async function fetchBytes(url: string): Promise<RangeGetter> {
 }
 
 async function readUint32(stream: ReadableStream<Uint8Array>) {
-	return (await pullBuffer(stream, 4)).getUint32(0, true);
+	return (await pullBytesAsDataView(stream, 4)).getUint32(0, true);
 }
 
 async function readUint16(stream: ReadableStream<Uint8Array>) {
-	return (await pullBuffer(stream, 2)).getUint16(0, true);
+	return (await pullBytesAsDataView(stream, 2)).getUint16(0, true);
 }
 
-async function pullBuffer(stream: ReadableStream<Uint8Array>, bytes: number) {
+async function pullBytesAsDataView(
+	stream: ReadableStream<Uint8Array>,
+	bytes: number
+) {
 	return await pullBytes(stream, bytes)
 		.getReader()
 		.read()
