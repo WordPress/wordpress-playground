@@ -19,7 +19,7 @@ export interface ZipFileHeader {
 }
 
 export interface ZipFileEntry extends ZipFileHeader {
-	dataStream: ReadableStream<Uint8Array>;
+	body: ReadableStream<Uint8Array>;
 	text(): Promise<string>;
 	bytes(): Promise<Uint8Array>;
 }
@@ -107,11 +107,11 @@ async function readCentralDirectory(
 async function readFileHeader(
 	stream: ReadableStream<Uint8Array>,
 	skipSignature = false
-): Promise<ZipFileHeader> {
+): Promise<ZipFileHeader | null> {
 	if (!skipSignature) {
 		const signature = await readUint32(stream);
 		if (signature !== SIGNATURE_FILE) {
-			throw new Error('Invalid signature');
+			return null;
 		}
 	}
 	const data = await pullBytesAsDataView(stream, 26);
@@ -193,7 +193,10 @@ async function* fetchFilesChunk(
 
 		while (true) {
 			const header = await readFileHeader(fileStream, false);
-			const fileDataStream = createFileDataStream(fileStream, header);
+			if (!header) {
+				break;
+			}
+			const body = await createFileDataStream(fileStream, header);
 
 			const isOneOfRequestedFiles = zipEntries.find(
 				(entry) => entry.fileName === header.fileName
@@ -201,9 +204,28 @@ async function* fetchFilesChunk(
 			if (isOneOfRequestedFiles) {
 				yield {
 					...header,
-					dataStream: fileDataStream,
+					body,
+					text() {
+						return body
+							.pipeThrough(new TextDecoderStream())
+							.pipeThrough(concatString())
+							.getReader()
+							.read()
+							.then(({ value }) => value);
+					},
+					bytes() {
+						return body
+							.pipeThrough(concatBytes())
+							.getReader()
+							.read()
+							.then(({ value }) => value);
+					},
 				} as ZipFileEntry;
 			}
+			// Make sure we consume the body stream or else
+			// we'll start reading the next file at the wrong
+			// offset.
+			await body.pipeTo(ignore());
 		}
 	} finally {
 		release();
@@ -309,27 +331,10 @@ function createFileDataStream(
 	return bytesStream.pipeThrough(new DecompressionStream('deflate-raw'));
 }
 
-export async function concatBytesStream(
-	stream: ReadableStream<Uint8Array>
-): Promise<Uint8Array> {
-	let size = 0;
-	const chunks: Uint8Array[] = [];
-	const reader = stream.getReader();
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			break;
-		}
-		chunks.push(value);
-		size += value.length;
-	}
-	const result = new Uint8Array(size);
-	let offset = 0;
-	for (const chunk of chunks) {
-		result.set(chunk, offset);
-		offset += chunk.length;
-	}
-	return result;
+function ignore() {
+	return new WritableStream({
+		write() {},
+	});
 }
 
 function concatString() {
@@ -362,18 +367,51 @@ function concatBytes(totalBytes?: number) {
 		},
 	});
 }
+export function concatBytesStream() {
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	return new TransformStream({
+		transform(chunk) {
+			chunks.push(chunk);
+			size += chunk.length;
+		},
+
+		flush(controller) {
+			const result = new Uint8Array(size);
+			let offset = 0;
+			for (const chunk of chunks) {
+				result.set(chunk, offset);
+				offset += chunk.length;
+			}
+			controller.enqueue(new Uint8Array(result));
+		},
+	});
+}
 
 export function iterateZipFiles() {}
-async function* listZipFiles(source: RangeGetter) {
-	const { size, offset } = await findCentralDirectoryOffset(source);
-	const stream = await source.readStream(offset, offset + size);
-	while (true) {
-		const entry = await readCentralDirectory(stream);
-		if (!entry) {
-			break;
-		}
-		yield entry;
-	}
+function listZipFiles(source: RangeGetter) {
+	let centralDirectoryStream: ReadableStream<Uint8Array>;
+
+	return new ReadableStream<CentralDirectoryEntry>({
+		async pull(controller) {
+			if (!centralDirectoryStream) {
+				const { size, offset } = await findCentralDirectoryOffset(
+					source
+				);
+				centralDirectoryStream = await source.readStream(
+					offset,
+					offset + size
+				);
+			}
+
+			const entry = await readCentralDirectory(centralDirectoryStream);
+			if (!entry) {
+				controller.close();
+				return;
+			}
+			controller.enqueue(entry);
+		},
+	});
 }
 
 type RangeGetter = {
@@ -446,7 +484,6 @@ function pullBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	// const buffer = new ArrayBuffer(bytes);
 	const reader = stream.getReader({ mode: 'byob' });
 	let offset = 0;
-	console.log(bytes - offset);
 	return new ReadableStream({
 		async pull(controller) {
 			const { value, done } = await reader.read(
@@ -471,6 +508,16 @@ function pullBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	});
 }
 
+function filterStream<T>(filter: (chunk: T) => boolean) {
+	return new TransformStream<T, T>({
+		transform(chunk, controller) {
+			if (filter(chunk)) {
+				controller.enqueue(chunk);
+			}
+		},
+	});
+}
+
 const source = await fetchBytes(
 	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip'
 	// 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
@@ -478,23 +525,26 @@ const source = await fetchBytes(
 	// 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
 );
 
-const entries: CentralDirectoryEntry[] = [];
-for await (const zipEntry of listZipFiles(source)) {
-	if (
-		// !zipEntry.fileName.includes('gutenberg/lib/experimental') &&
-		// !zipEntry.fileName.includes('gutenberg/README.md')
-		false
-	) {
-		continue;
-	}
-	if (zipEntry.fileName.endsWith('/') || zipEntry.uncompressedSize === 0) {
-		continue;
-	}
-	entries.push(zipEntry);
-}
+const entries = await listZipFiles(source)
+	.pipeThrough(
+		filterStream(
+			({ fileName, uncompressedSize }) =>
+				fileName.endsWith('/') || uncompressedSize === 0
+		)
+	)
+	.getReader()
+	.read();
 
 for await (const file of fetchZipFiles(source, entries)) {
 	console.log(file.fileName);
+	console.log(
+		await file.body
+			.pipeThrough(new TextDecoderStream())
+			.pipeThrough(concatString())
+			.getReader()
+			.read()
+			.then(({ value }) => value)
+	);
 }
 
 throw new Error('Expected halt');
