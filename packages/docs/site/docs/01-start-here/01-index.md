@@ -1,4 +1,4 @@
-<img width="1219" alt="CleanShot 2023-12-12 at 23 11 12@2x" src="https://github.com/WordPress/wordpress-playground/assets/205419/53c38119-f666-47ec-be6a-634c3bd6af36">---
+---
 title: Start here
 slug: /
 ---
