@@ -1,5 +1,3 @@
-import { CustomEvent } from './custom-event';
-
 /*
  * An approximate total file size to use when the actual
  * total number of bytes is missing.
