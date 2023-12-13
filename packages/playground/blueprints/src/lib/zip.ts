@@ -627,12 +627,19 @@ function filterStream<T>(filter: (chunk: T) => boolean) {
 	});
 }
 
+const DEFAULT_PREDICATE = () => true;
 export async function iterateFromUrl(
 	url: string,
-	predicate: (dirEntry: CentralDirectoryEntry | FileEntry) => boolean
+	predicate: (
+		dirEntry: CentralDirectoryEntry | FileEntry
+	) => boolean = DEFAULT_PREDICATE
 ) {
+	// @TODO check for ranges query support
 	const contentLength = await getContentLength(url);
-	if (contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN) {
+	if (
+		predicate !== DEFAULT_PREDICATE &&
+		contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN
+	) {
 		const source = await createFetchSource(url, contentLength);
 		return centralDirectoryEntries(source)
 			.pipeThrough(filterStream(predicate))
@@ -640,12 +647,12 @@ export async function iterateFromUrl(
 			.pipeThrough(
 				fetchPartitionedEntries(source)
 			) as IterableReadableStream<FileEntry>;
-	} else {
-		const response = await fetch(url);
-		return fileEntries(response.body!).pipeThrough(
-			filterStream(predicate)
-		) as IterableReadableStream<FileEntry>;
 	}
+
+	const response = await fetch(url);
+	return fileEntries(response.body!).pipeThrough(
+		filterStream(predicate as any)
+	) as IterableReadableStream<FileEntry>;
 }
 
 export function fileEntries(stream: ReadableStream<Uint8Array>) {
