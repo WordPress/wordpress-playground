@@ -634,23 +634,45 @@ export async function iterateFromUrl(
 		dirEntry: CentralDirectoryEntry | FileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
-	// @TODO check for ranges query support
-	const contentLength = await getContentLength(url);
-	if (
-		predicate !== DEFAULT_PREDICATE &&
-		contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN
-	) {
-		const source = await createFetchSource(url, contentLength);
-		return centralDirectoryEntries(source)
-			.pipeThrough(filterStream(predicate))
-			.pipeThrough(partitionNearbyEntries())
-			.pipeThrough(
-				fetchPartitionedEntries(source)
-			) as IterableReadableStream<FileEntry>;
+	let responseBody: ReadableStream<Uint8Array> | undefined;
+	let signature: Uint8Array | undefined;
+	if (predicate !== DEFAULT_PREDICATE) {
+		const contentLength = await getContentLength(url);
+		if (contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN) {
+			// Check for ranges query support:
+			//  1. Fetch the two bytes
+			// 	2. Check if I can read four bytes
+			//  3. If I can't, then ranges are supported, nice!
+			//  4. If I can, then create a new stream with those
+			//     two bytes prepended, and continue to fileEntries()
+			const response = await fetch(url, {
+				headers: {
+					Range: 'bytes=0-1',
+					'Accept-Encoding': 'none',
+				},
+			});
+			const responseBodyTmp = response.body!;
+			signature = await readBytes(responseBodyTmp, 4);
+			// @TODO: Reuse the responseBodyTmp as responseBody instead of cancelling it
+			responseBodyTmp.cancel();
+			if (signature!.length !== 4) {
+				const source = await createFetchSource(url, contentLength);
+				return centralDirectoryEntries(source)
+					.pipeThrough(filterStream(predicate))
+					.pipeThrough(partitionNearbyEntries())
+					.pipeThrough(
+						fetchPartitionedEntries(source)
+					) as IterableReadableStream<FileEntry>;
+			}
+		}
 	}
 
-	const response = await fetch(url);
-	return fileEntries(response.body!).pipeThrough(
+	if (!responseBody) {
+		const response = await fetch(url);
+		responseBody = response.body!;
+	}
+
+	return fileEntries(responseBody).pipeThrough(
 		filterStream(predicate as any)
 	) as IterableReadableStream<FileEntry>;
 }
