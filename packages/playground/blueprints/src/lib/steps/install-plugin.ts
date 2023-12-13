@@ -5,7 +5,7 @@ import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
 import { joinPaths } from '@php-wasm/util';
 import { installAsset } from './install-asset';
-import { iterateZipStream } from '../zip';
+import { zipEntriesStream } from '../zip';
 
 /**
  * @inheritDoc installPlugin
@@ -63,7 +63,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	progress?
 ) => {
 	if (!files && pluginZipFile) {
-		files = iterateZipStream(pluginZipFile.stream());
+		files = zipEntriesStream(pluginZipFile.stream());
 	}
 	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);

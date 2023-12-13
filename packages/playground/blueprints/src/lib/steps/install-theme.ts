@@ -3,8 +3,8 @@ import { zipNameToHumanName } from './common';
 import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
 import { basename } from '@php-wasm/util';
-import { iterateZipStream } from '../zip';
 import { FileEntry } from '@php-wasm/universal';
+import { zipEntriesStream } from '../zip';
 
 /**
  * @inheritDoc installTheme
@@ -66,7 +66,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	progress
 ) => {
 	if (!files && themeZipFile) {
-		files = iterateZipStream(themeZipFile.stream());
+		files = zipEntriesStream(themeZipFile.stream());
 	}
 	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
