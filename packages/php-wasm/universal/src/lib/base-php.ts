@@ -631,7 +631,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			try {
 				FS.mkdir(toPath);
 			} catch {
-				void 0;
+				// Do nothing
 			}
 
 			const files = FS.readdir(fromPath);
