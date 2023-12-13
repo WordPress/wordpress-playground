@@ -628,59 +628,81 @@ function filterStream<T>(filter: (chunk: T) => boolean) {
 }
 
 const DEFAULT_PREDICATE = () => true;
-export async function iterateFromUrl(
+export async function iterateRemoteZip(
 	url: string,
 	predicate: (
 		dirEntry: CentralDirectoryEntry | FileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
-	let responseBody: ReadableStream<Uint8Array> | undefined;
-	let signature: Uint8Array | undefined;
-	if (predicate !== DEFAULT_PREDICATE) {
-		const contentLength = await getContentLength(url);
-		if (contentLength >= PREFER_RANGES_IF_FILE_LARGER_THAN) {
-			// Check for ranges query support:
-			//  1. Fetch the two bytes
-			// 	2. Check if I can read four bytes
-			//  3. If I can't, then ranges are supported, nice!
-			//  4. If I can, then create a new stream with those
-			//     two bytes prepended, and continue to fileEntries()
-			const response = await fetch(url, {
-				headers: {
-					Range: 'bytes=0-1',
-					'Accept-Encoding': 'none',
-				},
-			});
-			const responseBodyTmp = response.body!;
-			signature = await readBytes(responseBodyTmp, 4);
-			// @TODO: Reuse the responseBodyTmp as responseBody instead of cancelling it
-			responseBodyTmp.cancel();
-			if (signature!.length !== 4) {
-				const source = await createFetchSource(url, contentLength);
-				return centralDirectoryEntries(source)
-					.pipeThrough(filterStream(predicate))
-					.pipeThrough(partitionNearbyEntries())
-					.pipeThrough(
-						fetchPartitionedEntries(source)
-					) as IterableReadableStream<FileEntry>;
-			}
-		}
-	}
-
-	if (!responseBody) {
+	if (predicate === DEFAULT_PREDICATE) {
+		// If we're not filtering the zip contents, let's just
+		// grab the entire zip.
 		const response = await fetch(url);
-		responseBody = response.body!;
+		return iterateZipStream(response.body!);
 	}
 
-	return fileEntries(responseBody).pipeThrough(
-		filterStream(predicate as any)
-	) as IterableReadableStream<FileEntry>;
+	const contentLength = await getContentLength(url);
+	if (contentLength <= PREFER_RANGES_IF_FILE_LARGER_THAN) {
+		// If the zip is small enough, let's just grab it.
+		const response = await fetch(url);
+		return iterateZipStream(response.body!);
+	}
+
+	// Ensure ranges query support:
+	// Fetch one byte
+	const response = await fetch(url, {
+		headers: {
+			Range: 'bytes=0-0',
+			'Accept-Encoding': 'none',
+		},
+	});
+
+	// Fork the stream so that we can reuse it in case
+	// bytes are unsupported and we're now streaming the
+	// entire file
+	const [peekStream, responseStream] = response.body!.tee();
+
+	// Read from the forked stream and confirm we only
+	// got a single byte.
+	const peekReader = peekStream.getReader();
+	const { value: peekBytes } = await peekReader.read();
+	const { done: peekDone } = await peekReader.read();
+	// Close the forked stream
+	peekReader.releaseLock();
+	peekStream.cancel();
+
+	// Confirm our Range query worked as intended:
+	const rangesSupported = peekBytes?.length === 1 && peekDone;
+	if (!rangesSupported) {
+		// Uh-oh, we're actually streaming the entire file.
+		// Let's reuse the forked stream as our response stream.
+		return iterateZipStream(responseStream);
+	}
+
+	// We're good, let's clean up the other branch of the response stream.
+	responseStream.cancel();
+	const source = await createFetchSource(url, contentLength);
+	return centralDirectoryEntries(source)
+		.pipeThrough(filterStream(predicate))
+		.pipeThrough(partitionNearbyEntries())
+		.pipeThrough(
+			fetchPartitionedEntries(source)
+		) as IterableReadableStream<FileEntry>;
 }
 
-export function fileEntries(stream: ReadableStream<Uint8Array>) {
-	return zipEntries(stream).pipeThrough(
-		filterStream(({ signature }) => signature === SIGNATURE_FILE)
-	) as IterableReadableStream<FileEntry>;
+export function iterateZipStream(
+	stream: ReadableStream<Uint8Array>,
+	predicate: (
+		dirEntry: CentralDirectoryEntry | FileEntry
+	) => boolean = DEFAULT_PREDICATE
+) {
+	return zipEntries(stream)
+		.pipeThrough(
+			filterStream(({ signature }) => signature === SIGNATURE_FILE)
+		)
+		.pipeThrough(
+			filterStream(predicate as any)
+		) as IterableReadableStream<FileEntry>;
 }
 
 export function zipEntries(stream: ReadableStream<Uint8Array>) {
@@ -716,11 +738,14 @@ async function getContentLength(url: string) {
 // 'https://github.com/Automattic/themes/archive/refs/heads/trunk.zip'
 // 'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip'
 // 'https://wordpress.org/nightly-builds/wordpress-latest.zip'
-const zipFiles = await iterateFromUrl(
-	// 'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip',
-	'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip',
-	({ path }) => path.startsWith('gutenberg/lib/experiment')
+const zipFiles = await iterateRemoteZip(
+	'https://downloads.wordpress.org/plugin/classic-editor.latest-stable.zip',
+	({ path }) => true
 );
+// const zipFiles = await iterateFromUrl(
+// 	'https://downloads.wordpress.org/plugin/gutenberg.latest-stable.zip',
+// 	({ path }) => true, //path.startsWith('gutenberg/lib/experiment')
+// );
 for await (const file of zipFiles) {
 	console.log(file.path);
 }
