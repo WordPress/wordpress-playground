@@ -30,7 +30,7 @@ export function unzipFiles(
 			async transform(entry, controller) {
 				controller.enqueue(
 					new File(
-						[await entry.bytes()],
+						[entry.bytes],
 						new TextDecoder().decode(entry.path),
 						{
 							type: entry.isDirectory ? 'directory' : undefined,
@@ -150,13 +150,11 @@ export async function readFileEntry(
 			new DecompressionStream('deflate-raw')
 		);
 	}
-	const body = await bodyStream
+	entry['bytes'] = await bodyStream
 		.pipeThrough(concatBytes(entry['uncompressedSize']))
 		.getReader()
 		.read()
 		.then(({ value }) => value!);
-	entry['bytes'] = () => Promise.resolve(body);
-	entry['text'] = () => Promise.resolve(new TextDecoder().decode(body));
 	return entry as ZipFileEntry;
 }
 

@@ -27,8 +27,7 @@ export interface ZipFileHeader {
 }
 export interface ZipFileEntry extends ZipFileHeader {
 	isDirectory: boolean;
-	text(): Promise<string>;
-	bytes(): Promise<Uint8Array>;
+	bytes: Uint8Array;
 }
 
 export interface CentralDirectoryEntry {
