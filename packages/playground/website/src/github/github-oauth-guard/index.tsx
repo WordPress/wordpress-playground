@@ -2,6 +2,9 @@ import { Icon, Spinner } from '@wordpress/components';
 import { oAuthState } from '../state';
 import { GitHubIcon } from '../github';
 import css from './style.module.css';
+import { useContext, useState } from 'react';
+import { PlaygroundContext } from '../../playground-context';
+import classNames from 'classnames';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
@@ -30,6 +33,11 @@ export default function GitHubOAuthGuard({ children }: GitHubOAuthGuardProps) {
 }
 
 function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
+	const { storage } = useContext(PlaygroundContext);
+	const [exported, setExported] = useState(false);
+	const buttonClass = classNames(css.githubButton, {
+		[css.disabled]: storage === 'none' && !exported,
+	});
 	return (
 		<div>
 			<h2 tabIndex={0} style={{ marginTop: 0, textAlign: 'center' }}>
@@ -41,13 +49,36 @@ function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
 			</p>
 			<p>
 				To enable this feature, connect your GitHub account with
-				WordPress Playground:
+				WordPress Playground.
 			</p>
+			{storage === 'none' ? (
+				<>
+					<p>
+						<b>You will lose your progress.</b> Your Playground is
+						temporary and the authentication flow will redirect you
+						to GitHub and erase all your changes. Be sure to export
+						your Playground to a zip file before proceeding.
+					</p>
+					<label style={{ cursor: 'pointer' }}>
+						<input
+							type="checkbox"
+							checked={exported}
+							onChange={() => setExported(!exported)}
+						/>
+						I exported my Playground as zip.
+					</label>
+				</>
+			) : null}
 			<p>
 				<a
 					aria-label="Connect your GitHub account"
-					className={css.githubButton}
+					className={buttonClass}
 					href={authenticateUrl}
+					onClick={(e) => {
+						if (storage === 'none' && !exported) {
+							e.preventDefault();
+						}
+					}}
 				>
 					<Icon icon={GitHubIcon} />
 					Connect your GitHub account

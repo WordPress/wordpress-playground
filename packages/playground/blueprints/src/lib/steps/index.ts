@@ -27,6 +27,7 @@ import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wp-content';
+import { ImportFileStep } from './import-file';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -35,6 +36,8 @@ export type StepDefinition = Step & {
 		caption?: string;
 	};
 };
+
+export { wpContentFilesExcludedFromExport } from './common';
 
 /**
  * If you add a step here, make sure to also
@@ -47,6 +50,7 @@ export type GenericStep<Resource> =
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
+	| ImportFileStep<Resource>
 	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
@@ -73,6 +77,7 @@ export type {
 	CpStep,
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
+	ImportFileStep,
 	ImportWordPressFilesStep,
 	InstallPluginStep,
 	InstallPluginOptions,

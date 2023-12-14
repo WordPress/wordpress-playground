@@ -176,12 +176,16 @@ class WordPressPatcher {
 			if (!(await this.php.fileExists(transport))) {
 				continue;
 			}
-			await updateFile(this.php, transport, (contents) =>
-				contents.replace(
+			await updateFile(this.php, transport, (contents) => {
+				// If the transport is already patched, don't patch it again.
+				if (contents.includes('public static function test2')) {
+					return contents;
+				}
+				return contents.replace(
 					'public static function test',
 					'public static function test( $capabilities = array() ) { return false; } public static function test2'
-				)
-			);
+				);
+			});
 		}
 
 		// Add fetch and dummy transports for HTTP requests

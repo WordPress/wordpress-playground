@@ -32,7 +32,7 @@ You can connect to the Playground using the JavaScript client. Here's an example
 <!DOCTYPE html>
 <iframe id="wp-playground" style="width: 1200px; height: 800px"></iframe>
 <script type="module">
-	import { startPlaygroundWeb } from 'https://unpkg.com/@wp-playground/client/index.js';
+	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
 
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp-playground'),

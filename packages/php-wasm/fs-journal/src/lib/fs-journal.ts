@@ -126,7 +126,11 @@ export function journalFSEvents(
 			entry.operation === 'RENAME' &&
 			entry.toPath.startsWith(fsRoot)
 		) {
-			for (const op of recordExistingPath(php, entry.toPath)) {
+			for (const op of recordExistingPath(
+				php,
+				entry.path,
+				entry.toPath
+			)) {
 				onEntry(op);
 			}
 		}
@@ -290,33 +294,37 @@ export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
 
 export function* recordExistingPath(
 	php: IsomorphicLocalPHP,
-	path: string
+	fromPath: string,
+	toPath: string
 ): Generator<FilesystemOperation> {
-	if (php.isDir(path)) {
+	if (php.isDir(fromPath)) {
 		// The rename operation moved a directory from outside root directory
 		// into the root directory. We need to traverse the entire tree
 		// and provide a create operation for each file and directory.
 		yield {
 			operation: 'CREATE',
-			path: path,
+			path: toPath,
 			nodeType: 'directory',
 		};
-		for (const file of php.listFiles(path)) {
-			const filePath = joinPaths(path, file);
-			yield* recordExistingPath(php, filePath);
+		for (const file of php.listFiles(fromPath)) {
+			yield* recordExistingPath(
+				php,
+				joinPaths(fromPath, file),
+				joinPaths(toPath, file)
+			);
 		}
 	} else {
 		// The rename operation moved a file from outside root directory
 		// into the root directory. Let's rewrite it as a create operation.
 		yield {
 			operation: 'CREATE',
-			path,
+			path: toPath,
 			nodeType: 'file',
 		};
 		yield {
 			operation: 'WRITE',
 			nodeType: 'file',
-			path,
+			path: toPath,
 		};
 	}
 }

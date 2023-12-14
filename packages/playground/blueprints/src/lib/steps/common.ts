@@ -1,4 +1,4 @@
-import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import type { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * Used by the export step to exclude the Playground-specific files
@@ -7,9 +7,26 @@ import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
  */
 export const wpContentFilesExcludedFromExport = [
 	'db.php',
+	'plugins/akismet',
+	'plugins/hello.php',
+	'plugins/wordpress-importer',
 	'plugins/sqlite-database-integration',
 	'mu-plugins/playground-includes',
+	'mu-plugins/export-wxz.php',
 	'mu-plugins/0-playground.php',
+
+	/*
+	 * Listing core themes like that here isn't ideal, especially since
+	 * developers may actually want to use one of them.
+	 * @TODO Let's give the user a choice whether or not to include them.
+	 */
+	'themes/twentytwenty',
+	'themes/twentytwentyone',
+	'themes/twentytwentytwo',
+	'themes/twentytwentythree',
+	'themes/twentytwentyfour',
+	'themes/twentytwentyfive',
+	'themes/twentytwentysix',
 ];
 
 // @ts-ignore
@@ -82,12 +99,4 @@ export async function runPhpWithZipFunctions(
 		throw result.errors;
 	}
 	return result;
-}
-
-export function DOM(response: PHPResponse) {
-	return new DOMParser().parseFromString(response.text, 'text/html');
-}
-
-export function getFormData(form: HTMLFormElement): Record<string, unknown> {
-	return Object.fromEntries((new FormData(form) as any).entries());
 }

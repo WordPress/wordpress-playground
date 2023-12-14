@@ -103,6 +103,9 @@ export default defineConfig(({ command, mode }) => {
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),
+					'index.html': fileURLToPath(
+						new URL('./demos/index.html', import.meta.url)
+					),
 					'sync.html': fileURLToPath(
 						new URL('./demos/sync.html', import.meta.url)
 					),
@@ -111,6 +114,9 @@ export default defineConfig(({ command, mode }) => {
 					),
 					'time-traveling.html': fileURLToPath(
 						new URL('./demos/time-traveling.html', import.meta.url)
+					),
+					'builder/builder.html': fileURLToPath(
+						new URL('./builder/builder.html', import.meta.url)
 					),
 				},
 				// output: {

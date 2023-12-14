@@ -61,6 +61,8 @@ export async function resolveBlueprint() {
 			plugins: query.getAll('plugin'),
 			landingPage: query.get('url') || undefined,
 			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
+			importSite: query.get('import-site') || undefined,
+			importContent: query.get('import-content') || undefined,
 		});
 	}
 

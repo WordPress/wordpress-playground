@@ -5,6 +5,12 @@ slug: /
 
 # WordPress Playground
 
+:::info **Looking for the official Playground website?**
+
+WordPress Playground website was moved to [wp.org/playground](https://wp.org/playground). The site you're at right now is now a home for the documentation.
+
+:::
+
 👋 Hi! Welcome to WordPress Playground documentation. Playground is an online tool to experiment and learn about WordPress – learn more in the [overview section](./02-overview.md).
 
 The documentation consists of two major sections:
