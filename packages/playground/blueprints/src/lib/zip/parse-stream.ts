@@ -4,7 +4,6 @@
 import { IterableReadableStream } from './iterable-stream-polyfill';
 import {
 	collectBytes,
-	collectString,
 	concatBytes,
 	filterStream,
 	limitBytes,
@@ -21,9 +20,27 @@ import {
 	ZipEntry,
 	CentralDirectoryEndEntry,
 } from './common';
+import { FileEntry } from '@php-wasm/universal';
+
+export function unzipFiles(
+	stream: ReadableStream<Uint8Array>,
+	predicate?: () => boolean
+) {
+	return streamZippedFileEntries(stream, predicate).pipeThrough(
+		new TransformStream<ZipFileEntry, FileEntry>({
+			async transform(entry, controller) {
+				controller.enqueue({
+					path: new TextDecoder().decode(entry.path),
+					isDirectory: entry.isDirectory,
+					bytes: entry.bytes,
+				});
+			},
+		})
+	);
+}
 
 const DEFAULT_PREDICATE = () => true;
-export function unzipFiles(
+export function streamZippedFileEntries(
 	stream: ReadableStream<Uint8Array>,
 	predicate: (
 		dirEntry: CentralDirectoryEntry | ZipFileEntry
@@ -106,6 +123,8 @@ export async function readFileEntry(
 		}
 	}
 	const data = new DataView((await collectBytes(stream, 26))!.buffer);
+	const pathLength = data.getUint16(22, true);
+	const extraLength = data.getUint16(24, true);
 	const entry: Partial<ZipFileEntry> = {
 		signature: SIGNATURE_FILE,
 		version: data.getUint32(0, true),
@@ -116,13 +135,11 @@ export async function readFileEntry(
 		crc: data.getUint32(10, true),
 		compressedSize: data.getUint32(14, true),
 		uncompressedSize: data.getUint32(18, true),
-		pathLength: data.getUint16(22, true),
-		extraLength: data.getUint16(24, true),
 	};
 
-	entry['path'] = await collectString(stream, entry['pathLength']!);
-	entry['isDirectory'] = entry.path!.endsWith('/');
-	entry['extra'] = await collectBytes(stream, entry['extraLength']);
+	entry['path'] = await collectBytes(stream, pathLength);
+	entry['isDirectory'] = endsWithSlash(entry.path);
+	entry['extra'] = await collectBytes(stream, extraLength);
 
 	// Make sure we consume the body stream or else
 	// we'll start reading the next file at the wrong
@@ -191,6 +208,9 @@ export async function readCentralDirectoryEntry(
 		}
 	}
 	const data = new DataView((await collectBytes(stream, 42))!.buffer);
+	const pathLength = data.getUint16(24, true);
+	const extraLength = data.getUint16(26, true);
+	const fileCommentLength = data.getUint16(28, true);
 	const centralDirectory: Partial<CentralDirectoryEntry> = {
 		signature: SIGNATURE_CENTRAL_DIRECTORY,
 		versionCreated: data.getUint16(0, true),
@@ -202,9 +222,6 @@ export async function readCentralDirectoryEntry(
 		crc: data.getUint32(12, true),
 		compressedSize: data.getUint32(16, true),
 		uncompressedSize: data.getUint32(20, true),
-		pathLength: data.getUint16(24, true),
-		extraLength: data.getUint16(26, true),
-		fileCommentLength: data.getUint16(28, true),
 		diskNumber: data.getUint16(30, true),
 		internalAttributes: data.getUint16(32, true),
 		externalAttributes: data.getUint32(34, true),
@@ -213,26 +230,24 @@ export async function readCentralDirectoryEntry(
 	centralDirectory['lastByteAt'] =
 		centralDirectory.firstByteAt! +
 		FILE_HEADER_SIZE +
-		centralDirectory.pathLength! +
-		centralDirectory.fileCommentLength! +
-		centralDirectory.extraLength! +
+		pathLength +
+		fileCommentLength +
+		extraLength! +
 		centralDirectory.compressedSize! -
 		1;
 
-	centralDirectory['path'] = await collectString(
+	centralDirectory['path'] = await collectBytes(stream, pathLength);
+	centralDirectory['isDirectory'] = endsWithSlash(centralDirectory.path);
+	centralDirectory['extra'] = await collectBytes(stream, extraLength);
+	centralDirectory['fileComment'] = await collectBytes(
 		stream,
-		centralDirectory.pathLength!
-	);
-	centralDirectory['isDirectory'] = centralDirectory.path!.endsWith('/');
-	centralDirectory['extra'] = await collectBytes(
-		stream,
-		centralDirectory.extraLength!
-	);
-	centralDirectory['fileComment'] = await collectString(
-		stream,
-		centralDirectory.fileCommentLength!
+		fileCommentLength
 	);
 	return centralDirectory as CentralDirectoryEntry;
+}
+
+function endsWithSlash(path: Uint8Array) {
+	return path[path.byteLength - 1] == '/'.charCodeAt(0);
 }
 
 /**
@@ -277,11 +292,8 @@ async function readEndCentralDirectoryEntry(
 		numberCentralDirectoryRecords: data.getUint16(6, true),
 		centralDirectorySize: data.getUint32(8, true),
 		centralDirectoryOffset: data.getUint32(12, true),
-		commentLength: data.getUint16(16, true),
 	};
-	endOfDirectory['comment'] = await collectString(
-		stream,
-		endOfDirectory.commentLength!
-	);
+	const commentLength = data.getUint16(16, true);
+	endOfDirectory['comment'] = await collectBytes(stream, commentLength);
 	return endOfDirectory as CentralDirectoryEndEntry;
 }

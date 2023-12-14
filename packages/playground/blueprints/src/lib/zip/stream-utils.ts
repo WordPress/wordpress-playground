@@ -66,7 +66,7 @@ export async function collectBytes(
 	if (!lastEntry.done) {
 		throw new Error('expected end of stream');
 	}
-	return result;
+	return result!;
 }
 
 export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {

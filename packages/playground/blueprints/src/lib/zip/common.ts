@@ -1,5 +1,3 @@
-import { FileEntry } from '@php-wasm/universal';
-
 export const FILE_HEADER_SIZE = 32;
 export const SIGNATURE_FILE = 67324752 as const;
 export const SIGNATURE_CENTRAL_DIRECTORY = 33639248 as const;
@@ -21,12 +19,10 @@ export interface ZipFileHeader {
 	crc: number;
 	compressedSize: number;
 	uncompressedSize: number;
-	pathLength: number;
-	path: string;
-	extraLength: number;
+	path: Uint8Array;
 	extra: Uint8Array;
 }
-export interface ZipFileEntry extends ZipFileHeader, FileEntry {
+export interface ZipFileEntry extends ZipFileHeader {
 	isDirectory: boolean;
 	text(): Promise<string>;
 	bytes(): Promise<Uint8Array>;
@@ -43,17 +39,14 @@ export interface CentralDirectoryEntry {
 	crc: number;
 	compressedSize: number;
 	uncompressedSize: number;
-	pathLength: number;
-	extraLength: number;
-	fileCommentLength: number;
 	diskNumber: number;
 	internalAttributes: number;
 	externalAttributes: number;
 	firstByteAt: number;
 	lastByteAt: number;
-	path: string;
+	path: Uint8Array;
 	extra: Uint8Array;
-	fileComment: string;
+	fileComment: Uint8Array;
 	isDirectory: boolean;
 }
 
@@ -65,6 +58,5 @@ export interface CentralDirectoryEndEntry {
 	numberCentralDirectoryRecords: number;
 	centralDirectorySize: number;
 	centralDirectoryOffset: number;
-	commentLength: number;
-	comment: string;
+	comment: Uint8Array;
 }

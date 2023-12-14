@@ -2,7 +2,6 @@ import { FileEntry } from '@php-wasm/universal';
 import {
 	CentralDirectoryEndEntry,
 	CentralDirectoryEntry,
-	ZipFileEntry,
 	ZipFileHeader,
 } from './common';
 import {
@@ -22,7 +21,7 @@ export function zipFiles(
 function toZipStream() {
 	const offsetToFileHeaderMap: Map<number, ZipFileHeader> = new Map();
 	let offset = 0;
-	return new TransformStream<ZipFileEntry, Uint8Array>({
+	return new TransformStream<FileEntry, Uint8Array>({
 		async transform(entry, controller) {
 			const entryBytes = await entry.bytes();
 			const compressed = (await collectBytes(
@@ -31,8 +30,8 @@ function toZipStream() {
 					.pipeThrough(new CompressionStream('deflate-raw'))
 			))!;
 
-			const encodedPath = new TextEncoder().encode(entry.path);
 			const crcHash = crc32(entryBytes);
+			const encodedPath = new TextEncoder().encode(entry.path);
 
 			const zipFileEntry: ZipFileHeader = {
 				signature: SIGNATURE_FILE,
@@ -44,9 +43,7 @@ function toZipStream() {
 				crc: crcHash,
 				compressedSize: compressed.byteLength,
 				uncompressedSize: entryBytes.byteLength,
-				pathLength: encodedPath.byteLength,
-				path: entry.path,
-				extraLength: 0,
+				path: encodedPath,
 				extra: new Uint8Array(0),
 			};
 			offsetToFileHeaderMap.set(offset, zipFileEntry);
@@ -66,8 +63,7 @@ function toZipStream() {
 				const centralDirectoryEntry: Partial<CentralDirectoryEntry> = {
 					...header,
 					signature: SIGNATURE_CENTRAL_DIRECTORY,
-					fileCommentLength: 0,
-					fileComment: '',
+					fileComment: new Uint8Array(0),
 					diskNumber: 1,
 					internalAttributes: 0,
 					externalAttributes: 0,
@@ -89,8 +85,7 @@ function toZipStream() {
 				numberCentralDirectoryRecordsOnThisDisk:
 					offsetToFileHeaderMap.size,
 				numberCentralDirectoryRecords: offsetToFileHeaderMap.size,
-				commentLength: 0,
-				comment: '',
+				comment: new Uint8Array(0),
 			};
 			const centralDirectoryEndBytes =
 				encodeCentralDirectoryEndHeader(centralDirectoryEnd);
@@ -104,7 +99,9 @@ function encodeCentralDirectoryEntry(
 	entry: CentralDirectoryEntry,
 	offset: number
 ) {
-	const buffer = new ArrayBuffer(46 + entry.pathLength + entry.extraLength);
+	const buffer = new ArrayBuffer(
+		46 + entry.path.byteLength + entry.extra.byteLength
+	);
 	const view = new DataView(buffer);
 	view.setUint32(0, entry.signature, true);
 	view.setUint16(4, entry.versionCreated, true);
@@ -116,21 +113,21 @@ function encodeCentralDirectoryEntry(
 	view.setUint32(16, entry.crc, true);
 	view.setUint32(20, entry.compressedSize, true);
 	view.setUint32(24, entry.uncompressedSize, true);
-	view.setUint16(28, entry.pathLength, true);
-	view.setUint16(30, entry.extraLength, true);
-	view.setUint16(32, entry.fileCommentLength, true);
+	view.setUint16(28, entry.path.byteLength, true);
+	view.setUint16(30, entry.extra.byteLength, true);
+	view.setUint16(32, entry.fileComment.byteLength, true);
 	view.setUint16(34, entry.diskNumber, true);
 	view.setUint16(36, entry.internalAttributes, true);
 	view.setUint32(38, entry.externalAttributes, true);
 	view.setUint32(42, offset, true);
 	const uint8Header = new Uint8Array(buffer);
-	uint8Header.set(new TextEncoder().encode(entry.path), 46);
-	uint8Header.set(entry.extra, 46 + entry.pathLength);
+	uint8Header.set(entry.path, 46);
+	uint8Header.set(entry.extra, 46 + entry.path.byteLength);
 	return uint8Header;
 }
 
 function encodeCentralDirectoryEndHeader(entry: CentralDirectoryEndEntry) {
-	const buffer = new ArrayBuffer(22 + entry.commentLength);
+	const buffer = new ArrayBuffer(22 + entry.comment.byteLength);
 	const view = new DataView(buffer);
 	view.setUint32(0, entry.signature, true);
 	view.setUint16(4, entry.numberOfDisks, true);
@@ -139,14 +136,16 @@ function encodeCentralDirectoryEndHeader(entry: CentralDirectoryEndEntry) {
 	view.setUint16(10, entry.numberCentralDirectoryRecords, true);
 	view.setUint32(12, entry.centralDirectorySize, true);
 	view.setUint32(16, entry.centralDirectoryOffset, true);
-	view.setUint16(20, entry.commentLength, true);
+	view.setUint16(20, entry.comment.byteLength, true);
 	const uint8Header = new Uint8Array(buffer);
-	uint8Header.set(new TextEncoder().encode(entry.comment), 22);
+	uint8Header.set(entry.comment, 22);
 	return uint8Header;
 }
 
 function encodeZipFileHeader(entry: ZipFileHeader) {
-	const buffer = new ArrayBuffer(30 + entry.pathLength + entry.extraLength);
+	const buffer = new ArrayBuffer(
+		30 + entry.path.byteLength + entry.extra.byteLength
+	);
 	const view = new DataView(buffer);
 	view.setUint32(0, entry.signature, true);
 	view.setUint16(4, entry.version, true);
@@ -157,10 +156,10 @@ function encodeZipFileHeader(entry: ZipFileHeader) {
 	view.setUint32(14, entry.crc, true);
 	view.setUint32(18, entry.compressedSize, true);
 	view.setUint32(22, entry.uncompressedSize, true);
-	view.setUint16(26, entry.pathLength, true);
-	view.setUint16(28, entry.extraLength, true);
+	view.setUint16(26, entry.path.byteLength, true);
+	view.setUint16(28, entry.extra.byteLength, true);
 	const uint8Header = new Uint8Array(buffer);
-	uint8Header.set(new TextEncoder().encode(entry.path), 30);
-	uint8Header.set(entry.extra, 30 + entry.pathLength);
+	uint8Header.set(entry.path, 30);
+	uint8Header.set(entry.extra, 30 + entry.path.byteLength);
 	return uint8Header;
 }
