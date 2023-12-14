@@ -1,4 +1,4 @@
-import { FileEntry, UniversalPHP, writeToPath } from '@php-wasm/universal';
+import { FileEntry, UniversalPHP, writeFileEntry } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { activatePlugin } from './activate-plugin';
@@ -36,7 +36,7 @@ export interface InstallPluginStep<ResourceType> {
 	 * The plugin zip file to install.
 	 */
 	pluginZipFile?: ResourceType;
-	files?: AsyncIterable<FileEntry>;
+	files?: AsyncIterable<FileEntry> | Iterable<FileEntry>;
 	/**
 	 * Optional installation options.
 	 */
@@ -76,7 +76,9 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			'wp-content/plugins',
 			crypto.randomUUID()
 		);
-		await writeToPath(php, extractTo, files!);
+		for await (const file of files!) {
+			await writeFileEntry(php, extractTo, file);
+		}
 		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate

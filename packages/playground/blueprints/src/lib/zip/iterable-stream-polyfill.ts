@@ -28,7 +28,4 @@ if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 	};
 }
 
-export type IterableReadableStream<R> = ReadableStream<R> &
-	AsyncIterable<R> & {
-		[Symbol.asyncIterator](): AsyncIterableIterator<R>;
-	};
+export type IterableReadableStream<R> = ReadableStream<R> & AsyncIterable<R>;

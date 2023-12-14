@@ -1,6 +1,6 @@
 import { StepHandler } from '.';
+import { WriteFileStream } from '../utils/write-file-stream';
 import { unzipFiles } from '../zip';
-import { writeToPathStream } from '@php-wasm/universal';
 
 /**
  * @inheritDoc unzip
@@ -36,6 +36,6 @@ export const unzip: StepHandler<UnzipStep> = async (
 	const zipBytes = await playground.readFileAsBuffer(zipPath);
 	const zipStream = new Blob([zipBytes]).stream();
 	await unzipFiles(zipStream).pipeTo(
-		writeToPathStream(playground, extractToPath)
+		new WriteFileStream(playground, extractToPath)
 	);
 };

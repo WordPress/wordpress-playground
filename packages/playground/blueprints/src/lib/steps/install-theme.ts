@@ -3,7 +3,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { flattenDirectory } from '../utils/flatten-directory';
 import { activateTheme } from './activate-theme';
 import { basename, joinPaths } from '@php-wasm/util';
-import { FileEntry, writeToPath } from '@php-wasm/universal';
+import { FileEntry, writeFileEntry } from '@php-wasm/universal';
 import { unzipFiles } from '../zip';
 
 /**
@@ -34,7 +34,7 @@ export interface InstallThemeStep<ResourceType> {
 	 * The theme zip file to install.
 	 */
 	themeZipFile?: ResourceType;
-	files?: AsyncIterable<FileEntry>;
+	files?: AsyncIterable<FileEntry> | Iterable<FileEntry>;
 	/**
 	 * Optional installation options.
 	 */
@@ -80,7 +80,9 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			'wp-content/themes',
 			crypto.randomUUID()
 		);
-		await writeToPath(php, extractTo, files!);
+		for await (const file of files!) {
+			await writeFileEntry(php, extractTo, file);
+		}
 		const themePath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate

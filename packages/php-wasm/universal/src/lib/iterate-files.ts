@@ -81,30 +81,16 @@ export async function* iterateFiles(
  * @param root
  * @param newFiles
  */
-export async function writeToPath(
+export async function writeFileEntry(
 	client: UniversalPHP,
 	root: string,
-	files: AsyncIterable<FileEntry> | Iterable<FileEntry>
+	file: FileEntry
 ) {
-	await client.mkdir(root);
-	for await (const file of files) {
-		const filePath = joinPaths(root, file.path);
-		if (file.isDirectory) {
-			await client.mkdir(filePath);
-		} else {
-			await client.mkdir(dirname(filePath));
-			await client.writeFile(filePath, await file.bytes());
-		}
+	const filePath = joinPaths(root, file.path);
+	if (file.isDirectory) {
+		await client.mkdir(filePath);
+	} else {
+		await client.mkdir(dirname(filePath));
+		await client.writeFile(filePath, await file.bytes());
 	}
-}
-
-export function writeToPathStream(
-	client: UniversalPHP,
-	root: string
-): WritableStream<FileEntry> {
-	return new WritableStream({
-		async write(file) {
-			await writeToPath(client, root, [file]);
-		},
-	});
 }
