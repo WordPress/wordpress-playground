@@ -64,7 +64,7 @@ export async function collectBytes(
 		.pipeThrough(concatBytes(bytes))
 		.getReader()
 		.read()
-		.then(({ value }) => value);
+		.then(({ value }) => value!);
 }
 
 export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {

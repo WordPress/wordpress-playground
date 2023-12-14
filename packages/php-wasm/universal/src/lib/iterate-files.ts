@@ -106,7 +106,7 @@ export async function readAllBytes(
 export async function writeToPath(
 	client: UniversalPHP,
 	root: string,
-	files: AsyncIterable<FileEntry>
+	files: AsyncIterable<FileEntry> | Iterable<FileEntry>
 ) {
 	await client.mkdir(root);
 	for await (const file of files) {
@@ -118,4 +118,15 @@ export async function writeToPath(
 			await client.writeFile(filePath, await file.bytes());
 		}
 	}
+}
+
+export function writeToPathStream(
+	client: UniversalPHP,
+	root: string
+): WritableStream<FileEntry> {
+	return new WritableStream({
+		async write(file) {
+			await writeToPath(client, root, [file]);
+		},
+	});
 }

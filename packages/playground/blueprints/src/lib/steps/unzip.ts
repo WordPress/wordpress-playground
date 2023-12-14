@@ -1,6 +1,6 @@
-import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
-import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
+import { unzipFiles } from '../zip';
+import { writeToPathStream } from '@php-wasm/universal';
 
 /**
  * @inheritDoc unzip
@@ -33,12 +33,9 @@ export const unzip: StepHandler<UnzipStep> = async (
 	playground,
 	{ zipPath, extractToPath }
 ) => {
-	const js = phpVars({
-		zipPath,
-		extractToPath,
-	});
-	await runPhpWithZipFunctions(
-		playground,
-		`unzip(${js.zipPath}, ${js.extractToPath});`
+	const zipBytes = await playground.readFileAsBuffer(zipPath);
+	const zipStream = new Blob([zipBytes]).stream();
+	await unzipFiles(zipStream).pipeTo(
+		writeToPathStream(playground, extractToPath)
 	);
 };

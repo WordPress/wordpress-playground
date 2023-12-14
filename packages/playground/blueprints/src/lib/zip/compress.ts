@@ -15,7 +15,10 @@ import { collectBytes, iteratorToStream } from './stream-utils';
 import { crc32 } from './crc32';
 
 export function zipFiles(
-	files: AsyncIterableIterator<FileEntry> | IterableIterator<FileEntry>
+	files:
+		| AsyncIterable<FileEntry>
+		| AsyncIterableIterator<FileEntry>
+		| IterableIterator<FileEntry>
 ): ReadableStream<Uint8Array> {
 	return iteratorToStream(files).pipeThrough(encodeZip());
 }
