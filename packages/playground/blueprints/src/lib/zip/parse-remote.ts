@@ -1,7 +1,3 @@
-/**
- * @TODO: Errors thrown inside streams are ignored
- */
-
 import { Semaphore } from '@php-wasm/util';
 import { collectBytes, concatUint8Array, filterStream } from './stream-utils';
 import {
@@ -108,20 +104,14 @@ function streamCentralDirectoryEntries(source: BytesSource) {
 			centralDirectoryStream = await streamCentralDirectoryBytes(source);
 		},
 		async pull(controller) {
-			try {
-				const entry = await readCentralDirectoryEntry(
-					centralDirectoryStream
-				);
-				if (!entry) {
-					controller.close();
-					return;
-				}
-				controller.enqueue(entry);
-			} catch (e) {
-				console.error(e);
-				controller.error(e);
-				throw e;
+			const entry = await readCentralDirectoryEntry(
+				centralDirectoryStream
+			);
+			if (!entry) {
+				controller.close();
+				return;
 			}
+			controller.enqueue(entry);
 		},
 	});
 }
@@ -322,9 +312,6 @@ async function requestChunkRange(
 			lastZipEntry.lastByteAt
 		);
 		return substream;
-	} catch (e) {
-		console.error(e);
-		throw e;
 	} finally {
 		release();
 	}

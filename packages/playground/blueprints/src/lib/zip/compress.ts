@@ -1,5 +1,7 @@
 import { FileEntry } from '@php-wasm/universal';
 import {
+	COMPRESSION_DEFLATE,
+	COMPRESSION_NONE,
 	CentralDirectoryEndEntry,
 	CentralDirectoryEntry,
 	ZipFileHeader,
@@ -15,12 +17,12 @@ import { crc32 } from './crc32';
 export function zipFiles(
 	files: AsyncIterableIterator<FileEntry> | IterableIterator<FileEntry>
 ): ReadableStream<Uint8Array> {
-	return iteratorToStream(files).pipeThrough(toZipStream());
+	return iteratorToStream(files).pipeThrough(encodeZip());
 }
 
-function toZipStream() {
+function encodeZip() {
 	const offsetToFileHeaderMap: Map<number, ZipFileHeader> = new Map();
-	let offset = 0;
+	let writtenBytes = 0;
 	return new TransformStream<FileEntry, Uint8Array>({
 		async transform(entry, controller) {
 			const entryBytes = await entry.bytes();
@@ -37,7 +39,10 @@ function toZipStream() {
 				signature: SIGNATURE_FILE,
 				version: 2,
 				generalPurpose: 0,
-				compressionMethod: entry.isDirectory ? 0 : 8,
+				compressionMethod:
+					entry.isDirectory || compressed.byteLength === 0
+						? COMPRESSION_NONE
+						: COMPRESSION_DEFLATE,
 				lastModifiedTime: 0,
 				lastModifiedDate: 0,
 				crc: crcHash,
@@ -46,15 +51,17 @@ function toZipStream() {
 				path: encodedPath,
 				extra: new Uint8Array(0),
 			};
-			offsetToFileHeaderMap.set(offset, zipFileEntry);
+			offsetToFileHeaderMap.set(writtenBytes, zipFileEntry);
 
 			const headerBytes = encodeZipFileHeader(zipFileEntry);
 			controller.enqueue(headerBytes);
+			writtenBytes += headerBytes.byteLength;
+
 			controller.enqueue(compressed);
-			offset += headerBytes.byteLength + compressed.byteLength;
+			writtenBytes += compressed.byteLength;
 		},
 		flush(controller) {
-			const centralDirectoryOffset = offset;
+			const centralDirectoryOffset = writtenBytes;
 			let centralDirectorySize = 0;
 			for (const [
 				fileOffset,
@@ -88,11 +95,33 @@ function toZipStream() {
 				comment: new Uint8Array(0),
 			};
 			const centralDirectoryEndBytes =
-				encodeCentralDirectoryEndHeader(centralDirectoryEnd);
+				encodeCentralDirectoryEnd(centralDirectoryEnd);
 			controller.enqueue(centralDirectoryEndBytes);
 			offsetToFileHeaderMap.clear();
 		},
 	});
+}
+
+function encodeZipFileHeader(entry: ZipFileHeader) {
+	const buffer = new ArrayBuffer(
+		30 + entry.path.byteLength + entry.extra.byteLength
+	);
+	const view = new DataView(buffer);
+	view.setUint32(0, entry.signature, true);
+	view.setUint16(4, entry.version, true);
+	view.setUint16(6, entry.generalPurpose, true);
+	view.setUint16(8, entry.compressionMethod, true);
+	view.setUint16(10, entry.lastModifiedDate, true);
+	view.setUint16(12, entry.lastModifiedTime, true);
+	view.setUint32(14, entry.crc, true);
+	view.setUint32(18, entry.compressedSize, true);
+	view.setUint32(22, entry.uncompressedSize, true);
+	view.setUint16(26, entry.path.byteLength, true);
+	view.setUint16(28, entry.extra.byteLength, true);
+	const uint8Header = new Uint8Array(buffer);
+	uint8Header.set(entry.path, 30);
+	uint8Header.set(entry.extra, 30 + entry.path.byteLength);
+	return uint8Header;
 }
 
 function encodeCentralDirectoryEntry(
@@ -126,7 +155,7 @@ function encodeCentralDirectoryEntry(
 	return uint8Header;
 }
 
-function encodeCentralDirectoryEndHeader(entry: CentralDirectoryEndEntry) {
+function encodeCentralDirectoryEnd(entry: CentralDirectoryEndEntry) {
 	const buffer = new ArrayBuffer(22 + entry.comment.byteLength);
 	const view = new DataView(buffer);
 	view.setUint32(0, entry.signature, true);
@@ -139,27 +168,5 @@ function encodeCentralDirectoryEndHeader(entry: CentralDirectoryEndEntry) {
 	view.setUint16(20, entry.comment.byteLength, true);
 	const uint8Header = new Uint8Array(buffer);
 	uint8Header.set(entry.comment, 22);
-	return uint8Header;
-}
-
-function encodeZipFileHeader(entry: ZipFileHeader) {
-	const buffer = new ArrayBuffer(
-		30 + entry.path.byteLength + entry.extra.byteLength
-	);
-	const view = new DataView(buffer);
-	view.setUint32(0, entry.signature, true);
-	view.setUint16(4, entry.version, true);
-	view.setUint16(6, entry.generalPurpose, true);
-	view.setUint16(8, entry.compressionMethod, true);
-	view.setUint16(10, entry.lastModifiedDate, true);
-	view.setUint16(12, entry.lastModifiedTime, true);
-	view.setUint32(14, entry.crc, true);
-	view.setUint32(18, entry.compressedSize, true);
-	view.setUint32(22, entry.uncompressedSize, true);
-	view.setUint16(26, entry.path.byteLength, true);
-	view.setUint16(28, entry.extra.byteLength, true);
-	const uint8Header = new Uint8Array(buffer);
-	uint8Header.set(entry.path, 30);
-	uint8Header.set(entry.extra, 30 + entry.path.byteLength);
 	return uint8Header;
 }

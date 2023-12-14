@@ -4,6 +4,9 @@ export const SIGNATURE_CENTRAL_DIRECTORY = 33639248 as const;
 export const SIGNATURE_CENTRAL_DIRECTORY_END = 101010256 as const;
 export const SIGNATURE_DATA_DESCRIPTOR = 134695760 as const;
 
+export const COMPRESSION_NONE = 0;
+export const COMPRESSION_DEFLATE = 8;
+
 export type ZipEntry =
 	| ZipFileEntry
 	| CentralDirectoryEntry

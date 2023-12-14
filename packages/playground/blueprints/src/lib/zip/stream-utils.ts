@@ -60,13 +60,11 @@ export async function collectBytes(
 		stream = limitBytes(stream, bytes);
 	}
 
-	const reader = stream.pipeThrough(concatBytes(bytes)).getReader();
-	const { value: result } = await reader.read();
-	const lastEntry = await reader.read();
-	if (!lastEntry.done) {
-		throw new Error('expected end of stream');
-	}
-	return result!;
+	return await stream
+		.pipeThrough(concatBytes(bytes))
+		.getReader()
+		.read()
+		.then(({ value }) => value);
 }
 
 export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {

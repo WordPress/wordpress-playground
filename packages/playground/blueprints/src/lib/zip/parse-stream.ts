@@ -13,6 +13,7 @@ import {
 	SIGNATURE_CENTRAL_DIRECTORY,
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	FILE_HEADER_SIZE,
+	COMPRESSION_DEFLATE,
 } from './common';
 import {
 	CentralDirectoryEntry,
@@ -36,7 +37,7 @@ export function unzipFiles(
 				});
 			},
 		})
-	);
+	) as IterableReadableStream<FileEntry>;
 }
 
 const DEFAULT_PREDICATE = () => true;
@@ -48,18 +49,12 @@ export function streamZippedFileEntries(
 ) {
 	const entriesStream = new ReadableStream<ZipEntry>({
 		async pull(controller) {
-			try {
-				const entry = await nextZipEntry(stream);
-				if (!entry) {
-					controller.close();
-					return;
-				}
-				controller.enqueue(entry);
-			} catch (e) {
-				console.error(e);
-				controller.error(e);
-				throw e;
+			const entry = await nextZipEntry(stream);
+			if (!entry) {
+				controller.close();
+				return;
 			}
+			controller.enqueue(entry);
 		},
 	}) as IterableReadableStream<ZipEntry>;
 
@@ -138,7 +133,7 @@ export async function readFileEntry(
 	};
 
 	entry['path'] = await collectBytes(stream, pathLength);
-	entry['isDirectory'] = endsWithSlash(entry.path);
+	entry['isDirectory'] = endsWithSlash(entry.path!);
 	entry['extra'] = await collectBytes(stream, extraLength);
 
 	// Make sure we consume the body stream or else
@@ -148,7 +143,7 @@ export async function readFileEntry(
 	//        eagerly. Ensure the next iteration exhausts
 	//        the last body stream before moving on.
 	let bodyStream = limitBytes(stream, entry['compressedSize']!);
-	if (entry['compressionMethod'] === 8) {
+	if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
 		bodyStream = bodyStream.pipeThrough(
 			new DecompressionStream('deflate-raw')
 		);
@@ -237,7 +232,7 @@ export async function readCentralDirectoryEntry(
 		1;
 
 	centralDirectory['path'] = await collectBytes(stream, pathLength);
-	centralDirectory['isDirectory'] = endsWithSlash(centralDirectory.path);
+	centralDirectory['isDirectory'] = endsWithSlash(centralDirectory.path!);
 	centralDirectory['extra'] = await collectBytes(stream, extraLength);
 	centralDirectory['fileComment'] = await collectBytes(
 		stream,
