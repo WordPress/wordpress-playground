@@ -1,6 +1,6 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '..';
-import { updateFile } from '../common';
+import { updateFile } from '../../utils/update-file';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
 /** @ts-ignore */

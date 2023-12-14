@@ -1,5 +1,5 @@
 import { StepHandler } from '.';
-import { fileToUint8Array } from './common';
+import { fileToUint8Array } from '../utils/file-to-uint8-array';
 
 /**
  * @inheritDoc writeFile

@@ -1,9 +1,9 @@
 import { StepHandler } from '.';
-import { zipNameToHumanName } from './common';
-import { installAsset } from './install-asset';
+import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import { flattenDirectory } from '../utils/flatten-directory';
 import { activateTheme } from './activate-theme';
-import { basename } from '@php-wasm/util';
-import { FileEntry } from '@php-wasm/universal';
+import { basename, joinPaths } from '@php-wasm/util';
+import { FileEntry, writeToPath } from '@php-wasm/universal';
 import { unzipFiles } from '../zip';
 
 /**
@@ -56,12 +56,12 @@ export interface InstallThemeOptions {
 /**
  * Installs a WordPress theme in the Playground.
  *
- * @param playground The playground client.
+ * @param php The playground client.
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
 export const installTheme: StepHandler<InstallThemeStep<File>> = async (
-	playground,
+	php,
 	{ themeZipFile, files, options = {} },
 	progress
 ) => {
@@ -70,24 +70,24 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	}
 	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
-	const defaultAssetName = zipFileName.replace(/\.zip$/, '');
+	const assetName = zipFileName.replace(/\.zip$/, '');
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 
 	try {
-		const themePath = await installAsset(playground, {
-			files: files!,
-			defaultAssetName,
-			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-		});
+		const extractTo = joinPaths(
+			await php.documentRoot,
+			'wp-content/themes',
+			crypto.randomUUID()
+		);
+		await writeToPath(php, extractTo, files!);
+		const themePath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate
-
 		const activate = 'activate' in options ? options.activate : true;
-
 		if (activate) {
 			await activateTheme(
-				playground,
+				php,
 				{
 					themeFolderName: basename(themePath),
 				},
