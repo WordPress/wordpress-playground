@@ -2,12 +2,7 @@
  * Reads files from a stream of zip file bytes.
  */
 import { IterableReadableStream } from './iterable-stream-polyfill';
-import {
-	collectBytes,
-	concatBytes,
-	filterStream,
-	limitBytes,
-} from './stream-utils';
+
 import {
 	SIGNATURE_FILE,
 	SIGNATURE_CENTRAL_DIRECTORY,
@@ -21,23 +16,30 @@ import {
 	ZipEntry,
 	CentralDirectoryEndEntry,
 } from './common';
-import { FileEntry } from '@php-wasm/universal';
+import { filterStream } from '../utils/filter-stream';
+import { collectBytes } from '../utils/collect-bytes';
+import { limitBytes } from '../utils/limit-bytes';
+import { concatBytes } from '../utils/concat-bytes';
 
 export function unzipFiles(
 	stream: ReadableStream<Uint8Array>,
 	predicate?: () => boolean
 ) {
 	return streamZippedFileEntries(stream, predicate).pipeThrough(
-		new TransformStream<ZipFileEntry, FileEntry>({
+		new TransformStream<ZipFileEntry, File>({
 			async transform(entry, controller) {
-				controller.enqueue({
-					path: new TextDecoder().decode(entry.path),
-					isDirectory: entry.isDirectory,
-					bytes: entry.bytes,
-				});
+				controller.enqueue(
+					new File(
+						[await entry.bytes()],
+						new TextDecoder().decode(entry.path),
+						{
+							type: entry.isDirectory ? 'directory' : undefined,
+						}
+					)
+				);
 			},
 		})
-	) as IterableReadableStream<FileEntry>;
+	) as IterableReadableStream<File>;
 }
 
 const DEFAULT_PREDICATE = () => true;

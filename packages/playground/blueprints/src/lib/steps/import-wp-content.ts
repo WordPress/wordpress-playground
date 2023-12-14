@@ -2,7 +2,7 @@ import { StepHandler } from '.';
 import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { FileEntry, UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP } from '@php-wasm/universal';
 
 /**
  * @inheritDoc importWordPressFiles
@@ -25,7 +25,6 @@ export interface ImportWordPressFilesStep<ResourceType> {
 	 * directories.
 	 */
 	wordPressFilesZip?: ResourceType;
-	files?: AsyncIterable<FileEntry>;
 	/**
 	 * The path inside the zip file where the WordPress files are.
 	 */
@@ -47,7 +46,7 @@ export interface ImportWordPressFilesStep<ResourceType> {
  */
 export const importWordPressFiles: StepHandler<
 	ImportWordPressFilesStep<File>
-> = async (playground, { wordPressFilesZip, files, pathInZip = '' }) => {
+> = async (playground, { wordPressFilesZip, pathInZip = '' }) => {
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,

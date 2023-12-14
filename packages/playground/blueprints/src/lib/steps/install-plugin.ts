@@ -1,4 +1,4 @@
-import { FileEntry, UniversalPHP, writeFileEntry } from '@php-wasm/universal';
+import { UniversalPHP, writeFile } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { activatePlugin } from './activate-plugin';
@@ -35,12 +35,15 @@ export interface InstallPluginStep<ResourceType> {
 	/**
 	 * The plugin zip file to install.
 	 */
-	pluginZipFile?: ResourceType;
-	files?: AsyncIterable<FileEntry> | Iterable<FileEntry>;
+	pluginZipFile: ResourceType;
 	/**
 	 * Optional installation options.
 	 */
 	options?: InstallPluginOptions;
+	/**
+	 * @private
+	 */
+	files?: AsyncIterable<File>;
 }
 
 export interface InstallPluginOptions {
@@ -62,9 +65,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	{ pluginZipFile, files, options = {} },
 	progress?
 ) => {
-	if (!files && pluginZipFile) {
-		files = unzipFiles(pluginZipFile.stream());
-	}
+	files = files || unzipFiles(pluginZipFile.stream());
 	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
 	const assetName = zipFileName.replace(/\.zip$/, '');
@@ -77,7 +78,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			crypto.randomUUID()
 		);
 		for await (const file of files!) {
-			await writeFileEntry(php, extractTo, file);
+			await writeFile(php, extractTo, file);
 		}
 		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 

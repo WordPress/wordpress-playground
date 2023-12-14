@@ -1,4 +1,4 @@
-import { FileEntry, UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, normalizePath } from '@php-wasm/util';
 
 export type IterateFilesOptions = {
@@ -27,7 +27,7 @@ export async function* iterateFiles(
 	playground: UniversalPHP,
 	root: string,
 	{ relativePaths = true, pathPrefix }: IterateFilesOptions = {}
-): AsyncGenerator<FileEntry> {
+): AsyncGenerator<File> {
 	root = normalizePath(root);
 	const stack: string[] = [root];
 	while (stack.length) {
@@ -42,17 +42,15 @@ export async function* iterateFiles(
 			if (isDir) {
 				stack.push(absPath);
 			} else {
-				yield {
-					isDirectory: false,
-					path: relativePaths
+				yield new File(
+					[await playground.readFileAsBuffer(absPath)],
+					relativePaths
 						? joinPaths(
 								pathPrefix || '',
 								absPath.substring(root.length + 1)
 						  )
-						: absPath,
-					bytes: async () =>
-						await playground.readFileAsBuffer(absPath),
-				};
+						: absPath
+				);
 			}
 		}
 	}
@@ -89,12 +87,15 @@ export type Changeset = {
  * @returns A changeset object that describes the differences between the two sets of files.
  */
 export async function changeset(
-	filesBefore: AsyncIterable<FileEntry>,
-	filesAfter: AsyncIterable<FileEntry>
+	filesBefore: AsyncIterable<File>,
+	filesAfter: AsyncIterable<File>
 ) {
 	const filesBeforeMap = new Map<string, Uint8Array>();
 	for await (const fileBefore of filesBefore) {
-		filesBeforeMap.set(fileBefore.path, await fileBefore.bytes());
+		filesBeforeMap.set(
+			fileBefore.name,
+			new Uint8Array(await fileBefore.arrayBuffer())
+		);
 	}
 	const changes: Changeset = {
 		create: new Map(),
@@ -104,16 +105,16 @@ export async function changeset(
 
 	const seenFilesAfter = new Set<string>();
 	for await (const fileAfter of filesAfter) {
-		seenFilesAfter.add(fileAfter.path);
+		seenFilesAfter.add(fileAfter.name);
 
-		const before = filesBeforeMap.get(fileAfter.path);
-		const after = await fileAfter.bytes();
+		const before = filesBeforeMap.get(fileAfter.name);
+		const after = new Uint8Array(await fileAfter.arrayBuffer());
 		if (before) {
 			if (!uint8arraysEqual(before, after)) {
-				changes.update.set(fileAfter.path, after);
+				changes.update.set(fileAfter.name, after);
 			}
 		} else {
-			changes.create.set(fileAfter.path, after);
+			changes.create.set(fileAfter.name, after);
 		}
 	}
 

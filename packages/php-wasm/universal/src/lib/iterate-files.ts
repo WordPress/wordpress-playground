@@ -1,12 +1,6 @@
 import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
 import { UniversalPHP } from './universal-php';
 
-export type FileEntry = {
-	path: string;
-	isDirectory?: boolean;
-	bytes: () => Promise<Uint8Array>;
-};
-
 export type IterateFilesOptions = {
 	/**
 	 * Should yield paths relative to the root directory?
@@ -42,7 +36,7 @@ export async function* iterateFiles(
 		pathPrefix,
 		exceptPaths = [],
 	}: IterateFilesOptions = {}
-): AsyncGenerator<FileEntry> {
+): AsyncGenerator<File> {
 	root = normalizePath(root);
 	const stack: string[] = [root];
 	while (stack.length) {
@@ -60,15 +54,15 @@ export async function* iterateFiles(
 			if (isDir) {
 				stack.push(absPath);
 			} else {
-				yield {
-					path: relativePaths
+				yield new File(
+					[await php.readFileAsBuffer(absPath)],
+					relativePaths
 						? joinPaths(
 								pathPrefix || '',
 								absPath.substring(root.length + 1)
 						  )
-						: absPath,
-					bytes: async () => await php.readFileAsBuffer(absPath),
-				};
+						: absPath
+				);
 			}
 		}
 	}
@@ -81,16 +75,19 @@ export async function* iterateFiles(
  * @param root
  * @param newFiles
  */
-export async function writeFileEntry(
+export async function writeFile(
 	client: UniversalPHP,
 	root: string,
-	file: FileEntry
+	file: File
 ) {
-	const filePath = joinPaths(root, file.path);
-	if (file.isDirectory) {
+	const filePath = joinPaths(root, file.name);
+	if (file.type === 'directory') {
 		await client.mkdir(filePath);
 	} else {
 		await client.mkdir(dirname(filePath));
-		await client.writeFile(filePath, await file.bytes());
+		await client.writeFile(
+			filePath,
+			new Uint8Array(await file.arrayBuffer())
+		);
 	}
 }

@@ -2,7 +2,7 @@ import { joinPaths } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { UniversalPHP, iterateFiles } from '@php-wasm/universal';
 import { zipFiles } from '../zip';
-import { collectBytes } from '../zip/stream-utils';
+import { collectBytes } from '../utils/collect-bytes';
 
 /**
  * Replace the current wp-content directory with one from the provided zip file.
@@ -17,14 +17,14 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
 	const allFiles = async function* () {
-		yield {
-			path: 'wp-config.php',
-			isDirectory: false,
-			bytes: async () =>
+		yield new File(
+			[
 				await playground.readFileAsBuffer(
 					joinPaths(documentRoot, 'wp-config.php')
 				),
-		};
+			],
+			'wp-config.php'
+		);
 		yield* iterateFiles(playground, wpContentPath, {
 			relativePaths: true,
 			pathPrefix: 'wp-content/',

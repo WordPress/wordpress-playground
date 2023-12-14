@@ -1,7 +1,6 @@
 import { Semaphore } from '@php-wasm/util';
 import { Octokit } from 'octokit';
 import { Changeset } from './changeset';
-import { FileEntry } from '@php-wasm/universal';
 
 export type GithubClient = ReturnType<typeof createClient>;
 
@@ -43,7 +42,7 @@ export async function* iterateFilesFromDirectory(
 	ref: string,
 	path: string,
 	options: GetFilesOptions = {}
-): AsyncIterable<FileEntry> {
+): AsyncIterable<File> {
 	const files = (await __getFilesFromDirectory(
 		octokit,
 		owner,
@@ -59,10 +58,10 @@ export async function* iterateFilesFromDirectory(
 	}
 
 	for await (const file of files) {
-		yield {
-			path: file.path.substring(repoRootPrefix.length),
-			bytes: async () => file.content,
-		};
+		yield new File(
+			[file.content],
+			file.path.substring(repoRootPrefix.length)
+		);
 	}
 }
 async function __getFilesFromDirectory(

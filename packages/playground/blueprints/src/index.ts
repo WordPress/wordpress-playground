@@ -1,6 +1,7 @@
 export * from './lib/steps';
 export * from './lib/steps/handlers';
-export * from './lib/zip';
+export { collectBytes } from './lib/utils/collect-bytes';
+export { zipFiles, unzipFiles, unzipFilesRemote } from './lib/zip';
 export { runBlueprintSteps, compileBlueprint } from './lib/compile';
 export type { Blueprint } from './lib/blueprint';
 export type {

@@ -3,7 +3,7 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { flattenDirectory } from '../utils/flatten-directory';
 import { activateTheme } from './activate-theme';
 import { basename, joinPaths } from '@php-wasm/util';
-import { FileEntry, writeFileEntry } from '@php-wasm/universal';
+import { writeFile } from '@php-wasm/universal';
 import { unzipFiles } from '../zip';
 
 /**
@@ -33,8 +33,7 @@ export interface InstallThemeStep<ResourceType> {
 	/**
 	 * The theme zip file to install.
 	 */
-	themeZipFile?: ResourceType;
-	files?: AsyncIterable<FileEntry> | Iterable<FileEntry>;
+	themeZipFile: ResourceType;
 	/**
 	 * Optional installation options.
 	 */
@@ -44,6 +43,10 @@ export interface InstallThemeStep<ResourceType> {
 		 */
 		activate?: boolean;
 	};
+	/**
+	 * @private
+	 */
+	files?: AsyncIterable<File>;
 }
 
 export interface InstallThemeOptions {
@@ -65,9 +68,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	{ themeZipFile, files, options = {} },
 	progress
 ) => {
-	if (!files && themeZipFile) {
-		files = unzipFiles(themeZipFile.stream());
-	}
+	files = files || unzipFiles(themeZipFile.stream());
 	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
 	const assetName = zipFileName.replace(/\.zip$/, '');
@@ -81,7 +82,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			crypto.randomUUID()
 		);
 		for await (const file of files!) {
-			await writeFileEntry(php, extractTo, file);
+			await writeFile(php, extractTo, file);
 		}
 		const themePath = await flattenDirectory(php, extractTo, assetName);
 

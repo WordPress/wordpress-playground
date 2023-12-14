@@ -1,4 +1,3 @@
-import { FileEntry } from '@php-wasm/universal';
 import {
 	COMPRESSION_DEFLATE,
 	COMPRESSION_NONE,
@@ -11,11 +10,12 @@ import {
 	SIGNATURE_CENTRAL_DIRECTORY,
 	SIGNATURE_FILE,
 } from './common';
-import { collectBytes, iteratorToStream } from './stream-utils';
+import { iteratorToStream } from '../utils/iterator-to-stream';
+import { collectBytes } from '../utils/collect-bytes';
 import { crc32 } from './crc32';
 
 export function zipFiles(
-	files: AsyncIterableIterator<FileEntry> | IterableIterator<FileEntry>
+	files: AsyncIterable<File> | Iterable<File>
 ): ReadableStream<Uint8Array> {
 	return iteratorToStream(files).pipeThrough(encodeZip());
 }
@@ -23,9 +23,9 @@ export function zipFiles(
 function encodeZip() {
 	const offsetToFileHeaderMap: Map<number, ZipFileHeader> = new Map();
 	let writtenBytes = 0;
-	return new TransformStream<FileEntry, Uint8Array>({
-		async transform(entry, controller) {
-			const entryBytes = await entry.bytes();
+	return new TransformStream<File, Uint8Array>({
+		async transform(file, controller) {
+			const entryBytes = new Uint8Array(await file.arrayBuffer());
 			const compressed = (await collectBytes(
 				new Blob([entryBytes])
 					.stream()
@@ -33,14 +33,14 @@ function encodeZip() {
 			))!;
 
 			const crcHash = crc32(entryBytes);
-			const encodedPath = new TextEncoder().encode(entry.path);
+			const encodedPath = new TextEncoder().encode(file.name);
 
 			const zipFileEntry: ZipFileHeader = {
 				signature: SIGNATURE_FILE,
 				version: 2,
 				generalPurpose: 0,
 				compressionMethod:
-					entry.isDirectory || compressed.byteLength === 0
+					file.type === 'directory' || compressed.byteLength === 0
 						? COMPRESSION_NONE
 						: COMPRESSION_DEFLATE,
 				lastModifiedTime: 0,

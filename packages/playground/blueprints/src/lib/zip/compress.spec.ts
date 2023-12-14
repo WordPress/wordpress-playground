@@ -1,30 +1,25 @@
-import { FileEntry } from '@php-wasm/universal';
-import { collectBytes } from './stream-utils';
+import { collectBytes } from '../utils/collect-bytes';
 import { zipFiles } from './compress';
 
 describe('compressFiles', () => {
-	it('Should compress a files into a zip archive', async () => {
-		const files: FileEntry[] = [
-			{
-				path: 'wp-content/plugins/hello.php',
-				isDirectory: false,
-				bytes: async () => new Uint8Array([1, 2, 3, 4, 5]),
-			},
-			{
-				path: 'wp-content/plugins/hello/hello.php',
-				isDirectory: false,
-				bytes: async () => new Uint8Array([1, 2, 3, 4, 5]),
-			},
-			{
-				path: 'wp-content/plugins/hello/hello2.php',
-				isDirectory: false,
-				bytes: async () => new Uint8Array([1, 2, 3, 4, 5]),
-			},
-			{
-				path: 'wp-content/plugins/hello/hello3.php',
-				isDirectory: false,
-				bytes: async () => new Uint8Array([1, 2, 3, 4, 5]),
-			},
+	it('Should compress files into a zip archive', async () => {
+		const files: File[] = [
+			new File(
+				[new Uint8Array([1, 2, 3, 4, 5])],
+				'wp-content/plugins/hello.php'
+			),
+			new File(
+				[new Uint8Array([1, 2, 3, 4, 5])],
+				'wp-content/plugins/hello/hello.php'
+			),
+			new File(
+				[new Uint8Array([1, 2, 3, 4, 5])],
+				'wp-content/plugins/hello/hello2.php'
+			),
+			new File(
+				[new Uint8Array([1, 2, 3, 4, 5])],
+				'wp-content/plugins/hello/hello3.php'
+			),
 		];
 
 		const zipBytes = await collectBytes(zipFiles(files[Symbol.iterator]()));
@@ -33,8 +28,9 @@ describe('compressFiles', () => {
 		const reader = zipStream.getReader();
 		let i = 0;
 		for (i = 0; i < files.length; i++) {
-			const { value: file, done } = await reader.read();
-			expect(file).toEqual(files[i]);
+			const { value: receivedBytes, done } = await reader.read();
+			const expectedBytes = await collectBytes(files[i].stream());
+			expect(receivedBytes).toEqual(expectedBytes);
 			expect(done).toBe(false);
 		}
 		expect(i).toBe(files.length);

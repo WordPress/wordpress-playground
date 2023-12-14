@@ -1,5 +1,7 @@
 import { Semaphore } from '@php-wasm/util';
-import { collectBytes, concatUint8Array, filterStream } from './stream-utils';
+import { filterStream } from '../utils/filter-stream';
+import { concatUint8Array } from '../utils/concat-uint8-array';
+import { collectBytes } from '../utils/collect-bytes';
 import {
 	readCentralDirectoryEntry,
 	readFileEntry,
