@@ -2,10 +2,11 @@ import {
 	cloneResponseMonitorProgress,
 	ProgressTracker,
 } from '@php-wasm/progress';
-import { readAllBytes, UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { File } from './utils/file-polyfill';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
+import { collectBytes } from './zip/stream-utils';
 
 export const ResourceTypes = [
 	'vfs',
@@ -438,6 +439,6 @@ export class StreamedFile extends File {
 		return new TextDecoder().decode(await this.arrayBuffer());
 	}
 	override async arrayBuffer() {
-		return await readAllBytes(this.readableStream.getReader());
+		return await collectBytes(this.stream());
 	}
 }

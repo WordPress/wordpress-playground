@@ -74,28 +74,6 @@ export async function* iterateFiles(
 	}
 }
 
-export async function readAllBytes(
-	reader: ReadableStreamDefaultReader<Uint8Array>
-): Promise<Uint8Array> {
-	let size = 0;
-	const chunks: Uint8Array[] = [];
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			break;
-		}
-		chunks.push(value);
-		size += value.length;
-	}
-	const result = new Uint8Array(size);
-	let offset = 0;
-	for (const chunk of chunks) {
-		result.set(chunk, offset);
-		offset += chunk.length;
-	}
-	return result;
-}
-
 /**
  * Replaces the contents of a Playground directory with the given files.
  *
