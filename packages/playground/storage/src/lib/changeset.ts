@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { FileEntry, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, normalizePath } from '@php-wasm/util';
 
 export type IterateFilesOptions = {
@@ -43,24 +43,20 @@ export async function* iterateFiles(
 				stack.push(absPath);
 			} else {
 				yield {
+					isDirectory: false,
 					path: relativePaths
 						? joinPaths(
 								pathPrefix || '',
 								absPath.substring(root.length + 1)
 						  )
 						: absPath,
-					read: async () =>
+					bytes: async () =>
 						await playground.readFileAsBuffer(absPath),
 				};
 			}
 		}
 	}
 }
-
-export type FileEntry = {
-	path: string;
-	read: () => Promise<Uint8Array>;
-};
 
 /**
  * Represents a set of changes to be applied to a data store.
@@ -93,9 +89,13 @@ export type Changeset = {
  * @returns A changeset object that describes the differences between the two sets of files.
  */
 export async function changeset(
-	filesBefore: Map<string, Uint8Array>,
-	filesAfter: AsyncGenerator<FileEntry>
+	filesBefore: AsyncIterable<FileEntry>,
+	filesAfter: AsyncIterable<FileEntry>
 ) {
+	const filesBeforeMap = new Map<string, Uint8Array>();
+	for await (const fileBefore of filesBefore) {
+		filesBeforeMap.set(fileBefore.path, await fileBefore.bytes());
+	}
 	const changes: Changeset = {
 		create: new Map(),
 		update: new Map(),
@@ -106,8 +106,8 @@ export async function changeset(
 	for await (const fileAfter of filesAfter) {
 		seenFilesAfter.add(fileAfter.path);
 
-		const before = filesBefore.get(fileAfter.path);
-		const after = await fileAfter.read();
+		const before = filesBeforeMap.get(fileAfter.path);
+		const after = await fileAfter.bytes();
 		if (before) {
 			if (!uint8arraysEqual(before, after)) {
 				changes.update.set(fileAfter.path, after);
@@ -117,7 +117,7 @@ export async function changeset(
 		}
 	}
 
-	for (const pathBefore of filesBefore.keys()) {
+	for (const pathBefore of filesBeforeMap.keys()) {
 		if (!seenFilesAfter.has(pathBefore)) {
 			changes.delete.add(pathBefore);
 		}
