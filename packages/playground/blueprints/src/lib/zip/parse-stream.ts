@@ -30,7 +30,7 @@ export function unzipFiles(
 			async transform(entry, controller) {
 				controller.enqueue(
 					new File(
-						[entry.bytes],
+						[await entry.bytes],
 						new TextDecoder().decode(entry.path),
 						{
 							type: entry.isDirectory ? 'directory' : undefined,

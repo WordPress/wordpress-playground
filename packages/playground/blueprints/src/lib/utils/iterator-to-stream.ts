@@ -1,3 +1,9 @@
+/**
+ * Converts an iterator or iterable to a stream.
+ *
+ * @param iteratorOrIterable The iterator or iterable to convert.
+ * @returns A stream that will yield the values from the iterator or iterable.
+ */
 export function iteratorToStream<T>(
 	iteratorOrIterable:
 		| AsyncIterator<T>
