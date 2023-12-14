@@ -18,17 +18,17 @@ RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ../bison2.7/dist/ /libs/bison2.7
-COPY ../libedit/dist/root/lib /root/lib
-COPY ../libiconv/dist/root/lib /root/lib
-COPY ../libncurses/dist/root/lib /root/lib
-COPY ../libopenssl/dist/root/lib /root/lib
-COPY ../libpng16/dist/root/lib /root/lib
-COPY ../libsqlite3/dist/root/lib /root/lib
-COPY ../libxml2/dist/root/lib /root/lib
-COPY ../libz/dist/root/lib /root/lib
-COPY ../libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
-COPY ../libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
+COPY ./bison2.7/dist/ /libs/bison2.7
+COPY ./libedit/dist/root/lib /root/lib
+COPY ./libiconv/dist/root/lib /root/lib
+COPY ./libncurses/dist/root/lib /root/lib
+COPY ./libopenssl/dist/root/lib /root/lib
+COPY ./libpng16/dist/root/lib /root/lib
+COPY ./libsqlite3/dist/root/lib /root/lib
+COPY ./libxml2/dist/root/lib /root/lib
+COPY ./libz/dist/root/lib /root/lib
+COPY ./libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
+COPY ./libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
 
 # Build PHP
 
@@ -59,9 +59,12 @@ RUN touch /root/.configure-flags && \
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-		ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+		wget http://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb; \
+		wget http://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb; \
+		apt install -y --allow-downgrades ./libbison-dev_2.7.1.dfsg-1_amd64.deb; \
+		apt install -y --allow-downgrades ./bison_2.7.1.dfsg-1_amd64.deb; \
+		apt-mark hold libbison-dev; \
+		apt-mark hold bison; \
 	else \
 		apt install -y bison; \
 	fi;
