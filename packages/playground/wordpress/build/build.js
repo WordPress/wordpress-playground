@@ -176,7 +176,9 @@ versions = Object.keys(versions)
 // Write the updated JSON back to the file
 await fs.writeFile(versionsPath, JSON.stringify(versions, null, 2));
 
-const latestStableVersion = Object.keys(versions).filter((v) => v.match(/^\d/))[0];
+const latestStableVersion = Object.keys(versions).filter((v) =>
+	v.match(/^\d/)
+)[0];
 
 // Refresh get-wordpress-module.ts
 const getWordPressModulePath = `${outputJsDir}/get-wordpress-module.ts`;
@@ -187,7 +189,9 @@ const getWordPressModuleContent = `
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModule(wpVersion: string = ${JSON.stringify(latestStableVersion)}) {
+export function getWordPressModule(wpVersion: string = ${JSON.stringify(
+	latestStableVersion
+)}) {
 	switch (wpVersion) {
 		${Object.keys(versions)
 			.map(

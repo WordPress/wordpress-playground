@@ -408,11 +408,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	#setRequestBody(body: string) {
+		const size = this[__private__dont__use].lengthBytesUTF8(body);
+		const addr = this[__private__dont__use]._malloc(size + 1);
+		this[__private__dont__use].stringToUTF8(body, addr, size + 1);
 		this[__private__dont__use].ccall(
 			'wasm_set_request_body',
 			null,
-			[STRING],
-			[body]
+			[NUMBER],
+			[addr]
 		);
 		this[__private__dont__use].ccall(
 			'wasm_set_content_length',

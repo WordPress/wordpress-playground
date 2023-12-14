@@ -1011,6 +1011,10 @@ RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
+"_malloc", \n\
+"stringToUTF8", \n\
+"UTF8ToString", \n\
+"lengthBytesUTF8", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
