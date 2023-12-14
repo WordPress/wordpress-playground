@@ -5,18 +5,19 @@
 import { Semaphore } from '@php-wasm/util';
 import { collectBytes, concatUint8Array, filterStream } from './stream-utils';
 import {
-	CentralDirectoryEntry,
-	FileEntry,
 	readCentralDirectoryEntry,
 	readFileEntry,
-	SIGNATURE_CENTRAL_DIRECTORY_END,
-	zipEntriesStream,
+	unzipFiles,
 } from './parse-stream';
+import { CentralDirectoryEntry, ZipFileEntry } from './common';
+import { SIGNATURE_CENTRAL_DIRECTORY_END } from './common';
 import { IterableReadableStream } from './iterable-stream-polyfill';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
 const PREFER_RANGES_IF_FILE_LARGER_THAN = 1024 * 1024 * 1;
+const fetchSemaphore = new Semaphore({ concurrency: 10 });
+
 const DEFAULT_PREDICATE = () => true;
 
 /**
@@ -30,24 +31,24 @@ const DEFAULT_PREDICATE = () => true;
  * @param predicate Optional. A function that returns true if the file should be downloaded.
  * @returns A stream of zip entries.
  */
-export async function streamRemoteZip(
+export async function unzipFilesRemote(
 	url: string,
 	predicate: (
-		dirEntry: CentralDirectoryEntry | FileEntry
+		dirEntry: CentralDirectoryEntry | ZipFileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
 	if (predicate === DEFAULT_PREDICATE) {
 		// If we're not filtering the zip contents, let's just
 		// grab the entire zip.
 		const response = await fetch(url);
-		return zipEntriesStream(response.body!);
+		return unzipFiles(response.body!);
 	}
 
 	const contentLength = await getContentLength(url);
 	if (contentLength <= PREFER_RANGES_IF_FILE_LARGER_THAN) {
 		// If the zip is small enough, let's just grab it.
 		const response = await fetch(url);
-		return zipEntriesStream(response.body!);
+		return unzipFiles(response.body!);
 	}
 
 	// Ensure ranges query support:
@@ -79,7 +80,7 @@ export async function streamRemoteZip(
 	if (!rangesSupported) {
 		// Uh-oh, we're actually streaming the entire file.
 		// Let's reuse the forked stream as our response stream.
-		return zipEntriesStream(responseStream);
+		return unzipFiles(responseStream);
 	}
 
 	// We're good, let's clean up the other branch of the response stream.
@@ -90,7 +91,7 @@ export async function streamRemoteZip(
 		.pipeThrough(partitionNearbyEntries())
 		.pipeThrough(
 			fetchPartitionedEntries(source)
-		) as IterableReadableStream<FileEntry>;
+		) as IterableReadableStream<ZipFileEntry>;
 }
 
 /**
@@ -222,14 +223,14 @@ function partitionNearbyEntries() {
  */
 function fetchPartitionedEntries(
 	source: BytesSource
-): ReadableWritablePair<FileEntry, CentralDirectoryEntry[]> {
+): ReadableWritablePair<ZipFileEntry, CentralDirectoryEntry[]> {
 	let isWritableClosed = false;
 	let requestsInProgress = 0;
-	let readableController: ReadableStreamDefaultController<FileEntry>;
+	let readableController: ReadableStreamDefaultController<ZipFileEntry>;
 	const byteStreams: Array<
 		[CentralDirectoryEntry[], ReadableStream<Uint8Array>]
 	> = [];
-	const readable = new ReadableStream<FileEntry>({
+	const readable = new ReadableStream<ZipFileEntry>({
 		start(controller) {
 			readableController = controller;
 		},
@@ -303,7 +304,6 @@ function fetchPartitionedEntries(
 	};
 }
 
-const sem = new Semaphore({ concurrency: 10 });
 /**
  * Requests a chunk of bytes from the bytes source.
  *
@@ -314,7 +314,7 @@ async function requestChunkRange(
 	source: BytesSource,
 	zipEntries: CentralDirectoryEntry[]
 ) {
-	const release = await sem.acquire();
+	const release = await fetchSemaphore.acquire();
 	try {
 		const lastZipEntry = zipEntries[zipEntries.length - 1];
 		const substream = await source.streamBytes(

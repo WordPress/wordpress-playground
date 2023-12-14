@@ -4,7 +4,7 @@ import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
 import { basename } from '@php-wasm/util';
 import { FileEntry } from '@php-wasm/universal';
-import { zipEntriesStream } from '../zip';
+import { unzipFiles } from '../zip';
 
 /**
  * @inheritDoc installTheme
@@ -66,7 +66,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	progress
 ) => {
 	if (!files && themeZipFile) {
-		files = zipEntriesStream(themeZipFile.stream());
+		files = unzipFiles(themeZipFile.stream());
 	}
 	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);

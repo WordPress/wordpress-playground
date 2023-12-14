@@ -9,18 +9,24 @@ import {
 	filterStream,
 	limitBytes,
 } from './stream-utils';
-
-export const FILE_HEADER_SIZE = 32;
-export const SIGNATURE_FILE = 0x04034b50 as const;
-export const SIGNATURE_CENTRAL_DIRECTORY_START = 0x02014b50 as const;
-export const SIGNATURE_CENTRAL_DIRECTORY_END = 0x06054b50 as const;
-export const SIGNATURE_DATA_DESCRIPTOR = 0x08074b50 as const;
+import {
+	SIGNATURE_FILE,
+	SIGNATURE_CENTRAL_DIRECTORY,
+	SIGNATURE_CENTRAL_DIRECTORY_END,
+	FILE_HEADER_SIZE,
+} from './common';
+import {
+	CentralDirectoryEntry,
+	ZipFileEntry,
+	ZipEntry,
+	CentralDirectoryEndEntry,
+} from './common';
 
 const DEFAULT_PREDICATE = () => true;
-export function zipEntriesStream(
+export function unzipFiles(
 	stream: ReadableStream<Uint8Array>,
 	predicate: (
-		dirEntry: CentralDirectoryEntry | FileEntry
+		dirEntry: CentralDirectoryEntry | ZipFileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
 	const entriesStream = new ReadableStream<ZipEntry>({
@@ -46,7 +52,7 @@ export function zipEntriesStream(
 		)
 		.pipeThrough(
 			filterStream(predicate as any)
-		) as IterableReadableStream<FileEntry>;
+		) as IterableReadableStream<ZipFileEntry>;
 }
 
 async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
@@ -54,75 +60,12 @@ async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
 	const signature = sigData.getUint32(0, true);
 	if (signature === SIGNATURE_FILE) {
 		return await readFileEntry(stream, true);
-	} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_START) {
+	} else if (signature === SIGNATURE_CENTRAL_DIRECTORY) {
 		return await readCentralDirectoryEntry(stream, true);
 	} else if (signature === SIGNATURE_CENTRAL_DIRECTORY_END) {
 		return await readEndCentralDirectoryEntry(stream, true);
 	}
 	return null;
-}
-
-export type ZipEntry =
-	| FileEntry
-	| CentralDirectoryEntry
-	| CentralDirectoryEndEntry;
-
-export interface FileEntry {
-	signature: typeof SIGNATURE_FILE;
-	startsAt?: number;
-	extract?: any;
-	version: number;
-	generalPurpose: number;
-	compressionMethod: number;
-	lastModifiedTime: number;
-	lastModifiedDate: number;
-	crc: number;
-	compressedSize: number;
-	uncompressedSize: number;
-	pathLength: number;
-	path: string;
-	isDirectory: boolean;
-	extraLength: number;
-	extra: Uint8Array;
-	text(): Promise<string>;
-	bytes(): Promise<Uint8Array>;
-}
-
-export interface CentralDirectoryEntry {
-	signature: typeof SIGNATURE_CENTRAL_DIRECTORY_START;
-	versionCreated: number;
-	versionNeeded: number;
-	generalPurpose: number;
-	compressionMethod: number;
-	lastModifiedTime: number;
-	lastModifiedDate: number;
-	crc: number;
-	compressedSize: number;
-	uncompressedSize: number;
-	pathLength: number;
-	extraLength: number;
-	fileCommentLength: number;
-	diskNumber: number;
-	internalAttributes: number;
-	externalAttributes: number;
-	firstByteAt: number;
-	lastByteAt: number;
-	path: string;
-	extra: Uint8Array;
-	fileComment: string;
-	isDirectory: boolean;
-}
-
-export interface CentralDirectoryEndEntry {
-	signature: typeof SIGNATURE_CENTRAL_DIRECTORY_END;
-	numberOfDisks: number;
-	centralDirectoryStartDisk: number;
-	numberCentralDirectoryRecordsOnThisDisk: number;
-	numberCentralDirectoryRecords: number;
-	centralDirectorySize: number;
-	centralDirectoryOffset: number;
-	commentLength: number;
-	comment: string;
 }
 
 /**
@@ -154,7 +97,7 @@ export interface CentralDirectoryEndEntry {
 export async function readFileEntry(
 	stream: ReadableStream<Uint8Array>,
 	skipSignature = false
-): Promise<FileEntry | null> {
+): Promise<ZipFileEntry | null> {
 	if (!skipSignature) {
 		const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 		const signature = sigData.getUint32(0, true);
@@ -163,7 +106,7 @@ export async function readFileEntry(
 		}
 	}
 	const data = new DataView((await collectBytes(stream, 26))!.buffer);
-	const entry: Partial<FileEntry> = {
+	const entry: Partial<ZipFileEntry> = {
 		signature: SIGNATURE_FILE,
 		version: data.getUint32(0, true),
 		generalPurpose: data.getUint16(2, true),
@@ -200,7 +143,7 @@ export async function readFileEntry(
 		.then(({ value }) => value!);
 	entry['bytes'] = () => Promise.resolve(body);
 	entry['text'] = () => Promise.resolve(new TextDecoder().decode(body));
-	return entry as FileEntry;
+	return entry as ZipFileEntry;
 }
 
 /**
@@ -243,13 +186,13 @@ export async function readCentralDirectoryEntry(
 	if (!skipSignature) {
 		const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 		const signature = sigData.getUint32(0, true);
-		if (signature !== SIGNATURE_CENTRAL_DIRECTORY_START) {
+		if (signature !== SIGNATURE_CENTRAL_DIRECTORY) {
 			return null;
 		}
 	}
 	const data = new DataView((await collectBytes(stream, 42))!.buffer);
 	const centralDirectory: Partial<CentralDirectoryEntry> = {
-		signature: SIGNATURE_CENTRAL_DIRECTORY_START,
+		signature: SIGNATURE_CENTRAL_DIRECTORY,
 		versionCreated: data.getUint16(0, true),
 		versionNeeded: data.getUint16(2, true),
 		generalPurpose: data.getUint16(4, true),

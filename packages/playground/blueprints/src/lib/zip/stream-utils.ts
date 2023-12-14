@@ -30,7 +30,7 @@ export function concatBytes(totalBytes?: number) {
 			transform(chunk) {
 				const view = new Uint8Array(buffer);
 				view.set(chunk, offset);
-				offset += chunk.length;
+				offset += chunk.byteLength;
 			},
 
 			flush(controller) {
@@ -60,11 +60,13 @@ export async function collectBytes(
 		stream = limitBytes(stream, bytes);
 	}
 
-	return await stream
-		.pipeThrough(concatBytes(bytes))
-		.getReader()
-		.read()
-		.then(({ value }) => value);
+	const reader = stream.pipeThrough(concatBytes(bytes)).getReader();
+	const { value: result } = await reader.read();
+	const lastEntry = await reader.read();
+	if (!lastEntry.done) {
+		throw new Error('expected end of stream');
+	}
+	return result;
 }
 
 export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
@@ -119,6 +121,21 @@ export function filterStream<T>(filter: (chunk: T) => boolean) {
 			if (filter(chunk)) {
 				controller.enqueue(chunk);
 			}
+		},
+	});
+}
+
+export function iteratorToStream<T>(
+	iterator: AsyncIterableIterator<T> | IterableIterator<T>
+): ReadableStream<T> {
+	return new ReadableStream<T>({
+		async pull(controller) {
+			const { done, value } = await iterator.next();
+			if (done) {
+				controller.close();
+				return;
+			}
+			controller.enqueue(value);
 		},
 	});
 }
