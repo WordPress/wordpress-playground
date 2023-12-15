@@ -30,7 +30,7 @@
 	},
 	"publishConfig": {
 		"access": "public",
-		"directory": "../../../dist/packages/playground/storage"
+		"directory": "../../../dist/packages/playground/stream-compression"
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
