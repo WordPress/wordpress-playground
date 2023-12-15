@@ -3,6 +3,7 @@
 function zipDir($root, $output, $options = array())
 {
     $root = rtrim($root, '/');
+    $additionalPaths = array_key_exists('additional_paths', $options) ? $options['additional_paths'] : array();
     $excludePaths = array_key_exists('exclude_paths', $options) ? $options['exclude_paths'] : array();
     $zip_root = array_key_exists('zip_root', $options) ? $options['zip_root'] : $root;
 
@@ -35,6 +36,9 @@ function zipDir($root, $output, $options = array())
                 }
                 closedir($handle);
             }
+        }
+        foreach ($additionalPaths as $disk_path => $zip_path) {
+            $zip->addFile($disk_path, $zip_path);
         }
         $zip->close();
         chmod($output, 0777);
