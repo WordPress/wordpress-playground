@@ -47,7 +47,7 @@ type InternalFile = ReturnType<typeof getFileContent>;
  * @param options Additional options for getting files.
  * @returns An async iterable of files.
  */
-export async function* iterateFilesFromRepository(
+export async function* iterateGithubFiles(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,

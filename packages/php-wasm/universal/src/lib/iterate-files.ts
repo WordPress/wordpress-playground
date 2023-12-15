@@ -1,7 +1,7 @@
 import { joinPaths, normalizePath } from '@php-wasm/util';
 import { UniversalPHP } from './universal-php';
 
-export type IterateFilesOptions = {
+export type IteratePhpFilesOptions = {
 	/**
 	 * Should yield paths relative to the root directory?
 	 * If false, all paths will be absolute.
@@ -28,14 +28,14 @@ export type IterateFilesOptions = {
  * @param options - Optional configuration.
  * @returns All files found in the tree.
  */
-export async function* iterateFiles(
+export async function* iteratePhpFiles(
 	php: UniversalPHP,
 	root: string,
 	{
 		relativePaths = true,
 		pathPrefix,
 		exceptPaths = [],
-	}: IterateFilesOptions = {}
+	}: IteratePhpFilesOptions = {}
 ): AsyncGenerator<File> {
 	root = normalizePath(root);
 	const stack: string[] = [root];

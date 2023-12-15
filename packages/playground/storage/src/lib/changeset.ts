@@ -1,17 +1,3 @@
-export type IterateFilesOptions = {
-	/**
-	 * Should yield paths relative to the root directory?
-	 * If false, all paths will be absolute.
-	 */
-	relativePaths?: boolean;
-
-	/**
-	 * A prefix to add to all paths.
-	 * Only used if `relativePaths` is true.
-	 */
-	pathPrefix?: string;
-};
-
 /**
  * Represents a set of changes to be applied to a data store.
  */
