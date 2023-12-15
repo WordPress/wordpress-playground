@@ -618,35 +618,54 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not copy "{path}"')
-	cp(fromPath: string, toPath: string) {
+	cp(fromPath: string, toPath: string, recursive = true) {
 		const FS = this[__private__dont__use].FS;
 
-		const fromStat = FS.stat(fromPath);
+		const cp = (fromPath: string, toPath: string, recursive = true) => {
+			const fromStat = FS.stat(fromPath);
 
-		const fromMode = parseInt(fromStat.mode.toString(8).substring(0, 1));
+			// Emscripten directories will have the sticky-bit set
+			// https://linux.die.net/man/1/chmod
+			const fromIsDir = fromStat.mode & 0o40000;
 
-		const fromIsDir = fromMode === 4;
-
-		if (fromIsDir) {
-			try {
-				FS.mkdir(toPath);
-			} catch {
-				// Do nothing
+			if (!recursive && fromIsDir) {
+				throw new Error(
+					`Cannot use non-recurive copy on directory: ${fromPath}`
+				);
 			}
 
-			const files = FS.readdir(fromPath);
+			let toExists: boolean;
 
-			files
-				.filter((f: string) => !['.', '..'].includes(f))
-				.forEach((f: string) =>
-					this.cp(fromPath + '/' + f, toPath + '/' + f)
-				);
+			try {
+				FS.stat(toPath);
+				toExists = true;
+			} catch {
+				toExists = false;
+			}
 
-			FS.rmdir(fromPath);
-		} else {
-			const file = FS.readFile(fromPath, { encoding: 'binary' });
-			FS.writeFile(toPath, file);
-		}
+			if (!fromIsDir) {
+				const file = FS.readFile(fromPath, { encoding: 'binary' });
+				FS.writeFile(toPath, file);
+			} else if (recursive) {
+				if (!toExists) {
+					FS.mkdir(toPath);
+				}
+
+				const files = FS.readdir(fromPath);
+
+				files
+					.filter((file: string) => !['.', '..'].includes(file))
+					.forEach((file: string) =>
+						cp(
+							fromPath + '/' + file,
+							toPath + '/' + file,
+							recursive
+						)
+					);
+			}
+		};
+
+		cp(fromPath, toPath, recursive);
 	}
 
 	/** @inheritDoc */
