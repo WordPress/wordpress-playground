@@ -335,6 +335,19 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(php.readFileAsText(file2)).toEqual('1');
 		});
 
+		it('cp() should copy a directory', () => {
+			const testDirPath1 = testDirPath;
+			const testDirPath2 = '/__test987654322';
+			php.mkdir(testDirPath1);
+			php.writeFile(testDirPath1 + '/1.txt', '1');
+			php.writeFile(testDirPath1 + '/2.txt', '2');
+			php.cp(testDirPath1, testDirPath2, true);
+			expect(php.fileExists(testDirPath2 + '/1.txt')).toEqual(true);
+			expect(php.fileExists(testDirPath2 + '/2.txt')).toEqual(true);
+			expect(php.readFileAsText(testDirPath2 + '/1.txt')).toEqual('1');
+			expect(php.readFileAsText(testDirPath2 + '/2.txt')).toEqual('2');
+		});
+
 		it('cp() should replace target file if it exists', () => {
 			php.mkdir(testDirPath);
 			const file1 = testDirPath + '/1.txt';
