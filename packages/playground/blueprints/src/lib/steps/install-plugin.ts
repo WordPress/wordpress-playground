@@ -45,6 +45,8 @@ export interface InstallPluginStep<ResourceType> {
 	 */
 	options?: InstallPluginOptions;
 	/**
+	 * An iterator of files to install. If not provided, the plugin
+	 * will unzipped from `pluginZipFile`.
 	 * @private
 	 */
 	files?: AsyncIterable<File>;

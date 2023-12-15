@@ -7,7 +7,7 @@ import {
 	readFileEntry,
 	unzipFiles,
 } from './parse-stream';
-import { CentralDirectoryEntry, ZipFileEntry } from './common';
+import { CentralDirectoryEntry, FileEntry } from './common';
 import { SIGNATURE_CENTRAL_DIRECTORY_END } from './common';
 import { IterableReadableStream } from './iterable-stream-polyfill';
 
@@ -32,7 +32,7 @@ const DEFAULT_PREDICATE = () => true;
 export async function unzipFilesRemote(
 	url: string,
 	predicate: (
-		dirEntry: CentralDirectoryEntry | ZipFileEntry
+		dirEntry: CentralDirectoryEntry | FileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
 	if (predicate === DEFAULT_PREDICATE) {
@@ -42,7 +42,7 @@ export async function unzipFilesRemote(
 		return unzipFiles(response.body!);
 	}
 
-	const contentLength = await getContentLength(url);
+	const contentLength = await fetchContentLength(url);
 	if (contentLength <= PREFER_RANGES_IF_FILE_LARGER_THAN) {
 		// If the zip is small enough, let's just grab it.
 		const response = await fetch(url);
@@ -89,7 +89,7 @@ export async function unzipFilesRemote(
 		.pipeThrough(partitionNearbyEntries())
 		.pipeThrough(
 			fetchPartitionedEntries(source)
-		) as IterableReadableStream<ZipFileEntry>;
+		) as IterableReadableStream<FileEntry>;
 }
 
 /**
@@ -215,51 +215,29 @@ function partitionNearbyEntries() {
  */
 function fetchPartitionedEntries(
 	source: BytesSource
-): ReadableWritablePair<ZipFileEntry, CentralDirectoryEntry[]> {
+): ReadableWritablePair<FileEntry, CentralDirectoryEntry[]> {
+	/**
+	 * This function implements a ReadableStream and a WritableStream
+	 * instead of a TransformStream. This is intentional.
+	 *
+	 * In TransformStream, the `transform` function may return a
+	 * promise. The next call to `transform` will be delayed until
+	 * the promise resolves. This is a problem for us because we
+	 * want to issue many fetch() requests in parallel.
+	 *
+	 * The only way to do that seems to be creating separate ReadableStream
+	 * and WritableStream implementations.
+	 */
 	let isWritableClosed = false;
 	let requestsInProgress = 0;
-	let readableController: ReadableStreamDefaultController<ZipFileEntry>;
+	let readableController: ReadableStreamDefaultController<FileEntry>;
 	const byteStreams: Array<
 		[CentralDirectoryEntry[], ReadableStream<Uint8Array>]
 	> = [];
-	const readable = new ReadableStream<ZipFileEntry>({
-		start(controller) {
-			readableController = controller;
-		},
-		async pull(controller) {
-			while (true) {
-				if (
-					isWritableClosed &&
-					!byteStreams.length &&
-					requestsInProgress === 0
-				) {
-					controller.close();
-					return;
-				}
-
-				if (!byteStreams.length) {
-					await new Promise((resolve) => setTimeout(resolve, 50));
-					continue;
-				}
-
-				const [zipEntries, stream] = byteStreams[0];
-				const file = await readFileEntry(stream);
-				if (!file) {
-					byteStreams.shift();
-					continue;
-				}
-
-				const isOneOfRequestedFiles = zipEntries.find(
-					(entry) => entry.path === file.path
-				);
-				if (!isOneOfRequestedFiles) {
-					continue;
-				}
-				controller.enqueue(file);
-				break;
-			}
-		},
-	});
+	/**
+	 * Receives chunks of CentralDirectoryEntries, and fetches
+	 * the corresponding byte ranges from the remote zip file.
+	 */
 	const writable = new WritableStream<CentralDirectoryEntry[]>({
 		write(zipEntries, controller) {
 			if (!zipEntries.length) {
@@ -287,6 +265,59 @@ function fetchPartitionedEntries(
 		},
 		async close() {
 			isWritableClosed = true;
+		},
+	});
+	/**
+	 * Decodes zipped bytes into FileEntry objects.
+	 */
+	const readable = new ReadableStream<FileEntry>({
+		start(controller) {
+			readableController = controller;
+		},
+		async pull(controller) {
+			while (true) {
+				const allChunksProcessed =
+					isWritableClosed &&
+					!byteStreams.length &&
+					requestsInProgress === 0;
+				if (allChunksProcessed) {
+					controller.close();
+					return;
+				}
+
+				// There's no bytes available, but the writable
+				// stream is still open or there are still requests
+				// in progress. Let's wait for more bytes.
+				const waitingForMoreBytes = !byteStreams.length;
+				if (waitingForMoreBytes) {
+					await new Promise((resolve) => setTimeout(resolve, 50));
+					continue;
+				}
+
+				const [requestedPaths, stream] = byteStreams[0];
+				const file = await readFileEntry(stream);
+				// The stream is exhausted, let's remove it from the queue
+				// and try the next one.
+				const streamExhausted = !file;
+				if (streamExhausted) {
+					byteStreams.shift();
+					continue;
+				}
+
+				// There may be some extra files between the ones we're
+				// interested in. Let's filter out any files that got
+				// intertwined in the byte stream.
+				const isOneOfRequestedPaths = requestedPaths.find(
+					(entry) => entry.path === file.path
+				);
+				if (!isOneOfRequestedPaths) {
+					continue;
+				}
+
+				// Finally! We've got a file we're interested in.
+				controller.enqueue(file);
+				break;
+			}
 		},
 	});
 
@@ -319,6 +350,26 @@ async function requestChunkRange(
 	}
 }
 
+/**
+ * Fetches the Content-Length header from a remote URL.
+ */
+async function fetchContentLength(url: string) {
+	return await fetch(url, { method: 'HEAD' })
+		.then((response) => response.headers.get('Content-Length'))
+		.then((contentLength) => {
+			if (!contentLength) {
+				throw new Error('Content-Length header is missing');
+			}
+			return parseInt(contentLength, 10);
+		});
+}
+
+/**
+ * Private and experimental API: Range-based data sources.
+ *
+ * The idea is that if we can read arbitrary byte ranges from
+ * a file, we can retrieve a specific subset of a zip file.
+ */
 type BytesSource = {
 	length: number;
 	streamBytes: (
@@ -327,12 +378,16 @@ type BytesSource = {
 	) => Promise<ReadableStream<Uint8Array>>;
 };
 
+/**
+ * Creates a BytesSource enabling fetching ranges of bytes
+ * from a remote URL.
+ */
 async function createFetchSource(
 	url: string,
 	contentLength?: number
 ): Promise<BytesSource> {
 	if (contentLength === undefined) {
-		contentLength = await getContentLength(url);
+		contentLength = await fetchContentLength(url);
 	}
 
 	return {
@@ -346,15 +401,4 @@ async function createFetchSource(
 				},
 			}).then((response) => response.body!),
 	};
-}
-
-async function getContentLength(url: string) {
-	return await fetch(url, { method: 'HEAD' })
-		.then((response) => response.headers.get('Content-Length'))
-		.then((contentLength) => {
-			if (!contentLength) {
-				throw new Error('Content-Length header is missing');
-			}
-			return parseInt(contentLength, 10);
-		});
 }

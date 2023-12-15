@@ -24,7 +24,7 @@ export interface ImportWordPressFilesStep<ResourceType> {
 	 * The zip file containing the top-level WordPress files and
 	 * directories.
 	 */
-	wordPressFilesZip?: ResourceType;
+	wordPressFilesZip: ResourceType;
 	/**
 	 * The path inside the zip file where the WordPress files are.
 	 */
@@ -50,7 +50,7 @@ export const importWordPressFiles: StepHandler<
 	const zipPath = '/import.zip';
 	await playground.writeFile(
 		zipPath,
-		new Uint8Array(await wordPressFilesZip!.arrayBuffer())
+		new Uint8Array(await wordPressFilesZip.arrayBuffer())
 	);
 
 	const documentRoot = await playground.documentRoot;

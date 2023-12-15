@@ -14,7 +14,7 @@ import {
 	GetFilesProgress,
 	GithubClient,
 	createClient,
-	iterateFilesFromDirectory,
+	iterateFilesFromRepository,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
 import { ContentType, importFromGitHub } from '../import-from-github';
@@ -132,7 +132,7 @@ export default function GitHubImportForm({
 			const pluginOrThemeName = basename(path!) || urlInformation!.repo!;
 
 			const relativeRepoPath = path!.replace(/^\//g, '');
-			const ghFiles = await iterateFilesFromDirectory(
+			const ghFiles = await iterateFilesFromRepository(
 				octokit,
 				urlInformation!.owner!,
 				urlInformation!.repo!,

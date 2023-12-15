@@ -35,7 +35,19 @@ export interface GetFilesOptions {
 }
 
 type InternalFile = ReturnType<typeof getFileContent>;
-export async function* iterateFilesFromDirectory(
+
+/**
+ * Iterates over all files from a specified path in a GitHub repository.
+ *
+ * @param octokit The GitHub client.
+ * @param owner The owner of the repository.
+ * @param repo The name of the repository.
+ * @param ref The branch, tag, or commit reference.
+ * @param path The path to the directory.
+ * @param options Additional options for getting files.
+ * @returns An async iterable of files.
+ */
+export async function* iterateFilesFromRepository(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
@@ -43,7 +55,7 @@ export async function* iterateFilesFromDirectory(
 	path: string,
 	options: GetFilesOptions = {}
 ): AsyncIterable<File> {
-	const files = (await __getFilesFromDirectory(
+	const files = (await getFilesFromDirectory(
 		octokit,
 		owner,
 		repo,
@@ -64,7 +76,7 @@ export async function* iterateFilesFromDirectory(
 		);
 	}
 }
-async function __getFilesFromDirectory(
+async function getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
@@ -108,7 +120,7 @@ async function __getFilesFromDirectory(
 			);
 		} else if (item.type === 'dir') {
 			directoryPromises.push(
-				__getFilesFromDirectory(
+				getFilesFromDirectory(
 					octokit,
 					owner,
 					repo,

@@ -47,6 +47,8 @@ export interface InstallThemeStep<ResourceType> {
 		activate?: boolean;
 	};
 	/**
+	 * An iterator of files to install. If not provided, the theme
+	 * will unzipped from `pluginZipFile`.
 	 * @private
 	 */
 	files?: AsyncIterable<File>;

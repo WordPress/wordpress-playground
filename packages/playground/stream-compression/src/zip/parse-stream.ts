@@ -9,10 +9,11 @@ import {
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	FILE_HEADER_SIZE,
 	COMPRESSION_DEFLATE,
+	CompressionMethod,
 } from './common';
 import {
 	CentralDirectoryEntry,
-	ZipFileEntry,
+	FileEntry,
 	ZipEntry,
 	CentralDirectoryEndEntry,
 } from './common';
@@ -21,16 +22,23 @@ import { collectBytes } from '../utils/collect-bytes';
 import { limitBytes } from '../utils/limit-bytes';
 import { concatBytes } from '../utils/concat-bytes';
 
+/**
+ * Unzips a stream of zip file bytes.
+ *
+ * @param stream A stream of zip file bytes.
+ * @param predicate Optional. A function that returns true if the file should be downloaded.
+ * @returns An iterable stream of File objects.
+ */
 export function unzipFiles(
 	stream: ReadableStream<Uint8Array>,
 	predicate?: () => boolean
 ) {
 	return streamZippedFileEntries(stream, predicate).pipeThrough(
-		new TransformStream<ZipFileEntry, File>({
+		new TransformStream<FileEntry, File>({
 			async transform(entry, controller) {
 				controller.enqueue(
 					new File(
-						[await entry.bytes],
+						[entry.bytes],
 						new TextDecoder().decode(entry.path),
 						{
 							type: entry.isDirectory ? 'directory' : undefined,
@@ -43,10 +51,18 @@ export function unzipFiles(
 }
 
 const DEFAULT_PREDICATE = () => true;
+
+/**
+ * Parses a stream of zipped bytes into FileEntry informations.
+ *
+ * @param stream A stream of zip file bytes.
+ * @param predicate Optional. A function that returns true if the file should be downloaded.
+ * @returns An iterable stream of FileEntry objects.
+ */
 export function streamZippedFileEntries(
 	stream: ReadableStream<Uint8Array>,
 	predicate: (
-		dirEntry: CentralDirectoryEntry | ZipFileEntry
+		dirEntry: CentralDirectoryEntry | FileEntry
 	) => boolean = DEFAULT_PREDICATE
 ) {
 	const entriesStream = new ReadableStream<ZipEntry>({
@@ -66,9 +82,15 @@ export function streamZippedFileEntries(
 		)
 		.pipeThrough(
 			filterStream(predicate as any)
-		) as IterableReadableStream<ZipFileEntry>;
+		) as IterableReadableStream<FileEntry>;
 }
 
+/**
+ * Reads the next zip entry from a stream of zip file bytes.
+ *
+ * @param stream A stream of zip file bytes.
+ * @returns A FileEntry object.
+ */
 async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
 	const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 	const signature = sigData.getUint32(0, true);
@@ -105,13 +127,13 @@ async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
  * ```
  *
  * @param stream
- * @param skipSignature
+ * @param skipSignature Do not consume the signature from the stream.
  * @returns
  */
 export async function readFileEntry(
 	stream: ReadableStream<Uint8Array>,
 	skipSignature = false
-): Promise<ZipFileEntry | null> {
+): Promise<FileEntry | null> {
 	if (!skipSignature) {
 		const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 		const signature = sigData.getUint32(0, true);
@@ -122,11 +144,11 @@ export async function readFileEntry(
 	const data = new DataView((await collectBytes(stream, 26))!.buffer);
 	const pathLength = data.getUint16(22, true);
 	const extraLength = data.getUint16(24, true);
-	const entry: Partial<ZipFileEntry> = {
+	const entry: Partial<FileEntry> = {
 		signature: SIGNATURE_FILE,
 		version: data.getUint32(0, true),
 		generalPurpose: data.getUint16(2, true),
-		compressionMethod: data.getUint16(4, true),
+		compressionMethod: data.getUint16(4, true) as CompressionMethod,
 		lastModifiedTime: data.getUint16(6, true),
 		lastModifiedDate: data.getUint16(8, true),
 		crc: data.getUint32(10, true),
@@ -155,7 +177,7 @@ export async function readFileEntry(
 		.getReader()
 		.read()
 		.then(({ value }) => value!);
-	return entry as ZipFileEntry;
+	return entry as FileEntry;
 }
 
 /**
@@ -211,7 +233,7 @@ export async function readCentralDirectoryEntry(
 		versionCreated: data.getUint16(0, true),
 		versionNeeded: data.getUint16(2, true),
 		generalPurpose: data.getUint16(4, true),
-		compressionMethod: data.getUint16(6, true),
+		compressionMethod: data.getUint16(6, true) as CompressionMethod,
 		lastModifiedTime: data.getUint16(8, true),
 		lastModifiedDate: data.getUint16(10, true),
 		crc: data.getUint32(12, true),

@@ -2,7 +2,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
 
 /**
- * Writes a file to the Playground.
+ * Writes streamed files to PHP filesystem.
  */
 export function streamWriteToPhp(php: UniversalPHP, root: string) {
 	return new WritableStream({

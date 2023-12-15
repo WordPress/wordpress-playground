@@ -16,14 +16,10 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
 	const allFiles = async function* () {
-		yield new File(
-			[
-				await playground.readFileAsBuffer(
-					joinPaths(documentRoot, 'wp-config.php')
-				),
-			],
-			'wp-config.php'
+		const wpConfigBytes = await playground.readFileAsBuffer(
+			joinPaths(documentRoot, 'wp-config.php')
 		);
+		yield new File([wpConfigBytes], 'wp-config.php');
 		yield* iterateFiles(playground, wpContentPath, {
 			relativePaths: true,
 			pathPrefix: 'wp-content/',

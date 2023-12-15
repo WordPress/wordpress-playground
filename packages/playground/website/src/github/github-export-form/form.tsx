@@ -15,7 +15,7 @@ import {
 	createOrUpdateBranch,
 	createTree,
 	fork,
-	iterateFilesFromDirectory,
+	iterateFilesFromRepository,
 	mayPush,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
@@ -224,7 +224,7 @@ export default function GitHubExportForm({
 
 			const relativeRepoPath = formValues.pathInRepo.replace(/^\//g, '');
 
-			const ghFiles = iterateFilesFromDirectory(
+			const ghFiles = iterateFilesFromRepository(
 				octokit,
 				repoDetails.owner,
 				repoDetails.repo,
