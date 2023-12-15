@@ -10,8 +10,6 @@ import { zipFiles, collectBytes } from '@wp-playground/stream-compression';
  * @param wpContentZip Zipped WordPress site.
  */
 export const zipWpContent = async (playground: UniversalPHP) => {
-	const zipName = 'wordpress-playground.zip';
-
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
@@ -29,6 +27,5 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 		});
 	};
 
-	const fileBuffer = await collectBytes(zipFiles(allFiles()));
-	return new File([fileBuffer], zipName);
+	return await collectBytes(zipFiles(allFiles()));
 };

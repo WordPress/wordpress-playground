@@ -25,6 +25,7 @@ import { GithubExportModal } from './github/github-export-form';
 import { useState } from 'react';
 import { ExportFormValues } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
+import { PlaygroundContext } from './playground-context';
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
@@ -80,111 +81,113 @@ function Main() {
 	>({});
 
 	return (
-		<PlaygroundViewport
-			storage={storage}
-			displayMode={displayMode}
-			blueprint={blueprint}
-			toolbarButtons={[
-				<PlaygroundConfigurationGroup
-					key="configuration"
-					initialConfiguration={currentConfiguration}
-				/>,
-				<DropdownMenu
-					key="menu"
-					icon={menu}
-					label="Additional actions"
-					className={css.dropdownMenu}
-					toggleProps={
-						{
-							className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
-							'data-cy': 'dropdown-menu',
-						} as any
-					}
-				>
-					{({ onClose }) => (
-						<>
-							<MenuGroup>
-								<ResetSiteMenuItem
-									storage={currentConfiguration.storage}
-									onClose={onClose}
-								/>
-								<DownloadAsZipMenuItem onClose={onClose} />
-								<RestoreFromZipMenuItem onClose={onClose} />
-								<GithubImportMenuItem onClose={onClose} />
-								<GithubExportMenuItem onClose={onClose} />
-							</MenuGroup>
-							<MenuGroup label="More resources">
-								<MenuItem
-									icon={external}
-									iconPosition="left"
-									aria-label="Go to WordPress PR previewer"
-									href={
-										joinPaths(
-											document.location.pathname,
-											'wordpress.html'
-										) as any
-									}
-									target="_blank"
-								>
-									Preview WordPress Pull Request
-								</MenuItem>
-								<MenuItem
-									icon={external}
-									iconPosition="left"
-									aria-label="Go to a list of Playground demos"
-									href={
-										joinPaths(
-											document.location.pathname,
-											'demos/index.html'
-										) as any
-									}
-									target="_blank"
-								>
-									More demos
-								</MenuItem>
-								<MenuItem
-									icon={external}
-									iconPosition="left"
-									aria-label="Go to Playground documentation"
-									href={
-										'https://wordpress.github.io/wordpress-playground/' as any
-									}
-									target="_blank"
-								>
-									Documentation
-								</MenuItem>
-							</MenuGroup>
-						</>
-					)}
-				</DropdownMenu>,
-			]}
-		>
-			<GithubImportModal
-				onImported={({
-					url,
-					path,
-					pluginOrThemeName,
-					contentType,
-					urlInformation: { owner, repo, type, pr },
-				}) => {
-					setGithubExportValues({
-						repoUrl: url,
-						prNumber: pr?.toString(),
-						pathInRepo: path,
-						prAction: pr ? 'update' : 'create',
+		<PlaygroundContext.Provider value={{ storage }}>
+			<PlaygroundViewport
+				storage={storage}
+				displayMode={displayMode}
+				blueprint={blueprint}
+				toolbarButtons={[
+					<PlaygroundConfigurationGroup
+						key="configuration"
+						initialConfiguration={currentConfiguration}
+					/>,
+					<DropdownMenu
+						key="menu"
+						icon={menu}
+						label="Additional actions"
+						className={css.dropdownMenu}
+						toggleProps={
+							{
+								className: `${buttonCss.button} ${buttonCss.isBrowserChrome}`,
+								'data-cy': 'dropdown-menu',
+							} as any
+						}
+					>
+						{({ onClose }) => (
+							<>
+								<MenuGroup>
+									<ResetSiteMenuItem
+										storage={currentConfiguration.storage}
+										onClose={onClose}
+									/>
+									<DownloadAsZipMenuItem onClose={onClose} />
+									<RestoreFromZipMenuItem onClose={onClose} />
+									<GithubImportMenuItem onClose={onClose} />
+									<GithubExportMenuItem onClose={onClose} />
+								</MenuGroup>
+								<MenuGroup label="More resources">
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to WordPress PR previewer"
+										href={
+											joinPaths(
+												document.location.pathname,
+												'wordpress.html'
+											) as any
+										}
+										target="_blank"
+									>
+										Preview WordPress Pull Request
+									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to a list of Playground demos"
+										href={
+											joinPaths(
+												document.location.pathname,
+												'demos/index.html'
+											) as any
+										}
+										target="_blank"
+									>
+										More demos
+									</MenuItem>
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Playground documentation"
+										href={
+											'https://wordpress.github.io/wordpress-playground/' as any
+										}
+										target="_blank"
+									>
+										Documentation
+									</MenuItem>
+								</MenuGroup>
+							</>
+						)}
+					</DropdownMenu>,
+				]}
+			>
+				<GithubImportModal
+					onImported={({
+						url,
+						path,
+						pluginOrThemeName,
 						contentType,
-						plugin: pluginOrThemeName,
-						theme: pluginOrThemeName,
-					});
-				}}
-			/>
-			<GithubExportModal
-				initialValues={githubExportValues}
-				onExported={(prUrl, formValues) => {
-					setGithubExportValues(formValues);
-				}}
-			/>
-		</PlaygroundViewport>
+						urlInformation: { owner, repo, type, pr },
+					}) => {
+						setGithubExportValues({
+							repoUrl: url,
+							prNumber: pr?.toString(),
+							pathInRepo: path,
+							prAction: pr ? 'update' : 'create',
+							contentType,
+							plugin: pluginOrThemeName,
+							theme: pluginOrThemeName,
+						});
+					}}
+				/>
+				<GithubExportModal
+					initialValues={githubExportValues}
+					onExported={(prUrl, formValues) => {
+						setGithubExportValues(formValues);
+					}}
+				/>
+			</PlaygroundViewport>
+		</PlaygroundContext.Provider>
 	);
 }
 

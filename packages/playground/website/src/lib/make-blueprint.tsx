@@ -9,7 +9,10 @@ interface MakeBlueprintOptions {
 	features?: Blueprint['features'];
 	theme?: string;
 	plugins?: string[];
+	importSite?: string;
+	importContent?: string;
 }
+
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 	const plugins = options.plugins || [];
 	return {
@@ -21,11 +24,27 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 		phpExtensionBundles: options.phpExtensionBundles as any,
 		features: options.features,
 		steps: [
+			options.importSite &&
+				/^(http(s?)):\/\//i.test(options.importSite) && {
+					step: 'importWordPressFiles',
+					wordPressFilesZip: {
+						resource: 'url',
+						url: options.importSite,
+					},
+				},
 			options.login && {
 				step: 'login',
 				username: 'admin',
 				password: 'password',
 			},
+			options.importContent &&
+				/^(http(s?)):\/\//i.test(options.importContent) && {
+					step: 'importFile',
+					file: {
+						resource: 'url',
+						url: options.importContent,
+					},
+				},
 			options.theme && {
 				step: 'installTheme',
 				themeZipFile: {
