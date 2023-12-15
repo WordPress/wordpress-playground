@@ -9,12 +9,7 @@ interface ZipWpContentOptions {
 	 * A temporary workaround to enable including the WordPress default theme
 	 * in the exported zip file.
 	 */
-	includeDefaultTheme?: boolean;
-	/**
-	 * @private
-	 * A temporary workaround to enable including wp-config in the exported zip file.
-	 */
-	includeWpConfig?: boolean;
+	selfContained?: boolean;
 }
 
 /**
@@ -25,10 +20,7 @@ interface ZipWpContentOptions {
  */
 export const zipWpContent = async (
 	playground: UniversalPHP,
-	{
-		includeDefaultTheme = false,
-		includeWpConfig = false,
-	}: ZipWpContentOptions = {}
+	{ selfContained = false }: ZipWpContentOptions = {}
 ) => {
 	const zipPath = '/tmp/wordpress-playground.zip';
 
@@ -37,19 +29,20 @@ export const zipWpContent = async (
 
 	let exceptPaths = wpContentFilesExcludedFromExport;
 	/*
-	 * This is a temporary workaround to enable removing the WordPress
-	 * default theme from the exported zip file. Let's remove this
-	 * once the iterator-based file API is merged.
+	 * This is a temporary workaround to enable including the WordPress
+	 * default theme and the SQLite plugin in the exported zip file. Let's
+	 * transition from this workaround to iterator-based streams once the
+	 * new API is merged in PR 851.
 	 */
-	if (includeDefaultTheme) {
+	if (selfContained) {
 		// This is a bit backwards, so hang on!
 		// We have a list of paths to exclude.
-		// We then *remove* the default theme from that list.
-		// As a result, we *include* the default theme in the final zip.
+		// We then *remove* the default theme and the SQLite plugin from that list.
+		// As a result, we *include* the default theme and the SQLite plugin in the final zip.
 		// It is hacky and will be removed soon.
-		exceptPaths = exceptPaths.filter(
-			(path) => !path.startsWith('themes/twenty')
-		);
+		exceptPaths = exceptPaths
+			.filter((path) => !path.startsWith('themes/twenty'))
+			.filter((path) => path !== 'plugins/sqlite-database-integration');
 	}
 	const js = phpVars({
 		zipPath,
@@ -58,7 +51,7 @@ export const zipWpContent = async (
 		exceptPaths: exceptPaths.map((path) =>
 			joinPaths(documentRoot, 'wp-content', path)
 		),
-		additionalPaths: includeWpConfig
+		additionalPaths: selfContained
 			? {
 					[joinPaths(documentRoot, 'wp-config.php')]: 'wp-config.php',
 			  }
