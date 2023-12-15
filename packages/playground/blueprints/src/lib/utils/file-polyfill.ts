@@ -8,7 +8,7 @@
  * during tests.
  *
  * Import the polyfilled File class below to ensure its buffer is available to
- * functions like writeFile (./client-methods.ts) and fileToUint8Array (above).
+ * functions like writeFile (./client-methods.ts).
  */
 class FilePolyfill extends File {
 	buffers: BlobPart[];

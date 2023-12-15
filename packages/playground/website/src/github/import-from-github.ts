@@ -1,12 +1,11 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import {
-	collectBytes,
 	importWordPressFiles,
 	installPlugin,
 	installTheme,
 	login,
-	zipFiles,
 } from '@wp-playground/blueprints';
+import { collectBytes, zipFiles } from '@wp-playground/stream-compression';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(

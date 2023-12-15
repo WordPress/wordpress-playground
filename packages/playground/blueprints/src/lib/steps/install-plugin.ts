@@ -5,7 +5,7 @@ import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
 import { joinPaths } from '@php-wasm/util';
 import { flattenDirectory } from '../utils/flatten-directory';
-import { unzipFiles } from '../zip';
+import { unzipFiles } from '@wp-playground/stream-compression';
 
 /**
  * @inheritDoc installPlugin

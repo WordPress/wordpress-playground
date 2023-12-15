@@ -16,13 +16,13 @@ import {
 	createTree,
 	fork,
 	iterateFilesFromDirectory,
-	iterateFiles,
 	mayPush,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
+import { iterateFiles } from '@php-wasm/universal';
 
 export interface GitHubExportFormProps {
 	playground: PlaygroundClient;

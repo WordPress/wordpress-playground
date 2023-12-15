@@ -1,6 +1,3 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, normalizePath } from '@php-wasm/util';
-
 export type IterateFilesOptions = {
 	/**
 	 * Should yield paths relative to the root directory?
@@ -14,47 +11,6 @@ export type IterateFilesOptions = {
 	 */
 	pathPrefix?: string;
 };
-
-/**
- * Iterates over all files in a Playground directory and its subdirectories.
- *
- * @param playground - The Playground/PHP instance.
- * @param root - The root directory to start iterating from.
- * @param options - Optional configuration.
- * @returns All files found in the tree.
- */
-export async function* iterateFiles(
-	playground: UniversalPHP,
-	root: string,
-	{ relativePaths = true, pathPrefix }: IterateFilesOptions = {}
-): AsyncGenerator<File> {
-	root = normalizePath(root);
-	const stack: string[] = [root];
-	while (stack.length) {
-		const currentParent = stack.pop();
-		if (!currentParent) {
-			return;
-		}
-		const files = await playground.listFiles(currentParent);
-		for (const file of files) {
-			const absPath = `${currentParent}/${file}`;
-			const isDir = await playground.isDir(absPath);
-			if (isDir) {
-				stack.push(absPath);
-			} else {
-				yield new File(
-					[await playground.readFileAsBuffer(absPath)],
-					relativePaths
-						? joinPaths(
-								pathPrefix || '',
-								absPath.substring(root.length + 1)
-						  )
-						: absPath
-				);
-			}
-		}
-	}
-}
 
 /**
  * Represents a set of changes to be applied to a data store.

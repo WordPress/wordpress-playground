@@ -26,6 +26,10 @@ if (!ReadableStream.prototype[Symbol.asyncIterator]) {
 			reader.releaseLock();
 		}
 	};
+	// @ts-ignore
+	ReadableStream.prototype.iterate =
+		// @ts-ignore
+		ReadableStream.prototype[Symbol.asyncIterator];
 }
 
 export type IterableReadableStream<R> = ReadableStream<R> & AsyncIterable<R>;

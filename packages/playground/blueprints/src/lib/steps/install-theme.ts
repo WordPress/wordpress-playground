@@ -4,7 +4,7 @@ import { flattenDirectory } from '../utils/flatten-directory';
 import { activateTheme } from './activate-theme';
 import { basename, joinPaths } from '@php-wasm/util';
 import { writeFile } from '@php-wasm/universal';
-import { unzipFiles } from '../zip';
+import { unzipFiles } from '@wp-playground/stream-compression';
 
 /**
  * @inheritDoc installTheme
