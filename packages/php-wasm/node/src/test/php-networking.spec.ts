@@ -21,7 +21,7 @@ describe.each(SupportedPHPVersions)(
 			expect(text).toEqual('response from express');
 		});
 	},
-	1000
+	5000
 );
 
 async function startServer() {

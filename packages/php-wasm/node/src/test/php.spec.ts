@@ -77,7 +77,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the 
+				// Yields back to JS event loop to capture and process the
 				// child_process output. This is fine. Regular PHP scripts
 				// typically wait for the child process to finish.
 				sleep(1);
@@ -122,7 +122,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		// This test fails
 		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
 			/*
-			There is a race condition in this variant of the test which 
+			There is a race condition in this variant of the test which
 			causes the following failure (but only sometimes):
 
 				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
@@ -142,7 +142,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 			fwrite($pipes[0], 'WordPress\n');
 
-			// Yields back to JS event loop to capture and process the 
+			// Yields back to JS event loop to capture and process the
 			// child_process output. This is fine. Regular PHP scripts
 			// typically wait for the child process to finish.
 			sleep(1);
@@ -173,7 +173,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the 
+				// Yields back to JS event loop to capture and process the
 				// child_process output. This is fine. Regular PHP scripts
 				// typically wait for the child process to finish.
 				sleep(1);
@@ -321,6 +321,52 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				php.mv(file1, file2);
 			}).toThrowError(
 				`Could not move "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+			);
+		});
+
+		it('cp() should copy a file', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			php.writeFile(file1, '1');
+			php.cp(file1, file2);
+			expect(php.fileExists(file1)).toEqual(true);
+			expect(php.fileExists(file2)).toEqual(true);
+			expect(php.readFileAsText(file2)).toEqual('1');
+		});
+
+		it('cp() should replace target file if it exists', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			php.writeFile(file1, '1');
+			php.writeFile(file2, '2');
+			php.cp(file1, file2);
+			expect(php.fileExists(file1)).toEqual(true);
+			expect(php.fileExists(file2)).toEqual(true);
+			expect(php.readFileAsText(file2)).toEqual('1');
+		});
+
+		it('cp() should throw a useful error when source file does not exist', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/2.txt';
+			expect(() => {
+				php.cp(file1, file2);
+			}).toThrowError(
+				`Could not copy "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+			);
+		});
+
+		it('cp() should throw a useful error when target directory does not exist', () => {
+			php.mkdir(testDirPath);
+			const file1 = testDirPath + '/1.txt';
+			const file2 = testDirPath + '/nowhere/2.txt';
+			php.writeFile(file1, '1');
+			expect(() => {
+				php.cp(file1, file2);
+			}).toThrowError(
+				`Could not copy "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
 			);
 		});
 
