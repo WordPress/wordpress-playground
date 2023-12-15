@@ -18,7 +18,7 @@ export type {
 } from './universal-php';
 
 export type { IterateFilesOptions } from './iterate-files';
-export { iterateFiles, writeFile } from './iterate-files';
+export { iterateFiles } from './iterate-files';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 

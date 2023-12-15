@@ -1,11 +1,15 @@
-import { UniversalPHP, writeFile } from '@php-wasm/universal';
+import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
 import { joinPaths } from '@php-wasm/util';
 import { flattenDirectory } from '../utils/flatten-directory';
-import { unzipFiles } from '@wp-playground/stream-compression';
+import {
+	iteratorToStream,
+	streamWriteToPhp,
+	unzipFiles,
+} from '@wp-playground/stream-compression';
 
 /**
  * @inheritDoc installPlugin
@@ -77,9 +81,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			'wp-content/plugins',
 			crypto.randomUUID()
 		);
-		for await (const file of files!) {
-			await writeFile(php, extractTo, file);
-		}
+		iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
 		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate

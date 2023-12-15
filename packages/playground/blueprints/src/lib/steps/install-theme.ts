@@ -3,8 +3,11 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { flattenDirectory } from '../utils/flatten-directory';
 import { activateTheme } from './activate-theme';
 import { basename, joinPaths } from '@php-wasm/util';
-import { writeFile } from '@php-wasm/universal';
-import { unzipFiles } from '@wp-playground/stream-compression';
+import {
+	iteratorToStream,
+	streamWriteToPhp,
+	unzipFiles,
+} from '@wp-playground/stream-compression';
 
 /**
  * @inheritDoc installTheme
@@ -81,9 +84,8 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			'wp-content/themes',
 			crypto.randomUUID()
 		);
-		for await (const file of files!) {
-			await writeFile(php, extractTo, file);
-		}
+		iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+
 		const themePath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate

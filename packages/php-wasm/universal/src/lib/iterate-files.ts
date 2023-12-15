@@ -1,4 +1,4 @@
-import { dirname, joinPaths, normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import { UniversalPHP } from './universal-php';
 
 export type IterateFilesOptions = {
@@ -65,29 +65,5 @@ export async function* iterateFiles(
 				);
 			}
 		}
-	}
-}
-
-/**
- * Replaces the contents of a Playground directory with the given files.
- *
- * @param client
- * @param root
- * @param newFiles
- */
-export async function writeFile(
-	client: UniversalPHP,
-	root: string,
-	file: File
-) {
-	const filePath = joinPaths(root, file.name);
-	if (file.type === 'directory') {
-		await client.mkdir(filePath);
-	} else {
-		await client.mkdir(dirname(filePath));
-		await client.writeFile(
-			filePath,
-			new Uint8Array(await file.arrayBuffer())
-		);
 	}
 }
