@@ -627,12 +627,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// https://linux.die.net/man/1/chmod
 		const fromIsDir = fromStat.mode & 0o40000;
 
-		if (!recursive && fromIsDir) {
-			throw new Error(
-				`Cannot use non-recurive copy on directory: ${fromPath}`
-			);
-		}
-
 		let toExists: boolean;
 
 		try {
@@ -645,21 +639,28 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (!fromIsDir) {
 			const file = FS.readFile(fromPath, { encoding: 'binary' });
 			FS.writeFile(toPath, file);
-		} else if (recursive) {
-			if (!toExists) {
-				FS.mkdir(toPath);
-			}
+			return;
+		}
 
-			const files = this.listFiles(fromPath);
-
-			files.forEach((file: string) =>
-				this.cp(
-					joinPaths(fromPath, file),
-					joinPaths(toPath, file),
-					recursive
-				)
+		if (!recursive) {
+			throw new Error(
+				`Cannot use non-recurive copy on directory: ${fromPath}`
 			);
 		}
+
+		if (!toExists) {
+			FS.mkdir(toPath);
+		}
+
+		const files = this.listFiles(fromPath);
+
+		files.forEach((file: string) =>
+			this.cp(
+				joinPaths(fromPath, file),
+				joinPaths(toPath, file),
+				recursive
+			)
+		);
 	}
 
 	/** @inheritDoc */
