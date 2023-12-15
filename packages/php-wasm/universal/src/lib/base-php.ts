@@ -25,7 +25,7 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore } from '@php-wasm/util';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -621,51 +621,45 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	cp(fromPath: string, toPath: string, recursive = true) {
 		const FS = this[__private__dont__use].FS;
 
-		const cp = (fromPath: string, toPath: string, recursive = true) => {
-			const fromStat = FS.stat(fromPath);
+		const fromStat = FS.stat(fromPath);
 
-			// Emscripten directories will have the sticky-bit set
-			// https://linux.die.net/man/1/chmod
-			const fromIsDir = fromStat.mode & 0o40000;
+		// Emscripten directories will have the sticky-bit set
+		// https://linux.die.net/man/1/chmod
+		const fromIsDir = fromStat.mode & 0o40000;
 
-			if (!recursive && fromIsDir) {
-				throw new Error(
-					`Cannot use non-recurive copy on directory: ${fromPath}`
-				);
+		if (!recursive && fromIsDir) {
+			throw new Error(
+				`Cannot use non-recurive copy on directory: ${fromPath}`
+			);
+		}
+
+		let toExists: boolean;
+
+		try {
+			FS.stat(toPath);
+			toExists = true;
+		} catch {
+			toExists = false;
+		}
+
+		if (!fromIsDir) {
+			const file = FS.readFile(fromPath, { encoding: 'binary' });
+			FS.writeFile(toPath, file);
+		} else if (recursive) {
+			if (!toExists) {
+				FS.mkdir(toPath);
 			}
 
-			let toExists: boolean;
+			const files = this.listFiles(fromPath);
 
-			try {
-				FS.stat(toPath);
-				toExists = true;
-			} catch {
-				toExists = false;
-			}
-
-			if (!fromIsDir) {
-				const file = FS.readFile(fromPath, { encoding: 'binary' });
-				FS.writeFile(toPath, file);
-			} else if (recursive) {
-				if (!toExists) {
-					FS.mkdir(toPath);
-				}
-
-				const files = FS.readdir(fromPath);
-
-				files
-					.filter((file: string) => !['.', '..'].includes(file))
-					.forEach((file: string) =>
-						cp(
-							fromPath + '/' + file,
-							toPath + '/' + file,
-							recursive
-						)
-					);
-			}
-		};
-
-		cp(fromPath, toPath, recursive);
+			files.forEach((file: string) =>
+				this.cp(
+					joinPaths(fromPath, file),
+					joinPaths(toPath, file),
+					recursive
+				)
+			);
+		}
 	}
 
 	/** @inheritDoc */
