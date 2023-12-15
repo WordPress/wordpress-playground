@@ -8,12 +8,11 @@ export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-stream-compression',
 
 	plugins: [
-		nxViteTsPaths(),
 		dts({
 			entryRoot: 'src',
-			tsConfigFilePath: path.join(__dirname, 'tsconfig.lib.json'),
-			skipDiagnostics: true,
+			tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
 		}),
+		nxViteTsPaths(),
 	],
 
 	// Uncomment this if you are using workers.
@@ -44,7 +43,7 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		environment: 'node',
+		environment: 'jsdom',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},
 });
