@@ -277,6 +277,15 @@ EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, stru
 	return n;
 }
 
+/**
+ * Emscripten will sometimes optimize _malloc
+ * out of the module. This workaround forces
+ * the function to become available to js.
+ */
+EMSCRIPTEN_KEEPALIVE void *mem_alloc(size_t size) {
+	return malloc(size);
+}
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_post_message_to_js, 0, 1, 1)
 	ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
