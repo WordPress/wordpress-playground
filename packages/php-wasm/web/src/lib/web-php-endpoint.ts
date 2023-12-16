@@ -12,6 +12,7 @@ import type {
 	PHPEvent,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { CpOptions } from 'packages/php-wasm/universal/src/lib/universal-php';
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
@@ -90,8 +91,8 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.cp  */
-	cp(fromPath: string, toPath: string, recursive = false) {
-		return _private.get(this)!.php.cp(fromPath, toPath, recursive);
+	cp(fromPath: string, toPath: string, options: CpOptions) {
+		return _private.get(this)!.php.cp(fromPath, toPath, options);
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */

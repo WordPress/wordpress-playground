@@ -19,6 +19,7 @@ import {
 	SpawnHandler,
 	PHPEventListener,
 	PHPEvent,
+	CpOptions,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
@@ -618,7 +619,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not copy "{path}"')
-	cp(fromPath: string, toPath: string, recursive = false) {
+	cp(fromPath: string, toPath: string, options: CpOptions) {
 		const FS = this[__private__dont__use].FS;
 
 		const fromStat = FS.stat(fromPath);
@@ -642,7 +643,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			return;
 		}
 
-		if (!recursive) {
+		if (!options.recursive) {
 			throw new Error(
 				`Cannot use non-recurive copy on directory: ${fromPath}`
 			);
@@ -655,11 +656,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		const files = this.listFiles(fromPath);
 
 		files.forEach((file: string) =>
-			this.cp(
-				joinPaths(fromPath, file),
-				joinPaths(toPath, file),
-				recursive
-			)
+			this.cp(joinPaths(fromPath, file), joinPaths(toPath, file), options)
 		);
 	}
 
