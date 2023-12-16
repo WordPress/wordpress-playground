@@ -348,6 +348,17 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(php.readFileAsText(testDirPath2 + '/2.txt')).toEqual('2');
 		});
 
+		it('cp() should copy a file into a directory', () => {
+			const testDirPath1 = testDirPath;
+			const testDirPath2 = '/__test987654322';
+			php.mkdir(testDirPath1);
+			php.mkdir(testDirPath2);
+			php.writeFile(testDirPath1 + '/1.txt', '1');
+			php.cp(testDirPath1 + '/1.txt', testDirPath2, { recursive: true });
+			expect(php.fileExists(testDirPath2 + '/1.txt')).toEqual(true);
+			expect(php.readFileAsText(testDirPath2 + '/1.txt')).toEqual('1');
+		});
+
 		it('cp() should replace target file if it exists', () => {
 			php.mkdir(testDirPath);
 			const file1 = testDirPath + '/1.txt';
