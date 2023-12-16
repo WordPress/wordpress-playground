@@ -263,7 +263,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 * @param oldPath The file or directory to be copied.
 	 * @param newPath The new, full path to copy the file or directory to.
 	 */
-	cp(oldPath: string, newPath: string, options: CpOptions): void;
+	cp(oldPath: string, newPath: string, options?: CpOptions): void;
 
 	/**
 	 * Removes a directory from the PHP filesystem.

@@ -619,7 +619,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not copy "{path}"')
-	cp(fromPath: string, toPath: string, options: CpOptions) {
+	cp(
+		fromPath: string,
+		toPath: string,
+		options: CpOptions = { recursive: false }
+	) {
 		const FS = this[__private__dont__use].FS;
 
 		const fromStat = FS.stat(fromPath);
