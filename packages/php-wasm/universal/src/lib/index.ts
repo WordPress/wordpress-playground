@@ -7,6 +7,7 @@ export type {
 	PHPRunOptions,
 	UniversalPHP,
 	ListFilesOptions,
+	CpOptions,
 	RmDirOptions,
 	PHPEvent,
 	PHPEventListener,

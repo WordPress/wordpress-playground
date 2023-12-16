@@ -6,13 +6,13 @@ import type {
 	PHPRequest,
 	PHPResponse,
 	PHPRunOptions,
+	CpOptions,
 	RmDirOptions,
 	SpawnHandler,
 	PHPEventListener,
 	PHPEvent,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import { CpOptions } from 'packages/php-wasm/universal/src/lib/universal-php';
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
