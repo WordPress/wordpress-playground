@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/stream-compression",
-	"version": "0.3.1",
+	"version": "0.0.1",
 	"description": "Stream-based compression bindings.",
 	"repository": {
 		"type": "git",
@@ -21,12 +21,6 @@
 			"require": "./index.cjs"
 		},
 		"./package.json": "./package.json"
-	},
-	"typedoc": {
-		"entryPoint": "./src/index.ts",
-		"readmeFile": "./README.md",
-		"displayName": "@wp-playground/stream-compression",
-		"tsconfig": "./tsconfig.lib.json"
 	},
 	"publishConfig": {
 		"access": "public",
