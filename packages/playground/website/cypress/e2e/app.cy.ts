@@ -104,7 +104,7 @@ describe('Query API', () => {
 			cy.wordPressDocument()
 				.find('[data-slug=gutenberg].active')
 				.should('exist');
-		}, 120_000);
+		});
 	});
 
 	describe('option `theme`', () => {
