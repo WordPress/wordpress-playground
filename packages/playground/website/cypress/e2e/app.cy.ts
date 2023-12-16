@@ -86,7 +86,7 @@ describe('Query API', () => {
 					{
 						step: 'writeFile',
 						path: '/wordpress/test.php',
-						data: `<?php
+						data: `<?php 
 						require("/wordpress/wp-load.php");
 						echo wp_http_supports(array( "ssl" )) ? "true" : "false";
 						`,

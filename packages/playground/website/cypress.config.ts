@@ -4,13 +4,9 @@ import { defineConfig } from 'cypress';
 // @ts-ignore
 const currentPath = new URL(import.meta.url).pathname;
 export default defineConfig({
-	e2e: {
-		numTestsKeptInMemory: 1,
-		experimentalMemoryManagement: true,
-		...nxE2EPreset(currentPath, {
-			cypressDir: 'cypress',
-		}),
-	},
+	e2e: nxE2EPreset(currentPath, {
+		cypressDir: 'cypress',
+	}),
 	// Playground may be slow to start up
-	defaultCommandTimeout: 60_000,
+	defaultCommandTimeout: 30000,
 });
