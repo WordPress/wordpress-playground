@@ -258,7 +258,17 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 
 	/**
 	 * Copies a file or directory in the PHP filesystem to a
-	 * new location.
+	 * new location. The target directory's parent must be a
+	 * valid location in the filesystem prior to copying.
+	 *
+	 * If the target path is a file that already exists,
+	 * it will be overwritten.
+	 *
+	 * If the target path is a directory that already exists,
+	 * the file or directory will be copied into it.
+	 *
+	 * If the target path's parent directory does not exist,
+	 * an error will be thrown.
 	 *
 	 * @param oldPath The file or directory to be copied.
 	 * @param newPath The new, full path to copy the file or directory to.
