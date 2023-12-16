@@ -52,7 +52,7 @@ Follow this checklist:
 -   Add a new `workspaces` in the top-level `package.json` file if needed. Otherwise TypeScript won't work correctly and Lerna won't pick up your package for publishing.
 -   Add a `typecheck` task to the `project.json` file in the new project. You can copy it from another project in this repo.
 -   Run `nx typecheck <project name>` to make sure TypeScript is set up correctly.
--   If the project needs to ship both ESM and CJS builds, add a `test:esmcjs` task to the `project.json` and add it to the `dependsOn` list of the `test` task. This way the CI will continuously verify whether your double build works. The alternative is to find out when a disappointed extender files an issue.
+-   If the project needs to ship both ESM and CJS builds, add a `test:esmcjs` task to the `project.json`. This way the CI will continuously verify whether your double build works. The alternative is to find out when a disappointed extender files an issue.
 -   Add the `package-json` task to the build pipeline. See the details below.
 
 ### Package.json

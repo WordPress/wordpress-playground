@@ -1,0 +1,55 @@
+{
+	"name": "php-wasm-node-polyfills",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/node-polyfills/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/node-polyfills"
+			}
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite:node", "test:vite:jsdom"]
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/php-wasm/node-polyfills"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:vite:node": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{options.reportsDirectory}"],
+			"options": {
+				"config": "packages/php-wasm/node-polyfills/vitest-node.config.ts",
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node-polyfills"
+			}
+		},
+		"test:vite:jsdom": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{options.reportsDirectory}"],
+			"options": {
+				"config": "packages/php-wasm/node-polyfills/vitest-jsdom.config.ts",
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node-polyfills"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/php-wasm/node-polyfills/**/*.ts",
+					"packages/php-wasm/node-polyfills/package.json"
+				]
+			}
+		}
+	},
+	"tags": []
+}

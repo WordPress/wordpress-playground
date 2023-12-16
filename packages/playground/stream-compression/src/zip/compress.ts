@@ -13,6 +13,7 @@ import {
 import { iteratorToStream } from '../utils/iterator-to-stream';
 import { collectBytes } from '../utils/collect-bytes';
 import { crc32 } from './crc32';
+import '../polyfills';
 
 /**
  * Compresses the given files into a ZIP archive.

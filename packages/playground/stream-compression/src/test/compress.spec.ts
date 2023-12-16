@@ -1,7 +1,7 @@
 import { collectBytes } from '../utils/collect-bytes';
 import { zipFiles } from '../zip/compress';
 import { unzipFiles } from '../zip/parse-stream';
-import 'blob-polyfill';
+import '../polyfills';
 
 describe('compressFiles', () => {
 	it('Should compress files into a zip archive', async () => {

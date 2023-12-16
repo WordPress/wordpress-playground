@@ -1,6 +1,8 @@
 /**
  * Reads files from a stream of zip file bytes.
  */
+import '../polyfills';
+
 import { IterableReadableStream } from './iterable-stream-polyfill';
 
 import {
