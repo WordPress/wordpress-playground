@@ -627,17 +627,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// https://linux.die.net/man/1/chmod
 		const fromIsDir = fromStat.mode & 0o40000;
 
-		let toExists: boolean;
+		let destinationExists: boolean;
 
 		try {
 			FS.stat(toPath);
-			toExists = true;
+			destinationExists = true;
 		} catch {
-			toExists = false;
+			destinationExists = false;
 		}
 
 		if (!fromIsDir) {
-			const file = FS.readFile(fromPath, { encoding: 'binary' });
+			const file = this.readFileAsBuffer(fromPath);
 			FS.writeFile(toPath, file);
 			return;
 		}
@@ -648,7 +648,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			);
 		}
 
-		if (!toExists) {
+		if (!destinationExists) {
 			FS.mkdir(toPath);
 		}
 
