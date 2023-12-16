@@ -341,7 +341,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			php.mkdir(testDirPath1);
 			php.writeFile(testDirPath1 + '/1.txt', '1');
 			php.writeFile(testDirPath1 + '/2.txt', '2');
-			php.cp(testDirPath1, testDirPath2, true);
+			php.cp(testDirPath1, testDirPath2, { recursive: true });
 			expect(php.fileExists(testDirPath2 + '/1.txt')).toEqual(true);
 			expect(php.fileExists(testDirPath2 + '/2.txt')).toEqual(true);
 			expect(php.readFileAsText(testDirPath2 + '/1.txt')).toEqual('1');
