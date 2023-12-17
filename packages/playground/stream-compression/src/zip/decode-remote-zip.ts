@@ -360,7 +360,12 @@ async function fetchContentLength(url: string) {
 			if (!contentLength) {
 				throw new Error('Content-Length header is missing');
 			}
-			return parseInt(contentLength, 10);
+
+			const parsedLength = parseInt(contentLength, 10);
+			if (isNaN(parsedLength) || parsedLength < 0) {
+				throw new Error('Content-Length header is invalid');
+			}
+			return parsedLength;
 		});
 }
 
