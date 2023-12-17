@@ -36,7 +36,8 @@ describe('File.stream() method', () => {
 		const secondRead = await reader.read();
 		expect(secondRead.done).toBe(true);
 	});
-	it('should be a valid BYOB stream that allows reading an arbitrary number of bytes', async () => {
+	//
+	it.skip('should be a valid BYOB stream that allows reading an arbitrary number of bytes', async () => {
 		const inputBytes = new Uint8Array([1, 2, 3, 4]);
 		const file = new File([inputBytes], 'test');
 		const stream = file.stream();

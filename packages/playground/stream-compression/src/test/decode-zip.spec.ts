@@ -1,4 +1,3 @@
-import '@php-wasm/node-polyfills';
 import { decodeZip } from '../zip/decode-zip';
 import { readFile } from 'fs/promises';
 

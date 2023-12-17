@@ -2,7 +2,8 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import * as path from 'path';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-stream-compression',
@@ -12,7 +13,9 @@ export default defineConfig({
 			entryRoot: 'src',
 			tsconfigPath: path.join(__dirname, 'tsconfig.lib.json'),
 		}),
-		nxViteTsPaths(),
+		viteTsConfigPaths({
+			root: '../../../',
+		}),
 	],
 
 	// Uncomment this if you are using workers.
