@@ -1,3 +1,5 @@
+import { IterableReadableStream } from './iterable-stream-polyfill';
+
 /**
  * Converts an iterator or iterable to a stream.
  *
@@ -10,7 +12,7 @@ export function iteratorToStream<T>(
 		| Iterator<T>
 		| AsyncIterable<T>
 		| Iterable<T>
-): ReadableStream<T> {
+) {
 	let iterator: AsyncIterator<T> | Iterator<T>;
 	if (Symbol.asyncIterator in iteratorOrIterable) {
 		iterator = iteratorOrIterable[Symbol.asyncIterator]();
@@ -29,5 +31,5 @@ export function iteratorToStream<T>(
 			}
 			controller.enqueue(value);
 		},
-	});
+	}) as IterableReadableStream<T>;
 }

@@ -1,70 +1,44 @@
 import { NodePHP } from '@php-wasm/node';
-import { compileBlueprint, runBlueprintSteps } from '../compile';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import {
+	collectFile,
+	encodeZip,
+	iteratorToStream,
+} from '@wp-playground/stream-compression';
+import { installTheme } from './install-theme';
 
-describe('Blueprint step installTheme', () => {
+describe('Blueprint step installPlugin', () => {
 	let php: NodePHP;
+	let rootPath: string | undefined;
+	let themesPath: string | undefined;
+	const themeName = 'test-theme';
 	beforeEach(async () => {
 		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
 			},
 		});
+		rootPath = php.documentRoot;
+		// Create plugins folder
+		themesPath = `${rootPath}/wp-content/themes`;
+		php.mkdir(themesPath);
 	});
 
-	it('should install a theme', async () => {
-		// Create test theme
-
-		const themeName = 'test-theme';
-
-		php.mkdir(`/${themeName}`);
-		php.writeFile(
-			`/${themeName}/index.php`,
-			`/**\n * Theme Name: Test Theme`
-		);
-
-		// Note the package name is different from theme folder name
-		const zipFileName = `${themeName}-0.0.1.zip`;
-
-		await php.run({
-			code: `<?php 
-			$zip = new ZipArchive();
-			$zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
-			$zip->addFile("/${themeName}/index.php"); 
-			$zip->close();
-			`,
+	it('should install a plugin', async () => {
+		await installTheme(php, {
+			themeZipFile: await collectFile(
+				`${themeName}-0.0.1.zip`,
+				encodeZip(
+					iteratorToStream([
+						new File(
+							[`/**\n * Theme Name: Test Theme`],
+							`${themeName}/index.php`
+						),
+					])
+				)
+			),
+			options: { activate: false },
 		});
-
-		php.rmdir(`/${themeName}`);
-
-		expect(php.fileExists(zipFileName)).toBe(true);
-
-		// Create themes folder
-		const rootPath = php.documentRoot;
-		const themesPath = `${rootPath}/wp-content/themes`;
-
-		php.mkdir(themesPath);
-
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'installTheme',
-						themeZipFile: {
-							resource: 'vfs',
-							path: zipFileName,
-						},
-						options: {
-							activate: false,
-						},
-					},
-				],
-			}),
-			php
-		);
-
-		php.unlink(zipFileName);
-
 		expect(php.fileExists(`${themesPath}/${themeName}`)).toBe(true);
 	});
 });
