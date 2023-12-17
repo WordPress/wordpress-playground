@@ -5,11 +5,11 @@ import { collectBytes } from '../utils/collect-bytes';
 import {
 	readCentralDirectoryEntry,
 	readFileEntry,
-	unzipFiles,
-} from './parse-stream';
-import { CentralDirectoryEntry, FileEntry } from './common';
-import { SIGNATURE_CENTRAL_DIRECTORY_END } from './common';
-import { IterableReadableStream } from './iterable-stream-polyfill';
+	decodeZip,
+} from './decode-zip';
+import { CentralDirectoryEntry, FileEntry } from './types';
+import { SIGNATURE_CENTRAL_DIRECTORY_END } from './types';
+import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
 const CENTRAL_DIRECTORY_END_SCAN_CHUNK_SIZE = 110 * 1024;
 const BATCH_DOWNLOAD_OF_FILES_IF_CLOSER_THAN = 10 * 1024;
@@ -29,7 +29,7 @@ const DEFAULT_PREDICATE = () => true;
  * @param predicate Optional. A function that returns true if the file should be downloaded.
  * @returns A stream of zip entries.
  */
-export async function unzipFilesRemote(
+export async function decodeRemoteZip(
 	url: string,
 	predicate: (
 		dirEntry: CentralDirectoryEntry | FileEntry
@@ -39,14 +39,14 @@ export async function unzipFilesRemote(
 		// If we're not filtering the zip contents, let's just
 		// grab the entire zip.
 		const response = await fetch(url);
-		return unzipFiles(response.body!);
+		return decodeZip(response.body!);
 	}
 
 	const contentLength = await fetchContentLength(url);
 	if (contentLength <= PREFER_RANGES_IF_FILE_LARGER_THAN) {
 		// If the zip is small enough, let's just grab it.
 		const response = await fetch(url);
-		return unzipFiles(response.body!);
+		return decodeZip(response.body!);
 	}
 
 	// Ensure ranges query support:
@@ -78,7 +78,7 @@ export async function unzipFilesRemote(
 	if (!rangesSupported) {
 		// Uh-oh, we're actually streaming the entire file.
 		// Let's reuse the forked stream as our response stream.
-		return unzipFiles(responseStream);
+		return decodeZip(responseStream);
 	}
 
 	// We're good, let's clean up the other branch of the response stream.

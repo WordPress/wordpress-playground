@@ -4,16 +4,14 @@ import {
 	CentralDirectoryEndEntry,
 	CentralDirectoryEntry,
 	FileHeader,
-} from './common';
+} from './types';
 import {
 	SIGNATURE_CENTRAL_DIRECTORY_END,
 	SIGNATURE_CENTRAL_DIRECTORY,
 	SIGNATURE_FILE,
-} from './common';
+} from './types';
 import { iteratorToStream } from '../utils/iterator-to-stream';
 import { collectBytes } from '../utils/collect-bytes';
-import { crc32 } from './crc32';
-import '../polyfills';
 
 /**
  * Compresses the given files into a ZIP archive.
@@ -21,10 +19,10 @@ import '../polyfills';
  * @param files - An async or sync iterable of files to be compressed.
  * @returns A readable stream of the compressed ZIP archive as Uint8Array chunks.
  */
-export function zipFiles(
+export function encodeZip(
 	files: AsyncIterable<File> | Iterable<File>
 ): ReadableStream<Uint8Array> {
-	return iteratorToStream(files).pipeThrough(encodeZip());
+	return iteratorToStream(files).pipeThrough(encodeZipTransform());
 }
 
 /**
@@ -32,21 +30,48 @@ export function zipFiles(
  *
  * @returns A stream transforming File objects into zipped bytes.
  */
-function encodeZip() {
+function encodeZipTransform() {
 	const offsetToFileHeaderMap: Map<number, FileHeader> = new Map();
 	let writtenBytes = 0;
 	return new TransformStream<File, Uint8Array>({
 		async transform(file, controller) {
 			const entryBytes = new Uint8Array(await file.arrayBuffer());
-			const compressed = (await collectBytes(
+			/**
+			 * We want to write raw deflate-compressed bytes into our
+			 * final ZIP file. CompressionStream supports "deflate-raw"
+			 * compression, but not on Node.js v18.
+			 *
+			 * As a workaround, we use the "gzip" compression and add
+			 * the header and footer bytes. It works, because "gzip"
+			 * compression is the same as "deflate" compression plus
+			 * the header and the footer.
+			 *
+			 * The header is 10 bytes long:
+			 * - 2 magic bytes: 0x1f, 0x8b
+			 * - 1 compression method: 0x08 (deflate)
+			 * - 1 header flags
+			 * - 4 mtime: 0x00000000 (no timestamp)
+			 * - 1 compression flags
+			 * - 1 OS: 0x03 (Unix)
+			 *
+			 * The footer is 8 bytes long:
+			 * - 4 bytes for CRC32 of the uncompressed data
+			 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
+			 */
+			let compressed = (await collectBytes(
 				new Blob([entryBytes])
 					.stream()
-					.pipeThrough(new CompressionStream('deflate-raw'))
+					.pipeThrough(new CompressionStream('gzip'))
 			))!;
+			// Grab the CRC32 hash from the footer.
+			const crcHash = new DataView(compressed.buffer).getUint32(
+				compressed.byteLength - 8,
+				true
+			);
+			// Strip the header and the footer.
+			compressed = compressed.slice(10, compressed.byteLength - 8);
 
-			const crcHash = crc32(entryBytes);
 			const encodedPath = new TextEncoder().encode(file.name);
-
 			const zipFileEntry: FileHeader = {
 				signature: SIGNATURE_FILE,
 				version: 2,

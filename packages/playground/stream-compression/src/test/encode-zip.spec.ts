@@ -1,7 +1,6 @@
 import { collectBytes } from '../utils/collect-bytes';
-import { zipFiles } from '../zip/compress';
-import { unzipFiles } from '../zip/parse-stream';
-import '../polyfills';
+import { encodeZip } from '../zip/encode-zip';
+import { decodeZip } from '../zip/decode-zip';
 
 describe('compressFiles', () => {
 	it('Should compress files into a zip archive', async () => {
@@ -24,8 +23,8 @@ describe('compressFiles', () => {
 			),
 		];
 
-		const zipBytes = await collectBytes(zipFiles(files[Symbol.iterator]()));
-		const zipStream = unzipFiles(new Blob([zipBytes!]).stream());
+		const zipBytes = await collectBytes(encodeZip(files[Symbol.iterator]()));
+		const zipStream = decodeZip(new Blob([zipBytes!]).stream());
 
 		const reader = zipStream.getReader();
 		let i = 0;

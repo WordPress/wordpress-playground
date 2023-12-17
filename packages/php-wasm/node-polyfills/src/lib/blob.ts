@@ -118,7 +118,7 @@ async function isByobSupported() {
  * or is an older version shipped with e.g. Node.js 18 where
  * BYOB streams seem to be unsupported.
  */
-if (typeof Blob.prototype.stream === 'undefined' || !isByobSupported()) {
+if (1 || typeof Blob.prototype.stream === 'undefined' || !isByobSupported()) {
 	Blob.prototype.stream = function () {
 		let position = 0;
 		// eslint-disable-next-line

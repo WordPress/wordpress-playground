@@ -1,9 +1,7 @@
 /**
  * Reads files from a stream of zip file bytes.
  */
-import '../polyfills';
-
-import { IterableReadableStream } from './iterable-stream-polyfill';
+import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
 import {
 	SIGNATURE_FILE,
@@ -12,17 +10,19 @@ import {
 	FILE_HEADER_SIZE,
 	COMPRESSION_DEFLATE,
 	CompressionMethod,
-} from './common';
+} from './types';
 import {
 	CentralDirectoryEntry,
 	FileEntry,
 	ZipEntry,
 	CentralDirectoryEndEntry,
-} from './common';
+} from './types';
 import { filterStream } from '../utils/filter-stream';
 import { collectBytes } from '../utils/collect-bytes';
 import { limitBytes } from '../utils/limit-bytes';
 import { concatBytes } from '../utils/concat-bytes';
+import { prependBytes } from '../utils/prepend-bytes';
+import { appendBytes } from '../utils/append-bytes';
 
 /**
  * Unzips a stream of zip file bytes.
@@ -31,7 +31,7 @@ import { concatBytes } from '../utils/concat-bytes';
  * @param predicate Optional. A function that returns true if the file should be downloaded.
  * @returns An iterable stream of File objects.
  */
-export function unzipFiles(
+export function decodeZip(
 	stream: ReadableStream<Uint8Array>,
 	predicate?: () => boolean
 ) {
@@ -168,11 +168,43 @@ export async function readFileEntry(
 	// @TODO: Expose the body stream instead of reading it all
 	//        eagerly. Ensure the next iteration exhausts
 	//        the last body stream before moving on.
+
 	let bodyStream = limitBytes(stream, entry['compressedSize']!);
+
 	if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
-		bodyStream = bodyStream.pipeThrough(
-			new DecompressionStream('deflate-raw')
-		);
+		/**
+		 * We want to write raw deflate-compressed bytes into our
+		 * final ZIP file. CompressionStream supports "deflate-raw"
+		 * compression, but not on Node.js v18.
+		 *
+		 * As a workaround, we use the "gzip" compression and add
+		 * the header and footer bytes. It works, because "gzip"
+		 * compression is the same as "deflate" compression plus
+		 * the header and the footer.
+		 *
+		 * The header is 10 bytes long:
+		 * - 2 magic bytes: 0x1f, 0x8b
+		 * - 1 compression method: 0x08 (deflate)
+		 * - 1 header flags
+		 * - 4 mtime: 0x00000000 (no timestamp)
+		 * - 1 compression flags
+		 * - 1 OS: 0x03 (Unix)
+		 *
+		 * The footer is 8 bytes long:
+		 * - 4 bytes for CRC32 of the uncompressed data
+		 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
+		 */
+		const header = new Uint8Array(10);
+		header.set([0x1f, 0x8b, 0x08]);
+
+		const footer = new Uint8Array(8);
+		const footerView = new DataView(footer.buffer);
+		footerView.setUint32(0, entry.crc!, true);
+		footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
+		bodyStream = bodyStream
+			.pipeThrough(prependBytes(header))
+			.pipeThrough(appendBytes(footer))
+			.pipeThrough(new DecompressionStream('gzip'));
 	}
 	entry['bytes'] = await bodyStream
 		.pipeThrough(concatBytes(entry['uncompressedSize']))

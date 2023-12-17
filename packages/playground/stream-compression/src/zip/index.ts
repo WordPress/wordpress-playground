@@ -1,5 +1,5 @@
-import './iterable-stream-polyfill';
+import '../utils/iterable-stream-polyfill';
 
-export * from './parse-stream';
-export * from './parse-remote';
-export * from './compress';
+export * from './decode-zip';
+export * from './decode-remote-zip';
+export * from './encode-zip';

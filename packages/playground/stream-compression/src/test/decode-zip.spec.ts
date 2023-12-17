@@ -1,12 +1,13 @@
-import { unzipFiles } from '../zip/parse-stream';
+import "@php-wasm/node-polyfills";
+import { decodeZip } from '../zip/decode-zip';
 import { readFile } from 'fs/promises';
 
-describe.skip('unzipFiles', () => {
+describe('unzipFiles', () => {
 	it('Should uncompress compress files', async () => {
 		const zipBytes = await readFile(
 			__dirname + '/fixtures/hello-dolly.zip'
 		);
-		const zipStream = unzipFiles(new Blob([zipBytes]).stream());
+		const zipStream = decodeZip(new Blob([zipBytes]).stream());
 
 		const files = [];
 		for await (const file of zipStream) {
