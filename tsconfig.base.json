@@ -51,9 +51,6 @@
 			"@wp-playground/storage": [
 				"packages/playground/storage/src/index.ts"
 			],
-			"@wp-playground/stream-compression": [
-				"packages/playground/stream-compression/src/index.ts"
-			],
 			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
 			"@wp-playground/unit-test-utils": [
 				"packages/playground/unit-test-utils/src/index.ts"
