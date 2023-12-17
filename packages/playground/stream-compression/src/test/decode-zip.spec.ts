@@ -1,7 +1,7 @@
 import { decodeZip } from '../zip/decode-zip';
 import { readFile } from 'fs/promises';
 
-describe('unzipFiles', () => {
+describe('decodeZip', () => {
 	it('Should uncompress compress files', async () => {
 		const zipBytes = await readFile(
 			__dirname + '/fixtures/hello-dolly.zip'

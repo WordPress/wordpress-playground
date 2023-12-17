@@ -8,7 +8,7 @@ import { flattenDirectory } from '../utils/flatten-directory';
 import {
 	iteratorToStream,
 	streamWriteToPhp,
-	unzipFiles,
+	decodeZip,
 } from '@wp-playground/stream-compression';
 
 /**
@@ -71,7 +71,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	{ pluginZipFile, files, options = {} },
 	progress?
 ) => {
-	files = files || unzipFiles(pluginZipFile.stream());
+	files = files || decodeZip(pluginZipFile.stream());
 	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
 	const assetName = zipFileName.replace(/\.zip$/, '');

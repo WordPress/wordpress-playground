@@ -1,7 +1,4 @@
-import {
-	streamWriteToPhp,
-	unzipFiles,
-} from '@wp-playground/stream-compression';
+import { streamWriteToPhp, decodeZip } from '@wp-playground/stream-compression';
 import { StepHandler } from '.';
 
 /**
@@ -37,7 +34,7 @@ export const unzip: StepHandler<UnzipStep> = async (
 ) => {
 	const zipBytes = await playground.readFileAsBuffer(zipPath);
 	const zipStream = new Blob([zipBytes]).stream();
-	await unzipFiles(zipStream).pipeTo(
+	await decodeZip(zipStream).pipeTo(
 		streamWriteToPhp(playground, extractToPath)
 	);
 };

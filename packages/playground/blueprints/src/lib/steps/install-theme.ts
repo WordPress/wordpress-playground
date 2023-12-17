@@ -6,7 +6,7 @@ import { basename, joinPaths } from '@php-wasm/util';
 import {
 	iteratorToStream,
 	streamWriteToPhp,
-	unzipFiles,
+	decodeZip,
 } from '@wp-playground/stream-compression';
 
 /**
@@ -73,7 +73,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	{ themeZipFile, files, options = {} },
 	progress
 ) => {
-	files = files || unzipFiles(themeZipFile.stream());
+	files = files || decodeZip(themeZipFile.stream());
 	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
 	const assetName = zipFileName.replace(/\.zip$/, '');

@@ -5,7 +5,7 @@ import {
 	installTheme,
 	login,
 } from '@wp-playground/blueprints';
-import { collectBytes, zipFiles } from '@wp-playground/stream-compression';
+import { collectFile, encodeZip } from '@wp-playground/stream-compression';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(
@@ -26,10 +26,11 @@ export async function importFromGitHub(
 			files: gitHubFiles,
 		});
 	} else if (contentType === 'wp-content') {
-		const zipBytes = await collectBytes(zipFiles(gitHubFiles));
-		const zipFile = new File([zipBytes], 'wordpress-playground.zip');
 		await importWordPressFiles(php, {
-			wordPressFilesZip: zipFile,
+			wordPressFilesZip: await collectFile(
+				'wordpress-playground.zip',
+				encodeZip(gitHubFiles)
+			),
 		});
 		await login(php, {});
 	} else {
