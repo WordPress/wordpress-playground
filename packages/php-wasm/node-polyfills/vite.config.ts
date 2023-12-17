@@ -1,33 +1,25 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
-
-import dts from 'vite-plugin-dts';
+/// <reference types='vitest' />
 import { join } from 'path';
-
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+import { defineConfig } from 'vite';
+import dts from 'vite-plugin-dts';
+import viteTsConfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-	cacheDir: '../../../node_modules/.vite/playground-blueprints',
+	cacheDir: '../../../node_modules/.vite/php-wasm-node-polyfills',
 
 	plugins: [
+		viteTsConfigPaths({
+			root: '../../../',
+		}),
 		dts({
 			entryRoot: 'src',
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
-		}),
-
-		viteTsConfigPaths({
-			root: '../../../',
 		}),
 	],
 
 	// Uncomment this if you are using workers.
 	// worker: {
-	//  plugins: [
-	//    viteTsConfigPaths({
-	//      root: '../../../',
-	//    }),
-	//  ],
+	//  plugins: [ nxViteTsPaths() ],
 	// },
 
 	// Configuration for building your library.
@@ -36,10 +28,10 @@ export default defineConfig({
 		lib: {
 			// Could also be a dictionary or array of multiple entry points.
 			entry: 'src/index.ts',
-			name: 'playground-blueprints',
+			name: 'php-wasm-node-polyfills',
 			fileName: 'index',
 			// Change this to the formats you want to support.
-			// Don't forgot to update your package.json as well.
+			// Don't forget to update your package.json as well.
 			formats: ['es', 'cjs'],
 		},
 		rollupOptions: {
@@ -53,8 +45,8 @@ export default defineConfig({
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},
-		setupFiles: ['./src/vitest-setup-file.ts'],
-		environment: 'jsdom',
+		environment:
+			'Run this task with either "node" or "jsdom" configuration, e.g. nx run php-wasm-node-polyfills:test:node',
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},
 });

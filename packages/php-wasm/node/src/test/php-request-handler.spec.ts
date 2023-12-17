@@ -150,14 +150,11 @@ describe.each(SupportedPHPVersions)(
 				url: '/index.php',
 				method: 'POST',
 				files: {
-					myFile: {
-						name: 'text.txt',
-						async arrayBuffer() {
-							return new TextEncoder().encode('Hello World')
-								.buffer;
-						},
-						type: 'text/plain',
-					} as any,
+					myFile: new File(
+						[new TextEncoder().encode('Hello World').buffer],
+						'text.txt',
+						{ type: 'text/plain' }
+					),
 				},
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
