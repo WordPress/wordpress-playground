@@ -101,53 +101,22 @@ if (typeof Blob.prototype.text === 'undefined') {
 }
 
 /**
- * Polyfill the stream() method if it either doesn't exist,
- * or is an older version shipped with e.g. Node.js 18 where
- * BYOB streams seem to be unsupported.
+ * Detects if BYOB (Bring Your Own Buffer) streams are supported
+ * in the current environment.
+ *
+ * BYOB is a new feature in the Streams API that allows reading
+ * an arbitrary number of bytes from a stream. It's not supported
+ * in older versions of Node.js.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/ReadableStreamBYOBReader
  */
-if (typeof Blob.prototype.stream === 'undefined') {
-	Blob.prototype.stream = function () {
-		let position = 0;
-		// eslint-disable-next-line
-		const blob = this;
-		return new ReadableStream({
-			type: 'bytes',
-			// 0.5 MB seems like a reasonable chunk size, let's adjust
-			// this if needed.
-			autoAllocateChunkSize: 512 * 1024,
-
-			async pull(controller) {
-				const view = controller.byobRequest!.view;
-
-				// Read the next chunk of data:
-				const chunk = blob.slice(position, position + view!.byteLength);
-				const buffer = await chunk.arrayBuffer();
-				const uint8array = new Uint8Array(buffer);
-
-				// Emit that chunk:
-				new Uint8Array(view!.buffer).set(uint8array);
-				const bytesRead = uint8array.byteLength;
-				controller.byobRequest!.respond(bytesRead);
-
-				// Bump the position and close this stream once
-				// we've read the entire blob.
-				position += bytesRead;
-				if (position >= blob.size) {
-					controller.close();
-				}
-			},
-		});
-	};
-}
-
-export default {};
-
-async function isByobSupported() {
+function isByobSupported() {
 	const inputBytes = new Uint8Array([1, 2, 3, 4]);
 	const file = new File([inputBytes], 'test');
 	const stream = file.stream();
 	try {
-		// This throws on older versions of node
+		stream.getReader({ mode: 'byob' });
+		// This throws on older versions of node:
 		stream.getReader({ mode: 'byob' });
 		return true;
 	} catch (e) {
@@ -194,3 +163,5 @@ if (typeof Blob.prototype.stream === 'undefined' || !isByobSupported()) {
 		});
 	};
 }
+
+export default {};
