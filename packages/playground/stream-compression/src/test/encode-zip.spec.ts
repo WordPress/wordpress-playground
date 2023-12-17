@@ -23,7 +23,9 @@ describe('compressFiles', () => {
 			),
 		];
 
-		const zipBytes = await collectBytes(encodeZip(files[Symbol.iterator]()));
+		const zipBytes = await collectBytes(
+			encodeZip(files[Symbol.iterator]())
+		);
 		const zipStream = decodeZip(new Blob([zipBytes!]).stream());
 
 		const reader = zipStream.getReader();
