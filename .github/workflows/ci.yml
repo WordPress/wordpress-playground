@@ -52,7 +52,9 @@ jobs:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npx nx affected --target=build --parallel=3 --verbose
-            - run: npx nx affected test:esmcjs
+            # Make sure that both the ESM and CJS builds of the affected
+            # modules still produce usable bundles
+            - run: npx nx affected --target=test:esmcjs --parallel=3 --verbose
 
     # Deploy documentation job
     deploy_docs:
