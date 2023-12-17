@@ -46,14 +46,10 @@ describe('Blueprint step runSql', () => {
 		);
 
 		// Test a single query
-		const mockFileSingle = {
-			name: 'single-query.sql',
-			async arrayBuffer() {
-				return new TextEncoder().encode('SELECT * FROM wp_users;')
-					.buffer;
-			},
-			type: 'text/plain',
-		} as any;
+		const mockFileSingle = new File(
+			[new TextEncoder().encode('SELECT * FROM wp_users;').buffer],
+			'single-query.sql'
+		);
 
 		await runSql(php, { sql: mockFileSingle });
 
@@ -62,15 +58,14 @@ describe('Blueprint step runSql', () => {
 		expect(singleQueryResult).toBe(singleQueryExpect);
 
 		// Test a multiple queries
-		const mockFileMultiple = {
-			name: 'multiple-queries.sql',
-			async arrayBuffer() {
-				return new TextEncoder().encode(
+		const mockFileMultiple = new File(
+			[
+				new TextEncoder().encode(
 					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`
-				).buffer;
-			},
-			type: 'text/plain',
-		} as any;
+				).buffer,
+			],
+			'multiple-queries.sql'
+		);
 
 		await runSql(php, { sql: mockFileMultiple });
 
@@ -79,15 +74,14 @@ describe('Blueprint step runSql', () => {
 		expect(multiQueryResult).toBe(multiQueryExpect);
 
 		// Ensure it works the same if the last query is missing a trailing newline
-		const mockFileNoTrailingSpace = {
-			name: 'no-trailing-newline.sql',
-			async arrayBuffer() {
-				return new TextEncoder().encode(
+		const mockFileNoTrailingSpace = new File(
+			[
+				new TextEncoder().encode(
 					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;`
-				).buffer;
-			},
-			type: 'text/plain',
-		} as any;
+				).buffer,
+			],
+			'no-trailing-newline.sql'
+		);
 
 		await runSql(php, { sql: mockFileNoTrailingSpace });
 		const noTrailingNewlineQueryResult = await php.readFileAsText(

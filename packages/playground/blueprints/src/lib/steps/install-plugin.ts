@@ -1,9 +1,15 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
-import { zipNameToHumanName } from './common';
-import { installAsset } from './install-asset';
+import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
+import { joinPaths } from '@php-wasm/util';
+import { flattenDirectory } from '../utils/flatten-directory';
+import {
+	iteratorToStream,
+	streamWriteToPhp,
+	decodeZip,
+} from '@wp-playground/stream-compression';
 
 /**
  * @inheritDoc installPlugin
@@ -38,6 +44,12 @@ export interface InstallPluginStep<ResourceType> {
 	 * Optional installation options.
 	 */
 	options?: InstallPluginOptions;
+	/**
+	 * An iterator of files to install. If not provided, the plugin
+	 * will unzipped from `pluginZipFile`.
+	 * @private
+	 */
+	files?: AsyncIterable<File>;
 }
 
 export interface InstallPluginOptions {
@@ -50,47 +62,50 @@ export interface InstallPluginOptions {
 /**
  * Installs a WordPress plugin in the Playground.
  *
- * @param playground The playground client.
+ * @param php The playground client.
  * @param pluginZipFile The plugin zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the plugin.
  */
 export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
-	playground,
-	{ pluginZipFile, options = {} },
+	php,
+	{ pluginZipFile, files, options = {} },
 	progress?
 ) => {
-	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
+	files = files || decodeZip(pluginZipFile.stream());
+	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
+	const assetName = zipFileName.replace(/\.zip$/, '');
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	try {
-		const { assetFolderPath } = await installAsset(playground, {
-			zipFile: pluginZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-		});
+		const extractTo = joinPaths(
+			await php.documentRoot,
+			'wp-content/plugins',
+			crypto.randomUUID()
+		);
+		iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate
-
 		const activate = 'activate' in options ? options.activate : true;
-
 		if (activate) {
 			await activatePlugin(
-				playground,
+				php,
 				{
-					pluginPath: assetFolderPath,
+					pluginPath,
 					pluginName: zipNiceName,
 				},
 				progress
 			);
 		}
 
-		await applyGutenbergPatchOnce(playground);
+		await applyGutenbergPatchOnce(php);
 	} catch (error) {
 		console.error(
 			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
 				`The original error was: ${error}`
 		);
-		console.error(error);
+		console.trace(error);
 	}
 };
 

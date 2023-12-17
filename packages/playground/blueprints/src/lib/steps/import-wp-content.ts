@@ -1,7 +1,7 @@
 import { StepHandler } from '.';
 import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
-import { wpContentFilesExcludedFromExport } from './common';
+import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { UniversalPHP } from '@php-wasm/universal';
 
 /**

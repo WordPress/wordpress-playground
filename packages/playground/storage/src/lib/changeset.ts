@@ -1,79 +1,3 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, normalizePath } from '@php-wasm/util';
-
-export type IterateFilesOptions = {
-	/**
-	 * Should yield paths relative to the root directory?
-	 * If false, all paths will be absolute.
-	 */
-	relativePaths?: boolean;
-
-	/**
-	 * A prefix to add to all paths.
-	 * Only used if `relativePaths` is true.
-	 */
-	pathPrefix?: string;
-
-	/**
-	 * A list of paths to exclude from the results.
-	 */
-	exceptPaths?: string[];
-};
-
-/**
- * Iterates over all files in a Playground directory and its subdirectories.
- *
- * @param playground - The Playground/PHP instance.
- * @param root - The root directory to start iterating from.
- * @param options - Optional configuration.
- * @returns All files found in the tree.
- */
-export async function* iterateFiles(
-	playground: UniversalPHP,
-	root: string,
-	{
-		relativePaths = true,
-		pathPrefix,
-		exceptPaths = [],
-	}: IterateFilesOptions = {}
-): AsyncGenerator<FileEntry> {
-	root = normalizePath(root);
-	const stack: string[] = [root];
-	while (stack.length) {
-		const currentParent = stack.pop();
-		if (!currentParent) {
-			return;
-		}
-		const files = await playground.listFiles(currentParent);
-		for (const file of files) {
-			const absPath = `${currentParent}/${file}`;
-			if (exceptPaths.includes(absPath.substring(root.length + 1))) {
-				continue;
-			}
-			const isDir = await playground.isDir(absPath);
-			if (isDir) {
-				stack.push(absPath);
-			} else {
-				yield {
-					path: relativePaths
-						? joinPaths(
-								pathPrefix || '',
-								absPath.substring(root.length + 1)
-						  )
-						: absPath,
-					read: async () =>
-						await playground.readFileAsBuffer(absPath),
-				};
-			}
-		}
-	}
-}
-
-export type FileEntry = {
-	path: string;
-	read: () => Promise<Uint8Array>;
-};
-
 /**
  * Represents a set of changes to be applied to a data store.
  */
@@ -105,9 +29,16 @@ export type Changeset = {
  * @returns A changeset object that describes the differences between the two sets of files.
  */
 export async function changeset(
-	filesBefore: Map<string, Uint8Array>,
-	filesAfter: AsyncGenerator<FileEntry>
+	filesBefore: AsyncIterable<File>,
+	filesAfter: AsyncIterable<File>
 ) {
+	const filesBeforeMap = new Map<string, Uint8Array>();
+	for await (const fileBefore of filesBefore) {
+		filesBeforeMap.set(
+			fileBefore.name,
+			new Uint8Array(await fileBefore.arrayBuffer())
+		);
+	}
 	const changes: Changeset = {
 		create: new Map(),
 		update: new Map(),
@@ -116,20 +47,20 @@ export async function changeset(
 
 	const seenFilesAfter = new Set<string>();
 	for await (const fileAfter of filesAfter) {
-		seenFilesAfter.add(fileAfter.path);
+		seenFilesAfter.add(fileAfter.name);
 
-		const before = filesBefore.get(fileAfter.path);
-		const after = await fileAfter.read();
+		const before = filesBeforeMap.get(fileAfter.name);
+		const after = new Uint8Array(await fileAfter.arrayBuffer());
 		if (before) {
 			if (!uint8arraysEqual(before, after)) {
-				changes.update.set(fileAfter.path, after);
+				changes.update.set(fileAfter.name, after);
 			}
 		} else {
-			changes.create.set(fileAfter.path, after);
+			changes.create.set(fileAfter.name, after);
 		}
 	}
 
-	for (const pathBefore of filesBefore.keys()) {
+	for (const pathBefore of filesBeforeMap.keys()) {
 		if (!seenFilesAfter.has(pathBefore)) {
 			changes.delete.add(pathBefore);
 		}

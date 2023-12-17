@@ -1,7 +1,7 @@
-import { joinPaths, phpVars } from '@php-wasm/util';
-import { runPhpWithZipFunctions } from './common';
-import { wpContentFilesExcludedFromExport } from './common';
-import { UniversalPHP } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
+import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import { UniversalPHP, iterateFiles } from '@php-wasm/universal';
+import { encodeZip, collectBytes } from '@wp-playground/stream-compression';
 
 /**
  * Replace the current wp-content directory with one from the provided zip file.
@@ -10,29 +10,22 @@ import { UniversalPHP } from '@php-wasm/universal';
  * @param wpContentZip Zipped WordPress site.
  */
 export const zipWpContent = async (playground: UniversalPHP) => {
-	const zipPath = '/tmp/wordpress-playground.zip';
-
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
-	const js = phpVars({
-		zipPath,
-		wpContentPath,
-		documentRoot,
-		exceptPaths: wpContentFilesExcludedFromExport.map((path) =>
-			joinPaths(documentRoot, 'wp-content', path)
-		),
-	});
-	await runPhpWithZipFunctions(
-		playground,
-		`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
-			'exclude_paths' => ${js.exceptPaths},
-			'zip_root'      => ${js.documentRoot}
-		));`
-	);
+	const allFiles = async function* () {
+		const wpConfigBytes = await playground.readFileAsBuffer(
+			joinPaths(documentRoot, 'wp-config.php')
+		);
+		yield new File([wpConfigBytes], 'wp-config.php');
+		yield* iterateFiles(playground, wpContentPath, {
+			relativePaths: true,
+			pathPrefix: 'wp-content/',
+			exceptPaths: wpContentFilesExcludedFromExport.map((path) =>
+				joinPaths(documentRoot, 'wp-content', path)
+			),
+		});
+	};
 
-	const fileBuffer = await playground.readFileAsBuffer(zipPath);
-	playground.unlink(zipPath);
-
-	return fileBuffer;
+	return await collectBytes(encodeZip(allFiles()));
 };
