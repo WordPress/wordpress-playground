@@ -100,25 +100,12 @@ if (typeof Blob.prototype.text === 'undefined') {
 	};
 }
 
-async function isByobSupported() {
-	const inputBytes = new Uint8Array([1, 2, 3, 4]);
-	const file = new File([inputBytes], 'test');
-	const stream = file.stream();
-	try {
-		// This throws on older versions of node
-		stream.getReader({ mode: 'byob' });
-		return true;
-	} catch (e) {
-		return false;
-	}
-}
-
 /**
  * Polyfill the stream() method if it either doesn't exist,
  * or is an older version shipped with e.g. Node.js 18 where
  * BYOB streams seem to be unsupported.
  */
-if (1 || typeof Blob.prototype.stream === 'undefined' || !isByobSupported()) {
+if (typeof Blob.prototype.stream === 'undefined') {
 	Blob.prototype.stream = function () {
 		let position = 0;
 		// eslint-disable-next-line
