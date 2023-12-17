@@ -44,7 +44,7 @@ export default defineConfig({
 			dir: '../../../node_modules/.vitest',
 		},
 		environment: 'jsdom',
-		setupFiles: ['./src/test/setup-file.ts'],
+		setupFiles: ['./src/test/vitest-setup-file.ts'],
 		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 	},
 });
