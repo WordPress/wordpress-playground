@@ -27,7 +27,12 @@ describe('Blueprint step installTheme', () => {
 		const zipFileName = `${themeName}-0.0.1.zip`;
 
 		await php.run({
-			code: `<?php $zip = new ZipArchive(); $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); $zip->addFile("/${themeName}/index.php"); $zip->close();`,
+			code: `<?php 
+			$zip = new ZipArchive();
+			$zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
+			$zip->addFile("/${themeName}/index.php"); 
+			$zip->close();
+			`,
 		});
 
 		php.rmdir(`/${themeName}`);
@@ -35,7 +40,7 @@ describe('Blueprint step installTheme', () => {
 		expect(php.fileExists(zipFileName)).toBe(true);
 
 		// Create themes folder
-		const rootPath = await php.documentRoot;
+		const rootPath = php.documentRoot;
 		const themesPath = `${rootPath}/wp-content/themes`;
 
 		php.mkdir(themesPath);

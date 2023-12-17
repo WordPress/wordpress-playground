@@ -16,6 +16,11 @@ export async function flattenDirectory(
 	directoryPath: string,
 	defaultName: string
 ) {
+	if (!(await php.fileExists(directoryPath))) {
+		throw new Error(
+			`Cannot flatten a directory that does not exist: ${directoryPath}`
+		);
+	}
 	const parentPath = dirname(directoryPath);
 
 	const filesInside = await php.listFiles(directoryPath);

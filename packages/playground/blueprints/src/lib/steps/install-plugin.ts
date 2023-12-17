@@ -83,7 +83,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			'wp-content/plugins',
 			crypto.randomUUID()
 		);
-		iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+		await iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
 		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate

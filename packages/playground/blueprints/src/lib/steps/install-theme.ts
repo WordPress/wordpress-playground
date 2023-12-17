@@ -86,7 +86,7 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 			'wp-content/themes',
 			crypto.randomUUID()
 		);
-		iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+		await iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
 
 		const themePath = await flattenDirectory(php, extractTo, assetName);
 
