@@ -57,11 +57,12 @@ RUN touch /root/.configure-flags && \
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
-RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		wget https://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb; \
-		wget https://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb; \
-		apt install -y --allow-downgrades ./libbison-dev_2.7.1.dfsg-1_amd64.deb; \
-		apt install -y --allow-downgrades ./bison_2.7.1.dfsg-1_amd64.deb; \
+RUN set -euxo pipefail; \
+	if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		wget https://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_`dpkg --print-architecture`.deb; \
+		wget https://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_`dpkg --print-architecture`.deb; \
+		apt install -y --allow-downgrades ./libbison-dev_2.7.1.dfsg-1_`dpkg --print-architecture`.deb; \
+		apt install -y --allow-downgrades ./bison_2.7.1.dfsg-1_`dpkg --print-architecture`.deb; \
 		apt-mark hold libbison-dev; \
 		apt-mark hold bison; \
 	else \
