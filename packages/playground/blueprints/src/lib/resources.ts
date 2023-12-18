@@ -215,7 +215,7 @@ export abstract class FetchResource extends Resource {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
 		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
+		response = cloneResponseMonitorProgress(
 			response,
 			this.progress?.loadingListener ?? noop
 		);

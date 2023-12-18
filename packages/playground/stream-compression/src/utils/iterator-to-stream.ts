@@ -13,6 +13,10 @@ export function iteratorToStream<T>(
 		| AsyncIterable<T>
 		| Iterable<T>
 ) {
+	if (iteratorOrIterable instanceof ReadableStream) {
+		return iteratorOrIterable as IterableReadableStream<T>;
+	}
+
 	let iterator: AsyncIterator<T> | Iterator<T>;
 	if (Symbol.asyncIterator in iteratorOrIterable) {
 		iterator = iteratorOrIterable[Symbol.asyncIterator]();

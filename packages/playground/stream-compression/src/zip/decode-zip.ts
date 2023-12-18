@@ -37,16 +37,15 @@ export function decodeZip(
 ) {
 	return streamZippedFileEntries(stream, predicate).pipeThrough(
 		new TransformStream<FileEntry, File>({
-			async transform(entry, controller) {
-				controller.enqueue(
-					new File(
-						[entry.bytes],
-						new TextDecoder().decode(entry.path),
-						{
-							type: entry.isDirectory ? 'directory' : undefined,
-						}
-					)
+			async transform(zipEntry, controller) {
+				const file = new File(
+					[zipEntry.bytes],
+					new TextDecoder().decode(zipEntry.path),
+					{
+						type: zipEntry.isDirectory ? 'directory' : undefined,
+					}
 				);
+				controller.enqueue(file);
 			},
 		})
 	) as IterableReadableStream<File>;
