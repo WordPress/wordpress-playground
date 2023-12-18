@@ -21,8 +21,8 @@ RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
-COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
+COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
 COPY ./libsqlite3/dist/root/lib /root/lib
 COPY ./libxml2/dist/root/lib /root/lib
