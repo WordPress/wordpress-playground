@@ -308,7 +308,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(() => {
 				php.mv(file1, file2);
 			}).toThrowError(
-				`Could not move "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+				`Could not move "${testDirPath}/1.txt" to "${testDirPath}/2.txt": There is no such file or directory OR the parent directory does not exist.`
 			);
 		});
 
@@ -320,7 +320,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(() => {
 				php.mv(file1, file2);
 			}).toThrowError(
-				`Could not move "${testDirPath}/1.txt": There is no such file or directory OR the parent directory does not exist.`
+				`Could not move "${testDirPath}/1.txt" to "${testDirPath}/nowhere/2.txt": There is no such file or directory OR the parent directory does not exist.`
 			);
 		});
 
