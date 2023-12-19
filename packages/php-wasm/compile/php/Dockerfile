@@ -186,7 +186,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 
 # Build the patched PHP
 WORKDIR /root/php-src
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN banner "PHP ${PHP_VERSION}" && \
+	source /root/emsdk/emsdk_env.sh && \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
@@ -725,8 +726,7 @@ RUN set -euxo pipefail; \
 "_php_wasm_init", \n\
 "_malloc", \n\
 "stringToUTF8", \n\
-"UTF8ToString", \n\
-"lengthBytesUTF8", \n\
+"_free", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
