@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"description": "PHP.wasm for the web",
 	"repository": {
 		"type": "git",
