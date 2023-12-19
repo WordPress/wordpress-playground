@@ -417,6 +417,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			[NUMBER],
 			[addr]
 		);
+		this[__private__dont__use]._free(addr);
 		this[__private__dont__use].ccall(
 			'wasm_set_content_length',
 			null,
