@@ -22,7 +22,6 @@ RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
