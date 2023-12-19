@@ -46,6 +46,11 @@ const argParser = yargs(process.argv.slice(2))
 			choices: ['yes', 'no'],
 			description: 'Build with mbstring support',
 		},
+		WITH_MBREGEX: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with mbregex support',
+		},
 		WITH_CLI_SAPI: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -117,6 +122,7 @@ const platformDefaults = {
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
 		WITH_MBSTRING: 'yes',
+		WITH_MBREGEX: 'yes',
 		WITH_OPENSSL: 'yes',
 	},
 	node: {
@@ -125,6 +131,7 @@ const platformDefaults = {
 		WITH_LIBPNG: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
+		WITH_MBREGEX: 'yes',
 		WITH_CLI_SAPI: 'yes',
 		WITH_OPENSSL: 'yes',
 		WITH_NODEFS: 'yes',
@@ -183,6 +190,8 @@ await asyncSpawn(
 		getArg('WITH_LIBPNG'),
 		'--build-arg',
 		getArg('WITH_MBSTRING'),
+		'--build-arg',
+		getArg('WITH_MBREGEX'),
 		'--build-arg',
 		getArg('WITH_CLI_SAPI'),
 		'--build-arg',
