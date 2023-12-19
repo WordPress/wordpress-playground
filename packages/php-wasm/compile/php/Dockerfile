@@ -165,11 +165,18 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	fi;
 
 # Add mbregex if needed
-RUN if [ "$WITH_MBREGEX" = "yes" ]; \
+# PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
+RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
 	then \
-		echo -n ' --enable-mbregex --with-onig=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
-	else echo -n ' --disable-mbregex ' >> /root/.php-configure-flags; \
+		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
+		# PHP >= 8.0 use the system oniguruma library.
+		# PHP ≤= 7.4 ship their own oniguruma library.
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
+	else \
+		echo -n ' --disable-mbregex ' >> /root/.php-configure-flags; \
 	fi;
 
 # Get and patch PHP
