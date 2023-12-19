@@ -134,7 +134,7 @@ const platformDefaults = {
 const platform = args.PLATFORM;
 
 /* eslint-disable prettier/prettier */
-const getArg = (name) => {
+const getArg = (name, wrapped = true) => {
 	let value =
 		name in args
 			? args[name]
@@ -146,7 +146,10 @@ const getArg = (name) => {
 	if (name === 'PHP_VERSION') {
 		value = fullyQualifiedPHPVersion(value);
 	}
-	return `${name}=${value}`;
+	if (wrapped) {
+		return `${name}=${value}`;
+	}
+	return value;
 };
 
 const requestedVersion = getArg('PHP_VERSION');
@@ -156,10 +159,21 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 	process.exit(1);
 }
 
+const [majorPhpVersion, minorPhpVersion] = getArg('PHP_VERSION', false).split(
+	'.'
+);
+
+let bisonVersion = '3';
+
+if (majorPhpVersion <= 7 && minorPhpVersion <= 3) {
+	bisonVersion = '2.7';
+}
+
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
-// Build the base image
-await asyncSpawn('make', ['base-image'], { cwd: sourceDir, stdio: 'inherit' });
+// Build the base image & bison
+const targets = ['base-image', 'bison' + bisonVersion];
+await asyncSpawn('make', targets, { cwd: sourceDir, stdio: 'inherit' });
 
 await asyncSpawn(
 	'docker',
@@ -202,6 +216,8 @@ await asyncSpawn(
 		getArg('WITH_WS_NETWORKING_PROXY'),
 		'--build-arg',
 		`EMSCRIPTEN_ENVIRONMENT=${platform === 'node' ? 'node' : 'web'}`,
+		'--build-arg',
+		`BISON_VERSION=${bisonVersion}`,
 	],
 	{ cwd: sourceDir, stdio: 'inherit' }
 );

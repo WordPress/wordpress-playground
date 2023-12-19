@@ -1,4 +1,8 @@
-FROM playground-php-wasm:base
+# The Bison version to use to build PHP with.
+# Must be 2.7 for PHP <= 7.3
+# Must be 3 for PHP >= 7.4
+ARG BISON_VERSION
+FROM playground-php-wasm:bison${BISON_VERSION}
 
 # The PHP version to build.
 # This value must point to an existing branch of the
@@ -9,7 +13,7 @@ FROM playground-php-wasm:base
 ARG PHP_VERSION
 
 # Clone PHP
-RUN git clone https://github.com/php/php-src.git php-src \
+RUN	git clone https://github.com/php/php-src.git php-src \
 	--branch PHP-$PHP_VERSION   \
 	--single-branch          \
 	--depth 1;
@@ -54,27 +58,6 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-sources && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
-
-
-# PHP <= 7.3 requires Bison 2.7
-# PHP >= 7.4 and Bison 3.0
-COPY ./bison2.7/bison27.patch /root/bison27.patch
-RUN set -euxo pipefail; \
-	if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
-		tar -xvf bison-2.7.tar.gz && \
-		rm bison-2.7.tar.gz && \
-		cd bison-2.7 && \
-		git apply --no-index /root/bison27.patch && \
-		./configure --prefix=/usr/local/bison --with-libiconv-prefix=/usr/local/libiconv/ && \
-		make && \
-		make install; \
-		mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-		ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-		ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
-	else \
-		apt install -y bison; \
-	fi;
 
 # Add libzip and zlib files if needed
 RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
@@ -196,7 +179,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 
 # Build the patched PHP
 WORKDIR /root/php-src
-RUN source /root/emsdk/emsdk_env.sh && \
+RUN banner "PHP ${PHP_VERSION}" && \
+	source /root/emsdk/emsdk_env.sh && \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
