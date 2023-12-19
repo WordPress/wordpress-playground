@@ -30,7 +30,7 @@
 	},
 	"publishConfig": {
 		"access": "public",
-		"directory": "../../../dist/packages/php-wasm/universal"
+		"directory": "../../../dist/packages/php-wasm/fs-journal"
 	},
 	"type": "module",
 	"main": "./index.cjs",
