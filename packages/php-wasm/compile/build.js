@@ -113,10 +113,11 @@ const platformDefaults = {
 	},
 	['web-light']: {},
 	['web-kitchen-sink']: {
+		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
+		WITH_OPENSSL: 'yes',
 	},
 	node: {
 		WITH_ICONV: 'yes',
