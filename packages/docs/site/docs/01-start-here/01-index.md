@@ -7,7 +7,7 @@ slug: /
 
 :::info **Looking for the official Playground website?**
 
-WordPress Playground website was moved to [wp.org/playground](https://wp.org/playground). The site you're at right now is now a home for the documentation.
+WordPress Playground website was moved to [wp.org/playground](https://wp.org/playground). The site you're at now hosts the documentation.
 
 :::
 
