@@ -1,0 +1,32 @@
+{
+	"name": "@wp-playground/stream-compression",
+	"version": "0.0.1",
+	"description": "Stream-based compression bindings.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Adam Zielinski",
+			"email": "adam@adamziel.com",
+			"url": "https://github.com/adamziel"
+		}
+	],
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/stream-compression"
+	},
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"private": true
+}
