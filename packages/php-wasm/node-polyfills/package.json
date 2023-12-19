@@ -30,5 +30,5 @@
 		"directory": "../../../dist/packages/php-wasm/node-polyfills"
 	},
 	"license": "GPL-2.0-or-later",
-	"gitHead": "5116c7de6cae951db7ff17b7b50a38856d26ab0d"
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }
