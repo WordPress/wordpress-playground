@@ -1,4 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
 import { writeFile } from './write-file';
 import { unzip } from './unzip';
 
@@ -33,8 +34,11 @@ export async function installAsset(
 	const zipFileName = zipFile.name;
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
-	const tmpUnzippedFilesPath = `/tmp/assets/${assetNameGuess}`;
-	const tmpZipPath = `/tmp/${zipFileName}`;
+	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
+	const tmpDir = joinPaths(wpContent, crypto.randomUUID());
+	await playground.mkdir(tmpDir);
+	const tmpZipPath = joinPaths(tmpDir, zipFileName);
+	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	const removeTmpFolder = () =>
 		playground.rmdir(tmpUnzippedFilesPath, {
