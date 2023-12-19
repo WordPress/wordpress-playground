@@ -283,7 +283,8 @@ export function PlaygroundConfigurationForm({
 									setWithExtensions(!withExtensions)
 								}
 							/>
-							&nbsp; Load extensions: libxml, mbstring, iconv, gd
+							&nbsp; Load extensions: libxml, openssl, mbstring,
+							iconv, gd
 						</label>
 						<label
 							className={forms.groupLabel}
