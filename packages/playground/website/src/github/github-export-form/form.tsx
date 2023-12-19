@@ -26,7 +26,7 @@ import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
-import { iterateFiles } from '@php-wasm/universal';
+import { iteratePhpFiles } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
 
 export interface GitHubExportFormProps {
@@ -316,7 +316,7 @@ export default function GitHubExportForm({
 
 			const changes = await changeset(
 				ghFiles,
-				iterateFiles(playground, playgroundPath!, {
+				iteratePhpFiles(playground, playgroundPath!, {
 					relativePaths: true,
 					pathPrefix: relativeRepoPath,
 					exceptPaths: wpContentFilesExcludedFromExport,

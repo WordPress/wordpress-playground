@@ -17,8 +17,8 @@ export type {
 	SpawnHandler,
 } from './universal-php';
 
-export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
-export { iteratePhpFiles as iterateFiles } from './iterate-files';
+export type { IteratePhpFilesOptions } from './iterate-php-files';
+export { iteratePhpFiles } from './iterate-php-files';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 

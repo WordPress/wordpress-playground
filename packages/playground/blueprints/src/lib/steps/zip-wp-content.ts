@@ -1,6 +1,6 @@
 import { joinPaths } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { UniversalPHP, iterateFiles } from '@php-wasm/universal';
+import { UniversalPHP, iteratePhpFiles } from '@php-wasm/universal';
 import { encodeZip, collectBytes } from '@wp-playground/stream-compression';
 
 interface ZipWpContentOptions {
@@ -18,11 +18,16 @@ interface ZipWpContentOptions {
  * @param playground Playground client.
  * @param wpContentZip Zipped WordPress site.
  */
-export const zipWpContent = async (playground: UniversalPHP) => {
+export const zipWpContent = async (
+	playground: UniversalPHP,
+	{ selfContained = false }: ZipWpContentOptions = {}
+) => {
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
-	let exceptPaths = wpContentFilesExcludedFromExport;
+	let exceptPaths = wpContentFilesExcludedFromExport.map((path) =>
+		joinPaths(documentRoot, 'wp-content', path)
+	);
 	/*
 	 * This is a temporary workaround to enable including the WordPress
 	 * default theme and the SQLite plugin in the exported zip file. Let's
@@ -39,18 +44,16 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 			.filter((path) => !path.startsWith('themes/twenty'))
 			.filter((path) => path !== 'plugins/sqlite-database-integration');
 	}
-  
+
 	const allFiles = async function* () {
 		const wpConfigBytes = await playground.readFileAsBuffer(
 			joinPaths(documentRoot, 'wp-config.php')
 		);
 		yield new File([wpConfigBytes], 'wp-config.php');
-		yield* iterateFiles(playground, wpContentPath, {
+		yield* iteratePhpFiles(playground, wpContentPath, {
 			relativePaths: true,
 			pathPrefix: 'wp-content/',
-			exceptPaths: wpContentFilesExcludedFromExport.map((path) =>
-				joinPaths(documentRoot, 'wp-content', path)
-			),
+			exceptPaths,
 		});
 	};
 
