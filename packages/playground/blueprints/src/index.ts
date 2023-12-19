@@ -1,3 +1,6 @@
+// Blueprints require WordPress Playground's Node polyfills.
+import '@php-wasm/node-polyfills';
+
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export { runBlueprintSteps, compileBlueprint } from './lib/compile';
