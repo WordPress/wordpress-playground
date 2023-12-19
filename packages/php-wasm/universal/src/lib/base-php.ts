@@ -19,13 +19,14 @@ import {
 	SpawnHandler,
 	PHPEventListener,
 	PHPEvent,
+	CpOptions,
 } from './universal-php';
 import {
 	getFunctionsMaybeMissingFromAsyncify,
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore } from '@php-wasm/util';
+import { Semaphore, joinPaths, basename } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -614,6 +615,77 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	@rethrowFileSystemError('Could not move "{path}"')
 	mv(fromPath: string, toPath: string) {
 		this[__private__dont__use].FS.rename(fromPath, toPath);
+	}
+
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not copy "{path}"')
+	cp(
+		sourcePath: string,
+		destinationPath: string,
+		options: CpOptions = { recursive: false }
+	) {
+		const FS = this[__private__dont__use].FS;
+
+		const sourceStat = FS.stat(sourcePath);
+
+		// The FILEMODE tells us things about the file, like
+		// permissions, whether its a file, link, or directory
+		// as well as its access and exec permissions.
+		//
+		// The 15th bit of the FILEMODE is the sticky-bit.
+		// Emscripten directories will have the sticky-bit set.
+		//
+		// We'll use a binary literal (0b...) with a logical
+		// and (&) to check for that.
+		const stickyBit = 0b100000000000000;
+		const sourceIsDir = sourceStat.mode & stickyBit;
+
+		let destinationExists: boolean;
+		let destinationIsDir = false;
+
+		try {
+			const destinationStat = FS.stat(destinationPath);
+			destinationExists = true;
+			// Similar check to above but testing if DESTINATION is a directory.
+			destinationIsDir = !!(destinationStat.mode & stickyBit);
+		} catch {
+			destinationExists = false;
+		}
+
+		if (!sourceIsDir) {
+			const file = this.readFileAsBuffer(sourcePath);
+
+			if (destinationIsDir) {
+				FS.writeFile(
+					joinPaths(destinationPath, basename(sourcePath)),
+					file
+				);
+			} else {
+				FS.writeFile(destinationPath, file);
+			}
+
+			return;
+		}
+
+		if (!options.recursive) {
+			throw new Error(
+				`Cannot use non-recurive copy on directory: ${sourcePath}`
+			);
+		}
+
+		if (!destinationExists) {
+			FS.mkdir(destinationPath);
+		}
+
+		const files = this.listFiles(sourcePath);
+
+		files.forEach((file: string) =>
+			this.cp(
+				joinPaths(sourcePath, file),
+				joinPaths(destinationPath, file),
+				options
+			)
+		);
 	}
 
 	/** @inheritDoc */

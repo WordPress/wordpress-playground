@@ -9,6 +9,9 @@
 			}
 		}
 	},
+	"affected": {
+		"defaultBase": "trunk"
+	},
 	"pluginsConfig": {
 		"@nx/js": {
 			"analyzeSourceFiles": true
