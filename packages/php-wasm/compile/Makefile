@@ -1,3 +1,5 @@
+.PHONY: base-image bison3 bison2.7
+
 base-image: base-image/.ready
 base-image/.ready:
 	cd base-image; docker build -f ./Dockerfile -t playground-php-wasm:base .
