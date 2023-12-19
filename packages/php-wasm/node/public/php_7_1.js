@@ -426,8 +426,6 @@ var UTF8ArrayToString = (heapOrArray, idx, maxBytesToRead) => {
 
 var UTF8ToString = (ptr, maxBytesToRead) => ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : "";
 
-Module["UTF8ToString"] = UTF8ToString;
-
 var ___assert_fail = (condition, filename, line, func) => {
  abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
 };
@@ -585,8 +583,6 @@ var lengthBytesUTF8 = str => {
  }
  return len;
 };
-
-Module["lengthBytesUTF8"] = lengthBytesUTF8;
 
 var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
  if (!(maxBytesToWrite > 0)) return 0;
@@ -6677,8 +6673,8 @@ var _malloc = Module["_malloc"] = function() {
  return (_malloc = Module["_malloc"] = Module["asm"]["Wa"]).apply(null, arguments);
 };
 
-var _free = function() {
- return (_free = Module["asm"]["Xa"]).apply(null, arguments);
+var _free = Module["_free"] = function() {
+ return (_free = Module["_free"] = Module["asm"]["Xa"]).apply(null, arguments);
 };
 
 var setTempRet0 = function() {
