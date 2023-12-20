@@ -1,11 +1,9 @@
+# The Bison version to use to build PHP with.
+# Must be 2.7 for PHP <= 7.3
+# Must be 3 for PHP >= 7.4
 ARG BISON_VERSION
 
-FROM playground-php-wasm:base AS bison3
-
-RUN apt install -y bison;
-
 FROM playground-php-wasm:base AS bison2.7
-
 COPY ./bison2.7/bison27.patch /root/bison27.patch
 RUN set -euxo pipefail; \
 	wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz; \
@@ -20,11 +18,24 @@ RUN set -euxo pipefail; \
 	ln -s /usr/local/bison/bin/bison /usr/bin/bison; \
 	ln -s /usr/local/bison/bin/yacc /usr/bin/yacc;
 
-# The Bison version to use to build PHP with.
-# Must be 2.7 for PHP <= 7.3
-# Must be 3 for PHP >= 7.4
-ARG BISON_VERSION
+FROM playground-php-wasm:base AS bison3
+RUN apt install -y bison;
+
 FROM playground-php-wasm:bison${BISON_VERSION}
+ARG BISON_VERSION
+ARG PHP_VERSION
+RUN set -euxo pipefail; \
+	if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
+		if [[ "${BISON_VERSION}" != "2.7" ]]; then \
+			echo -e "\e[31mBISON_VERSION must be 2.7 for PHP "${PHP_VERSION}". Got" ${BISON_VERSION} "\e[0m"; \
+			exit 128; \
+		fi; \
+	else \
+		if [[ "${BISON_VERSION}" != "3" ]]; then \
+			echo -e "\e[31mBISON_VERSION must be 3 for PHP "${PHP_VERSION}". Got" ${BISON_VERSION} "\e[0m"; \
+			exit 128; \
+		fi; \
+	fi;
 
 # The PHP version to build.
 # This value must point to an existing branch of the

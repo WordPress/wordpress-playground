@@ -174,13 +174,13 @@ const [majorPhpVersion, minorPhpVersion] = getArg('PHP_VERSION', false).split(
 let bisonVersion = '3';
 
 if (majorPhpVersion <= 7 && minorPhpVersion <= 3) {
-	bisonVersion = '2.7';
+	// bisonVersion = '2.7';
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
 // Build the base image & bison
-const targets = ['bison' + bisonVersion, 'base-image'];
+const targets = ['base-image', 'bison' + bisonVersion];
 await asyncSpawn('make', targets, { cwd: sourceDir, stdio: 'inherit' });
 
 await asyncSpawn(
