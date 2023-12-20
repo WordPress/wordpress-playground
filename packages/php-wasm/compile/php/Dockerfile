@@ -6,7 +6,7 @@ ARG BISON_VERSION
 FROM playground-php-wasm:base AS bison2.7
 COPY ./bison2.7/bison27.patch /root/bison27.patch
 RUN set -euxo pipefail; \
-	wget http://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz; \
+	wget https://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz; \
     tar -xvf bison-2.7.tar.gz; \
     rm bison-2.7.tar.gz; \
     cd bison-2.7 && { \
