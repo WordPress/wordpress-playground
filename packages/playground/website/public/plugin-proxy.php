@@ -108,14 +108,26 @@ class PluginDownloader
                 'vary',
                 'cache-Control'
             );
-            $artifact = $this->gitHubRequest($zip_download_api_endpoint, false);
-            foreach ($artifact['headers'] as $header_line) {
+            $artifact_res = $this->gitHubRequest($zip_download_api_endpoint, false, false);
+            // Sometimes the API returns a 302 redirect to the actual artifact URL.
+            foreach($artifact_res['headers'] as $header_line) {
+                $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+       	       	$header_value = trim(substr($header_line, 1 + strpos($header_line, ':')));
+       	       	if($header_name === 'location') {
+                    streamHttpResponse($header_value, 'GET', [], NULL, $allowed_headers, [
+                        'Content-Type: application/zip',
+                    ]);
+                    die();
+                }
+            }
+            // Other times the API returns the artifact directly.
+            foreach ($artifact_res['headers'] as $header_line) {
                 $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
                 if (in_array($header_name, $allowed_headers)) {
                     header($header_line);
                 }
             }
-            echo $artifact['body'];
+            echo $artifact_res['body'];
             ob_flush();
             flush();
             return;
@@ -156,7 +168,7 @@ class PluginDownloader
         }
     }
 
-    protected function gitHubRequest($url, $decode = true)
+    protected function gitHubRequest($url, $decode = true, $follow_location = true)
     {
         $headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36';
         $headers[] = 'Authorization: Bearer ' . $this->githubToken;
@@ -164,6 +176,7 @@ class PluginDownloader
             'http' => [
                 'method' => 'GET',
                 'header' => implode("\r\n", $headers),
+                'follow_location' => $follow_location
             ]
         ]);
         $response = file_get_contents($url, false, $context);
