@@ -84,7 +84,7 @@ bison2.7/dist/usr/local/bison/bin/bison: base-image bison2.7/Dockerfile
 bison3:
 	docker build --target bison3 -f ./php/Dockerfile -t playground-php-wasm:bison3 . --progress=plain
 
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison3 bison2.7
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist
