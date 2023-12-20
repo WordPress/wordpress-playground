@@ -98,6 +98,44 @@ export async function startPlaygroundWeb({
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
+	await playground.defineConstant('WP_ALLOW_MULTISITE', true);
+	await playground.defineConstant('DOMAIN_CURRENT_SITE', 'localhost:5400');
+	await playground.defineConstant(
+		'PATH_CURRENT_SITE',
+		new URL(await playground.absoluteUrl).pathname
+	);
+
+	const response = await playground.run({
+		code: `<?php
+
+		define( 'WP_ALLOW_MULTISITE', true ); 
+		define( 'WP_INSTALLING_NETWORK', true );
+		require '/wordpress/wp-load.php'; 
+		require '/wordpress/wp-admin/includes/plugin.php'; 
+		deactivate_plugins('wordpress-importer/wordpress-importer.php');
+
+		require '/wordpress/wp-admin/includes/network.php'; 
+		foreach ( $wpdb->tables( 'ms_global' ) as $table => $prefixed_table ) {
+			$wpdb->$table = $prefixed_table;
+		}
+		require_once '/wordpress/wp-admin/includes/upgrade.php';
+
+		$result = install_network();
+		var_dump($result);
+		require_once '/wordpress/wp-admin/includes/upgrade.php';
+		$base = "${new URL(await playground.absoluteUrl).pathname}";
+		$result = populate_network( 1, "localhost:5400", sanitize_email( "adam@adamziel.com" ), wp_unslash( "My network!" ), $base, $subdomain_install = false );
+		var_dump($result);
+		`,
+	});
+	console.log(response.text);
+
+	await playground.defineConstant('MULTISITE', true);
+	await playground.defineConstant('SUBDOMAIN_INSTALL', false);
+	await playground.defineConstant('SITE_ID_CURRENT_SITE', 1);
+	await playground.defineConstant('BLOG_ID_CURRENT_SITE', 1);
+	console.log('defined');
+
 	return playground;
 }
 

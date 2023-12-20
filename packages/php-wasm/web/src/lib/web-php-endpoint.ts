@@ -179,7 +179,7 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
-	defineConstant(key: string, value: string | number | null): void {
+	defineConstant(key: string, value: string | boolean | number | null): void {
 		_private.get(this)!.php.defineConstant(key, value);
 	}
 
