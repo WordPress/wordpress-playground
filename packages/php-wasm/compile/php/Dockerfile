@@ -45,6 +45,7 @@ ARG WITH_SQLITE
 ARG WITH_MYSQL
 ARG WITH_OPENSSL
 ARG WITH_ICONV
+ARG WITH_READLINE
 ARG WITH_SOURCEMAPS
 ARG WITH_WS_NETWORKING_PROXY
 
@@ -93,20 +94,26 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 	fi;
 	
 
-# Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 	then \
 		# Configure build flags
-		echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
+		echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
 		echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
 			>> /root/.emcc-php-wasm-sources && \
 		echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-		echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags && \
-		# Disable dlopen() in the readline PHP extension
-		echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h && \
-		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
+		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags; \
 	else \
 		echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
+	fi;
+
+# Add ncurses if needed and libedit if needed
+RUN if [ "$WITH_READLINE" = "yes" ]; \
+	then \
+		echo -n ' --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
+		echo -n ' -lncurses -ledit ' >> /root/.emcc-php-wasm-flags && \
+		# Disable dlopen() in the readline PHP extension
+		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
+		echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h; \
 	fi;
 
 # Add Libxml2 if needed
@@ -202,6 +209,9 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
 	fi
 
+# @TODO: Figure out why this is needed:
+RUN sed -i 's/HARDCODED_INI/HARDCODED_INI2/g' /root/php-src/sapi/cli/php_cli.c
+
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
@@ -225,7 +235,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--disable-all      \
 	--enable-hash      \
 	--enable-static=yes \
-	--enable-shared=no \
+	--enable-shared=yes \
 	--enable-session   \
 	--enable-filter    \
 	--enable-calendar  \
@@ -434,6 +444,11 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_fwrite",\
 "php_stdiop_write",\
 "zif_array_filter",\
+"dlopen",\
+"zend_load_extension",\
+"zend_llist_apply",\
+"php_ini_register_extensions",\
+"php_load_zend_extension_cb",\
 "zend_call_known_instance_method_with_2_params",\
 "zend_fetch_dimension_address_read_R",\
 "_zval_dtor_func_for_ptr",\
@@ -739,6 +754,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_compiler_globals", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
@@ -783,6 +799,7 @@ RUN set -euxo pipefail; \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \
 	-s ASSERTIONS=0                  \
+    -s MAIN_MODULE                   \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=0  \
 	-s NODEJS_CATCH_EXIT=0           \
 	-s NODEJS_CATCH_REJECTION=0      \
@@ -876,6 +893,8 @@ RUN set -euxo pipefail; \
 		# wrapper function.
 		/root/replace.sh $'s/ENVIRONMENT_IS_([A-Z]+)\s*=\s*(true|false)/ENVIRONMENT_IS_$1=RuntimeName==="$1"/g' /root/output/php.js; \
 		/root/replace.sh 's/var ENV\s*=\s*\{/var ENV = PHPLoader.ENV || {/g' /root/output/php.js; \
+		/root/replace.sh 's/__dlopen_js\./__dlopen_js_unused./g' /root/output/php.js; \
+		/root/replace.sh 's/__dlopen_js\s*=/__dlopen_js_unused =/g' /root/output/php.js; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.

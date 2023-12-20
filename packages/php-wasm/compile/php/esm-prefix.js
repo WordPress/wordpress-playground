@@ -34,4 +34,10 @@ export function init(RuntimeName, PHPLoader) {
         }
     }
 
+    const __dlopen_js = function (handle) {
+        var jsflags = { loadAsync: false }
+        return dlopenInternal(handle, jsflags);
+    };
+    __dlopen_js.isAsync = false;
+    
     // The rest of the code comes from the built php.js file and esm-suffix.js
