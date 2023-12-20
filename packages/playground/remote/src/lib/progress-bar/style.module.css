@@ -83,3 +83,14 @@
 	font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 	font-size: 1.1rem;
 }
+
+@media (prefers-color-scheme: dark) {
+	.overlay {
+		background: #1e1e1e;
+		color: #fff;
+	}
+
+	.wrapper {
+		background: #32363a;
+	}
+}

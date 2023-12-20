@@ -57,7 +57,7 @@ The `preferredVersions` property, unsurprisingly, declares the preferred of PHP 
 
 The `phpExtensionBundles` property is an array of PHP extension bundles to load. The following bundles are supported:
 
--   `kitchen-sink`: Installs `gd`, `mbstring`, `iconv`, `libxml`, `xml`, `dom`, `simplexml`, `xmlreader`, `xmlwriter`
+-   `kitchen-sink`: Installs `gd`, `mbstring`, `iconv`, `openssl`, `libxml`, `xml`, `dom`, `simplexml`, `xmlreader`, `xmlwriter`
 
 ## Features
 

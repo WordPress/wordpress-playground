@@ -50,6 +50,7 @@ export default defineConfig({
 
 	test: {
 		globals: true,
+		setupFiles: ['./src/vitest-setup-file.ts'],
 		cache: {
 			dir: '../../../node_modules/.vitest',
 		},

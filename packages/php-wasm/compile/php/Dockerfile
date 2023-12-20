@@ -54,6 +54,7 @@ COPY ./libxml2/dist/root/lib /root/lib
 COPY ./libz/dist/root/lib /root/lib
 COPY ./libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
 COPY ./libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
+COPY ./oniguruma/dist/root/lib /root/lib
 
 # Build PHP
 
@@ -63,6 +64,7 @@ ARG WITH_LIBXML
 ARG WITH_LIBZIP
 ARG WITH_LIBPNG
 ARG WITH_MBSTRING
+ARG WITH_MBREGEX
 ARG WITH_CLI_SAPI
 ARG WITH_SQLITE
 ARG WITH_MYSQL
@@ -103,6 +105,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
 	fi;
+
 
 # Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
@@ -175,6 +178,21 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	else echo -n ' --disable-mbstring ' >> /root/.php-configure-flags; \
 	fi;
 
+# Add mbregex if needed
+# PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
+RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
+	then \
+		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
+		# PHP >= 8.0 use the system oniguruma library.
+		# PHP ≤= 7.4 ship their own oniguruma library.
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
+			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
+		fi; \
+	else \
+		echo -n ' --disable-mbregex ' >> /root/.php-configure-flags; \
+	fi;
+
 # Get and patch PHP
 COPY ./php/php*.patch /root/
 RUN cd /root && \
@@ -233,7 +251,6 @@ RUN banner "PHP ${PHP_VERSION}" && \
 	--without-pcre-jit \
 	--enable-bcmath    \
 	--enable-ctype     \
-	--disable-mbregex  \
 	--enable-tokenizer \
 	$(cat /root/.php-configure-flags)
 

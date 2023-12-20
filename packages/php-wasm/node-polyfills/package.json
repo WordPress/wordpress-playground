@@ -1,0 +1,34 @@
+{
+	"name": "@php-wasm/node-polyfills",
+	"version": "0.5.2",
+	"description": "PHP.wasm – polyfills for Node.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Adam Zielinski",
+			"email": "adam@adamziel.com",
+			"url": "https://github.com/adamziel"
+		}
+	],
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.js",
+	"exports": {
+		".": {
+			"import": "./index.js",
+			"require": "./index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/node-polyfills"
+	},
+	"license": "GPL-2.0-or-later",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
+}

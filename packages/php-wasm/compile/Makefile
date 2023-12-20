@@ -84,7 +84,15 @@ bison2.7/dist/usr/local/bison/bin/bison: base-image
 bison3:
 	docker build --target bison3 -f ./php/Dockerfile -t playground-php-wasm:bison3 . --progress=plain
 
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison3 bison2.7
+oniguruma: oniguruma/dist/root/lib/lib/libonig.a
+oniguruma/dist/root/lib/lib/libonig.a: base-image
+	mkdir -p ./oniguruma/dist/root/lib/lib
+	docker build -f ./oniguruma/Dockerfile -t playground-php-wasm:oniguruma . --progress=plain
+	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/dist/root/lib/
+	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/dist/root/lib
+
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 bison3 oniguruma
+
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist
@@ -96,3 +104,4 @@ clean:
 	rm -rf ./libncurses/dist
 	rm -rf ./libedit/dist
 	rm -rf ./bison2.7/dist
+	rm -rf ./oniguruma/dist
