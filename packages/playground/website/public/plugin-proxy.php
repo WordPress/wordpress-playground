@@ -109,28 +109,22 @@ class PluginDownloader
                 'cache-Control'
             );
             $artifact_res = $this->gitHubRequest($zip_download_api_endpoint, false, false);
-            // Sometimes the API returns a 302 redirect to the actual artifact URL.
-            foreach($artifact_res['headers'] as $header_line) {
+            ob_end_flush();
+            flush();
+
+            // The API endpoint returns the actual artifact URL as a 302 Location header.
+            foreach ($artifact_res['headers'] as $header_line) {
                 $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-       	       	$header_value = trim(substr($header_line, 1 + strpos($header_line, ':')));
-       	       	if($header_name === 'location') {
+                $header_value = trim(substr($header_line, 1 + strpos($header_line, ':')));
+                if ($header_name === 'location') {
                     streamHttpResponse($header_value, 'GET', [], NULL, $allowed_headers, [
                         'Content-Type: application/zip',
                     ]);
                     die();
                 }
             }
-            // Other times the API returns the artifact directly.
-            foreach ($artifact_res['headers'] as $header_line) {
-                $header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-                if (in_array($header_name, $allowed_headers)) {
-                    header($header_line);
-                }
-            }
-            echo $artifact_res['body'];
-            ob_flush();
-            flush();
-            return;
+
+            throw new ApiException('artifact_redirect_not_present');
         }
         if (!$artifacts) {
             throw new ApiException('artifact_not_available');
