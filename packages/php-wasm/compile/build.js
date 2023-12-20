@@ -174,7 +174,7 @@ const [majorPhpVersion, minorPhpVersion] = getArg('PHP_VERSION', false).split(
 let bisonVersion = '3';
 
 if (majorPhpVersion <= 7 && minorPhpVersion <= 3) {
-	// bisonVersion = '2.7';
+	bisonVersion = '2.7';
 }
 
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
