@@ -78,7 +78,7 @@ libedit/dist/root/lib/lib/libedit.a: base-image libncurses
 	docker cp $$(docker create playground-php-wasm:libedit):/root/install/include ./libedit/dist/root/lib
 
 bison2.7: bison2.7/dist/usr/local/bison/bin/bison
-bison2.7/dist/usr/local/bison/bin/bison: base-image bison2.7/Dockerfile
+bison2.7/dist/usr/local/bison/bin/bison: base-image
 	docker build --target bison2.7 -f ./php/Dockerfile -t playground-php-wasm:bison2.7 . --progress=plain
 
 bison3:
