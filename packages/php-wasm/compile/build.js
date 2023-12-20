@@ -172,7 +172,7 @@ if (majorPhpVersion <= 7 && minorPhpVersion <= 3) {
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
 // Build the base image & bison
-const targets = ['base-image', 'bison' + bisonVersion];
+const targets = ['bison' + bisonVersion, 'base-image'];
 await asyncSpawn('make', targets, { cwd: sourceDir, stdio: 'inherit' });
 
 await asyncSpawn(

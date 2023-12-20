@@ -79,14 +79,12 @@ libedit/dist/root/lib/lib/libedit.a: base-image libncurses
 
 bison2.7: bison2.7/dist/usr/local/bison/bin/bison
 bison2.7/dist/usr/local/bison/bin/bison: base-image bison2.7/Dockerfile
-	mkdir -p ./bison2.7/dist/usr/local/bison
-	docker build -f ./bison2.7/Dockerfile -t playground-php-wasm:bison2.7 . --progress=plain
-	docker cp $$(docker create playground-php-wasm:bison2.7):/usr/local/bison ./bison2.7/dist/usr/local
+	docker build --target bison2.7 -f ./php/Dockerfile -t playground-php-wasm:bison2.7 . --progress=plain
 
-bison3: base-image bison3/Dockerfile
-	docker build -f ./bison3/Dockerfile -t playground-php-wasm:bison3 . --progress=plain
+bison3:
+	docker build --target bison3 -f ./php/Dockerfile -t playground-php-wasm:bison3 . --progress=plain
 
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist

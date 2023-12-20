@@ -1,8 +1,10 @@
-FROM playground-php-wasm:base as bison3
+ARG BISON_VERSION
+
+FROM playground-php-wasm:base AS bison3
 
 RUN apt install -y bison;
 
-FROM playground-php-wasm:base as bison2.7
+FROM playground-php-wasm:base AS bison2.7
 
 COPY ./bison2.7/bison27.patch /root/bison27.patch
 RUN set -euxo pipefail; \
@@ -22,7 +24,7 @@ RUN set -euxo pipefail; \
 # Must be 2.7 for PHP <= 7.3
 # Must be 3 for PHP >= 7.4
 ARG BISON_VERSION
-FROM bison${BISON_VERSION}
+FROM playground-php-wasm:bison${BISON_VERSION}
 
 # The PHP version to build.
 # This value must point to an existing branch of the
