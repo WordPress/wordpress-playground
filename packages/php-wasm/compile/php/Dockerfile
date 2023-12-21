@@ -91,7 +91,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
 	fi;
-
+	
 
 # Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
@@ -740,9 +740,6 @@ RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
 "_php_wasm_init", \n\
-"_malloc", \n\
-"stringToUTF8", \n\
-"_free", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
 "_phpwasm_register_uploaded_file", \n\
