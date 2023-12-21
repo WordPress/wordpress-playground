@@ -5,13 +5,7 @@ import { getRemoteUrl } from './config';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
-	storage?:
-		| 'opfs-host'
-		| 'opfs-browser'
-		| 'browser'
-		| 'device'
-		| 'none'
-		| 'temporary';
+	storage?: 'browser' | 'device' | 'none';
 }
 export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const iframeRef = useRef<HTMLIFrameElement>(null);
