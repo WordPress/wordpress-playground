@@ -1,4 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
+import { joinPaths } from '@php-wasm/util';
 import { writeFile } from './write-file';
 import { unzip } from './unzip';
 
@@ -29,29 +30,25 @@ export async function installAsset(
 	assetFolderName: string;
 }> {
 	// Extract to temporary folder so we can find asset folder name
-
 	const zipFileName = zipFile.name;
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
-	const tmpUnzippedFilesPath = `/tmp/assets/${assetNameGuess}`;
-	const tmpZipPath = `/tmp/${zipFileName}`;
-
-	const removeTmpFolder = () =>
-		playground.rmdir(tmpUnzippedFilesPath, {
-			recursive: true,
-		});
+	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
+	const tmpDir = joinPaths(wpContent, crypto.randomUUID());
+	const tmpZipPath = joinPaths(tmpDir, zipFileName);
+	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	if (await playground.fileExists(tmpUnzippedFilesPath)) {
-		await removeTmpFolder();
+		await playground.rmdir(tmpDir, {
+			recursive: true,
+		});
 	}
+	await playground.mkdir(tmpDir);
 
 	await writeFile(playground, {
 		path: tmpZipPath,
 		data: zipFile,
 	});
-
-	const cleanup = () =>
-		Promise.all([removeTmpFolder, () => playground.unlink(tmpZipPath)]);
 
 	try {
 		await unzip(playground, {
@@ -84,14 +81,14 @@ export async function installAsset(
 		// Move asset folder to target path
 		const assetFolderPath = `${targetPath}/${assetFolderName}`;
 		await playground.mv(tmpAssetPath, assetFolderPath);
-		await cleanup();
 
 		return {
 			assetFolderPath,
 			assetFolderName,
 		};
-	} catch (error) {
-		await cleanup();
-		throw error;
+	} finally {
+		await playground.rmdir(tmpDir, {
+			recursive: true,
+		});
 	}
 }

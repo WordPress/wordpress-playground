@@ -3,6 +3,26 @@
  *
  * This file abstracts the entire PHP API with the minimal set
  * of functions required to run PHP code from JavaScript.
+ *
+ * !! NOTE FOR FUTURE MAINTAINERS !!
+ *
+ * When debugging memory errors, it's important to understand the behavior of the stack in the Emscripten environment:
+ *
+ * - The stack does not grow automatically. If the stack runs out of space, it will not be expanded automatically, unlike in traditional C programs built with compilers like GCC or Clang.
+ * - The stack size is limited. The default stack size in Emscripten is considerably smaller than in a typical C environment. There have been discussions about reducing it even further.
+ *
+ * When passing in long strings from JS, Use the heap instead of the stack to hold large chunks of data. Here's how:
+ *
+ * // Set the memory
+ * const size = Module.lengthBytesUTF8(body);
+ * const addr = Module._malloc(size + 1);
+ * Module.stringToUTF8(body, addr, size + 1);
+ *
+ * // Call your function
+ * Module.ccall('wasm_set_request_body', null, NUMBER], [addr]);
+ *
+ * // Clean up the memory. REQUIRED if the C code doesn't do this!!!
+ * Module._free(addr);
  */
 #include <main/php.h>
 #include <main/SAPI.h>
