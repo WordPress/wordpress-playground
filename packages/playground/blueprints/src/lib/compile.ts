@@ -33,6 +33,7 @@ import type { ValidateFunction } from 'ajv';
 export type CompiledStep = (php: UniversalPHP) => Promise<void> | void;
 
 export interface CompiledBlueprint {
+	helloWorld?: string;
 	/** The requested versions of PHP and WordPress for the blueprint */
 	versions: {
 		php: SupportedPHPVersion;

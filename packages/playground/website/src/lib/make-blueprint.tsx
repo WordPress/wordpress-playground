@@ -11,6 +11,7 @@ interface MakeBlueprintOptions {
 	plugins?: string[];
 	importSite?: string;
 	importContent?: string;
+	helloWorld?: string;
 }
 
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
@@ -23,6 +24,7 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 		},
 		phpExtensionBundles: options.phpExtensionBundles as any,
 		features: options.features,
+		helloWorld: options.helloWorld,
 		steps: [
 			options.importSite &&
 				/^(http(s?)):\/\//i.test(options.importSite) && {

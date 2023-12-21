@@ -63,6 +63,7 @@ export async function resolveBlueprint() {
 			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 			importSite: query.get('import-site') || undefined,
 			importContent: query.get('import-content') || undefined,
+			helloWorld: query.get('hello-world') || 'Hello World!',
 		});
 	}
 

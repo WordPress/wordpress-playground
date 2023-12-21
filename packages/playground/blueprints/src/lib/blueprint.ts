@@ -80,4 +80,9 @@ export interface Blueprint {
 	 * executed.
 	 */
 	steps?: Array<StepDefinition | string | undefined | false | null>;
+
+	/**
+	 * Print messages to the console.
+	 */
+	helloWorld?: string;
 }

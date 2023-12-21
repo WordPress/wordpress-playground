@@ -5,6 +5,10 @@
 		"Blueprint": {
 			"type": "object",
 			"properties": {
+				"helloWorld": {
+					"type": "string",
+					"description": "A friendly greeting to display in the UI."
+				},
 				"landingPage": {
 					"type": "string",
 					"description": "The URL to navigate to after the blueprint has been run."
