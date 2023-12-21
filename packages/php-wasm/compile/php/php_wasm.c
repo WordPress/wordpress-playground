@@ -771,7 +771,7 @@ void wasm_set_content_type(char* content_type) {
  *  request_body: the request body, e.g. "name=John&age=30"
  */
 void wasm_set_request_body(char* request_body) {
-	wasm_server_context->request_body = strdup(request_body);
+	wasm_server_context->request_body = request_body;
 }
 
 /**
