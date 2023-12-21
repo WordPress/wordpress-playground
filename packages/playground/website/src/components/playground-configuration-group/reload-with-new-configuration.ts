@@ -5,10 +5,7 @@ export async function reloadWithNewConfiguration(
 	playground: PlaygroundClient,
 	config: PlaygroundConfiguration
 ) {
-	if (
-		config.resetSite &&
-		(config.storage === 'opfs-browser' || config.storage === 'browser')
-	) {
+	if (config.resetSite && config.storage === 'browser') {
 		await playground?.resetVirtualOpfs();
 	}
 
