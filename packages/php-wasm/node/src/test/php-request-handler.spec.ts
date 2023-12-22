@@ -142,7 +142,7 @@ describe.each(SupportedPHPVersions)(
 			 */
 			await php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(file_exists('/tmp/moved.txt'));`
 			);
@@ -164,7 +164,7 @@ describe.each(SupportedPHPVersions)(
 		it('Should handle an empty file object and post data', async () => {
 			await php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				echo json_encode($_POST);`
 			);
 			const response = await handler.request({
@@ -177,6 +177,42 @@ describe.each(SupportedPHPVersions)(
 				},
 			});
 			expect(response.json).toEqual({ foo: 'bar' });
+		});
+
+		it('Can accept a request body with a size of 1MB without crashing', async () => {
+			php.writeFile('/index.php', `<?php echo 'Hello World';`);
+			const response = await handler.request({
+				url: '/',
+				body: '#'.repeat(1024 * 1024),
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Hello World'),
+				errors: '',
+				exitCode: 1, // @TODO This should be 0
+			});
+		});
+
+		it('Can accept a request body with a size of ~512MB without crashing', async () => {
+			php.writeFile('/index.php', `<?php echo 'Hello World';`);
+			const response = await handler.request({
+				url: '/',
+				body: '#'.repeat(1024 * 1024 * 512 + -32),
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Hello World'),
+				errors: '',
+				exitCode: 1, // @TODO This should be 0
+			});
 		});
 	}
 );
