@@ -1,14 +1,14 @@
 {
-	"name": "playground-stream-compression",
+	"name": "php-wasm-stream-compression",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
-	"sourceRoot": "packages/playground/stream-compression/src",
+	"sourceRoot": "packages/php-wasm/stream-compression/src",
 	"projectType": "library",
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"outputPath": "dist/packages/playground/stream-compression"
+				"outputPath": "dist/packages/php-wasm/stream-compression"
 			}
 		},
 		"test": {
@@ -16,7 +16,7 @@
 			"outputs": ["{options.reportsDirectory}"],
 			"options": {
 				"passWithNoTests": true,
-				"reportsDirectory": "../../../coverage/packages/playground/stream-compression"
+				"reportsDirectory": "../../../coverage/packages/php-wasm/stream-compression"
 			}
 		},
 		"lint": {
@@ -24,11 +24,11 @@
 			"outputs": ["{options.outputFile}"],
 			"options": {
 				"lintFilePatterns": [
-					"packages/playground/stream-compression/**/*.ts",
-					"packages/playground/stream-compression/package.json"
+					"packages/php-wasm/stream-compression/**/*.ts",
+					"packages/php-wasm/stream-compression/package.json"
 				]
 			}
 		}
 	},
-	"tags": []
+	"tags": ["scope:independent-from-php-binaries"]
 }

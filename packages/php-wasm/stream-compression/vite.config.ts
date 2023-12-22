@@ -6,7 +6,7 @@ import * as path from 'path';
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
 export default defineConfig({
-	cacheDir: '../../../node_modules/.vite/playground-stream-compression',
+	cacheDir: '../../../node_modules/.vite/php-wasm-stream-compression',
 
 	plugins: [
 		dts({
@@ -29,7 +29,7 @@ export default defineConfig({
 		lib: {
 			// Could also be a dictionary or array of multiple entry points.
 			entry: 'src/index.ts',
-			name: 'playground-stream-compression',
+			name: 'php-wasm-stream-compression',
 			fileName: 'index',
 			// Change this to the formats you want to support.
 			// Don't forget to update your package.json as well.
