@@ -1,7 +1,7 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
-import { runPhpWithZipFunctions } from './common';
-import { wpContentFilesExcludedFromExport } from './common';
 import { UniversalPHP } from '@php-wasm/universal';
+import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
 
 interface ZipWpContentOptions {
 	/**

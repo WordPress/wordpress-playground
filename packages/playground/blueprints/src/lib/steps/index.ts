@@ -37,8 +37,6 @@ export type StepDefinition = Step & {
 	};
 };
 
-export { wpContentFilesExcludedFromExport } from './common';
-
 /**
  * If you add a step here, make sure to also
  * add it to the exports below.
