@@ -884,6 +884,7 @@ RUN set -euxo pipefail; \
 		else \
 			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		fi; \
+		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
 		cat /root/esm-prefix.js >> /root/output/php-module.js && \
 		cat /root/output/php.js >> /root/output/php-module.js && \
