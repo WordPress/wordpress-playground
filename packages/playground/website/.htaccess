@@ -1,0 +1,3 @@
+<FilesMatch "(client\/|blueprint-schema\.json)">
+Header set Access-Control-Allow-Origin "*"
+</FilesMatch>
