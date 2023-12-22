@@ -57,9 +57,11 @@ export async function installAsset(
 		});
 
 		// Find the path asset folder name
-		const files = await playground.listFiles(tmpUnzippedFilesPath, {
+		let files = await playground.listFiles(tmpUnzippedFilesPath, {
 			prependPath: true,
 		});
+		// _unzip_file_ziparchive in WordPress skips the __MACOSX files, and so should we here.
+		files = files.filter((name) => !name.endsWith('/__MACOSX'));
 
 		/**
 		 * If the zip only contains a single entry that is directory,
