@@ -1,10 +1,10 @@
-import { UniversalPHP } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
+import { UniversalPHP } from './universal-php';
 
 /**
  * Writes streamed files to PHP filesystem.
  */
-export function streamWriteToPhp(php: UniversalPHP, root: string) {
+export function writeFilesStreamToPhp(php: UniversalPHP, root: string) {
 	return new WritableStream({
 		async write(file: File) {
 			const filePath = joinPaths(root, file.name);
