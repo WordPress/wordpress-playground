@@ -1,4 +1,7 @@
+import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
+/** @ts-ignore */
+import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
 
 /**
  * @inheritDoc defineWpConfigConsts
@@ -27,7 +30,7 @@ export interface DefineWpConfigConstsStep {
 }
 
 /**
- * Defines constants to be used in wp-config.php file.
+ * Defines constants in a wp-config.php file.
  *
  * This step can be called multiple times, and the constants will be merged.
  *
@@ -37,7 +40,16 @@ export interface DefineWpConfigConstsStep {
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
 > = async (playground, { consts }) => {
-	for (const key in consts) {
-		await playground.defineConstant(key, consts[key] as string);
-	}
+	const js = phpVars({
+		consts,
+		documentRoot: await playground.documentRoot,
+	});
+	await playground.run({
+		code: `${rewriteWpConfigToDefineConstants}
+		$wp_config_path = ${js.documentRoot} . '/wp-config.php';
+		$wp_config = file_get_contents($wp_config_path);
+		$new_wp_config = rewrite_wp_config_to_define_constants($wp_config, ${js.consts});
+		file_put_contents($wp_config_path, $new_wp_config);
+		`,
+	});
 };

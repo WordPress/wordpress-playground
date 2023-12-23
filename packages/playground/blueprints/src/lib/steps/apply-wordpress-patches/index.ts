@@ -9,8 +9,6 @@ import transportFetch from './wp-content/mu-plugins/playground-includes/wp_http_
 import transportDummy from './wp-content/mu-plugins/playground-includes/requests_transport_dummy.php?raw';
 /** @ts-ignore */
 import playgroundMuPlugin from './wp-content/mu-plugins/0-playground.php?raw';
-/** @ts-ignore */
-import wrapDefineCallsInIfs from './wrap-define-calls-in-ifs.php?raw';
 
 /**
  * @private
@@ -136,7 +134,6 @@ class WordPressPatcher {
 
 	async prepareForRunningInsideWebBrowser() {
 		// Various tweaks
-		this.patchWpConfigDefineIfNotDefined();
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/mu-plugins`);
 		await this.php.writeFile(
 			`${this.wordpressPath}/wp-content/mu-plugins/0-playground.php`,
@@ -149,38 +146,6 @@ class WordPressPatcher {
 			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`,
 			transportDummy
 		);
-	}
-
-	/**
-	 * Wraps all define calls in a conditional if(!defined()) to ensure that the default
-	 * wp-config.php constants will not class with the ones defined with the `defineWpConfigConsts`
-	 * Blueprint step.
-	 */
-	async patchWpConfigDefineIfNotDefined() {
-		const result = await this.php.run({
-			code: `${wrapDefineCallsInIfs}
-				$wp_config_path = '${this.wordpressPath}/wp-config.php';
-				if(file_exists($wp_config_path)) {
-					$contents = file_get_contents($wp_config_path);
-				} else {
-					$contents = '';
-				}
-
-				// Naively bale out if the file seems to already have the if(!defined()) guards
-				// @TODO: consider using tokens instead of this naive approach
-				if ( strpos($contents, 'if(!defined(') ) {
-					die();
-				}
-
-				file_put_contents(
-					$wp_config_path, 
-					wrap_define_calls_in_ifs($contents)
-				);
-			`,
-		});
-		if (result.errors) {
-			throw new Error(result.errors);
-		}
 	}
 
 	async addFetchNetworkTransport() {
