@@ -201,7 +201,7 @@ describe.each(SupportedPHPVersions)(
 			php.writeFile('/index.php', `<?php echo 'Hello World';`);
 			const response = await handler.request({
 				url: '/',
-				body: '#'.repeat(1024 * 1024 * 512 + -32),
+				body: '#'.repeat(1024 * 1024 * 512 + -24),
 			});
 			expect(response).toEqual({
 				httpStatusCode: 200,

@@ -1,5 +1,5 @@
 const dependencyFilename = __dirname + '/7_1_30/php_7_1.wasm'; 
-export const dependenciesTotalSize = 11585552; 
+export const dependenciesTotalSize = 11585553; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -3966,8 +3966,6 @@ function ___syscall_ftruncate64(fd, length_low, length_high) {
 
 var stringToUTF8 = (str, outPtr, maxBytesToWrite) => stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
 
-Module["stringToUTF8"] = stringToUTF8;
-
 function ___syscall_getcwd(buf, size) {
  try {
   if (size === 0) return -28;
@@ -6669,12 +6667,12 @@ var _memcpy = function() {
  return (_memcpy = Module["asm"]["Va"]).apply(null, arguments);
 };
 
-var _malloc = Module["_malloc"] = function() {
- return (_malloc = Module["_malloc"] = Module["asm"]["Wa"]).apply(null, arguments);
+var _malloc = function() {
+ return (_malloc = Module["asm"]["Wa"]).apply(null, arguments);
 };
 
-var _free = Module["_free"] = function() {
- return (_free = Module["_free"] = Module["asm"]["Xa"]).apply(null, arguments);
+var _free = function() {
+ return (_free = Module["asm"]["Xa"]).apply(null, arguments);
 };
 
 var setTempRet0 = function() {
