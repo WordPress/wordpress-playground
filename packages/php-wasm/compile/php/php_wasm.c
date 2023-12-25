@@ -25,6 +25,9 @@
 #include "SAPI.h"
 #include "proc_open.h"
 
+#include "tag_processor.h"
+#include "tag_processor.c"
+
 unsigned int wasm_sleep(unsigned int time) {
 	emscripten_sleep(time * 1000); // emscripten_sleep takes time in milliseconds
 	return time;
@@ -310,6 +313,27 @@ PHP_FUNCTION(post_message_to_js)
 }
 
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tp_count_tags, 0, 1, 1)
+	ZEND_ARG_INFO(0, html)
+ZEND_END_ARG_INFO()
+
+PHP_FUNCTION(tp_count_tags)
+{
+    struct tp_slice html = tp_empty_slice();
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &html.string, &html.length) == FAILURE) {
+		return;
+	}
+
+    struct tp_state s = tp_new(html);
+    long tag_count = 0;
+    while (tp_next_tag(&s)) {
+        tag_count++;
+    }
+    printf("Found %ld tags\n", tag_count);
+    RETURN_LONG(tag_count);
+}
+
+
 #if WITH_CLI_SAPI == 1
 #include "sapi/cli/php_cli_process_title.h"
 #if PHP_MAJOR_VERSION >= 8
@@ -342,6 +366,7 @@ static const zend_function_entry additional_functions[] = {
 	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
 	PHP_FE(cli_get_process_title,        arginfo_cli_get_process_title)
 	PHP_FE(post_message_to_js,      arginfo_post_message_to_js)
+	PHP_FE(tp_count_tags,      arginfo_tp_count_tags)
 	{NULL, NULL, NULL}
 };
 
@@ -386,6 +411,7 @@ int run_cli() {
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
 	PHP_FE(post_message_to_js,      arginfo_post_message_to_js)
+	PHP_FE(tp_count_tags,      		arginfo_tp_count_tags)
 	{NULL, NULL, NULL}
 };
 #endif

@@ -296,6 +296,7 @@ RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
 COPY ./php/proc_open* /root/
+COPY ./php/tag_processor* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
 		 cp /root/proc_open7.0.c /root/proc_open.c; \

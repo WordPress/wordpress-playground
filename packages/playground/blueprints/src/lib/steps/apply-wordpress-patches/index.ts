@@ -84,6 +84,10 @@ class WordPressPatcher {
 			`${this.wordpressPath}/phpinfo.php`,
 			'<?php phpinfo(); '
 		);
+		await this.php.writeFile(
+			`${this.wordpressPath}/tag-processor.php`,
+			'<?php var_dump(tp_count_tags("<html>")); '
+		);
 	}
 
 	async patchSiteUrl() {
