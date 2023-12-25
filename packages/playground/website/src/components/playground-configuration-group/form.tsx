@@ -136,7 +136,7 @@ export function PlaygroundConfigurationForm({
 							Browser: stored in this browser.
 						</label>
 					</li>
-					{storage === 'opfs-browser' ? (
+					{storage === 'browser' ? (
 						<li
 							style={{ marginLeft: 40 }}
 							className={resetSite ? css.danger : ''}
@@ -149,7 +149,7 @@ export function PlaygroundConfigurationForm({
 									!!currentlyRunningWordPressVersion &&
 									wp !== currentlyRunningWordPressVersion
 								}
-								id="storage-opfs-browser-reset"
+								id="storage-browser-reset"
 								className={forms.radioInput}
 								onChange={(
 									event: React.ChangeEvent<HTMLInputElement>
@@ -159,7 +159,7 @@ export function PlaygroundConfigurationForm({
 								checked={resetSite}
 							/>
 							<label
-								htmlFor="storage-opfs-browser-reset"
+								htmlFor="storage-browser-reset"
 								className={forms.radioLabel}
 							>
 								Delete stored data and start fresh
@@ -197,7 +197,7 @@ export function PlaygroundConfigurationForm({
 							)}
 						</label>
 					</li>
-					{storage === 'opfs-host' || storage === 'device' ? (
+					{storage === 'device' ? (
 						<li>
 							<div>
 								<p>
@@ -242,7 +242,7 @@ export function PlaygroundConfigurationForm({
 					) : null}
 				</ul>
 			</div>
-			{storage !== 'device' && storage !== 'opfs-host' ? (
+			{storage !== 'device' ? (
 				<>
 					<div
 						className={`${forms.formGroup} ${forms.formGroupLinear}`}
