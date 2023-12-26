@@ -44,6 +44,8 @@ describe('Blueprints', () => {
 			WP_AUTO_UPDATE_CORE: false,
 		};
 
+		php.writeFile('/wp-config.php', '<?php ');
+
 		// Call the function with the constants and the playground client
 		// Step1: define the constants
 		await defineWpConfigConsts(php, {

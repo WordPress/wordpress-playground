@@ -319,32 +319,4 @@ function stringify_tokens($tokens) {
     return $output;
 }
 
-// // Uncomment to test:
-// $content = <<<'PHP'
-// <?php
-// define('WP_DEBUG', true);
-
-// // The third define() argument is also supported:
-// define('SAVEQUERIES', false, true); 
-
-// // Expression
-// define(true ? 'WP_DEBUG_LOG' : 'WP_DEBUG_LOG', 123);
-
-// // Guarded expressions shouldn't be wrapped twice
-// if(!defined(1 ? 'A' : 'B')) {
-//     define(1 ? 'A' : 'B', 0);
-// }
-
-// // More advanced expression
-// define((function() use($x) {
-//     return [$x, 'a'];
-// })(), 123);
-// PHP;
-
-// print_r(rewrite_wp_config_to_define_constants($content, [
-//     'WP_DEBUG' => false,
-//     'WP_DEBUG_LOG' => true,
-//     'SAVEQUERIES' => true,
-//     'NEW_CONSTANT' => "new constant",
-// ]));
 
