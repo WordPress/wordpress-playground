@@ -1,8 +1,8 @@
 FROM playground-php-wasm:base
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libz/dist/root/lib/include /root/lib/include
-COPY ../libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/dist/root/lib/include /root/lib/include
+COPY ./libz/dist/root/lib/lib /root/lib/lib
 
 RUN /root/copy-lib.sh lib-libz
 RUN set -euxo pipefail && \
