@@ -146,7 +146,14 @@ export async function bootPlaygroundRemote() {
 		},
 		async getCurrentURL() {
 			return await playground.internalUrlToPath(
-				wpFrame.contentWindow?.location.href || wpFrame.src
+				// The most reliable way to get the current URL is to
+				// ask the iframe directly.
+				wpFrame.contentWindow?.location.href ||
+					// If that isn't available (e.g. the iframe is not loaded
+					// yet), let's refer to the src attribute of the iframe itself.
+					// This is less reliable because the src attribute may not be
+					// updated when the iframe navigates to a new URL.
+					wpFrame.src
 			);
 		},
 		async setIframeSandboxFlags(flags: string[]) {
