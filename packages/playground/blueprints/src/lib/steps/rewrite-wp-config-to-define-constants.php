@@ -318,5 +318,3 @@ function stringify_tokens($tokens) {
     }
     return $output;
 }
-
-
