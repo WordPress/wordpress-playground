@@ -1,11 +1,9 @@
-# A phony target is one that is not really the name of a file; rather it is
-# just a name for a recipe to be executed when you make an explicit request.
-# There are two reasons to use a phony target: to avoid a conflict with a
-# file of the same name, and to improve performance.
-
-# If you write a rule whose recipe will not create the target file,
-# the recipe will be executed every time the target comes up for remaking.
-# https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
+# These targets aren't actually expected to produce files with matching names.
+# If a file or directory exists with the same name, its a coindicence,
+# and may result in a name collision where the file/directory's modification
+# date is considered, and INCORRECTLY prevents the target from being built.
+# This will happen when the "artifact" pointed to by the target is newer
+# than any of its dependencies.
 .PHONY: all libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image clean
 
 all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
