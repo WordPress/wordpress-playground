@@ -1,9 +1,3 @@
-# These targets aren't actually expected to produce files with matching names.
-# If a file or directory exists with the same name, its a coindicence,
-# and may result in a name collision where the file/directory's modification
-# date is considered, and INCORRECTLY prevents the target from being built.
-# This will happen when the "artifact" pointed to by the target is newer
-# than any of its dependencies.
 .PHONY: all libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image clean
 
 all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
