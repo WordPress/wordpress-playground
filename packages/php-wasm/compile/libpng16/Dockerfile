@@ -1,8 +1,8 @@
 FROM playground-php-wasm:base
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libz/dist/root/lib/include /root/lib/include
-COPY ../libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/dist/root/lib/include /root/lib/include
+COPY ./libz/dist/root/lib/lib /root/lib/lib
 
 RUN wget http://prdownloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz?download -O libpng-1.6.39.tar.gz
 RUN tar -xzf libpng-1.6.39.tar.gz
@@ -16,4 +16,4 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --target wasm32-unknown-emscripten \
             --prefix=/root/install/
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
-RUN source /root/emsdk/emsdk_env.sh && emmake make install 
+RUN source /root/emsdk/emsdk_env.sh && emmake make install

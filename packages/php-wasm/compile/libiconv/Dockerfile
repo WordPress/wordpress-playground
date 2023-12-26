@@ -1,8 +1,8 @@
 FROM playground-php-wasm:base
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libz/dist/root/lib/include /root/lib/include
-COPY ../libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/dist/root/lib/include /root/lib/include
+COPY ./libz/dist/root/lib/lib /root/lib/lib
 
 RUN set -euxo pipefail; \
 	wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.17.tar.gz; \
