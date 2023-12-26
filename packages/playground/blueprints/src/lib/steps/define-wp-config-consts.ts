@@ -25,10 +25,15 @@ export interface DefineWpConfigConstsStep {
 	/**
 	 * The method of defining the constants. Possible values are:
 	 *
-	 * * `rewrite-wp-config` (default): Rewrites the wp-config.php file to
-	 *    explicitly call define() with the requested name and value.
-	 * * `define-before-run`: Defines the constant before running the requested
-	 *    script.
+	 * - rewrite-wp-config: Default. Rewrites the wp-config.php file to
+	 *                      explicitly call define() with the requested
+	 *                      name and value. This method alters the file
+	 *                      on the disk, but it doesn't conflict with
+	 *                      existing define() calls in wp-config.php.
+	 * - define-before-run: Defines the constant before running the requested
+	 *                      script. It doesn't alter any files on the disk, but
+	 *                      constants defined this way may conflict with existing
+	 *                      define() calls in wp-config.php.
 	 */
 	method?: 'rewrite-wp-config' | 'define-before-run';
 	/**
