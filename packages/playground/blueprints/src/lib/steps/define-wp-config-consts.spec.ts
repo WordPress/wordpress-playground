@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { rewriteDefineCalls } from './define-wp-config-consts';
+import { rewriteDefineCalls, defineBeforeRun } from './define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 
 describe('rewriteDefineCalls', () => {
@@ -180,5 +180,43 @@ echo json_encode([
 		const response = await php.run({ code: rewritten });
 		expect(response.errors).toHaveLength(0);
 		expect(response.json).toEqual(constants);
+	});
+});
+
+describe('defineBeforeRun', () => {
+	let php: NodePHP;
+	beforeEach(async () => {
+		php = await NodePHP.load(RecommendedPHPVersion, {
+			requestHandler: {
+				documentRoot: '/wordpress',
+			},
+		});
+	});
+
+	it('should define the constants before running the requested script', async () => {
+		const constants = {
+			SITE_URL: 'http://test.url',
+		};
+		await defineBeforeRun(php, constants);
+		php.writeFile(
+			'/index.php',
+			`<?php echo json_encode(['SITE_URL' => SITE_URL]);`
+		);
+		const response = await php.run({
+			scriptPath: '/index.php',
+		});
+		expect(response.errors).toHaveLength(0);
+		expect(response.json).toEqual(constants);
+	});
+
+	it('should not work when PHP code is run via the php.run({ code: `` }) call instead of the scriptPath mode (KNOWN LIMITATION)', async () => {
+		const constants = {
+			SITE_URL: 'http://test.url',
+		};
+		await defineBeforeRun(php, constants);
+		const response = await php.run({
+			code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
+		});
+		expect(response.errors).toContain('PHP Fatal error:');
 	});
 });
