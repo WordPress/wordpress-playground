@@ -133,10 +133,21 @@ export async function bootPlaygroundRemote() {
 			if (requestedPath === '/wp-admin') {
 				requestedPath = '/wp-admin/';
 			}
-			wpFrame.src = await playground.pathToInternalUrl(requestedPath);
+			const newUrl = await playground.pathToInternalUrl(requestedPath);
+			const oldUrl = wpFrame.src;
+
+			// If the URL is the same, we need to force a reload
+			// because otherwise the iframe will not reload the page.
+			if (newUrl === oldUrl && wpFrame.contentWindow) {
+				wpFrame.contentWindow.location.href = newUrl;
+				return;
+			}
+			wpFrame.src = newUrl;
 		},
 		async getCurrentURL() {
-			return await playground.internalUrlToPath(wpFrame.src);
+			return await playground.internalUrlToPath(
+				wpFrame.contentWindow?.location.href || wpFrame.src
+			);
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
