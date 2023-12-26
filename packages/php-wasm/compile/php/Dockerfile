@@ -739,6 +739,8 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_malloc", \n\
+"stringToUTF8", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\
