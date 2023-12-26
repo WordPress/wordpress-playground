@@ -1,4 +1,30 @@
+# A phony target is one that is not really the name of a file; rather it is
+# just a name for a recipe to be executed when you make an explicit request.
+# There are two reasons to use a phony target: to avoid a conflict with a
+# file of the same name, and to improve performance.
+
+# If you write a rule whose recipe will not create the target file,
+# the recipe will be executed every time the target comes up for remaking.
+# https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
+.PHONY: all libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image clean
+
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
+
+clean:
+	rm -rf ./libz/dist
+	rm -rf ./libzip/dist
+	rm -rf ./libpng16/dist
+	rm -rf ./libxml2/dist
+	rm -rf ./libopenssl/dist
+	rm -rf ./libsqlite3/dist
+	rm -rf ./libiconv/dist
+	rm -rf ./libncurses/dist
+	rm -rf ./libedit/dist
+	rm -rf ./bison2.7/dist
+	rm -rf ./oniguruma/dist
+
 base-image: base-image/.ready
+
 base-image/.ready:
 	cd base-image; docker build -f ./Dockerfile -t playground-php-wasm:base .
 
@@ -28,7 +54,7 @@ libzip/dist/1.9.2/root/lib/lib/libzip.a: base-image libz
 libpng16: libpng16/dist/root/lib/lib/libpng16.a
 libpng16/dist/root/lib/lib/libpng16.a: base-image libz
 	mkdir -p ./libpng16/dist/root/lib
-	docker build -f ./libpng16/Dockerfile -t playground-php-wasm:libpng . 
+	docker build -f ./libpng16/Dockerfile -t playground-php-wasm:libpng .
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/lib ./libpng16/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libpng16/dist/root/lib
 
@@ -87,17 +113,3 @@ oniguruma/dist/root/lib/lib/libonig.a: base-image
 	docker build -f ./oniguruma/Dockerfile -t playground-php-wasm:oniguruma . --progress=plain
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/dist/root/lib/
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/dist/root/lib
-
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma
-clean:
-	rm -rf ./libz/dist
-	rm -rf ./libzip/dist
-	rm -rf ./libpng16/dist
-	rm -rf ./libxml2/dist
-	rm -rf ./libopenssl/dist
-	rm -rf ./libsqlite3/dist
-	rm -rf ./libiconv/dist
-	rm -rf ./libncurses/dist
-	rm -rf ./libedit/dist
-	rm -rf ./bison2.7/dist
-	rm -rf ./oniguruma/dist
