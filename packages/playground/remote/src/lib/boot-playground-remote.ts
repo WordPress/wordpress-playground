@@ -139,22 +139,32 @@ export async function bootPlaygroundRemote() {
 			// If the URL is the same, we need to force a reload
 			// because otherwise the iframe will not reload the page.
 			if (newUrl === oldUrl && wpFrame.contentWindow) {
-				wpFrame.contentWindow.location.href = newUrl;
-				return;
+				try {
+					wpFrame.contentWindow.location.href = newUrl;
+					return;
+				} catch (e) {
+					// The above call can fail if we're embedded in an
+					// environment with a restrictive CSP policy.
+				}
 			}
 			wpFrame.src = newUrl;
 		},
 		async getCurrentURL() {
-			return await playground.internalUrlToPath(
-				// The most reliable way to get the current URL is to
-				// ask the iframe directly.
-				wpFrame.contentWindow?.location.href ||
-					// If that isn't available (e.g. the iframe is not loaded
-					// yet), let's refer to the src attribute of the iframe itself.
-					// This is less reliable because the src attribute may not be
-					// updated when the iframe navigates to a new URL.
-					wpFrame.src
-			);
+			let url = '';
+			try {
+				url = wpFrame.contentWindow!.location.href;
+			} catch (e) {
+				// The above call can fail if we're embedded in an
+				// environment with a restrictive CSP policy.
+			}
+			if (!url) {
+				// If we can't get the URL from the iframe (e.g. it's not loaded
+				// yet), let's refer to the src attribute of the iframe itself.
+				// This is less reliable because the src attribute may not be
+				// updated when the iframe navigates to a new URL.
+				url = wpFrame.src;
+			}
+			return await playground.internalUrlToPath(url);
 		},
 		async setIframeSandboxFlags(flags: string[]) {
 			wpFrame.setAttribute('sandbox', flags.join(' '));
