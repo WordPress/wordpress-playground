@@ -19,7 +19,7 @@
  * Module.stringToUTF8(body, addr, size + 1);
  *
  * // Call your function
- * Module.ccall('wasm_set_request_body', null, NUMBER], [addr]);
+ * Module.ccall('wasm_do_something', null, NUMBER], [addr]);
  *
  * // Clean up the memory. REQUIRED if the C code doesn't do this!!!
  * Module._free(addr);
