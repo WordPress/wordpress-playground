@@ -18,18 +18,18 @@ RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
 RUN mkdir -p /root/lib/include /root/lib/lib /libs
-COPY ../bison2.7/dist/ /libs/bison2.7
-COPY ../libedit/dist/root/lib /root/lib
-COPY ../libiconv/dist/root/lib /root/lib
-COPY ../libncurses/dist/root/lib /root/lib
-COPY ../libopenssl/dist/root/lib /root/lib
-COPY ../libpng16/dist/root/lib /root/lib
-COPY ../libsqlite3/dist/root/lib /root/lib
-COPY ../libxml2/dist/root/lib /root/lib
-COPY ../libz/dist/root/lib /root/lib
-COPY ../libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
-COPY ../libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
-COPY ../oniguruma/dist/root/lib /root/lib
+COPY ./bison2.7/dist/ /libs/bison2.7
+COPY ./libedit/dist/root/lib /root/lib
+COPY ./libiconv/dist/root/lib /root/lib
+COPY ./libncurses/dist/root/lib /root/lib
+COPY ./libopenssl/dist/root/lib /root/lib
+COPY ./libpng16/dist/root/lib /root/lib
+COPY ./libsqlite3/dist/root/lib /root/lib
+COPY ./libxml2/dist/root/lib /root/lib
+COPY ./libz/dist/root/lib /root/lib
+COPY ./libzip/dist/1.2.0/root/lib /libs/libzip/1.2.0
+COPY ./libzip/dist/1.9.2/root/lib /libs/libzip/1.9.2
+COPY ./oniguruma/dist/root/lib /root/lib
 
 # Build PHP
 
@@ -91,7 +91,7 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 		/root/replace.sh 's/pharcmd=pharcmd/pharcmd=/g' /root/php-src/configure && \
 		/root/replace.sh 's/pharcmd_install=install-pharcmd/pharcmd_install=/g' /root/php-src/configure; \
 	fi;
-	
+
 
 # Add ncurses if needed and libedit if needed
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \

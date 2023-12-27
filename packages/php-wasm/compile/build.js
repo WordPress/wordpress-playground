@@ -167,7 +167,7 @@ if (!requestedVersion || requestedVersion === 'undefined') {
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 
 // Build the base image
-await asyncSpawn('make', ['all', 'base-image'], {
+await asyncSpawn('make', ['all'], {
 	cwd: sourceDir,
 	stdio: 'inherit',
 });

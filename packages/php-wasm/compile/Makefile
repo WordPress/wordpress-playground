@@ -1,25 +1,4 @@
-# These targets aren't actually expected to produce files.
-# If a file or directory exists with the same name, its a coindicence,
-# and may result in a name collision where the file/directory's modification
-# date is considered, and INCORRECTLY prevents the target from being built.
-# This will happen when the "artifact" pointed to by the target is newer
-# than any of its dependencies.
 .PHONY: all libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image clean
-
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
-
-clean:
-	rm -rf ./libz/dist
-	rm -rf ./libzip/dist
-	rm -rf ./libpng16/dist
-	rm -rf ./libxml2/dist
-	rm -rf ./libopenssl/dist
-	rm -rf ./libsqlite3/dist
-	rm -rf ./libiconv/dist
-	rm -rf ./libncurses/dist
-	rm -rf ./libedit/dist
-	rm -rf ./bison2.7/dist
-	rm -rf ./oniguruma/dist
 
 base-image: base-image/.ready
 
@@ -111,3 +90,18 @@ oniguruma/dist/root/lib/lib/libonig.a: base-image
 	docker build -f ./oniguruma/Dockerfile -t playground-php-wasm:oniguruma . --progress=plain
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/dist/root/lib/
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/dist/root/lib
+
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
+
+clean:
+	rm -rf ./libz/dist
+	rm -rf ./libzip/dist
+	rm -rf ./libpng16/dist
+	rm -rf ./libxml2/dist
+	rm -rf ./libopenssl/dist
+	rm -rf ./libsqlite3/dist
+	rm -rf ./libiconv/dist
+	rm -rf ./libncurses/dist
+	rm -rf ./libedit/dist
+	rm -rf ./bison2.7/dist
+	rm -rf ./oniguruma/dist
