@@ -29,7 +29,7 @@
  *
  * If `lengthBytesUTF8` & `stringToUTF8` encounter a split surrogate at the end of a string,
  * they will fill in the missing bytes with the first valid code point in that range.
-
+ *
  * If it encounters a split surrogate in the middle of a string, it will combine it
  * with whatever bytes follow, which may or may not result in a valid codepoint.
  *
