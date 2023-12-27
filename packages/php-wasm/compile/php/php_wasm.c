@@ -11,7 +11,8 @@
  * - The stack does not grow automatically. If the stack runs out of space, it will not be expanded automatically.
  * - The stack size is limited. The default stack size in Emscripten is considerably smaller than in a typical C environment. There have been discussions about reducing it even further.
  *
- * When passing in long strings from JS, Use the heap instead of the stack to hold large chunks of data. Here's how:
+ * When passing in long strings from JS, Use the heap instead of the stack to hold large chunks of data.
+ * You can see an example of how to do this below.
  *
  * // Set the memory
  * const size = Module.lengthBytesUTF8(body);
@@ -23,6 +24,17 @@
  *
  * // Clean up the memory. REQUIRED if the C code doesn't do this!!!
  * Module._free(addr);
+ *
+ * !! NOTE !!
+ *
+ * If `lengthBytesUTF8` & `stringToUTF8` encounter a split surrogate at the end of a string,
+ * they will fill in the missing bytes with the first valid code point in that range.
+
+ * If it encounters a split surrogate in the middle of a string, it will combine it
+ * with whatever bytes follow, which may or may not result in a valid codepoint.
+ *
+ * The correct length to fit this string will be reported by `lengthBytesUTF8`.
+ *
  */
 #include <main/php.h>
 #include <main/SAPI.h>
