@@ -1,8 +1,8 @@
 FROM playground-php-wasm:base
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libncurses/dist/root/lib/include /root/lib/include
-COPY ../libncurses/dist/root/lib/lib /root/lib/lib
+COPY ./libncurses/dist/root/lib/include /root/lib/include
+COPY ./libncurses/dist/root/lib/lib /root/lib/lib
 
 RUN /root/copy-lib.sh lib-ncurses
 RUN wget https://www.thrysoee.dk/editline/libedit-20221030-3.1.tar.gz && \

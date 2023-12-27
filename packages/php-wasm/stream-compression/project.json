@@ -1,0 +1,34 @@
+{
+	"name": "php-wasm-stream-compression",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/stream-compression/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/stream-compression"
+			}
+		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{options.reportsDirectory}"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/stream-compression"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/php-wasm/stream-compression/**/*.ts",
+					"packages/php-wasm/stream-compression/package.json"
+				]
+			}
+		}
+	},
+	"tags": ["scope:independent-from-php-binaries"]
+}

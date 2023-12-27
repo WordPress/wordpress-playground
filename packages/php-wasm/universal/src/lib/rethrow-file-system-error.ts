@@ -14,7 +14,7 @@ export interface ErrnoError extends Error {
 /**
  * @see https://github.com/emscripten-core/emscripten/blob/38eedc630f17094b3202fd48ac0c2c585dbea31e/system/include/wasi/api.h#L336
  */
-const FileErrorCodes = {
+export const FileErrorCodes = {
 	0: 'No error occurred. System call completed successfully.',
 	1: 'Argument list too long.',
 	2: 'Permission denied.',
@@ -93,6 +93,14 @@ const FileErrorCodes = {
 	75: 'Cross-device link.',
 	76: 'Extension: Capabilities insufficient.',
 } as any;
+
+export function getEmscriptenFsError(e: any) {
+	const errno = typeof e === 'object' ? ((e as any)?.errno as any) : null;
+	if (errno in FileErrorCodes) {
+		return FileErrorCodes[errno];
+	}
+}
+
 export function rethrowFileSystemError(messagePrefix = '') {
 	return function catchFileSystemError(
 		target: any,

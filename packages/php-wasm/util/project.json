@@ -38,5 +38,5 @@
 			}
 		}
 	},
-	"tags": []
+	"tags": ["scope:independent-from-php-binaries"]
 }
