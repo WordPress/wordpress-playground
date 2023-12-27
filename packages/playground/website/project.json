@@ -19,6 +19,7 @@
 					"cp -r ./client ./wasm-wordpress-net/",
 					"cp -r ./remote/* ./wasm-wordpress-net/",
 					"cp -r ./website/* ./wasm-wordpress-net/",
+					"cp ../../../packages/playground/website/.htaccess ./website/",
 					"cat ./remote/.htaccess ./website/.htaccess > ./wasm-wordpress-net/.htaccess"
 				],
 				"cwd": "dist/packages/playground",
