@@ -129,7 +129,7 @@ function rewrite_wp_config_to_define_constants($content, $constants = [])
                 $defined_expression[] = $token;
             }
 
-            $defined_expressions[] = stringify_tokens($defined_expression);
+            $defined_expressions[] = stringify_tokens(skip_whitespace($defined_expression));
             continue;
         }
 
@@ -230,7 +230,7 @@ function rewrite_wp_config_to_define_constants($content, $constants = [])
         if (!$name_is_literal) {
             // Ensure the defined expression is not already accounted for
             foreach ($defined_expressions as $defined_expression) {
-                if ($defined_expression === stringify_tokens($name_buffer)) {
+                if ($defined_expression === stringify_tokens(skip_whitespace($name_buffer))) {
                     $output = array_merge($output, $buffer);
                     continue 2;
                 }
@@ -315,6 +315,17 @@ function stringify_tokens($tokens) {
         } else {
             $output .= $token;
         }
+    }
+    return $output;
+}
+
+function skip_whitespace($tokens) {
+    $output = [];
+    foreach ($tokens as $token) {
+        if (is_array($token) && ($token[0] === T_WHITESPACE || $token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT)) {
+            continue;
+        }
+        $output[] = $token;
     }
     return $output;
 }

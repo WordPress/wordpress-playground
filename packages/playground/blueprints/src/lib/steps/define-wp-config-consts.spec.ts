@@ -120,6 +120,22 @@ describe('rewriteDefineCalls', () => {
 		expect(rewritten).toEqual(phpCode);
 	});
 
+	it('should not wrap the existing define() calls in if(!defined()) guards twice, even if the existing guard is formatted differently than the define() call', async () => {
+		const phpCode = `<?php
+		if ( ! defined(
+			'SITE' .
+			'_URL'
+		) ) {
+			define('SITE'.'_URL','http://initial.value');
+		}
+		echo json_encode([
+			"SITE_URL" => SITE_URL,
+		]);
+		`;
+		const rewritten = await rewriteDefineCalls(php, phpCode, {});
+		expect(rewritten).toEqual(phpCode);
+	});
+
 	it('should not create conflicts between pre-existing "dynamically" named constants and the newly defined ones', async () => {
 		const phpCode = `<?php
 		define('SITE'.'_URL','http://initial.value');
