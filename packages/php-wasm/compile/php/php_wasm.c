@@ -694,8 +694,6 @@ void wasm_add_uploaded_file(
  * Function: wasm_set_query_string
  * ----------------------------
  *  Sets the query string for the next request.
- *  This is expected to be a heap pointer and will be free()'d
- *  automatically by the request lifecycle.
  *
  *  query_string: the query string, e.g. "name=John&age=30"
  */
