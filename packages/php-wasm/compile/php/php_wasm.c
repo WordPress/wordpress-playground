@@ -8,7 +8,7 @@
  *
  * When debugging memory errors, it's important to understand the behavior of the stack in the Emscripten environment:
  *
- * - The stack does not grow automatically. If the stack runs out of space, it will not be expanded automatically, unlike in traditional C programs built with compilers like GCC or Clang.
+ * - The stack does not grow automatically. If the stack runs out of space, it will not be expanded automatically.
  * - The stack size is limited. The default stack size in Emscripten is considerably smaller than in a typical C environment. There have been discussions about reducing it even further.
  *
  * When passing in long strings from JS, Use the heap instead of the stack to hold large chunks of data. Here's how:
