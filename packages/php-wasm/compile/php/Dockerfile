@@ -270,8 +270,8 @@ RUN /root/replace.sh 's/PHPAPI int php_exec(.+)$/PHPAPI extern int php_exec\1; i
 
 # Provide a custom implementation of the VCWD_POPEN() function that handles spawning
 # the process inside PHP_FUNCTION(popen).
-RUN /root/replace.sh 's/VCWD_POPEN\(/wasm_popen(/g' /root/php-src/ext/standard/file.c
-RUN /root/replace.sh 's/PHP_FUNCTION\(popen\)/extern FILE *wasm_popen(const char *cmd, const char *mode);PHP_FUNCTION(popen)/g' /root/php-src/ext/standard/file.c
+RUN /root/replace.sh 's/#define VCWD_POPEN.+/#define VCWD_POPEN(command, type) wasm_popen(command,type)/g' /root/php-src/Zend/zend_virtual_cwd.h
+RUN echo 'extern FILE *wasm_popen(const char *cmd, const char *mode);' >> /root/php-src/Zend/zend_virtual_cwd.h
 
 # Provide a custom implementation of the shutdown() function.
 RUN perl -pi.bak -e $'s/(\s+)shutdown\(/$1 wasm_shutdown(/g' /root/php-src/sapi/cli/php_cli_server.c

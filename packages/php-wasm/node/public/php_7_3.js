@@ -1,6 +1,6 @@
-const dependencyFilename = __dirname + '/7_3_33/php_7_3.wasm';
- export { dependencyFilename };
-export const dependenciesTotalSize = 11893050;
+const dependencyFilename = __dirname + '/7_3_33/php_7_3.wasm'; 
+export { dependencyFilename }; 
+export const dependenciesTotalSize = 11893227; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -2912,26 +2912,26 @@ var SYSCALLS = {
   HEAP32[buf + 12 >> 2] = stat.uid;
   HEAP32[buf + 16 >> 2] = stat.gid;
   HEAP32[buf + 20 >> 2] = stat.rdev;
-  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
   HEAP32[buf + 32 >> 2] = 4096;
   HEAP32[buf + 36 >> 2] = stat.blocks;
   var atime = stat.atime.getTime();
   var mtime = stat.mtime.getTime();
   var ctime = stat.ctime.getTime();
-  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3),
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
   HEAPU32[buf + 48 >> 2] = atime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3),
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
   HEAPU32[buf + 64 >> 2] = mtime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3),
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
   HEAPU32[buf + 80 >> 2] = ctime % 1e3 * 1e3;
-  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
   return 0;
  },
@@ -4009,10 +4009,10 @@ function ___syscall_getdents64(fd, dirp, count) {
     id = child.id;
     type = FS.isChrdev(child.mode) ? 2 : FS.isDir(child.mode) ? 4 : FS.isLink(child.mode) ? 10 : 8;
    }
-   tempI64 = [ id >>> 0, (tempDouble = id, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+   tempI64 = [ id >>> 0, (tempDouble = id, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
    HEAP32[dirp + pos >> 2] = tempI64[0], HEAP32[dirp + pos + 4 >> 2] = tempI64[1];
-   tempI64 = [ (idx + 1) * struct_size >>> 0, (tempDouble = (idx + 1) * struct_size,
-   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+   tempI64 = [ (idx + 1) * struct_size >>> 0, (tempDouble = (idx + 1) * struct_size, 
+   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
    HEAP32[dirp + pos + 8 >> 2] = tempI64[0], HEAP32[dirp + pos + 12 >> 2] = tempI64[1];
    HEAP16[dirp + pos + 16 >> 1] = 280;
    HEAP8[dirp + pos + 18 >> 0] = type;
@@ -4723,7 +4723,7 @@ var __mktime_js = function(tmPtr) {
   HEAP32[tmPtr + 20 >> 2] = date.getYear();
   return date.getTime() / 1e3;
  })();
- return setTempRet0((tempDouble = ret, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)),
+ return setTempRet0((tempDouble = ret, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)), 
  ret >>> 0;
 };
 
@@ -5014,9 +5014,9 @@ function _fd_fdstat_get(fd, pbuf) {
   }
   HEAP8[pbuf >> 0] = type;
   HEAP16[pbuf + 2 >> 1] = flags;
-  tempI64 = [ rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[pbuf + 8 >> 2] = tempI64[0], HEAP32[pbuf + 12 >> 2] = tempI64[1];
-  tempI64 = [ rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[pbuf + 16 >> 2] = tempI64[0], HEAP32[pbuf + 20 >> 2] = tempI64[1];
   return 0;
  } catch (e) {
@@ -5060,7 +5060,7 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
   if (isNaN(offset)) return 61;
   var stream = SYSCALLS.getStreamFromFD(fd);
   FS.llseek(stream, offset, whence);
-  tempI64 = [ stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
+  tempI64 = [ stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
   HEAP32[newOffset >> 2] = tempI64[0], HEAP32[newOffset + 4 >> 2] = tempI64[1];
   if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
   return 0;
@@ -6822,32 +6822,32 @@ var _fflush = Module["_fflush"] = function() {
  return (_fflush = Module["_fflush"] = Module["asm"]["bb"]).apply(null, arguments);
 };
 
+var _wasm_popen = Module["_wasm_popen"] = function() {
+ return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["cb"]).apply(null, arguments);
+};
+
 var _wasm_php_exec = Module["_wasm_php_exec"] = function() {
- return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["cb"]).apply(null, arguments);
+ return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["db"]).apply(null, arguments);
 };
 
 var _php_pollfd_for = Module["_php_pollfd_for"] = function() {
- return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["db"]).apply(null, arguments);
+ return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["eb"]).apply(null, arguments);
 };
 
 var _htons = function() {
- return (_htons = Module["asm"]["eb"]).apply(null, arguments);
+ return (_htons = Module["asm"]["fb"]).apply(null, arguments);
 };
 
 var _ntohs = function() {
- return (_ntohs = Module["asm"]["fb"]).apply(null, arguments);
+ return (_ntohs = Module["asm"]["gb"]).apply(null, arguments);
 };
 
 var _htonl = function() {
- return (_htonl = Module["asm"]["gb"]).apply(null, arguments);
+ return (_htonl = Module["asm"]["hb"]).apply(null, arguments);
 };
 
 var _wasm_sleep = Module["_wasm_sleep"] = function() {
- return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["hb"]).apply(null, arguments);
-};
-
-var _wasm_popen = Module["_wasm_popen"] = function() {
- return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["ib"]).apply(null, arguments);
+ return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["ib"]).apply(null, arguments);
 };
 
 var _wasm_select = Module["_wasm_select"] = function() {
@@ -7349,7 +7349,7 @@ DNS.address_map.addrs.localhost = '127.0.0.1';
 
 /**
  * Debugging Asyncify errors is tricky because the stack trace is lost when the
- * error is thrown. This code saves the stack trace in a global variable
+ * error is thrown. This code saves the stack trace in a global variable 
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;
