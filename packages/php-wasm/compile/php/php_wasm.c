@@ -1581,3 +1581,9 @@ int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
 }
 #endif
 
+EMSCRIPTEN_KEEPALIVE void emscripten_console_log(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_console_warn(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_console_error(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_out(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_err(char *a){}
+EMSCRIPTEN_KEEPALIVE void emscripten_dbg(char *a){}

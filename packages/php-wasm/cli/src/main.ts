@@ -75,7 +75,7 @@ async function run() {
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
 	if (!hasMinusCOption) {
-		args.unshift('-c', defaultPhpIniPath);
+		// args.unshift('-c', defaultPhpIniPath);
 	}
 
 	await php
