@@ -164,6 +164,12 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	defineConstant(key: string, value: string | number | null): void;
 
 	/**
+	 * Say hello to the world.
+	 * @param message - The message to say.
+	 */
+	helloWorld(message: string): void;
+
+	/**
 	 * Adds an event listener for a PHP event.
 	 * @param eventType - The type of event to listen for.
 	 * @param listener - The listener function to be called when the event is triggered.

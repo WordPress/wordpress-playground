@@ -28,6 +28,7 @@ import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wp-content';
 import { ImportFileStep } from './import-file';
+import { HelloWorldStep } from './hello-world';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -38,11 +39,6 @@ export type StepDefinition = Step & {
 };
 
 export { wpContentFilesExcludedFromExport } from './common';
-
-type HelloWorldStep = {
-	step: 'helloWorld';
-	message: string;
-};
 
 /**
  * If you add a step here, make sure to also

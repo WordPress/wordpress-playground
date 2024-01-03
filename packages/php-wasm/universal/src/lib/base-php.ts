@@ -466,6 +466,23 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		);
 	}
 
+	async helloWorld(message: string) {
+		const phpResponse = await this.run({
+			code: `
+				<?php
+				$fullMessage = "PHP: ${message} \n";
+				echo $fullMessage;
+				`,
+		});
+
+		if (phpResponse.errors) {
+			console.error(phpResponse.errors);
+		}
+		if (phpResponse.text) {
+			console.log(phpResponse.text);
+		}
+	}
+
 	/**
 	 * Adds file information to $_FILES superglobal in PHP.
 	 *

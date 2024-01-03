@@ -179,6 +179,11 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		_private.get(this)!.php.defineConstant(key, value);
 	}
 
+	/** @inheritDoc @php-wasm/web!WebPHP.helloWorld */
+	helloWorld(message: string): void {
+		_private.get(this)!.php.helloWorld(message);
+	}
+
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
 	addEventListener(
 		eventType: PHPEvent['type'],
