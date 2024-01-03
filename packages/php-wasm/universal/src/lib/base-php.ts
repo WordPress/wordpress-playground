@@ -469,6 +469,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		);
 	}
 
+	/**
+	 * Prints a message to the console.
+	 * @param message The message to print.
+	 */
 	async helloWorld(message: string) {
 		const phpResponse = await this.run({
 			code: `
