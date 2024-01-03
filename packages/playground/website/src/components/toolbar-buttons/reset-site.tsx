@@ -4,12 +4,7 @@ import { MenuItem } from '@wordpress/components';
 import { StorageType } from '../../types';
 
 type Props = { onClose: () => void; storage: StorageType };
-const opfsStorages: StorageType[] = [
-	'browser',
-	'device',
-	'opfs-browser',
-	'opfs-host',
-];
+const opfsStorages: StorageType[] = ['browser', 'device'];
 export function ResetSiteMenuItem({ onClose, storage }: Props) {
 	const { playground } = usePlaygroundContext();
 	return (

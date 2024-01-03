@@ -15,6 +15,12 @@
 							{
 								"sourceTag": "*",
 								"notDependOnLibsWithTags": ["scope:web-client"]
+							},
+							{
+								"sourceTag": "scope:independent-from-php-binaries",
+								"notDependOnLibsWithTags": [
+									"scope:php-binaries"
+								]
 							}
 						]
 					}

@@ -88,9 +88,7 @@ export default function PlaygroundConfigurationGroup({
 	}, [!!playground]);
 
 	const [isResumeLastDirOpen, setResumeLastDirOpen] = useState(
-		(initialConfiguration.storage === 'opfs-host' ||
-			initialConfiguration.storage === 'device') &&
-			!!lastDirectoryHandle
+		initialConfiguration.storage === 'device' && !!lastDirectoryHandle
 	);
 	const closeResumeLastDirModal = () => setResumeLastDirOpen(false);
 
@@ -185,10 +183,7 @@ export default function PlaygroundConfigurationGroup({
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
 		const playground = await playgroundRef.current!.promise;
-		if (
-			config.resetSite &&
-			(config.storage === 'opfs-browser' || config.storage === 'browser')
-		) {
+		if (config.resetSite && config.storage === 'browser') {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
@@ -212,16 +207,13 @@ export default function PlaygroundConfigurationGroup({
 			>
 				PHP {currentConfiguration.php} {' - '}
 				WP {WPLabel} {' - '}
-				{currentConfiguration.storage === 'opfs-host' ||
-				currentConfiguration.storage === 'device'
+				{currentConfiguration.storage === 'device'
 					? `Storage: Device (${dirName})`
-					: currentConfiguration.storage === 'opfs-browser' ||
-					  currentConfiguration.storage === 'browser'
+					: currentConfiguration.storage === 'browser'
 					? 'Storage: Browser'
 					: '⚠️ Storage: None'}
 			</Button>
-			{currentConfiguration.storage === 'opfs-host' ||
-			currentConfiguration.storage === 'device' ? (
+			{currentConfiguration.storage === 'device' ? (
 				<SyncLocalFilesButton />
 			) : null}
 			{isResumeLastDirOpen ? (

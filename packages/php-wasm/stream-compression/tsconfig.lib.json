@@ -1,0 +1,14 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "../../../dist/out-tsc",
+		"declaration": true,
+		"types": ["node", "vite/client"]
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/test/vitest-setup-file.ts",
+		"src/utils/stream-write-to-php.ts"
+	],
+	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+}
