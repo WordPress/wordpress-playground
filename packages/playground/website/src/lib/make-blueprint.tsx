@@ -24,8 +24,11 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 		},
 		phpExtensionBundles: options.phpExtensionBundles as any,
 		features: options.features,
-		helloWorld: options.helloWorld,
 		steps: [
+			options.helloWorld && {
+				step: 'helloWorld',
+				message: options.helloWorld,
+			},
 			options.importSite &&
 				/^(http(s?)):\/\//i.test(options.importSite) && {
 					step: 'importWordPressFiles',
