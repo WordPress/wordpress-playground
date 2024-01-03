@@ -4,7 +4,10 @@ import {
 	PHPRequestHandlerConfiguration,
 } from './php-request-handler';
 import { PHPResponse } from './php-response';
-import { rethrowFileSystemError } from './rethrow-file-system-error';
+import {
+	getEmscriptenFsError,
+	rethrowFileSystemError,
+} from './rethrow-file-system-error';
 import { getLoadedRuntime } from './load-php-runtime';
 import type { PHPRuntimeId } from './load-php-runtime';
 import {
@@ -628,9 +631,21 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc */
-	@rethrowFileSystemError('Could not move "{path}"')
 	mv(fromPath: string, toPath: string) {
-		this[__private__dont__use].FS.rename(fromPath, toPath);
+		try {
+			this[__private__dont__use].FS.rename(fromPath, toPath);
+		} catch (e) {
+			const errmsg = getEmscriptenFsError(e);
+			if (!errmsg) {
+				throw e;
+			}
+			throw new Error(
+				`Could not move ${fromPath} to ${toPath}: ${errmsg}`,
+				{
+					cause: e,
+				}
+			);
+		}
 	}
 
 	/** @inheritDoc */

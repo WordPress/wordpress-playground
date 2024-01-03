@@ -2,8 +2,8 @@ FROM playground-php-wasm:base
 
 ARG LIBZIP_VERSION
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libz/dist/root/lib/include /root/lib/include
-COPY ../libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/dist/root/lib/include /root/lib/include
+COPY ./libz/dist/root/lib/lib /root/lib/lib
 
 RUN     cd /root && \
         curl -k https://libzip.org/download/libzip-$LIBZIP_VERSION.tar.gz -o libzip-$LIBZIP_VERSION.tar.gz && \
