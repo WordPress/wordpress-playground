@@ -5,6 +5,11 @@ export type HelloWorldStep = {
 	message: string;
 };
 
+/**
+ * Prints a message to the console.
+ * @param playground Playground client.
+ * @param message The message to print.
+ */
 export const helloWorld: StepHandler<HelloWorldStep> = async (
 	playground,
 	{ message }
