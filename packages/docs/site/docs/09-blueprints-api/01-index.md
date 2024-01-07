@@ -27,10 +27,11 @@ Blueprints are JSON files for setting up your very own WordPress Playground inst
 }
 ```
 
-There are two ways to use Blueprints:
+There are three ways to use Blueprints:
 
 -   [Paste a Blueprint into the URL "fragment" on WordPress Playground website](./02-using-blueprints.md#url-fragment).
 -   [Use them with the JavaScript API](./02-using-blueprints.md#javascript-api).
+-   [Reference a blueprint JSON file via QueryParam blueprint-url](https://wordpress.github.io/wordpress-playground/query-api)
 
 ## What problems are solved by Blueprints?
 
