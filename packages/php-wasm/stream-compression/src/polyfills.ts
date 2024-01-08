@@ -1,4 +1,6 @@
 import { collectBytes } from './utils/collect-bytes';
+import { limitBytes } from './utils/limit-bytes';
+import { decodeZip, nextZipEntry } from './zip/decode-zip';
 
 function areByobStreamsSupported() {
 	return (
@@ -18,11 +20,17 @@ if (!areByobStreamsSupported()) {
 	}
 
 	function bufferToStream(buffer) {
+		const newArray = new Uint8Array(buffer.byteLength);
+		newArray.set(new Uint8Array(buffer));
+		buffer = newArray;
 		return new ReadableStream({
 			type: 'bytes',
 			// 0.5 MB seems like a reasonable chunk size, let's adjust
 			// this if needed.
-			autoAllocateChunkSize: 512 * 1024,
+			autoAllocateChunkSize: Math.max(
+				1,
+				Math.min(buffer.byteLength, 512 * 1024)
+			),
 			/**
 			 * We could write directly to controller.byobRequest.view
 			 * here. Unfortunately, in Chrome it detaches on the first
@@ -32,33 +40,17 @@ if (!areByobStreamsSupported()) {
 				// Read data until we have enough to fill the BYOB request:
 				const view = controller.byobRequest!.view!;
 				const uint8array = new Uint8Array(view.byteLength);
-				uint8array.set(buffer);
+				uint8array.set(buffer.slice(0, uint8array.byteLength));
 				buffer = buffer.slice(uint8array.byteLength);
-				console.log(
-					'Pull',
-					{ uint8array, buf: buffer },
-					view.byteLength
-				);
 
 				// Emit that chunk:
 				controller.byobRequest?.respondWithNewView(uint8array);
-				if (buffer.byteLength === 0) {
+				if (buffer.byteLength === 0 || view.byteLength === 0) {
 					controller.close();
 					controller.byobRequest?.respond(0);
 				}
 			},
 		});
-	}
-
-	class ByobResponse extends Response {
-		constructor(arrayBuffer: BodyInit | null, init?: ResponseInit) {
-			const _bodyStream = bufferToStream(arrayBuffer);
-			super(_bodyStream, init);
-			this._bodyStream = _bodyStream;
-		}
-		override get body() {
-			return this._bodyStream;
-		}
 	}
 
 	const _fetchBackup = (globalThis as any).fetch;
@@ -69,14 +61,116 @@ if (!areByobStreamsSupported()) {
 		}
 		console.log('Getch called');
 		const response = await _fetchBackup(...args);
-		return new ByobResponse(await response.arrayBuffer(), {
+		const responseBuffer = await response.arrayBuffer();
+		console.log('Got response', { responseBuffer });
+		// console.log(response.headers);
+		return new ByobResponse(bufferToStream(responseBuffer), {
 			status: response.status,
 			statusText: response.statusText,
 			headers: response.headers,
 		});
 	};
+
+	class ByobResponse extends Response {
+		constructor(bodyInit: BodyInit | null, init?: ResponseInit) {
+			super(bodyInit, init);
+			this._bodyStream = bodyInit;
+		}
+		override get body() {
+			return this._bodyStream;
+		}
+		override arrayBuffer() {
+			return collectBytes(this._bodyStream);
+		}
+	}
+
+	const OriginalDecompressionStream = (globalThis as any).DecompressionStream;
+	(globalThis as any).DecompressionStream = class DecompressionStream2 {
+		constructor(algorithm: string, opts?: DecompressionStreamInit) {
+			const stream = new OriginalDecompressionStream(algorithm, opts);
+			const writer = stream.writable.getWriter();
+			const reader = stream.readable.getReader();
+			this.writable = new WritableStream({
+				write(chunk) {
+					writer.write(chunk);
+				},
+				close() {
+					writer.releaseLock();
+					stream.writable.close();
+				},
+				abort() {
+					stream.writable.abort();
+				},
+			});
+			this.readable = new ReadableStream({
+				type: 'bytes',
+				// 0.5 MB seems like a reasonable chunk size, let's adjust
+				// this if needed.
+				autoAllocateChunkSize: 1024,
+				async pull(controller) {
+					const { value, done } = await reader.read();
+					if (done) {
+						reader.releaseLock();
+						controller.close();
+						return;
+					}
+					controller.enqueue(value);
+				},
+				cancel() {
+					reader.cancel();
+				},
+			});
+		}
+	};
+	// const resp = aw ait window.fetch('https://downloads.wordpress.org/theme/pendant.latest-stable.zip');
+	// console.log(await collectBytes(resp.body));
+	// const ua = new Uint8Array(4);
+	// try {
+	// 	console.log(
+	// 		await resp
+	// 			.body
+	// 			.getReader({ mode: 'byob' })
+	// 			.read(ua)
+	// 			.then(({ value }) => value!)
+	// 	);
+	// } catch (e) {
+	// 	console.trace(e)
+	// }
+	// console.log(await collectBytes(limitBytes(resp.body, 4)));
+	// console.log(await collectBytes(resp.body, 4));
+	// try {
+	// 	for await (const entry of decodeZip(resp.body!, () => true)) {
+	// 		console.log({ entry })
+	// 	}
+	// 	console.log("Finished?")
+	// } catch (e) {
+	// 	console.trace(e);
+	// }
+	// const entry = await nextZipEntry(resp.body!);
+	// console.log({ entry });
+	// throw new Error();
+	// const ab = await resp.arrayBuffer();
+	// // const ab2 = await collectBytes(stream2);
+	// // console.log({ ab, ab2 });
+	// // console.log(new Uint8Array(ab)[25]);
+	// // console.log(new Uint8Array(ab2)[25]);
+
+	// const resp2 = new ByobResponse(bufferToStream(ab), {
+	// 	status: 200,
+	// 	statusText: 'OK',
+	// });
+	// console.log(resp2.body);
+	// // const ab3 = await resp2.arrayBuffer();
+	// const ab3 = await collectBytes(resp2.body);
+	// // console.log('ab3.byteLength', ab3.byteLength);
+	// console.log(ab3[25]);
+
+	// const stream = (await window.fetch('/website-server/index.html')).body;
+	// console.log(await collectBytes(stream!));
+	// console.log(await collectBytes(limitBytes(stream!, 10)));
+	// // throw new Error();
 	// console.log(
-	// 	await (await window.fetch('/index.html')).body
+	// 	await stream
 	// 		?.getReader({ mode: 'byob' })
 	// 		.read(new Uint8Array(200))
 	// );
@@ -92,21 +186,37 @@ if (!areByobStreamsSupported()) {
 	// Add support for BYOB streams to ReadableStream
 	// const _getReader = ReadableStream.prototype.getReader;
 	// ReadableStream.prototype.getReader = function getReader(options: any) {
-	// 	if (options && options.mode === 'byob') {
-	// 		return streamToByobStream(this).getReader();
+	// 	if (options && options.mode === 'byob' && !isStreamByob(this)) {
+	// 		return _getReader.call(streamToByobStream(this), options);
 	// 	}
 	// 	return _getReader.call(this, options);
 	// };
 
-	// // ReadableStream.prototype.pipeTo = function pipeTo(target, options) {
-	// // 	return streamToByobStream(this).pipeTo(target, options);
-	// // };
-	// ReadableStream.prototype.pipeThrough = function pipeThrough(
-	// 	target,
-	// 	options
-	// ) {
-	// 	return streamToByobStream(this).pipeThrough(target, options);
+	// const _pipeTo = ReadableStream.prototype.pipeTo;
+	// ReadableStream.prototype.pipeTo = function (target, options) {
+	// 	if (isStreamByob(this)) {
+	// 		return _pipeTo.call(streamToByobStream(this), target, options);
+	// 	}
+	// 	return _pipeTo.call(this, target, options);
 	// };
+
+	// const _pipeThrough = ReadableStream.prototype.pipeThrough;
+	// ReadableStream.prototype.pipeThrough = function (target, options) {
+	// 	if (isStreamByob(this)) {
+	// 		return _pipeThrough.call(streamToByobStream(this), target, options);
+	// 	}
+	// 	return _pipeThrough.call(this, target, options);
+	// };
+
+	function isStreamByob(stream: ReadableStream) {
+		try {
+			const reader = stream.getReader({ mode: 'byob' });
+			reader.cancel();
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
 }
 
 // Make this file a module

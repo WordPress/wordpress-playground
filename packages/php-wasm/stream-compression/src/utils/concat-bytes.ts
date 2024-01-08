@@ -26,7 +26,6 @@ export function concatBytes(totalBytes?: number) {
 		return new TransformStream<Uint8Array, Uint8Array>({
 			transform(chunk) {
 				const view = new Uint8Array(buffer);
-				console.log({ offset, chunk, view });
 				view.set(chunk, offset);
 				offset += chunk.byteLength;
 			},

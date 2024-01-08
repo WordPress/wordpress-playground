@@ -214,18 +214,20 @@ export abstract class FetchResource extends Resource {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
 		let response = await fetch(url);
-		response = cloneResponseMonitorProgress(
-			response,
-			this.progress?.loadingListener ?? noop
-		);
+		// response = cloneResponseMonitorProgress(
+		// 	response,
+		// 	this.progress?.loadingListener ?? noop
+		// );
 		if (response.status !== 200) {
 			throw new Error(`Could not download "${url}"`);
 		}
 
-		return new StreamedFile(
-			response.body!,
-			this.name,
-			response.headers.get('content-type') ?? undefined
+		const ab = await response.arrayBuffer();
+		console.log({ ab });
+		return new File(
+			[ab],
+			this.name
+			// response.headers.get('content-type') ?? undefined
 		);
 	}
 

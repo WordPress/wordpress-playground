@@ -67,6 +67,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	{ pluginZipFile, files, options = {} },
 	progress?
 ) => {
+	console.log({ pluginZipFile });
 	files = files || decodeZip(pluginZipFile.stream());
 	const zipFileName = pluginZipFile?.name.split('/').pop() || 'plugin.zip';
 	const zipNiceName = zipNameToHumanName(zipFileName);
