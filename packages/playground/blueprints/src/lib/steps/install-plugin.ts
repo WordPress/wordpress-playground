@@ -1,9 +1,9 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
-import { zipNameToHumanName } from './common';
 import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { makeEditorFrameControlled } from './apply-wordpress-patches';
+import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
 /**
  * @inheritDoc installPlugin

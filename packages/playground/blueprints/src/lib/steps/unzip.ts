@@ -1,6 +1,6 @@
 import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
-import { runPhpWithZipFunctions } from './common';
+import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
 
 /**
  * @inheritDoc unzip

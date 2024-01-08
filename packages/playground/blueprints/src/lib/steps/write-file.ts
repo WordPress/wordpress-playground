@@ -1,5 +1,4 @@
 import { StepHandler } from '.';
-import { fileToUint8Array } from './common';
 
 /**
  * @inheritDoc writeFile
@@ -31,7 +30,7 @@ export const writeFile: StepHandler<WriteFileStep<File>> = async (
 	{ path, data }
 ) => {
 	if (data instanceof File) {
-		data = await fileToUint8Array(data);
+		data = new Uint8Array(await data.arrayBuffer());
 	}
 	await playground.writeFile(path, data);
 };
