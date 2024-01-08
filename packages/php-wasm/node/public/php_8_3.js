@@ -1,5 +1,6 @@
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm'; 
-export const dependenciesTotalSize = 11363175; 
+export { dependencyFilename }; 
+export const dependenciesTotalSize = 11363558; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6858,36 +6859,36 @@ var setTempRet0 = function() {
  return (setTempRet0 = Module["asm"]["hb"]).apply(null, arguments);
 };
 
+var _wasm_popen = Module["_wasm_popen"] = function() {
+ return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["ib"]).apply(null, arguments);
+};
+
 var _wasm_php_exec = Module["_wasm_php_exec"] = function() {
- return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["ib"]).apply(null, arguments);
+ return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["jb"]).apply(null, arguments);
 };
 
 var _php_pollfd_for = Module["_php_pollfd_for"] = function() {
- return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["jb"]).apply(null, arguments);
+ return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["kb"]).apply(null, arguments);
 };
 
 var _htons = function() {
- return (_htons = Module["asm"]["kb"]).apply(null, arguments);
+ return (_htons = Module["asm"]["lb"]).apply(null, arguments);
 };
 
 var _ntohs = function() {
- return (_ntohs = Module["asm"]["lb"]).apply(null, arguments);
+ return (_ntohs = Module["asm"]["mb"]).apply(null, arguments);
 };
 
 var _htonl = function() {
- return (_htonl = Module["asm"]["mb"]).apply(null, arguments);
+ return (_htonl = Module["asm"]["nb"]).apply(null, arguments);
 };
 
 var _wasm_sleep = Module["_wasm_sleep"] = function() {
- return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["nb"]).apply(null, arguments);
+ return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["ob"]).apply(null, arguments);
 };
 
 var _fflush = Module["_fflush"] = function() {
- return (_fflush = Module["_fflush"] = Module["asm"]["ob"]).apply(null, arguments);
-};
-
-var _wasm_popen = Module["_wasm_popen"] = function() {
- return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["pb"]).apply(null, arguments);
+ return (_fflush = Module["_fflush"] = Module["asm"]["pb"]).apply(null, arguments);
 };
 
 var _wasm_select = Module["_wasm_select"] = function() {
