@@ -30,7 +30,7 @@
 	},
 	"publishConfig": {
 		"access": "public",
-		"directory": "../../../dist/packages/playground/client"
+		"directory": "../../../dist/packages/playground/sync"
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",

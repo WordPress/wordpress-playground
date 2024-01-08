@@ -1,6 +1,5 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '..';
-import { updateFile } from '../../utils/update-file';
 import { defineWpConfigConsts } from '../define-wp-config-consts';
 
 /** @ts-ignore */
@@ -9,6 +8,7 @@ import transportFetch from './wp-content/mu-plugins/playground-includes/wp_http_
 import transportDummy from './wp-content/mu-plugins/playground-includes/requests_transport_dummy.php?raw';
 /** @ts-ignore */
 import playgroundMuPlugin from './wp-content/mu-plugins/0-playground.php?raw';
+import { updateFile } from '../../utils/update-file';
 
 /**
  * @private
@@ -108,15 +108,6 @@ class WordPressPatcher {
 				NONCE_SALT: randomString(40),
 			},
 		});
-		await updateFile(
-			this.php,
-			`${this.wordpressPath}/wp-config.php`,
-			(contents) =>
-				contents.replaceAll(
-					/',\s+'put your unique phrase here'/g,
-					"__', ''"
-				)
-		);
 	}
 
 	async disableSiteHealth() {

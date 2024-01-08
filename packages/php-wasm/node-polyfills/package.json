@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/node-polyfills",
-	"version": "0.0.1",
+	"version": "0.5.2",
 	"description": "PHP.wasm – polyfills for Node.js",
 	"repository": {
 		"type": "git",
@@ -29,5 +29,6 @@
 		"access": "public",
 		"directory": "../../../dist/packages/php-wasm/node-polyfills"
 	},
-	"license": "GPL-2.0-or-later"
+	"license": "GPL-2.0-or-later",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }

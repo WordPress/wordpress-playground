@@ -11,7 +11,7 @@
 </head>
 <body>
 	<div id="main">
-		<!-- 
+		<!--
 			Credit for the logo and site design goes to Andrew Duthy
 			who originally built and hosted http://gutenberg.run/
 		-->
@@ -81,17 +81,19 @@
 		const form = document.getElementById('create');
 		const errorDiv = document.getElementById('error');
 
-		form.addEventListener('submit', async function previewPr(e) {
+		// If there's a PR query parameter, call previewPr with its value
+		const urlParams = new URLSearchParams(window.location.search);
+		const prNumber = urlParams.get('pr');
+		if (prNumber) {
+			document.getElementById('pr-number').value = prNumber;
+			previewPr(prNumber);
+		}
+
+		form.addEventListener('submit', async function onSubmit(e) {
 			e.preventDefault();
 			if (submitting) {
 				return;
 			}
-
-			submitting = true;
-			errorDiv.innerText = '';
-			submitButton.classList.add('loading');
-			submitButton.disabled = true;
-
 			let prNumber = document.getElementById('pr-number').value;
 
 			// Extract number from a GitHub URL
@@ -103,10 +105,19 @@
 				prNumber = prNumber.match(/\/pull\/(\d+)/)[1];
 			}
 
+			previewPr(prNumber);
+		});
+
+		async function previewPr(prNumber) {
+			submitting = true;
+			errorDiv.innerText = '';
+			submitButton.classList.add('loading');
+			submitButton.disabled = true;
+
 			// Verify that the PR exists and that GitHub CI finished building it
 			const zipArtifactUrl = `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=${prNumber}`;
 			// Send the HEAD request to zipArtifactUrl to confirm the PR and the artifact both exist
-			const response = await fetch(zipArtifactUrl, { method: 'HEAD' });
+			const response = await fetch(zipArtifactUrl + '&verify_only=true');
 			if (response.status !== 200) {
 				errorDiv.innerText = `The PR ${prNumber} does not exist or GitHub CI did not finish building it yet.`;
 				submitting = false;
@@ -178,6 +189,6 @@
 			};
 			const encoded = JSON.stringify(blueprint);
 			window.location = '/#' + encodeURI(encoded);
-		});
+		}
 	</script>
 </body>

@@ -47,7 +47,7 @@ describe('Blueprint step runSql', () => {
 
 		// Test a single query
 		const mockFileSingle = new File(
-			[new TextEncoder().encode('SELECT * FROM wp_users;').buffer],
+			['SELECT * FROM wp_users;'],
 			'single-query.sql'
 		);
 
@@ -59,11 +59,7 @@ describe('Blueprint step runSql', () => {
 
 		// Test a multiple queries
 		const mockFileMultiple = new File(
-			[
-				new TextEncoder().encode(
-					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`
-				).buffer,
-			],
+			[`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;\n`],
 			'multiple-queries.sql'
 		);
 
@@ -75,11 +71,7 @@ describe('Blueprint step runSql', () => {
 
 		// Ensure it works the same if the last query is missing a trailing newline
 		const mockFileNoTrailingSpace = new File(
-			[
-				new TextEncoder().encode(
-					`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;`
-				).buffer,
-			],
+			[`SELECT * FROM wp_users;\nSELECT * FROM wp_posts;`],
 			'no-trailing-newline.sql'
 		);
 

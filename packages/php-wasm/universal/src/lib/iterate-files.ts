@@ -1,5 +1,7 @@
 import { joinPaths, normalizePath } from '@php-wasm/util';
+import { StreamedFile } from '@php-wasm/stream-compression';
 import { UniversalPHP } from './universal-php';
+import { streamReadFileFromPHP } from './stream-read-file-from-php';
 
 export type IteratePhpFilesOptions = {
 	/**
@@ -54,8 +56,8 @@ export async function* iteratePhpFiles(
 			if (isDir) {
 				stack.push(absPath);
 			} else {
-				yield new File(
-					[await php.readFileAsBuffer(absPath)],
+				yield new StreamedFile(
+					streamReadFileFromPHP(php, absPath),
 					relativePaths
 						? joinPaths(
 								pathPrefix || '',

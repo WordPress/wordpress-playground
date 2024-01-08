@@ -1,8 +1,8 @@
 FROM playground-php-wasm:base
 
 RUN mkdir -p /root/lib/include /root/lib/lib
-COPY ../libz/dist/root/lib/include /root/lib/include
-COPY ../libz/dist/root/lib/lib /root/lib/lib
+COPY ./libz/dist/root/lib/include /root/lib/include
+COPY ./libz/dist/root/lib/lib /root/lib/lib
 
 RUN set -euxo pipefail &&\
     wget --no-check-certificate https://www.sqlite.org/2022/sqlite-autoconf-3400100.tar.gz && \
