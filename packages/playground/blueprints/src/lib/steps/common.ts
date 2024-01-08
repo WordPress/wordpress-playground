@@ -40,7 +40,9 @@ export function zipNameToHumanName(zipName: string) {
 	);
 }
 
-type PatchFileCallback = (contents: string) => string | Uint8Array;
+type PatchFileCallback = (
+	contents: string
+) => string | Uint8Array | Promise<string | Uint8Array>;
 export async function updateFile(
 	php: UniversalPHP,
 	path: string,
@@ -50,7 +52,7 @@ export async function updateFile(
 	if (await php.fileExists(path)) {
 		contents = await php.readFileAsText(path);
 	}
-	await php.writeFile(path, callback(contents));
+	await php.writeFile(path, await callback(contents));
 }
 
 export async function fileToUint8Array(file: File) {
