@@ -1,3 +1,8 @@
+// Safari doesn't support BYOB streams yet. The stream-compression
+// package ships a polyfill – let's start by importing it, then:
+import '@php-wasm/stream-compression';
+import { concatUint8Array } from '@php-wasm/stream-compression';
+
 /*
  * An approximate total file size to use when the actual
  * total number of bytes is missing.
