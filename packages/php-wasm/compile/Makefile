@@ -1,4 +1,7 @@
+.PHONY: all libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image clean
+
 base-image: base-image/.ready
+
 base-image/.ready:
 	cd base-image; docker build -f ./Dockerfile -t playground-php-wasm:base .
 
@@ -28,7 +31,7 @@ libzip/dist/1.9.2/root/lib/lib/libzip.a: base-image libz
 libpng16: libpng16/dist/root/lib/lib/libpng16.a
 libpng16/dist/root/lib/lib/libpng16.a: base-image libz
 	mkdir -p ./libpng16/dist/root/lib
-	docker build -f ./libpng16/Dockerfile -t playground-php-wasm:libpng . 
+	docker build -f ./libpng16/Dockerfile -t playground-php-wasm:libpng .
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/lib ./libpng16/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libpng16/dist/root/lib
 
@@ -88,7 +91,8 @@ oniguruma/dist/root/lib/lib/libonig.a: base-image
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/lib ./oniguruma/dist/root/lib/
 	docker cp $$(docker create playground-php-wasm:oniguruma):/root/lib/include ./oniguruma/dist/root/lib
 
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma base-image
+
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist

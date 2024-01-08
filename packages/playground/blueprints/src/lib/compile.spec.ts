@@ -44,6 +44,8 @@ describe('Blueprints', () => {
 			WP_AUTO_UPDATE_CORE: false,
 		};
 
+		php.writeFile('/wp-config.php', '<?php ');
+
 		// Call the function with the constants and the playground client
 		// Step1: define the constants
 		await defineWpConfigConsts(php, {
@@ -51,15 +53,24 @@ describe('Blueprints', () => {
 		});
 
 		// Assert execution of echo statements
-		php.writeFile('/index.php', '<?php echo TEST_CONST;');
+		php.writeFile(
+			'/index.php',
+			'<?php require "/wp-config.php"; echo TEST_CONST;'
+		);
 		let result = await php.request({ url: '/index.php' });
 		expect(result.text).toBe('test_value');
 
-		php.writeFile('/index.php', '<?php echo SITE_URL;');
+		php.writeFile(
+			'/index.php',
+			'<?php require "/wp-config.php"; echo SITE_URL;'
+		);
 		result = await php.request({ url: '/index.php' });
 		expect(result.text).toBe('http://test.url');
 
-		php.writeFile('/index.php', '<?php var_dump(WP_AUTO_UPDATE_CORE);');
+		php.writeFile(
+			'/index.php',
+			'<?php require "/wp-config.php"; var_dump(WP_AUTO_UPDATE_CORE);'
+		);
 		result = await php.request({ url: '/index.php' });
 		expect(result.text.trim()).toBe('bool(false)');
 	});

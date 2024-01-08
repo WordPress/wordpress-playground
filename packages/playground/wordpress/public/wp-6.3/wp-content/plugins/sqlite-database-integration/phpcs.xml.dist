@@ -24,10 +24,10 @@
 
 	<rule ref="WordPress-Core"/>
 	<rule ref="WordPress-Docs"/>
-	<rule ref="WordPress.CodeAnalysis.EmptyStatement"/>
 
 	<!-- Directories and third party library exclusions. -->
 	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/tests/*</exclude-pattern>
 
 	<!-- Allow the WP DB Class and related tests for usage of direct database access functions. -->
 	<rule ref="WordPress.DB.RestrictedClasses.mysql__PDO">

@@ -108,15 +108,6 @@ class WordPressPatcher {
 				NONCE_SALT: randomString(40),
 			},
 		});
-		await updateFile(
-			this.php,
-			`${this.wordpressPath}/wp-config.php`,
-			(contents) =>
-				contents.replaceAll(
-					/',\s+'put your unique phrase here'/g,
-					"__', ''"
-				)
-		);
 	}
 
 	async disableSiteHealth() {
