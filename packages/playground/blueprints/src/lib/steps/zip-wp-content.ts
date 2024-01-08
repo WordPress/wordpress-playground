@@ -1,7 +1,7 @@
 import { joinPaths } from '@php-wasm/util';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
 import { UniversalPHP, iterateFiles } from '@php-wasm/universal';
-import { encodeZip, collectBytes } from '@wp-playground/stream-compression';
+import { encodeZip, collectBytes } from '@php-wasm/stream-compression';
 
 /**
  * Replace the current wp-content directory with one from the provided zip file.

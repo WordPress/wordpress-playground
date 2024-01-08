@@ -5,7 +5,7 @@ import {
 	installTheme,
 	login,
 } from '@wp-playground/blueprints';
-import { collectFile, encodeZip } from '@wp-playground/stream-compression';
+import { collectFile, encodeZip } from '@php-wasm/stream-compression';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(

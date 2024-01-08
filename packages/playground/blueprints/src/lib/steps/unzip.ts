@@ -1,4 +1,4 @@
-import { streamWriteToPhp, decodeZip } from '@wp-playground/stream-compression';
+import { streamWriteToPhp, decodeZip } from '@php-wasm/stream-compression';
 import { StepHandler } from '.';
 
 /**

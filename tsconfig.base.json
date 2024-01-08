@@ -30,7 +30,7 @@
 			"@php-wasm/progress": ["packages/php-wasm/progress/src/index.ts"],
 			"@php-wasm/scopes": ["packages/php-wasm/scopes/src/index.ts"],
 			"@php-wasm/stream-compression": [
-				"packages/php-wasm/stream-compression/src/index.ts"
+				"packages/playground/stream-compression/src/index.ts"
 			],
 			"@php-wasm/universal": ["packages/php-wasm/universal/src/index.ts"],
 			"@php-wasm/util": ["packages/php-wasm/util/src/index.ts"],
@@ -53,9 +53,6 @@
 			],
 			"@wp-playground/storage": [
 				"packages/playground/storage/src/index.ts"
-			],
-			"@wp-playground/stream-compression": [
-				"packages/playground/stream-compression/src/index.ts"
 			],
 			"@wp-playground/sync": ["packages/playground/sync/src/index.ts"],
 			"@wp-playground/unit-test-utils": [

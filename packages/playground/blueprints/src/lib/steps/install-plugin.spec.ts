@@ -4,7 +4,7 @@ import {
 	collectFile,
 	encodeZip,
 	iteratorToStream,
-} from '@wp-playground/stream-compression';
+} from '@php-wasm/stream-compression';
 import { installPlugin } from './install-plugin';
 
 describe('Blueprint step installPlugin', () => {

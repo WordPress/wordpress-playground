@@ -9,7 +9,7 @@ import {
 	iteratorToStream,
 	streamWriteToPhp,
 	decodeZip,
-} from '@wp-playground/stream-compression';
+} from '@php-wasm/stream-compression';
 
 /**
  * @inheritDoc installPlugin

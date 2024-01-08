@@ -6,7 +6,7 @@ import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { File } from './utils/file-polyfill';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
-import { collectBytes } from '@wp-playground/stream-compression';
+import { collectBytes } from '@php-wasm/stream-compression';
 
 export const ResourceTypes = [
 	'vfs',
