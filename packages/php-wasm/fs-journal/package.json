@@ -38,7 +38,7 @@
 	"license": "GPL-2.0-or-later",
 	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
 	"engines": {
-		"node": ">=16.15.1",
+		"node": ">=18.18.2",
 		"npm": ">=8.11.0"
 	}
 }
