@@ -102,7 +102,12 @@ describe('Query API', () => {
 		it('should install the specified plugin', () => {
 			cy.visit('/?plugin=gutenberg&url=/wp-admin/plugins.php');
 			cy.wordPressDocument()
-				.find('[data-slug=gutenberg].active')
+				.find('[data-slug=gutenberg].active', {
+					// This might take a while on GitHub CI
+					// @TODO: Measure whether there's a significant slowdown
+					//        coming from switching to the CompressionStream API
+					timeout: 60_000,
+				})
 				.should('exist');
 		});
 	});
