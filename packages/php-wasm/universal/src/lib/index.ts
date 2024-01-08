@@ -21,7 +21,7 @@ export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
-export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export { streamWriteToPhp } from './stream-write-to-php';
 
 export { PHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';

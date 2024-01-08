@@ -1,7 +1,10 @@
 import { StepHandler } from '.';
-import { installAsset } from './install-asset';
-import { activateTheme } from './activate-theme';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
+import { flattenDirectory } from '../utils/flatten-directory';
+import { activateTheme } from './activate-theme';
+import { basename, joinPaths } from '@php-wasm/util';
+import { iteratorToStream, decodeZip } from '@php-wasm/stream-compression';
+import { streamWriteToPhp } from '@php-wasm/universal';
 
 /**
  * @inheritDoc installTheme
@@ -40,6 +43,12 @@ export interface InstallThemeStep<ResourceType> {
 		 */
 		activate?: boolean;
 	};
+	/**
+	 * An iterator of files to install. If not provided, the theme
+	 * will unzipped from `pluginZipFile`.
+	 * @private
+	 */
+	files?: AsyncIterable<File>;
 }
 
 export interface InstallThemeOptions {
@@ -52,34 +61,39 @@ export interface InstallThemeOptions {
 /**
  * Installs a WordPress theme in the Playground.
  *
- * @param playground The playground client.
+ * @param php The playground client.
  * @param themeZipFile The theme zip file.
  * @param options Optional. Set `activate` to false if you don't want to activate the theme.
  */
 export const installTheme: StepHandler<InstallThemeStep<File>> = async (
-	playground,
-	{ themeZipFile, options = {} },
+	php,
+	{ themeZipFile, files, options = {} },
 	progress
 ) => {
-	const zipNiceName = zipNameToHumanName(themeZipFile.name);
+	files = files || decodeZip(themeZipFile.stream());
+	const zipFileName = themeZipFile?.name.split('/').pop() || 'plugin.zip';
+	const zipNiceName = zipNameToHumanName(zipFileName);
+	const assetName = zipFileName.replace(/\.zip$/, '');
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 
 	try {
-		const { assetFolderName } = await installAsset(playground, {
-			zipFile: themeZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-		});
+		const extractTo = joinPaths(
+			await php.documentRoot,
+			'wp-content/themes',
+			crypto.randomUUID()
+		);
+		await iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+
+		const themePath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate
-
 		const activate = 'activate' in options ? options.activate : true;
-
 		if (activate) {
 			await activateTheme(
-				playground,
+				php,
 				{
-					themeFolderName: assetFolderName,
+					themeFolderName: basename(themePath),
 				},
 				progress
 			);
