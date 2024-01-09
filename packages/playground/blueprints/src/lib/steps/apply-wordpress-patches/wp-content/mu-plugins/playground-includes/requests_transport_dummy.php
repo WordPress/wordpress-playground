@@ -5,7 +5,7 @@
  * to prevent the Requests class from complaining about not having any
  * transports.
  */
-class Requests_Transport_Dummy implements Requests_Transport
+class Requests_Transport_Dummy_Base
 {
 	public $headers = '';
 
@@ -39,5 +39,17 @@ class Requests_Transport_Dummy implements Requests_Transport
 	public static function test($capabilities = array())
 	{
 		return true;
+	}
+}
+
+if (class_exists('\WpOrg\Requests\Requests')) {
+	class Requests_Transport_Dummy extends Requests_Transport_Dummy_Base implements \WpOrg\Requests\Transport
+	{
+
+	}
+} else {
+	class Requests_Transport_Dummy extends Requests_Transport_Dummy_Base implements Requests_Transport
+	{
+
 	}
 }
