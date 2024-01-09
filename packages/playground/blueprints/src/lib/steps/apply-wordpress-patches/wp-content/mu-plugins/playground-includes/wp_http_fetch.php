@@ -12,7 +12,7 @@
  * a class named "Wp_Http_" . $transport_name – which means we must adhere to this
  * hardcoded pattern.
  */
-class Wp_Http_Fetch implements Requests_Transport
+class Wp_Http_Fetch_Base
 {
 	public $headers = '';
 
@@ -47,31 +47,33 @@ class Wp_Http_Fetch implements Requests_Transport
 		if (!empty($data)) {
 			$data_format = $options['data_format'];
 			if ($data_format === 'query') {
-				$url  = self::format_get($url, $data);
+				$url = self::format_get($url, $data);
 				$data = '';
 			} elseif (!is_string($data)) {
 				$data = http_build_query($data, null, '&');
 			}
 		}
 
-		$request = json_encode(array(
-			'type'    => 'request',
-			'data'    => [
-				'headers' => $headers,
-				'data'    => $data,
-				'url'     => $url,
-				'method'  => $options['type'],
-			]
-		));
+		$request = json_encode(
+			array(
+				'type' => 'request',
+				'data' => [
+					'headers' => $headers,
+					'data' => $data,
+					'url' => $url,
+					'method' => $options['type'],
+				]
+			)
+		);
 
 		$this->headers = post_message_to_js($request);
 
 		// Store a file if the request specifies it.
 		// Are we sure that `$this->headers` includes the body of the response?
-		$before_response_body = strpos( $this->headers, "\r\n\r\n" );
-		if ( isset( $options['filename'] ) && $options['filename'] && false !== $before_response_body ) {
-			$response_body = substr( $this->headers, $before_response_body + 4 );
-			$this->headers = substr( $this->headers, 0, $before_response_body );
+		$before_response_body = strpos($this->headers, "\r\n\r\n");
+		if (isset($options['filename']) && $options['filename'] && false !== $before_response_body) {
+			$response_body = substr($this->headers, $before_response_body + 4);
+			$this->headers = substr($this->headers, 0, $before_response_body);
 			file_put_contents($options['filename'], $response_body);
 		}
 
@@ -81,10 +83,10 @@ class Wp_Http_Fetch implements Requests_Transport
 	public function request_multiple($requests, $options)
 	{
 		$responses = array();
-		$class     = get_class($this);
+		$class = get_class($this);
 		foreach ($requests as $id => $request) {
 			try {
-				$handler          = new $class();
+				$handler = new $class();
 				$responses[$id] = $handler->request($request['url'], $request['headers'], $request['data'], $request['options']);
 				$request['options']['hooks']->dispatch('transport.internal.parse_response', array(&$responses[$id], $request));
 			} catch (Requests_Exception $e) {
@@ -101,7 +103,7 @@ class Wp_Http_Fetch implements Requests_Transport
 	protected static function format_get($url, $data)
 	{
 		if (!empty($data)) {
-			$query     = '';
+			$query = '';
 			$url_parts = parse_url($url);
 			if (empty($url_parts['query'])) {
 				$url_parts['query'] = '';
@@ -127,5 +129,17 @@ class Wp_Http_Fetch implements Requests_Transport
 		}
 
 		return true;
+	}
+}
+
+if (class_exists('\WpOrg\Requests\Requests')) {
+	class Wp_Http_Fetch extends Wp_Http_Fetch_Base implements \WpOrg\Requests\Transport
+	{
+
+	}
+} else {
+	class Wp_Http_Fetch extends Wp_Http_Fetch_Base implements Requests_Transport
+	{
+
 	}
 }
