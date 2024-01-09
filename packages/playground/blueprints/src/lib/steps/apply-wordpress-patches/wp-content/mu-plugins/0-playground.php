@@ -87,9 +87,10 @@ add_filter('got_url_rewrite', '__return_true');
  * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
+$__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
-	Requests::add_transport('WP_Http_Fetch');
+	$__requests_class::add_transport('WP_Http_Fetch');
 
 	/**
 	 * Add Fetch transport to the list of transports that WordPress
@@ -117,5 +118,5 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	});
 } else {
 	require(__DIR__ . '/playground-includes/requests_transport_dummy.php');
-	Requests::add_transport('Requests_Transport_Dummy');
+	$__requests_class::add_transport('Requests_Transport_Dummy');
 }
