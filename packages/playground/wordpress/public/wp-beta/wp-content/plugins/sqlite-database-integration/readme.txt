@@ -9,7 +9,7 @@ License:           GPLv2 or later
 License URI:       https://www.gnu.org/licenses/gpl-2.0.html
 Tags:              performance, database
 
-SQLite-integration plugin from the WordPress Performance Team.
+SQLite integration plugin by the WordPress Team.
 
 == Description ==
 
