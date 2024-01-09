@@ -71,6 +71,7 @@ class Wp_Http_Fetch implements Requests_Transport
 		$before_response_body = strpos( $this->headers, "\r\n\r\n" );
 		if ( isset( $options['filename'] ) && $options['filename'] && false !== $before_response_body ) {
 			$response_body = substr( $this->headers, $before_response_body + 4 );
+			$this->headers = substr( $this->headers, 0, $before_response_body );
 			file_put_contents($options['filename'], $response_body);
 		}
 
