@@ -28,6 +28,17 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
+	describe('shell_exec()', () => {
+		it('echo', async () => {
+			const result = await php.run({
+				code: `<?php
+				echo 'stdout: ' . shell_exec("echo WordPress");
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\n');
+		});
+	});
+
 	describe('popen()', () => {
 		it('popen("echo", "r")', async () => {
 			const result = await php.run({

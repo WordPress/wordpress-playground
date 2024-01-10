@@ -388,9 +388,9 @@ const LibraryExample = {
 			const bytesRead = stdinStream.stream_ops.read(
 				stdinStream,
 				buffer,
-				offset,
+				0,
 				CHUNK_SIZE,
-				null
+				offset
 			);
 			if (bytesRead === null || bytesRead === 0) {
 				break;

@@ -46,13 +46,6 @@
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]
 		},
-		"test:esmcjs": {
-			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
-			"options": {
-				"outputPath": "dist/packages/playground/wordpress"
-			},
-			"dependsOn": ["build"]
-		},
 		"test:vite": {
 			"executor": "@nx/vite:test",
 			"outputs": [

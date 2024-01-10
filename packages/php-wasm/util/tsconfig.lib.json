@@ -5,6 +5,10 @@
 		"declaration": true,
 		"types": ["node"]
 	},
-	"include": ["src/**/*.ts", "../universal/src/lib/stream-write-to-php.ts"],
+	"include": [
+		"src/**/*.ts",
+		"../universal/src/lib/iterate-files.ts",
+		"../universal/src/lib/stream-write-to-php.ts"
+	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

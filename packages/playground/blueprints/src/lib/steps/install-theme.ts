@@ -1,7 +1,7 @@
 import { StepHandler } from '.';
-import { zipNameToHumanName } from './common';
 import { installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
+import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
 /**
  * @inheritDoc installTheme
