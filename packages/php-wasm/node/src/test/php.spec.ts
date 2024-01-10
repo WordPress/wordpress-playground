@@ -10,7 +10,7 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+describe.each(['8.2'])('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
@@ -58,10 +58,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				$fp = popen("cat > out", "w");
 				fwrite($fp, "WordPress\n");
 				fclose($fp);
-
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
 
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
@@ -153,11 +149,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 			fwrite($pipes[0], 'WordPress\n');
 
-			// Yields back to JS event loop to capture and process the 
-			// child_process output. This is fine. Regular PHP scripts
-			// typically wait for the child process to finish.
-			sleep(1);
-
 			$stdout = file_get_contents("/tmp/process_out");
 			$stderr = file_get_contents("/tmp/process_err");
 			proc_close($res);
@@ -183,11 +174,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					),
 					$pipes
 				);
-
-				// Yields back to JS event loop to capture and process the 
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
-				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");

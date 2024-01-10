@@ -443,6 +443,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_fetch_dimension_address_read",\
 "php_if_fopen",\
+"_php_stream_cast",\
+"php_stream_temp_cast",\
+"php_stream_temp_flush",\
 "_php_stream_flush",\
 "php_stream_flush",\
 "_php_stream_free",\
@@ -452,6 +455,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_std_has_dimension",\
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
+"zif_file_put_contents",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
@@ -686,6 +690,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_array_map",\
 "zif_array_reduce",\
 "zif_call_user_func",\
+"zif_json_encode",\
 "zif_call_user_func_array",\
 "zif_fclose",\
 "zif_feof",\

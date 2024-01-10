@@ -250,6 +250,44 @@ err:
 
 // -----------------------------------------------------------
 
+/**
+ * Replaces the default php_stream_read() implementation with our own that yields back to the JavaScript event
+ * loop to give JS a chance to actually populate the stream with any data that may already be buffered.
+ * This is the magic sauce that makes the stream_get_contents here work:
+ * 
+ * $descriptorspec = array(
+ *     0 => array("pipe", "r"),  // stdin
+ *     1 => array("pipe", "w"),  // stdout
+ *     2 => array("pipe", "w")   // stderr
+ * );
+ * $process = proc_open("less", $descriptorspec, $pipes);
+ * fwrite($pipes[0], "Hello world");
+ * fclose($pipes[0]);
+ * stream_get_contents($pipes[1]);
+ *
+ * Without the yield, stream_get_contents() would return an empty string because the data is not yet available.
+ * JavaScript populates the stream via asynchronous event handlers, so we need to yield back to give them a chance
+ * to run.
+ */
+int wasm_php_stream_flush(php_stream *stream, int closing)
+{
+	int retval = _php_stream_flush(stream, closing);
+	// Yield to JS event loop. 500 is an arbitrary value that
+	// seems to work well in practice when writing to stdin
+	// via proc_open() as the underlying process catches up
+	// with the input. It is quite a long time, though, so
+	// this should be very much revisited.
+	//
+	// Unfortunately it's not a bulletproof solution and will
+	// likely break in some cases. A proper fix would be to
+	// identify which low level libc function behaves differently
+	// in emscripten and natively, and then patch it to yield back
+	// to the JS event loop – much like is being done with `select()`
+	// below.
+	emscripten_sleep(500);
+	return retval;
+}
+
 int wasm_socket_has_data(php_socket_t fd);
 int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
 
@@ -259,7 +297,6 @@ int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
  */
 EMSCRIPTEN_KEEPALIVE inline int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv)
 {
-	fprintf (stdout, "Called php_pollfd_for!\n");
 	php_pollfd p;
 	int n;
 
@@ -309,43 +346,6 @@ PHP_FUNCTION(post_message_to_js)
 	{
 		RETURN_NULL();
 	}
-}
-
-/**
- * Replaces the default php_stream_read() implementation with our own that yields back to the JavaScript event
- * loop to give JS a chance to actually populate the stream with any data that may already be buffered.
- * This is the magic sauce that makes the stream_get_contents here work:
- * 
- * $descriptorspec = array(
- *     0 => array("pipe", "r"),  // stdin
- *     1 => array("pipe", "w"),  // stdout
- *     2 => array("pipe", "w")   // stderr
- * );
- * $process = proc_open("less", $descriptorspec, $pipes);
- * fwrite($pipes[0], "Hello world");
- * fclose($pipes[0]);
- * stream_get_contents($pipes[1]);
- *
- * Without the yield, stream_get_contents() would return an empty string because the data is not yet available.
- * JavaScript populates the stream via asynchronous event handlers, so we need to yield back to give them a chance
- * to run.
- */
-int wasm_php_stream_flush(php_stream *stream, int closing)
-{
-	int retval = _php_stream_flush(stream, closing);
-	// Yield to JS event loop. 100 is an arbitrary value that
-	// seems to work well in practice when writing to stdin
-	// via proc_open() as the underlying process catches up
-	// with the input.
-	//
-	// Unfortunately it's not a bulletproof solution and will
-	// likely break in some cases. A proper fix would be to
-	// identify which low level libc function behaves differently
-	// in emscripten and natively, and then patch it to yield back
-	// to the JS event loop – much like is being done with `select()`
-	// below.
-	emscripten_sleep(100);
-	return retval;
 }
 
 #if WITH_CLI_SAPI == 1
