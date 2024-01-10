@@ -247,6 +247,9 @@ RUN echo '#define ZEND_MM_ERROR 0' >> /root/php-src/main/php_config.h;
 RUN /root/replace.sh 's/define php_sleep sleep/define php_sleep wasm_sleep/g' /root/php-src/main/php.h
 RUN echo 'extern unsigned int wasm_sleep(unsigned int time);' >> /root/php-src/main/php.h;
 
+RUN /root/replace.sh 's/#define php_stream_flush\(stream\)	_php_stream_flush/extern int wasm_php_stream_flush(php_stream *stream, int closing);\n#define php_stream_flush(stream)	wasm_php_stream_flush/g' /root/php-src/main/php_streams.h
+RUN /root/replace.sh 's/_php_stream_flush\(stream/wasm_php_stream_flush(stream/g' /root/php-src/main/streams/streams.c
+
 RUN /root/replace.sh 's/define HAVE_UNISTD_H 1/define HAVE_UNISTD_H 0/g' /root/php-src/main/php_config.h
 
 # PHP <= 7.3 is not very good at detecting the presence of the POSIX readdir_r function
@@ -440,6 +443,12 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_fetch_dimension_address_read",\
 "php_if_fopen",\
+"_php_stream_flush",\
+"php_stream_flush",\
+"_php_stream_free",\
+"_php_stream_free_enclosed",\
+"stream_resource_persistent_dtor",\
+"stream_resource_regular_dtor",\
 "zend_std_has_dimension",\
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
@@ -490,6 +499,12 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
 "cli",\
 "wasm_sleep",\
+"wasm_php_stream_flush",\
+"wasm_php_stream_read",\
+"_php_stream_read",\
+"php_crc32_stream_bulk_update",\
+"phar_parse_zipfile",\
+"get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "_call_user_function_ex",\
@@ -748,6 +763,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_phpini_path", \n\
 "_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
+"_wasm_php_stream_flush", \n\
 "_wasm_add_uploaded_file", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_set_content_length", \n\

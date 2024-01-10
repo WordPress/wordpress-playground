@@ -4,6 +4,10 @@
 # use strict;
 
 perl -pi.bak -e "$1" "$2"
+if [ $? -ne 0 ]; then
+    echo "Failed to replace $1 in file $2 - exiting with non-zero status"
+    exit 1
+fi
 if cmp --silent -- "$2" "$2.bak"; then
     echo "No matches found for $1 in file $2 - exiting with non-zero status"
     exit 1
