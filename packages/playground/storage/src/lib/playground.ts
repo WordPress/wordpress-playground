@@ -1,10 +1,6 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
 
-export type GitHubFile = {
-	path: string;
-	content: Uint8Array;
-};
 /**
  * Replaces the contents of a Playground directory with the given files.
  *

@@ -173,6 +173,10 @@ export interface DownloadProgress {
 	total: number;
 }
 
+export function parseContentLength(contentLength: string | null) {
+	return parseInt(contentLength || '', 10) || FALLBACK_FILE_SIZE;
+}
+
 /**
  * Clones a fetch Response object and returns a version
  * that calls the `onProgress` callback as the #progress
@@ -186,8 +190,7 @@ export function cloneResponseMonitorProgress(
 	response: Response,
 	onProgress: (event: CustomEvent<DownloadProgress>) => void
 ): Response {
-	const contentLength = response.headers.get('content-length') || '';
-	const total = parseInt(contentLength, 10) || FALLBACK_FILE_SIZE;
+	const total = parseContentLength(response.headers.get('content-length'));
 
 	function notify(loaded: number, total: number) {
 		onProgress(
@@ -200,37 +203,19 @@ export function cloneResponseMonitorProgress(
 		);
 	}
 
+	// We could just tee() the response body here, but the following
+	// Chromium issue crashes the browser tab and prevents us from doing so:
+	// https://bugs.chromium.org/p/chromium/issues/detail?id=1512548
+	let seenBytes = 0;
 	return new Response(
-		new ReadableStream({
-			async start(controller) {
-				if (!response.body) {
-					controller.close();
-					return;
-				}
-				const reader = response.body.getReader();
-				let loaded = 0;
-				for (;;) {
-					try {
-						const { done, value } = await reader.read();
-						if (value) {
-							loaded += value.byteLength;
-						}
-						if (done) {
-							notify(loaded, loaded);
-							controller.close();
-							break;
-						} else {
-							notify(loaded, total);
-							controller.enqueue(value);
-						}
-					} catch (e) {
-						console.error({ e });
-						controller.error(e);
-						break;
-					}
-				}
+		peekByobStream(
+			response.body!,
+			(bytes) => {
+				seenBytes += bytes.byteLength;
+				notify(seenBytes, total);
 			},
-		}),
+			() => notify(total, total)
+		),
 		{
 			status: response.status,
 			statusText: response.statusText,
@@ -240,3 +225,39 @@ export function cloneResponseMonitorProgress(
 }
 
 export type DownloadProgressCallback = (progress: DownloadProgress) => void;
+
+function peekByobStream(
+	stream: ReadableStream<Uint8Array>,
+	onChunk: (chunk: Uint8Array) => void,
+	onDone: () => void
+) {
+	const reader = stream.getReader({ mode: 'byob' });
+	return new ReadableStream({
+		type: 'bytes',
+		// 0.5 MB seems like a reasonable chunk size, let's adjust
+		// this if needed.
+		autoAllocateChunkSize: 512 * 1024,
+
+		/**
+		 * We could write directly to controller.byobRequest.view
+		 * here. Unfortunately, in Chrome it detaches on the first
+		 * `await` and cannot be reused once we actually have the data.
+		 */
+		async pull(controller) {
+			// Read the next chunk of data:
+			const view = controller.byobRequest!.view!;
+			const uint8array = new Uint8Array(view.byteLength);
+			const { value: chunk, done } = await reader.read(uint8array);
+			if (done) {
+				controller.close();
+				controller.byobRequest?.respond(0);
+				onDone();
+				return;
+			}
+
+			// Emit that chunk:
+			onChunk(chunk);
+			controller.byobRequest?.respondWithNewView(chunk);
+		},
+	});
+}

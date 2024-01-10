@@ -19,17 +19,16 @@ export default async function runExecutor(
 	const testsPath = path.join(context.root, buildDir, 'test-esm-cjs');
 	mkdirSync(testsPath, { recursive: true });
 
+	const testESMPath = path.join(testsPath, 'test-esm.mjs');
 	writeFileSync(
-		path.join(testsPath, 'test-esm.mjs'),
+		testESMPath,
 		`import * as result from '../../${options.outputPath}/index.js';`
 	);
-	writeFileSync(
-		path.join(testsPath, 'test-cjs.cjs'),
-		`require('../../${options.outputPath}');`
-	);
-	const checkForSuccess = (scriptName) =>
+	const testCJSPath = path.join(testsPath, 'test-cjs.cjs');
+	writeFileSync(testCJSPath, `require('../../${options.outputPath}');`);
+	const checkForSuccess = (scriptPath) =>
 		new Promise((resolve, reject) => {
-			const test = spawn('sh', ['node', scriptName], {
+			const test = spawn('node', [scriptPath], {
 				cwd: testsPath,
 				stdio: 'pipe',
 			});
@@ -49,7 +48,7 @@ export default async function runExecutor(
 			});
 		});
 
-	await checkForSuccess('test-esm.mjs');
-	await checkForSuccess('test-cjs.cjs');
+	await checkForSuccess(testESMPath);
+	await checkForSuccess(testCJSPath);
 	return { success: true };
 }

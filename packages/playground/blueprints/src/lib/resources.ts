@@ -4,7 +4,9 @@ import {
 } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
+import { File } from './utils/file-polyfill';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
+import { collectBytes } from '@php-wasm/stream-compression';
 
 export const ResourceTypes = [
 	'vfs',
@@ -213,14 +215,19 @@ export abstract class FetchResource extends Resource {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
 		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
+		response = cloneResponseMonitorProgress(
 			response,
 			this.progress?.loadingListener ?? noop
 		);
 		if (response.status !== 200) {
 			throw new Error(`Could not download "${url}"`);
 		}
-		return new File([await response.blob()], this.name);
+
+		return new StreamedFile(
+			response.body!,
+			this.name,
+			response.headers.get('content-type') ?? undefined
+		);
 	}
 
 	/**
@@ -408,5 +415,30 @@ export class SemaphoreResource<
 			return super.resolve();
 		}
 		return this.semaphore.run(() => super.resolve());
+	}
+}
+
+export class StreamedFile extends File {
+	constructor(
+		private readableStream: ReadableStream<Uint8Array>,
+		name: string,
+		type?: string
+	) {
+		super([], name, { type });
+	}
+
+	override slice(): Blob {
+		throw new Error('Not implemented');
+	}
+
+	override stream() {
+		return this.readableStream;
+	}
+
+	override async text() {
+		return new TextDecoder().decode(await this.arrayBuffer());
+	}
+	override async arrayBuffer() {
+		return await collectBytes(this.stream());
 	}
 }

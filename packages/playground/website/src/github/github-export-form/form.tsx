@@ -18,16 +18,15 @@ import {
 	createCommit,
 	createOrUpdateBranch,
 	createTree,
-	filesListToObject,
 	fork,
-	getFilesFromDirectory,
-	iterateFiles,
+	iterateGithubFiles,
 	mayPush,
 } from '@wp-playground/storage';
 import { oAuthState, setOAuthToken } from '../state';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { ContentType } from '../import-from-github';
+import { iterateFiles } from '@php-wasm/universal';
 import { joinPaths } from '@php-wasm/util';
 
 export interface GitHubExportFormProps {
@@ -101,24 +100,12 @@ export default function GitHubExportForm({
 		if (values.plugin && !plugins.includes(values.plugin)) {
 			values.plugin = '';
 		}
-		// The initialFilesBeforeChanges is valid for the repository
-		// and path that the user initially entered. If those change,
-		// we need to invalidate the initialFilesBeforeChanges.
-		if (
-			values.pathInRepo !== formValues.pathInRepo ||
-			values.repoUrl !== formValues.repoUrl
-		) {
-			setFilesBeforeChanges(undefined);
-		}
 		_setFormValues(values);
 	}
 
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [plugins, setPlugins] = useState<string[]>([]);
 	const [themes, setThemes] = useState<string[]>([]);
-	const [filesBeforeChanges, setFilesBeforeChanges] = useState<
-		any[] | undefined
-	>(initialFilesBeforeChanges);
 
 	useEffect(() => {
 		if (!playground) return;
@@ -254,21 +241,13 @@ export default function GitHubExportForm({
 
 			const relativeRepoPath = formValues.pathInRepo.replace(/^\//g, '');
 
-			let ghRawFiles: any[];
-			try {
-				ghRawFiles =
-					filesBeforeChanges ||
-					(await getFilesFromDirectory(
-						octokit,
-						repoDetails.owner,
-						repoDetails.repo,
-						defaultBranch,
-						relativeRepoPath
-					));
-			} catch (e) {
-				ghRawFiles = [];
-			}
-			const comparableFiles = filesListToObject(ghRawFiles);
+			const ghFiles = iterateGithubFiles(
+				octokit,
+				repoDetails.owner,
+				repoDetails.repo,
+				defaultBranch,
+				relativeRepoPath
+			);
 
 			let playgroundPath: string;
 			let prTitle: string;
@@ -336,7 +315,7 @@ export default function GitHubExportForm({
 			}
 
 			const changes = await changeset(
-				new Map(Object.entries(comparableFiles)),
+				ghFiles,
 				iterateFiles(playground, playgroundPath!, {
 					relativePaths: true,
 					pathPrefix: relativeRepoPath,

@@ -33,7 +33,50 @@ export interface GetFilesOptions {
 	onProgress?: ({ foundFiles, downloadedFiles }: GetFilesProgress) => void;
 	progress?: GetFilesProgress;
 }
-export async function getFilesFromDirectory(
+
+type InternalFile = ReturnType<typeof getFileContent>;
+
+/**
+ * Iterates over all files from a specified path in a GitHub repository.
+ *
+ * @param octokit The GitHub client.
+ * @param owner The owner of the repository.
+ * @param repo The name of the repository.
+ * @param ref The branch, tag, or commit reference.
+ * @param path The path to the directory.
+ * @param options Additional options for getting files.
+ * @returns An async iterable of files.
+ */
+export async function* iterateGithubFiles(
+	octokit: GithubClient,
+	owner: string,
+	repo: string,
+	ref: string,
+	path: string,
+	options: GetFilesOptions = {}
+): AsyncIterable<File> {
+	const files = (await getFilesFromDirectory(
+		octokit,
+		owner,
+		repo,
+		ref,
+		path,
+		options
+	)) as InternalFile[];
+
+	let repoRootPrefix = path;
+	if (repoRootPrefix.length && !repoRootPrefix.endsWith('/')) {
+		repoRootPrefix += '/';
+	}
+
+	for await (const file of files) {
+		yield new File(
+			[file.content],
+			file.path.substring(repoRootPrefix.length)
+		);
+	}
+}
+async function getFilesFromDirectory(
 	octokit: GithubClient,
 	owner: string,
 	repo: string,
