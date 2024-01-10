@@ -56,8 +56,8 @@ export async function* iteratePhpFiles(
 			if (isDir) {
 				stack.push(absPath);
 			} else {
-				yield new StreamedFile(
-					streamReadFileFromPHP(php, absPath),
+				yield new File(
+					[await php.readFileAsBuffer(absPath)],
 					relativePaths
 						? joinPaths(
 								pathPrefix || '',
@@ -68,4 +68,54 @@ export async function* iteratePhpFiles(
 			}
 		}
 	}
+}
+
+function bufferToStream(buffer) {
+	console.log('Pull', 'buffer.byteLength', buffer.byteLength, buffer);
+
+	const newArray = new Uint8Array(buffer.byteLength);
+	newArray.set(new Uint8Array(buffer));
+	buffer = newArray;
+	// buffer = new Uint8Array(buffer);
+	console.log('Pull', 'buffer.byteLength', buffer.byteLength, buffer);
+	return new ReadableStream({
+		type: 'bytes',
+		// 0.5 MB seems like a reasonable chunk size, let's adjust
+		// this if needed.
+		autoAllocateChunkSize: Math.max(
+			1,
+			Math.min(buffer.byteLength, 512 * 1024)
+		),
+		/**
+		 * We could write directly to controller.byobRequest.view
+		 * here. Unfortunately, in Chrome it detaches on the first
+		 * `await` and cannot be reused once we actually have the data.
+		 */
+		async pull(controller) {
+			// Read data until we have enough to fill the BYOB request:
+			const view = controller.byobRequest!.view!;
+			const uint8array = new Uint8Array(view.byteLength);
+			uint8array.set(buffer);
+			buffer = buffer.slice(uint8array.byteLength);
+			console.log(
+				'Pull',
+				{ uint8array, buf: buffer },
+				'buffer.byteLength',
+				buffer.byteLength,
+				'newArray.byteLength',
+				newArray.byteLength,
+				view.byteOffset,
+				view.byteLength,
+				controller.byobRequest
+			);
+
+			// Emit that chunk:
+			controller.byobRequest?.respondWithNewView(uint8array);
+			console.log('uint8array length', uint8array.byteLength);
+			if (buffer.byteLength === 0 || view.byteLength === 0) {
+				controller.close();
+				controller.byobRequest?.respond(0);
+			}
+		},
+	});
 }

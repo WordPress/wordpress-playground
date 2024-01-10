@@ -92,7 +92,7 @@ export function streamZippedFileEntries(
  * @param stream A stream of zip file bytes.
  * @returns A FileEntry object.
  */
-async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
+export async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
 	const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 	const signature = sigData.getUint32(0, true);
 	if (signature === SIGNATURE_FILE) {

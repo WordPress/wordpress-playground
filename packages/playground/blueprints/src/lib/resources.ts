@@ -5,6 +5,7 @@ import {
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
+import { StreamedFile } from '@php-wasm/stream-compression';
 
 export const ResourceTypes = [
 	'vfs',
@@ -213,14 +214,21 @@ export abstract class FetchResource extends Resource {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
 		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
-			response,
-			this.progress?.loadingListener ?? noop
-		);
+		// response = cloneResponseMonitorProgress(
+		// 	response,
+		// 	this.progress?.loadingListener ?? noop
+		// );
 		if (response.status !== 200) {
 			throw new Error(`Could not download "${url}"`);
 		}
-		return new File([await response.blob()], this.name);
+
+		const ab = await response.arrayBuffer();
+		console.log({ ab });
+		return new File(
+			[ab],
+			this.name
+			// response.headers.get('content-type') ?? undefined
+		);
 	}
 
 	/**
