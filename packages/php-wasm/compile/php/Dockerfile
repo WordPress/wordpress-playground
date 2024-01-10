@@ -761,6 +761,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_method", \n\
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
+	"_wasm_hello_world", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
 	export OPTIMIZATION_FLAGS="-O3"; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \

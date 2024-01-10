@@ -475,12 +475,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 */
 	async helloWorld(message: string) {
 		const phpResponse = await this.run({
-			code: `
-				<?php
+			code: `<?php
 				$fullMessage = "PHP: ${message} \n";
 				echo $fullMessage;
 				`,
 		});
+
+		this[__private__dont__use]
+			.ccall('wasm_hello_world', null, [STRING], [message])
+			.then((response: any) => {
+				console.log(response);
+			});
 
 		if (phpResponse.errors) {
 			console.error(phpResponse.errors);
