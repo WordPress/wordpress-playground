@@ -21,28 +21,28 @@ EOT;
  * 
  * https://github.com/WordPress/wordpress-playground/issues/498
  */
+
+ // I tried to use a more semantic markup on the message below, but it messes up the display of the error message in the Plugins' Popular tags section.
+
 add_filter('plugins_api_result', function ($res) {
 	if ($res instanceof WP_Error) {
 		$res = new WP_Error(
 			'plugins_api_failed',
-			'Enable networking support in Playground settings to access the Plugins directory. Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>. If you don\'t want to use it, you can still upload plugins or install them using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a> (e.g. ?plugin=coblocks).'
+			'Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.<br><br>
+			There are two alternative methods to enable global networking support:<br>
+			- Using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a>: for example, https://playground.wordpress.net/?networking=yes or<br>
+			- Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints-api/data-format/#features">Blueprint API</a>: add "features": { "networking": true } to the JSON file.'
 		);
 	}
 	return $res;
 });
 
 add_filter('gettext', function ($translation) {
-	// There is no better hook for swapping the error message
-	// on the themes page, unfortunately.
-	global $pagenow;
-
-	// Only change the message on /wp-admin/theme-install.php
-	if ('theme-install.php' !== $pagenow) {
-		return $translation;
-	}
-
 	if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
-		return 'Enable networking support in Playground settings to access the Themes directory. Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>. If you don\'t want to use it, you can still upload themes or install them using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a> (e.g. ?theme=pendant).';
+		return 'Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.<br><br>
+		There are two alternative methods to enable global networking support:<br>
+		- Using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a>: for example, https://playground.wordpress.net/?networking=yes or<br>
+		- Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints-api/data-format/#features">Blueprint API</a>: add "features": { "networking": true } to the JSON file.';
 	}
 	return $translation;
 });
