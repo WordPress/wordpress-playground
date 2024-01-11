@@ -53,6 +53,10 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 				fetchHeaders = Object.assign( {}, fetchHeaders );
 			}
 			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+
+			// Workaround for api.wordpress.org/core/version-check/1.7/ which doesn't support CORS preflight requests
+			delete fetchHeaders['wp_install'];
+			delete fetchHeaders['wp_blog'];
 		}
 
 		response = await fetchFn(fetchUrl, {
