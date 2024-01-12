@@ -14,7 +14,7 @@ export { rmdir } from './rmdir';
 export { writeFile } from './write-file';
 export { defineSiteUrl } from './define-site-url';
 export { importFile } from './import-file';
-export { importWordPressFiles } from './import-wp-content';
+export { importWordPressFiles } from './import-wordpress-files';
 export { exportWXR } from './export-wxr';
 export { exportWXZ } from './export-wxz';
 export { unzip } from './unzip';

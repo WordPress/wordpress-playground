@@ -1,8 +1,7 @@
-import { UniversalPHP } from '@php-wasm/universal';
 import { StepHandler } from '.';
 import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
-import { makeEditorFrameControlled } from './apply-wordpress-patches';
+import { applyGutenbergPatchOnce } from './apply-wordpress-patches';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
 /**
@@ -93,24 +92,3 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 		console.error(error);
 	}
 };
-
-async function applyGutenbergPatchOnce(playground: UniversalPHP) {
-	/**
-	 * Ensures the block editor iframe is controlled by the playground
-	 * service worker. Tl;dr it must use a HTTP URL as its src, not a
-	 * data URL, blob URL, or a srcDoc like it does by default.
-	 *
-	 * @see https://github.com/WordPress/wordpress-playground/pull/668
-	 */
-
-	if (
-		(await playground.isDir('/wordpress/wp-content/plugins/gutenberg')) &&
-		!(await playground.fileExists('/wordpress/.gutenberg-patched'))
-	) {
-		await playground.writeFile('/wordpress/.gutenberg-patched', '1');
-		await makeEditorFrameControlled(playground, '/wordpress', [
-			`/wordpress/wp-content/plugins/gutenberg/build/block-editor/index.js`,
-			`/wordpress/wp-content/plugins/gutenberg/build/block-editor/index.min.js`,
-		]);
-	}
-}
