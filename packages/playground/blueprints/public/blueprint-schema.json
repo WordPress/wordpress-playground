@@ -5,10 +5,6 @@
 		"Blueprint": {
 			"type": "object",
 			"properties": {
-				"helloWorld": {
-					"type": "string",
-					"description": "A friendly greeting to display in the UI."
-				},
 				"landingPage": {
 					"type": "string",
 					"description": "The URL to navigate to after the blueprint has been run."
@@ -139,6 +135,10 @@
 						]
 					},
 					"description": "The steps to run after every other operation in this Blueprint was executed."
+				},
+				"helloWorld": {
+					"type": "string",
+					"description": "Print messages to the console."
 				},
 				"$schema": {
 					"type": "string"
@@ -319,20 +319,6 @@
 			},
 			"required": ["step"],
 			"oneOf": [
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"step": {
-							"type": "string",
-							"const": "helloWorld"
-						},
-						"message": {
-							"type": "string",
-							"description": "The hello world message to display in the UI."
-						}
-					}
-				},
 				{
 					"type": "object",
 					"additionalProperties": false,
@@ -1141,6 +1127,32 @@
 						}
 					},
 					"required": ["data", "path", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "helloWorld"
+						},
+						"message": {
+							"type": "string"
+						}
+					},
+					"required": ["message", "step"]
 				}
 			]
 		},
