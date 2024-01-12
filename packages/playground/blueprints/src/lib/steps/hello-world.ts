@@ -1,5 +1,16 @@
 import { StepHandler } from '.';
 
+/**
+ * @inheritDoc helloWorld
+ * @example
+ *
+ * <code>
+ * {
+ * 		"step": "helloWorld",
+ * 		"message": "Hello World!"
+ * }
+ * </code>
+ */
 export type HelloWorldStep = {
 	step: 'helloWorld';
 	message: string;
