@@ -1,7 +1,6 @@
 import { StepHandler } from '.';
 import { installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
-import { applyGutenbergPatchOnce } from './apply-wordpress-patches';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
 /**
@@ -82,8 +81,6 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 				progress
 			);
 		}
-
-		await applyGutenbergPatchOnce(playground);
 	} catch (error) {
 		console.error(
 			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
