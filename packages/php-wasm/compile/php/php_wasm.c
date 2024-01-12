@@ -681,9 +681,12 @@ void wasm_add_SERVER_entry(char *key, char *value)
 	}
 }
 
-int wasm_hello_world(char *value)
+char *wasm_hello_world(char *value)
 {
-	return 8;
+	char *signature = "C: ";
+	char *data = malloc(strlen(value) + strlen(signature) + 1);
+	strcat(strcpy(data, signature), value);
+	return data;
 }
 
 /**

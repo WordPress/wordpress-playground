@@ -481,18 +481,19 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				`,
 		});
 
-		this[__private__dont__use]
-			.ccall('wasm_hello_world', null, [STRING], [message])
-			.then((response: any) => {
-				console.log(response);
-			});
-
 		if (phpResponse.errors) {
 			console.error(phpResponse.errors);
+			return;
 		}
-		if (phpResponse.text) {
-			console.log(phpResponse.text);
-		}
+
+		const cResponse = this[__private__dont__use].ccall(
+			'wasm_hello_world',
+			null,
+			[STRING],
+			[phpResponse.text]
+		);
+
+		console.log(cResponse);
 	}
 
 	/**
