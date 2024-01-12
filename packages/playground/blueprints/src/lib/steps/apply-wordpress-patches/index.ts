@@ -197,6 +197,29 @@ function randomString(length: number) {
 	return result;
 }
 
+export async function applyGutenbergPatchOnce(playground: UniversalPHP) {
+	/**
+	 * Ensures the block editor iframe is controlled by the playground
+	 * service worker. Tl;dr it must use a HTTP URL as its src, not a
+	 * data URL, blob URL, or a srcDoc like it does by default.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/pull/668
+	 */
+	const documentRoot = await playground.documentRoot;
+	if (
+		(await playground.isDir(
+			documentRoot + '/wp-content/plugins/gutenberg'
+		)) &&
+		!(await playground.fileExists(documentRoot + '/.gutenberg-patched'))
+	) {
+		await playground.writeFile(documentRoot + '/.gutenberg-patched', '1');
+		await makeEditorFrameControlled(playground, documentRoot, [
+			`${documentRoot}/wp-content/plugins/gutenberg/build/block-editor/index.js`,
+			`${documentRoot}/wp-content/plugins/gutenberg/build/block-editor/index.min.js`,
+		]);
+	}
+}
+
 /**
  *
  * Pair the site editor's nested iframe to the Service Worker.

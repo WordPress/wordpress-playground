@@ -3,6 +3,10 @@ import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import {
+	applyGutenbergPatchOnce,
+	applyWordPressPatches,
+} from './apply-wordpress-patches';
 
 /**
  * @inheritDoc importWordPressFiles
@@ -122,6 +126,13 @@ export const importWordPressFiles: StepHandler<
             require ${upgradePhp};
             `,
 	});
+
+	// Ensure the editor frame is controlled, see the
+	// applyGutenbergPatchOnce() function for details.
+	await applyWordPressPatches(playground, {
+		makeEditorFrameControlled: true,
+	});
+	await applyGutenbergPatchOnce(playground);
 };
 
 async function removePath(playground: UniversalPHP, path: string) {
