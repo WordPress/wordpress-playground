@@ -210,6 +210,43 @@ describe('Query API', () => {
 			});
 		});
 	});
+
+	describe('Patching Gutenberg editor frame', () => {
+		it('should patch the editor frame in WordPress', () => {
+			cy.visit('/?plugin=gutenberg&url=/wp-admin/post-new.php');
+			checkIfGutenbergIsPatched();
+		});
+
+		it('should patch the editor frame in Gutenberg when it is installed as a plugin', () => {
+			cy.visit('/?plugin=gutenberg&url=/wp-admin/post-new.php');
+			checkIfGutenbergIsPatched();
+		});
+
+		it('should patch Gutenberg brought over by importing a site', () => {
+			cy.visit('/');
+			// Get the current URL
+			cy.url().then((url) => {
+				url = url.replace(/\/$/, '');
+				// Import a site that has Gutenberg installed
+				cy.visit(
+					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
+				);
+				checkIfGutenbergIsPatched();
+			});
+		});
+
+		function checkIfGutenbergIsPatched() {
+			// Check if the inserter button is styled.
+			// If Gutenberg wasn't correctly patched,
+			// the inserter will look like a default
+			// browser button.
+			cy.wordPressDocument()
+				.find('iframe[name="editor-canvas"]')
+				.its('0.contentDocument')
+				.find('.block-editor-inserter__toggle')
+				.should('not.have.css', 'background-color', undefined);
+		}
+	});
 });
 
 // Let's disable this test in GitHub actions.
