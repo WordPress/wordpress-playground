@@ -3,7 +3,6 @@ import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { applyWordPressPatches } from './apply-wordpress-patches';
 
 /**
  * @inheritDoc importWordPressFiles
