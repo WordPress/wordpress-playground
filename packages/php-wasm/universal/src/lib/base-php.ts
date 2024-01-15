@@ -493,7 +493,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			[phpResponse.text]
 		);
 
-		console.log(cResponse);
+		console.log(this[__private__dont__use].UTF8ToString(cResponse));
 	}
 
 	/**
