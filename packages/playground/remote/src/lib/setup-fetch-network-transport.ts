@@ -37,20 +37,17 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 
 export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	const hostname = new URL(data.url).hostname;
-	const fetchUrl = ['w.org', 's.w.org'].includes(
-		hostname
-	)
+	const fetchUrl = ['w.org', 's.w.org'].includes(hostname)
 		? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
 		: data.url;
 
 	let response;
 	try {
-
 		const fetchMethod = data.method || 'GET';
-		let fetchHeaders = data.headers;
-		if ( fetchMethod == 'POST' ) {
-			if ( Array.isArray( fetchHeaders ) ) {
-				fetchHeaders = Object.assign( {}, fetchHeaders );
+		let fetchHeaders = data.headers || {};
+		if (fetchMethod == 'POST') {
+			if (Array.isArray(fetchHeaders)) {
+				fetchHeaders = Object.assign({}, fetchHeaders);
 			}
 			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
 
