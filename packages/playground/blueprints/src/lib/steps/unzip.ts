@@ -1,5 +1,6 @@
 import { decodeZip } from '@php-wasm/stream-compression';
 import { StepHandler } from '.';
+import { streamWriteToPhp } from '@php-wasm/universal';
 
 /**
  * @inheritDoc unzip

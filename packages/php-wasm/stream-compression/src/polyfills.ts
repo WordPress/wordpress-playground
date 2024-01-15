@@ -1,6 +1,4 @@
 import { collectBytes } from './utils/collect-bytes';
-import { limitBytes } from './utils/limit-bytes';
-import { decodeZip, nextZipEntry } from './zip/decode-zip';
 
 function areByobStreamsSupported() {
 	return (
@@ -14,12 +12,14 @@ function areByobStreamsSupported() {
  */
 if (!areByobStreamsSupported()) {
 	// Bring spec-compliant streams to global scope
+	// @ts-ignore
 	const streams = await import('web-streams-polyfill/ponyfill');
 	for (const [key, value] of Object.entries(streams)) {
 		(globalThis as any)[key] = value;
 	}
 
-	function bufferToStream(buffer) {
+	// eslint-disable-next-line no-inner-declarations
+	function bufferToStream(buffer: ArrayBuffer) {
 		const newArray = new Uint8Array(buffer.byteLength);
 		newArray.set(new Uint8Array(buffer));
 		buffer = newArray;
@@ -40,7 +40,7 @@ if (!areByobStreamsSupported()) {
 				// Read data until we have enough to fill the BYOB request:
 				const view = controller.byobRequest!.view!;
 				const uint8array = new Uint8Array(view.byteLength);
-				uint8array.set(buffer.slice(0, uint8array.byteLength));
+				uint8array.set(buffer.slice(0, uint8array.byteLength) as any);
 				buffer = buffer.slice(uint8array.byteLength);
 
 				// Emit that chunk:
@@ -54,7 +54,9 @@ if (!areByobStreamsSupported()) {
 	}
 
 	const _fetchBackup = (globalThis as any).fetch;
-	(globalThis as any).fetch = async function (...args): Promise<Response> {
+	(globalThis as any).fetch = async function (
+		...args: any
+	): Promise<Response> {
 		console.log({ args });
 		if (args[0].includes('.wasm')) {
 			return _fetchBackup(...args);
@@ -72,6 +74,7 @@ if (!areByobStreamsSupported()) {
 	};
 
 	class ByobResponse extends Response {
+		private _bodyStream: any;
 		constructor(bodyInit: BodyInit | null, init?: ResponseInit) {
 			super(bodyInit, init);
 			this._bodyStream = bodyInit;
@@ -86,7 +89,10 @@ if (!areByobStreamsSupported()) {
 
 	const OriginalDecompressionStream = (globalThis as any).DecompressionStream;
 	(globalThis as any).DecompressionStream = class DecompressionStream2 {
-		constructor(algorithm: string, opts?: DecompressionStreamInit) {
+		writable: any;
+		readable: any;
+		constructor(algorithm: string, opts?: any) {
+			// DecompressionStreamInit
 			const stream = new OriginalDecompressionStream(algorithm, opts);
 			const writer = stream.writable.getWriter();
 			const reader = stream.readable.getReader();
@@ -208,15 +214,15 @@ if (!areByobStreamsSupported()) {
 	// 	return _pipeThrough.call(this, target, options);
 	// };
 
-	function isStreamByob(stream: ReadableStream) {
-		try {
-			const reader = stream.getReader({ mode: 'byob' });
-			reader.cancel();
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
+	// function isStreamByob(stream: ReadableStream) {
+	// 	try {
+	// 		const reader = stream.getReader({ mode: 'byob' });
+	// 		reader.cancel();
+	// 		return true;
+	// 	} catch (e) {
+	// 		return false;
+	// 	}
+	// }
 }
 
 // Make this file a module
