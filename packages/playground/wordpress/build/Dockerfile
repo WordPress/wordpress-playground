@@ -37,7 +37,7 @@ RUN rm -rf wordpress/wp-content/plugins/akismet
 
 # Separate WordPress static files
 RUN cp -r wordpress wordpress-static && \
-    cd wordpress-static && \ 
+    cd wordpress-static && \
     find ./ -name '*.php' -delete && \
     # Keep only the static files inside the directories like wp-admin or wp-content:
     find . -maxdepth 1 -type f -delete && \
@@ -81,12 +81,15 @@ RUN cd wordpress && \
     find ./ -type f -name '*.css' \
     -not -path '*/wp-includes/blocks/*/*.min.css' \
     -not -path '*/wp-content/themes/*/style.css' \
+    -not -path '*/wp-includes/css/wp-embed-template.min.css' \
     -delete && \
     find ./ -type f -name '*-rtl.min.css' -delete && \
     # Keep only the JS files that are read by PHP
     find ./ -type f -name '*.js' \
     -not -path '*/wp-includes/blocks/*/*.min.js' \
     -not -name 'wp-emoji-loader.min.js' \
+    -not -name '*/wp-includes/js/wp-embed.min.js' \
+    -not -name '*/wp-includes/js/wp-embed-template.min.js' \
     # This file is patched in JavaScript and needs to
     # be served from VFS. See #703
     -not -path '*/wp-includes/js/dist/block-editor*.js' \
@@ -165,7 +168,7 @@ RUN cd wordpress && \
     sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
     mv wp-config.php.new wp-config.php
 
-# Bundle the .data file using Emscripten 
+# Bundle the .data file using Emscripten
 RUN mv wordpress /wordpress && \
     /emsdk/upstream/emscripten/tools/file_packager.py \
     /root/output/wp.data \
