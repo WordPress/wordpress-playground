@@ -115,7 +115,6 @@ function isByobSupported() {
 	const file = new File([inputBytes], 'test');
 	const stream = file.stream();
 	try {
-		stream.getReader({ mode: 'byob' });
 		// This throws on older versions of node:
 		stream.getReader({ mode: 'byob' });
 		return true;
