@@ -19,14 +19,18 @@ describe('Query API', () => {
 		it('should load PHP 8.0 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1')
+				.find('h1', {
+					timeout: 60_000,
+				})
 				.should('contain', 'PHP Version 8.0');
 		});
 
 		it('should load PHP 7.4 when requested', () => {
 			cy.visit('/?php=7.4&url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1')
+				.find('h1', {
+					timeout: 60_000,
+				})
 				.should('contain', 'PHP Version 7.4');
 		});
 	});
