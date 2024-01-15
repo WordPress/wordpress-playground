@@ -1,11 +1,7 @@
-import {
-	cloneResponseMonitorProgress,
-	ProgressTracker,
-} from '@php-wasm/progress';
+import { ProgressTracker } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { Semaphore } from '@php-wasm/util';
 import { zipNameToHumanName } from './utils/zip-name-to-human-name';
-import { StreamedFile } from '@php-wasm/stream-compression';
 
 export const ResourceTypes = [
 	'vfs',
@@ -213,7 +209,7 @@ export abstract class FetchResource extends Resource {
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
-		let response = await fetch(url);
+		const response = await fetch(url);
 		// response = cloneResponseMonitorProgress(
 		// 	response,
 		// 	this.progress?.loadingListener ?? noop
@@ -261,9 +257,6 @@ export abstract class FetchResource extends Resource {
 		return true;
 	}
 }
-
-// eslint-disable-next-line @typescript-eslint/no-empty-function
-const noop = (() => {}) as any;
 
 /**
  * A `Resource` that represents a file available from a URL.
