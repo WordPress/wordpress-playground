@@ -202,7 +202,6 @@ try {
 			disableWpNewBlogNotification: true,
 			addPhpInfo: true,
 			disableSiteHealth: true,
-			makeEditorFrameControlled: true,
 			prepareForRunningInsideWebBrowser: true,
 		});
 	}
