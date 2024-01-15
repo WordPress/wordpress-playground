@@ -31,6 +31,13 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 			return '';
 		}
 
+		// PHP encodes empty arrays as JSON arrays, not objects.
+		// We can't easily reason about the request body, but we know
+		// headers should be an object so let's convert it here.
+		if (Array.isArray(data.headers)) {
+			data.headers = Object.fromEntries(data.headers);
+		}
+
 		return handleRequest(data);
 	});
 }
@@ -44,14 +51,20 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	let response;
 	try {
 		const fetchMethod = data.method || 'GET';
-		let fetchHeaders = data.headers || {};
+		const fetchHeaders = data.headers || {};
 		if (fetchMethod == 'POST') {
-			if (Array.isArray(fetchHeaders)) {
-				fetchHeaders = Object.assign({}, fetchHeaders);
-			}
 			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
 
-			// Workaround for api.wordpress.org/core/version-check/1.7/ which doesn't support CORS preflight requests
+			/**
+			 * Removes a few custom request headers.
+			 *
+			 * This is required because the fetch API will send a CORS preflight
+			 * request if the request is cross-origin and has custom headers.
+			 *
+			 * However, the api.wordpress.org/core/version-check/1.7/ endpoint
+			 * doesn't support CORS preflight requests. These two headers
+			 * aren't critical to the request, so we can just remove them.
+			 */
 			delete fetchHeaders['wp_install'];
 			delete fetchHeaders['wp_blog'];
 		}
