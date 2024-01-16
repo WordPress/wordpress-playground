@@ -66,6 +66,31 @@ wp_insert_post(array(
 ]
 }} />
 
+#### Enable an option on the Gutenberg Experiments page
+
+Here: Switch on the "new admin views" feature. 
+
+<BlueprintExample
+display={`{
+    "steps": [
+        {
+            "step": "runPHP",
+            "code": \`<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );
+\`
+}
+]
+}`	}
+	blueprint={{
+		"steps": [
+			{
+				"step": "runPHP",
+				"code": `<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );
+`
+}
+]
+}} />
+
+
 ### Showcase a product demo
 
 <BlueprintExample blueprint={{
