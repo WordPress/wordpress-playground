@@ -1,6 +1,6 @@
 # Playground Client
 
-Provides a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/interfaces/_wp_playground_client.PlaygroundClient.html) that can be used to control a WordPress Playground iframe:
+Provides a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/api/client/) that can be used to control a WordPress Playground iframe:
 
 ```ts
 import { startPlaygroundWeb } from '@wp-playground/client';
@@ -20,7 +20,7 @@ console.log(response.text);
 
 Using TypeScript is highly recommended as this package ships with comprehensive types – hit ctrl+space in your IDE after `client.` and you'll see all the available methods.
 
-Once you have a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/interfaces/_wp_playground_client.PlaygroundClient.html) instance, you can use it to control the playground:
+Once you have a [PlaygroundClient](https://wordpress.github.io/wordpress-playground/api/client/) instance, you can use it to control the playground:
 
 ```ts
 await client.writeFile('/index.php', '<?php echo "Hi!"; ');
@@ -39,4 +39,4 @@ await client.request({
 });
 ```
 
-To see all the available methods, check out the [PlaygroundClient](https://wordpress.github.io/wordpress-playground/interfaces/_wp_playground_client.PlaygroundClient.html) interface.
+To see all the available methods, check out the [PlaygroundClient](https://wordpress.github.io/wordpress-playground/api/client/) interface.
