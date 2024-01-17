@@ -366,7 +366,7 @@ const LibraryExample = {
 			PHPWASM.callback_pipes[procopenCallId].onData(function (data) {
 				if (!data) return;
 				const dataStr = new TextDecoder('utf-8').decode(data);
-				cp.stdin.write(dataStr);
+				const awaitsDrain = cp.stdin.write(dataStr);
 			});
 			return 0;
 		}

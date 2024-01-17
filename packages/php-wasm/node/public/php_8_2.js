@@ -2669,7 +2669,8 @@ var FS = {
      output(10);
     }
    },
-   read: (stream, buffer, offset, length, pos) => {
+      read: (stream, buffer, offset, length, pos) => {
+       console.log("read", {stream, length});
     var bytesRead = 0;
     for (var i = 0; i < length; i++) {
      var result;
@@ -2955,13 +2956,14 @@ var SYSCALLS = {
   var ret = UTF8ToString(ptr);
   return ret;
  },
- getStreamFromFD: function(fd) {
+    getStreamFromFD: function (fd) {
+     console.trace(`getStreamFromFD(fd=${fd}) {`);
   var stream = FS.getStreamChecked(fd);
   return stream;
  }
 };
 
-function ___syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) {
+function ___syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) { console.trace(`__syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) {`); 
  try {
   var total = 0;
   var srcReadLow = readfds ? HEAP32[readfds >> 2] : 0, srcReadHigh = readfds ? HEAP32[readfds + 4 >> 2] : 0;
@@ -3077,7 +3079,8 @@ var SOCKFS = {
   return stream.node.sock;
  },
  stream_ops: {
-  poll(stream) {
+     poll(stream) {
+        console.log("POLL");
    var sock = stream.node.sock;
    return sock.sock_ops.poll(sock);
   },
@@ -3264,6 +3267,7 @@ url = Module["websocket"]["url"](...arguments);
    }
   },
   poll(sock) {
+    console.log("POLL WS");
    if (sock.type === 1 && sock.server) {
     return sock.pending.length ? 64 | 1 : 0;
    }
@@ -3625,7 +3629,7 @@ var DNS = {
  }
 };
 
-function ___syscall_accept4(fd, addr, addrlen, flags, d1, d2) {
+function ___syscall_accept4(fd, addr, addrlen, flags, d1, d2) { console.trace(`__syscall_accept4(fd, addr, addrlen, flags, d1, d2) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var newsock = sock.sock_ops.accept(sock);
@@ -3747,7 +3751,7 @@ function getSocketAddress(addrp, addrlen, allowNull) {
  return info;
 }
 
-function ___syscall_bind(fd, addr, addrlen, d1, d2, d3) {
+function ___syscall_bind(fd, addr, addrlen, d1, d2, d3) { console.trace(`__syscall_bind(fd, addr, addrlen, d1, d2, d3) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var info = getSocketAddress(addr, addrlen);
@@ -3759,7 +3763,7 @@ function ___syscall_bind(fd, addr, addrlen, d1, d2, d3) {
  }
 }
 
-function ___syscall_chdir(path) {
+function ___syscall_chdir(path) { console.trace(`__syscall_chdir(path) {`); 
  try {
   path = SYSCALLS.getStr(path);
   FS.chdir(path);
@@ -3770,7 +3774,7 @@ function ___syscall_chdir(path) {
  }
 }
 
-function ___syscall_chmod(path, mode) {
+function ___syscall_chmod(path, mode) { console.trace(`__syscall_chmod(path, mode) {`); 
  try {
   path = SYSCALLS.getStr(path);
   FS.chmod(path, mode);
@@ -3781,7 +3785,7 @@ function ___syscall_chmod(path, mode) {
  }
 }
 
-function ___syscall_connect(fd, addr, addrlen, d1, d2, d3) {
+function ___syscall_connect(fd, addr, addrlen, d1, d2, d3) { console.trace(`__syscall_connect(fd, addr, addrlen, d1, d2, d3) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var info = getSocketAddress(addr, addrlen);
@@ -3793,7 +3797,7 @@ function ___syscall_connect(fd, addr, addrlen, d1, d2, d3) {
  }
 }
 
-function ___syscall_dup(fd) {
+function ___syscall_dup(fd) { console.trace(`__syscall_dup(fd) {`); 
  try {
   var old = SYSCALLS.getStreamFromFD(fd);
   return FS.createStream(old).fd;
@@ -3803,7 +3807,7 @@ function ___syscall_dup(fd) {
  }
 }
 
-function ___syscall_dup3(fd, newfd, flags) {
+function ___syscall_dup3(fd, newfd, flags) { console.trace(`__syscall_dup3(fd, newfd, flags) {`); 
  try {
   var old = SYSCALLS.getStreamFromFD(fd);
   if (old.fd === newfd) return -28;
@@ -3816,7 +3820,7 @@ function ___syscall_dup3(fd, newfd, flags) {
  }
 }
 
-function ___syscall_faccessat(dirfd, path, amode, flags) {
+function ___syscall_faccessat(dirfd, path, amode, flags) { console.trace(`__syscall_faccessat(dirfd, path, amode, flags) {`); 
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -3848,7 +3852,7 @@ function convertI32PairToI53Checked(lo, hi) {
  return hi + 2097152 >>> 0 < 4194305 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
 }
 
-function ___syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_high) {
+function ___syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_high) { console.trace(`__syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_high) {`); 
  var offset = convertI32PairToI53Checked(offset_low, offset_high);
  var len = convertI32PairToI53Checked(len_low, len_high);
  try {
@@ -3862,7 +3866,7 @@ function ___syscall_fallocate(fd, mode, offset_low, offset_high, len_low, len_hi
  }
 }
 
-function ___syscall_fchmod(fd, mode) {
+function ___syscall_fchmod(fd, mode) { console.trace(`__syscall_fchmod(fd, mode) {`); 
  try {
   FS.fchmod(fd, mode);
   return 0;
@@ -3872,7 +3876,7 @@ function ___syscall_fchmod(fd, mode) {
  }
 }
 
-function ___syscall_fchown32(fd, owner, group) {
+function ___syscall_fchown32(fd, owner, group) { console.trace(`__syscall_fchown32(fd, owner, group) {`); 
  try {
   FS.fchown(fd, owner, group);
   return 0;
@@ -3882,7 +3886,7 @@ function ___syscall_fchown32(fd, owner, group) {
  }
 }
 
-function ___syscall_fchownat(dirfd, path, owner, group, flags) {
+function ___syscall_fchownat(dirfd, path, owner, group, flags) { console.trace(`__syscall_fchownat(dirfd, path, owner, group, flags) {`); 
  try {
   path = SYSCALLS.getStr(path);
   var nofollow = flags & 256;
@@ -3896,7 +3900,7 @@ function ___syscall_fchownat(dirfd, path, owner, group, flags) {
  }
 }
 
-function ___syscall_fcntl64(fd, cmd, varargs) {
+function ___syscall_fcntl64(fd, cmd, varargs) { console.trace(`__syscall_fcntl64(fd, cmd, varargs) {`); 
  SYSCALLS.varargs = varargs;
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
@@ -3957,7 +3961,7 @@ function ___syscall_fcntl64(fd, cmd, varargs) {
  }
 }
 
-function ___syscall_fdatasync(fd) {
+function ___syscall_fdatasync(fd) { console.trace(`__syscall_fdatasync(fd) {`); 
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   return 0;
@@ -3967,7 +3971,7 @@ function ___syscall_fdatasync(fd) {
  }
 }
 
-function ___syscall_fstat64(fd, buf) {
+function ___syscall_fstat64(fd, buf) { // console.trace(`__syscall_fstat64(fd, buf) {`); 
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   return SYSCALLS.doStat(FS.stat, stream.path, buf);
@@ -3977,7 +3981,7 @@ function ___syscall_fstat64(fd, buf) {
  }
 }
 
-function ___syscall_ftruncate64(fd, length_low, length_high) {
+function ___syscall_ftruncate64(fd, length_low, length_high) { console.trace(`__syscall_ftruncate64(fd, length_low, length_high) {`); 
  var length = convertI32PairToI53Checked(length_low, length_high);
  try {
   if (isNaN(length)) return 61;
@@ -3991,7 +3995,7 @@ function ___syscall_ftruncate64(fd, length_low, length_high) {
 
 var stringToUTF8 = (str, outPtr, maxBytesToWrite) => stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
 
-function ___syscall_getcwd(buf, size) {
+function ___syscall_getcwd(buf, size) { console.trace(`__syscall_getcwd(buf, size) {`); 
  try {
   if (size === 0) return -28;
   var cwd = FS.cwd();
@@ -4005,7 +4009,7 @@ function ___syscall_getcwd(buf, size) {
  }
 }
 
-function ___syscall_getdents64(fd, dirp, count) {
+function ___syscall_getdents64(fd, dirp, count) { console.trace(`__syscall_getdents64(fd, dirp, count) {`); 
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   if (!stream.getdents) {
@@ -4052,7 +4056,7 @@ function ___syscall_getdents64(fd, dirp, count) {
  }
 }
 
-function ___syscall_getpeername(fd, addr, addrlen, d1, d2, d3) {
+function ___syscall_getpeername(fd, addr, addrlen, d1, d2, d3) { console.trace(`__syscall_getpeername(fd, addr, addrlen, d1, d2, d3) {`); 
  try {
   var sock = getSocketFromFD(fd);
   if (!sock.daddr) {
@@ -4066,7 +4070,7 @@ function ___syscall_getpeername(fd, addr, addrlen, d1, d2, d3) {
  }
 }
 
-function ___syscall_getsockname(fd, addr, addrlen, d1, d2, d3) {
+function ___syscall_getsockname(fd, addr, addrlen, d1, d2, d3) { console.trace(`__syscall_getsockname(fd, addr, addrlen, d1, d2, d3) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var errno = writeSockaddr(addr, sock.family, DNS.lookup_name(sock.saddr || "0.0.0.0"), sock.sport, addrlen);
@@ -4077,7 +4081,7 @@ function ___syscall_getsockname(fd, addr, addrlen, d1, d2, d3) {
  }
 }
 
-function ___syscall_getsockopt(fd, level, optname, optval, optlen, d1) {
+function ___syscall_getsockopt(fd, level, optname, optval, optlen, d1) { console.trace(`__syscall_getsockopt(fd, level, optname, optval, optlen, d1) {`); 
  try {
   var sock = getSocketFromFD(fd);
   if (level === 1) {
@@ -4095,7 +4099,7 @@ function ___syscall_getsockopt(fd, level, optname, optval, optlen, d1) {
  }
 }
 
-function ___syscall_ioctl(fd, op, varargs) {
+function ___syscall_ioctl(fd, op, varargs) { console.trace(`__syscall_ioctl(fd, op, varargs) {`); 
  SYSCALLS.varargs = varargs;
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
@@ -4211,7 +4215,7 @@ function ___syscall_ioctl(fd, op, varargs) {
  }
 }
 
-function ___syscall_listen(fd, backlog) {
+function ___syscall_listen(fd, backlog) { console.trace(`__syscall_listen(fd, backlog) {`); 
  try {
   var sock = getSocketFromFD(fd);
   sock.sock_ops.listen(sock, backlog);
@@ -4222,7 +4226,7 @@ function ___syscall_listen(fd, backlog) {
  }
 }
 
-function ___syscall_lstat64(path, buf) {
+function ___syscall_lstat64(path, buf) { // console.trace(`__syscall_lstat64(path, buf) {`); 
  try {
   path = SYSCALLS.getStr(path);
   return SYSCALLS.doStat(FS.lstat, path, buf);
@@ -4232,7 +4236,7 @@ function ___syscall_lstat64(path, buf) {
  }
 }
 
-function ___syscall_mkdirat(dirfd, path, mode) {
+function ___syscall_mkdirat(dirfd, path, mode) { console.trace(`__syscall_mkdirat(dirfd, path, mode) {`); 
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -4246,7 +4250,7 @@ function ___syscall_mkdirat(dirfd, path, mode) {
  }
 }
 
-function ___syscall_newfstatat(dirfd, path, buf, flags) {
+function ___syscall_newfstatat(dirfd, path, buf, flags) { console.trace(`__syscall_newfstatat(dirfd, path, buf, flags) {`); 
  try {
   path = SYSCALLS.getStr(path);
   var nofollow = flags & 256;
@@ -4260,7 +4264,7 @@ function ___syscall_newfstatat(dirfd, path, buf, flags) {
  }
 }
 
-function ___syscall_openat(dirfd, path, flags, varargs) {
+function ___syscall_openat(dirfd, path, flags, varargs) { console.trace(`__syscall_openat(dirfd, path, flags, varargs) {`); 
  SYSCALLS.varargs = varargs;
  try {
   path = SYSCALLS.getStr(path);
@@ -4316,7 +4320,8 @@ var PIPEFS = {
   };
  },
  stream_ops: {
-  poll(stream) {
+     poll(stream) {
+         console.trace(`stream_ops.poll(stream) {`);
    var pipe = stream.node.pipe;
    if ((stream.flags & 2097155) === 1) {
     return 256 | 4;
@@ -4453,7 +4458,7 @@ var PIPEFS = {
  }
 };
 
-function ___syscall_pipe(fdPtr) {
+function ___syscall_pipe(fdPtr) { console.trace(`__syscall_pipe(fdPtr) {`); 
  try {
   if (fdPtr == 0) {
    throw new FS.ErrnoError(21);
@@ -4468,7 +4473,7 @@ function ___syscall_pipe(fdPtr) {
  }
 }
 
-function ___syscall_poll(fds, nfds, timeout) {
+function ___syscall_poll(fds, nfds, timeout) { console.trace(`__syscall_poll(fds, nfds, timeout) {`); 
  try {
   var nonzero = 0;
   for (var i = 0; i < nfds; i++) {
@@ -4494,7 +4499,7 @@ function ___syscall_poll(fds, nfds, timeout) {
  }
 }
 
-function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
+function ___syscall_readlinkat(dirfd, path, buf, bufsize) { // console.trace(`__syscall_readlinkat(dirfd, path, buf, bufsize) {`); 
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -4511,7 +4516,7 @@ function ___syscall_readlinkat(dirfd, path, buf, bufsize) {
  }
 }
 
-function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
+function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) { console.trace(`__syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var msg = sock.sock_ops.recvmsg(sock, len, typeof flags !== "undefined" ? flags : 0);
@@ -4527,7 +4532,7 @@ function ___syscall_recvfrom(fd, buf, len, flags, addr, addrlen) {
  }
 }
 
-function ___syscall_renameat(olddirfd, oldpath, newdirfd, newpath) {
+function ___syscall_renameat(olddirfd, oldpath, newdirfd, newpath) { console.trace(`__syscall_renameat(olddirfd, oldpath, newdirfd, newpath) {`); 
  try {
   oldpath = SYSCALLS.getStr(oldpath);
   newpath = SYSCALLS.getStr(newpath);
@@ -4541,7 +4546,7 @@ function ___syscall_renameat(olddirfd, oldpath, newdirfd, newpath) {
  }
 }
 
-function ___syscall_rmdir(path) {
+function ___syscall_rmdir(path) { console.trace(`__syscall_rmdir(path) {`); 
  try {
   path = SYSCALLS.getStr(path);
   FS.rmdir(path);
@@ -4552,7 +4557,7 @@ function ___syscall_rmdir(path) {
  }
 }
 
-function ___syscall_sendto(fd, message, length, flags, addr, addr_len) {
+function ___syscall_sendto(fd, message, length, flags, addr, addr_len) { console.trace(`__syscall_sendto(fd, message, length, flags, addr, addr_len) {`); 
  try {
   var sock = getSocketFromFD(fd);
   var dest = getSocketAddress(addr, addr_len, true);
@@ -4566,7 +4571,7 @@ function ___syscall_sendto(fd, message, length, flags, addr, addr_len) {
  }
 }
 
-function ___syscall_socket(domain, type, protocol) {
+function ___syscall_socket(domain, type, protocol) { console.trace(`__syscall_socket(domain, type, protocol) {`); 
  try {
   var sock = SOCKFS.createSocket(domain, type, protocol);
   return sock.stream.fd;
@@ -4576,7 +4581,7 @@ function ___syscall_socket(domain, type, protocol) {
  }
 }
 
-function ___syscall_stat64(path, buf) {
+function ___syscall_stat64(path, buf) { console.trace(`__syscall_stat64(path, buf) {`); 
  try {
   path = SYSCALLS.getStr(path);
   return SYSCALLS.doStat(FS.stat, path, buf);
@@ -4586,7 +4591,7 @@ function ___syscall_stat64(path, buf) {
  }
 }
 
-function ___syscall_statfs64(path, size, buf) {
+function ___syscall_statfs64(path, size, buf) { console.trace(`__syscall_statfs64(path, size, buf) {`); 
  try {
   path = SYSCALLS.getStr(path);
   HEAP32[buf + 4 >> 2] = 4096;
@@ -4606,7 +4611,7 @@ function ___syscall_statfs64(path, size, buf) {
  }
 }
 
-function ___syscall_symlink(target, linkpath) {
+function ___syscall_symlink(target, linkpath) { console.trace(`__syscall_symlink(target, linkpath) {`); 
  try {
   target = SYSCALLS.getStr(target);
   linkpath = SYSCALLS.getStr(linkpath);
@@ -4618,7 +4623,7 @@ function ___syscall_symlink(target, linkpath) {
  }
 }
 
-function ___syscall_unlinkat(dirfd, path, flags) {
+function ___syscall_unlinkat(dirfd, path, flags) { console.trace(`__syscall_unlinkat(dirfd, path, flags) {`); 
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path);
@@ -4640,7 +4645,7 @@ function readI53FromI64(ptr) {
  return HEAPU32[ptr >> 2] + HEAP32[ptr + 4 >> 2] * 4294967296;
 }
 
-function ___syscall_utimensat(dirfd, path, times, flags) {
+function ___syscall_utimensat(dirfd, path, times, flags) { console.trace(`__syscall_utimensat(dirfd, path, times, flags) {`); 
  try {
   path = SYSCALLS.getStr(path);
   path = SYSCALLS.calculateAt(dirfd, path, true);
@@ -5068,6 +5073,7 @@ var doReadv = (stream, iov, iovcnt, offset) => {
 
 function _fd_read(fd, iov, iovcnt, pnum) {
  try {
+    console.trace({ fd, iov, iovcnt });
   var stream = SYSCALLS.getStreamFromFD(fd);
   var num = doReadv(stream, iov, iovcnt);
   HEAPU32[pnum >> 2] = num;
@@ -5136,15 +5142,16 @@ var doWritev = (stream, iov, iovcnt, offset) => {
 };
 
 function _fd_write(fd, iov, iovcnt, pnum) {
- try {
-  var stream = SYSCALLS.getStreamFromFD(fd);
-  var num = doWritev(stream, iov, iovcnt);
-  HEAPU32[pnum >> 2] = num;
-  return 0;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
-  return e.errno;
- }
+    try {
+        var stream = SYSCALLS.getStreamFromFD(fd);
+        console.log({ stream, iov, iovcnt });
+        var num = doWritev(stream, iov, iovcnt);
+        HEAPU32[pnum >> 2] = num;
+        return 0;
+    } catch (e) {
+        if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
+        return e.errno;
+    }
 }
 
 var _getaddrinfo = (node, service, hint, out) => {
@@ -5663,7 +5670,8 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
   PHPWASM.callback_pipes[procopenCallId].onData((function(data) {
    if (!data) return;
    const dataStr = new TextDecoder("utf-8").decode(data);
-   cp.stdin.write(dataStr);
+   const awaitsDrain = cp.stdin.write(dataStr);
+   console.log({ awaitsDrain });
   }));
   return 0;
  }

@@ -12,6 +12,7 @@ import {
 
 import { NodePHP } from '@php-wasm/node';
 import { spawn } from 'child_process';
+import { createSpawnHandler } from './create-spawn-handler';
 
 let args = process.argv.slice(2);
 if (!args.length) {
@@ -44,7 +45,20 @@ async function run() {
 	});
 
 	php.useHostFilesystem();
+	const lessSpawnHandler = createSpawnHandler(
+		(command, processApi, childProcess) => {
+			childProcess.on('stdin', (data) => {
+				processApi.stdout(data);
+			});
+		}
+	);
 	php.setSpawnHandler((command: string) => {
+		console.log({ command });
+		// if (command === 'less') {
+		// 	console.log("It's less!");
+		// 	return lessSpawnHandler(command);
+		// }
+		console.log("It's not less!");
 		const phpWasmCommand = `${process.argv[0]} ${process.execArgv.join(
 			' '
 		)} ${process.argv[1]}`;
@@ -81,13 +95,14 @@ async function run() {
 	await php
 		.cli(['php', ...args])
 		.catch((result) => {
+			console.log({ result });
 			if (result.name === 'ExitStatus') {
 				process.exit(result.status === undefined ? 1 : result.status);
 			}
 			throw result;
 		})
 		.finally(() => {
-			process.exit(0);
+			// process.exit(0);
 		});
 }
 
