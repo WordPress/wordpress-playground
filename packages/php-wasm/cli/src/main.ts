@@ -33,7 +33,16 @@ async function run() {
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
-
+	
+	// npm scripts set the TMPDIR env variable
+	// PHP accepts a TMPDIR env variable and expects it to
+	// be a writable directory within the PHP filesystem.
+	// These two clash and prevent PHP from creating temporary
+	// files and directories so let's just not pass the npm TMPDIR
+	// to PHP.
+	// @see https://github.com/npm/npm/issues/4531
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { TMPDIR, ...envVariables } = process.env;
 	const php = await NodePHP.load(phpVersion, {
 		emscriptenOptions: {
 			ENV: {
