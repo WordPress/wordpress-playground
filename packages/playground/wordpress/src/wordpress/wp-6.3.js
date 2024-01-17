@@ -111,7 +111,7 @@ var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
         }
       }, handleError);
 
-    function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS() {
+    function runWithFS() {
 
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
@@ -356,7 +356,7 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
           var files = metadata['files'];
           for (var i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
-          }          Module['removeRunDependency'](dependencyFilename);
+          }          Module['removeRunDependency'](dependencyFilename); resolve();
 
       };
       Module['addRunDependency'](dependencyFilename);
@@ -373,10 +373,10 @@ Module['FS_createPath']("/wordpress/wp-includes", "widgets", true, true);
 
     }
     if (Module['calledRun']) {
-      runWithFSThenResolve();
+      runWithFS();
     } else {
       if (!Module['preRun']) Module['preRun'] = [];
-      Module["preRun"].push(runWithFSThenResolve); // FS is not initialized yet, wait for it
+      Module["preRun"].push(runWithFS); // FS is not initialized yet, wait for it
     }
 
     }
