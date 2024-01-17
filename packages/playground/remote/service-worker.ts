@@ -54,7 +54,21 @@ initializeServiceWorker({
 					event.request,
 					staticAssetsDirectory
 				);
-				return fetch(request);
+				return fetch(request).catch((e) => {
+					if (e?.name === 'TypeError') {
+						// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
+						// happen on playground.wordpress.net. Let's add a randomized
+						// delay and retry once
+						return new Promise((resolve) => {
+							setTimeout(() => {
+								resolve(fetch(request));
+							}, Math.random() * 1500);
+						}) as Promise<Response>;
+					}
+
+					// Otherwise let's just re-throw the error
+					throw e;
+				});
 			}
 
 			// Path the block-editor.js file to ensure the site editor's iframe
