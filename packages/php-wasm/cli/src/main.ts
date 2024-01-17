@@ -53,7 +53,7 @@ async function run() {
 		//        a PATH or an alias.
 		const updatedCommand = command.replace(
 			/^(?:\\ |[^ ])*php\d?(\s|$)/,
-			phpWasmCommand
+			phpWasmCommand + '$1'
 		);
 
 		// Create a shell script in a temporary directory
