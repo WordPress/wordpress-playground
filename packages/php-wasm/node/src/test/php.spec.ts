@@ -10,7 +10,7 @@ import { existsSync, rmSync, readFileSync } from 'fs';
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
 
-describe.each(['8.2'])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
@@ -84,11 +84,6 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the 
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
-				sleep(1);
-
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
 
@@ -113,8 +108,6 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// stream_get_contents yields back to JS event loop internally.
-				sleep(1);
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
 				proc_close($res);

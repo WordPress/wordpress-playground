@@ -599,6 +599,61 @@ const LibraryExample = {
 	},
 
 	/**
+	 * Shims read(2) functionallity.
+	 * Enables reading from blocking pipes. By default, Emscripten
+	 * will throw an EWOULDBLOCK error when trying to read from a
+	 * blocking pipe. This function overrides that behavior and
+	 * instead waits for the pipe to become readable.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/951
+	 * @see https://github.com/emscripten-core/emscripten/issues/13214
+	 */
+	js_fd_read: function (fd, iov, iovcnt, pnum) {
+		var returnCode;
+		try {
+			var stream = SYSCALLS.getStreamFromFD(fd);
+			var num = doReadv(stream, iov, iovcnt);
+			HEAPU32[pnum >> 2] = num;
+			returnCode = 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			returnCode = e.errno;
+		}
+
+		if (returnCode === 6 /*EWOULDBLOCK*/) {
+			return Asyncify.handleSleep(function (wakeUp) {
+				var timeout = 10000; // @TODO Do not hardcode this
+				var interval = 50;
+				var retries = 0;
+				var maxRetries = timeout / interval;
+				var pollHandle = setInterval(function poll() {
+					var returnCode;
+					try {
+						var stream = SYSCALLS.getStreamFromFD(fd);
+						var num = doReadv(stream, iov, iovcnt);
+						HEAPU32[pnum >> 2] = num;
+						returnCode = 0;
+					} catch (e) {
+						if (
+							typeof FS == 'undefined' ||
+							!(e.name === 'ErrnoError')
+						) {
+							console.error(e);
+							throw e;
+						}
+						returnCode = e.errno;
+					}
+					if (returnCode !== 6 || ++retries > maxRetries) {
+						clearInterval(pollHandle);
+						wakeUp(returnCode);
+					}
+				}, interval);
+			});
+		}
+		return returnCode;
+	},
+
+	/**
 	 * Shims popen(3) functionallity:
 	 * https://man7.org/linux/man-pages/man3/popen.3.html
 	 *

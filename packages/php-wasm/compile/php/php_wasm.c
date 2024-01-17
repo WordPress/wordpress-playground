@@ -33,6 +33,13 @@ unsigned int wasm_sleep(unsigned int time) {
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+extern int __wasi_syscall_ret(__wasi_errno_t code);
+extern __wasi_errno_t js_fd_read(
+	__wasi_fd_t fd,
+	const __wasi_iovec_t* iovs,
+	size_t iovs_len,
+	__wasi_size_t* nread
+);
 
 /**
  * Passes a message to the JavaScript module and writes the response
@@ -152,6 +159,28 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl) {
 	return bufl;
 }
 
+/**
+ * Shims read(2) functionallity.
+ * Enables reading from blocking pipes. By default, Emscripten
+ * will throw an EWOULDBLOCK error when trying to read from a
+ * blocking pipe. This function overrides that behavior and
+ * instead waits for the pipe to become readable.
+ * 
+ * @see https://github.com/WordPress/wordpress-playground/issues/951
+ * @see https://github.com/emscripten-core/emscripten/issues/13214
+ */
+EMSCRIPTEN_KEEPALIVE ssize_t wasm_read(int fd, void *buf, size_t count) {
+	struct __wasi_iovec_t iov = {
+		.buf = buf,
+		.buf_len = count
+	};
+	size_t num;
+	if (__wasi_syscall_ret(js_fd_read(fd, &iov, 1, &num))) {
+		return -1;
+	}
+	return num;
+}
+
 /*
  * If type==0, only last line of output is returned (exec)
  * If type==1, all lines will be printed and last lined returned (system)
@@ -249,44 +278,6 @@ err:
 // }}}
 
 // -----------------------------------------------------------
-
-/**
- * Replaces the default php_stream_read() implementation with our own that yields back to the JavaScript event
- * loop to give JS a chance to actually populate the stream with any data that may already be buffered.
- * This is the magic sauce that makes the stream_get_contents here work:
- * 
- * $descriptorspec = array(
- *     0 => array("pipe", "r"),  // stdin
- *     1 => array("pipe", "w"),  // stdout
- *     2 => array("pipe", "w")   // stderr
- * );
- * $process = proc_open("less", $descriptorspec, $pipes);
- * fwrite($pipes[0], "Hello world");
- * fclose($pipes[0]);
- * stream_get_contents($pipes[1]);
- *
- * Without the yield, stream_get_contents() would return an empty string because the data is not yet available.
- * JavaScript populates the stream via asynchronous event handlers, so we need to yield back to give them a chance
- * to run.
- */
-int wasm_php_stream_flush(php_stream *stream, int closing)
-{
-	int retval = _php_stream_flush(stream, closing);
-	// Yield to JS event loop. 500 is an arbitrary value that
-	// seems to work well in practice when writing to stdin
-	// via proc_open() as the underlying process catches up
-	// with the input. It is quite a long time, though, so
-	// this should be very much revisited.
-	//
-	// Unfortunately it's not a bulletproof solution and will
-	// likely break in some cases. A proper fix would be to
-	// identify which low level libc function behaves differently
-	// in emscripten and natively, and then patch it to yield back
-	// to the JS event loop – much like is being done with `select()`
-	// below.
-	emscripten_sleep(500);
-	return retval;
-}
 
 int wasm_socket_has_data(php_socket_t fd);
 int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);

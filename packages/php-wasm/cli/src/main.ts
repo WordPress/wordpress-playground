@@ -1,7 +1,7 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync, mkdtempSync } from 'fs';
+import { writeFileSync, existsSync, mkdtempSync, rmSync, rmdirSync } from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -66,11 +66,17 @@ async function run() {
 	`
 		);
 
-		return spawn('sh', [tempScriptPath], {
-			shell: true,
-			stdio: ['pipe', 'pipe', 'pipe'],
-			timeout: 100,
-		});
+		try {
+			return spawn(updatedCommand, [], {
+				shell: true,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				timeout: 5000,
+			});
+		} finally {
+			// Remove the temporary directory
+			rmSync(tempScriptPath);
+			rmdirSync(tempDir);
+		}
 	});
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
@@ -87,7 +93,11 @@ async function run() {
 			throw result;
 		})
 		.finally(() => {
-			process.exit(0);
+			setTimeout(() => {
+				process.exit(0);
+				// 100 is an arbitrary number. It's there to give any child processes
+				// a chance to pass their output to JS before the main process exits.
+			}, 100);
 		});
 }
 
