@@ -188,8 +188,7 @@ RUN cat /root/output/wp.js \
     | sed -E "s#'[^']*wp\.data'#dependencyFilename#g" \
     | sed -E 's#xhr.onerror = #xhr.onerror = onLoadingFailed; const z = #g' \
     | sed -E 's#throw new Error\(xhr.+$#onLoadingFailed(event);#g' \
-    | sed -E 's#runWithFS#runWithFSThenResolve#g' \
-    | sed -E 's#function runWithFSThenResolve#function runWithFSThenResolve() { runWithFS(); resolve(); }; function runWithFS#g' \
+    | sed -E "s#Module\['removeRunDependency'\]\(dependencyFilename\);#Module['removeRunDependency'](dependencyFilename); resolve();#g" \
     > /tmp/wp.js && \
     mv /tmp/wp.js /root/output/wp.js;
 
