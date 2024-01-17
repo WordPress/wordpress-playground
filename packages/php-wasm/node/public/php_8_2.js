@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11249075; 
+export const dependenciesTotalSize = 11249074; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5525,8 +5525,8 @@ var PHPWASM = {
 };
 
 function _js_create_input_device(procopenCallId) {
- if (!PHPWASM.callback_pipes) {
-  PHPWASM.callback_pipes = {};
+ if (!PHPWASM.input_devices) {
+  PHPWASM.input_devices = {};
  }
  let dataBuffer = [];
  let dataCallback;
@@ -5544,7 +5544,7 @@ function _js_create_input_device(procopenCallId) {
   }
  }));
  const devicePath = "/dev/" + filename;
- PHPWASM.callback_pipes[procopenCallId] = {
+ PHPWASM.input_devices[procopenCallId] = {
   devicePath: devicePath,
   onData: function(cb) {
    dataCallback = cb;
@@ -5579,8 +5579,7 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
     var returnCode;
     var stream;
     try {
-        stream = SYSCALLS.getStreamFromFD(fd);
-        console.log("IS CLOSED!", FS.isClosed(stream));
+     stream = SYSCALLS.getStreamFromFD(fd);
      var num = doReadv(stream, iov, iovcnt);
      HEAPU32[pnum >> 2] = num;
      returnCode = 0;
@@ -5591,9 +5590,7 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
      }
      returnCode = e.errno;
     }
-       if (returnCode !== 6 || !(stream?.fd in PHPWASM.proc_fds) || ++retries > maxRetries) {
-           console.log({ returnCode, retries }, (stream?.fd in PHPWASM.proc_fds), PHPWASM.proc_fds[stream?.fd]?.exited);
-           console.log(PHPWASM.proc_fds[stream?.fd]?.cmd);
+    if (returnCode !== 6 || ++retries > maxRetries || !(stream?.fd in PHPWASM.proc_fds) || PHPWASM.proc_fds[stream?.fd]?.exited || FS.isClosed(stream) || !(PHPWASM.proc_fds[fd]?.stdinFd in (PHPWASM.input_devices || {}))) {
      wakeUp(returnCode);
     } else {
      setTimeout(poll, interval);
@@ -5631,7 +5628,7 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd, stderrChildFd, stderrParentFd) {
+function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stderrChildFd, stderrParentFd) {
  if (!PHPWASM.proc_fds) {
   PHPWASM.proc_fds = {};
  }
@@ -5687,8 +5684,9 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
   };
  }
  PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter;
-    PHPWASM.proc_fds[stdoutParentFd].cmd = cmdstr;
+ PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
  PHPWASM.proc_fds[stderrParentFd] = new EventEmitter;
+ PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
  const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
  cp.on("exit", (function(data) {
   PHPWASM.proc_fds[stdoutParentFd].exited = true;
@@ -5707,15 +5705,15 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
   PHPWASM.proc_fds[stderrParentFd].emit("data");
   stderrStream.stream_ops.write(stderrStream, data, 0, data.length, 0);
  }));
- if (PHPWASM.callback_pipes && procopenCallId in PHPWASM.callback_pipes) {
-  PHPWASM.callback_pipes[procopenCallId].onData((function(data) {
+ if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
+  PHPWASM.input_devices[stdinFd].onData((function(data) {
    if (!data) return;
    const dataStr = new TextDecoder("utf-8").decode(data);
    cp.stdin.write(dataStr);
   }));
   return 0;
  }
- const stdinStream = SYSCALLS.getStreamFromFD(procopenCallId);
+ const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
  if (!stdinStream.node) {
   return 0;
  }

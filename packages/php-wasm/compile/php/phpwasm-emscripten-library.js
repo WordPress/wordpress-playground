@@ -200,8 +200,8 @@ const LibraryExample = {
 	 * @returns {int} The path of the input devicex (string pointer).
 	 */
 	js_create_input_device: function (procopenCallId) {
-		if (!PHPWASM.callback_pipes) {
-			PHPWASM.callback_pipes = {};
+		if (!PHPWASM.input_devices) {
+			PHPWASM.input_devices = {};
 		}
 		let dataBuffer = [];
 		let dataCallback;
@@ -225,7 +225,7 @@ const LibraryExample = {
 		);
 
 		const devicePath = '/dev/' + filename;
-		PHPWASM.callback_pipes[procopenCallId] = {
+		PHPWASM.input_devices[procopenCallId] = {
 			devicePath: devicePath,
 			onData: function (cb) {
 				dataCallback = cb;
@@ -243,7 +243,7 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} procopenCallId Child process end of the stdin pipe (the one to read from).
+	 * @param {int} stdinFd Child process end of the stdin pipe (the one to read from).
 	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
 	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
 	 * @param {int} stderrChildFd Child process end of the stderr pipe (the one to write to).
@@ -252,7 +252,7 @@ const LibraryExample = {
 	 */
 	js_open_process: function (
 		command,
-		procopenCallId,
+		stdinFd,
 		stdoutChildFd,
 		stdoutParentFd,
 		stderrChildFd,
@@ -319,7 +319,9 @@ const LibraryExample = {
 			};
 		}
 		PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter();
+		PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
 		PHPWASM.proc_fds[stderrParentFd] = new EventEmitter();
+		PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
 
 		const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
 		cp.on('exit', function (data) {
@@ -357,13 +359,10 @@ const LibraryExample = {
 		});
 
 		// Pass data from stdin fd to child process's stdin.
-		if (
-			PHPWASM.callback_pipes &&
-			procopenCallId in PHPWASM.callback_pipes
-		) {
+		if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
 			// It is a "pipe". By now it is listed in `callback_pipes`.
 			// Let's listen to anything it outputs and pass it to the child process.
-			PHPWASM.callback_pipes[procopenCallId].onData(function (data) {
+			PHPWASM.input_devices[stdinFd].onData(function (data) {
 				if (!data) return;
 				const dataStr = new TextDecoder('utf-8').decode(data);
 				cp.stdin.write(dataStr);
@@ -373,7 +372,7 @@ const LibraryExample = {
 
 		// It is a file descriptor.
 		// Let's pass the already read contents to the child process.
-		const stdinStream = SYSCALLS.getStreamFromFD(procopenCallId);
+		const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
 		if (!stdinStream.node) {
 			return 0;
 		}
@@ -659,12 +658,17 @@ const LibraryExample = {
 						}
 						returnCode = e.errno;
 					}
+
 					if (
 						returnCode !== 6 ||
 						++retries > maxRetries ||
 						!(stream?.fd in PHPWASM.proc_fds) ||
 						PHPWASM.proc_fds[stream?.fd]?.exited ||
-						FS.isClosed(stream)
+						FS.isClosed(stream) ||
+						!(
+							PHPWASM.proc_fds[fd]?.stdinFd in
+							(PHPWASM.input_devices || {})
+						)
 					) {
 						wakeUp(returnCode);
 					} else {
