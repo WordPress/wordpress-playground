@@ -5703,7 +5703,7 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
  if (PHPWASM.callback_pipes && procopenCallId in PHPWASM.callback_pipes) {
   PHPWASM.callback_pipes[procopenCallId].onData((function(data) {
    if (!data) return;
-      const dataStr = new TextDecoder("utf-8").decode(data);
+   const dataStr = new TextDecoder("utf-8").decode(data);
    cp.stdin.write(dataStr);
   }));
   return 0;
