@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11980655; 
+export const dependenciesTotalSize = 11980702; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5538,8 +5538,9 @@ function _js_create_input_device(procopenCallId) {
 
 function _js_fd_read(fd, iov, iovcnt, pnum) {
  var returnCode;
+ var stream;
  try {
-  var stream = SYSCALLS.getStreamFromFD(fd);
+  stream = SYSCALLS.getStreamFromFD(fd);
   var num = doReadv(stream, iov, iovcnt);
   HEAPU32[pnum >> 2] = num;
   returnCode = 0;
@@ -5547,7 +5548,7 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
   if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
   returnCode = e.errno;
  }
- if (returnCode === 6) {
+ if (returnCode === 6 && stream?.fd in PHPWASM.proc_fds) {
   return Asyncify.handleSleep((function(wakeUp) {
    var timeout = 1e4;
    var interval = 50;
@@ -5555,8 +5556,9 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
    var maxRetries = timeout / interval;
    var pollHandle = setInterval((function poll() {
     var returnCode;
+    var stream;
     try {
-     var stream = SYSCALLS.getStreamFromFD(fd);
+     stream = SYSCALLS.getStreamFromFD(fd);
      var num = doReadv(stream, iov, iovcnt);
      HEAPU32[pnum >> 2] = num;
      returnCode = 0;
@@ -5567,7 +5569,7 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
      }
      returnCode = e.errno;
     }
-    if (returnCode !== 6 || ++retries > maxRetries) {
+    if (returnCode !== 6 || ++retries > maxRetries || !(stream?.fd in PHPWASM.proc_fds)) {
      clearInterval(pollHandle);
      wakeUp(returnCode);
     }
@@ -5674,7 +5676,6 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
  }));
  const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
  cp.stderr.on("data", (function(data) {
-  console.log("Writing error", data.toString());
   PHPWASM.proc_fds[stderrParentFd].hasData = true;
   PHPWASM.proc_fds[stderrParentFd].emit("data");
   stderrStream.stream_ops.write(stderrStream, data, 0, data.length, 0);
