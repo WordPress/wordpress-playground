@@ -627,12 +627,21 @@ const LibraryExample = {
 			returnCode === 6 /*EWOULDBLOCK*/ &&
 			stream?.fd in PHPWASM.proc_fds
 		) {
+			// You might wonder why we duplicate the code here instead of always using
+			// Asyncify.handleSleep(). The reason is performance. Most of the time,
+			// the read operation will work synchronously and won't require yielding
+			// back to JS. In these cases we don't want to pay the Asyncify overhead,
+			// save the stack, yield back to JS, restore the stack etc.
 			return Asyncify.handleSleep(function (wakeUp) {
-				var timeout = 10000; // @TODO Do not hardcode this
-				var interval = 50;
 				var retries = 0;
+				var interval = 50;
+				var timeout = 5000;
+				// We poll for data and give up after a timeout.
+				// We can't simply rely on PHP timeout here because we don't want
+				// to, say, block the entire PHPUnit test suite without any visible
+				// feedback.
 				var maxRetries = timeout / interval;
-				var pollHandle = setInterval(function poll() {
+				function poll() {
 					var returnCode;
 					var stream;
 					try {
@@ -653,12 +662,16 @@ const LibraryExample = {
 					if (
 						returnCode !== 6 ||
 						++retries > maxRetries ||
-						!(stream?.fd in PHPWASM.proc_fds)
+						!(stream?.fd in PHPWASM.proc_fds) ||
+						PHPWASM.proc_fds[stream?.fd]?.exited ||
+						FS.isClosed(stream)
 					) {
-						clearInterval(pollHandle);
 						wakeUp(returnCode);
+					} else {
+						setTimeout(poll, interval);
 					}
-				}, interval);
+				}
+				poll();
 			});
 		}
 		return returnCode;

@@ -5571,15 +5571,16 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
  }
  if (returnCode === 6 && stream?.fd in PHPWASM.proc_fds) {
   return Asyncify.handleSleep((function(wakeUp) {
-   var timeout = 1e4;
-   var interval = 50;
    var retries = 0;
+   var interval = 50;
+   var timeout = 5e3;
    var maxRetries = timeout / interval;
-   var pollHandle = setInterval((function poll() {
+   function poll() {
     var returnCode;
     var stream;
     try {
-     stream = SYSCALLS.getStreamFromFD(fd);
+        stream = SYSCALLS.getStreamFromFD(fd);
+        console.log("IS CLOSED!", FS.isClosed(stream));
      var num = doReadv(stream, iov, iovcnt);
      HEAPU32[pnum >> 2] = num;
      returnCode = 0;
@@ -5590,11 +5591,15 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
      }
      returnCode = e.errno;
     }
-    if (returnCode !== 6 || ++retries > maxRetries || !(stream?.fd in PHPWASM.proc_fds)) {
-     clearInterval(pollHandle);
+       if (returnCode !== 6 || !(stream?.fd in PHPWASM.proc_fds) || ++retries > maxRetries) {
+           console.log({ returnCode, retries }, (stream?.fd in PHPWASM.proc_fds), PHPWASM.proc_fds[stream?.fd]?.exited);
+           console.log(PHPWASM.proc_fds[stream?.fd]?.cmd);
      wakeUp(returnCode);
+    } else {
+     setTimeout(poll, interval);
     }
-   }), interval);
+   }
+   poll();
   }));
  }
  return returnCode;
@@ -5682,6 +5687,7 @@ function _js_open_process(command, procopenCallId, stdoutChildFd, stdoutParentFd
   };
  }
  PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter;
+    PHPWASM.proc_fds[stdoutParentFd].cmd = cmdstr;
  PHPWASM.proc_fds[stderrParentFd] = new EventEmitter;
  const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
  cp.on("exit", (function(data) {

@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11119903; 
+export const dependenciesTotalSize = 11119904; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5550,11 +5550,11 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
  }
  if (returnCode === 6 && stream?.fd in PHPWASM.proc_fds) {
   return Asyncify.handleSleep((function(wakeUp) {
-   var timeout = 1e4;
-   var interval = 50;
    var retries = 0;
+   var interval = 50;
+   var timeout = 5e3;
    var maxRetries = timeout / interval;
-   var pollHandle = setInterval((function poll() {
+   function poll() {
     var returnCode;
     var stream;
     try {
@@ -5569,11 +5569,13 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
      }
      returnCode = e.errno;
     }
-    if (returnCode !== 6 || ++retries > maxRetries || !(stream?.fd in PHPWASM.proc_fds)) {
-     clearInterval(pollHandle);
+    if (returnCode !== 6 || !(stream?.fd in PHPWASM.proc_fds) || ++retries > maxRetries) {
      wakeUp(returnCode);
+    } else {
+     setTimeout(poll, interval);
     }
-   }), interval);
+   }
+   poll();
   }));
  }
  return returnCode;
