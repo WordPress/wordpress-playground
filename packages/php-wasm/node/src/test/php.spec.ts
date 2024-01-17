@@ -84,6 +84,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
+				sleep(1);
+
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
 
@@ -107,6 +111,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					),
 					$pipes
 				);
+
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
+				sleep(1);
 
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
@@ -167,6 +175,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					),
 					$pipes
 				);
+
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
+				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
