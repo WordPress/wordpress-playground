@@ -46,7 +46,7 @@ async function run() {
 	const php = await NodePHP.load(phpVersion, {
 		emscriptenOptions: {
 			ENV: {
-				...process.env,
+				...envVariables,
 				TERM: 'xterm',
 			},
 		},
