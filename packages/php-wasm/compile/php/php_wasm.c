@@ -41,6 +41,9 @@ extern __wasi_errno_t js_fd_read(
 	__wasi_size_t* nread
 );
 
+// Exit code of the last exited child process call.
+int wasm_pclose_ret = -1;
+
 /**
  * Passes a message to the JavaScript module and writes the response
  * data, if any, to the response_buffer pointer.
@@ -80,6 +83,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
 		FG(pclose_ret) = last_exit_code;
+		wasm_pclose_ret = last_exit_code;
 	}
 	else if (*mode == 'w')
 	{
@@ -257,6 +261,9 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 	}
 
 	pclose_return = php_stream_close(stream);
+	if(pclose_return == -1) {
+		pclose_return = wasm_pclose_ret;
+	}
 	efree(buf);
 
 done:
