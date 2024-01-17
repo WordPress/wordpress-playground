@@ -609,8 +609,9 @@ const LibraryExample = {
 	 */
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
 		var returnCode;
+		var stream;
 		try {
-			var stream = SYSCALLS.getStreamFromFD(fd);
+			stream = SYSCALLS.getStreamFromFD(fd);
 			var num = doReadv(stream, iov, iovcnt);
 			HEAPU32[pnum >> 2] = num;
 			returnCode = 0;
@@ -619,7 +620,13 @@ const LibraryExample = {
 			returnCode = e.errno;
 		}
 
-		if (returnCode === 6 /*EWOULDBLOCK*/) {
+		// If it's a blocking process pipe, wait for it to become readable.
+		// We need to distinguish between a process pipe and a file pipe, otherwise
+		// reading from an empty file would block until the timeout.
+		if (
+			returnCode === 6 /*EWOULDBLOCK*/ &&
+			stream?.fd in PHPWASM.proc_fds
+		) {
 			return Asyncify.handleSleep(function (wakeUp) {
 				var timeout = 10000; // @TODO Do not hardcode this
 				var interval = 50;
@@ -627,8 +634,9 @@ const LibraryExample = {
 				var maxRetries = timeout / interval;
 				var pollHandle = setInterval(function poll() {
 					var returnCode;
+					var stream;
 					try {
-						var stream = SYSCALLS.getStreamFromFD(fd);
+						stream = SYSCALLS.getStreamFromFD(fd);
 						var num = doReadv(stream, iov, iovcnt);
 						HEAPU32[pnum >> 2] = num;
 						returnCode = 0;
@@ -642,7 +650,11 @@ const LibraryExample = {
 						}
 						returnCode = e.errno;
 					}
-					if (returnCode !== 6 || ++retries > maxRetries) {
+					if (
+						returnCode !== 6 ||
+						++retries > maxRetries ||
+						!(stream?.fd in PHPWASM.proc_fds)
+					) {
 						clearInterval(pollHandle);
 						wakeUp(returnCode);
 					}
