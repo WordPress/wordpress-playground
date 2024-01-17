@@ -48,7 +48,6 @@ export class NodePHP extends BasePHP {
 		return await NodePHP.loadSync(phpVersion, {
 			...options,
 			emscriptenOptions: {
-				...(options.emscriptenOptions || {}),
 				/**
 				 * Emscripten default behavior is to kill the process when
 				 * the WASM program calls `exit()`. We want to throw an
@@ -57,6 +56,7 @@ export class NodePHP extends BasePHP {
 				quit: function (code, error) {
 					throw error;
 				},
+				...(options.emscriptenOptions || {}),
 			},
 		}).phpReady;
 	}

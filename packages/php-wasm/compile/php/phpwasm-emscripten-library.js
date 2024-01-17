@@ -345,7 +345,6 @@ const LibraryExample = {
 		// Pass data from child process's stderr to PHP's end of the stdout pipe.
 		const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
 		cp.stderr.on('data', function (data) {
-			console.log('Writing error', data.toString());
 			PHPWASM.proc_fds[stderrParentFd].hasData = true;
 			PHPWASM.proc_fds[stderrParentFd].emit('data');
 			stderrStream.stream_ops.write(

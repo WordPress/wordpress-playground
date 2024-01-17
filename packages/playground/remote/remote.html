@@ -44,7 +44,7 @@
 			}
 
 			@media (prefers-color-scheme: dark) {
-				body,
+				body.is-loading,
 				body.has-error {
 					background: #1e1e1e;
 					color: #fff;
@@ -158,6 +158,8 @@
 				}
 
 				document.body.append(button);
+			} finally {
+				document.body.classList.remove('is-loading');
 			}
 		</script>
 	</body>
