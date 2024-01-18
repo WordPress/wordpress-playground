@@ -46,6 +46,12 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
+	/**
+	 * The SAPI name PHP will use.
+	 * @internal
+	 * @private
+	 */
+	sapiName?: string;
 }
 
 /**
@@ -62,6 +68,7 @@ export async function startPlaygroundWeb({
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
 	onBlueprintStepCompleted,
+	sapiName,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -82,6 +89,7 @@ export async function startPlaygroundWeb({
 		setQueryParams(remoteUrl, {
 			php: compiled.versions.php,
 			wp: compiled.versions.wp,
+			['sapi-name']: sapiName,
 			['php-extension']: compiled.phpExtensions,
 			['networking']: compiled.features.networking ? 'yes' : 'no',
 		}),

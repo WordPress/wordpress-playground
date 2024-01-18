@@ -217,6 +217,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# See https://github.com/WordPress/wordpress-playground/issues/92
 	# for more context.
 	--disable-fiber-asm \
+	--enable-phar \
 	# --enable-json for PHP < 8.0:
 	--enable-json      \
 	--enable-embed=static \
@@ -767,6 +768,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\

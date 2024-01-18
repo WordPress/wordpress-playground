@@ -148,7 +148,13 @@ RUN cd wordpress && \
 # produces code compatible with PHP 8+, but the reverse
 # isn't true.
 RUN cd wordpress && \
-    for phpfile in $(find ./ -type f -name '*.php' -not -path '*wordpress-importer*' -not -path '*wp-content*' ); do \
+    for phpfile in $(\
+        find ./ -type f -name '*.php' \
+        -not -path '*wordpress-importer*' \
+        -not -path '*wp-content*' \
+        # wp-cli expects an unminified wp-config.php
+        -not -path '*wp-config.php' \
+    ); do \
     # Remove whitespace from PHP files
     php -w $phpfile > $phpfile.small && \
     # remove set_time_limit function calls as they invoke the

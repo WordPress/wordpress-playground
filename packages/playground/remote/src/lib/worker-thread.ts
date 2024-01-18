@@ -31,6 +31,7 @@ self.postMessage('worker-script-started');
 type StartupOptions = {
 	wpVersion?: string;
 	phpVersion?: string;
+	sapiName?: string;
 	storage?: string;
 	phpExtension?: string[];
 };
@@ -40,6 +41,7 @@ if (typeof self?.location?.href !== 'undefined') {
 	startupOptions.wpVersion = params.get('wpVersion') || undefined;
 	startupOptions.phpVersion = params.get('phpVersion') || undefined;
 	startupOptions.storage = params.get('storage') || undefined;
+	startupOptions.sapiName = params.get('sapiName') || undefined;
 	startupOptions.phpExtension = params.getAll('php-extension');
 }
 
@@ -188,6 +190,9 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 try {
 	await phpReady;
+	if (startupOptions.sapiName) {
+		await php.setSapiName(startupOptions.sapiName);
+	}
 
 	if (!wordPressAvailableInOPFS) {
 		/**

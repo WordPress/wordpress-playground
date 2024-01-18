@@ -28,13 +28,39 @@ export function createSpawnHandler(
 	};
 }
 
-export class ProcessApi {
+class EventEmitter {
+	listeners: Record<string, Listener[]> = {};
+	emit(eventName: string, data: any) {
+		if (this.listeners[eventName]) {
+			this.listeners[eventName].forEach(function (listener) {
+				listener(data);
+			});
+		}
+	}
+	on(eventName: string, listener: Listener) {
+		if (!this.listeners[eventName]) {
+			this.listeners[eventName] = [];
+		}
+		this.listeners[eventName].push(listener);
+	}
+}
+
+export class ProcessApi extends EventEmitter {
 	private exited = false;
-	private stdinData: string[] = [];
+	private stdinData: Uint8Array[] | null = [];
 	constructor(private childProcess: ChildProcess) {
-		childProcess.on('stdin', (data: string) => {
-			this.stdinData.push(data);
+		super();
+		childProcess.on('stdin', (data: Uint8Array) => {
+			if (this.stdinData) {
+				this.stdinData.push(data);
+			} else {
+				this.emit('stdin', data);
+			}
 		});
+		// childProcess.on('exit', (code: number) => {
+		// 	console.log("Exit");
+		// 	this.exit(code);
+		// });
 	}
 	stdout(data: string | ArrayBuffer) {
 		if (typeof data === 'string') {
@@ -55,26 +81,12 @@ export class ProcessApi {
 		}
 	}
 	flushStdin() {
-		const data = this.stdinData.join('');
-		this.stdinData = [];
-		return data;
-	}
-}
-
-class EventEmitter {
-	listeners: Record<string, Listener[]> = {};
-	emit(eventName: string, data: any) {
-		if (this.listeners[eventName]) {
-			this.listeners[eventName].forEach(function (listener) {
-				listener(data);
-			});
+		if (this.stdinData) {
+			for (let i = 0; i < this.stdinData.length; i++) {
+				this.emit('stdin', this.stdinData[i]);
+			}
 		}
-	}
-	on(eventName: string, listener: Listener) {
-		if (!this.listeners[eventName]) {
-			this.listeners[eventName] = [];
-		}
-		this.listeners[eventName].push(listener);
+		this.stdinData = null;
 	}
 }
 

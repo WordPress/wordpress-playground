@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<head>
+	<title>Playground Sync Peer</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+	</style>
+</head>
+<body>
+	<div id="terminal" style="width: 100vw; height: 50vh"></div>
+	<iframe id="wp" style="width: 100vw; height: 50vh; border: 0"></iframe>
+	<script type="module">
+		const { runDemo } = await import('./terminal.ts');
+		runDemo(document.getElementById('wp'));
+	</script>
+</body>
