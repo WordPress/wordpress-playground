@@ -59,10 +59,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				fwrite($fp, "WordPress\n");
 				fclose($fp);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
 				fclose($fp);
@@ -88,9 +84,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
@@ -117,8 +112,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// stream_get_contents yields back to JS event loop internally.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
+
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
 				proc_close($res);
@@ -153,11 +150,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			);
 			fwrite($pipes[0], 'WordPress\n');
 
-			// Yields back to JS event loop to capture and process the
-			// child_process output. This is fine. Regular PHP scripts
-			// typically wait for the child process to finish.
-			sleep(1);
-
 			$stdout = file_get_contents("/tmp/process_out");
 			$stderr = file_get_contents("/tmp/process_err");
 			proc_close($res);
@@ -184,9 +176,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
