@@ -226,6 +226,45 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(spawnHandlerCalled).toEqual(true);
 		});
+
+		if (phpVersion == '8.2') {
+			//TODO: Enable this for phpVersion >= '7.4' when corrected
+			it('Gives access to command and arguments when array type is used in proc_open', async () => {
+				let command = '';
+				let args: string[] = [];
+				php.setSpawnHandler((cmd, argc) => {
+					command = cmd;
+					args = argc;
+					return {
+						stdout: {
+							on: () => {},
+						},
+						stderr: {
+							on: () => {},
+						},
+						stdin: {
+							write: () => {},
+						},
+						on: () => {},
+						kill: () => {},
+					} as any;
+				});
+				await php.run({
+					code: `<?php
+                    $res = proc_open(
+                        [ 'ls', '-a' ],
+                        array(
+                            array("pipe","r"),
+                            array("pipe","w"),
+                            array("pipe","w"),
+                        ),
+                        $pipes
+                    );`,
+				});
+				expect(command).toEqual('ls');
+				expect(args.toString()).toEqual('-a');
+			});
+		}
 	});
 
 	describe('Filesystem', () => {

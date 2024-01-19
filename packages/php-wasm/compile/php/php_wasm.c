@@ -47,18 +47,18 @@ int wasm_pclose_ret = -1;
 /**
  * Passes a message to the JavaScript module and writes the response
  * data, if any, to the response_buffer pointer.
- * 
+ *
  * @param message The message to pass into JavaScript.
  * @param response_buffer The address where the response will be stored. The
  * JS module will allocate a memory block for the response buffer and write
- * its address to **response_buffer. The caller is responsible for freeing 
+ * its address to **response_buffer. The caller is responsible for freeing
  * that memory after use.
- * 
+ *
  * @return The size of the response_buffer (it can contain null bytes).
- * 
- * @note The caller should ensure that the memory allocated for response_buffer 
- * is freed after its use to prevent memory leaks. It's also recommended 
- * to handle exceptions and errors gracefully within the function to ensure 
+ *
+ * @note The caller should ensure that the memory allocated for response_buffer
+ * is freed after its use to prevent memory leaks. It's also recommended
+ * to handle exceptions and errors gracefully within the function to ensure
  * the stability of the system.
  */
 extern size_t js_module_onMessage(const char *data, char **response_buffer);
@@ -71,7 +71,7 @@ extern size_t js_module_onMessage(const char *data, char **response_buffer);
 // This wasm_popen function is called by PHP_FUNCTION(popen) thanks
 // to a patch applied in the Dockerfile.
 //
-// The `js_popen_to_file` is defined in phpwasm-emscripten-library.js. 
+// The `js_popen_to_file` is defined in phpwasm-emscripten-library.js.
 // It runs the `cmd` command and returns the path to a file that contains the
 // output. The exit code is assigned to the exit_code_ptr.
 
@@ -102,10 +102,12 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 
 		// the wasm way {{{
 		js_open_process(
-			cmd, 
+			cmd,
+            NULL,
+            0,
 			stdin_childend,
 			// stdout. @TODO: Pipe to /dev/null
-			stdout_pipe[0], 
+			stdout_pipe[0],
 			stdout_pipe[1],
 			// stderr. @TODO: Pipe to /dev/null
 			stderr_pipe[0],
@@ -130,12 +132,12 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
  * * passthru()
  * * system()
  * * shell_exec()
- * 
- * The wasm_php_exec function is called thanks 
+ *
+ * The wasm_php_exec function is called thanks
  * to -Dphp_exec=wasm_php_exec in the Dockerfile and also a
- * small patch that removes php_exec and marks wasm_php_exec() 
+ * small patch that removes php_exec and marks wasm_php_exec()
  * as external.
- * 
+ *
  * {{{
  */
 
@@ -169,7 +171,7 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl) {
  * will throw an EWOULDBLOCK error when trying to read from a
  * blocking pipe. This function overrides that behavior and
  * instead waits for the pipe to become readable.
- * 
+ *
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
@@ -1616,4 +1618,3 @@ int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
 	return vrzno_del_callback(fptr);
 }
 #endif
-

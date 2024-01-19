@@ -136,9 +136,9 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
-		spawnProcess: function (command) {
+		spawnProcess: function (command, args) {
 			if (Module['spawnProcess']) {
-				const spawned = Module['spawnProcess'](command);
+				const spawned = Module['spawnProcess'](command, args);
 				if (!spawned || !spawned.on) {
 					throw new Error(
 						'spawnProcess() must return an EventEmitter but returned a different type.'
@@ -243,6 +243,8 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
+	 * @param {int} args Arguments linked with command (string array pointer).
+	 * @param {int} argsLength Arguments length.
 	 * @param {int} stdinFd Child process end of the stdin pipe (the one to read from).
 	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
 	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
@@ -252,6 +254,8 @@ const LibraryExample = {
 	 */
 	js_open_process: function (
 		command,
+		args,
+		argsLength,
 		stdinFd,
 		stdoutChildFd,
 		stdoutParentFd,
@@ -264,15 +268,23 @@ const LibraryExample = {
 		if (!command) {
 			return 1;
 		}
-
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
 			return 0;
 		}
+		let jsArgsArray = [];
+		if (argsLength) {
+			const pointersStart = args + 8;
 
+			for (var i = 1; i < argsLength + 1; i++) {
+				var pointer = pointersStart + i * 8;
+
+				jsArgsArray.push(UTF8ToString(pointer));
+			}
+		}
 		let cp;
 		try {
-			cp = PHPWASM.spawnProcess(cmdstr);
+			cp = PHPWASM.spawnProcess(cmdstr, jsArgsArray);
 		} catch (e) {
 			if (e.code === 'SPAWN_UNSUPPORTED') {
 				return 1;
@@ -715,7 +727,7 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			let cp;
 			try {
-				cp = PHPWASM.spawnProcess(cmdstr);
+				cp = PHPWASM.spawnProcess(cmdstr, []);
 			} catch (e) {
 				console.error(e);
 				if (e.code === 'SPAWN_UNSUPPORTED') {
