@@ -3,14 +3,13 @@ import css from './terminal.module.css';
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { PlaygroundClient } from '@wp-playground/client';
-import { createSpawnHandler } from '@php-wasm/util';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;
 }
 
 const COLS = 140;
-const ROWS = 18;
+const ROWS = 38;
 
 export function TerminalComponent({ playground }: TerminalComponentProps) {
 	const terminalContainer = useRef<HTMLDivElement>();
@@ -107,7 +106,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 								) {
 									return;
 								}
-								console.log(line);
 								terminalRef.current?.writeln(line);
 							});
 					}
@@ -131,8 +129,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 	useEffect(() => {
 		playground.setSpawnHandler(
 			((command: string, processApi: any) => {
-				console.log({ command });
-				console.log({ command, processApi });
 				if (command.startsWith('/usr/bin/env stty size ')) {
 					// These numbers are hardcoded because this
 					// spawnHandler is transmitted as a string to
@@ -140,17 +136,14 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					// scope. It would be nice to find a way to
 					// transfer / proxy a live object instead.
 					// @TODO: Do not hardcode this
-					processApi.stdout(`140 18`);
+					processApi.stdout(`18 140`);
 					processApi.exit(0);
 				} else if (command.startsWith('less')) {
 					processApi.on('stdin', (data: Uint8Array) => {
-						console.log(new TextDecoder().decode(data));
 						processApi.stdout(data);
 					});
 					processApi.flushStdin();
 					processApi.exit(0);
-				} else {
-					runCommand(command);
 				}
 			}).toString()
 		);
@@ -210,6 +203,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					break;
 				case '\u007F': // Backspace (DEL)
 					// Do not delete the prompt
+					// @ts-ignore
 					if (term._core.buffer.x > 2) {
 						term.write('\b \b');
 						if (command.length > 0) {
@@ -248,5 +242,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 		};
 	}, [playground, runCommand, counter]);
 
+	// @ts-ignore
 	return <div className={css.terminal} ref={terminalContainer} />;
 }

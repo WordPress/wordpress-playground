@@ -237,6 +237,7 @@ PHP_FUNCTION(proc_close)
 	}
 
 	FG(pclose_wait) = 1;
+	js_wait_until_process_exits(proc->child);
 	zend_list_close(Z_RES_P(zproc));
 	FG(pclose_wait) = 0;
 	RETURN_LONG(FG(pclose_ret));
@@ -249,10 +250,7 @@ PHP_FUNCTION(proc_get_status)
 {
 	zval *zproc;
 	struct php_process_handle *proc;
-#if HAVE_SYS_WAIT_H
-	int wstatus;
-	pid_t wait_pid;
-#endif
+
 	int running = 1, signaled = 0, stopped = 0;
 	int exitcode = -1, termsig = 0, stopsig = 0;
 
@@ -269,30 +267,15 @@ PHP_FUNCTION(proc_get_status)
 	add_assoc_string(return_value, "command", proc->command);
 	add_assoc_long(return_value, "pid", (zend_long) proc->child);
 
-#if HAVE_SYS_WAIT_H
-
 	errno = 0;
-	wait_pid = waitpid(proc->child, &wstatus, WNOHANG|WUNTRACED);
-
-	if (wait_pid == proc->child) {
-		if (WIFEXITED(wstatus)) {
-			running = 0;
-			exitcode = WEXITSTATUS(wstatus);
-		}
-		if (WIFSIGNALED(wstatus)) {
-			running = 0;
-			signaled = 1;
-
-			termsig = WTERMSIG(wstatus);
-		}
-		if (WIFSTOPPED(wstatus)) {
-			stopped = 1;
-			stopsig = WSTOPSIG(wstatus);
-		}
-	} else if (wait_pid == -1) {
+	int proc_status = js_process_status(proc->child);
+	if (proc_status == 1) {
 		running = 0;
+	} else if (proc_status == 0) {
+		running = 1;
+	} else if (proc_status == -1) {
+		php_error_docref(NULL, E_WARNING, "Failed to get process status");
 	}
-#endif
 
 	add_assoc_bool(return_value, "running", running);
 	add_assoc_bool(return_value, "signaled", signaled);
@@ -599,7 +582,7 @@ PHP_FUNCTION(proc_open)
 	} ZEND_HASH_FOREACH_END();
 
     // the wasm way {{{
-    js_open_process(
+    child = js_open_process(
 		command, 
 		descriptors[0].childend, 
 		descriptors[1].childend, 
@@ -651,7 +634,7 @@ PHP_FUNCTION(proc_open)
 
 					php_stream_to_zval(stream, &retfp);
 					add_index_zval(pipes, descriptors[i].index, &retfp);
-
+				
 					proc->pipes[i] = Z_RES(retfp);
 					Z_ADDREF(retfp);
 				}

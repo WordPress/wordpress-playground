@@ -22,7 +22,6 @@ export async function runDemo(iframe: HTMLIFrameElement) {
 		},
 		sapiName: 'cli',
 	});
-	// const siteURL = await playground.absoluteUrl;
 
 	const wpCliResponse = await wpCliRequest;
 	const wpCli = await wpCliResponse.arrayBuffer();

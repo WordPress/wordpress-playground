@@ -21,8 +21,9 @@ export function createSpawnHandler(
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
-		setTimeout(() => {
-			program(command, processApi);
+		setTimeout(async () => {
+			await program(command, processApi);
+			childProcess.emit('spawn', true);
 		});
 		return childProcess;
 	};
@@ -52,7 +53,9 @@ export class ProcessApi extends EventEmitter {
 		super();
 		childProcess.on('stdin', (data: Uint8Array) => {
 			if (this.stdinData) {
-				this.stdinData.push(data);
+				// Need to clone the data buffer as it's reused by PHP
+				// and the next data chunk will overwrite the previous one.
+				this.stdinData.push(data.slice());
 			} else {
 				this.emit('stdin', data);
 			}
@@ -94,11 +97,12 @@ export type StdIn = {
 	write: (data: string) => void;
 };
 
+let lastPid = 9743;
 export class ChildProcess extends EventEmitter {
 	stdout: EventEmitter = new EventEmitter();
 	stderr: EventEmitter = new EventEmitter();
 	stdin: StdIn;
-	constructor() {
+	constructor(public pid = lastPid++) {
 		super();
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;

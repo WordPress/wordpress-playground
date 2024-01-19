@@ -4454,6 +4454,7 @@ var PIPEFS = {
 };
 
 function ___syscall_pipe(fdPtr) {
+    console.log("pipe");
  try {
   if (fdPtr == 0) {
    throw new FS.ErrnoError(21);
@@ -4468,7 +4469,8 @@ function ___syscall_pipe(fdPtr) {
  }
 }
 
-function ___syscall_poll(fds, nfds, timeout) {
+    function ___syscall_poll(fds, nfds, timeout) {
+        console.log("poll");
  try {
   var nonzero = 0;
   for (var i = 0; i < nfds; i++) {
@@ -5095,6 +5097,7 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
 }
 
 function _fd_sync(fd) {
+    console.log('js_fd_sync')
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   return Asyncify.handleSleep((function(wakeUp) {
@@ -5125,6 +5128,7 @@ var doWritev = (stream, iov, iovcnt, offset) => {
   var ptr = HEAPU32[iov >> 2];
   var len = HEAPU32[iov + 4 >> 2];
   iov += 8;
+  
   var curr = FS.write(stream, HEAP8, ptr, len, offset);
   if (curr < 0) return -1;
   ret += curr;
@@ -5552,7 +5556,8 @@ function _js_create_input_device(procopenCallId) {
  return allocateUTF8OnStack(devicePath);
 }
 
-function _js_fd_read(fd, iov, iovcnt, pnum) {
+    function _js_fd_read(fd, iov, iovcnt, pnum) {
+    console.log('js_fd_Read')
  var returnCode;
  var stream;
  try {
@@ -6213,7 +6218,8 @@ function _wasm_close(socketd) {
  return PHPWASM.shutdownSocket(socketd, 2);
 }
 
-function _wasm_poll_socket(socketd, events, timeout) {
+    function _wasm_poll_socket(socketd, events, timeout) {
+        console.log("POLL");
  if (typeof Asyncify === "undefined") {
   return 0;
  }

@@ -10,10 +10,56 @@
 const LibraryExample = {
 	// Emscripten dependencies:
 	$PHPWASM__deps: ['$allocateUTF8OnStack'],
+	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
 	// JavaScript library under the PHPWASM object:
 	$PHPWASM: {
+		init: function () {
+			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
+				? require('events').EventEmitter
+				: class EventEmitter {
+						constructor() {
+							this.listeners = {};
+						}
+						emit(eventName, data) {
+							if (this.listeners[eventName]) {
+								this.listeners[eventName].forEach(
+									(callback) => {
+										callback(data);
+									}
+								);
+							}
+						}
+						once(eventName, callback) {
+							const self = this;
+							function removedCallback() {
+								callback(...arguments);
+								self.removeListener(eventName, removedCallback);
+							}
+							this.on(eventName, removedCallback);
+						}
+						removeAllListeners(eventName) {
+							if (eventName) {
+								delete this.listeners[eventName];
+							} else {
+								this.listeners = {};
+							}
+						}
+						removeListener(eventName, callback) {
+							if (this.listeners[eventName]) {
+								const idx =
+									this.listeners[eventName].indexOf(callback);
+								if (idx !== -1) {
+									this.listeners[eventName].splice(idx, 1);
+								}
+							}
+						}
+				  };
+			PHPWASM.child_proc_by_fd = {};
+			PHPWASM.child_proc_by_pid = {};
+			PHPWASM.input_devices = {};
+		},
 		/**
 		 * A utility function to get all websocket objects associated
 		 * with an Emscripten file descriptor.
@@ -198,16 +244,13 @@ const LibraryExample = {
 	 * Creates an emscripten input device for the purposes of PHP's
 	 * proc_open() function.
 	 *
-	 * @param {int} procopenCallId
+	 * @param {int} deviceId
 	 * @returns {int} The path of the input devicex (string pointer).
 	 */
-	js_create_input_device: function (procopenCallId) {
-		if (!PHPWASM.input_devices) {
-			PHPWASM.input_devices = {};
-		}
+	js_create_input_device: function (deviceId) {
 		let dataBuffer = [];
 		let dataCallback;
-		const filename = 'proc_id_' + procopenCallId;
+		const filename = 'proc_id_' + deviceId;
 		const device = FS.createDevice(
 			'/dev',
 			filename,
@@ -227,7 +270,7 @@ const LibraryExample = {
 		);
 
 		const devicePath = '/dev/' + filename;
-		PHPWASM.input_devices[procopenCallId] = {
+		PHPWASM.input_devices[deviceId] = {
 			devicePath: devicePath,
 			onData: function (cb) {
 				dataCallback = cb;
@@ -260,9 +303,6 @@ const LibraryExample = {
 		stderrChildFd,
 		stderrParentFd
 	) {
-		if (!PHPWASM.proc_fds) {
-			PHPWASM.proc_fds = {};
-		}
 		if (!command) {
 			return 1;
 		}
@@ -286,134 +326,164 @@ const LibraryExample = {
 				throw e;
 			}
 
-			let EventEmitter;
-			if (ENVIRONMENT_IS_NODE) {
-				EventEmitter = require('events').EventEmitter;
-			} else {
-				EventEmitter = function () {
-					this.listeners = {};
-				};
-				EventEmitter.prototype.emit = function (eventName, data) {
-					if (this.listeners[eventName]) {
-						this.listeners[eventName].forEach(function (callback) {
-							callback(data);
-						});
-					}
-				};
-				EventEmitter.prototype.once = function (eventName, callback) {
-					const self = this;
-					function removedCallback() {
-						callback(...arguments);
-						self.removeListener(eventName, removedCallback);
-					}
-					this.on(eventName, removedCallback);
-				};
-				EventEmitter.prototype.on = function (eventName, callback) {
-					if (!this.listeners[eventName]) {
-						this.listeners[eventName] = [];
-					}
-					this.listeners[eventName].push(callback);
-				};
-				EventEmitter.prototype.removeListener = function (
-					eventName,
-					callback
-				) {
-					const idx = this.listeners[eventName].indexOf(callback);
-					if (idx !== -1) {
-						this.listeners[eventName].splice(idx, 1);
-					}
-				};
-			}
-			PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter();
-			PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
-			PHPWASM.proc_fds[stderrParentFd] = new EventEmitter();
-			PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
+			const ProcInfo = {
+				pid: cp.pid,
+				exited: false,
+				stdinFd: stdinFd,
+				stdinIsDevice: stdinFd in PHPWASM.input_devices,
+				stdoutChildFd: stdoutChildFd,
+				stdoutParentFd: stdoutParentFd,
+				stderrChildFd: stderrChildFd,
+				stderrParentFd: stderrParentFd,
+				stdout: new PHPWASM.EventEmitter(),
+				stderr: new PHPWASM.EventEmitter(),
+			};
+			PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
+			PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
+			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
-			const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
 			cp.on('exit', function (data) {
-				PHPWASM.proc_fds[stdoutParentFd].exited = true;
-				PHPWASM.proc_fds[stdoutParentFd].emit('data');
-				PHPWASM.proc_fds[stderrParentFd].exited = true;
-				PHPWASM.proc_fds[stderrParentFd].emit('data');
+				ProcInfo.exited = true;
+				// Emit events for the wasm_poll_socket function.
+				ProcInfo.stdout.emit('data', data);
+				ProcInfo.stderr.emit('data', data);
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
+			const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
+			let stdoutAt = 0;
 			cp.stdout.on('data', function (data) {
-				PHPWASM.proc_fds[stdoutParentFd].hasData = true;
-				PHPWASM.proc_fds[stdoutParentFd].emit('data');
+				ProcInfo.stdout.emit('data', data);
 				stdoutStream.stream_ops.write(
 					stdoutStream,
 					data,
 					0,
 					data.length,
-					0
+					stdoutAt
 				);
+				stdoutAt += data.length;
 			});
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
 			const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
+			let stderrAt = 0;
 			cp.stderr.on('data', function (data) {
-				PHPWASM.proc_fds[stderrParentFd].hasData = true;
-				PHPWASM.proc_fds[stderrParentFd].emit('data');
+				ProcInfo.stderr.emit('data', data);
 				stderrStream.stream_ops.write(
 					stderrStream,
 					data,
 					0,
 					data.length,
-					0
+					stderrAt
 				);
+				stderrAt += data.length;
 			});
 
-			// Pass data from stdin fd to child process's stdin.
-			if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
-				// It is a "pipe". By now it is listed in `callback_pipes`.
+			/**
+			 * Wait until the child process has been spawned.
+			 * Unfortunately there is no Node.js API to check whether
+			 * the process has already been spawned. We can only listen
+			 * to the 'spawn' event and hope that it wasn't fired yet.
+			 */
+			try {
+				await Promise.race([
+					// new Promise(resolve => setTimeout(resolve, 100)),
+					new Promise((resolve, reject) => {
+						cp.on('spawn', resolve);
+						cp.on('error', reject);
+					}),
+				]);
+			} catch (e) {
+				console.error(e);
+				wakeUp(1);
+				return;
+			}
+
+			// Now we want to pass data from the STDIN source supplied by PHP
+			// to the child process.
+
+			// PHP will write STDIN data to a device.
+			if (ProcInfo.stdinIsDevice) {
+				// We use Emscripten devices as pipes. This is a bit of a hack
+				// but it works as we get a callback when the device is written to.
 				// Let's listen to anything it outputs and pass it to the child process.
 				PHPWASM.input_devices[stdinFd].onData(function (data) {
 					if (!data) return;
 					const dataStr = new TextDecoder('utf-8').decode(data);
 					cp.stdin.write(dataStr);
 				});
-				wakeUp(0);
+				wakeUp(ProcInfo.pid);
 				return;
 			}
 
-			// It is a file descriptor.
-			// Let's pass the already read contents to the child process.
+			// PHP will write STDIN data to a file descriptor.
 			const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-			if (!stdinStream.node) {
-				wakeUp(0);
+			if (stdinStream.node) {
+				// Pipe the entire stdinStream to cp.stdin
+				const CHUNK_SIZE = 1024;
+				const buffer = new Uint8Array(CHUNK_SIZE);
+				let offset = 0;
+
+				while (true) {
+					const bytesRead = stdinStream.stream_ops.read(
+						stdinStream,
+						buffer,
+						0,
+						CHUNK_SIZE,
+						offset
+					);
+					if (bytesRead === null || bytesRead === 0) {
+						break;
+					}
+					try {
+						cp.stdin.write(buffer.subarray(0, bytesRead));
+					} catch (e) {
+						console.error(e);
+						return 1;
+					}
+					if (bytesRead < CHUNK_SIZE) {
+						break;
+					}
+					offset += bytesRead;
+				}
+
+				wakeUp(ProcInfo.pid);
 				return;
 			}
 
-			// Pipe the entire stdinStream to cp.stdin
-			const CHUNK_SIZE = 1024;
-			const buffer = new Uint8Array(CHUNK_SIZE);
-			let offset = 0;
+			// We didn't recognize the STDIN source.
+			console.warn(
+				'Unsupported STDIN source type for proc_open(). File Descriptor=' +
+					stdinFd
+			);
 
-			while (true) {
-				const bytesRead = stdinStream.stream_ops.read(
-					stdinStream,
-					buffer,
-					0,
-					CHUNK_SIZE,
-					offset
-				);
-				if (bytesRead === null || bytesRead === 0) {
-					break;
-				}
-				try {
-					cp.stdin.write(buffer.subarray(0, bytesRead));
-				} catch (e) {
-					console.error(e);
-					return 1;
-				}
-				if (bytesRead < CHUNK_SIZE) {
-					break;
-				}
-				offset += bytesRead;
-			}
+			wakeUp(ProcInfo.pid);
+		});
+	},
 
-			wakeUp(0);
+	js_process_status: function (pid) {
+		if (!PHPWASM.child_proc_by_pid[pid]) {
+			return -1;
+		}
+		if (PHPWASM.child_proc_by_pid[pid].exited) {
+			return 1;
+		}
+		return 0;
+	},
+
+	js_wait_until_process_exits: function (pid) {
+		if (!PHPWASM.child_proc_by_pid[pid]) {
+			return;
+		}
+		return Asyncify.handleSleep((wakeUp) => {
+			const poll = function () {
+				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
+					wakeUp(0);
+				} else {
+					setTimeout(poll, 50);
+				}
+			};
+			poll();
 		});
 	},
 
@@ -444,13 +514,13 @@ const LibraryExample = {
 
 		return Asyncify.handleSleep((wakeUp) => {
 			const polls = [];
-			if (PHPWASM.proc_fds && socketd in PHPWASM.proc_fds) {
-				const emitter = PHPWASM.proc_fds[socketd];
-				if (emitter.exited) {
+			if (socketd in PHPWASM.child_proc_by_fd) {
+				const procInfo = PHPWASM.child_proc_by_fd[socketd];
+				if (procInfo.exited) {
 					wakeUp(0);
 					return;
 				}
-				polls.push(PHPWASM.awaitWsEvent(emitter, 'data'));
+				polls.push(PHPWASM.awaitWsEvent(procInfo.stdout, 'data'));
 			} else {
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
@@ -633,7 +703,7 @@ const LibraryExample = {
 		// reading from an empty file would block until the timeout.
 		if (
 			returnCode === 6 /*EWOULDBLOCK*/ &&
-			stream?.fd in PHPWASM.proc_fds
+			stream?.fd in PHPWASM.child_proc_by_fd
 		) {
 			// You might wonder why we duplicate the code here instead of always using
 			// Asyncify.handleSleep(). The reason is performance. Most of the time,
@@ -671,13 +741,10 @@ const LibraryExample = {
 					if (
 						returnCode !== 6 ||
 						++retries > maxRetries ||
-						!(stream?.fd in PHPWASM.proc_fds) ||
-						PHPWASM.proc_fds[stream?.fd]?.exited ||
-						FS.isClosed(stream) ||
-						!(
-							PHPWASM.proc_fds[fd]?.stdinFd in
-							(PHPWASM.input_devices || {})
-						)
+						!(stream?.fd in PHPWASM.child_proc_by_fd) ||
+						PHPWASM.child_proc_by_fd[stream?.fd]?.exited ||
+						!PHPWASM.child_proc_by_fd[stream?.fd]?.stdinIsDevice ||
+						FS.isClosed(stream)
 					) {
 						wakeUp(returnCode);
 					} else {

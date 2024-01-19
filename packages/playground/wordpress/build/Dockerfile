@@ -102,7 +102,7 @@ RUN cd wordpress && \
     # Remove any empty directories
     find . -type d -empty -delete
 
-FROM php:7.4-cli AS php
+FROM php:8.0-cli AS php
 WORKDIR /root/
 COPY --from=emscripten /root/wordpress ./wordpress
 RUN apt update && apt install unzip

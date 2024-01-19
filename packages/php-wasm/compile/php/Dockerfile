@@ -397,6 +397,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "js_popen_to_file",\n\
 "js_fd_read",\n\
 "js_module_onMessage",\n\
+"js_wait_until_process_exits",\n\
 "wasm_poll_socket",\n\
 "wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
@@ -738,6 +739,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_passthru",\
 "zif_shell_exec",\
 "zif_proc_open",\
+"zif_proc_close",\
 "zif_stream_socket_client",\
 "zim_PDOStatement_execute",\
 "zim_PDO___construct",\
@@ -808,6 +810,7 @@ RUN set -euxo pipefail; \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
 	$(cat /root/.emcc-php-wasm-flags) \
+	-g2 \
 	-o /build/output/php.js \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
