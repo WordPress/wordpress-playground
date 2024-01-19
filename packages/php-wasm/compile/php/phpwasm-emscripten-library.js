@@ -274,7 +274,7 @@ const LibraryExample = {
 		}
 		let jsArgsArray = [];
 		if (argsLength) {
-			const pointersStart = args + 8;
+			var pointersStart = args + 8;
 
 			for (var i = 1; i < argsLength + 1; i++) {
 				var pointer = pointersStart + i * 8;
