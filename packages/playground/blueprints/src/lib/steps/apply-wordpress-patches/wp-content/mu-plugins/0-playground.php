@@ -21,7 +21,22 @@ EOT;
  * 
  * https://github.com/WordPress/wordpress-playground/issues/498
  * 
+ * Added styling to hide the Popular tags section of the Plugins page
+ * and the nonfunctional Try Again button (both Plugins and Themes) that's
+ * appended when the message is displayed.
+ * 
+ * https://github.com/WordPress/wordpress-playground/issues/927
+ * 
  */
+
+ add_action('admin_head', function () {
+  echo '<style>
+					:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
+					button.button.try-again) {
+							display: none;
+					}
+  			</style>';
+});
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {
