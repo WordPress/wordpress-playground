@@ -260,9 +260,14 @@ const LibraryExample = {
 			return 0;
 		}
 
+		if (descriptorsLength < 2) {
+			return 1;
+		}
+		var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
+
 		var std = {};
-		for (var i = 1; i < descriptorsLength + 1; i++) {
-			var ptr = descriptors + i * 16;
+		for (var i = 0; i < descriptorsLength; i++) {
+			var ptr = pointersStart + i * 16;
 			std[HEAPU8[ptr]] = {
 				child: HEAPU8[ptr + 4],
 				parent: HEAPU8[ptr + 8],

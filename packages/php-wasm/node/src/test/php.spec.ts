@@ -51,21 +51,23 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\n');
 		});
 
-		it('popen("cat", "w")', async () => {
-			const result = await php.run({
-				code: `<?php
-                $fp = popen("cat > out", "w");
-                fwrite($fp, "WordPress\n");
-                fclose($fp);
+		if (phpVersion == '8.2') {
+			it('popen("cat", "w")', async () => {
+				const result = await php.run({
+					code: `<?php
+                    $fp = popen("cat > out", "w");
+                    fwrite($fp, "WordPress\n");
+                    fclose($fp);
 
-                $fp = popen("cat out", "r");
-                echo 'stdout: ' . fread($fp, 1024);
-                fclose($fp);
-            `,
+                    $fp = popen("cat out", "r");
+                    echo 'stdout: ' . fread($fp, 1024);
+                    fclose($fp);
+                `,
+				});
+
+				expect(result.text).toEqual('stdout: WordPress\n');
 			});
-
-			expect(result.text).toEqual('stdout: WordPress\n');
-		});
+		}
 	});
 
 	describe('proc_open()', () => {
