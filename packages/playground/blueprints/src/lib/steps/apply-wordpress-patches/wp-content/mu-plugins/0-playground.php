@@ -20,46 +20,41 @@ EOT;
  * makes it more clear that the feature is not yet supported.
  * 
  * https://github.com/WordPress/wordpress-playground/issues/498
+ * 
  */
-
- // I tried to use a more semantic markup on the message below, but it messes up the display of the error message in the Plugins' Popular tags section.
 
 add_action('init', 'networking_disabled');
 function networking_disabled() {
-	global $networking_err_msg;
-	$networking_err_msg = 'Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.<br><br>
-	There are two alternative methods to enable global networking support:<br>
-	- Using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a>: for example, https://playground.wordpress.net/?networking=yes; <em>or</em><br>
-	- Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints-api/data-format/#features">Blueprint API</a>: add <code>"features": { "networking": true }</code> to the JSON file.
-	<br><br>
-	When browsing Playground as a standalone instance, you can enable networking via the settings panel: select the option "Network access (e.g. for browsing plugins)" and hit the "Apply changes" button.<br>
-	Please note: This option is hidden when browsing Playground as an embedded iframe.';
+	$networking_err_msg = '<div class="networking_err_msg">Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.
+	<p>There are two alternative methods to enable global networking support:</p>
+	<ol>
+	<li>Using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a>: for example, https://playground.wordpress.net/<em>?networking=yes</em>; <strong>or</strong>
+	<li> Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints-api/data-format/#features">Blueprint API</a>: add <code>"features": { "networking": true }</code> to the JSON file.
+	</li></ol>
+	<p>
+	When browsing Playground as a standalone instance, you can enable networking via the settings panel: select the option "Network access (e.g. for browsing plugins)" and hit the "Apply changes" button.<p>
+	<strong>Please note:</strong> This option is hidden when browsing Playground as an embedded iframe.</p></div>';
+	return $networking_err_msg;
 }
 
-add_filter( 'plugins_api_result', 'networking_disabled_plugins' );
- function networking_disabled_plugins($res) {
-    global $networking_err_msg;
-    if ($res instanceof WP_Error) {
+add_filter('plugins_api_result', function ($res) {
+	if ($res instanceof WP_Error) {
 		$res = new WP_Error(
 			'plugins_api_failed',
-			$networking_err_msg
+			networking_disabled()
 		);
 	}
 	return $res;
- }
+});
 
-add_filter( 'gettext', 'networking_disabled_themes' );
-function networking_disabled_themes($translation){
-	global $networking_err_msg;
-
+add_filter('gettext', function ($translation) {
 	if( $GLOBALS['pagenow'] === 'theme-install.php') {
 		if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
-		return $networking_err_msg;
+		return networking_disabled();
 		}
 	}
 	return $translation;
-};
-
+});
 
 /**
  * Links with target="top" don't work in the playground iframe because of
