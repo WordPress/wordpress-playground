@@ -243,21 +243,11 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} stdinFd Child process end of the stdin pipe (the one to read from).
-	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
-	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
-	 * @param {int} stderrChildFd Child process end of the stderr pipe (the one to write to).
-	 * @param {int} stderrParentFd PHP's end of the stderr pipe (the one to read from).
+	 * @param {int} descriptors Descriptor specs (int array pointer, [ number, child, parent ] ).
+	 * @param {int} descriptorsLength Descriptor length.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
-	js_open_process: function (
-		command,
-		stdinFd,
-		stdoutChildFd,
-		stdoutParentFd,
-		stderrChildFd,
-		stderrParentFd
-	) {
+	js_open_process: function (command, descriptors, descriptorsLength) {
 		if (!PHPWASM.proc_fds) {
 			PHPWASM.proc_fds = {};
 		}
@@ -268,6 +258,15 @@ const LibraryExample = {
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
 			return 0;
+		}
+
+		var std = {};
+		for (var i = 1; i < descriptorsLength + 1; i++) {
+			var ptr = descriptors + i * 16;
+			std[HEAPU8[ptr]] = {
+				child: HEAPU8[ptr + 4],
+				parent: HEAPU8[ptr + 8],
+			};
 		}
 
 		let cp;
@@ -318,51 +317,84 @@ const LibraryExample = {
 				}
 			};
 		}
-		PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter();
-		PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
-		PHPWASM.proc_fds[stderrParentFd] = new EventEmitter();
-		PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
 
-		const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
-		cp.on('exit', function (data) {
-			PHPWASM.proc_fds[stdoutParentFd].exited = true;
-			PHPWASM.proc_fds[stdoutParentFd].emit('data');
-			PHPWASM.proc_fds[stderrParentFd].exited = true;
-			PHPWASM.proc_fds[stderrParentFd].emit('data');
+		if (std[1]) {
+			PHPWASM.proc_fds[std[1].parent] = new EventEmitter();
+			if (std[0]) {
+				PHPWASM.proc_fds[std[1].parent].stdinFd = std[0].child;
+			}
+		}
+
+		if (std[2]) {
+			PHPWASM.proc_fds[std[2].parent] = new EventEmitter();
+			if (std[0]) {
+				PHPWASM.proc_fds[std[2].parent].stdinFd = std[0].child;
+			}
+		}
+
+		const stdoutStream = std[1]
+			? SYSCALLS.getStreamFromFD(std[1].child)
+			: null;
+		cp.on('exit', function () {
+			if (std[1]) {
+				PHPWASM.proc_fds[std[1].parent].exited = true;
+				PHPWASM.proc_fds[std[1].parent].emit('data');
+			}
+
+			if (std[2]) {
+				PHPWASM.proc_fds[std[2].parent].exited = true;
+				PHPWASM.proc_fds[std[2].parent].emit('data');
+			}
 		});
 
 		// Pass data from child process's stdout to PHP's end of the stdout pipe.
 		cp.stdout.on('data', function (data) {
-			PHPWASM.proc_fds[stdoutParentFd].hasData = true;
-			PHPWASM.proc_fds[stdoutParentFd].emit('data');
-			stdoutStream.stream_ops.write(
-				stdoutStream,
-				data,
-				0,
-				data.length,
-				0
-			);
+			if (std[1]) {
+				PHPWASM.proc_fds[std[1].parent].hasData = true;
+				PHPWASM.proc_fds[std[1].parent].emit('data');
+			}
+
+			if (stdoutStream) {
+				stdoutStream.stream_ops.write(
+					stdoutStream,
+					data,
+					0,
+					data.length,
+					0
+				);
+			}
 		});
 
 		// Pass data from child process's stderr to PHP's end of the stdout pipe.
-		const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
+		const stderrStream = std[2]
+			? SYSCALLS.getStreamFromFD(std[2].child)
+			: null;
 		cp.stderr.on('data', function (data) {
-			PHPWASM.proc_fds[stderrParentFd].hasData = true;
-			PHPWASM.proc_fds[stderrParentFd].emit('data');
-			stderrStream.stream_ops.write(
-				stderrStream,
-				data,
-				0,
-				data.length,
-				0
-			);
+			if (std[2]) {
+				PHPWASM.proc_fds[std[2].parent].hasData = true;
+				PHPWASM.proc_fds[std[2].parent].emit('data');
+			}
+
+			if (stderrStream) {
+				stderrStream.stream_ops.write(
+					stderrStream,
+					data,
+					0,
+					data.length,
+					0
+				);
+			}
 		});
 
 		// Pass data from stdin fd to child process's stdin.
-		if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
+		if (
+			PHPWASM.input_devices &&
+			std[0] &&
+			std[0].child in PHPWASM.input_devices
+		) {
 			// It is a "pipe". By now it is listed in `callback_pipes`.
 			// Let's listen to anything it outputs and pass it to the child process.
-			PHPWASM.input_devices[stdinFd].onData(function (data) {
+			PHPWASM.input_devices[std[0].child].onData(function (data) {
 				if (!data) return;
 				const dataStr = new TextDecoder('utf-8').decode(data);
 				cp.stdin.write(dataStr);
@@ -372,37 +404,39 @@ const LibraryExample = {
 
 		// It is a file descriptor.
 		// Let's pass the already read contents to the child process.
-		const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-		if (!stdinStream.node) {
-			return 0;
-		}
+		if (std[0]) {
+			const stdinStream = SYSCALLS.getStreamFromFD(std[0].child);
+			if (!stdinStream.node) {
+				return 0;
+			}
 
-		// Pipe the entire stdinStream to cp.stdin
-		const CHUNK_SIZE = 1024;
-		const buffer = Buffer.alloc(CHUNK_SIZE);
-		let offset = 0;
+			// Pipe the entire stdinStream to cp.stdin
+			const CHUNK_SIZE = 1024;
+			const buffer = Buffer.alloc(CHUNK_SIZE);
+			let offset = 0;
 
-		while (true) {
-			const bytesRead = stdinStream.stream_ops.read(
-				stdinStream,
-				buffer,
-				0,
-				CHUNK_SIZE,
-				offset
-			);
-			if (bytesRead === null || bytesRead === 0) {
-				break;
+			while (true) {
+				const bytesRead = stdinStream.stream_ops.read(
+					stdinStream,
+					buffer,
+					0,
+					CHUNK_SIZE,
+					offset
+				);
+				if (bytesRead === null || bytesRead === 0) {
+					break;
+				}
+				try {
+					cp.stdin.write(buffer.subarray(0, bytesRead));
+				} catch (e) {
+					console.error(e);
+					return 1;
+				}
+				if (bytesRead < CHUNK_SIZE) {
+					break;
+				}
+				offset += bytesRead;
 			}
-			try {
-				cp.stdin.write(buffer.subarray(0, bytesRead));
-			} catch (e) {
-				console.error(e);
-				return 1;
-			}
-			if (bytesRead < CHUNK_SIZE) {
-				break;
-			}
-			offset += bytesRead;
 		}
 
 		return 0;

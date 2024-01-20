@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11249074; 
+export const dependenciesTotalSize = 11249368; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5628,7 +5628,7 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stderrChildFd, stderrParentFd) {
+function _js_open_process(command, descriptors, descriptorsLength) {
  if (!PHPWASM.proc_fds) {
   PHPWASM.proc_fds = {};
  }
@@ -5638,6 +5638,14 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
  const cmdstr = UTF8ToString(command);
  if (!cmdstr.length) {
   return 0;
+ }
+ var std = {};
+ for (var i = 1; i < descriptorsLength + 1; i++) {
+  var ptr = descriptors + i * 16;
+  std[HEAPU8[ptr]] = {
+   "child": HEAPU8[ptr + 4],
+   "parent": HEAPU8[ptr + 8]
+  };
  }
  let cp;
  try {
@@ -5683,58 +5691,80 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    }
   };
  }
- PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter;
- PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
- PHPWASM.proc_fds[stderrParentFd] = new EventEmitter;
- PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
- const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
- cp.on("exit", (function(data) {
-  PHPWASM.proc_fds[stdoutParentFd].exited = true;
-  PHPWASM.proc_fds[stdoutParentFd].emit("data");
-  PHPWASM.proc_fds[stderrParentFd].exited = true;
-  PHPWASM.proc_fds[stderrParentFd].emit("data");
+ if (std[1]) {
+  PHPWASM.proc_fds[std[1].parent] = new EventEmitter;
+  if (std[0]) {
+   PHPWASM.proc_fds[std[1].parent].stdinFd = std[0].child;
+  }
+ }
+ if (std[2]) {
+  PHPWASM.proc_fds[std[2].parent] = new EventEmitter;
+  if (std[0]) {
+   PHPWASM.proc_fds[std[2].parent].stdinFd = std[0].child;
+  }
+ }
+ const stdoutStream = std[1] ? SYSCALLS.getStreamFromFD(std[1].child) : null;
+ cp.on("exit", (function() {
+  if (std[1]) {
+   PHPWASM.proc_fds[std[1].parent].exited = true;
+   PHPWASM.proc_fds[std[1].parent].emit("data");
+  }
+  if (std[2]) {
+   PHPWASM.proc_fds[std[2].parent].exited = true;
+   PHPWASM.proc_fds[std[2].parent].emit("data");
+  }
  }));
  cp.stdout.on("data", (function(data) {
-  PHPWASM.proc_fds[stdoutParentFd].hasData = true;
-  PHPWASM.proc_fds[stdoutParentFd].emit("data");
-  stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, 0);
+  if (std[1]) {
+   PHPWASM.proc_fds[std[1].parent].hasData = true;
+   PHPWASM.proc_fds[std[1].parent].emit("data");
+  }
+  if (stdoutStream) {
+   stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, 0);
+  }
  }));
- const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
+ const stderrStream = std[2] ? SYSCALLS.getStreamFromFD(std[2].child) : null;
  cp.stderr.on("data", (function(data) {
-  PHPWASM.proc_fds[stderrParentFd].hasData = true;
-  PHPWASM.proc_fds[stderrParentFd].emit("data");
-  stderrStream.stream_ops.write(stderrStream, data, 0, data.length, 0);
+  if (std[2]) {
+   PHPWASM.proc_fds[std[2].parent].hasData = true;
+   PHPWASM.proc_fds[std[2].parent].emit("data");
+  }
+  if (stderrStream) {
+   stderrStream.stream_ops.write(stderrStream, data, 0, data.length, 0);
+  }
  }));
- if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
-  PHPWASM.input_devices[stdinFd].onData((function(data) {
+ if (PHPWASM.input_devices && std[0] && std[0].child in PHPWASM.input_devices) {
+  PHPWASM.input_devices[std[0].child].onData((function(data) {
    if (!data) return;
    const dataStr = new TextDecoder("utf-8").decode(data);
    cp.stdin.write(dataStr);
   }));
   return 0;
  }
- const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
- if (!stdinStream.node) {
-  return 0;
- }
- const CHUNK_SIZE = 1024;
- const buffer = Buffer.alloc(CHUNK_SIZE);
- let offset = 0;
- while (true) {
-  const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
-  if (bytesRead === null || bytesRead === 0) {
-   break;
+ if (std[0]) {
+  const stdinStream = SYSCALLS.getStreamFromFD(std[0].child);
+  if (!stdinStream.node) {
+   return 0;
   }
-  try {
-   cp.stdin.write(buffer.subarray(0, bytesRead));
-  } catch (e) {
-   console.error(e);
-   return 1;
+  const CHUNK_SIZE = 1024;
+  const buffer = Buffer.alloc(CHUNK_SIZE);
+  let offset = 0;
+  while (true) {
+   const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
+   if (bytesRead === null || bytesRead === 0) {
+    break;
+   }
+   try {
+    cp.stdin.write(buffer.subarray(0, bytesRead));
+   } catch (e) {
+    console.error(e);
+    return 1;
+   }
+   if (bytesRead < CHUNK_SIZE) {
+    break;
+   }
+   offset += bytesRead;
   }
-  if (bytesRead < CHUNK_SIZE) {
-   break;
-  }
-  offset += bytesRead;
  }
  return 0;
 }

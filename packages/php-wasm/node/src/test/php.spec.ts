@@ -54,15 +54,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('popen("cat", "w")', async () => {
 			const result = await php.run({
 				code: `<?php
-				$path = __DIR__;
-				$fp = popen("cat > out", "w");
-				fwrite($fp, "WordPress\n");
-				fclose($fp);
+                $fp = popen("cat > out", "w");
+                fwrite($fp, "WordPress\n");
+                fclose($fp);
 
-				$fp = popen("cat out", "r");
-				echo 'stdout: ' . fread($fp, 1024);
-				fclose($fp);
-			`,
+                $fp = popen("cat out", "r");
+                echo 'stdout: ' . fread($fp, 1024);
+                fclose($fp);
+            `,
 			});
 
 			expect(result.text).toEqual('stdout: WordPress\n');
@@ -226,6 +225,75 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(spawnHandlerCalled).toEqual(true);
 		});
+
+		if (phpVersion == '8.2') {
+			it('Uses the three descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+                    $res = proc_open(
+                        "echo 'Hello World!'",
+                        [
+                            0 => [ 'pipe', 'r' ],
+                            1 => [ 'pipe', 'w' ],
+                            2 => [ 'pipe', 'w' ]
+                        ],
+                        $pipes
+                    );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('Hello World!\n');
+			});
+
+			it('Uses only stdin and stdout descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+                    $res = proc_open(
+                        "echo 'Hello World!'",
+                        [
+                            0 => ["pipe","r"],
+                            1 => ["pipe","w"],
+                        ],
+                        $pipes
+                    );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('Hello World!\n');
+			});
+
+			it('Uses only stdout and stderr descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+                    $res = proc_open(
+                        "echo 'Hello World!'",
+                        [
+                            1 => ["pipe","w"],
+                            2 => ["pipe","w"],
+                        ],
+                        $pipes
+                    );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('');
+			});
+		}
 	});
 
 	describe('Filesystem', () => {
