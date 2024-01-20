@@ -228,7 +228,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		if (phpVersion == '8.2') {
-			//TODO: Enable this for phpVersion >= '7.4' when corrected
 			it('Gives access to command and arguments when array type is used in proc_open', async () => {
 				let command = '';
 				let args: string[] = [];
@@ -252,7 +251,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				await php.run({
 					code: `<?php
                     $res = proc_open(
-                        [ 'ls', '-a' ],
+                        [ 'lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing' ],
                         array(
                             array("pipe","r"),
                             array("pipe","w"),
@@ -261,8 +260,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
                         $pipes
                     );`,
 				});
-				expect(command).toEqual('ls');
-				expect(args.toString()).toEqual('-a');
+				expect(command).toEqual('lorem');
+				expect(args.toString()).toEqual(
+					'ipsum,dolor,sit,amet,consectetur,adipiscing'
+				);
 			});
 		}
 	});

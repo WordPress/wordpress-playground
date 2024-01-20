@@ -272,16 +272,22 @@ const LibraryExample = {
 		if (!cmdstr.length) {
 			return 0;
 		}
+
 		let jsArgsArray = [];
 		if (argsLength) {
-			var pointersStart = args + 8;
-
-			for (var i = 1; i < argsLength + 1; i++) {
-				var pointer = pointersStart + i * 8;
-
-				jsArgsArray.push(UTF8ToString(pointer));
+			var ptr = args + (((argsLength > 1 ? argsLength : 2) >> 1) + 1) * 8;
+			for (var i = 0; i < argsLength; i++) {
+				var str = UTF8ToString(ptr);
+				ptr +=
+					str.length > 16
+						? str.length -
+						  (str.length % 8) +
+						  ((str.length % 8 >> 2) + 1) * 8
+						: 16;
+				jsArgsArray.push(str);
 			}
 		}
+
 		let cp;
 		try {
 			cp = PHPWASM.spawnProcess(cmdstr, jsArgsArray);

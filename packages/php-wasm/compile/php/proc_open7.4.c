@@ -355,7 +355,7 @@ PHP_FUNCTION(proc_open)
 	struct php_proc_open_descriptor_item *descriptors = NULL;
 	int ndescriptors_array;
 	char **argv = NULL;
-    int argv_length = 0;
+    int nargv_array = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
@@ -381,9 +381,9 @@ PHP_FUNCTION(proc_open)
 			RETURN_FALSE;
 		}
 
-        argv_length = num_elems - 1;
+        nargv_array = num_elems - 1;
 
-		argv = safe_emalloc(sizeof(char *), num_elems, 0);
+		argv = malloc(sizeof(char *) * nargv_array);
 
 		i = 0;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
@@ -397,16 +397,12 @@ PHP_FUNCTION(proc_open)
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
 			}
             else {
-			    argv[i - 1] = estrdup(ZSTR_VAL(arg_str));
+			    argv[i - 1] = strdup(ZSTR_VAL(arg_str));
             }
 
             i++;
 			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
-
-        if (num_elems > 0) {
-            argv[i - 1] = NULL;
-        }
 
 		/* As the array is non-empty, we should have found a command. */
 		ZEND_ASSERT(command);
@@ -612,7 +608,7 @@ PHP_FUNCTION(proc_open)
     js_open_process(
 		command,
         argv,
-        argv_length,
+        nargv_array,
 		descriptors[0].childend,
 		descriptors[1].childend,
 		descriptors[1].parentend,
@@ -673,14 +669,13 @@ PHP_FUNCTION(proc_open)
 		}
 	}
 
-	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
-		}
-		efree(argv);
-	}
+    if (argv) {
+        for(int i = 0; i < nargv_array; i++)
+        {
+            free(argv[i]);
+        }
+        free(argv);
+    }
 
 	efree(descriptors);
 	ZVAL_RES(return_value, zend_register_resource(proc, le_proc_open));
@@ -695,14 +690,14 @@ exit_fail:
 		pefree(command, is_persistent);
 	}
 
-	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
-		}
-		efree(argv);
-	}
+    if (argv) {
+        for(int i = 0; i < nargv_array; i++)
+        {
+            free(argv[i]);
+        }
+        free(argv);
+    }
+
 
 	RETURN_FALSE;
 }
