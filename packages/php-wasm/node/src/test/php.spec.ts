@@ -43,6 +43,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('popen("echo", "r")', async () => {
 			const result = await php.run({
 				code: `<?php
+
 				$fp = popen("echo WordPress", "r");
 				echo 'stdout: ' . fread($fp, 1024);
 				fclose($fp);
@@ -55,9 +56,12 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			it('popen("cat", "w")', async () => {
 				const result = await php.run({
 					code: `<?php
+
                     $fp = popen("cat > out", "w");
                     fwrite($fp, "WordPress\n");
                     fclose($fp);
+
+                    sleep(1);
 
                     $fp = popen("cat out", "r");
                     echo 'stdout: ' . fread($fp, 1024);
@@ -70,177 +74,159 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		}
 	});
 
-	describe('proc_open()', () => {
-		it('echo – stdin=file (empty), stdout=file, stderr=file', async () => {
-			const result = await php.run({
-				code: `<?php
-				file_put_contents('/tmp/process_in', '');
-				$res = proc_open(
-					"echo WordPress",
-					array(
-						array("file","/tmp/process_in", "r"),
-						array("file","/tmp/process_out", "w"),
-						array("file","/tmp/process_err", "w"),
-					),
-					$pipes
-				);
-
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
-				$stdout = file_get_contents("/tmp/process_out");
-				$stderr = file_get_contents("/tmp/process_err");
-
-				echo 'stdout: ' . $stdout . "";
-				echo 'stderr: ' . $stderr . PHP_EOL;
-			`,
-			});
-			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
-		});
-
-		it('echo – stdin=file (empty), stdout=pipe, stderr=pipe', async () => {
-			const result = await php.run({
-				code: `<?php
-				file_put_contents('/tmp/process_in', '');
-				$res = proc_open(
-					"echo WordPress",
-					array(
-						array("file","/tmp/process_in", "r"),
-						array("pipe","w"),
-						array("pipe","w"),
-					),
-					$pipes
-				);
-
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
-				$stdout = stream_get_contents($pipes[1]);
-				$stderr = stream_get_contents($pipes[2]);
-				proc_close($res);
-
-				echo 'stdout: ' . $stdout . "";
-				echo 'stderr: ' . $stderr . PHP_EOL;
-			`,
-			});
-			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
-		});
-
-		// This test fails
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
-			/*
-			There is a race condition in this variant of the test which
-			causes the following failure (but only sometimes):
-
-				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
-				→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
-			*/
-			it.skip('cat – stdin=pipe, stdout=file, stderr=file', async () => {
+	if (phpVersion == '8.2') {
+		describe('proc_open()', () => {
+			it('echo – stdin=file (empty), stdout=file, stderr=file', async () => {
 				const result = await php.run({
 					code: `<?php
-			$res = proc_open(
-				"cat",
-				array(
-					array("pipe","r"),
-					array("file","/tmp/process_out", "w"),
-					array("file","/tmp/process_err", "w"),
-				),
-				$pipes
-			);
-			fwrite($pipes[0], 'WordPress\n');
 
-			$stdout = file_get_contents("/tmp/process_out");
-			$stderr = file_get_contents("/tmp/process_err");
-			proc_close($res);
+                    file_put_contents(__DIR__ . '/process_in', 'WordPress\n');
 
-			echo 'stdout: ' . $stdout . "";
-			echo 'stderr: ' . $stderr . PHP_EOL;
-		`,
+                    $command = "cat";
+
+                    $descriptorspec = [
+                        0 => [ "file", __DIR__ . "/process_in", "r" ],
+                        1 => [ "file", __DIR__ . "/process_out", "w" ],
+                        2 => [ "file", __DIR__ . "/process_err", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    sleep(1);
+
+                    $stdout = file_get_contents(__DIR__ . "/process_out");
+                    $stderr = file_get_contents(__DIR__ . "/process_err");
+
+                    echo 'stdout: ' . $stdout . "";
+                    echo 'stderr: ' . $stderr . PHP_EOL;
+
+                    unlink(__DIR__ . '/process_in');
+                    unlink(__DIR__ . '/process_out');
+                    unlink(__DIR__ . '/process_err');
+                `,
 				});
 				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 			});
-		}
 
-		it('cat – stdin=file, stdout=file, stderr=file', async () => {
-			const result = await php.run({
-				code: `<?php
-				file_put_contents('/tmp/process_in', 'WordPress\n');
-				$res = proc_open(
-					"cat",
-					array(
-						array("file","/tmp/process_in", "r"),
-						array("file","/tmp/process_out", "w"),
-						array("file","/tmp/process_err", "w"),
-					),
-					$pipes
-				);
+			it('echo – stdin=file (empty), stdout=pipe, stderr=pipe', async () => {
+				const result = await php.run({
+					code: `<?php
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
+                    file_put_contents(__DIR__ . '/process_in', 'WordPress\n');
 
-				$stdout = file_get_contents("/tmp/process_out");
-				$stderr = file_get_contents("/tmp/process_err");
-				proc_close($res);
+                    $command = "echo WordPress";
 
-				echo 'stdout: ' . $stdout . "";
-				echo 'stderr: ' . $stderr . PHP_EOL;
-			`,
+                    $descriptorspec = [
+                        0 => [ "file", __DIR__ . "/process_in", "r" ],
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    sleep(1);
+
+                    $stdout = stream_get_contents($pipes[1]);
+                    $stderr = stream_get_contents($pipes[2]);
+                    proc_close($res);
+
+                    echo 'stdout: ' . $stdout . "";
+                    echo 'stderr: ' . $stderr . PHP_EOL;
+
+                    unlink(__DIR__ . '/process_in');
+                `,
+				});
+				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 			});
 
-			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
-		});
+			// // This test fails
+			// if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+			// 	/*
+			// 	There is a race condition in this variant of the test which
+			// 	causes the following failure (but only sometimes):
 
-		it('Uses the specified spawn handler', async () => {
-			let spawnHandlerCalled = false;
-			php.setSpawnHandler(() => {
-				spawnHandlerCalled = true;
-				return {
-					stdout: {
-						on: () => {},
-					},
-					stderr: {
-						on: () => {},
-					},
-					stdin: {
-						write: () => {},
-					},
-					on: () => {},
-					kill: () => {},
-				} as any;
-			});
-			await php.run({
-				code: `<?php
-				$res = proc_open(
-					"echo 'Hello World!'",
-					array(
-						array("pipe","r"),
-						array("pipe","w"),
-						array("pipe","w"),
-					),
-					$pipes
-				);
-				proc_close($res);
-			`,
-			});
-			expect(spawnHandlerCalled).toEqual(true);
-		});
+			// 		src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
+			// 		→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
+			// 	*/
+			it('cat – stdin=pipe, stdout=file, stderr=file', async () => {
+				const result = await php.run({
+					code: `<?php
 
-		if (phpVersion == '8.2') {
+                    $command = "cat";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "file", __DIR__ . "/process_out", "w" ],
+                        2 => [ "file", __DIR__ . "/process_err", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    fwrite($pipes[0], 'WordPress\n');
+
+                    sleep(1);
+
+                    $stdout = file_get_contents(__DIR__ . "/process_out");
+                    $stderr = file_get_contents(__DIR__ . "/process_err");
+                    proc_close($res);
+
+                    echo 'stdout: ' . $stdout . "";
+                    echo 'stderr: ' . $stderr . PHP_EOL;
+
+                    unlink(__DIR__ . '/process_out');
+                    unlink(__DIR__ . '/process_err');
+                    `,
+				});
+				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+			});
+			// }
+
+			it('cat – stdin=file, stdout=file, stderr=file', async () => {
+				const result = await php.run({
+					code: `<?php
+
+                    file_put_contents( __DIR__ . '/process_in', 'WordPress\n');
+
+                    $command = "cat";
+
+                    $descriptorspec = [
+                        0 => [ "file", __DIR__ . "/process_in", "r" ],
+                        1 => [ "file", __DIR__ . "/process_out", "w" ],
+                        2 => [ "file", __DIR__ . "/process_err", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    sleep(1);
+
+                    $stdout = file_get_contents(__DIR__ . "/process_out");
+                    $stderr = file_get_contents(__DIR__ . "/process_err");
+                    proc_close($res);
+
+                    echo 'stdout: ' . $stdout . "";
+                    echo 'stderr: ' . $stderr . PHP_EOL;
+
+                    unlink(__DIR__ . '/process_out');
+                    unlink(__DIR__ . '/process_err');
+                `,
+				});
+
+				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+			});
+
 			it('Uses the three descriptor specs', async () => {
 				const result = await php.run({
 					code: `<?php
-                    $res = proc_open(
-                        "echo 'Hello World!'",
-                        [
-                            0 => [ 'pipe', 'r' ],
-                            1 => [ 'pipe', 'w' ],
-                            2 => [ 'pipe', 'w' ]
-                        ],
-                        $pipes
-                    );
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
 
                     $stdout = stream_get_contents($pipes[1]);
 
@@ -255,14 +241,15 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			it('Uses only stdin and stdout descriptor specs', async () => {
 				const result = await php.run({
 					code: `<?php
-                    $res = proc_open(
-                        "echo 'Hello World!'",
-                        [
-                            0 => ["pipe","r"],
-                            1 => ["pipe","w"],
-                        ],
-                        $pipes
-                    );
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
 
                     $stdout = stream_get_contents($pipes[1]);
 
@@ -277,14 +264,15 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			it('Uses only stdout and stderr descriptor specs', async () => {
 				const result = await php.run({
 					code: `<?php
-                    $res = proc_open(
-                        "echo 'Hello World!'",
-                        [
-                            1 => ["pipe","w"],
-                            2 => ["pipe","w"],
-                        ],
-                        $pipes
-                    );
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
 
                     $stdout = stream_get_contents($pipes[1]);
 
@@ -295,8 +283,45 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				});
 				expect(result.text).toEqual('');
 			});
-		}
-	});
+
+			it('Uses the specified spawn handler', async () => {
+				let spawnHandlerCalled = false;
+				php.setSpawnHandler(() => {
+					spawnHandlerCalled = true;
+					return {
+						stdout: {
+							on: () => {},
+						},
+						stderr: {
+							on: () => {},
+						},
+						stdin: {
+							write: () => {},
+						},
+						on: () => {},
+						kill: () => {},
+					} as any;
+				});
+				await php.run({
+					code: `<?php
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    proc_close($res);
+                `,
+				});
+				expect(spawnHandlerCalled).toEqual(true);
+			});
+		});
+	}
 
 	describe('Filesystem', () => {
 		// Unit tests for the filesystem methods of the

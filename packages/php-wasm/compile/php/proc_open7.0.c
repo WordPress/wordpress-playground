@@ -505,6 +505,13 @@ PHP_FUNCTION(proc_open)
 
 	descv = malloc(sizeof(int *) * ndescriptors_array);
 
+    for( int i = 0; i < ndescriptors_array; i++ )
+    {
+        int *desc = malloc(sizeof(int) * 3);
+
+        descv[i] = desc;
+    }
+
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
 	memset(descriptors, 0, sizeof(struct php_proc_open_descriptor_item) * ndescriptors_array);
@@ -688,13 +695,9 @@ PHP_FUNCTION(proc_open)
 			}
 		}
 
-        int *desc = malloc( sizeof(int) * 3);
-
-        desc[0] = descriptors[ndesc].index;
-        desc[1] = descriptors[ndesc].childend;
-        desc[2] = descriptors[ndesc].parentend;
-
-        descv[ndesc] = desc;
+        descv[ndesc][0] = descriptors[ndesc].index;
+        descv[ndesc][1] = descriptors[ndesc].childend;
+        descv[ndesc][2] = descriptors[ndesc].parentend;
 
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
