@@ -140,6 +140,9 @@ export function showCriticalErrorBox(message: string) {
 		return;
 	}
 	logged = true;
+	if (message?.trim().startsWith('Program terminated with exit')) {
+		return;
+	}
 	console.log(`${redBg}\n${eol}\n${bold}  WASM ERROR${reset}${redBg}`);
 	for (const line of message.split('\n')) {
 		console.log(`${eol}  ${line} `);
