@@ -66,6 +66,7 @@ add_filter('gettext', function ($translation) {
 	if( $GLOBALS['pagenow'] === 'theme-install.php') {
 		if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
 		return networking_disabled();
+		}
 	}
 	return $translation;
 });
