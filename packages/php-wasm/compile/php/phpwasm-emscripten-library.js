@@ -200,8 +200,8 @@ const LibraryExample = {
 	 * @returns {int} The path of the input devicex (string pointer).
 	 */
 	js_create_input_device: function (procopenCallId) {
-		if (!PHPWASM.callback_pipes) {
-			PHPWASM.callback_pipes = {};
+		if (!PHPWASM.input_devices) {
+			PHPWASM.input_devices = {};
 		}
 		let dataBuffer = [];
 		let dataCallback;
@@ -225,7 +225,7 @@ const LibraryExample = {
 		);
 
 		const devicePath = '/dev/' + filename;
-		PHPWASM.callback_pipes[procopenCallId] = {
+		PHPWASM.input_devices[procopenCallId] = {
 			devicePath: devicePath,
 			onData: function (cb) {
 				dataCallback = cb;
@@ -243,7 +243,7 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} procopenCallId Child process end of the stdin pipe (the one to read from).
+	 * @param {int} stdinFd Child process end of the stdin pipe (the one to read from).
 	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
 	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
 	 * @param {int} stderrChildFd Child process end of the stderr pipe (the one to write to).
@@ -252,7 +252,7 @@ const LibraryExample = {
 	 */
 	js_open_process: function (
 		command,
-		procopenCallId,
+		stdinFd,
 		stdoutChildFd,
 		stdoutParentFd,
 		stderrChildFd,
@@ -319,7 +319,9 @@ const LibraryExample = {
 			};
 		}
 		PHPWASM.proc_fds[stdoutParentFd] = new EventEmitter();
+		PHPWASM.proc_fds[stdoutParentFd].stdinFd = stdinFd;
 		PHPWASM.proc_fds[stderrParentFd] = new EventEmitter();
+		PHPWASM.proc_fds[stderrParentFd].stdinFd = stdinFd;
 
 		const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
 		cp.on('exit', function (data) {
@@ -345,7 +347,6 @@ const LibraryExample = {
 		// Pass data from child process's stderr to PHP's end of the stdout pipe.
 		const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
 		cp.stderr.on('data', function (data) {
-			console.log('Writing error', data.toString());
 			PHPWASM.proc_fds[stderrParentFd].hasData = true;
 			PHPWASM.proc_fds[stderrParentFd].emit('data');
 			stderrStream.stream_ops.write(
@@ -358,13 +359,10 @@ const LibraryExample = {
 		});
 
 		// Pass data from stdin fd to child process's stdin.
-		if (
-			PHPWASM.callback_pipes &&
-			procopenCallId in PHPWASM.callback_pipes
-		) {
+		if (PHPWASM.input_devices && stdinFd in PHPWASM.input_devices) {
 			// It is a "pipe". By now it is listed in `callback_pipes`.
 			// Let's listen to anything it outputs and pass it to the child process.
-			PHPWASM.callback_pipes[procopenCallId].onData(function (data) {
+			PHPWASM.input_devices[stdinFd].onData(function (data) {
 				if (!data) return;
 				const dataStr = new TextDecoder('utf-8').decode(data);
 				cp.stdin.write(dataStr);
@@ -374,7 +372,7 @@ const LibraryExample = {
 
 		// It is a file descriptor.
 		// Let's pass the already read contents to the child process.
-		const stdinStream = SYSCALLS.getStreamFromFD(procopenCallId);
+		const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
 		if (!stdinStream.node) {
 			return 0;
 		}
@@ -596,6 +594,91 @@ const LibraryExample = {
 		}
 		ws.setSocketOpt(level, optionName, optionValuePtr);
 		return 0;
+	},
+
+	/**
+	 * Shims read(2) functionallity.
+	 * Enables reading from blocking pipes. By default, Emscripten
+	 * will throw an EWOULDBLOCK error when trying to read from a
+	 * blocking pipe. This function overrides that behavior and
+	 * instead waits for the pipe to become readable.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/issues/951
+	 * @see https://github.com/emscripten-core/emscripten/issues/13214
+	 */
+	js_fd_read: function (fd, iov, iovcnt, pnum) {
+		var returnCode;
+		var stream;
+		try {
+			stream = SYSCALLS.getStreamFromFD(fd);
+			var num = doReadv(stream, iov, iovcnt);
+			HEAPU32[pnum >> 2] = num;
+			returnCode = 0;
+		} catch (e) {
+			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
+			returnCode = e.errno;
+		}
+
+		// If it's a blocking process pipe, wait for it to become readable.
+		// We need to distinguish between a process pipe and a file pipe, otherwise
+		// reading from an empty file would block until the timeout.
+		if (
+			returnCode === 6 /*EWOULDBLOCK*/ &&
+			stream?.fd in PHPWASM.proc_fds
+		) {
+			// You might wonder why we duplicate the code here instead of always using
+			// Asyncify.handleSleep(). The reason is performance. Most of the time,
+			// the read operation will work synchronously and won't require yielding
+			// back to JS. In these cases we don't want to pay the Asyncify overhead,
+			// save the stack, yield back to JS, restore the stack etc.
+			return Asyncify.handleSleep(function (wakeUp) {
+				var retries = 0;
+				var interval = 50;
+				var timeout = 5000;
+				// We poll for data and give up after a timeout.
+				// We can't simply rely on PHP timeout here because we don't want
+				// to, say, block the entire PHPUnit test suite without any visible
+				// feedback.
+				var maxRetries = timeout / interval;
+				function poll() {
+					var returnCode;
+					var stream;
+					try {
+						stream = SYSCALLS.getStreamFromFD(fd);
+						var num = doReadv(stream, iov, iovcnt);
+						HEAPU32[pnum >> 2] = num;
+						returnCode = 0;
+					} catch (e) {
+						if (
+							typeof FS == 'undefined' ||
+							!(e.name === 'ErrnoError')
+						) {
+							console.error(e);
+							throw e;
+						}
+						returnCode = e.errno;
+					}
+
+					if (
+						returnCode !== 6 ||
+						++retries > maxRetries ||
+						!(stream?.fd in PHPWASM.proc_fds) ||
+						PHPWASM.proc_fds[stream?.fd]?.exited ||
+						FS.isClosed(stream) ||
+						!(
+							PHPWASM.proc_fds[fd]?.stdinFd in
+							(PHPWASM.input_devices || {})
+						)
+					) {
+						wakeUp(returnCode);
+					} else {
+						setTimeout(poll, interval);
+					}
+				}
+				poll();
+			});
+		}
+		return returnCode;
 	},
 
 	/**

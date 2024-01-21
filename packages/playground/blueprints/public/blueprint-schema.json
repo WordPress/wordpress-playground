@@ -411,9 +411,6 @@
 						"disableWpNewBlogNotification": {
 							"type": "boolean"
 						},
-						"makeEditorFrameControlled": {
-							"type": "boolean"
-						},
 						"prepareForRunningInsideWebBrowser": {
 							"type": "boolean"
 						},

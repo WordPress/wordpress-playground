@@ -1,7 +1,7 @@
 /**
  * A CLI script that runs PHP CLI via the WebAssembly build.
  */
-import { writeFileSync, existsSync, mkdtempSync } from 'fs';
+import { writeFileSync, existsSync, mkdtempSync, rmSync, rmdirSync } from 'fs';
 import { rootCertificates } from 'tls';
 
 import {
@@ -33,11 +33,20 @@ async function run() {
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
-
+	
+	// npm scripts set the TMPDIR env variable
+	// PHP accepts a TMPDIR env variable and expects it to
+	// be a writable directory within the PHP filesystem.
+	// These two clash and prevent PHP from creating temporary
+	// files and directories so let's just not pass the npm TMPDIR
+	// to PHP.
+	// @see https://github.com/npm/npm/issues/4531
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { TMPDIR, ...envVariables } = process.env;
 	const php = await NodePHP.load(phpVersion, {
 		emscriptenOptions: {
 			ENV: {
-				...process.env,
+				...envVariables,
 				TERM: 'xterm',
 			},
 		},
@@ -53,7 +62,7 @@ async function run() {
 		//        a PATH or an alias.
 		const updatedCommand = command.replace(
 			/^(?:\\ |[^ ])*php\d?(\s|$)/,
-			phpWasmCommand
+			phpWasmCommand + '$1'
 		);
 
 		// Create a shell script in a temporary directory
@@ -66,11 +75,17 @@ async function run() {
 	`
 		);
 
-		return spawn('sh', [tempScriptPath], {
-			shell: true,
-			stdio: ['pipe', 'pipe', 'pipe'],
-			timeout: 100,
-		});
+		try {
+			return spawn(updatedCommand, [], {
+				shell: true,
+				stdio: ['pipe', 'pipe', 'pipe'],
+				timeout: 5000,
+			});
+		} finally {
+			// Remove the temporary directory
+			rmSync(tempScriptPath);
+			rmdirSync(tempDir);
+		}
 	});
 
 	const hasMinusCOption = args.some((arg) => arg.startsWith('-c'));
@@ -87,7 +102,11 @@ async function run() {
 			throw result;
 		})
 		.finally(() => {
-			process.exit(0);
+			setTimeout(() => {
+				process.exit(0);
+				// 100 is an arbitrary number. It's there to give any child processes
+				// a chance to pass their output to JS before the main process exits.
+			}, 100);
 		});
 }
 

@@ -9,6 +9,7 @@
 #include <main/php_main.h>
 #include <main/php_variables.h>
 #include <main/php_ini.h>
+#include <main/php_streams.h>
 #include <zend_ini.h>
 #include "ext/standard/php_standard.h"
 #include <emscripten.h>
@@ -32,6 +33,16 @@ unsigned int wasm_sleep(unsigned int time) {
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+extern int __wasi_syscall_ret(__wasi_errno_t code);
+extern __wasi_errno_t js_fd_read(
+	__wasi_fd_t fd,
+	const __wasi_iovec_t* iovs,
+	size_t iovs_len,
+	__wasi_size_t* nread
+);
+
+// Exit code of the last exited child process call.
+int wasm_pclose_ret = -1;
 
 /**
  * Passes a message to the JavaScript module and writes the response
@@ -72,6 +83,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		char *file_path = js_popen_to_file(cmd, mode, &last_exit_code);
 		fp = fopen(file_path, mode);
 		FG(pclose_ret) = last_exit_code;
+		wasm_pclose_ret = last_exit_code;
 	}
 	else if (*mode == 'w')
 	{
@@ -151,6 +163,28 @@ static size_t handle_line(int type, zval *array, char *buf, size_t bufl) {
 	return bufl;
 }
 
+/**
+ * Shims read(2) functionallity.
+ * Enables reading from blocking pipes. By default, Emscripten
+ * will throw an EWOULDBLOCK error when trying to read from a
+ * blocking pipe. This function overrides that behavior and
+ * instead waits for the pipe to become readable.
+ * 
+ * @see https://github.com/WordPress/wordpress-playground/issues/951
+ * @see https://github.com/emscripten-core/emscripten/issues/13214
+ */
+EMSCRIPTEN_KEEPALIVE ssize_t wasm_read(int fd, void *buf, size_t count) {
+	struct __wasi_iovec_t iov = {
+		.buf = buf,
+		.buf_len = count
+	};
+	size_t num;
+	if (__wasi_syscall_ret(js_fd_read(fd, &iov, 1, &num))) {
+		return -1;
+	}
+	return num;
+}
+
 /*
  * If type==0, only last line of output is returned (exec)
  * If type==1, all lines will be printed and last lined returned (system)
@@ -227,6 +261,9 @@ EMSCRIPTEN_KEEPALIVE int wasm_php_exec(int type, const char *cmd, zval *array, z
 	}
 
 	pclose_return = php_stream_close(stream);
+	if(pclose_return == -1) {
+		pclose_return = wasm_pclose_ret;
+	}
 	efree(buf);
 
 done:
@@ -308,7 +345,6 @@ PHP_FUNCTION(post_message_to_js)
 		RETURN_NULL();
 	}
 }
-
 
 #if WITH_CLI_SAPI == 1
 #include "sapi/cli/php_cli_process_title.h"

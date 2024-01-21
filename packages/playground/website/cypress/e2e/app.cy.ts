@@ -19,14 +19,18 @@ describe('Query API', () => {
 		it('should load PHP 8.0 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1')
+				.find('h1', {
+					timeout: 60_000,
+				})
 				.should('contain', 'PHP Version 8.0');
 		});
 
 		it('should load PHP 7.4 when requested', () => {
 			cy.visit('/?php=7.4&url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1')
+				.find('h1', {
+					timeout: 60_000,
+				})
 				.should('contain', 'PHP Version 7.4');
 		});
 	});
@@ -212,6 +216,43 @@ describe('Query API', () => {
 					.should('contain', 'persistent storage');
 			});
 		});
+	});
+
+	describe('Patching Gutenberg editor frame', () => {
+		it('should patch the editor frame in WordPress', () => {
+			cy.visit('/?plugin=gutenberg&url=/wp-admin/post-new.php');
+			checkIfGutenbergIsPatched();
+		});
+
+		it('should patch the editor frame in Gutenberg when it is installed as a plugin', () => {
+			cy.visit('/?plugin=gutenberg&url=/wp-admin/post-new.php');
+			checkIfGutenbergIsPatched();
+		});
+
+		it('should patch Gutenberg brought over by importing a site', () => {
+			cy.visit('/');
+			// Get the current URL
+			cy.url().then((url) => {
+				url = url.replace(/\/$/, '');
+				// Import a site that has Gutenberg installed
+				cy.visit(
+					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
+				);
+				checkIfGutenbergIsPatched();
+			});
+		});
+
+		function checkIfGutenbergIsPatched() {
+			// Check if the inserter button is styled.
+			// If Gutenberg wasn't correctly patched,
+			// the inserter will look like a default
+			// browser button.
+			cy.wordPressDocument()
+				.find('iframe[name="editor-canvas"]')
+				.its('0.contentDocument')
+				.find('.block-editor-inserter__toggle')
+				.should('not.have.css', 'background-color', undefined);
+		}
 	});
 });
 

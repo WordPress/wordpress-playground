@@ -259,6 +259,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
 RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
 
+RUN echo 'extern ssize_t wasm_read(int fd, void *buf, size_t count);' >> /root/php-src/main/php.h;
+RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams/plain_wrapper.c
+
 # Provide a custom implementation of the php_select() function.
 RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
@@ -391,8 +394,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "invoke_viiiiiiiii",\n\
 "js_open_process",\n\
 "js_popen_to_file",\n\
-"wasm_poll_socket",\n\
+"js_fd_read",\n\
 "js_module_onMessage",\n\
+"wasm_poll_socket",\n\
 "wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
 	export ASYNCIFY_ONLY_UNPREFIXED=$'"dynCall_dd",\
@@ -427,8 +431,14 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
 	export ASYNCIFY_ONLY=$'"__fwritex",\
+"read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
+"_php_stream_fill_read_buffer",\
+"_php_stream_read",\
+"php_stream_read_to_str",\
+"zif_fread",\
+"wasm_read",\
 "php_stdiop_read",\
 "fwrite",\
 "zif_fwrite",\
@@ -440,9 +450,21 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "ZEND_ASSIGN_DIM_SPEC_CV_CONST_HANDLER",\
 "zend_fetch_dimension_address_read",\
 "php_if_fopen",\
+"_php_stream_cast",\
+"php_stream_temp_cast",\
+"php_stream_temp_flush",\
+"_php_stream_flush",\
+"php_stream_flush",\
+"_php_stream_write",\
+"php_stream_write",\
+"_php_stream_free",\
+"_php_stream_free_enclosed",\
+"stream_resource_persistent_dtor",\
+"stream_resource_regular_dtor",\
 "zend_std_has_dimension",\
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
+"zif_file_put_contents",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
@@ -490,6 +512,11 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "ZEND_ISSET_ISEMPTY_PROP_OBJ_SPEC_TMPVAR_HANDLER",\
 "cli",\
 "wasm_sleep",\
+"wasm_php_stream_flush",\
+"wasm_php_stream_read",\
+"php_crc32_stream_bulk_update",\
+"phar_parse_zipfile",\
+"get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
 "_call_user_function_ex",\
@@ -671,6 +698,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_array_map",\
 "zif_array_reduce",\
 "zif_call_user_func",\
+"zif_json_encode",\
 "zif_call_user_func_array",\
 "zif_fclose",\
 "zif_feof",\
@@ -748,6 +776,7 @@ RUN set -euxo pipefail; \
 "_wasm_set_phpini_path", \n\
 "_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
+"_wasm_read", \n\
 "_wasm_add_uploaded_file", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_set_content_length", \n\

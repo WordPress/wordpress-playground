@@ -26,7 +26,7 @@ import { WriteFileStep } from './write-file';
 import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
-import { ImportWordPressFilesStep } from './import-wp-content';
+import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportFileStep } from './import-file';
 
 export type Step = GenericStep<FileReference>;

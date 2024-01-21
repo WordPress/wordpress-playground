@@ -59,10 +59,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				fwrite($fp, "WordPress\n");
 				fclose($fp);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
 				fclose($fp);
@@ -88,9 +84,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the 
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
@@ -117,8 +112,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// stream_get_contents yields back to JS event loop internally.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
+
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
 				proc_close($res);
@@ -133,7 +130,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		// This test fails
 		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
 			/*
-			There is a race condition in this variant of the test which 
+			There is a race condition in this variant of the test which
 			causes the following failure (but only sometimes):
 
 				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
@@ -152,11 +149,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				$pipes
 			);
 			fwrite($pipes[0], 'WordPress\n');
-
-			// Yields back to JS event loop to capture and process the 
-			// child_process output. This is fine. Regular PHP scripts
-			// typically wait for the child process to finish.
-			sleep(1);
 
 			$stdout = file_get_contents("/tmp/process_out");
 			$stderr = file_get_contents("/tmp/process_err");
@@ -184,9 +176,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to capture and process the 
-				// child_process output. This is fine. Regular PHP scripts
-				// typically wait for the child process to finish.
+				// Yields back to JS event loop to give the child process a chance
+				// to process the input.
 				sleep(1);
 
 				$stdout = file_get_contents("/tmp/process_out");
@@ -1073,3 +1064,16 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		}, 500_000);
 	}
 );
+
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+	describe('emscripten options', () => {
+		it('calls quit callback', async () => {
+			let result = '';
+			const php: NodePHP = await NodePHP.load(phpVersion as any, {
+				emscriptenOptions: { quit: () => (result = 'WordPress') },
+			});
+			php.exit(0);
+			expect(result).toEqual('WordPress');
+		});
+	});
+});
