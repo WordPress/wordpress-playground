@@ -17,8 +17,19 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 
 	const isRunningCommand = useRef<boolean>(false);
 
+	const history = useRef<string[]>([]);
+	const currentHistoryEntry = useRef<number>(-1);
+	const cursorPos = useRef<number>(0);
 	const runCommand = useCallback(
 		async (command: string) => {
+			console.log({ command });
+			command = command.trim();
+			if (command) {
+				history.current.unshift(command);
+			}
+			console.log(history.current);
+			currentHistoryEntry.current = -1;
+
 			isRunningCommand.current = true;
 
 			const args = command.split(' ');
@@ -77,10 +88,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
               "--path=/wordpress",
               ${wpCliArgs.join('\n')}
             ];
-
-			// Retain ascii table formatting.
-			// @see https://github.com/wp-cli/wp-cli/issues/1102
-			$_ENV['SHELL_PIPE'] = '0';
 
 			// Provide stdin, stdout, stderr streams outside of
 			// the CLI SAPI.
@@ -190,8 +197,15 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 		);
 
 		term.writeln('Below is a simple emulated backend, try running `help`.');
-		const prompt = () => {
-			term.write('\r\n$ ');
+		const clearLine = () => {
+			term.write('\x1b[2K\r');
+		};
+		const prompt = ({ newLine = true } = {}) => {
+			if (newLine) {
+				term.write('\r\n');
+			}
+			term.write('$ ');
+			cursorPos.current = 2;
 		};
 		prompt();
 
@@ -217,7 +231,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					if (term._core.buffer.x > 2) {
 						term.write('\b \b');
 						if (command.length > 0) {
-							command = command.substr(0, command.length - 1);
+							command = command.substring(0, command.length - 1);
 						}
 					}
 					break;
@@ -243,6 +257,43 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					term.write(text);
 					command += text;
 				});
+			} else if (
+				!(arg.metaKey || arg.ctrlKey) &&
+				arg.type === 'keydown'
+			) {
+				if (arg.code === 'ArrowUp') {
+					if (
+						currentHistoryEntry.current <
+						history.current.length - 1
+					) {
+						++currentHistoryEntry.current;
+						command =
+							history.current[currentHistoryEntry.current] || '';
+						clearLine();
+						prompt({ newLine: false });
+						term.write(command);
+					}
+				} else if (arg.code === 'ArrowDown') {
+					if (currentHistoryEntry.current > 0) {
+						--currentHistoryEntry.current;
+						command =
+							history.current[currentHistoryEntry.current] || '';
+						clearLine();
+						prompt({ newLine: false });
+						term.write(command);
+					}
+				}
+				/*
+				Handling left/right arrows requires a bit more work
+				like tracking the current line, cursor position, etc.
+				Let's leave that for another day.
+				else if (arg.code === 'ArrowLeft') {
+					// @ts-ignore
+					term.write(`${String.fromCharCode(27)}[1D`);
+				} else if (arg.code === 'ArrowRight') {
+					term.write(`${String.fromCharCode(27)}[1C`);
+				}
+				*/
 			}
 			return true;
 		});
