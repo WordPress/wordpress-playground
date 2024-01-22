@@ -22,16 +22,59 @@
 	</p>
 	<ul>
 		<li>
-			<a href="sync.html">Synchronization between two Playgrounds</a>
+			<a href="terminal.html" target="_blank">wp-cli</a>
 		</li>
 		<li>
-			<a href="time-traveling.html">Time Travel</a>
+			<a id="code-editor" target="_blank"
+				>Code editor (as a Gutenberg block)</a
+			>
+		</li>
+		<script>
+			const codeEditorBlueprint = {
+				landingPage: '/wp-admin/post.php?post=1&action=edit',
+				steps: [
+					{
+						step: 'login',
+					},
+					{
+						step: 'installPlugin',
+						pluginZipFile: {
+							resource: 'wordpress.org/plugins',
+							slug: 'interactive-code-block',
+						},
+					},
+					{
+						step: 'writeFile',
+						path: '/wordpress/post.txt',
+						data: '<!-- wp:wordpress-playground/playground {"codeEditor":true,"files":[{"name":"index.php","contents":"<?php\\\\n/**\\\\n * Plugin Name: A WordPress plugin\\\\n */\\\\nadd_action(\'init\', function() {\\\\n  update_option(\'blogname\', \'This is a Playground demo!\');\\\\n});"}]} /-->',
+					},
+					{
+						step: 'runPHP',
+						code: "<?php require '/wordpress/wp-load.php'; kses_remove_filters(); wp_update_post(['ID'=>1,'post_title' => 'Playground Plugin Editor', 'post_content'=>file_get_contents('/wordpress/post.txt')]);",
+					},
+				],
+			};
+			document.getElementById('code-editor').href = `../#${JSON.stringify(
+				codeEditorBlueprint
+			)}`;
+		</script>
+		<li>
+			<a href="sync.html" target="_blank"
+				>Synchronization between two Playgrounds</a
+			>
 		</li>
 		<li>
-			<a href="../wordpress.html">WordPress Pull Request Previewer</a>
+			<a href="time-traveling.html" target="_blank">Time Travel</a>
 		</li>
 		<li>
-			<a href="../gutenberg.html">Gutenberg Pull Request Previewer</a>
+			<a href="../wordpress.html" target="_blank"
+				>WordPress Pull Request Previewer</a
+			>
+		</li>
+		<li>
+			<a href="../gutenberg.html" target="_blank"
+				>Gutenberg Pull Request Previewer</a
+			>
 		</li>
 	</ul>
 </body>
