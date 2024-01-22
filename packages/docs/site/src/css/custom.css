@@ -101,3 +101,11 @@
 .footer {
 	background-color: var(--ifm-footer-bg-color);
 }
+
+li.footer__item a:hover {
+	color: var(--ifm-footer-link-color);
+}
+
+.footerLogoLink_mPrW {
+	opacity: 1;
+}
