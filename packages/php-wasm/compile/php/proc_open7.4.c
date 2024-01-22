@@ -142,7 +142,6 @@ static void _php_free_envp(php_process_env_t env, int is_persistent)
 /* {{{ proc_open_rsrc_dtor */
 static void proc_open_rsrc_dtor(zend_resource *rsrc)
 {
-	printf("proc_open_rsrc_dtor\n");
 	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
 	int i;
 	int wstatus;

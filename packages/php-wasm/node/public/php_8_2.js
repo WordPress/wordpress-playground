@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11250563; 
+export const dependenciesTotalSize = 11251441; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5629,7 +5629,7 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
      }
      returnCode = e.errno;
     }
-    if (returnCode !== 6 || ++retries > maxRetries || !(stream?.fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[stream?.fd]?.exited || !PHPWASM.child_proc_by_fd[stream?.fd]?.stdinIsDevice || FS.isClosed(stream)) {
+    if (returnCode !== 6 || ++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream)) {
      wakeUp(returnCode);
     } else {
      setTimeout(poll, interval);
@@ -6406,7 +6406,7 @@ function runAndAbortIfError(func) {
 
 var Asyncify = {
  instrumentWasmImports: function(imports) {
-  var importPatterns = [ /^_dlopen_js$/, /^invoke_i$/, /^invoke_ii$/, /^invoke_iii$/, /^invoke_iiii$/, /^invoke_iiiii$/, /^invoke_iiiiii$/, /^invoke_iiiiiii$/, /^invoke_iiiiiiii$/, /^invoke_iiiiiiiiii$/, /^invoke_v$/, /^invoke_vi$/, /^invoke_vii$/, /^invoke_viidii$/, /^invoke_viii$/, /^invoke_viiii$/, /^invoke_viiiii$/, /^invoke_viiiiii$/, /^invoke_viiiiiii$/, /^invoke_viiiiiiiii$/, /^js_open_process$/, /^js_popen_to_file$/, /^js_fd_read$/, /^js_module_onMessage$/, /^js_wait_until_process_exits$/, /^wasm_poll_socket$/, /^wasm_shutdown$/, /^fd_sync$/, /^__wasi_fd_sync$/, /^__asyncjs__.*$/, /^emscripten_promise_await$/, /^emscripten_idb_load$/, /^emscripten_idb_store$/, /^emscripten_idb_delete$/, /^emscripten_idb_exists$/, /^emscripten_idb_load_blob$/, /^emscripten_idb_store_blob$/, /^emscripten_sleep$/, /^emscripten_wget_data$/, /^emscripten_scan_registers$/, /^emscripten_lazy_load_code$/, /^_load_secondary_module$/, /^emscripten_fiber_swap$/, /^SDL_Delay$/ ];
+  var importPatterns = [ /^_dlopen_js$/, /^invoke_i$/, /^invoke_ii$/, /^invoke_iii$/, /^invoke_iiii$/, /^invoke_iiiii$/, /^invoke_iiiiii$/, /^invoke_iiiiiii$/, /^invoke_iiiiiiii$/, /^invoke_iiiiiiiiii$/, /^invoke_v$/, /^invoke_vi$/, /^invoke_vii$/, /^invoke_viidii$/, /^invoke_viii$/, /^invoke_viiii$/, /^invoke_viiiii$/, /^invoke_viiiiii$/, /^invoke_viiiiiii$/, /^invoke_viiiiiiiii$/, /^js_open_process$/, /^js_popen_to_file$/, /^js_fd_read$/, /^js_module_onMessage$/, /^js_waitpid$/, /^wasm_poll_socket$/, /^wasm_shutdown$/, /^fd_sync$/, /^__wasi_fd_sync$/, /^__asyncjs__.*$/, /^emscripten_promise_await$/, /^emscripten_idb_load$/, /^emscripten_idb_store$/, /^emscripten_idb_delete$/, /^emscripten_idb_exists$/, /^emscripten_idb_load_blob$/, /^emscripten_idb_store_blob$/, /^emscripten_sleep$/, /^emscripten_wget_data$/, /^emscripten_scan_registers$/, /^emscripten_lazy_load_code$/, /^_load_secondary_module$/, /^emscripten_fiber_swap$/, /^SDL_Delay$/ ];
   for (var x in imports) {
    (function(x) {
     var original = imports[x];

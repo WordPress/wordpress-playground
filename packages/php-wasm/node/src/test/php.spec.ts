@@ -10,6 +10,13 @@ import { createSpawnHandler, phpVar } from '@php-wasm/util';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
+/**
+ * Preface to Pygmalion is a longer chunk of text that
+ * won't fit into a pipe buffer and will require multiple
+ * read/write cycles to complete. This is perfect for testing
+ * whether these chunks are appended to the output one after
+ * another (as opposed to writing over the previous chunk).
+ */
 const pygmalion = `PREFACE TO PYGMALION.
 
 A Professor of Phonetics.
@@ -60,7 +67,7 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each(['8.2'])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
@@ -101,15 +108,13 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\n');
 		});
 
-		it.only('popen("cat", "w")', async () => {
+		it('popen("cat", "w")', async () => {
 			const result = await php.run({
 				code: `<?php
 				$path = __DIR__;
 				$fp = popen("cat > out", "w");
-				// var_dump($fp);
 				fwrite($fp, "WordPress\n");
-				$out = pclose($fp);
-				// var_dump($out);
+				$out = fclose($fp);
 
 				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
@@ -124,7 +129,7 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 	});
 
 	describe('proc_open()', () => {
-		it('echo – stdin=file (empty), stdout=file, stderr=file', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');
@@ -138,9 +143,7 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
+				proc_close($res);
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
@@ -152,7 +155,7 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		it('echo – stdin=file (empty), stdout=pipe, stderr=pipe', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, stream_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');
@@ -166,10 +169,6 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
 				proc_close($res);
@@ -181,42 +180,58 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		// This test fails
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
-			/*
-			There is a race condition in this variant of the test which
-			causes the following failure (but only sometimes):
+		it('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, fread', async () => {
+			const result = await php.run({
+				code: `<?php
+				file_put_contents('/tmp/process_in', '');
+				$res = proc_open(
+					"echo WordPress",
+					array(
+						array("file","/tmp/process_in", "r"),
+						array("pipe","w"),
+						array("pipe","w"),
+					),
+					$pipes
+				);
 
-				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
-				→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
-			*/
-			it.skip('cat – stdin=pipe, stdout=file, stderr=file', async () => {
-				const result = await php.run({
-					code: `<?php
-			$res = proc_open(
-				"cat",
-				array(
-					array("pipe","r"),
-					array("file","/tmp/process_out", "w"),
-					array("file","/tmp/process_err", "w"),
-				),
-				$pipes
-			);
-			fwrite($pipes[0], 'WordPress\n');
+				$stdout = fread($pipes[1], 1024);
+				$stderr = fread($pipes[2], 1024);
+				proc_close($res);
 
-			$stdout = file_get_contents("/tmp/process_out");
-			$stderr = file_get_contents("/tmp/process_err");
-			proc_close($res);
-
-			echo 'stdout: ' . $stdout . "";
-			echo 'stderr: ' . $stderr . PHP_EOL;
-		`,
-				});
-				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
 			});
-		}
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
 
-		it('cat – stdin=file, stdout=file, stderr=file', async () => {
+		it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
+			const result = await php.run({
+				code: `<?php
+		$res = proc_open(
+			"cat",
+			array(
+				array("pipe","r"),
+				array("file","/tmp/process_out", "w"),
+				array("file","/tmp/process_err", "w"),
+			),
+			$pipes
+		);
+		fwrite($pipes[0], 'WordPress\n');
+
+		proc_close($res);
+
+		$stdout = file_get_contents("/tmp/process_out");
+		$stderr = file_get_contents("/tmp/process_err");
+
+		echo 'stdout: ' . $stdout . "";
+		echo 'stderr: ' . $stderr . PHP_EOL;
+	`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', 'WordPress\n');
@@ -230,13 +245,10 @@ describe.each(['8.2'])('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
+				proc_close($res);
+				
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
-				proc_close($res);
 
 				echo 'stdout: ' . $stdout . "";
 				echo 'stderr: ' . $stderr . PHP_EOL;
@@ -1053,7 +1065,7 @@ bar1
 		});
 	});
 });
-/*
+
 // @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
 describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 	'PHP %s – process crash',
@@ -1065,7 +1077,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			vi.restoreAllMocks();
 		});
 
-		it.skip('Does not crash due to an unhandled Asyncify error ', async () => {
+		it('Does not crash due to an unhandled Asyncify error ', async () => {
 			let caughtError;
 			try {
 				/**
@@ -1078,7 +1090,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 				 * This test should gracefully catch and handle that error.
 				 *
 				 * A failure to do so will crash the entire process
-				 * /
+				 */
 				await php.run({
 					code: `<?php
 				class Top {
@@ -1103,7 +1115,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			}
 		});
 
-		it.skip('Does not crash due to an unhandled non promise error ', async () => {
+		it('Does not crash due to an unhandled non promise error ', async () => {
 			let caughtError;
 			try {
 				const spy = vi.spyOn(php[__private__dont__use], 'ccall');
@@ -1134,7 +1146,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 			}
 		});
 
-		it.skip('Does not leak memory when creating and destroying instances', async () => {
+		it('Does not leak memory when creating and destroying instances', async () => {
 			if (!global.gc) {
 				console.error(
 					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
@@ -1198,4 +1210,3 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 });
-*/

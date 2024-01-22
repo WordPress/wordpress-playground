@@ -176,16 +176,13 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 			return props.src;
 		}
 	}, [props.src]);
-	console.log('credentialless');
 	return (
 		window.wp.element.createElement('iframe', {
 			...props,
 			ref: ref,
 			src: source,
 			// Make sure there's no srcDoc, as it would interfere with the src.
-			srcDoc: undefined,
-			credentialless: 'true',
-			dataTest: '1'
+			srcDoc: undefined
 		})
 	)
 });`;

@@ -387,13 +387,10 @@ const LibraryExample = {
 			 * to the 'spawn' event and hope that it wasn't fired yet.
 			 */
 			try {
-				await Promise.race([
-					// new Promise(resolve => setTimeout(resolve, 100)),
-					new Promise((resolve, reject) => {
-						cp.on('spawn', resolve);
-						cp.on('error', reject);
-					}),
-				]);
+				await new Promise((resolve, reject) => {
+					cp.on('spawn', resolve);
+					cp.on('error', reject);
+				});
 			} catch (e) {
 				console.error(e);
 				wakeUp(1);
@@ -744,9 +741,8 @@ const LibraryExample = {
 					if (
 						returnCode !== 6 ||
 						++retries > maxRetries ||
-						!(stream?.fd in PHPWASM.child_proc_by_fd) ||
-						PHPWASM.child_proc_by_fd[stream?.fd]?.exited ||
-						!PHPWASM.child_proc_by_fd[stream?.fd]?.stdinIsDevice ||
+						!(fd in PHPWASM.child_proc_by_fd) ||
+						PHPWASM.child_proc_by_fd[fd]?.exited ||
 						FS.isClosed(stream)
 					) {
 						wakeUp(returnCode);
@@ -763,15 +759,13 @@ const LibraryExample = {
 	/**
 	 * Shims popen(3) functionallity:
 	 * https://man7.org/linux/man-pages/man3/popen.3.html
-	 *
-	 * On Node.js, this function is implemented using child_process.spawn().
-	 *
-	 * In the browser, you must provide a Module['popen_to_file'] function
-	 * that accepts a command string and popen mode (like "r" or "w") and
-	 * returns an object with a 'path' property and an 'exitCode' property:
-	 * * The 'path' property is the path of the file where the output of the
-	 *   command is written.
-	 * * The 'exitCode' property is the exit code of the command.
+	 * 
+	 * Uses the same PHPWASM.spawnProcess callback as js_open_process,
+	 * but waits for the process to exit and returns a path to a file
+	 * with all the output bufferred.
+	 * 
+	 * @TODO: get rid of this function and only rely on js_open_process
+	 * instead.
 	 *
 	 * @param {int} command Command to execute
 	 * @param {int} mode Mode to open the command in

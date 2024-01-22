@@ -60,10 +60,6 @@ export class ProcessApi extends EventEmitter {
 				this.emit('stdin', data);
 			}
 		});
-		// childProcess.on('exit', (code: number) => {
-		// 	console.log("Exit");
-		// 	this.exit(code);
-		// });
 	}
 	stdout(data: string | ArrayBuffer) {
 		if (typeof data === 'string') {
