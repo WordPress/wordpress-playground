@@ -108,9 +108,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	/** @inheritDoc */
 	async setSpawnHandler(handler: SpawnHandler | string) {
 		if (typeof handler === 'string') {
-			// I don't like this, but SpawnHandler is a composite
-			// object that isn't easy to serialize when transmitted
-			// over a message channel.
+			// This workaround is needed because the
+			// Comlink messaging library used by Playground
+			// has a hard time serializing a composite
+			// handler object.
+			// @TODO: Don't eval text-based functions here. Instead
+			//        use a MessagePort to communicate with the
+			//		  parent context.
 			handler = createSpawnHandler(eval(handler));
 		}
 		this[__private__dont__use].spawnProcess = handler;
