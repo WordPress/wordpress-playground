@@ -144,9 +144,9 @@ RUN cd wordpress && \
     cp /root/export-wxz.php wp-content/mu-plugins/export-wxz.php
 
 # Strip whitespaces from PHP files.
-# PHP 7.4 is a safe choice here: `php -w` ran on 7.4
-# produces code compatible with PHP 8+, but the reverse
-# isn't true.
+# PHP >= 8.0 is needed to preserve PHP 8.0 attributes,
+# like #[Attribute] and #[Pure]. In PHP 7.4, they are
+# treated as comments and removed by the whitespace stripping.
 RUN cd wordpress && \
     for phpfile in $(\
         find ./ -type f -name '*.php' \
