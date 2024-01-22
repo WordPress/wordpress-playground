@@ -5550,6 +5550,8 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
   };
   PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
   PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
+  PHPWASM.child_proc_by_fd[stdoutParentFd] = ProcInfo;
+  PHPWASM.child_proc_by_fd[stderrParentFd] = ProcInfo;
   PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
   cp.on("exit", (function(code) {
    ProcInfo.exitCode = code;
