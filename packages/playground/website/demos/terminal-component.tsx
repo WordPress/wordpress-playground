@@ -200,7 +200,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 				"Here's a few useful commands to get you started:",
 				'',
 				' \x1b[1mwp\x1b[0m           Run WP CLI command',
-				' \x1b[1mphp\x1b[0m          Run PHP code',
 				' \x1b[1mls\x1b[0m           List files',
 				' \x1b[1mcat\x1b[0m          Print file contents',
 				' \x1b[1mclear\x1b[0m        Clear the screen',
@@ -208,7 +207,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 			].join('\n\r')
 		);
 
-		term.writeln('Below is a simple emulated backend, try running `help`.');
+		term.writeln('Below is a simple emulated backend, try running `ls`.');
 		const clearLine = () => {
 			term.write('\x1b[2K\r');
 		};
