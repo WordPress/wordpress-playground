@@ -16,6 +16,9 @@ export async function runDemo(iframe: HTMLIFrameElement) {
 				php: '8.2',
 				wp: 'latest',
 			},
+			features: {
+				networking: true,
+			},
 			landingPage: '/',
 			phpExtensionBundles: ['kitchen-sink'],
 			steps: [{ step: 'login', username: 'admin', password: 'password' }],
