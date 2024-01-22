@@ -115,6 +115,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			// @TODO: Don't eval text-based functions here. Instead
 			//        use a MessagePort to communicate with the
 			//		  parent context.
+			// Perhaps this library would be useful:
+			// https://github.com/WebReflection/coincident/
 			handler = createSpawnHandler(eval(handler));
 		}
 		this[__private__dont__use].spawnProcess = handler;
