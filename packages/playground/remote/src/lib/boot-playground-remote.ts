@@ -68,6 +68,7 @@ export async function bootPlaygroundRemote() {
 		SupportedPHPExtensionsList
 	);
 	const withNetworking = query.get('networking') === 'yes';
+	const sapiName = query.get('sapi-name') || undefined;
 	const workerApi = consumeAPI<PlaygroundWorkerEndpoint>(
 		await spawnPHPWorkerThread(workerUrl, {
 			wpVersion,
@@ -75,11 +76,15 @@ export async function bootPlaygroundRemote() {
 			['php-extension']: phpExtensions,
 			networking: withNetworking ? 'yes' : 'no',
 			storage: query.get('storage') || '',
+			...(sapiName ? { sapiName } : {}),
 		})
 	);
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
+		setSpawnHandler(fn) {
+			return workerApi.setSpawnHandler(fn);
+		},
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},

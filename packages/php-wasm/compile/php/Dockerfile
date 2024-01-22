@@ -217,6 +217,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# See https://github.com/WordPress/wordpress-playground/issues/92
 	# for more context.
 	--disable-fiber-asm \
+	--enable-phar \
 	# --enable-json for PHP < 8.0:
 	--enable-json      \
 	--enable-embed=static \
@@ -396,6 +397,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "js_popen_to_file",\n\
 "js_fd_read",\n\
 "js_module_onMessage",\n\
+"js_waitpid",\n\
 "wasm_poll_socket",\n\
 "wasm_shutdown"]'; \
 	echo -n " -s ASYNCIFY_IMPORTS=$ASYNCIFY_IMPORTS " | tr -d "\n" >> /root/.emcc-php-wasm-flags; \
@@ -737,6 +739,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zif_passthru",\
 "zif_shell_exec",\
 "zif_proc_open",\
+"proc_open_rsrc_dtor",\
+"zend_list_close",\
+"zif_proc_close",\
 "zif_stream_socket_client",\
 "zim_PDOStatement_execute",\
 "zim_PDO___construct",\
@@ -767,6 +772,7 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
 "_phpwasm_init_uploaded_files_hash", \n\

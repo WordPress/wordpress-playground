@@ -6,9 +6,66 @@ import {
 	__private__dont__use,
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync } from 'fs';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
+/**
+ * Preface to Pygmalion is a longer chunk of text that
+ * won't fit into a pipe buffer and will require multiple
+ * read/write cycles to complete. This is perfect for testing
+ * whether these chunks are appended to the output one after
+ * another (as opposed to writing over the previous chunk).
+ */
+const pygmalion = `PREFACE TO PYGMALION.
+
+A Professor of Phonetics.
+
+As will be seen later on, Pygmalion needs, not a preface, but a sequel,
+which I have supplied in its due place. The English have no respect for
+their language, and will not teach their children to speak it. They
+spell it so abominably that no man can teach himself what it sounds
+like. It is impossible for an Englishman to open his mouth without
+making some other Englishman hate or despise him. German and Spanish
+are accessible to foreigners: English is not accessible even to
+Englishmen. The reformer England needs today is an energetic phonetic
+enthusiast: that is why I have made such a one the hero of a popular
+play. There have been heroes of that kind crying in the wilderness for
+many years past. When I became interested in the subject towards the
+end of the eighteen-seventies, Melville Bell was dead; but Alexander J.
+Ellis was still a living patriarch, with an impressive head always
+covered by a velvet skull cap, for which he would apologize to public
+meetings in a very courtly manner. He and Tito Pagliardini, another
+phonetic veteran, were men whom it was impossible to dislike. Henry
+Sweet, then a young man, lacked their sweetness of character: he was
+about as conciliatory to conventional mortals as Ibsen or Samuel
+Butler. His great ability as a phonetician (he was, I think, the best
+of them all at his job) would have entitled him to high official
+recognition, and perhaps enabled him to popularize his subject, but for
+his Satanic contempt for all academic dignitaries and persons in
+general who thought more of Greek than of phonetics. Once, in the days
+when the Imperial Institute rose in South Kensington, and Joseph
+Chamberlain was booming the Empire, I induced the editor of a leading
+monthly review to commission an article from Sweet on the imperial
+importance of his subject. When it arrived, it contained nothing but a
+savagely derisive attack on a professor of language and literature
+whose chair Sweet regarded as proper to a phonetic expert only. The
+article, being libelous, had to be returned as impossible; and I had to
+renounce my dream of dragging its author into the limelight. When I met
+him afterwards, for the first time for many years, I found to my
+astonishment that he, who had been a quite tolerably presentable young
+man, had actually managed by sheer scorn to alter his personal
+appearance until he had become a sort of walking repudiation of Oxford
+and all its traditions. It must have been largely in his own despite
+that he was squeezed into something called a Readership of phonetics
+there. The future of phonetics rests probably with his pupils, who all
+swore by him; but nothing could bring the man himself into any sort of
+compliance with the university, to which he nevertheless clung by
+divine right in an intensely Oxonian way. I daresay his papers, if he
+has left any, include some satires that may be published without too
+destructive results fifty years hence. He was, I believe, not in the
+least an ill-natured man: very much the opposite, I should say; but he
+would not suffer fools gladly.`;
 
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
@@ -45,7 +102,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				code: `<?php
 				$fp = popen("echo WordPress", "r");
 				echo 'stdout: ' . fread($fp, 1024);
-				fclose($fp);
+				pclose($fp);
 			`,
 			});
 			expect(result.text).toEqual('stdout: WordPress\n');
@@ -57,11 +114,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				$path = __DIR__;
 				$fp = popen("cat > out", "w");
 				fwrite($fp, "WordPress\n");
-				fclose($fp);
+				$out = fclose($fp);
+
+				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
-				fclose($fp);
+				pclose($fp);
 			`,
 			});
 
@@ -70,7 +129,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	});
 
 	describe('proc_open()', () => {
-		it('echo – stdin=file (empty), stdout=file, stderr=file', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');
@@ -84,9 +143,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
+				proc_close($res);
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
@@ -98,7 +155,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		it('echo – stdin=file (empty), stdout=pipe, stderr=pipe', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, stream_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');
@@ -112,10 +169,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
 				$stdout = stream_get_contents($pipes[1]);
 				$stderr = stream_get_contents($pipes[2]);
 				proc_close($res);
@@ -127,42 +180,61 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		// This test fails
-		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
-			/*
-			There is a race condition in this variant of the test which
-			causes the following failure (but only sometimes):
+		it('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, fread', async () => {
+			const result = await php.run({
+				code: `<?php
+				file_put_contents('/tmp/process_in', '');
+				$res = proc_open(
+					"echo WordPress",
+					array(
+						array("file","/tmp/process_in", "r"),
+						array("pipe","w"),
+						array("pipe","w"),
+					),
+					$pipes
+				);
 
-				src/test/php.spec.ts > PHP 8.2 > proc_open() > cat – stdin=pipe, stdout=file, stderr=file
-				→ expected 'stdout: \nordPressstderr: \n' to deeply equal 'stdout: WordPress\nstderr: \n'
-			*/
-			it.skip('cat – stdin=pipe, stdout=file, stderr=file', async () => {
+				$stdout = fread($pipes[1], 1024);
+				$stderr = fread($pipes[2], 1024);
+				proc_close($res);
+
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		// This test fails on older PHP versions
+		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
+			it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({
 					code: `<?php
-			$res = proc_open(
-				"cat",
-				array(
-					array("pipe","r"),
-					array("file","/tmp/process_out", "w"),
-					array("file","/tmp/process_err", "w"),
-				),
-				$pipes
-			);
-			fwrite($pipes[0], 'WordPress\n');
+		$res = proc_open(
+			"cat",
+			array(
+				array("pipe","r"),
+				array("file","/tmp/process_out", "w"),
+				array("file","/tmp/process_err", "w"),
+			),
+			$pipes
+		);
+		fwrite($pipes[0], 'WordPress\n');
 
-			$stdout = file_get_contents("/tmp/process_out");
-			$stderr = file_get_contents("/tmp/process_err");
-			proc_close($res);
+		proc_close($res);
 
-			echo 'stdout: ' . $stdout . "";
-			echo 'stderr: ' . $stderr . PHP_EOL;
-		`,
+		$stdout = file_get_contents("/tmp/process_out");
+		$stderr = file_get_contents("/tmp/process_err");
+
+		echo 'stdout: ' . $stdout . "";
+		echo 'stderr: ' . $stderr . PHP_EOL;
+	`,
 				});
 				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 			});
 		}
 
-		it('cat – stdin=file, stdout=file, stderr=file', async () => {
+		it('cat: stdin=file, stdout=file, stderr=file, file_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', 'WordPress\n');
@@ -176,13 +248,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					$pipes
 				);
 
-				// Yields back to JS event loop to give the child process a chance
-				// to process the input.
-				sleep(1);
-
+				proc_close($res);
+				
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
-				proc_close($res);
 
 				echo 'stdout: ' . $stdout . "";
 				echo 'stderr: ' . $stderr . PHP_EOL;
@@ -190,6 +259,69 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
+		});
+
+		async function pygmalionToProcess(cmd = 'less') {
+			return await php.run({
+				code: `<?php
+			$fd = fopen( "php://temp", "r+" );
+			fputs( $fd, ${phpVar(pygmalion)} );
+			rewind( $fd );
+			
+			$descriptorspec = array(
+				0 => $fd,
+				1 => fopen('php://stdout', 'wb'),
+				2 => fopen('/tmp/stderr', 'wb')
+			);
+			$fp = proc_open( ${phpVar(cmd)}, $descriptorspec, $pipes );
+			proc_close( $fp );
+			`,
+			});
+		}
+
+		it('Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback', async () => {
+			const handler = createSpawnHandler(
+				(command: string, processApi: any) => {
+					processApi.on('stdin', (data: Uint8Array) => {
+						processApi.stdout(data);
+					});
+					processApi.flushStdin();
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+			const result = await pygmalionToProcess();
+
+			expect(result.text).toEqual(pygmalion);
+		});
+
+		it('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
+			const handler = createSpawnHandler(
+				async (command: string, processApi: any) => {
+					await new Promise((resolve) => {
+						setTimeout(resolve, 1000);
+					});
+					processApi.on('stdin', (data: Uint8Array) => {
+						processApi.stdout(data);
+					});
+					processApi.flushStdin();
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+			const result = await pygmalionToProcess();
+
+			expect(result.text).toEqual(pygmalion);
+		});
+		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
+			const result = await pygmalionToProcess('cat');
+			expect(result.text).toEqual(pygmalion);
+		});
+		it('Pipe pygmalion from a file to STDOUT through "less"', async () => {
+			const result = await pygmalionToProcess('less');
+			expect(result.text).toEqual(pygmalion);
 		});
 
 		it('Uses the specified spawn handler', async () => {
@@ -206,7 +338,11 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					stdin: {
 						write: () => {},
 					},
-					on: () => {},
+					on: (evt: string, callback: Function) => {
+						if (evt === 'spawn') {
+							callback();
+						}
+					},
 					kill: () => {},
 				} as any;
 			});

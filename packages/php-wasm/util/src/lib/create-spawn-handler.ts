@@ -21,19 +21,44 @@ export function createSpawnHandler(
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
-		setTimeout(() => {
-			program(command, processApi);
+		setTimeout(async () => {
+			await program(command, processApi);
+			childProcess.emit('spawn', true);
 		});
 		return childProcess;
 	};
 }
 
-export class ProcessApi {
+class EventEmitter {
+	listeners: Record<string, Listener[]> = {};
+	emit(eventName: string, data: any) {
+		if (this.listeners[eventName]) {
+			this.listeners[eventName].forEach(function (listener) {
+				listener(data);
+			});
+		}
+	}
+	on(eventName: string, listener: Listener) {
+		if (!this.listeners[eventName]) {
+			this.listeners[eventName] = [];
+		}
+		this.listeners[eventName].push(listener);
+	}
+}
+
+export class ProcessApi extends EventEmitter {
 	private exited = false;
-	private stdinData: string[] = [];
+	private stdinData: Uint8Array[] | null = [];
 	constructor(private childProcess: ChildProcess) {
-		childProcess.on('stdin', (data: string) => {
-			this.stdinData.push(data);
+		super();
+		childProcess.on('stdin', (data: Uint8Array) => {
+			if (this.stdinData) {
+				// Need to clone the data buffer as it's reused by PHP
+				// and the next data chunk will overwrite the previous one.
+				this.stdinData.push(data.slice());
+			} else {
+				this.emit('stdin', data);
+			}
 		});
 	}
 	stdout(data: string | ArrayBuffer) {
@@ -55,26 +80,12 @@ export class ProcessApi {
 		}
 	}
 	flushStdin() {
-		const data = this.stdinData.join('');
-		this.stdinData = [];
-		return data;
-	}
-}
-
-class EventEmitter {
-	listeners: Record<string, Listener[]> = {};
-	emit(eventName: string, data: any) {
-		if (this.listeners[eventName]) {
-			this.listeners[eventName].forEach(function (listener) {
-				listener(data);
-			});
+		if (this.stdinData) {
+			for (let i = 0; i < this.stdinData.length; i++) {
+				this.emit('stdin', this.stdinData[i]);
+			}
 		}
-	}
-	on(eventName: string, listener: Listener) {
-		if (!this.listeners[eventName]) {
-			this.listeners[eventName] = [];
-		}
-		this.listeners[eventName].push(listener);
+		this.stdinData = null;
 	}
 }
 
@@ -82,11 +93,12 @@ export type StdIn = {
 	write: (data: string) => void;
 };
 
+let lastPid = 9743;
 export class ChildProcess extends EventEmitter {
 	stdout: EventEmitter = new EventEmitter();
 	stderr: EventEmitter = new EventEmitter();
 	stdin: StdIn;
-	constructor() {
+	constructor(public pid = lastPid++) {
 		super();
 		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const self = this;

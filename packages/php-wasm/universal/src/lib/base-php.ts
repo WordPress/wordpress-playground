@@ -28,7 +28,7 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore } from '@php-wasm/util';
+import { Semaphore, createSpawnHandler } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -106,7 +106,19 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc */
-	async setSpawnHandler(handler: SpawnHandler) {
+	async setSpawnHandler(handler: SpawnHandler | string) {
+		if (typeof handler === 'string') {
+			// This workaround is needed because the
+			// Comlink messaging library used by Playground
+			// has a hard time serializing a composite
+			// handler object.
+			// @TODO: Don't eval text-based functions here. Instead
+			//        use a MessagePort to communicate with the
+			//		  parent context.
+			// Perhaps this library would be useful:
+			// https://github.com/WebReflection/coincident/
+			handler = createSpawnHandler(eval(handler));
+		}
 		this[__private__dont__use].spawnProcess = handler;
 	}
 
@@ -156,6 +168,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
+	}
+
+	/** @inheritDoc */
+	async setSapiName(newName: string) {
+		const result = this[__private__dont__use].ccall(
+			'wasm_set_sapi_name',
+			NUMBER,
+			[STRING],
+			[newName]
+		);
+		if (result !== 0) {
+			throw new Error(
+				'Could not set SAPI name. This can only be done before the PHP WASM module is initialized.' +
+					'Did you already dispatch any requests?'
+			);
+		}
 	}
 
 	/** @inheritDoc */
