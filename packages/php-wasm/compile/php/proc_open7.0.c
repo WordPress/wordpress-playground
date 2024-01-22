@@ -179,13 +179,9 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 {
 	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
 	int i;
-#ifdef PHP_WIN32
-	DWORD wstatus;
-#elif HAVE_SYS_WAIT_H
 	int wstatus;
 	int waitpid_options = 0;
 	pid_t wait_pid;
-#endif
 
 	/* Close all handles to avoid a deadlock */
 	for (i = 0; i < proc->npipes; i++) {
@@ -200,25 +196,12 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		}
 	}
 
-#ifdef PHP_WIN32
-	if (FG(pclose_wait)) {
-		WaitForSingleObject(proc->childHandle, INFINITE);
-	}
-	GetExitCodeProcess(proc->childHandle, &wstatus);
-	if (wstatus == STILL_ACTIVE) {
-		FG(pclose_ret) = -1;
-	} else {
-		FG(pclose_ret) = wstatus;
-	}
-	CloseHandle(proc->childHandle);
-
-#elif HAVE_SYS_WAIT_H
 
 	if (!FG(pclose_wait)) {
 		waitpid_options = WNOHANG;
 	}
 	do {
-		wait_pid = waitpid(proc->child, &wstatus, waitpid_options);
+		wait_pid = js_waitpid(proc->child, &wstatus);
 	} while (wait_pid == -1 && errno == EINTR);
 
 	if (wait_pid <= 0) {
@@ -229,9 +212,6 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		FG(pclose_ret) = wstatus;
 	}
 
-#else
-	FG(pclose_ret) = -1;
-#endif
 	_php_free_envp(proc->env, proc->is_persistent);
 	pefree(proc->pipes, proc->is_persistent);
 	pefree(proc->command, proc->is_persistent);
@@ -310,12 +290,7 @@ PHP_FUNCTION(proc_get_status)
 {
 	zval *zproc;
 	struct php_process_handle *proc;
-#ifdef PHP_WIN32
-	DWORD wstatus;
-#elif HAVE_SYS_WAIT_H
-	int wstatus;
-	pid_t wait_pid;
-#endif
+
 	int running = 1, signaled = 0, stopped = 0;
 	int exitcode = -1, termsig = 0, stopsig = 0;
 
@@ -332,37 +307,15 @@ PHP_FUNCTION(proc_get_status)
 	add_assoc_string(return_value, "command", proc->command);
 	add_assoc_long(return_value, "pid", (zend_long) proc->child);
 
-#ifdef PHP_WIN32
-
-	GetExitCodeProcess(proc->childHandle, &wstatus);
-
-	running = wstatus == STILL_ACTIVE;
-	exitcode = running ? -1 : wstatus;
-
-#elif HAVE_SYS_WAIT_H
-
 	errno = 0;
-	wait_pid = waitpid(proc->child, &wstatus, WNOHANG|WUNTRACED);
-
-	if (wait_pid == proc->child) {
-		if (WIFEXITED(wstatus)) {
-			running = 0;
-			exitcode = WEXITSTATUS(wstatus);
-		}
-		if (WIFSIGNALED(wstatus)) {
-			running = 0;
-			signaled = 1;
-
-			termsig = WTERMSIG(wstatus);
-		}
-		if (WIFSTOPPED(wstatus)) {
-			stopped = 1;
-			stopsig = WSTOPSIG(wstatus);
-		}
-	} else if (wait_pid == -1) {
+	int proc_status = js_process_status(proc->child);
+	if (proc_status == 1) {
 		running = 0;
+	} else if (proc_status == 0) {
+		running = 1;
+	} else if (proc_status == -1) {
+		php_error_docref(NULL, E_WARNING, "Failed to get process status");
 	}
-#endif
 
 	add_assoc_bool(return_value, "running", running);
 	add_assoc_bool(return_value, "signaled", signaled);
@@ -689,7 +642,7 @@ PHP_FUNCTION(proc_open)
 
 
     // the wasm way {{{
-    js_open_process(
+    child = js_open_process(
 		command, 
 		descriptors[0].childend, 
 		descriptors[1].childend, 

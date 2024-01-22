@@ -157,6 +157,12 @@ export interface RequestHandler {
 
 export interface IsomorphicLocalPHP extends RequestHandler {
 	/**
+	 * Sets the SAPI name exposed by the PHP module.
+	 * @param newName - The new SAPI name.
+	 */
+	setSapiName(newName: string): void;
+
+	/**
 	 * Defines a constant in the PHP runtime.
 	 * @param key - The name of the constant.
 	 * @param value - The value of the constant.
@@ -418,7 +424,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 *
 	 * @param handler Callback function to spawn a process.
 	 */
-	setSpawnHandler(handler: SpawnHandler): void;
+	setSpawnHandler(handler: SpawnHandler | string): void;
 }
 
 export type MessageListener = (
