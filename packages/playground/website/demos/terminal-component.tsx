@@ -68,12 +68,22 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 						await playground?.writeFile(
 							'/wordpress/run-cli.php',
 							`<?php
+			// Set up the environment to emulate a shell script
+			// call.
+
+			// Set the argv global.
             $GLOBALS['argv'] = [
               "/wordpress/wp-cli.phar",
               "--path=/wordpress",
               ${wpCliArgs.join('\n')}
             ];
 
+			// Retain ascii table formatting.
+			// @see https://github.com/wp-cli/wp-cli/issues/1102
+			$_ENV['SHELL_PIPE'] = '0';
+
+			// Provide stdin, stdout, stderr streams outside of
+			// the CLI SAPI.
             define('STDIN', fopen('php://stdin', 'rb'));
             define('STDOUT', fopen('php://stdout', 'wb'));
             define('STDERR', fopen('/tmp/stderr', 'wb'));
