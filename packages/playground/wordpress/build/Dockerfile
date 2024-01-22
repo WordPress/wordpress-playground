@@ -102,7 +102,7 @@ RUN cd wordpress && \
     # Remove any empty directories
     find . -type d -empty -delete
 
-FROM php:7.4-cli AS php
+FROM php:8.0-cli AS php
 WORKDIR /root/
 COPY --from=emscripten /root/wordpress ./wordpress
 RUN apt update && apt install unzip
@@ -144,11 +144,17 @@ RUN cd wordpress && \
     cp /root/export-wxz.php wp-content/mu-plugins/export-wxz.php
 
 # Strip whitespaces from PHP files.
-# PHP 7.4 is a safe choice here: `php -w` ran on 7.4
-# produces code compatible with PHP 8+, but the reverse
-# isn't true.
+# PHP >= 8.0 is needed to preserve PHP 8.0 attributes,
+# like #[Attribute] and #[Pure]. In PHP 7.4, they are
+# treated as comments and removed by the whitespace stripping.
 RUN cd wordpress && \
-    for phpfile in $(find ./ -type f -name '*.php' -not -path '*wordpress-importer*' -not -path '*wp-content*' ); do \
+    for phpfile in $(\
+        find ./ -type f -name '*.php' \
+        -not -path '*wordpress-importer*' \
+        -not -path '*wp-content*' \
+        # wp-cli expects an unminified wp-config.php
+        -not -path '*wp-config.php' \
+    ); do \
     # Remove whitespace from PHP files
     php -w $phpfile > $phpfile.small && \
     # remove set_time_limit function calls as they invoke the
