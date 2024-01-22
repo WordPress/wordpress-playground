@@ -3,10 +3,58 @@ import css from './terminal.module.css';
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { PlaygroundClient } from '@wp-playground/client';
+import { PlaygroundClient, phpVar } from '@wp-playground/client';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;
+}
+
+/**
+ * Naive shell command parser.
+ * Ensures that commands like `wp option set blogname "My blog name"` are split into
+ * `['wp', 'option', 'set', 'blogname', 'My blog name']` instead of
+ * `['wp', 'option', 'set', 'blogname', 'My', 'blog', 'name']`.
+ *
+ * @param command
+ * @returns
+ */
+function splitShellCommand(command: string) {
+	const MODE_NORMAL = 0;
+	const MODE_IN_QUOTE = 1;
+
+	let mode = MODE_NORMAL;
+	let quote = '';
+
+	const parts: string[] = [];
+	let currentPart = '';
+	for (let i = 0; i < command.length; i++) {
+		const char = command[i];
+		if (mode === MODE_NORMAL) {
+			if (char === '"' || char === "'") {
+				mode = MODE_IN_QUOTE;
+				quote = char;
+			} else if (char.match(/\s/)) {
+				parts.push(currentPart);
+				currentPart = '';
+			} else {
+				currentPart += char;
+			}
+		} else if (mode === MODE_IN_QUOTE) {
+			if (char === '\\') {
+				i++;
+				currentPart += command[i];
+			} else if (char === quote) {
+				mode = MODE_NORMAL;
+				quote = '';
+			} else {
+				currentPart += char;
+			}
+		}
+	}
+	if (currentPart) {
+		parts.push(currentPart);
+	}
+	return parts;
 }
 
 export function TerminalComponent({ playground }: TerminalComponentProps) {
@@ -27,7 +75,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 
 			isRunningCommand.current = true;
 
-			const args = command.split(' ');
+			const args = splitShellCommand(command);
 			const cmd = args.shift();
 
 			switch (cmd) {
@@ -65,10 +113,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 
 				case 'wp':
 					if (playground) {
-						const wpCliArgs = args.map(
-							(arg) => `"${arg.replaceAll('"', '\\"')}",`
-						);
-
 						await playground?.writeFile('/tmp/stdout', '');
 						await playground?.writeFile('/tmp/stderror', '');
 						await playground?.writeFile(
@@ -83,11 +127,10 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 			putenv( 'SHELL_PIPE=0' );
 
 			// Set the argv global.
-            $GLOBALS['argv'] = [
+            $GLOBALS['argv'] = array_merge([
               "/wordpress/wp-cli.phar",
-              "--path=/wordpress",
-              ${wpCliArgs.join('\n')}
-            ];
+              "--path=/wordpress"
+			], ${phpVar(args)});
 
 			// Provide stdin, stdout, stderr streams outside of
 			// the CLI SAPI.
