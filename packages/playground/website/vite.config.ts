@@ -107,7 +107,7 @@ export default defineConfig(({ command, mode }) => {
 						new URL('./demos/index.html', import.meta.url)
 					),
 					'wp-cli.html': fileURLToPath(
-						new URL('./demos/wp-clil.html', import.meta.url)
+						new URL('./demos/wp-cli.html', import.meta.url)
 					),
 					'sync.html': fileURLToPath(
 						new URL('./demos/sync.html', import.meta.url)
