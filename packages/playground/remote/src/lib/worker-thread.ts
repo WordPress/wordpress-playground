@@ -91,14 +91,6 @@ const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 		documentRoot: DOCROOT,
 		absoluteUrl: scopedSiteUrl,
 	},
-	// wp-cli needs this to retain Ascii formatting of the
-	// output. @TODO: pass this from the client.
-	// @TODO2: expose php.setEnv() to the client.
-	emscriptenOptions: {
-		ENV: {
-			SHELL_PIPE: '0',
-		},
-	},
 	// We don't yet support loading specific PHP extensions one-by-one.
 	// Let's just indicate whether we want to load all of them.
 	loadAllExtensions: phpExtensions?.length > 0,
