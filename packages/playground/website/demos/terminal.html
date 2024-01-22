@@ -11,7 +11,16 @@
 	</style>
 </head>
 <body>
-	<div id="terminal" style="width: 100vw; height: 50vh"></div>
+	<div
+		id="terminal"
+		style="
+			width: 100vw;
+			height: 50vh;
+			padding: 15px;
+			box-sizing: border-box;
+			background: #000;
+		"
+	></div>
 	<iframe id="wp" style="width: 100vw; height: 50vh; border: 0"></iframe>
 	<script type="module">
 		const { runDemo } = await import('./terminal.ts');

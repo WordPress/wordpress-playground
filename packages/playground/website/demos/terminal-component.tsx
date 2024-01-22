@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import css from './terminal.module.css';
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
 import { PlaygroundClient } from '@wp-playground/client';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;
 }
-
-const COLS = 140;
-const ROWS = 38;
 
 export function TerminalComponent({ playground }: TerminalComponentProps) {
 	const terminalContainer = useRef<HTMLDivElement>();
@@ -19,15 +17,12 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 
 	const history = useRef<string[]>([]);
 	const currentHistoryEntry = useRef<number>(-1);
-	const cursorPos = useRef<number>(0);
 	const runCommand = useCallback(
 		async (command: string) => {
-			console.log({ command });
 			command = command.trim();
 			if (command) {
 				history.current.unshift(command);
 			}
-			console.log(history.current);
 			currentHistoryEntry.current = -1;
 
 			isRunningCommand.current = true;
@@ -81,6 +76,11 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 							`<?php
 			// Set up the environment to emulate a shell script
 			// call.
+
+			// Set SHELL_PIPE to 0 to ensure WP CLI formats
+			// the output as ASCII tables.
+			// @see https://github.com/wp-cli/wp-cli/issues/1102
+			putenv( 'SHELL_PIPE=0' );
 
 			// Set the argv global.
             $GLOBALS['argv'] = [
@@ -174,10 +174,22 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 			return;
 		}
 
-		const term = new Terminal({ convertEol: true, cols: COLS, rows: ROWS });
-		terminalRef.current = term;
+		const term = new Terminal();
+		const fitAddon = new FitAddon();
+		term.loadAddon(fitAddon);
 
+		terminalRef.current = term;
 		term.open(terminalContainer.current);
+		fitAddon.fit();
+
+		// On window resize, debounce fit every 300ms
+		let timeout: any;
+		window.addEventListener('resize', () => {
+			clearTimeout(timeout);
+			timeout = setTimeout(() => {
+				fitAddon.fit();
+			}, 300);
+		});
 
 		let command = '';
 		// TODO: Use a nicer default font
@@ -205,7 +217,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 				term.write('\r\n');
 			}
 			term.write('$ ');
-			cursorPos.current = 2;
 		};
 		prompt();
 
@@ -221,7 +232,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 					break;
 				case '\r': // Enter
 					console.log(`Sending command: ${command}`);
-					term.write('\n');
+					term.write('\n\r');
 					runCommand(command);
 					command = '';
 					break;

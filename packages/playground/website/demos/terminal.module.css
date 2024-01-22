@@ -1,4 +1,5 @@
 .terminal {
-	padding: 15px;
+	height: 100%;
 	background: #000;
+	box-sizing: border-box;
 }
