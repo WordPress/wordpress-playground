@@ -113,7 +113,7 @@ const LibraryExample = {
 		 * @returns {[Promise, function]} A promise and a function to cancel the promise
 		 */
 		awaitData: function (ws) {
-			return PHPWASM.awaitWsEvent(ws, 'message');
+			return PHPWASM.awaitEvent(ws, 'message');
 		},
 
 		/**
@@ -126,7 +126,7 @@ const LibraryExample = {
 			if (ws.OPEN === ws.readyState) {
 				return [Promise.resolve(), PHPWASM.noop];
 			}
-			return PHPWASM.awaitWsEvent(ws, 'open');
+			return PHPWASM.awaitEvent(ws, 'open');
 		},
 
 		/**
@@ -139,7 +139,7 @@ const LibraryExample = {
 			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
 				return [Promise.resolve(), PHPWASM.noop];
 			}
-			return PHPWASM.awaitWsEvent(ws, 'close');
+			return PHPWASM.awaitEvent(ws, 'close');
 		},
 
 		/**
@@ -152,17 +152,17 @@ const LibraryExample = {
 			if ([ws.CLOSING, ws.CLOSED].includes(ws.readyState)) {
 				return [Promise.resolve(), PHPWASM.noop];
 			}
-			return PHPWASM.awaitWsEvent(ws, 'error');
+			return PHPWASM.awaitEvent(ws, 'error');
 		},
 
 		/**
-		 * Waits for a websocket-related event.
+		 * Waits for an event.
 		 *
-		 * @param {WebSocket} ws Websocket object
+		 * @param {EventEmitter} emitter Event emitter object
 		 * @param {string} event The event to wait for.
 		 * @returns {[Promise, function]} A promise and a function to cancel the promise
 		 */
-		awaitWsEvent: function (ws, event) {
+		awaitEvent: function (ws, event) {
 			let resolve;
 			const listener = () => {
 				resolve();
@@ -212,7 +212,7 @@ const LibraryExample = {
 		},
 
 		/**
-		 * Shims unix shutdown(2) functionallity for asynchronous websockets:
+		 * Shims unix shutdown(2) functionallity for asynchronous sockets:
 		 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 		 *
 		 * Does not support SHUT_RD or SHUT_WR.
@@ -222,6 +222,7 @@ const LibraryExample = {
 		 * @returns 0 on success, -1 on failure
 		 */
 		shutdownSocket: function (socketd, how) {
+			// This implementation only supports websockets at the moment
 			const sock = getSocketFromFD(socketd);
 			const peer = Object.values(sock.peers)[0];
 
@@ -340,6 +341,8 @@ const LibraryExample = {
 			};
 			PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
 			PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
+			PHPWASM.child_proc_by_fd[stdoutParentFd] = ProcInfo;
+			PHPWASM.child_proc_by_fd[stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
@@ -515,13 +518,15 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			const polls = [];
 			if (socketd in PHPWASM.child_proc_by_fd) {
+				// This is a child process-related socket.
 				const procInfo = PHPWASM.child_proc_by_fd[socketd];
 				if (procInfo.exited) {
 					wakeUp(0);
 					return;
 				}
-				polls.push(PHPWASM.awaitWsEvent(procInfo.stdout, 'data'));
+				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
 			} else {
+				// This is, most likely, a websocket. Let's make sure.
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
 					wakeUp(0);
@@ -607,7 +612,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix shutdown(2) functionallity for asynchronous websockets:
+	 * Shims unix shutdown(2) functionallity for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/shutdown.2.html
 	 *
 	 * Does not support SHUT_RD or SHUT_WR.
@@ -621,7 +626,7 @@ const LibraryExample = {
 	},
 
 	/**
-	 * Shims unix close(2) functionallity for asynchronous websockets:
+	 * Shims unix close(2) functionallity for asynchronous:
 	 * https://man7.org/linux/man-pages/man2/close.2.html
 	 *
 	 * @param {int} socketd
@@ -759,11 +764,11 @@ const LibraryExample = {
 	/**
 	 * Shims popen(3) functionallity:
 	 * https://man7.org/linux/man-pages/man3/popen.3.html
-	 * 
+	 *
 	 * Uses the same PHPWASM.spawnProcess callback as js_open_process,
 	 * but waits for the process to exit and returns a path to a file
 	 * with all the output bufferred.
-	 * 
+	 *
 	 * @TODO: get rid of this function and only rely on js_open_process
 	 * instead.
 	 *

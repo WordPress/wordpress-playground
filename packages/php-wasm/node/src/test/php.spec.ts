@@ -155,7 +155,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
-		it.only('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, stream_get_contents', async () => {
+		it('echo "WordPress"; stdin=file (empty), stdout=pipe, stderr=pipe, stream_get_contents', async () => {
 			const result = await php.run({
 				code: `<?php
 				file_put_contents('/tmp/process_in', '');

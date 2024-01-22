@@ -5549,7 +5549,8 @@ var PHPWASM = {
   e.code = "SPAWN_UNSUPPORTED";
   throw e;
  },
- shutdownSocket: function(socketd, how) {
+    shutdownSocket: function (socketd, how) {
+     console.log('shutdownSocket', socketd, how);
   const sock = getSocketFromFD(socketd);
   const peer = Object.values(sock.peers)[0];
   if (!peer) {
