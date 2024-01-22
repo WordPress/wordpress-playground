@@ -48,7 +48,7 @@ struct php_process_handle {
 	php_process_env_t env;
 };
 
-extern void js_wait_until_process_exits(int pid);
+extern int js_waitpid(int pid, int *status);
 extern int js_process_status(int pid);
 extern void js_open_process(const char *command, int procopen_call_nb, int out_childend, int out_parentend, int err_childend, int err_parentend);
 extern char *js_create_input_device(int procopen_call_nb);

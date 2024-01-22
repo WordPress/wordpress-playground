@@ -142,13 +142,12 @@ static void _php_free_envp(php_process_env_t env, int is_persistent)
 /* {{{ proc_open_rsrc_dtor */
 static void proc_open_rsrc_dtor(zend_resource *rsrc)
 {
+	printf("proc_open_rsrc_dtor\n");
 	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
 	int i;
-#if HAVE_SYS_WAIT_H
 	int wstatus;
 	int waitpid_options = 0;
-	pid_t wait_pid;
-#endif
+	int wait_pid;
 
 	/* Close all handles to avoid a deadlock */
 	for (i = 0; i < proc->npipes; i++) {
@@ -159,14 +158,15 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		}
 	}
 
-#if HAVE_SYS_WAIT_H
-
-	if (!FG(pclose_wait)) {
-		waitpid_options = WNOHANG;
+	/* `pclose_wait` tells us: Are we freeing this resource because `pclose` or `proc_close` were
+	 * called? If so, we need to wait until the child process exits, because its exit code is
+	 * needed as the return value of those functions.
+	 * But if we're freeing the resource because of GC, don't wait. */
+	if (FG(pclose_wait)) {
+		do {
+			wait_pid = js_waitpid(proc->child, &wstatus);
+		} while (wait_pid == -1 && errno == EINTR);
 	}
-	do {
-		wait_pid = waitpid(proc->child, &wstatus, waitpid_options);
-	} while (wait_pid == -1 && errno == EINTR);
 
 	if (wait_pid <= 0) {
 		FG(pclose_ret) = -1;
@@ -176,9 +176,6 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		FG(pclose_ret) = wstatus;
 	}
 
-#else
-	FG(pclose_ret) = -1;
-#endif
 	_php_free_envp(proc->env, proc->is_persistent);
 	pefree(proc->pipes, proc->is_persistent);
 	pefree(proc->command, proc->is_persistent);
@@ -237,7 +234,6 @@ PHP_FUNCTION(proc_close)
 	}
 
 	FG(pclose_wait) = 1;
-	js_wait_until_process_exits(proc->child);
 	zend_list_close(Z_RES_P(zproc));
 	FG(pclose_wait) = 0;
 	RETURN_LONG(FG(pclose_ret));

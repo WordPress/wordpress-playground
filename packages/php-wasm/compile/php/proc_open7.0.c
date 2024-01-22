@@ -179,13 +179,9 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 {
 	struct php_process_handle *proc = (struct php_process_handle*)rsrc->ptr;
 	int i;
-#ifdef PHP_WIN32
-	DWORD wstatus;
-#elif HAVE_SYS_WAIT_H
 	int wstatus;
 	int waitpid_options = 0;
 	pid_t wait_pid;
-#endif
 
 	/* Close all handles to avoid a deadlock */
 	for (i = 0; i < proc->npipes; i++) {
@@ -200,25 +196,12 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		}
 	}
 
-#ifdef PHP_WIN32
-	if (FG(pclose_wait)) {
-		WaitForSingleObject(proc->childHandle, INFINITE);
-	}
-	GetExitCodeProcess(proc->childHandle, &wstatus);
-	if (wstatus == STILL_ACTIVE) {
-		FG(pclose_ret) = -1;
-	} else {
-		FG(pclose_ret) = wstatus;
-	}
-	CloseHandle(proc->childHandle);
-
-#elif HAVE_SYS_WAIT_H
 
 	if (!FG(pclose_wait)) {
 		waitpid_options = WNOHANG;
 	}
 	do {
-		wait_pid = waitpid(proc->child, &wstatus, waitpid_options);
+		wait_pid = js_waitpid(proc->child, &wstatus);
 	} while (wait_pid == -1 && errno == EINTR);
 
 	if (wait_pid <= 0) {
@@ -229,9 +212,6 @@ static void proc_open_rsrc_dtor(zend_resource *rsrc)
 		FG(pclose_ret) = wstatus;
 	}
 
-#else
-	FG(pclose_ret) = -1;
-#endif
 	_php_free_envp(proc->env, proc->is_persistent);
 	pefree(proc->pipes, proc->is_persistent);
 	pefree(proc->command, proc->is_persistent);
@@ -298,7 +278,6 @@ PHP_FUNCTION(proc_close)
 	}
 
 	FG(pclose_wait) = 1;
-	js_wait_until_process_exits(proc->child);
 	zend_list_close(Z_RES_P(zproc));
 	FG(pclose_wait) = 0;
 	RETURN_LONG(FG(pclose_ret));

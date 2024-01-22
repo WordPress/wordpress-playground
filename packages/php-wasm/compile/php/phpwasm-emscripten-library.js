@@ -342,11 +342,12 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
-			cp.on('exit', function (data) {
+			cp.on('exit', function (code) {
+				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 				// Emit events for the wasm_poll_socket function.
-				ProcInfo.stdout.emit('data', data);
-				ProcInfo.stderr.emit('data', data);
+				ProcInfo.stdout.emit('data');
+				ProcInfo.stderr.emit('data');
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
@@ -471,13 +472,15 @@ const LibraryExample = {
 		return 0;
 	},
 
-	js_wait_until_process_exits: function (pid) {
+	js_waitpid: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
-			return;
+			return -1;
 		}
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
+					HEAPU8[exitCodePtr] =
+						PHPWASM.child_proc_by_pid[pid].exitCode;
 					wakeUp(0);
 				} else {
 					setTimeout(poll, 50);

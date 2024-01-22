@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11250652; 
+export const dependenciesTotalSize = 11250563; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5016,7 +5016,7 @@ var _environ_sizes_get = (penviron_count, penviron_buf_size) => {
  return 0;
 };
 
-    function _fd_close(fd) {
+function _fd_close(fd) {
  try {
   var stream = SYSCALLS.getStreamFromFD(fd);
   FS.close(stream);
@@ -5582,14 +5582,12 @@ function _js_create_input_device(deviceId) {
    throw e;
   }
  }));
-    const devicePath = "/dev/" + filename;
-    console.log("DEVICE", {deviceId})
+ const devicePath = "/dev/" + filename;
  PHPWASM.input_devices[deviceId] = {
   devicePath: devicePath,
   onData: function(cb) {
    dataCallback = cb;
    dataBuffer.forEach((function(data) {
-    console.log("DATA", {data})
     cb(data);
    }));
    dataBuffer.length = 0;
@@ -5705,10 +5703,11 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
   PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
   PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
   PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
-  cp.on("exit", (function(data) {
+  cp.on("exit", (function(code) {
+   ProcInfo.exitCode = code;
    ProcInfo.exited = true;
-   ProcInfo.stdout.emit("data", data);
-   ProcInfo.stderr.emit("data", data);
+   ProcInfo.stdout.emit("data");
+   ProcInfo.stderr.emit("data");
   }));
   const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
   let stdoutAt = 0;
@@ -5735,7 +5734,7 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    return;
   }
   if (ProcInfo.stdinIsDevice) {
-      PHPWASM.input_devices[stdinFd].onData((function (data) {
+   PHPWASM.input_devices[stdinFd].onData((function(data) {
     if (!data) return;
     const dataStr = new TextDecoder("utf-8").decode(data);
     cp.stdin.write(dataStr);
@@ -5821,13 +5820,14 @@ function _js_process_status(pid) {
  return 0;
 }
 
-function _js_wait_until_process_exits(pid) {
+function _js_waitpid(pid, exitCodePtr) {
  if (!PHPWASM.child_proc_by_pid[pid]) {
-  return;
+  return -1;
  }
  return Asyncify.handleSleep((wakeUp => {
   const poll = function() {
    if (PHPWASM.child_proc_by_pid[pid]?.exited) {
+    HEAPU8[exitCodePtr] = PHPWASM.child_proc_by_pid[pid].exitCode;
     wakeUp(0);
    } else {
     setTimeout(poll, 50);
@@ -6931,7 +6931,7 @@ var wasmImports = {
  G: _js_open_process,
  fa: _js_popen_to_file,
  ea: _js_process_status,
- da: _js_wait_until_process_exits,
+ da: _js_waitpid,
  W: _makecontext,
  va: _proc_exit,
  F: _strftime,
