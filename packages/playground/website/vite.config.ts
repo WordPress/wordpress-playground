@@ -106,6 +106,9 @@ export default defineConfig(({ command, mode }) => {
 					'index.html': fileURLToPath(
 						new URL('./demos/index.html', import.meta.url)
 					),
+					'terminal.html': fileURLToPath(
+						new URL('./demos/terminal.html', import.meta.url)
+					),
 					'sync.html': fileURLToPath(
 						new URL('./demos/sync.html', import.meta.url)
 					),
