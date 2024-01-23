@@ -382,6 +382,7 @@ PHP_FUNCTION(proc_open)
 	zend_string *str_index;
 	zend_ulong nindex;
 	struct php_proc_open_descriptor_item *descriptors = NULL;
+    int **descv = NULL;
 	int ndescriptors_array;
 #ifdef PHP_WIN32
 	PROCESS_INFORMATION pi;
@@ -454,6 +455,15 @@ PHP_FUNCTION(proc_open)
 	}
 
 	ndescriptors_array = zend_hash_num_elements(Z_ARRVAL_P(descriptorspec));
+
+	descv = malloc(sizeof(int *) * ndescriptors_array);
+
+    for( int i = 0; i < ndescriptors_array; i++ )
+    {
+        int *desc = malloc(sizeof(int) * 3);
+
+        descv[i] = desc;
+    }
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
@@ -637,18 +647,20 @@ PHP_FUNCTION(proc_open)
 				goto exit_fail;
 			}
 		}
+
+        descv[ndesc][0] = descriptors[ndesc].index;
+        descv[ndesc][1] = descriptors[ndesc].childend;
+        descv[ndesc][2] = descriptors[ndesc].parentend;
+
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
 
 
     // the wasm way {{{
     child = js_open_process(
-		command, 
-		descriptors[0].childend, 
-		descriptors[1].childend, 
-		descriptors[1].parentend, 
-		descriptors[2].childend,
-		descriptors[2].parentend
+		command,
+        descv,
+        ndescriptors_array
 	);
 	// }}}
 	/* we forked/spawned and this is the parent */
@@ -732,6 +744,14 @@ PHP_FUNCTION(proc_open)
 		}
 	}
 
+    if (descv) {
+        for(int i = 0; i < ndescriptors_array; i++)
+        {
+            free(descv[i]);
+        }
+        free(descv);
+	}
+
 	efree(descriptors);
 	ZVAL_RES(return_value, zend_register_resource(proc, le_proc_open));
 	return;
@@ -753,6 +773,15 @@ exit_fail:
 		close(slave_pty);
 	}
 #endif
+
+    if (descv) {
+        for(int i = 0; i < ndescriptors_array; i++)
+        {
+            free(descv[i]);
+        }
+        free(descv);
+	}
+
 	RETURN_FALSE;
 
 }

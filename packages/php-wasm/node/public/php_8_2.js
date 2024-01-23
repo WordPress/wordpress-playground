@@ -1,6 +1,6 @@
-const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
-export { dependencyFilename }; 
-export const dependenciesTotalSize = 11251441; 
+const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm';
+export { dependencyFilename };
+export const dependenciesTotalSize = 11251751;
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -2912,26 +2912,26 @@ var SYSCALLS = {
   HEAP32[buf + 12 >> 2] = stat.uid;
   HEAP32[buf + 16 >> 2] = stat.gid;
   HEAP32[buf + 20 >> 2] = stat.rdev;
-  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
   HEAP32[buf + 32 >> 2] = 4096;
   HEAP32[buf + 36 >> 2] = stat.blocks;
   var atime = stat.atime.getTime();
   var mtime = stat.mtime.getTime();
   var ctime = stat.ctime.getTime();
-  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3),
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
   HEAPU32[buf + 48 >> 2] = atime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3),
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
   HEAPU32[buf + 64 >> 2] = mtime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3),
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
   HEAPU32[buf + 80 >> 2] = ctime % 1e3 * 1e3;
-  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
   return 0;
  },
@@ -4033,10 +4033,10 @@ function ___syscall_getdents64(fd, dirp, count) {
     id = child.id;
     type = FS.isChrdev(child.mode) ? 2 : FS.isDir(child.mode) ? 4 : FS.isLink(child.mode) ? 10 : 8;
    }
-   tempI64 = [ id >>> 0, (tempDouble = id, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+   tempI64 = [ id >>> 0, (tempDouble = id, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
    HEAP32[dirp + pos >> 2] = tempI64[0], HEAP32[dirp + pos + 4 >> 2] = tempI64[1];
-   tempI64 = [ (idx + 1) * struct_size >>> 0, (tempDouble = (idx + 1) * struct_size, 
-   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+   tempI64 = [ (idx + 1) * struct_size >>> 0, (tempDouble = (idx + 1) * struct_size,
+   +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
    HEAP32[dirp + pos + 8 >> 2] = tempI64[0], HEAP32[dirp + pos + 12 >> 2] = tempI64[1];
    HEAP16[dirp + pos + 16 >> 1] = 280;
    HEAP8[dirp + pos + 18 >> 0] = type;
@@ -4747,7 +4747,7 @@ var __mktime_js = function(tmPtr) {
   HEAP32[tmPtr + 20 >> 2] = date.getYear();
   return date.getTime() / 1e3;
  })();
- return setTempRet0((tempDouble = ret, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)), 
+ return setTempRet0((tempDouble = ret, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)),
  ret >>> 0;
 };
 
@@ -5038,9 +5038,9 @@ function _fd_fdstat_get(fd, pbuf) {
   }
   HEAP8[pbuf >> 0] = type;
   HEAP16[pbuf + 2 >> 1] = flags;
-  tempI64 = [ rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ rightsBase >>> 0, (tempDouble = rightsBase, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[pbuf + 8 >> 2] = tempI64[0], HEAP32[pbuf + 12 >> 2] = tempI64[1];
-  tempI64 = [ rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ rightsInheriting >>> 0, (tempDouble = rightsInheriting, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[pbuf + 16 >> 2] = tempI64[0], HEAP32[pbuf + 20 >> 2] = tempI64[1];
   return 0;
  } catch (e) {
@@ -5084,7 +5084,7 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
   if (isNaN(offset)) return 61;
   var stream = SYSCALLS.getStreamFromFD(fd);
   FS.llseek(stream, offset, whence);
-  tempI64 = [ stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  tempI64 = [ stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ],
   HEAP32[newOffset >> 2] = tempI64[0], HEAP32[newOffset + 4 >> 2] = tempI64[1];
   if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
   return 0;
@@ -5492,27 +5492,27 @@ var PHPWASM = {
   return Array.from(peers);
  },
  awaitData: function(ws) {
-  return PHPWASM.awaitWsEvent(ws, "message");
+  return PHPWASM.awaitEvent(ws, "message");
  },
  awaitConnection: function(ws) {
   if (ws.OPEN === ws.readyState) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "open");
+  return PHPWASM.awaitEvent(ws, "open");
  },
  awaitClose: function(ws) {
   if ([ ws.CLOSING, ws.CLOSED ].includes(ws.readyState)) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "close");
+  return PHPWASM.awaitEvent(ws, "close");
  },
  awaitError: function(ws) {
   if ([ ws.CLOSING, ws.CLOSED ].includes(ws.readyState)) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "error");
+  return PHPWASM.awaitEvent(ws, "error");
  },
- awaitWsEvent: function(ws, event) {
+ awaitEvent: function(ws, event) {
   let resolve;
   const listener = () => {
    resolve();
@@ -5549,8 +5549,7 @@ var PHPWASM = {
   e.code = "SPAWN_UNSUPPORTED";
   throw e;
  },
-    shutdownSocket: function (socketd, how) {
-     console.log('shutdownSocket', socketd, how);
+ shutdownSocket: function(socketd, how) {
   const sock = getSocketFromFD(socketd);
   const peer = Object.values(sock.peers)[0];
   if (!peer) {
@@ -5668,13 +5667,25 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stderrChildFd, stderrParentFd) {
+function _js_open_process(command, descriptors, descriptorsLength) {
  if (!command) {
   return 1;
  }
  const cmdstr = UTF8ToString(command);
  if (!cmdstr.length) {
   return 0;
+ }
+ if (descriptorsLength < 2) {
+  return 1;
+ }
+ var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
+ var std = {};
+ for (var i = 0; i < descriptorsLength; i++) {
+  var ptr = pointersStart + i * 16;
+  std[HEAPU8[ptr]] = {
+   child: HEAPU8[ptr + 4],
+   parent: HEAPU8[ptr + 8]
+  };
  }
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
@@ -5692,19 +5703,19 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
   const ProcInfo = {
    pid: cp.pid,
    exited: false,
-   stdinFd: stdinFd,
-   stdinIsDevice: stdinFd in PHPWASM.input_devices,
-   stdoutChildFd: stdoutChildFd,
-   stdoutParentFd: stdoutParentFd,
-   stderrChildFd: stderrChildFd,
-   stderrParentFd: stderrParentFd,
+   stdinFd: std[0] ? std[0].child : null,
+   stdinIsDevice: std[0] ? std[0].child in PHPWASM.input_devices : null,
+   stdoutChildFd: std[1] ? std[1].child : null,
+   stdoutParentFd: std[1] ? std[1].parent : null,
+   stderrChildFd: std[2] ? std[2].child : null,
+   stderrParentFd: std[2] ? std[2].parent : null,
    stdout: new PHPWASM.EventEmitter,
    stderr: new PHPWASM.EventEmitter
   };
-  PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stdoutParentFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stderrParentFd] = ProcInfo;
+  if (ProcInfo.stdoutChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+  if (ProcInfo.stderrChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+  if (ProcInfo.stdoutParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+  if (ProcInfo.stderrParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
   PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
   cp.on("exit", (function(code) {
    ProcInfo.exitCode = code;
@@ -5712,18 +5723,22 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    ProcInfo.stdout.emit("data");
    ProcInfo.stderr.emit("data");
   }));
-  const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
+  const stdoutStream = std[1] ? SYSCALLS.getStreamFromFD(ProcInfo.stdoutChildFd) : null;
   let stdoutAt = 0;
   cp.stdout.on("data", (function(data) {
    ProcInfo.stdout.emit("data", data);
-   stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
+   if (stdoutStream) {
+    stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
+   }
    stdoutAt += data.length;
   }));
-  const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
+  const stderrStream = std[2] ? SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd) : null;
   let stderrAt = 0;
   cp.stderr.on("data", (function(data) {
    ProcInfo.stderr.emit("data", data);
-   stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
+   if (stderrStream) {
+    stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
+   }
    stderrAt += data.length;
   }));
   try {
@@ -5737,7 +5752,7 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    return;
   }
   if (ProcInfo.stdinIsDevice) {
-   PHPWASM.input_devices[stdinFd].onData((function(data) {
+   PHPWASM.input_devices[ProcInfo.stdinFd].onData((function(data) {
     if (!data) return;
     const dataStr = new TextDecoder("utf-8").decode(data);
     cp.stdin.write(dataStr);
@@ -5745,31 +5760,32 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    wakeUp(ProcInfo.pid);
    return;
   }
-  const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-  if (stdinStream.node) {
-   const CHUNK_SIZE = 1024;
-   const buffer = new Uint8Array(CHUNK_SIZE);
-   let offset = 0;
-   while (true) {
-    const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
-    if (bytesRead === null || bytesRead === 0) {
-     break;
+  if (ProcInfo.stdinFd) {
+   const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
+   if (stdinStream.node) {
+    const CHUNK_SIZE = 1024;
+    const buffer = new Uint8Array(CHUNK_SIZE);
+    let offset = 0;
+    while (true) {
+     const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
+     if (bytesRead === null || bytesRead === 0) {
+      break;
+     }
+     try {
+      cp.stdin.write(buffer.subarray(0, bytesRead));
+     } catch (e) {
+      console.error(e);
+      return 1;
+     }
+     if (bytesRead < CHUNK_SIZE) {
+      break;
+     }
+     offset += bytesRead;
     }
-    try {
-     cp.stdin.write(buffer.subarray(0, bytesRead));
-    } catch (e) {
-     console.error(e);
-     return 1;
-    }
-    if (bytesRead < CHUNK_SIZE) {
-     break;
-    }
-    offset += bytesRead;
+    wakeUp(ProcInfo.pid);
+    return;
    }
-   wakeUp(ProcInfo.pid);
-   return;
   }
-  console.warn("Unsupported STDIN source type for proc_open(). File Descriptor=" + stdinFd);
   wakeUp(ProcInfo.pid);
  }));
 }
@@ -6298,7 +6314,7 @@ function _wasm_poll_socket(socketd, events, timeout) {
     wakeUp(0);
     return;
    }
-   polls.push(PHPWASM.awaitWsEvent(procInfo.stdout, "data"));
+   polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
   } else {
    const sock = getSocketFromFD(socketd);
    if (!sock) {
@@ -7526,7 +7542,7 @@ DNS.address_map.addrs.localhost = '127.0.0.1';
 
 /**
  * Debugging Asyncify errors is tricky because the stack trace is lost when the
- * error is thrown. This code saves the stack trace in a global variable 
+ * error is thrown. This code saves the stack trace in a global variable
  * so that it can be inspected later.
  */
 PHPLoader.debug = 'debug' in PHPLoader ? PHPLoader.debug : true;

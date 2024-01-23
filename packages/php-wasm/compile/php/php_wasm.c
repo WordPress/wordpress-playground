@@ -102,17 +102,41 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			return 0;
 		}
 
+        int **descv = malloc(sizeof(int *) * 3);
+
+        int *stdin = malloc(sizeof(int) * 3);
+        int *stdout = malloc(sizeof(int) * 3);
+        int *stderr = malloc(sizeof(int) * 3);
+
+        stdin[0] = 0;
+        stdin[1] = stdin_childend;
+        stdin[2] = (int) NULL;
+
+        stdout[0] = 1;
+        stdout[1] = stdout_pipe[0];
+        stdout[2] = stdout_pipe[1];
+
+        stderr[0] = 2;
+        stderr[1] = stderr_pipe[0];
+        stderr[2] = stderr_pipe[1];
+
+        descv[0] = stdin;
+        descv[1] = stdout;
+        descv[2] = stderr;
+
 		// the wasm way {{{
 		js_open_process(
 			cmd,
-			stdin_childend,
-			// stdout. @TODO: Pipe to /dev/null
-			stdout_pipe[0],
-			stdout_pipe[1],
-			// stderr. @TODO: Pipe to /dev/null
-			stderr_pipe[0],
-			stderr_pipe[1]);
+            descv,
+            3
+        );
 		// }}}
+
+        free(stdin);
+        free(stdout);
+        free(stderr);
+
+        free(descv);
 	}
 	else
 	{

@@ -249,7 +249,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				);
 
 				proc_close($res);
-				
+
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
 
@@ -267,7 +267,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			$fd = fopen( "php://temp", "r+" );
 			fputs( $fd, ${phpVar(pygmalion)} );
 			rewind( $fd );
-			
+
 			$descriptorspec = array(
 				0 => $fd,
 				1 => fopen('php://stdout', 'wb'),
@@ -362,6 +362,78 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(spawnHandlerCalled).toEqual(true);
 		});
+
+		if (phpVersion == '8.2') {
+			it('Uses the three descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('Hello World!\n');
+			});
+
+			it('Uses only stdin and stdout descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('Hello World!\n');
+			});
+
+			it('Uses only stdout and stderr descriptor specs', async () => {
+				const result = await php.run({
+					code: `<?php
+
+                    $command = "echo 'Hello World!'";
+
+                    $descriptorspec = [
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    $res = proc_open( $command, $descriptorspec, $pipes );
+
+                    $stdout = stream_get_contents($pipes[1]);
+
+                    proc_close($res);
+
+                    echo $stdout;
+                `,
+				});
+				expect(result.text).toEqual('Hello World!\n');
+			});
+		}
 	});
 
 	describe('Filesystem', () => {
