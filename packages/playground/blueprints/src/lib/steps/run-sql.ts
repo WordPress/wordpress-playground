@@ -75,6 +75,8 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 		}
 	`,
 	});
+	console.log(runPhp.text);
+	console.log(runPhp.errors);
 
 	await rm(playground, { path: sqlFilename });
 

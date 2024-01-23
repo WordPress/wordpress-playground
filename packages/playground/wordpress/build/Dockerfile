@@ -19,16 +19,24 @@ RUN wget -O wp.zip $WP_ZIP_URL && \
     unzip -q wp.zip && \
     rm wp.zip
 
-# Enable the SQLite support:
+# === Create the mu-plugins directory ===
+RUN mkdir wordpress/wp-content/mu-plugins
+
+# Enable the SQLite support as a mu-plugin to:
+# * Ensure it won't accidentally be disabled by the user
+# * Prevent it from blocking a multisite setup where disabling all the plugins is required
 # https://github.com/WordPress/sqlite-database-integration
 RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
-    wordpress/wp-content/plugins/sqlite-database-integration \
+    wordpress/wp-content/mu-plugins/sqlite-database-integration \
     --branch main   \
     --single-branch \
     --depth 1 &&    \
-    rm -rf wordpress/wp-content/plugins/sqlite-database-integration/.git && \
+    rm -rf wordpress/wp-content/mu-plugins/sqlite-database-integration/.git && \
     # Required by the SQLite integration plugin:
-    cp wordpress/wp-content/plugins/sqlite-database-integration/db.copy wordpress/wp-content/db.php && \
+    cat wordpress/wp-content/mu-plugins/sqlite-database-integration/db.copy \
+    | sed "s#'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'#__DIR__.'/mu-plugins/sqlite-database-integration/'#g" \
+    | sed "s#'{SQLITE_PLUGIN}'#__DIR__.'/mu-plugins/sqlite-database-integration/load.php'#g" \
+    > wordpress/wp-content/db.php && \
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
 # Remove the akismet plugin as it's not likely Playground sites will
@@ -43,6 +51,9 @@ RUN cp -r wordpress wordpress-static && \
     find . -maxdepth 1 -type f -delete && \
     # Remove all empty directories
     find . -type d -empty -delete
+
+# Remove the sqlite database integration from the static files
+RUN rm -rf wordpress-static/wp-content/mu-plugins
 
 # Move the static files to the final output directory
 RUN mkdir /root/output/$OUT_FILENAME
@@ -118,9 +129,6 @@ RUN ls -la && \
     exit 'WordPress installation failed'; \
     fi
 
-# === Create the mu-plugins directory ===
-RUN mkdir wordpress/wp-content/mu-plugins
-
 # === Install WP-CLI ===
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar
@@ -149,11 +157,11 @@ RUN cd wordpress && \
 # treated as comments and removed by the whitespace stripping.
 RUN cd wordpress && \
     for phpfile in $(\
-        find ./ -type f -name '*.php' \
-        -not -path '*wordpress-importer*' \
-        -not -path '*wp-content*' \
-        # wp-cli expects an unminified wp-config.php
-        -not -path '*wp-config.php' \
+    find ./ -type f -name '*.php' \
+    -not -path '*wordpress-importer*' \
+    -not -path '*wp-content*' \
+    # wp-cli expects an unminified wp-config.php
+    -not -path '*wp-config.php' \
     ); do \
     # Remove whitespace from PHP files
     php -w $phpfile > $phpfile.small && \

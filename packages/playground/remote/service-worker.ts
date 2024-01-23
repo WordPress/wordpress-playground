@@ -2,7 +2,7 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { getURLScope, removeURLScope, setURLScope } from '@php-wasm/scopes';
 import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
@@ -18,6 +18,31 @@ if (!(self as any).document) {
 	// @ts-ignore
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
+}
+
+/**
+ * Rewrite the URL according to WordPress .htaccess rules.
+ */
+function rewriteWordPressUrl(unscopedUrl: URL) {
+	// RewriteRule ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) wordpress/$2 [L]
+	const rewrittenUrl = unscopedUrl.pathname
+		.toString()
+		.replace(
+			/^\/([_0-9a-zA-Z-]+\/)?(wp-(content|admin|includes).*)/,
+			'/$2'
+		);
+	if (rewrittenUrl !== unscopedUrl.pathname) {
+		// Something changed, let's try the rewritten URL
+		return new URL(rewrittenUrl, unscopedUrl);
+	}
+
+	// RewriteRule ^([_0-9a-zA-Z-]+/)?(.*\.php)$ wordpress/$2 [L]
+	if (unscopedUrl.pathname.endsWith('.php')) {
+		// The URL ends with .php, let's try to rewrite it to
+		// the WordPress root index.php file
+		const filename = unscopedUrl.pathname.split('/').pop();
+		return new URL('/' + filename, unscopedUrl);
+	}
 }
 
 initializeServiceWorker({
@@ -43,7 +68,37 @@ initializeServiceWorker({
 			}
 
 			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
-			const workerResponse = await convertFetchEventToPHPRequest(event);
+
+			let workerResponse = await convertFetchEventToPHPRequest(event);
+			// If we get a 404, rewrite the URL according to WordPress
+			// .htaccess rules and retry the request.
+			let rewrittenUrlString: string | undefined = undefined;
+			if (workerResponse.status === 404) {
+				const rewrittenUrlObject = rewriteWordPressUrl(unscopedUrl);
+				if (rewrittenUrlObject) {
+					const existingHeaders: Record<string, string> = {};
+					event.request.headers.forEach((value, key) => {
+						existingHeaders[key] = value;
+					});
+
+					rewrittenUrlString = setURLScope(
+						rewrittenUrlObject,
+						scope!
+					).toString();
+					workerResponse = await convertFetchEventToPHPRequest(
+						new FetchEvent(event.type, {
+							...event,
+							request: await cloneRequest(event.request, {
+								headers: {
+									...event.request.headers,
+									'x-rewrite-url': rewrittenUrlString,
+								},
+							}),
+						})
+					);
+				}
+			}
+
 			if (
 				workerResponse.status === 404 &&
 				workerResponse.headers.get('x-file-type') === 'static'
@@ -52,7 +107,8 @@ initializeServiceWorker({
 				// the from the static assets directory at the remote server.
 				const request = await rewriteRequest(
 					event.request,
-					staticAssetsDirectory
+					staticAssetsDirectory,
+					rewrittenUrlString
 				);
 				return fetch(request).catch((e) => {
 					if (e?.name === 'TypeError') {
@@ -209,9 +265,10 @@ type WPModuleDetails = {
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function rewriteRequest(
 	request: Request,
-	staticAssetsDirectory: string
+	staticAssetsDirectory: string,
+	rewriteUrl?: string
 ): Promise<Request> {
-	const requestedUrl = new URL(request.url);
+	const requestedUrl = new URL(rewriteUrl || request.url);
 
 	const resolvedUrl = removeURLScope(requestedUrl);
 	if (
