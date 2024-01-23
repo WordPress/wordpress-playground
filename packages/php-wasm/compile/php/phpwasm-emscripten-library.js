@@ -293,11 +293,7 @@ const LibraryExample = {
 	 * @param {int} descriptorsLength Descriptor length.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
-	js_open_process: function (
-		command,
-        descriptors,
-        descriptorsLength
-	) {
+	js_open_process: function (command, descriptors, descriptorsLength) {
 		if (!command) {
 			return 1;
 		}
@@ -307,16 +303,16 @@ const LibraryExample = {
 			return 0;
 		}
 
-        if (descriptorsLength < 2) {
+		if (descriptorsLength < 2) {
 			return 1;
 		}
 
 		var std = {};
-        // The initial offset to add to the `**int` pointer to find each descriptor array.
-        // The offset increases depending on the number of descriptors :
-        // 2 or 3 descriptors need 16 as offset, 4 or 5 descriptors need 24 as offset, and so on.
+		// The initial offset to add to the `**int` pointer to find each descriptor array.
+		// The offset increases depending on the number of descriptors :
+		// 2 or 3 descriptors need 16 as offset, 4 or 5 descriptors need 24 as offset, and so on.
 		var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
-        // Extracts an array of available descriptors that should be dispatched to streams.
+		// Extracts an array of available descriptors that should be dispatched to streams.
 		// On the C side, the descriptors are expressed as `**int` so we must go read
 		// each of the `descriptorsLength` `*int` pointers and convert the associated data into
 		// a JavaScript object { descriptor : { child : fd, parent : fd } }.
@@ -346,7 +342,9 @@ const LibraryExample = {
 				pid: cp.pid,
 				exited: false,
 				stdinFd: std[0] ? std[0].child : null,
-				stdinIsDevice: std[0] ? std[0].child in PHPWASM.input_devices : null,
+				stdinIsDevice: std[0]
+					? std[0].child in PHPWASM.input_devices
+					: null,
 				stdoutChildFd: std[1] ? std[1].child : null,
 				stdoutParentFd: std[1] ? std[1].parent : null,
 				stderrChildFd: std[2] ? std[2].child : null,
@@ -354,10 +352,14 @@ const LibraryExample = {
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
-			if(ProcInfo.stdoutChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
-			if(ProcInfo.stderrChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
-			if(ProcInfo.stdoutParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
-			if(ProcInfo.stderrParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
+			if (ProcInfo.stdoutChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+			if (ProcInfo.stderrChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+			if (ProcInfo.stdoutParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+			if (ProcInfo.stderrParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
@@ -369,37 +371,41 @@ const LibraryExample = {
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
-			const stdoutStream = std[1] ? SYSCALLS.getStreamFromFD(ProcInfo.stdoutChildFd) : null;
+			const stdoutStream = std[1]
+				? SYSCALLS.getStreamFromFD(ProcInfo.stdoutChildFd)
+				: null;
 			let stdoutAt = 0;
 			cp.stdout.on('data', function (data) {
 				ProcInfo.stdout.emit('data', data);
 
-                if (stdoutStream) {
-                    stdoutStream.stream_ops.write(
-                        stdoutStream,
-                        data,
-                        0,
-                        data.length,
-                        stdoutAt
-                    );
-                }
+				if (stdoutStream) {
+					stdoutStream.stream_ops.write(
+						stdoutStream,
+						data,
+						0,
+						data.length,
+						stdoutAt
+					);
+				}
 				stdoutAt += data.length;
 			});
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
-			const stderrStream = std[2] ? SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd) : null;
+			const stderrStream = std[2]
+				? SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd)
+				: null;
 			let stderrAt = 0;
 			cp.stderr.on('data', function (data) {
 				ProcInfo.stderr.emit('data', data);
-                if (stderrStream) {
-                    stderrStream.stream_ops.write(
-                        stderrStream,
-                        data,
-                        0,
-                        data.length,
-                        stderrAt
-                    );
-                }
+				if (stderrStream) {
+					stderrStream.stream_ops.write(
+						stderrStream,
+						data,
+						0,
+						data.length,
+						stderrAt
+					);
+				}
 				stderrAt += data.length;
 			});
 
@@ -437,42 +443,42 @@ const LibraryExample = {
 				return;
 			}
 
-            if (ProcInfo.stdinFd) {
-                // PHP will write STDIN data to a file descriptor.
-                const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
-                if (stdinStream.node) {
-                    // Pipe the entire stdinStream to cp.stdin
-                    const CHUNK_SIZE = 1024;
-                    const buffer = new Uint8Array(CHUNK_SIZE);
-                    let offset = 0;
+			if (ProcInfo.stdinFd) {
+				// PHP will write STDIN data to a file descriptor.
+				const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
+				if (stdinStream.node) {
+					// Pipe the entire stdinStream to cp.stdin
+					const CHUNK_SIZE = 1024;
+					const buffer = new Uint8Array(CHUNK_SIZE);
+					let offset = 0;
 
-                    while (true) {
-                        const bytesRead = stdinStream.stream_ops.read(
-                            stdinStream,
-                            buffer,
-                            0,
-                            CHUNK_SIZE,
-                            offset
-                        );
-                        if (bytesRead === null || bytesRead === 0) {
-                            break;
-                        }
-                        try {
-                            cp.stdin.write(buffer.subarray(0, bytesRead));
-                        } catch (e) {
-                            console.error(e);
-                            return 1;
-                        }
-                        if (bytesRead < CHUNK_SIZE) {
-                            break;
-                        }
-                        offset += bytesRead;
-                    }
+					while (true) {
+						const bytesRead = stdinStream.stream_ops.read(
+							stdinStream,
+							buffer,
+							0,
+							CHUNK_SIZE,
+							offset
+						);
+						if (bytesRead === null || bytesRead === 0) {
+							break;
+						}
+						try {
+							cp.stdin.write(buffer.subarray(0, bytesRead));
+						} catch (e) {
+							console.error(e);
+							return 1;
+						}
+						if (bytesRead < CHUNK_SIZE) {
+							break;
+						}
+						offset += bytesRead;
+					}
 
-                    wakeUp(ProcInfo.pid);
-                    return;
-                }
-            }
+					wakeUp(ProcInfo.pid);
+					return;
+				}
+			}
 
 			wakeUp(ProcInfo.pid);
 		});
