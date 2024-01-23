@@ -33,6 +33,7 @@ export { phpVar, phpVars } from '@php-wasm/util';
 import {
 	Blueprint,
 	compileBlueprint,
+	defineWpConfigConsts,
 	OnStepCompleted,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
@@ -95,46 +96,100 @@ export async function startPlaygroundWeb({
 		}),
 		progressTracker
 	);
+	await playground.defineConstant('WP_ALLOW_MULTISITE', true);
+	// Deactivate all the plugins
+	const result = await playground.run({
+		code: `<?php
+define( 'WP_ADMIN', true );
+require_once("${await playground.documentRoot}/wp-load.php");
+require_once("${await playground.documentRoot}/wp-admin/includes/plugin.php");
+$plugins = glob("${await playground.documentRoot}/wp-content/plugins/*");
+var_dump($plugins);
+foreach($plugins as $plugin_path) {
+	if (!is_dir($plugin_path)) {
+		deactivate_plugins($plugin_path);
+		continue;
+	}
+	// Find plugin entry file
+	foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+		$info = get_plugin_data( $file, false, false );
+		if ( ! empty( $info['Name'] ) ) {
+			deactivate_plugins( $file );
+			break;
+		}
+	}
+}
+`,
+	});
+	console.log(result.text);
+	console.log(result.errors);
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
-	await playground.defineConstant('WP_ALLOW_MULTISITE', true);
-	await playground.defineConstant('DOMAIN_CURRENT_SITE', 'localhost:5400');
-	await playground.defineConstant(
-		'PATH_CURRENT_SITE',
-		new URL(await playground.absoluteUrl).pathname
-	);
+	console.log('path', new URL(await playground.absoluteUrl).pathname);
 
-	const response = await playground.run({
-		code: `<?php
+	window.finalize = async () => {
+		await defineWpConfigConsts(playground, {
+			consts: {
+				DOMAIN_CURRENT_SITE: 'playground.test',
+				PATH_CURRENT_SITE:
+					new URL(await playground.absoluteUrl).pathname + '/',
+			},
+		});
+		// const response = await playground.run({
+		// 	code: `<?php
 
-		define( 'WP_ALLOW_MULTISITE', true ); 
-		define( 'WP_INSTALLING_NETWORK', true );
-		require '/wordpress/wp-load.php'; 
-		require '/wordpress/wp-admin/includes/plugin.php'; 
-		deactivate_plugins('wordpress-importer/wordpress-importer.php');
+		// 	define( 'WP_ALLOW_MULTISITE', true );
+		// 	define( 'WP_INSTALLING_NETWORK', true );
+		// 	require '/wordpress/wp-load.php';
+		// 	require '/wordpress/wp-admin/includes/plugin.php';
+		// 	deactivate_plugins('wordpress-importer/wordpress-importer.php');
 
-		require '/wordpress/wp-admin/includes/network.php'; 
-		foreach ( $wpdb->tables( 'ms_global' ) as $table => $prefixed_table ) {
-			$wpdb->$table = $prefixed_table;
-		}
-		require_once '/wordpress/wp-admin/includes/upgrade.php';
+		// 	require '/wordpress/wp-admin/includes/network.php';
+		// 	foreach ( $wpdb->tables( 'ms_global' ) as $table => $prefixed_table ) {
+		// 		$wpdb->$table = $prefixed_table;
+		// 	}
+		// 	require_once '/wordpress/wp-admin/includes/upgrade.php';
 
-		$result = install_network();
-		var_dump($result);
-		require_once '/wordpress/wp-admin/includes/upgrade.php';
-		$base = "${new URL(await playground.absoluteUrl).pathname}";
-		$result = populate_network( 1, "localhost:5400", sanitize_email( "adam@adamziel.com" ), wp_unslash( "My network!" ), $base, $subdomain_install = false );
-		var_dump($result);
-		`,
-	});
-	console.log(response.text);
+		// 	$result = install_network();
+		// 	var_dump($result);
+		// 	require_once '/wordpress/wp-admin/includes/upgrade.php';
+		// 	$base = "${new URL(await playground.absoluteUrl).pathname}";
+		// 	$result = populate_network( 1, "localhost:5400", sanitize_email( "adam@adamziel.com" ), wp_unslash( "My network!" ), $base, $subdomain_install = false );
+		// 	var_dump($result);
+		// 	`,
+		// });
+		// console.log(response.text);
 
-	await playground.defineConstant('MULTISITE', true);
-	await playground.defineConstant('SUBDOMAIN_INSTALL', false);
-	await playground.defineConstant('SITE_ID_CURRENT_SITE', 1);
-	await playground.defineConstant('BLOG_ID_CURRENT_SITE', 1);
-	console.log('defined');
+		await defineWpConfigConsts(playground, {
+			consts: {
+				MULTISITE: true,
+				SUBDOMAIN_INSTALL: false,
+				SITE_ID_CURRENT_SITE: 1,
+				BLOG_ID_CURRENT_SITE: 1,
+				WPSITEURL: 'https://playground.test',
+				WPHOME: 'https://playground.test',
+			},
+		});
+
+		const response2 = await playground.run({
+			code: `<?php var_dump($_SERVER); `,
+		});
+		console.log(response2.text);
+		console.log(response2.errors);
+		console.log(response2.headers);
+
+		const response3 = await playground.request({
+			url: '/',
+		});
+		console.log(response3.text);
+		console.log(response3.errors);
+		console.log(response3.headers);
+		console.log(
+			await playground.readFileAsText('/wordpress/wp-config.php')
+		);
+	};
+	// console.log('defined');
 
 	return playground;
 }
