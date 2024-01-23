@@ -210,25 +210,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			it('cat: stdin=pipe, stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({
 					code: `<?php
-		$res = proc_open(
-			"cat",
-			array(
-				array("pipe","r"),
-				array("file","/tmp/process_out", "w"),
-				array("file","/tmp/process_err", "w"),
-			),
-			$pipes
-		);
-		fwrite($pipes[0], 'WordPress\n');
+                    $res = proc_open(
+                        "cat",
+                        array(
+                            array("pipe","r"),
+                            array("file","/tmp/process_out", "w"),
+                            array("file","/tmp/process_err", "w"),
+                        ),
+                        $pipes
+                    );
+                    fwrite($pipes[0], 'WordPress\n');
 
-		proc_close($res);
+                    proc_close($res);
 
-		$stdout = file_get_contents("/tmp/process_out");
-		$stderr = file_get_contents("/tmp/process_err");
+                    $stdout = file_get_contents("/tmp/process_out");
+                    $stderr = file_get_contents("/tmp/process_err");
 
-		echo 'stdout: ' . $stdout . "";
-		echo 'stderr: ' . $stderr . PHP_EOL;
-	`,
+                    echo 'stdout: ' . $stdout . "";
+                    echo 'stderr: ' . $stderr . PHP_EOL;
+                `,
 				});
 				expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 			});
@@ -363,7 +363,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(spawnHandlerCalled).toEqual(true);
 		});
 
-		if (phpVersion == '8.2') {
+		// This test fails on older PHP versions
+		if (!['7.0', '7.1', '7.2', '7.3'].includes(phpVersion)) {
 			it('Gives access to command and arguments when array type is used in proc_open', async () => {
 				let command = '';
 				let args: string[] = [];
@@ -406,77 +407,77 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					'ipsum,dolor,sit,amet,consectetur,adipiscing'
 				);
 			});
-
-			it('Uses the three descriptor specs', async () => {
-				const result = await php.run({
-					code: `<?php
-
-                    $command = "echo 'Hello World!'";
-
-                    $descriptorspec = [
-                        0 => [ "pipe", "r" ],
-                        1 => [ "pipe", "w" ],
-                        2 => [ "pipe", "w" ]
-                    ];
-
-                    $res = proc_open( $command, $descriptorspec, $pipes );
-
-                    $stdout = stream_get_contents($pipes[1]);
-
-                    proc_close($res);
-
-                    echo $stdout;
-                `,
-				});
-				expect(result.text).toEqual('Hello World!\n');
-			});
-
-			it('Uses only stdin and stdout descriptor specs', async () => {
-				const result = await php.run({
-					code: `<?php
-
-                    $command = "echo 'Hello World!'";
-
-                    $descriptorspec = [
-                        0 => [ "pipe", "r" ],
-                        1 => [ "pipe", "w" ]
-                    ];
-
-                    $res = proc_open( $command, $descriptorspec, $pipes );
-
-                    $stdout = stream_get_contents($pipes[1]);
-
-                    proc_close($res);
-
-                    echo $stdout;
-                `,
-				});
-				expect(result.text).toEqual('Hello World!\n');
-			});
-
-			it('Uses only stdout and stderr descriptor specs', async () => {
-				const result = await php.run({
-					code: `<?php
-
-                    $command = "echo 'Hello World!'";
-
-                    $descriptorspec = [
-                        1 => [ "pipe", "w" ],
-                        2 => [ "pipe", "w" ]
-                    ];
-
-                    $res = proc_open( $command, $descriptorspec, $pipes );
-
-                    $stdout = stream_get_contents($pipes[1]);
-
-                    proc_close($res);
-
-                    echo $stdout;
-                `,
-				});
-				expect(result.text).toEqual('Hello World!\n');
-			});
 		}
+
+		it('Uses the three descriptor specs', async () => {
+			const result = await php.run({
+				code: `<?php
+
+                $command = "echo 'Hello World!'";
+
+                $descriptorspec = [
+                    0 => [ "pipe", "r" ],
+                    1 => [ "pipe", "w" ],
+                    2 => [ "pipe", "w" ]
+                ];
+
+                $res = proc_open( $command, $descriptorspec, $pipes );
+
+                $stdout = stream_get_contents($pipes[1]);
+
+                proc_close($res);
+
+                echo $stdout;
+            `,
+			});
+			expect(result.text).toEqual('Hello World!\n');
+		});
+
+		it('Uses only stdin and stdout descriptor specs', async () => {
+			const result = await php.run({
+				code: `<?php
+
+                $command = "echo 'Hello World!'";
+
+                $descriptorspec = [
+                    0 => [ "pipe", "r" ],
+                    1 => [ "pipe", "w" ]
+                ];
+
+                $res = proc_open( $command, $descriptorspec, $pipes );
+
+                $stdout = stream_get_contents($pipes[1]);
+
+                proc_close($res);
+
+                echo $stdout;
+            `,
+			});
+			expect(result.text).toEqual('Hello World!\n');
+		});
+
+		it('Uses only stdout and stderr descriptor specs', async () => {
+			const result = await php.run({
+				code: `<?php
+
+                $command = "echo 'Hello World!'";
+
+                $descriptorspec = [
+                    1 => [ "pipe", "w" ],
+                    2 => [ "pipe", "w" ]
+                ];
+
+                $res = proc_open( $command, $descriptorspec, $pipes );
+
+                $stdout = stream_get_contents($pipes[1]);
+
+                proc_close($res);
+
+                echo $stdout;
+            `,
+			});
+			expect(result.text).toEqual('Hello World!\n');
+		});
 	});
 
 	describe('Filesystem', () => {
