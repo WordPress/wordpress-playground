@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11251751; 
+export const dependenciesTotalSize = 11251748; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5528,9 +5528,9 @@ var PHPWASM = {
   return [ promise, cancel ];
  },
  noop: function() {},
- spawnProcess: function(command) {
+ spawnProcess: function(command, args) {
   if (Module["spawnProcess"]) {
-   const spawnedPromise = Module["spawnProcess"](command);
+   const spawnedPromise = Module["spawnProcess"](command, args);
    return Promise.resolve(spawnedPromise).then((function(spawned) {
     if (!spawned || !spawned.on) {
      throw new Error("spawnProcess() must return an EventEmitter but returned a different type.");
@@ -5667,13 +5667,22 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, descriptors, descriptorsLength) {
+function _js_open_process(command, args, argsLength, descriptors, descriptorsLength) {
  if (!command) {
   return 1;
  }
  const cmdstr = UTF8ToString(command);
  if (!cmdstr.length) {
   return 0;
+ }
+ let argsArray = [];
+ if (argsLength) {
+  var ptr = args + (((argsLength > 1 ? argsLength : 2) >> 1) + 1) * 8;
+  for (var i = 0; i < argsLength; i++) {
+   var str = UTF8ToString(ptr);
+   ptr += str.length > 16 ? str.length - str.length % 8 + ((str.length % 8 >> 2) + 1) * 8 : 16;
+   argsArray.push(str);
+  }
  }
  if (descriptorsLength < 2) {
   return 1;
@@ -5690,7 +5699,7 @@ function _js_open_process(command, descriptors, descriptorsLength) {
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr);
+   cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
   } catch (e) {
    if (e.code === "SPAWN_UNSUPPORTED") {
     wakeUp(1);
@@ -5802,7 +5811,7 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr);
+   cp = await PHPWASM.spawnProcess(cmdstr, []);
   } catch (e) {
    console.error(e);
    if (e.code === "SPAWN_UNSUPPORTED") {

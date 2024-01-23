@@ -127,6 +127,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 		// the wasm way {{{
 		js_open_process(
 			cmd,
+            NULL,
+            0,
             descv,
             3
         );

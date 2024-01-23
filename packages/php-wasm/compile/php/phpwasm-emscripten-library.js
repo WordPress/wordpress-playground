@@ -182,9 +182,9 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
-		spawnProcess: function (command) {
+		spawnProcess: function (command, args) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command);
+				const spawnedPromise = Module['spawnProcess'](command, args);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -289,11 +289,19 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
+	 * @param {int} args Arguments linked with command (string array pointer).
+	 * @param {int} argsLength Argument length.
 	 * @param {int} descriptors Descriptor specs (int array pointer, [ number, child, parent ] ).
 	 * @param {int} descriptorsLength Descriptor length.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
-	js_open_process: function (command, descriptors, descriptorsLength) {
+	js_open_process: function (
+		command,
+		args,
+		argsLength,
+		descriptors,
+		descriptorsLength
+	) {
 		if (!command) {
 			return 1;
 		}
@@ -301,6 +309,33 @@ const LibraryExample = {
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
 			return 0;
+		}
+
+		let argsArray = [];
+
+		if (argsLength) {
+			// The offset to add to the `**char` pointer to find each arguments.
+			// The offset increases depending on the number of arguments :
+			// 1 or 2 or 3 descriptors need 16 as offset, 4 or 5 descriptors need 24 as offset, and so on.
+			var ptr = args + (((argsLength > 1 ? argsLength : 2) >> 1) + 1) * 8;
+			// Extracts an array of CLI arguments that should be passed to `command`.
+			// On the C side, the args are expressed as `**char` so we must go read
+			// each of the `argsLength` `*char` pointers and convert the associated data into
+			// a JavaScript string.
+			for (var i = 0; i < argsLength; i++) {
+				var str = UTF8ToString(ptr);
+				// The exact offset between two arguments, depends on the length of the actual argument.
+				// The minimum offset is 16. If the string length is above 16, the correct offset has to be a multiple of 8.
+				// If the modullo of the string length is below 4, string length - modullo + 8. If over 4, then + 16;
+				// Ex : arg length == 55. 55 - 7 + 16 = 64. Next argument is at previous pointer + 64.
+				ptr +=
+					str.length > 16
+						? str.length -
+						  (str.length % 8) +
+						  ((str.length % 8 >> 2) + 1) * 8
+						: 16;
+				argsArray.push(str);
+			}
 		}
 
 		if (descriptorsLength < 2) {
@@ -327,7 +362,7 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr);
+				cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
 					wakeUp(1);
@@ -815,7 +850,7 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr);
+				cp = await PHPWASM.spawnProcess(cmdstr, []);
 			} catch (e) {
 				console.error(e);
 				if (e.code === 'SPAWN_UNSUPPORTED') {

@@ -364,6 +364,49 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		if (phpVersion == '8.2') {
+			it('Gives access to command and arguments when array type is used in proc_open', async () => {
+				let command = '';
+				let args: string[] = [];
+				php.setSpawnHandler((cmd, argc) => {
+					command = cmd;
+					args = argc;
+					return {
+						stdout: {
+							on: () => {},
+						},
+						stderr: {
+							on: () => {},
+						},
+						stdin: {
+							write: () => {},
+						},
+						on: (evt: string, callback: Function) => {
+							if (evt === 'spawn') {
+								callback();
+							}
+						},
+						kill: () => {},
+					} as any;
+				});
+				await php.run({
+					code: `<?php
+
+                    $command = [ 'lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing' ];
+
+                    $descriptorspec = [
+                        0 => [ "pipe", "r" ],
+                        1 => [ "pipe", "w" ],
+                        2 => [ "pipe", "w" ]
+                    ];
+
+                    proc_open( $command, $descriptorspec, $pipes );`,
+				});
+				expect(command).toEqual('lorem');
+				expect(args.toString()).toEqual(
+					'ipsum,dolor,sit,amet,consectetur,adipiscing'
+				);
+			});
+
 			it('Uses the three descriptor specs', async () => {
 				const result = await php.run({
 					code: `<?php

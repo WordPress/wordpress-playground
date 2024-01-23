@@ -334,6 +334,7 @@ PHP_FUNCTION(proc_open)
     int **descv = NULL;
 	int ndescriptors_array;
 	char **argv = NULL;
+    int num_argv = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
@@ -359,7 +360,10 @@ PHP_FUNCTION(proc_open)
 			RETURN_FALSE;
 		}
 
-		argv = safe_emalloc(sizeof(char *), num_elems + 1, 0);
+        num_argv = num_elems - 1;
+
+		argv = malloc(sizeof(char *) * num_argv);
+
 		i = 0;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
 			zend_string *arg_str = get_valid_arg_string(arg_zv, i + 1);
@@ -371,11 +375,13 @@ PHP_FUNCTION(proc_open)
 			if (i == 0) {
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
 			}
+            else {
+			    argv[i - 1] = strdup(ZSTR_VAL(arg_str));
+            }
 
-			argv[i++] = estrdup(ZSTR_VAL(arg_str));
+			i++;
 			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
-		argv[i] = NULL;
 
 		/* As the array is non-empty, we should have found a command. */
 		ZEND_ASSERT(command);
@@ -594,6 +600,8 @@ PHP_FUNCTION(proc_open)
     // the wasm way {{{
     child = js_open_process(
         command,
+        argv,
+        num_argv,
         descv,
         ndescriptors_array
 	);
@@ -651,14 +659,13 @@ PHP_FUNCTION(proc_open)
 		}
 	}
 
-	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
-		}
-		efree(argv);
-	}
+    if (argv) {
+        for(int i = 0; i < num_argv; i++)
+        {
+            free(argv[i]);
+        }
+        free(argv);
+    }
 
     if (descv) {
         for(int i = 0; i < ndescriptors_array; i++)
@@ -681,14 +688,13 @@ exit_fail:
 		pefree(command, is_persistent);
 	}
 
-	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
-		}
-		efree(argv);
-	}
+    if (argv) {
+        for(int i = 0; i < num_argv; i++)
+        {
+            free(argv[i]);
+        }
+        free(argv);
+    }
 
     if (descv) {
         for(int i = 0; i < ndescriptors_array; i++)

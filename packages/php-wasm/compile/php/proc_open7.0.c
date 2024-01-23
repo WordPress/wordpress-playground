@@ -659,6 +659,8 @@ PHP_FUNCTION(proc_open)
     // the wasm way {{{
     child = js_open_process(
 		command,
+        NULL,
+        0,
         descv,
         ndescriptors_array
 	);
