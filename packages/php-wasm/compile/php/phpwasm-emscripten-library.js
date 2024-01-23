@@ -310,9 +310,16 @@ const LibraryExample = {
         if (descriptorsLength < 2) {
 			return 1;
 		}
-		var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
 
 		var std = {};
+        // The initial offset to add to the `**int` pointer to find each descriptor array.
+        // The offset increases depending on the number of descriptors :
+        // 2 or 3 descriptors need 16 as offset, 4 or 5 descriptors need 24 as offset, and so on.
+		var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
+        // Extracts an array of available descriptors that should be dispatched to streams.
+		// On the C side, the descriptors are expressed as `**int` so we must go read
+		// each of the `descriptorsLength` `*int` pointers and convert the associated data into
+		// a JavaScript object { descriptor : { child : fd, parent : fd } }.
 		for (var i = 0; i < descriptorsLength; i++) {
 			var ptr = pointersStart + i * 16;
 			std[HEAPU8[ptr]] = {
