@@ -43,6 +43,8 @@ function rewriteWordPressUrl(unscopedUrl: URL) {
 		const filename = unscopedUrl.pathname.split('/').pop();
 		return new URL('/' + filename, unscopedUrl);
 	}
+
+	return;
 }
 
 initializeServiceWorker({
