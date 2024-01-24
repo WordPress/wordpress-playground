@@ -121,7 +121,7 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 			// Set up the environment to emulate a shell script
 			// call.
 
-			// Set SHELL_PIPE to 0 to ensure WP CLI formats
+			// Set SHELL_PIPE to 0 to ensure WP-CLI formats
 			// the output as ASCII tables.
 			// @see https://github.com/wp-cli/wp-cli/issues/1102
 			putenv( 'SHELL_PIPE=0' );
@@ -238,11 +238,11 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 		// TODO: Use a nicer default font
 		term.writeln(
 			[
-				'This is a demo of \x1b[1mwp-cli\x1b[0m in the browser :)',
+				'This is a demo of \x1b[1mWP-CLI\x1b[0m in the browser :)',
 				'',
 				"Here's a few useful commands to get you started:",
 				'',
-				' \x1b[1mwp\x1b[0m           Run WP CLI command',
+				' \x1b[1mwp\x1b[0m           Run WP-CLI command',
 				' \x1b[1mls\x1b[0m           List files',
 				' \x1b[1mcat\x1b[0m          Print file contents',
 				' \x1b[1mclear\x1b[0m        Clear the screen',
