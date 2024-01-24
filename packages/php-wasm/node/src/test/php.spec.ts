@@ -112,10 +112,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const result = await php.run({
 				code: `<?php
 				$fp = popen("cat > out", "w");
-				fwrite($fp, "WordPress\n");
+                fwrite($fp, "WordPress\n");
 				fclose($fp);
 
-				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+                sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);

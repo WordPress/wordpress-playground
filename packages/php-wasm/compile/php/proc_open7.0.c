@@ -544,7 +544,7 @@ PHP_FUNCTION(proc_open)
 		command,
         NULL,
         0,
-        descv,
+        descv[0],
         ndescriptors_array
 	);
 	// }}}

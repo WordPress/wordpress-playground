@@ -331,10 +331,11 @@ PHP_FUNCTION(proc_open)
 	zend_string *str_index;
 	zend_ulong nindex;
 	struct php_proc_open_descriptor_item *descriptors = NULL;
-    int **descv = NULL;
 	int ndescriptors_array;
 	char **argv = NULL;
     int num_argv = 0;
+    int **descv = NULL;
+    int num_descv = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
@@ -362,7 +363,7 @@ PHP_FUNCTION(proc_open)
 
         num_argv = num_elems - 1;
 
-		argv = malloc(sizeof(char *) * num_argv);
+		argv = malloc(sizeof(char *) * num_elems);
 
 		i = 0;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
@@ -375,11 +376,8 @@ PHP_FUNCTION(proc_open)
 			if (i == 0) {
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
 			}
-            else {
-			    argv[i - 1] = strdup(ZSTR_VAL(arg_str));
-            }
 
-			i++;
+            argv[i++] = strdup(ZSTR_VAL(arg_str));
 			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
 
@@ -396,13 +394,13 @@ PHP_FUNCTION(proc_open)
 
 	ndescriptors_array = zend_hash_num_elements(Z_ARRVAL_P(descriptorspec));
 
-    descv = malloc(sizeof(int *) * ndescriptors_array);
+    num_descv = ndescriptors_array;
 
-    for( int i = 0; i < ndescriptors_array; i++ )
+    descv = malloc(sizeof(int *) * num_descv);
+
+    for( int i = 0; i < num_descv; i++ )
     {
-        int *desc = malloc(sizeof(int) * 3);
-
-        descv[i] = desc;
+        descv[i] = malloc(sizeof(int) * 3);
     }
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
@@ -600,10 +598,10 @@ PHP_FUNCTION(proc_open)
     // the wasm way {{{
     child = js_open_process(
         command,
-        argv,
+        argv[1],
         num_argv,
-        descv,
-        ndescriptors_array
+        descv[0],
+        num_descv
 	);
     // }}}
 
@@ -668,7 +666,7 @@ PHP_FUNCTION(proc_open)
     }
 
     if (descv) {
-        for(int i = 0; i < ndescriptors_array; i++)
+        for(int i = 0; i < num_descv; i++)
         {
             free(descv[i]);
         }
@@ -697,7 +695,7 @@ exit_fail:
     }
 
     if (descv) {
-        for(int i = 0; i < ndescriptors_array; i++)
+        for(int i = 0; i < num_descv; i++)
         {
             free(descv[i]);
         }

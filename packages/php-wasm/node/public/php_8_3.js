@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11370260; 
+export const dependenciesTotalSize = 11370137; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5677,7 +5677,7 @@ function _js_open_process(command, args, argsLength, descriptors, descriptorsLen
  }
  let argsArray = [];
  if (argsLength) {
-  var ptr = args + (((argsLength > 1 ? argsLength : 2) >> 1) + 1) * 8;
+  var ptr = args;
   for (var i = 0; i < argsLength; i++) {
    var str = UTF8ToString(ptr);
    ptr += str.length > 16 ? str.length - str.length % 8 + ((str.length % 8 >> 2) + 1) * 8 : 16;
@@ -5688,9 +5688,8 @@ function _js_open_process(command, args, argsLength, descriptors, descriptorsLen
   return 1;
  }
  var std = {};
- var pointersStart = descriptors + ((descriptorsLength >> 1) + 1) * 8;
  for (var i = 0; i < descriptorsLength; i++) {
-  var ptr = pointersStart + i * 16;
+  var ptr = descriptors + i * 16;
   std[HEAPU8[ptr]] = {
    child: HEAPU8[ptr + 4],
    parent: HEAPU8[ptr + 8]

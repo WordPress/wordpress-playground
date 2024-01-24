@@ -129,7 +129,7 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			cmd,
             NULL,
             0,
-            descv,
+            descv[0],
             3
         );
 		// }}}

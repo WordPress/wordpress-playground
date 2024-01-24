@@ -40,7 +40,7 @@ struct php_process_handle {
 
 extern int js_waitpid(int pid, int *status);
 extern int js_process_status(int pid);
-extern int js_open_process(const char *command, char **args, int args_length, int **descv, int descv_length);
+extern int js_open_process(const char *command, char *args, int args_length, int *descv, int descv_length);
 extern char *js_create_input_device(int procopen_call_nb);
 
 static int procopen_call_id = 0;
