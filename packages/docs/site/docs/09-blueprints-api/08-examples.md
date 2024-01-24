@@ -34,22 +34,14 @@ Let's see some cool things you can do with Blueprints.
 
 <BlueprintExample
 display={`{
-    "steps": [
-        {
-            "step": "runPHP",
-            "code": \`<?php
-include 'wordpress/wp-load.php';
-wp_insert_post(array(
-'post_title' => 'Post title',
-'post_content' => 'Post content',
-'post_status' => 'publish',
-'post_author' => 1
-));
-\`
-}
-]
-}`	}
-	blueprint={{
+	"steps": [
+		{
+			"step": "runPHP",
+			"code": "<?php include 'wordpress/wp-load.php'; wp_insert_post(array( 'post_title' => 'Post title', 'post_content' => 'Post content', 'post_status' => 'publish', 'post_author' => 1 )); "
+		}
+	]
+}` }
+blueprint={{
 		"steps": [
 			{
 				"step": "runPHP",
@@ -68,28 +60,25 @@ wp_insert_post(array(
 
 #### Enable an option on the Gutenberg Experiments page
 
-Here: Switch on the "new admin views" feature. 
+Here: Switch on the "new admin views" feature.
 
 <BlueprintExample
 display={`{
-    "steps": [
-        {
-            "step": "runPHP",
-            "code": \`<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );
-\`
-}
-]
-}`	}
-	blueprint={{
+	"steps": [
+		{
+			"step": "runPHP",
+			"code": "<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );"
+		}
+	]
+}`}
+blueprint={{
 		"steps": [
 			{
 				"step": "runPHP",
-				"code": `<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );
-`
-}
-]
+				"code": "<?php require '/wordpress/wp-load.php'; update_option( 'gutenberg-experiments', array( 'gutenberg-dataviews' => true ) );"
+			}
+		]
 }} />
-
 
 ### Showcase a product demo
 
