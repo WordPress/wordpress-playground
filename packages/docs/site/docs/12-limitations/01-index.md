@@ -23,7 +23,7 @@ Also, JavaScript popup windows originating in the iframe may not be displayed in
 
 ### Pthreads Support
 
-The WebAssembly version of PHP is built without pthreads support, which means you cannot use `pcntl_` functions like `pcntl_fork()` or `pcntl_exec()`. Most of the time, you don't need them, but there are a few `wp-cli` commands and a few corner-cases in PHPUnit tests that use them.
+The WebAssembly version of PHP is built without pthreads support, which means you cannot use `pcntl_` functions like `pcntl_fork()` or `pcntl_exec()`. Most of the time, you don't need them, but there are a few WP-CLI commands and a few corner-cases in PHPUnit tests that use them.
 
 You can track the progress of adding pthreads support at https://github.com/WordPress/wordpress-playground/issues/347.
 
