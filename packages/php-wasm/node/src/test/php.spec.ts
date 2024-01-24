@@ -111,10 +111,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('popen("cat", "w")', async () => {
 			const result = await php.run({
 				code: `<?php
-				$path = __DIR__;
 				$fp = popen("cat > out", "w");
 				fwrite($fp, "WordPress\n");
-				$out = fclose($fp);
+				fclose($fp);
 
 				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
@@ -142,8 +141,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 					),
 					$pipes
 				);
-
 				proc_close($res);
+
+                sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
 				$stdout = file_get_contents("/tmp/process_out");
 				$stderr = file_get_contents("/tmp/process_err");
