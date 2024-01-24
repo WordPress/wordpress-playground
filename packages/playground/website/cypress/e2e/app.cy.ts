@@ -65,7 +65,10 @@ describe('Query API', () => {
 			cy.visit('/?url=/wp-admin/plugin-install.php');
 			cy.wordPressDocument()
 				.find('.notice.error')
-				.should('contain', 'Enable networking support in Playground');
+				.should(
+					'contain',
+					'Network access is an experimental, opt-in feature'
+				);
 		});
 
 		it('should enable networking when requested', () => {

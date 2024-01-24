@@ -20,34 +20,56 @@ EOT;
  * makes it more clear that the feature is not yet supported.
  * 
  * https://github.com/WordPress/wordpress-playground/issues/498
+ * 
+ * Added styling to hide the Popular tags section of the Plugins page
+ * and the nonfunctional Try Again button (both Plugins and Themes) that's
+ * appended when the message is displayed.
+ * 
+ * https://github.com/WordPress/wordpress-playground/issues/927
+ * 
  */
+
+ add_action('admin_head', function () {
+  echo '<style>
+					:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
+					button.button.try-again) {
+							display: none;
+					}
+  			</style>';
+});
+
+add_action('init', 'networking_disabled');
+function networking_disabled() {
+	$networking_err_msg = '<div class="networking_err_msg">Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85">experimental, opt-in feature</a>, which means you need to enable it to allow Playground to access the Plugins/Themes directories.
+	<p>There are two alternative methods to enable global networking support:</p>
+	<ol>
+	<li>Using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a>: for example, https://playground.wordpress.net/<em>?networking=yes</em>; <strong>or</strong>
+	<li> Using the <a href="https://wordpress.github.io/wordpress-playground/blueprints-api/data-format/#features">Blueprint API</a>: add <code>"features": { "networking": true }</code> to the JSON file.
+	</li></ol>
+	<p>
+	When browsing Playground as a standalone instance, you can enable networking via the settings panel: select the option "Network access (e.g. for browsing plugins)" and hit the "Apply changes" button.<p>
+	<strong>Please note:</strong> This option is hidden when browsing Playground as an embedded iframe.</p></div>';
+	return $networking_err_msg;
+}
+
 add_filter('plugins_api_result', function ($res) {
 	if ($res instanceof WP_Error) {
 		$res = new WP_Error(
 			'plugins_api_failed',
-			'Enable networking support in Playground settings to access the Plugins directory. Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85" target="_blank">experimental, opt-in feature</a>. If you don\'t want to use it, you can still upload plugins or install them using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a> (e.g. ?plugin=coblocks).'
-		);
+			networking_disabled()
+    );
 	}
 	return $res;
 });
 
 add_filter('gettext', function ($translation) {
-	// There is no better hook for swapping the error message
-	// on the themes page, unfortunately.
-	global $pagenow;
-
-	// Only change the message on /wp-admin/theme-install.php
-	if ('theme-install.php' !== $pagenow) {
-		return $translation;
-	}
-
-	if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
-		return 'Enable networking support in Playground settings to access the Themes directory. Network access is an <a href="https://github.com/WordPress/wordpress-playground/issues/85" target="_blank">experimental, opt-in feature</a>. If you don\'t want to use it, you can still upload themes or install them using the <a href="https://wordpress.github.io/wordpress-playground/query-api">Query API</a> (e.g. ?theme=pendant).';
+	if( $GLOBALS['pagenow'] === 'theme-install.php') {
+		if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
+		return networking_disabled();
+		}
 	}
 	return $translation;
 });
-
-
 
 /**
  * Links with target="top" don't work in the playground iframe because of
