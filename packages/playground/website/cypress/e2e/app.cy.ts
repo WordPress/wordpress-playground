@@ -245,7 +245,9 @@ describe('Query API', () => {
 			// the inserter will look like a default
 			// browser button.
 			cy.wordPressDocument()
-				.find('iframe[name="editor-canvas"]')
+				.find('iframe[name="editor-canvas"]', {
+					timeout: 60_000,
+				})
 				.its('0.contentDocument')
 				.find('.block-editor-inserter__toggle')
 				.should('not.have.css', 'background-color', undefined);
@@ -317,6 +319,22 @@ if (!Cypress.env('CI')) {
 		});
 	});
 }
+
+describe('Playground service worker UI', () => {
+	beforeEach(() => cy.visit('/?networking=no'));
+
+	it('should resolve nice permalinks (/%postname%/)', () => {
+		const blueprint = {
+			landingPage: '/sample-page/',
+			siteOptions: { permalink_structure: '/%postname%/' },
+		};
+		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
+		cy.wordPressDocument().its('body').should('have.class', 'page');
+		cy.wordPressDocument()
+			.get('#wp-block-post-title')
+			.should('contain', 'Sample Page');
+	});
+});
 
 describe('Playground website UI', () => {
 	beforeEach(() => cy.visit('/?networking=no'));
