@@ -1,14 +1,9 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
-import patchedSqliteTranslator from './class-wp-sqlite-translator.php?raw';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 import { phpVar, phpVars } from '@php-wasm/util';
 
 export async function installSqlSyncMuPlugin(playground: UniversalPHP) {
-	await playground.writeFile(
-		'/wordpress/wp-content/plugins/sqlite-database-integration/wp-includes/sqlite/class-wp-sqlite-translator.php',
-		patchedSqliteTranslator
-	);
 	await playground.writeFile(
 		`/wordpress/wp-content/mu-plugins/sync-mu-plugin.php`,
 		logSqlQueries
