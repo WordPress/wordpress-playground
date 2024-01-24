@@ -8,7 +8,7 @@ export const wpContentFilesExcludedFromExport = [
 	'plugins/akismet',
 	'plugins/hello.php',
 	'plugins/wordpress-importer',
-	'plugins/sqlite-database-integration',
+	'mu-plugins/sqlite-database-integration',
 	'mu-plugins/playground-includes',
 	'mu-plugins/export-wxz.php',
 	'mu-plugins/0-playground.php',
