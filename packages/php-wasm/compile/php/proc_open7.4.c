@@ -365,20 +365,22 @@ PHP_FUNCTION(proc_open)
 
 		argv = malloc(sizeof(char *) * num_elems);
 
-		i = 0;
+		i = -1;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
+			++i;
 			zend_string *arg_str = get_valid_arg_string(arg_zv, i + 1);
 			if (!arg_str) {
 				argv[i] = NULL;
 				goto exit_fail;
 			}
 
-			if (i == 0) {
+			if (i == 0)
+			{
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
+			} else {
+				argv[i - 1] = strdup(ZSTR_VAL(arg_str));
+				zend_string_release(arg_str);
 			}
-
-            argv[i++] = strdup(ZSTR_VAL(arg_str));
-			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
 
 		/* As the array is non-empty, we should have found a command. */
@@ -598,9 +600,9 @@ PHP_FUNCTION(proc_open)
     // the wasm way {{{
     child = js_open_process(
         command,
-        argv[1],
+        argv,
         num_argv,
-        descv[0],
+        descv,
         num_descv
 	);
     // }}}

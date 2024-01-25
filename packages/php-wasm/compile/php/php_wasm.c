@@ -125,21 +125,12 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
         descv[2] = stderr;
 
 
-
-        char *temp = malloc(sizeof(char));
-
-        sprintf( temp , "%d", (int) descv);
-
-        free(temp);
-
-
-
 		// the wasm way {{{
 		js_open_process(
 			cmd,
             NULL,
             0,
-            descv[0],
+            descv,
             3
         );
 		// }}}

@@ -291,15 +291,15 @@ const LibraryExample = {
 	 * @param {int} command Command to execute (string pointer).
 	 * @param {int} args Arguments linked with command (string array pointer).
 	 * @param {int} argsLength Argument length.
-	 * @param {int} descriptors Descriptor specs (int array pointer, [ number, child, parent ] ).
+	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
 	 * @param {int} descriptorsLength Descriptor length.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
 	js_open_process: function (
 		command,
-		args,
+		argsPtr,
 		argsLength,
-		descriptors,
+		descriptorsPtr,
 		descriptorsLength
 	) {
 		if (!command) {
@@ -312,26 +312,10 @@ const LibraryExample = {
 		}
 
 		let argsArray = [];
-
 		if (argsLength) {
-			var ptr = args;
-			// Extracts an array of CLI arguments that should be passed to `command`.
-			// On the C side, the args are expressed as `**char` so we must go read
-			// each of the `argsLength` `*char` pointers and convert the associated data into
-			// a JavaScript string.
 			for (var i = 0; i < argsLength; i++) {
-				var str = UTF8ToString(ptr);
-				// The exact offset between two arguments, depends on the length of the actual argument.
-				// The minimum offset is 16. If the string length is above 16, the correct offset has to be a multiple of 8.
-				// If the modullo of the string length is below 4, string length - modullo + 8. If over 4, then + 16;
-				// Ex : arg length == 55. 55 - 7 + 16 = 64. Next argument is at previous pointer + 64.
-				ptr +=
-					str.length > 16
-						? str.length -
-						  (str.length % 8) +
-						  ((str.length % 8 >> 2) + 1) * 8
-						: 16;
-				argsArray.push(str);
+				const charPointer = argsPtr + i * 4;
+				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
 			}
 		}
 
@@ -345,10 +329,10 @@ const LibraryExample = {
 		// each of the `descriptorsLength` `*int` pointers and convert the associated data into
 		// a JavaScript object { descriptor : { child : fd, parent : fd } }.
 		for (var i = 0; i < descriptorsLength; i++) {
-			var ptr = descriptors + i * 16;
-			std[HEAPU8[ptr]] = {
-				child: HEAPU8[ptr + 4],
-				parent: HEAPU8[ptr + 8],
+			const descriptorPtr = HEAPU32[(descriptorsPtr + i * 4) >> 2];
+			std[HEAPU32[descriptorPtr >> 2]] = {
+				child: HEAPU32[(descriptorPtr + 4) >> 2],
+				parent: HEAPU32[(descriptorPtr + 8) >> 2],
 			};
 		}
 
