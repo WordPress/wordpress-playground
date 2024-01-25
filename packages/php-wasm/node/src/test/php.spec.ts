@@ -115,8 +115,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
                 fwrite($fp, "WordPress\n");
 				fclose($fp);
 
-                sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
-
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
 				pclose($fp);

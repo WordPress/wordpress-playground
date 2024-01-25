@@ -340,8 +340,9 @@ PHP_FUNCTION(proc_open)
 	zend_string *str_index;
 	zend_ulong nindex;
 	struct php_proc_open_descriptor_item *descriptors = NULL;
-    int **descv = NULL;
 	int ndescriptors_array;
+    int **descv = NULL;
+    int num_descv = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
@@ -372,13 +373,13 @@ PHP_FUNCTION(proc_open)
 
 	ndescriptors_array = zend_hash_num_elements(Z_ARRVAL_P(descriptorspec));
 
-	descv = malloc(sizeof(int *) * ndescriptors_array);
+    num_descv = ndescriptors_array;
 
-    for( int i = 0; i < ndescriptors_array; i++ )
+    descv = malloc(sizeof(int *) * num_descv);
+
+    for( int i = 0; i < num_descv; i++ )
     {
-        int *desc = malloc(sizeof(int) * 3);
-
-        descv[i] = desc;
+        descv[i] = malloc(sizeof(int) * 3);
     }
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
@@ -541,13 +542,14 @@ PHP_FUNCTION(proc_open)
 
     // the wasm way {{{
     child = js_open_process(
-		command,
+        command,
         NULL,
         0,
         descv[0],
-        ndescriptors_array
+        num_descv
 	);
-	// }}}
+    // }}}
+
 	/* we forked/spawned and this is the parent */
 
 	proc = (struct php_process_handle*)pemalloc(sizeof(struct php_process_handle), is_persistent);
@@ -614,7 +616,7 @@ PHP_FUNCTION(proc_open)
 	}
 
     if (descv) {
-        for(int i = 0; i < ndescriptors_array; i++)
+        for(int i = 0; i < num_descv; i++)
         {
             free(descv[i]);
         }
@@ -639,7 +641,7 @@ exit_fail:
 #endif
 
     if (descv) {
-        for(int i = 0; i < ndescriptors_array; i++)
+        for(int i = 0; i < num_descv; i++)
         {
             free(descv[i]);
         }

@@ -124,6 +124,16 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
         descv[1] = stdout;
         descv[2] = stderr;
 
+
+
+        char *temp = malloc(sizeof(char));
+
+        sprintf( temp , "%d", (int) descv);
+
+        free(temp);
+
+
+
 		// the wasm way {{{
 		js_open_process(
 			cmd,
@@ -1469,7 +1479,7 @@ void wasm_sapi_module_shutdown()
 #endif
 	if (php_wasm_sapi_module.ini_entries)
 	{
-		free(php_wasm_sapi_module.ini_entries);
+		free((void *)php_wasm_sapi_module.ini_entries);
 		php_wasm_sapi_module.ini_entries = NULL;
 	}
 }
@@ -1676,7 +1686,7 @@ int php_wasm_init()
 	else
 	{
 		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
+		memcpy((void *)php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
 	}
 
 	php_sapi_started = 1;
