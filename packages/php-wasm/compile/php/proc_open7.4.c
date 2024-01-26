@@ -333,7 +333,7 @@ PHP_FUNCTION(proc_open)
 	struct php_proc_open_descriptor_item *descriptors = NULL;
 	int ndescriptors_array;
 	char **argv = NULL;
-    int num_argv = 0;
+	int num_argv = 0;
     int **descv = NULL;
     int num_descv = 0;
 	php_process_id_t child;
@@ -363,7 +363,7 @@ PHP_FUNCTION(proc_open)
 
         num_argv = num_elems - 1;
 
-		argv = malloc(sizeof(char *) * num_elems);
+		argv = safe_emalloc(sizeof(char *), num_argv, 0);
 
 		i = -1;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
@@ -378,7 +378,7 @@ PHP_FUNCTION(proc_open)
 			{
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
 			} else {
-				argv[i - 1] = strdup(ZSTR_VAL(arg_str));
+				argv[i - 1] = estrdup(ZSTR_VAL(arg_str));
 			}
 
 			zend_string_release(arg_str);
@@ -399,12 +399,7 @@ PHP_FUNCTION(proc_open)
 
     num_descv = ndescriptors_array;
 
-    descv = malloc(sizeof(int *) * num_descv);
-
-    for( int i = 0; i < num_descv; i++ )
-    {
-        descv[i] = malloc(sizeof(int) * 3);
-    }
+    descv = safe_emalloc(sizeof(int *), num_descv, 0);
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
@@ -591,9 +586,13 @@ PHP_FUNCTION(proc_open)
 			}
 		}
 
-        descv[ndesc][0] = descriptors[ndesc].index;
-        descv[ndesc][1] = descriptors[ndesc].childend;
-        descv[ndesc][2] = descriptors[ndesc].parentend;
+		int *desc = safe_emalloc(sizeof(int), 3, 0);
+
+        desc[0] = descriptors[ndesc].index;
+        desc[1] = descriptors[ndesc].childend;
+        desc[2] = descriptors[ndesc].parentend;
+
+		descv[ndesc] = desc;
 
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
@@ -663,17 +662,17 @@ PHP_FUNCTION(proc_open)
     if (argv) {
         for(int i = 0; i < num_argv; i++)
         {
-            free(argv[i]);
+            efree(argv[i]);
         }
-        free(argv);
+        efree(argv);
     }
 
     if (descv) {
         for(int i = 0; i < num_descv; i++)
         {
-            free(descv[i]);
+            efree(descv[i]);
         }
-        free(descv);
+        efree(descv);
 	}
 
 	efree(descriptors);
@@ -692,17 +691,17 @@ exit_fail:
     if (argv) {
         for(int i = 0; i < num_argv; i++)
         {
-            free(argv[i]);
+            efree(argv[i]);
         }
-        free(argv);
+        efree(argv);
     }
 
     if (descv) {
         for(int i = 0; i < num_descv; i++)
         {
-            free(descv[i]);
+            efree(descv[i]);
         }
-        free(descv);
+        efree(descv);
 	}
 
 	RETURN_FALSE;

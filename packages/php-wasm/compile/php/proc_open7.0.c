@@ -358,12 +358,7 @@ PHP_FUNCTION(proc_open)
 
     num_descv = ndescriptors_array;
 
-    descv = malloc(sizeof(int *) * num_descv);
-
-    for( int i = 0; i < num_descv; i++ )
-    {
-        descv[i] = malloc(sizeof(int) * 3);
-    }
+    descv = safe_emalloc(sizeof(int *), num_descv, 0);
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
@@ -492,9 +487,13 @@ PHP_FUNCTION(proc_open)
 			}
 		}
 
-        descv[ndesc][0] = descriptors[ndesc].index;
-        descv[ndesc][1] = descriptors[ndesc].childend;
-        descv[ndesc][2] = descriptors[ndesc].parentend;
+		int *desc = safe_emalloc(sizeof(int), 3, 0);
+
+        desc[0] = descriptors[ndesc].index;
+        desc[1] = descriptors[ndesc].childend;
+        desc[2] = descriptors[ndesc].parentend;
+
+		descv[ndesc] = desc;
 
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
@@ -566,9 +565,9 @@ PHP_FUNCTION(proc_open)
     if (descv) {
         for(int i = 0; i < num_descv; i++)
         {
-            free(descv[i]);
+            efree(descv[i]);
         }
-        free(descv);
+        efree(descv);
 	}
 
 	efree(descriptors);
@@ -587,9 +586,9 @@ exit_fail:
     if (descv) {
         for(int i = 0; i < num_descv; i++)
         {
-            free(descv[i]);
+            efree(descv[i]);
         }
-        free(descv);
+        efree(descv);
 	}
 
 	RETURN_FALSE;

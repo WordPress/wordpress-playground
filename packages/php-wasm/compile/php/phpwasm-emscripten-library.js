@@ -290,9 +290,9 @@ const LibraryExample = {
 	 *
 	 * @param {int} command Command to execute (string pointer).
 	 * @param {int} argsPtr Arguments linked with command (string array pointer).
-	 * @param {int} argsLength Argument length.
+	 * @param {int} argsLength Number of arguments.
 	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
-	 * @param {int} descriptorsLength Descriptor length.
+	 * @param {int} descriptorsLength Number of descriptors.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
 	js_open_process: function (
@@ -317,10 +317,6 @@ const LibraryExample = {
 				const charPointer = argsPtr + i * 4;
 				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
 			}
-		}
-
-		if (descriptorsLength < 2) {
-			return 1;
 		}
 
 		var std = {};
@@ -353,14 +349,12 @@ const LibraryExample = {
 			const ProcInfo = {
 				pid: cp.pid,
 				exited: false,
-				stdinFd: std[0] ? std[0].child : null,
-				stdinIsDevice: std[0]
-					? std[0].child in PHPWASM.input_devices
-					: null,
-				stdoutChildFd: std[1] ? std[1].child : null,
-				stdoutParentFd: std[1] ? std[1].parent : null,
-				stderrChildFd: std[2] ? std[2].child : null,
-				stderrParentFd: std[2] ? std[2].parent : null,
+				stdinFd: std[0]?.child,
+				stdinIsDevice: std[0]?.child in PHPWASM.input_devices,
+				stdoutChildFd: std[1]?.child,
+				stdoutParentFd: std[1]?.parent,
+				stderrChildFd: std[2]?.child,
+				stderrParentFd: std[2]?.parent,
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
@@ -383,14 +377,13 @@ const LibraryExample = {
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
-			const stdoutStream = std[1]
-				? SYSCALLS.getStreamFromFD(ProcInfo.stdoutChildFd)
-				: null;
-			let stdoutAt = 0;
-			cp.stdout.on('data', function (data) {
-				ProcInfo.stdout.emit('data', data);
-
-				if (stdoutStream) {
+			if (ProcInfo.stdoutChildFd) {
+				const stdoutStream = SYSCALLS.getStreamFromFD(
+					ProcInfo.stdoutChildFd
+				);
+				let stdoutAt = 0;
+				cp.stdout.on('data', function (data) {
+					ProcInfo.stdout.emit('data', data);
 					stdoutStream.stream_ops.write(
 						stdoutStream,
 						data,
@@ -398,18 +391,18 @@ const LibraryExample = {
 						data.length,
 						stdoutAt
 					);
-				}
-				stdoutAt += data.length;
-			});
+					stdoutAt += data.length;
+				});
+			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
-			const stderrStream = std[2]
-				? SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd)
-				: null;
-			let stderrAt = 0;
-			cp.stderr.on('data', function (data) {
-				ProcInfo.stderr.emit('data', data);
-				if (stderrStream) {
+			if (ProcInfo.stderrChildFd) {
+				const stderrStream = SYSCALLS.getStreamFromFD(
+					ProcInfo.stderrChildFd
+				);
+				let stderrAt = 0;
+				cp.stderr.on('data', function (data) {
+					ProcInfo.stderr.emit('data', data);
 					stderrStream.stream_ops.write(
 						stderrStream,
 						data,
@@ -417,9 +410,9 @@ const LibraryExample = {
 						data.length,
 						stderrAt
 					);
-				}
-				stderrAt += data.length;
-			});
+					stderrAt += data.length;
+				});
+			}
 
 			/**
 			 * Wait until the child process has been spawned.

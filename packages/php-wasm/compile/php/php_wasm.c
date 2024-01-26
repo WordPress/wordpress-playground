@@ -102,11 +102,9 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			return 0;
 		}
 
-        int **descv = malloc(sizeof(int *) * 3);
-
-        int *stdin = malloc(sizeof(int) * 3);
-        int *stdout = malloc(sizeof(int) * 3);
-        int *stderr = malloc(sizeof(int) * 3);
+        int *stdin = safe_emalloc(sizeof(int), 3, 0);
+        int *stdout = safe_emalloc(sizeof(int), 3, 0);
+        int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
         stdin[0] = 0;
         stdin[1] = stdin_childend;
@@ -119,6 +117,8 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
         stderr[0] = 2;
         stderr[1] = stderr_pipe[0];
         stderr[2] = stderr_pipe[1];
+
+        int **descv = safe_emalloc(sizeof(int *), 3, 0);
 
         descv[0] = stdin;
         descv[1] = stdout;
@@ -135,11 +135,11 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
         );
 		// }}}
 
-        free(stdin);
-        free(stdout);
-        free(stderr);
+        efree(stdin);
+        efree(stdout);
+        efree(stderr);
 
-        free(descv);
+        efree(descv);
 	}
 	else
 	{
