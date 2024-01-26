@@ -67,7 +67,7 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each(['8.0'])('PHP %s', (phpVersion) => {
+describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
@@ -116,7 +116,7 @@ describe.each(['8.0'])('PHP %s', (phpVersion) => {
 				fclose($fp);
 
 				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
-				
+
 				$fp = popen("cat out", "r");
 				echo 'stdout: ' . fread($fp, 1024);
 				pclose($fp);
@@ -413,22 +413,22 @@ describe.each(['8.0'])('PHP %s', (phpVersion) => {
 			const result = await php.run({
 				code: `<?php
 
-                $command = "echo 'Hello World!'";
+				$command = "echo 'Hello World!'";
 
-                $descriptorspec = [
-                    0 => [ "pipe", "r" ],
-                    1 => [ "pipe", "w" ],
-                    2 => [ "pipe", "w" ]
-                ];
+				$descriptorspec = [
+					0 => [ "pipe", "r" ],
+					1 => [ "pipe", "w" ],
+					2 => [ "pipe", "w" ]
+				];
 
-                $res = proc_open( $command, $descriptorspec, $pipes );
+				$res = proc_open( $command, $descriptorspec, $pipes );
 
-                $stdout = stream_get_contents($pipes[1]);
+				$stdout = stream_get_contents($pipes[1]);
 
-                proc_close($res);
+				proc_close($res);
 
-                echo $stdout;
-            `,
+				echo $stdout;
+			`,
 			});
 			expect(result.text).toEqual('Hello World!\n');
 		});

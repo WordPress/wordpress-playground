@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_4_33/php_7_4.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11983523; 
+export const dependenciesTotalSize = 11983486; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5646,7 +5646,7 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, args, argsLength, descriptors, descriptorsLength) {
+function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descriptorsLength) {
  if (!command) {
   return 1;
  }
@@ -5656,11 +5656,9 @@ function _js_open_process(command, args, argsLength, descriptors, descriptorsLen
  }
  let argsArray = [];
  if (argsLength) {
-  var ptr = args;
   for (var i = 0; i < argsLength; i++) {
-   var str = UTF8ToString(ptr);
-   ptr += str.length > 16 ? str.length - str.length % 8 + ((str.length % 8 >> 2) + 1) * 8 : 16;
-   argsArray.push(str);
+   const charPointer = argsPtr + i * 4;
+   argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
   }
  }
  if (descriptorsLength < 2) {
@@ -5668,10 +5666,10 @@ function _js_open_process(command, args, argsLength, descriptors, descriptorsLen
  }
  var std = {};
  for (var i = 0; i < descriptorsLength; i++) {
-  var ptr = descriptors + i * 16;
-  std[HEAPU8[ptr]] = {
-   child: HEAPU8[ptr + 4],
-   parent: HEAPU8[ptr + 8]
+  const descriptorPtr = HEAPU32[descriptorsPtr + i * 4 >> 2];
+  std[HEAPU32[descriptorPtr >> 2]] = {
+   child: HEAPU32[descriptorPtr + 4 >> 2],
+   parent: HEAPU32[descriptorPtr + 8 >> 2]
   };
  }
  return Asyncify.handleSleep((async wakeUp => {

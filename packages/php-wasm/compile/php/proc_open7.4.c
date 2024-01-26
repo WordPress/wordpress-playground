@@ -379,8 +379,9 @@ PHP_FUNCTION(proc_open)
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
 			} else {
 				argv[i - 1] = strdup(ZSTR_VAL(arg_str));
-				zend_string_release(arg_str);
 			}
+
+			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
 
 		/* As the array is non-empty, we should have found a command. */

@@ -289,7 +289,7 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} args Arguments linked with command (string array pointer).
+	 * @param {int} argsPtr Arguments linked with command (string array pointer).
 	 * @param {int} argsLength Argument length.
 	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
 	 * @param {int} descriptorsLength Descriptor length.

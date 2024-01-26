@@ -38,26 +38,13 @@
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
-#if HAVE_SIGNAL_H
 #include <signal.h>
-#endif
 
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 #if HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
-
-/* This symbol is defined in ext/standard/config.m4.
- * Essentially, it is set if you HAVE_FORK
- * Other platforms may modify that configure check and add suitable #ifdefs
- * around the alternate code.
- * */
-#if 0 && HAVE_PTSNAME && HAVE_GRANTPT && HAVE_UNLOCKPT && HAVE_SYS_IOCTL_H && HAVE_TERMIOS_H
-# include <sys/ioctl.h>
-# include <termios.h>
-# define PHP_CAN_DO_PTS	1
 #endif
 
 #include "proc_open.h"
@@ -346,10 +333,6 @@ PHP_FUNCTION(proc_open)
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
-#if PHP_CAN_DO_PTS
-	php_file_descriptor_t dev_ptmx = -1;	/* master */
-	php_file_descriptor_t slave_pty = -1;
-#endif
 
 	ZEND_PARSE_PARAMETERS_START(3, 6)
 		Z_PARAM_STRING(command, command_len)
@@ -501,31 +484,8 @@ PHP_FUNCTION(proc_open)
 				descriptors[ndesc].childend = fd;
 
 			} else if (strcmp(Z_STRVAL_P(ztype), "pty") == 0) {
-#if PHP_CAN_DO_PTS
-				if (dev_ptmx == -1) {
-					/* open things up */
-					dev_ptmx = open("/dev/ptmx", O_RDWR);
-					if (dev_ptmx == -1) {
-						php_error_docref(NULL, E_WARNING, "failed to open /dev/ptmx, errno %d", errno);
-						goto exit_fail;
-					}
-					grantpt(dev_ptmx);
-					unlockpt(dev_ptmx);
-					slave_pty = open(ptsname(dev_ptmx), O_RDWR);
-
-					if (slave_pty == -1) {
-						php_error_docref(NULL, E_WARNING, "failed to open slave pty, errno %d", errno);
-						goto exit_fail;
-					}
-				}
-				descriptors[ndesc].mode = DESC_PIPE;
-				descriptors[ndesc].childend = dup(slave_pty);
-				descriptors[ndesc].parentend = dup(dev_ptmx);
-				descriptors[ndesc].mode_flags = O_RDWR;
-#else
 				php_error_docref(NULL, E_WARNING, "pty pseudo terminal not supported on this system");
 				goto exit_fail;
-#endif
 			} else {
 				php_error_docref(NULL, E_WARNING, "%s is not a valid descriptor spec/mode", Z_STRVAL_P(ztype));
 				goto exit_fail;
@@ -539,18 +499,24 @@ PHP_FUNCTION(proc_open)
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
 
-
     // the wasm way {{{
     child = js_open_process(
         command,
         NULL,
         0,
-        descv[0],
+        descv,
         num_descv
 	);
     // }}}
 
 	/* we forked/spawned and this is the parent */
+
+	zval_ptr_dtor(pipes);
+	array_init(pipes);
+
+	if (!pipes) {
+		goto exit_fail;
+	}
 
 	proc = (struct php_process_handle*)pemalloc(sizeof(struct php_process_handle), is_persistent);
 	proc->is_persistent = is_persistent;
@@ -560,23 +526,10 @@ PHP_FUNCTION(proc_open)
 	proc->child = child;
 	proc->env = env;
 
-	zval_ptr_dtor(pipes);
-	array_init(pipes);
-
-#if PHP_CAN_DO_PTS
-	if (dev_ptmx >= 0) {
-		close(dev_ptmx);
-		close(slave_pty);
-	}
-#endif
-
-	/* clean up all the child ends and then open streams on the parent
-	 * ends, where appropriate */
+	/* open streams on the parent ends, where appropriate */
 	for (i = 0; i < ndesc; i++) {
 		char *mode_string=NULL;
 		php_stream *stream = NULL;
-
-		close_descriptor(descriptors[i].childend);
 
 		switch (descriptors[i].mode & ~DESC_PARENT_MODE_WRITE) {
 			case DESC_PIPE:
@@ -591,12 +544,7 @@ PHP_FUNCTION(proc_open)
 						mode_string = "r+";
 						break;
 				}
-
 				stream = php_stream_fopen_from_fd(descriptors[i].parentend, mode_string, NULL);
-# if defined(F_SETFD) && defined(FD_CLOEXEC)
-				/* mark the descriptor close-on-exec, so that it won't be inherited by potential other children */
-				fcntl(descriptors[i].parentend, F_SETFD, FD_CLOEXEC);
-#endif
 				if (stream) {
 					zval retfp;
 
@@ -628,17 +576,13 @@ PHP_FUNCTION(proc_open)
 	return;
 
 exit_fail:
-	efree(descriptors);
+	if (descriptors) {
+		efree(descriptors);
+	}
 	_php_free_envp(env, is_persistent);
-	pefree(command, is_persistent);
-#if PHP_CAN_DO_PTS
-	if (dev_ptmx >= 0) {
-		close(dev_ptmx);
+	if (command) {
+		pefree(command, is_persistent);
 	}
-	if (slave_pty >= 0) {
-		close(slave_pty);
-	}
-#endif
 
     if (descv) {
         for(int i = 0; i < num_descv; i++)
