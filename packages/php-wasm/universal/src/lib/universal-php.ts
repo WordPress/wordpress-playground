@@ -438,7 +438,7 @@ type ChildProcess = EventEmitter & {
 	stdout: EventEmitter;
 	stderr: EventEmitter;
 };
-export type SpawnHandler = (command: string) => ChildProcess;
+export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
 
 export type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
 export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;

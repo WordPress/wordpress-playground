@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 10993954; 
+export const dependenciesTotalSize = 10994236; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5487,27 +5487,27 @@ var PHPWASM = {
   return Array.from(peers);
  },
  awaitData: function(ws) {
-  return PHPWASM.awaitWsEvent(ws, "message");
+  return PHPWASM.awaitEvent(ws, "message");
  },
  awaitConnection: function(ws) {
   if (ws.OPEN === ws.readyState) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "open");
+  return PHPWASM.awaitEvent(ws, "open");
  },
  awaitClose: function(ws) {
   if ([ ws.CLOSING, ws.CLOSED ].includes(ws.readyState)) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "close");
+  return PHPWASM.awaitEvent(ws, "close");
  },
  awaitError: function(ws) {
   if ([ ws.CLOSING, ws.CLOSED ].includes(ws.readyState)) {
    return [ Promise.resolve(), PHPWASM.noop ];
   }
-  return PHPWASM.awaitWsEvent(ws, "error");
+  return PHPWASM.awaitEvent(ws, "error");
  },
- awaitWsEvent: function(ws, event) {
+ awaitEvent: function(ws, event) {
   let resolve;
   const listener = () => {
    resolve();
@@ -5523,9 +5523,9 @@ var PHPWASM = {
   return [ promise, cancel ];
  },
  noop: function() {},
- spawnProcess: function(command) {
+ spawnProcess: function(command, args) {
   if (Module["spawnProcess"]) {
-   const spawnedPromise = Module["spawnProcess"](command);
+   const spawnedPromise = Module["spawnProcess"](command, args);
    return Promise.resolve(spawnedPromise).then((function(spawned) {
     if (!spawned || !spawned.on) {
      throw new Error("spawnProcess() must return an EventEmitter but returned a different type.");
@@ -5662,7 +5662,7 @@ function _js_module_onMessage(data, bufPtr) {
  }
 }
 
-function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stderrChildFd, stderrParentFd) {
+function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descriptorsLength) {
  if (!command) {
   return 1;
  }
@@ -5670,10 +5670,25 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
  if (!cmdstr.length) {
   return 0;
  }
+ let argsArray = [];
+ if (argsLength) {
+  for (var i = 0; i < argsLength; i++) {
+   const charPointer = argsPtr + i * 4;
+   argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
+  }
+ }
+ var std = {};
+ for (var i = 0; i < descriptorsLength; i++) {
+  const descriptorPtr = HEAPU32[descriptorsPtr + i * 4 >> 2];
+  std[HEAPU32[descriptorPtr >> 2]] = {
+   child: HEAPU32[descriptorPtr + 4 >> 2],
+   parent: HEAPU32[descriptorPtr + 8 >> 2]
+  };
+ }
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr);
+   cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
   } catch (e) {
    if (e.code === "SPAWN_UNSUPPORTED") {
     wakeUp(1);
@@ -5686,19 +5701,19 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
   const ProcInfo = {
    pid: cp.pid,
    exited: false,
-   stdinFd: stdinFd,
-   stdinIsDevice: stdinFd in PHPWASM.input_devices,
-   stdoutChildFd: stdoutChildFd,
-   stdoutParentFd: stdoutParentFd,
-   stderrChildFd: stderrChildFd,
-   stderrParentFd: stderrParentFd,
+   stdinFd: std[0]?.child,
+   stdinIsDevice: std[0]?.child in PHPWASM.input_devices,
+   stdoutChildFd: std[1]?.child,
+   stdoutParentFd: std[1]?.parent,
+   stderrChildFd: std[2]?.child,
+   stderrParentFd: std[2]?.parent,
    stdout: new PHPWASM.EventEmitter,
    stderr: new PHPWASM.EventEmitter
   };
-  PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stdoutParentFd] = ProcInfo;
-  PHPWASM.child_proc_by_fd[stderrParentFd] = ProcInfo;
+  if (ProcInfo.stdoutChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+  if (ProcInfo.stderrChildFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+  if (ProcInfo.stdoutParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+  if (ProcInfo.stderrParentFd) PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
   PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
   cp.on("exit", (function(code) {
    ProcInfo.exitCode = code;
@@ -5706,20 +5721,24 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    ProcInfo.stdout.emit("data");
    ProcInfo.stderr.emit("data");
   }));
-  const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
-  let stdoutAt = 0;
-  cp.stdout.on("data", (function(data) {
-   ProcInfo.stdout.emit("data", data);
-   stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
-   stdoutAt += data.length;
-  }));
-  const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
-  let stderrAt = 0;
-  cp.stderr.on("data", (function(data) {
-   ProcInfo.stderr.emit("data", data);
-   stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
-   stderrAt += data.length;
-  }));
+  if (ProcInfo.stdoutChildFd) {
+   const stdoutStream = SYSCALLS.getStreamFromFD(ProcInfo.stdoutChildFd);
+   let stdoutAt = 0;
+   cp.stdout.on("data", (function(data) {
+    ProcInfo.stdout.emit("data", data);
+    stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
+    stdoutAt += data.length;
+   }));
+  }
+  if (ProcInfo.stderrChildFd) {
+   const stderrStream = SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd);
+   let stderrAt = 0;
+   cp.stderr.on("data", (function(data) {
+    ProcInfo.stderr.emit("data", data);
+    stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
+    stderrAt += data.length;
+   }));
+  }
   try {
    await new Promise(((resolve, reject) => {
     cp.on("spawn", resolve);
@@ -5731,7 +5750,7 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    return;
   }
   if (ProcInfo.stdinIsDevice) {
-   PHPWASM.input_devices[stdinFd].onData((function(data) {
+   PHPWASM.input_devices[ProcInfo.stdinFd].onData((function(data) {
     if (!data) return;
     const dataStr = new TextDecoder("utf-8").decode(data);
     cp.stdin.write(dataStr);
@@ -5739,31 +5758,32 @@ function _js_open_process(command, stdinFd, stdoutChildFd, stdoutParentFd, stder
    wakeUp(ProcInfo.pid);
    return;
   }
-  const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-  if (stdinStream.node) {
-   const CHUNK_SIZE = 1024;
-   const buffer = new Uint8Array(CHUNK_SIZE);
-   let offset = 0;
-   while (true) {
-    const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
-    if (bytesRead === null || bytesRead === 0) {
-     break;
+  if (ProcInfo.stdinFd) {
+   const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
+   if (stdinStream.node) {
+    const CHUNK_SIZE = 1024;
+    const buffer = new Uint8Array(CHUNK_SIZE);
+    let offset = 0;
+    while (true) {
+     const bytesRead = stdinStream.stream_ops.read(stdinStream, buffer, 0, CHUNK_SIZE, offset);
+     if (bytesRead === null || bytesRead === 0) {
+      break;
+     }
+     try {
+      cp.stdin.write(buffer.subarray(0, bytesRead));
+     } catch (e) {
+      console.error(e);
+      return 1;
+     }
+     if (bytesRead < CHUNK_SIZE) {
+      break;
+     }
+     offset += bytesRead;
     }
-    try {
-     cp.stdin.write(buffer.subarray(0, bytesRead));
-    } catch (e) {
-     console.error(e);
-     return 1;
-    }
-    if (bytesRead < CHUNK_SIZE) {
-     break;
-    }
-    offset += bytesRead;
+    wakeUp(ProcInfo.pid);
+    return;
    }
-   wakeUp(ProcInfo.pid);
-   return;
   }
-  console.warn("Unsupported STDIN source type for proc_open(). File Descriptor=" + stdinFd);
   wakeUp(ProcInfo.pid);
  }));
 }
@@ -5780,7 +5800,7 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr);
+   cp = await PHPWASM.spawnProcess(cmdstr, []);
   } catch (e) {
    console.error(e);
    if (e.code === "SPAWN_UNSUPPORTED") {
@@ -6292,7 +6312,7 @@ function _wasm_poll_socket(socketd, events, timeout) {
     wakeUp(0);
     return;
    }
-   polls.push(PHPWASM.awaitWsEvent(procInfo.stdout, "data"));
+   polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
   } else {
    const sock = getSocketFromFD(socketd);
    if (!sock) {
