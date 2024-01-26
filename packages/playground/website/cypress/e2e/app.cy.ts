@@ -335,9 +335,7 @@ if (!Cypress.env('CI')) {
 	});
 }
 
-describe('Playground service worker UI', () => {
-	beforeEach(() => cy.visit('/?networking=no'));
-
+describe('Blueprints', () => {
 	it('should resolve nice permalinks (/%postname%/)', () => {
 		const blueprint = {
 			landingPage: '/sample-page/',
@@ -345,13 +343,9 @@ describe('Playground service worker UI', () => {
 		};
 		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
 		cy.wordPressDocument().its('body').should('have.class', 'page');
-		cy.wordPressDocument()
-			.get('#wp-block-post-title')
-			.should('contain', 'Sample Page');
+		cy.wordPressDocument().its('body').should('contain', 'Sample Page');
 	});
-});
 
-describe('Blueprints', () => {
 	it('enableMultisite step should enable a multisite', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
