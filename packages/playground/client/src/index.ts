@@ -96,6 +96,7 @@ export async function startPlaygroundWeb({
 		progressTracker
 	);
 	await runBlueprintSteps(compiled, playground);
+	progressTracker.finish();
 
 	return playground;
 }
