@@ -78,6 +78,11 @@
 				"buildTarget": "playground-website:build",
 				"staticFilePath": "dist/packages/playground/wasm-wordpress-net",
 				"port": 5932
+			},
+			"configurations": {
+				"ci": {
+					"port": 80
+				}
 			}
 		},
 		"test": {
@@ -114,18 +119,23 @@
 				"devServerTarget": "playground-website:preview",
 				"browser": "chromium"
 			},
+			"configurations": {
+				"ci": {
+					"devServerTarget": "playground-website:preview:ci"
+				}
+			},
 			"dependsOn": ["build"]
 		},
 		"e2e:dev": {
 			"executor": "nx:noop",
-			"dependsOn": ["dev", "e2e:dev:cypress"]
+			"dependsOn": ["e2e:dev:cypress"]
 		},
 		"e2e:dev:cypress": {
 			"executor": "@nx/cypress:cypress",
 			"options": {
 				"cypressConfig": "packages/playground/website/cypress.config.ts",
 				"testingType": "e2e",
-				"baseUrl": "https://playground.test/website-server/"
+				"baseUrl": "http://localhost/website-server/"
 			}
 		}
 	},
