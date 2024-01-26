@@ -31,6 +31,7 @@ jobs:
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
+        # Run as root to allow node to bind to port 80
         container:
             image: ubuntu-latest
             options: --user root
