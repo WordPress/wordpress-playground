@@ -37,6 +37,8 @@ RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     | sed "s#'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'#__DIR__.'/mu-plugins/sqlite-database-integration/'#g" \
     | sed "s#'{SQLITE_PLUGIN}'#__DIR__.'/mu-plugins/sqlite-database-integration/load.php'#g" \
     > wordpress/wp-content/db.php && \
+    echo '<?php require_once __DIR__ . "/sqlite-database-integration/load.php"; ' > \
+    wordpress/wp-content/mu-plugins/0-sqlite.php && \
     cp wordpress/wp-config-sample.php wordpress/wp-config.php
 
 # Remove the akismet plugin as it's not likely Playground sites will
