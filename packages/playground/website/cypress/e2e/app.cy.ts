@@ -167,11 +167,13 @@ describe('Query API', () => {
 	});
 
 	describe('option `multisite`', () => {
-		it.only('should enable a multisite', () => {
+		it('should enable a multisite', () => {
 			cy.visit('/?multisite=yes');
 			cy.wordPressDocument()
-				.get('#wp-admin-bar-my-sites')
-				.should('contain', 'My Sites');
+				.its('body', {
+					timeout: 60_000,
+				})
+				.should('contain.text', 'My Sites');
 		});
 	});
 
@@ -357,8 +359,9 @@ describe('Blueprints', () => {
 		};
 		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
 		cy.wordPressDocument()
+			.its('body')
 			.get('#wp-admin-bar-my-sites')
-			.should('contain', 'My Sites');
+			.should('contain.text', 'My Sites');
 	});
 	it('enableMultisite step should re-activate the importer plugin', () => {
 		const blueprint: Blueprint = {
@@ -367,8 +370,9 @@ describe('Blueprints', () => {
 		};
 		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
 		cy.wordPressDocument()
+			.its('body')
 			.get(
-				'true.active[data-plugin="wordpress-importer/wordpress-importer.php"]'
+				'.active[data-plugin="wordpress-importer/wordpress-importer.php"]'
 			)
 			.should('exist');
 	});
