@@ -33,7 +33,7 @@ jobs:
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
         container:
-            image: ubuntu-latest
+            image: ghcr.io/catthehacker/ubuntu:custom-20.04-20240122
             options: --user root
         steps:
             - uses: actions/checkout@v3
