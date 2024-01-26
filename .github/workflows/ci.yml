@@ -32,16 +32,11 @@ jobs:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
         # Run as root to allow node to bind to port 80
-        container:
-            image: ghcr.io/catthehacker/ubuntu:custom-20.04-20240122
-            options: --user root
         steps:
-            - run: apt-get update
-            - run: apt-get install libasound2
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: ./node_modules/.bin/cypress install --force
-            - run: npx nx affected --target=e2e --configuration=ci --verbose
+            - run: sudo npx nx e2e playground-website --configuration=ci --verbose
               env:
                   CYPRESS_CI: 1
             # Upload the Cypress screenshots as artifacts if the job fails
