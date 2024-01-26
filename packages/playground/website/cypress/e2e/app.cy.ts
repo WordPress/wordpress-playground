@@ -9,6 +9,7 @@ import {
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import * as SupportedWordPressVersions from '../../../wordpress/src/wordpress/wp-versions.json';
+import { Blueprint } from '@wp-playground/blueprints';
 
 const LatestSupportedWordPressVersion = Object.keys(
 	SupportedWordPressVersions
@@ -162,6 +163,15 @@ describe('Query API', () => {
 			cy.wordPressDocument()
 				.its('body')
 				.should('not.have.class', 'logged-in');
+		});
+	});
+
+	describe('option `multisite`', () => {
+		it('should enable a multisite', () => {
+			cy.visit('/?multisite=yes');
+			cy.wordPressDocument()
+				.get('#wp-admin-bar-my-sites')
+				.should('contain', 'My Sites');
 		});
 	});
 
@@ -336,6 +346,31 @@ describe('Playground service worker UI', () => {
 		cy.wordPressDocument()
 			.get('#wp-block-post-title')
 			.should('contain', 'Sample Page');
+	});
+});
+
+describe('Blueprints', () => {
+	it('enableMultisite step should enable a multisite', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/',
+			steps: [{ step: 'enableMultisite' }],
+		};
+		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
+		cy.wordPressDocument()
+			.get('#wp-admin-bar-my-sites')
+			.should('contain', 'My Sites');
+	});
+	it('enableMultisite step should re-activate the importer plugin', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/wp-admin/plugins.php',
+			steps: [{ step: 'enableMultisite' }],
+		};
+		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
+		cy.wordPressDocument()
+			.get(
+				'true.active[data-plugin="wordpress-importer/wordpress-importer.php"]'
+			)
+			.should('exist');
 	});
 });
 

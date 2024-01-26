@@ -1,3 +1,4 @@
+import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 
 /**
@@ -47,13 +48,13 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	const result = await playground.run({
 		code: `<?php
 define( 'WP_ADMIN', true );
-${requiredFiles.map((file) => `require_once( '${file}' );`).join('\n')}
-$plugin_path = '${pluginPath}';
+${requiredFiles.map((file) => `require_once( ${phpVar(file)} );`).join('\n')}
+$plugin_path = ${phpVar(pluginPath)};
+
 if (!is_dir($plugin_path)) {
 	activate_plugin($plugin_path);
 	return;
 }
-// Find plugin entry file
 foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 	$info = get_plugin_data( $file, false, false );
 	if ( ! empty( $info['Name'] ) ) {
