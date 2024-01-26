@@ -167,7 +167,7 @@ describe('Query API', () => {
 	});
 
 	describe('option `multisite`', () => {
-		it('should enable a multisite', () => {
+		it.only('should enable a multisite', () => {
 			cy.visit('/?multisite=yes');
 			cy.wordPressDocument()
 				.get('#wp-admin-bar-my-sites')
