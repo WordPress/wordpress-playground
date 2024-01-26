@@ -263,6 +263,7 @@ export async function cloneRequest(
 		['GET', 'HEAD'].includes(request.method) || 'body' in overrides
 			? undefined
 			: await request.blob();
+
 	return new Request(overrides['url'] || request.url, {
 		body,
 		method: request.method,
@@ -276,6 +277,20 @@ export async function cloneRequest(
 		integrity: request.integrity,
 		...overrides,
 	});
+}
+
+/**
+ * Extracts headers from a Request as a plain key->value JS object.
+ *
+ * @param request
+ * @returns
+ */
+export function getRequestHeaders(request: Request) {
+	const headers: Record<string, string> = {};
+	request.headers.forEach((value: string, key: string) => {
+		headers[key] = value;
+	});
+	return headers;
 }
 
 function getRelativePart(url: URL): string {

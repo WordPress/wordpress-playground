@@ -32,6 +32,16 @@
 				]
 			}
 		},
+		"test": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/php-wasm/web-service-worker"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/web-service-worker"
+			}
+		},
 		"typecheck": {
 			"executor": "nx:run-commands",
 			"options": {

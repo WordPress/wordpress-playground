@@ -9,6 +9,7 @@ import {
 	initializeServiceWorker,
 	cloneRequest,
 	broadcastMessageExpectReply,
+	getRequestHeaders,
 } from '@php-wasm/web-service-worker';
 
 if (!(self as any).document) {
@@ -238,16 +239,11 @@ function emptyHtml() {
 }
 
 async function cloneFetchEvent(event: FetchEvent, rewriteUrl: string) {
-	const existingHeaders: Record<string, string> = {};
-	event.request.headers.forEach((value, key) => {
-		existingHeaders[key] = value;
-	});
-
 	return new FetchEvent(event.type, {
 		...event,
 		request: await cloneRequest(event.request, {
 			headers: {
-				...event.request.headers,
+				...getRequestHeaders(event.request),
 				'x-rewrite-url': rewriteUrl,
 			},
 		}),
