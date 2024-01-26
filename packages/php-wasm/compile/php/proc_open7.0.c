@@ -322,14 +322,14 @@ PHP_FUNCTION(proc_open)
 	php_process_env_t env;
 	int ndesc = 0;
 	int i;
-    int current_procopen_call_id = ++procopen_call_id;
+	int current_procopen_call_id = ++procopen_call_id;
 	zval *descitem = NULL;
 	zend_string *str_index;
 	zend_ulong nindex;
 	struct php_proc_open_descriptor_item *descriptors = NULL;
 	int ndescriptors_array;
-    int **descv = NULL;
-    int num_descv = 0;
+	int **descv = NULL;
+	int num_descv = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
@@ -356,9 +356,9 @@ PHP_FUNCTION(proc_open)
 
 	ndescriptors_array = zend_hash_num_elements(Z_ARRVAL_P(descriptorspec));
 
-    num_descv = ndescriptors_array;
+	num_descv = ndescriptors_array;
 
-    descv = safe_emalloc(sizeof(int *), num_descv, 0);
+	descv = safe_emalloc(sizeof(int *), num_descv, 0);
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
@@ -424,15 +424,15 @@ PHP_FUNCTION(proc_open)
 					goto exit_fail;
 				}
 
-                // stdin is a special case – we need an Emscripten device
-                // to provide a callback that will feed the data back into
-                // the process.
-                if (descriptors[ndesc].index == 0) {
-                    char *device_path = js_create_input_device(current_procopen_call_id);
-                    // printf("ndesc: %d, index: %d, nindex: %u, device_path: %s\n", ndesc, descriptors[ndesc].index, nindex, device_path);
-                    descriptors[ndesc].childend = current_procopen_call_id;
-                    descriptors[ndesc].parentend = open(device_path, O_WRONLY);
-                } else {
+				// stdin is a special case – we need an Emscripten device
+				// to provide a callback that will feed the data back into
+				// the process.
+				if (descriptors[ndesc].index == 0) {
+					char *device_path = js_create_input_device(current_procopen_call_id);
+					// printf("ndesc: %d, index: %d, nindex: %u, device_path: %s\n", ndesc, descriptors[ndesc].index, nindex, device_path);
+					descriptors[ndesc].childend = current_procopen_call_id;
+					descriptors[ndesc].parentend = open(device_path, O_WRONLY);
+				} else {
 					if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
 						descriptors[ndesc].parentend = newpipe[1];
 						descriptors[ndesc].childend = newpipe[0];
@@ -489,24 +489,24 @@ PHP_FUNCTION(proc_open)
 
 		int *desc = safe_emalloc(sizeof(int), 3, 0);
 
-        desc[0] = descriptors[ndesc].index;
-        desc[1] = descriptors[ndesc].childend;
-        desc[2] = descriptors[ndesc].parentend;
+		desc[0] = descriptors[ndesc].index;
+		desc[1] = descriptors[ndesc].childend;
+		desc[2] = descriptors[ndesc].parentend;
 
 		descv[ndesc] = desc;
 
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
 
-    // the wasm way {{{
+	// the wasm way {{{
     child = js_open_process(
-        command,
-        NULL,
-        0,
-        descv,
-        num_descv
+		command,
+		NULL,
+		0,
+		descv,
+		num_descv
 	);
-    // }}}
+	// }}}
 
 	/* we forked/spawned and this is the parent */
 
@@ -562,12 +562,12 @@ PHP_FUNCTION(proc_open)
 		}
 	}
 
-    if (descv) {
-        for(int i = 0; i < num_descv; i++)
-        {
-            efree(descv[i]);
-        }
-        efree(descv);
+	if (descv) {
+		for(int i = 0; i < num_descv; i++)
+		{
+			efree(descv[i]);
+		}
+		efree(descv);
 	}
 
 	efree(descriptors);
@@ -583,12 +583,12 @@ exit_fail:
 		pefree(command, is_persistent);
 	}
 
-    if (descv) {
-        for(int i = 0; i < num_descv; i++)
-        {
-            efree(descv[i]);
-        }
-        efree(descv);
+	if (descv) {
+		for(int i = 0; i < num_descv; i++)
+		{
+			efree(descv[i]);
+		}
+		efree(descv);
 	}
 
 	RETURN_FALSE;

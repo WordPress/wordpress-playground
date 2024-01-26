@@ -102,44 +102,44 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			return 0;
 		}
 
-        int *stdin = safe_emalloc(sizeof(int), 3, 0);
-        int *stdout = safe_emalloc(sizeof(int), 3, 0);
-        int *stderr = safe_emalloc(sizeof(int), 3, 0);
+		int *stdin = safe_emalloc(sizeof(int), 3, 0);
+		int *stdout = safe_emalloc(sizeof(int), 3, 0);
+		int *stderr = safe_emalloc(sizeof(int), 3, 0);
 
-        stdin[0] = 0;
-        stdin[1] = stdin_childend;
-        stdin[2] = (int) NULL;
+		stdin[0] = 0;
+		stdin[1] = stdin_childend;
+		stdin[2] = (int) NULL;
 
-        stdout[0] = 1;
-        stdout[1] = stdout_pipe[0];
-        stdout[2] = stdout_pipe[1];
+		stdout[0] = 1;
+		stdout[1] = stdout_pipe[0];
+		stdout[2] = stdout_pipe[1];
 
-        stderr[0] = 2;
-        stderr[1] = stderr_pipe[0];
-        stderr[2] = stderr_pipe[1];
+		stderr[0] = 2;
+		stderr[1] = stderr_pipe[0];
+		stderr[2] = stderr_pipe[1];
 
-        int **descv = safe_emalloc(sizeof(int *), 3, 0);
+		int **descv = safe_emalloc(sizeof(int *), 3, 0);
 
-        descv[0] = stdin;
-        descv[1] = stdout;
-        descv[2] = stderr;
+		descv[0] = stdin;
+		descv[1] = stdout;
+		descv[2] = stderr;
 
 
 		// the wasm way {{{
 		js_open_process(
 			cmd,
-            NULL,
-            0,
-            descv,
-            3
-        );
+			NULL,
+			0,
+			descv,
+			3
+		);
 		// }}}
 
-        efree(stdin);
-        efree(stdout);
-        efree(stderr);
+		efree(stdin);
+		efree(stdout);
+		efree(stderr);
 
-        efree(descv);
+		efree(descv);
 	}
 	else
 	{
@@ -1470,7 +1470,7 @@ void wasm_sapi_module_shutdown()
 #endif
 	if (php_wasm_sapi_module.ini_entries)
 	{
-		free((void *)php_wasm_sapi_module.ini_entries);
+		free(php_wasm_sapi_module.ini_entries);
 		php_wasm_sapi_module.ini_entries = NULL;
 	}
 }
@@ -1677,7 +1677,7 @@ int php_wasm_init()
 	else
 	{
 		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-		memcpy((void *)php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
+		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
 	}
 
 	php_sapi_started = 1;
