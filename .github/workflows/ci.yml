@@ -38,6 +38,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
+            - run: apt-get update
             - run: apt-get install libasound2:i386
             - run: ./node_modules/.bin/cypress install --force
             - run: npx nx affected --target=e2e --configuration=ci --verbose
