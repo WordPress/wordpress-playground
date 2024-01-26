@@ -35,7 +35,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: ./node_modules/.bin/cypress install --force
+            - run: sudo ./node_modules/.bin/cypress install --force
             - run: sudo npx nx e2e playground-website --configuration=ci --verbose
               env:
                   CYPRESS_CI: 1
