@@ -228,7 +228,7 @@ describe('Query API', () => {
 			cy.visit('/');
 			// Get the current URL
 			cy.url().then((url) => {
-				url = url.replace(/\/$/, '');
+				url = url.replace(/\/$/, '').replace('/website-server', '');
 				// Import a site that has Gutenberg installed
 				cy.visit(
 					`/?import-site=${url}/test-fixtures/site-with-unpatched-gutenberg.zip&url=/wp-admin/post-new.php`
