@@ -3,6 +3,7 @@
  */
 import { IterableReadableStream } from '../utils/iterable-stream-polyfill';
 
+import '../polyfills';
 import {
 	SIGNATURE_FILE,
 	SIGNATURE_CENTRAL_DIRECTORY,
@@ -18,11 +19,8 @@ import {
 	CentralDirectoryEndEntry,
 } from './types';
 import { filterStream } from '../utils/filter-stream';
-import { collectBytes } from '../utils/collect-bytes';
+import { collectBytes, collectAllBytes } from '../utils/collect-bytes';
 import { limitBytes } from '../utils/limit-bytes';
-import { concatBytes } from '../utils/concat-bytes';
-import { prependBytes } from '../utils/prepend-bytes';
-import { appendBytes } from '../utils/append-bytes';
 
 /**
  * Unzips a stream of zip file bytes.
@@ -136,6 +134,7 @@ export async function readFileEntry(
 	skipSignature = false
 ): Promise<FileEntry | null> {
 	if (!skipSignature) {
+		throw new Error('Not skip');
 		const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
 		const signature = sigData.getUint32(0, true);
 		if (signature !== SIGNATURE_FILE) {
@@ -157,7 +156,7 @@ export async function readFileEntry(
 		uncompressedSize: data.getUint32(18, true),
 	};
 
-	entry['path'] = await collectBytes(stream, pathLength);
+	entry['path'] = await collectBytes(stream, pathLength + extraLength);
 	entry['isDirectory'] = endsWithSlash(entry.path!);
 	entry['extra'] = await collectBytes(stream, extraLength);
 
@@ -168,48 +167,68 @@ export async function readFileEntry(
 	//        eagerly. Ensure the next iteration exhausts
 	//        the last body stream before moving on.
 
-	let bodyStream = limitBytes(stream, entry['compressedSize']!);
-
-	if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
-		/**
-		 * We want to write raw deflate-compressed bytes into our
-		 * final ZIP file. CompressionStream supports "deflate-raw"
-		 * compression, but not on Node.js v18.
-		 *
-		 * As a workaround, we use the "gzip" compression and add
-		 * the header and footer bytes. It works, because "gzip"
-		 * compression is the same as "deflate" compression plus
-		 * the header and the footer.
-		 *
-		 * The header is 10 bytes long:
-		 * - 2 magic bytes: 0x1f, 0x8b
-		 * - 1 compression method: 0x08 (deflate)
-		 * - 1 header flags
-		 * - 4 mtime: 0x00000000 (no timestamp)
-		 * - 1 compression flags
-		 * - 1 OS: 0x03 (Unix)
-		 *
-		 * The footer is 8 bytes long:
-		 * - 4 bytes for CRC32 of the uncompressed data
-		 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
-		 */
-		const header = new Uint8Array(10);
-		header.set([0x1f, 0x8b, 0x08]);
-
-		const footer = new Uint8Array(8);
-		const footerView = new DataView(footer.buffer);
-		footerView.setUint32(0, entry.crc!, true);
-		footerView.setUint32(4, entry.uncompressedSize! % 2 ** 32, true);
-		bodyStream = bodyStream
-			.pipeThrough(prependBytes(header))
-			.pipeThrough(appendBytes(footer))
-			.pipeThrough(new DecompressionStream('gzip'));
+	// let body = null;
+	// if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
+	// 	/**
+	// 	 * We want to write raw deflate-compressed bytes into our
+	// 	 * final ZIP file. CompressionStream supports "deflate-raw"
+	// 	 * compression, but not on Node.js v18.
+	// 	 *
+	// 	 * As a workaround, we use the "gzip" compression and add
+	// 	 * the header and footer bytes. It works, because "gzip"
+	// 	 * compression is the same as "deflate" compression plus
+	// 	 * the header and the footer.
+	// 	 *
+	// 	 * The header is 10 bytes long:
+	// 	 * - 2 magic bytes: 0x1f, 0x8b
+	// 	 * - 1 compression method: 0x08 (deflate)
+	// 	 * - 1 header flags
+	// 	 * - 4 mtime: 0x00000000 (no timestamp)
+	// 	 * - 1 compression flags
+	// 	 * - 1 OS: 0x03 (Unix)
+	// 	 *
+	// 	 * The footer is 8 bytes long:
+	// 	 * - 4 bytes for CRC32 of the uncompressed data
+	// 	 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
+	// 	 */
+	// 	const result = await collectBytes(stream, entry['compressedSize']);
+	// 	const newBuffer = new ArrayBuffer(result.byteLength + 10 + 8);
+	// 	const newUint8Array = new Uint8Array(newBuffer);
+	// 	newUint8Array.set(
+	// 		new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+	// 		0
+	// 	);
+	// 	newUint8Array.set(result, 10);
+	// 	newUint8Array.set(
+	// 		new Uint32Array([entry.crc!, entry.uncompressedSize!]),
+	// 		result.byteLength + 10
+	// 	);
+	// 	body = new Uint8Array(newBuffer);
+	// 	console.log(body[0])
+	// 	console.log(body[1])
+	// 	console.log(body[2])
+	// 	console.log(body[9])
+	// 	console.log(body[10])
+	// } else {
+	// 	body = await collectBytes(stream, entry['compressedSize']);
+	// }
+	// const body = await collectBytes(stream, entry['compressedSize']);
+	if (entry['compressedSize']) {
+		if (entry['compressionMethod'] === COMPRESSION_DEFLATE) {
+			entry['bytes'] = await collectAllBytes(
+				limitBytes(stream, entry['compressedSize']!).pipeThrough(
+					new DecompressionStream('deflate-raw')
+				),
+				entry['uncompressedSize']!
+			);
+		} else {
+			entry['bytes'] = await collectBytes(
+				stream,
+				entry['compressedSize']!
+			);
+		}
 	}
-	entry['bytes'] = await bodyStream
-		.pipeThrough(concatBytes(entry['uncompressedSize']))
-		.getReader()
-		.read()
-		.then(({ value }) => value!);
+
 	return entry as FileEntry;
 }
 

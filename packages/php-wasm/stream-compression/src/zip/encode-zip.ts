@@ -58,11 +58,13 @@ function encodeZipTransform() {
 			 * - 4 bytes for CRC32 of the uncompressed data
 			 * - 4 bytes for ISIZE (uncompressed size modulo 2^32)
 			 */
+			console.time('collect');
 			let compressed = (await collectBytes(
 				new Blob([entryBytes])
 					.stream()
 					.pipeThrough(new CompressionStream('gzip'))
 			))!;
+			console.timeEnd('collect');
 			// Grab the CRC32 hash from the footer.
 			const crcHash = new DataView(compressed.buffer).getUint32(
 				compressed.byteLength - 8,

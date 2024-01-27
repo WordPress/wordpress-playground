@@ -115,7 +115,6 @@ function isByobSupported() {
 	const file = new File([inputBytes], 'test');
 	const stream = file.stream();
 	try {
-		stream.getReader({ mode: 'byob' });
 		// This throws on older versions of node:
 		stream.getReader({ mode: 'byob' });
 		return true;
@@ -141,6 +140,7 @@ if (typeof Blob.prototype.stream === 'undefined' || !isByobSupported()) {
 			autoAllocateChunkSize: 512 * 1024,
 
 			async pull(controller) {
+				// console.log("YY");
 				const view = controller.byobRequest!.view;
 
 				// Read the next chunk of data:

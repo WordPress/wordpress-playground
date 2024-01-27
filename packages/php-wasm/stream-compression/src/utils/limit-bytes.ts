@@ -15,18 +15,21 @@ export function limitBytes(stream: ReadableStream<Uint8Array>, bytes: number) {
 	}
 	const reader = stream.getReader({ mode: 'byob' });
 	let offset = 0;
+
+	let buffer = new ArrayBuffer(bytes);
 	return new ReadableStream({
 		async pull(controller) {
-			const { value, done } = await reader.read(
-				new Uint8Array(bytes - offset)
+			const { value: view, done } = await reader.read(
+				new Uint8Array(buffer!, 0, bytes - offset)
 			);
 			if (done) {
 				reader.releaseLock();
 				controller.close();
 				return;
 			}
-			offset += value.length;
-			controller.enqueue(value);
+			buffer = view.buffer;
+			offset += view.length;
+			controller.enqueue(view);
 
 			if (offset >= bytes) {
 				reader.releaseLock();

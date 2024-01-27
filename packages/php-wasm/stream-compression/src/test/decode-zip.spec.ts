@@ -19,4 +19,17 @@ describe('decodeZip', () => {
 		expect(files[2].name).toBe('hello-dolly/readme.txt');
 		expect(files[2].size).toBe(624);
 	});
+
+	it('Should uncompress compress files(2)', async () => {
+		console.time('decodeZip');
+		const zipBytes = await readFile(__dirname + '/fixtures/gutenberg.zip');
+		const zipStream = decodeZip(new Blob([zipBytes]).stream());
+
+		const files = [];
+		for await (const file of zipStream) {
+			files.push(file);
+		}
+		console.timeEnd('decodeZip');
+		expect(files.length).toBe(1122);
+	});
 });
