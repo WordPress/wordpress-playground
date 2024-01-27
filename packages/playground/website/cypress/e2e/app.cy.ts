@@ -20,18 +20,14 @@ describe('Query API', () => {
 		it('should load PHP 8.0 by default', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1', {
-					timeout: 60_000,
-				})
+				.find('h1')
 				.should('contain', 'PHP Version 8.0');
 		});
 
 		it('should load PHP 7.4 when requested', () => {
 			cy.visit('/?php=7.4&url=/phpinfo.php');
 			cy.wordPressDocument()
-				.find('h1', {
-					timeout: 60_000,
-				})
+				.find('h1')
 				.should('contain', 'PHP Version 7.4');
 		});
 	});
@@ -110,12 +106,7 @@ describe('Query API', () => {
 		it('should install the specified plugin', () => {
 			cy.visit('/?plugin=gutenberg&url=/wp-admin/plugins.php');
 			cy.wordPressDocument()
-				.find('[data-slug=gutenberg].active', {
-					// This might take a while on GitHub CI
-					// @TODO: Measure whether there's a significant slowdown
-					//        coming from switching to the CompressionStream API
-					timeout: 60_000,
-				})
+				.find('[data-slug=gutenberg].active')
 				.should('exist');
 		});
 	});
@@ -170,9 +161,7 @@ describe('Query API', () => {
 		it('should enable a multisite', () => {
 			cy.visit('/?multisite=yes');
 			cy.wordPressDocument()
-				.its('body', {
-					timeout: 60_000,
-				})
+				.its('body')
 				.should('contain.text', 'My Sites');
 		});
 	});
@@ -260,9 +249,7 @@ describe('Query API', () => {
 			// the inserter will look like a default
 			// browser button.
 			cy.wordPressDocument()
-				.find('iframe[name="editor-canvas"]', {
-					timeout: 60_000,
-				})
+				.find('iframe[name="editor-canvas"]')
 				.its('0.contentDocument')
 				.find('.block-editor-inserter__toggle')
 				.should('not.have.css', 'background-color', undefined);
@@ -374,11 +361,7 @@ describe('Blueprints', () => {
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + encodeURIComponent(JSON.stringify(blueprint)));
-		cy.wordPressDocument()
-			.its('body', {
-				timeout: 60_000,
-			})
-			.should('contain.text', 'My Sites');
+		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
 	});
 	it('enableMultisite step should re-activate the importer plugin', () => {
 		const blueprint: Blueprint = {
