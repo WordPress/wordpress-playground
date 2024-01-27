@@ -7,6 +7,6 @@ export default defineConfig({
 	e2e: nxE2EPreset(currentPath, {
 		cypressDir: 'cypress',
 	}),
-	// Playground may be slow to start up
-	defaultCommandTimeout: 180000,
+	// Playground may be slow on GitHub CI
+	defaultCommandTimeout: 60000 * 2,
 });

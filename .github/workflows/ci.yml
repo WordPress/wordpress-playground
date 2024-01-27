@@ -36,7 +36,8 @@ jobs:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: sudo ./node_modules/.bin/cypress install --force
-            - run: sudo npx nx e2e playground-website --configuration=ci --verbose
+            # sudo -E passes the environment variables to the npx command
+            - run: sudo -E npx nx e2e playground-website --configuration=ci --verbose
               env:
                   CYPRESS_CI: 1
             # Upload the Cypress screenshots as artifacts if the job fails
