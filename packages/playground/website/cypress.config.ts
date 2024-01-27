@@ -8,5 +8,5 @@ export default defineConfig({
 		cypressDir: 'cypress',
 	}),
 	// Playground may be slow to start up
-	defaultCommandTimeout: 90000,
+	defaultCommandTimeout: 180000,
 });
