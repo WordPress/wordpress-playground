@@ -182,9 +182,9 @@ const LibraryExample = {
 		},
 		noop: function () {},
 
-		spawnProcess: function (command) {
+		spawnProcess: function (command, args) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command);
+				const spawnedPromise = Module['spawnProcess'](command, args);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -289,20 +289,18 @@ const LibraryExample = {
 	 * purposes of PHP's proc_open() function.
 	 *
 	 * @param {int} command Command to execute (string pointer).
-	 * @param {int} stdinFd Child process end of the stdin pipe (the one to read from).
-	 * @param {int} stdoutChildFd Child process end of the stdout pipe (the one to write to).
-	 * @param {int} stdoutParentFd PHP's end of the stdout pipe (the one to read from).
-	 * @param {int} stderrChildFd Child process end of the stderr pipe (the one to write to).
-	 * @param {int} stderrParentFd PHP's end of the stderr pipe (the one to read from).
+	 * @param {int} argsPtr Arguments linked with command (string array pointer).
+	 * @param {int} argsLength Number of arguments.
+	 * @param {int} descriptorsPtr Descriptor specs (int array pointer, [ number, child, parent ] ).
+	 * @param {int} descriptorsLength Number of descriptors.
 	 * @returns {int} 0 on success, 1 on failure.
 	 */
 	js_open_process: function (
 		command,
-		stdinFd,
-		stdoutChildFd,
-		stdoutParentFd,
-		stderrChildFd,
-		stderrParentFd
+		argsPtr,
+		argsLength,
+		descriptorsPtr,
+		descriptorsLength
 	) {
 		if (!command) {
 			return 1;
@@ -313,10 +311,31 @@ const LibraryExample = {
 			return 0;
 		}
 
+		let argsArray = [];
+		if (argsLength) {
+			for (var i = 0; i < argsLength; i++) {
+				const charPointer = argsPtr + i * 4;
+				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
+			}
+		}
+
+		var std = {};
+		// Extracts an array of available descriptors that should be dispatched to streams.
+		// On the C side, the descriptors are expressed as `**int` so we must go read
+		// each of the `descriptorsLength` `*int` pointers and convert the associated data into
+		// a JavaScript object { descriptor : { child : fd, parent : fd } }.
+		for (var i = 0; i < descriptorsLength; i++) {
+			const descriptorPtr = HEAPU32[(descriptorsPtr + i * 4) >> 2];
+			std[HEAPU32[descriptorPtr >> 2]] = {
+				child: HEAPU32[(descriptorPtr + 4) >> 2],
+				parent: HEAPU32[(descriptorPtr + 8) >> 2],
+			};
+		}
+
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr);
+				cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
 					wakeUp(1);
@@ -330,19 +349,23 @@ const LibraryExample = {
 			const ProcInfo = {
 				pid: cp.pid,
 				exited: false,
-				stdinFd: stdinFd,
-				stdinIsDevice: stdinFd in PHPWASM.input_devices,
-				stdoutChildFd: stdoutChildFd,
-				stdoutParentFd: stdoutParentFd,
-				stderrChildFd: stderrChildFd,
-				stderrParentFd: stderrParentFd,
+				stdinFd: std[0]?.child,
+				stdinIsDevice: std[0]?.child in PHPWASM.input_devices,
+				stdoutChildFd: std[1]?.child,
+				stdoutParentFd: std[1]?.parent,
+				stderrChildFd: std[2]?.child,
+				stderrParentFd: std[2]?.parent,
 				stdout: new PHPWASM.EventEmitter(),
 				stderr: new PHPWASM.EventEmitter(),
 			};
-			PHPWASM.child_proc_by_fd[stdoutChildFd] = ProcInfo;
-			PHPWASM.child_proc_by_fd[stderrChildFd] = ProcInfo;
-			PHPWASM.child_proc_by_fd[stdoutParentFd] = ProcInfo;
-			PHPWASM.child_proc_by_fd[stderrParentFd] = ProcInfo;
+			if (ProcInfo.stdoutChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutChildFd] = ProcInfo;
+			if (ProcInfo.stderrChildFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrChildFd] = ProcInfo;
+			if (ProcInfo.stdoutParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stdoutParentFd] = ProcInfo;
+			if (ProcInfo.stderrParentFd)
+				PHPWASM.child_proc_by_fd[ProcInfo.stderrParentFd] = ProcInfo;
 			PHPWASM.child_proc_by_pid[ProcInfo.pid] = ProcInfo;
 
 			cp.on('exit', function (code) {
@@ -354,34 +377,42 @@ const LibraryExample = {
 			});
 
 			// Pass data from child process's stdout to PHP's end of the stdout pipe.
-			const stdoutStream = SYSCALLS.getStreamFromFD(stdoutChildFd);
-			let stdoutAt = 0;
-			cp.stdout.on('data', function (data) {
-				ProcInfo.stdout.emit('data', data);
-				stdoutStream.stream_ops.write(
-					stdoutStream,
-					data,
-					0,
-					data.length,
-					stdoutAt
+			if (ProcInfo.stdoutChildFd) {
+				const stdoutStream = SYSCALLS.getStreamFromFD(
+					ProcInfo.stdoutChildFd
 				);
-				stdoutAt += data.length;
-			});
+				let stdoutAt = 0;
+				cp.stdout.on('data', function (data) {
+					ProcInfo.stdout.emit('data', data);
+					stdoutStream.stream_ops.write(
+						stdoutStream,
+						data,
+						0,
+						data.length,
+						stdoutAt
+					);
+					stdoutAt += data.length;
+				});
+			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
-			const stderrStream = SYSCALLS.getStreamFromFD(stderrChildFd);
-			let stderrAt = 0;
-			cp.stderr.on('data', function (data) {
-				ProcInfo.stderr.emit('data', data);
-				stderrStream.stream_ops.write(
-					stderrStream,
-					data,
-					0,
-					data.length,
-					stderrAt
+			if (ProcInfo.stderrChildFd) {
+				const stderrStream = SYSCALLS.getStreamFromFD(
+					ProcInfo.stderrChildFd
 				);
-				stderrAt += data.length;
-			});
+				let stderrAt = 0;
+				cp.stderr.on('data', function (data) {
+					ProcInfo.stderr.emit('data', data);
+					stderrStream.stream_ops.write(
+						stderrStream,
+						data,
+						0,
+						data.length,
+						stderrAt
+					);
+					stderrAt += data.length;
+				});
+			}
 
 			/**
 			 * Wait until the child process has been spawned.
@@ -408,7 +439,7 @@ const LibraryExample = {
 				// We use Emscripten devices as pipes. This is a bit of a hack
 				// but it works as we get a callback when the device is written to.
 				// Let's listen to anything it outputs and pass it to the child process.
-				PHPWASM.input_devices[stdinFd].onData(function (data) {
+				PHPWASM.input_devices[ProcInfo.stdinFd].onData(function (data) {
 					if (!data) return;
 					const dataStr = new TextDecoder('utf-8').decode(data);
 					cp.stdin.write(dataStr);
@@ -417,46 +448,42 @@ const LibraryExample = {
 				return;
 			}
 
-			// PHP will write STDIN data to a file descriptor.
-			const stdinStream = SYSCALLS.getStreamFromFD(stdinFd);
-			if (stdinStream.node) {
-				// Pipe the entire stdinStream to cp.stdin
-				const CHUNK_SIZE = 1024;
-				const buffer = new Uint8Array(CHUNK_SIZE);
-				let offset = 0;
+			if (ProcInfo.stdinFd) {
+				// PHP will write STDIN data to a file descriptor.
+				const stdinStream = SYSCALLS.getStreamFromFD(ProcInfo.stdinFd);
+				if (stdinStream.node) {
+					// Pipe the entire stdinStream to cp.stdin
+					const CHUNK_SIZE = 1024;
+					const buffer = new Uint8Array(CHUNK_SIZE);
+					let offset = 0;
 
-				while (true) {
-					const bytesRead = stdinStream.stream_ops.read(
-						stdinStream,
-						buffer,
-						0,
-						CHUNK_SIZE,
-						offset
-					);
-					if (bytesRead === null || bytesRead === 0) {
-						break;
+					while (true) {
+						const bytesRead = stdinStream.stream_ops.read(
+							stdinStream,
+							buffer,
+							0,
+							CHUNK_SIZE,
+							offset
+						);
+						if (bytesRead === null || bytesRead === 0) {
+							break;
+						}
+						try {
+							cp.stdin.write(buffer.subarray(0, bytesRead));
+						} catch (e) {
+							console.error(e);
+							return 1;
+						}
+						if (bytesRead < CHUNK_SIZE) {
+							break;
+						}
+						offset += bytesRead;
 					}
-					try {
-						cp.stdin.write(buffer.subarray(0, bytesRead));
-					} catch (e) {
-						console.error(e);
-						return 1;
-					}
-					if (bytesRead < CHUNK_SIZE) {
-						break;
-					}
-					offset += bytesRead;
+
+					wakeUp(ProcInfo.pid);
+					return;
 				}
-
-				wakeUp(ProcInfo.pid);
-				return;
 			}
-
-			// We didn't recognize the STDIN source.
-			console.warn(
-				'Unsupported STDIN source type for proc_open(). File Descriptor=' +
-					stdinFd
-			);
 
 			wakeUp(ProcInfo.pid);
 		});
@@ -793,7 +820,7 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr);
+				cp = await PHPWASM.spawnProcess(cmdstr, []);
 			} catch (e) {
 				console.error(e);
 				if (e.code === 'SPAWN_UNSUPPORTED') {

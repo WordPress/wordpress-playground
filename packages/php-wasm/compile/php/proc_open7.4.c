@@ -317,8 +317,8 @@ static zend_string *get_valid_arg_string(zval *zv, int elem_num) {
    Run a process with more control over it's file descriptors */
 PHP_FUNCTION(proc_open)
 {
-    zval *command_zv;
-    char *command = NULL, *cwd = NULL;
+	zval *command_zv;
+	char *command = NULL, *cwd = NULL;
 	size_t cwd_len = 0;
 	zval *descriptorspec;
 	zval *pipes;
@@ -333,10 +333,13 @@ PHP_FUNCTION(proc_open)
 	struct php_proc_open_descriptor_item *descriptors = NULL;
 	int ndescriptors_array;
 	char **argv = NULL;
+	int num_argv = 0;
+	int **descv = NULL;
+	int num_descv = 0;
 	php_process_id_t child;
 	struct php_process_handle *proc;
 	int is_persistent = 0; /* TODO: ensure that persistent procs will work */
-    int current_procopen_call_id = ++procopen_call_id;
+	int current_procopen_call_id = ++procopen_call_id;
 
 	ZEND_PARSE_PARAMETERS_START(3, 6)
 		Z_PARAM_ZVAL(command_zv)
@@ -358,23 +361,28 @@ PHP_FUNCTION(proc_open)
 			RETURN_FALSE;
 		}
 
-		argv = safe_emalloc(sizeof(char *), num_elems + 1, 0);
-		i = 0;
+		num_argv = num_elems - 1;
+
+		argv = safe_emalloc(sizeof(char *), num_argv, 0);
+
+		i = -1;
 		ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
+			++i;
 			zend_string *arg_str = get_valid_arg_string(arg_zv, i + 1);
 			if (!arg_str) {
 				argv[i] = NULL;
 				goto exit_fail;
 			}
 
-			if (i == 0) {
+			if (i == 0)
+			{
 				command = pestrdup(ZSTR_VAL(arg_str), is_persistent);
+			} else {
+				argv[i - 1] = estrdup(ZSTR_VAL(arg_str));
 			}
 
-			argv[i++] = estrdup(ZSTR_VAL(arg_str));
 			zend_string_release(arg_str);
 		} ZEND_HASH_FOREACH_END();
-		argv[i] = NULL;
 
 		/* As the array is non-empty, we should have found a command. */
 		ZEND_ASSERT(command);
@@ -388,6 +396,10 @@ PHP_FUNCTION(proc_open)
 	}
 
 	ndescriptors_array = zend_hash_num_elements(Z_ARRVAL_P(descriptorspec));
+
+	num_descv = ndescriptors_array;
+
+	descv = safe_emalloc(sizeof(int *), num_descv, 0);
 
 	descriptors = safe_emalloc(sizeof(struct php_proc_open_descriptor_item), ndescriptors_array, 0);
 
@@ -457,24 +469,24 @@ PHP_FUNCTION(proc_open)
 					goto exit_fail;
 				}
 
-                // stdin is a special case – we need an Emscripten device
-                // to provide a callback that will feed the data back into
-                // the process.
-                if (descriptors[ndesc].index == 0) {
-                    char *device_path = js_create_input_device(current_procopen_call_id);
-                    // printf("ndesc: %d, index: %d, nindex: %u, device_path: %s\n", ndesc, descriptors[ndesc].index, nindex, device_path);
-                    descriptors[ndesc].childend = current_procopen_call_id;
-                    descriptors[ndesc].parentend = open(device_path, O_WRONLY);
-                } else {
-                    if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
-                        descriptors[ndesc].parentend = newpipe[1];
-                        descriptors[ndesc].childend = newpipe[0];
-                        descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
-                    } else {
-                        descriptors[ndesc].parentend = newpipe[0];
-                        descriptors[ndesc].childend = newpipe[1];
-                    }
-                }
+				// stdin is a special case – we need an Emscripten device
+				// to provide a callback that will feed the data back into
+				// the process.
+				if (descriptors[ndesc].index == 0) {
+					char *device_path = js_create_input_device(current_procopen_call_id);
+					// printf("ndesc: %d, index: %d, nindex: %u, device_path: %s\n", ndesc, descriptors[ndesc].index, nindex, device_path);
+					descriptors[ndesc].childend = current_procopen_call_id;
+					descriptors[ndesc].parentend = open(device_path, O_WRONLY);
+				} else {
+					if (strncmp(Z_STRVAL_P(zmode), "w", 1) != 0) {
+						descriptors[ndesc].parentend = newpipe[1];
+						descriptors[ndesc].childend = newpipe[0];
+						descriptors[ndesc].mode |= DESC_PARENT_MODE_WRITE;
+					} else {
+						descriptors[ndesc].parentend = newpipe[0];
+						descriptors[ndesc].childend = newpipe[1];
+					}
+				}
 
 				descriptors[ndesc].mode_flags = descriptors[ndesc].mode & DESC_PARENT_MODE_WRITE ? O_WRONLY : O_RDONLY;
 
@@ -573,17 +585,25 @@ PHP_FUNCTION(proc_open)
 				goto exit_fail;
 			}
 		}
+
+		int *desc = safe_emalloc(sizeof(int), 3, 0);
+
+		desc[0] = descriptors[ndesc].index;
+		desc[1] = descriptors[ndesc].childend;
+		desc[2] = descriptors[ndesc].parentend;
+
+		descv[ndesc] = desc;
+
 		ndesc++;
 	} ZEND_HASH_FOREACH_END();
 
-    // the wasm way {{{
-    child = js_open_process(
-		command, 
-		descriptors[0].childend, 
-		descriptors[1].childend, 
-		descriptors[1].parentend, 
-		descriptors[2].childend,
-		descriptors[2].parentend
+	// the wasm way {{{
+	child = js_open_process(
+		command,
+		argv,
+		num_argv,
+		descv,
+		num_descv
 	);
     // }}}
 
@@ -629,7 +649,7 @@ PHP_FUNCTION(proc_open)
 
 					php_stream_to_zval(stream, &retfp);
 					add_index_zval(pipes, descriptors[i].index, &retfp);
-				
+
 					proc->pipes[i] = Z_RES(retfp);
 					Z_ADDREF(retfp);
 				}
@@ -640,12 +660,19 @@ PHP_FUNCTION(proc_open)
 	}
 
 	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
+		for(int i = 0; i < num_argv; i++)
+		{
+			efree(argv[i]);
 		}
 		efree(argv);
+	}
+
+	if (descv) {
+		for(int i = 0; i < num_descv; i++)
+		{
+			efree(descv[i]);
+		}
+		efree(descv);
 	}
 
 	efree(descriptors);
@@ -662,12 +689,19 @@ exit_fail:
 	}
 
 	if (argv) {
-		char **arg = argv;
-		while (*arg != NULL) {
-			efree(*arg);
-			arg++;
+		for(int i = 0; i < num_argv; i++)
+		{
+			efree(argv[i]);
 		}
 		efree(argv);
+	}
+
+	if (descv) {
+		for(int i = 0; i < num_descv; i++)
+		{
+			efree(descv[i]);
+		}
+		efree(descv);
 	}
 
 	RETURN_FALSE;

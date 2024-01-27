@@ -16,13 +16,8 @@
    +----------------------------------------------------------------------+
  */
 
-#ifdef PHP_WIN32
-typedef HANDLE php_file_descriptor_t;
-typedef DWORD php_process_id_t;
-#else
 typedef int php_file_descriptor_t;
 typedef pid_t php_process_id_t;
-#endif
 
 /* Environment block under win32 is a NUL terminated sequence of NUL terminated
  * name=value strings.
@@ -30,16 +25,11 @@ typedef pid_t php_process_id_t;
  * */
 typedef struct _php_process_env {
 	char *envp;
-#ifndef PHP_WIN32
 	char **envarray;
-#endif
 } php_process_env_t;
 
 struct php_process_handle {
-	php_process_id_t	child;
-#ifdef PHP_WIN32
-	HANDLE childHandle;
-#endif
+	php_process_id_t child;
 	int npipes;
 	zend_resource **pipes;
 	char *command;
@@ -49,8 +39,7 @@ struct php_process_handle {
 
 extern int js_waitpid(int pid, int *status);
 extern int js_process_status(int pid);
-extern int js_open_process(const char *command, int procopen_call_nb, int out_childend, int out_parentend, int err_childend, int err_parentend);
+extern int js_open_process(const char *command, char **args, int args_length, int **descv, int descv_length);
 extern char *js_create_input_device(int procopen_call_nb);
 
 static int procopen_call_id = 0;
-
