@@ -80,7 +80,10 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 			'wp-content/plugins',
 			crypto.randomUUID()
 		);
+		console.profile('installPlugin');
 		await iteratorToStream(files!).pipeTo(streamWriteToPhp(php, extractTo));
+		console.profileEnd('installPlugin');
+		console.log('Profile ready');
 		const pluginPath = await flattenDirectory(php, extractTo, assetName);
 
 		// Activate
@@ -98,6 +101,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 		await applyGutenbergPatchOnce(php);
 	} catch (error) {
+		console.timeEnd('installPlugin');
 		console.error(
 			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
 				`The original error was: ${error}`

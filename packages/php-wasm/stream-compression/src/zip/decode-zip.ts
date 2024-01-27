@@ -129,10 +129,13 @@ export async function nextZipEntry(stream: ReadableStream<Uint8Array>) {
  * @param skipSignature Do not consume the signature from the stream.
  * @returns
  */
+let read = 0;
 export async function readFileEntry(
 	stream: ReadableStream<Uint8Array>,
 	skipSignature = false
 ): Promise<FileEntry | null> {
+	++read;
+	// console.log(read);
 	if (!skipSignature) {
 		throw new Error('Not skip');
 		const sigData = new DataView((await collectBytes(stream, 4))!.buffer);
