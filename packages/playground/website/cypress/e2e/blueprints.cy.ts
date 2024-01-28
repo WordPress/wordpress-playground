@@ -41,6 +41,7 @@ describe('Blueprints', () => {
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
 	});
+
 	it('enableMultisite step should re-activate the importer plugin', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/plugins.php',
@@ -49,9 +50,7 @@ describe('Blueprints', () => {
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument()
 			.its('body')
-			.get(
-				'.active[data-plugin="wordpress-importer/wordpress-importer.php"]'
-			)
+			.find('[data-slug="wordpress-importer-git-loader"].active')
 			.should('exist');
 	});
 });
