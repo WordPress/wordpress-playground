@@ -3,7 +3,7 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import {
-	getWordPressModule,
+	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
@@ -23,7 +23,7 @@ import {
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { applyWordPressPatches, unzip } from '@wp-playground/blueprints';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -45,16 +45,14 @@ if (typeof self?.location?.href !== 'undefined') {
 	startupOptions.phpExtension = params.getAll('php-extension');
 }
 
-// Expect underscore, not a dot. Vite doesn't deal well with the dot in the
-// parameters names passed to the worker via a query string.
-const requestedWPVersion = (startupOptions.wpVersion || '').replace('_', '.');
+const requestedWPVersion = startupOptions.wpVersion || '';
 const wpVersion: string = SupportedWordPressVersionsList.includes(
 	requestedWPVersion
 )
 	? requestedWPVersion
 	: LatestSupportedWordPressVersion;
 
-const requestedPhpVersion = (startupOptions.phpVersion || '').replace('_', '.');
+const requestedPhpVersion = startupOptions.phpVersion || '';
 const phpVersion: SupportedPHPVersion = SupportedPHPVersionsList.includes(
 	requestedPhpVersion
 )
@@ -84,7 +82,24 @@ if (
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
-const wordPressModule = getWordPressModule(wpVersion);
+
+// Start downloading WordPress if needed
+let wordPressRequest = null;
+if (!wordPressAvailableInOPFS) {
+	if (requestedWPVersion.startsWith('http')) {
+		// We don't know the size upfront, but we can still monitor the download.
+		// monitorFetch will read the content-length response header when available.
+		wordPressRequest = monitor.monitorFetch(fetch(requestedWPVersion));
+	} else {
+		const wpDetails = getWordPressModuleDetails(wpVersion);
+		monitor.expectAssets({
+			[wpDetails.url]: wpDetails.size,
+		});
+		wordPressRequest = monitor.monitorFetch(fetch(wpDetails.url));
+	}
+}
+
+// const wordPressFile = fetch(zipFilename);
 const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	downloadMonitor: monitor,
 	requestHandler: {
@@ -94,7 +109,6 @@ const { php, phpReady } = WebPHP.loadSync(phpVersion, {
 	// We don't yet support loading specific PHP extensions one-by-one.
 	// Let's just indicate whether we want to load all of them.
 	loadAllExtensions: phpExtensions?.length > 0,
-	dataModules: wordPressAvailableInOPFS ? [] : [wordPressModule],
 });
 
 /** @inheritDoc PHPClient */
@@ -194,13 +208,23 @@ try {
 		await php.setSapiName(startupOptions.sapiName);
 	}
 
+	// If WordPress isn't already installed, download and extract it from
+	// the zip file.
 	if (!wordPressAvailableInOPFS) {
+		await unzip(php, {
+			zipFile: new File(
+				[await (await wordPressRequest!).blob()],
+				'wp.zip'
+			),
+			extractToPath: DOCROOT,
+		});
+
 		/**
 		 * Patch WordPress when it's not restored from OPFS.
-		 * The stopred version, presumably, has all patches
+		 * The stored version, presumably, has all the patches
 		 * already applied.
 		 */
-		await wordPressModule;
+		// await wordPressModule;
 		await applyWordPressPatches(php, {
 			wordpressPath: DOCROOT,
 			patchSecrets: true,

@@ -68,7 +68,7 @@ export type GenericStep<Resource> =
 	| RunSqlStep<Resource>
 	| SetPhpIniEntryStep
 	| SetSiteOptionsStep
-	| UnzipStep
+	| UnzipStep<Resource>
 	| UpdateUserMetaStep
 	| WriteFileStep<Resource>;
 

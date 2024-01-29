@@ -85,22 +85,18 @@ export class WebPHP extends BasePHP {
 		const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
 
 		const doLoad = async () => {
-			const allModules = await Promise.all([
-				getPHPLoaderModule(phpVersion, variant),
-				...(options.dataModules || []),
-			]);
-			const [phpLoaderModule, ...dataModules] = allModules;
-			options.downloadMonitor?.setModules(allModules);
-
-			const runtimeId = await loadPHPRuntime(
-				phpLoaderModule,
-				{
-					...(options.emscriptenOptions || {}),
-					...(options.downloadMonitor?.getEmscriptenOptions() || {}),
-					...fakeWebsocket(),
-				},
-				dataModules
+			const phpLoaderModule = await getPHPLoaderModule(
+				phpVersion,
+				variant
 			);
+			options.downloadMonitor?.expectAssets({
+				[phpLoaderModule.dependencyFilename]:
+					phpLoaderModule.dependenciesTotalSize,
+			});
+			const runtimeId = await loadPHPRuntime(phpLoaderModule, {
+				...(options.emscriptenOptions || {}),
+				...fakeWebsocket(),
+			});
 			php.initializeRuntime(runtimeId);
 		};
 		const asyncData = doLoad();

@@ -8,12 +8,15 @@ import {
 	RecommendedPHPVersion,
 	getWordPressModule,
 } from '@wp-playground/wordpress';
+import { unzip } from '@wp-playground/blueprints';
 
 describe('Sync tests', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			dataModules: [await getWordPressModule()],
+		php = await NodePHP.load(RecommendedPHPVersion);
+		await unzip(php, {
+			zipFile: await getWordPressModule(),
+			extractToPath: '/wordpress',
 		});
 	});
 	it('Loads WordPress', async () => {

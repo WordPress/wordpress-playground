@@ -281,14 +281,9 @@ function setupPostMessageRelay(
 
 function parseVersion<T>(value: string | undefined | null, latest: T) {
 	if (!value || value === 'latest') {
-		return (latest as string).replace('.', '_');
+		return latest as string;
 	}
-	/*
-	 * Vite doesn't deal well with the dot in the parameters name,
-	 * passed to the worker via a query string, so we replace
-	 * it with an underscore
-	 */
-	return value.replace('.', '_');
+	return value;
 }
 
 function parseList<T>(value: string[], list: readonly T[]) {

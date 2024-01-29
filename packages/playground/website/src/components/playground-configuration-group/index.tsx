@@ -195,8 +195,14 @@ export default function PlaygroundConfigurationGroup({
 
 		reloadWithNewConfiguration(playground!, config);
 	}
-	const WPLabel =
+	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
+	if (WPLabel.length > 15) {
+		WPLabel = WPLabel.split('/').pop()!;
+		if (WPLabel.length > 15) {
+			WPLabel = '...' + WPLabel.slice(0, 15);
+		}
+	}
 
 	return (
 		<>

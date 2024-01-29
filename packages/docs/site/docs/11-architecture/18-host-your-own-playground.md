@@ -132,7 +132,7 @@ You may need to adjust the above according to server specifics, particularly how
 
 ## Customize bundled data
 
-The file `wp.data` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
+The file `wp.zip` is a bundle of all the files for the virtual file system in Playground. There's a data file for each available WordPress version.
 
 The package at `packages/playground/wordpress` is responsible for building these data files.
 

@@ -4,15 +4,19 @@ import {
 	getWordPressModule,
 } from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
+import { unzip } from './unzip';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(RecommendedPHPVersion, {
-			dataModules: [await getWordPressModule()],
 			requestHandler: {
 				documentRoot: '/wordpress',
 			},
+		});
+		await unzip(php, {
+			zipFile: await getWordPressModule(),
+			extractToPath: '/wordpress',
 		});
 	});
 
