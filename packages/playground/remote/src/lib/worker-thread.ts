@@ -3,7 +3,7 @@ import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import {
-	getWordPressModule,
+	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
@@ -84,18 +84,18 @@ const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
 
 // Start downloading WordPress if needed
-let wordPressZip = null;
+let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressZip = monitor.monitorFetch(fetch(requestedWPVersion));
+		wordPressRequest = monitor.monitorFetch(fetch(requestedWPVersion));
 	} else {
-		const wpDetails = getWordPressModule(wpVersion);
+		const wpDetails = getWordPressModuleDetails(wpVersion);
 		monitor.expectAssets({
 			[wpDetails.url]: wpDetails.size,
 		});
-		wordPressZip = monitor.monitorFetch(fetch(wpDetails.url));
+		wordPressRequest = monitor.monitorFetch(fetch(wpDetails.url));
 	}
 }
 
@@ -211,16 +211,10 @@ try {
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		const wpZipResponse = await wordPressZip!;
-		php.writeFile(
-			'/tmp/wordpress.zip',
-			new Uint8Array(await wpZipResponse.arrayBuffer())
-		);
 		await unzip(php, {
-			zipPath: '/tmp/wordpress.zip',
+			zipFile: await (await wordPressRequest!).blob(),
 			extractToPath: DOCROOT,
 		});
-		php.unlink('/tmp/wordpress.zip');
 
 		/**
 		 * Patch WordPress when it's not restored from OPFS.

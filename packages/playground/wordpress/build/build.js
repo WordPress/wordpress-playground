@@ -192,7 +192,7 @@ for (const version of Object.keys(versions)) {
 }
 
 // Refresh get-wordpress-module.ts
-const getWordPressModulePath = `${outputJsDir}/get-wordpress-module.ts`;
+const getWordPressModulePath = `${outputJsDir}/get-wordpress-module-details.ts`;
 const getWordPressModuleContent = `
 ${Object.keys(versions)
 	.map(
@@ -208,7 +208,7 @@ import url_${slugify(version)} from './wp-${version}.zip?url';`
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModule(wpVersion: string = ${JSON.stringify(
+export function getWordPressModuleDetails(wpVersion: string = ${JSON.stringify(
 	latestStableVersion
 )}): { size: number, url: string } {
 	switch (wpVersion) {

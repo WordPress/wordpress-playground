@@ -16,11 +16,15 @@ import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
  */
 export interface UnzipStep {
 	step: 'unzip';
+	/** The path of the zip file to extract */
+	zipPath?: string;
 	/** The zip file to extract */
-	zipPath: string;
+	zipFile?: Blob;
 	/** The path to extract the zip file to */
 	extractToPath: string;
 }
+
+const tmpPath = '/tmp/file.zip';
 
 /**
  * Unzip a zip file.
@@ -31,8 +35,15 @@ export interface UnzipStep {
  */
 export const unzip: StepHandler<UnzipStep> = async (
 	playground,
-	{ zipPath, extractToPath }
+	{ zipFile, zipPath, extractToPath }
 ) => {
+	if (zipFile) {
+		zipPath = tmpPath;
+		await playground.writeFile(
+			tmpPath,
+			new Uint8Array(await zipFile.arrayBuffer())
+		);
+	}
 	const js = phpVars({
 		zipPath,
 		extractToPath,
@@ -41,4 +52,7 @@ export const unzip: StepHandler<UnzipStep> = async (
 		playground,
 		`unzip(${js.zipPath}, ${js.extractToPath});`
 	);
+	if (zipFile) {
+		await playground.unlink(tmpPath);
+	}
 };

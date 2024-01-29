@@ -7,11 +7,11 @@
  * and should still be linted and picked up by the test runner.
  */
 
-import { getWordPressModule } from './wordpress/get-wordpress-module';
+import { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 
-describe('getWordPressModule()', () => {
+describe('getWordPressModuleDetails()', () => {
 	it('should return a data loader module', async () => {
-		const module = await getWordPressModule();
+		const module = getWordPressModuleDetails();
 		expect(module.url).toMatch(/\/wp-\d.\d.zip$/);
 	});
 });

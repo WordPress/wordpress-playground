@@ -34,7 +34,7 @@ const plugins = [
 	} as Plugin,
 ];
 export default defineConfig({
-	assetsInclude: ['**/*.wasm', '*.data', '*.zip'],
+	assetsInclude: ['**/*.wasm', '*.zip'],
 	cacheDir: '../../../node_modules/.vite/playground',
 	// Bundled WordPress files live in a separate dependency-free `wordpress`
 	// package so that every package may use them without causing circular

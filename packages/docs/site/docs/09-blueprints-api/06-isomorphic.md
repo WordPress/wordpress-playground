@@ -17,7 +17,8 @@ With this PR applied, all of the following `login()` calls are valid:
 
 ```ts
 // In the browser
-const phpInSameThread = await WebPHP.load('7.4', { dataModules: ['wp.data'] });
+const phpInSameThread = await WebPHP.load('7.4');
+// unzip WordPress in /wordpress
 await login(phpInSameThread);
 
 const phpInWorker = await consumeAPI(playgroundIframe);

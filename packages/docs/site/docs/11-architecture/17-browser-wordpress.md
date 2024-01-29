@@ -15,8 +15,7 @@ nx bundle-wordpress playground-wordpress --wp-version=6.1
 
 The bundler outputs:
 
--   `packages/playground/wordpress/public/wp-6.1.js` – the JavaScript loader for `wp.data`
--   `packages/playground/wordpress/public/wp-6.1.data` – the WordPress data bundle consisting of concatenated contents of all WordPress files
+-   `packages/playground/wordpress/public/wp-6.1.zip` – zipped WordPress files
 -   `packages/playground/wordpress/public/wp-6.1/` – a directory with static assets for the specified WordPress versions
 
 Consult [the web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/wordpress/Dockerfile) for more details (like the list of supported WordPress versions) and modify it to customize the default WordPress installation.
