@@ -129,7 +129,7 @@ await asyncSpawn(
 	{ cwd: sourceDir, stdio: 'inherit' }
 );
 
-// Extract wp.js and wp.zip
+// Extract wp.zip from the docker image
 await asyncSpawn(
 	'docker',
 	[
