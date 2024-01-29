@@ -115,22 +115,18 @@ const loadedRuntimes: Map<number, PHPRuntime> = new Map();
  * @public
  * @param  phpLoaderModule         - The ESM-wrapped Emscripten module. Consult the Dockerfile for the build process.
  * @param  phpModuleArgs           - The Emscripten module arguments, see https://emscripten.org/docs/api_reference/module.html#affecting-execution.
- * @param  dataDependenciesModules - A list of the ESM-wrapped Emscripten data dependency modules.
  * @returns Loaded runtime id.
  */
 
 export async function loadPHPRuntime(
 	phpLoaderModule: PHPLoaderModule,
-	phpModuleArgs: EmscriptenOptions = {},
-	dataDependenciesModules: DataModule[] = []
+	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<number> {
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
-	const [depsReady, resolveDeps] = makePromise();
 
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
 			rejectPHP(reason);
-			resolveDeps();
 			// This can happen after PHP has been initialized so
 			// let's just log it.
 			console.error(reason);
@@ -148,24 +144,8 @@ export async function loadPHPRuntime(
 			}
 			resolvePHP();
 		},
-		monitorRunDependencies(nbLeft) {
-			if (nbLeft === 0) {
-				delete PHPRuntime.monitorRunDependencies;
-				resolveDeps();
-			}
-		},
 	});
-	await Promise.all(
-		dataDependenciesModules.map(({ default: dataModule }) =>
-			dataModule(PHPRuntime)
-		)
-	);
 
-	if (!dataDependenciesModules.length) {
-		resolveDeps();
-	}
-
-	await depsReady;
 	await phpReady;
 
 	const id = loadedRuntimes.size;
@@ -245,7 +225,6 @@ export type EmscriptenOptions = {
 	ENV?: Record<string, string>;
 	locateFile?: (path: string) => string;
 	noInitialRun?: boolean;
-	dataFileDownloads?: Record<string, number>;
 	print?: (message: string) => void;
 	printErr?: (message: string) => void;
 	quit?: (status: number, toThrow: any) => void;

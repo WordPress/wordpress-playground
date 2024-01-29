@@ -11,11 +11,6 @@
  */
 const FALLBACK_FILE_SIZE = 5 * 1024 * 1024;
 
-export interface MonitoredModule {
-	dependencyFilename: string;
-	dependenciesTotalSize: number;
-}
-
 /**
  * Monitors the download #progress of Emscripten modules
  *
@@ -37,37 +32,32 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	#assetsSizes: Record<string, number> = {};
 	#progress: Record<string, number> = {};
 
-	constructor(modules: MonitoredModule[] = []) {
+	constructor() {
 		super();
 
-		this.setModules(modules);
 		this.#monitorWebAssemblyStreaming();
 	}
 
-	getEmscriptenOptions() {
-		return {
-			dataFileDownloads: this.#createDataFileDownloadsProxy(),
-		};
+	expectAssets(assets: Record<string, number>) {
+		for (const [urlLike, size] of Object.entries(assets)) {
+			const dummyBaseUrl = 'http://example.com/';
+			const pathname = new URL(urlLike, dummyBaseUrl).pathname;
+			const filename = pathname.split('/').pop()!;
+			if (!(filename in this.#assetsSizes)) {
+				this.#assetsSizes[filename] = size;
+			}
+			if (!(filename in this.#progress)) {
+				this.#progress[filename] = 0;
+			}
+		}
 	}
 
-	setModules(modules: MonitoredModule[]) {
-		this.#assetsSizes = modules.reduce((acc, module) => {
-			if (module.dependenciesTotalSize > 0) {
-				// Required to create a valid URL object
-				const dummyBaseUrl = 'http://example.com/';
-				const url = new URL(module.dependencyFilename, dummyBaseUrl)
-					.pathname;
-				const filename = url.split('/').pop()!;
-				acc[filename] = Math.max(
-					filename in acc ? acc[filename] : 0,
-					module.dependenciesTotalSize
-				);
-			}
-			return acc;
-		}, {} as Record<string, number>);
-		this.#progress = Object.fromEntries(
-			Object.entries(this.#assetsSizes).map(([name]) => [name, 0])
-		);
+	async monitorFetch(fetchPromise: Promise<Response>): Promise<Response> {
+		const response = await fetchPromise;
+		const onProgress = (event: CustomEvent<DownloadProgress>) => {
+			this.#notify(response.url, event.detail.loaded, event.detail.total);
+		};
+		return cloneResponseMonitorProgress(response, onProgress);
 	}
 
 	/**
@@ -93,33 +83,6 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 
 			return instantiateStreaming(reportingResponse, ...args);
 		};
-	}
-
-	/**
-	 * Creates a `dataFileDownloads` Proxy object that can be passed
-	 * to `startPHP` to monitor the download #progress of the data
-	 * dependencies.
-	 */
-	#createDataFileDownloadsProxy() {
-		// eslint-disable-next-line @typescript-eslint/no-this-alias
-		const self = this;
-		const dataFileDownloads: Record<string, any> = {};
-		// Monitor assignments like dataFileDownloads[file] = #progress
-		return new Proxy(dataFileDownloads, {
-			set(obj, file: string, progress) {
-				self.#notify(file, progress.loaded, progress.total);
-
-				// Monitor assignments like dataFileDownloads[file].total += delta
-				obj[file] = new Proxy(JSON.parse(JSON.stringify(progress)), {
-					set(nestedObj, prop, value) {
-						nestedObj[prop] = value;
-						self.#notify(file, nestedObj.loaded, nestedObj.total);
-						return true;
-					},
-				});
-				return true;
-			},
-		});
 	}
 
 	/**
