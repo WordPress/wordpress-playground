@@ -43,8 +43,15 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	});
 
 	const url = new URL(await playground.absoluteUrl);
+	if (url.port !== '') {
+		let errorMessage = `The current host is ${url.host}, but WordPress multisites do not support custom ports.`;
+		if (url.hostname === 'localhost') {
+			errorMessage += ` For development, you can set up a playground.test domain using the instructions at https://wordpress.github.io/wordpress-playground/contributing/code.`;
+		}
+		throw new Error(errorMessage);
+	}
 	const sitePath = url.pathname.replace(/\/$/, '') + '/';
-	const siteUrl = `${url.protocol}//${url.host}${sitePath}`;
+	const siteUrl = `${url.protocol}//${url.hostname}${sitePath}`;
 	await setSiteOptions(playground, {
 		options: {
 			siteurl: siteUrl,
@@ -150,7 +157,7 @@ echo json_encode($deactivated_plugins);
 	}
 	$folder = ${phpVar(wpInstallationFolder)};
 	if (strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
-		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.host)};
+		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
 	}
 `
