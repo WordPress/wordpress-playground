@@ -28,6 +28,7 @@ import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportFileStep } from './import-file';
+import { EnableMultisiteStep } from './enable-multisite';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -50,6 +51,7 @@ export type GenericStep<Resource> =
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
+	| EnableMultisiteStep
 	| ImportFileStep<Resource>
 	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
@@ -77,6 +79,7 @@ export type {
 	CpStep,
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
+	EnableMultisiteStep,
 	ImportFileStep,
 	ImportWordPressFilesStep,
 	InstallPluginStep,

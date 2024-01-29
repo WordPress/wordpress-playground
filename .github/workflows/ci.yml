@@ -31,13 +31,12 @@ jobs:
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
+        # Run as root to allow node to bind to port 80
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: ./node_modules/.bin/cypress install --force
-            - run: npx nx affected --target=e2e --configuration=ci --verbose
-              env:
-                  CYPRESS_CI: 1
+            - run: sudo ./node_modules/.bin/cypress install --force
+            - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
             # Upload the Cypress screenshots as artifacts if the job fails
             - uses: actions/upload-artifact@v2
               if: ${{ failure() }}

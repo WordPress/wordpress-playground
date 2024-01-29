@@ -17,7 +17,16 @@ export async function registerServiceWorker<
 >(phpApi: Client, scope: string, scriptUrl: string) {
 	const sw = navigator.serviceWorker;
 	if (!sw) {
-		throw new Error('Service workers are not supported in this browser.');
+		if (location.protocol === 'https:') {
+			throw new Error(
+				'Service workers are not supported in this browser.'
+			);
+		} else {
+			throw new Error(
+				'WordPress Playground requires service workers which are only supported ' +
+					'on HTTPS sites. This site does not use HTTPS, please retry on one that does. '
+			);
+		}
 	}
 
 	console.debug(`[window][sw] Registering a Service Worker`);

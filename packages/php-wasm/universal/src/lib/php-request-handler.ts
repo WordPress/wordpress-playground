@@ -178,6 +178,7 @@ export class PHPRequestHandler implements RequestHandler {
 		 */
 		const release = await this.#semaphore.acquire();
 		try {
+			this.php.addServerGlobalEntry('REMOTE_ADDR', '127.0.0.1');
 			this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
 			this.php.addServerGlobalEntry(
 				'HTTPS',
@@ -236,7 +237,24 @@ export class PHPRequestHandler implements RequestHandler {
 
 			let scriptPath;
 			try {
-				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
+				/**
+				 * Support .htaccess-like URL rewriting.
+				 * If the request was rewritten by a service worker,
+				 * the pathname requested by the user will be in
+				 * the `requestedUrl.pathname` property, while the
+				 * rewritten target URL will be in `request.headers['x-rewrite-url']`.
+				 */
+				let requestedPath = requestedUrl.pathname;
+				if (request.headers?.['x-rewrite-url']) {
+					try {
+						requestedPath = new URL(
+							request.headers['x-rewrite-url']
+						).pathname;
+					} catch (error) {
+						// Ignore
+					}
+				}
+				scriptPath = this.#resolvePHPFilePath(requestedPath);
 			} catch (error) {
 				return new PHPResponse(
 					404,
@@ -291,10 +309,7 @@ export class PHPRequestHandler implements RequestHandler {
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
-		if (!this.php.fileExists(`${this.#DOCROOT}/index.php`)) {
-			throw new Error(`File not found: ${resolvedFsPath}`);
-		}
-		return `${this.#DOCROOT}/index.php`;
+		throw new Error(`File not found: ${resolvedFsPath}`);
 	}
 }
 

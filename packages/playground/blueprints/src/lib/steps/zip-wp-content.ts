@@ -42,7 +42,9 @@ export const zipWpContent = async (
 		// It is hacky and will be removed soon.
 		exceptPaths = exceptPaths
 			.filter((path) => !path.startsWith('themes/twenty'))
-			.filter((path) => path !== 'plugins/sqlite-database-integration');
+			.filter(
+				(path) => path !== 'mu-plugins/sqlite-database-integration'
+			);
 	}
 	const js = phpVars({
 		zipPath,

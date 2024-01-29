@@ -4,6 +4,7 @@ interface MakeBlueprintOptions {
 	php?: string;
 	wp?: string;
 	login: boolean;
+	multisite: boolean;
 	phpExtensionBundles?: string[];
 	landingPage?: string;
 	features?: Blueprint['features'];
@@ -32,6 +33,9 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 						url: options.importSite,
 					},
 				},
+			options.multisite && {
+				step: 'enableMultisite',
+			},
 			options.login && {
 				step: 'login',
 				username: 'admin',

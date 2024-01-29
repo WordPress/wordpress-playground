@@ -29,3 +29,17 @@ Be sure to also review the following resources:
 -   [Packages and projects](./04-packages-and-projects.md)
 -   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
 -   [Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
+
+## HTTPS setup
+
+Some Playground features, like multisite, require a local test domain running via HTTPS.
+
+One way to get it set up is with [Laravel Valet](https://laravel.com/docs/10.x/valet).
+
+Once your Valet is installed, run:
+
+```bash
+valet proxy playground.test http://localhost:5400 --secure
+```
+
+Your dev server is now available via https://playground.test.
