@@ -184,7 +184,7 @@ RUN cd wordpress && \
     sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
     mv wp-config.php.new wp-config.php
 
-# Build the .zip file using Emscripten
+# Build the final wp.zip file
 RUN mv wordpress /wordpress && \
     cd /wordpress && \
     zip /root/output/$OUT_FILENAME.zip -r .
