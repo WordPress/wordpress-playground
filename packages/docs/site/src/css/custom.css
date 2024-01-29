@@ -107,5 +107,5 @@ li.footer__item a:hover {
 }
 
 .footerLogoLink_mPrW {
-	opacity: 1;
+	opacity: 1 !important;
 }
