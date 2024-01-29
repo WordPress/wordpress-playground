@@ -140,8 +140,8 @@ echo json_encode($deactivated_plugins);
 	// Create a sunrise.php file to tell WordPress which site to load
 	// by default. Without this, requiring `wp-load.php` will result in
 	// a redirect to the main site.
-	const wpInstallationFolder =
-		'scope:' + getURLScope(new URL(await playground.absoluteUrl));
+	const playgroundUrl = new URL(await playground.absoluteUrl);
+	const wpInstallationFolder = 'scope:' + getURLScope(playgroundUrl);
 	await playground.writeFile(
 		`${await playground.documentRoot}/wp-content/sunrise.php`,
 		`<?php
@@ -150,7 +150,7 @@ echo json_encode($deactivated_plugins);
 	}
 	$folder = ${phpVar(wpInstallationFolder)};
 	if (strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
-		$_SERVER['HTTP_HOST'] = 'playground.test';
+		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.host)};
 		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
 	}
 `
