@@ -35,7 +35,6 @@ export async function installAsset(
 
 	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
 	const tmpDir = joinPaths(wpContent, crypto.randomUUID());
-	const tmpZipPath = joinPaths(tmpDir, zipFileName);
 	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	if (await playground.fileExists(tmpUnzippedFilesPath)) {
@@ -45,14 +44,9 @@ export async function installAsset(
 	}
 	await playground.mkdir(tmpDir);
 
-	await writeFile(playground, {
-		path: tmpZipPath,
-		data: zipFile,
-	});
-
 	try {
 		await unzip(playground, {
-			zipPath: tmpZipPath,
+			zipFile,
 			extractToPath: tmpUnzippedFilesPath,
 		});
 

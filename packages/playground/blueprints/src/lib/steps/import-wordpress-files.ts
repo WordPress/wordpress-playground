@@ -47,19 +47,15 @@ export interface ImportWordPressFilesStep<ResourceType> {
 export const importWordPressFiles: StepHandler<
 	ImportWordPressFilesStep<File>
 > = async (playground, { wordPressFilesZip, pathInZip = '' }) => {
-	const zipPath = '/import.zip';
-	await playground.writeFile(
-		zipPath,
-		new Uint8Array(await wordPressFilesZip.arrayBuffer())
-	);
-
 	const documentRoot = await playground.documentRoot;
 
 	// Unzip
 	let importPath = joinPaths('/tmp', 'import');
 	await playground.mkdir(importPath);
-	await unzip(playground, { zipPath, extractToPath: importPath });
-	await playground.unlink(zipPath);
+	await unzip(playground, {
+		zipFile: wordPressFilesZip,
+		extractToPath: importPath,
+	});
 	importPath = joinPaths(importPath, pathInZip);
 
 	// Carry over any Playground-related files, such as the

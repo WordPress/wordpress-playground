@@ -212,7 +212,10 @@ try {
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
 		await unzip(php, {
-			zipFile: await (await wordPressRequest!).blob(),
+			zipFile: new File(
+				[await (await wordPressRequest!).blob()],
+				'wp.zip'
+			),
 			extractToPath: DOCROOT,
 		});
 
