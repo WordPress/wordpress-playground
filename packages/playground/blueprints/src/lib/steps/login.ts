@@ -36,11 +36,12 @@ export const login: StepHandler<LoginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(progress?.initialCaption || 'Logging in');
+	// Allow WordPress to set the cookies.
 	await playground.request({
 		url: '/wp-login.php',
 	});
 
-	await playground.request({
+	const response = await playground.request({
 		url: '/wp-login.php',
 		method: 'POST',
 		formData: {
@@ -49,4 +50,14 @@ export const login: StepHandler<LoginStep> = async (
 			rememberme: 'forever',
 		},
 	});
+
+	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
+		console.warn('WordPress response was', {
+			response,
+			text: response.text,
+		});
+		throw new Error(
+			`Failed to log in as ${username} with password ${password}`
+		);
+	}
 };

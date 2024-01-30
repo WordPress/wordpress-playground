@@ -1450,12 +1450,14 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 			goto wasm_request_done;
 		}
 
-		result = php_execute_script(&file_handle TSRMLS_CC);
+		php_execute_script(&file_handle TSRMLS_CC);
 	}
 	else
 	{
-		result = run_php(wasm_server_context->php_code);
+		run_php(wasm_server_context->php_code);
 	}
+	result = EG(exit_status);
+	
 wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;
@@ -1700,26 +1702,21 @@ int php_wasm_init()
  */
 static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
 {
-	int retVal = 255; // Unknown error.
-
 	zend_try
 	{
-		retVal = zend_eval_string(code, NULL, "php-wasm run script");
+		zend_eval_string(code, NULL, "php-wasm run script");
 
 		if (EG(exception))
 		{
 			zend_exception_error(EG(exception), E_ERROR);
-			retVal = 2;
 		}
 	}
 	zend_catch
 	{
-		retVal = 1; // Code died.
 	}
-
 	zend_end_try();
 
-	return retVal;
+	return EG(exit_status);
 }
 
 #ifdef WITH_VRZNO

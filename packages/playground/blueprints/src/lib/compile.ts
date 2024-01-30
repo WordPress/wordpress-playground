@@ -182,9 +182,21 @@ export function compileBlueprint(
 					}
 				}
 
-				for (const { run, step } of compiled) {
-					const result = await run(playground);
-					onStepCompleted(result, step);
+				for (const [i, { run, step }] of Object.entries(compiled)) {
+					try {
+						const result = await run(playground);
+						onStepCompleted(result, step);
+					} catch (e) {
+						throw new Error(
+							`Error when executing the blueprint step #${i} (${JSON.stringify(
+								step
+							)}). ` +
+								`Inspect the cause of this error for more details`,
+							{
+								cause: e,
+							}
+						);
+					}
 				}
 			} finally {
 				try {

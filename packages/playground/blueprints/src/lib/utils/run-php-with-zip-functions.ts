@@ -5,14 +5,8 @@ export async function runPhpWithZipFunctions(
 	playground: UniversalPHP,
 	code: string
 ) {
-	const result = await playground.run({
+	return await playground.run({
+		throwOnError: true,
 		code: zipFunctions + code,
 	});
-	if (result.exitCode !== 0) {
-		console.log(zipFunctions + code);
-		console.log(code + '');
-		console.log(result.errors);
-		throw result.errors;
-	}
-	return result;
 }

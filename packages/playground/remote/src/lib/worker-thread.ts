@@ -224,7 +224,6 @@ try {
 		 * The stored version, presumably, has all the patches
 		 * already applied.
 		 */
-		// await wordPressModule;
 		await applyWordPressPatches(php, {
 			wordpressPath: DOCROOT,
 			patchSecrets: true,

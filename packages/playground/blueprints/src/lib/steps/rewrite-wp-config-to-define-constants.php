@@ -271,7 +271,7 @@ function rewrite_wp_config_to_define_constants($content, $constants = [])
             [','],
             [var_export($constants[$name], true)],
             $third_arg_buffer,
-            [");"],
+            [");"]
         );
 
         // Remove the constant from the list so we can process any remaining
@@ -292,14 +292,14 @@ function rewrite_wp_config_to_define_constants($content, $constants = [])
                     var_export($name, true),
                     ',',
                     var_export($value, true),
-                    ");\n",
-                ],
+                    ");\n"
+                ]
             );
         }
         $prepend[] = "?>";
         $output = array_merge(
             $prepend,
-            $output,
+            $output
         );
     }
 

@@ -1,4 +1,4 @@
-import { PHPRequest } from '@php-wasm/universal';
+import { PHPRequest, PHPResponse } from '@php-wasm/universal';
 import { StepHandler } from '.';
 
 /**
@@ -32,9 +32,16 @@ export interface RequestStep {
 /**
  * Sends a HTTP request to the Playground.
  */
-export const request: StepHandler<RequestStep> = async (
+export const request: StepHandler<RequestStep, Promise<PHPResponse>> = async (
 	playground,
 	{ request }
 ) => {
-	return await playground.request(request);
+	const response = await playground.request(request);
+	if (response.httpStatusCode > 399 || response.httpStatusCode < 200) {
+		console.warn('WordPress response was', { response });
+		throw new Error(
+			`Request failed with status ${response.httpStatusCode}`
+		);
+	}
+	return response;
 };

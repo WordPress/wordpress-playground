@@ -1,11 +1,11 @@
-import { phpVar } from '@php-wasm/util';
+import { joinPaths, phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { login } from './login';
 import { request } from './request';
 import { setSiteOptions } from './site-data';
 import { activatePlugin } from './activate-plugin';
-import { getURLScope } from '@php-wasm/scopes';
+import { getURLScope, isURLScoped } from '@php-wasm/scopes';
 
 /**
  * @inheritDoc enableMultisite
@@ -33,9 +33,6 @@ export interface EnableMultisiteStep {
 export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 	playground
 ) => {
-	// Ensure we're logged in
-	await login(playground, {});
-
 	await defineWpConfigConsts(playground, {
 		consts: {
 			WP_ALLOW_MULTISITE: 1,
@@ -59,13 +56,21 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 		},
 	});
 
+	// Ensure we're logged in
+	await login(playground, {});
+
 	const docroot = await playground.documentRoot;
 
 	// Deactivate all the plugins as required by the multisite installation.
 	const result = await playground.run({
+		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");
+
+// Set current user to admin
+set_current_user( get_users(array('role' => 'Administrator') )[0] );
+
 require_once(${phpVar(docroot)} . "/wp-admin/includes/plugin.php");
 $plugins_root = ${phpVar(docroot)} . "/wp-content/plugins";
 $plugins = glob($plugins_root . "/*");
@@ -115,7 +120,7 @@ echo json_encode($deactivated_plugins);
     })).text;
     */
 
-	await request(playground, {
+	const response = await request(playground, {
 		request: {
 			url: '/wp-admin/network.php',
 			method: 'POST',
@@ -123,7 +128,7 @@ echo json_encode($deactivated_plugins);
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
 			body: jsonToUrlEncoded({
-				_wpnonce: nonce,
+				_wpnonce: nonce!,
 				_wp_http_referer: sitePath + 'wp-admin/network.php',
 				sitename: 'My WordPress Website Sites',
 				email: 'admin@localhost.com',
@@ -131,6 +136,16 @@ echo json_encode($deactivated_plugins);
 			}),
 		},
 	});
+	if (response.httpStatusCode !== 200) {
+		console.warn('WordPress response was', {
+			response,
+			text: response.text,
+			headers: response.headers,
+		});
+		throw new Error(
+			`Failed to enable multisite. Response code was ${response.httpStatusCode}`
+		);
+	}
 
 	await defineWpConfigConsts(playground, {
 		consts: {
@@ -148,15 +163,17 @@ echo json_encode($deactivated_plugins);
 	// by default. Without this, requiring `wp-load.php` will result in
 	// a redirect to the main site.
 	const playgroundUrl = new URL(await playground.absoluteUrl);
-	const wpInstallationFolder = 'scope:' + getURLScope(playgroundUrl);
+	const wpInstallationFolder = isURLScoped(playgroundUrl)
+		? 'scope:' + getURLScope(playgroundUrl)
+		: null;
 	await playground.writeFile(
-		`${await playground.documentRoot}/wp-content/sunrise.php`,
+		joinPaths(docroot, '/wp-content/sunrise.php'),
 		`<?php
 	if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
 		define( 'BLOG_ID_CURRENT_SITE', 1 );
 	}
 	$folder = ${phpVar(wpInstallationFolder)};
-	if (strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
+	if ($folder && strpos($_SERVER['REQUEST_URI'],"/$folder") === false) {
 		$_SERVER['HTTP_HOST'] = ${phpVar(playgroundUrl.hostname)};
 		$_SERVER['REQUEST_URI'] = "/$folder/" . ltrim($_SERVER['REQUEST_URI'], '/');
 	}
