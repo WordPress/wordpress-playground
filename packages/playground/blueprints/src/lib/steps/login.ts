@@ -41,7 +41,7 @@ export const login: StepHandler<LoginStep> = async (
 		url: '/wp-login.php',
 	});
 
-	const response = await playground.request({
+	await playground.request({
 		url: '/wp-login.php',
 		method: 'POST',
 		formData: {
@@ -50,9 +50,16 @@ export const login: StepHandler<LoginStep> = async (
 			rememberme: 'forever',
 		},
 	});
+
+	const response = await playground.request({
+		url: '/wp-admin',
+	});
 	// Naive check to see if we're logged in.
 	if (!response.text.includes('id="wpadminbar"')) {
-		console.warn('WordPress response was', { response });
+		console.warn('WordPress response was', {
+			response,
+			text: response.text,
+		});
 		throw new Error(
 			`Failed to log in as ${username} with password ${password}`
 		);
