@@ -71,8 +71,7 @@
 			"__experimentalDefaultControls": {
 				"fontSize": true
 			}
-		},
-		"renaming": false
+		}
 	},
 	"editorStyle": "wp-block-navigation-link-editor",
 	"style": "wp-block-navigation-link"

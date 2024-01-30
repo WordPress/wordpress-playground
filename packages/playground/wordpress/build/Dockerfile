@@ -157,6 +157,7 @@ RUN cd wordpress && \
 # PHP >= 8.0 is needed to preserve PHP 8.0 attributes,
 # like #[Attribute] and #[Pure]. In PHP 7.4, they are
 # treated as comments and removed by the whitespace stripping.
+COPY ./build-assets/add-newlines-after-annotations.php /root/
 RUN cd wordpress && \
     for phpfile in $(\
     find ./ -type f -name '*.php' \
@@ -170,6 +171,8 @@ RUN cd wordpress && \
     # remove set_time_limit function calls as they invoke the
     # setitimer system call unsupported by emscripten
     perl -pe 's/@?set_time_limit\([^)]+\)//g' $phpfile.small > $phpfile && \
+    # Add newlines after PHP 8.0 attributes
+    php /root/add-newlines-after-annotations.php $phpfile && \
     rm $phpfile.small; \
     done
 
