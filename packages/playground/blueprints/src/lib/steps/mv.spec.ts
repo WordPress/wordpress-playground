@@ -2,52 +2,45 @@ import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { mv } from './mv';
 
+const docroot = '/php';
 describe('Blueprint step mv()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(RecommendedPHPVersion);
+		php.mkdir(docroot);
 	});
 
 	it('should move a file', async () => {
-		const docroot = php.documentRoot;
 		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
 		await mv(php, {
 			fromPath: `/${docroot}/index.php`,
 			toPath: `/${docroot}/index2.php`,
 		});
 
-		const response = await php.run({
-			code: `<?php
-				require '/index2.php';
-			`,
-		});
-		expect(response.text).toBe('Hello World');
 		expect(php.fileExists(`/${docroot}/index.php`)).toBe(false);
+		expect(php.fileExists(`/${docroot}/index2.php`)).toBe(true);
 	});
 
 	it('should fail when the source file does not exist', async () => {
-		const docroot = php.documentRoot;
 		await expect(
 			mv(php, {
 				fromPath: `/${docroot}/index.php`,
 				toPath: `/${docroot}/index2.php`,
 			})
-		).rejects.toThrow(/ENOENT/);
+		).rejects.toThrow(/There is no such file or directory/);
 	});
 
-	it('should fail when the source file is a directory', async () => {
-		const docroot = php.documentRoot;
+	it('should move a directory', async () => {
 		php.mkdir(`/${docroot}/dir`);
-		await expect(
-			mv(php, {
-				fromPath: `/${docroot}/dir`,
-				toPath: `/${docroot}/index2.php`,
-			})
-		).rejects.toThrow(/EISDIR/);
+		mv(php, {
+			fromPath: `/${docroot}/dir`,
+			toPath: `/${docroot}/dir2`,
+		});
+		expect(php.fileExists(`/${docroot}/dir`)).toBe(false);
+		expect(php.fileExists(`/${docroot}/dir2`)).toBe(true);
 	});
 
 	it('should overwrite the target file', async () => {
-		const docroot = php.documentRoot;
 		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
 		php.writeFile(`/${docroot}/index2.php`, `<?php echo 'Goodbye World';`);
 		await mv(php, {
@@ -55,11 +48,8 @@ describe('Blueprint step mv()', () => {
 			toPath: `/${docroot}/index2.php`,
 		});
 
-		const response = await php.run({
-			code: `<?php
-				require '/index2.php';
-			`,
-		});
-		expect(response.text).toBe('Hello World');
+		expect(php.readFileAsText(`/${docroot}/index2.php`)).toBe(
+			`<?php echo 'Hello World';`
+		);
 	});
 });

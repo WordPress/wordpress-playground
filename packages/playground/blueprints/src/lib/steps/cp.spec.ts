@@ -2,51 +2,45 @@ import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { cp } from './cp';
 
+const docroot = '/php';
 describe('Blueprint step cp()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(RecommendedPHPVersion);
+		php.mkdir(docroot);
 	});
 
 	it('should copy a file', async () => {
-		const docroot = php.documentRoot;
 		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
 		await cp(php, {
 			fromPath: `/${docroot}/index.php`,
 			toPath: `/${docroot}/index2.php`,
 		});
 
-		const response = await php.run({
-			code: `<?php
-				require '/index2.php';
-			`,
-		});
-		expect(response.text).toBe('Hello World');
+		expect(php.fileExists(`/${docroot}/index.php`)).toBe(true);
+		expect(php.fileExists(`/${docroot}/index2.php`)).toBe(true);
 	});
 
 	it('should fail when the source file does not exist', async () => {
-		const docroot = php.documentRoot;
 		await expect(
 			cp(php, {
 				fromPath: `/${docroot}/index.php`,
 				toPath: `/${docroot}/index2.php`,
 			})
-		).rejects.toThrow(/ENOENT/);
+		).rejects.toThrow(/There is no such file or directory/);
 	});
 
 	it('should fail when the source file is a directory', async () => {
-		const docroot = php.documentRoot;
 		php.mkdir(`/${docroot}/dir`);
 		await expect(
 			cp(php, {
 				fromPath: `/${docroot}/dir`,
 				toPath: `/${docroot}/index2.php`,
 			})
-		).rejects.toThrow(/EISDIR/);
+		).rejects.toThrow(/There is a directory under that path/);
 	});
 
 	it('should overwrite the target file', async () => {
-		const docroot = php.documentRoot;
 		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
 		php.writeFile(`/${docroot}/index2.php`, `<?php echo 'Goodbye World';`);
 		await cp(php, {
@@ -54,11 +48,8 @@ describe('Blueprint step cp()', () => {
 			toPath: `/${docroot}/index2.php`,
 		});
 
-		const response = await php.run({
-			code: `<?php
-				require '/index2.php';
-			`,
-		});
-		expect(response.text).toBe('Hello World');
+		expect(php.readFileAsText(`/${docroot}/index2.php`)).toBe(
+			`<?php echo 'Hello World';`
+		);
 	});
 });
