@@ -639,7 +639,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
-	describe.only('Exit codes', () => {
+	describe('Exit codes', () => {
 		describe('Returns exit code 0', () => {
 			const testsSnippets = {
 				'on empty code': '',
