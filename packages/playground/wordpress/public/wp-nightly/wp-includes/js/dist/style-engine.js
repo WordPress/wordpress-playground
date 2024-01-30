@@ -808,13 +808,7 @@ const minHeight = {
     return generateRule(style, options, ['dimensions', 'minHeight'], 'minHeight');
   }
 };
-const aspectRatio = {
-  name: 'aspectRatio',
-  generate: (style, options) => {
-    return generateRule(style, options, ['dimensions', 'aspectRatio'], 'aspectRatio');
-  }
-};
-/* harmony default export */ var dimensions = ([minHeight, aspectRatio]);
+/* harmony default export */ var dimensions = ([minHeight]);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/style-engine/build-module/styles/background/index.js
 /**
@@ -841,7 +835,7 @@ const backgroundImage = {
     }
 
     // If no background size is set, but an image is, default to cover.
-    if (_backgroundSize === undefined) {
+    if (!_backgroundSize) {
       styleRules.push({
         selector: options.selector,
         key: 'backgroundSize',
@@ -851,35 +845,7 @@ const backgroundImage = {
     return styleRules;
   }
 };
-const backgroundRepeat = {
-  name: 'backgroundRepeat',
-  generate: (style, options) => {
-    return generateRule(style, options, ['background', 'backgroundRepeat'], 'backgroundRepeat');
-  }
-};
-const backgroundSize = {
-  name: 'backgroundSize',
-  generate: (style, options) => {
-    const _backgroundSize = style?.background?.backgroundSize;
-    const _backgroundPosition = style?.background?.backgroundPosition;
-    const styleRules = [];
-    if (_backgroundSize === undefined) {
-      return styleRules;
-    }
-    styleRules.push(...generateRule(style, options, ['background', 'backgroundSize'], 'backgroundSize'));
-
-    // If background size is set to contain, but no position is set, default to center.
-    if (_backgroundSize === 'contain' && _backgroundPosition === undefined) {
-      styleRules.push({
-        selector: options.selector,
-        key: 'backgroundPosition',
-        value: 'center'
-      });
-    }
-    return styleRules;
-  }
-};
-/* harmony default export */ var styles_background = ([backgroundImage, backgroundRepeat, backgroundSize]);
+/* harmony default export */ var styles_background = ([backgroundImage]);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/style-engine/build-module/styles/shadow/index.js
 /**

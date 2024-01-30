@@ -100,6 +100,7 @@ await asyncSpawn(
 	[
 		'build',
 		'.',
+		'--progress=plain',
 		'--tag=wordpress-playground',
 		'--build-arg',
 		`WP_ZIP_URL=${versionInfo.url}`,

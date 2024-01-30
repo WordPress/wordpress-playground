@@ -1246,10 +1246,8 @@ function filterURLForDisplay(url, maxLength = null) {
   if (filteredURL.match(/^[^\/]+\/$/)) {
     filteredURL = filteredURL.replace('/', '');
   }
-
-  // capture file name from URL
-  const fileRegexp = /\/([^\/?]+)\.(?:[\w]+)(?=\?|$)/;
-  if (!maxLength || filteredURL.length <= maxLength || !filteredURL.match(fileRegexp)) {
+  const mediaRegexp = /([\w|:])*\.(?:jpg|jpeg|gif|png|svg)/;
+  if (!maxLength || filteredURL.length <= maxLength || !filteredURL.match(mediaRegexp)) {
     return filteredURL;
   }
 

@@ -10,15 +10,11 @@
 	"attributes": {
 		"ref": {
 			"type": "number"
-		},
-		"overrides": {
-			"type": "object"
 		}
 	},
 	"supports": {
 		"customClassName": false,
 		"html": false,
-		"inserter": false,
-		"renaming": false
+		"inserter": false
 	}
 }
