@@ -32,40 +32,34 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
-	const requiredFiles = [
-		`${await playground.documentRoot}/wp-load.php`,
-		`${await playground.documentRoot}/wp-admin/includes/plugin.php`,
-	];
-	const requiredFilesExist = requiredFiles.every((file) =>
-		playground.fileExists(file)
-	);
-	if (!requiredFilesExist) {
-		throw new Error(
-			`Required WordPress files do not exist: ${requiredFiles.join(', ')}`
-		);
-	}
 
-	const result = await playground.run({
+	const docroot = await playground.documentRoot;
+	await playground.run({
 		code: `<?php
 define( 'WP_ADMIN', true );
-${requiredFiles.map((file) => `require_once( ${phpVar(file)} );`).join('\n')}
+require_once( ${phpVar(docroot)}. "/wp-load.php" );
+require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+
+// Set current user to admin
+set_current_user( get_users(array('role' => 'Administrator') )[0] );
+
 $plugin_path = ${phpVar(pluginPath)};
 
 if (!is_dir($plugin_path)) {
 	activate_plugin($plugin_path);
-	return;
+	die();
 }
+
 foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 	$info = get_plugin_data( $file, false, false );
 	if ( ! empty( $info['Name'] ) ) {
 		activate_plugin( $file );
-		return;
+		die();
 	}
 }
-echo 'NO_ENTRY_FILE';
+
+// If we got here, the plugin was not found.
+exit(1);
 `,
 	});
-	if (result.text.endsWith('NO_ENTRY_FILE')) {
-		throw new Error('Could not find plugin entry file.');
-	}
 };
