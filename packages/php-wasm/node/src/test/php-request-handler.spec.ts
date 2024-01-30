@@ -32,7 +32,7 @@ describe.each(SupportedPHPVersions)(
 				},
 				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
-				exitCode: 1, // @TODO This should be 0
+				exitCode: 0,
 			});
 		});
 
@@ -120,7 +120,7 @@ describe.each(SupportedPHPVersions)(
 				},
 				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
-				exitCode: 1, // @TODO This should be 0
+				exitCode: 0,
 			});
 			expect(response2Result).toEqual({
 				httpStatusCode: 200,
@@ -130,7 +130,7 @@ describe.each(SupportedPHPVersions)(
 				},
 				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
-				exitCode: 1, // @TODO This should be 0
+				exitCode: 0,
 			});
 		});
 
