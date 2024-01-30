@@ -41,7 +41,7 @@ export const login: StepHandler<LoginStep> = async (
 		url: '/wp-login.php',
 	});
 
-	await playground.request({
+	const response = await playground.request({
 		url: '/wp-login.php',
 		method: 'POST',
 		formData: {
@@ -51,11 +51,7 @@ export const login: StepHandler<LoginStep> = async (
 		},
 	});
 
-	const response = await playground.request({
-		url: '/wp-admin',
-	});
-	// Naive check to see if we're logged in.
-	if (!response.text.includes('id="wpadminbar"')) {
+	if (response.text !== '' && response.httpStatusCode !== 302) {
 		console.warn('WordPress response was', {
 			response,
 			text: response.text,
