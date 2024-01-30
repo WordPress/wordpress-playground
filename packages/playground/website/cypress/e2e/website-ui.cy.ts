@@ -21,6 +21,11 @@ describe('Playground website UI', () => {
 	// Test all PHP versions for completeness
 	describe('PHP version switcher', () => {
 		SupportedPHPVersions.forEach((version) => {
+			if (version === '7.0') {
+				// The SQLite integration plugin uses `private const` which is not supported in PHP 7.0
+				// @TODO: Adjust the plugin and remove this condition.
+				return;
+			}
 			it('should switch PHP version to ' + version, () => {
 				// Update settings in Playground configurator
 				cy.get('button#configurator').click();
