@@ -9,6 +9,7 @@ import transportDummy from './wp-content/mu-plugins/playground-includes/requests
 /** @ts-ignore */
 import playgroundMuPlugin from './wp-content/mu-plugins/0-playground.php?raw';
 import { updateFile } from '../../utils/update-file';
+import { joinPaths } from '@php-wasm/util';
 
 /**
  * @private
@@ -74,7 +75,7 @@ class WordPressPatcher {
 
 	async addPhpInfo() {
 		await this.php.writeFile(
-			`${this.wordpressPath}/phpinfo.php`,
+			joinPaths(this.wordpressPath, 'phpinfo.php'),
 			'<?php phpinfo(); '
 		);
 	}
@@ -106,7 +107,7 @@ class WordPressPatcher {
 	async disableSiteHealth() {
 		await updateFile(
 			this.php,
-			`${this.wordpressPath}/wp-includes/default-filters.php`,
+			joinPaths(this.wordpressPath, 'wp-includes/default-filters.php'),
 			(contents) =>
 				contents.replace(
 					/add_filter[^;]+wp_maybe_grant_site_health_caps[^;]+;/i,
@@ -118,7 +119,7 @@ class WordPressPatcher {
 	async disableWpNewBlogNotification() {
 		await updateFile(
 			this.php,
-			`${this.wordpressPath}/wp-config.php`,
+			joinPaths(this.wordpressPath, 'wp-config.php'),
 			// The original version of this function crashes WASM PHP, let's define an empty one instead.
 			(contents) =>
 				`${contents} function wp_new_blog_notification(...$args){} `
@@ -127,16 +128,27 @@ class WordPressPatcher {
 
 	async prepareForRunningInsideWebBrowser() {
 		// Various tweaks
-		await this.php.mkdir(`${this.wordpressPath}/wp-content/mu-plugins`);
+		await this.php.mkdir(
+			joinPaths(this.wordpressPath, 'wp-content/mu-plugins')
+		);
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/0-playground.php`,
+			joinPaths(
+				this.wordpressPath,
+				'/wp-content/mu-plugins/0-playground.php'
+			),
 			playgroundMuPlugin
 		);
 		await this.php.mkdir(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes`
+			joinPaths(
+				this.wordpressPath,
+				`/wp-content/mu-plugins/playground-includes`
+			)
 		);
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`,
+			joinPaths(
+				this.wordpressPath,
+				`/wp-content/mu-plugins/playground-includes/requests_transport_dummy.php`
+			),
 			transportDummy
 		);
 	}
@@ -150,10 +162,22 @@ class WordPressPatcher {
 
 		// Force the fsockopen and cUrl transports to report they don't work:
 		const transports = [
-			`${this.wordpressPath}/wp-includes/Requests/Transport/fsockopen.php`,
-			`${this.wordpressPath}/wp-includes/Requests/Transport/cURL.php`,
-			`${this.wordpressPath}/wp-includes/Requests/src/Transport/Fsockopen.php`,
-			`${this.wordpressPath}/wp-includes/Requests/src/Transport/Curl.php`,
+			joinPaths(
+				this.wordpressPath,
+				`/wp-includes/Requests/Transport/fsockopen.php`
+			),
+			joinPaths(
+				this.wordpressPath,
+				`/wp-includes/Requests/Transport/cURL.php`
+			),
+			joinPaths(
+				this.wordpressPath,
+				`/wp-includes/Requests/src/Transport/Fsockopen.php`
+			),
+			joinPaths(
+				this.wordpressPath,
+				`/wp-includes/Requests/src/Transport/Curl.php`
+			),
 		];
 		for (const transport of transports) {
 			// One of the transports might not exist in the latest WordPress version.
@@ -174,7 +198,10 @@ class WordPressPatcher {
 
 		// Add fetch and dummy transports for HTTP requests
 		await this.php.writeFile(
-			`${this.wordpressPath}/wp-content/mu-plugins/playground-includes/wp_http_fetch.php`,
+			joinPaths(
+				this.wordpressPath,
+				'wp-content/mu-plugins/playground-includes/wp_http_fetch.php'
+			),
 			transportFetch
 		);
 		await this.php.mkdir(`${this.wordpressPath}/wp-content/fonts`);

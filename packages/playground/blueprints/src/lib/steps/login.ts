@@ -51,7 +51,7 @@ export const login: StepHandler<LoginStep> = async (
 		},
 	});
 
-	if (response.text !== '' && response.httpStatusCode !== 302) {
+	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
 		console.warn('WordPress response was', {
 			response,
 			text: response.text,

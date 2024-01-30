@@ -29,13 +29,14 @@ export type SetSiteOptionsStep = {
  * option in the `options` object.
  */
 export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
-	client,
+	php,
 	{ options }
 ) => {
-	await client.run({
+	const docroot = await php.documentRoot;
+	await php.run({
 		throwOnError: true,
 		code: `<?php
-		include 'wordpress/wp-load.php';
+		include ${phpVar(docroot)} . '/wp-load.php';
 		$site_options = ${phpVar(options)};
 		foreach($site_options as $name => $value) {
 			update_option($name, $value);
@@ -75,13 +76,14 @@ export interface UpdateUserMetaStep {
  * meta value in the `meta` object.
  */
 export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
-	client,
+	php,
 	{ meta, userId }
 ) => {
-	await client.run({
+	const docroot = await php.documentRoot;
+	await php.run({
 		throwOnError: true,
 		code: `<?php
-		include 'wordpress/wp-load.php';
+		include ${phpVar(docroot)} . '/wp-load.php';
 		$meta = ${phpVar(meta)};
 		foreach($meta as $name => $value) {
 			update_user_meta(${phpVar(userId)}, $name, $value);
