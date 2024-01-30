@@ -113,6 +113,7 @@ export const importWordPressFiles: StepHandler<
 		joinPaths(documentRoot, 'wp-admin', 'upgrade.php')
 	);
 	await playground.run({
+		throwOnError: true,
 		code: `<?php
             $_GET['step'] = 'upgrade_db';
             require ${upgradePhp};

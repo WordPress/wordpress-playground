@@ -253,11 +253,25 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					this.#addUploadedFile(file);
 				}
 			}
-			if (request.code) {
+			if (typeof request.code === 'string') {
 				this.#setPHPCode(' ?>' + request.code);
 			}
 			this.#addServerGlobalEntriesInWasm();
-			return await this.#handleRequest();
+			const response = await this.#handleRequest();
+			if (request.throwOnError && response.exitCode !== 0) {
+				const output = {
+					stdout: response.text,
+					stderr: response.errors,
+				};
+				console.warn(`PHP.run() output was:`, output);
+				const error = new Error(
+					`PHP.run() failed with exit code ${response.exitCode} and the following output`
+				);
+				// @ts-ignore
+				error.output = output;
+				throw error;
+			}
+			return response;
 		} finally {
 			release();
 			this.dispatchEvent({

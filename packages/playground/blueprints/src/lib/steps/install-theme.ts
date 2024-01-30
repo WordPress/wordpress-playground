@@ -64,31 +64,19 @@ export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	const zipNiceName = zipNameToHumanName(themeZipFile.name);
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
+	const { assetFolderName } = await installAsset(playground, {
+		zipFile: themeZipFile,
+		targetPath: `${await playground.documentRoot}/wp-content/themes`,
+	});
 
-	try {
-		const { assetFolderName } = await installAsset(playground, {
-			zipFile: themeZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/themes`,
-		});
-
-		// Activate
-
-		const activate = 'activate' in options ? options.activate : true;
-
-		if (activate) {
-			await activateTheme(
-				playground,
-				{
-					themeFolderName: assetFolderName,
-				},
-				progress
-			);
-		}
-	} catch (error) {
-		console.error(
-			`Proceeding without the ${zipNiceName} theme. Could not install it in wp-admin. ` +
-				`The original error was: ${error}`
+	const activate = 'activate' in options ? options.activate : true;
+	if (activate) {
+		await activateTheme(
+			playground,
+			{
+				themeFolderName: assetFolderName,
+			},
+			progress
 		);
-		console.error(error);
 	}
 };

@@ -61,31 +61,22 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	const zipNiceName = zipNameToHumanName(zipFileName);
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
-	try {
-		const { assetFolderPath } = await installAsset(playground, {
-			zipFile: pluginZipFile,
-			targetPath: `${await playground.documentRoot}/wp-content/plugins`,
-		});
+	const { assetFolderPath } = await installAsset(playground, {
+		zipFile: pluginZipFile,
+		targetPath: `${await playground.documentRoot}/wp-content/plugins`,
+	});
 
-		// Activate
+	// Activate
+	const activate = 'activate' in options ? options.activate : true;
 
-		const activate = 'activate' in options ? options.activate : true;
-
-		if (activate) {
-			await activatePlugin(
-				playground,
-				{
-					pluginPath: assetFolderPath,
-					pluginName: zipNiceName,
-				},
-				progress
-			);
-		}
-	} catch (error) {
-		console.error(
-			`Proceeding without the ${zipNiceName} plugin. Could not install it in wp-admin. ` +
-				`The original error was: ${error}`
+	if (activate) {
+		await activatePlugin(
+			playground,
+			{
+				pluginPath: assetFolderPath,
+				pluginName: zipNiceName,
+			},
+			progress
 		);
-		console.error(error);
 	}
 };

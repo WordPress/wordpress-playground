@@ -1,3 +1,4 @@
+import { PHPResponse } from '@php-wasm/universal';
 import { StepHandler } from '.';
 
 /**
@@ -22,6 +23,9 @@ export interface RunPHPStep {
 /**
  * Runs PHP code.
  */
-export const runPHP: StepHandler<RunPHPStep> = async (playground, { code }) => {
-	return await playground.run({ code });
+export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
+	playground,
+	{ code }
+) => {
+	return await playground.run({ code, throwOnError: true });
 };

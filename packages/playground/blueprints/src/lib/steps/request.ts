@@ -36,5 +36,12 @@ export const request: StepHandler<RequestStep> = async (
 	playground,
 	{ request }
 ) => {
-	return await playground.request(request);
+	const response = await playground.request(request);
+	if (response.httpStatusCode > 299 || response.httpStatusCode < 200) {
+		console.warn('WordPress response was', { response });
+		throw new Error(
+			`Request failed with status ${response.httpStatusCode}`
+		);
+	}
+	return response;
 };

@@ -63,6 +63,7 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 
 	// Deactivate all the plugins as required by the multisite installation.
 	const result = await playground.run({
+		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");
@@ -115,7 +116,7 @@ echo json_encode($deactivated_plugins);
     })).text;
     */
 
-	await request(playground, {
+	const response = await request(playground, {
 		request: {
 			url: '/wp-admin/network.php',
 			method: 'POST',
@@ -131,6 +132,11 @@ echo json_encode($deactivated_plugins);
 			}),
 		},
 	});
+
+	if (response.text.indexOf('The network was created successfully.') === -1) {
+		console.warn('The WordPress response was', { response });
+		throw new Error('Could not create the multisite network.');
+	}
 
 	await defineWpConfigConsts(playground, {
 		consts: {

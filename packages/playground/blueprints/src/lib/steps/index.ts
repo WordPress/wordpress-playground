@@ -112,11 +112,11 @@ export type StepProgress = {
 	initialCaption?: string;
 };
 
-export type StepHandler<S extends GenericStep<File>> = (
+export type StepHandler<S extends GenericStep<File>, Return = any> = (
 	/**
 	 * A PHP instance or Playground client.
 	 */
 	php: UniversalPHP,
 	args: Omit<S, 'step'>,
 	progressArgs?: StepProgress
-) => any;
+) => Return;

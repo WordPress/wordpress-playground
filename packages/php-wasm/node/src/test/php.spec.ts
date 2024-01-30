@@ -70,7 +70,12 @@ would not suffer fools gladly.`;
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any);
+		php = await NodePHP.load(phpVersion as any, {
+			requestHandler: {
+				documentRoot: '/php',
+			},
+		});
+		php.mkdir('/php');
 		php.setPhpIniEntry('disable_functions', '');
 	});
 
@@ -631,6 +636,93 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				testDirPath + '/test.txt',
 				testDirPath + '/test2.txt',
 			]);
+		});
+	});
+
+	describe.only('Exit codes', () => {
+		describe('Returns exit code 0', () => {
+			const testsSnippets = {
+				'on empty code': '',
+				'on successful run': '<?php echo "Hello world!";',
+				'on notice':
+					'<?php trigger_error("This is a custom notice!", E_USER_NOTICE);',
+				'on warning':
+					'<?php trigger_error("This is a custom warning!", E_USER_WARNING);',
+				'on deprecated error':
+					'<?php trigger_error("This is a custom deprecation info!", E_USER_DEPRECATED);',
+				'on a warning issued by an incorrect usage of PHP':
+					'<?php echo $test; ',
+				'on die()': '<?php die();',
+				'on die("test")': '<?php die("Test");',
+				'on exit()': '<?php exit();',
+				'on exit(0)': '<?php exit(0);',
+			};
+			for (const [testName, testSnippet] of Object.entries(
+				testsSnippets
+			)) {
+				// Run via `code`
+				it(testName, async () => {
+					const result = await php.run({
+						code: testSnippet,
+					});
+					expect(result.exitCode).toEqual(0);
+				});
+
+				// Run via request handler
+				it(testName, async () => {
+					php.writeFile('/test.php', testSnippet);
+					const result = await php.run({
+						scriptPath: '/test.php',
+					});
+					expect(result.exitCode).toEqual(0);
+				});
+			}
+		});
+		describe('Returns exit code > 0', () => {
+			const testsSnippets = {
+				'syntax error': '<?php @$!;',
+				'undefined function call': '<?php no_such_function();',
+				'on fatal error':
+					'<?php trigger_error("This is a custom fatal error!", E_USER_ERROR);',
+				'on exit(1)': '<?php exit(1);',
+				'on uncaught exception': '<?php throw new Exception();',
+			};
+			for (const [testName, testSnippet] of Object.entries(
+				testsSnippets
+			)) {
+				// Run via `code`
+				it(testName, async () => {
+					const result = await php.run({
+						code: testSnippet,
+					});
+					expect(result.exitCode).toBeGreaterThan(0);
+				});
+
+				// Run via the request handler
+				it(testName, async () => {
+					php.writeFile('/test.php', testSnippet);
+					const result = await php.run({
+						scriptPath: '/test.php',
+					});
+					expect(result.exitCode).toBeGreaterThan(0);
+				});
+			}
+		});
+		it('Returns the correct exit code on subsequent runs', async () => {
+			const result1 = await php.run({
+				code: '<?php throw new Exception();',
+			});
+			expect(result1.exitCode).toBe(255);
+
+			const result2 = await php.run({
+				code: '<?php exit(0);',
+			});
+			expect(result2.exitCode).toBe(0);
+
+			const result3 = await php.run({
+				code: '<?php exit(1);',
+			});
+			expect(result3.exitCode).toBe(1);
 		});
 	});
 
