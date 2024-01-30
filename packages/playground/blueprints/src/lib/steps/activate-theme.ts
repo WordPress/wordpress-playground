@@ -1,3 +1,4 @@
+import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 
 /**
@@ -32,17 +33,16 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	progress
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
-	const wpLoadPath = `${await playground.documentRoot}/wp-load.php`;
-	if (!playground.fileExists(wpLoadPath)) {
-		throw new Error(
-			`Required WordPress file does not exist: ${wpLoadPath}`
-		);
-	}
+	const docroot = await playground.documentRoot;
 	await playground.run({
 		code: `<?php
 define( 'WP_ADMIN', true );
-require_once( '${wpLoadPath}' );
-switch_theme( '${themeFolderName}' );
+require_once( ${phpVar(docroot)}. "/wp-load.php" );
+
+// Set current user to admin
+set_current_user( get_users(array('role' => 'Administrator') )[0] );
+
+switch_theme( ${phpVar(themeFolderName)} );
 `,
 	});
 };
