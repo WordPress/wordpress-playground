@@ -2,6 +2,8 @@
 Header unset ETag
 Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
 </FilesMatch>
-<FilesMatch "(client\/|blueprint-schema\.json)">
+<FilesMatch "index\.js|blueprint-schema\.json">
 Header set Access-Control-Allow-Origin "*"
+Header unset ETag
+Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate"
 </FilesMatch>
