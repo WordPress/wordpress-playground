@@ -37,6 +37,10 @@
   width:auto;
 }
 
+.wp-block-page-list .components-notice{
+  margin-left:0;
+}
+
 .wp-block-page-list__loading-indicator-container{
   padding:8px 12px;
 }

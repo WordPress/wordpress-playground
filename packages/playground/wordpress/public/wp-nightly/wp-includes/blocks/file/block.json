@@ -21,8 +21,8 @@
 			"attribute": "id"
 		},
 		"fileName": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "a:not([download])"
 		},
 		"textLinkHref": {
@@ -42,8 +42,8 @@
 			"default": true
 		},
 		"downloadButtonText": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "a[download]"
 		},
 		"displayPreview": {
@@ -72,6 +72,7 @@
 		},
 		"interactivity": true
 	},
+	"viewScript": "file:./view.min.js",
 	"editorStyle": "wp-block-file-editor",
 	"style": "wp-block-file"
 }
