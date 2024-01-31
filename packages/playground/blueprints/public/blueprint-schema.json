@@ -1026,16 +1026,21 @@
 							"type": "string",
 							"const": "unzip"
 						},
+						"zipFile": {
+							"$ref": "#/definitions/FileReference",
+							"description": "The zip file to extract"
+						},
 						"zipPath": {
 							"type": "string",
-							"description": "The zip file to extract"
+							"description": "The path of the zip file to extract",
+							"deprecated": "Use zipFile instead."
 						},
 						"extractToPath": {
 							"type": "string",
 							"description": "The path to extract the zip file to"
 						}
 					},
-					"required": ["extractToPath", "step", "zipPath"]
+					"required": ["extractToPath", "step"]
 				},
 				{
 					"type": "object",
@@ -1263,6 +1268,10 @@
 				"code": {
 					"type": "string",
 					"description": "The code snippet to eval instead of a php file."
+				},
+				"throwOnError": {
+					"type": "boolean",
+					"description": "Whether to throw an error if the PHP process exits with a non-zero code or outputs to stderr."
 				}
 			},
 			"additionalProperties": false

@@ -20,7 +20,7 @@ import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
 export interface UnzipStep<ResourceType> {
 	step: 'unzip';
 	/** The zip file to extract */
-	zipFile: ResourceType;
+	zipFile?: ResourceType;
 	/**
 	 * The path of the zip file to extract
 	 * @deprecated Use zipFile instead.
