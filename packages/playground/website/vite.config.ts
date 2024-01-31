@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
-import type { ViteDevServer } from 'vite';
+import type { Plugin, ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -18,6 +18,8 @@ import {
 import virtualModule from '../vite-virtual-module';
 import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
+import { copyFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -34,6 +36,7 @@ try {
 	buildVersion = (new Date().getTime() / 1000).toFixed(0);
 }
 
+const path = (filename: string) => new URL(filename, import.meta.url).pathname;
 export default defineConfig(({ command, mode }) => {
 	return {
 		// Split traffic from this server on dev so that the iframe content and outer
@@ -92,6 +95,23 @@ export default defineConfig(({ command, mode }) => {
 					server.middlewares.use(oAuthMiddleware);
 				},
 			},
+			/**
+			 * Copy the `.htaccess` file to the `dist` directory.
+			 */
+			{
+				name: 'htaccess-plugin',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					const htaccessPath = path('.htaccess');
+
+					if (existsSync(htaccessPath) && outputDir) {
+						copyFileSync(
+							htaccessPath,
+							join(outputDir, '.htaccess')
+						);
+					}
+				},
+			} as Plugin,
 		],
 
 		// Configuration for building your library.
