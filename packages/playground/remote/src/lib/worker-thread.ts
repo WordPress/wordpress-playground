@@ -214,14 +214,9 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 }
 
-const apiEndpoint = new PlaygroundWorkerEndpoint(
-	php,
-	monitor,
-	scope,
-	wpVersion,
-	phpVersion
+const [setApiReady, setAPIError] = exposeAPI(
+	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
-const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
 	await phpReady;
