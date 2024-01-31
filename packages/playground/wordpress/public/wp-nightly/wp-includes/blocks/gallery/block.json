@@ -46,8 +46,8 @@
 					"attribute": "data-id"
 				},
 				"caption": {
-					"type": "rich-text",
-					"source": "rich-text",
+					"type": "string",
+					"source": "html",
 					"selector": ".blocks-gallery-item__caption"
 				}
 			}
@@ -72,17 +72,13 @@
 			"maximum": 8
 		},
 		"caption": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": ".blocks-gallery-caption"
 		},
 		"imageCrop": {
 			"type": "boolean",
 			"default": true
-		},
-		"randomOrder": {
-			"type": "boolean",
-			"default": false
 		},
 		"fixedHeight": {
 			"type": "boolean",

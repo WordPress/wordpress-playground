@@ -2296,7 +2296,6 @@ __webpack_require__.d(__webpack_exports__, {
   useCopyOnClick: function() { return /* reexport */ useCopyOnClick; },
   useCopyToClipboard: function() { return /* reexport */ useCopyToClipboard; },
   useDebounce: function() { return /* reexport */ useDebounce; },
-  useDebouncedInput: function() { return /* reexport */ useDebouncedInput; },
   useDisabled: function() { return /* reexport */ useDisabled; },
   useFocusOnMount: function() { return /* reexport */ useFocusOnMount; },
   useFocusReturn: function() { return /* reexport */ use_focus_return; },
@@ -3198,8 +3197,8 @@ const pipe = basePipe();
 const compose = basePipe(true);
 /* harmony default export */ var higher_order_compose = (compose);
 
-;// CONCATENATED MODULE: external "React"
-var external_React_namespaceObject = window["React"];
+;// CONCATENATED MODULE: external ["wp","element"]
+var external_wp_element_namespaceObject = window["wp"]["element"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/compose/build-module/higher-order/if-condition/index.js
 
 /**
@@ -3233,7 +3232,7 @@ function ifCondition(predicate) {
     if (!predicate(props)) {
       return null;
     }
-    return (0,external_React_namespaceObject.createElement)(WrappedComponent, {
+    return (0,external_wp_element_namespaceObject.createElement)(WrappedComponent, {
       ...props
     });
   }, 'ifCondition');
@@ -3243,8 +3242,6 @@ function ifCondition(predicate) {
 // EXTERNAL MODULE: external ["wp","isShallowEqual"]
 var external_wp_isShallowEqual_ = __webpack_require__(9127);
 var external_wp_isShallowEqual_default = /*#__PURE__*/__webpack_require__.n(external_wp_isShallowEqual_);
-;// CONCATENATED MODULE: external ["wp","element"]
-var external_wp_element_namespaceObject = window["wp"]["element"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/compose/build-module/higher-order/pure/index.js
 
 /**
@@ -3265,8 +3262,6 @@ var external_wp_element_namespaceObject = window["wp"]["element"];
 /**
  * Given a component returns the enhanced component augmented with a component
  * only re-rendering when its props/state change
- *
- * @deprecated Use `memo` or `PureComponent` instead.
  */
 const pure = createHigherOrderComponent(function (WrappedComponent) {
   if (WrappedComponent.prototype instanceof external_wp_element_namespaceObject.Component) {
@@ -3281,7 +3276,7 @@ const pure = createHigherOrderComponent(function (WrappedComponent) {
       return !external_wp_isShallowEqual_default()(nextProps, this.props);
     }
     render() {
-      return (0,external_React_namespaceObject.createElement)(WrappedComponent, {
+      return (0,external_wp_element_namespaceObject.createElement)(WrappedComponent, {
         ...this.props
       });
     }
@@ -3414,14 +3409,14 @@ function withGlobalEvents(eventTypesToHandlers) {
         }
       }
       render() {
-        return (0,external_React_namespaceObject.createElement)(WrappedComponent, {
+        return (0,external_wp_element_namespaceObject.createElement)(WrappedComponent, {
           ...this.props.ownProps,
           ref: this.handleRef
         });
       }
     }
     return (0,external_wp_element_namespaceObject.forwardRef)((props, ref) => {
-      return (0,external_React_namespaceObject.createElement)(Wrapper, {
+      return (0,external_wp_element_namespaceObject.createElement)(Wrapper, {
         ownProps: props,
         forwardedRef: ref
       });
@@ -3494,7 +3489,7 @@ const withInstanceId = createHigherOrderComponent(WrappedComponent => {
   return props => {
     const instanceId = use_instance_id(WrappedComponent);
     // @ts-ignore
-    return (0,external_React_namespaceObject.createElement)(WrappedComponent, {
+    return (0,external_wp_element_namespaceObject.createElement)(WrappedComponent, {
       ...props,
       instanceId: instanceId
     });
@@ -3554,7 +3549,7 @@ const withSafeTimeout = createHigherOrderComponent(OriginalComponent => {
     render() {
       return (
         // @ts-ignore
-        (0,external_React_namespaceObject.createElement)(OriginalComponent, {
+        (0,external_wp_element_namespaceObject.createElement)(OriginalComponent, {
           ...this.props,
           setTimeout: this.setTimeout,
           clearTimeout: this.clearTimeout
@@ -3601,7 +3596,7 @@ function withState(initialState = {}) {
         this.state = initialState;
       }
       render() {
-        return (0,external_React_namespaceObject.createElement)(OriginalComponent, {
+        return (0,external_wp_element_namespaceObject.createElement)(OriginalComponent, {
           ...this.props,
           ...this.state,
           setState: this.setState
@@ -3881,6 +3876,9 @@ function useCopyToClipboard(text, onSuccess) {
       // button, ensuring that it is not reset to the body, and
       // further that it is kept within the rendered node.
       clearSelection();
+      // Handle ClipboardJS focus bug, see
+      // https://github.com/zenorocha/clipboard.js/issues/680
+      node.focus();
       if (onSuccessRef.current) {
         onSuccessRef.current();
       }
@@ -5132,7 +5130,7 @@ function useResizeAware() {
       height: height !== null && height !== void 0 ? height : null
     };
   }, [width, height]);
-  const resizeListener = (0,external_React_namespaceObject.createElement)("div", {
+  const resizeListener = (0,external_wp_element_namespaceObject.createElement)("div", {
     style: {
       position: 'absolute',
       top: 0,
@@ -5254,6 +5252,8 @@ function useWarnOnChange(object, prefix = 'Change detection') {
 
 /* harmony default export */ var use_warn_on_change = (useWarnOnChange);
 
+;// CONCATENATED MODULE: external "React"
+var external_React_namespaceObject = window["React"];
 ;// CONCATENATED MODULE: ./node_modules/use-memo-one/dist/use-memo-one.esm.js
 
 
@@ -5336,33 +5336,6 @@ function useDebounce(fn, wait, options) {
   const debounced = useMemoOne(() => debounce(fn, wait !== null && wait !== void 0 ? wait : 0, options), [fn, wait, options]);
   (0,external_wp_element_namespaceObject.useEffect)(() => () => debounced.cancel(), [debounced]);
   return debounced;
-}
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/compose/build-module/hooks/use-debounced-input/index.js
-/**
- * WordPress dependencies
- */
-
-
-/**
- * Internal dependencies
- */
-
-
-/**
- * Helper hook for input fields that need to debounce the value before using it.
- *
- * @param {any} defaultValue The default value to use.
- * @return {[string, Function, string]} The input value, the setter and the debounced input value.
- */
-function useDebouncedInput(defaultValue = '') {
-  const [input, setInput] = (0,external_wp_element_namespaceObject.useState)(defaultValue);
-  const [debouncedInput, setDebouncedState] = (0,external_wp_element_namespaceObject.useState)(defaultValue);
-  const setDebouncedInput = useDebounce(setDebouncedState, 250);
-  (0,external_wp_element_namespaceObject.useEffect)(() => {
-    setDebouncedInput(input);
-  }, [input]);
-  return [input, setInput, debouncedInput];
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/compose/build-module/hooks/use-throttle/index.js
@@ -5812,7 +5785,6 @@ function useFixedWindowList(elementRef, itemHeight, totalItems, options) {
 
 
 // Hooks.
-
 
 
 

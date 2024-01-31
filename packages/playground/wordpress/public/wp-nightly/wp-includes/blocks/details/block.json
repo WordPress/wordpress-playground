@@ -13,8 +13,8 @@
 			"default": false
 		},
 		"summary": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "summary"
 		}
 	},

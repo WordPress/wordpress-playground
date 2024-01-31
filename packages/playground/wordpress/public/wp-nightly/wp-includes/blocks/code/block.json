@@ -8,8 +8,8 @@
 	"textdomain": "default",
 	"attributes": {
 		"content": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "code",
 			"__unstablePreserveWhiteSpace": true
 		}
