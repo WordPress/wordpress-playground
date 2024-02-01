@@ -3,7 +3,7 @@ import { BasePHP, __private__dont__use } from './base-php';
 
 export interface RotateOptions<T extends BasePHP> {
 	createPhp: () => Promise<T>;
-	maxRequests?: number;
+	maxRequests: number;
 }
 
 /**
@@ -22,7 +22,7 @@ export interface RotateOptions<T extends BasePHP> {
  */
 export async function rotatedPHP<T extends BasePHP>({
 	createPhp,
-	maxRequests = 300,
+	maxRequests,
 }: RotateOptions<T>): Promise<T> {
 	let php = (await createPhp()) as T;
 	let handledCalls = 0;

@@ -102,7 +102,7 @@ if (!wordPressAvailableInOPFS) {
 
 let phpReady: Promise<any> | undefined;
 const php = await rotatedPHP({
-	maxRequests: 50,
+	maxRequests: 400,
 	createPhp: async () => {
 		const { php, phpReady: _phpReady } = WebPHP.loadSync(phpVersion, {
 			downloadMonitor: monitor,
