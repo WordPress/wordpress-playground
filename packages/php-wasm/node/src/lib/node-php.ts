@@ -7,7 +7,6 @@ import {
 	rethrowFileSystemError,
 	__private__dont__use,
 	isExitCodeZero,
-	DataModule,
 } from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
@@ -17,7 +16,6 @@ import { withNetworking } from './networking/with-networking.js';
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	requestHandler?: PHPRequestHandlerConfiguration;
-	dataModules?: Array<DataModule | Promise<DataModule>>;
 }
 
 export type MountSettings = {
@@ -61,23 +59,20 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		options = {
-			...options,
-			emscriptenOptions: {
-				/**
-				 * Emscripten default behavior is to kill the process when
-				 * the WASM program calls `exit()`. We want to throw an
-				 * exception instead.
-				 */
-				quit: function (code, error) {
-					throw error;
-				},
-				...(options.emscriptenOptions || {}),
+		const emscriptenOptions: EmscriptenOptions = {
+			/**
+			 * Emscripten default behavior is to kill the process when
+			 * the WASM program calls `exit()`. We want to throw an
+			 * exception instead.
+			 */
+			quit: function (code, error) {
+				throw error;
 			},
+			...(options.emscriptenOptions || {}),
 		};
 		return await loadPHPRuntime(
 			await getPHPLoaderModule(phpVersion),
-			await withNetworking(options)
+			await withNetworking(emscriptenOptions)
 		);
 	}
 

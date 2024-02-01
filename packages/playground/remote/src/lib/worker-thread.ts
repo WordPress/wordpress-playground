@@ -202,9 +202,7 @@ const php = rotatedPHP({
 	}),
 	recreateRuntime,
 	maxRequests: 400,
-	// The types below are incorrect as php.run and php.request now return
-	// a promise. @TODO: figure out a better solution
-}) as any as WebPHP;
+});
 
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)

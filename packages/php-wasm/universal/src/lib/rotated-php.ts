@@ -7,14 +7,6 @@ export interface RotateOptions<T extends BasePHP> {
 	maxRequests: number;
 }
 
-export type Promisify<T, Methods> = {
-	[P in keyof T]: P extends Methods
-		? T[P] extends (...args: infer A) => infer R
-			? (...args: A) => Promise<R>
-			: T[P]
-		: T[P];
-};
-
 /**
  * Returns a PHP interface-compliant object that maintains a PHP instance
  * internally. After X run() and request() calls, that internal instance
@@ -33,7 +25,7 @@ export function rotatedPHP<T extends BasePHP>({
 	php,
 	recreateRuntime,
 	maxRequests,
-}: RotateOptions<T>): Promise<Promisify<T, 'run' | 'request'>> {
+}: RotateOptions<T>): T {
 	let handledCalls = 0;
 	const semaphore = new Semaphore({ concurrency: 1 });
 	return new Proxy(
