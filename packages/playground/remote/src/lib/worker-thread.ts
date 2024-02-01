@@ -190,7 +190,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 let phpReady: Promise<any> | undefined;
 const php = await rotatedPHP({
 	maxRequests: 400,
-	createPhp: async () => {
+	createPHP: async () => {
 		const { php, phpReady: _phpReady } = WebPHP.loadSync(phpVersion, {
 			downloadMonitor: monitor,
 			requestHandler: {

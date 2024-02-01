@@ -2,9 +2,17 @@ import { Semaphore, joinPaths } from '@php-wasm/util';
 import { BasePHP, __private__dont__use } from './base-php';
 
 export interface RotateOptions<T extends BasePHP> {
-	createPhp: () => Promise<T>;
+	createPHP: () => Promise<T>;
 	maxRequests: number;
 }
+
+export type Promisify<T, Methods> = {
+	[P in keyof T]: P extends Methods
+		? T[P] extends (...args: infer A) => infer R
+			? (...args: A) => Promise<R>
+			: T[P]
+		: T[P];
+};
 
 /**
  * Returns a PHP interface-compliant object that maintains a PHP instance
@@ -21,10 +29,18 @@ export interface RotateOptions<T extends BasePHP> {
  * https://www.php.net/manual/en/install.fpm.configuration.php#pm.max-tasks
  */
 export async function rotatedPHP<T extends BasePHP>({
-	createPhp,
+	createPHP,
 	maxRequests,
-}: RotateOptions<T>): Promise<T> {
-	let php = (await createPhp()) as T;
+}: RotateOptions<T>): Promise<Promisify<T, 'run' | 'request'>> {
+	let php = (await createPHP()) as T;
+	if (!php.requestHandler) {
+		throw new Error(
+			'The rotated PHP instance must have a request handler. Be sure to ' +
+				'pass the `requestHandler` option to `loadPHPRuntime()` or `WebPHP.load()` ' +
+				'when creating the PHP instance.'
+		);
+	}
+
 	let handledCalls = 0;
 	const semaphore = new Semaphore({ concurrency: 1 });
 
@@ -39,7 +55,7 @@ export async function rotatedPHP<T extends BasePHP>({
 			// Ignore the exit-related exception
 		}
 
-		const newPhp = await createPhp();
+		const newPhp = await createPHP();
 		recreateMemFS(newPhp[__private__dont__use].FS, oldFS, docroot);
 		newPhp.requestHandler!.setCookies(oldCookies?.split(';') || []);
 
@@ -64,7 +80,7 @@ export async function rotatedPHP<T extends BasePHP>({
 				return php[prop as keyof T];
 			},
 		}
-	) as T;
+	) as any;
 }
 
 type EmscriptenFS = any;
