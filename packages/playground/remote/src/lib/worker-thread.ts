@@ -187,39 +187,33 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 }
 
-let phpReady: Promise<any> | undefined;
-const php = await rotatedPHP({
+const recreateRuntime = async () =>
+	await WebPHP.loadRuntime(phpVersion, {
+		downloadMonitor: monitor,
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: phpExtensions?.length > 0,
+	});
+
+const php = rotatedPHP({
+	php: new WebPHP(undefined, {
+		documentRoot: DOCROOT,
+		absoluteUrl: scopedSiteUrl,
+	}),
+	recreateRuntime,
 	maxRequests: 400,
-	createPHP: async () => {
-		const { php, phpReady: _phpReady } = WebPHP.loadSync(phpVersion, {
-			downloadMonitor: monitor,
-			requestHandler: {
-				documentRoot: DOCROOT,
-				absoluteUrl: scopedSiteUrl,
-			},
-			// We don't yet support loading specific PHP extensions one-by-one.
-			// Let's just indicate whether we want to load all of them.
-			loadAllExtensions: phpExtensions?.length > 0,
-		});
-
-		if (phpReady) {
-			await _phpReady;
-		} else {
-			// On the first run, store the promise in a variable
-			// so that we can await it later.
-			phpReady = _phpReady;
-		}
-
-		return php;
-	},
-});
+	// The types below are incorrect as php.run and php.request now return
+	// a promise. @TODO: figure out a better solution
+}) as any as WebPHP;
 
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
 );
 
 try {
-	await phpReady;
+	const runtimeId = await recreateRuntime();
+	php.initializeRuntime(runtimeId);
+
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}

@@ -44,7 +44,24 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return await NodePHP.loadSync(phpVersion, {
+		return new NodePHP(
+			await NodePHP.loadRuntime(phpVersion, options),
+			options.requestHandler
+		);
+	}
+
+	/**
+	 * Does what load() does, but synchronously returns
+	 * an object with the PHP instance and a promise that
+	 * resolves when the PHP instance is ready.
+	 *
+	 * @see load
+	 */
+	static async loadRuntime(
+		phpVersion: SupportedPHPVersion,
+		options: PHPLoaderOptions = {}
+	) {
+		options = {
 			...options,
 			emscriptenOptions: {
 				/**
@@ -57,39 +74,11 @@ export class NodePHP extends BasePHP {
 				},
 				...(options.emscriptenOptions || {}),
 			},
-		}).phpReady;
-	}
-
-	/**
-	 * Does what load() does, but synchronously returns
-	 * an object with the PHP instance and a promise that
-	 * resolves when the PHP instance is ready.
-	 *
-	 * @see load
-	 */
-	static loadSync(
-		phpVersion: SupportedPHPVersion,
-		options: PHPLoaderOptions = {}
-	) {
-		/**
-		 * Keep any changes to the signature of this method in sync with the
-		 * `PHP.load` method in the @php-wasm/node package.
-		 */
-		const php = new NodePHP(undefined, options.requestHandler);
-
-		const doLoad = async () => {
-			const runtimeId = await loadPHPRuntime(
-				await getPHPLoaderModule(phpVersion),
-				await withNetworking(options.emscriptenOptions || {})
-			);
-			php.initializeRuntime(runtimeId);
 		};
-		const asyncData = doLoad();
-
-		return {
-			php,
-			phpReady: asyncData.then(() => php),
-		};
+		return await loadPHPRuntime(
+			await getPHPLoaderModule(phpVersion),
+			await withNetworking(options)
+		);
 	}
 
 	/**

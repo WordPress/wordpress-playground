@@ -28,7 +28,7 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler } from '@php-wasm/util';
+import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -735,8 +735,46 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
+	/**
+	 * Hot-swaps the PHP runtime for a new one without
+	 * interrupting the operations of this PHP instance.
+	 *
+	 * @param runtimeId
+	 */
+	hotSwapPHPRuntime(runtimeId: number) {
+		const oldFS = this[__private__dont__use].FS;
+
+		// Kill the current runtime
+		try {
+			this.exit();
+		} catch (e) {
+			// Ignore the exit-related exception
+		}
+
+		// Initialize the new runtime
+		this.initializeRuntime(runtimeId);
+
+		// Copy the MEMFS directory structure from the old FS to the new one
+		if (this.requestHandler) {
+			const docroot = this.documentRoot;
+			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+		}
+	}
+
 	exit(code = 0) {
-		return this[__private__dont__use]._exit(code);
+		try {
+			this[__private__dont__use]._exit(code);
+		} catch (e) {
+			// ignore the exit error
+		}
+
+		// Clean up any initialized state
+		this.#webSapiInitialized = false;
+
+		// Delete any links between this PHP instance and the runtime
+		this.#wasmErrorsTarget = null;
+		delete this[__private__dont__use]['onMessage'];
+		delete this[__private__dont__use];
 	}
 }
 
@@ -748,4 +786,47 @@ export function normalizeHeaders(
 		normalized[key.toLowerCase()] = headers[key];
 	}
 	return normalized;
+}
+
+type EmscriptenFS = any;
+
+/**
+ * Copies the MEMFS directory structure from one FS in another FS.
+ * Non-MEMFS nodes are ignored.
+ */
+function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+	let oldNode;
+	try {
+		oldNode = oldFS.lookupPath(path);
+	} catch (e) {
+		return;
+	}
+	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
+	// We only want to copy MEMFS nodes here.
+	if (!('contents' in oldNode.node)) {
+		return;
+	}
+
+	// Let's be extra careful and only proceed if newFs doesn't
+	// already have a node at the given path.
+	try {
+		newFS = newFS.lookupPath(path);
+		return;
+	} catch (e) {
+		// There's no such node in the new FS. Good,
+		// we may proceed.
+	}
+
+	if (!oldFS.isDir(oldNode.node.mode)) {
+		newFS.writeFile(path, oldFS.readFile(path));
+		return;
+	}
+
+	newFS.mkdirTree(path);
+	const filenames = oldFS
+		.readdir(path)
+		.filter((name: string) => name !== '.' && name !== '..');
+	for (const filename of filenames) {
+		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
+	}
 }
