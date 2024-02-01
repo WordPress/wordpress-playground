@@ -211,8 +211,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 );
 
 try {
-	const runtimeId = await recreateRuntime();
-	php.initializeRuntime(runtimeId);
+	php.initializeRuntime(await recreateRuntime());
 
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
