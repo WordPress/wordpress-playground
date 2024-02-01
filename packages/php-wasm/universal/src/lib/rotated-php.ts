@@ -5,9 +5,24 @@ export interface RotateOptions<T extends BasePHP> {
 	createPhp: () => Promise<T>;
 	maxRequests?: number;
 }
+
+/**
+ * Returns a PHP interface-compliant object that maintains a PHP instance
+ * internally. After X run() and request() calls, that internal instance
+ * is discarded and a new one is created.
+ *
+ * Why? Because PHP and PHP extension have a memory leak. Each request leaves
+ * the memory a bit more fragmented and with a bit less available space than
+ * before. Eventually, new allocations start failing.
+ *
+ * Rotating the PHP instance may seem like a workaround, but it's actually
+ * what PHP-FPM does natively:
+ *
+ * https://www.php.net/manual/en/install.fpm.configuration.php#pm.max-tasks
+ */
 export async function rotatedPHP<T extends BasePHP>({
 	createPhp,
-	maxRequests = 50,
+	maxRequests = 300,
 }: RotateOptions<T>): Promise<T> {
 	let php = (await createPhp()) as T;
 	let handledCalls = 0;
@@ -53,6 +68,10 @@ export async function rotatedPHP<T extends BasePHP>({
 }
 
 type EmscriptenFS = any;
+/**
+ * Copies the MEMFS directory structure from one FS in another FS.
+ * Non-MEMFS nodes are ignored.
+ */
 function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 	let oldNode;
 	try {
