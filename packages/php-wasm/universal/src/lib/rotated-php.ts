@@ -25,7 +25,7 @@ export async function rotatedPHP<T extends BasePHP>({
 		}
 
 		const newPhp = await createPhp();
-		copyPath(newPhp[__private__dont__use].FS, oldFS, docroot);
+		recreateMemFS(newPhp[__private__dont__use].FS, oldFS, docroot);
 		newPhp.requestHandler!.setCookies(oldCookies?.split(';') || []);
 
 		php = newPhp;
@@ -53,13 +53,29 @@ export async function rotatedPHP<T extends BasePHP>({
 }
 
 type EmscriptenFS = any;
-function copyPath(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 	let oldNode;
 	try {
 		oldNode = oldFS.lookupPath(path);
 	} catch (e) {
 		return;
 	}
+	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
+	// We only want to copy MEMFS nodes here.
+	if (!('contents' in oldNode.node)) {
+		return;
+	}
+
+	// Let's be extra careful and only proceed if newFs doesn't
+	// already have a node at the given path.
+	try {
+		newFS = newFS.lookupPath(path);
+		return;
+	} catch (e) {
+		// There's no such node in the new FS. Good,
+		// we may proceed.
+	}
+
 	if (!oldFS.isDir(oldNode.node.mode)) {
 		newFS.writeFile(path, oldFS.readFile(path));
 		return;
@@ -70,6 +86,6 @@ function copyPath(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		copyPath(newFS, oldFS, joinPaths(path, filename));
+		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
 	}
 }

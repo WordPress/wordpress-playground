@@ -59,6 +59,7 @@ export type { PHPRequestHandlerConfiguration } from './php-request-handler';
 export { PHPRequestHandler } from './php-request-handler';
 export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
+export { rotatedPHP } from './rotated-php';
 
 export {
 	DEFAULT_BASE_URL,
