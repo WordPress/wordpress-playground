@@ -100,6 +100,23 @@ if (!wordPressAvailableInOPFS) {
 	}
 }
 
+const recreateRuntime = async () =>
+	await WebPHP.loadRuntime(phpVersion, {
+		downloadMonitor: monitor,
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: phpExtensions?.length > 0,
+	});
+
+const php = rotatedPHP({
+	php: new WebPHP(undefined, {
+		documentRoot: DOCROOT,
+		absoluteUrl: scopedSiteUrl,
+	}),
+	recreateRuntime,
+	maxRequests: 400,
+});
+
 /** @inheritDoc PHPClient */
 export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	/**
@@ -186,23 +203,6 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		return replayFSJournal(php, events);
 	}
 }
-
-const recreateRuntime = async () =>
-	await WebPHP.loadRuntime(phpVersion, {
-		downloadMonitor: monitor,
-		// We don't yet support loading specific PHP extensions one-by-one.
-		// Let's just indicate whether we want to load all of them.
-		loadAllExtensions: phpExtensions?.length > 0,
-	});
-
-const php = rotatedPHP({
-	php: new WebPHP(undefined, {
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-	}),
-	recreateRuntime,
-	maxRequests: 400,
-});
 
 const [setApiReady, setAPIError] = exposeAPI(
 	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)

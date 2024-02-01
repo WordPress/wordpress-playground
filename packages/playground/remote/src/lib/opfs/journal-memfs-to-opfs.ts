@@ -64,7 +64,6 @@ class OpfsRewriter {
 		memfsRoot: string
 	) {
 		this.memfsRoot = normalizeMemfsPath(memfsRoot);
-		this.FS = this.php[__private__dont__use].FS;
 	}
 
 	private toOpfsPath(path: string) {
@@ -105,7 +104,12 @@ class OpfsRewriter {
 					});
 				}
 			} else if (entry.operation === 'WRITE') {
-				await overwriteOpfsFile(opfsParent, name, this.FS, entry.path);
+				await overwriteOpfsFile(
+					opfsParent,
+					name,
+					this.php[__private__dont__use].FS,
+					entry.path
+				);
 			} else if (
 				entry.operation === 'RENAME' &&
 				entry.toPath.startsWith(this.memfsRoot)

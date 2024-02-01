@@ -170,6 +170,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
+		this.dispatchEvent({
+			type: 'runtime.initialized',
+		});
 	}
 
 	/** @inheritDoc */
@@ -777,6 +780,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	exit(code = 0) {
+		this.dispatchEvent({
+			type: 'runtime.beforedestroy',
+		});
 		try {
 			this[__private__dont__use]._exit(code);
 		} catch (e) {

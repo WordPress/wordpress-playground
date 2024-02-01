@@ -116,61 +116,77 @@ export function journalFSEvents(
 	fsRoot: string,
 	onEntry: (entry: FilesystemOperation) => void = () => {}
 ) {
-	fsRoot = normalizePath(fsRoot);
-	const FS = php[__private__dont__use].FS;
-	const FSHooks = createFSHooks(FS, (entry: FilesystemOperation) => {
-		// Only journal entries inside the specified root directory.
-		if (entry.path.startsWith(fsRoot)) {
-			onEntry(entry);
-		} else if (
-			entry.operation === 'RENAME' &&
-			entry.toPath.startsWith(fsRoot)
-		) {
-			for (const op of recordExistingPath(
-				php,
-				entry.path,
-				entry.toPath
-			)) {
-				onEntry(op);
+	function bindToCurrentRuntime() {
+		fsRoot = normalizePath(fsRoot);
+		const FS = php[__private__dont__use].FS;
+		const FSHooks = createFSHooks(FS, (entry: FilesystemOperation) => {
+			// Only journal entries inside the specified root directory.
+			if (entry.path.startsWith(fsRoot)) {
+				onEntry(entry);
+			} else if (
+				entry.operation === 'RENAME' &&
+				entry.toPath.startsWith(fsRoot)
+			) {
+				for (const op of recordExistingPath(
+					php,
+					entry.path,
+					entry.toPath
+				)) {
+					onEntry(op);
+				}
+			}
+		});
+
+		/**
+		 * Override the original FS functions with ones running the hooks.
+		 * We could use a Proxy object here if the Emscripten JavaScript module
+		 * did not use hard-coded references to the FS object.
+		 */
+		const originalFunctions: Record<string, Function> = {};
+		for (const [name] of Object.entries(FSHooks)) {
+			originalFunctions[name] = FS[name];
+		}
+
+		// eslint-disable-next-line no-inner-declarations
+		function bind() {
+			for (const [name, hook] of Object.entries(FSHooks)) {
+				FS[name] = function (...args: any[]) {
+					// @ts-ignore
+					hook(...args);
+					return originalFunctions[name].apply(this, args);
+				};
 			}
 		}
-	});
-
-	/**
-	 * Override the original FS functions with ones running the hooks.
-	 * We could use a Proxy object here if the Emscripten JavaScript module
-	 * did not use hard-coded references to the FS object.
-	 */
-	const originalFunctions: Record<string, Function> = {};
-	for (const [name] of Object.entries(FSHooks)) {
-		originalFunctions[name] = FS[name];
-	}
-
-	// eslint-disable-next-line no-inner-declarations
-	function bind() {
-		for (const [name, hook] of Object.entries(FSHooks)) {
-			FS[name] = function (...args: any[]) {
-				// @ts-ignore
-				hook(...args);
-				return originalFunctions[name].apply(this, args);
-			};
+		// eslint-disable-next-line no-inner-declarations
+		function unbind() {
+			// Restore the original FS functions.
+			for (const [name, fn] of Object.entries(originalFunctions)) {
+				php[__private__dont__use].FS[name] = fn;
+			}
 		}
+
+		php[__private__dont__use].journal = {
+			bind,
+			unbind,
+		};
+		bind();
 	}
-	// eslint-disable-next-line no-inner-declarations
-	function unbind() {
-		// Restore the original FS functions.
-		for (const [name, fn] of Object.entries(originalFunctions)) {
-			php[__private__dont__use].FS[name] = fn;
-		}
+	php.addEventListener('runtime.initialized', bindToCurrentRuntime);
+	if (php[__private__dont__use]) {
+		bindToCurrentRuntime();
 	}
 
-	php[__private__dont__use].journal = {
-		bind,
-		unbind,
+	function unbindFromOldRuntime() {
+		php[__private__dont__use].journal.unbind();
+		delete php[__private__dont__use].journal;
+	}
+	php.addEventListener('runtime.beforedestroy', unbindFromOldRuntime);
+
+	return function unbind() {
+		php.removeEventListener('runtime.initialized', bindToCurrentRuntime);
+		php.removeEventListener('runtime.beforedestroy', unbindFromOldRuntime);
+		return php[__private__dont__use].journal.unbind();
 	};
-
-	bind();
-	return unbind;
 }
 
 const createFSHooks = (
@@ -261,7 +277,7 @@ const createFSHooks = (
  */
 export function replayFSJournal(php: BasePHP, entries: FilesystemOperation[]) {
 	// We need to restore the original functions to the FS object
-	// before proceeding, or each replayer FS operation will be journaled.
+	// before proceeding, or each replayed FS operation will be journaled.
 	//
 	// Unfortunately we can't just call the non-journaling versions directly,
 	// because they call other low-level FS functions like `FS.mkdir()`

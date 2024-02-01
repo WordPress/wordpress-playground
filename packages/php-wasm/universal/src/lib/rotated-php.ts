@@ -8,9 +8,8 @@ export interface RotateOptions<T extends BasePHP> {
 }
 
 /**
- * Returns a PHP interface-compliant object that maintains a PHP instance
- * internally. After X run() and request() calls, that internal instance
- * is discarded and a new one is created.
+ * Patches PHP to discard and replace the internal PHP Runtime after a certain
+ * number of run() calls (which are responsible for handling HTTP requests).
  *
  * Why? Because PHP and PHP extension have a memory leak. Each request leaves
  * the memory a bit more fragmented and with a bit less available space than
@@ -28,33 +27,14 @@ export function rotatedPHP<T extends BasePHP>({
 }: RotateOptions<T>): T {
 	let handledCalls = 0;
 	const semaphore = new Semaphore({ concurrency: 1 });
-	return new Proxy(
-		{},
-		{
-			get(target, prop: string) {
-				if (prop === 'run' || prop === 'request') {
-					return async (...args: any[]) =>
-						semaphore.run(async () => {
-							if (++handledCalls > maxRequests) {
-								handledCalls = 0;
-								php.hotSwapPHPRuntime(await recreateRuntime());
-							}
-							return (php[prop as keyof T] as any)(...args);
-						});
-				}
-
-				const value = php[prop as keyof T];
-				if (typeof value === 'function') {
-					/**
-					 * Binding solves the following problem:
-					 * TypeError: Cannot read private member #messageListeners from an object whose class did not declare it
-					 */
-					return (...args: any[]) =>
-						(php[prop as keyof T] as any)(...args);
-				}
-
-				return php[prop as keyof T];
-			},
-		}
-	) as any;
+	const originalRun = php.run;
+	php.run = async (...args: any) =>
+		semaphore.run(async () => {
+			if (++handledCalls > maxRequests) {
+				handledCalls = 0;
+				php.hotSwapPHPRuntime(await recreateRuntime());
+			}
+			return await originalRun.apply(php, args);
+		});
+	return php;
 }
