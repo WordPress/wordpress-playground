@@ -45,6 +45,8 @@ export const __private__dont__use = Symbol('__private__dont__use');
 export abstract class BasePHP implements IsomorphicLocalPHP {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
+	#phpIniPath?: string;
+	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
@@ -184,6 +186,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					'Did you already dispatch any requests?'
 			);
 		}
+		this.#sapiName = newName;
 	}
 
 	/** @inheritDoc */
@@ -191,6 +194,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (this.#webSapiInitialized) {
 			throw new Error('Cannot set PHP ini path after calling run().');
 		}
+		this.#phpIniPath = path;
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
 			null,
@@ -753,6 +757,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 		// Initialize the new runtime
 		this.initializeRuntime(runtimeId);
+
+		// Re-apply any set() methods that are not
+		// request related and result in a one-off
+		// C function call.
+		if (this.#phpIniPath) {
+			this.setPhpIniPath(this.#phpIniPath);
+		}
+
+		if (this.#sapiName) {
+			this.setSapiName(this.#sapiName);
+		}
 
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (this.requestHandler) {

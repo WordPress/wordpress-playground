@@ -56,6 +56,22 @@ describe('rotatedPHP()', () => {
 		expect(version2).toMatch(/^8\.3/);
 	});
 
+	it('Should preserve the custom SAPI name', async () => {
+		const php = await rotatedPHP({
+			php: new NodePHP(await recreateRuntime(), {
+				documentRoot: '/test-root',
+			}),
+			recreateRuntime,
+			maxRequests: 1,
+		});
+		php.setSapiName('custom SAPI');
+		await rotate(php);
+		const result = await php.run({
+			code: `<?php echo php_sapi_name();`,
+		});
+		expect(result.text).toBe('custom SAPI');
+	});
+
 	it('Should preserve the MEMFS files', async () => {
 		const php = await rotatedPHP({
 			php: new NodePHP(await recreateRuntime(), {
@@ -73,6 +89,7 @@ describe('rotatedPHP()', () => {
 			'<?php echo "hi";'
 		);
 	});
+
 	it('Should not overwrite the NODEFS files', async () => {
 		const php = await rotatedPHP({
 			php: new NodePHP(await recreateRuntime(), {
