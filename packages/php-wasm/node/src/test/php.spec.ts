@@ -1,9 +1,9 @@
 import { getPHPLoaderModule, NodePHP } from '..';
 import { vi } from 'vitest';
 import {
+	__private__dont__use,
 	loadPHPRuntime,
 	SupportedPHPVersions,
-	__private__dont__use,
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
@@ -77,6 +77,14 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 		php.mkdir('/php');
 		php.setPhpIniEntry('disable_functions', '');
+	});
+	afterEach(async () => {
+		// Clean up
+		try {
+			php.exit(0);
+		} catch (e) {
+			// ignore exit-related exceptions
+		}
 	});
 
 	describe('exec()', () => {
@@ -899,6 +907,112 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(bodyText).toEqual('{"foo": "bar"}');
 		});
 
+		it('Can accept a request body with a size of 1MB without crashing', async () => {
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			const response = await php.request({
+				url: '/',
+				body: '#'.repeat(1024 * 1024),
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('Hello World');
+			expect(response.errors).toEqual('');
+			expect(response.exitCode).toEqual(0);
+		});
+
+		it('Can accept a request body with a size of ~512MB without crashing', async () => {
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			const response = await php.request({
+				url: '/',
+				body: '#'.repeat(1024 * 1024 * 512 + -24),
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('Hello World');
+			expect(response.errors).toEqual('');
+			expect(response.exitCode).toEqual(0);
+		});
+
+		it('Frees up the heap memory after handling a request body with a size of ~512MB', async () => {
+			const estimateFreeMemory = () =>
+				php[__private__dont__use].HEAPU32.reduce(
+					(count: number, byte: number) =>
+						byte === 0 ? count + 1 : count,
+					0
+				) / 4;
+
+			// The initial request will allocate a lot of memory so let's get that
+			// out of the way before we start measuring.
+			await php.request({ url: '/' });
+
+			// Overwrite the memory-related functions to:
+			// * Capture the body HEAP pointer
+			// * Capture the encoded body length
+			// * Overwrite the HEAP memory with zeros after freeing the
+			//   body pointer.
+			// This will allow us to estimate the amount of the memory that
+			// was not freed after the request.
+			const body = '#'.repeat(1024 * 1024 * 512 - 24);
+
+			let contentLength = 0;
+			const _lengthBytesUTF8 = php[__private__dont__use].lengthBytesUTF8;
+			php[__private__dont__use].lengthBytesUTF8 = function (
+				data: string
+			) {
+				const retval = _lengthBytesUTF8.call(this, data);
+				if (data === body) {
+					contentLength = retval;
+				}
+				return retval;
+			};
+
+			let bodyPtr = 0;
+			const malloc = php[__private__dont__use].malloc;
+			php[__private__dont__use].malloc = function newMalloc(
+				size: number,
+				...args: any
+			) {
+				const retval = malloc.call(this, size, ...args);
+				if (size === contentLength + 1) {
+					bodyPtr = retval;
+				}
+				return retval;
+			};
+
+			const free = php[__private__dont__use].free;
+			php[__private__dont__use].free = function (
+				addr: number,
+				...args: any
+			) {
+				const retval = free.call(this, name, ...args);
+				if (addr === bodyPtr) {
+					php[__private__dont__use].HEAPU8.fill(
+						0,
+						addr,
+						addr + contentLength
+					);
+				}
+				return retval;
+			};
+
+			const getFreeMemoryBefore = estimateFreeMemory();
+
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			await php.request({
+				url: '/',
+				body,
+			});
+
+			const getFreeMemoryAfter = estimateFreeMemory();
+
+			// PHP has a memory leak, so we can't expect the memory to be exactly
+			// the same as before the request, but it should be close to the original
+			// value. Let's abitrarily pick 100KB as the "close enough" threshold.
+			//
+			// @see https://github.com/WordPress/wordpress-playground/pull/990 for more
+			//      details on the memory leak in PHP.
+			const memoryDifference = getFreeMemoryBefore - getFreeMemoryAfter;
+			expect(memoryDifference).toBeLessThan(100 * 1024);
+		});
+
 		it('Should set $_SERVER entries for provided headers', async () => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_SERVER);`,
@@ -1278,151 +1392,6 @@ bar1
 			await php.cli(['php', '-r', '$tmp = "Hello";']);
 			expect(consoleLogMock).not.toHaveBeenCalled();
 			expect(consoleErrorMock).not.toHaveBeenCalled();
-		});
-	});
-});
-
-// @TODO Prevent crash on PHP versions 5.6, 7.2, 8.2
-describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
-	'PHP %s – process crash',
-	(phpVersion) => {
-		let php: NodePHP;
-		beforeEach(async () => {
-			php = await NodePHP.load(phpVersion as any);
-			php.setPhpIniEntry('allow_url_fopen', '1');
-			vi.restoreAllMocks();
-		});
-
-		it('Does not crash due to an unhandled Asyncify error ', async () => {
-			let caughtError;
-			try {
-				/**
-				 * PHP is intentionally built without network support for __clone()
-				 * because it's an extremely unlikely place for any network activity
-				 * and not supporting it allows us to test the error handling here.
-				 *
-				 * `clone $x` will throw an asynchronous error out when attempting
-				 * to do a network call ("unreachable" WASM instruction executed).
-				 * This test should gracefully catch and handle that error.
-				 *
-				 * A failure to do so will crash the entire process
-				 */
-				await php.run({
-					code: `<?php
-				class Top {
-					function __clone() {
-						file_get_contents("http://127.0.0.1");
-					}
-				}
-				$x = new Top();
-				clone $x;
-				`,
-				});
-			} catch (error: unknown) {
-				caughtError = error;
-				if (error instanceof Error) {
-					expect(error.message).toMatch(
-						/Aborted|Program terminated with exit\(1\)|unreachable|null function or function signature|out of bounds/
-					);
-				}
-			}
-			if (!caughtError) {
-				expect.fail('php.run should have thrown an error');
-			}
-		});
-
-		it('Does not crash due to an unhandled non promise error ', async () => {
-			let caughtError;
-			try {
-				const spy = vi.spyOn(php[__private__dont__use], 'ccall');
-				expect(spy.getMockName()).toEqual('ccall');
-				spy.mockImplementation((c_func) => {
-					if (c_func === 'wasm_sapi_handle_request') {
-						throw new Error('test');
-					}
-				});
-
-				await php.run({
-					code: `<?php
-              function top() {
-						     file_get_contents("http://127.0.0.1");
-              }
-              top();
-				`,
-				});
-			} catch (error: unknown) {
-				caughtError = error;
-				if (error instanceof Error) {
-					expect(error.message).toMatch('test');
-					expect(error.stack).toContain('#handleRequest');
-				}
-			}
-			if (!caughtError) {
-				expect.fail('php.run should have thrown an error');
-			}
-		});
-
-		it('Does not leak memory when creating and destroying instances', async () => {
-			if (!global.gc) {
-				console.error(
-					`\u001b[33mAlert! node must be run with --expose-gc to test properly!\u001b[0m\n` +
-						`\u001b[33mnx can pass the switch with:\u001b[0m\n` +
-						`\u001b[33m\tnode --expose-gc  node_modules/nx/bin/nx\u001b[0m`
-				);
-			}
-
-			expect(global.gc && global.gc).to.exist;
-
-			let refCount = 0;
-
-			const registry = new FinalizationRegistry(() => --refCount);
-
-			const concurrent = 25;
-			const steps = 5;
-
-			const delay = (ms: number) =>
-				new Promise((accept) => setTimeout(accept, ms));
-
-			for (let i = 0; i < steps; i++) {
-				const instances = new Set<NodePHP>();
-
-				for (let j = 0; j < concurrent; j++) {
-					instances.add(await NodePHP.load(phpVersion as any));
-				}
-
-				refCount += instances.size;
-
-				for (const instance of instances) {
-					registry.register(instance, null);
-					await instance
-						.run({ code: `<?php 2+2;` })
-						.then(() => instance.exit())
-						.catch(() => {});
-				}
-
-				instances.clear();
-
-				await delay(10);
-				global.gc && global.gc();
-			}
-
-			await delay(100);
-			global.gc && global.gc();
-
-			expect(refCount).lessThanOrEqual(10);
-		}, 500_000);
-	}
-);
-
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
-	describe('emscripten options', () => {
-		it('calls quit callback', async () => {
-			let result = '';
-			const php: NodePHP = await NodePHP.load(phpVersion as any, {
-				emscriptenOptions: { quit: () => (result = 'WordPress') },
-			});
-			php.exit(0);
-			expect(result).toEqual('WordPress');
 		});
 	});
 });

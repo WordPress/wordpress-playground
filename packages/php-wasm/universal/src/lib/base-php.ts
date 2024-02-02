@@ -244,6 +244,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
+		let heapBodyPointer;
 		try {
 			if (!this.#webSapiInitialized) {
 				this.#initWebRuntime();
@@ -258,7 +259,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
 			this.#setRequestHeaders(headers);
 			if (request.body) {
-				this.#setRequestBody(request.body);
+				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (request.fileInfos) {
 				for (const file of request.fileInfos) {
@@ -285,10 +286,16 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			}
 			return response;
 		} finally {
-			release();
-			this.dispatchEvent({
-				type: 'request.end',
-			});
+			try {
+				if (heapBodyPointer) {
+					this[__private__dont__use].free(heapBodyPointer);
+				}
+			} finally {
+				release();
+				this.dispatchEvent({
+					type: 'request.end',
+				});
+			}
 		}
 	}
 
@@ -465,11 +472,67 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	#setRequestBody(body: string) {
+		/**
+		 * Encoding the body using stringToUTF8 is a lossy, wrong way
+		 * of passing the request body to WASM. The setRequestBody
+		 * method should accept a `body: string | Uint8Array` argument
+		 * instead.
+		 *
+		 * For now, though, we stick to the `stringToUTF8` method as this is what
+		 * a plain ccall() with a string argument would do. Faulty as it might be,
+		 * this is just the way of encode a JavaScript string as bytes to write it
+		 * into the WASM memory.
+		 *
+		 * To show a glimpse of the rabbit hole of what might go wrong here:
+		 *
+		 * Internally, JavaScript strings are stored as something that's like UTF-16,
+		 * but actually it isn't totally because it allows creating strings that cannot
+		 * be represented in Unicode. They allow an arbitrary stream of bytes to be a string,
+		 * which mostly works in UTF-16 and does work in UCS-2, but in order to support extended
+		 * character ranges in Unicode, UTF-16 said that the code points referenced by each
+		 * surrogate half are invalid and cannot be represented. So U+D83C U+DC00 is an
+		 * invalid sequence of code points, but the UTF-16 sequence of bytes 0xd83cdc00
+		 * is valid and converts to U+1F000. This is why they cannot be split, because
+		 * you cannot represent U+D83C in UTF-8 or even abstractly in Unicode.
+		 *
+		 * If provided an invalid string this conversion will be lossy.
+		 * Invalid code points will be converted to U+FFFD and
+		 * `Module.lengthBytesUTF8` will report the number of bytes after
+		 * converting those code points. E.g. `a\ud83cb` turns into
+		 * the string `a�b` and the length is 1 + 3 + 1 = 5.
+		 *
+		 * Also, consider a string split inside a surrogate pair boundary.
+		 *
+		 *     `'I feel 😊.'.slice(0, 8)`
+		 *
+		 * We might expect this to occupy 8 bytes because we split
+		 * the string at 8 characters, or to occupy 11 bytes because
+		 * we expected to get the emoji as the 8th character, and it
+		 * requires four bytes in UTF8, but instead we invalidated
+		 * the string and receive `I feel �`, which takes a total of
+		 * 10 bytes in UTF8: 7 to encode `I feel ` and then 3 to
+		 * encode the replacement character U+FFFD.
+		 *
+		 * There's a lot more, for sure. The ultimate fix is to implement
+		 * the UInt8Array approach.
+		 */
+		const size = this[__private__dont__use].lengthBytesUTF8(body);
+		const heapBodyPointer = this[__private__dont__use].malloc(size + 1);
+		if (!heapBodyPointer) {
+			throw new Error('Could not allocate memory for the request body.');
+		}
+		// Write the string to the WASM memory
+		this[__private__dont__use].stringToUTF8(
+			body,
+			heapBodyPointer,
+			size + 1
+		);
+
 		this[__private__dont__use].ccall(
 			'wasm_set_request_body',
 			null,
-			[STRING],
-			[body]
+			[NUMBER],
+			[heapBodyPointer]
 		);
 		this[__private__dont__use].ccall(
 			'wasm_set_content_length',
@@ -477,6 +540,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			[NUMBER],
 			[new TextEncoder().encode(body).length]
 		);
+		return heapBodyPointer;
 	}
 
 	#setScriptPath(path: string) {

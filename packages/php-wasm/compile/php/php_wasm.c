@@ -695,10 +695,6 @@ void wasm_destroy_server_context()
 	{
 		free(wasm_server_context->content_type);
 	}
-	if (wasm_server_context->request_body != NULL)
-	{
-		free(wasm_server_context->request_body);
-	}
 	if (wasm_server_context->cookies != NULL)
 	{
 		free(wasm_server_context->cookies);
@@ -876,11 +872,11 @@ void wasm_set_content_type(char *content_type)
  * ----------------------------
  *  Sets the request body for the next request.
  *
- *  request_body: the request body, e.g. "name=John&age=30"
+ *  request_body: the Heap pointer to the request body, e.g. "name=John&age=30"
  */
 void wasm_set_request_body(char *request_body)
 {
-	wasm_server_context->request_body = strdup(request_body);
+	wasm_server_context->request_body = request_body;
 }
 
 /**
