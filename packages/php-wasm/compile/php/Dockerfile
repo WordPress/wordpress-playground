@@ -772,6 +772,10 @@ RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \
 	export EXPORTED_FUNCTIONS=$'["_exit", \n\
+"UTF8ToString", \n\
+"stringToUTF8", \n\
+"lengthBytesUTF8", \n\
+"FS", \n\
 "_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
 "_phpwasm_destroy_uploaded_files_hash", \n\
@@ -814,7 +818,7 @@ RUN set -euxo pipefail; \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-o /build/output/php.js \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
-	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "lengthBytesUTF8", "FS", "PROXYFS"]' \
+	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "PROXYFS"]' \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \
 	-s ASSERTIONS=0                  \

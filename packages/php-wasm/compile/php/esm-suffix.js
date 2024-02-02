@@ -36,6 +36,9 @@ PHPLoader['removeRunDependency'] = function (...args) {
     }
 }
 
+PHPLoader['malloc'] = _malloc;
+PHPLoader['free'] = _free;
+
 return PHPLoader;
 
 // Close the opening bracket from esm-prefix.js:

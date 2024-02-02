@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_1_23/php_8_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 10994178; 
+export const dependenciesTotalSize = 10994169; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -427,6 +427,8 @@ var UTF8ArrayToString = (heapOrArray, idx, maxBytesToRead) => {
 
 var UTF8ToString = (ptr, maxBytesToRead) => ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : "";
 
+Module["UTF8ToString"] = UTF8ToString;
+
 var ___assert_fail = (condition, filename, line, func) => {
  abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [ filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function" ]);
 };
@@ -584,6 +586,8 @@ var lengthBytesUTF8 = str => {
  }
  return len;
 };
+
+Module["lengthBytesUTF8"] = lengthBytesUTF8;
 
 var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
  if (!(maxBytesToWrite > 0)) return 0;
@@ -2876,6 +2880,8 @@ var FS = {
  }
 };
 
+Module["FS"] = FS;
+
 var SYSCALLS = {
  DEFAULT_POLLMASK: 5,
  calculateAt: function(dirfd, path, allowEmpty) {
@@ -3990,6 +3996,8 @@ function ___syscall_ftruncate64(fd, length_low, length_high) {
 }
 
 var stringToUTF8 = (str, outPtr, maxBytesToWrite) => stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
+
+Module["stringToUTF8"] = stringToUTF8;
 
 function ___syscall_getcwd(buf, size) {
  try {
@@ -7478,13 +7486,7 @@ Module["FS_unlink"] = FS.unlink;
 
 Module["ccall"] = ccall;
 
-Module["UTF8ToString"] = UTF8ToString;
-
-Module["lengthBytesUTF8"] = lengthBytesUTF8;
-
 Module["FS_createPreloadedFile"] = FS.createPreloadedFile;
-
-Module["FS"] = FS;
 
 var calledRun;
 
@@ -7568,6 +7570,9 @@ PHPLoader['removeRunDependency'] = function (...args) {
         PHPLoader['onAbort'](e);
     }
 }
+
+PHPLoader['malloc'] = _malloc;
+PHPLoader['free'] = _free;
 
 return PHPLoader;
 
