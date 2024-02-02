@@ -61,49 +61,27 @@ export class WebPHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPWebLoaderOptions = {}
 	) {
-		return await WebPHP.loadSync(phpVersion, options).phpReady;
+		return new WebPHP(
+			await WebPHP.loadRuntime(phpVersion, options),
+			options.requestHandler
+		);
 	}
 
-	/**
-	 * Does what load() does, but synchronously returns
-	 * an object with the PHP instance and a promise that
-	 * resolves when the PHP instance is ready.
-	 *
-	 * @see load
-	 */
-	static loadSync(
+	static async loadRuntime(
 		phpVersion: SupportedPHPVersion,
 		options: PHPWebLoaderOptions = {}
 	) {
-		/**
-		 * Keep any changes to the signature of this method in sync with the
-		 * `PHP.load` method in the @php-wasm/node package.
-		 */
-		const php = new WebPHP(undefined, options.requestHandler);
-
 		// Determine which variant to load based on the requested extensions
 		const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
 
-		const doLoad = async () => {
-			const phpLoaderModule = await getPHPLoaderModule(
-				phpVersion,
-				variant
-			);
-			options.downloadMonitor?.expectAssets({
-				[phpLoaderModule.dependencyFilename]:
-					phpLoaderModule.dependenciesTotalSize,
-			});
-			const runtimeId = await loadPHPRuntime(phpLoaderModule, {
-				...(options.emscriptenOptions || {}),
-				...fakeWebsocket(),
-			});
-			php.initializeRuntime(runtimeId);
-		};
-		const asyncData = doLoad();
-
-		return {
-			php,
-			phpReady: asyncData.then(() => php),
-		};
+		const phpLoaderModule = await getPHPLoaderModule(phpVersion, variant);
+		options.downloadMonitor?.expectAssets({
+			[phpLoaderModule.dependencyFilename]:
+				phpLoaderModule.dependenciesTotalSize,
+		});
+		return await loadPHPRuntime(phpLoaderModule, {
+			...(options.emscriptenOptions || {}),
+			...fakeWebsocket(),
+		});
 	}
 }

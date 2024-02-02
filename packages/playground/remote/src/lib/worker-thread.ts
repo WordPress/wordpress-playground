@@ -12,6 +12,7 @@ import {
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
+	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import {
 	FilesystemOperation,
@@ -99,16 +100,30 @@ if (!wordPressAvailableInOPFS) {
 	}
 }
 
-// const wordPressFile = fetch(zipFilename);
-const { php, phpReady } = WebPHP.loadSync(phpVersion, {
-	downloadMonitor: monitor,
-	requestHandler: {
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-	},
-	// We don't yet support loading specific PHP extensions one-by-one.
-	// Let's just indicate whether we want to load all of them.
-	loadAllExtensions: phpExtensions?.length > 0,
+const php = new WebPHP(undefined, {
+	documentRoot: DOCROOT,
+	absoluteUrl: scopedSiteUrl,
+});
+
+const recreateRuntime = async () =>
+	await WebPHP.loadRuntime(phpVersion, {
+		downloadMonitor: monitor,
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: phpExtensions?.length > 0,
+	});
+
+// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
+// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
+rotatePHPRuntime({
+	php,
+	recreateRuntime,
+	// 400 is an arbitrary number that should trigger a rotation
+	// way before the memory gets too fragmented. If the memory
+	// issue returns, let's explore:
+	// * Lowering this number
+	// * Adding a memory usage monitor and rotate based on that
+	maxRequests: 400,
 });
 
 /** @inheritDoc PHPClient */
@@ -203,7 +218,8 @@ const [setApiReady, setAPIError] = exposeAPI(
 );
 
 try {
-	await phpReady;
+	php.initializeRuntime(await recreateRuntime());
+
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}

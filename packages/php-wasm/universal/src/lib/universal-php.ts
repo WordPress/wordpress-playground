@@ -2,10 +2,24 @@ import { Remote } from 'comlink';
 import { PHPResponse } from './php-response';
 
 /**
- * Represents an event related to the PHP filesystem.
+ * Represents an event related to the PHP request.
  */
 export interface PHPRequestEndEvent {
 	type: 'request.end';
+}
+
+/**
+ * Represents a PHP runtime initialization event.
+ */
+export interface PHPRuntimeInitializedEvent {
+	type: 'runtime.initialized';
+}
+
+/**
+ * Represents a PHP runtime destruction event.
+ */
+export interface PHPRuntimeBeforeDestroyEvent {
+	type: 'runtime.beforedestroy';
 }
 
 /**
@@ -13,7 +27,10 @@ export interface PHPRequestEndEvent {
  * This is intentionally not an extension of CustomEvent
  * to make it isomorphic between different JavaScript runtimes.
  */
-export type PHPEvent = PHPRequestEndEvent;
+export type PHPEvent =
+	| PHPRequestEndEvent
+	| PHPRuntimeInitializedEvent
+	| PHPRuntimeBeforeDestroyEvent;
 
 /**
  * A callback function that handles PHP events.

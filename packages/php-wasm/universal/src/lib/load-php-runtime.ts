@@ -1,5 +1,6 @@
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
+let lastRuntimeId = 0;
 
 /**
  * Loads the PHP runtime with the given arguments and data dependencies.
@@ -148,8 +149,9 @@ export async function loadPHPRuntime(
 
 	await phpReady;
 
-	const id = loadedRuntimes.size;
+	const id = ++lastRuntimeId;
 
+	PHPRuntime.id = id;
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {

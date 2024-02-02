@@ -7,7 +7,6 @@ import {
 	rethrowFileSystemError,
 	__private__dont__use,
 	isExitCodeZero,
-	DataModule,
 } from '@php-wasm/universal';
 
 import { lstatSync, readdirSync } from 'node:fs';
@@ -17,7 +16,6 @@ import { withNetworking } from './networking/with-networking.js';
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
 	requestHandler?: PHPRequestHandlerConfiguration;
-	dataModules?: Array<DataModule | Promise<DataModule>>;
 }
 
 export type MountSettings = {
@@ -44,20 +42,10 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return await NodePHP.loadSync(phpVersion, {
-			...options,
-			emscriptenOptions: {
-				/**
-				 * Emscripten default behavior is to kill the process when
-				 * the WASM program calls `exit()`. We want to throw an
-				 * exception instead.
-				 */
-				quit: function (code, error) {
-					throw error;
-				},
-				...(options.emscriptenOptions || {}),
-			},
-		}).phpReady;
+		return new NodePHP(
+			await NodePHP.loadRuntime(phpVersion, options),
+			options.requestHandler
+		);
 	}
 
 	/**
@@ -67,29 +55,25 @@ export class NodePHP extends BasePHP {
 	 *
 	 * @see load
 	 */
-	static loadSync(
+	static async loadRuntime(
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		/**
-		 * Keep any changes to the signature of this method in sync with the
-		 * `PHP.load` method in the @php-wasm/node package.
-		 */
-		const php = new NodePHP(undefined, options.requestHandler);
-
-		const doLoad = async () => {
-			const runtimeId = await loadPHPRuntime(
-				await getPHPLoaderModule(phpVersion),
-				await withNetworking(options.emscriptenOptions || {})
-			);
-			php.initializeRuntime(runtimeId);
+		const emscriptenOptions: EmscriptenOptions = {
+			/**
+			 * Emscripten default behavior is to kill the process when
+			 * the WASM program calls `exit()`. We want to throw an
+			 * exception instead.
+			 */
+			quit: function (code, error) {
+				throw error;
+			},
+			...(options.emscriptenOptions || {}),
 		};
-		const asyncData = doLoad();
-
-		return {
-			php,
-			phpReady: asyncData.then(() => php),
-		};
+		return await loadPHPRuntime(
+			await getPHPLoaderModule(phpVersion),
+			await withNetworking(emscriptenOptions)
+		);
 	}
 
 	/**
