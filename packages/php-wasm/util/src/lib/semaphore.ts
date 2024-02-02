@@ -40,7 +40,7 @@ export default class Semaphore {
 		}
 	}
 
-	async run<T>(fn: () => Promise<T>): Promise<T> {
+	async run<T>(fn: () => T | Promise<T>): Promise<T> {
 		const release = await this.acquire();
 		try {
 			return await fn();

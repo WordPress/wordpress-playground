@@ -746,37 +746,48 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 * Hot-swaps the PHP runtime for a new one without
 	 * interrupting the operations of this PHP instance.
 	 *
-	 * @param runtimeId
+	 * @param runtime
 	 */
-	hotSwapPHPRuntime(runtimeId: number) {
-		const oldFS = this[__private__dont__use].FS;
+	async hotSwapPHPRuntime(runtime: number | Promise<number>) {
+		await this.#semaphore.run(async () => {
+			runtime = await runtime;
 
-		// Kill the current runtime
-		try {
-			this.exit();
-		} catch (e) {
-			// Ignore the exit-related exception
-		}
+			// Once we secure the lock and have the new runtime ready,
+			// the rest of the swap handler is synchronous to make sure
+			// no other operations acts on the old runtime or FS.
+			// If there was await anywhere here, we'd risk applyng
+			// asynchronous changes to either the filesystem or the
+			// old PHP runtime without propagating them to the new
+			// runtime.
+			const oldFS = this[__private__dont__use].FS;
 
-		// Initialize the new runtime
-		this.initializeRuntime(runtimeId);
+			// Kill the current runtime
+			try {
+				this.exit();
+			} catch (e) {
+				// Ignore the exit-related exception
+			}
 
-		// Re-apply any set() methods that are not
-		// request related and result in a one-off
-		// C function call.
-		if (this.#phpIniPath) {
-			this.setPhpIniPath(this.#phpIniPath);
-		}
+			// Initialize the new runtime
+			this.initializeRuntime(runtime);
 
-		if (this.#sapiName) {
-			this.setSapiName(this.#sapiName);
-		}
+			// Re-apply any set() methods that are not
+			// request related and result in a one-off
+			// C function call.
+			if (this.#phpIniPath) {
+				this.setPhpIniPath(this.#phpIniPath);
+			}
 
-		// Copy the MEMFS directory structure from the old FS to the new one
-		if (this.requestHandler) {
-			const docroot = this.documentRoot;
-			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
-		}
+			if (this.#sapiName) {
+				this.setSapiName(this.#sapiName);
+			}
+
+			// Copy the MEMFS directory structure from the old FS to the new one
+			if (this.requestHandler) {
+				const docroot = this.documentRoot;
+				recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+			}
+		});
 	}
 
 	exit(code = 0) {

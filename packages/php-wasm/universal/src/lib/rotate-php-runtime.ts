@@ -1,4 +1,3 @@
-import { Semaphore } from '@php-wasm/util';
 import { BasePHP } from './base-php';
 
 export interface RotateOptions<T extends BasePHP> {
@@ -8,8 +7,8 @@ export interface RotateOptions<T extends BasePHP> {
 }
 
 /**
- * Patches PHP to discard and replace the internal PHP Runtime after a certain
- * number of run() calls (which are responsible for handling HTTP requests).
+ * Listens to PHP events and swaps the internal PHP Runtime for a fresh one
+ * after a certain run() calls (which are responsible for handling HTTP requests).
  *
  * Why? Because PHP and PHP extension have a memory leak. Each request leaves
  * the memory a bit more fragmented and with a bit less available space than
@@ -19,22 +18,23 @@ export interface RotateOptions<T extends BasePHP> {
  * what PHP-FPM does natively:
  *
  * https://www.php.net/manual/en/install.fpm.configuration.php#pm.max-tasks
+ *
+ * @return cleanup function to restore
  */
-export function rotatedPHP<T extends BasePHP>({
+export function rotatePHPRuntime<T extends BasePHP>({
 	php,
 	recreateRuntime,
 	maxRequests,
-}: RotateOptions<T>): T {
+}: RotateOptions<T>) {
 	let handledCalls = 0;
-	const semaphore = new Semaphore({ concurrency: 1 });
-	const originalRun = php.run;
-	php.run = async (...args: any) =>
-		semaphore.run(async () => {
-			if (++handledCalls > maxRequests) {
-				handledCalls = 0;
-				php.hotSwapPHPRuntime(await recreateRuntime());
-			}
-			return await originalRun.apply(php, args);
-		});
-	return php;
+	async function rotateRuntime() {
+		if (++handledCalls >= maxRequests) {
+			handledCalls = 0;
+			await php.hotSwapPHPRuntime(recreateRuntime());
+		}
+	}
+	php.addEventListener('request.end', rotateRuntime);
+	return function () {
+		php.removeEventListener('request.end', rotateRuntime);
+	};
 }

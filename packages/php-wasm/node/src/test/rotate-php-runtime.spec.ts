@@ -2,43 +2,67 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { NodePHP } from '..';
-import { LatestSupportedPHPVersion, rotatedPHP } from '@php-wasm/universal';
+import {
+	LatestSupportedPHPVersion,
+	rotatePHPRuntime,
+} from '@php-wasm/universal';
 
 const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
 	await NodePHP.loadRuntime(version);
 
-async function rotate(php: any) {
-	await php.run({
-		code: `<?php echo 'hi';`,
-	});
-	await php.run({
-		code: `<?php echo 'hi';`,
-	});
-}
-
-describe('rotatedPHP()', () => {
+describe('rotatePHPRuntime()', () => {
 	it('Should recreate the PHP instance after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = await rotatedPHP({
-			php: new NodePHP(await recreateRuntimeSpy(), {
-				documentRoot: '/test-root',
-			}),
+		const php = new NodePHP(await recreateRuntimeSpy(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
-		await rotate(php);
+		// Rotate the PHP instance
+		await php.run({ code: `` });
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it('Should stop rotating after the cleanup handler is called', async () => {
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		const php = new NodePHP(await recreateRuntimeSpy(), {
+			documentRoot: '/test-root',
+		});
+		const cleanup = rotatePHPRuntime({
+			php,
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1,
+		});
+		// Rotate the PHP instance
+		await php.run({ code: `` });
+		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+
+		cleanup();
+
+		// No further rotation should happen
+		await php.run({ code: `` });
+		await php.run({ code: `` });
+
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	});
 
 	it('Should hotswap the PHP instance from 8.2 to 8.3', async () => {
 		let nbCalls = 0;
-		const recreateRuntimeSpy = vitest.fn(() =>
-			++nbCalls === 1 ? recreateRuntime('8.2') : recreateRuntime('8.3')
-		);
-		const php = await rotatedPHP({
-			php: new NodePHP(await recreateRuntimeSpy(), {
-				documentRoot: '/test-root',
-			}),
+		const recreateRuntimeSpy = vitest.fn(() => {
+			if (nbCalls === 0) {
+				++nbCalls;
+				return recreateRuntime('8.2');
+			}
+			return recreateRuntime('8.3');
+		});
+		const php = new NodePHP(await recreateRuntimeSpy(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -57,15 +81,18 @@ describe('rotatedPHP()', () => {
 	});
 
 	it('Should preserve the custom SAPI name', async () => {
-		const php = await rotatedPHP({
-			php: new NodePHP(await recreateRuntime(), {
-				documentRoot: '/test-root',
-			}),
+		const php = new NodePHP(await recreateRuntime(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
 			recreateRuntime,
 			maxRequests: 1,
 		});
 		php.setSapiName('custom SAPI');
-		await rotate(php);
+
+		// Rotate the PHP instance
+		await php.run({ code: `` });
 		const result = await php.run({
 			code: `<?php echo php_sapi_name();`,
 		});
@@ -73,17 +100,24 @@ describe('rotatedPHP()', () => {
 	});
 
 	it('Should preserve the MEMFS files', async () => {
-		const php = await rotatedPHP({
-			php: new NodePHP(await recreateRuntime(), {
-				documentRoot: '/test-root',
-			}),
+		const php = new NodePHP(await recreateRuntime(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
 			recreateRuntime,
 			maxRequests: 1,
 		});
-		await rotate(php);
+
+		// Rotate the PHP instance
+		await php.run({ code: `` });
+
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', '<?php echo "hi";');
-		await rotate(php);
+
+		// Rotate the PHP instance
+		await php.run({ code: `` });
+
 		expect(php.fileExists('/test-root/index.php')).toBe(true);
 		expect(php.readFileAsText('/test-root/index.php')).toBe(
 			'<?php echo "hi";'
@@ -91,14 +125,18 @@ describe('rotatedPHP()', () => {
 	});
 
 	it('Should not overwrite the NODEFS files', async () => {
-		const php = await rotatedPHP({
-			php: new NodePHP(await recreateRuntime(), {
-				documentRoot: '/test-root',
-			}),
+		const php = new NodePHP(await recreateRuntime(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
 			recreateRuntime,
 			maxRequests: 1,
 		});
-		await rotate(php);
+
+		// Rotate the PHP instance
+		await php.run({ code: `` });
+
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', 'test');
 		php.mkdir('/test-root/nodefs');
@@ -112,7 +150,8 @@ describe('rotatedPHP()', () => {
 		try {
 			php.mount(tempDir, '/test-root/nodefs');
 
-			await rotate(php);
+			// Rotate the PHP instance
+			await php.run({ code: `` });
 
 			// Expect the file to still have the same utime
 			const stats = fs.statSync(tempFile);
