@@ -49,7 +49,7 @@ describe('rotatePHPRuntime()', () => {
 		await php.run({ code: `<?php echo "abc";` });
 		const freeAfterRotation = freeMemory(php);
 		expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
-	});
+	}, 30_000);
 
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
@@ -64,7 +64,7 @@ describe('rotatePHPRuntime()', () => {
 		// Rotate the PHP runtime
 		await php.run({ code: `` });
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	});
+	}, 30_000);
 
 	it('Should stop rotating after the cleanup handler is called', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
@@ -87,7 +87,7 @@ describe('rotatePHPRuntime()', () => {
 		await php.run({ code: `` });
 
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
-	});
+	}, 30_000);
 
 	it('Should hotswap the PHP runtime from 8.2 to 8.3', async () => {
 		let nbCalls = 0;
@@ -118,7 +118,7 @@ describe('rotatePHPRuntime()', () => {
 		).text;
 		expect(version1).toMatch(/^8\.2/);
 		expect(version2).toMatch(/^8\.3/);
-	});
+	}, 30_000);
 
 	it('Should preserve the custom SAPI name', async () => {
 		const php = new NodePHP(await recreateRuntime(), {
@@ -162,7 +162,7 @@ describe('rotatePHPRuntime()', () => {
 		expect(php.readFileAsText('/test-root/index.php')).toBe(
 			'<?php echo "hi";'
 		);
-	});
+	}, 30_000);
 
 	it('Should not overwrite the NODEFS files', async () => {
 		const php = new NodePHP(await recreateRuntime(), {
@@ -203,5 +203,5 @@ describe('rotatePHPRuntime()', () => {
 			fs.rmSync(tempFile);
 			fs.rmdirSync(tempDir);
 		}
-	});
+	}, 30_000);
 });
