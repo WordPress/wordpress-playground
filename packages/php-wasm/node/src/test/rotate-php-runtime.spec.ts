@@ -4,6 +4,7 @@ import path from 'path';
 import { NodePHP } from '..';
 import {
 	LatestSupportedPHPVersion,
+	__private__dont__use,
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 
@@ -11,6 +12,45 @@ const recreateRuntime = async (version: any = LatestSupportedPHPVersion) =>
 	await NodePHP.loadRuntime(version);
 
 describe('rotatePHPRuntime()', () => {
+	it('Free up the available PHP memory', async () => {
+		const freeMemory = (php: NodePHP) =>
+			php[__private__dont__use].HEAPU32.reduce(
+				(count: number, byte: number) =>
+					byte === 0 ? count + 1 : count,
+				0
+			);
+
+		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+		// Rotate the PHP instance
+		const php = new NodePHP(await recreateRuntime(), {
+			documentRoot: '/test-root',
+		});
+		rotatePHPRuntime({
+			php,
+			recreateRuntime: recreateRuntimeSpy,
+			maxRequests: 1000,
+		});
+		const freeInitially = freeMemory(php);
+		for (let i = 0; i < 1000; i++) {
+			await php.run({
+				code: `<?php
+			// Do some string allocations
+			for($i=0;$i<10;$i++) {
+				echo "abc";
+			}
+			file_put_contents('./test', 'test');
+			`,
+			});
+		}
+		const freeAfter1000Requests = freeMemory(php);
+		expect(freeAfter1000Requests).toBeLessThan(freeInitially);
+
+		// Rotate the PHP instance
+		await php.run({ code: `<?php echo "abc";` });
+		const freeAfterRotation = freeMemory(php);
+		expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
+	});
+
 	it('Should recreate the PHP instance after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new NodePHP(await recreateRuntimeSpy(), {
