@@ -8,7 +8,8 @@ export interface RotateOptions<T extends BasePHP> {
 
 /**
  * Listens to PHP events and swaps the internal PHP Runtime for a fresh one
- * after a certain run() calls (which are responsible for handling HTTP requests).
+ * after a certain number of run() calls (which are responsible for handling
+ * HTTP requests).
  *
  * Why? Because PHP and PHP extension have a memory leak. Each request leaves
  * the memory a bit more fragmented and with a bit less available space than

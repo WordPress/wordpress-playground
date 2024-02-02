@@ -113,16 +113,16 @@ const recreateRuntime = async () =>
 		loadAllExtensions: phpExtensions?.length > 0,
 	});
 
+// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
+// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 rotatePHPRuntime({
 	php,
 	recreateRuntime,
-	/**
-	 * 400 is an arbitrary number that should trigger a rotation
-	 * way before the memory gets too fragmented. If the memory
-	 * issue returns, let's explore:
-	 * * Lowering this number
-	 * * Adding a memory usage monitor and rotate based on that
-	 */
+	// 400 is an arbitrary number that should trigger a rotation
+	// way before the memory gets too fragmented. If the memory
+	// issue returns, let's explore:
+	// * Lowering this number
+	// * Adding a memory usage monitor and rotate based on that
 	maxRequests: 400,
 });
 
