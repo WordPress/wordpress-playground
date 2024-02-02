@@ -244,7 +244,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
-		let bodyPtr;
+		let heapBodyPointer;
 		try {
 			if (!this.#webSapiInitialized) {
 				this.#initWebRuntime();
@@ -259,7 +259,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
 			this.#setRequestHeaders(headers);
 			if (request.body) {
-				bodyPtr = this.#setRequestBody(request.body);
+				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (request.fileInfos) {
 				for (const file of request.fileInfos) {
@@ -287,8 +287,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			return response;
 		} finally {
 			try {
-				if (bodyPtr) {
-					this[__private__dont__use].free(bodyPtr);
+				if (heapBodyPointer) {
+					this[__private__dont__use].free(heapBodyPointer);
 				}
 			} finally {
 				release();
@@ -517,18 +517,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * the UInt8Array approach.
 		 */
 		const size = this[__private__dont__use].lengthBytesUTF8(body);
-		const addr = this[__private__dont__use].malloc(size + 1);
-		if (!addr) {
+		const heapBodyPointer = this[__private__dont__use].malloc(size + 1);
+		if (!heapBodyPointer) {
 			throw new Error('Could not allocate memory for the request body.');
 		}
 		// Write the string to the WASM memory
-		this[__private__dont__use].stringToUTF8(body, addr, size + 1);
+		this[__private__dont__use].stringToUTF8(
+			body,
+			heapBodyPointer,
+			size + 1
+		);
 
 		this[__private__dont__use].ccall(
 			'wasm_set_request_body',
 			null,
 			[NUMBER],
-			[addr]
+			[heapBodyPointer]
 		);
 		this[__private__dont__use].ccall(
 			'wasm_set_content_length',
@@ -536,7 +540,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			[NUMBER],
 			[new TextEncoder().encode(body).length]
 		);
-		return addr;
+		return heapBodyPointer;
 	}
 
 	#setScriptPath(path: string) {
