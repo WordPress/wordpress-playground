@@ -53,7 +53,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
-	#semaphore: Semaphore;
+
+	/**
+	 * An exclusive lock that prevent multiple requests from running at
+	 * the same time.
+	 */
+	semaphore: Semaphore;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -66,7 +71,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		PHPRuntimeId?: PHPRuntimeId,
 		serverOptions?: PHPRequestHandlerConfiguration
 	) {
-		this.#semaphore = new Semaphore({ concurrency: 1 });
+		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
@@ -238,7 +243,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * requests another PHP file, the second request may
 		 * be dispatched before the first one is finished.
 		 */
-		const release = await this.#semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			if (!this.#webSapiInitialized) {
 				this.#initWebRuntime();
@@ -748,46 +753,42 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 *
 	 * @param runtime
 	 */
-	async hotSwapPHPRuntime(runtime: number | Promise<number>) {
-		await this.#semaphore.run(async () => {
-			runtime = await runtime;
+	hotSwapPHPRuntime(runtime: number) {
+		// Once we secure the lock and have the new runtime ready,
+		// the rest of the swap handler is synchronous to make sure
+		// no other operations acts on the old runtime or FS.
+		// If there was await anywhere here, we'd risk applyng
+		// asynchronous changes to either the filesystem or the
+		// old PHP runtime without propagating them to the new
+		// runtime.
+		const oldFS = this[__private__dont__use].FS;
 
-			// Once we secure the lock and have the new runtime ready,
-			// the rest of the swap handler is synchronous to make sure
-			// no other operations acts on the old runtime or FS.
-			// If there was await anywhere here, we'd risk applyng
-			// asynchronous changes to either the filesystem or the
-			// old PHP runtime without propagating them to the new
-			// runtime.
-			const oldFS = this[__private__dont__use].FS;
+		// Kill the current runtime
+		try {
+			this.exit();
+		} catch (e) {
+			// Ignore the exit-related exception
+		}
 
-			// Kill the current runtime
-			try {
-				this.exit();
-			} catch (e) {
-				// Ignore the exit-related exception
-			}
+		// Initialize the new runtime
+		this.initializeRuntime(runtime);
 
-			// Initialize the new runtime
-			this.initializeRuntime(runtime);
+		// Re-apply any set() methods that are not
+		// request related and result in a one-off
+		// C function call.
+		if (this.#phpIniPath) {
+			this.setPhpIniPath(this.#phpIniPath);
+		}
 
-			// Re-apply any set() methods that are not
-			// request related and result in a one-off
-			// C function call.
-			if (this.#phpIniPath) {
-				this.setPhpIniPath(this.#phpIniPath);
-			}
+		if (this.#sapiName) {
+			this.setSapiName(this.#sapiName);
+		}
 
-			if (this.#sapiName) {
-				this.setSapiName(this.#sapiName);
-			}
-
-			// Copy the MEMFS directory structure from the old FS to the new one
-			if (this.requestHandler) {
-				const docroot = this.documentRoot;
-				recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
-			}
-		});
+		// Copy the MEMFS directory structure from the old FS to the new one
+		if (this.requestHandler) {
+			const docroot = this.documentRoot;
+			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+		}
 	}
 
 	exit(code = 0) {

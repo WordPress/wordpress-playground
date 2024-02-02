@@ -21,35 +21,28 @@ export function journalFSEventsToOpfs(
 	memfsRoot: string
 ) {
 	const journal: FilesystemOperation[] = [];
-	const unbind = journalFSEvents(php, memfsRoot, (entry) => {
+	const unbindJournal = journalFSEvents(php, memfsRoot, (entry) => {
 		journal.push(entry);
 	});
 	const rewriter = new OpfsRewriter(php, opfsRoot, memfsRoot);
-	/**
-	 * Calls the observer with the current delta each time PHP is ran.
-	 *
-	 * Do not do this in external code. This is a private code path that
-	 * will be maintained alongside Playground code and likely removed
-	 * in the future. It is not part of the public API. The goal is to
-	 * allow some time for a few more use-cases to emerge before
-	 * proposing a new public API like php.addEventListener( 'run' ).
-	 */
-	const originalRun = php.run;
-	php.run = async function (...args) {
-		const response = await originalRun.apply(php, args);
-		// @TODO This is way too slow in practice, we need to batch the
-		// changes into groups of parallelizable operations.
-		while (true) {
-			const entry = journal.shift();
-			if (!entry) {
-				break;
-			}
-			await rewriter.processEntry(entry);
-		}
-		return response;
-	};
 
-	return unbind;
+	async function flushJournal() {
+		const release = await php.semaphore.acquire();
+		try {
+			// @TODO This is way too slow in practice, we need to batch the
+			// changes into groups of parallelizable operations.
+			while (journal.length) {
+				await rewriter.processEntry(journal.shift()!);
+			}
+		} finally {
+			release();
+		}
+	}
+	php.addEventListener('request.end', flushJournal);
+	return function () {
+		unbindJournal();
+		php.removeEventListener('request.end', flushJournal);
+	};
 }
 
 type JournalEntry = FilesystemOperation;

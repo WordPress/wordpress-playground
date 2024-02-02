@@ -12,7 +12,7 @@ import {
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
-	rotatedPHP,
+	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import {
 	FilesystemOperation,
@@ -100,6 +100,11 @@ if (!wordPressAvailableInOPFS) {
 	}
 }
 
+const php = new WebPHP(undefined, {
+	documentRoot: DOCROOT,
+	absoluteUrl: scopedSiteUrl,
+});
+
 const recreateRuntime = async () =>
 	await WebPHP.loadRuntime(phpVersion, {
 		downloadMonitor: monitor,
@@ -108,11 +113,8 @@ const recreateRuntime = async () =>
 		loadAllExtensions: phpExtensions?.length > 0,
 	});
 
-const php = rotatedPHP({
-	php: new WebPHP(undefined, {
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-	}),
+rotatePHPRuntime({
+	php,
 	recreateRuntime,
 	maxRequests: 400,
 });

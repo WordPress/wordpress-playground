@@ -28,9 +28,16 @@ export function rotatePHPRuntime<T extends BasePHP>({
 }: RotateOptions<T>) {
 	let handledCalls = 0;
 	async function rotateRuntime() {
-		if (++handledCalls >= maxRequests) {
-			handledCalls = 0;
-			await php.hotSwapPHPRuntime(recreateRuntime());
+		if (++handledCalls < maxRequests) {
+			return;
+		}
+		handledCalls = 0;
+
+		const release = await php.semaphore.acquire();
+		try {
+			php.hotSwapPHPRuntime(await recreateRuntime());
+		} finally {
+			release();
 		}
 	}
 	php.addEventListener('request.end', rotateRuntime);
