@@ -53,9 +53,9 @@ export async function bindOpfs({
 		 * persisted files.
 		 */
 		try {
-			if (await php.isDir(docroot)) {
-				await php.rmdir(docroot, { recursive: true });
-				await php.mkdirTree(docroot);
+			if (php.isDir(docroot)) {
+				php.rmdir(docroot, { recursive: true });
+				php.mkdirTree(docroot);
 			}
 		} catch (e) {
 			// Ignore any errors

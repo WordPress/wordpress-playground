@@ -28,7 +28,7 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler } from '@php-wasm/util';
+import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -45,13 +45,20 @@ export const __private__dont__use = Symbol('__private__dont__use');
 export abstract class BasePHP implements IsomorphicLocalPHP {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
+	#phpIniPath?: string;
+	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#serverEntries: Record<string, string> = {};
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
-	#semaphore: Semaphore;
+
+	/**
+	 * An exclusive lock that prevent multiple requests from running at
+	 * the same time.
+	 */
+	semaphore: Semaphore;
 
 	/**
 	 * Initializes a PHP runtime.
@@ -64,7 +71,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		PHPRuntimeId?: PHPRuntimeId,
 		serverOptions?: PHPRequestHandlerConfiguration
 	) {
-		this.#semaphore = new Semaphore({ concurrency: 1 });
+		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
 		}
@@ -168,6 +175,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		};
 
 		this.#wasmErrorsTarget = improveWASMErrorReporting(runtime);
+		this.dispatchEvent({
+			type: 'runtime.initialized',
+		});
 	}
 
 	/** @inheritDoc */
@@ -184,6 +194,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					'Did you already dispatch any requests?'
 			);
 		}
+		this.#sapiName = newName;
 	}
 
 	/** @inheritDoc */
@@ -191,6 +202,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (this.#webSapiInitialized) {
 			throw new Error('Cannot set PHP ini path after calling run().');
 		}
+		this.#phpIniPath = path;
 		this[__private__dont__use].ccall(
 			'wasm_set_phpini_path',
 			null,
@@ -231,7 +243,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * requests another PHP file, the second request may
 		 * be dispatched before the first one is finished.
 		 */
-		const release = await this.#semaphore.acquire();
+		const release = await this.semaphore.acquire();
 		try {
 			if (!this.#webSapiInitialized) {
 				this.#initWebRuntime();
@@ -735,8 +747,67 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
+	/**
+	 * Hot-swaps the PHP runtime for a new one without
+	 * interrupting the operations of this PHP instance.
+	 *
+	 * @param runtime
+	 */
+	hotSwapPHPRuntime(runtime: number) {
+		// Once we secure the lock and have the new runtime ready,
+		// the rest of the swap handler is synchronous to make sure
+		// no other operations acts on the old runtime or FS.
+		// If there was await anywhere here, we'd risk applyng
+		// asynchronous changes to either the filesystem or the
+		// old PHP runtime without propagating them to the new
+		// runtime.
+		const oldFS = this[__private__dont__use].FS;
+
+		// Kill the current runtime
+		try {
+			this.exit();
+		} catch (e) {
+			// Ignore the exit-related exception
+		}
+
+		// Initialize the new runtime
+		this.initializeRuntime(runtime);
+
+		// Re-apply any set() methods that are not
+		// request related and result in a one-off
+		// C function call.
+		if (this.#phpIniPath) {
+			this.setPhpIniPath(this.#phpIniPath);
+		}
+
+		if (this.#sapiName) {
+			this.setSapiName(this.#sapiName);
+		}
+
+		// Copy the MEMFS directory structure from the old FS to the new one
+		if (this.requestHandler) {
+			const docroot = this.documentRoot;
+			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+		}
+	}
+
 	exit(code = 0) {
-		return this[__private__dont__use]._exit(code);
+		this.dispatchEvent({
+			type: 'runtime.beforedestroy',
+		});
+		try {
+			this[__private__dont__use]._exit(code);
+		} catch (e) {
+			// ignore the exit error
+		}
+
+		// Clean up any initialized state
+		this.#webSapiInitialized = false;
+
+		// Delete any links between this PHP instance and the runtime
+		this.#wasmErrorsTarget = null;
+		delete this[__private__dont__use]['onMessage'];
+		delete this[__private__dont__use];
 	}
 }
 
@@ -748,4 +819,47 @@ export function normalizeHeaders(
 		normalized[key.toLowerCase()] = headers[key];
 	}
 	return normalized;
+}
+
+type EmscriptenFS = any;
+
+/**
+ * Copies the MEMFS directory structure from one FS in another FS.
+ * Non-MEMFS nodes are ignored.
+ */
+function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+	let oldNode;
+	try {
+		oldNode = oldFS.lookupPath(path);
+	} catch (e) {
+		return;
+	}
+	// MEMFS nodes have a `contents` property. NODEFS nodes don't.
+	// We only want to copy MEMFS nodes here.
+	if (!('contents' in oldNode.node)) {
+		return;
+	}
+
+	// Let's be extra careful and only proceed if newFs doesn't
+	// already have a node at the given path.
+	try {
+		newFS = newFS.lookupPath(path);
+		return;
+	} catch (e) {
+		// There's no such node in the new FS. Good,
+		// we may proceed.
+	}
+
+	if (!oldFS.isDir(oldNode.node.mode)) {
+		newFS.writeFile(path, oldFS.readFile(path));
+		return;
+	}
+
+	newFS.mkdirTree(path);
+	const filenames = oldFS
+		.readdir(path)
+		.filter((name: string) => name !== '.' && name !== '..');
+	for (const filename of filenames) {
+		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
+	}
 }
