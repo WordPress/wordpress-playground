@@ -116,6 +116,13 @@ const recreateRuntime = async () =>
 rotatePHPRuntime({
 	php,
 	recreateRuntime,
+	/**
+	 * 400 is an arbitrary number that should trigger a rotation
+	 * way before the memory gets too fragmented. If the memory
+	 * issue returns, let's explore:
+	 * * Lowering this number
+	 * * Adding a memory usage monitor and rotate based on that
+	 */
 	maxRequests: 400,
 });
 
