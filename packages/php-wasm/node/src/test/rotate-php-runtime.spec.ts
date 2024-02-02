@@ -21,7 +21,7 @@ describe('rotatePHPRuntime()', () => {
 			);
 
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		const php = new NodePHP(await recreateRuntime(), {
 			documentRoot: '/test-root',
 		});
@@ -45,13 +45,13 @@ describe('rotatePHPRuntime()', () => {
 		const freeAfter1000Requests = freeMemory(php);
 		expect(freeAfter1000Requests).toBeLessThan(freeInitially);
 
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `<?php echo "abc";` });
 		const freeAfterRotation = freeMemory(php);
 		expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
 	});
 
-	it('Should recreate the PHP instance after maxRequests', async () => {
+	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		const php = new NodePHP(await recreateRuntimeSpy(), {
 			documentRoot: '/test-root',
@@ -61,7 +61,7 @@ describe('rotatePHPRuntime()', () => {
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	});
@@ -76,7 +76,7 @@ describe('rotatePHPRuntime()', () => {
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 
@@ -89,7 +89,7 @@ describe('rotatePHPRuntime()', () => {
 		expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
 	});
 
-	it('Should hotswap the PHP instance from 8.2 to 8.3', async () => {
+	it('Should hotswap the PHP runtime from 8.2 to 8.3', async () => {
 		let nbCalls = 0;
 		const recreateRuntimeSpy = vitest.fn(() => {
 			if (nbCalls === 0) {
@@ -131,7 +131,7 @@ describe('rotatePHPRuntime()', () => {
 		});
 		php.setSapiName('custom SAPI');
 
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 		const result = await php.run({
 			code: `<?php echo php_sapi_name();`,
@@ -149,13 +149,13 @@ describe('rotatePHPRuntime()', () => {
 			maxRequests: 1,
 		});
 
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 
 		php.mkdir('/test-root');
 		php.writeFile('/test-root/index.php', '<?php echo "hi";');
 
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 
 		expect(php.fileExists('/test-root/index.php')).toBe(true);
@@ -174,7 +174,7 @@ describe('rotatePHPRuntime()', () => {
 			maxRequests: 1,
 		});
 
-		// Rotate the PHP instance
+		// Rotate the PHP runtime
 		await php.run({ code: `` });
 
 		php.mkdir('/test-root');
@@ -190,7 +190,7 @@ describe('rotatePHPRuntime()', () => {
 		try {
 			php.mount(tempDir, '/test-root/nodefs');
 
-			// Rotate the PHP instance
+			// Rotate the PHP runtime
 			await php.run({ code: `` });
 
 			// Expect the file to still have the same utime
