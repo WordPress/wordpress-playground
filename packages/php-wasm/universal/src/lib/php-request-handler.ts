@@ -170,7 +170,10 @@ export class PHPRequestHandler implements RequestHandler {
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		if (this.#semaphore.running > 0) {
+		if (
+			this.#semaphore.running > 0 &&
+			request.headers?.['x-request-issuer'] === 'php'
+		) {
 			console.warn(
 				`Possible deadlock: Called request() before the previous request() have finished. ` +
 					`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +

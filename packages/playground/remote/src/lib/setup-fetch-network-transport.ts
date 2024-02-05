@@ -36,9 +36,13 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 		// PHP encodes empty arrays as JSON arrays, not objects.
 		// We can't easily reason about the request body, but we know
 		// headers should be an object so let's convert it here.
-		if (Array.isArray(data.headers)) {
+		if (!data.headers) {
+			data.headers = {};
+		} else if (Array.isArray(data.headers)) {
 			data.headers = Object.fromEntries(data.headers);
 		}
+
+		data.headers['x-request-issuer'] = 'php';
 
 		return handleRequest(data);
 	});
