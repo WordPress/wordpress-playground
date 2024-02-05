@@ -47,6 +47,7 @@ export default defineConfig(() => {
 					'util',
 					'dns',
 					'ws',
+					'node:crypto',
 				],
 				output: {
 					entryFileNames: '[name].js',
