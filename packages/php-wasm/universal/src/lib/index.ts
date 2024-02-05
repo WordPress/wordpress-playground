@@ -60,6 +60,7 @@ export { PHPRequestHandler } from './php-request-handler';
 export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
 export { rotatePHPRuntime } from './rotate-php-runtime';
+export { writeFiles } from './write-files';
 
 export {
 	DEFAULT_BASE_URL,

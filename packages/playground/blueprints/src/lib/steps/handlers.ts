@@ -1,6 +1,5 @@
 export { activatePlugin } from './activate-plugin';
 export { activateTheme } from './activate-theme';
-export { applyWordPressPatches } from './apply-wordpress-patches';
 export { runPHP } from './run-php';
 export { runPHPWithOptions } from './run-php-with-options';
 export { runSql } from './run-sql';

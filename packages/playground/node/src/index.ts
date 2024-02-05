@@ -6,9 +6,9 @@
  */
 
 import {
-	applyWordPressPatches,
 	Blueprint,
 	compileBlueprint,
+	defineSiteUrl,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
 import { NodePHP } from '@php-wasm/node';
@@ -43,13 +43,8 @@ export async function startPlaygroundNode(
 		},
 	});
 
-	await applyWordPressPatches(playground, {
+	await defineSiteUrl(playground, {
 		siteUrl: options.serverUrl,
-		wordpressPath: options.wordpressPathOnHost,
-		addPhpInfo: true,
-		patchSecrets: true,
-		disableSiteHealth: true,
-		disableWpNewBlogNotification: true,
 	});
 
 	await allowWpOrgHosts(playground, options.wordpressPathOnHost);

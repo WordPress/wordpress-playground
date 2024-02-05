@@ -1,6 +1,5 @@
-import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { NodePHP } from '@php-wasm/node';
-import { overwritePath } from './playground';
+import { LatestSupportedPHPVersion, writeFiles } from '@php-wasm/universal';
+import { NodePHP } from '..';
 
 describe('overridePath', () => {
 	let php: NodePHP;
@@ -20,19 +19,19 @@ describe('overridePath', () => {
 	});
 
 	it('removes the previous directory contents', async () => {
-		await overwritePath(php, '/test', {});
+		await writeFiles(php, '/test', {});
 		expect(await php.listFiles('/test')).toHaveLength(0);
 	});
 
 	it('writes the new directory contents', async () => {
-		await overwritePath(php, '/test', {
+		await writeFiles(php, '/test', {
 			'file.txt': 'file',
 		});
 		expect(await php.listFiles('/test')).toEqual(['file.txt']);
 	});
 
 	it('handles subdirectories', async () => {
-		await overwritePath(php, '/test', {
+		await writeFiles(php, '/test', {
 			'file.txt': 'file',
 			'sub/file.txt': 'file',
 			'sub1/sub2/file.txt': 'file',

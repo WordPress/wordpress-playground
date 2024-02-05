@@ -1,5 +1,5 @@
 import { UniversalPHP } from '@php-wasm/universal';
-import { applyWordPressPatches } from '@wp-playground/blueprints';
+import { defineWpConfigConsts } from '@wp-playground/blueprints';
 
 export interface RequestData {
 	url: string;
@@ -20,8 +20,10 @@ export interface RequestMessage {
  * @param playground the Playground instance to set up with network support.
  */
 export async function setupFetchNetworkTransport(playground: UniversalPHP) {
-	await applyWordPressPatches(playground, {
-		addFetchNetworkTransport: true,
+	await defineWpConfigConsts(playground, {
+		consts: {
+			USE_FETCH_FOR_REQUESTS: true,
+		},
 	});
 
 	await playground.onMessage(async (message: string) => {
