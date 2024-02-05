@@ -10,9 +10,6 @@
 			"@nx/react/typings/image.d.ts"
 		]
 	},
-	"include": [
-		"src/**/*.ts",
-		"../../php-wasm/node/src/test/write-files.spec.ts"
-	],
+	"include": ["src/**/*.ts"],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }
