@@ -1,5 +1,5 @@
 if (typeof crypto === 'undefined') {
-	import('crypto').then((module) => {
-		global.crypto = module as Crypto;
+	import('node:crypto').then((module) => {
+		global.crypto = module.webcrypto as Crypto;
 	});
 }
