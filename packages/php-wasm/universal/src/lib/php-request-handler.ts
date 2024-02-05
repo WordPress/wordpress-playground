@@ -170,6 +170,19 @@ export class PHPRequestHandler implements RequestHandler {
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
+		if (this.#semaphore.running > 0) {
+			console.warn(
+				`Possible deadlock: Called request() before the previous request() have finished. ` +
+					`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
+					`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +
+					`That's not useful, so PHPRequestHandler will return error 502 instead.`
+			);
+			return new PHPResponse(
+				502,
+				{},
+				new TextEncoder().encode('502 Bad Gateway')
+			);
+		}
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that

@@ -1,28 +1,6 @@
 <?php
 
 /**
- * Prevent site health deadlocks in the in-browser Playground by disabling
- * the site health plugin when networking is enabled.
- * 
- * The site health checks triggers HTTP requests from Playground to Playground.
- * 
- * However, in the browser there is only a single PHP instance serving the requests.
- * The request handler acquires an exclusive lock for the entire duration of the request.
- * Requesting to /wp-admin/site-health.php triggers HTTP request to another PHP
- * script, which attempts to acquire the lock before it is released. This leads
- * to a deadlock.
- * 
- * @TODO: Support serving concurrent requests in the in-browser Playground.
- */
-function playground_maybe_disable_site_health( $allcaps, $caps, $args, $user ) {
-	if ( defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ) {
-		$allcaps['view_site_health_checks'] = false;
-	}
-	return $allcaps;
-}
-add_filter('user_has_cap', 'playground_maybe_disable_site_health', 1, 4);
-
-/**
  * Add a notice to wp-login.php offering the username and password.
  */
 add_action(
