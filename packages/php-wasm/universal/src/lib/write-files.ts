@@ -1,16 +1,30 @@
 import { dirname, joinPaths } from '@php-wasm/util';
 import { UniversalPHP } from './universal-php';
 
-interface WriteFilesOptions {
+export interface WriteFilesOptions {
+	/**
+	 * Whether to wipe out the contents of the
+	 * root directory before writing the new files.
+	 */
 	rmRoot?: boolean;
 }
 
 /**
- * Replaces the contents of a Playground directory with the given files.
+ * Writes multiple files to a specified directory in the Playground
+ * filesystem.
+ *
+ * @example ```ts
+ * await writeFiles(php, '/test', {
+ * 	'file.txt': 'file',
+ * 	'sub/file.txt': 'file',
+ * 	'sub1/sub2/file.txt': 'file',
+ * });
+ * ```
  *
  * @param php
  * @param root
  * @param newFiles
+ * @param options
  */
 export async function writeFiles(
 	php: UniversalPHP,
