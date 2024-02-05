@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { UniversalPHP, writeFiles } from '@php-wasm/universal';
 import { dirname, joinPaths } from '@php-wasm/util';
 import {
 	activatePlugin,
@@ -6,11 +6,7 @@ import {
 	login,
 	wpContentFilesExcludedFromExport,
 } from '@wp-playground/blueprints';
-import {
-	Files,
-	filesListToObject,
-	overwritePath,
-} from '@wp-playground/storage';
+import { Files, filesListToObject } from '@wp-playground/storage';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
 export async function importFromGitHub(
@@ -40,7 +36,9 @@ export async function importPlugin(
 	files: Files
 ) {
 	const pluginPath = `/wordpress/wp-content/plugins/${pluginName}`;
-	await overwritePath(php, pluginPath, files);
+	await writeFiles(php, pluginPath, files, {
+		rmRoot: true,
+	});
 	await activatePlugin(php, {
 		pluginPath,
 	});
@@ -51,11 +49,10 @@ export async function importTheme(
 	themeName: string,
 	files: Files
 ) {
-	await overwritePath(
-		php,
-		`/wordpress/wp-content/themes/${themeName}`,
-		files
-	);
+	const themePath = `/wordpress/wp-content/themes/${themeName}`;
+	await writeFiles(php, themePath, files, {
+		rmRoot: true,
+	});
 	await activateTheme(php, {
 		themeFolderName: themeName,
 	});
@@ -74,7 +71,9 @@ export async function importWpContent(php: UniversalPHP, files: Files) {
 		}
 	}
 
-	await overwritePath(php, '/wordpress/wp-content', files);
+	await writeFiles(php, '/wordpress/wp-content', files, {
+		rmRoot: true,
+	});
 
 	for (const restorePath of restorePaths) {
 		if (

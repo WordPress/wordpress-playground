@@ -2,7 +2,6 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { UniversalPHP } from '@php-wasm/universal';
 import { FileReference } from '../resources';
 import { ActivatePluginStep } from './activate-plugin';
-import { ApplyWordPressPatchesStep } from './apply-wordpress-patches';
 import { DefineSiteUrlStep } from './define-site-url';
 import { InstallPluginStep, InstallPluginOptions } from './install-plugin';
 import { InstallThemeStep, InstallThemeOptions } from './install-theme';
@@ -47,7 +46,6 @@ export { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excl
 export type GenericStep<Resource> =
 	| ActivatePluginStep
 	| ActivateThemeStep
-	| ApplyWordPressPatchesStep
 	| CpStep
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
@@ -75,7 +73,6 @@ export type GenericStep<Resource> =
 export type {
 	ActivatePluginStep,
 	ActivateThemeStep,
-	ApplyWordPressPatchesStep,
 	CpStep,
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,

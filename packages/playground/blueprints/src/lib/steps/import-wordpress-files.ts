@@ -3,6 +3,7 @@ import { unzip } from './unzip';
 import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
+import { defineSiteUrl } from './define-site-url';
 
 /**
  * @inheritDoc importWordPressFiles
@@ -107,6 +108,11 @@ export const importWordPressFiles: StepHandler<
 
 	// Remove the directory where we unzipped the imported zip file.
 	await playground.rmdir(importPath);
+
+	// Adjust the site URL
+	await defineSiteUrl(playground, {
+		siteUrl: await playground.absoluteUrl,
+	});
 
 	// Upgrade the database
 	const upgradePhp = phpVar(

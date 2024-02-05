@@ -184,7 +184,7 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 * @param key - The name of the constant.
 	 * @param value - The value of the constant.
 	 */
-	defineConstant(key: string, value: string | number | null): void;
+	defineConstant(key: string, value: boolean | string | number | null): void;
 
 	/**
 	 * Adds an event listener for a PHP event.

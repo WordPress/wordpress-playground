@@ -13,7 +13,9 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 	rotatePHPRuntime,
+	writeFiles,
 } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -24,7 +26,20 @@ import {
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import { applyWordPressPatches, unzip } from '@wp-playground/blueprints';
+import {
+	defineSiteUrl,
+	defineWpConfigConsts,
+	unzip,
+} from '@wp-playground/blueprints';
+
+/** @ts-ignore */
+import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
+/** @ts-ignore */
+import transportDummy from './playground-mu-plugin/playground-includes/requests_transport_dummy.php?raw';
+/** @ts-ignore */
+import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import { joinPaths } from '@php-wasm/util';
+import { randomString } from './utils';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -223,6 +238,7 @@ try {
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	const docroot = php.documentRoot;
 
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
@@ -235,19 +251,58 @@ try {
 			extractToPath: DOCROOT,
 		});
 
+		// Randomize the WordPress secrets
+		await defineWpConfigConsts(php, {
+			consts: {
+				AUTH_KEY: randomString(40),
+				SECURE_AUTH_KEY: randomString(40),
+				LOGGED_IN_KEY: randomString(40),
+				NONCE_KEY: randomString(40),
+				AUTH_SALT: randomString(40),
+				SECURE_AUTH_SALT: randomString(40),
+				LOGGED_IN_SALT: randomString(40),
+				NONCE_SALT: randomString(40),
+			},
+		});
+
 		/**
 		 * Patch WordPress when it's not restored from OPFS.
 		 * The stored version, presumably, has all the patches
 		 * already applied.
 		 */
-		await applyWordPressPatches(php, {
-			wordpressPath: DOCROOT,
-			patchSecrets: true,
-			disableWpNewBlogNotification: true,
-			addPhpInfo: true,
-			disableSiteHealth: true,
-			prepareForRunningInsideWebBrowser: true,
+
+		// Install the playground mu-plugin
+		await writeFiles(php, joinPaths(docroot, '/wp-content/mu-plugins'), {
+			'0-playground.php': playgroundMuPlugin,
+			'playground-includes/requests_transport_dummy.php': transportDummy,
+			'playground-includes/wp_http_fetch.php': transportFetch,
 		});
+
+		// Create the fonts directory
+		php.mkdir(joinPaths(docroot, '/wp-content/fonts'));
+
+		// Force the fsockopen and cUrl transports to report they don't work:
+		for (const relativePath of [
+			`/wp-includes/Requests/Transport/fsockopen.php`,
+			`/wp-includes/Requests/Transport/cURL.php`,
+			`/wp-includes/Requests/src/Transport/Fsockopen.php`,
+			`/wp-includes/Requests/src/Transport/Curl.php`,
+		]) {
+			const transportAbsPath = joinPaths(docroot, relativePath);
+			// One of the transports might not exist in the latest WordPress version.
+			if (!php.fileExists(transportAbsPath)) {
+				continue;
+			}
+			let contents = php.readFileAsText(transportAbsPath);
+			if (contents.includes('public static function test2')) {
+				continue;
+			}
+			contents = contents.replace(
+				'public static function test',
+				'public static function test( $capabilities = array() ) { return false; } public static function test2'
+			);
+			php.writeFile(transportAbsPath, contents);
+		}
 	}
 
 	if (virtualOpfsDir) {
@@ -258,11 +313,21 @@ try {
 		});
 	}
 
+	// Create phpinfo.php
+	php.writeFile(joinPaths(docroot, 'phpinfo.php'), '<?php phpinfo(); ');
+
 	// Always setup the current site URL.
-	await applyWordPressPatches(php, {
-		wordpressPath: DOCROOT,
+	await defineSiteUrl(php, {
 		siteUrl: scopedSiteUrl,
 	});
+
+	// Spawning new processes on the web is not supported,
+	// let's always fail.
+	php.setSpawnHandler(
+		createSpawnHandler(function (_, processApi) {
+			processApi.exit(1);
+		})
+	);
 
 	setApiReady();
 } catch (e) {

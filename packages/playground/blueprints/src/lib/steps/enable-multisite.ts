@@ -14,7 +14,7 @@ import { getURLScope, isURLScoped } from '@php-wasm/scopes';
  *
  * <code>
  * {
- * 		"step": "enableMultisite",
+ * 		"step": "enableMultisite"
  * }
  * </code>
  */

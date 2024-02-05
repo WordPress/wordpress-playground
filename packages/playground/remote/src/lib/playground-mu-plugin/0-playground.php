@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Add a notice to wp-login.php offering the username and password.
  */
@@ -28,8 +29,7 @@ EOT;
  * https://github.com/WordPress/wordpress-playground/issues/927
  * 
  */
-
- add_action('admin_head', function () {
+add_action('admin_head', function () {
   echo '<style>
 					:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
 					button.button.try-again) {

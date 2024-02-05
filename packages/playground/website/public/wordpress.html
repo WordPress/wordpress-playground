@@ -251,13 +251,6 @@
 						},
 					},
 					{
-						step: 'applyWordPressPatches',
-						wordpressPath: '/wordpress',
-						addPhpInfo: true,
-						disableSiteHealth: true,
-						prepareForRunningInsideWebBrowser: true,
-					},
-					{
 						step: 'runPHP',
 						code: `<?php
 							$_GET['step'] = 'upgrade_db';

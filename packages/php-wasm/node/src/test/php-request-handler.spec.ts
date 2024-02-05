@@ -178,6 +178,25 @@ describe.each(SupportedPHPVersions)(
 			});
 			expect(response.json).toEqual({ foo: 'bar' });
 		});
+
+		it('should return error 502 when a PHP-sourced request is received before the previous request is handled', async () => {
+			php.writeFile('/index.php', `<?php echo "Hello";`);
+
+			const response1 = handler.request({
+				url: '/index.php',
+				headers: {
+					'x-request-issuer': 'php',
+				},
+			});
+			const response2 = handler.request({
+				url: '/index.php',
+				headers: {
+					'x-request-issuer': 'php',
+				},
+			});
+			expect((await response1).httpStatusCode).toEqual(200);
+			expect((await response2).httpStatusCode).toEqual(502);
+		});
 	}
 );
 

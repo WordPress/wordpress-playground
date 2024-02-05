@@ -391,53 +391,6 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "applyWordPressPatches"
-						},
-						"siteUrl": {
-							"type": "string"
-						},
-						"wordpressPath": {
-							"type": "string"
-						},
-						"addPhpInfo": {
-							"type": "boolean"
-						},
-						"patchSecrets": {
-							"type": "boolean"
-						},
-						"disableSiteHealth": {
-							"type": "boolean"
-						},
-						"disableWpNewBlogNotification": {
-							"type": "boolean"
-						},
-						"prepareForRunningInsideWebBrowser": {
-							"type": "boolean"
-						},
-						"addFetchNetworkTransport": {
-							"type": "boolean"
-						}
-					},
-					"required": ["step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
 							"const": "cp"
 						},
 						"fromPath": {
