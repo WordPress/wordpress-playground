@@ -1,7 +1,7 @@
 import { LatestSupportedPHPVersion, writeFiles } from '@php-wasm/universal';
 import { NodePHP } from '..';
 
-describe('overridePath', () => {
+describe('writeFiles', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
