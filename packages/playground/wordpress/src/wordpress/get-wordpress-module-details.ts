@@ -31,35 +31,35 @@ export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: nu
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 5014365,
+				size: 5014360,
 				url: url_beta,
 			};
 			
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 5015122,
+				size: 5015125,
 				url: url_6_4,
 			};
 			
 		case '6.3':
 			/** @ts-ignore */
 			return {
-				size: 3760141,
+				size: 3760134,
 				url: url_6_3,
 			};
 			
 		case '6.2':
 			/** @ts-ignore */
 			return {
-				size: 3654390,
+				size: 3654395,
 				url: url_6_2,
 			};
 			
 		case '6.1':
 			/** @ts-ignore */
 			return {
-				size: 3533947,
+				size: 3533948,
 				url: url_6_1,
 			};
 			
