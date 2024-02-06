@@ -180,10 +180,9 @@ function detectSnapshotType(files: string[]) {
 	}
 
 	if (
-		(files.length === 1 && files.includes('wp-content')) ||
-		(files.length === 2 &&
-			files.includes('wp-content') &&
-			files.includes('wp-config.php'))
+		files.length === 2 &&
+		files.includes('wp-content') &&
+		files.includes('wp-config.php')
 	) {
 		return 'wp-content' as const;
 	}
