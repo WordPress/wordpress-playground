@@ -71,21 +71,9 @@ export async function setSnapshot(
 	const snapshotPath = joinPaths(documentRoot, '.snapshot');
 	await unzipSnapshot(php, snapshotZip, pathInZip, snapshotPath);
 	await backfillWordPressCore(php, snapshotPath, documentRoot);
-	await moveSnapshotToDocroot(php, snapshotPath);
-	await removePath(php, snapshotPath);
-}
-
-async function moveSnapshotToDocroot(php: UniversalPHP, snapshotPath: string) {
-	const documentRoot = await php.documentRoot;
-	// Remove the old snapshot files
-	for (const file of await php.listFiles(documentRoot)) {
-		if (file === '.snapshot') {
-			continue;
-		}
-		await removePath(php, joinPaths(documentRoot, file));
-	}
-	// Move the new snapshot files to the document root
+	await removeContents(php, documentRoot, { except: ['.snapshot'] });
 	await moveContents(php, snapshotPath, documentRoot);
+	await removePath(php, snapshotPath);
 }
 
 async function unzipSnapshot(
@@ -216,6 +204,19 @@ async function moveContents(
 			continue;
 		}
 		await php.mv(joinPaths(from, file), joinPaths(to, file));
+	}
+}
+async function removeContents(
+	php: UniversalPHP,
+	from: string,
+	{ except = [] }: { except?: string[] } = {}
+): Promise<void> {
+	const files = await php.listFiles(from);
+	for (const file of files) {
+		if (except.includes(file)) {
+			continue;
+		}
+		await removePath(php, joinPaths(from, file));
 	}
 }
 
