@@ -9,6 +9,10 @@
 			"@nx/react/typings/image.d.ts"
 		]
 	},
-	"include": ["src/**/*.ts", "service-worker.ts"],
+	"include": [
+		"src/**/*.ts",
+		"service-worker.ts",
+		"../blueprints/src/lib/setup-mu-plugins.ts"
+	],
 	"exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
 }

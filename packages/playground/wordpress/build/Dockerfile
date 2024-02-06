@@ -26,6 +26,8 @@ RUN mkdir wordpress/wp-content/mu-plugins
 # * Ensure it won't accidentally be disabled by the user
 # * Prevent it from blocking a multisite setup where disabling all the plugins is required
 # https://github.com/WordPress/sqlite-database-integration
+# The same logic is present in packages/playground/remote/src/lib/worker-thread.ts,
+# be sure to keep it in sync.
 RUN git clone https://github.com/WordPress/sqlite-database-integration.git \
     wordpress/wp-content/mu-plugins/sqlite-database-integration \
     --branch main   \

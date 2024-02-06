@@ -5,7 +5,7 @@ import { StepHandler } from '.';
  */
 export interface RunWpInstallationWizardStep {
 	step: 'runWpInstallationWizard';
-	options: WordPressInstallationOptions;
+	options?: WordPressInstallationOptions;
 }
 
 export interface WordPressInstallationOptions {
@@ -21,7 +21,7 @@ export interface WordPressInstallationOptions {
  */
 export const runWpInstallationWizard: StepHandler<
 	RunWpInstallationWizardStep
-> = async (playground, { options }) => {
+> = async (playground, { options = {} }) => {
 	await playground.request({
 		url: '/wp-admin/install.php?step=2',
 		method: 'POST',

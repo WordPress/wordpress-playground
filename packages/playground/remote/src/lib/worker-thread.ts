@@ -13,7 +13,6 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 	rotatePHPRuntime,
-	writeFiles,
 } from '@php-wasm/universal';
 import { createSpawnHandler } from '@php-wasm/util';
 import {
@@ -28,18 +27,12 @@ import {
 } from './opfs/bind-opfs';
 import {
 	defineSiteUrl,
-	defineWpConfigConsts,
-	unzip,
+	backfillSqliteMuPlugin,
+	linkSnapshot,
+	setSnapshot,
 } from '@wp-playground/blueprints';
 
-/** @ts-ignore */
-import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
-/** @ts-ignore */
-import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/** @ts-ignore */
-import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths } from '@php-wasm/util';
-import { randomString } from './utils';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -243,39 +236,15 @@ try {
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		await unzip(php, {
-			zipFile: new File(
-				[await (await wordPressRequest!).blob()],
-				'wp.zip'
-			),
-			extractToPath: DOCROOT,
-		});
-
-		// Randomize the WordPress secrets
-		await defineWpConfigConsts(php, {
-			consts: {
-				AUTH_KEY: randomString(40),
-				SECURE_AUTH_KEY: randomString(40),
-				LOGGED_IN_KEY: randomString(40),
-				NONCE_KEY: randomString(40),
-				AUTH_SALT: randomString(40),
-				SECURE_AUTH_SALT: randomString(40),
-				LOGGED_IN_SALT: randomString(40),
-				NONCE_SALT: randomString(40),
-			},
-		});
+		const snapshot = new File(
+			[await (await wordPressRequest!).blob()],
+			'wp.zip'
+		);
+		await setSnapshot(php, snapshot);
 	}
 
-	// Always install the playground mu-plugin, even if WordPress is loaded
-	// from the OPFS. This ensures:
-	// * The mu-plugin is always there, even when a custom WordPress directory
-	//   is mounted.
-	// * The mu-plugin is always up to date.
-	await writeFiles(php, joinPaths(docroot, '/wp-content/mu-plugins'), {
-		'0-playground.php': playgroundMuPlugin,
-		'playground-includes/wp_http_dummy.php': transportDummy,
-		'playground-includes/wp_http_fetch.php': transportFetch,
-	});
+	await backfillSqliteMuPlugin(php, docroot);
+	await linkSnapshot(php);
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
