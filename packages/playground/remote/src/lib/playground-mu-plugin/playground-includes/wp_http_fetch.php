@@ -110,7 +110,7 @@ class Wp_Http_Fetch_Base
 			} else {
 				$query = $url_parts['query'];
 			}
-			$query .= '&' . http_build_query($data, null, '&');
+			$query .= '&' . http_build_query($data, '', '&');
 			$query = trim($query, '&');
 			if (empty($url_parts['query'])) {
 				$url .= '?' . $query;
