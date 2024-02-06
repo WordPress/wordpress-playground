@@ -96,6 +96,21 @@ add_action('admin_print_scripts', function () {
  */
 add_filter('got_url_rewrite', '__return_true');
 
+// Create the fonts directory if missing
+if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
+	mkdir(WP_CONTENT_DIR . '/fonts');
+}
+
+/**
+ * Remove the default WordPress requests transports, fsockopen and cURL.
+ */
+add_filter('http_api_transports', function ($transports) {
+	return array_diff($transports, [
+		'curl',
+		'streams',
+	]);
+});
+
 /**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
@@ -112,7 +127,7 @@ add_filter('got_url_rewrite', '__return_true');
 $__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
-	$__requests_class::add_transport('WP_Http_Fetch');
+	$__requests_class::add_transport('Wp_Http_Fetch');
 
 	/**
 	 * Add Fetch transport to the list of transports that WordPress
@@ -139,6 +154,11 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return true;
 	});
 } else {
-	require(__DIR__ . '/playground-includes/requests_transport_dummy.php');
-	$__requests_class::add_transport('Requests_Transport_Dummy');
+	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
+	$__requests_class::add_transport('Wp_Http_Dummy');
+
+	add_filter('http_api_transports', function ($transports) {
+		$transports[] = 'Dummy';
+		return $transports;
+	});
 }

@@ -4,8 +4,13 @@
  * This transport does not perform any HTTP requests and only exists
  * to prevent the Requests class from complaining about not having any
  * transports.
+ * 
+ * The reason for calling it Wp_Http_Dummy and not something more natural like
+ * Requests_Transport_Dummy is the _get_first_available_transport(). It checks for
+ * a class named "Wp_Http_" . $transport_name – which means we must adhere to this
+ * hardcoded pattern.
  */
-class Requests_Transport_Dummy_Base
+class Wp_Http_Dummy_Base
 {
 	public $headers = '';
 
@@ -43,12 +48,12 @@ class Requests_Transport_Dummy_Base
 }
 
 if (class_exists('\WpOrg\Requests\Requests')) {
-	class Requests_Transport_Dummy extends Requests_Transport_Dummy_Base implements \WpOrg\Requests\Transport
+	class Wp_Http_Dummy extends Wp_Http_Dummy_Base implements \WpOrg\Requests\Transport
 	{
 
 	}
 } else {
-	class Requests_Transport_Dummy extends Requests_Transport_Dummy_Base implements Requests_Transport
+	class Wp_Http_Dummy extends Wp_Http_Dummy_Base implements Requests_Transport
 	{
 
 	}
