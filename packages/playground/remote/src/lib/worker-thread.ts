@@ -35,7 +35,7 @@ import {
 /** @ts-ignore */
 import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
 /** @ts-ignore */
-import transportDummy from './playground-mu-plugin/playground-includes/requests_transport_dummy.php?raw';
+import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths } from '@php-wasm/util';
@@ -274,35 +274,9 @@ try {
 		// Install the playground mu-plugin
 		await writeFiles(php, joinPaths(docroot, '/wp-content/mu-plugins'), {
 			'0-playground.php': playgroundMuPlugin,
-			'playground-includes/requests_transport_dummy.php': transportDummy,
+			'playground-includes/wp_http_dummy.php': transportDummy,
 			'playground-includes/wp_http_fetch.php': transportFetch,
 		});
-
-		// Create the fonts directory
-		php.mkdir(joinPaths(docroot, '/wp-content/fonts'));
-
-		// Force the fsockopen and cUrl transports to report they don't work:
-		for (const relativePath of [
-			`/wp-includes/Requests/Transport/fsockopen.php`,
-			`/wp-includes/Requests/Transport/cURL.php`,
-			`/wp-includes/Requests/src/Transport/Fsockopen.php`,
-			`/wp-includes/Requests/src/Transport/Curl.php`,
-		]) {
-			const transportAbsPath = joinPaths(docroot, relativePath);
-			// One of the transports might not exist in the latest WordPress version.
-			if (!php.fileExists(transportAbsPath)) {
-				continue;
-			}
-			let contents = php.readFileAsText(transportAbsPath);
-			if (contents.includes('public static function test2')) {
-				continue;
-			}
-			contents = contents.replace(
-				'public static function test',
-				'public static function test( $capabilities = array() ) { return false; } public static function test2'
-			);
-			php.writeFile(transportAbsPath, contents);
-		}
 	}
 
 	if (virtualOpfsDir) {
