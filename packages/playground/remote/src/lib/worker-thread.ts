@@ -27,7 +27,6 @@ import {
 } from './opfs/bind-opfs';
 import {
 	defineSiteUrl,
-	backfillSqliteMuPlugin,
 	linkSnapshot,
 	setSnapshot,
 } from '@wp-playground/blueprints';
@@ -243,7 +242,6 @@ try {
 		await setSnapshot(php, snapshot);
 	}
 
-	await backfillSqliteMuPlugin(php, docroot);
 	await linkSnapshot(php);
 
 	if (virtualOpfsDir) {

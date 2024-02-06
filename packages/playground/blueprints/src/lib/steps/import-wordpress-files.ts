@@ -5,7 +5,7 @@ import { UniversalPHP, currentJsRuntime } from '@php-wasm/universal';
 import { defineSiteUrl } from './define-site-url';
 import {
 	installPlaygroundMuPlugin,
-	linkSqliteMuPlugin,
+	installSqliteMuPlugin,
 } from '../setup-mu-plugins';
 import { runWpInstallationWizard } from './run-wp-installation-wizard';
 import { defineWpConfigConsts } from './define-wp-config-consts';
@@ -71,18 +71,21 @@ export async function setSnapshot(
 	const snapshotPath = joinPaths(documentRoot, '.snapshot');
 	await unzipSnapshot(php, snapshotZip, pathInZip, snapshotPath);
 	await backfillWordPressCore(php, snapshotPath, documentRoot);
-	await backfillWpConfig(php, snapshotPath, documentRoot);
-	await backfillSqliteMuPlugin(php, snapshotPath, documentRoot);
+	await moveSnapshotToDocroot(php, snapshotPath);
+	await removePath(php, snapshotPath);
+}
 
-	// Remove previous core files
+async function moveSnapshotToDocroot(php: UniversalPHP, snapshotPath: string) {
+	const documentRoot = await php.documentRoot;
+	// Remove the old snapshot files
 	for (const file of await php.listFiles(documentRoot)) {
 		if (file === '.snapshot') {
 			continue;
 		}
 		await removePath(php, joinPaths(documentRoot, file));
 	}
+	// Move the new snapshot files to the document root
 	await moveContents(php, snapshotPath, documentRoot);
-	await removePath(php, joinPaths(documentRoot, '.snapshot'));
 }
 
 async function unzipSnapshot(
@@ -96,6 +99,7 @@ async function unzipSnapshot(
 		extractToPath: targetPath,
 	});
 
+	// Find WordPress core files in the extracted snapshot.
 	let importedFilesPath = targetPath;
 	if (pathInZip) {
 		// If pathInZip is explicitly provided, use it.
@@ -114,6 +118,34 @@ async function unzipSnapshot(
 	if (importedFilesPath !== targetPath) {
 		await moveContents(php, importedFilesPath, targetPath);
 	}
+
+	// Ensure wp-config.php is present in the extracted snapshot.
+	if (!(await php.fileExists(joinPaths(targetPath, 'wp-config.php')))) {
+		const samplePath = joinPaths(targetPath, 'wp-config-sample.php');
+		const wpConfig = (await php.fileExists(samplePath))
+			? await php.readFileAsText(samplePath)
+			: `<?php
+				$table_prefix = 'wp_';
+				define( 'WP_DEBUG', false );
+				if ( ! defined( 'ABSPATH' ) ) {
+					define( 'ABSPATH', __DIR__ . '/' );
+				}
+				require_once ABSPATH . 'wp-settings.php';`;
+		await php.writeFile(joinPaths(targetPath, 'wp-config.php'), wpConfig);
+	}
+
+	// Ensure the mu-plugins directory is present in the extracted snapshot.
+	if (await php.fileExists(joinPaths(targetPath, 'wp-content'))) {
+		await php.mkdir(joinPaths(targetPath, 'wp-content', 'mu-plugins'));
+	}
+
+	// The SQLite plugin used to be a regular plugin in old Playground exports.
+	// This won't work anymore. Let's be nice and clean it up if needed.
+	const sqlitePluginPath = joinPaths(
+		targetPath,
+		'wp-content/plugins/sqlite-database-integration'
+	);
+	await removePath(php, sqlitePluginPath);
 }
 
 async function backfillWordPressCore(
@@ -123,13 +155,8 @@ async function backfillWordPressCore(
 ) {
 	const importedFiles = await php.listFiles(snapshotPath);
 	const snapshotType = detectSnapshotType(importedFiles);
-	if (snapshotType === 'unknown') {
-		throw new Error(
-			'WordPress snapshot must contain either the full WordPress core or just wp-config.php and the wp-content directory.'
-		);
-	}
-
 	if (snapshotType === 'wp-core') {
+		// Core files are already present in the snapshot, nothing to do.
 		return;
 	}
 
@@ -138,78 +165,25 @@ async function backfillWordPressCore(
 		await moveContents(php, previousCorePath, snapshotPath, {
 			except: ['wp-content', 'wp-config.php', basename(snapshotPath)],
 		});
-		return;
-	}
 
-	// @TODO: Download the latest minified WordPress zip and source the files from there.
-	// @TODO: Include a Blueprint/manifest with the Playground export, and use it to source
-	//        the expected WordPress version.
-	throw new Error(
-		'Cannot initialize Playground with just the wp-content directory without loading WordPress core first. ' +
-			'Most likely you specified a zip file URL as a preferred WordPress version. ' +
-			'Either provide a zip file that contains the top-level WordPress files and directories, or ' +
-			'import your zip by explicitly listing the "importWordPressFiles" in the Blueprint.'
-	);
-}
-
-/**
- * Ensure the SQLite integration plugin is installed.
- * The prebuilt Playground WordPress zips include it,
- * but this worker may also be initialized with a custom zip
- * or an OPFS directory handle.
- *
- * The same logic is present in packages/playground/wordpress/build/Dockerfile
- * be sure to keep it in sync.
- */
-export async function backfillSqliteMuPlugin(
-	php: UniversalPHP,
-	snapshotPath: string,
-	previousCorePath?: string
-) {
-	// The SQLite plugin used to be a regular plugin in old Playground exports.
-	// Let's be nice and clean it up if it's present.
-	const sqlitePluginPath = joinPaths(
-		snapshotPath,
-		'wp-content/plugins/sqlite-database-integration'
-	);
-	await removePath(php, sqlitePluginPath);
-
-	await php.mkdir(joinPaths(snapshotPath, 'wp-content', 'mu-plugins'));
-	const sqliteMuPluginPath = 'wp-content/plugins/sqlite-database-integration';
-	if (await php.fileExists(joinPaths(snapshotPath, sqliteMuPluginPath))) {
-		// The SQLite plugin is present in the imported snapshot, we're good.
-		return false;
-	}
-
-	if (previousCorePath) {
-		const prevMuPluginPath = joinPaths(
-			previousCorePath,
-			sqliteMuPluginPath
-		);
-		if (await php.fileExists(prevMuPluginPath)) {
-			// The SQLite plugin was present in the previous core, let's carry it over.
-			await moveContents(php, prevMuPluginPath, sqliteMuPluginPath, {
-				except: ['sqlite-database-integration'],
-			});
-			return true;
+		const wpIncludesPath = joinPaths(snapshotPath, 'wp-includes');
+		if (!(await php.fileExists(wpIncludesPath))) {
+			// @TODO: Download the latest minified WordPress zip and source the files from there.
+			// @TODO: Include a Blueprint/manifest with the Playground export, and use it to source
+			//        the expected WordPress version.
+			throw new Error(
+				'Cannot initialize Playground with just the wp-content directory without loading WordPress core first. ' +
+					'Most likely you specified a zip file URL as a preferred WordPress version. ' +
+					'Either provide a zip file that contains the top-level WordPress files and directories, or ' +
+					'import your zip by explicitly listing the "importWordPressFiles" in the Blueprint.'
+			);
 		}
+		return;
+	} else {
+		throw new Error(
+			'WordPress snapshot must contain either the full WordPress core or just wp-config.php and the wp-content directory.'
+		);
 	}
-
-	// Otherwise, let's download and install the SQLite plugin
-	const muPluginsPath = joinPaths(snapshotPath, 'wp-content/mu-plugins/');
-	const plugin = await fetch(
-		'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip'
-	);
-	await unzip(php, {
-		// The zip file contains a directory with the same name as the plugin.
-		extractToPath: muPluginsPath,
-		zipFile: new File(
-			[await plugin.blob()],
-			'sqlite-database-integration.latest.zip'
-		),
-	});
-
-	return true;
 }
 
 function detectSnapshotType(files: string[]) {
@@ -227,50 +201,6 @@ function detectSnapshotType(files: string[]) {
 	}
 
 	return 'unknown' as const;
-}
-
-async function backfillWpConfig(
-	php: UniversalPHP,
-	snapshotPath: string,
-	previousCorePath?: string
-) {
-	// Vanilla WordPress core has no wp-config.php. Let's backfill it
-	// using the bundled wp-config-sample.php.
-	if (await php.fileExists(joinPaths(snapshotPath, 'wp-config.php'))) {
-		return;
-	}
-	const candidates = [joinPaths(snapshotPath, 'wp-config-sample.php')];
-	if (previousCorePath) {
-		candidates.push(
-			joinPaths(previousCorePath, 'wp-config-sample.php'),
-			joinPaths(previousCorePath, 'wp-config.php')
-		);
-	}
-	for (const candidate of candidates) {
-		if (await php.fileExists(candidate)) {
-			await php.mv(candidate, joinPaths(snapshotPath, 'wp-config.php'));
-			return;
-		}
-	}
-	throw new Error(
-		'Neither wp-config.php nor wp-config-sample.php found in the imported WordPress snapshot'
-	);
-}
-
-async function linkWpConfig(php: UniversalPHP) {
-	const snapshotPath = await php.documentRoot;
-	// Vanilla WordPress core has no wp-config.php. Let's backfill it
-	// using the bundled wp-config-sample.php.
-	if (await php.fileExists(joinPaths(snapshotPath, 'wp-config.php'))) {
-		return;
-	}
-	const wpConfigSample = joinPaths(snapshotPath, 'wp-config-sample.php');
-	if (!(await php.fileExists(wpConfigSample))) {
-		throw new Error(
-			'Neither wp-config.php nor wp-config-sample.php found in the imported WordPress snapshot'
-		);
-	}
-	await php.mv(wpConfigSample, joinPaths(snapshotPath, 'wp-config.php'));
 }
 
 async function moveContents(
@@ -301,13 +231,10 @@ async function moveContents(
 export async function linkSnapshot(php: UniversalPHP) {
 	const documentRoot = await php.documentRoot;
 
-	await linkWpConfig(php);
-	await linkSqliteMuPlugin(php);
-
-	// Ensure the Playground mu-plugin is present if we're running in the
-	// browser. This will overwrite the existing Playground mu-plugin if
-	// it's present, but that's fine. We always want to run the latest version.
+	// Enforce the required Playground and SQLite mu-plugins in
+	// the browser.
 	if (currentJsRuntime === 'WEB' || currentJsRuntime === 'WORKER') {
+		await installSqliteMuPlugin(php, documentRoot);
 		await installPlaygroundMuPlugin(php);
 	}
 
@@ -330,7 +257,7 @@ export async function linkSnapshot(php: UniversalPHP) {
 		},
 	});
 
-	// If the database is missing, run the installation wizard
+	// Run the installation wizard if the database is missing
 	const dbExists = await php.fileExists(
 		joinPaths(documentRoot, 'wp-content', 'database', '.ht.sqlite')
 	);
