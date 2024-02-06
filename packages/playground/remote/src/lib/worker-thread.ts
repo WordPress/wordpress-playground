@@ -264,20 +264,18 @@ try {
 				NONCE_SALT: randomString(40),
 			},
 		});
-
-		/**
-		 * Patch WordPress when it's not restored from OPFS.
-		 * The stored version, presumably, has all the patches
-		 * already applied.
-		 */
-
-		// Install the playground mu-plugin
-		await writeFiles(php, joinPaths(docroot, '/wp-content/mu-plugins'), {
-			'0-playground.php': playgroundMuPlugin,
-			'playground-includes/wp_http_dummy.php': transportDummy,
-			'playground-includes/wp_http_fetch.php': transportFetch,
-		});
 	}
+
+	// Always install the playground mu-plugin, even if WordPress is loaded
+	// from the OPFS. This ensures:
+	// * The mu-plugin is always there, even when a custom WordPress directory
+	//   is mounted.
+	// * The mu-plugin is always up to date.
+	await writeFiles(php, joinPaths(docroot, '/wp-content/mu-plugins'), {
+		'0-playground.php': playgroundMuPlugin,
+		'playground-includes/wp_http_dummy.php': transportDummy,
+		'playground-includes/wp_http_fetch.php': transportFetch,
+	});
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
