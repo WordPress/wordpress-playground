@@ -42,7 +42,15 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 			data.headers = Object.fromEntries(data.headers);
 		}
 
-		data.headers['x-request-issuer'] = 'php';
+		// Let the Playground request handler know that this request is
+		// coming from PHP. We can't just add this header to all external
+		// requests because of CORS. The browser will refuse to process
+		// cross-origin requests with custom headers unless the server
+		// explicitly allows them in Access-Control-Allow-Headers.
+		const parsedUrl = new URL(data.url);
+		if (parsedUrl.hostname === window.location.hostname) {
+			data.headers['x-request-issuer'] = 'php';
+		}
 
 		return handleRequest(data);
 	});
