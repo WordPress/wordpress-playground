@@ -63,15 +63,15 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 		}
 
 		/**
-  		 * Temporarily avoid CORS issues by using a specific URI.
-	 	 *
+		 * Temporarily avoid CORS issues by using a specific URI.
+		 *
 		 * This is required because the fetch API will send a CORS preflight
-   		 * request if the request is cross-origin and has custom headers.
-	  	 *
-	 	 * nginx considers requests to "/" to be static, and doesn't pass the
+		 * request if the request is cross-origin and has custom headers.
+		 *
+		 * nginx considers requests to "/" to be static, and doesn't pass the
 		 * request to PHP, and so no OPTIONS request makes it to the API.
-   		 * we can bypass this, by making a request to `/index.php`.
-	 	 */
+		 * we can bypass this, by making a request to `/index.php`.
+		 */
 		if ( hostname == 'api.wordpress.org' ) {
 			fetchUrl = fetchUrl.replace( /(\/[\d\.]+\/)($|\?)/, '$1index.php$2' );
 		}
