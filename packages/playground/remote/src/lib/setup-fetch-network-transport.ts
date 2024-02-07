@@ -73,7 +73,7 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 		 * we can bypass this, by making a request to `/index.php`.
 		 */
 		if ( hostname == 'api.wordpress.org' ) {
-			fetchUrl = fetchUrl.replace( /(\/[\d\.]+\/)($|\?)/, '$1index.php$2' );
+			fetchUrl = fetchUrl.replace( /(\/[\d.]+\/)($|\?)/, '$1index.php$2' );
 		}
 
 		response = await fetchFn(fetchUrl, {
