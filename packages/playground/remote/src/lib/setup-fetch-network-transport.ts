@@ -42,8 +42,6 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 			data.headers = Object.fromEntries(data.headers);
 		}
 
-		data.headers['x-request-issuer'] = 'php';
-
 		return handleRequest(data);
 	});
 }
