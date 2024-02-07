@@ -74,6 +74,11 @@ export async function setSnapshot(
 	await removeContents(php, documentRoot, { except: ['.snapshot'] });
 	await moveContents(php, snapshotPath, documentRoot);
 	await removePath(php, snapshotPath);
+	await defineWpConfigConsts(php, {
+		consts: {
+			CONCATENATE_SCRIPTS: false,
+		},
+	});
 }
 
 async function unzipSnapshot(
@@ -120,6 +125,20 @@ async function unzipSnapshot(
 				}
 				require_once ABSPATH . 'wp-settings.php';`;
 		await php.writeFile(joinPaths(targetPath, 'wp-config.php'), wpConfig);
+
+		// Randomize the WordPress secrets in the freshly created wp-config.php.
+		await defineWpConfigConsts(php, {
+			consts: {
+				AUTH_KEY: randomString(40),
+				SECURE_AUTH_KEY: randomString(40),
+				LOGGED_IN_KEY: randomString(40),
+				NONCE_KEY: randomString(40),
+				AUTH_SALT: randomString(40),
+				SECURE_AUTH_SALT: randomString(40),
+				LOGGED_IN_SALT: randomString(40),
+				NONCE_SALT: randomString(40),
+			},
+		});
 	}
 
 	// Ensure the mu-plugins directory is present in the extracted snapshot.
@@ -229,41 +248,26 @@ async function removeContents(
  * @param php
  */
 export async function linkSnapshot(php: UniversalPHP) {
-	const documentRoot = await php.documentRoot;
-
 	// Enforce the required Playground and SQLite mu-plugins in
 	// the browser.
 	if (currentJsRuntime === 'WEB' || currentJsRuntime === 'WORKER') {
+		const documentRoot = await php.documentRoot;
 		await installSqliteMuPlugin(php, documentRoot);
 		await installPlaygroundMuPlugin(php);
+
+		// Run the installation wizard if the database is missing
+		const dbExists = await php.fileExists(
+			joinPaths(documentRoot, 'wp-content', 'database', '.ht.sqlite')
+		);
+		if (!dbExists) {
+			await runWpInstallationWizard(php, {});
+		}
 	}
 
 	// Adjust the site URL
 	await defineSiteUrl(php, {
 		siteUrl: await php.absoluteUrl,
 	});
-
-	// Randomize the WordPress secrets
-	await defineWpConfigConsts(php, {
-		consts: {
-			AUTH_KEY: randomString(40),
-			SECURE_AUTH_KEY: randomString(40),
-			LOGGED_IN_KEY: randomString(40),
-			NONCE_KEY: randomString(40),
-			AUTH_SALT: randomString(40),
-			SECURE_AUTH_SALT: randomString(40),
-			LOGGED_IN_SALT: randomString(40),
-			NONCE_SALT: randomString(40),
-		},
-	});
-
-	// Run the installation wizard if the database is missing
-	const dbExists = await php.fileExists(
-		joinPaths(documentRoot, 'wp-content', 'database', '.ht.sqlite')
-	);
-	if (!dbExists) {
-		await runWpInstallationWizard(php, {});
-	}
 }
 
 async function removePath(playground: UniversalPHP, path: string) {

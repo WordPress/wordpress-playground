@@ -184,10 +184,10 @@ COPY --from=php /root/wordpress ./wordpress
 
 # === Postprocess WordPress ===
 
-# Disable load-scripts.php
-RUN cd wordpress && \
-    sed "s/<?php/<?php define( 'CONCATENATE_SCRIPTS', false );/" wp-config.php > wp-config.php.new && \
-    mv wp-config.php.new wp-config.php
+# Remove the wp-config.php file now that WordPress
+# is installed and let Playground generate a new one
+# on load.
+RUN rm wordpress/wp-config.php
 
 # Build the final wp.zip file
 RUN mv wordpress /wordpress && \
