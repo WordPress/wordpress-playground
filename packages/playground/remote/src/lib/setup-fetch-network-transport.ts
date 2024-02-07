@@ -60,19 +60,20 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 		const fetchHeaders = data.headers || {};
 		if (fetchMethod == 'POST') {
 			fetchHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
+		}
 
-			/**
-			 * Removes a few custom request headers.
-			 *
-			 * This is required because the fetch API will send a CORS preflight
-			 * request if the request is cross-origin and has custom headers.
-			 *
-			 * However, the api.wordpress.org/core/version-check/1.7/ endpoint
-			 * doesn't support CORS preflight requests. These two headers
-			 * aren't critical to the request, so we can just remove them.
-			 */
-			delete fetchHeaders['wp_install'];
-			delete fetchHeaders['wp_blog'];
+		/**
+  		 * Temporarily avoid CORS issues by using a specific URI.
+	 	 *
+		 * This is required because the fetch API will send a CORS preflight
+   		 * request if the request is cross-origin and has custom headers.
+	  	 *
+	 	 * nginx considers requests to "/" to be static, and doesn't pass the
+		 * request to PHP, and so no OPTIONS request makes it to the API.
+   		 * we can bypass this, by making a request to `/index.php`.
+	 	 */
+		if ( hostname == 'api.wordpress.org' ) {
+			fetchUrl = fetchUrl.replace( /(\/[\d\.]+\/)($|\?)/, '$1index.php$2' );
 		}
 
 		response = await fetchFn(fetchUrl, {
