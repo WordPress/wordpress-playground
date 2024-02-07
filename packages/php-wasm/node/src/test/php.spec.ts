@@ -496,6 +496,45 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(result.text).toEqual('Hello World!\n');
 		});
+
+		it('Calls proc_open two times in a row', async () => {
+			const result = await php.run({
+				code: `<?php
+
+                $command = "echo 'First hello world!'";
+
+                $descriptorspec = [
+                    1 => [ "pipe", "w" ],
+                    2 => [ "pipe", "w" ]
+                ];
+
+                $res = proc_open( $command, $descriptorspec, $pipes );
+
+                $stdout = stream_get_contents($pipes[1]);
+
+                proc_close($res);
+
+                echo $stdout;
+
+				$command = "echo 'Second hello world!'";
+
+                $descriptorspec = [
+                    1 => [ "pipe", "w" ],
+                    2 => [ "pipe", "w" ]
+                ];
+
+                $res = proc_open( $command, $descriptorspec, $pipes );
+
+                $stdout = stream_get_contents($pipes[1]);
+
+                proc_close($res);
+
+                echo $stdout;`,
+			});
+			expect(result.text).toEqual(
+				'First hello world!\nSecond hello world!\n'
+			);
+		});
 	});
 
 	describe('Filesystem', () => {
