@@ -79,6 +79,6 @@ function DOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(response.text, 'text/html');
 }
 
-function getFormData(form: HTMLFormElement): Record<string, unknown> {
+function getFormData(form: HTMLFormElement): Record<string, string> {
 	return Object.fromEntries((new FormData(form) as any).entries());
 }

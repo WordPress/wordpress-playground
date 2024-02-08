@@ -149,11 +149,10 @@ describe.each(SupportedPHPVersions)(
 			const response = await handler.request({
 				url: '/index.php',
 				method: 'POST',
-				files: {
-					myFile: new File(['Hello World'], 'text.txt', {
-						type: 'text/plain',
-					}),
-				},
+				body: new TextEncoder().encode(`--boundary
+Content-Disposition: form-data; name="foo"
+
+bar`),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -170,7 +169,6 @@ describe.each(SupportedPHPVersions)(
 			const response = await handler.request({
 				url: '/index.php',
 				method: 'POST',
-				files: {},
 				body: 'foo=bar',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
