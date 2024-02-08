@@ -11,7 +11,12 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition, defaultStepFailModes } from './steps';
+import {
+	Step,
+	StepDefinition,
+	StepFailMode,
+	defaultStepFailModes,
+} from './steps';
 import * as stepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
 
@@ -409,7 +414,7 @@ function compileStep<S extends StepDefinition>(
 	run: CompiledStep;
 	step: S;
 	resources: Array<Resource>;
-	failMode: 'abort' | 'skip';
+	failMode: StepFailMode;
 } {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
