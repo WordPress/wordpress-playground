@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { phpVars, randomString } from '@php-wasm/util';
+import { phpVars, randomFilename } from '@php-wasm/util';
 import { runSql } from './run-sql';
 
 const phpVersion = '8.0';
@@ -16,8 +16,8 @@ describe('Blueprint step runSql', () => {
 
 	it('should split and "run" sql queries', async () => {
 		const docroot = '/wordpress';
-		const sqlFilename = `/tmp/${randomString()}.sql`;
-		const resFilename = `/tmp/${randomString()}.json`;
+		const sqlFilename = `/tmp/${randomFilename()}.sql`;
+		const resFilename = `/tmp/${randomFilename()}.json`;
 		const js = phpVars({ docroot, sqlFilename, resFilename });
 		await php.mkdir(docroot);
 

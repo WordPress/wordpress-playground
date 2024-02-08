@@ -1,6 +1,6 @@
 import { StepHandler } from '.';
 import { rm } from './rm';
-import { phpVars, randomString } from '@php-wasm/util';
+import { phpVars, randomFilename } from '@php-wasm/util';
 
 /**
  * @inheritDoc runSql
@@ -43,7 +43,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 ) => {
 	progress?.tracker.setCaption(`Executing SQL Queries`);
 
-	const sqlFilename = `/tmp/${randomString()}.sql`;
+	const sqlFilename = `/tmp/${randomFilename()}.sql`;
 
 	await playground.writeFile(
 		sqlFilename,
