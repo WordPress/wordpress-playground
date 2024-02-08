@@ -38,8 +38,7 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { joinPaths } from '@php-wasm/util';
-import { randomString } from './utils';
+import { joinPaths, randomString } from '@php-wasm/util';
 
 // post message to parent
 self.postMessage('worker-script-started');
