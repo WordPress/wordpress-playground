@@ -11,7 +11,7 @@ import {
 } from '@php-wasm/universal';
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
-import { Step, StepDefinition } from './steps';
+import { Step, StepDefinition, defaultStepFailModes } from './steps';
 import * as stepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
 
@@ -48,12 +48,9 @@ export interface CompiledBlueprint {
 	run: (playground: UniversalPHP) => Promise<void>;
 }
 
-export type OnStepProgress = (
-	promise: Promise<void>,
-	step: StepDefinition
-) => void;
-export type OnStepCompleted = (output: any, step: StepDefinition) => any;
-export type OnStepsCompleted = (
+export type OnStepCompleted = (step: StepDefinition, result: any) => any;
+export type OnStepError = (step: StepDefinition, error: any) => any;
+export type ShouldBoot = (
 	completedStatus: Map<StepDefinition, boolean>
 ) => void;
 
@@ -63,15 +60,17 @@ export interface CompileBlueprintOptions {
 	/** Optional semaphore to control access to a shared resource */
 	semaphore?: Semaphore;
 	/** Optional callback with step output */
-	onStepProgress?: OnStepProgress;
 	onStepCompleted?: OnStepCompleted;
-	onStepsCompleted?: OnStepsCompleted;
+	onStepError?: OnStepError;
+	shouldBoot?: ShouldBoot;
 }
 
 /**
- * Convert a Promise into a boolean indicating if it resolved or rejeted.
+ * Convert a settled Promise into a boolean indicating if it resolved or rejected.
  */
-const didResolve = <P extends Promise<any>>(promise: P): Promise<boolean> =>
+const isSettledPromiseResolved = <P extends Promise<any>>(
+	promise: P
+): Promise<boolean> =>
 	promise.then(
 		() => true,
 		() => false
@@ -91,8 +90,8 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onStepProgress = () => {},
-		onStepsCompleted,
+		onStepError = () => {},
+		shouldBoot,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
 	blueprint = {
@@ -191,8 +190,8 @@ export function compileBlueprint(
 			networking: blueprint.features?.networking ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
-			const progressStatus = new Map<StepDefinition, Promise<void>>();
-			const progressPromises = new Map<
+			const stepStatus = new Map<StepDefinition, Promise<void>>();
+			const stepPromises = new Map<
 				StepDefinition,
 				{
 					resolve: (result: any) => void;
@@ -201,16 +200,15 @@ export function compileBlueprint(
 			>();
 			for (const { step } of compiled) {
 				const promise = new Promise<void>((resolve, reject) => {
-					progressPromises.set(step, { resolve, reject });
+					stepPromises.set(step, { resolve, reject });
 				});
-				progressStatus.set(step, promise);
-				onStepProgress(promise, step);
+				stepStatus.set(step, promise);
 			}
 
 			try {
 				// Start resolving resources early
 				for (const { resources, step } of compiled) {
-					const stepPromise = progressPromises.get(step);
+					const stepPromise = stepPromises.get(step);
 					for (const resource of resources) {
 						resource.setPlayground(playground);
 						if (resource.isAsync) {
@@ -225,35 +223,41 @@ export function compileBlueprint(
 				 * When a compiled step's `run` method is called, it
 				 * uses `resolveArguments` to await dependent resources.
 				 */
-				for (const { run, step } of compiled) {
-					const stepPromise = progressPromises.get(step);
+				for (const { run, step, failMode } of compiled) {
+					const stepPromise = stepPromises.get(step);
+					let result;
 					try {
-						const result = await run(playground);
-						stepPromise?.resolve(result);
-						onStepCompleted(result, step);
+						result = await run(playground);
 					} catch (error) {
 						stepPromise?.reject(error);
+						onStepError(step, error);
+						if (failMode === 'abort') {
+							throw error;
+						}
+						continue;
 					}
+					stepPromise?.resolve(result);
+					onStepCompleted(step, result);
 				}
 			} finally {
 				const completedStatus = new Map();
 				for (const { step } of compiled) {
 					completedStatus.set(
 						step,
-						await didResolve(
-							progressStatus.get(step) as Promise<any>
+						await isSettledPromiseResolved(
+							stepStatus.get(step) as Promise<any>
 						)
 					);
 				}
 
 				// Either someone made a choice to boot or all steps succeeded.
-				const shouldBoot = onStepsCompleted
-					? await onStepsCompleted(completedStatus)
-					: await didResolve(
-							Promise.all([...progressStatus.values()])
+				const boot = shouldBoot
+					? shouldBoot(completedStatus)
+					: await isSettledPromiseResolved(
+							Promise.all([...stepStatus.values()])
 					  );
 
-				if (shouldBoot) {
+				if (boot) {
 					try {
 						await (playground as any)?.goTo(
 							blueprint.landingPage || '/'
@@ -395,7 +399,12 @@ function compileStep<S extends StepDefinition>(
 		rootProgressTracker,
 		totalProgressWeight,
 	}: CompileStepArgsOptions
-): { run: CompiledStep; step: S; resources: Array<Resource> } {
+): {
+	run: CompiledStep;
+	step: S;
+	resources: Array<Resource>;
+	failMode: 'abort' | 'skip';
+} {
 	const stepProgress = rootProgressTracker.stage(
 		(step.progress?.weight || 1) / totalProgressWeight
 	);
@@ -441,7 +450,13 @@ function compileStep<S extends StepDefinition>(
 		resource.progress = stepProgress.stage(evenWeight);
 	}
 
-	return { run, step, resources };
+	return {
+		run,
+		step,
+		resources,
+		failMode:
+			(step.failMode || defaultStepFailModes.get(step.step)) ?? 'abort',
+	};
 }
 
 /**

@@ -35,7 +35,15 @@ export type StepDefinition = Step & {
 		weight?: number;
 		caption?: string;
 	};
+	/**
+	 * Option to decide what to do when a step fails:
+	 * - `abort`: Stop the entire blueprint (default)
+	 * - `skip`: Continue running the other steps
+	 */
+	failMode?: StepFailMode;
 };
+export type StepFailMode = 'abort' | 'skip';
+export const defaultStepFailModes = new Map<string, StepFailMode>();
 
 export { wpContentFilesExcludedFromExport } from './common';
 
