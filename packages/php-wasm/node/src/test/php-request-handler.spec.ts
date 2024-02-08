@@ -149,7 +149,7 @@ describe.each([SupportedPHPVersions])(
 			const response = await handler.request({
 				url: '/index.php',
 				method: 'POST',
-				files: {
+				formData: {
 					myFile: new File(['bar'], 'bar.txt'),
 				},
 			});

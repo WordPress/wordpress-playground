@@ -492,15 +492,9 @@ export interface PHPRequest {
 
 	/**
 	 * Form data. If set, the request body will be ignored and
-	 * the content-type header will be set to `application/x-www-form-urlencoded`.
+	 * the content-type header will be set to `multipart/form-data`..
 	 */
-	formData?: Record<string, string>;
-
-	/**
-	 * Uploaded files data. If set, the request body will be ignored and
-	 * the content-type header will be set to `multipart/form-data`.
-	 */
-	files?: Record<string, File>;
+	formData?: Record<string, string | Uint8Array | File>;
 }
 
 export interface PHPRunOptions {

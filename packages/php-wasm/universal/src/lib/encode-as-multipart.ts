@@ -4,7 +4,9 @@
  * @param   data - The form data to encode.
  * @returns The encoded body and a correctly formatted content type header.
  */
-export async function encodeAsMultipart(data: Record<string, string | File>) {
+export async function encodeAsMultipart(
+	data: Record<string, string | Uint8Array | File>
+) {
 	const boundary = `----${Math.random().toString(36).slice(2)}`;
 	const contentType = `multipart/form-data; boundary=${boundary}`;
 
@@ -21,10 +23,10 @@ export async function encodeAsMultipart(data: Record<string, string | File>) {
 			parts.push(`Content-Type: application/octet-stream`);
 		}
 		parts.push(`\r\n\r\n`);
-		if (typeof value === 'string') {
-			parts.push(value);
-		} else {
+		if (value instanceof File) {
 			parts.push(await fileToUint8Array(value));
+		} else {
+			parts.push(value);
 		}
 		parts.push(`\r\n`);
 	}

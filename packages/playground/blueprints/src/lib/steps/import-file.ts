@@ -44,7 +44,7 @@ export const importFile: StepHandler<ImportFileStep<File>> = async (
 	const stepOneResponse = await playground.request({
 		url: `/wp-admin/${firstUrlAction}`,
 		method: 'POST',
-		files: { import: file },
+		formData: { import: file },
 	});
 
 	// Map authors of imported posts to existing users

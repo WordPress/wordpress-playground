@@ -205,11 +205,10 @@ export class PHPRequestHandler implements RequestHandler {
 			};
 
 			let body = request.body;
-			if (request.formData || request.files) {
+			if (request.formData) {
 				preferredMethod = 'POST';
 				const multipart = await encodeAsMultipart({
 					...request.formData,
-					...request.files,
 				});
 				body = multipart.body;
 				headers['content-type'] = multipart.contentType;
