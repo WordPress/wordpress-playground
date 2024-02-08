@@ -52,7 +52,7 @@ export type OnStepCompleted = (step: StepDefinition, result: any) => any;
 export type OnStepError = (step: StepDefinition, error: any) => any;
 export type ShouldBoot = (
 	completedStatus: Map<StepDefinition, boolean>
-) => void;
+) => boolean;
 
 export interface CompileBlueprintOptions {
 	/** Optional progress tracker to monitor progress */
