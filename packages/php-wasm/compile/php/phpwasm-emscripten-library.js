@@ -335,7 +335,10 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
+				cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+				if (cp instanceof Promise) {
+					cp = await cp;
+				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
 					wakeUp(1);
@@ -424,7 +427,6 @@ const LibraryExample = {
 			try {
 				await new Promise((resolve, reject) => {
 					cp.on('spawn', resolve);
-					cp.on('exit', resolve);
 					cp.on('error', reject);
 				});
 			} catch (e) {
@@ -822,7 +824,10 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr, []);
+				cp = PHPWASM.spawnProcess(cmdstr, []);
+				if (cp instanceof Promise) {
+					cp = await cp;
+				}
 			} catch (e) {
 				console.error(e);
 				if (e.code === 'SPAWN_UNSUPPORTED') {

@@ -501,35 +501,35 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const result = await php.run({
 				code: `<?php
 
-                $command = "echo 'First hello world!'";
+				$command = "echo 'First hello world!'";
 
-                $descriptorspec = [
-                    1 => [ "pipe", "w" ],
-                    2 => [ "pipe", "w" ]
-                ];
+				$descriptorspec = [
+					1 => [ "pipe", "w" ],
+					2 => [ "pipe", "w" ]
+				];
 
-                $res = proc_open( $command, $descriptorspec, $pipes );
+				$res = proc_open( $command, $descriptorspec, $pipes );
 
-                $stdout = stream_get_contents($pipes[1]);
+				$stdout = stream_get_contents($pipes[1]);
 
-                proc_close($res);
+				proc_close($res);
 
-                echo $stdout;
+				echo $stdout;
 
 				$command = "echo 'Second hello world!'";
 
-                $descriptorspec = [
-                    1 => [ "pipe", "w" ],
-                    2 => [ "pipe", "w" ]
-                ];
+				$descriptorspec = [
+					1 => [ "pipe", "w" ],
+					2 => [ "pipe", "w" ]
+				];
 
-                $res = proc_open( $command, $descriptorspec, $pipes );
+				$res = proc_open( $command, $descriptorspec, $pipes );
 
-                $stdout = stream_get_contents($pipes[1]);
+				$stdout = stream_get_contents($pipes[1]);
 
-                proc_close($res);
+				proc_close($res);
 
-                echo $stdout;`,
+				echo $stdout;`,
 			});
 			expect(result.text).toEqual(
 				'First hello world!\nSecond hello world!\n'

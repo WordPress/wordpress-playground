@@ -5549,7 +5549,10 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
+   cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+   if (cp instanceof Promise) {
+    cp = await cp;
+   }
   } catch (e) {
    if (e.code === "SPAWN_UNSUPPORTED") {
     wakeUp(1);
@@ -5603,7 +5606,6 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
   try {
    await new Promise(((resolve, reject) => {
     cp.on("spawn", resolve);
-    cp.on("exit", resolve);
     cp.on("error", reject);
    }));
   } catch (e) {
@@ -5662,7 +5664,10 @@ function _js_popen_to_file(command, mode, exitCodePtr) {
  return Asyncify.handleSleep((async wakeUp => {
   let cp;
   try {
-   cp = await PHPWASM.spawnProcess(cmdstr, []);
+   cp = PHPWASM.spawnProcess(cmdstr, []);
+   if (cp instanceof Promise) {
+    cp = await cp;
+   }
   } catch (e) {
    console.error(e);
    if (e.code === "SPAWN_UNSUPPORTED") {
