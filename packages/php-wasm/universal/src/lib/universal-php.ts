@@ -486,7 +486,7 @@ export interface PHPRequest {
 	headers?: PHPRequestHeaders;
 
 	/**
-	 * Request body without the files.
+	 * Request body.
 	 */
 	body?: string | Uint8Array;
 
@@ -524,7 +524,7 @@ export interface PHPRunOptions {
 	headers?: PHPRequestHeaders;
 
 	/**
-	 * Request body without the files.
+	 * Request body.
 	 */
 	body?: string | Uint8Array;
 
