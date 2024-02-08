@@ -8,6 +8,7 @@ import {
 import { BasePHP, normalizeHeaders } from './base-php';
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
+import { encodeAsMultipart } from './encode-as-multipart';
 
 export interface PHPRequestHandlerConfiguration {
 	/**
@@ -206,14 +207,12 @@ export class PHPRequestHandler implements RequestHandler {
 			let body = request.body;
 			if (request.formData || request.files) {
 				preferredMethod = 'POST';
-				const encoder = new MultipartEncoder();
-				body = await encoder.encode({
+				const multipart = await encodeAsMultipart({
 					...request.formData,
 					...request.files,
 				});
-				headers[
-					'content-type'
-				] = `multipart/form-data; boundary=${encoder.boundary}`;
+				body = multipart.body;
+				headers['content-type'] = multipart.contentType;
 			}
 
 			let scriptPath;
@@ -372,84 +371,4 @@ function seemsLikeAPHPFile(path: string) {
 function seemsLikeADirectoryRoot(path: string) {
 	const lastSegment = path.split('/').pop();
 	return !lastSegment!.includes('.');
-}
-
-class MultipartEncoder {
-	constructor(
-		public boundary: string = `----${Math.random().toString(36).slice(2)}`
-	) {}
-
-	/**
-	 * Encodes a multipart/form-data request body.
-	 *
-	 * @param  data - The form data to encode.
-	 * @returns The encoded body.
-	 */
-	encode(data: Record<string, string | File>): Promise<Uint8Array> {
-		const parts = Object.entries(data).map(([name, value]) => {
-			if (value instanceof File) {
-				return this.#encodeFile(name, value);
-			}
-			return this.#encodeField(name, value);
-		});
-		const body = parts.reduce((acc, part) => {
-			if (acc.length > 0) {
-				acc.push(new TextEncoder().encode('\r\n'));
-			}
-			acc.push(part);
-			return acc;
-		}, [] as Uint8Array[]);
-		const boundary = `--${this.boundary}--`;
-		body.push(new TextEncoder().encode(`\r\n${boundary}\r\n`));
-		return Promise.resolve(
-			body.reduce((acc, part) => {
-				const newAcc = new Uint8Array(acc.length + part.length);
-				newAcc.set(acc, 0);
-				newAcc.set(part, acc.length);
-				return newAcc;
-			}, new Uint8Array(0))
-		);
-	}
-
-	#encodeField(name: string, value: string) {
-		const encodedName = new TextEncoder().encode(name);
-		const encodedValue = new TextEncoder().encode(value);
-		const part = new Uint8Array(
-			encodedName.length + encodedValue.length + 2
-		);
-		part.set(encodedName, 0);
-		part.set(new TextEncoder().encode('\r\n\r\n'), encodedName.length);
-		part.set(encodedValue, encodedName.length + 4);
-		return part;
-	}
-
-	#encodeFile(name: string, file: File) {
-		const encodedName = new TextEncoder().encode(name);
-		const encodedFilename = new TextEncoder().encode(file.name);
-		const part = new Uint8Array(
-			encodedName.length +
-				encodedFilename.length +
-				`filename="${file.name}"`.length +
-				'Content-Type: application/octet-stream'.length +
-				'\r\n\r\n'.length +
-				file.size +
-				2
-		);
-		part.set(encodedName, 0);
-		part.set(
-			new TextEncoder().encode(`; filename="${file.name}"`),
-			encodedName.length
-		);
-		part.set(
-			new TextEncoder().encode(
-				'\r\nContent-Type: application/octet-stream\r\n\r\n'
-			),
-			encodedName.length + encodedFilename.length
-		);
-		part.set(
-			new Uint8Array([0, 0]),
-			encodedName.length + encodedFilename.length + 58
-		);
-		return part;
-	}
 }
