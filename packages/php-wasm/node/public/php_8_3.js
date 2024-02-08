@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11370166; 
+export const dependenciesTotalSize = 11370155; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5755,6 +5755,7 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
   try {
    await new Promise(((resolve, reject) => {
     cp.on("spawn", resolve);
+    cp.on("exit", resolve);
     cp.on("error", reject);
    }));
   } catch (e) {
@@ -7577,6 +7578,23 @@ PHPLoader['removeRunDependency'] = function (...args) {
     }
 }
 
+/**
+ * Other exports live in the Dockerfile in:
+ * 
+ * * EXTRA_EXPORTED_RUNTIME_METHODS
+ * * EXPORTED_FUNCTIONS
+ * 
+ * These exports, however, live in here because:
+ * 
+ * * Listing them in EXTRA_EXPORTED_RUNTIME_METHODS doesn't actually
+ *   export them. This could be a bug in Emscripten or a consequence of
+ *   that option being deprecated.
+ * * Listing them in EXPORTED_FUNCTIONS works, but they are overridden
+ *   on every `BasePHP.run()` call. This is a problem because we want to
+ *   spy on these calls in some unit tests.
+ * 
+ * Therefore, we export them here.
+ */
 PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = _free;
 

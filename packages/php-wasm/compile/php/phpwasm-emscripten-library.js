@@ -418,11 +418,13 @@ const LibraryExample = {
 			 * Wait until the child process has been spawned.
 			 * Unfortunately there is no Node.js API to check whether
 			 * the process has already been spawned. We can only listen
-			 * to the 'spawn' event and hope that it wasn't fired yet.
+			 * to the 'spawn' event and if it has already been spawned,
+			 * listen to the 'exit' event.
 			 */
 			try {
 				await new Promise((resolve, reject) => {
 					cp.on('spawn', resolve);
+					cp.on('exit', resolve);
 					cp.on('error', reject);
 				});
 			} catch (e) {
