@@ -41,24 +41,20 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
 
-		const onBlueprintStepProgress = (
-			promise: Promise<void>,
-			step: Step
-		) => {
-			promise.catch((error: any) => {
-				if (step.step === 'installPlugin') {
-					alert(`Failed to install: ${step.pluginZipFile}`);
-				} else {
-					throw error;
-				}
-			});
+		const onBlueprintStepError = (step: Step, error: Error) => {
+			if (step.step === 'installPlugin') {
+				// TODO: Open modal to display error message
+				alert(`Failed to install: ${step.pluginZipFile}`);
+			} else {
+				throw error;
+			}
 		};
 
 		startPlaygroundWeb({
 			iframe,
 			remoteUrl: remoteUrl.toString(),
 			blueprint,
-			onBlueprintStepProgress,
+			onBlueprintStepError,
 		}).then(async (playground) => {
 			playground.onNavigation((url) => setUrl(url));
 			setPlayground(() => playground);

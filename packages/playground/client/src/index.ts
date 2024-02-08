@@ -34,8 +34,8 @@ import {
 	Blueprint,
 	compileBlueprint,
 	OnStepCompleted,
-	OnStepsCompleted,
-	OnStepProgress,
+	OnStepError,
+	ShouldBoot,
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
 import { consumeAPI } from '@php-wasm/web';
@@ -48,8 +48,8 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
-	onBlueprintStepsCompleted?: OnStepsCompleted;
-	onBlueprintStepProgress?: OnStepProgress;
+	onBlueprintStepError?: OnStepError;
+	shouldBoot?: ShouldBoot;
 }
 
 /**
@@ -66,7 +66,6 @@ export async function startPlaygroundWeb({
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
 	onBlueprintStepCompleted,
-	onBlueprintStepProgress,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
@@ -81,7 +80,6 @@ export async function startPlaygroundWeb({
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
-		onStepProgress: onBlueprintStepProgress,
 	});
 	const playground = await doStartPlaygroundWeb(
 		iframe,
