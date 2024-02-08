@@ -12,8 +12,15 @@ import {
 import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
-import * as stepHandlers from './steps/handlers';
+import * as allStepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
+
+// @TODO: Configure this in the `wp-cli` step, not here.
+const { wpCLI, ...otherStepHandlers } = allStepHandlers;
+const keyedStepHandlers = {
+	...otherStepHandlers,
+	'wp-cli': wpCLI,
+};
 
 import Ajv from 'ajv';
 /**
@@ -126,6 +133,48 @@ export function compileBlueprint(
 				: blueprint.login),
 		});
 	}
+
+	/**
+	 * Download WP-CLI. {{{
+	 * Hardcoding this in the compilt() function is a temporary solution
+	 * to provide the wpCLI step with the wp-cli.phar file it needs. Eventually,
+	 * each Blueprint step may be able to specify any pre-requisite resources.
+	 * Also, wp-cli should only be downloaded if it's not already present.
+	 */
+	const wpCliStepIndex = blueprint.steps?.findIndex(
+		(step) => typeof step === 'object' && step?.step === 'wp-cli'
+	);
+	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
+		if (!blueprint.phpExtensionBundles) {
+			blueprint.phpExtensionBundles = [];
+		}
+		if (!blueprint.phpExtensionBundles.includes('kitchen-sink')) {
+			blueprint.phpExtensionBundles.push('kitchen-sink');
+			console.warn(
+				`The WP-CLI step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
+					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
+			);
+		}
+		blueprint.steps?.splice(wpCliStepIndex, 0, {
+			step: 'writeFile',
+			data: {
+				resource: 'url',
+				/**
+				 * Use compression for downloading the wp-cli.phar file.
+				 * The official release, hosted at raw.githubusercontent.com, is ~7MB and the
+				 * transfer is uncompressed. playground.wordpress.net supports transfer compression
+				 * and only transmits ~1.4MB.
+				 *
+				 * @TODO: minify the wp-cli.phar file. It can be as small as 1MB when all the
+				 *        whitespaces and are removed, and even 500KB when libraries like the
+				 *        JavaScript parser or Composer are removed.
+				 */
+				url: 'https://playground.wordpress.net/wp-cli.phar',
+			},
+			path: '/tmp/wp-cli.phar',
+		});
+	}
 	// }}}
 
 	const { valid, errors } = validateBlueprint(blueprint);
@@ -187,11 +236,11 @@ export function compileBlueprint(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (e) {
+						console.error(e);
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
-							)}). ` +
-								`Inspect the cause of this error for more details`,
+							)}). Inspect the "cause" property of this error for more details`,
 							{
 								cause: e,
 							}
@@ -358,7 +407,7 @@ function compileStep<S extends StepDefinition>(
 	const run = async (playground: UniversalPHP) => {
 		try {
 			stepProgress.fillSlowly();
-			return await stepHandlers[step.step](
+			return await keyedStepHandlers[step.step](
 				playground,
 				await resolveArguments(args),
 				{

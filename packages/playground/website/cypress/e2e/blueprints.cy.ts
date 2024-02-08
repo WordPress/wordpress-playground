@@ -53,4 +53,23 @@ describe('Blueprints', () => {
 			.find('[data-slug="wordpress-importer-git-loader"].active')
 			.should('exist');
 	});
+
+	it('wp-cli step should create a post', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/wp-admin/post.php',
+			login: true,
+			steps: [
+				{
+					step: 'wp-cli',
+					command:
+						"wp post create --post_title='Test post' --post_excerpt='Some content' --no-color",
+				},
+			],
+		};
+		cy.visit('/#' + JSON.stringify(blueprint));
+		cy.wordPressDocument()
+			.its('body')
+			.find('[aria-label="“Test post” (Edit)"]')
+			.should('exist');
+	});
 });

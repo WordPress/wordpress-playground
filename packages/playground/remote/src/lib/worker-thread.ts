@@ -57,7 +57,8 @@ if (typeof self?.location?.href !== 'undefined') {
 	startupOptions.wpVersion = params.get('wpVersion') || undefined;
 	startupOptions.phpVersion = params.get('phpVersion') || undefined;
 	startupOptions.storage = params.get('storage') || undefined;
-	startupOptions.sapiName = params.get('sapiName') || undefined;
+	// Default to CLI to support the WP-CLI Blueprint step
+	startupOptions.sapiName = params.get('sapiName') || 'cli';
 	startupOptions.phpExtension = params.getAll('php-extension');
 }
 
@@ -296,8 +297,26 @@ try {
 	// Spawning new processes on the web is not supported,
 	// let's always fail.
 	php.setSpawnHandler(
-		createSpawnHandler(function (_, processApi) {
-			processApi.exit(1);
+		createSpawnHandler(function (command, processApi) {
+			// Mock programs required by wp-cli:
+			if (command.startsWith('/usr/bin/env stty size ')) {
+				// These numbers are hardcoded because this
+				// spawnHandler is transmitted as a string to
+				// the PHP backend and has no access to local
+				// scope. It would be nice to find a way to
+				// transfer / proxy a live object instead.
+				// @TODO: Do not hardcode this
+				processApi.stdout(`18 140`);
+				processApi.exit(0);
+			} else if (command.startsWith('less')) {
+				processApi.on('stdin', (data: Uint8Array) => {
+					processApi.stdout(data);
+				});
+				processApi.flushStdin();
+				processApi.exit(0);
+			} else {
+				processApi.exit(1);
+			}
 		})
 	);
 

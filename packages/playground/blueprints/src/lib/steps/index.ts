@@ -28,6 +28,7 @@ import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wordpress-files';
 import { ImportFileStep } from './import-file';
 import { EnableMultisiteStep } from './enable-multisite';
+import { WPCLIStep } from './wp-cli';
 
 export type Step = GenericStep<FileReference>;
 export type StepDefinition = Step & {
@@ -68,7 +69,8 @@ export type GenericStep<Resource> =
 	| SetSiteOptionsStep
 	| UnzipStep<Resource>
 	| UpdateUserMetaStep
-	| WriteFileStep<Resource>;
+	| WriteFileStep<Resource>
+	| WPCLIStep;
 
 export type {
 	ActivatePluginStep,
@@ -99,6 +101,7 @@ export type {
 	UnzipStep,
 	UpdateUserMetaStep,
 	WriteFileStep,
+	WPCLIStep,
 };
 
 /**
