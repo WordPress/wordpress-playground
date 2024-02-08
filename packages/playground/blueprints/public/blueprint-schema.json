@@ -172,6 +172,9 @@
 				},
 				{
 					"$ref": "#/definitions/UrlReference"
+				},
+				{
+					"type": "string"
 				}
 			]
 		},

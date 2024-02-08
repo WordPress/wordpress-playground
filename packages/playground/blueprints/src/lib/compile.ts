@@ -190,8 +190,9 @@ export function compileBlueprint(
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
-							)}). ` +
-								`Inspect the cause of this error for more details`,
+							)}). Inspect the cause of this error for more details. Original error: ${
+								e instanceof Error ? e.message : ''
+							}`,
 							{
 								cause: e,
 							}
