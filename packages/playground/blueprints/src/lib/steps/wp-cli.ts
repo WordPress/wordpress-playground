@@ -112,7 +112,9 @@ export function splitShellCommand(command: string) {
 				mode = MODE_IN_QUOTE;
 				quote = char;
 			} else if (char.match(/\s/)) {
-				parts.push(currentPart);
+				if (currentPart) {
+					parts.push(currentPart);
+				}
 				currentPart = '';
 			} else {
 				currentPart += char;

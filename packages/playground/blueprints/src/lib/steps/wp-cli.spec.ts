@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { wpCLI } from './wp-cli';
+import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { unzip } from './unzip';
@@ -30,5 +30,31 @@ describe('Blueprint step wpCLI', () => {
 				"wp post create --post_title='Test post' --post_excerpt='Some content' --no-color",
 		});
 		expect(result.text).toMatch(/Success: Created post/);
+	});
+});
+
+describe('splitShellCommand', () => {
+	it('Should split a shell command into an array', () => {
+		const command =
+			'wp post create --post_title="Test post" --post_excerpt="Some content"';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'wp',
+			'post',
+			'create',
+			'--post_title=Test post',
+			'--post_excerpt=Some content',
+		]);
+	});
+
+	it('Should treat multiple spaces as a single space', () => {
+		const command = 'ls    --wordpress   --playground --is-great';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress',
+			'--playground',
+			'--is-great',
+		]);
 	});
 });
