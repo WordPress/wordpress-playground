@@ -206,10 +206,14 @@ export class PHPRequestHandler implements RequestHandler {
 			let body = request.body;
 			if (request.formData || request.files) {
 				preferredMethod = 'POST';
-				body = await new MultipartEncoder().encode({
+				const encoder = new MultipartEncoder();
+				body = await encoder.encode({
 					...request.formData,
 					...request.files,
 				});
+				headers[
+					'content-type'
+				] = `multipart/form-data; boundary=${encoder.boundary}`;
 			}
 
 			let scriptPath;
@@ -372,7 +376,7 @@ function seemsLikeADirectoryRoot(path: string) {
 
 class MultipartEncoder {
 	constructor(
-		private boundary: string = `----${Math.random().toString(36).slice(2)}`
+		public boundary: string = `----${Math.random().toString(36).slice(2)}`
 	) {}
 
 	/**
