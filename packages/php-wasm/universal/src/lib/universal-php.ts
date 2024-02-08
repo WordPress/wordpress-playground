@@ -131,7 +131,7 @@ export interface RequestHandler {
 	 * 	headers: {
 	 * 		'X-foo': 'bar',
 	 * 	},
-	 * 	formData: {
+	 * 	body: {
 	 * 		foo: 'bar',
 	 * 	},
 	 * });

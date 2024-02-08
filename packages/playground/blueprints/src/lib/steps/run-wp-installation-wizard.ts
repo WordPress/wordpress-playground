@@ -25,7 +25,7 @@ export const runWpInstallationWizard: StepHandler<
 	await playground.request({
 		url: '/wp-admin/install.php?step=2',
 		method: 'POST',
-		formData: {
+		body: {
 			language: 'en',
 			prefix: 'wp_',
 			weblog_title: 'My WordPress Website',

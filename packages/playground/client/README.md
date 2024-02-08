@@ -33,7 +33,7 @@ console.log(await client.readFileAsText('/index.php'));
 await client.request({
 	url: '/index.php',
 	method: 'POST',
-	formData: {
+	body: {
 		foo: 'bar',
 	},
 });
