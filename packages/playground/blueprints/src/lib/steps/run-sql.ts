@@ -43,7 +43,7 @@ export const runSql: StepHandler<RunSqlStep<File>> = async (
 ) => {
 	progress?.tracker.setCaption(`Executing SQL Queries`);
 
-	const sqlFilename = `/tmp/${randomString(46)}.sql`;
+	const sqlFilename = `/tmp/${randomString()}.sql`;
 
 	await playground.writeFile(
 		sqlFilename,

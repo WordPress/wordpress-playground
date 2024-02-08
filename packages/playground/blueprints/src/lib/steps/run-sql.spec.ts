@@ -16,8 +16,8 @@ describe('Blueprint step runSql', () => {
 
 	it('should split and "run" sql queries', async () => {
 		const docroot = '/wordpress';
-		const sqlFilename = `/tmp/${randomString(46)}.sql`;
-		const resFilename = `/tmp/${randomString(46)}.json`;
+		const sqlFilename = `/tmp/${randomString()}.sql`;
+		const resFilename = `/tmp/${randomString()}.json`;
 		const js = phpVars({ docroot, sqlFilename, resFilename });
 		await php.mkdir(docroot);
 

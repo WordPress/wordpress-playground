@@ -33,7 +33,7 @@ export async function installAsset(
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
 	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
-	const tmpDir = joinPaths(wpContent, randomString(46));
+	const tmpDir = joinPaths(wpContent, randomString());
 	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	if (await playground.fileExists(tmpUnzippedFilesPath)) {
