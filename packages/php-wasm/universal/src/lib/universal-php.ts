@@ -486,14 +486,9 @@ export interface PHPRequest {
 	headers?: PHPRequestHeaders;
 
 	/**
-	 * Uploaded files
-	 */
-	files?: Record<string, File>;
-
-	/**
 	 * Request body without the files.
 	 */
-	body?: string;
+	body?: string | Uint8Array;
 
 	/**
 	 * Form data. If set, the request body will be ignored and
@@ -531,12 +526,7 @@ export interface PHPRunOptions {
 	/**
 	 * Request body without the files.
 	 */
-	body?: string;
-
-	/**
-	 * Uploaded files.
-	 */
-	fileInfos?: FileInfo[];
+	body?: string | Uint8Array;
 
 	/**
 	 * The code snippet to eval instead of a php file.
@@ -562,13 +552,6 @@ export interface PHPOutput {
 
 	/** Stderr lines */
 	stderr: string[];
-}
-
-export interface FileInfo {
-	key: string;
-	name: string;
-	type: string;
-	data: Uint8Array;
 }
 
 export interface RmDirOptions {

@@ -1,5 +1,4 @@
 export type {
-	FileInfo,
 	IsomorphicLocalPHP,
 	IsomorphicRemotePHP,
 	MessageListener,

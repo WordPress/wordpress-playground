@@ -1118,95 +1118,6 @@ bar
 			expect(JSON.parse(bodyText)).toEqual(expectedResult);
 		});
 
-		it('Should expose uploaded files in $_FILES', async () => {
-			const response = await php.run({
-				code: `<?php echo json_encode(array(
-						"files" => $_FILES,
-						"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
-					));`,
-				method: 'POST',
-				fileInfos: [
-					{
-						name: 'text.txt',
-						key: 'myFile',
-						data: new TextEncoder().encode('bar'),
-						type: 'text/plain',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
-				},
-			});
-			const bodyText = new TextDecoder().decode(response.bytes);
-			expect(JSON.parse(bodyText)).toEqual({
-				files: {
-					myFile: {
-						name: 'text.txt',
-						type: 'text/plain',
-						tmp_name: expect.any(String),
-						error: '0',
-						size: '3',
-					},
-				},
-				is_uploaded: true,
-			});
-		});
-
-		it('Should expose both the multipart/form-data request body AND uploaded files in $_FILES', async () => {
-			const response = await php.run({
-				code: `<?php echo json_encode(array(
-						"files" => $_FILES,
-						"is_uploaded1" => is_uploaded_file($_FILES["myFile1"]["tmp_name"]),
-						"is_uploaded2" => is_uploaded_file($_FILES["myFile2"]["tmp_name"])
-					));`,
-				relativeUri: '/',
-				method: 'POST',
-				body: `--boundary
-Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
-Content-Type: text/plain
-
-bar1
---boundary--`,
-				fileInfos: [
-					{
-						name: 'from_files.txt',
-						key: 'myFile2',
-						data: new TextEncoder().encode('bar2'),
-						type: 'application/json',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
-				},
-			});
-			const bodyText = new TextDecoder().decode(response.bytes);
-			const expectedResult = {
-				files: {
-					myFile1: {
-						name: 'from_body.txt',
-						type: 'text/plain',
-						tmp_name: expect.any(String),
-						error: 0,
-						size: 4,
-					},
-					myFile2: {
-						name: 'from_files.txt',
-						type: 'application/json',
-						tmp_name: expect.any(String),
-						error: '0',
-						size: '4',
-					},
-				},
-				is_uploaded1: true,
-				is_uploaded2: true,
-			};
-			if (Number(phpVersion) > 8) {
-				(expectedResult.files.myFile1 as any).full_path =
-					'from_body.txt';
-			}
-			expect(JSON.parse(bodyText)).toEqual(expectedResult);
-		});
-
 		it('Should provide the correct $_SERVER information', async () => {
 			php.writeFile(
 				testScriptPath,
@@ -1222,14 +1133,6 @@ Content-Type: text/plain
 
 bar1
 --boundary--`,
-				fileInfos: [
-					{
-						name: 'from_files.txt',
-						key: 'myFile2',
-						data: new TextEncoder().encode('bar2'),
-						type: 'application/json',
-					},
-				],
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 					Host: 'https://example.com:1235',

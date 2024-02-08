@@ -7,12 +7,7 @@ import {
 } from './urls';
 import { BasePHP, normalizeHeaders } from './base-php';
 import { PHPResponse } from './php-response';
-import {
-	FileInfo,
-	PHPRequest,
-	PHPRunOptions,
-	RequestHandler,
-} from './universal-php';
+import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 
 export interface PHPRequestHandlerConfiguration {
 	/**
@@ -207,36 +202,6 @@ export class PHPRequestHandler implements RequestHandler {
 				host: this.#HOST,
 				...normalizeHeaders(request.headers || {}),
 			};
-			const fileInfos: FileInfo[] = [];
-			if (request.files && Object.keys(request.files).length) {
-				preferredMethod = 'POST';
-				for (const key in request.files) {
-					const file: File = request.files[key];
-					fileInfos.push({
-						key,
-						name: file.name,
-						type: file.type,
-						data: new Uint8Array(await file.arrayBuffer()),
-					});
-				}
-
-				/**
-				 * When the files are present, we can't use the multipart/form-data
-				 * Content-type header. Instead, we rewrite the request body
-				 * to application/x-www-form-urlencoded.
-				 * See the phpwasm_init_uploaded_files_hash() docstring for more details.
-				 */
-				if (
-					headers['content-type']?.startsWith('multipart/form-data')
-				) {
-					request.formData = parseMultipartFormDataString(
-						request.body || ''
-					);
-					headers['content-type'] =
-						'application/x-www-form-urlencoded';
-					delete request.body;
-				}
-			}
 
 			let body;
 			if (request.formData !== undefined) {
@@ -244,9 +209,11 @@ export class PHPRequestHandler implements RequestHandler {
 				headers['content-type'] =
 					headers['content-type'] ||
 					'application/x-www-form-urlencoded';
-				body = new URLSearchParams(
-					request.formData as Record<string, string>
-				).toString();
+				body = new TextEncoder().encode(
+					new URLSearchParams(
+						request.formData as Record<string, string>
+					).toString()
+				);
 			} else {
 				body = request.body;
 			}
@@ -287,7 +254,6 @@ export class PHPRequestHandler implements RequestHandler {
 				protocol: this.#PROTOCOL,
 				method: request.method || preferredMethod,
 				body,
-				fileInfos,
 				scriptPath,
 				headers,
 			});
@@ -327,46 +293,6 @@ export class PHPRequestHandler implements RequestHandler {
 		}
 		throw new Error(`File not found: ${resolvedFsPath}`);
 	}
-}
-
-/**
- * Parses a multipart/form-data string into a key-value object.
- *
- * @param multipartString
- * @returns
- */
-function parseMultipartFormDataString(multipartString: string) {
-	const parsedData: Record<string, string> = {};
-
-	// Extract the boundary from the string
-	const boundaryMatch = multipartString.match(/--(.*)\r\n/);
-	if (!boundaryMatch) {
-		return parsedData;
-	}
-
-	const boundary = boundaryMatch[1];
-
-	// Split the string into parts
-	const parts = multipartString.split(`--${boundary}`);
-
-	// Remove the first and the last part, which are just boundary markers
-	parts.shift();
-	parts.pop();
-
-	// Process each part
-	parts.forEach((part: string) => {
-		const headerBodySplit = part.indexOf('\r\n\r\n');
-		const headers = part.substring(0, headerBodySplit).trim();
-		const body = part.substring(headerBodySplit + 4).trim();
-
-		const nameMatch = headers.match(/name="([^"]+)"/);
-		if (nameMatch) {
-			const name = nameMatch[1];
-			parsedData[name] = body;
-		}
-	});
-
-	return parsedData;
 }
 
 /**
