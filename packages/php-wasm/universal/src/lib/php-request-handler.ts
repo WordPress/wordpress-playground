@@ -205,13 +205,11 @@ export class PHPRequestHandler implements RequestHandler {
 			};
 
 			let body = request.body;
-			if (request.formData) {
+			if (typeof body === 'object' && !(body instanceof Uint8Array)) {
 				preferredMethod = 'POST';
-				const multipart = await encodeAsMultipart({
-					...request.formData,
-				});
-				body = multipart.body;
-				headers['content-type'] = multipart.contentType;
+				const { bytes, contentType } = await encodeAsMultipart(body);
+				body = bytes;
+				headers['content-type'] = contentType;
 			}
 
 			let scriptPath;

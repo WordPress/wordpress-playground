@@ -487,14 +487,10 @@ export interface PHPRequest {
 
 	/**
 	 * Request body.
+	 * If an object is given, the request will be encoded as multipart
+	 * and sent with a `multipart/form-data` header.
 	 */
-	body?: string | Uint8Array;
-
-	/**
-	 * Form data. If set, the request body will be ignored and
-	 * the content-type header will be set to `multipart/form-data`..
-	 */
-	formData?: Record<string, string | Uint8Array | File>;
+	body?: string | Uint8Array | Record<string, string | Uint8Array | File>;
 }
 
 export interface PHPRunOptions {

@@ -33,16 +33,16 @@ export async function encodeAsMultipart(
 	parts.push(`--${boundary}--\r\n`);
 
 	const length = parts.reduce((acc, part) => acc + part.length, 0);
-	const body = new Uint8Array(length);
+	const bytes = new Uint8Array(length);
 	let offset = 0;
 	for (const part of parts) {
-		body.set(
+		bytes.set(
 			typeof part === 'string' ? textEncoder.encode(part) : part,
 			offset
 		);
 		offset += part.length;
 	}
-	return { body, contentType };
+	return { bytes, contentType };
 }
 
 function fileToUint8Array(file: File): Promise<Uint8Array> {
