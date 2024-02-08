@@ -1,5 +1,5 @@
 import type { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths } from '@php-wasm/util';
+import { joinPaths, randomString } from '@php-wasm/util';
 import { unzip } from './unzip';
 
 export interface InstallAssetOptions {
@@ -33,7 +33,7 @@ export async function installAsset(
 	const assetNameGuess = zipFileName.replace(/\.zip$/, '');
 
 	const wpContent = joinPaths(await playground.documentRoot, 'wp-content');
-	const tmpDir = joinPaths(wpContent, crypto.randomUUID());
+	const tmpDir = joinPaths(wpContent, randomString());
 	const tmpUnzippedFilesPath = joinPaths(tmpDir, 'assets', assetNameGuess);
 
 	if (await playground.fileExists(tmpUnzippedFilesPath)) {
