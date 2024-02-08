@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
-import type { Step } from '@wp-playground/blueprints';
+import type { Step, CorePluginReference } from '@wp-playground/blueprints';
 import { getRemoteUrl } from './config';
 
 interface UsePlaygroundOptions {
@@ -44,10 +44,15 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 		const onBlueprintStepError = (step: Step, error: Error) => {
 			if (step.step === 'installPlugin') {
 				// TODO: Open modal to display error message
-				alert(`Failed to install: ${step.pluginZipFile}`);
-			} else {
-				throw error;
+				alert(
+					`Failed to install: ${
+						(step.pluginZipFile as CorePluginReference).slug ||
+						'plugin'
+					}`
+				);
 			}
+
+			// Fall through to step option failMode to abort or skip
 		};
 
 		startPlaygroundWeb({

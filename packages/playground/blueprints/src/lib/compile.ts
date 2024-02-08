@@ -90,7 +90,7 @@ export function compileBlueprint(
 		progress = new ProgressTracker(),
 		semaphore = new Semaphore({ concurrency: 3 }),
 		onStepCompleted = () => {},
-		onStepError = () => {},
+		onStepError,
 		shouldBoot,
 	}: CompileBlueprintOptions = {}
 ): CompiledBlueprint {
@@ -198,7 +198,7 @@ export function compileBlueprint(
 					reject: (error: any) => void;
 				}
 			>();
-			for (const { step } of compiled) {
+			for (const { step, failMode } of compiled) {
 				const promise = new Promise<void>((resolve, reject) => {
 					stepPromises.set(step, { resolve, reject });
 				});
@@ -207,7 +207,7 @@ export function compileBlueprint(
 
 			try {
 				// Start resolving resources early
-				for (const { resources, step } of compiled) {
+				for (const { resources, step, failMode } of compiled) {
 					const stepPromise = stepPromises.get(step);
 					for (const resource of resources) {
 						resource.setPlayground(playground);
@@ -229,11 +229,17 @@ export function compileBlueprint(
 					try {
 						result = await run(playground);
 					} catch (error) {
-						stepPromise?.reject(error);
-						onStepError(step, error);
-						if (failMode === 'abort') {
+						stepPromise?.reject(result);
+						if (onStepError) {
+							onStepError(step, error);
+						} else if (failMode === 'abort') {
 							throw error;
 						}
+						/**
+						 * Skip - This allows the default shouldBoot() below to
+						 * consider the step completed.
+						 */
+						stepStatus.set(step, Promise.resolve());
 						continue;
 					}
 					stepPromise?.resolve(result);
