@@ -86,7 +86,11 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		}
 	}
 
-	const { body, files, contentType } = await rewritePost(event.request);
+	const contentType = event.request.headers.get('content-type')!;
+	const body =
+		event.request.method === 'POST'
+			? new Uint8Array(await event.request.clone().arrayBuffer())
+			: undefined;
 	const requestHeaders: Record<string, string> = {};
 	for (const pair of (event.request.headers as any).entries()) {
 		requestHeaders[pair[0]] = pair[1];
@@ -99,7 +103,6 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 			args: [
 				{
 					body,
-					files,
 					url: url.toString(),
 					method: event.request.method,
 					headers: {
@@ -192,54 +195,6 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 
 interface ServiceWorkerConfiguration {
 	handleRequest?: (event: FetchEvent) => Promise<Response> | undefined;
-}
-
-async function rewritePost(request: Request) {
-	const contentType = request.headers.get('content-type')!;
-	if (request.method !== 'POST') {
-		return {
-			contentType,
-			body: undefined,
-			files: undefined,
-		};
-	}
-
-	// If the request contains multipart form data, rewrite it
-	// to a regular form data and handle files separately.
-	const isMultipart = contentType
-		.toLowerCase()
-		.startsWith('multipart/form-data');
-	if (isMultipart) {
-		try {
-			const formData = (await request.clone().formData()) as any;
-			const post: Record<string, string> = {};
-			const files: Record<string, File> = {};
-
-			for (const key of formData.keys()) {
-				const value = formData.get(key);
-				if (value instanceof File) {
-					files[key] = value;
-				} else {
-					post[key] = value;
-				}
-			}
-
-			return {
-				contentType: 'application/x-www-form-urlencoded',
-				body: new URLSearchParams(post).toString(),
-				files,
-			};
-		} catch (e) {
-			// ignore
-		}
-	}
-
-	// Otherwise, grab body as literal text
-	return {
-		contentType,
-		body: await request.clone().text(),
-		files: {},
-	};
 }
 
 /**

@@ -778,16 +778,12 @@ RUN set -euxo pipefail; \
 "FS", \n\
 "_wasm_set_sapi_name", \n\
 "_php_wasm_init", \n\
-"_phpwasm_destroy_uploaded_files_hash", \n\
-"_phpwasm_init_uploaded_files_hash", \n\
-"_phpwasm_register_uploaded_file", \n\
 "_emscripten_sleep", \n\
 "_wasm_sleep", \n\
 "_wasm_set_phpini_path", \n\
 "_wasm_set_phpini_entries", \n\
 "_wasm_add_SERVER_entry", \n\
 "_wasm_read", \n\
-"_wasm_add_uploaded_file", \n\
 "_wasm_sapi_handle_request", \n\
 "_wasm_set_content_length", \n\
 "_wasm_set_content_type", \n\

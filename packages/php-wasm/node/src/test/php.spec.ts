@@ -857,12 +857,12 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		 */
 		it('Should work with long POST body', () => {
 			php.writeFile(testScriptPath, '<?php echo "Hello world!"; ?>');
-			const body =
+			const body = new Uint8Array(
 				readFileSync(
 					new URL('./test-data/long-post-body.txt', import.meta.url)
-						.pathname,
-					'utf8'
-				) + '';
+						.pathname
+				)
+			);
 			// 0x4000 is SAPI_POST_BLOCK_SIZE
 			expect(body.length).toBeGreaterThan(0x4000);
 			expect(async () => {
@@ -900,7 +900,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		it('Should have access to raw request data via the php://input stream', async () => {
 			const response = await php.run({
 				method: 'POST',
-				body: '{"foo": "bar"}',
+				body: new TextEncoder().encode('{"foo": "bar"}'),
 				code: `<?php echo file_get_contents('php://input');`,
 			});
 			const bodyText = new TextDecoder().decode(response.bytes);
@@ -911,7 +911,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
 			const response = await php.request({
 				url: '/',
-				body: '#'.repeat(1024 * 1024),
+				body: new TextEncoder().encode('#'.repeat(1024 * 1024)),
 			});
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toEqual('Hello World');
@@ -923,7 +923,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
 			const response = await php.request({
 				url: '/',
-				body: '#'.repeat(1024 * 1024 * 512 + -24),
+				body: new TextEncoder().encode(
+					'#'.repeat(1024 * 1024 * 512 + -24)
+				),
 			});
 			expect(response.httpStatusCode).toEqual(200);
 			expect(response.text).toEqual('Hello World');
@@ -1017,7 +1019,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_SERVER);`,
 				method: 'POST',
-				body: 'foo=bar',
+				body: new TextEncoder().encode('foo=bar'),
 				headers: {
 					'Content-Type': 'text/plain',
 					'Content-Length': '15',
@@ -1042,7 +1044,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
 				method: 'POST',
-				body: 'foo=bar',
+				body: new TextEncoder().encode('foo=bar'),
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
@@ -1055,7 +1057,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
 				method: 'POST',
-				body: 'foo[]=bar1&foo[]=bar2&indexed[key]=value',
+				body: new TextEncoder().encode(
+					'foo[]=bar1&foo[]=bar2&indexed[key]=value'
+				),
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
@@ -1070,10 +1074,10 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
 				method: 'POST',
-				body: `--boundary
+				body: new TextEncoder().encode(`--boundary
 Content-Disposition: form-data; name="foo"
 
-bar`,
+bar`),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -1089,12 +1093,12 @@ bar`,
 						"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
 					));`,
 				method: 'POST',
-				body: `--boundary
+				body: new TextEncoder().encode(`--boundary
 Content-Disposition: form-data; name="myFile"; filename="text.txt"
 Content-Type: text/plain
 
 bar
---boundary--`,
+--boundary--`),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 				},
@@ -1118,95 +1122,6 @@ bar
 			expect(JSON.parse(bodyText)).toEqual(expectedResult);
 		});
 
-		it('Should expose uploaded files in $_FILES', async () => {
-			const response = await php.run({
-				code: `<?php echo json_encode(array(
-						"files" => $_FILES,
-						"is_uploaded" => is_uploaded_file($_FILES["myFile"]["tmp_name"])
-					));`,
-				method: 'POST',
-				fileInfos: [
-					{
-						name: 'text.txt',
-						key: 'myFile',
-						data: new TextEncoder().encode('bar'),
-						type: 'text/plain',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
-				},
-			});
-			const bodyText = new TextDecoder().decode(response.bytes);
-			expect(JSON.parse(bodyText)).toEqual({
-				files: {
-					myFile: {
-						name: 'text.txt',
-						type: 'text/plain',
-						tmp_name: expect.any(String),
-						error: '0',
-						size: '3',
-					},
-				},
-				is_uploaded: true,
-			});
-		});
-
-		it('Should expose both the multipart/form-data request body AND uploaded files in $_FILES', async () => {
-			const response = await php.run({
-				code: `<?php echo json_encode(array(
-						"files" => $_FILES,
-						"is_uploaded1" => is_uploaded_file($_FILES["myFile1"]["tmp_name"]),
-						"is_uploaded2" => is_uploaded_file($_FILES["myFile2"]["tmp_name"])
-					));`,
-				relativeUri: '/',
-				method: 'POST',
-				body: `--boundary
-Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
-Content-Type: text/plain
-
-bar1
---boundary--`,
-				fileInfos: [
-					{
-						name: 'from_files.txt',
-						key: 'myFile2',
-						data: new TextEncoder().encode('bar2'),
-						type: 'application/json',
-					},
-				],
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
-				},
-			});
-			const bodyText = new TextDecoder().decode(response.bytes);
-			const expectedResult = {
-				files: {
-					myFile1: {
-						name: 'from_body.txt',
-						type: 'text/plain',
-						tmp_name: expect.any(String),
-						error: 0,
-						size: 4,
-					},
-					myFile2: {
-						name: 'from_files.txt',
-						type: 'application/json',
-						tmp_name: expect.any(String),
-						error: '0',
-						size: '4',
-					},
-				},
-				is_uploaded1: true,
-				is_uploaded2: true,
-			};
-			if (Number(phpVersion) > 8) {
-				(expectedResult.files.myFile1 as any).full_path =
-					'from_body.txt';
-			}
-			expect(JSON.parse(bodyText)).toEqual(expectedResult);
-		});
-
 		it('Should provide the correct $_SERVER information', async () => {
 			php.writeFile(
 				testScriptPath,
@@ -1216,20 +1131,12 @@ bar1
 				scriptPath: testScriptPath,
 				relativeUri: '/test.php?a=b',
 				method: 'POST',
-				body: `--boundary
+				body: new TextEncoder().encode(`--boundary
 Content-Disposition: form-data; name="myFile1"; filename="from_body.txt"
 Content-Type: text/plain
 
 bar1
---boundary--`,
-				fileInfos: [
-					{
-						name: 'from_files.txt',
-						key: 'myFile2',
-						data: new TextEncoder().encode('bar2'),
-						type: 'application/json',
-					},
-				],
+--boundary--`),
 				headers: {
 					'Content-Type': 'multipart/form-data; boundary=boundary',
 					Host: 'https://example.com:1235',

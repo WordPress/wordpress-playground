@@ -16,7 +16,6 @@ export type {
 	PHPRequestHeaders,
 	PHPBrowserConfiguration,
 	SupportedPHPVersion,
-	FileInfo,
 	RmDirOptions,
 	RequestHandler,
 	RuntimeType,

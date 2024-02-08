@@ -555,7 +555,6 @@ typedef struct
 		*php_code;
 
 	struct wasm_array_entry *server_array_entries;
-	struct wasm_uploaded_file *uploaded_files;
 
 	int content_length,
 		request_port,
@@ -662,7 +661,6 @@ void wasm_init_server_context()
 	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
-	wasm_server_context->uploaded_files = NULL;
 }
 
 void wasm_destroy_server_context()
@@ -714,19 +712,6 @@ void wasm_destroy_server_context()
 		free(current_entry);
 		current_entry = next_entry;
 	}
-
-	// Free wasm_server_context->uploaded_files
-	wasm_uploaded_file_t *current_file = wasm_server_context->uploaded_files;
-	while (current_file != NULL)
-	{
-		wasm_uploaded_file_t *next_file = current_file->next;
-		free(current_file->key);
-		free(current_file->name);
-		free(current_file->type);
-		free(current_file->tmp_name);
-		free(current_file);
-		current_file = next_file;
-	}
 }
 
 /**
@@ -753,37 +738,6 @@ void wasm_add_SERVER_entry(char *key, char *value)
 	{
 		wasm_server_context->document_root = strdup(value);
 	}
-}
-
-/**
- * Function: wasm_add_uploaded_file
- * ----------------------------
- *  Adds a new entry to the $_FILES array.
- *
- *  key: the key of the $_FILES entry, e.g. my_file for $_FILES['my_file']
- *  name: the name of the file, e.g. notes.txt
- *  type: the type of the file, e.g. text/plain
- *  tmp_name: the path where the uploaded file is stored, e.g. /tmp/php1234
- *  error: the error code associated with this file upload
- *  size: the size of the file in bytes
- */
-void wasm_add_uploaded_file(
-	char *key,
-	char *name,
-	char *type,
-	char *tmp_name,
-	int error,
-	int size)
-{
-	wasm_uploaded_file_t *entry = (wasm_uploaded_file_t *)malloc(sizeof(wasm_uploaded_file_t));
-	entry->key = strdup(key);
-	entry->name = strdup(name);
-	entry->type = strdup(type);
-	entry->tmp_name = strdup(tmp_name);
-	entry->error = error;
-	entry->size = size;
-	entry->next = wasm_server_context->uploaded_files;
-	wasm_server_context->uploaded_files = entry;
 }
 
 /**
@@ -1020,92 +974,6 @@ static size_t wasm_sapi_read_post_body(char *buffer, size_t count_bytes)
 
 // === FILE UPLOADS SUPPORT ===
 
-/*
- * Function: free_filename
- * ----------------------------
- *   Frees the memory after a zval allocated to store the uploaded
- *   variable name.
- */
-static void free_filename(zval *el)
-{
-	// Uncommenting this code causes a runtime error in the browser:
-	// @TODO evaluate whether keeping it commented leads to a memory leak
-	//       and how to fix it if it does.
-	// zend_string *filename = Z_STR_P(el);
-	// zend_string_release_ex(filename, 0);
-}
-
-/*
- * Function: phpwasm_init_uploaded_files_hash
- * ----------------------------
- *   Allocates an internal HashTable to keep track of the legitimate uploads.
- *
- *   Functions like `is_uploaded_file` or `move_uploaded_file` don't work with
- *   $_FILES entries that are not in an internal hash table – it's a security feature:
- *
- *   > is_uploaded_file
- *   >
- *   > Returns true if the file named by filename was uploaded via HTTP POST. This is
- *   > useful to help ensure that a malicious user hasn't tried to trick the script into
- *   > working on files upon which it should not be working--for instance, /etc/passwd.
- *   >
- *   > This sort of check is especially important if there is any chance that anything
- *   > done with uploaded files could reveal their contents to the user, or even to other
- *   > users on the same system.
- *   >
- *   > For proper working, the function is_uploaded_file() needs an argument like
- *   > $_FILES['userfile']['tmp_name'], - the name of the uploaded file on the client's
- *   > machine $_FILES['userfile']['name'] does not work.
- *
- *   This function allocates that internal hash table.
- *   It must not be called when the Content-type header is
- *   set to multipart/form-data, because then the hash table
- *   will be also initialized by the rfc1867_post_handler. If
- *   both code paths are triggered, PHP will crash with the
- *   following error:
- *
- *   Trace: RuntimeError: unreachable
- *   at zend_mm_panic (wasm://wasm/029f4afa:wasm-function[1027]:0x9c52c)
- *   at _efree (wasm://wasm/029f4afa:wasm-function[102]:0xa53a)
- *   at str_dtor (wasm://wasm/029f4afa:wasm-function[9113]:0x533be1)
- *   at byn$fpcast-emu$str_dtor (wasm://wasm/029f4afa:wasm-function[5714]:0x3ff0fe)
- *   at zend_hash_str_del (wasm://wasm/029f4afa:wasm-function[410]:0x304a9)
- *   at zif_move_uploaded_file (wasm://wasm/029f4afa:wasm-function[7700]:0x4bd986)
- */
-void EMSCRIPTEN_KEEPALIVE phpwasm_init_uploaded_files_hash()
-{
-	HashTable *uploaded_files = NULL;
-	ALLOC_HASHTABLE(uploaded_files);
-	zend_hash_init(uploaded_files, 8, NULL, free_filename, 0);
-	SG(rfc1867_uploaded_files) = uploaded_files;
-}
-
-/*
- * Function: phpwasm_register_uploaded_file
- * ----------------------------
- *   Registers an uploaded file in the internal hash table.
- *
- *   @see phpwasm_init_uploaded_files_hash
- */
-void EMSCRIPTEN_KEEPALIVE phpwasm_register_uploaded_file(char *tmp_path_char)
-{
-	zend_string *tmp_path = zend_string_init(tmp_path_char, strlen(tmp_path_char), 1);
-	zend_hash_add_ptr(SG(rfc1867_uploaded_files), tmp_path, tmp_path);
-}
-
-/*
- * Function: phpwasm_destroy_uploaded_files_hash
- * ----------------------------
- *   Destroys the internal hash table to free the memory and
- *   removes the temporary files from the filesystem.
- *
- *   @see phpwasm_init_uploaded_files_hash
- */
-void EMSCRIPTEN_KEEPALIVE phpwasm_destroy_uploaded_files_hash()
-{
-	destroy_uploaded_files_hash();
-}
-
 /**
  * Function: wasm_sapi_module_startup
  * ----------------------------
@@ -1292,64 +1160,6 @@ int wasm_sapi_request_init()
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
 
-	// Set $_FILES in case any were passed via the wasm_server_context->uploaded_files
-	// linked list
-	wasm_uploaded_file_t *entry = wasm_server_context->uploaded_files;
-	if (entry != NULL)
-	{
-		if (SG(rfc1867_uploaded_files) == NULL)
-		{
-			phpwasm_init_uploaded_files_hash();
-		}
-
-		zval *files = &PG(http_globals)[TRACK_VARS_FILES];
-		int max_param_size = strlen(entry->key) + 11 /*[tmp_name]\0*/;
-		char *param;
-		char *value_buf;
-		while (entry != NULL)
-		{
-			phpwasm_register_uploaded_file(estrdup(entry->tmp_name));
-
-			// Set $_FILES['key']['name']
-			param = malloc(max_param_size);
-			snprintf(param, max_param_size, "%s[name]", entry->key);
-			php_register_variable_safe(param, entry->name, strlen(entry->name), files);
-			free(param);
-
-			// Set $_FILES['key']['tmp_name']
-			param = malloc(max_param_size);
-			snprintf(param, max_param_size, "%s[tmp_name]", entry->key);
-			php_register_variable_safe(param, entry->tmp_name, strlen(entry->tmp_name), files);
-			free(param);
-
-			// Set $_FILES['key']['type']
-			param = malloc(max_param_size);
-			snprintf(param, max_param_size, "%s[type]", entry->key);
-			php_register_variable_safe(param, entry->type, strlen(entry->type), files);
-			free(param);
-
-			// Set $_FILES['key']['error']
-			param = malloc(max_param_size);
-			snprintf(param, max_param_size, "%s[error]", entry->key);
-			value_buf = malloc(4);
-			snprintf(value_buf, 4, "%d", entry->error);
-			php_register_variable_safe(param, value_buf, strlen(value_buf), files);
-			free(value_buf);
-			free(param);
-
-			// Set $_FILES['key']['size']
-			param = malloc(max_param_size);
-			snprintf(param, max_param_size, "%s[size]", entry->key);
-			value_buf = malloc(16);
-			snprintf(value_buf, 16, "%d", entry->size);
-			php_register_variable_safe(param, value_buf, strlen(value_buf), files);
-			free(value_buf);
-			free(param);
-
-			entry = entry->next;
-		}
-	}
-
 	return SUCCESS;
 }
 
@@ -1362,10 +1172,6 @@ int wasm_sapi_request_init()
 void wasm_sapi_request_shutdown()
 {
 	TSRMLS_FETCH();
-	if (SG(rfc1867_uploaded_files) != NULL)
-	{
-		phpwasm_destroy_uploaded_files_hash();
-	}
 	// Destroy the old server context and shutdown the request
 	wasm_destroy_server_context();
 	php_request_shutdown(NULL);

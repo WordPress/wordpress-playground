@@ -44,7 +44,7 @@ export const login: StepHandler<LoginStep> = async (
 	const response = await playground.request({
 		url: '/wp-login.php',
 		method: 'POST',
-		formData: {
+		body: {
 			log: username,
 			pwd: password,
 			rememberme: 'forever',

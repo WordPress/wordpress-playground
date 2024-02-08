@@ -44,7 +44,7 @@ export const importFile: StepHandler<ImportFileStep<File>> = async (
 	const stepOneResponse = await playground.request({
 		url: `/wp-admin/${firstUrlAction}`,
 		method: 'POST',
-		files: { import: file },
+		body: { import: file },
 	});
 
 	// Map authors of imported posts to existing users
@@ -71,7 +71,7 @@ export const importFile: StepHandler<ImportFileStep<File>> = async (
 	await playground.request({
 		url: importForm.action,
 		method: 'POST',
-		formData: data,
+		body: data,
 	});
 };
 
@@ -79,6 +79,6 @@ function DOM(response: PHPResponse) {
 	return new DOMParser().parseFromString(response.text, 'text/html');
 }
 
-function getFormData(form: HTMLFormElement): Record<string, unknown> {
+function getFormData(form: HTMLFormElement): Record<string, string> {
 	return Object.fromEntries((new FormData(form) as any).entries());
 }

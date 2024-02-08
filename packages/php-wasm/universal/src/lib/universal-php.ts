@@ -131,7 +131,7 @@ export interface RequestHandler {
 	 * 	headers: {
 	 * 		'X-foo': 'bar',
 	 * 	},
-	 * 	formData: {
+	 * 	body: {
 	 * 		foo: 'bar',
 	 * 	},
 	 * });
@@ -486,20 +486,11 @@ export interface PHPRequest {
 	headers?: PHPRequestHeaders;
 
 	/**
-	 * Uploaded files
+	 * Request body.
+	 * If an object is given, the request will be encoded as multipart
+	 * and sent with a `multipart/form-data` header.
 	 */
-	files?: Record<string, File>;
-
-	/**
-	 * Request body without the files.
-	 */
-	body?: string;
-
-	/**
-	 * Form data. If set, the request body will be ignored and
-	 * the content-type header will be set to `application/x-www-form-urlencoded`.
-	 */
-	formData?: Record<string, unknown>;
+	body?: string | Uint8Array | Record<string, string | Uint8Array | File>;
 }
 
 export interface PHPRunOptions {
@@ -529,14 +520,9 @@ export interface PHPRunOptions {
 	headers?: PHPRequestHeaders;
 
 	/**
-	 * Request body without the files.
+	 * Request body.
 	 */
-	body?: string;
-
-	/**
-	 * Uploaded files.
-	 */
-	fileInfos?: FileInfo[];
+	body?: string | Uint8Array;
 
 	/**
 	 * The code snippet to eval instead of a php file.
@@ -562,13 +548,6 @@ export interface PHPOutput {
 
 	/** Stderr lines */
 	stderr: string[];
-}
-
-export interface FileInfo {
-	key: string;
-	name: string;
-	type: string;
-	data: Uint8Array;
 }
 
 export interface RmDirOptions {

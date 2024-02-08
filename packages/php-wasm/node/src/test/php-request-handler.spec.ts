@@ -140,7 +140,7 @@ describe.each(SupportedPHPVersions)(
 			 * the Content-type header is set to multipart/form-data. See the
 			 * phpwasm_init_uploaded_files_hash() docstring for more info.
 			 */
-			await php.writeFile(
+			php.writeFile(
 				'/index.php',
 				`<?php 
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
@@ -149,13 +149,8 @@ describe.each(SupportedPHPVersions)(
 			const response = await handler.request({
 				url: '/index.php',
 				method: 'POST',
-				files: {
-					myFile: new File(['Hello World'], 'text.txt', {
-						type: 'text/plain',
-					}),
-				},
-				headers: {
-					'Content-Type': 'multipart/form-data; boundary=boundary',
+				body: {
+					myFile: new File(['bar'], 'bar.txt'),
 				},
 			});
 			expect(response.text).toEqual('true');
@@ -170,7 +165,6 @@ describe.each(SupportedPHPVersions)(
 			const response = await handler.request({
 				url: '/index.php',
 				method: 'POST',
-				files: {},
 				body: 'foo=bar',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
