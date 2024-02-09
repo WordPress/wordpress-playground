@@ -1101,6 +1101,48 @@
 						}
 					},
 					"required": ["data", "path", "step"]
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"progress": {
+							"type": "object",
+							"properties": {
+								"weight": {
+									"type": "number"
+								},
+								"caption": {
+									"type": "string"
+								}
+							},
+							"additionalProperties": false
+						},
+						"step": {
+							"type": "string",
+							"const": "wp-cli",
+							"description": "The step identifier."
+						},
+						"command": {
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							],
+							"description": "The WP CLI command to run."
+						},
+						"wpCliPath": {
+							"type": "string",
+							"description": "wp-cli.phar path"
+						}
+					},
+					"required": ["command", "step"]
 				}
 			]
 		},
