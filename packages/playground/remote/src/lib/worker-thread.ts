@@ -25,13 +25,19 @@ import {
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import {
-	defineSiteUrl,
-	linkSnapshot,
-	setSnapshot,
-} from '@wp-playground/blueprints';
 
 import { joinPaths } from '@php-wasm/util';
+import { defineWpConfigConsts } from '@wp-playground/blueprints';
+import {
+	backfillDatabase,
+	backfillWordPressCore,
+	backfillWpConfig,
+	unzipSnapshot,
+} from './worker-libs/setup-snapshot';
+import {
+	backfillPlaygroundMuPlugin,
+	backfillSqliteMuPlugin,
+} from './worker-libs/setup-mu-plugins';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -92,19 +98,20 @@ const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
 
 // Start downloading WordPress if needed
-let wordPressRequest = null;
+let snapshotRequest = null;
+let wpCoreRequest = null;
 if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = monitor.monitorFetch(fetch(requestedWPVersion));
-	} else {
-		const wpDetails = getWordPressModuleDetails(wpVersion);
-		monitor.expectAssets({
-			[wpDetails.url]: wpDetails.size,
-		});
-		wordPressRequest = monitor.monitorFetch(fetch(wpDetails.url));
+		snapshotRequest = monitor.monitorFetch(fetch(requestedWPVersion));
 	}
+
+	const wpDetails = getWordPressModuleDetails(wpVersion);
+	monitor.expectAssets({
+		[wpDetails.url]: wpDetails.size,
+	});
+	wpCoreRequest = monitor.monitorFetch(fetch(wpDetails.url));
 }
 
 const php = new WebPHP(undefined, {
@@ -230,19 +237,29 @@ try {
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
-	const docroot = php.documentRoot;
+	php.mkdir(php.documentRoot);
 
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		const snapshot = new File(
-			[await (await wordPressRequest!).blob()],
+		if (snapshotRequest) {
+			const snapshotZip = new File(
+				[await (await snapshotRequest!).blob()],
+				'snapshot.zip'
+			);
+			await unzipSnapshot(php, snapshotZip);
+		}
+		const wpCoreZip = new File(
+			[await (await wpCoreRequest!).blob()],
 			'wp.zip'
 		);
-		await setSnapshot(php, snapshot);
+		await backfillWordPressCore(php, wpCoreZip);
 	}
 
-	await linkSnapshot(php);
+	await backfillWpConfig(php);
+	await backfillSqliteMuPlugin(php);
+	await backfillPlaygroundMuPlugin(php);
+	await backfillDatabase(php);
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
@@ -253,11 +270,17 @@ try {
 	}
 
 	// Create phpinfo.php
+	const docroot = php.documentRoot;
 	php.writeFile(joinPaths(docroot, 'phpinfo.php'), '<?php phpinfo(); ');
 
 	// Always setup the current site URL.
-	await defineSiteUrl(php, {
-		siteUrl: scopedSiteUrl,
+	await defineWpConfigConsts(php, {
+		consts: {
+			WP_HOME: scopedSiteUrl,
+			WP_SITEURL: scopedSiteUrl,
+			// Needed when using the minified WordPress build.
+			CONCATENATE_SCRIPTS: false,
+		},
 	});
 
 	// Spawning new processes on the web is not supported,

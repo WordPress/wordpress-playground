@@ -7,9 +7,9 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { UniversalPHP, writeFiles } from '@php-wasm/universal';
-import { unzip } from './steps/unzip';
+import { unzip } from '@wp-playground/php-bridge';
 
-export async function installPlaygroundMuPlugin(php: UniversalPHP) {
+export async function backfillPlaygroundMuPlugin(php: UniversalPHP) {
 	const muPluginsPath = joinPaths(
 		await php.documentRoot,
 		'wp-content/mu-plugins/'
@@ -21,11 +21,8 @@ export async function installPlaygroundMuPlugin(php: UniversalPHP) {
 	});
 }
 
-export async function installSqliteMuPlugin(
-	php: UniversalPHP,
-	snapshotPath: string
-) {
-	await ensureSqliteMuPlugin(php, snapshotPath);
+export async function backfillSqliteMuPlugin(php: UniversalPHP) {
+	await ensureSqliteMuPlugin(php);
 	await activateSqliteMuPlugin(php);
 }
 
@@ -38,26 +35,29 @@ export async function installSqliteMuPlugin(
  * The same logic is present in packages/playground/wordpress/build/Dockerfile
  * be sure to keep it in sync.
  */
-async function ensureSqliteMuPlugin(php: UniversalPHP, snapshotPath: string) {
+async function ensureSqliteMuPlugin(php: UniversalPHP) {
+	const documentRoot = await php.documentRoot;
+
 	const sqliteMuPluginPath = 'wp-content/plugins/sqlite-database-integration';
-	if (await php.fileExists(joinPaths(snapshotPath, sqliteMuPluginPath))) {
+	if (await php.fileExists(joinPaths(documentRoot, sqliteMuPluginPath))) {
 		// The SQLite plugin is present in the imported snapshot, we're good.
 		return false;
 	}
 
 	// Otherwise, let's download and install the SQLite plugin
-	const muPluginsPath = joinPaths(snapshotPath, 'wp-content/mu-plugins/');
+	const muPluginsPath = joinPaths(documentRoot, 'wp-content/mu-plugins/');
 	const plugin = await fetch(
 		'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip'
 	);
-	await unzip(php, {
-		// The zip file contains a directory with the same name as the plugin.
-		extractToPath: muPluginsPath,
-		zipFile: new File(
+	await unzip(
+		php,
+		new File(
 			[await plugin.blob()],
 			'sqlite-database-integration.latest.zip'
 		),
-	});
+		// The zip file contains a directory with the same name as the plugin.
+		muPluginsPath
+	);
 
 	return true;
 }

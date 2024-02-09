@@ -1,7 +1,7 @@
 import { joinPaths, phpVars } from '@php-wasm/util';
 import { UniversalPHP } from '@php-wasm/universal';
 import { wpContentFilesExcludedFromExport } from '../utils/wp-content-files-excluded-from-exports';
-import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
+// import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
 
 interface ZipWpContentOptions {
 	/**
@@ -59,14 +59,14 @@ export const zipWpContent = async (
 			  }
 			: {},
 	});
-	await runPhpWithZipFunctions(
-		playground,
-		`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
-			'exclude_paths' => ${js.exceptPaths},
-			'zip_root'      => ${js.documentRoot},
-			'additional_paths' => ${js.additionalPaths}
-		));`
-	);
+	// await runPhpWithZipFunctions(
+	// 	playground,
+	// 	`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
+	// 		'exclude_paths' => ${js.exceptPaths},
+	// 		'zip_root'      => ${js.documentRoot},
+	// 		'additional_paths' => ${js.additionalPaths}
+	// 	));`
+	// );
 
 	const fileBuffer = await playground.readFileAsBuffer(zipPath);
 	playground.unlink(zipPath);

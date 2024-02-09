@@ -29,7 +29,7 @@ export interface WriteFilesOptions {
 export async function writeFiles(
 	php: UniversalPHP,
 	root: string,
-	newFiles: Record<string, Uint8Array | string>,
+	newFiles: Record<string, File | Uint8Array | string>,
 	{ rmRoot = false }: WriteFilesOptions = {}
 ) {
 	if (rmRoot) {
@@ -37,11 +37,22 @@ export async function writeFiles(
 			await php.rmdir(root, { recursive: true });
 		}
 	}
+	await php.mkdir(root);
 	for (const [relativePath, content] of Object.entries(newFiles)) {
 		const filePath = joinPaths(root, relativePath);
 		if (!(await php.fileExists(dirname(filePath)))) {
 			await php.mkdir(dirname(filePath));
 		}
-		await php.writeFile(filePath, content);
+		const finalContent =
+			content instanceof File
+				? new Uint8Array(await content.arrayBuffer())
+				: content;
+		await php.writeFile(filePath, finalContent);
 	}
+
+	const paths: Record<string, string> = {};
+	for (const [relativePath] of Object.entries(newFiles)) {
+		paths[relativePath] = joinPaths(root, relativePath);
+	}
+	return paths;
 }

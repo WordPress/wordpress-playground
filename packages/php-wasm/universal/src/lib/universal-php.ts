@@ -544,6 +544,11 @@ export interface PHPRunOptions {
 	code?: string;
 
 	/**
+	 * The variables to pass to the PHP code.
+	 */
+	variables?: Record<string, any>;
+
+	/**
 	 * Whether to throw an error if the PHP process exits with a non-zero code
 	 * or outputs to stderr.
 	 */

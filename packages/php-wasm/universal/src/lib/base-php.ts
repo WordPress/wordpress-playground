@@ -28,7 +28,12 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	createSpawnHandler,
+	joinPaths,
+	phpVars,
+} from '@php-wasm/util';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -267,7 +272,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				}
 			}
 			if (typeof request.code === 'string') {
-				this.#setPHPCode(' ?>' + request.code);
+				const js = phpVars(request.variables || {});
+				const phpVariablesDeclarations = Object.entries(js)
+					.map(([key, value]) => `$${key} = ${value};`)
+					.join('\n');
+				this.#setPHPCode(
+					` ${phpVariablesDeclarations} ?>${request.code}`
+				);
 			}
 			this.#addServerGlobalEntriesInWasm();
 			const response = await this.#handleRequest();

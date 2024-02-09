@@ -58,17 +58,40 @@ function join_paths()
     return preg_replace('#/+#', '/', join('/', $paths));
 }
 
-function unzip($zipPath, $extractTo, $overwrite = true)
+function unzip($zipPath, $extractTo, $options = array())
 {
+    $except = array_key_exists('except', $options) ? $options['except'] : array();
     if (!is_dir($extractTo)) {
         mkdir($extractTo, 0777, true);
     }
     $zip = new ZipArchive;
     $res = $zip->open($zipPath);
-    if ($res === TRUE) {
-        $zip->extractTo($extractTo);
-        $zip->close();
+    try {
+        if ($res !== TRUE) {
+            throw new Exception("Unable to open zip file: $zipPath");
+        }
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+            foreach ($except as $e) {
+                if (preg_match($e, $filename) === 1) {
+                    continue 2;
+                }
+            }
+            echo $filename . "\n";
+            $fileInfo = pathinfo($filename);
+            if (!empty($fileInfo['dirname'])) {
+                $dir = join_paths($extractTo, $fileInfo['dirname']);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0777, true);
+                }
+            }
+            $zip->extractTo($extractTo, $filename);
+        }
+        
         chmod($extractTo, 0777);
+    } finally {
+        $zip->close();
     }
 }
 

@@ -3,10 +3,6 @@ import { unzip } from './unzip';
 import { basename, joinPaths } from '@php-wasm/util';
 import { UniversalPHP, currentJsRuntime } from '@php-wasm/universal';
 import { defineSiteUrl } from './define-site-url';
-import {
-	installPlaygroundMuPlugin,
-	installSqliteMuPlugin,
-} from '../setup-mu-plugins';
 import { runWpInstallationWizard } from './run-wp-installation-wizard';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 
@@ -87,10 +83,7 @@ async function unzipSnapshot(
 	pathInZip = '',
 	targetPath: string
 ) {
-	await unzip(php, {
-		zipFile: snapshotZip,
-		extractToPath: targetPath,
-	});
+	// await unzip(php, snapshotZip, targetPath);
 
 	// Find WordPress core files in the extracted snapshot.
 	let importedFilesPath = targetPath;
@@ -252,8 +245,8 @@ export async function linkSnapshot(php: UniversalPHP) {
 	// the browser.
 	if (currentJsRuntime === 'WEB' || currentJsRuntime === 'WORKER') {
 		const documentRoot = await php.documentRoot;
-		await installSqliteMuPlugin(php, documentRoot);
-		await installPlaygroundMuPlugin(php);
+		// await installSqliteMuPlugin(php, documentRoot);
+		// await installPlaygroundMuPlugin(php);
 
 		// Run the installation wizard if the database is missing
 		const dbExists = await php.fileExists(

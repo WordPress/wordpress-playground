@@ -4,10 +4,6 @@ import '@php-wasm/node-polyfills';
 export * from './lib/steps';
 export * from './lib/steps/handlers';
 export { linkSnapshot, setSnapshot } from './lib/steps/import-wordpress-files';
-export {
-	installPlaygroundMuPlugin,
-	installSqliteMuPlugin,
-} from './lib/setup-mu-plugins';
 export { runBlueprintSteps, compileBlueprint } from './lib/compile';
 export type { Blueprint } from './lib/blueprint';
 export type {
