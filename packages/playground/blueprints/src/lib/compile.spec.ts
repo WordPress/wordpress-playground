@@ -36,6 +36,20 @@ describe('Blueprints', () => {
 		);
 	});
 
+	it('should compile resources defined as string', async () => {
+		const compiled = compileBlueprint({
+			steps: [
+				{
+					step: 'runSql',
+					sql: 'https://playground.wordpress.net/no-such-file.sql',
+				},
+			],
+		});
+
+		const promise = runBlueprintSteps(compiled, php);
+		expect(promise).rejects.toThrow(/Error when executing the blueprint/);
+	});
+
 	it('should define the consts in a json and auto load the defined constants', async () => {
 		// Define the constants to be tested
 		const consts = {

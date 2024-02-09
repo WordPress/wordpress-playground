@@ -54,15 +54,29 @@ export type FileReference =
 	| LiteralReference
 	| CoreThemeReference
 	| CorePluginReference
-	| UrlReference;
+	| UrlReference
+	| string;
 
 export function isFileReference(ref: any): ref is FileReference {
-	return (
+	if (
 		ref &&
 		typeof ref === 'object' &&
 		typeof ref.resource === 'string' &&
 		ResourceTypes.includes(ref.resource)
-	);
+	) {
+		return true;
+	}
+
+	try {
+		if (typeof ref === 'string') {
+			new URL(ref);
+			return true;
+		}
+	} catch (e) {
+		// ignore
+	}
+
+	return false;
 }
 
 export interface ResourceOptions {
@@ -90,24 +104,28 @@ export abstract class Resource {
 		{ semaphore, progress }: ResourceOptions
 	): Resource {
 		let resource: Resource;
-		switch (ref.resource) {
-			case 'vfs':
-				resource = new VFSResource(ref, progress);
-				break;
-			case 'literal':
-				resource = new LiteralResource(ref, progress);
-				break;
-			case 'wordpress.org/themes':
-				resource = new CoreThemeResource(ref, progress);
-				break;
-			case 'wordpress.org/plugins':
-				resource = new CorePluginResource(ref, progress);
-				break;
-			case 'url':
-				resource = new UrlResource(ref, progress);
-				break;
-			default:
-				throw new Error(`Invalid resource: ${ref}`);
+		if (typeof ref === 'string') {
+			resource = new UrlResource({ resource: 'url', url: ref }, progress);
+		} else {
+			switch (ref.resource) {
+				case 'vfs':
+					resource = new VFSResource(ref, progress);
+					break;
+				case 'literal':
+					resource = new LiteralResource(ref, progress);
+					break;
+				case 'wordpress.org/themes':
+					resource = new CoreThemeResource(ref, progress);
+					break;
+				case 'wordpress.org/plugins':
+					resource = new CorePluginResource(ref, progress);
+					break;
+				case 'url':
+					resource = new UrlResource(ref, progress);
+					break;
+				default:
+					throw new Error(`Invalid resource: ${ref}`);
+			}
 		}
 		resource = new CachedResource(resource);
 
