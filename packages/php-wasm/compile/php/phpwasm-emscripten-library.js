@@ -335,7 +335,10 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr, argsArray);
+				cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+				if (cp instanceof Promise) {
+					cp = await cp;
+				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
 					wakeUp(1);
@@ -418,7 +421,8 @@ const LibraryExample = {
 			 * Wait until the child process has been spawned.
 			 * Unfortunately there is no Node.js API to check whether
 			 * the process has already been spawned. We can only listen
-			 * to the 'spawn' event and hope that it wasn't fired yet.
+			 * to the 'spawn' event and if it has already been spawned,
+			 * listen to the 'exit' event.
 			 */
 			try {
 				await new Promise((resolve, reject) => {
@@ -820,7 +824,10 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = await PHPWASM.spawnProcess(cmdstr, []);
+				cp = PHPWASM.spawnProcess(cmdstr, []);
+				if (cp instanceof Promise) {
+					cp = await cp;
+				}
 			} catch (e) {
 				console.error(e);
 				if (e.code === 'SPAWN_UNSUPPORTED') {
