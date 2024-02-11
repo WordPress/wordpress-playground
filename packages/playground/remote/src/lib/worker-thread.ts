@@ -9,6 +9,7 @@ import {
 	SupportedWordPressVersionsList,
 } from '@wp-playground/wordpress';
 import {
+	PHPResponse,
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
@@ -299,23 +300,17 @@ try {
 		joinPaths(docroot, 'spawn.php'),
 		`<?php
 		echo "<plaintext>";
-		echo "Spawning\n";
-		$handle = proc_open('php child.php', [
+		echo "Spawning /wordpress/child.php\n";
+		$handle = proc_open('php /wordpress/child.php', [
 			0 => ['pipe', 'r'],
 			1 => ['pipe', 'w'],
 			2 => ['pipe', 'w'],
 		], $pipes);
-		$stdout = stream_get_contents($pipes[1]);
-		$stderr = stream_get_contents($pipes[2]);
 
-		// $status = proc_get_status($handle);
-		// $exit_code = proc_close($handle);
-		// var_dump($status);
-		// var_dump($exit_code);
-		var_dump($stdout);
-		var_dump($stderr);
+		echo "stdout: " . stream_get_contents($pipes[1]) . "\n";
+		echo "stderr: " . stream_get_contents($pipes[2]) . "\n";
 		echo "Finished\n";
-		echo "Created file: " . file_get_contents("/wordpress/new.txt") . "\n";
+		echo "Contents of the created file: " . file_get_contents("/wordpress/new.txt") . "\n";
 		`
 	);
 
@@ -323,10 +318,15 @@ try {
 		joinPaths(docroot, 'child.php'),
 		`<?php
 		echo "<plaintext>";
-		echo "Spawned, running\n";
-		file_put_contents("/wordpress/new.txt", "Hello, world!");
+		echo "Spawned, running";
+		error_log("Here's a message logged to stderr! " . rand());
+		file_put_contents("/wordpress/new.txt", "Hello, world!" . rand() . "\n");
 		`
 	);
+
+	// PHP Subprocess to handle proc_open("php");
+	// @TODO: Use this also for HTTP Requests
+	let childPHP: WebPHP | undefined = undefined;
 
 	// Spawning new processes on the web is not supported,
 	// let's always fail.
@@ -355,31 +355,44 @@ try {
 				processApi.exit(0);
 				return;
 			} else if (command === 'php') {
-				const runtime = await recreateRuntime();
-				const childPHP = new WebPHP(runtime, {
-					documentRoot: DOCROOT,
-					absoluteUrl: scopedSiteUrl,
-				});
+				if (!childPHP) {
+					childPHP = new WebPHP(await recreateRuntime(), {
+						documentRoot: DOCROOT,
+						absoluteUrl: scopedSiteUrl,
+					});
+				} else {
+					try {
+						// Remove the document root to ensure that the
+						// child PHP instance is in a clean state.
+						childPHP.rmdir(childPHP.documentRoot);
+					} catch (e) {
+						// Ignore errors
+					}
+				}
 				let unbind = () => {};
+				let result: PHPResponse | undefined = undefined;
 				try {
-					console.log('Before syncFS');
 					syncFSTo(php, childPHP);
 					unbind = journalFSEventsToPhp(
 						childPHP,
 						php,
 						childPHP.documentRoot
 					);
-					const result = await childPHP.run({
+					result = await childPHP.run({
 						throwOnError: true,
 						scriptPath: args[0],
 					});
 					processApi.stdout(result.bytes);
 					processApi.stderr(result.errors);
 					processApi.exit(result.exitCode);
+				} catch (e) {
+					console.error('Error in childPHP:', e);
+					if (e instanceof Error) {
+						processApi.stderr(e.message);
+					}
+					processApi.exit(1);
 				} finally {
-					console.log('Exiting childPHP');
 					unbind();
-					childPHP.exit();
 				}
 			} else {
 				console.error('Unsupported command:', command);

@@ -249,6 +249,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#initWebRuntime();
 				this.#webSapiInitialized = true;
 			}
+			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
+				throw new Error(
+					`The script path "${request.scriptPath}" does not exist.`
+				);
+			}
 			this.#setScriptPath(request.scriptPath || '');
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
