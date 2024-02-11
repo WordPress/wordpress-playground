@@ -13,6 +13,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 	rotatePHPRuntime,
+	syncFSTo,
 	writeFiles,
 } from '@php-wasm/universal';
 import { createSpawnHandler } from '@php-wasm/util';
@@ -39,6 +40,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
+import { journalFSEventsToPhp } from './opfs/journal-fs-to-php';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -293,12 +295,49 @@ try {
 		siteUrl: scopedSiteUrl,
 	});
 
+	php.writeFile(
+		joinPaths(docroot, 'spawn.php'),
+		`<?php
+		echo "<plaintext>";
+		echo "Spawning\n";
+		$handle = proc_open('php child.php', [
+			0 => ['pipe', 'r'],
+			1 => ['pipe', 'w'],
+			2 => ['pipe', 'w'],
+		], $pipes);
+		$stdout = stream_get_contents($pipes[1]);
+		$stderr = stream_get_contents($pipes[2]);
+
+		// $status = proc_get_status($handle);
+		// $exit_code = proc_close($handle);
+		// var_dump($status);
+		// var_dump($exit_code);
+		var_dump($stdout);
+		var_dump($stderr);
+		echo "Finished\n";
+		echo "Created file: " . file_get_contents("/wordpress/new.txt") . "\n";
+		`
+	);
+
+	php.writeFile(
+		joinPaths(docroot, 'child.php'),
+		`<?php
+		echo "<plaintext>";
+		echo "Spawned, running\n";
+		file_put_contents("/wordpress/new.txt", "Hello, world!");
+		`
+	);
+
 	// Spawning new processes on the web is not supported,
 	// let's always fail.
 	php.setSpawnHandler(
-		createSpawnHandler(function (command, processApi) {
+		createSpawnHandler(async function ([command, ...args], processApi) {
 			// Mock programs required by wp-cli:
-			if (command.startsWith('/usr/bin/env stty size ')) {
+			if (
+				command === '/usr/bin/env' &&
+				args[0] === 'stty' &&
+				args[1] === 'size'
+			) {
 				// These numbers are hardcoded because this
 				// spawnHandler is transmitted as a string to
 				// the PHP backend and has no access to local
@@ -307,13 +346,43 @@ try {
 				// @TODO: Do not hardcode this
 				processApi.stdout(`18 140`);
 				processApi.exit(0);
-			} else if (command.startsWith('less')) {
+				return;
+			} else if (command === 'less') {
 				processApi.on('stdin', (data: Uint8Array) => {
 					processApi.stdout(data);
 				});
 				processApi.flushStdin();
 				processApi.exit(0);
+				return;
+			} else if (command === 'php') {
+				const runtime = await recreateRuntime();
+				const childPHP = new WebPHP(runtime, {
+					documentRoot: DOCROOT,
+					absoluteUrl: scopedSiteUrl,
+				});
+				let unbind = () => {};
+				try {
+					console.log('Before syncFS');
+					syncFSTo(php, childPHP);
+					unbind = journalFSEventsToPhp(
+						childPHP,
+						php,
+						childPHP.documentRoot
+					);
+					const result = await childPHP.run({
+						throwOnError: true,
+						scriptPath: args[0],
+					});
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+				} finally {
+					console.log('Exiting childPHP');
+					unbind();
+					childPHP.exit();
+				}
 			} else {
+				console.error('Unsupported command:', command);
 				processApi.exit(1);
 			}
 		})

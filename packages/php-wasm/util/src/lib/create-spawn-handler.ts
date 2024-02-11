@@ -1,3 +1,5 @@
+import { splitShellCommand } from './split-shell-command';
+
 type Listener = (...args: any[]) => any;
 
 /**
@@ -15,14 +17,18 @@ type Listener = (...args: any[]) => any;
  * @returns
  */
 export function createSpawnHandler(
-	program: (command: string, processApi: ProcessApi) => void
+	program: (command: string[], processApi: ProcessApi) => void | Promise<void>
 ): any {
-	return function (command: string) {
+	return function (command: string | string[]) {
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
 		setTimeout(async () => {
-			await program(command, processApi);
+			const commandArray =
+				typeof command === 'string'
+					? splitShellCommand(command)
+					: command;
+			await program(commandArray, processApi);
 			childProcess.emit('spawn', true);
 		});
 		return childProcess;

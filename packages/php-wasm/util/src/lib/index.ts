@@ -5,5 +5,6 @@ export { dirname, joinPaths, basename, normalizePath } from './paths';
 export { createSpawnHandler } from './create-spawn-handler';
 export { randomString } from './random-string';
 export { randomFilename } from './random-filename';
+export { splitShellCommand } from './split-shell-command';
 
 export * from './php-vars';
