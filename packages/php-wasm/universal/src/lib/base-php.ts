@@ -28,6 +28,7 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import { LogSeverity, get_logger } from './logger';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -264,21 +265,28 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#setPHPCode(' ?>' + request.code);
 			}
 			this.#addServerGlobalEntriesInWasm();
-			const response = await this.#handleRequest();
-			if (request.throwOnError && response.exitCode !== 0) {
-				const output = {
-					stdout: response.text,
-					stderr: response.errors,
-				};
-				console.warn(`PHP.run() output was:`, output);
-				const error = new Error(
-					`PHP.run() failed with exit code ${response.exitCode} and the following output`
+			try {
+				const response = await this.#handleRequest();
+				if (request.throwOnError && response.exitCode !== 0) {
+					const output = {
+						stdout: response.text,
+						stderr: response.errors,
+					};
+					console.warn(`PHP.run() output was:`, output);
+					const error = new Error(
+						`PHP.run() failed with exit code ${response.exitCode} and the following output`
+					);
+					// @ts-ignore
+					error.output = output;
+					throw error;
+				}
+				return response;
+			} catch (e: any) {
+				get_logger(this).log(
+					e.message,
+					LogSeverity.Error,
 				);
-				// @ts-ignore
-				error.output = output;
-				throw error;
 			}
-			return response;
 		} finally {
 			try {
 				if (heapBodyPointer) {
@@ -770,6 +778,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// runtime.
 		const oldFS = this[__private__dont__use].FS;
 
+		console.log('PHP runtime exited');
 		// Kill the current runtime
 		try {
 			this.exit();
@@ -799,6 +808,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	exit(code = 0) {
+		console.log('PHP exit()');
 		this.dispatchEvent({
 			type: 'runtime.beforedestroy',
 		});
