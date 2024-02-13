@@ -22,7 +22,7 @@ export async function encodeAsMultipart(
 		if (value instanceof File) {
 			parts.push(`Content-Type: application/octet-stream`);
 		}
-		parts.push(`\r\n\r\n`);
+		parts.push(`\r\n`);
 		if (value instanceof File) {
 			parts.push(await fileToUint8Array(value));
 		} else {

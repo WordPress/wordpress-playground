@@ -210,6 +210,7 @@ export class PHPRequestHandler implements RequestHandler {
 				const { bytes, contentType } = await encodeAsMultipart(body);
 				body = bytes;
 				headers['content-type'] = contentType;
+				// console.log('body', new TextDecoder().decode(body) )
 			}
 
 			let scriptPath;
