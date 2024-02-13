@@ -21,6 +21,7 @@ export async function encodeAsMultipart(
 		parts.push(`\r\n`);
 		if (value instanceof File) {
 			parts.push(`Content-Type: application/octet-stream`);
+			parts.push(`\r\n`);
 		}
 		parts.push(`\r\n`);
 		if (value instanceof File) {
