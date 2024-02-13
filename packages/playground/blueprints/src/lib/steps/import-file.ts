@@ -31,10 +31,8 @@ export interface ImportFileStep<ResourceType> {
  */
 export const importFile: StepHandler<ImportFileStep<File>> = async (
 	playground,
-	{ file },
-	progress?
+	{ file }
 ) => {
-	progress?.tracker?.setCaption('Importing content');
 	const importerPageOneResponse = await playground.request({
 		url: '/wp-admin/admin.php?import=wordpress',
 	});
@@ -70,18 +68,11 @@ export const importFile: StepHandler<ImportFileStep<File>> = async (
 		}
 	}
 
-	const importResult = await playground.request({
+	await playground.request({
 		url: importForm.action,
 		method: 'POST',
 		body: data,
 	});
-	if (!importResult.text.includes('All done.')) {
-		console.warn('WordPress response was: ', {
-			text: importResult.text,
-			errors: importResult.errors,
-		});
-		throw new Error('Import failed, see console for details.');
-	}
 };
 
 function DOM(response: PHPResponse) {
