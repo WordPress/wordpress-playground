@@ -1,38 +1,35 @@
 <?php
-
 // Configure error logging
-// $log_file = WP_CONTENT_DIR . '/debug.log';
+// @TODO use the WordPress directory
 $log_file = '/tmp/debug.log';
 error_reporting(E_ALL);
 define('ERROR_LOG_FILE', $log_file);
 ini_set('error_log', $log_file);
-ini_set("display_errors", "off");
 
 /**
- * Get OpenTracing severity number from PHP error code
+ * Get OpenTracing severity text from PHP error code
  *
  * @param int $code PHP error code
- * @return int OpenTracing severity number
+ * @return int OpenTracing severity text
  */
-function get_severity_number($code)
+function get_severity_text($code)
 {
-    // @TODO Update numbers
     switch ($code) {
         case E_ERROR:
         case E_CORE_ERROR:
         case E_COMPILE_ERROR:
         case E_USER_ERROR:
-            return 17;
+            return 'Error';
         case E_WARNING:
         case E_CORE_WARNING:
         case E_COMPILE_WARNING:
         case E_USER_WARNING:
-            return 13;
+            return 'Warning';
         case E_NOTICE:
         case E_USER_NOTICE:
-            return 9;
+            return 'Info';
         default:
-            return 5;
+            return 'Debug';
     }
 }
 
@@ -45,7 +42,7 @@ function playground_error_handler($errno, $errstr, $errfile, $errline)
         json_encode([
             'event' => 'wordpress-log',
             'timestamp' => time(),
-            'severityNumber' => get_severity_number($errno),
+            'severityText' => get_severity_text($errno),
             'body' => "$errstr in $errfile on line $errline",
         ])
     );
@@ -66,5 +63,3 @@ function collect_last_error_on_shutdown()
 }
 
 register_shutdown_function('collect_last_error_on_shutdown');
-
-error_log('playground-mu-plugin loaded');

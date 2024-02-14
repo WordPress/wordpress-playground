@@ -282,10 +282,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				}
 				return response;
 			} catch (e: any) {
-				get_logger(this).log(
-					e.message,
-					LogSeverity.Error,
-				);
+				get_logger(this).log({
+					body: e.message,
+					severityNumber: LogSeverity.Error,
+					resource: 'php',
+				});
 			}
 		} finally {
 			try {

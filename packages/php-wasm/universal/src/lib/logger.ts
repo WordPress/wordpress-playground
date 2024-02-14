@@ -1,3 +1,4 @@
+import { BasePHP } from "./base-php";
 import { UniversalPHP } from "./universal-php";
 
 export enum LogSeverity {
@@ -15,97 +16,116 @@ export enum LogSeverity {
     Fatal = 21,
 }
 
+// Log format based on OpenTelemetry https://opentelemetry.io/docs/specs/otel/logs/data-model/
 export type Log = {
     // Time when the event occurred.
-    timestamp: number;
+    timestamp?: number;
     // Time when the event was observed.
-    observedTimestamp: number;
+    observedTimestamp?: number;
     // Request trace id.
-    traceId: number;
+    traceId?: number;
     // Request span id.
-    spanId: number; // Not implemented
+    spanId?: number; // Not implemented
     // W3C trace flag.
-    traceFlags: number;
+    traceFlags?: number;
     // The severity text (also known as log level).
-    severityText: string;
+    severityText?: string;
     // Numerical value of the severity.
     severityNumber: LogSeverity;
     // The body of the log record.
     body: string;
     // Describes the source of the log.
-    resource: string;
+    resource?: string;
     // Describes the scope that emitted the log.
-    instrumentationScope: string; // Not implemented
+    instrumentationScope?: string; // Not implemented
     // Additional information about the event.
-    attributes: Record<string, string>;
+    attributes?: Record<string, string>;
+};
+
+const defaultLog: Log = {
+    timestamp: 0,
+    observedTimestamp: 0,
+    traceId: 0,
+    spanId: 0,
+    traceFlags: 0,
+    severityText: LogSeverity[LogSeverity.Info],
+    severityNumber: LogSeverity.Info,
+    body: '',
+    resource: '',
+    instrumentationScope: '',
+    attributes: {},
 };
 
 export class Logger {
     private php: UniversalPHP | undefined;
     private logs: Log[] = [];
-    private wordpressLogs: string[] | undefined = undefined;
 
     constructor(php?: UniversalPHP) {
         this.php = php;
         if (this.php) {
+            console.log('Logger: PHP is available');
             this.php.addEventListener(
                 'request.end',
                 () => {
-                    console.log(this.getLogs());
+                    this.printWordPressLogs();
                 }
             )
-            this.php.onMessage((message) => {
-                try {
-                    const logMessage = JSON.parse(message);
-                    if (logMessage.type === 'wordpress-log') {
-                        this.log(
-                            logMessage.body,
-                            logMessage.severityNumber,
-                            logMessage.timestamp,
-                            'wordpress',
-                        );
-                    }
-                } catch (error) {
-                    // Not a log message
-                }
-            });
+            this.php.onMessage(this.processPhpLogMessage.bind(this));
         }
         if ( typeof window !== 'undefined' ) {
             window.onerror = (message, source, lineno, colno) => {
-                this.log(
-                    `${message} in ${source} on line ${lineno}:${colno}`,
-                    LogSeverity.Fatal,
-                    Date.now(),
-                    'javascript',
-                );
+                this.log({
+                    body: `${message} in ${source} on line ${lineno}:${colno}`,
+                    severityNumber: LogSeverity.Fatal,
+                    resource: 'javascript',
+                });
             }
         }
     }
 
-    public log(body: string, severityNumber: LogSeverity = LogSeverity.Info, timestamp?: number, resource = 'php', instrumentationScope = 'php', attributes: Record<string, string> = {}): void {
+    private processPhpLogMessage(message: string) {
+        try {
+            const logMessage = JSON.parse(message);
+            if (logMessage.type === 'wordpress-log') {
+                this.log({
+                   ...logMessage,
+                   severityNumber: LogSeverity[logMessage.severityText as keyof typeof LogSeverity],
+                    resource: 'wordpress',
+                });
+            }
+        } catch (error) {
+            // Not a log message
+        }
+    }
+
+    public log(rawLog: Log): void {
         const now = Date.now();
-        this.logs.push({
-            timestamp: timestamp || now,
-            observedTimestamp: now,
-            traceId: 1, // @TODO: Implement trace id
-            spanId: 1, // @TODO: Implement span id
-            traceFlags: 1,
-            severityText: LogSeverity[severityNumber],
-            severityNumber,
-            body,
-            resource,
-            instrumentationScope,
-            attributes,
-        });
+        const log = {
+            ...defaultLog,
+            ...rawLog,
+        };
+        log.timestamp = log.timestamp || now;
+        log.observedTimestamp = now;
+        log.severityText = LogSeverity[log.severityNumber];
+
+        this.logs.push(log);
+        console.log(log);
     }
 
     public getLogs(): Log[] {
         return this.logs;
     }
 
-    public async addWordPressLogs() {
-        if (this.php && this.wordpressLogs === undefined) {
-            const rawLogs =  await this.php.readFileAsText('/tmp/debug.log');
+    public async printWordPressLogs() {
+        if (!this.php) {
+            return;
+        }
+        const logPath = `/tmp/debug.log`;
+        if (await this.php.fileExists(logPath)) {
+            const rawLogs =  await this.php.readFileAsText(logPath);
+            console.log(rawLogs);
+        } else {
+            console.log('No logs found');
         }
     }
 
@@ -113,9 +133,9 @@ export class Logger {
 
 let logger: Logger | undefined = undefined;
 
-export function get_logger(php?: BasePHP): Logger {
+export function get_logger(php?: UniversalPHP | BasePHP): Logger {
     if (!logger) {
-        logger = new Logger(php);
+        logger = new Logger(php as UniversalPHP);
     }
     return logger;
 }
