@@ -196,7 +196,7 @@ const LibraryExample = {
 			}
 
 			if (ENVIRONMENT_IS_NODE) {
-				return require('child_process').spawn(command, [], {
+				return require('child_process').spawn(command, args, {
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
 					timeout: 100,
