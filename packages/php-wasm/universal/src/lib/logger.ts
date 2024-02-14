@@ -1,6 +1,7 @@
 import { BasePHP } from "./base-php";
 import { UniversalPHP } from "./universal-php";
 
+// Log severity levels based on OpenTelemetry https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
 export enum LogSeverity {
     // A dine grained debugging event. Typically disabled in default configurations.
     Trace = 1,
@@ -114,14 +115,24 @@ export class Logger {
         return this.logs;
     }
 
+    private numberOfLogLinesToShow() {
+        //  @TODO Get value from query API
+        return 100;
+    }
+
     public async printWordPressLogs() {
         if (!this.php) {
+            return;
+        }
+        const linesToShow = this.numberOfLogLinesToShow();
+        if (linesToShow === 0) {
             return;
         }
         const logPath = `/tmp/debug.log`;
         if (await this.php.fileExists(logPath)) {
             const rawLogs =  await this.php.readFileAsText(logPath);
-            console.log(rawLogs);
+            const logs = rawLogs.split('\n').slice(-linesToShow).join('\n');
+            console.log(logs);
         }
     }
 
