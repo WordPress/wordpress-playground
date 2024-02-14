@@ -1,5 +1,7 @@
 <?php
 
+require(__DIR__ . '/playground-includes/playground_logger.php');
+
 /**
  * This is a temporary workaround to hide the 32bit integer warnings that
  * appear when using various time related function, such as strtotime and mktime.
@@ -176,51 +178,3 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return $transports;
 	});
 }
-
-// Configure error logging
-$log_file = WP_CONTENT_DIR . '/debug.log';
-error_reporting(E_ALL);
-define('ERROR_LOG_FILE', $log_file);
-ini_set('error_log', $log_file);
-
-/**
- * Get OpenTracing severity number from PHP error code
- *
- * @param int $code PHP error code
- * @return int OpenTracing severity number
- */
-function get_severity_number($code)
-{
-	// @TODO Update numbers
-	switch ($code) {
-		case E_ERROR:
-		case E_CORE_ERROR:
-		case E_COMPILE_ERROR:
-		case E_USER_ERROR:
-			return 17;
-		case E_WARNING:
-		case E_CORE_WARNING:
-		case E_COMPILE_WARNING:
-		case E_USER_WARNING:
-			return 13;
-		case E_NOTICE:
-		case E_USER_NOTICE:
-			return 9;
-		default:
-			return 5;
-	}
-}
-
-function playground_error_handler($errno, $errstr, $errfile, $errline)
-{
-	post_message_to_js(
-		json_encode([
-			'event' => 'wordpress-log',
-			'timestamp' => time(),
-			'severityNumber' => get_severity_number($errno),
-			'body' => "$errstr in $errfile on line $errline",
-		])
-	);
-	return true;
-}
-set_error_handler('playground_error_handler');
