@@ -53,6 +53,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
+	logger = get_logger(this);
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -282,11 +283,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				}
 				return response;
 			} catch (e: any) {
-				get_logger(this).log({
+				this.logger.log({
 					body: e.message,
 					severityNumber: LogSeverity.Error,
 					resource: 'php',
 				});
+				throw e;
 			}
 		} finally {
 			try {

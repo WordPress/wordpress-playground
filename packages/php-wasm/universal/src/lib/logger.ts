@@ -63,7 +63,6 @@ export class Logger {
     constructor(php?: UniversalPHP) {
         this.php = php;
         if (this.php) {
-            console.log('Logger: PHP is available');
             this.php.addEventListener(
                 'request.end',
                 () => {
@@ -109,7 +108,6 @@ export class Logger {
         log.severityText = LogSeverity[log.severityNumber];
 
         this.logs.push(log);
-        console.log(log);
     }
 
     public getLogs(): Log[] {
@@ -124,8 +122,6 @@ export class Logger {
         if (await this.php.fileExists(logPath)) {
             const rawLogs =  await this.php.readFileAsText(logPath);
             console.log(rawLogs);
-        } else {
-            console.log('No logs found');
         }
     }
 
