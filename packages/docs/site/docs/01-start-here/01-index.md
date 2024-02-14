@@ -44,7 +44,7 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 -   See the [Contributors Handbook](../13-contributing/01-index.md) for all the details on how you can contribute.
 -   Join us in the `#meta-playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
 
-As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://github.com/WordPress/wordpress-playground/blob/HEAD/CODE_OF_CONDUCT.md).
+As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 
 ## License
 
