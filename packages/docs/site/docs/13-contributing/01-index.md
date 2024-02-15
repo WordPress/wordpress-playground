@@ -16,6 +16,6 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 
 ## Guidelines
 
--   As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://github.com/WordPress/wordpress-playground/blob/HEAD/CODE_OF_CONDUCT.md).
+-   As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 -   Contributors should review the [coding standards](./03-coding-standards.md).
 -   You maintain copyright over any contribution you make. By submitting a pull request you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground/blob/HEAD/LICENSE.md).
