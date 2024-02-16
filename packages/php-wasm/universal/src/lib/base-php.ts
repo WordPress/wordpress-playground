@@ -250,7 +250,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	getRequestPhpErrorLog() {
-		console.log(this.#getPhpErrorLog());
 		return this.#getPhpErrorLog().substring(this.logStartPosition);
 	}
 
