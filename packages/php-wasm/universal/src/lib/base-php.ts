@@ -53,6 +53,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
 
+	// The pointer in the PHP log file where the last request ended.
+	logStartPosition = 0;
+
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
 	 * the same time.
@@ -79,6 +82,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				new PHPRequestHandler(this, serverOptions)
 			);
 		}
+
+		// Use the log length as the start position for the current request.
+		this.logStartPosition = this.#getPhpErrorLog().length;
 	}
 
 	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
@@ -234,12 +240,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		return this.requestHandler.request(request, maxRedirects);
 	}
 
-	getPhpErrorLog() {
+	#getPhpErrorLog() {
 		const logPath = '/wordpress/wp-content/debug.log';
 		if (!this.fileExists(logPath)) {
 			return '';
 		}
 		return this.readFileAsText(logPath);
+	}
+
+	/** @inheritDoc */
+	getRequestPhpErrorLog() {
+		console.log(this.#getPhpErrorLog());
+		return this.#getPhpErrorLog().substring(this.logStartPosition);
 	}
 
 	/** @inheritDoc */
@@ -251,7 +263,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
-		const logSize = this.getPhpErrorLog().length;
 		let heapBodyPointer;
 		try {
 			if (!this.#webSapiInitialized) {
@@ -298,7 +309,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.dispatchEvent({
 					type: 'request.end',
 					data: {
-						log: this.getPhpErrorLog().substring(logSize),
+						log: this.getRequestPhpErrorLog(),
 					},
 				});
 			}

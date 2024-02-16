@@ -237,14 +237,12 @@ export function compileBlueprint(
 						onStepCompleted(result, step);
 					} catch (e) {
 						console.error(e);
-						throw new Error(
-							`Error when executing the blueprint step #${i} (${JSON.stringify(
-								step
-							)}). Inspect the "cause" property of this error for more details`,
-							{
-								cause: e,
-							}
-						);
+						let message = playground.getRequestPhpErrorLog() + '\n';
+						message += `Error when executing the blueprint step #${i} (${JSON.stringify(
+							step
+						)})`;
+						message += e instanceof Error ? `: ${e.message}` : e;
+						throw new Error(message);
 					}
 				}
 			} finally {

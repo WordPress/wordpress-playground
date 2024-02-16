@@ -324,6 +324,11 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	chdir(path: string): void;
 
 	/**
+	 * Get PHP error log data for the current request.
+	 */
+	getRequestPhpErrorLog(): string;
+
+	/**
 	 * Runs PHP code.
 	 *
 	 * This low-level method directly interacts with the WebAssembly
