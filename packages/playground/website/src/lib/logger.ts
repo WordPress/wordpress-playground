@@ -15,20 +15,9 @@ export enum LogSeverity {
 }
 
 export class Logger {
-    private php: UniversalPHP | undefined;
-
     private readonly LOG_PREFIX = 'Playground';
 
-    constructor(php?: UniversalPHP) {
-        this.php = php;
-        if (this.php) {
-            this.php.addEventListener(
-                'request.end',
-                () => {
-                    this.printPhpErrorLog();
-                }
-            )
-        }
+    constructor() {
         this.collectPlaygroundLogs();
     }
 
@@ -79,25 +68,13 @@ export class Logger {
     public logRaw(log: string): void {
         console.debug(log);
     }
-
-    public async printPhpErrorLog() {
-        if (!this.php) {
-            return;
-        }
-        const logPath = `/wordpress/wp-content/debug.log`;
-        if (await this.php.fileExists(logPath)) {
-            const logs =  await this.php.readFileAsText(logPath);
-            console.debug(logs);
-        }
-    }
-
 };
 
 let logger: Logger | undefined = undefined;
 
-export function get_logger(php?: UniversalPHP | BasePHP): Logger {
+export function get_logger(): Logger {
     if (!logger) {
-        logger = new Logger(php as UniversalPHP);
+        logger = new Logger();
     }
     return logger;
 }

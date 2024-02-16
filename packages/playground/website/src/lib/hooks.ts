@@ -36,7 +36,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
 
-		const logger = get_logger(undefined);
+		const logger = get_logger();
 		startPlaygroundWeb({
 			iframe,
 			remoteUrl: remoteUrl.toString(),

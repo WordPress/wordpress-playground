@@ -237,8 +237,9 @@ export function compileBlueprint(
 						onStepCompleted(result, step);
 					} catch (e) {
 						console.error(e);
-						let message = playground.getRequestPhpErrorLog() + '\n';
-						message += `Error when executing the blueprint step #${i} (${JSON.stringify(
+						// @TODO This should return logs from the PHP process
+						let message = await playground.getRequestPhpErrorLog();
+						message += `\n Error when executing the blueprint step #${i} (${JSON.stringify(
 							step
 						)})`;
 						message += e instanceof Error ? `: ${e.message}` : e;
