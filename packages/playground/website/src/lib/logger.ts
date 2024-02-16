@@ -33,7 +33,7 @@ export class Logger {
     }
 
     private collectPlaygroundLogs() {
-        if (typeof window !== 'undefined') {
+         if (typeof window !== 'undefined') {
             window.addEventListener('error', (event) => {
                 this.log(
                     `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
@@ -41,7 +41,6 @@ export class Logger {
                 );
             });
             window.addEventListener('unhandledrejection', (event) => {
-                console.log(event);
                 this.log(
                     `${event.reason.stack}`,
                     LogSeverity.Fatal
@@ -74,6 +73,10 @@ export class Logger {
         }
         const now = this.formatLogDate(new Date());
         const log = `[${now}] ${this.LOG_PREFIX} ${LogSeverity[severity]}: ${message}`;
+        this.logRaw(log);
+    }
+
+    public logRaw(log: string): void {
         console.debug(log);
     }
 

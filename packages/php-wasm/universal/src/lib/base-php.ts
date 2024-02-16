@@ -234,6 +234,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		return this.requestHandler.request(request, maxRedirects);
 	}
 
+	getPhpErrorLog() {
+		const logPath = '/wordpress/wp-content/debug.log';
+		if (!this.fileExists(logPath)) {
+			return '';
+		}
+		return this.readFileAsText(logPath);
+	}
+
 	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		/*
@@ -243,6 +251,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
+		const logSize = this.getPhpErrorLog().length;
 		let heapBodyPointer;
 		try {
 			if (!this.#webSapiInitialized) {
@@ -288,6 +297,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				release();
 				this.dispatchEvent({
 					type: 'request.end',
+					data: {
+						log: this.getPhpErrorLog().substring(logSize),
+					},
 				});
 			}
 		}

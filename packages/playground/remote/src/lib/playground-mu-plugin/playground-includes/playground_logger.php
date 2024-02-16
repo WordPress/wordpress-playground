@@ -7,7 +7,3 @@ ini_set('error_log', $log_file);
 ini_set('ignore_repeated_errors', true);
 ini_set('display_errors', false);
 ini_set('log_errors', true);
-
-error_log('playground_logger.php loaded');
-
-throw new Exception('test');

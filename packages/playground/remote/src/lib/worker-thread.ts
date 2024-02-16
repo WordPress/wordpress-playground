@@ -268,6 +268,15 @@ try {
 		});
 	}
 
+	// Enable the WordPress debug mode
+	await defineWpConfigConsts(php, {
+		consts: {
+			WP_DEBUG: true,
+			WP_DEBUG_LOG: true,
+			WP_DEBUG_DISPLAY: false,
+		},
+	});
+
 	// Always install the playground mu-plugin, even if WordPress is loaded
 	// from the OPFS. This ensures:
 	// * The mu-plugin is always there, even when a custom WordPress directory

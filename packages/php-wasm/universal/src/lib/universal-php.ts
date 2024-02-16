@@ -6,6 +6,7 @@ import { PHPResponse } from './php-response';
  */
 export interface PHPRequestEndEvent {
 	type: 'request.end';
+	data?: {[log: string]: string};
 }
 
 /**
