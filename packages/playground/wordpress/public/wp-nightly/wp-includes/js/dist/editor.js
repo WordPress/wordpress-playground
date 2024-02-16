@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 6411:
+/***/ 4306:
 /***/ (function(module, exports) {
 
 var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -290,7 +290,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
 /***/ }),
 
-/***/ 4403:
+/***/ 5755:
 /***/ ((module, exports) => {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -356,7 +356,7 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 
 /***/ }),
 
-/***/ 4827:
+/***/ 6109:
 /***/ ((module) => {
 
 // This code has been refactored for 140 bytes
@@ -390,11 +390,11 @@ module.exports = computedStyle;
 
 /***/ }),
 
-/***/ 9894:
+/***/ 461:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Load in dependencies
-var computedStyle = __webpack_require__(4827);
+var computedStyle = __webpack_require__(6109);
 
 /**
  * Calculate the `line-height` of a given node
@@ -494,7 +494,7 @@ module.exports = lineHeight;
 
 /***/ }),
 
-/***/ 5372:
+/***/ 628:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -507,7 +507,7 @@ module.exports = lineHeight;
 
 
 
-var ReactPropTypesSecret = __webpack_require__(9567);
+var ReactPropTypesSecret = __webpack_require__(4067);
 
 function emptyFunction() {}
 function emptyFunctionWithReset() {}
@@ -567,7 +567,7 @@ module.exports = function() {
 
 /***/ }),
 
-/***/ 2652:
+/***/ 5826:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /**
@@ -580,13 +580,13 @@ module.exports = function() {
 if (false) { var throwOnDirectAccess, ReactIs; } else {
   // By explicitly using `prop-types` you are opting into new production behavior.
   // http://fb.me/prop-types-in-prod
-  module.exports = __webpack_require__(5372)();
+  module.exports = __webpack_require__(628)();
 }
 
 
 /***/ }),
 
-/***/ 9567:
+/***/ 4067:
 /***/ ((module) => {
 
 "use strict";
@@ -606,7 +606,7 @@ module.exports = ReactPropTypesSecret;
 
 /***/ }),
 
-/***/ 5438:
+/***/ 4462:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
@@ -639,10 +639,10 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 exports.__esModule = true;
-var React = __webpack_require__(9196);
-var PropTypes = __webpack_require__(2652);
-var autosize = __webpack_require__(6411);
-var _getLineHeight = __webpack_require__(9894);
+var React = __webpack_require__(1609);
+var PropTypes = __webpack_require__(5826);
+var autosize = __webpack_require__(4306);
+var _getLineHeight = __webpack_require__(461);
 var getLineHeight = _getLineHeight;
 var RESIZED = "autosize:resized";
 /**
@@ -740,20 +740,20 @@ exports.TextareaAutosize = React.forwardRef(function (props, ref) {
 
 /***/ }),
 
-/***/ 773:
+/***/ 4132:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 var __webpack_unused_export__;
 
 __webpack_unused_export__ = true;
-var TextareaAutosize_1 = __webpack_require__(5438);
-exports.Z = TextareaAutosize_1.TextareaAutosize;
+var TextareaAutosize_1 = __webpack_require__(4462);
+exports.A = TextareaAutosize_1.TextareaAutosize;
 
 
 /***/ }),
 
-/***/ 4793:
+/***/ 9681:
 /***/ ((module) => {
 
 var characterMap = {
@@ -1241,7 +1241,7 @@ module.exports.remove = removeAccents;
 
 /***/ }),
 
-/***/ 9196:
+/***/ 1609:
 /***/ ((module) => {
 
 "use strict";
@@ -1704,10 +1704,22 @@ const {
   unlock
 } = (0,external_wp_privateApis_namespaceObject.__dangerousOptInToUnstableAPIsOnlyForCoreModules)('I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.', '@wordpress/editor');
 
-;// CONCATENATED MODULE: external ["wp","coreData"]
-const external_wp_coreData_namespaceObject = window["wp"]["coreData"];
 ;// CONCATENATED MODULE: external ["wp","i18n"]
 const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
+;// CONCATENATED MODULE: ./node_modules/@wordpress/editor/build-module/bindings/pattern-overrides.js
+/**
+ * WordPress dependencies
+ */
+
+/* harmony default export */ const pattern_overrides = ({
+  name: 'core/pattern-overrides',
+  label: (0,external_wp_i18n_namespaceObject._x)('Pattern Overrides', 'block bindings source'),
+  useSource: null,
+  lockAttributesEditing: false
+});
+
+;// CONCATENATED MODULE: external ["wp","coreData"]
+const external_wp_coreData_namespaceObject = window["wp"]["coreData"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/editor/build-module/store/defaults.js
 /**
  * WordPress dependencies
@@ -2004,7 +2016,7 @@ function editorSettings(state = EDITOR_SETTINGS_DEFAULTS, action) {
   }
   return state;
 }
-function renderingMode(state = 'all', action) {
+function renderingMode(state = 'post-only', action) {
   switch (action.type) {
     case 'SET_RENDERING_MODE':
       return action.mode;
@@ -2425,7 +2437,7 @@ var external_wp_deprecated_default = /*#__PURE__*/__webpack_require__.n(external
 ;// CONCATENATED MODULE: external ["wp","element"]
 const external_wp_element_namespaceObject = window["wp"]["element"];
 // EXTERNAL MODULE: external "React"
-var external_React_ = __webpack_require__(9196);
+var external_React_ = __webpack_require__(1609);
 ;// CONCATENATED MODULE: external ["wp","primitives"]
 const external_wp_primitives_namespaceObject = window["wp"]["primitives"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/icons/build-module/library/layout.js
@@ -4792,7 +4804,7 @@ function updateEditorSettings(settings) {
  * -   `post-only`: This mode extracts the post blocks from the template and renders only those. The idea is to allow the user to edit the post/page in isolation without the wrapping template.
  * -   `template-locked`: This mode renders both the template and the post blocks but the template blocks are locked and can't be edited. The post blocks are editable.
  *
- * @param {string} mode Mode (one of 'post-only', 'template-locked' or 'all').
+ * @param {string} mode Mode (one of 'post-only' or 'template-locked').
  */
 const setRenderingMode = mode => ({
   dispatch,
@@ -5268,7 +5280,7 @@ unlock(store_store).registerPrivateSelectors(private_selectors_namespaceObject);
 
 /* harmony default export */ const post_meta = ({
   name: 'core/post-meta',
-  label: (0,external_wp_i18n_namespaceObject.__)('Post Meta'),
+  label: (0,external_wp_i18n_namespaceObject._x)('Post Meta', 'block bindings source'),
   useSource(props, sourceAttributes) {
     const {
       getCurrentPostType
@@ -5297,8 +5309,7 @@ unlock(store_store).registerPrivateSelectors(private_selectors_namespaceObject);
       placeholder: metaKey,
       useValue: [metaValue, updateMetaValue]
     };
-  },
-  lockAttributesEditing: true
+  }
 });
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/editor/build-module/bindings/index.js
@@ -5312,9 +5323,11 @@ unlock(store_store).registerPrivateSelectors(private_selectors_namespaceObject);
  */
 
 
+
 const {
   registerBlockBindingsSource
 } = unlock((0,external_wp_data_namespaceObject.dispatch)(external_wp_blockEditor_namespaceObject.store));
+registerBlockBindingsSource(pattern_overrides);
 registerBlockBindingsSource(post_meta);
 
 ;// CONCATENATED MODULE: external ["wp","compose"]
@@ -5731,7 +5744,7 @@ class AutosaveMonitor extends external_wp_element_namespaceObject.Component {
 }))])(AutosaveMonitor));
 
 // EXTERNAL MODULE: ./node_modules/classnames/index.js
-var classnames = __webpack_require__(4403);
+var classnames = __webpack_require__(5755);
 var classnames_default = /*#__PURE__*/__webpack_require__.n(classnames);
 ;// CONCATENATED MODULE: external ["wp","components"]
 const external_wp_components_namespaceObject = window["wp"]["components"];
@@ -7287,7 +7300,7 @@ function PageAttributesOrderWithChecks() {
 }
 
 // EXTERNAL MODULE: ./node_modules/remove-accents/index.js
-var remove_accents = __webpack_require__(4793);
+var remove_accents = __webpack_require__(9681);
 var remove_accents_default = /*#__PURE__*/__webpack_require__.n(remove_accents);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/editor/build-module/utils/terms.js
 /**
@@ -13278,7 +13291,7 @@ function panel_PostTaxonomies() {
 /* harmony default export */ const post_taxonomies_panel = (panel_PostTaxonomies);
 
 // EXTERNAL MODULE: ./node_modules/react-autosize-textarea/lib/index.js
-var lib = __webpack_require__(773);
+var lib = __webpack_require__(4132);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/editor/build-module/components/post-text-editor/index.js
 
 /**
@@ -13346,7 +13359,7 @@ function PostTextEditor() {
   return (0,external_React_.createElement)(external_React_.Fragment, null, (0,external_React_.createElement)(external_wp_components_namespaceObject.VisuallyHidden, {
     as: "label",
     htmlFor: `post-content-${instanceId}`
-  }, (0,external_wp_i18n_namespaceObject.__)('Type text or HTML')), (0,external_React_.createElement)(lib/* default */.Z, {
+  }, (0,external_wp_i18n_namespaceObject.__)('Type text or HTML')), (0,external_React_.createElement)(lib/* default */.A, {
     autoComplete: "off",
     dir: "auto",
     value: value,
@@ -15523,6 +15536,12 @@ const {
 const editor_canvas_noop = () => {};
 
 /**
+ * These post types have a special editor where they don't allow you to fill the title
+ * and they don't apply the layout styles.
+ */
+const DESIGN_POST_TYPES = ['wp_block', 'wp_template', 'wp_navigation', 'wp_template_part'];
+
+/**
  * Given an array of nested blocks, find the first Post Content
  * block inside it, recursing through any nesting levels,
  * and return its attributes.
@@ -15569,7 +15588,8 @@ function EditorCanvas({
     wrapperBlockName,
     wrapperUniqueId,
     deviceType,
-    showEditorPadding
+    showEditorPadding,
+    isDesignPostType
   } = (0,external_wp_data_namespaceObject.useSelect)(select => {
     const {
       getCurrentPostId,
@@ -15589,7 +15609,7 @@ function EditorCanvas({
     let _wrapperBlockName;
     if (postTypeSlug === 'wp_block') {
       _wrapperBlockName = 'core/block';
-    } else if (!_renderingMode === 'post-only') {
+    } else if (_renderingMode === 'post-only') {
       _wrapperBlockName = 'core/post-content';
     }
     const editorSettings = getEditorSettings();
@@ -15601,6 +15621,7 @@ function EditorCanvas({
     return {
       renderingMode: _renderingMode,
       postContentAttributes: editorSettings.postContentAttributes,
+      isDesignPostType: DESIGN_POST_TYPES.includes(postTypeSlug),
       // Post template fetch returns a 404 on classic themes, which
       // messes with e2e tests, so check it's a block theme first.
       editedPostTemplate: postType?.viewable && supportsTemplateMode && canEditTemplate ? template : undefined,
@@ -15631,7 +15652,7 @@ function EditorCanvas({
   // fallbackLayout is used if there is no Post Content,
   // and for Post Title.
   const fallbackLayout = (0,external_wp_element_namespaceObject.useMemo)(() => {
-    if (renderingMode !== 'post-only') {
+    if (renderingMode !== 'post-only' || isDesignPostType) {
       return {
         type: 'default'
       };
@@ -15648,7 +15669,7 @@ function EditorCanvas({
     return {
       type: 'default'
     };
-  }, [renderingMode, themeSupportsLayout, globalLayoutSettings]);
+  }, [renderingMode, themeSupportsLayout, globalLayoutSettings, isDesignPostType]);
   const newestPostContentAttributes = (0,external_wp_element_namespaceObject.useMemo)(() => {
     if (!editedPostTemplate?.content && !editedPostTemplate?.blocks && postContentAttributes) {
       return postContentAttributes;
@@ -15736,7 +15757,7 @@ function EditorCanvas({
         ...deviceStyles
       }
     }
-  }, themeSupportsLayout && !themeHasDisabledLayoutStyles && renderingMode === 'post-only' && (0,external_React_.createElement)(external_React_.Fragment, null, (0,external_React_.createElement)(LayoutStyle, {
+  }, themeSupportsLayout && !themeHasDisabledLayoutStyles && renderingMode === 'post-only' && !isDesignPostType && (0,external_React_.createElement)(external_React_.Fragment, null, (0,external_React_.createElement)(LayoutStyle, {
     selector: ".editor-editor-canvas__post-title-wrapper",
     layout: fallbackLayout
   }), (0,external_React_.createElement)(LayoutStyle, {
@@ -15747,7 +15768,7 @@ function EditorCanvas({
   }), postContentLayoutStyles && (0,external_React_.createElement)(LayoutStyle, {
     layout: postContentLayout,
     css: postContentLayoutStyles
-  })), renderingMode === 'post-only' && (0,external_React_.createElement)("div", {
+  })), renderingMode === 'post-only' && !isDesignPostType && (0,external_React_.createElement)("div", {
     className: classnames_default()('editor-editor-canvas__post-title-wrapper',
     // The following class is only here for backward comapatibility
     // some themes might be using it to style the post title.
@@ -15767,7 +15788,7 @@ function EditorCanvas({
     blockName: wrapperBlockName,
     uniqueId: wrapperUniqueId
   }, (0,external_React_.createElement)(external_wp_blockEditor_namespaceObject.BlockList, {
-    className: classnames_default()(className, 'is-' + deviceType.toLowerCase() + '-preview', renderingMode !== 'post-only' ? 'wp-site-blocks' : `${blockListLayoutClass} wp-block-post-content` // Ensure root level blocks receive default/flow blockGap styling rules.
+    className: classnames_default()(className, 'is-' + deviceType.toLowerCase() + '-preview', renderingMode !== 'post-only' || isDesignPostType ? 'wp-site-blocks' : `${blockListLayoutClass} wp-block-post-content` // Ensure root level blocks receive default/flow blockGap styling rules.
     ),
     layout: blockListLayout,
     dropZoneElement:

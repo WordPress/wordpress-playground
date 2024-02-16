@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 4403:
+/***/ 5755:
 /***/ ((module, exports) => {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -67,7 +67,7 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 
 /***/ }),
 
-/***/ 1919:
+/***/ 66:
 /***/ ((module) => {
 
 "use strict";
@@ -208,13 +208,13 @@ module.exports = deepmerge_1;
 
 /***/ }),
 
-/***/ 1345:
+/***/ 1637:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var util = __webpack_require__(5022);
+var util = __webpack_require__(3062);
 
 function scrollIntoView(elem, container, config) {
   config = config || {};
@@ -344,17 +344,17 @@ module.exports = scrollIntoView;
 
 /***/ }),
 
-/***/ 5425:
+/***/ 5428:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-module.exports = __webpack_require__(1345);
+module.exports = __webpack_require__(1637);
 
 /***/ }),
 
-/***/ 5022:
+/***/ 3062:
 /***/ ((module) => {
 
 "use strict";
@@ -800,7 +800,7 @@ module.exports = _extends({
 
 /***/ }),
 
-/***/ 9214:
+/***/ 2287:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -823,20 +823,20 @@ __webpack_unused_export__=y;
 
 /***/ }),
 
-/***/ 2797:
+/***/ 1915:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 if (true) {
-  /* unused reexport */ __webpack_require__(9214);
+  /* unused reexport */ __webpack_require__(2287);
 } else {}
 
 
 /***/ }),
 
-/***/ 5619:
+/***/ 7734:
 /***/ ((module) => {
 
 "use strict";
@@ -916,7 +916,7 @@ module.exports = function equal(a, b) {
 
 /***/ }),
 
-/***/ 7115:
+/***/ 8924:
 /***/ ((__unused_webpack_module, exports) => {
 
 // Copyright (c) 2014 Rafael Caricio. All rights reserved.
@@ -1262,7 +1262,7 @@ exports.parse = (GradientParser || {}).parse;
 
 /***/ }),
 
-/***/ 3138:
+/***/ 9664:
 /***/ ((module) => {
 
 module.exports =
@@ -1524,13 +1524,13 @@ module.exports =
 
 /***/ }),
 
-/***/ 1281:
+/***/ 1880:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var reactIs = __webpack_require__(1892);
+var reactIs = __webpack_require__(1178);
 
 /**
  * Copyright 2015, Yahoo! Inc.
@@ -1635,7 +1635,7 @@ module.exports = hoistNonReactStatics;
 
 /***/ }),
 
-/***/ 7651:
+/***/ 2950:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -1658,20 +1658,20 @@ exports.isValidElementType=function(a){return"string"===typeof a||"function"===t
 
 /***/ }),
 
-/***/ 1892:
+/***/ 1178:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 if (true) {
-  module.exports = __webpack_require__(7651);
+  module.exports = __webpack_require__(2950);
 } else {}
 
 
 /***/ }),
 
-/***/ 5372:
+/***/ 628:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -1684,7 +1684,7 @@ if (true) {
 
 
 
-var ReactPropTypesSecret = __webpack_require__(9567);
+var ReactPropTypesSecret = __webpack_require__(4067);
 
 function emptyFunction() {}
 function emptyFunctionWithReset() {}
@@ -1744,7 +1744,7 @@ module.exports = function() {
 
 /***/ }),
 
-/***/ 2652:
+/***/ 5826:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /**
@@ -1757,13 +1757,13 @@ module.exports = function() {
 if (false) { var throwOnDirectAccess, ReactIs; } else {
   // By explicitly using `prop-types` you are opting into new production behavior.
   // http://fb.me/prop-types-in-prod
-  module.exports = __webpack_require__(5372)();
+  module.exports = __webpack_require__(628)();
 }
 
 
 /***/ }),
 
-/***/ 9567:
+/***/ 4067:
 /***/ ((module) => {
 
 "use strict";
@@ -1783,7 +1783,7 @@ module.exports = ReactPropTypesSecret;
 
 /***/ }),
 
-/***/ 2455:
+/***/ 3394:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -1796,26 +1796,26 @@ module.exports = ReactPropTypesSecret;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var f=__webpack_require__(9196),k=Symbol.for("react.element"),l=Symbol.for("react.fragment"),m=Object.prototype.hasOwnProperty,n=f.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,p={key:!0,ref:!0,__self:!0,__source:!0};
+var f=__webpack_require__(1609),k=Symbol.for("react.element"),l=Symbol.for("react.fragment"),m=Object.prototype.hasOwnProperty,n=f.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,p={key:!0,ref:!0,__self:!0,__source:!0};
 function q(c,a,g){var b,d={},e=null,h=null;void 0!==g&&(e=""+g);void 0!==a.key&&(e=""+a.key);void 0!==a.ref&&(h=a.ref);for(b in a)m.call(a,b)&&!p.hasOwnProperty(b)&&(d[b]=a[b]);if(c&&c.defaultProps)for(b in a=c.defaultProps,a)void 0===d[b]&&(d[b]=a[b]);return{$$typeof:k,type:c,key:e,ref:h,props:d,_owner:n.current}}exports.Fragment=l;exports.jsx=q;exports.jsxs=q;
 
 
 /***/ }),
 
-/***/ 7557:
+/***/ 4922:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 if (true) {
-  module.exports = __webpack_require__(2455);
+  module.exports = __webpack_require__(3394);
 } else {}
 
 
 /***/ }),
 
-/***/ 4793:
+/***/ 9681:
 /***/ ((module) => {
 
 var characterMap = {
@@ -2303,7 +2303,7 @@ module.exports.remove = removeAccents;
 
 /***/ }),
 
-/***/ 7755:
+/***/ 8477:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -2316,26 +2316,26 @@ module.exports.remove = removeAccents;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var e=__webpack_require__(9196);function h(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var k="function"===typeof Object.is?Object.is:h,l=e.useState,m=e.useEffect,n=e.useLayoutEffect,p=e.useDebugValue;function q(a,b){var d=b(),f=l({inst:{value:d,getSnapshot:b}}),c=f[0].inst,g=f[1];n(function(){c.value=d;c.getSnapshot=b;r(c)&&g({inst:c})},[a,d,b]);m(function(){r(c)&&g({inst:c});return a(function(){r(c)&&g({inst:c})})},[a]);p(d);return d}
+var e=__webpack_require__(1609);function h(a,b){return a===b&&(0!==a||1/a===1/b)||a!==a&&b!==b}var k="function"===typeof Object.is?Object.is:h,l=e.useState,m=e.useEffect,n=e.useLayoutEffect,p=e.useDebugValue;function q(a,b){var d=b(),f=l({inst:{value:d,getSnapshot:b}}),c=f[0].inst,g=f[1];n(function(){c.value=d;c.getSnapshot=b;r(c)&&g({inst:c})},[a,d,b]);m(function(){r(c)&&g({inst:c});return a(function(){r(c)&&g({inst:c})})},[a]);p(d);return d}
 function r(a){var b=a.getSnapshot;a=a.value;try{var d=b();return!k(a,d)}catch(f){return!0}}function t(a,b){return b()}var u="undefined"===typeof window||"undefined"===typeof window.document||"undefined"===typeof window.document.createElement?t:q;exports.useSyncExternalStore=void 0!==e.useSyncExternalStore?e.useSyncExternalStore:u;
 
 
 /***/ }),
 
-/***/ 635:
+/***/ 422:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 if (true) {
-  module.exports = __webpack_require__(7755);
+  module.exports = __webpack_require__(8477);
 } else {}
 
 
 /***/ }),
 
-/***/ 9196:
+/***/ 1609:
 /***/ ((module) => {
 
 "use strict";
@@ -2661,19 +2661,19 @@ __webpack_require__.r(toggle_group_control_option_base_styles_namespaceObject);
 __webpack_require__.d(toggle_group_control_option_base_styles_namespaceObject, {
   ButtonContentView: () => (ButtonContentView),
   LabelView: () => (LabelView),
-  Uz: () => (backdropView),
-  Ji: () => (buttonView),
-  IA: () => (labelBlock)
+  ou: () => (backdropView),
+  uG: () => (buttonView),
+  eh: () => (labelBlock)
 });
 
 ;// CONCATENATED MODULE: external ["wp","primitives"]
 const external_wp_primitives_namespaceObject = window["wp"]["primitives"];
 // EXTERNAL MODULE: external "React"
-var external_React_ = __webpack_require__(9196);
+var external_React_ = __webpack_require__(1609);
 var external_React_namespaceObject = /*#__PURE__*/__webpack_require__.t(external_React_, 2);
 var external_React_default = /*#__PURE__*/__webpack_require__.n(external_React_);
 // EXTERNAL MODULE: ./node_modules/classnames/index.js
-var classnames = __webpack_require__(4403);
+var classnames = __webpack_require__(5755);
 var classnames_default = /*#__PURE__*/__webpack_require__.n(classnames);
 ;// CONCATENATED MODULE: external ["wp","i18n"]
 const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
@@ -3539,7 +3539,7 @@ function resetMouseMoving() {
 
 
 // EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
-var jsx_runtime = __webpack_require__(7557);
+var jsx_runtime = __webpack_require__(4922);
 ;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/3ORBWXWF.js
 "use client";
 
@@ -4767,7 +4767,7 @@ If there's a particular need for this, please submit a feature request at https:
 
 
 // EXTERNAL MODULE: ./node_modules/use-sync-external-store/shim/index.js
-var shim = __webpack_require__(635);
+var shim = __webpack_require__(422);
 ;// CONCATENATED MODULE: ./node_modules/@ariakit/react-core/esm/__chunks/EKQEJRUF.js
 "use client";
 
@@ -8252,7 +8252,7 @@ const autoPlacement = function (options) {
  * clipping boundary. Alternative to `autoPlacement`.
  * @see https://floating-ui.com/docs/flip
  */
-const floating_ui_core_flip = function (options) {
+const flip = function (options) {
   if (options === void 0) {
     options = {};
   }
@@ -8638,7 +8638,7 @@ const offset = function (options) {
  * keep it in view when it will overflow the clipping boundary.
  * @see https://floating-ui.com/docs/shift
  */
-const floating_ui_core_shift = function (options) {
+const shift = function (options) {
   if (options === void 0) {
     options = {};
   }
@@ -8859,7 +8859,138 @@ const size = function (options) {
 
 
 
-;// CONCATENATED MODULE: ./node_modules/@floating-ui/utils/dom/dist/floating-ui.utils.dom.mjs
+;// CONCATENATED MODULE: ./node_modules/@floating-ui/dom/node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs
+/**
+ * Custom positioning reference element.
+ * @see https://floating-ui.com/docs/virtual-elements
+ */
+
+const dist_floating_ui_utils_sides = (/* unused pure expression or super */ null && (['top', 'right', 'bottom', 'left']));
+const floating_ui_utils_alignments = (/* unused pure expression or super */ null && (['start', 'end']));
+const dist_floating_ui_utils_placements = /*#__PURE__*/(/* unused pure expression or super */ null && (dist_floating_ui_utils_sides.reduce((acc, side) => acc.concat(side, side + "-" + floating_ui_utils_alignments[0], side + "-" + floating_ui_utils_alignments[1]), [])));
+const dist_floating_ui_utils_min = Math.min;
+const dist_floating_ui_utils_max = Math.max;
+const floating_ui_utils_round = Math.round;
+const floating_ui_utils_floor = Math.floor;
+const floating_ui_utils_createCoords = v => ({
+  x: v,
+  y: v
+});
+const floating_ui_utils_oppositeSideMap = {
+  left: 'right',
+  right: 'left',
+  bottom: 'top',
+  top: 'bottom'
+};
+const floating_ui_utils_oppositeAlignmentMap = {
+  start: 'end',
+  end: 'start'
+};
+function floating_ui_utils_clamp(start, value, end) {
+  return dist_floating_ui_utils_max(start, dist_floating_ui_utils_min(value, end));
+}
+function dist_floating_ui_utils_evaluate(value, param) {
+  return typeof value === 'function' ? value(param) : value;
+}
+function dist_floating_ui_utils_getSide(placement) {
+  return placement.split('-')[0];
+}
+function dist_floating_ui_utils_getAlignment(placement) {
+  return placement.split('-')[1];
+}
+function floating_ui_utils_getOppositeAxis(axis) {
+  return axis === 'x' ? 'y' : 'x';
+}
+function floating_ui_utils_getAxisLength(axis) {
+  return axis === 'y' ? 'height' : 'width';
+}
+function dist_floating_ui_utils_getSideAxis(placement) {
+  return ['top', 'bottom'].includes(dist_floating_ui_utils_getSide(placement)) ? 'y' : 'x';
+}
+function floating_ui_utils_getAlignmentAxis(placement) {
+  return floating_ui_utils_getOppositeAxis(dist_floating_ui_utils_getSideAxis(placement));
+}
+function dist_floating_ui_utils_getAlignmentSides(placement, rects, rtl) {
+  if (rtl === void 0) {
+    rtl = false;
+  }
+  const alignment = dist_floating_ui_utils_getAlignment(placement);
+  const alignmentAxis = floating_ui_utils_getAlignmentAxis(placement);
+  const length = floating_ui_utils_getAxisLength(alignmentAxis);
+  let mainAlignmentSide = alignmentAxis === 'x' ? alignment === (rtl ? 'end' : 'start') ? 'right' : 'left' : alignment === 'start' ? 'bottom' : 'top';
+  if (rects.reference[length] > rects.floating[length]) {
+    mainAlignmentSide = floating_ui_utils_getOppositePlacement(mainAlignmentSide);
+  }
+  return [mainAlignmentSide, floating_ui_utils_getOppositePlacement(mainAlignmentSide)];
+}
+function floating_ui_utils_getExpandedPlacements(placement) {
+  const oppositePlacement = floating_ui_utils_getOppositePlacement(placement);
+  return [dist_floating_ui_utils_getOppositeAlignmentPlacement(placement), oppositePlacement, dist_floating_ui_utils_getOppositeAlignmentPlacement(oppositePlacement)];
+}
+function dist_floating_ui_utils_getOppositeAlignmentPlacement(placement) {
+  return placement.replace(/start|end/g, alignment => floating_ui_utils_oppositeAlignmentMap[alignment]);
+}
+function floating_ui_utils_getSideList(side, isStart, rtl) {
+  const lr = ['left', 'right'];
+  const rl = ['right', 'left'];
+  const tb = ['top', 'bottom'];
+  const bt = ['bottom', 'top'];
+  switch (side) {
+    case 'top':
+    case 'bottom':
+      if (rtl) return isStart ? rl : lr;
+      return isStart ? lr : rl;
+    case 'left':
+    case 'right':
+      return isStart ? tb : bt;
+    default:
+      return [];
+  }
+}
+function floating_ui_utils_getOppositeAxisPlacements(placement, flipAlignment, direction, rtl) {
+  const alignment = dist_floating_ui_utils_getAlignment(placement);
+  let list = floating_ui_utils_getSideList(dist_floating_ui_utils_getSide(placement), direction === 'start', rtl);
+  if (alignment) {
+    list = list.map(side => side + "-" + alignment);
+    if (flipAlignment) {
+      list = list.concat(list.map(dist_floating_ui_utils_getOppositeAlignmentPlacement));
+    }
+  }
+  return list;
+}
+function floating_ui_utils_getOppositePlacement(placement) {
+  return placement.replace(/left|right|bottom|top/g, side => floating_ui_utils_oppositeSideMap[side]);
+}
+function floating_ui_utils_expandPaddingObject(padding) {
+  return {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    ...padding
+  };
+}
+function dist_floating_ui_utils_getPaddingObject(padding) {
+  return typeof padding !== 'number' ? floating_ui_utils_expandPaddingObject(padding) : {
+    top: padding,
+    right: padding,
+    bottom: padding,
+    left: padding
+  };
+}
+function dist_floating_ui_utils_rectToClientRect(rect) {
+  return {
+    ...rect,
+    top: rect.y,
+    left: rect.x,
+    right: rect.x + rect.width,
+    bottom: rect.y + rect.height
+  };
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/@floating-ui/dom/node_modules/@floating-ui/utils/dist/floating-ui.utils.dom.mjs
 function getNodeName(node) {
   if (isNode(node)) {
     return (node.nodeName || '').toLowerCase();
@@ -8871,7 +9002,7 @@ function getNodeName(node) {
 }
 function floating_ui_utils_dom_getWindow(node) {
   var _node$ownerDocument;
-  return (node == null ? void 0 : (_node$ownerDocument = node.ownerDocument) == null ? void 0 : _node$ownerDocument.defaultView) || window;
+  return (node == null || (_node$ownerDocument = node.ownerDocument) == null ? void 0 : _node$ownerDocument.defaultView) || window;
 }
 function getDocumentElement(node) {
   var _ref;
@@ -9005,7 +9136,7 @@ function getCssDimensions(element) {
   const hasOffset = isHTMLElement(element);
   const offsetWidth = hasOffset ? element.offsetWidth : width;
   const offsetHeight = hasOffset ? element.offsetHeight : height;
-  const shouldFallback = round(width) !== offsetWidth || round(height) !== offsetHeight;
+  const shouldFallback = floating_ui_utils_round(width) !== offsetWidth || floating_ui_utils_round(height) !== offsetHeight;
   if (shouldFallback) {
     width = offsetWidth;
     height = offsetHeight;
@@ -9024,7 +9155,7 @@ function unwrapElement(element) {
 function getScale(element) {
   const domElement = unwrapElement(element);
   if (!isHTMLElement(domElement)) {
-    return createCoords(1);
+    return floating_ui_utils_createCoords(1);
   }
   const rect = domElement.getBoundingClientRect();
   const {
@@ -9032,8 +9163,8 @@ function getScale(element) {
     height,
     $
   } = getCssDimensions(domElement);
-  let x = ($ ? round(rect.width) : rect.width) / width;
-  let y = ($ ? round(rect.height) : rect.height) / height;
+  let x = ($ ? floating_ui_utils_round(rect.width) : rect.width) / width;
+  let y = ($ ? floating_ui_utils_round(rect.height) : rect.height) / height;
 
   // 0, NaN, or Infinity should always fallback to 1.
 
@@ -9049,7 +9180,7 @@ function getScale(element) {
   };
 }
 
-const noOffsets = /*#__PURE__*/createCoords(0);
+const noOffsets = /*#__PURE__*/floating_ui_utils_createCoords(0);
 function getVisualOffsets(element) {
   const win = floating_ui_utils_dom_getWindow(element);
   if (!isWebKit() || !win.visualViewport) {
@@ -9079,7 +9210,7 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetPar
   }
   const clientRect = element.getBoundingClientRect();
   const domElement = unwrapElement(element);
-  let scale = createCoords(1);
+  let scale = floating_ui_utils_createCoords(1);
   if (includeScale) {
     if (offsetParent) {
       if (isElement(offsetParent)) {
@@ -9089,7 +9220,7 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetPar
       scale = getScale(element);
     }
   }
-  const visualOffsets = shouldAddVisualOffsets(domElement, isFixedStrategy, offsetParent) ? getVisualOffsets(domElement) : createCoords(0);
+  const visualOffsets = shouldAddVisualOffsets(domElement, isFixedStrategy, offsetParent) ? getVisualOffsets(domElement) : floating_ui_utils_createCoords(0);
   let x = (clientRect.left + visualOffsets.x) / scale.x;
   let y = (clientRect.top + visualOffsets.y) / scale.y;
   let width = clientRect.width / scale.x;
@@ -9097,8 +9228,9 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetPar
   if (domElement) {
     const win = floating_ui_utils_dom_getWindow(domElement);
     const offsetWin = offsetParent && isElement(offsetParent) ? floating_ui_utils_dom_getWindow(offsetParent) : offsetParent;
-    let currentIFrame = win.frameElement;
-    while (currentIFrame && offsetParent && offsetWin !== win) {
+    let currentWin = win;
+    let currentIFrame = currentWin.frameElement;
+    while (currentIFrame && offsetParent && offsetWin !== currentWin) {
       const iframeScale = getScale(currentIFrame);
       const iframeRect = currentIFrame.getBoundingClientRect();
       const css = floating_ui_utils_dom_getComputedStyle(currentIFrame);
@@ -9110,7 +9242,8 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetPar
       height *= iframeScale.y;
       x += left;
       y += top;
-      currentIFrame = floating_ui_utils_dom_getWindow(currentIFrame).frameElement;
+      currentWin = floating_ui_utils_dom_getWindow(currentIFrame);
+      currentIFrame = currentWin.frameElement;
     }
   }
   return floating_ui_utils_rectToClientRect({
@@ -9121,24 +9254,38 @@ function getBoundingClientRect(element, includeScale, isFixedStrategy, offsetPar
   });
 }
 
+const topLayerSelectors = [':popover-open', ':modal'];
+function isTopLayer(floating) {
+  return topLayerSelectors.some(selector => {
+    try {
+      return floating.matches(selector);
+    } catch (e) {
+      return false;
+    }
+  });
+}
+
 function convertOffsetParentRelativeRectToViewportRelativeRect(_ref) {
   let {
+    elements,
     rect,
     offsetParent,
     strategy
   } = _ref;
-  const isOffsetParentAnElement = isHTMLElement(offsetParent);
+  const isFixed = strategy === 'fixed';
   const documentElement = getDocumentElement(offsetParent);
-  if (offsetParent === documentElement) {
+  const topLayer = elements ? isTopLayer(elements.floating) : false;
+  if (offsetParent === documentElement || topLayer && isFixed) {
     return rect;
   }
   let scroll = {
     scrollLeft: 0,
     scrollTop: 0
   };
-  let scale = createCoords(1);
-  const offsets = createCoords(0);
-  if (isOffsetParentAnElement || !isOffsetParentAnElement && strategy !== 'fixed') {
+  let scale = floating_ui_utils_createCoords(1);
+  const offsets = floating_ui_utils_createCoords(0);
+  const isOffsetParentAnElement = isHTMLElement(offsetParent);
+  if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
     if (getNodeName(offsetParent) !== 'body' || isOverflowElement(documentElement)) {
       scroll = getNodeScroll(offsetParent);
     }
@@ -9173,12 +9320,12 @@ function getDocumentRect(element) {
   const html = getDocumentElement(element);
   const scroll = getNodeScroll(element);
   const body = element.ownerDocument.body;
-  const width = floating_ui_utils_max(html.scrollWidth, html.clientWidth, body.scrollWidth, body.clientWidth);
-  const height = floating_ui_utils_max(html.scrollHeight, html.clientHeight, body.scrollHeight, body.clientHeight);
+  const width = dist_floating_ui_utils_max(html.scrollWidth, html.clientWidth, body.scrollWidth, body.clientWidth);
+  const height = dist_floating_ui_utils_max(html.scrollHeight, html.clientHeight, body.scrollHeight, body.clientHeight);
   let x = -scroll.scrollLeft + getWindowScrollBarX(element);
   const y = -scroll.scrollTop;
   if (floating_ui_utils_dom_getComputedStyle(body).direction === 'rtl') {
-    x += floating_ui_utils_max(html.clientWidth, body.clientWidth) - width;
+    x += dist_floating_ui_utils_max(html.clientWidth, body.clientWidth) - width;
   }
   return {
     width,
@@ -9218,7 +9365,7 @@ function getInnerBoundingClientRect(element, strategy) {
   const clientRect = getBoundingClientRect(element, true, strategy === 'fixed');
   const top = clientRect.top + element.clientTop;
   const left = clientRect.left + element.clientLeft;
-  const scale = isHTMLElement(element) ? getScale(element) : createCoords(1);
+  const scale = isHTMLElement(element) ? getScale(element) : floating_ui_utils_createCoords(1);
   const width = element.clientWidth * scale.x;
   const height = element.clientHeight * scale.y;
   const x = left * scale.x;
@@ -9304,10 +9451,10 @@ function getClippingRect(_ref) {
   const firstClippingAncestor = clippingAncestors[0];
   const clippingRect = clippingAncestors.reduce((accRect, clippingAncestor) => {
     const rect = getClientRectFromClippingAncestor(element, clippingAncestor, strategy);
-    accRect.top = floating_ui_utils_max(rect.top, accRect.top);
-    accRect.right = floating_ui_utils_min(rect.right, accRect.right);
-    accRect.bottom = floating_ui_utils_min(rect.bottom, accRect.bottom);
-    accRect.left = floating_ui_utils_max(rect.left, accRect.left);
+    accRect.top = dist_floating_ui_utils_max(rect.top, accRect.top);
+    accRect.right = dist_floating_ui_utils_min(rect.right, accRect.right);
+    accRect.bottom = dist_floating_ui_utils_min(rect.bottom, accRect.bottom);
+    accRect.left = dist_floating_ui_utils_max(rect.left, accRect.left);
     return accRect;
   }, getClientRectFromClippingAncestor(element, firstClippingAncestor, strategy));
   return {
@@ -9319,7 +9466,14 @@ function getClippingRect(_ref) {
 }
 
 function getDimensions(element) {
-  return getCssDimensions(element);
+  const {
+    width,
+    height
+  } = getCssDimensions(element);
+  return {
+    width,
+    height
+  };
 }
 
 function getRectRelativeToOffsetParent(element, offsetParent, strategy) {
@@ -9331,7 +9485,7 @@ function getRectRelativeToOffsetParent(element, offsetParent, strategy) {
     scrollLeft: 0,
     scrollTop: 0
   };
-  const offsets = createCoords(0);
+  const offsets = floating_ui_utils_createCoords(0);
   if (isOffsetParentAnElement || !isOffsetParentAnElement && !isFixed) {
     if (getNodeName(offsetParent) !== 'body' || isOverflowElement(documentElement)) {
       scroll = getNodeScroll(offsetParent);
@@ -9344,9 +9498,11 @@ function getRectRelativeToOffsetParent(element, offsetParent, strategy) {
       offsets.x = getWindowScrollBarX(documentElement);
     }
   }
+  const x = rect.left + scroll.scrollLeft - offsets.x;
+  const y = rect.top + scroll.scrollTop - offsets.y;
   return {
-    x: rect.left + scroll.scrollLeft - offsets.x,
-    y: rect.top + scroll.scrollTop - offsets.y,
+    x,
+    y,
     width: rect.width,
     height: rect.height
   };
@@ -9366,7 +9522,7 @@ function getTrueOffsetParent(element, polyfill) {
 // such as table ancestors and cross browser bugs.
 function getOffsetParent(element, polyfill) {
   const window = floating_ui_utils_dom_getWindow(element);
-  if (!isHTMLElement(element)) {
+  if (!isHTMLElement(element) || isTopLayer(element)) {
     return window;
   }
   let offsetParent = getTrueOffsetParent(element, polyfill);
@@ -9379,20 +9535,15 @@ function getOffsetParent(element, polyfill) {
   return offsetParent || getContainingBlock(element) || window;
 }
 
-const getElementRects = async function (_ref) {
-  let {
-    reference,
-    floating,
-    strategy
-  } = _ref;
+const getElementRects = async function (data) {
   const getOffsetParentFn = this.getOffsetParent || getOffsetParent;
   const getDimensionsFn = this.getDimensions;
   return {
-    reference: getRectRelativeToOffsetParent(reference, await getOffsetParentFn(floating), strategy),
+    reference: getRectRelativeToOffsetParent(data.reference, await getOffsetParentFn(data.floating), data.strategy),
     floating: {
       x: 0,
       y: 0,
-      ...(await getDimensionsFn(floating))
+      ...(await getDimensionsFn(data.floating))
     }
   };
 };
@@ -9420,8 +9571,9 @@ function observeMove(element, onMove) {
   let timeoutId;
   const root = getDocumentElement(element);
   function cleanup() {
+    var _io;
     clearTimeout(timeoutId);
-    io && io.disconnect();
+    (_io = io) == null || _io.disconnect();
     io = null;
   }
   function refresh(skip, threshold) {
@@ -9444,14 +9596,14 @@ function observeMove(element, onMove) {
     if (!width || !height) {
       return;
     }
-    const insetTop = floor(top);
-    const insetRight = floor(root.clientWidth - (left + width));
-    const insetBottom = floor(root.clientHeight - (top + height));
-    const insetLeft = floor(left);
+    const insetTop = floating_ui_utils_floor(top);
+    const insetRight = floating_ui_utils_floor(root.clientWidth - (left + width));
+    const insetBottom = floating_ui_utils_floor(root.clientHeight - (top + height));
+    const insetLeft = floating_ui_utils_floor(left);
     const rootMargin = -insetTop + "px " + -insetRight + "px " + -insetBottom + "px " + -insetLeft + "px";
     const options = {
       rootMargin,
-      threshold: floating_ui_utils_max(0, floating_ui_utils_min(1, threshold)) || 1
+      threshold: dist_floating_ui_utils_max(0, dist_floating_ui_utils_min(1, threshold)) || 1
     };
     let isFirstUpdate = true;
     function handleObserve(entries) {
@@ -9527,7 +9679,8 @@ function autoUpdate(reference, floating, update, options) {
         resizeObserver.unobserve(floating);
         cancelAnimationFrame(reobserveFrame);
         reobserveFrame = requestAnimationFrame(() => {
-          resizeObserver && resizeObserver.observe(floating);
+          var _resizeObserver;
+          (_resizeObserver = resizeObserver) == null || _resizeObserver.observe(floating);
         });
       }
       update();
@@ -9552,12 +9705,13 @@ function autoUpdate(reference, floating, update, options) {
   }
   update();
   return () => {
+    var _resizeObserver2;
     ancestors.forEach(ancestor => {
       ancestorScroll && ancestor.removeEventListener('scroll', update);
       ancestorResize && ancestor.removeEventListener('resize', update);
     });
-    cleanupIo && cleanupIo();
-    resizeObserver && resizeObserver.disconnect();
+    cleanupIo == null || cleanupIo();
+    (_resizeObserver2 = resizeObserver) == null || _resizeObserver2.disconnect();
     resizeObserver = null;
     if (animationFrame) {
       cancelAnimationFrame(frameId);
@@ -9566,9 +9720,65 @@ function autoUpdate(reference, floating, update, options) {
 }
 
 /**
+ * Optimizes the visibility of the floating element by choosing the placement
+ * that has the most space available automatically, without needing to specify a
+ * preferred placement. Alternative to `flip`.
+ * @see https://floating-ui.com/docs/autoPlacement
+ */
+const floating_ui_dom_autoPlacement = (/* unused pure expression or super */ null && (autoPlacement$1));
+
+/**
+ * Optimizes the visibility of the floating element by shifting it in order to
+ * keep it in view when it will overflow the clipping boundary.
+ * @see https://floating-ui.com/docs/shift
+ */
+const floating_ui_dom_shift = shift;
+
+/**
+ * Optimizes the visibility of the floating element by flipping the `placement`
+ * in order to keep it in view when the preferred placement(s) will overflow the
+ * clipping boundary. Alternative to `autoPlacement`.
+ * @see https://floating-ui.com/docs/flip
+ */
+const floating_ui_dom_flip = flip;
+
+/**
+ * Provides data that allows you to change the size of the floating element —
+ * for instance, prevent it from overflowing the clipping boundary or match the
+ * width of the reference element.
+ * @see https://floating-ui.com/docs/size
+ */
+const floating_ui_dom_size = size;
+
+/**
+ * Provides data to hide the floating element in applicable situations, such as
+ * when it is not in the same clipping context as the reference element.
+ * @see https://floating-ui.com/docs/hide
+ */
+const floating_ui_dom_hide = (/* unused pure expression or super */ null && (hide$1));
+
+/**
+ * Provides data to position an inner element of the floating element so that it
+ * appears centered to the reference element.
+ * @see https://floating-ui.com/docs/arrow
+ */
+const floating_ui_dom_arrow = arrow;
+
+/**
+ * Provides improved positioning for inline reference elements that can span
+ * over multiple lines, such as hyperlinks or range selections.
+ * @see https://floating-ui.com/docs/inline
+ */
+const floating_ui_dom_inline = (/* unused pure expression or super */ null && (inline$1));
+
+/**
+ * Built-in `limiter` that will stop `shift()` at a certain point.
+ */
+const floating_ui_dom_limitShift = limitShift;
+
+/**
  * Computes the `x` and `y` coordinates that will place the floating element
- * next to a reference element when it is given a certain CSS positioning
- * strategy.
+ * next to a given reference element.
  */
 const floating_ui_dom_computePosition = (reference, floating, options) => {
   // This caches the expensive `getClippingElementAncestors` function so that
@@ -9668,7 +9878,7 @@ function getFlipMiddleware(props) {
     !fallbackPlacements || fallbackPlacements.every(isValidPlacement),
      false && 0
   );
-  return floating_ui_core_flip({
+  return floating_ui_dom_flip({
     padding: props.overflowPadding,
     fallbackPlacements
   });
@@ -9676,15 +9886,15 @@ function getFlipMiddleware(props) {
 function getShiftMiddleware(props) {
   if (!props.slide && !props.overlap)
     return;
-  return floating_ui_core_shift({
+  return floating_ui_dom_shift({
     mainAxis: props.slide,
     crossAxis: props.overlap,
     padding: props.overflowPadding,
-    limiter: limitShift()
+    limiter: floating_ui_dom_limitShift()
   });
 }
 function getSizeMiddleware(props) {
-  return size({
+  return floating_ui_dom_size({
     padding: props.overflowPadding,
     apply({ elements, availableWidth, availableHeight, rects }) {
       const wrapper = elements.floating;
@@ -9716,7 +9926,7 @@ function getSizeMiddleware(props) {
 function getArrowMiddleware(arrowElement, props) {
   if (!arrowElement)
     return;
-  return arrow({
+  return floating_ui_dom_arrow({
     element: arrowElement,
     padding: props.arrowPadding
   });
@@ -10753,10 +10963,10 @@ const tooltip_Tooltip = (0,external_wp_element_namespaceObject.forwardRef)(Unfor
 const external_wp_warning_namespaceObject = window["wp"]["warning"];
 var external_wp_warning_default = /*#__PURE__*/__webpack_require__.n(external_wp_warning_namespaceObject);
 // EXTERNAL MODULE: ./node_modules/deepmerge/dist/cjs.js
-var cjs = __webpack_require__(1919);
+var cjs = __webpack_require__(66);
 var cjs_default = /*#__PURE__*/__webpack_require__.n(cjs);
 // EXTERNAL MODULE: ./node_modules/fast-deep-equal/es6/index.js
-var es6 = __webpack_require__(5619);
+var es6 = __webpack_require__(7734);
 var es6_default = /*#__PURE__*/__webpack_require__.n(es6);
 ;// CONCATENATED MODULE: ./node_modules/is-plain-object/dist/is-plain-object.mjs
 /*!
@@ -14494,7 +14704,7 @@ function getAlignmentIndex(alignment = 'center') {
 }
 
 // EXTERNAL MODULE: ./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js
-var hoist_non_react_statics_cjs = __webpack_require__(1281);
+var hoist_non_react_statics_cjs = __webpack_require__(1880);
 ;// CONCATENATED MODULE: ./node_modules/@emotion/react/dist/emotion-react.browser.esm.js
 
 
@@ -27831,7 +28041,7 @@ const upperCase =  true ? {
 } : 0;
 
 // EXTERNAL MODULE: ./node_modules/highlight-words-core/dist/index.js
-var dist = __webpack_require__(3138);
+var dist = __webpack_require__(9664);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/text/utils.js
 /**
  * External dependencies
@@ -32459,7 +32669,7 @@ const AnglePickerControl = (0,external_wp_element_namespaceObject.forwardRef)(Un
 /* harmony default export */ const angle_picker_control = (AnglePickerControl);
 
 // EXTERNAL MODULE: ./node_modules/remove-accents/index.js
-var remove_accents = __webpack_require__(4793);
+var remove_accents = __webpack_require__(9681);
 var remove_accents_default = /*#__PURE__*/__webpack_require__.n(remove_accents);
 ;// CONCATENATED MODULE: external ["wp","richText"]
 const external_wp_richText_namespaceObject = window["wp"]["richText"];
@@ -32692,14 +32902,15 @@ const floating_ui_react_dom_arrow = options => {
       } = typeof options === 'function' ? options(state) : options;
       if (element && isRef(element)) {
         if (element.current != null) {
-          return arrow({
+          return floating_ui_dom_arrow({
             element: element.current,
             padding
           }).fn(state);
         }
         return {};
-      } else if (element) {
-        return arrow({
+      }
+      if (element) {
+        return floating_ui_dom_arrow({
           element,
           padding
         }).fn(state);
@@ -32723,11 +32934,13 @@ function deepEqual(a, b) {
   if (typeof a === 'function' && a.toString() === b.toString()) {
     return true;
   }
-  let length, i, keys;
-  if (a && b && typeof a == 'object') {
+  let length;
+  let i;
+  let keys;
+  if (a && b && typeof a === 'object') {
     if (Array.isArray(a)) {
       length = a.length;
-      if (length != b.length) return false;
+      if (length !== b.length) return false;
       for (i = length; i-- !== 0;) {
         if (!deepEqual(a[i], b[i])) {
           return false;
@@ -32756,6 +32969,8 @@ function deepEqual(a, b) {
     }
     return true;
   }
+
+  // biome-ignore lint/suspicious/noSelfCompare: in source
   return a !== a && b !== b;
 }
 
@@ -32782,7 +32997,7 @@ function useLatestRef(value) {
 
 /**
  * Provides data to position a floating element.
- * @see https://floating-ui.com/docs/react
+ * @see https://floating-ui.com/docs/useFloating
  */
 function useFloating(options) {
   if (options === void 0) {
@@ -32816,22 +33031,23 @@ function useFloating(options) {
   const [_reference, _setReference] = external_React_.useState(null);
   const [_floating, _setFloating] = external_React_.useState(null);
   const setReference = external_React_.useCallback(node => {
-    if (node != referenceRef.current) {
+    if (node !== referenceRef.current) {
       referenceRef.current = node;
       _setReference(node);
     }
-  }, [_setReference]);
+  }, []);
   const setFloating = external_React_.useCallback(node => {
     if (node !== floatingRef.current) {
       floatingRef.current = node;
       _setFloating(node);
     }
-  }, [_setFloating]);
+  }, []);
   const referenceEl = externalReference || _reference;
   const floatingEl = externalFloating || _floating;
   const referenceRef = external_React_.useRef(null);
   const floatingRef = external_React_.useRef(null);
   const dataRef = external_React_.useRef(data);
+  const hasWhileElementsMounted = whileElementsMounted != null;
   const whileElementsMountedRef = useLatestRef(whileElementsMounted);
   const platformRef = useLatestRef(platform);
   const update = external_React_.useCallback(() => {
@@ -32875,17 +33091,18 @@ function useFloating(options) {
       isMountedRef.current = false;
     };
   }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `hasWhileElementsMounted` is intentionally included.
   index(() => {
     if (referenceEl) referenceRef.current = referenceEl;
     if (floatingEl) floatingRef.current = floatingEl;
     if (referenceEl && floatingEl) {
       if (whileElementsMountedRef.current) {
         return whileElementsMountedRef.current(referenceEl, floatingEl, update);
-      } else {
-        update();
       }
+      update();
     }
-  }, [referenceEl, floatingEl, update, whileElementsMountedRef]);
+  }, [referenceEl, floatingEl, update, whileElementsMountedRef, hasWhileElementsMounted]);
   const refs = external_React_.useMemo(() => ({
     reference: referenceRef,
     floating: floatingRef,
@@ -34747,7 +34964,7 @@ function overlayMiddlewares() {
     }) {
       return rects.reference;
     }
-  }, size({
+  }, floating_ui_dom_size({
     apply({
       rects,
       elements
@@ -34916,7 +35133,7 @@ const UnconnectedPopover = (props, forwardedRef) => {
   const isExpanded = expandOnMobile && isMobileViewport;
   const hasArrow = !isExpanded && !noArrow;
   const normalizedPlacementFromProps = position ? positionToPlacement(position) : placementProp;
-  const middleware = [...(placementProp === 'overlay' ? overlayMiddlewares() : []), offset(offsetProp), computedFlipProp && floating_ui_core_flip(), computedResizeProp && size({
+  const middleware = [...(placementProp === 'overlay' ? overlayMiddlewares() : []), offset(offsetProp), computedFlipProp && floating_ui_dom_flip(), computedResizeProp && floating_ui_dom_size({
     apply(sizeProps) {
       var _refs$floating$curren;
       const {
@@ -34932,9 +35149,9 @@ const UnconnectedPopover = (props, forwardedRef) => {
         overflow: 'auto'
       });
     }
-  }), shift && floating_ui_core_shift({
+  }), shift && floating_ui_dom_shift({
     crossAxis: true,
-    limiter: limitShift(),
+    limiter: floating_ui_dom_limitShift(),
     padding: 1 // Necessary to avoid flickering at the edge of the viewport.
   }), floating_ui_react_dom_arrow({
     element: arrowRef
@@ -45180,7 +45397,7 @@ function CustomGradientBar({
 }
 
 // EXTERNAL MODULE: ./node_modules/gradient-parser/build/node.js
-var build_node = __webpack_require__(7115);
+var build_node = __webpack_require__(8924);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/custom-gradient-picker/constants.js
 /**
  * WordPress dependencies
@@ -46833,7 +47050,7 @@ const TokenInput = (0,external_wp_element_namespaceObject.forwardRef)(UnForwarde
 /* harmony default export */ const token_input = (TokenInput);
 
 // EXTERNAL MODULE: ./node_modules/dom-scroll-into-view/lib/index.js
-var lib = __webpack_require__(5425);
+var lib = __webpack_require__(5428);
 var lib_default = /*#__PURE__*/__webpack_require__.n(lib);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/components/build-module/form-token-field/suggestions-list.js
 
@@ -47963,10 +48180,10 @@ const ConfirmDialog = contextConnect(UnconnectedConfirmDialog, 'ConfirmDialog');
 /* harmony default export */ const confirm_dialog_component = (ConfirmDialog);
 
 // EXTERNAL MODULE: ./node_modules/prop-types/index.js
-var prop_types = __webpack_require__(2652);
+var prop_types = __webpack_require__(5826);
 var prop_types_default = /*#__PURE__*/__webpack_require__.n(prop_types);
 // EXTERNAL MODULE: ./node_modules/downshift/node_modules/react-is/index.js
-var react_is = __webpack_require__(2797);
+var react_is = __webpack_require__(1915);
 ;// CONCATENATED MODULE: ./node_modules/compute-scroll-into-view/dist/index.mjs
 function dist_t(t){return"object"==typeof t&&null!=t&&1===t.nodeType}function dist_e(t,e){return(!e||"hidden"!==t)&&"visible"!==t&&"clip"!==t}function dist_n(t,n){if(t.clientHeight<t.scrollHeight||t.clientWidth<t.scrollWidth){var r=getComputedStyle(t,null);return dist_e(r.overflowY,n)||dist_e(r.overflowX,n)||function(t){var e=function(t){if(!t.ownerDocument||!t.ownerDocument.defaultView)return null;try{return t.ownerDocument.defaultView.frameElement}catch(t){return null}}(t);return!!e&&(e.clientHeight<t.scrollHeight||e.clientWidth<t.scrollWidth)}(t)}return!1}function dist_r(t,e,n,r,i,o,l,d){return o<t&&l>e||o>t&&l<e?0:o<=t&&d<=n||l>=e&&d>=n?o-t-r:l>e&&d<n||o<t&&d>n?l-e+i:0}var compute_scroll_into_view_dist_i=function(e,i){var o=window,l=i.scrollMode,d=i.block,f=i.inline,h=i.boundary,u=i.skipOverflowHiddenElements,s="function"==typeof h?h:function(t){return t!==h};if(!dist_t(e))throw new TypeError("Invalid target");for(var a,c,g=document.scrollingElement||document.documentElement,p=[],m=e;dist_t(m)&&s(m);){if((m=null==(c=(a=m).parentElement)?a.getRootNode().host||null:c)===g){p.push(m);break}null!=m&&m===document.body&&dist_n(m)&&!dist_n(document.documentElement)||null!=m&&dist_n(m,u)&&p.push(m)}for(var w=o.visualViewport?o.visualViewport.width:innerWidth,v=o.visualViewport?o.visualViewport.height:innerHeight,W=window.scrollX||pageXOffset,H=window.scrollY||pageYOffset,b=e.getBoundingClientRect(),y=b.height,E=b.width,M=b.top,V=b.right,x=b.bottom,I=b.left,C="start"===d||"nearest"===d?M:"end"===d?x:M+y/2,R="center"===f?I+E/2:"end"===f?V:I,T=[],k=0;k<p.length;k++){var B=p[k],D=B.getBoundingClientRect(),O=D.height,X=D.width,Y=D.top,L=D.right,S=D.bottom,j=D.left;if("if-needed"===l&&M>=0&&I>=0&&x<=v&&V<=w&&M>=Y&&x<=S&&I>=j&&V<=L)return T;var N=getComputedStyle(B),q=parseInt(N.borderLeftWidth,10),z=parseInt(N.borderTopWidth,10),A=parseInt(N.borderRightWidth,10),F=parseInt(N.borderBottomWidth,10),G=0,J=0,K="offsetWidth"in B?B.offsetWidth-B.clientWidth-q-A:0,P="offsetHeight"in B?B.offsetHeight-B.clientHeight-z-F:0,Q="offsetWidth"in B?0===B.offsetWidth?0:X/B.offsetWidth:0,U="offsetHeight"in B?0===B.offsetHeight?0:O/B.offsetHeight:0;if(g===B)G="start"===d?C:"end"===d?C-v:"nearest"===d?dist_r(H,H+v,v,z,F,H+C,H+C+y,y):C-v/2,J="start"===f?R:"center"===f?R-w/2:"end"===f?R-w:dist_r(W,W+w,w,q,A,W+R,W+R+E,E),G=Math.max(0,G+H),J=Math.max(0,J+W);else{G="start"===d?C-Y-z:"end"===d?C-S+F+P:"nearest"===d?dist_r(Y,S,O,z,F+P,C,C+y,y):C-(Y+O/2)+P/2,J="start"===f?R-j-q:"center"===f?R-(j+X/2)+K/2:"end"===f?R-L+A+K:dist_r(j,L,X,q,A+K,R,R+E,E);var Z=B.scrollLeft,$=B.scrollTop;C+=$-(G=Math.max(0,Math.min($+G/U,B.scrollHeight-O/U+P))),R+=Z-(J=Math.max(0,Math.min(Z+J/Q,B.scrollWidth-X/Q+K)))}T.push({el:B,top:G,left:J})}return T};
 //# sourceMappingURL=index.mjs.map

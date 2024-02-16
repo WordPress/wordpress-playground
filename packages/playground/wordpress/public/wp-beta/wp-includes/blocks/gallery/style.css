@@ -31,7 +31,7 @@
   width:auto;
 }
 .blocks-gallery-grid:not(.has-nested-images) .blocks-gallery-image figcaption,.blocks-gallery-grid:not(.has-nested-images) .blocks-gallery-item figcaption,.wp-block-gallery:not(.has-nested-images) .blocks-gallery-image figcaption,.wp-block-gallery:not(.has-nested-images) .blocks-gallery-item figcaption{
-  background:linear-gradient(0deg, rgba(0,0,0,.7), rgba(0,0,0,.3) 70%, transparent);
+  background:linear-gradient(0deg, #000000b3, #0000004d 70%, #0000);
   bottom:0;
   box-sizing:border-box;
   color:#fff;
@@ -134,7 +134,7 @@ figure.wp-block-gallery.has-nested-images{
   width:auto;
 }
 .wp-block-gallery.has-nested-images figure.wp-block-image figcaption{
-  background:linear-gradient(0deg, rgba(0,0,0,.7), rgba(0,0,0,.3) 70%, transparent);
+  background:linear-gradient(0deg, #000000b3, #0000004d 70%, #0000);
   bottom:0;
   box-sizing:border-box;
   color:#fff;
@@ -145,8 +145,36 @@ figure.wp-block-gallery.has-nested-images{
   overflow:auto;
   padding:0 8px 8px;
   position:absolute;
+  scrollbar-color:#0000 #0000;
+  scrollbar-gutter:stable both-edges;
+  scrollbar-width:thin;
   text-align:center;
   width:100%;
+  will-change:transform;
+}
+.wp-block-gallery.has-nested-images figure.wp-block-image figcaption::-webkit-scrollbar{
+  height:12px;
+  width:12px;
+}
+.wp-block-gallery.has-nested-images figure.wp-block-image figcaption::-webkit-scrollbar-track{
+  background-color:initial;
+}
+.wp-block-gallery.has-nested-images figure.wp-block-image figcaption::-webkit-scrollbar-thumb{
+  background-clip:padding-box;
+  background-color:initial;
+  border:3px solid #0000;
+  border-radius:8px;
+}
+.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:focus-within::-webkit-scrollbar-thumb,.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:focus::-webkit-scrollbar-thumb,.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:hover::-webkit-scrollbar-thumb{
+  background-color:#fffc;
+}
+.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:focus,.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:focus-within,.wp-block-gallery.has-nested-images figure.wp-block-image figcaption:hover{
+  scrollbar-color:#fffc #0000;
+}
+@media (hover:none){
+  .wp-block-gallery.has-nested-images figure.wp-block-image figcaption{
+    scrollbar-color:#fffc #0000;
+  }
 }
 .wp-block-gallery.has-nested-images figure.wp-block-image figcaption img{
   display:inline;
