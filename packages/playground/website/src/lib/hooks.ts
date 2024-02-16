@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
+import { get_logger } from './logger';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -34,6 +35,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
 
+		get_logger(undefined);
 		startPlaygroundWeb({
 			iframe,
 			remoteUrl: remoteUrl.toString(),
