@@ -134,6 +134,27 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
+		it('Should accept `body` as a JavaScript object', async () => {
+			/**
+			 * Tests against calling phpwasm_init_uploaded_files_hash() when
+			 * the Content-type header is set to multipart/form-data. See the
+			 * phpwasm_init_uploaded_files_hash() docstring for more info.
+			 */
+			php.writeFile(
+				'/index.php',
+				`<?php 
+				echo json_encode($_POST);`
+			);
+			const response = await handler.request({
+				url: '/index.php',
+				method: 'POST',
+				body: {
+					key: 'value',
+				},
+			});
+			expect(response.text).toEqual(JSON.stringify({ key: 'value' }));
+		});
+
 		it('Should not crash on move_uploaded_file', async () => {
 			/**
 			 * Tests against calling phpwasm_init_uploaded_files_hash() when
@@ -154,6 +175,29 @@ describe.each(SupportedPHPVersions)(
 				},
 			});
 			expect(response.text).toEqual('true');
+		});
+
+		it('Should allow mixing data and files when `body` is a JavaScript object', async () => {
+			php.writeFile(
+				'/index.php',
+				`<?php 
+				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
+				echo json_encode(array_merge(
+					$_POST,
+					array('file_exists' => file_exists('/tmp/moved.txt'))
+				));`
+			);
+			const response = await handler.request({
+				url: '/index.php',
+				method: 'POST',
+				body: {
+					key: 'value',
+					myFile: new File(['bar'], 'bar.txt'),
+				},
+			});
+			expect(response.text).toEqual(
+				JSON.stringify({ key: 'value', file_exists: true })
+			);
 		});
 
 		it('Should handle an empty file object and post data', async () => {

@@ -24,42 +24,42 @@ export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: nu
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 5121390,
+				size: 5121921,
 				url: url_nightly,
 			};
 			
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 5014367,
+				size: 5121893,
 				url: url_beta,
 			};
 			
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 5015132,
+				size: 5015123,
 				url: url_6_4,
 			};
 			
 		case '6.3':
 			/** @ts-ignore */
 			return {
-				size: 3760133,
+				size: 3760135,
 				url: url_6_3,
 			};
 			
 		case '6.2':
 			/** @ts-ignore */
 			return {
-				size: 3654396,
+				size: 3654389,
 				url: url_6_2,
 			};
 			
 		case '6.1':
 			/** @ts-ignore */
 			return {
-				size: 3533952,
+				size: 3533948,
 				url: url_6_1,
 			};
 			
