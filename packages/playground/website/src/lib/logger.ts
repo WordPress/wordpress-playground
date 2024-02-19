@@ -1,6 +1,3 @@
-import { BasePHP } from "@php-wasm/universal/src/lib/base-php";
-import { UniversalPHP } from "@php-wasm/universal/src/lib/universal-php";
-
 export enum LogSeverity {
     // A debugging event.
     Debug,
@@ -21,6 +18,9 @@ export class Logger {
         this.collectPlaygroundLogs();
     }
 
+    /**
+     * Collect errors from Playground and log them.
+     */
     private collectPlaygroundLogs() {
          if (typeof window !== 'undefined') {
             window.addEventListener('error', (event) => {
@@ -56,22 +56,48 @@ export class Logger {
         return `${day}-${month}-${year} ${hours}:${minutes}:${seconds} UTC`;
     }
 
+    /**
+     * Format log message and severity and log it.
+     * @param string message
+     * @param LogSeverity severity
+     */
+    public formatLog(message: string, severity: LogSeverity): string {
+        const now = this.formatLogDate(new Date());
+        return `[${now}] ${this.LOG_PREFIX} ${LogSeverity[severity]}: ${message}`;
+    }
+
+    /**
+     * Log message with severity and timestamp.
+     * @param string message
+     * @param LogSeverity severity
+     */
     public log(message: string, severity?: LogSeverity): void {
         if (severity === undefined) {
             severity = LogSeverity.Info;
         }
-        const now = this.formatLogDate(new Date());
-        const log = `[${now}] ${this.LOG_PREFIX} ${LogSeverity[severity]}: ${message}`;
+        const log = this.formatLog(message, severity);
         this.logRaw(log);
     }
 
+    /**
+     * Log message without severity and timestamp.
+     * @param string log
+     */
     public logRaw(log: string): void {
         console.debug(log);
     }
 };
 
+/**
+ * The logger instance.
+ */
 let logger: Logger | undefined = undefined;
 
+/**
+ * Get the logger instance.
+ *
+ * @returns Logger
+ */
 export function get_logger(): Logger {
     if (!logger) {
         logger = new Logger();

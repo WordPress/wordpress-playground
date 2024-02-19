@@ -13,7 +13,8 @@ import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import { Blueprint } from './blueprint';
+import { Blueprint } from './blueprint'
+import { get_logger } from '../../../website/src/lib/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
 const { wpCLI, ...otherStepHandlers } = allStepHandlers;
@@ -237,9 +238,10 @@ export function compileBlueprint(
 						onStepCompleted(result, step);
 					} catch (e) {
 						console.error(e);
-						// @TODO This should return logs from the PHP process
-						let message = await playground.getRequestPhpErrorLog();
-						message += `\n Error when executing the blueprint step #${i} (${JSON.stringify(
+						get_logger().logRaw(
+							await playground.getRequestPhpErrorLog()
+						);
+						let message = `Error when executing the blueprint step #${i} (${JSON.stringify(
 							step
 						)})`;
 						message += e instanceof Error ? `: ${e.message}` : e;

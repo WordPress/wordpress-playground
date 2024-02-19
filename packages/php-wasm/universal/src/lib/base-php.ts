@@ -84,7 +84,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 
 		// Use the log length as the start position for the current request.
-		this.logStartPosition = this.#getPhpErrorLog().length;
+		this.logStartPosition = this.getPhpErrorLog().length;
 	}
 
 	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
@@ -240,7 +240,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		return this.requestHandler.request(request, maxRedirects);
 	}
 
-	#getPhpErrorLog() {
+	getPhpErrorLog() {
 		const logPath = '/wordpress/wp-content/debug.log';
 		if (!this.fileExists(logPath)) {
 			return '';
@@ -250,7 +250,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	getRequestPhpErrorLog() {
-		return this.#getPhpErrorLog().substring(this.logStartPosition);
+		return this.getPhpErrorLog().substring(this.logStartPosition);
 	}
 
 	/** @inheritDoc */

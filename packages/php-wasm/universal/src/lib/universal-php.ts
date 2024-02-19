@@ -324,6 +324,11 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	chdir(path: string): void;
 
 	/**
+	 * Get all PHP error log data.
+	*/
+	getPhpErrorLog(): string;
+
+	/**
 	 * Get PHP error log data for the current request.
 	 */
 	getRequestPhpErrorLog(): string;

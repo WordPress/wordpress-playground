@@ -99,6 +99,16 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.request(request, redirects);
 	}
 
+	/** @inheritDoc @php-wasm/universal!RequestHandler.getPhpErrorLog */
+	getPhpErrorLog() {
+		return _private.get(this)!.php.getPhpErrorLog();
+	}
+
+	/** @inheritDoc @php-wasm/universal!RequestHandler.getRequestPhpErrorLog */
+	getRequestPhpErrorLog() {
+		return _private.get(this)!.php.getRequestPhpErrorLog();
+	}
+
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
