@@ -1,12 +1,13 @@
-import type { Blueprint } from '@wp-playground/client';
+import type { Blueprint, StepDefinition } from '@wp-playground/client';
 
-import React, { Ref } from 'react';
+import React, { Ref, useEffect } from 'react';
 
 import css from './style.module.css';
 import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
+import { GAEvent, addEvent } from '../../lib/tracking';
 
 export const supportedDisplayModes = [
 	'browser',
@@ -33,6 +34,17 @@ export default function PlaygroundViewport({
 		blueprint,
 		storage,
 	});
+
+	// Add GA events for blueprint steps
+	useEffect(() => {
+		addEvent(GAEvent.Load);
+		const steps = (blueprint?.steps || [])
+			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
+			.map((step) => (step as StepDefinition).step);
+		for (const step of steps) {
+			addEvent(GAEvent.Step, { step });
+		}
+	}, [blueprint?.steps]);
 
 	return (
 		<PlaygroundContext.Provider
