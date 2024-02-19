@@ -30,5 +30,5 @@
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
 		"./cypress.config.ts"
-]
+	]
 }
