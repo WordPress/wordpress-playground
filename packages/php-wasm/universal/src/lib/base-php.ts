@@ -53,9 +53,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
 
-	// The pointer in the PHP log file where the last request ended.
-	logStartPosition = 0;
-
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
 	 * the same time.
@@ -82,9 +79,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				new PHPRequestHandler(this, serverOptions)
 			);
 		}
-
-		// Use the log length as the start position for the current request.
-		this.logStartPosition = this.getPhpErrorLog().length;
 	}
 
 	addEventListener(eventType: PHPEvent['type'], listener: PHPEventListener) {
@@ -240,17 +234,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		return this.requestHandler.request(request, maxRedirects);
 	}
 
-	getPhpErrorLog() {
+	/** @inheritDoc */
+	getRequestPhpErrorLog() {
 		const logPath = '/wordpress/wp-content/debug.log';
 		if (!this.fileExists(logPath)) {
 			return '';
 		}
 		return this.readFileAsText(logPath);
-	}
-
-	/** @inheritDoc */
-	getRequestPhpErrorLog() {
-		return this.getPhpErrorLog().substring(this.logStartPosition);
 	}
 
 	/** @inheritDoc */

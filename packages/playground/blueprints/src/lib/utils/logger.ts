@@ -22,6 +22,11 @@ export enum LogSeverity {
 export class Logger {
     private readonly LOG_PREFIX = 'Playground';
 
+    /**
+     * The length of the last PHP log.
+     */
+    private lastPHPLogLength = 0;
+
     constructor() {
         this.collectPlaygroundLogs();
     }
@@ -60,10 +65,12 @@ export class Logger {
         playground.addEventListener('request.end', (event) => {
             event = event as PHPRequestEndEvent;
             if (event.data && event.data['log']) {
-                this.logRaw(event?.data['log']);
+                this.logRaw(event?.data['log'].substring(this.lastPHPLogLength));
+                this.lastPHPLogLength = event.data['log'].length;
             }
         } );
     }
+
 
     /**
      * Get UTC date in the PHP log format https://github.com/php/php-src/blob/master/main/main.c#L849

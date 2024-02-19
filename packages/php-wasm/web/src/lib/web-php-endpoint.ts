@@ -99,11 +99,6 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.request(request, redirects);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.getPhpErrorLog */
-	getPhpErrorLog() {
-		return _private.get(this)!.php.getPhpErrorLog();
-	}
-
 	/** @inheritDoc @php-wasm/universal!RequestHandler.getRequestPhpErrorLog */
 	getRequestPhpErrorLog() {
 		return _private.get(this)!.php.getRequestPhpErrorLog();
