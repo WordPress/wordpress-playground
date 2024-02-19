@@ -1,6 +1,5 @@
 import { PHPRequestEndEvent } from "@php-wasm/universal/src/lib/universal-php";
-import { UniversalPHP } from "../../../../client/src";
-
+import { UniversalPHP } from "@php-wasm/universal/src/lib/universal-php";
 /**
  * Log severity levels.
  */
