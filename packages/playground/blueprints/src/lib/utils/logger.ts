@@ -1,3 +1,9 @@
+import { PHPRequestEndEvent } from "@php-wasm/universal/src/lib/universal-php";
+import { UniversalPHP } from "../../../../client/src";
+
+/**
+ * Log severity levels.
+ */
 export enum LogSeverity {
     // A debugging event.
     Debug,
@@ -11,6 +17,9 @@ export enum LogSeverity {
     Fatal,
 }
 
+/**
+ * A logger for Playground.
+ */
 export class Logger {
     private readonly LOG_PREFIX = 'Playground';
 
@@ -35,7 +44,26 @@ export class Logger {
                     LogSeverity.Fatal
                 );
             });
+            window.addEventListener('rejectionhandled', (event) => {
+                this.log(
+                    `${event.reason.stack}`,
+                    LogSeverity.Fatal
+                );
+            });
         }
+    }
+
+    /**
+     * Register a listener for the request.end event and log the data.
+     * @param UniversalPHP playground instance
+     */
+    public addPlaygroundRequestEndListener(playground: UniversalPHP) {
+        playground.addEventListener('request.end', (event) => {
+            event = event as PHPRequestEndEvent;
+            if (event.data && event.data['log']) {
+                this.logRaw(event?.data['log']);
+            }
+        } );
     }
 
     /**

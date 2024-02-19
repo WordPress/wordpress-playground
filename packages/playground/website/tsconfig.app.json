@@ -30,5 +30,7 @@
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
 		"./cypress.config.ts"
-	]
+,
+"../blueprints/src/lib/utils/logger.ts"
+]
 }

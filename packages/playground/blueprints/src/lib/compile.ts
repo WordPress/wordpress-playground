@@ -14,7 +14,7 @@ import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint'
-import { get_logger } from '../../../website/src/lib/logger';
+import { get_logger } from './utils/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
 const { wpCLI, ...otherStepHandlers } = allStepHandlers;
@@ -221,6 +221,9 @@ export function compileBlueprint(
 			networking: blueprint.features?.networking ?? false,
 		},
 		run: async (playground: UniversalPHP) => {
+			// Initialize logger
+			const logger = get_logger();
+			logger.addPlaygroundRequestEndListener(playground);
 			try {
 				// Start resolving resources early
 				for (const { resources } of compiled) {
@@ -238,14 +241,9 @@ export function compileBlueprint(
 						onStepCompleted(result, step);
 					} catch (e) {
 						console.error(e);
-						get_logger().logRaw(
-							await playground.getRequestPhpErrorLog()
-						);
-						let message = `Error when executing the blueprint step #${i} (${JSON.stringify(
+						throw new Error(`Error when executing the blueprint step #${i} (${JSON.stringify(
 							step
-						)})`;
-						message += e instanceof Error ? `: ${e.message}` : e;
-						throw new Error(message);
+						)}) ${e instanceof Error ? `: ${e.message}` : e}`);
 					}
 				}
 			} finally {
