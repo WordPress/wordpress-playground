@@ -24,21 +24,21 @@ export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: nu
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 5125945,
+				size: 5125944,
 				url: url_nightly,
 			};
 			
 		case 'beta':
 			/** @ts-ignore */
 			return {
-				size: 5121889,
+				size: 5121884,
 				url: url_beta,
 			};
 			
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 5015120,
+				size: 5015123,
 				url: url_6_4,
 			};
 			
@@ -52,14 +52,14 @@ export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: nu
 		case '6.2':
 			/** @ts-ignore */
 			return {
-				size: 3654390,
+				size: 3654395,
 				url: url_6_2,
 			};
 			
 		case '6.1':
 			/** @ts-ignore */
 			return {
-				size: 3533945,
+				size: 3533946,
 				url: url_6_1,
 			};
 			
