@@ -1,20 +1,8 @@
-import { PHPRequestEndEvent } from "@php-wasm/universal/src/lib/universal-php";
 import { UniversalPHP } from "@php-wasm/universal/src/lib/universal-php";
 /**
  * Log severity levels.
  */
-export enum LogSeverity {
-    // A debugging event.
-    Debug,
-    // An informational event. Indicates that an event happenedate.
-    Info,
-    // A warning event. Not an error but is likely more important than an informational event.
-    Warn,
-    // An error event. Something went wrong.
-    Error,
-    // A fatal error such as application or system crash.
-    Fatal,
-}
+export type LogSeverity = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 /**
  * A logger for Playground.
@@ -28,45 +16,58 @@ export class Logger {
     private lastPHPLogLength = 0;
 
     constructor() {
-        this.collectPlaygroundLogs();
+        this.collectJavaScriptErrors();
     }
 
     /**
-     * Collect errors from Playground and log them.
+     * Collect errors from JavaScript window events like error and log them.
      */
-    private collectPlaygroundLogs() {
+    private collectJavaScriptErrors() {
          if (typeof window !== 'undefined') {
             window.addEventListener('error', (event) => {
                 this.log(
                     `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-                    LogSeverity.Fatal
+                    'fatal'
                 );
             });
             window.addEventListener('unhandledrejection', (event) => {
                 this.log(
                     `${event.reason.stack}`,
-                    LogSeverity.Fatal
+                    'fatal'
                 );
             });
             window.addEventListener('rejectionhandled', (event) => {
                 this.log(
                     `${event.reason.stack}`,
-                    LogSeverity.Fatal
+                    'fatal'
                 );
             });
         }
     }
 
     /**
+     * Read the WordPress debug.log file and return its content.
+     *
+     * @param UniversalPHP playground instance
+     * @returns string The content of the debug.log file
+     */
+	private async getRequestPhpErrorLog(playground: UniversalPHP) {
+		const logPath = '/wordpress/wp-content/debug.log';
+		if (!await playground.fileExists(logPath)) {
+			return '';
+		}
+		return await playground.readFileAsText(logPath);
+	}
+    /**
      * Register a listener for the request.end event and log the data.
      * @param UniversalPHP playground instance
      */
     public addPlaygroundRequestEndListener(playground: UniversalPHP) {
-        playground.addEventListener('request.end', (event) => {
-            event = event as PHPRequestEndEvent;
-            if (event.data && event.data['log']) {
-                this.logRaw(event?.data['log'].substring(this.lastPHPLogLength));
-                this.lastPHPLogLength = event.data['log'].length;
+        playground.addEventListener('request.end', async () => {
+            const log = await this.getRequestPhpErrorLog(playground);
+            if (log.length > this.lastPHPLogLength) {
+                this.logRaw(log.substring(this.lastPHPLogLength));
+                this.lastPHPLogLength = log.length;
             }
         } );
     }
@@ -79,15 +80,22 @@ export class Logger {
      * @returns string
      */
     private formatLogDate(date: Date): string {
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const month = monthNames[date.getUTCMonth()];
-        const year = date.getUTCFullYear();
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+        const formattedDate = new Intl.DateTimeFormat('en-GB', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            timeZone: 'UTC',
+        }).format(date).replace(/ /g, '-');
 
-        return `${day}-${month}-${year} ${hours}:${minutes}:${seconds} UTC`;
+        const formattedTime = new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+            timeZone: 'UTC',
+            timeZoneName: 'short'
+        }).format(date);
+        return formattedDate + ' ' + formattedTime;
     }
 
     /**
@@ -95,9 +103,9 @@ export class Logger {
      * @param string message
      * @param LogSeverity severity
      */
-    public formatLog(message: string, severity: LogSeverity): string {
+    public formatMessage(message: string, severity: LogSeverity): string {
         const now = this.formatLogDate(new Date());
-        return `[${now}] ${this.LOG_PREFIX} ${LogSeverity[severity]}: ${message}`;
+        return `[${now}] ${this.LOG_PREFIX} ${severity}: ${message}`;
     }
 
     /**
@@ -107,9 +115,9 @@ export class Logger {
      */
     public log(message: string, severity?: LogSeverity): void {
         if (severity === undefined) {
-            severity = LogSeverity.Info;
+            severity = 'info';
         }
-        const log = this.formatLog(message, severity);
+        const log = this.formatMessage(message, severity);
         this.logRaw(log);
     }
 

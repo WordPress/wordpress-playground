@@ -6,7 +6,6 @@ import { PHPResponse } from './php-response';
  */
 export interface PHPRequestEndEvent {
 	type: 'request.end';
-	data?: {[log: string]: string};
 }
 
 /**
@@ -322,11 +321,6 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 * @param  path - The new working directory.
 	 */
 	chdir(path: string): void;
-
-	/**
-	 * Get PHP error log data.
-	 */
-	getRequestPhpErrorLog(): string;
 
 	/**
 	 * Runs PHP code.

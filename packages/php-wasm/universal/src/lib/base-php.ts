@@ -235,15 +235,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc */
-	getRequestPhpErrorLog() {
-		const logPath = '/wordpress/wp-content/debug.log';
-		if (!this.fileExists(logPath)) {
-			return '';
-		}
-		return this.readFileAsText(logPath);
-	}
-
-	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		/*
 		 * Prevent multiple requests from running at the same time.
@@ -296,10 +287,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			} finally {
 				release();
 				this.dispatchEvent({
-					type: 'request.end',
-					data: {
-						log: this.getRequestPhpErrorLog(),
-					},
+					type: 'request.end'
 				});
 			}
 		}
