@@ -114,8 +114,8 @@
   margin:0 8px;
 }
 .editor-block-manager__checklist-item .block-editor-block-icon{
-  fill:#1e1e1e;
   margin-right:10px;
+  fill:#1e1e1e;
 }
 
 .editor-block-manager__results{
@@ -460,9 +460,14 @@
   font-size:13px;
 }
 
-.entities-saved-states__change-summary{
+.entities-saved-states__changes{
   color:#757575;
   font-size:12px;
+  list-style:disc;
+  margin:8px 16px 0;
+}
+.entities-saved-states__changes li{
+  margin-bottom:4px;
 }
 
 .editor-error-boundary{
@@ -944,9 +949,9 @@
   color:#757575;
 }
 .editor-post-saved-state svg{
-  fill:currentColor;
   display:inline-block;
   flex:0 0 auto;
+  fill:currentColor;
   margin-right:8px;
 }
 @media (min-width:600px){
