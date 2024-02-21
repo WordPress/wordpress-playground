@@ -15,7 +15,7 @@ export interface PlaygroundConfiguration {
 	withExtensions: boolean;
 	withNetworking: boolean;
 	storage: StorageType;
-	resetSite?: boolean;
+	resetSite: boolean;
 }
 
 export interface PlaygroundConfigurationFormProps {

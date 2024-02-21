@@ -280,11 +280,11 @@ html :where(.wp-block-column){
 }
 
 .wp-block-comment-author-avatar__placeholder{
-  stroke:currentColor;
-  stroke-dasharray:3;
   border:1px dashed;
   height:100%;
   width:100%;
+  stroke:currentColor;
+  stroke-dasharray:3;
 }
 
 .wp-block[data-align=center]>.wp-block-comments-pagination{
@@ -660,10 +660,10 @@ html :where(.wp-block-column){
   padding:10px;
 }
 .wp-block-freeform.block-library-rich-text__tinymce .wpview .wpview-error{
-  word-wrap:break-word;
   border:1px solid #ddd;
   margin:0;
   padding:1em 0;
+  word-wrap:break-word;
 }
 .wp-block-freeform.block-library-rich-text__tinymce .wpview .wpview-error p{
   margin:0;
@@ -1271,6 +1271,10 @@ figure.wp-block-image:not(.wp-block){
   width:36px;
 }
 
+.wp-block-image__toolbar_content_textarea{
+  width:250px;
+}
+
 .wp-block-latest-posts{
   padding-right:2.5em;
 }
@@ -1619,8 +1623,8 @@ figure.wp-block-image:not(.wp-block){
   padding:0 0 0 6px;
 }
 .wp-block-navigation-placeholder__actions__indicator svg{
-  fill:currentColor;
   margin-left:4px;
+  fill:currentColor;
 }
 
 .wp-block-navigation .components-placeholder.is-medium .components-placeholder__fieldset{
@@ -1647,8 +1651,10 @@ figure.wp-block-image:not(.wp-block){
   min-height:1px;
   min-width:1px;
 }
-.is-collapsed .wp-block-navigation__responsive-container:not(.is-menu-open) .components-button.wp-block-navigation__responsive-container-close{
-  display:none;
+@media (min-width:600px){
+  .wp-block-navigation__responsive-container:not(.is-menu-open) .components-button.wp-block-navigation__responsive-container-close{
+    display:none;
+  }
 }
 
 .wp-block-navigation__responsive-container.is-menu-open{
@@ -2564,9 +2570,9 @@ body.editor-styles-wrapper .wp-block-navigation__responsive-container.is-menu-op
 }
 
 .block-library-query__pattern-selection-content .block-editor-block-patterns-list{
-  grid-gap:8px;
   display:grid;
   grid-template-columns:1fr 1fr 1fr;
+  grid-gap:8px;
 }
 .block-library-query__pattern-selection-content .block-editor-block-patterns-list .block-editor-block-patterns-list__list-item{
   margin-bottom:0;
