@@ -287,7 +287,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			} finally {
 				release();
 				this.dispatchEvent({
-					type: 'request.end'
+					type: 'request.end',
 				});
 			}
 		}
