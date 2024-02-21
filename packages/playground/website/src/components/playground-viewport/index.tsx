@@ -7,7 +7,7 @@ import BrowserChrome from '../browser-chrome';
 import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
-import { GAEvent, addEvent } from '../../lib/tracking';
+import { logTrackingEvent } from '../../lib/tracking';
 
 export const supportedDisplayModes = [
 	'browser',
@@ -35,14 +35,14 @@ export default function PlaygroundViewport({
 		storage,
 	});
 
-	// Add GA events for blueprint steps
+	// Add GA events for blueprint steps. For more information, see the README.md file.
 	useEffect(() => {
-		addEvent(GAEvent.Load);
+		logTrackingEvent('load');
 		const steps = (blueprint?.steps || [])
 			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
 			.map((step) => (step as StepDefinition).step);
 		for (const step of steps) {
-			addEvent(GAEvent.Step, { step });
+			logTrackingEvent('step', { step });
 		}
 	}, [blueprint?.steps]);
 

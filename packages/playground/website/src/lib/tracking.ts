@@ -8,17 +8,14 @@ declare global {
 /**
  * Google Analytics event names
  */
-export enum GAEvent {
-    Step = 'step',
-    Load = 'load',
-}
+type GAEvent = 'load' | 'step';
 
 /**
- * Add an event to Google Analytics
+ * Log a tracking event to Google Analytics
  * @param GAEvent The event name
  * @param Object Event data
  */
-export const addEvent = (event: GAEvent, data?: {[key: string]: string}) => {
+export const logTrackingEvent = (event: GAEvent, data?: {[key: string]: string}) => {
     if (typeof window === 'undefined' || !window.gtag) {
         return;
     }
