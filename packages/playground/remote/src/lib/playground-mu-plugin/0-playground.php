@@ -141,6 +141,18 @@ add_filter('http_api_transports', function ($transports) {
 $__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
+	// Force-replace the default WordPress requests transports with the Fetch transport.
+	// 
+	// WordPress doesn't provide a way to change the default transports,
+	// that is Curl and FSockopen. Even with all the `http_api_tranports`
+	// filter used below, WordPress tests if they are supported and will
+	// use them if their `::test()` method returns true – which it does
+	// when PHP.wasm runs with the openssl extension loaded.
+	$reflection = new ReflectionClass($__requests_class);
+	$property = $reflection->getProperty('transports');
+	$property->setAccessible(true);
+	$property->setValue(['Fetch' => 'Wp_Http_Fetch']);
+
 	$__requests_class::add_transport('Wp_Http_Fetch');
 
 	/**
@@ -164,9 +176,10 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return [];
 	});
 
-	add_filter('http_request_host_is_external', function ($arg) {
-		return true;
-	});
+	// add_filter('http_request_host_is_external', function ($arg) {
+	// 	return true;
+	// });
+	add_filter('http_request_host_is_external', '__return_true');
 } else {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
 	$__requests_class::add_transport('Wp_Http_Dummy');
