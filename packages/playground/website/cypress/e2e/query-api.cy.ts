@@ -69,6 +69,9 @@ describe('Query API', () => {
 				.should('have.length.above', 4);
 		});
 
+		/**
+		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
+		 */
 		it('should enable networking when requested AND the kitchen sink extension bundle is enabled', () => {
 			cy.visit(
 				'/?php-extension-bundle=kitchen-sink&networking=yes&url=/wp-admin/plugin-install.php'

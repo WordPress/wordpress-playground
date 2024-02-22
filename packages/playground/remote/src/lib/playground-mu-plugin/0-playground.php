@@ -148,6 +148,8 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	// filter used below, WordPress tests if they are supported and will
 	// use them if their `::test()` method returns true – which it does
 	// when PHP.wasm runs with the openssl extension loaded.
+	//
+	// @see https://github.com/WordPress/wordpress-playground/pull/1045
 	$reflection = new ReflectionClass($__requests_class);
 	$property = $reflection->getProperty('transports');
 	$property->setAccessible(true);
