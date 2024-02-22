@@ -63,7 +63,10 @@
 			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
-			]
+			],
+			"@wp-playground/logger": [
+				"packages/playground/logger/logger.ts"
+			],
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

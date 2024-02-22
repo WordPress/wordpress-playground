@@ -15,7 +15,15 @@ export class Logger {
      */
     private lastPHPLogLength = 0;
 
-    constructor() {
+    /**
+     * The path to the error log file.
+     */
+    private errorLogPath = '/wordpress/wp-content/debug.log';
+
+    constructor(errorLogPath?: string) {
+        if (errorLogPath) {
+            this.errorLogPath = errorLogPath;
+        }
         this.collectJavaScriptErrors();
     }
 
@@ -52,11 +60,10 @@ export class Logger {
      * @returns string The content of the debug.log file
      */
 	private async getRequestPhpErrorLog(playground: UniversalPHP) {
-		const logPath = '/wordpress/wp-content/debug.log';
-		if (!await playground.fileExists(logPath)) {
+		if (!await playground.fileExists(this.errorLogPath)) {
 			return '';
 		}
-		return await playground.readFileAsText(logPath);
+		return await playground.readFileAsText(this.errorLogPath);
 	}
     /**
      * Register a listener for the request.end event and log the data.
@@ -138,11 +145,12 @@ let logger: Logger | undefined = undefined;
 /**
  * Get the logger instance.
  *
+ * @param errorLogPath The path to the error log file.
  * @returns Logger
  */
-export function get_logger(): Logger {
+export function get_logger(errorLogPath?: string): Logger {
     if (!logger) {
-        logger = new Logger();
+        logger = new Logger(errorLogPath);
     }
     return logger;
 }
