@@ -256,6 +256,9 @@ try {
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(php, {
 			consts: {
+				WP_DEBUG: true,
+				WP_DEBUG_LOG: true,
+				WP_DEBUG_DISPLAY: false,
 				AUTH_KEY: randomString(40),
 				SECURE_AUTH_KEY: randomString(40),
 				LOGGED_IN_KEY: randomString(40),
@@ -267,15 +270,6 @@ try {
 			},
 		});
 	}
-
-	// Enable the WordPress debug mode
-	await defineWpConfigConsts(php, {
-		consts: {
-			WP_DEBUG: true,
-			WP_DEBUG_LOG: true,
-			WP_DEBUG_DISPLAY: false,
-		},
-	});
 
 	// Always install the playground mu-plugin, even if WordPress is loaded
 	// from the OPFS. This ensures:
