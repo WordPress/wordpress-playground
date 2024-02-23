@@ -70,6 +70,18 @@ describe('Query API', () => {
 		});
 
 		/**
+		 * @see https://github.com/WordPress/wordpress-playground/pull/1045
+		 */
+		it('should enable networking when requested AND the kitchen sink extension bundle is enabled', () => {
+			cy.visit(
+				'/?php-extension-bundle=kitchen-sink&networking=yes&url=/wp-admin/plugin-install.php'
+			);
+			cy.wordPressDocument()
+				.find('.plugin-card')
+				.should('have.length.above', 4);
+		});
+
+		/**
 		 * @see https://github.com/WordPress/wordpress-playground/pull/819
 		 * @TODO: Turn this into a unit test once WordPress modules are available
 		 *        for import.
