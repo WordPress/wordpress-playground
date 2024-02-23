@@ -1259,7 +1259,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		run_php(wasm_server_context->php_code);
 	}
 	result = EG(exit_status);
-	
+
 wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;
@@ -1422,7 +1422,8 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 	_fwrite(headers_file, "\"");
 	for (int i = 0, max = sapi_header->header_len; i < max; i++)
 	{
-		if (sapi_header->header[i] == '"')
+		// Escape quotes and backslashes
+		if (sapi_header->header[i] == '"' || sapi_header->header[i] == '\\')
 		{
 			fwrite(&"\\", sizeof(char), 1, headers_file);
 		}

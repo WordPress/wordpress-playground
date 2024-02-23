@@ -1340,4 +1340,13 @@ bar1
 			expect(consoleErrorMock).not.toHaveBeenCalled();
 		});
 	});
+
+	describe('Response parsing', () => {
+		it('should encode response headers', async () => {
+			const out = await php.run({
+				code: `<?php header('Location: /(?P<id>[\\d]+)');`,
+			});
+			expect(out.headers['location'][0]).toEqual('/(?P<id>[\\d]+)');
+		});
+	});
 });
