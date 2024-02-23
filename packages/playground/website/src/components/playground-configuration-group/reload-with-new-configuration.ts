@@ -6,7 +6,11 @@ export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration
 ) {
 	if (config.resetSite && config.storage === 'browser') {
-		await playground?.resetVirtualOpfs();
+		try {
+			await playground?.resetVirtualOpfs();
+		} catch (error) {
+			console.error(error);
+		}
 	}
 
 	const url = new URL(window.location.toString());
