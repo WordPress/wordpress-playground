@@ -13,7 +13,6 @@ import {
 } from '@wp-playground/blueprints';
 import { NodePHP } from '@php-wasm/node';
 import { UniversalPHP } from '@php-wasm/universal';
-import { get_logger } from '@wp-playground/logger';
 
 export interface NodePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -43,7 +42,6 @@ export async function startPlaygroundNode(
 			absoluteUrl: options.serverUrl,
 		},
 	});
-	get_logger( `${options.wordpressPathOnHost}/wp-content/debug.log` ).addPlaygroundRequestEndListener(playground);
 
 	await defineSiteUrl(playground, {
 		siteUrl: options.serverUrl,
