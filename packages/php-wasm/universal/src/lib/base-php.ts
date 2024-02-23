@@ -249,6 +249,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#initWebRuntime();
 				this.#webSapiInitialized = true;
 			}
+			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
+				throw new Error(
+					`The script path "${request.scriptPath}" does not exist.`
+				);
+			}
 			this.#setScriptPath(request.scriptPath || '');
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
@@ -799,7 +804,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (this.requestHandler) {
 			const docroot = this.documentRoot;
-			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+			copyFS(oldFS, this[__private__dont__use].FS, docroot);
 		}
 	}
 
@@ -835,14 +840,22 @@ export function normalizeHeaders(
 
 type EmscriptenFS = any;
 
+export function syncFSTo(source: BasePHP, target: BasePHP) {
+	copyFS(
+		source[__private__dont__use].FS,
+		target[__private__dont__use].FS,
+		source.documentRoot
+	);
+}
+
 /**
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+function copyFS(source: EmscriptenFS, target: EmscriptenFS, path: string) {
 	let oldNode;
 	try {
-		oldNode = oldFS.lookupPath(path);
+		oldNode = source.lookupPath(path);
 	} catch (e) {
 		return;
 	}
@@ -855,23 +868,23 @@ function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 	// Let's be extra careful and only proceed if newFs doesn't
 	// already have a node at the given path.
 	try {
-		newFS = newFS.lookupPath(path);
+		target = target.lookupPath(path);
 		return;
 	} catch (e) {
 		// There's no such node in the new FS. Good,
 		// we may proceed.
 	}
 
-	if (!oldFS.isDir(oldNode.node.mode)) {
-		newFS.writeFile(path, oldFS.readFile(path));
+	if (!source.isDir(oldNode.node.mode)) {
+		target.writeFile(path, source.readFile(path));
 		return;
 	}
 
-	newFS.mkdirTree(path);
-	const filenames = oldFS
+	target.mkdirTree(path);
+	const filenames = source
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
+		copyFS(source, target, joinPaths(path, filename));
 	}
 }

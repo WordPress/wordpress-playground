@@ -13,7 +13,7 @@ import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, joinPaths } from '@php-wasm/util';
 import type { WebPHP } from '@php-wasm/web';
 import { EmscriptenFS } from './types';
-import { journalFSEventsToOpfs } from './journal-memfs-to-opfs';
+import { journalFSEventsToOpfs } from './journal-fs-to-opfs';
 
 let unbindOpfs: (() => void) | undefined;
 export type SyncProgress = {

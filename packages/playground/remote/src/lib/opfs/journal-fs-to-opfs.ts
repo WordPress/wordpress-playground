@@ -10,7 +10,6 @@
 
 /* eslint-disable prefer-rest-params */
 import type { WebPHP } from '@php-wasm/web';
-import type { EmscriptenFS } from './types';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
 import { __private__dont__use } from '@php-wasm/universal';
 import { copyMemfsToOpfs, overwriteOpfsFile } from './bind-opfs';
@@ -48,7 +47,6 @@ export function journalFSEventsToOpfs(
 type JournalEntry = FilesystemOperation;
 
 class OpfsRewriter {
-	private FS: EmscriptenFS;
 	private memfsRoot: string;
 
 	constructor(
