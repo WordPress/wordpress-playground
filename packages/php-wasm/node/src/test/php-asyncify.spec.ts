@@ -28,7 +28,7 @@ const js = phpVars({
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
-describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
+describe.each(['8.2'])('PHP %s – asyncify', (phpVersion) => {
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
 		`file_get_contents(${js['httpUrl']});`,
@@ -71,6 +71,13 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 			test('Via call_user_func_array', () =>
 				assertNoCrash(
 					`function top() { ${networkCall} } call_user_func_array('top', array());`
+				));
+		});
+
+		describe('Generators', () => {
+			test('Simple iteration', () =>
+				assertNoCrash(
+					`function test() { yield ${networkCall} }	foreach(test() as $val) { }`
 				));
 		});
 

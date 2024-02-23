@@ -83,6 +83,7 @@ export async function startPlaygroundWeb({
 		progress: progressTracker.stage(0.5),
 		onStepCompleted: onBlueprintStepCompleted,
 	});
+	console.log('calling doStartPlaygroundWeb');
 	const playground = await doStartPlaygroundWeb(
 		iframe,
 		setQueryParams(remoteUrl, {
@@ -94,7 +95,9 @@ export async function startPlaygroundWeb({
 		}),
 		progressTracker
 	);
+	console.log('after doStartPlaygroundWeb');
 	await runBlueprintSteps(compiled, playground);
+	console.log('after runBlueprintSteps');
 	progressTracker.finish();
 
 	return playground;
@@ -143,12 +146,20 @@ async function doStartPlaygroundWeb(
 	const playground = consumeAPI<PlaygroundClient>(
 		iframe.contentWindow!
 	) as PlaygroundClient;
+	console.log('[CLIENT] playground.isConnected()::before');
 	await playground.isConnected();
+	console.log('[CLIENT] playground.isConnected()::after');
 	progressTracker.pipe(playground);
 	const downloadPHPandWP = progressTracker.stage();
-	await playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	console.log('[CLIENT] playground.onDownloadProgress()::before');
+	playground.onDownloadProgress(downloadPHPandWP.loadingListener);
+	console.log('[CLIENT] playground.onDownloadProgress()::after');
+	console.log('[CLIENT] playground.isReady()::before');
 	await playground.isReady();
+	console.log('[CLIENT] playground.isReady()::after');
 	downloadPHPandWP.finish();
+	console.log('[CLIENT] after downloadPHPandWP');
+
 	return playground;
 }
 

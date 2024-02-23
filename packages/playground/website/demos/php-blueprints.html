@@ -6,7 +6,7 @@
 	<style>
 		body {
 			margin: 0;
-			padding: 0;
+			padding: 20px;
 		}
 	</style>
 </head>
@@ -23,9 +23,8 @@
 	<iframe id="wp" style="display: none"></iframe>
 
 	<h2>Partial output:</h2>
-	<div id="output" style="width: 100vw; height: 50vh; border: 0"></div>
+	<pre id="output" style="width: 100vw; height: 50vh; border: 0"></pre>
 	<script type="module">
-		const { runDemo } = await import('./php-blueprints.ts');
-		runDemo(document.getElementById('wp'));
+		await import('./php-blueprints.ts');
 	</script>
 </body>

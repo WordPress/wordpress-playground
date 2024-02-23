@@ -58,6 +58,7 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 
 export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	const hostname = new URL(data.url).hostname;
+	console.log(data.url, { hostname, data });
 	const fetchUrl = ['w.org', 's.w.org'].includes(hostname)
 		? `/plugin-proxy.php?url=${encodeURIComponent(data.url)}`
 		: data.url;

@@ -115,6 +115,7 @@ const platformDefaults = {
 		PHP_VERSION: '8.0.24',
 		WITH_LIBZIP: 'yes',
 		WITH_SQLITE: 'yes',
+		WITH_WS_NETWORKING_PROXY: 'yes',
 	},
 	['web-light']: {},
 	['web-kitchen-sink']: {

@@ -272,10 +272,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				};
 				console.warn(`PHP.run() output was:`, output);
 				const error = new Error(
-					`PHP.run() failed with exit code ${response.exitCode} and the following output`
+					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
+						response.errors
 				);
 				// @ts-ignore
 				error.output = output;
+				console.error(error);
 				throw error;
 			}
 			return response;
@@ -577,6 +579,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>((resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
+					console.error(e);
+					console.error(e.error);
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
@@ -622,6 +626,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			) as string;
 			const rethrown = new Error(message);
 			rethrown.cause = err;
+			console.error(rethrown);
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);

@@ -216,19 +216,31 @@ export async function bootPlaygroundRemote() {
 	const [setAPIReady, setAPIError, playground] = exposeAPI(webApi, workerApi);
 
 	try {
+		console.log('[REMOTE] workerApi.isReady()::before');
 		await workerApi.isReady();
+		console.log('[REMOTE] workerApi.isReady()::after');
 		await registerServiceWorker(
 			workerApi,
 			await workerApi.scope,
 			serviceWorkerUrl + ''
 		);
+		console.log('[REMOTE] registerServiceWorker()::after');
 		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
 		if (withNetworking) {
+			console.log(
+				'[REMOTE] registsetupFetchNetworkTransporterServiceWorker()::before'
+			);
 			await setupFetchNetworkTransport(workerApi);
+			console.log(
+				'[REMOTE] registsetupFetchNetworkTransporterServiceWorker()::after'
+			);
 		}
 
+		console.log('[REMOTE] setAPIReady()::before');
 		setAPIReady();
+		console.log('[REMOTE] setAPIReady()::after');
 	} catch (e) {
+		console.error(e);
 		setAPIError(e as Error);
 		throw e;
 	}

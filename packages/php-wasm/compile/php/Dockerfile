@@ -432,7 +432,17 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"__fwritex",\
+	export ASYNCIFY_ONLY=$'"zend_generator_iterator_move_forward",\
+"zend_fe_fetch_object_helper_SPEC",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"rc_dtor_func",\
+"zend_generator_resume",\
+"zend_call_method_if_exists",\
+"zend_generator_iterator_rewind",\
+"php_userstreamop_read",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"__fwritex",\
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
@@ -797,11 +807,11 @@ RUN set -euxo pipefail; \
 "_wasm_set_request_port", \n\
 "_wasm_set_request_uri", \n\
 "_wasm_set_skip_shebang" '"$(cat /root/.EXPORTED_FUNCTIONS)"']'; \
-	export OPTIMIZATION_FLAGS="-O3"; \
+	export OPTIMIZATION_FLAGS="-O0 "; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
-	emcc $OPTIMIZATION_FLAGS \
+	emcc $OPTIMIZATION_FLAGS -g2 \
 	--js-library /root/phpwasm-emscripten-library.js \
 	-I .  \
 	-I ext   \

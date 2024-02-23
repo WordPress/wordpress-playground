@@ -1,4 +1,4 @@
-import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { CAPem, WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -238,6 +238,9 @@ try {
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	php.setPhpIniEntry('allow_url_fopen', 'On');
+	php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
+	php.writeFile('/tmp/ca-bundle.crt', CAPem);
 	const docroot = php.documentRoot;
 
 	// If WordPress isn't already installed, download and extract it from
@@ -319,7 +322,9 @@ try {
 		})
 	);
 
+	console.log('[Worker] setApiReady()::before');
 	setApiReady();
+	console.log('[Worker] setApiReady()::after');
 } catch (e) {
 	setAPIError(e as Error);
 	throw e;

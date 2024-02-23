@@ -82,17 +82,47 @@ export function exposeAPI<Methods, PipedAPI>(
 	let setReady: any;
 	let setFailed: any;
 	const ready = new Promise((resolve, reject) => {
-		setReady = resolve;
+		setReady = (arg) => {
+			console.log('About to call resolve()!');
+			resolve(arg);
+		};
 		setFailed = reject;
+	}).then(() => {
+		console.log('ready.then()!');
 	});
 
 	const methods = proxyClone(apiMethods);
 	const exposedApi = new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
-				return () => connected;
+				console.log('exposedApi.isConnected() requested');
+				return async () => {
+					console.log('exposedApi.isConnected() called');
+					/*
+					 * If exposeAPI() is called after this function,
+					 * the isConnected() call will hang forever. Let's
+					 * retry it a few times.
+					 */
+					for (let i = 0; i < 10; i++) {
+						try {
+							await runWithTimeout(connected, 200);
+							break;
+						} catch (e) {
+							// Timeout exceeded, try again
+						}
+					}
+					return connected.then(() => {
+						console.log('exposedApi.isConnected().then()');
+					});
+				};
 			} else if (prop === 'isReady') {
-				return () => ready;
+				console.log('exposedApi.isReady requested');
+				return () => {
+					console.log('exposedApi.isReady called');
+					return ready.then(() => {
+						console.log('exposedApi.isReady().then()');
+					});
+				};
 			} else if (prop in target) {
 				return target[prop];
 			}

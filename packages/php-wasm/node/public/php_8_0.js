@@ -3123,6 +3123,7 @@ var SOCKFS = {
     addr = null;
     port = null;
    }
+         console.log({ws})
    if (ws) {
     if (ws._socket) {
      addr = ws._socket.remoteAddress;
