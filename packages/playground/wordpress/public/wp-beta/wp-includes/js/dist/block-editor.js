@@ -1,7 +1,7 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 6411:
+/***/ 4306:
 /***/ (function(module, exports) {
 
 var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -290,7 +290,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
 /***/ }),
 
-/***/ 4403:
+/***/ 5755:
 /***/ ((module, exports) => {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -356,7 +356,7 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 
 /***/ }),
 
-/***/ 4827:
+/***/ 6109:
 /***/ ((module) => {
 
 // This code has been refactored for 140 bytes
@@ -390,7 +390,7 @@ module.exports = computedStyle;
 
 /***/ }),
 
-/***/ 1198:
+/***/ 5417:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -701,7 +701,7 @@ function clonePath(path) {
 
 /***/ }),
 
-/***/ 1973:
+/***/ 8021:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -712,13 +712,13 @@ var __webpack_unused_export__;
 __webpack_unused_export__ = ({
   value: true
 });
-exports.Kx = diffChars;
+exports.JJ = diffChars;
 __webpack_unused_export__ = void 0;
 
 /*istanbul ignore end*/
 var
 /*istanbul ignore start*/
-_base = _interopRequireDefault(__webpack_require__(1198))
+_base = _interopRequireDefault(__webpack_require__(5417))
 /*istanbul ignore end*/
 ;
 
@@ -746,13 +746,13 @@ function diffChars(oldStr, newStr, options) {
 
 /***/ }),
 
-/***/ 1345:
+/***/ 1637:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var util = __webpack_require__(5022);
+var util = __webpack_require__(3062);
 
 function scrollIntoView(elem, container, config) {
   config = config || {};
@@ -882,17 +882,17 @@ module.exports = scrollIntoView;
 
 /***/ }),
 
-/***/ 5425:
+/***/ 5428:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-module.exports = __webpack_require__(1345);
+module.exports = __webpack_require__(1637);
 
 /***/ }),
 
-/***/ 5022:
+/***/ 3062:
 /***/ ((module) => {
 
 "use strict";
@@ -1338,7 +1338,7 @@ module.exports = _extends({
 
 /***/ }),
 
-/***/ 5619:
+/***/ 7734:
 /***/ ((module) => {
 
 "use strict";
@@ -1418,7 +1418,7 @@ module.exports = function equal(a, b) {
 
 /***/ }),
 
-/***/ 2303:
+/***/ 5215:
 /***/ ((module) => {
 
 "use strict";
@@ -1472,11 +1472,11 @@ module.exports = function equal(a, b) {
 
 /***/ }),
 
-/***/ 9894:
+/***/ 461:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Load in dependencies
-var computedStyle = __webpack_require__(4827);
+var computedStyle = __webpack_require__(6109);
 
 /**
  * Calculate the `line-height` of a given node
@@ -1576,15 +1576,15 @@ module.exports = lineHeight;
 
 /***/ }),
 
-/***/ 7970:
+/***/ 7520:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-module.exports = __webpack_require__(195);
+module.exports = __webpack_require__(7191);
 
 
 /***/ }),
 
-/***/ 3110:
+/***/ 8202:
 /***/ ((module) => {
 
 "use strict";
@@ -1635,7 +1635,7 @@ module.exports = ExecutionEnvironment;
 
 /***/ }),
 
-/***/ 3812:
+/***/ 2213:
 /***/ ((module) => {
 
 /**
@@ -1924,7 +1924,7 @@ module.exports = UserAgent_DEPRECATED;
 
 /***/ }),
 
-/***/ 7939:
+/***/ 1087:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -1941,7 +1941,7 @@ module.exports = UserAgent_DEPRECATED;
 
 
 
-var ExecutionEnvironment = __webpack_require__(3110);
+var ExecutionEnvironment = __webpack_require__(8202);
 
 var useHasFeature;
 if (ExecutionEnvironment.canUseDOM) {
@@ -1995,7 +1995,7 @@ module.exports = isEventSupported;
 
 /***/ }),
 
-/***/ 195:
+/***/ 7191:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -2013,9 +2013,9 @@ module.exports = isEventSupported;
 
 
 
-var UserAgent_DEPRECATED = __webpack_require__(3812);
+var UserAgent_DEPRECATED = __webpack_require__(2213);
 
-var isEventSupported = __webpack_require__(7939);
+var isEventSupported = __webpack_require__(1087);
 
 
 // Reasonable defaults
@@ -2184,7 +2184,7 @@ module.exports = normalizeWheel;
 
 /***/ }),
 
-/***/ 9122:
+/***/ 2775:
 /***/ ((module) => {
 
 var x=String;
@@ -2195,7 +2195,7 @@ module.exports.createColors = create;
 
 /***/ }),
 
-/***/ 6807:
+/***/ 4465:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2205,7 +2205,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 
-/***/ 5959:
+/***/ 8036:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
@@ -2213,22 +2213,22 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-__webpack_require__(6807);
-const postcss_1 = __importDefault(__webpack_require__(4743));
-const PostCSSPlugin_1 = __importDefault(__webpack_require__(6764));
+__webpack_require__(4465);
+const postcss_1 = __importDefault(__webpack_require__(4529));
+const PostCSSPlugin_1 = __importDefault(__webpack_require__(3576));
 module.exports = (0, PostCSSPlugin_1.default)(postcss_1.default);
 
 
 /***/ }),
 
-/***/ 3626:
+/***/ 5525:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.prefixWrapCSSSelector = exports.prefixWrapCSSRule = void 0;
-const CSSSelector_1 = __webpack_require__(1146);
+const CSSSelector_1 = __webpack_require__(3467);
 const prefixWrapCSSRule = (cssRule, nested, ignoredSelectors, prefixSelector, prefixRootTags) => {
     // Check each rule to see if it exactly matches our prefix selector, when
     // this happens, don't try to prefix that selector.
@@ -2279,7 +2279,7 @@ exports.prefixWrapCSSSelector = prefixWrapCSSSelector;
 
 /***/ }),
 
-/***/ 1146:
+/***/ 3467:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2321,7 +2321,7 @@ exports.cssRuleMatchesPrefixSelector = cssRuleMatchesPrefixSelector;
 
 /***/ }),
 
-/***/ 5318:
+/***/ 9411:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2347,7 +2347,7 @@ exports.shouldIncludeFilePath = shouldIncludeFilePath;
 
 /***/ }),
 
-/***/ 504:
+/***/ 8061:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
@@ -2377,7 +2377,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.asPostCSSv7PluginGenerator = void 0;
-const PostCSSPrefixWrap_1 = __importStar(__webpack_require__(6483));
+const PostCSSPrefixWrap_1 = __importStar(__webpack_require__(1311));
 const asPostCSSv7PluginGenerator = (postcss) => {
     return postcss.plugin(PostCSSPrefixWrap_1.PLUGIN_NAME, (prefixSelector, options) => {
         return new PostCSSPrefixWrap_1.default(prefixSelector, options).prefix();
@@ -2388,7 +2388,7 @@ exports.asPostCSSv7PluginGenerator = asPostCSSv7PluginGenerator;
 
 /***/ }),
 
-/***/ 2210:
+/***/ 2888:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
@@ -2418,7 +2418,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.asPostCSSv8PluginGenerator = exports.isPostCSSv8 = void 0;
-const PostCSSPrefixWrap_1 = __importStar(__webpack_require__(6483));
+const PostCSSPrefixWrap_1 = __importStar(__webpack_require__(1311));
 const isPostCSSv8 = (postcss) => postcss.Root !== undefined;
 exports.isPostCSSv8 = isPostCSSv8;
 const asPostCSSv8PluginGenerator = () => {
@@ -2437,13 +2437,13 @@ exports.asPostCSSv8PluginGenerator = asPostCSSv8PluginGenerator;
 
 /***/ }),
 
-/***/ 6764:
+/***/ 3576:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const PostCSS8Plugin_1 = __webpack_require__(2210);
-const PostCSS7Plugin_1 = __webpack_require__(504);
+const PostCSS8Plugin_1 = __webpack_require__(2888);
+const PostCSS7Plugin_1 = __webpack_require__(8061);
 module.exports = (postcss) => {
     if ((0, PostCSS8Plugin_1.isPostCSSv8)(postcss)) {
         return (0, PostCSS8Plugin_1.asPostCSSv8PluginGenerator)();
@@ -2456,15 +2456,15 @@ module.exports = (postcss) => {
 
 /***/ }),
 
-/***/ 6483:
+/***/ 1311:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PLUGIN_NAME = void 0;
-const CSSRuleWrapper_1 = __webpack_require__(3626);
-const FileIncludeList_1 = __webpack_require__(5318);
+const CSSRuleWrapper_1 = __webpack_require__(5525);
+const FileIncludeList_1 = __webpack_require__(9411);
 exports.PLUGIN_NAME = "postcss-prefixwrap";
 class PostCSSPrefixWrap {
     blacklist;
@@ -2503,10 +2503,10 @@ exports["default"] = PostCSSPrefixWrap;
 
 /***/ }),
 
-/***/ 7036:
+/***/ 5404:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-const CSSValueParser = __webpack_require__(9069)
+const CSSValueParser = __webpack_require__(1544)
 
 /**
  * @type {import('postcss').PluginCreator}
@@ -2560,12 +2560,12 @@ module.exports.postcss = true
 
 /***/ }),
 
-/***/ 9069:
+/***/ 1544:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var parse = __webpack_require__(27);
-var walk = __webpack_require__(6714);
-var stringify = __webpack_require__(6895);
+var parse = __webpack_require__(8491);
+var walk = __webpack_require__(3815);
+var stringify = __webpack_require__(4725);
 
 function ValueParser(value) {
   if (this instanceof ValueParser) {
@@ -2584,7 +2584,7 @@ ValueParser.prototype.walk = function(cb, bubble) {
   return this;
 };
 
-ValueParser.unit = __webpack_require__(2280);
+ValueParser.unit = __webpack_require__(1524);
 
 ValueParser.walk = walk;
 
@@ -2595,7 +2595,7 @@ module.exports = ValueParser;
 
 /***/ }),
 
-/***/ 27:
+/***/ 8491:
 /***/ ((module) => {
 
 var openParentheses = "(".charCodeAt(0);
@@ -2923,7 +2923,7 @@ module.exports = function(input) {
 
 /***/ }),
 
-/***/ 6895:
+/***/ 4725:
 /***/ ((module) => {
 
 function stringifyNode(node, custom) {
@@ -2978,7 +2978,7 @@ module.exports = stringify;
 
 /***/ }),
 
-/***/ 2280:
+/***/ 1524:
 /***/ ((module) => {
 
 var minus = "-".charCodeAt(0);
@@ -3105,7 +3105,7 @@ module.exports = function(value) {
 
 /***/ }),
 
-/***/ 6714:
+/***/ 3815:
 /***/ ((module) => {
 
 module.exports = function walk(nodes, cb, bubble) {
@@ -3134,13 +3134,13 @@ module.exports = function walk(nodes, cb, bubble) {
 
 /***/ }),
 
-/***/ 2433:
+/***/ 1326:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Container = __webpack_require__(9795)
+let Container = __webpack_require__(683)
 
 class AtRule extends Container {
   constructor(defaults) {
@@ -3167,13 +3167,13 @@ Container.registerAtRule(AtRule)
 
 /***/ }),
 
-/***/ 9882:
+/***/ 6589:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Node = __webpack_require__(8753)
+let Node = __webpack_require__(7490)
 
 class Comment extends Node {
   constructor(defaults) {
@@ -3188,16 +3188,16 @@ Comment.default = Comment
 
 /***/ }),
 
-/***/ 9795:
+/***/ 683:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { isClean, my } = __webpack_require__(3719)
-let Declaration = __webpack_require__(5818)
-let Comment = __webpack_require__(9882)
-let Node = __webpack_require__(8753)
+let { isClean, my } = __webpack_require__(1381)
+let Declaration = __webpack_require__(1516)
+let Comment = __webpack_require__(6589)
+let Node = __webpack_require__(7490)
 
 let parse, Rule, AtRule, Root
 
@@ -3367,6 +3367,8 @@ class Container extends Node {
   normalize(nodes, sample) {
     if (typeof nodes === 'string') {
       nodes = cleanSource(parse(nodes).nodes)
+    } else if (typeof nodes === 'undefined') {
+      nodes = []
     } else if (Array.isArray(nodes)) {
       nodes = nodes.slice(0)
       for (let i of nodes) {
@@ -3635,15 +3637,15 @@ Container.rebuild = node => {
 
 /***/ }),
 
-/***/ 8743:
+/***/ 356:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let pico = __webpack_require__(9122)
+let pico = __webpack_require__(2775)
 
-let terminalHighlight = __webpack_require__(2868)
+let terminalHighlight = __webpack_require__(9746)
 
 class CssSyntaxError extends Error {
   constructor(message, line, column, source, file, plugin) {
@@ -3743,13 +3745,13 @@ CssSyntaxError.default = CssSyntaxError
 
 /***/ }),
 
-/***/ 5818:
+/***/ 1516:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Node = __webpack_require__(8753)
+let Node = __webpack_require__(7490)
 
 class Declaration extends Node {
   constructor(defaults) {
@@ -3775,13 +3777,13 @@ Declaration.default = Declaration
 
 /***/ }),
 
-/***/ 3866:
+/***/ 271:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Container = __webpack_require__(9795)
+let Container = __webpack_require__(683)
 
 let LazyResult, Processor
 
@@ -3816,19 +3818,19 @@ Document.default = Document
 
 /***/ }),
 
-/***/ 3667:
+/***/ 8940:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Declaration = __webpack_require__(5818)
-let PreviousMap = __webpack_require__(2393)
-let Comment = __webpack_require__(9882)
-let AtRule = __webpack_require__(2433)
-let Input = __webpack_require__(9961)
-let Root = __webpack_require__(3823)
-let Rule = __webpack_require__(5871)
+let Declaration = __webpack_require__(1516)
+let PreviousMap = __webpack_require__(5696)
+let Comment = __webpack_require__(6589)
+let AtRule = __webpack_require__(1326)
+let Input = __webpack_require__(5380)
+let Root = __webpack_require__(9434)
+let Rule = __webpack_require__(4092)
 
 function fromJSON(json, inputs) {
   if (Array.isArray(json)) return json.map(n => fromJSON(n))
@@ -3878,20 +3880,20 @@ fromJSON.default = fromJSON
 
 /***/ }),
 
-/***/ 9961:
+/***/ 5380:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(209)
-let { fileURLToPath, pathToFileURL } = __webpack_require__(7414)
-let { isAbsolute, resolve } = __webpack_require__(9830)
-let { nanoid } = __webpack_require__(2961)
+let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(1866)
+let { fileURLToPath, pathToFileURL } = __webpack_require__(2739)
+let { isAbsolute, resolve } = __webpack_require__(197)
+let { nanoid } = __webpack_require__(5042)
 
-let terminalHighlight = __webpack_require__(2868)
-let CssSyntaxError = __webpack_require__(8743)
-let PreviousMap = __webpack_require__(2393)
+let terminalHighlight = __webpack_require__(9746)
+let CssSyntaxError = __webpack_require__(356)
+let PreviousMap = __webpack_require__(5696)
 
 let fromOffsetCache = Symbol('fromOffsetCache')
 
@@ -4134,21 +4136,21 @@ if (terminalHighlight && terminalHighlight.registerInput) {
 
 /***/ }),
 
-/***/ 3993:
+/***/ 448:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { isClean, my } = __webpack_require__(3719)
-let MapGenerator = __webpack_require__(2491)
-let stringify = __webpack_require__(2530)
-let Container = __webpack_require__(9795)
-let Document = __webpack_require__(3866)
-let warnOnce = __webpack_require__(7892)
-let Result = __webpack_require__(2072)
-let parse = __webpack_require__(9301)
-let Root = __webpack_require__(3823)
+let { isClean, my } = __webpack_require__(1381)
+let MapGenerator = __webpack_require__(1670)
+let stringify = __webpack_require__(633)
+let Container = __webpack_require__(683)
+let Document = __webpack_require__(271)
+let warnOnce = __webpack_require__(3122)
+let Result = __webpack_require__(9055)
+let parse = __webpack_require__(4295)
+let Root = __webpack_require__(9434)
 
 const TYPE_TO_CLASS_NAME = {
   atrule: 'AtRule',
@@ -4664,7 +4666,7 @@ Document.registerLazyResult(LazyResult)
 
 /***/ }),
 
-/***/ 8446:
+/***/ 7374:
 /***/ ((module) => {
 
 "use strict";
@@ -4730,17 +4732,17 @@ list.default = list
 
 /***/ }),
 
-/***/ 2491:
+/***/ 1670:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(209)
-let { dirname, relative, resolve, sep } = __webpack_require__(9830)
-let { pathToFileURL } = __webpack_require__(7414)
+let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(1866)
+let { dirname, relative, resolve, sep } = __webpack_require__(197)
+let { pathToFileURL } = __webpack_require__(2739)
 
-let Input = __webpack_require__(9961)
+let Input = __webpack_require__(5380)
 
 let sourceMapAvailable = Boolean(SourceMapConsumer && SourceMapGenerator)
 let pathAvailable = Boolean(dirname && resolve && relative && sep)
@@ -4752,6 +4754,7 @@ class MapGenerator {
     this.root = root
     this.opts = opts
     this.css = cssString
+    this.originalCSS = cssString
     this.usesFileUrls = !this.mapOpts.from && this.mapOpts.absolute
 
     this.memoizedFileURLs = new Map()
@@ -4787,7 +4790,7 @@ class MapGenerator {
       if (this.mapOpts.sourcesContent === false) {
         map = new SourceMapConsumer(prev.text)
         if (map.sourcesContent) {
-          map.sourcesContent = map.sourcesContent.map(() => null)
+          map.sourcesContent = null
         }
       } else {
         map = prev.consumer()
@@ -4810,7 +4813,7 @@ class MapGenerator {
         }
       }
     } else if (this.css) {
-      this.css = this.css.replace(/(\n)?\/\*#[\S\s]*?\*\/$/gm, '')
+      this.css = this.css.replace(/\n*?\/\*#[\S\s]*?\*\/$/gm, '')
     }
   }
 
@@ -5012,7 +5015,7 @@ class MapGenerator {
           }
         })
       } else {
-        let input = new Input(this.css, this.opts)
+        let input = new Input(this.originalCSS, this.opts)
         if (input.map) this.previousMaps.push(input.map)
       }
     }
@@ -5097,17 +5100,17 @@ module.exports = MapGenerator
 
 /***/ }),
 
-/***/ 2882:
+/***/ 7661:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let MapGenerator = __webpack_require__(2491)
-let stringify = __webpack_require__(2530)
-let warnOnce = __webpack_require__(7892)
-let parse = __webpack_require__(9301)
-const Result = __webpack_require__(2072)
+let MapGenerator = __webpack_require__(1670)
+let stringify = __webpack_require__(633)
+let warnOnce = __webpack_require__(3122)
+let parse = __webpack_require__(4295)
+const Result = __webpack_require__(9055)
 
 class NoWorkResult {
   constructor(processor, css, opts) {
@@ -5140,6 +5143,9 @@ class NoWorkResult {
       if (generatedMap) {
         this.result.map = generatedMap
       }
+    } else {
+      map.clearAnnotation()
+      this.result.css = map.css
     }
   }
 
@@ -5232,16 +5238,16 @@ NoWorkResult.default = NoWorkResult
 
 /***/ }),
 
-/***/ 8753:
+/***/ 7490:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { isClean, my } = __webpack_require__(3719)
-let CssSyntaxError = __webpack_require__(8743)
-let Stringifier = __webpack_require__(3951)
-let stringify = __webpack_require__(2530)
+let { isClean, my } = __webpack_require__(1381)
+let CssSyntaxError = __webpack_require__(356)
+let Stringifier = __webpack_require__(346)
+let stringify = __webpack_require__(633)
 
 function cloneNode(obj, parent) {
   let cloned = new obj.constructor()
@@ -5621,15 +5627,15 @@ Node.default = Node
 
 /***/ }),
 
-/***/ 9301:
+/***/ 4295:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Container = __webpack_require__(9795)
-let Parser = __webpack_require__(3915)
-let Input = __webpack_require__(9961)
+let Container = __webpack_require__(683)
+let Parser = __webpack_require__(3937)
+let Input = __webpack_require__(5380)
 
 function parse(css, opts) {
   let input = new Input(css, opts)
@@ -5652,18 +5658,18 @@ Container.registerParse(parse)
 
 /***/ }),
 
-/***/ 3915:
+/***/ 3937:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Declaration = __webpack_require__(5818)
-let tokenizer = __webpack_require__(9215)
-let Comment = __webpack_require__(9882)
-let AtRule = __webpack_require__(2433)
-let Root = __webpack_require__(3823)
-let Rule = __webpack_require__(5871)
+let Declaration = __webpack_require__(1516)
+let tokenizer = __webpack_require__(2327)
+let Comment = __webpack_require__(6589)
+let AtRule = __webpack_require__(1326)
+let Root = __webpack_require__(9434)
+let Rule = __webpack_require__(4092)
 
 const SAFE_COMMENT_NEIGHBOR = {
   empty: true,
@@ -5686,7 +5692,6 @@ class Parser {
     this.current = this.root
     this.spaces = ''
     this.semicolon = false
-    this.customProperty = false
 
     this.createTokenizer()
     this.root.source = { input, start: { column: 1, line: 1, offset: 0 } }
@@ -6270,30 +6275,30 @@ module.exports = Parser
 
 /***/ }),
 
-/***/ 4743:
+/***/ 4529:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let CssSyntaxError = __webpack_require__(8743)
-let Declaration = __webpack_require__(5818)
-let LazyResult = __webpack_require__(3993)
-let Container = __webpack_require__(9795)
-let Processor = __webpack_require__(5937)
-let stringify = __webpack_require__(2530)
-let fromJSON = __webpack_require__(3667)
-let Document = __webpack_require__(3866)
-let Warning = __webpack_require__(9871)
-let Comment = __webpack_require__(9882)
-let AtRule = __webpack_require__(2433)
-let Result = __webpack_require__(2072)
-let Input = __webpack_require__(9961)
-let parse = __webpack_require__(9301)
-let list = __webpack_require__(8446)
-let Rule = __webpack_require__(5871)
-let Root = __webpack_require__(3823)
-let Node = __webpack_require__(8753)
+let CssSyntaxError = __webpack_require__(356)
+let Declaration = __webpack_require__(1516)
+let LazyResult = __webpack_require__(448)
+let Container = __webpack_require__(683)
+let Processor = __webpack_require__(9656)
+let stringify = __webpack_require__(633)
+let fromJSON = __webpack_require__(8940)
+let Document = __webpack_require__(271)
+let Warning = __webpack_require__(5776)
+let Comment = __webpack_require__(6589)
+let AtRule = __webpack_require__(1326)
+let Result = __webpack_require__(9055)
+let Input = __webpack_require__(5380)
+let parse = __webpack_require__(4295)
+let list = __webpack_require__(7374)
+let Rule = __webpack_require__(4092)
+let Root = __webpack_require__(9434)
+let Node = __webpack_require__(7490)
 
 function postcss(...plugins) {
   if (plugins.length === 1 && Array.isArray(plugins[0])) {
@@ -6379,15 +6384,15 @@ postcss.default = postcss
 
 /***/ }),
 
-/***/ 2393:
+/***/ 5696:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(209)
-let { existsSync, readFileSync } = __webpack_require__(4777)
-let { dirname, join } = __webpack_require__(9830)
+let { SourceMapConsumer, SourceMapGenerator } = __webpack_require__(1866)
+let { existsSync, readFileSync } = __webpack_require__(9977)
+let { dirname, join } = __webpack_require__(197)
 
 function fromBase64(str) {
   if (Buffer) {
@@ -6529,20 +6534,20 @@ PreviousMap.default = PreviousMap
 
 /***/ }),
 
-/***/ 5937:
+/***/ 9656:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let NoWorkResult = __webpack_require__(2882)
-let LazyResult = __webpack_require__(3993)
-let Document = __webpack_require__(3866)
-let Root = __webpack_require__(3823)
+let NoWorkResult = __webpack_require__(7661)
+let LazyResult = __webpack_require__(448)
+let Document = __webpack_require__(271)
+let Root = __webpack_require__(9434)
 
 class Processor {
   constructor(plugins = []) {
-    this.version = '8.4.31'
+    this.version = '8.4.35'
     this.plugins = this.normalize(plugins)
   }
 
@@ -6572,10 +6577,10 @@ class Processor {
 
   process(css, opts = {}) {
     if (
-      this.plugins.length === 0 &&
-      typeof opts.parser === 'undefined' &&
-      typeof opts.stringifier === 'undefined' &&
-      typeof opts.syntax === 'undefined'
+      !this.plugins.length &&
+      !opts.parser &&
+      !opts.stringifier &&
+      !opts.syntax
     ) {
       return new NoWorkResult(this, css, opts)
     } else {
@@ -6598,13 +6603,13 @@ Document.registerProcessor(Processor)
 
 /***/ }),
 
-/***/ 2072:
+/***/ 9055:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Warning = __webpack_require__(9871)
+let Warning = __webpack_require__(5776)
 
 class Result {
   constructor(processor, root, opts) {
@@ -6648,13 +6653,13 @@ Result.default = Result
 
 /***/ }),
 
-/***/ 3823:
+/***/ 9434:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Container = __webpack_require__(9795)
+let Container = __webpack_require__(683)
 
 let LazyResult, Processor
 
@@ -6717,14 +6722,14 @@ Container.registerRoot(Root)
 
 /***/ }),
 
-/***/ 5871:
+/***/ 4092:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Container = __webpack_require__(9795)
-let list = __webpack_require__(8446)
+let Container = __webpack_require__(683)
+let list = __webpack_require__(7374)
 
 class Rule extends Container {
   constructor(defaults) {
@@ -6752,7 +6757,7 @@ Container.registerRule(Rule)
 
 /***/ }),
 
-/***/ 3951:
+/***/ 346:
 /***/ ((module) => {
 
 "use strict";
@@ -7113,13 +7118,13 @@ Stringifier.default = Stringifier
 
 /***/ }),
 
-/***/ 2530:
+/***/ 633:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-let Stringifier = __webpack_require__(3951)
+let Stringifier = __webpack_require__(346)
 
 function stringify(node, builder) {
   let str = new Stringifier(builder)
@@ -7132,7 +7137,7 @@ stringify.default = stringify
 
 /***/ }),
 
-/***/ 3719:
+/***/ 1381:
 /***/ ((module) => {
 
 "use strict";
@@ -7145,7 +7150,7 @@ module.exports.my = Symbol('my')
 
 /***/ }),
 
-/***/ 9215:
+/***/ 2327:
 /***/ ((module) => {
 
 "use strict";
@@ -7419,7 +7424,7 @@ module.exports = function tokenizer(input, options = {}) {
 
 /***/ }),
 
-/***/ 7892:
+/***/ 3122:
 /***/ ((module) => {
 
 "use strict";
@@ -7440,7 +7445,7 @@ module.exports = function warnOnce(message) {
 
 /***/ }),
 
-/***/ 9871:
+/***/ 5776:
 /***/ ((module) => {
 
 "use strict";
@@ -7485,7 +7490,7 @@ Warning.default = Warning
 
 /***/ }),
 
-/***/ 5372:
+/***/ 628:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -7498,7 +7503,7 @@ Warning.default = Warning
 
 
 
-var ReactPropTypesSecret = __webpack_require__(9567);
+var ReactPropTypesSecret = __webpack_require__(4067);
 
 function emptyFunction() {}
 function emptyFunctionWithReset() {}
@@ -7558,7 +7563,7 @@ module.exports = function() {
 
 /***/ }),
 
-/***/ 2652:
+/***/ 5826:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /**
@@ -7571,13 +7576,13 @@ module.exports = function() {
 if (false) { var throwOnDirectAccess, ReactIs; } else {
   // By explicitly using `prop-types` you are opting into new production behavior.
   // http://fb.me/prop-types-in-prod
-  module.exports = __webpack_require__(5372)();
+  module.exports = __webpack_require__(628)();
 }
 
 
 /***/ }),
 
-/***/ 9567:
+/***/ 4067:
 /***/ ((module) => {
 
 "use strict";
@@ -7597,7 +7602,7 @@ module.exports = ReactPropTypesSecret;
 
 /***/ }),
 
-/***/ 5438:
+/***/ 4462:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
@@ -7630,10 +7635,10 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 exports.__esModule = true;
-var React = __webpack_require__(9196);
-var PropTypes = __webpack_require__(2652);
-var autosize = __webpack_require__(6411);
-var _getLineHeight = __webpack_require__(9894);
+var React = __webpack_require__(1609);
+var PropTypes = __webpack_require__(5826);
+var autosize = __webpack_require__(4306);
+var _getLineHeight = __webpack_require__(461);
 var getLineHeight = _getLineHeight;
 var RESIZED = "autosize:resized";
 /**
@@ -7731,20 +7736,20 @@ exports.TextareaAutosize = React.forwardRef(function (props, ref) {
 
 /***/ }),
 
-/***/ 773:
+/***/ 4132:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 var __webpack_unused_export__;
 
 __webpack_unused_export__ = true;
-var TextareaAutosize_1 = __webpack_require__(5438);
-exports.Z = TextareaAutosize_1.TextareaAutosize;
+var TextareaAutosize_1 = __webpack_require__(4462);
+exports.A = TextareaAutosize_1.TextareaAutosize;
 
 
 /***/ }),
 
-/***/ 4793:
+/***/ 9681:
 /***/ ((module) => {
 
 var characterMap = {
@@ -8232,7 +8237,7 @@ module.exports.remove = removeAccents;
 
 /***/ }),
 
-/***/ 9196:
+/***/ 1609:
 /***/ ((module) => {
 
 "use strict";
@@ -8240,42 +8245,42 @@ module.exports = window["React"];
 
 /***/ }),
 
-/***/ 2868:
+/***/ 9746:
 /***/ (() => {
 
 /* (ignored) */
 
 /***/ }),
 
-/***/ 4777:
+/***/ 9977:
 /***/ (() => {
 
 /* (ignored) */
 
 /***/ }),
 
-/***/ 9830:
+/***/ 197:
 /***/ (() => {
 
 /* (ignored) */
 
 /***/ }),
 
-/***/ 209:
+/***/ 1866:
 /***/ (() => {
 
 /* (ignored) */
 
 /***/ }),
 
-/***/ 7414:
+/***/ 2739:
 /***/ (() => {
 
 /* (ignored) */
 
 /***/ }),
 
-/***/ 2961:
+/***/ 5042:
 /***/ ((module) => {
 
 let urlAlphabet =
@@ -8700,7 +8705,6 @@ __webpack_require__.d(private_selectors_namespaceObject, {
   getBlockWithoutAttributes: () => (getBlockWithoutAttributes),
   getEnabledBlockParents: () => (getEnabledBlockParents),
   getEnabledClientIdsTree: () => (getEnabledClientIdsTree),
-  getFetchedPatterns: () => (getFetchedPatterns),
   getInserterMediaCategories: () => (getInserterMediaCategories),
   getLastFocus: () => (getLastFocus),
   getLastInsertedBlocksClientIds: () => (getLastInsertedBlocksClientIds),
@@ -8712,13 +8716,6 @@ __webpack_require__.d(private_selectors_namespaceObject, {
   isBlockInterfaceHidden: () => (private_selectors_isBlockInterfaceHidden),
   isBlockSubtreeDisabled: () => (isBlockSubtreeDisabled),
   isDragging: () => (private_selectors_isDragging)
-});
-
-// NAMESPACE OBJECT: ./node_modules/@wordpress/block-editor/build-module/store/resolvers.js
-var resolvers_namespaceObject = {};
-__webpack_require__.r(resolvers_namespaceObject);
-__webpack_require__.d(resolvers_namespaceObject, {
-  getFetchedPatterns: () => (resolvers_getFetchedPatterns)
 });
 
 // NAMESPACE OBJECT: ./node_modules/@wordpress/block-editor/build-module/store/actions.js
@@ -8820,7 +8817,7 @@ __webpack_require__.d(global_styles_namespaceObject, {
 });
 
 // EXTERNAL MODULE: external "React"
-var external_React_ = __webpack_require__(9196);
+var external_React_ = __webpack_require__(1609);
 var external_React_default = /*#__PURE__*/__webpack_require__.n(external_React_);
 ;// CONCATENATED MODULE: external ["wp","blocks"]
 const external_wp_blocks_namespaceObject = window["wp"]["blocks"];
@@ -8863,7 +8860,7 @@ function useBlockEditContext() {
 const external_wp_deprecated_namespaceObject = window["wp"]["deprecated"];
 var external_wp_deprecated_default = /*#__PURE__*/__webpack_require__.n(external_wp_deprecated_namespaceObject);
 // EXTERNAL MODULE: ./node_modules/fast-deep-equal/es6/index.js
-var es6 = __webpack_require__(5619);
+var es6 = __webpack_require__(7734);
 var es6_default = /*#__PURE__*/__webpack_require__.n(es6);
 ;// CONCATENATED MODULE: external ["wp","i18n"]
 const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
@@ -10969,13 +10966,6 @@ function blockBindingsSources(state = {}, action) {
   }
   return state;
 }
-function blockPatterns(state = [], action) {
-  switch (action.type) {
-    case 'RECEIVE_BLOCK_PATTERNS':
-      return action.patterns;
-  }
-  return state;
-}
 const combinedReducers = (0,external_wp_data_namespaceObject.combineReducers)({
   blocks,
   isDragging,
@@ -11007,8 +10997,7 @@ const combinedReducers = (0,external_wp_data_namespaceObject.combineReducers)({
   blockRemovalRules,
   openedBlockSettingsMenu,
   registeredInserterMediaCategories,
-  blockBindingsSources,
-  blockPatterns
+  blockBindingsSources
 });
 function withAutomaticChangeReset(reducer) {
   return (state, action) => {
@@ -11368,7 +11357,14 @@ const symbol = (0,external_React_.createElement)(external_wp_primitives_namespac
 
 ;// CONCATENATED MODULE: external ["wp","richText"]
 const external_wp_richText_namespaceObject = window["wp"]["richText"];
+;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/store/private-keys.js
+const selectBlockPatternsKey = Symbol('selectBlockPatternsKey');
+
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/store/utils.js
+/**
+ * Internal dependencies
+ */
+
 const checkAllowList = (list, item, defaultResult = null) => {
   if (typeof list === 'boolean') {
     return list;
@@ -11401,8 +11397,8 @@ const checkAllowListRecursive = (blocks, allowedBlockTypes) => {
   }
   return true;
 };
-const getAllPatternsDependants = state => {
-  return [state.settings.__experimentalBlockPatterns, state.settings.__experimentalUserPatternCategories, state.settings.__experimentalReusableBlocks, state.settings.__experimentalFetchBlockPatterns, state.blockPatterns];
+const getAllPatternsDependants = select => state => {
+  return [state.settings.__experimentalBlockPatterns, state.settings.__experimentalUserPatternCategories, state.settings.__experimentalReusableBlocks, state.settings[selectBlockPatternsKey]?.(select), state.blockPatterns];
 };
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/utils/sorting.js
@@ -13155,14 +13151,9 @@ const buildBlockTypeItem = (state, {
   };
   if (buildScope === 'transform') return blockItemBase;
   const inserterVariations = (0,external_wp_blocks_namespaceObject.getBlockVariations)(blockType.name, 'inserter');
-  const ignoredHookedBlocks = [...new Set(Object.values((0,external_wp_blocks_namespaceObject.getHookedBlocks)(id)).flat())];
   return {
     ...blockItemBase,
-    initialAttributes: ignoredHookedBlocks.length ? {
-      metadata: {
-        ignoredHookedBlocks
-      }
-    } : {},
+    initialAttributes: {},
     description: blockType.description,
     category: blockType.category,
     keywords: blockType.keywords,
@@ -13417,9 +13408,9 @@ const __experimentalGetParsedPattern = (0,external_wp_data_namespaceObject.creat
       __unstableSkipMigrationLogs: true
     })
   };
-}, getAllPatternsDependants));
-const getAllowedPatternsDependants = (state, rootClientId) => {
-  return [...getAllPatternsDependants(state), state.settings.allowedBlockTypes, state.settings.templateLock, state.blockListSettings[rootClientId], state.blocks.byClientId.get(rootClientId)];
+}, getAllPatternsDependants(select)));
+const getAllowedPatternsDependants = select => (state, rootClientId) => {
+  return [...getAllPatternsDependants(select)(state), state.settings.allowedBlockTypes, state.settings.templateLock, state.blockListSettings[rootClientId], state.blocks.byClientId.get(rootClientId)];
 };
 
 /**
@@ -13454,7 +13445,7 @@ const __experimentalGetAllowedPatterns = (0,external_wp_data_namespaceObject.cre
       name
     }) => canInsertBlockType(state, name, rootClientId)));
     return patternsAllowed;
-  }, getAllowedPatternsDependants);
+  }, getAllowedPatternsDependants(select));
 });
 
 /**
@@ -13479,7 +13470,7 @@ const getPatternsByBlockTypes = (0,external_wp_data_namespaceObject.createRegist
     return EMPTY_ARRAY;
   }
   return filteredPatterns;
-}, (state, blockNames, rootClientId) => getAllowedPatternsDependants(state, rootClientId)));
+}, (state, blockNames, rootClientId) => getAllowedPatternsDependants(select)(state, rootClientId)));
 const __experimentalGetPatternsByBlockTypes = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => {
   external_wp_deprecated_default()('wp.data.select( "core/block-editor" ).__experimentalGetPatternsByBlockTypes', {
     alternative: 'wp.data.select( "core/block-editor" ).getPatternsByBlockTypes',
@@ -13533,7 +13524,7 @@ const __experimentalGetPatternTransformItems = (0,external_wp_data_namespaceObje
    * Now this happens in the consumer to avoid heavy operations in the selector.
    */
   return select(STORE_NAME).getPatternsByBlockTypes(selectedBlockNames, rootClientId);
-}, (state, blocks, rootClientId) => getAllowedPatternsDependants(state, rootClientId)));
+}, (state, blocks, rootClientId) => getAllowedPatternsDependants(select)(state, rootClientId)));
 
 /**
  * Returns the Block List settings of a block, if any exist.
@@ -14104,6 +14095,11 @@ const privateRemoveBlocks = (clientIds, selectPrevious = true, forceRemove = fal
         blockNamesForPrompt.add(blockName);
       }
       if (rules['bindings/core/pattern-overrides']) {
+        const parentPatternBlocks = select.getBlockParentsByBlockName(clientId, 'core/block');
+        // We only need to run this check when editing the original pattern, not pattern instances.
+        if (parentPatternBlocks?.length > 0) {
+          continue;
+        }
         const blockAttributes = select.getBlockAttributes(clientId);
         if (blockAttributes?.metadata?.bindings && JSON.stringify(blockAttributes.metadata.bindings).includes('core/pattern-overrides')) {
           blockNamesForPrompt.add(blockName);
@@ -14571,12 +14567,24 @@ const mergeCache = new WeakMap();
 /**
  * For settings like `color.palette`, which have a value that is an object
  * with `default`, `theme`, `custom`, with field values that are arrays of
+ * items, returns the one with the highest priority among these three arrays.
+ * @param {Object} value Object to extract from
+ * @return {Array} Array of items extracted from the three origins
+ */
+function overrideOrigins(value) {
+  var _ref, _value$custom;
+  return (_ref = (_value$custom = value.custom) !== null && _value$custom !== void 0 ? _value$custom : value.theme) !== null && _ref !== void 0 ? _ref : value.default;
+}
+
+/**
+ * For settings like `color.palette`, which have a value that is an object
+ * with `default`, `theme`, `custom`, with field values that are arrays of
  * items, see if any of the three origins have values.
  *
  * @param {Object} value Object to check
  * @return {boolean} Whether the object has values in any of the three origins
  */
-function hasMergedOrigins(value) {
+function hasOriginValue(value) {
   return ['default', 'theme', 'custom'].some(key => value?.[key]?.length);
 }
 function getBlockSettings(state, clientId, ...paths) {
@@ -14628,8 +14636,8 @@ function getBlockSettings(state, clientId, ...paths) {
 
     // Return if the setting was found in either the block instance or the store.
     if (result !== undefined) {
-      if (external_wp_blocks_namespaceObject.__EXPERIMENTAL_PATHS_WITH_MERGE[normalizedPath]) {
-        return mergeOrigins(result);
+      if (external_wp_blocks_namespaceObject.__EXPERIMENTAL_PATHS_WITH_OVERRIDE[normalizedPath]) {
+        return overrideOrigins(result);
       }
       return result;
     }
@@ -14662,6 +14670,7 @@ function getBlockSettings(state, clientId, ...paths) {
 /**
  * Internal dependencies
  */
+
 
 
 
@@ -14846,9 +14855,6 @@ const getInserterMediaCategories = rememo(state => {
     return Object.values(allowedMimeTypes).some(mimeType => mimeType.startsWith(`${category.mediaType}/`));
   });
 }, state => [state.settings.inserterMediaCategories, state.settings.allowedMimeTypes, state.settings.enableOpenverseMediaCategory, state.registeredInserterMediaCategories]);
-function getFetchedPatterns(state) {
-  return state.blockPatterns;
-}
 
 /**
  * Returns whether there is at least one allowed pattern for inner blocks children.
@@ -14882,8 +14888,9 @@ const hasAllowedPatterns = (0,external_wp_data_namespaceObject.createRegistrySel
       name: blockName
     }) => canInsertBlockType(state, blockName, rootClientId));
   });
-}, (state, rootClientId) => [getAllPatternsDependants(state), state.settings.allowedBlockTypes, state.settings.templateLock, state.blockListSettings[rootClientId], state.blocks.byClientId.get(rootClientId)]));
+}, (state, rootClientId) => [getAllPatternsDependants(select)(state), state.settings.allowedBlockTypes, state.settings.templateLock, state.blockListSettings[rootClientId], state.blocks.byClientId.get(rootClientId)]));
 const getAllPatterns = (0,external_wp_data_namespaceObject.createRegistrySelector)(select => rememo(state => {
+  var _state$settings$selec;
   // This setting is left for back compat.
   const {
     __experimentalBlockPatterns = [],
@@ -14906,8 +14913,8 @@ const getAllPatterns = (0,external_wp_data_namespaceObject.createRegistrySelecto
       syncStatus: userPattern.wp_pattern_sync_status
     };
   });
-  return [...userPatterns, ...__experimentalBlockPatterns, ...unlock(select(STORE_NAME)).getFetchedPatterns()].filter((x, index, arr) => index === arr.findIndex(y => x.name === y.name));
-}, getAllPatternsDependants));
+  return [...userPatterns, ...__experimentalBlockPatterns, ...((_state$settings$selec = state.settings[selectBlockPatternsKey]?.(select)) !== null && _state$settings$selec !== void 0 ? _state$settings$selec : [])].filter((x, index, arr) => index === arr.findIndex(y => x.name === y.name));
+}, getAllPatternsDependants(select)));
 
 /**
  * Returns the element of the last element that had focus when focus left the editor canvas.
@@ -14938,27 +14945,6 @@ function getBlockBindingsSource(state, sourceName) {
 function private_selectors_isDragging(state) {
   return state.isDragging;
 }
-
-;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/store/resolvers.js
-const resolvers_getFetchedPatterns = () => async ({
-  dispatch,
-  select
-}) => {
-  const {
-    __experimentalFetchBlockPatterns
-  } = select.getSettings();
-  if (!__experimentalFetchBlockPatterns) {
-    return [];
-  }
-  const patterns = await __experimentalFetchBlockPatterns();
-  dispatch({
-    type: 'RECEIVE_BLOCK_PATTERNS',
-    patterns
-  });
-};
-resolvers_getFetchedPatterns.shouldInvalidate = action => {
-  return action.type === 'UPDATE_SETTINGS' && !!action.settings.__experimentalFetchBlockPatterns;
-};
 
 ;// CONCATENATED MODULE: external ["wp","a11y"]
 const external_wp_a11y_namespaceObject = window["wp"]["a11y"];
@@ -16670,7 +16656,6 @@ function unsetBlockEditingMode(clientId = '') {
 
 
 
-
 /**
  * Block editor data store configuration.
  *
@@ -16679,7 +16664,6 @@ function unsetBlockEditingMode(clientId = '') {
 const storeConfig = {
   reducer: reducer,
   selectors: selectors_namespaceObject,
-  resolvers: resolvers_namespaceObject,
   actions: actions_namespaceObject
 };
 
@@ -17775,7 +17759,7 @@ function useGradientsPerOrigin(settings) {
 }
 
 // EXTERNAL MODULE: ./node_modules/classnames/index.js
-var classnames = __webpack_require__(4403);
+var classnames = __webpack_require__(5755);
 var classnames_default = /*#__PURE__*/__webpack_require__.n(classnames);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/hooks/utils.js
 
@@ -17913,7 +17897,7 @@ function useStyleOverride({
  * @return {Object} Settings object.
  */
 function useBlockSettings(name, parentLayout) {
-  const [backgroundImage, backgroundSize, fontFamilies, fontSizes, customFontSize, fontStyle, fontWeight, lineHeight, textColumns, textDecoration, writingMode, textTransform, letterSpacing, padding, margin, blockGap, spacingSizes, units, aspectRatio, minHeight, layout, borderColor, borderRadius, borderStyle, borderWidth, customColorsEnabled, customColors, customDuotone, themeColors, defaultColors, defaultPalette, defaultDuotone, userDuotonePalette, themeDuotonePalette, defaultDuotonePalette, userGradientPalette, themeGradientPalette, defaultGradientPalette, defaultGradients, areCustomGradientsEnabled, isBackgroundEnabled, isLinkEnabled, isTextEnabled, isHeadingEnabled, isButtonEnabled, shadow] = use_settings_useSettings('background.backgroundImage', 'background.backgroundSize', 'typography.fontFamilies', 'typography.fontSizes', 'typography.customFontSize', 'typography.fontStyle', 'typography.fontWeight', 'typography.lineHeight', 'typography.textColumns', 'typography.textDecoration', 'typography.writingMode', 'typography.textTransform', 'typography.letterSpacing', 'spacing.padding', 'spacing.margin', 'spacing.blockGap', 'spacing.spacingSizes', 'spacing.units', 'dimensions.aspectRatio', 'dimensions.minHeight', 'layout', 'border.color', 'border.radius', 'border.style', 'border.width', 'color.custom', 'color.palette.custom', 'color.customDuotone', 'color.palette.theme', 'color.palette.default', 'color.defaultPalette', 'color.defaultDuotone', 'color.duotone.custom', 'color.duotone.theme', 'color.duotone.default', 'color.gradients.custom', 'color.gradients.theme', 'color.gradients.default', 'color.defaultGradients', 'color.customGradient', 'color.background', 'color.link', 'color.text', 'color.heading', 'color.button', 'shadow');
+  const [backgroundImage, backgroundSize, customFontFamilies, defaultFontFamilies, themeFontFamilies, customFontSizes, defaultFontSizes, themeFontSizes, customFontSize, fontStyle, fontWeight, lineHeight, textColumns, textDecoration, writingMode, textTransform, letterSpacing, padding, margin, blockGap, spacingSizes, units, aspectRatio, minHeight, layout, borderColor, borderRadius, borderStyle, borderWidth, customColorsEnabled, customColors, customDuotone, themeColors, defaultColors, defaultPalette, defaultDuotone, userDuotonePalette, themeDuotonePalette, defaultDuotonePalette, userGradientPalette, themeGradientPalette, defaultGradientPalette, defaultGradients, areCustomGradientsEnabled, isBackgroundEnabled, isLinkEnabled, isTextEnabled, isHeadingEnabled, isButtonEnabled, shadow] = use_settings_useSettings('background.backgroundImage', 'background.backgroundSize', 'typography.fontFamilies.custom', 'typography.fontFamilies.default', 'typography.fontFamilies.theme', 'typography.fontSizes.custom', 'typography.fontSizes.default', 'typography.fontSizes.theme', 'typography.customFontSize', 'typography.fontStyle', 'typography.fontWeight', 'typography.lineHeight', 'typography.textColumns', 'typography.textDecoration', 'typography.writingMode', 'typography.textTransform', 'typography.letterSpacing', 'spacing.padding', 'spacing.margin', 'spacing.blockGap', 'spacing.spacingSizes', 'spacing.units', 'dimensions.aspectRatio', 'dimensions.minHeight', 'layout', 'border.color', 'border.radius', 'border.style', 'border.width', 'color.custom', 'color.palette.custom', 'color.customDuotone', 'color.palette.theme', 'color.palette.default', 'color.defaultPalette', 'color.defaultDuotone', 'color.duotone.custom', 'color.duotone.theme', 'color.duotone.default', 'color.gradients.custom', 'color.gradients.theme', 'color.gradients.default', 'color.defaultGradients', 'color.customGradient', 'color.background', 'color.link', 'color.text', 'color.heading', 'color.button', 'shadow');
   const rawSettings = (0,external_wp_element_namespaceObject.useMemo)(() => {
     return {
       background: {
@@ -17950,10 +17934,14 @@ function useBlockSettings(name, parentLayout) {
       },
       typography: {
         fontFamilies: {
-          custom: fontFamilies
+          custom: customFontFamilies,
+          default: defaultFontFamilies,
+          theme: themeFontFamilies
         },
         fontSizes: {
-          custom: fontSizes
+          custom: customFontSizes,
+          default: defaultFontSizes,
+          theme: themeFontSizes
         },
         customFontSize,
         fontStyle,
@@ -17988,7 +17976,7 @@ function useBlockSettings(name, parentLayout) {
       parentLayout,
       shadow
     };
-  }, [backgroundImage, backgroundSize, fontFamilies, fontSizes, customFontSize, fontStyle, fontWeight, lineHeight, textColumns, textDecoration, textTransform, letterSpacing, writingMode, padding, margin, blockGap, spacingSizes, units, aspectRatio, minHeight, layout, parentLayout, borderColor, borderRadius, borderStyle, borderWidth, customColorsEnabled, customColors, customDuotone, themeColors, defaultColors, defaultPalette, defaultDuotone, userDuotonePalette, themeDuotonePalette, defaultDuotonePalette, userGradientPalette, themeGradientPalette, defaultGradientPalette, defaultGradients, areCustomGradientsEnabled, isBackgroundEnabled, isLinkEnabled, isTextEnabled, isHeadingEnabled, isButtonEnabled, shadow]);
+  }, [backgroundImage, backgroundSize, customFontFamilies, defaultFontFamilies, themeFontFamilies, customFontSizes, defaultFontSizes, themeFontSizes, customFontSize, fontStyle, fontWeight, lineHeight, textColumns, textDecoration, textTransform, letterSpacing, writingMode, padding, margin, blockGap, spacingSizes, units, aspectRatio, minHeight, layout, parentLayout, borderColor, borderRadius, borderStyle, borderWidth, customColorsEnabled, customColors, customDuotone, themeColors, defaultColors, defaultPalette, defaultDuotone, userDuotonePalette, themeDuotonePalette, defaultDuotonePalette, userGradientPalette, themeGradientPalette, defaultGradientPalette, defaultGradients, areCustomGradientsEnabled, isBackgroundEnabled, isLinkEnabled, isTextEnabled, isHeadingEnabled, isButtonEnabled, shadow]);
   return useSettingsForBlockElement(rawSettings, name);
 }
 function createBlockEditFilter(features) {
@@ -21874,7 +21862,7 @@ function LinkSettingsDrawer({
 /* harmony default export */ const settings_drawer = (LinkSettingsDrawer);
 
 // EXTERNAL MODULE: ./node_modules/dom-scroll-into-view/lib/index.js
-var lib = __webpack_require__(5425);
+var lib = __webpack_require__(5428);
 var lib_default = /*#__PURE__*/__webpack_require__.n(lib);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/url-input/index.js
 
@@ -23460,7 +23448,7 @@ const makeCancelable = promise => {
 };
 
 // EXTERNAL MODULE: ./node_modules/fast-deep-equal/index.js
-var fast_deep_equal = __webpack_require__(2303);
+var fast_deep_equal = __webpack_require__(5215);
 var fast_deep_equal_default = /*#__PURE__*/__webpack_require__.n(fast_deep_equal);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/link-control/use-internal-value.js
 /**
@@ -24401,10 +24389,12 @@ function backgroundSizeHelpText(value) {
   return (0,external_wp_i18n_namespaceObject.__)('Specify a fixed width.');
 }
 const coordsToBackgroundPosition = value => {
-  if (!value || isNaN(value.x) || isNaN(value.y)) {
+  if (!value || isNaN(value.x) && isNaN(value.y)) {
     return undefined;
   }
-  return `${value.x * 100}% ${value.y * 100}%`;
+  const x = isNaN(value.x) ? 0.5 : value.x;
+  const y = isNaN(value.y) ? 0.5 : value.y;
+  return `${x * 100}% ${y * 100}%`;
 };
 const backgroundPositionToCoords = value => {
   if (!value) {
@@ -25162,10 +25152,10 @@ function ShadowPopoverContainer({
   onShadowChange,
   settings
 }) {
-  const defaultShadows = settings?.shadow?.presets?.default;
-  const themeShadows = settings?.shadow?.presets?.theme;
+  const defaultShadows = settings?.shadow?.presets?.default || [];
+  const themeShadows = settings?.shadow?.presets?.theme || [];
   const defaultPresetsEnabled = settings?.shadow?.defaultPresets;
-  const shadows = [...(defaultPresetsEnabled ? defaultShadows : []), ...(themeShadows || [])];
+  const shadows = [...(defaultPresetsEnabled ? defaultShadows : []), ...themeShadows];
   return (0,external_React_.createElement)("div", {
     className: "block-editor-global-styles__shadow-popover-container"
   }, (0,external_React_.createElement)(external_wp_components_namespaceObject.__experimentalVStack, {
@@ -25340,6 +25330,7 @@ function BorderPanel({
   name,
   defaultControls = border_panel_DEFAULT_CONTROLS
 }) {
+  var _settings$shadow$pres, _overrideOrigins;
   const colors = useColorsPerOrigin(settings);
   const decodeValue = (0,external_wp_element_namespaceObject.useCallback)(rawValue => getValueFromVariable({
     settings
@@ -25397,10 +25388,10 @@ function BorderPanel({
 
   // Shadow
   const shadow = decodeValue(inheritedValue?.shadow);
-  const shadowPresets = settings?.shadow?.presets;
-  const mergedShadowPresets = shadowPresets ? mergeOrigins(shadowPresets) : [];
+  const shadowPresets = (_settings$shadow$pres = settings?.shadow?.presets) !== null && _settings$shadow$pres !== void 0 ? _settings$shadow$pres : {};
+  const overriddenShadowPresets = (_overrideOrigins = overrideOrigins(shadowPresets)) !== null && _overrideOrigins !== void 0 ? _overrideOrigins : [];
   const setShadow = newValue => {
-    const slug = mergedShadowPresets?.find(({
+    const slug = overriddenShadowPresets?.find(({
       shadow: shadowName
     }) => shadowName === newValue)?.slug;
     onChange(setImmutably(value, ['shadow'], slug ? `var:preset|shadow|${slug}` : newValue || undefined));
@@ -27977,10 +27968,10 @@ function useHasTypographyPanel(settings) {
   return hasFontFamily || hasLineHeight || hasFontAppearance || hasLetterSpacing || hasTextTransform || hasFontSize || hasTextDecoration || hasWritingMode || hasTextColumns;
 }
 function useHasFontSizeControl(settings) {
-  return hasMergedOrigins(settings?.typography?.fontSizes) || settings?.typography?.customFontSize;
+  return hasOriginValue(settings?.typography?.fontSizes) || settings?.typography?.customFontSize;
 }
 function useHasFontFamilyControl(settings) {
-  return hasMergedOrigins(settings?.typography?.fontFamilies);
+  return hasOriginValue(settings?.typography?.fontFamilies);
 }
 function useHasLineHeightControl(settings) {
   return settings?.typography?.lineHeight;
@@ -28013,10 +28004,11 @@ function useHasTextColumnsControl(settings) {
   return settings?.typography?.textColumns;
 }
 function getUniqueFontSizesBySlug(settings) {
-  const fontSizes = settings?.typography?.fontSizes;
-  const mergedFontSizes = fontSizes ? mergeOrigins(fontSizes) : [];
+  var _settings$typography$, _overrideOrigins;
+  const fontSizes = (_settings$typography$ = settings?.typography?.fontSizes) !== null && _settings$typography$ !== void 0 ? _settings$typography$ : {};
+  const overriddenFontSizes = (_overrideOrigins = overrideOrigins(fontSizes)) !== null && _overrideOrigins !== void 0 ? _overrideOrigins : [];
   const uniqueSizes = [];
-  for (const currentSize of mergedFontSizes) {
+  for (const currentSize of overriddenFontSizes) {
     if (!uniqueSizes.some(({
       slug
     }) => slug === currentSize.slug)) {
@@ -28063,13 +28055,14 @@ function TypographyPanel({
   panelId,
   defaultControls = typography_panel_DEFAULT_CONTROLS
 }) {
+  var _settings$typography$2;
   const decodeValue = rawValue => getValueFromVariable({
     settings
   }, '', rawValue);
 
   // Font Family
   const hasFontFamilyEnabled = useHasFontFamilyControl(settings);
-  const fontFamilies = settings?.typography?.fontFamilies;
+  const fontFamilies = (_settings$typography$2 = settings?.typography?.fontFamilies) !== null && _settings$typography$2 !== void 0 ? _settings$typography$2 : {};
   const mergedFontFamilies = fontFamilies ? mergeOrigins(fontFamilies) : [];
   const fontFamily = decodeValue(inheritedValue?.typography?.fontFamily);
   const setFontFamily = newValue => {
@@ -34222,23 +34215,6 @@ function shimAttributeSource(settings) {
 }
 (0,external_wp_hooks_namespaceObject.addFilter)('blocks.registerBlockType', 'core/editor/custom-sources-backwards-compatibility/shim-attribute-source', shimAttributeSource);
 
-// Add the context to all blocks.
-(0,external_wp_hooks_namespaceObject.addFilter)('blocks.registerBlockType', 'core/block-bindings-ui', (settings, name) => {
-  if (!(name in BLOCK_BINDINGS_ALLOWED_BLOCKS)) {
-    return settings;
-  }
-  const contextItems = ['postId', 'postType', 'queryId'];
-  const usesContextArray = settings.usesContext;
-  const oldUsesContextArray = new Set(usesContextArray);
-  contextItems.forEach(item => {
-    if (!oldUsesContextArray.has(item)) {
-      usesContextArray.push(item);
-    }
-  });
-  settings.usesContext = usesContextArray;
-  return settings;
-});
-
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/hooks/use-border-props.js
 /**
  * Internal dependencies
@@ -35082,7 +35058,7 @@ const AlignmentToolbar = props => {
 
 
 // EXTERNAL MODULE: ./node_modules/remove-accents/index.js
-var remove_accents = __webpack_require__(4793);
+var remove_accents = __webpack_require__(9681);
 var remove_accents_default = /*#__PURE__*/__webpack_require__.n(remove_accents);
 ;// CONCATENATED MODULE: ./node_modules/lower-case/dist.es2015/index.js
 /**
@@ -36216,7 +36192,7 @@ function Warning({
 /* harmony default export */ const warning = (Warning);
 
 // EXTERNAL MODULE: ./node_modules/diff/lib/diff/character.js
-var character = __webpack_require__(1973);
+var character = __webpack_require__(8021);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/block-compare/block-view.js
 
 /**
@@ -36280,7 +36256,7 @@ function BlockCompare({
   convertButtonText
 }) {
   function getDifference(originalContent, newContent) {
-    const difference = (0,character/* diffChars */.Kx)(originalContent, newContent);
+    const difference = (0,character/* diffChars */.JJ)(originalContent, newContent);
     return difference.map((item, pos) => {
       const classes = classnames_default()({
         'block-editor-block-compare__added': item.added,
@@ -36465,7 +36441,7 @@ class BlockCrashBoundary extends external_wp_element_namespaceObject.Component {
 /* harmony default export */ const block_crash_boundary = (BlockCrashBoundary);
 
 // EXTERNAL MODULE: ./node_modules/react-autosize-textarea/lib/index.js
-var react_autosize_textarea_lib = __webpack_require__(773);
+var react_autosize_textarea_lib = __webpack_require__(4132);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/block-list/block-html.js
 
 /**
@@ -36520,7 +36496,7 @@ function BlockHTML({
   (0,external_wp_element_namespaceObject.useEffect)(() => {
     setHtml((0,external_wp_blocks_namespaceObject.getBlockContent)(block));
   }, [block]);
-  return (0,external_React_.createElement)(react_autosize_textarea_lib/* default */.Z, {
+  return (0,external_React_.createElement)(react_autosize_textarea_lib/* default */.A, {
     className: "block-editor-block-list__block-html-textarea",
     value: html,
     onBlur: onChange,
@@ -40494,13 +40470,16 @@ function Iframe({
     src: src,
     title: (0,external_wp_i18n_namespaceObject.__)('Editor canvas'),
     onKeyDown: event => {
+      if (props.onKeyDown) {
+        props.onKeyDown(event);
+      }
       // If the event originates from inside the iframe, it means
       // it bubbled through the portal, but only with React
       // events. We need to to bubble native events as well,
       // though by doing so we also trigger another React event,
       // so we need to stop the propagation of this event to avoid
       // duplication.
-      if (event.currentTarget.ownerDocument !== event.target.ownerDocument) {
+      else if (event.currentTarget.ownerDocument !== event.target.ownerDocument) {
         event.stopPropagation();
         bubbleEvent(event, window.KeyboardEvent, event.currentTarget);
       }
@@ -40535,7 +40514,7 @@ function IframeIfReady(props, ref) {
 /* harmony default export */ const iframe = ((0,external_wp_element_namespaceObject.forwardRef)(IframeIfReady));
 
 // EXTERNAL MODULE: ./node_modules/postcss/lib/postcss.js
-var postcss = __webpack_require__(4743);
+var postcss = __webpack_require__(4529);
 ;// CONCATENATED MODULE: ./node_modules/postcss/lib/postcss.mjs
 
 
@@ -40569,10 +40548,10 @@ const Root = postcss.Root
 const Node = postcss.Node
 
 // EXTERNAL MODULE: ./node_modules/postcss-prefixwrap/build/index.js
-var build = __webpack_require__(5959);
+var build = __webpack_require__(8036);
 var build_default = /*#__PURE__*/__webpack_require__.n(build);
 // EXTERNAL MODULE: ./node_modules/postcss-urlrebase/index.js
-var postcss_urlrebase = __webpack_require__(7036);
+var postcss_urlrebase = __webpack_require__(5404);
 var postcss_urlrebase_default = /*#__PURE__*/__webpack_require__.n(postcss_urlrebase);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/utils/transform-styles/index.js
 /**
@@ -43085,7 +43064,7 @@ function MediaPreview({
       setIsInserting(false);
     });
   }, [isInserting, onClick, mediaUpload, createErrorNotice, createSuccessNotice]);
-  const title = media.title?.rendered || media.title;
+  const title = typeof media.title === 'string' ? media.title : media.title?.rendered || (0,external_wp_i18n_namespaceObject.__)('no title');
   let truncatedTitle;
   if (title.length > MAXIMUM_TITLE_LENGTH) {
     const omission = '...';
@@ -44867,9 +44846,12 @@ function InbetweenInsertionPointPopover({
       isInserterShown: insertionPoint?.__unstableWithInserter
     };
   }, []);
+  const {
+    getBlockEditingMode
+  } = (0,external_wp_data_namespaceObject.useSelect)(store);
   const disableMotion = (0,external_wp_compose_namespaceObject.useReducedMotion)();
   function onClick(event) {
-    if (event.target === ref.current && nextClientId) {
+    if (event.target === ref.current && nextClientId && getBlockEditingMode(nextClientId) !== 'disabled') {
       selectBlock(nextClientId, -1);
     }
   }
@@ -56101,7 +56083,7 @@ function __classPrivateFieldSet(receiver, privateMap, value) {
 }
 
 // EXTERNAL MODULE: ./node_modules/normalize-wheel/index.js
-var normalize_wheel = __webpack_require__(7970);
+var normalize_wheel = __webpack_require__(7520);
 var normalize_wheel_default = /*#__PURE__*/__webpack_require__.n(normalize_wheel);
 ;// CONCATENATED MODULE: ./node_modules/react-easy-crop/index.module.js
 
@@ -58469,16 +58451,35 @@ function usePasteHandler(props) {
         return;
       }
       const isInternal = event.clipboardData.getData('rich-text') === 'true';
+      function pasteInline(content) {
+        const transformed = formatTypes.reduce((accumulator, {
+          __unstablePasteRule
+        }) => {
+          // Only allow one transform.
+          if (__unstablePasteRule && accumulator === value) {
+            accumulator = __unstablePasteRule(value, {
+              html,
+              plainText
+            });
+          }
+          return accumulator;
+        }, value);
+        if (transformed !== value) {
+          onChange(transformed);
+        } else {
+          const valueToInsert = (0,external_wp_richText_namespaceObject.create)({
+            html: content
+          });
+          addActiveFormats(valueToInsert, value.activeFormats);
+          onChange((0,external_wp_richText_namespaceObject.insert)(value, valueToInsert));
+        }
+      }
 
       // If the data comes from a rich text instance, we can directly use it
       // without filtering the data. The filters are only meant for externally
       // pasted content and remove inline styles.
       if (isInternal) {
-        const pastedValue = (0,external_wp_richText_namespaceObject.create)({
-          html
-        });
-        addActiveFormats(pastedValue, value.activeFormats);
-        onChange((0,external_wp_richText_namespaceObject.insert)(value, pastedValue));
+        pasteInline(html);
         return;
       }
       if (pastePlainText) {
@@ -58528,27 +58529,7 @@ function usePasteHandler(props) {
         tagName
       });
       if (typeof content === 'string') {
-        const transformed = formatTypes.reduce((accumlator, {
-          __unstablePasteRule
-        }) => {
-          // Only allow one transform.
-          if (__unstablePasteRule && accumlator === value) {
-            accumlator = __unstablePasteRule(value, {
-              html,
-              plainText
-            });
-          }
-          return accumlator;
-        }, value);
-        if (transformed !== value) {
-          onChange(transformed);
-        } else {
-          const valueToInsert = (0,external_wp_richText_namespaceObject.create)({
-            html: content
-          });
-          addActiveFormats(valueToInsert, value.activeFormats);
-          onChange((0,external_wp_richText_namespaceObject.insert)(value, valueToInsert));
-        }
+        pasteInline(content);
       } else if (content.length > 0) {
         if (onReplace && (0,external_wp_richText_namespaceObject.isEmpty)(value)) {
           onReplace(content, content.length - 1, -1);
@@ -58934,6 +58915,7 @@ function useEnter(props) {
             content: _value.text
           })]);
           __unstableMarkAutomaticChange();
+          return;
         }
       }
       const {
@@ -59618,9 +59600,13 @@ function RichTextWrapper({
         getBlockBindingsSource
       } = unlock(select(store));
       for (const [attribute, args] of Object.entries(blockBindings)) {
-        // If any of the attributes with source "rich-text" is part of the bindings,
-        // has a source with `lockAttributesEditing`, disable it.
-        if (blockTypeAttributes?.[attribute]?.source === 'rich-text' && getBlockBindingsSource(args.source)?.lockAttributesEditing) {
+        if (blockTypeAttributes?.[attribute]?.source !== 'rich-text') {
+          break;
+        }
+
+        // If the source is not defined, or if its value of `lockAttributesEditing` is `true`, disable it.
+        const blockBindingsSource = getBlockBindingsSource(args.source);
+        if (!blockBindingsSource || blockBindingsSource.lockAttributesEditing) {
           shouldDisableEditing = true;
           break;
         }
@@ -59917,7 +59903,7 @@ const PlainText = (0,external_wp_element_namespaceObject.forwardRef)(({
     onChange,
     ...remainingProps
   } = props;
-  return (0,external_React_.createElement)(react_autosize_textarea_lib/* default */.Z, {
+  return (0,external_React_.createElement)(react_autosize_textarea_lib/* default */.A, {
     ref: ref,
     className: classnames_default()('block-editor-plain-text', className),
     onChange: event => onChange(event.target.value),
@@ -63705,7 +63691,6 @@ function ImageSettingsPanel({
 
 
 
-
 /**
  * Internal dependencies
  */
@@ -63744,7 +63729,10 @@ function AdvancedPanel({
   }
   return (0,external_React_.createElement)(external_wp_components_namespaceObject.__experimentalVStack, {
     spacing: 3
-  }, (0,external_React_.createElement)(external_wp_components_namespaceObject.TextareaControl, {
+  }, cssError && (0,external_React_.createElement)(external_wp_components_namespaceObject.Notice, {
+    status: "error",
+    onRemove: () => setCSSError(null)
+  }, cssError), (0,external_React_.createElement)(external_wp_components_namespaceObject.TextareaControl, {
     label: (0,external_wp_i18n_namespaceObject.__)('Additional CSS'),
     __nextHasNoMarginBottom: true,
     value: customCSS,
@@ -63752,14 +63740,7 @@ function AdvancedPanel({
     onBlur: handleOnBlur,
     className: "block-editor-global-styles-advanced-panel__custom-css-input",
     spellCheck: false
-  }), cssError && (0,external_React_.createElement)(external_wp_components_namespaceObject.Tooltip, {
-    text: cssError
-  }, (0,external_React_.createElement)("div", {
-    className: "block-editor-global-styles-advanced-panel__custom-css-validation-wrapper"
-  }, (0,external_React_.createElement)(build_module_icon, {
-    icon: library_info,
-    className: "block-editor-global-styles-advanced-panel__custom-css-validation-icon"
-  }))));
+  }));
 }
 
 ;// CONCATENATED MODULE: ./node_modules/memize/dist/index.js
@@ -63948,8 +63929,8 @@ const translationMap = {
   h4: (0,external_wp_i18n_namespaceObject.__)('H4'),
   h5: (0,external_wp_i18n_namespaceObject.__)('H5'),
   h6: (0,external_wp_i18n_namespaceObject.__)('H6'),
-  'settings.color': (0,external_wp_i18n_namespaceObject.__)('Color settings'),
-  'settings.typography': (0,external_wp_i18n_namespaceObject.__)('Typography settings'),
+  'settings.color': (0,external_wp_i18n_namespaceObject.__)('Color'),
+  'settings.typography': (0,external_wp_i18n_namespaceObject.__)('Typography'),
   'styles.color': (0,external_wp_i18n_namespaceObject.__)('Colors'),
   'styles.spacing': (0,external_wp_i18n_namespaceObject.__)('Spacing'),
   'styles.typography': (0,external_wp_i18n_namespaceObject.__)('Typography')
@@ -63978,10 +63959,7 @@ function getTranslation(key) {
     return blockName || keyArray[1];
   }
   if (keyArray?.[0] === 'elements') {
-    const elementName = translationMap[keyArray[1]] || keyArray[1];
-    return (0,external_wp_i18n_namespaceObject.sprintf)(
-    // translators: %s: element name, e.g., heading button, link, caption.
-    (0,external_wp_i18n_namespaceObject.__)('%s element'), elementName);
+    return translationMap[keyArray[1]] || keyArray[1];
   }
   return undefined;
 }
@@ -64024,7 +64002,7 @@ function deepCompare(changedObject, originalObject, parentPath = '') {
  *
  * @param {Object} next     The changed object to compare.
  * @param {Object} previous The original object to compare against.
- * @return {string[]}                        An array of translated changes.
+ * @return {Array[]}        A 2-dimensional array of tuples: [ "group", "translated change" ].
  */
 function getGlobalStylesChangelist(next, previous) {
   const cacheKey = JSON.stringify({
@@ -64068,11 +64046,11 @@ function getGlobalStylesChangelist(next, previous) {
   const result = [...new Set(changedValueTree)]
   /*
    * Translate the keys.
-   * Remove duplicate or empty translations.
+   * Remove empty translations.
    */.reduce((acc, curr) => {
     const translation = getTranslation(curr);
-    if (translation && !acc.includes(translation)) {
-      acc.push(translation);
+    if (translation) {
+      acc.push([curr.split('.')[0], translation]);
     }
     return acc;
   }, []);
@@ -64081,30 +64059,69 @@ function getGlobalStylesChangelist(next, previous) {
 }
 
 /**
- * From a getGlobalStylesChangelist() result, returns a truncated array of translated changes.
- * Appends a translated string indicating the number of changes that were truncated.
+ * From a getGlobalStylesChangelist() result, returns an array of translated global styles changes, grouped by type.
+ * The types are 'blocks', 'elements', 'settings', and 'styles'.
  *
  * @param {Object}              next     The changed object to compare.
  * @param {Object}              previous The original object to compare against.
  * @param {{maxResults:number}} options  Options. maxResults: results to return before truncating.
- * @return {string[]}                        An array of translated changes.
+ * @return {string[]}                    An array of translated changes.
  */
 function getGlobalStylesChanges(next, previous, options = {}) {
-  const changes = getGlobalStylesChangelist(next, previous);
-  const changesLength = changes.length;
+  let changeList = getGlobalStylesChangelist(next, previous);
+  const changesLength = changeList.length;
   const {
     maxResults
   } = options;
-
-  // Truncate to `n` results if necessary.
-  if (!!maxResults && changesLength && changesLength > maxResults) {
-    const deleteCount = changesLength - maxResults;
-    const andMoreText = (0,external_wp_i18n_namespaceObject.sprintf)(
-    // translators: %d: number of global styles changes that are not displayed in the UI.
-    (0,external_wp_i18n_namespaceObject._n)('…and %d more change', '…and %d more changes', deleteCount), deleteCount);
-    changes.splice(maxResults, deleteCount, andMoreText);
+  if (changesLength) {
+    // Truncate to `n` results if necessary.
+    if (!!maxResults && changesLength > maxResults) {
+      changeList = changeList.slice(0, maxResults);
+    }
+    return Object.entries(changeList.reduce((acc, curr) => {
+      const group = acc[curr[0]] || [];
+      if (!group.includes(curr[1])) {
+        acc[curr[0]] = [...group, curr[1]];
+      }
+      return acc;
+    }, {})).map(([key, changeValues]) => {
+      const changeValuesLength = changeValues.length;
+      const joinedChangesValue = changeValues.join((0,external_wp_i18n_namespaceObject.__)(', '));
+      switch (key) {
+        case 'blocks':
+          {
+            return (0,external_wp_i18n_namespaceObject.sprintf)(
+            // translators: %s: a list of block names separated by a comma.
+            (0,external_wp_i18n_namespaceObject._n)('%s block.', '%s blocks.', changeValuesLength), joinedChangesValue);
+          }
+        case 'elements':
+          {
+            return (0,external_wp_i18n_namespaceObject.sprintf)(
+            // translators: %s: a list of element names separated by a comma.
+            (0,external_wp_i18n_namespaceObject._n)('%s element.', '%s elements.', changeValuesLength), joinedChangesValue);
+          }
+        case 'settings':
+          {
+            return (0,external_wp_i18n_namespaceObject.sprintf)(
+            // translators: %s: a list of theme.json setting labels separated by a comma.
+            (0,external_wp_i18n_namespaceObject.__)('%s settings.'), joinedChangesValue);
+          }
+        case 'styles':
+          {
+            return (0,external_wp_i18n_namespaceObject.sprintf)(
+            // translators: %s: a list of theme.json top-level styles labels separated by a comma.
+            (0,external_wp_i18n_namespaceObject.__)('%s styles.'), joinedChangesValue);
+          }
+        default:
+          {
+            return (0,external_wp_i18n_namespaceObject.sprintf)(
+            // translators: %s: a list of global styles changes separated by a comma.
+            (0,external_wp_i18n_namespaceObject.__)('%s.'), joinedChangesValue);
+          }
+      }
+    });
   }
-  return changes;
+  return get_global_styles_changes_EMPTY_ARRAY;
 }
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/components/global-styles/index.js
@@ -67103,6 +67120,7 @@ function ResolutionTool({
 
 
 
+
 /**
  * Private @wordpress/block-editor APIs.
  */
@@ -67131,7 +67149,8 @@ lock(privateApis, {
   ReusableBlocksRenameHint: ReusableBlocksRenameHint,
   useReusableBlocksRenameHint: useReusableBlocksRenameHint,
   usesContextKey: usesContextKey,
-  useFlashEditableBlocks: useFlashEditableBlocks
+  useFlashEditableBlocks: useFlashEditableBlocks,
+  selectBlockPatternsKey: selectBlockPatternsKey
 });
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-editor/build-module/index.js
