@@ -1,6 +1,6 @@
 import dependencyFilename from './8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11978428; 
+export const dependenciesTotalSize = 11978478; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6779,11 +6779,13 @@ url = Module["websocket"]["url"](...arguments);
   		});
   	}
 
-  function _js_process_status(pid) {
+  function _js_process_status(pid, exitCodePtr) {
   		if (!PHPWASM.child_proc_by_pid[pid]) {
   			return -1;
   		}
   		if (PHPWASM.child_proc_by_pid[pid].exited) {
+  			HEAPU32[exitCodePtr >> 2] = 
+  					  PHPWASM.child_proc_by_pid[pid].exitCode;
   			return 1;
   		}
   		return 0;
@@ -6796,9 +6798,9 @@ url = Module["websocket"]["url"](...arguments);
   		return Asyncify.handleSleep((wakeUp) => {
   			const poll = function () {
   				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
-  					HEAPU8[exitCodePtr] =
-  						PHPWASM.child_proc_by_pid[pid].exitCode;
-  					wakeUp(0);
+  					HEAPU32[exitCodePtr >> 2] = 
+  					  PHPWASM.child_proc_by_pid[pid].exitCode;
+  					wakeUp(pid);
   				} else {
   					setTimeout(poll, 50);
   				}

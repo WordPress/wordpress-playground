@@ -523,11 +523,13 @@ const LibraryExample = {
 		});
 	},
 
-	js_process_status: function (pid) {
+	js_process_status: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
+			HEAPU32[exitCodePtr >> 2] = 
+					  PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
@@ -540,9 +542,9 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
-					HEAPU8[exitCodePtr] =
-						PHPWASM.child_proc_by_pid[pid].exitCode;
-					wakeUp(0);
+					HEAPU32[exitCodePtr >> 2] = 
+					  PHPWASM.child_proc_by_pid[pid].exitCode;
+					wakeUp(pid);
 				} else {
 					setTimeout(poll, 50);
 				}

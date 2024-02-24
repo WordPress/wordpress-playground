@@ -77,12 +77,62 @@ console.log('Running the PHP code');
 // throw new Error('Done!');
 
 try {
+	// Clean the WordPress directory so the Blueprints library
+	// may use it to extract WordPress.
+	// await playground.mv('/wordpress/blueprints.phar', '/tmp/blueprints.phar');
+	// await playground.rmdir('/wordpress');
+	// await playground.mkdir('/wordpress');
+	// await playground.mv('/tmp/blueprints.phar', '/wordpress/blueprints.phar');
+
 	// For now this only runs with ?php=8.2&php-extension-bundle=kitchen-sink
 	// ?php=8.2&php-extension-bundle=kitchen-sink
-	await playground.mv('/wordpress/blueprints.phar', '/tmp/blueprints.phar');
-	await playground.rmdir('/wordpress');
-	await playground.mkdir('/wordpress');
-	await playground.mv('/tmp/blueprints.phar', '/wordpress/blueprints.phar');
+	// const result = await playground.run({
+	// 	code:`<?php
+
+	// 	$fp = proc_open(
+	// 		[
+	// 			"php",
+	// 			"-r",
+	// 			'require getenv("DOCROOT"). "/wp-load.php";
+	// 			$site_options = getenv("OPTIONS") ? json_decode(getenv("OPTIONS"), true) : [];
+	// 			foreach($site_options as $name => $value) {
+	// 				update_option($name, $value);
+	// 			}
+	// 			echo "Done :)";
+	// 			'
+	// 		],
+	// 		[
+	// 			0 => ['pipe', 'r'],
+	// 			1 => ['pipe', 'w'],
+	// 			2 => ['pipe', 'w'],
+	// 		],
+	// 		$pipes,
+	// 		"/wordpress",
+	// 		[
+	// 			"DOCROOT" => "/wordpress",
+	// 			"OPTIONS" => '{"blogname":"My Playground Blog"}',
+	// 		]
+	// 	);
+	// 	if (is_resource($fp)) {
+	// 		echo stream_get_contents($pipes[1]);
+	// 		fclose($pipes[1]);
+	// 		fclose($pipes[2]);
+	// 		var_dump("Calling proc_close!");
+	// 		$exit_code = proc_close($fp);
+	// 		var_dump("Finished proc_close!");
+	// 		var_dump($exit_code);
+	// 	}
+	// 	`,
+	// 	env: {
+	// 		DOCROOT: '/wordpress',
+	// 		OPTIONS: JSON.stringify({
+	// 			'blogname': 'My Playground Blog',
+	// 		}),
+	// 	},
+	// 	throwOnError: true,
+	// });
+	// console.log({ result });
+
 	const result = await playground.run({
 		code: `<?php
 		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
@@ -117,42 +167,50 @@ try {
 
 			// And, by default, let's use a real WordPress zip file – even if it's
 			// downloaded via http, not https.
-			->withWordPressVersion( 'http://localhost:5400/website-server/demos/wordpress.zip' )
-			// ->withSiteOptions( [
-			// 	'blogname' => 'My Playground Blog',
-			// ] )
+			// ->withWordPressVersion( 'http://localhost:5400/website-server/demos/wordpress.zip' )
+			->withSiteOptions( [
+				'blogname' => 'My Playground Blog',
+			] )
 			->withWpConfigConstants( [
 				'WP_DEBUG'         => true,
 				'WP_DEBUG_LOG'     => true,
 				'WP_DEBUG_DISPLAY' => true,
 				'WP_CACHE'         => true,
 			] )
-			// ->withPlugins( [
-			// 	'https://downloads.wordpress.org/plugin/hello-dolly.zip',
-			// 	'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
-			// ] )
+			->withPlugins( [
+				'https://downloads.wordpress.org/plugin/hello-dolly.zip',
+				// The second downloaded zip file always errors with
+				// Failed to open stream: Operation timed out 
+				// 'https://downloads.wordpress.org/plugin/classic-editor.zip',
+
+				// OOM in the browser:
+				// 'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
+			] )
 			// ->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
 			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
 			// ->withSiteUrl( 'http://localhost:8081' )
-			// ->andRunSQL( <<<'SQL'
-			// 	CREATE TABLE tmp_table ( id INT );
-			// 	INSERT INTO tmp_table VALUES (1);
-			// 	INSERT INTO tmp_table VALUES (2);
-			// 	SQL
-			// )
-			// ->withFile( 'wordpress.txt', 'Data' )
+			->andRunSQL( <<<'SQL'
+				CREATE TABLE tmp_table ( id INT );
+				INSERT INTO tmp_table VALUES (1);
+				INSERT INTO tmp_table VALUES (2);
+				SQL
+			)
+			->withFile( 'wordpress.txt', 'Data' )
 			->toBlueprint()
 		;
 		
+	// 	echo "BEFORE\\n\\n";
 		$results = run_blueprint( $blueprint, '/wordpress' );		
-		print_r(glob('/wordpress/*'));
-		`,
+	// 	echo "\\n\\nAFTER\\n\\n";
+		// print_r(glob('/wordpress/*'));
+	// 	`,
 		throwOnError: true,
 	});
 
 	outputDiv.textContent = result.text;
 	console.log(result.text);
 } catch (e) {
+	console.error(e);
 	outputDiv.textContent = e + '';
 	throw e;
 }

@@ -376,7 +376,11 @@ try {
 					try {
 						// Remove the document root to ensure that the
 						// child PHP instance is in a clean state.
-						childPHP.rmdir(childPHP.documentRoot);
+						// The journal seems to stay around longer than
+						// expected and this `rmdir` removes the `/wordpress`
+						// directory in the parent process.
+						// @TODO: Fix this
+						// childPHP.rmdir(childPHP.documentRoot);
 					} catch (e) {
 						// Ignore errors
 					}
@@ -385,21 +389,27 @@ try {
 				let result: PHPResponse | undefined = undefined;
 				try {
 					syncFSTo(php, childPHP);
-					// unbind = journalFSEventsToPhp(
-					// 	childPHP,
-					// 	php,
-					// 	// @TODO: Sync both directories and any other
-					// 	//        relevant paths. OR, don't run
-					// 	//        blueprints outside of docroot :-)
-					// 	options.cwd || childPHP.documentRoot
-					// );
+					unbind = journalFSEventsToPhp(
+						childPHP,
+						php,
+						// @TODO: Sync both directories and any other
+						//        relevant paths. OR, don't run
+						//        blueprints outside of docroot :-)
+						childPHP.documentRoot // options.cwd ||
+					);
 					// @TODO: Run the actual PHP CLI SAPI instead of
 					//        interpreting the arguments here.
 					if (args.includes('-r')) {
 						const script =
-							(options.cwd
-								? '<?php chdir(getenv("DOCROOT")); '
-								: '') + args[args.indexOf('-r') + 1];
+							`<?php 
+							// @TODO: Run the actual PHP CLI SAPI instead of
+							//        polyfilling these streams
+							define('STDIN', fopen('php://stdin', 'rb'));
+							define('STDOUT', fopen('php://stdout', 'wb'));
+							define('STDERR', fopen('/tmp/stderr', 'wb'));
+							` +
+							(options.cwd ? 'chdir(getenv("DOCROOT")); ' : '') +
+							args[args.indexOf('-r') + 1];
 						result = await childPHP.run({
 							throwOnError: true,
 							code: script,
@@ -413,6 +423,11 @@ try {
 					}
 					processApi.stdout(result.bytes);
 					processApi.stderr(result.errors);
+					console.log('Providing exit code', {
+						stdout: result.text,
+						stderr: result.errors,
+						exitCode: result.exitCode,
+					});
 					processApi.exit(result.exitCode);
 				} catch (e) {
 					console.error('Error in childPHP:', e);

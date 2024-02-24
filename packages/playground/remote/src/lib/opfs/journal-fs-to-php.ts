@@ -16,6 +16,12 @@ export function journalFSEventsToPhp(
 
 	const journal: FilesystemOperation[] = [];
 	const unbindJournal = journalFSEvents(sourcePhp, root, (entry) => {
+		if (
+			// entry.path.endsWith('/.ht.sqlite') ||
+			entry.path.endsWith('/.ht.sqlite-journal')
+		) {
+			return;
+		}
 		journal.push(entry);
 	});
 	const rewriter = new MemfsRewriter(sourcePhp, targetPhp, root);

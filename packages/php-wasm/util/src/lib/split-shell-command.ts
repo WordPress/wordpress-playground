@@ -20,7 +20,10 @@ export function splitShellCommand(command: string) {
 	for (let i = 0; i < command.length; i++) {
 		const char = command[i];
 		if (char === '\\') {
-			i++;
+			// @TODO more reliable parsing, this is vary naive
+			if (command[i + 1] === '"' || command[i + 1] === "'") {
+				i++;
+			}
 			currentPart += command[i];
 		} else if (mode === MODE_NORMAL) {
 			if (char === '"' || char === "'") {
