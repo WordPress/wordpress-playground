@@ -17,10 +17,10 @@ set_error_handler(function($severity, $message, $file, $line) {
 /**
  * Add a notice to wp-login.php offering the username and password.
  */
-add_action(
+add_filter(
 	'login_message',
-	function () {
-		return <<<EOT
+	function ( $message ) {
+		return $message . <<<EOT
 <div class="message info">
 	<strong>username:</strong> <code>admin</code><br><strong>password</strong>: <code>password</code>
 </div>
