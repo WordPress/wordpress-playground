@@ -366,6 +366,28 @@ try {
 				processApi.flushStdin();
 				processApi.exit(0);
 				return;
+			} else if (command === 'fetch') {
+				console.log('=========== FETCH ==========');
+				// processApi.flushStdin();
+				fetch(args[0]).then(async (res) => {
+					const reader = res.body?.getReader();
+					if (!reader) {
+						processApi.exit(1);
+						return;
+					}
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) {
+							// exiting the process closes the
+							// pipe and PHP can no longer read
+							// the response.
+							// processApi.exit(0);
+							break;
+						}
+						processApi.stdout(value);
+					}
+				});
+				return;
 			} else if (command === 'php') {
 				if (!childPHP) {
 					childPHP = new WebPHP(await recreateRuntime(), {

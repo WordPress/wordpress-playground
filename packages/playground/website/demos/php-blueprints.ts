@@ -137,6 +137,7 @@ try {
 		code: `<?php
 		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
 		use WordPress\\Blueprints\\Model\\BlueprintBuilder;
+		use WordPress\\Blueprints\\Model\\DataClass\\UrlResource;
 		use function WordPress\\Blueprints\\run_blueprint;
 
 		// Provide stdin, stdout, stderr streams outside of
@@ -177,15 +178,14 @@ try {
 				'WP_DEBUG_DISPLAY' => true,
 				'WP_CACHE'         => true,
 			] )
-			->withPlugins( [
-				'https://downloads.wordpress.org/plugin/hello-dolly.zip',
+			->withFile( 'wordpress.txt', (new UrlResource())->setUrl('https://downloads.wordpress.org/plugin/hello-dolly.zip') )
+			// ->withPlugins( [
+			// 	'https://downloads.wordpress.org/plugin/hello-dolly.zip',
 				// The second downloaded zip file always errors with
 				// Failed to open stream: Operation timed out 
 				// 'https://downloads.wordpress.org/plugin/classic-editor.zip',
-
-				// OOM in the browser:
 				// 'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
-			] )
+			// ] )
 			// ->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
 			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
 			// ->withSiteUrl( 'http://localhost:8081' )

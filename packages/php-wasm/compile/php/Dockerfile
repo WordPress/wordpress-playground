@@ -542,6 +542,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "_php_stream_open_wrapper_ex",\
 "_php_stream_read",\
 "_php_stream_set_option",\
+"_php_stream_mmap_range",\
+"_php_stream_copy_to_stream_ex",\
+"zif_stream_copy_to_stream",\
 "_php_stream_write",\
 "_php_stream_xport_create",\
 "do_cli",\
