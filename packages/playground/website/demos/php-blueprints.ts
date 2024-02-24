@@ -17,7 +17,8 @@ const playground = await startPlaygroundWeb({
 		features: {
 			networking: true,
 		},
-		landingPage: '/wp-content/index.php',
+		// landingPage: '/wp-content/index.php',
+		landingPage: '/',
 		// Required for the PHP library to run:
 		phpExtensionBundles: ['kitchen-sink'],
 	},
@@ -184,8 +185,8 @@ try {
 				// When the regular UrlDataSource is used, the second
 				// downloaded zip file always errors with:
 				// > Failed to open stream: Operation timed out 
-				// 'https://downloads.wordpress.org/plugin/classic-editor.zip',
-				// 'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
+				'https://downloads.wordpress.org/plugin/classic-editor.zip',
+				'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
 			] )
 			// ->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
 			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
@@ -203,7 +204,8 @@ try {
 		echo "BEFORE\\n\\n";
 		$results = run_blueprint( $blueprint, '/wordpress' );
 		echo "\\n\\nAFTER\\n\\n";
-		// print_r(glob('/wordpress/*'));
+		print_r(glob('/wordpress/*'));
+		print_r(glob('/wordpress/wp-content/plugins/*'));
 	// 	`,
 		throwOnError: true,
 	});
@@ -215,3 +217,5 @@ try {
 	outputDiv.textContent = e + '';
 	throw e;
 }
+
+console.log(await playground.listFiles('/wordpress/wp-content/plugins'));

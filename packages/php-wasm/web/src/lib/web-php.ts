@@ -453,14 +453,15 @@ const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 								this.isPlaintext = version?.startsWith('HTTP');
 							}
 							if (this.isPlaintext) {
-								httpRequestToFetch(
-									this.host,
-									this.port,
-									new TextDecoder().decode(data),
-									(data) => this.emit('message', { data }),
-									() => this.close()
-								);
-								console.log('fetch() sent');
+								this.close();
+								// httpRequestToFetch(
+								// 	this.host,
+								// 	this.port,
+								// 	new TextDecoder().decode(data),
+								// 	(data) => this.emit('message', { data }),
+								// 	() => this.close()
+								// );
+								// console.log('fetch() sent');
 								return;
 							} else {
 								// If it's a HTTPS request, we'll pretend to be the server
