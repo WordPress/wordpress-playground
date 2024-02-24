@@ -17,7 +17,7 @@ import {
 	syncFSTo,
 	writeFiles,
 } from '@php-wasm/universal';
-import { createSpawnHandler } from '@php-wasm/util';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -334,7 +334,16 @@ try {
 	// Spawning new processes on the web is not supported,
 	// let's always fail.
 	php.setSpawnHandler(
-		createSpawnHandler(async function ([command, ...args], processApi) {
+		createSpawnHandler(async function (
+			[command, ...args],
+			processApi,
+			options
+		) {
+			if (command === 'exec') {
+				command = args[0];
+				args = args.slice(1);
+			}
+
 			// Mock programs required by wp-cli:
 			if (
 				command === '/usr/bin/env' &&
@@ -376,15 +385,32 @@ try {
 				let result: PHPResponse | undefined = undefined;
 				try {
 					syncFSTo(php, childPHP);
-					unbind = journalFSEventsToPhp(
-						childPHP,
-						php,
-						childPHP.documentRoot
-					);
-					result = await childPHP.run({
-						throwOnError: true,
-						scriptPath: args[0],
-					});
+					// unbind = journalFSEventsToPhp(
+					// 	childPHP,
+					// 	php,
+					// 	// @TODO: Sync both directories and any other
+					// 	//        relevant paths. OR, don't run
+					// 	//        blueprints outside of docroot :-)
+					// 	options.cwd || childPHP.documentRoot
+					// );
+					// @TODO: Run the actual PHP CLI SAPI instead of
+					//        interpreting the arguments here.
+					if (args.includes('-r')) {
+						const script =
+							(options.cwd
+								? '<?php chdir(getenv("DOCROOT")); '
+								: '') + args[args.indexOf('-r') + 1];
+						result = await childPHP.run({
+							throwOnError: true,
+							code: script,
+							env: options.env,
+						});
+					} else {
+						result = await childPHP.run({
+							throwOnError: true,
+							scriptPath: args[0],
+						});
+					}
 					processApi.stdout(result.bytes);
 					processApi.stderr(result.errors);
 					processApi.exit(result.exitCode);
@@ -398,7 +424,7 @@ try {
 					unbind();
 				}
 			} else {
-				console.error('Unsupported command:', command);
+				console.error('Unsupported command:', command, args);
 				processApi.exit(1);
 			}
 		})

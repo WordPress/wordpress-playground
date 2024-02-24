@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13214806; 
+export const dependenciesTotalSize = 13217903; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -6711,9 +6711,9 @@ url = Module["websocket"]["url"](...arguments);
   			return [promise, cancel];
   		},
   noop:function () {},
-  spawnProcess:function (command, args) {
+  spawnProcess:function (command, args, options) {
   			if (Module['spawnProcess']) {
-  				const spawnedPromise = Module['spawnProcess'](command, args);
+  				const spawnedPromise = Module['spawnProcess'](command, args, options);
   				return Promise.resolve(spawnedPromise).then(function (spawned) {
   					if (!spawned || !spawned.on) {
   						throw new Error(
@@ -6726,6 +6726,7 @@ url = Module["websocket"]["url"](...arguments);
   
   			if (ENVIRONMENT_IS_NODE) {
   				return require('child_process').spawn(command, args, {
+  					...options,
   					shell: true,
   					stdio: ['pipe', 'pipe', 'pipe'],
   					timeout: 100,
@@ -6911,7 +6912,11 @@ url = Module["websocket"]["url"](...arguments);
   		argsPtr,
   		argsLength,
   		descriptorsPtr,
-  		descriptorsLength
+  		descriptorsLength,
+  		cwdPtr,
+  		cwdLength,
+  		envPtr,
+  		envLength
   	) {
   		if (!command) {
   			return 1;
@@ -6927,6 +6932,24 @@ url = Module["websocket"]["url"](...arguments);
   			for (var i = 0; i < argsLength; i++) {
   				const charPointer = argsPtr + i * 4;
   				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
+  			}
+  		}
+  		
+  		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+  		let envObject = null;
+  
+  		if (envLength) {
+  			envObject = {};
+  			for (var i = 0; i < envLength; i++) {
+  				const envPointer = envPtr + i * 4;
+  				const envEntry = UTF8ToString(HEAPU32[envPointer >> 2]);
+  				const splitAt = envEntry.indexOf('=');
+  				if (splitAt === -1) {
+  					continue;
+  				}
+  				const key = envEntry.substring(0, splitAt);
+  				const value = envEntry.substring(splitAt + 1);
+  				envObject[key] = value;
   			}
   		}
   
@@ -6946,7 +6969,14 @@ url = Module["websocket"]["url"](...arguments);
   		return Asyncify.handleSleep(async (wakeUp) => {
   			let cp;
   			try {
-  				cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+  				const options = {};
+  				if (cwdstr !== null) {
+  					options.cwd = cwdstr;
+  				}
+  				if (envObject !== null) {
+  					options.env = envObject;
+  				}
+  				cp = PHPWASM.spawnProcess(cmdstr, argsArray, options);
   				if (cp instanceof Promise) {
   					cp = await cp;
   				}
@@ -8627,6 +8657,11 @@ var _wasm_set_phpini_entries = Module['_wasm_set_phpini_entries'] = function() {
 /** @type {function(...*):?} */
 var _wasm_add_SERVER_entry = Module['_wasm_add_SERVER_entry'] = function() {
   return (_wasm_add_SERVER_entry = Module['_wasm_add_SERVER_entry'] = Module['asm']['wasm_add_SERVER_entry']).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _wasm_add_ENV_entry = Module['_wasm_add_ENV_entry'] = function() {
+  return (_wasm_add_ENV_entry = Module['_wasm_add_ENV_entry'] = Module['asm']['wasm_add_ENV_entry']).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */

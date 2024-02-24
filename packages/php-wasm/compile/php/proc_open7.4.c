@@ -391,7 +391,9 @@ PHP_FUNCTION(proc_open)
 		command = pestrdup(Z_STRVAL_P(command_zv), is_persistent);
 	}
 
+	int num_env = 0;
 	if (environment) {
+		num_env = zend_hash_num_elements(Z_ARRVAL_P(environment));
 		env = _php_array_to_envp(environment, is_persistent);
 	}
 
@@ -603,7 +605,11 @@ PHP_FUNCTION(proc_open)
 		argv,
 		num_argv,
 		descv,
-		num_descv
+		num_descv,
+		cwd,
+		cwd_len,
+		env.envarray,
+		num_env
 	);
     // }}}
 

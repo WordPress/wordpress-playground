@@ -13,28 +13,32 @@ export function splitShellCommand(command: string) {
 
 	let mode = MODE_NORMAL;
 	let quote = '';
+	console.log('command', command);
 
 	const parts: string[] = [];
 	let currentPart = '';
 	for (let i = 0; i < command.length; i++) {
 		const char = command[i];
-		if (mode === MODE_NORMAL) {
+		if (char === '\\') {
+			i++;
+			currentPart += command[i];
+		} else if (mode === MODE_NORMAL) {
 			if (char === '"' || char === "'") {
 				mode = MODE_IN_QUOTE;
 				quote = char;
 			} else if (char.match(/\s/)) {
-				if (currentPart) {
-					parts.push(currentPart);
-				}
+				parts.push(currentPart);
 				currentPart = '';
+			} else if (parts.length && !currentPart) {
+				// We just closed a quote to continue the same
+				// argument with different escaping style, e.g.:
+				// php -r 'require '\''vendor/autoload.php'\''
+				currentPart = parts.pop()! + char;
 			} else {
 				currentPart += char;
 			}
 		} else if (mode === MODE_IN_QUOTE) {
-			if (char === '\\') {
-				i++;
-				currentPart += command[i];
-			} else if (char === quote) {
+			if (char === quote) {
 				mode = MODE_NORMAL;
 				quote = '';
 			} else {

@@ -79,6 +79,10 @@ console.log('Running the PHP code');
 try {
 	// For now this only runs with ?php=8.2&php-extension-bundle=kitchen-sink
 	// ?php=8.2&php-extension-bundle=kitchen-sink
+	await playground.mv('/wordpress/blueprints.phar', '/tmp/blueprints.phar');
+	await playground.rmdir('/wordpress');
+	await playground.mkdir('/wordpress');
+	await playground.mv('/tmp/blueprints.phar', '/wordpress/blueprints.phar');
 	const result = await playground.run({
 		code: `<?php
 		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
@@ -117,12 +121,12 @@ try {
 			// ->withSiteOptions( [
 			// 	'blogname' => 'My Playground Blog',
 			// ] )
-			// ->withWpConfigConstants( [
-			// 	'WP_DEBUG'         => true,
-			// 	'WP_DEBUG_LOG'     => true,
-			// 	'WP_DEBUG_DISPLAY' => true,
-			// 	'WP_CACHE'         => true,
-			// ] )
+			->withWpConfigConstants( [
+				'WP_DEBUG'         => true,
+				'WP_DEBUG_LOG'     => true,
+				'WP_DEBUG_DISPLAY' => true,
+				'WP_CACHE'         => true,
+			] )
 			// ->withPlugins( [
 			// 	'https://downloads.wordpress.org/plugin/hello-dolly.zip',
 			// 	'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
@@ -136,13 +140,12 @@ try {
 			// 	INSERT INTO tmp_table VALUES (2);
 			// 	SQL
 			// )
-			->withFile( 'wordpress.txt', 'Data' )
+			// ->withFile( 'wordpress.txt', 'Data' )
 			->toBlueprint()
 		;
 		
-		mkdir('/wordpress2');
-		$results = run_blueprint( $blueprint, '/wordpress2' );		
-		print_r(glob('/wordpress2/*'));
+		$results = run_blueprint( $blueprint, '/wordpress' );		
+		print_r(glob('/wordpress/*'));
 		`,
 		throwOnError: true,
 	});

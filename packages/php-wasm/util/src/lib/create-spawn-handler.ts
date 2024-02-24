@@ -2,6 +2,11 @@ import { splitShellCommand } from './split-shell-command';
 
 type Listener = (...args: any[]) => any;
 
+export interface ProcessOptions {
+	cwd?: string;
+	env?: Record<string, string>;
+}
+
 /**
  * Usage:
  * ```ts
@@ -17,18 +22,33 @@ type Listener = (...args: any[]) => any;
  * @returns
  */
 export function createSpawnHandler(
-	program: (command: string[], processApi: ProcessApi) => void | Promise<void>
+	program: (
+		command: string[],
+		processApi: ProcessApi,
+		options: ProcessOptions
+	) => void | Promise<void>
 ): any {
-	return function (command: string | string[]) {
+	return function (
+		command: string | string[],
+		argsArray: string[] = [],
+		options: ProcessOptions = {}
+	) {
+		console.log({ command, argsArray, options });
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
 		setTimeout(async () => {
-			const commandArray =
-				typeof command === 'string'
-					? splitShellCommand(command)
-					: command;
-			await program(commandArray, processApi);
+			let commandArray = [];
+			if (argsArray.length) {
+				commandArray = [command as string, ...argsArray];
+			} else if (typeof command === 'string') {
+				commandArray = splitShellCommand(command);
+			} else if (Array.isArray(command)) {
+				commandArray = command;
+			} else {
+				throw new Error('Invalid command ', command);
+			}
+			await program(commandArray, processApi, options);
 			childProcess.emit('spawn', true);
 		});
 		return childProcess;

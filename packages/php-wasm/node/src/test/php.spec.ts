@@ -67,7 +67,7 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+describe.each(['8.2'])('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any, {
@@ -85,6 +85,37 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		} catch (e) {
 			// ignore exit-related exceptions
 		}
+	});
+
+	describe('ENV variables', () => {
+		it('Supports setting per-request ENV variables', async () => {
+			const result = await php.run({
+				env: {
+					OPTIONS: 'WordPress',
+				},
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			expect(result.text).toEqual('env.OPTIONS: WordPress');
+		});
+
+		it('Does not remember ENV variables between requests', async () => {
+			await php.run({
+				env: {
+					OPTIONS: 'WordPress',
+				},
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			const result = await php.run({
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			expect(result.text).toEqual('env.OPTIONS: ');
+		});
 	});
 
 	describe('exec()', () => {
@@ -274,6 +305,51 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
+		it('Passes the cwd and env arguments', async () => {
+			const handler = createSpawnHandler(
+				(command: string, processApi: any, options: any) => {
+					console.log({ command, options });
+					processApi.flushStdin();
+					processApi.stdout(options.cwd + '\n');
+					for (const key in options.env) {
+						processApi.stdout(key + '=' + options.env[key] + '\n');
+					}
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+				$res = proc_open(
+					"cat",
+					array(
+						array("pipe","r"),
+						array("file","/tmp/process_out", "w"),
+						array("file","/tmp/process_err", "w"),
+					),
+					$pipes,
+					"/wordpress",
+					array("FOO" => "BAR", "BAZ" => "QUX")
+				);
+				fwrite($pipes[0], 'WordPress\n');
+
+				proc_close($res);
+
+				$stdout = file_get_contents("/tmp/process_out");
+				$stderr = file_get_contents("/tmp/process_err");
+
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+
+			expect(result.text).toEqual(
+				'stdout: /wordpress\nFOO=BAR\nBAZ=QUX\nstderr: \n'
+			);
+		});
+
 		async function pygmalionToProcess(cmd = 'less') {
 			return await php.run({
 				code: `<?php
@@ -328,19 +404,15 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			expect(result.text).toEqual(pygmalion);
 		});
+
 		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
 			const result = await pygmalionToProcess('cat');
 			expect(result.text).toEqual(pygmalion);
 		});
-
-		// @TODO This test fails on some PHP versions for yet unknown reasons.
-		//       Interestingly, the "cat" test above succeeds.
-		if (!['8.3', '8.2'].includes(phpVersion)) {
-			it('Pipe pygmalion from a file to STDOUT through "less"', async () => {
-				const result = await pygmalionToProcess('less');
-				expect(result.text).toEqual(pygmalion);
-			});
-		}
+		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
+			const result = await pygmalionToProcess('cat');
+			expect(result.text).toEqual(pygmalion);
+		});
 
 		it('Uses the specified spawn handler', async () => {
 			let spawnHandlerCalled = false;

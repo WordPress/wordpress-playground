@@ -525,6 +525,11 @@ export interface PHPRunOptions {
 	body?: string | Uint8Array;
 
 	/**
+	 * Environment variables to set for the PHP process.
+	 */
+	env?: Record<string, string>;
+
+	/**
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;

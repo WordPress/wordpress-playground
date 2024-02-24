@@ -269,6 +269,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#setPHPCode(' ?>' + request.code);
 			}
 			this.#addServerGlobalEntriesInWasm();
+
+			const env = request.env || {};
+			for (const key in env) {
+				this.#setEnv(key, env[key]);
+			}
+
 			const response = await this.#handleRequest();
 			if (request.throwOnError && response.exitCode !== 0) {
 				const output = {
@@ -539,6 +545,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				[key, this.#serverEntries[key]]
 			);
 		}
+	}
+
+	#setEnv(name: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_ENV_entry',
+			null,
+			[STRING, STRING],
+			[name, value]
+		);
 	}
 
 	defineConstant(key: string, value: string | boolean | number | null) {
@@ -852,7 +867,11 @@ export function syncFSTo(source: BasePHP, target: BasePHP) {
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function copyFS(source: EmscriptenFS, target: EmscriptenFS, path: string) {
+export function copyFS(
+	source: EmscriptenFS,
+	target: EmscriptenFS,
+	path: string
+) {
 	let oldNode;
 	try {
 		oldNode = source.lookupPath(path);

@@ -125,6 +125,7 @@ export async function loadPHPRuntime(
 ): Promise<number> {
 	const [phpReady, resolvePHP, rejectPHP] = makePromise();
 
+	const ENV = {};
 	const PHPRuntime = phpLoaderModule.init(currentJsRuntime, {
 		onAbort(reason) {
 			rejectPHP(reason);
@@ -132,7 +133,7 @@ export async function loadPHPRuntime(
 			// let's just log it.
 			console.error(reason);
 		},
-		ENV: {},
+		ENV: ENV,
 		// Emscripten sometimes prepends a '/' to the path, which
 		// breaks vite dev mode. An identity `locateFile` function
 		// fixes it.
