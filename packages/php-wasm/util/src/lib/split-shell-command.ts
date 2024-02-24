@@ -13,7 +13,6 @@ export function splitShellCommand(command: string) {
 
 	let mode = MODE_NORMAL;
 	let quote = '';
-	console.log('command', command);
 
 	const parts: string[] = [];
 	let currentPart = '';

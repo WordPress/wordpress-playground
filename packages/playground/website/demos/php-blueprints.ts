@@ -169,6 +169,7 @@ try {
 			// And, by default, let's use a real WordPress zip file – even if it's
 			// downloaded via http, not https.
 			// ->withWordPressVersion( 'http://localhost:5400/website-server/demos/wordpress.zip' )
+			->withFile( 'wordpress.txt', (new UrlResource())->setUrl('https://downloads.wordpress.org/plugin/hello-dolly.zip') )
 			->withSiteOptions( [
 				'blogname' => 'My Playground Blog',
 			] )
@@ -178,14 +179,14 @@ try {
 				'WP_DEBUG_DISPLAY' => true,
 				'WP_CACHE'         => true,
 			] )
-			->withFile( 'wordpress.txt', (new UrlResource())->setUrl('https://downloads.wordpress.org/plugin/hello-dolly.zip') )
-			// ->withPlugins( [
-			// 	'https://downloads.wordpress.org/plugin/hello-dolly.zip',
-				// The second downloaded zip file always errors with
-				// Failed to open stream: Operation timed out 
+			->withPlugins( [
+				'https://downloads.wordpress.org/plugin/hello-dolly.zip',
+				// When the regular UrlDataSource is used, the second
+				// downloaded zip file always errors with:
+				// > Failed to open stream: Operation timed out 
 				// 'https://downloads.wordpress.org/plugin/classic-editor.zip',
 				// 'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
-			// ] )
+			] )
 			// ->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
 			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
 			// ->withSiteUrl( 'http://localhost:8081' )
@@ -199,9 +200,9 @@ try {
 			->toBlueprint()
 		;
 		
-	// 	echo "BEFORE\\n\\n";
-		$results = run_blueprint( $blueprint, '/wordpress' );		
-	// 	echo "\\n\\nAFTER\\n\\n";
+		echo "BEFORE\\n\\n";
+		$results = run_blueprint( $blueprint, '/wordpress' );
+		echo "\\n\\nAFTER\\n\\n";
 		// print_r(glob('/wordpress/*'));
 	// 	`,
 		throwOnError: true,

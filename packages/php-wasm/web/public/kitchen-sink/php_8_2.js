@@ -6627,6 +6627,9 @@ url = Module["websocket"]["url"](...arguments);
   					);
   					stdoutAt += data.length;
   				});
+  				cp.stdout.on('end', function (data) {
+  					FS.close(stdoutStream);
+  				});
   			}
   
   			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -6645,6 +6648,9 @@ url = Module["websocket"]["url"](...arguments);
   						stderrAt
   					);
   					stderrAt += data.length;
+  				});
+  				cp.stderr.on('end', function (data) {
+  					FS.close(stderrStream);
   				});
   			}
   

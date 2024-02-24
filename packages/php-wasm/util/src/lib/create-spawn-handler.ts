@@ -93,11 +93,17 @@ export class ProcessApi extends EventEmitter {
 		}
 		this.childProcess.stdout.emit('data', data);
 	}
+	stdoutEnd() {
+		this.childProcess.stdout.emit('end', {});
+	}
 	stderr(data: string | ArrayBuffer) {
 		if (typeof data === 'string') {
 			data = new TextEncoder().encode(data);
 		}
 		this.childProcess.stderr.emit('data', data);
+	}
+	stderrEnd() {
+		this.childProcess.stderr.emit('end', {});
 	}
 	exit(code: number) {
 		if (!this.exited) {

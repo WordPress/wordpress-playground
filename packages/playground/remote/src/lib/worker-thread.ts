@@ -368,7 +368,11 @@ try {
 				return;
 			} else if (command === 'fetch') {
 				console.log('=========== FETCH ==========');
-				// processApi.flushStdin();
+				// Ignore STDIN
+				processApi.on('stdin', (data: Uint8Array) => {
+					console.log({ data });
+				});
+				processApi.flushStdin();
 				fetch(args[0]).then(async (res) => {
 					const reader = res.body?.getReader();
 					if (!reader) {
@@ -378,15 +382,14 @@ try {
 					while (true) {
 						const { done, value } = await reader.read();
 						if (done) {
-							// exiting the process closes the
-							// pipe and PHP can no longer read
-							// the response.
-							// processApi.exit(0);
+							processApi.stdoutEnd();
+							processApi.exit(0);
 							break;
 						}
 						processApi.stdout(value);
 					}
 				});
+				processApi.exit(0);
 				return;
 			} else if (command === 'php') {
 				if (!childPHP) {
