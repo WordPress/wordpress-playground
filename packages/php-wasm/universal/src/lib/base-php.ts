@@ -855,11 +855,15 @@ export function normalizeHeaders(
 
 type EmscriptenFS = any;
 
-export function syncFSTo(source: BasePHP, target: BasePHP) {
+export function syncFSTo(
+	source: BasePHP,
+	target: BasePHP,
+	path: string | null = null
+) {
 	copyFS(
 		source[__private__dont__use].FS,
 		target[__private__dont__use].FS,
-		source.documentRoot
+		path ?? source.documentRoot
 	);
 }
 
@@ -887,8 +891,8 @@ export function copyFS(
 	// Let's be extra careful and only proceed if newFs doesn't
 	// already have a node at the given path.
 	try {
-		target = target.lookupPath(path);
-		return;
+		// target = target.lookupPath(path);
+		// return;
 	} catch (e) {
 		// There's no such node in the new FS. Good,
 		// we may proceed.

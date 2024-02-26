@@ -375,21 +375,23 @@ try {
 				processApi.flushStdin();
 				fetch(args[0]).then(async (res) => {
 					const reader = res.body?.getReader();
+					console.log('Got a reader');
 					if (!reader) {
+						console.log('EXIT 1');
 						processApi.exit(1);
 						return;
 					}
 					while (true) {
 						const { done, value } = await reader.read();
+						// console.log({value, done})
 						if (done) {
-							processApi.stdoutEnd();
+							console.log('STD OUT end');
 							processApi.exit(0);
 							break;
 						}
 						processApi.stdout(value);
 					}
 				});
-				processApi.exit(0);
 				return;
 			} else if (command === 'php') {
 				if (!childPHP) {
@@ -397,6 +399,8 @@ try {
 						documentRoot: DOCROOT,
 						absoluteUrl: scopedSiteUrl,
 					});
+					//
+					childPHP.setSapiName('cli');
 				} else {
 					try {
 						// Remove the document root to ensure that the
@@ -414,6 +418,12 @@ try {
 				let result: PHPResponse | undefined = undefined;
 				try {
 					syncFSTo(php, childPHP);
+					// @TODO: Either make sure syncFs goes through the entire
+					//        directory tree each time, or kill the childPHP
+					//        instance after each command. Otherwise, the
+					//		  childPHP instance won't be able to find the files
+					//        created by the parent PHP instance.
+					syncFSTo(php, childPHP, '/tmp');
 					unbind = journalFSEventsToPhp(
 						childPHP,
 						php,
@@ -438,6 +448,38 @@ try {
 						result = await childPHP.run({
 							throwOnError: true,
 							code: script,
+							env: options.env,
+						});
+					} else if (args[0].includes('wp-cli.phar')) {
+						await childPHP.writeFile(
+							'/wordpress/run-cli.php',
+							`<?php
+							// Set up the environment to emulate a shell script
+							// call.
+					
+							// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+							// the output as ASCII tables.
+							// @see https://github.com/wp-cli/wp-cli/issues/1102
+							putenv( 'SHELL_PIPE=0' );
+					
+							// Set the argv global.
+							$GLOBALS['argv'] = array_merge([
+								"/wordpress/wp-cli.phar",
+							  	"--path=/wordpress"
+							], ${phpVar(args.slice(1))});
+					
+							// Provide stdin, stdout, stderr streams outside of
+							// the CLI SAPI.
+							define('STDIN', fopen('php://stdin', 'rb'));
+							define('STDOUT', fopen('php://stdout', 'wb'));
+							define('STDERR', fopen('/tmp/stderr', 'wb'));
+					
+							require( "/wordpress/wp-cli.phar" );
+							`
+						);
+						result = await childPHP.run({
+							throwOnError: true,
+							scriptPath: '/wordpress/run-cli.php',
 							env: options.env,
 						});
 					} else {

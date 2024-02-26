@@ -134,6 +134,13 @@ try {
 	// });
 	// console.log({ result });
 
+	const wpCliRequest = fetch(
+		'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar'
+	);
+	const wpCliResponse = await wpCliRequest;
+	const wpCli = await wpCliResponse.arrayBuffer();
+	await playground.writeFile('/wordpress/wp-cli.phar', new Uint8Array(wpCli));
+
 	const result = await playground.run({
 		code: `<?php
 		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
@@ -159,7 +166,6 @@ try {
 		 */
 		require '/wordpress/blueprints.phar';
 		
-		// 	->withWordPressVersion( 'http://localhost:5400/website-server/demos/wordpress.zip' );
 		$blueprint = BlueprintBuilder::create()
 			// This isn't a WordPress zip file since wordpress.org
 			// doesn't expose the right CORS headers. It is a HTTPS-hosted
@@ -188,8 +194,8 @@ try {
 				'https://downloads.wordpress.org/plugin/classic-editor.zip',
 				'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
 			] )
-			// ->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
-			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
+			->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
+			->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
 			// ->withSiteUrl( 'http://localhost:8081' )
 			->andRunSQL( <<<'SQL'
 				CREATE TABLE tmp_table ( id INT );

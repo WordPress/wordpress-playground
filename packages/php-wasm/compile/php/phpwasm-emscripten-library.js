@@ -19,43 +19,43 @@ const LibraryExample = {
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
-						constructor() {
+					constructor() {
+						this.listeners = {};
+					}
+					emit(eventName, data) {
+						if (this.listeners[eventName]) {
+							this.listeners[eventName].forEach(
+								(callback) => {
+									callback(data);
+								}
+							);
+						}
+					}
+					once(eventName, callback) {
+						const self = this;
+						function removedCallback() {
+							callback(...arguments);
+							self.removeListener(eventName, removedCallback);
+						}
+						this.on(eventName, removedCallback);
+					}
+					removeAllListeners(eventName) {
+						if (eventName) {
+							delete this.listeners[eventName];
+						} else {
 							this.listeners = {};
 						}
-						emit(eventName, data) {
-							if (this.listeners[eventName]) {
-								this.listeners[eventName].forEach(
-									(callback) => {
-										callback(data);
-									}
-								);
+					}
+					removeListener(eventName, callback) {
+						if (this.listeners[eventName]) {
+							const idx =
+								this.listeners[eventName].indexOf(callback);
+							if (idx !== -1) {
+								this.listeners[eventName].splice(idx, 1);
 							}
 						}
-						once(eventName, callback) {
-							const self = this;
-							function removedCallback() {
-								callback(...arguments);
-								self.removeListener(eventName, removedCallback);
-							}
-							this.on(eventName, removedCallback);
-						}
-						removeAllListeners(eventName) {
-							if (eventName) {
-								delete this.listeners[eventName];
-							} else {
-								this.listeners = {};
-							}
-						}
-						removeListener(eventName, callback) {
-							if (this.listeners[eventName]) {
-								const idx =
-									this.listeners[eventName].indexOf(callback);
-								if (idx !== -1) {
-									this.listeners[eventName].splice(idx, 1);
-								}
-							}
-						}
-				  };
+					}
+				};
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
@@ -180,7 +180,7 @@ const LibraryExample = {
 			};
 			return [promise, cancel];
 		},
-		noop: function () {},
+		noop: function () { },
 
 		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
@@ -205,8 +205,8 @@ const LibraryExample = {
 			}
 			const e = new Error(
 				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-					'and similar functions via php.ini.'
+				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+				'and similar functions via php.ini.'
 			);
 			e.code = 'SPAWN_UNSUPPORTED';
 			throw e;
@@ -256,7 +256,7 @@ const LibraryExample = {
 		const device = FS.createDevice(
 			'/dev',
 			filename,
-			function () {},
+			function () { },
 			function (byte) {
 				try {
 					dataBuffer.push(byte);
@@ -323,7 +323,7 @@ const LibraryExample = {
 				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
 			}
 		}
-		
+
 		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
 		let envObject = null;
 
@@ -449,7 +449,7 @@ const LibraryExample = {
 					stderrAt += data.length;
 				});
 				cp.stderr.on('end', function (data) {
-					FS.close(stderrStream);
+					FS.close(stdoutStream);
 				});
 			}
 
@@ -534,12 +534,13 @@ const LibraryExample = {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
-			HEAPU32[exitCodePtr >> 2] = 
-					  PHPWASM.child_proc_by_pid[pid].exitCode;
+			HEAPU32[exitCodePtr >> 2] =
+				PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
 	},
+
 
 	js_waitpid: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
@@ -549,7 +550,7 @@ const LibraryExample = {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
 					HEAPU32[exitCodePtr >> 2] = 
-					  PHPWASM.child_proc_by_pid[pid].exitCode;
+						PHPWASM.child_proc_by_pid[pid].exitCode;
 					wakeUp(pid);
 				} else {
 					setTimeout(poll, 50);
@@ -760,74 +761,91 @@ const LibraryExample = {
 	 * @see https://github.com/emscripten-core/emscripten/issues/13214
 	 */
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
-		var returnCode;
-		var stream;
-		try {
-			stream = SYSCALLS.getStreamFromFD(fd);
-			var num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
-			returnCode = 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			returnCode = e.errno;
-		}
-
-		// If it's a blocking process pipe, wait for it to become readable.
-		// We need to distinguish between a process pipe and a file pipe, otherwise
-		// reading from an empty file would block until the timeout.
-		if (
-			returnCode === 6 /*EWOULDBLOCK*/ &&
-			stream?.fd in PHPWASM.child_proc_by_fd
-		) {
-			// You might wonder why we duplicate the code here instead of always using
-			// Asyncify.handleSleep(). The reason is performance. Most of the time,
-			// the read operation will work synchronously and won't require yielding
-			// back to JS. In these cases we don't want to pay the Asyncify overhead,
-			// save the stack, yield back to JS, restore the stack etc.
-			return Asyncify.handleSleep(function (wakeUp) {
-				var retries = 0;
-				var interval = 50;
-				var timeout = 5000;
-				// We poll for data and give up after a timeout.
-				// We can't simply rely on PHP timeout here because we don't want
-				// to, say, block the entire PHPUnit test suite without any visible
-				// feedback.
-				var maxRetries = timeout / interval;
-				function poll() {
-					var returnCode;
-					var stream;
-					try {
-						stream = SYSCALLS.getStreamFromFD(fd);
-						var num = doReadv(stream, iov, iovcnt);
-						HEAPU32[pnum >> 2] = num;
-						returnCode = 0;
-					} catch (e) {
-						if (
-							typeof FS == 'undefined' ||
-							!(e.name === 'ErrnoError')
-						) {
-							console.error(e);
-							throw e;
-						}
-						returnCode = e.errno;
-					}
-
-					if (
-						returnCode !== 6 ||
-						++retries > maxRetries ||
-						!(fd in PHPWASM.child_proc_by_fd) ||
-						PHPWASM.child_proc_by_fd[fd]?.exited ||
-						FS.isClosed(stream)
-					) {
-						wakeUp(returnCode);
-					} else {
-						setTimeout(poll, interval);
-					}
+		// Only run the read operation on a regular call,
+		// never when rewinding the stack.
+        if (Asyncify.state === Asyncify.State.Normal) {
+            var returnCode;
+            var stream;
+			let num = 0;
+            try {
+                stream = SYSCALLS.getStreamFromFD(fd);
+                const num = doReadv(stream, iov, iovcnt);
+                HEAPU32[pnum >> 2] = num;
+				return 0;
+			} catch (e) {
+				// Rethrow any unexpected non-filesystem errors.
+				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+					throw e;
 				}
-				poll();
-			});
+                // Only return synchronously if this isn't an asynchronous pipe.
+				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
+				// We also need to distinguish between a process pipe and a file pipe, otherwise
+				// reading from an empty file would block until the timeout.
+				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+					// On failure, yield 0 bytes read to indicate EOF.
+					HEAPU32[pnum >> 2] = 0;
+					return returnCode
+				}
+            }
 		}
-		return returnCode;
+
+		// At this point we know we have to poll.
+		// You might wonder why we duplicate the code here instead of always using
+		// Asyncify.handleSleep(). The reason is performance. Most of the time,
+		// the read operation will work synchronously and won't require yielding
+		// back to JS. In these cases we don't want to pay the Asyncify overhead,
+		// save the stack, yield back to JS, restore the stack etc.
+		return Asyncify.handleSleep(function (wakeUp) {
+			var retries = 0;
+			var interval = 50;
+			var timeout = 5000;
+			// We poll for data and give up after a timeout.
+			// We can't simply rely on PHP timeout here because we don't want
+			// to, say, block the entire PHPUnit test suite without any visible
+			// feedback.
+			var maxRetries = timeout / interval;
+			function poll() {
+				var returnCode;
+				var stream;
+				let num;
+				try {
+					stream = SYSCALLS.getStreamFromFD(fd);
+					num = doReadv(stream, iov, iovcnt);
+					returnCode = 0;
+				} catch (e) {
+					if (
+						typeof FS == 'undefined' ||
+						!(e.name === 'ErrnoError')
+					) {
+						console.error(e);
+						throw e;
+					}
+					returnCode = e.errno;
+				}
+
+				const success = returnCode === 0;
+				const failure = (
+					++retries > maxRetries ||
+					!(fd in PHPWASM.child_proc_by_fd) ||
+					PHPWASM.child_proc_by_fd[fd]?.exited ||
+					FS.isClosed(stream)
+				);
+
+				if (success) {
+					HEAPU32[pnum >> 2] = num;
+					wakeUp(0);
+				} else if (failure) {
+					// On failure, yield 0 bytes read to indicate EOF.
+					HEAPU32[pnum >> 2] = 0;
+					// If the failure is due to a timeout, return 0 to indicate that we
+					// reached EOF. Otherwise, propagate the error code.
+					wakeUp(returnCode === 6 ? 0 : returnCode);
+				} else {
+					setTimeout(poll, interval);
+				}
+			}
+			poll();
+		});
 	},
 
 	/**
