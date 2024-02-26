@@ -38,6 +38,9 @@
 			"@php-wasm/web-service-worker": [
 				"packages/php-wasm/web-service-worker/src/index.ts"
 			],
+			"@php-wasm/logger": [
+				"packages/php-wasm/logger/src/index.ts"
+			],
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
@@ -63,10 +66,7 @@
 			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
-			],
-			"@wp-playground/logger": [
-				"packages/playground/logger/logger.ts"
-			],
+			]
 		}
 	},
 	"exclude": ["node_modules", "tmp"]

@@ -148,7 +148,7 @@ let logger: Logger | undefined = undefined;
  * @param errorLogPath The path to the error log file.
  * @returns Logger
  */
-export function get_logger(errorLogPath?: string): Logger {
+export function getLogger(errorLogPath?: string): Logger {
     if (!logger) {
         logger = new Logger(errorLogPath);
     }
