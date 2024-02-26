@@ -5615,7 +5615,9 @@ function _js_fd_read(fd, iov, iovcnt, pnum) {
    HEAPU32[pnum >> 2] = num;
    return 0;
   } catch (e) {
-   if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
+   if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+    throw e;
+   }
    if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
     HEAPU32[pnum >> 2] = 0;
     return returnCode;
