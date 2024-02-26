@@ -14,7 +14,8 @@ jobs:
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
                 github.actor == 'adamziel' ||
-                github.actor == 'dmsnell'
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak'
             )
 
         # Specify runner + deployment step
