@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_2_10/php_8_2.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11250611; 
+export const dependenciesTotalSize = 11250615; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5605,48 +5605,59 @@ function _js_create_input_device(deviceId) {
 }
 
 function _js_fd_read(fd, iov, iovcnt, pnum) {
- var returnCode;
- var stream;
- try {
-  stream = SYSCALLS.getStreamFromFD(fd);
-  var num = doReadv(stream, iov, iovcnt);
-  HEAPU32[pnum >> 2] = num;
-  returnCode = 0;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
-  returnCode = e.errno;
- }
- if (returnCode === 6 && stream?.fd in PHPWASM.child_proc_by_fd) {
-  return Asyncify.handleSleep((function(wakeUp) {
-   var retries = 0;
-   var interval = 50;
-   var timeout = 5e3;
-   var maxRetries = timeout / interval;
-   function poll() {
-    var returnCode;
-    var stream;
-    try {
-     stream = SYSCALLS.getStreamFromFD(fd);
-     var num = doReadv(stream, iov, iovcnt);
-     HEAPU32[pnum >> 2] = num;
-     returnCode = 0;
-    } catch (e) {
-     if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-      console.error(e);
-      throw e;
-     }
-     returnCode = e.errno;
-    }
-    if (returnCode !== 6 || ++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream)) {
-     wakeUp(returnCode);
-    } else {
-     setTimeout(poll, interval);
-    }
+ if (Asyncify.state === Asyncify.State.Normal) {
+  var returnCode;
+  var stream;
+  let num = 0;
+  try {
+   stream = SYSCALLS.getStreamFromFD(fd);
+   const num = doReadv(stream, iov, iovcnt);
+   HEAPU32[pnum >> 2] = num;
+   return 0;
+  } catch (e) {
+   if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+    throw e;
    }
-   poll();
-  }));
+   if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+    HEAPU32[pnum >> 2] = 0;
+    return returnCode;
+   }
+  }
  }
- return returnCode;
+ return Asyncify.handleSleep((function(wakeUp) {
+  var retries = 0;
+  var interval = 50;
+  var timeout = 5e3;
+  var maxRetries = timeout / interval;
+  function poll() {
+   var returnCode;
+   var stream;
+   let num;
+   try {
+    stream = SYSCALLS.getStreamFromFD(fd);
+    num = doReadv(stream, iov, iovcnt);
+    returnCode = 0;
+   } catch (e) {
+    if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+     console.error(e);
+     throw e;
+    }
+    returnCode = e.errno;
+   }
+   const success = returnCode === 0;
+   const failure = ++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream);
+   if (success) {
+    HEAPU32[pnum >> 2] = num;
+    wakeUp(0);
+   } else if (failure) {
+    HEAPU32[pnum >> 2] = 0;
+    wakeUp(returnCode === 6 ? 0 : returnCode);
+   } else {
+    setTimeout(poll, interval);
+   }
+  }
+  poll();
+ }));
 }
 
 function _js_module_onMessage(data, bufPtr) {
