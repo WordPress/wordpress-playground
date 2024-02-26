@@ -222,12 +222,7 @@ export class PHPRequestHandler implements RequestHandler {
 				 * rewritten target URL will be in `request.headers['x-rewrite-url']`.
 				 */
 				let requestedPath = requestedUrl.pathname;
-				console.log({ request });
 				if (request.headers?.['x-rewrite-url']) {
-					console.log(
-						'Got rewrite URL',
-						request.headers?.['x-rewrite-url']
-					);
 					try {
 						requestedPath = new URL(
 							request.headers['x-rewrite-url']
@@ -238,7 +233,6 @@ export class PHPRequestHandler implements RequestHandler {
 				}
 				scriptPath = this.#resolvePHPFilePath(requestedPath);
 			} catch (error) {
-				console.error(error);
 				return new PHPResponse(
 					404,
 					{},
@@ -288,7 +282,6 @@ export class PHPRequestHandler implements RequestHandler {
 		}
 
 		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
-		console.log({ resolvedFsPath });
 		if (this.php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
