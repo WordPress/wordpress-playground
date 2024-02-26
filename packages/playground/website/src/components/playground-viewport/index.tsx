@@ -38,6 +38,9 @@ export default function PlaygroundViewport({
 	// Add GA events for blueprint steps. For more information, see the README.md file.
 	useEffect(() => {
 		logTrackingEvent('load');
+		// Log the names of provided Blueprint's steps.
+		// Only the names (e.g. "runPhp" or "login") are logged. Step options like code, password,
+		// URLs are never sent anywhere.
 		const steps = (blueprint?.steps || [])
 			?.filter((step: any) => !!(typeof step === 'object' && step?.step))
 			.map((step) => (step as StepDefinition).step);
