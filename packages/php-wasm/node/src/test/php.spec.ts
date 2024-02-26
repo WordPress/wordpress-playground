@@ -328,6 +328,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			expect(result.text).toEqual(pygmalion);
 		});
+
 		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
 			const result = await pygmalionToProcess('cat');
 			expect(result.text).toEqual(pygmalion);
@@ -379,6 +380,125 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(spawnHandlerCalled).toEqual(true);
+		});
+
+		it('Stdout waits for asynchronous data to arrive', async () => {
+			const handler = createSpawnHandler(
+				(command: string, processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(new TextEncoder().encode('Hello World!'));
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Hello again!')
+						);
+						processApi.exit(0);
+					}, 1000);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "fetch", $descriptorspec, $pipes );
+			echo fread($pipes[1], 1024);
+			echo "\\n";
+			echo fread($pipes[1], 1024);;
+			proc_close( $proc );
+			`,
+			});
+
+			expect(result.text).toEqual('Hello World!\nHello again!');
+		});
+
+		it('feof() returns true when exhausted the synchronous data', async () => {
+			const handler = createSpawnHandler(
+				(command: string, processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(
+						new TextEncoder().encode('Hello World!\n')
+					);
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "echo 'Hello World'", $descriptorspec, $pipes );
+			var_dump(fread($pipes[1], 1024)); // "Hello World"
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump($pipes[1]);              // resource(1)
+			var_dump(feof($pipes[1]));        // true
+			pclose( $pipes[1] );
+			`,
+			});
+
+			expect(result.text).toEqual(
+				[
+					`string(13) "Hello World!\n"`,
+					`string(0) ""`,
+					`string(0) ""`,
+					`resource(1) of type (stream)`,
+					`bool(true)`,
+					'',
+				].join('\n')
+			);
+		});
+
+		it('feof() returns true when exhausted the asynchronous data', async () => {
+			const handler = createSpawnHandler(
+				(command: string, processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(
+						new TextEncoder().encode('Hello World!\n')
+					);
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Hello Again!\n')
+						);
+						setTimeout(() => {
+							processApi.exit(0);
+						}, 100);
+					}, 500);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "echo 'Hello World'; sleep 1; echo 'Hello Again'", $descriptorspec, $pipes );
+			var_dump(fread($pipes[1], 1024)); // "Hello World"
+			var_dump(fread($pipes[1], 1024)); // "Hello Again"
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump($pipes[1]);              // resource(1)
+			var_dump(feof($pipes[1]));        // true
+			pclose( $pipes[1] );
+			`,
+			});
+
+			expect(result.text).toEqual(
+				[
+					`string(13) "Hello World!\n"`,
+					`string(13) "Hello Again!\n"`,
+					`string(0) ""`,
+					`resource(1) of type (stream)`,
+					`bool(true)`,
+					'',
+				].join('\n')
+			);
 		});
 
 		// This test fails on older PHP versions
@@ -1338,6 +1458,15 @@ bar1
 			await php.cli(['php', '-r', '$tmp = "Hello";']);
 			expect(consoleLogMock).not.toHaveBeenCalled();
 			expect(consoleErrorMock).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('Response parsing', () => {
+		it('should encode response headers', async () => {
+			const out = await php.run({
+				code: `<?php header('Location: /(?P<id>[\\d]+)');`,
+			});
+			expect(out.headers['location'][0]).toEqual('/(?P<id>[\\d]+)');
 		});
 	});
 });

@@ -722,74 +722,91 @@ const LibraryExample = {
 	 * @see https://github.com/emscripten-core/emscripten/issues/13214
 	 */
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
-		var returnCode;
-		var stream;
-		try {
-			stream = SYSCALLS.getStreamFromFD(fd);
-			var num = doReadv(stream, iov, iovcnt);
-			HEAPU32[pnum >> 2] = num;
-			returnCode = 0;
-		} catch (e) {
-			if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-			returnCode = e.errno;
-		}
-
-		// If it's a blocking process pipe, wait for it to become readable.
-		// We need to distinguish between a process pipe and a file pipe, otherwise
-		// reading from an empty file would block until the timeout.
-		if (
-			returnCode === 6 /*EWOULDBLOCK*/ &&
-			stream?.fd in PHPWASM.child_proc_by_fd
-		) {
-			// You might wonder why we duplicate the code here instead of always using
-			// Asyncify.handleSleep(). The reason is performance. Most of the time,
-			// the read operation will work synchronously and won't require yielding
-			// back to JS. In these cases we don't want to pay the Asyncify overhead,
-			// save the stack, yield back to JS, restore the stack etc.
-			return Asyncify.handleSleep(function (wakeUp) {
-				var retries = 0;
-				var interval = 50;
-				var timeout = 5000;
-				// We poll for data and give up after a timeout.
-				// We can't simply rely on PHP timeout here because we don't want
-				// to, say, block the entire PHPUnit test suite without any visible
-				// feedback.
-				var maxRetries = timeout / interval;
-				function poll() {
-					var returnCode;
-					var stream;
-					try {
-						stream = SYSCALLS.getStreamFromFD(fd);
-						var num = doReadv(stream, iov, iovcnt);
-						HEAPU32[pnum >> 2] = num;
-						returnCode = 0;
-					} catch (e) {
-						if (
-							typeof FS == 'undefined' ||
-							!(e.name === 'ErrnoError')
-						) {
-							console.error(e);
-							throw e;
-						}
-						returnCode = e.errno;
-					}
-
-					if (
-						returnCode !== 6 ||
-						++retries > maxRetries ||
-						!(fd in PHPWASM.child_proc_by_fd) ||
-						PHPWASM.child_proc_by_fd[fd]?.exited ||
-						FS.isClosed(stream)
-					) {
-						wakeUp(returnCode);
-					} else {
-						setTimeout(poll, interval);
-					}
+		// Only run the read operation on a regular call,
+		// never when rewinding the stack.
+        if (Asyncify.state === Asyncify.State.Normal) {
+            var returnCode;
+            var stream;
+			let num = 0;
+            try {
+                stream = SYSCALLS.getStreamFromFD(fd);
+                const num = doReadv(stream, iov, iovcnt);
+                HEAPU32[pnum >> 2] = num;
+				return 0;
+			} catch (e) {
+				// Rethrow any unexpected non-filesystem errors.
+				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
+					throw e;
 				}
-				poll();
-			});
+                // Only return synchronously if this isn't an asynchronous pipe.
+				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
+				// We also need to distinguish between a process pipe and a file pipe, otherwise
+				// reading from an empty file would block until the timeout.
+				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
+					// On failure, yield 0 bytes read to indicate EOF.
+					HEAPU32[pnum >> 2] = 0;
+					return returnCode
+				}
+            }
 		}
-		return returnCode;
+
+		// At this point we know we have to poll.
+		// You might wonder why we duplicate the code here instead of always using
+		// Asyncify.handleSleep(). The reason is performance. Most of the time,
+		// the read operation will work synchronously and won't require yielding
+		// back to JS. In these cases we don't want to pay the Asyncify overhead,
+		// save the stack, yield back to JS, restore the stack etc.
+		return Asyncify.handleSleep(function (wakeUp) {
+			var retries = 0;
+			var interval = 50;
+			var timeout = 5000;
+			// We poll for data and give up after a timeout.
+			// We can't simply rely on PHP timeout here because we don't want
+			// to, say, block the entire PHPUnit test suite without any visible
+			// feedback.
+			var maxRetries = timeout / interval;
+			function poll() {
+				var returnCode;
+				var stream;
+				let num;
+				try {
+					stream = SYSCALLS.getStreamFromFD(fd);
+					num = doReadv(stream, iov, iovcnt);
+					returnCode = 0;
+				} catch (e) {
+					if (
+						typeof FS == 'undefined' ||
+						!(e.name === 'ErrnoError')
+					) {
+						console.error(e);
+						throw e;
+					}
+					returnCode = e.errno;
+				}
+
+				const success = returnCode === 0;
+				const failure = (
+					++retries > maxRetries ||
+					!(fd in PHPWASM.child_proc_by_fd) ||
+					PHPWASM.child_proc_by_fd[fd]?.exited ||
+					FS.isClosed(stream)
+				);
+
+				if (success) {
+					HEAPU32[pnum >> 2] = num;
+					wakeUp(0);
+				} else if (failure) {
+					// On failure, yield 0 bytes read to indicate EOF.
+					HEAPU32[pnum >> 2] = 0;
+					// If the failure is due to a timeout, return 0 to indicate that we
+					// reached EOF. Otherwise, propagate the error code.
+					wakeUp(returnCode === 6 ? 0 : returnCode);
+				} else {
+					setTimeout(poll, interval);
+				}
+			}
+			poll();
+		});
 	},
 
 	/**
