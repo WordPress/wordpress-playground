@@ -1,7 +1,4 @@
 <?php
-
-require(__DIR__ . '/playground-includes/playground_logger.php');
-
 /**
  * This is a temporary workaround to hide the 32bit integer warnings that
  * appear when using various time related function, such as strtotime and mktime.
@@ -144,7 +141,7 @@ $__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Request
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
 	// Force-replace the default WordPress requests transports with the Fetch transport.
-	// 
+	//
 	// WordPress doesn't provide a way to change the default transports,
 	// that is Curl and FSockopen. Even with all the `http_api_tranports`
 	// filter used below, WordPress tests if they are supported and will
@@ -193,3 +190,12 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		return $transports;
 	});
 }
+
+// Configure error logging
+$log_file = WP_CONTENT_DIR . '/debug.log';
+error_reporting(E_ALL);
+define('ERROR_LOG_FILE', $log_file);
+ini_set('error_log', $log_file);
+ini_set('ignore_repeated_errors', true);
+ini_set('display_errors', false);
+ini_set('log_errors', true);

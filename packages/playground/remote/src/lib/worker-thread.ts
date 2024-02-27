@@ -37,8 +37,6 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /** @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
-import playgroundLogger from './playground-mu-plugin/playground-includes/playground_logger.php?raw';
-/** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 
@@ -280,7 +278,6 @@ try {
 		'0-playground.php': playgroundMuPlugin,
 		'playground-includes/wp_http_dummy.php': transportDummy,
 		'playground-includes/wp_http_fetch.php': transportFetch,
-		'playground-includes/playground_logger.php': playgroundLogger,
 	});
 
 	if (virtualOpfsDir) {
