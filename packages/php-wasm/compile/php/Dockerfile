@@ -299,6 +299,7 @@ RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la
 RUN cp -v /root/php-src/.libs/libphp*.a /root/lib/libphp.a
 
 COPY ./php/php_wasm.c /root/
+COPY ./php/dns_polyfill.c /root/
 COPY ./php/proc_open* /root/
 
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \

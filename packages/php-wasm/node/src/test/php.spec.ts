@@ -109,6 +109,20 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 	});
 
+	/**
+	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
+	 */
+	describe('dns_get_record()', () => {
+		it.only('should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_record(''));
+			`,
+			});
+			expect(result.text).toEqual('array(0) {\n}\n');
+		});
+	});
+
 	describe('popen()', () => {
 		it('popen("echo", "r")', async () => {
 			const result = await php.run({

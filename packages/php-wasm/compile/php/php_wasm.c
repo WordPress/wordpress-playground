@@ -25,6 +25,7 @@
 #include "rfc1867.h"
 #include "SAPI.h"
 #include "proc_open.h"
+#include "dns_polyfill.c"
 
 unsigned int wasm_sleep(unsigned int time)
 {
@@ -379,6 +380,8 @@ ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
+
+
 /* Enable PHP to exchange messages with JavaScript */
 PHP_FUNCTION(post_message_to_js)
 {
@@ -437,9 +440,14 @@ EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write
 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
+	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+	PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+	PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
+};
 
 typedef struct wasm_cli_arg
 {
@@ -483,7 +491,12 @@ int run_cli()
 #else
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
+	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
+};
 #endif
 
 #if !defined(TSRMLS_DC)
