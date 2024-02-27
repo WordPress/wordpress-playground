@@ -136,6 +136,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_check_record, 0, 0, 1)
 	ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
+#define arginfo_checkdnsrr arginfo_dns_check_record
+
 PHP_FUNCTION(dns_check_record)
 {
 	HEADER *hp;
@@ -154,6 +156,8 @@ PHP_FUNCTION(dns_check_record)
 		php_error_docref(NULL, E_WARNING, "Host cannot be empty");
 		RETURN_FALSE;
 	}
+	
+	php_error_docref(NULL, E_WARNING, "dns_check_record() always returns false in PHP.wasm.");
 
     RETURN_FALSE;
 }
@@ -201,6 +205,8 @@ PHP_FUNCTION(dns_get_record)
 		}
 	}
 
+	php_error_docref(NULL, E_WARNING, "dns_check_record() always returns an empty array in PHP.wasm.");
+
 	/* Initialize the return array */
 	array_init(return_value);
 }
@@ -247,6 +253,8 @@ PHP_FUNCTION(dns_get_mx)
     		RETURN_FALSE;
 		}
 	}
+
+	php_error_docref(NULL, E_WARNING, "dns_get_mx() always returns an empty array in PHP.wasm.");
 
     RETURN_FALSE;
 }
