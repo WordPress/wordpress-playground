@@ -250,5 +250,4 @@ PHP_FUNCTION(dns_get_mx)
 
     RETURN_FALSE;
 }
-
 /* }}} */

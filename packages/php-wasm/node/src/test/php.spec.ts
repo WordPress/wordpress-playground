@@ -112,14 +112,38 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	/**
 	 * @issue https://github.com/WordPress/wordpress-playground/issues/1042
 	 */
-	describe('dns_get_record()', () => {
-		it.only('should exist and be possible to run', async () => {
+	describe('dns_* functions()', () => {
+		it('dns_check_record should exist and be possible to run', async () => {
 			const result = await php.run({
 				code: `<?php
-				var_dump(dns_get_record(''));
+				var_dump(dns_check_record('w.org', 2));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it('dns_get_record should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_record('w.org'));
 			`,
 			});
 			expect(result.text).toEqual('array(0) {\n}\n');
+		});
+		it('dns_get_mx should exist and be possible to run', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(dns_get_mx('', $mxhosts));
+			`,
+			});
+			expect(result.text).toEqual('bool(false)\n');
+		});
+		it.only('DNS_ALL should be defined and equal to 2', async () => {
+			const result = await php.run({
+				code: `<?php
+				var_dump(DNS_NS);
+			`,
+			});
+			expect(result.text).toEqual('int(2)\n');
 		});
 	});
 
