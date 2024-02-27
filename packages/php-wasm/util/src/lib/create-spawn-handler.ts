@@ -94,7 +94,6 @@ export class ProcessApi extends EventEmitter {
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;
-			console.log('Emit exit!');
 			this.childProcess.emit('exit', code);
 		}
 	}
