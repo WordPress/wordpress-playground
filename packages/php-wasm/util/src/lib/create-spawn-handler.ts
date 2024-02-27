@@ -2,6 +2,11 @@ import { splitShellCommand } from './split-shell-command';
 
 type Listener = (...args: any[]) => any;
 
+export interface ProcessOptions {
+	cwd?: string;
+	env?: Record<string, string>;
+}
+
 /**
  * Usage:
  * ```ts
@@ -17,9 +22,17 @@ type Listener = (...args: any[]) => any;
  * @returns
  */
 export function createSpawnHandler(
-	program: (command: string[], processApi: ProcessApi) => void | Promise<void>
+	program: (
+		command: string[],
+		processApi: ProcessApi,
+		options: ProcessOptions
+	) => void | Promise<void>
 ): any {
-	return function (command: string | string[], argsArray: string[] = []) {
+	return function (
+		command: string | string[],
+		argsArray: string[] = [],
+		options: ProcessOptions = {}
+	) {
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
@@ -34,7 +47,7 @@ export function createSpawnHandler(
 			} else {
 				throw new Error('Invalid command ', command);
 			}
-			await program(commandArray, processApi);
+			await program(commandArray, processApi, options);
 			childProcess.emit('spawn', true);
 		});
 		return childProcess;
@@ -94,6 +107,7 @@ export class ProcessApi extends EventEmitter {
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;
+			console.log('Emit exit!');
 			this.childProcess.emit('exit', code);
 		}
 	}

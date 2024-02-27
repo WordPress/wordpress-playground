@@ -249,6 +249,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#initWebRuntime();
 				this.#webSapiInitialized = true;
 			}
+			if (request.scriptPath && !this.fileExists(request.scriptPath)) {
+				throw new Error(
+					`The script path "${request.scriptPath}" does not exist.`
+				);
+			}
 			this.#setScriptPath(request.scriptPath || '');
 			this.#setRelativeRequestUri(request.relativeUri || '');
 			this.#setRequestMethod(request.method || 'GET');
@@ -264,6 +269,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#setPHPCode(' ?>' + request.code);
 			}
 			this.#addServerGlobalEntriesInWasm();
+
+			const env = request.env || {};
+			for (const key in env) {
+				this.#setEnv(key, env[key]);
+			}
+
 			const response = await this.#handleRequest();
 			if (request.throwOnError && response.exitCode !== 0) {
 				const output = {
@@ -272,10 +283,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				};
 				console.warn(`PHP.run() output was:`, output);
 				const error = new Error(
-					`PHP.run() failed with exit code ${response.exitCode} and the following output`
+					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
+						response.errors
 				);
 				// @ts-ignore
 				error.output = output;
+				console.error(error);
 				throw error;
 			}
 			return response;
@@ -534,6 +547,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
+	#setEnv(name: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_ENV_entry',
+			null,
+			[STRING, STRING],
+			[name, value]
+		);
+	}
+
 	defineConstant(key: string, value: string | boolean | number | null) {
 		let consts = {};
 		try {
@@ -577,6 +599,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>((resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
+					console.error(e);
+					console.error(e.error);
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
@@ -622,6 +646,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			) as string;
 			const rethrown = new Error(message);
 			rethrown.cause = err;
+			console.error(rethrown);
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
@@ -794,7 +819,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		// Copy the MEMFS directory structure from the old FS to the new one
 		if (this.requestHandler) {
 			const docroot = this.documentRoot;
-			recreateMemFS(this[__private__dont__use].FS, oldFS, docroot);
+			copyFS(oldFS, this[__private__dont__use].FS, docroot);
 		}
 	}
 
@@ -830,14 +855,30 @@ export function normalizeHeaders(
 
 type EmscriptenFS = any;
 
+export function syncFSTo(
+	source: BasePHP,
+	target: BasePHP,
+	path: string | null = null
+) {
+	copyFS(
+		source[__private__dont__use].FS,
+		target[__private__dont__use].FS,
+		path ?? source.documentRoot
+	);
+}
+
 /**
  * Copies the MEMFS directory structure from one FS in another FS.
  * Non-MEMFS nodes are ignored.
  */
-function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
+export function copyFS(
+	source: EmscriptenFS,
+	target: EmscriptenFS,
+	path: string
+) {
 	let oldNode;
 	try {
-		oldNode = oldFS.lookupPath(path);
+		oldNode = source.lookupPath(path);
 	} catch (e) {
 		return;
 	}
@@ -850,23 +891,28 @@ function recreateMemFS(newFS: EmscriptenFS, oldFS: EmscriptenFS, path: string) {
 	// Let's be extra careful and only proceed if newFs doesn't
 	// already have a node at the given path.
 	try {
-		newFS = newFS.lookupPath(path);
-		return;
+		// @TODO: Figure out the right thing to do. In Parent -> child PHP case,
+		//        we indeed want to synchronize the entire filesystem. However,
+		//        this approach seems slow and inefficient. Instead of exhaustively
+		//        iterating, could we just mark directories as dirty on write? And
+		//        how do we sync in both directions?
+		// target = target.lookupPath(path);
+		// return;
 	} catch (e) {
 		// There's no such node in the new FS. Good,
 		// we may proceed.
 	}
 
-	if (!oldFS.isDir(oldNode.node.mode)) {
-		newFS.writeFile(path, oldFS.readFile(path));
+	if (!source.isDir(oldNode.node.mode)) {
+		target.writeFile(path, source.readFile(path));
 		return;
 	}
 
-	newFS.mkdirTree(path);
-	const filenames = oldFS
+	target.mkdirTree(path);
+	const filenames = source
 		.readdir(path)
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
-		recreateMemFS(newFS, oldFS, joinPaths(path, filename));
+		copyFS(source, target, joinPaths(path, filename));
 	}
 }
