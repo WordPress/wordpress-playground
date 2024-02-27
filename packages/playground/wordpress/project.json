@@ -29,6 +29,22 @@
 			}
 		},
 		"bundle-wordpress:all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"bundle-wordpress:nightly",
+				"bundle-wordpress:major-and-beta"
+			]
+		},
+		"bundle-wordpress:nightly": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
+				],
+				"parallel": false
+			}
+		},
+		"bundle-wordpress:major-and-beta": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -36,8 +52,7 @@
 					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
 					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
 					"node packages/playground/wordpress/build/build.js --wp-version=latest --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
+					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
 				],
 				"parallel": false
 			}
