@@ -26,12 +26,32 @@ const parser = yargs(process.argv.slice(2))
 
 const args = parser.argv;
 
-const releasesPageResponse = await fetch(
-	'https://wordpress.org/download/releases/'
-);
-const releasesPage = await releasesPageResponse.text();
+let latestVersions = await fetch('https://api.wordpress.org/core/version-check/1.7/?channel=beta')
+	.then((res) => res.json())
 
-const versionInfo = {};
+latestVersions = latestVersions
+	.offers
+	.filter((v) => v.response === 'autoupdate')
+
+let beta = null;
+if (latestVersions[0].current.includes('beta') || latestVersions[0].current.includes('rc')) {
+	beta = latestVersions[0];
+	latestVersions = latestVersions.slice(1);
+}
+
+function toVersionInfo(apiVersion, slug=null) {
+	if (!apiVersion) {
+		return {};
+	}
+	return {
+		url: apiVersion.download,
+		version: apiVersion.version,
+		majorVersion: apiVersion.version.substring(0, 3),
+		slug: slug || apiVersion.version.substring(0, 3),
+	};
+}
+
+let versionInfo = {};
 if (args.wpVersion === 'nightly') {
 	versionInfo.url =
 		'https://wordpress.org/nightly-builds/wordpress-latest.zip';
@@ -39,53 +59,22 @@ if (args.wpVersion === 'nightly') {
 	versionInfo.majorVersion = 'nightly';
 	versionInfo.slug = 'nightly';
 } else if (args.wpVersion === 'beta') {
-	const matches = releasesPage.match(
-		/https:\/\/wordpress\.org\/wordpress-(\d\.\d-(?:RC|beta|alpha)\d)\.zip/
-	);
-	if (!matches) {
-		throw new Error('Could not find a beta version');
-	}
-	versionInfo.url = matches[0];
-	versionInfo.version = matches[1];
-	versionInfo.majorVersion = matches[1].substring(0, 3);
-	versionInfo.slug = 'beta';
+	versionInfo = toVersionInfo(beta, 'beta');
 } else if (args.wpVersion.startsWith('latest')) {
-	const latestBranches = releasesPage
-		.match(/(\d\.\d) Branch/g)
-		.slice(0, 4)
-		.map((branch) => branch.replace(' Branch', ''));
-	const wpBranch = {
-		latest: latestBranches[0],
-		'latest-minus-1': latestBranches[1],
-		'latest-minus-2': latestBranches[2],
-		'latest-minus-3': latestBranches[3],
+	const relevantApiVersion = {
+		latest: latestVersions[0],
+		'latest-minus-1': latestVersions[1],
+		'latest-minus-2': latestVersions[2],
+		'latest-minus-3': latestVersions[3],
 	}[args.wpVersion];
-
-	const matches = releasesPage.match(
-		new RegExp(`https://wordpress.org/wordpress-(${wpBranch}\\.\\d)\\.zip`)
-	);
-	if (!matches) {
-		throw new Error('Could not find version ' + wpBranch);
-	}
-	versionInfo.url = matches[0];
-	versionInfo.version = matches[1];
-	versionInfo.majorVersion = matches[1].substring(0, 3);
-	versionInfo.slug = versionInfo.majorVersion;
+	versionInfo = toVersionInfo(relevantApiVersion);
 } else if (args.wpVersion.match(/\d\.\d/)) {
-	const matches = releasesPage.match(
-		new RegExp(
-			`https://wordpress.org/wordpress-(${args.wpVersion}(?:\\.\\d)?)\\.zip`
-		)
-	);
-	if (!matches) {
-		throw new Error('Could not find version ' + args.wpVersion);
-	}
-	versionInfo.url = matches[0];
-	versionInfo.version = matches[1];
-	versionInfo.majorVersion = args.wpVersion;
-	versionInfo.slug = versionInfo.majorVersion;
-} else {
-	process.stdout.write(`WP version ${parser.wpVersion} is not supported\n`);
+	const relevantApiVersion = latestVersions.find((v) => v.version.startsWith(args.wpVersion));
+	versionInfo = toVersionInfo(relevantApiVersion);
+}
+
+if(!versionInfo.url) {
+	process.stdout.write(`WP version ${args.wpVersion} is not supported\n`);
 	process.stdout.write(await parser.getHelp());
 	process.exit(1);
 }
@@ -93,6 +82,27 @@ if (args.wpVersion === 'nightly') {
 const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 const outputAssetsDir = path.resolve(process.cwd(), args.outputAssets);
 const outputJsDir = path.resolve(process.cwd(), args.outputJs);
+
+// Short-circuit if the version is already downloaded
+const versionsPath = `${outputJsDir}/wp-versions.json`;
+let versions = {};
+try {
+	const data = await fs.readFile(versionsPath, 'utf8');
+	versions = JSON.parse(data);
+} catch (e) {
+	// If the existing JSON file doesn't exist or cannot be read,
+	// just ignore that and assume an empty one.
+	versions = {};
+}
+
+// We don't get granular version info for nightly, so we always download it.
+// Otherwise, we only download if the version is not already the latest one
+// in the repository.
+if (versionInfo.slug !== 'nightly' && versions[versionInfo.slug] === versionInfo.version) {
+	process.stdout.write(`The requested version was ${args.wpVersion}, but it's latest release (${versionInfo.version}) is already downloaded\n`);
+	process.exit(0);
+}
+
 
 // Build WordPress
 await asyncSpawn(
@@ -151,16 +161,6 @@ await asyncSpawn(
 );
 
 // Update the WordPress versions JSON
-const versionsPath = `${outputJsDir}/wp-versions.json`;
-let versions = {};
-try {
-	const data = await fs.readFile(versionsPath, 'utf8');
-	versions = JSON.parse(data);
-} catch (e) {
-	// If the existing JSON file doesn't exist or cannot be read,
-	// just ignore that and create a new one.
-}
-
 // Set WordPress version
 versions[versionInfo.slug] = versionInfo.version;
 
