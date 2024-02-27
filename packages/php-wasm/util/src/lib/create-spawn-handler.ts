@@ -23,7 +23,6 @@ export function createSpawnHandler(
 	) => void | Promise<void>
 ): any {
 	return function (command: string | string[], argsArray: string[] = []) {
-		console.log({ command, argsArray });
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
@@ -98,7 +97,6 @@ export class ProcessApi extends EventEmitter {
 	exit(code: number) {
 		if (!this.exited) {
 			this.exited = true;
-			console.log('Emit exit!');
 			this.childProcess.emit('exit', code);
 		}
 	}
