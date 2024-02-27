@@ -6,8 +6,8 @@ describe('createSpawnHandler', () => {
 		const testOut = 'testOut';
 		const testErr = 'testErr';
 
-		const program = vitest.fn((cmd: string, processApi: ProcessApi) => {
-			expect(cmd).toBe(command);
+		const program = vitest.fn((cmd: string[], processApi: ProcessApi) => {
+			expect(cmd).toEqual([command]);
 			processApi.stdout(testOut);
 			processApi.stderr(testErr);
 			processApi.exit(0);

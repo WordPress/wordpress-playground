@@ -298,7 +298,11 @@ try {
 	php.setSpawnHandler(
 		createSpawnHandler(function (command, processApi) {
 			// Mock programs required by wp-cli:
-			if (command.startsWith('/usr/bin/env stty size ')) {
+			if (
+				command[0] === '/usr/bin/env' &&
+				command[1] === 'stty' &&
+				command[2] === 'size'
+			) {
 				// These numbers are hardcoded because this
 				// spawnHandler is transmitted as a string to
 				// the PHP backend and has no access to local
@@ -307,7 +311,7 @@ try {
 				// @TODO: Do not hardcode this
 				processApi.stdout(`18 140`);
 				processApi.exit(0);
-			} else if (command.startsWith('less')) {
+			} else if (command[0] === 'less') {
 				processApi.on('stdin', (data: Uint8Array) => {
 					processApi.stdout(data);
 				});
