@@ -145,7 +145,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			});
 			expect(result.text).toEqual('bool(false)\n');
 		});
-		it.only('DNS_ALL should be defined and equal to 2', async () => {
+		it('DNS_ALL should be defined and equal to 2', async () => {
 			const result = await php.run({
 				code: `<?php
 				var_dump(DNS_NS);
