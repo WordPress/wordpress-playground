@@ -32,8 +32,10 @@ export function splitShellCommand(command: string) {
 				mode = MODE_IN_QUOTE;
 				quote = char;
 			} else if (char.match(/\s/)) {
-				parts.push(currentPart);
-				currentPart = '';
+				if (currentPart.trim().length) {
+					parts.push(currentPart.trim());
+				}
+				currentPart = char;
 			} else if (parts.length && !currentPart) {
 				// We just closed a quote to continue the same
 				// argument with different escaping style, e.g.:
@@ -52,7 +54,7 @@ export function splitShellCommand(command: string) {
 		}
 	}
 	if (currentPart) {
-		parts.push(currentPart);
+		parts.push(currentPart.trim());
 	}
 	return parts;
 }

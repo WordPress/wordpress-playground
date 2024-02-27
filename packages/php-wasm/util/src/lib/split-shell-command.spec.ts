@@ -24,4 +24,59 @@ describe('splitShellCommand', () => {
 			'--is-great',
 		]);
 	});
+
+	it('Should treat quoted segments as a single arg', () => {
+		const command = 'ls    --wordpress="This is nice"  more args';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress=This is nice',
+			'more',
+			'args',
+		]);
+	});
+
+	it('Should treat single quotes inside doubly quoted segments as a part of the segment', () => {
+		const command = 'ls    --wordpress="This \'is\' nice"  more args';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			"--wordpress=This 'is' nice",
+			'more',
+			'args',
+		]);
+	});
+
+	it('Should treat escaped double quotes inside doubly quoted segments as a single arg', () => {
+		const command = 'ls    --wordpress="This \\"is\\" nice"  more args';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress=This "is" nice',
+			'more',
+			'args',
+		]);
+	});
+
+	it('Should allow mixing single and double quotes', () => {
+		const command = 'ls    --wordpress="This "\'is\'" nice"  more args';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress=This is nice',
+			'more',
+			'args',
+		]);
+	});
+
+	it('Should allow mixing unquoted data and double quotes', () => {
+		const command = 'ls    --wordpress="This "is" nice"  more args';
+		const result = splitShellCommand(command);
+		expect(result).toEqual([
+			'ls',
+			'--wordpress=This is nice',
+			'more',
+			'args',
+		]);
+	});
 });
