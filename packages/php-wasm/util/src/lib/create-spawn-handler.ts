@@ -17,10 +17,7 @@ type Listener = (...args: any[]) => any;
  * @returns
  */
 export function createSpawnHandler(
-	program: (
-		command: string | string[],
-		processApi: ProcessApi
-	) => void | Promise<void>
+	program: (command: string[], processApi: ProcessApi) => void | Promise<void>
 ): any {
 	return function (command: string | string[], argsArray: string[] = []) {
 		const childProcess = new ChildProcess();

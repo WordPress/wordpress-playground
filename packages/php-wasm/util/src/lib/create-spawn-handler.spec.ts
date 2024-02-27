@@ -6,14 +6,12 @@ describe('createSpawnHandler', () => {
 		const testOut = 'testOut';
 		const testErr = 'testErr';
 
-		const program = vitest.fn(
-			(cmd: string | string[], processApi: ProcessApi) => {
-				expect(cmd).toBe(command);
-				processApi.stdout(testOut);
-				processApi.stderr(testErr);
-				processApi.exit(0);
-			}
-		);
+		const program = vitest.fn((cmd: string[], processApi: ProcessApi) => {
+			expect(cmd).toEqual([command]);
+			processApi.stdout(testOut);
+			processApi.stderr(testErr);
+			processApi.exit(0);
+		});
 
 		const spawnHandler = createSpawnHandler(program);
 		const childProcess = spawnHandler(command);

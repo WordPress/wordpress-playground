@@ -294,7 +294,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
-				(command: string | string[], processApi: any) => {
+				(command: string[], processApi: any) => {
 					processApi.on('stdin', (data: Uint8Array) => {
 						processApi.stdout(data);
 					});
@@ -311,7 +311,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
-				async (command: string | string[], processApi: any) => {
+				async (command: string[], processApi: any) => {
 					await new Promise((resolve) => {
 						setTimeout(resolve, 1000);
 					});
@@ -384,7 +384,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Stdout waits for asynchronous data to arrive', async () => {
 			const handler = createSpawnHandler(
-				(command: string | string[], processApi: any) => {
+				(command: string[], processApi: any) => {
 					processApi.flushStdin();
 					processApi.stdout(new TextEncoder().encode('Hello World!'));
 					setTimeout(() => {
@@ -416,7 +416,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('feof() returns true when exhausted the synchronous data', async () => {
 			const handler = createSpawnHandler(
-				(command: string | string[], processApi: any) => {
+				(command: string[], processApi: any) => {
 					processApi.flushStdin();
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')
@@ -456,7 +456,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('feof() returns true when exhausted the asynchronous data', async () => {
 			const handler = createSpawnHandler(
-				(command: string | string[], processApi: any) => {
+				(command: string[], processApi: any) => {
 					processApi.flushStdin();
 					processApi.stdout(
 						new TextEncoder().encode('Hello World!\n')

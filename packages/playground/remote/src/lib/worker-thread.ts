@@ -299,8 +299,9 @@ try {
 		createSpawnHandler(function (command, processApi) {
 			// Mock programs required by wp-cli:
 			if (
-				typeof command === 'string' &&
-				command.startsWith('/usr/bin/env stty size ')
+				command[0] === '/usr/bin/env' &&
+				command[1] === 'stty' &&
+				command[2] === 'size'
 			) {
 				// These numbers are hardcoded because this
 				// spawnHandler is transmitted as a string to
@@ -310,10 +311,7 @@ try {
 				// @TODO: Do not hardcode this
 				processApi.stdout(`18 140`);
 				processApi.exit(0);
-			} else if (
-				typeof command === 'string' &&
-				command.startsWith('less')
-			) {
+			} else if (command[0] === 'less') {
 				processApi.on('stdin', (data: Uint8Array) => {
 					processApi.stdout(data);
 				});
