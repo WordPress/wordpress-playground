@@ -8,6 +8,7 @@ import { usePlayground } from '../../lib/hooks';
 import { StorageType } from '../../types';
 import PlaygroundContext from './context';
 import { logTrackingEvent } from '../../lib/tracking';
+import { collectWindowErrors, logger } from '@php-wasm/logger';
 
 export const supportedDisplayModes = [
 	'browser',
@@ -48,6 +49,10 @@ export default function PlaygroundViewport({
 			logTrackingEvent('step', { step });
 		}
 	}, [blueprint?.steps]);
+
+	useEffect(() => {
+		collectWindowErrors(logger);
+	}, []);
 
 	return (
 		<PlaygroundContext.Provider
