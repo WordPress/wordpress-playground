@@ -2,10 +2,6 @@ name: Deploy to playground.wordpress.net
 
 on:
     workflow_dispatch:
-    workflow_run:
-        workflows: [Refresh WordPress Major&Beta]
-        types:
-            - completed
 
 jobs:
     build_and_deploy:
