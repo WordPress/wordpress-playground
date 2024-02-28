@@ -32,11 +32,11 @@ jobs:
             - name: 'Recompile WordPress'
               shell: bash
               run: npx nx bundle-wordpress:major-and-beta playground-wordpress
-            - name: Check if any file has changed
+            - name: Check for uncommitted changes
               id: changes
-              uses: UnicornGlobal/has-changes-action@v1.0.11
+              uses: mskri/check-uncommitted-changes-action@v1.0.1
             - name: Push rebuilt WordPress to GitHub
-              if: steps.changes.outputs.changed == 1
+              if: steps.changes.outputs.outcome == failure()
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
@@ -49,7 +49,7 @@ jobs:
                       git push origin HEAD:trunk
                   fi;
             - name: Deploy website
-              if: steps.changes.outputs.changed == 1
+              if: steps.changes.outputs.outcome == failure()
               uses: benc-uk/workflow-dispatch@v1
               with:
                   workflow: build-website.yml
