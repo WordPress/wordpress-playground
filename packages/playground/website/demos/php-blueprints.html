@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<head>
+	<title>Blueprints PHP library</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<style>
+		body {
+			margin: 0;
+			padding: 20px;
+		}
+	</style>
+</head>
+<body>
+	<h2>Blueprints PHP library</h2>
+	<p>
+		Uses the
+		<a href="https://github.com/WordPress/blueprints/"
+			>PHP implementation of Blueprints</a
+		>
+		to set up a WordPress site. Open the devtools for full output.
+	</p>
+
+	<iframe id="wp" style="width: 100vw; height: 50vh; border: 0"></iframe>
+
+	<h2>PHP Blueprint execution result output – it may take a while to load</h2>
+	<pre id="output" style="width: 100vw; height: 50vh; border: 0"></pre>
+	<script type="module">
+		await import('./php-blueprints.ts');
+	</script>
+</body>

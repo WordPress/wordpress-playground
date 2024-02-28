@@ -303,6 +303,10 @@ try {
 	// let's always fail.
 	php.setSpawnHandler(
 		createSpawnHandler(async function (args, processApi, options) {
+			if (args[0] === 'exec') {
+				args.shift();
+			}
+
 			// Mock programs required by wp-cli:
 			if (
 				args[0] === '/usr/bin/env' &&
@@ -323,6 +327,24 @@ try {
 				});
 				processApi.flushStdin();
 				processApi.exit(0);
+			} else if (args[0] === 'fetch') {
+				processApi.flushStdin();
+				fetch(args[1]).then(async (res) => {
+					const reader = res.body?.getReader();
+					if (!reader) {
+						processApi.exit(1);
+						return;
+					}
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) {
+							processApi.exit(0);
+							break;
+						}
+						processApi.stdout(value);
+					}
+				});
+				return;
 			} else if (args[0] === 'php') {
 				if (!childPHP) {
 					childPHP = new WebPHP(await recreateRuntime(), {
@@ -360,7 +382,7 @@ try {
 					$GLOBALS['argv'] = array_merge([
 						"/wordpress/wp-cli.phar",
 						"--path=/wordpress"
-					], ${phpVar(args.slice(1))});
+					], ${phpVar(args.slice(2))});
 			
 					// Provide stdin, stdout, stderr streams outside of
 					// the CLI SAPI.
@@ -379,10 +401,10 @@ try {
 							}`,
 							env: options.env,
 						});
-					} else if (args[1].includes('wp-cli.phar')) {
+					} else if (args[1] === 'wp-cli.phar') {
 						result = await childPHP.run({
 							throwOnError: true,
-							code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" )`,
+							code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" );`,
 							env: {
 								...options.env,
 								// Set SHELL_PIPE to 0 to ensure WP-CLI formats
@@ -395,6 +417,7 @@ try {
 						result = await childPHP.run({
 							throwOnError: true,
 							scriptPath: args[1],
+							env: options.env,
 						});
 					}
 					processApi.stdout(result.bytes);
