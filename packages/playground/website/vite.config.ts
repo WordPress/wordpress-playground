@@ -129,6 +129,9 @@ export default defineConfig(({ command, mode }) => {
 					'wp-cli.html': fileURLToPath(
 						new URL('./demos/wp-cli.html', import.meta.url)
 					),
+					'php-blueprints.html': fileURLToPath(
+						new URL('./demos/php-blueprints.html', import.meta.url)
+					),
 					'sync.html': fileURLToPath(
 						new URL('./demos/sync.html', import.meta.url)
 					),
