@@ -503,7 +503,7 @@ PHP_FUNCTION(proc_open)
 	} ZEND_HASH_FOREACH_END();
 
 	// the wasm way {{{
-    child = js_open_process(
+	child = js_open_process(
 		command,
 		NULL,
 		0,

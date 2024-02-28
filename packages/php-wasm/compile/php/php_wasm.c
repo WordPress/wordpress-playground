@@ -593,7 +593,16 @@ void wasm_init_server_context();
 static char *int_to_string(int i);
 static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 
+
+#if (PHP_MAJOR_VERSION >= 8)
 static char *wasm_sapi_getenv(const char *name, size_t name_len)
+#else
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4)
+static char *wasm_sapi_getenv(char *name, size_t name_len)
+#else
+static char *wasm_sapi_getenv(char *name, unsigned long name_len)
+#endif
+#endif
 {
 	wasm_array_entry_t *current_entry = wasm_server_context->env_array_entries;
 	while (current_entry != NULL)
