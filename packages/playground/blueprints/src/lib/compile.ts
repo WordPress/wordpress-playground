@@ -13,7 +13,7 @@ import type { SupportedPHPExtensionBundle } from '@php-wasm/universal';
 import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
-import { Blueprint } from './blueprint'
+import { Blueprint } from './blueprint';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
 const { wpCLI, ...otherStepHandlers } = allStepHandlers;
@@ -237,9 +237,12 @@ export function compileBlueprint(
 						onStepCompleted(result, step);
 					} catch (e) {
 						console.error(e);
-						throw new Error(`Error when executing the blueprint step #${i} (${JSON.stringify(
-							step
-						)}) ${e instanceof Error ? `: ${e.message}` : e}`);
+						throw new Error(
+							`Error when executing the blueprint step #${i} (${JSON.stringify(
+								step
+							)}) ${e instanceof Error ? `: ${e.message}` : e}`,
+							{ cause: e }
+						);
 					}
 				}
 			} finally {
