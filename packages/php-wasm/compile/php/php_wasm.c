@@ -21,10 +21,12 @@
 #include "zend_globals_macros.h"
 #include "zend_exceptions.h"
 #include "zend_closures.h"
+#include "zend_constants.h"
 #include "zend_hash.h"
 #include "rfc1867.h"
 #include "SAPI.h"
 #include "proc_open.h"
+#include "dns_polyfill.c"
 
 unsigned int wasm_sleep(unsigned int time)
 {
@@ -379,6 +381,8 @@ ZEND_BEGIN_ARG_INFO(arginfo_dl, 0)
 ZEND_ARG_INFO(0, extension_filename)
 ZEND_END_ARG_INFO()
 
+
+
 /* Enable PHP to exchange messages with JavaScript */
 PHP_FUNCTION(post_message_to_js)
 {
@@ -437,9 +441,15 @@ EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write
 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
-			PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
-				PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
+	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
+	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+	PHP_FE(cli_set_process_title, arginfo_cli_set_process_title)
+	PHP_FE(cli_get_process_title, arginfo_cli_get_process_title)
+	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
+};
 
 typedef struct wasm_cli_arg
 {
@@ -483,7 +493,13 @@ int run_cli()
 #else
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)
-		PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}};
+	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+	ZEND_FALIAS(getmxrr, dns_get_mx, arginfo_getmxrr)
+	ZEND_FALIAS(checkdnsrr, dns_check_record, arginfo_checkdnsrr)
+	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+	PHP_FE(post_message_to_js, arginfo_post_message_to_js){NULL, NULL, NULL}
+};
 #endif
 
 #if !defined(TSRMLS_DC)
@@ -1159,6 +1175,26 @@ int wasm_sapi_request_init()
 #endif
 
 	php_register_variable("PHP_SELF", "-", NULL TSRMLS_CC);
+
+	// PHP expects the module_number to be defined before
+	// REGISTER_LONG_CONSTANT is called. 0 stands for the
+	// core module.
+	int module_number = 0;
+	REGISTER_LONG_CONSTANT("DNS_A", 	PHP_DNS_A,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_NS",	PHP_DNS_NS,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_CNAME",	PHP_DNS_CNAME,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_SOA",	PHP_DNS_SOA,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_PTR",	PHP_DNS_PTR,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_HINFO", PHP_DNS_HINFO, 	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_CAA",	PHP_DNS_CAA,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_MX",	PHP_DNS_MX,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_TXT",	PHP_DNS_TXT,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_SRV",	PHP_DNS_SRV,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_NAPTR", PHP_DNS_NAPTR,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_AAAA",  PHP_DNS_AAAA,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_A6",	PHP_DNS_A6,		CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_ANY",	PHP_DNS_ANY,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DNS_ALL",	PHP_DNS_ALL,	CONST_CS | CONST_PERSISTENT);
 
 	return SUCCESS;
 }
