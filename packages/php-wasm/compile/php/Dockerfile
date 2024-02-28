@@ -812,6 +812,7 @@ RUN set -euxo pipefail; \
 	-I TSRM/ \
 	-I /root/lib/include \
 	-L/root/lib -L/root/lib/lib/ \
+	-lproxyfs.js \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-o /build/output/php.js \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \

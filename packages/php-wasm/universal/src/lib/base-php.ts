@@ -309,7 +309,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#initWebRuntime() {
 		/**
 		 * This creates a consts.php file in an in-memory
-		 * /tmp directory and sets the auto_prepend_file PHP option
+		 * /internal directory and sets the auto_prepend_file PHP option
 		 * to always load that file.
 		 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
 		 *
@@ -317,13 +317,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		 * WASM SAPI method to pass consts directly.
 		 * @see https://github.com/WordPress/wordpress-playground/issues/750
 		 */
-		this.setPhpIniEntry('auto_prepend_file', '/tmp/consts.php');
-		if (!this.fileExists('/tmp/consts.php')) {
+		this.setPhpIniEntry('auto_prepend_file', '/internal/consts.php');
+		if (!this.fileExists('/internal/consts.php')) {
 			this.writeFile(
-				'/tmp/consts.php',
+				'/internal/consts.php',
 				`<?php
-				if(file_exists('/tmp/consts.json')) {
-					$consts = json_decode(file_get_contents('/tmp/consts.json'), true);
+				if(file_exists('/internal/consts.json')) {
+					$consts = json_decode(file_get_contents('/internal/consts.json'), true);
 					foreach ($consts as $const => $value) {
 						if (!defined($const) && is_scalar($value)) {
 							define($const, $value);
@@ -352,7 +352,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		headers: PHPResponse['headers'];
 		httpStatusCode: number;
 	} {
-		const headersFilePath = '/tmp/headers.json';
+		const headersFilePath = '/internal/headers.json';
 		if (!this.fileExists(headersFilePath)) {
 			throw new Error(
 				'SAPI Error: Could not find response headers file.'
@@ -560,15 +560,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		let consts = {};
 		try {
 			consts = JSON.parse(
-				this.fileExists('/tmp/consts.json')
-					? this.readFileAsText('/tmp/consts.json') || '{}'
+				this.fileExists('/internal/consts.json')
+					? this.readFileAsText('/internal/consts.json') || '{}'
 					: '{}'
 			);
 		} catch (e) {
 			// ignore
 		}
 		this.writeFile(
-			'/tmp/consts.json',
+			'/internal/consts.json',
 			JSON.stringify({
 				...consts,
 				[key]: value,
@@ -657,8 +657,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		return new PHPResponse(
 			httpStatusCode,
 			headers,
-			this.readFileAsBuffer('/tmp/stdout'),
-			this.readFileAsText('/tmp/stderr'),
+			this.readFileAsBuffer('/internal/stdout'),
+			this.readFileAsText('/internal/stderr'),
 			exitCode
 		);
 	}

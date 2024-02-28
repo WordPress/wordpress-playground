@@ -954,7 +954,7 @@ void wasm_set_request_port(int port)
  *
  *   stream: The stream to redirect, e.g. stdout or stderr.
  *
- *   path: The path to the file to redirect to, e.g. "/tmp/stdout".
+ *   path: The path to the file to redirect to, e.g. "/internal/stdout".
  *
  *   returns: The exit code: 0 on success, -1 on failure.
  */
@@ -1175,8 +1175,13 @@ int wasm_sapi_request_init()
 	// Write to files instead of stdout and stderr because Emscripten truncates null
 	// bytes from stdout and stderr, and null bytes are a valid output when streaming
 	// binary data.
-	stdout_replacement = redirect_stream_to_file(stdout, "/tmp/stdout");
-	stderr_replacement = redirect_stream_to_file(stderr, "/tmp/stderr");
+	// We'll use the /internal directory instead of /tmp, because a child process sharing
+	// the same filesystem and /tmp mount would write to the same stdout and stderr files
+	// and produce unreadable output intertwined with the parent process output. The /internal
+	// directory should always stay in per-process MEMFS space and never be shared with
+	// any other process.
+	stdout_replacement = redirect_stream_to_file(stdout, "/internal/stdout");
+	stderr_replacement = redirect_stream_to_file(stderr, "/internal/stderr");
 	if (stdout_replacement == -1 || stderr_replacement == -1)
 	{
 		return -1;
@@ -1434,7 +1439,7 @@ FILE *headers_file;
  */
 static int wasm_sapi_send_headers(sapi_headers_struct *sapi_headers TSRMLS_DC)
 {
-	headers_file = fopen("/tmp/headers.json", "w");
+	headers_file = fopen("/internal/headers.json", "w");
 	if (headers_file == NULL)
 	{
 		return FAILURE;
