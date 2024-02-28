@@ -426,9 +426,6 @@ const LibraryExample = {
 					);
 					stdoutAt += data.length;
 				});
-				cp.stdout.on('end', function (data) {
-					FS.close(stdoutStream);
-				});
 			}
 
 			// Pass data from child process's stderr to PHP's end of the stdout pipe.
@@ -447,9 +444,6 @@ const LibraryExample = {
 						stderrAt
 					);
 					stderrAt += data.length;
-				});
-				cp.stderr.on('end', function (data) {
-					FS.close(stdoutStream);
 				});
 			}
 

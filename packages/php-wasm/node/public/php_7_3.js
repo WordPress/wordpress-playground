@@ -5760,9 +5760,7 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
     stdoutAt += data.length;
    }));
-   cp.stdout.on("end", (function(data) {
-    FS.close(stdoutStream);
-   }));
+
   }
   if (ProcInfo.stderrChildFd) {
    const stderrStream = SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd);
@@ -5772,9 +5770,7 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
     stderrAt += data.length;
    }));
-   cp.stderr.on("end", (function(data) {
-    FS.close(stdoutStream);
-   }));
+
   }
   try {
    await new Promise(((resolve, reject) => {
