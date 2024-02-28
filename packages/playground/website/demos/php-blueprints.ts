@@ -4,10 +4,10 @@ import { joinPaths } from '@php-wasm/util';
 export {};
 
 const iframe = document.querySelector('iframe')!;
-console.log('calling startPlaygroundWeb');
 const playground = await startPlaygroundWeb({
 	iframe,
 	remoteUrl: getRemoteUrl().toString(),
+	// Blueprint v1, implemented in TypeScript:
 	blueprint: {
 		preferredVersions: {
 			wp: 'latest',
@@ -24,7 +24,6 @@ const playground = await startPlaygroundWeb({
 	},
 });
 
-console.log('fetching the blueprints');
 const response = await fetch('./blueprints.phar');
 const phar = new Uint8Array(await response.arrayBuffer());
 await playground.writeFile(
@@ -33,107 +32,7 @@ await playground.writeFile(
 );
 const outputDiv = document.getElementById('output')!;
 
-console.log('Running the PHP code');
-// For now, let's try to get a remote network call to work
-// const result = await playground.run({
-// 	code: `<?php
-// 	// HTTP works, yay!
-// 	// echo file_get_contents("http://localhost:5400/website-server/");
-
-// 	function test() {
-// 		yield 1;
-// 		yield file_get_contents('https://localhost:5400/website-server/');
-// 		yield 2;
-// 	}
-// 	foreach(test() as $val) {
-// 		echo $val;
-// 	}
-// 	die();
-
-// 	// HTTPS requires a bit more work
-// 	// echo file_get_contents("https://localhost:5400/website-server/");
-// 	// use file_get_contents but send some headers and body
-// 	$opts = [
-// 		'http' => [
-// 			'method' => 'GET',
-// 			'header' => 'Content-type: text/plain',
-// 			'content' => 'Some body :)',
-// 		],
-// 	];
-// 	// $context = stream_context_create($opts);
-// 	// echo file_get_contents("https://localhost:5400/website-server/", false, $context);
-
-// 	// fopen, write some headers
-// 	// $fp = fsockopen("ssl://localhost:5400/website-server/", 443, $errno, $errstr, 30);
-// 	// fwrite($fp, "GET / HTTP/1.1\\r\\nHost: localhost:5400\\r\\nContent-type: text/plain\\r\\nConnection: close\\r\\n\\r\\nSome body :)");
-// 	// Get the response
-// 	// while (!feof($fp)) {
-// 	// 	echo fgets($fp, 128);
-// 	// }
-// 	// fclose($fp);
-// 	`,
-// 	throwOnError: true,
-// });
-// console.log(result.text);
-// throw new Error('Done!');
-
 try {
-	// Clean the WordPress directory so the Blueprints library
-	// may use it to extract WordPress.
-	// await playground.mv('/wordpress/blueprints.phar', '/tmp/blueprints.phar');
-	// await playground.rmdir('/wordpress');
-	// await playground.mkdir('/wordpress');
-	// await playground.mv('/tmp/blueprints.phar', '/wordpress/blueprints.phar');
-
-	// For now this only runs with ?php=8.2&php-extension-bundle=kitchen-sink
-	// ?php=8.2&php-extension-bundle=kitchen-sink
-	// const result = await playground.run({
-	// 	code:`<?php
-
-	// 	$fp = proc_open(
-	// 		[
-	// 			"php",
-	// 			"-r",
-	// 			'require getenv("DOCROOT"). "/wp-load.php";
-	// 			$site_options = getenv("OPTIONS") ? json_decode(getenv("OPTIONS"), true) : [];
-	// 			foreach($site_options as $name => $value) {
-	// 				update_option($name, $value);
-	// 			}
-	// 			echo "Done :)";
-	// 			'
-	// 		],
-	// 		[
-	// 			0 => ['pipe', 'r'],
-	// 			1 => ['pipe', 'w'],
-	// 			2 => ['pipe', 'w'],
-	// 		],
-	// 		$pipes,
-	// 		"/wordpress",
-	// 		[
-	// 			"DOCROOT" => "/wordpress",
-	// 			"OPTIONS" => '{"blogname":"My Playground Blog"}',
-	// 		]
-	// 	);
-	// 	if (is_resource($fp)) {
-	// 		echo stream_get_contents($pipes[1]);
-	// 		fclose($pipes[1]);
-	// 		fclose($pipes[2]);
-	// 		var_dump("Calling proc_close!");
-	// 		$exit_code = proc_close($fp);
-	// 		var_dump("Finished proc_close!");
-	// 		var_dump($exit_code);
-	// 	}
-	// 	`,
-	// 	env: {
-	// 		DOCROOT: '/wordpress',
-	// 		OPTIONS: JSON.stringify({
-	// 			'blogname': 'My Playground Blog',
-	// 		}),
-	// 	},
-	// 	throwOnError: true,
-	// });
-	// console.log({ result });
-
 	const wpCliRequest = fetch(
 		'https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar'
 	);
@@ -141,6 +40,8 @@ try {
 	const wpCli = await wpCliResponse.arrayBuffer();
 	await playground.writeFile('/wordpress/wp-cli.phar', new Uint8Array(wpCli));
 
+	// Blueprint v2, implemented in PHP. The PHP builder is not required. It only
+	// produces a JSON document that is then used to run the Blueprint.
 	const result = await playground.run({
 		code: `<?php
 		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
@@ -173,9 +74,6 @@ try {
 			// Uncomment this as needed
 			// ->setWordPressVersion( 'https://downloads.wordpress.org/plugin/hello-dolly.1.7.3.zip' )
 
-			// And, by default, let's use a real WordPress zip file – even if it's
-			// downloaded via http, not https.
-			// ->withWordPressVersion( 'http://localhost:5400/website-server/demos/wordpress.zip' )
 			->withFile( 'wordpress.txt', (new UrlResource())->setUrl('https://downloads.wordpress.org/plugin/hello-dolly.zip') )
 			->withSiteOptions( [
 				'blogname' => 'My Playground Blog',
@@ -196,7 +94,6 @@ try {
 			] )
 			->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
 			->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
-			// ->withSiteUrl( 'http://localhost:8081' )
 			->andRunSQL( <<<'SQL'
 				CREATE TABLE tmp_table ( id INT );
 				INSERT INTO tmp_table VALUES (1);
@@ -207,12 +104,13 @@ try {
 			->toBlueprint()
 		;
 		
-		echo "BEFORE\\n\\n";
+		echo "Running the following Blueprint:\n";
+		echo json_encode($blueprint, JSON_PRETTY_PRINT)."\n\n";
 		$results = run_blueprint( $blueprint, '/wordpress' );
-		echo "\\n\\nAFTER\\n\\n";
-		print_r(glob('/wordpress/*'));
+		echo "Blueprint execution finished!\n";
+		echo "Contents of /wordpress/wp-content/plugins:";
 		print_r(glob('/wordpress/wp-content/plugins/*'));
-	// 	`,
+		`,
 		throwOnError: true,
 	});
 
