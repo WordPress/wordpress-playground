@@ -9,13 +9,15 @@ import {
 	SupportedWordPressVersionsList,
 } from '@wp-playground/wordpress';
 import {
+	PHPResponse,
 	SupportedPHPExtension,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
+	__private__dont__use,
 	rotatePHPRuntime,
 	writeFiles,
 } from '@php-wasm/universal';
-import { createSpawnHandler } from '@php-wasm/util';
+import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -293,15 +295,19 @@ try {
 		siteUrl: scopedSiteUrl,
 	});
 
+	// PHP Subprocess to handle proc_open("php");
+	// @TODO: Use this also for HTTP Requests
+	let childPHP: WebPHP | undefined = undefined;
+
 	// Spawning new processes on the web is not supported,
 	// let's always fail.
 	php.setSpawnHandler(
-		createSpawnHandler(function (command, processApi) {
+		createSpawnHandler(async function (args, processApi, options) {
 			// Mock programs required by wp-cli:
 			if (
-				command[0] === '/usr/bin/env' &&
-				command[1] === 'stty' &&
-				command[2] === 'size'
+				args[0] === '/usr/bin/env' &&
+				args[1] === 'stty' &&
+				args[2] === 'size'
 			) {
 				// These numbers are hardcoded because this
 				// spawnHandler is transmitted as a string to
@@ -311,12 +317,96 @@ try {
 				// @TODO: Do not hardcode this
 				processApi.stdout(`18 140`);
 				processApi.exit(0);
-			} else if (command[0] === 'less') {
+			} else if (args[0] === 'less') {
 				processApi.on('stdin', (data: Uint8Array) => {
 					processApi.stdout(data);
 				});
 				processApi.flushStdin();
 				processApi.exit(0);
+			} else if (args[0] === 'php') {
+				if (!childPHP) {
+					childPHP = new WebPHP(await recreateRuntime(), {
+						documentRoot: docroot,
+						absoluteUrl: scopedSiteUrl,
+					});
+					// Pretend to use the CLI SAPI to bypass the check done by WP-CLI.
+					childPHP.setSapiName('cli');
+					// Share the parent's MEMFS instance with the child process.
+					// Only mount the document root and the /tmp directory,
+					// the rest of the filesystem (like the devices) should be
+					// private to each PHP instance.
+					for (const path of [docroot, '/tmp']) {
+						if (!childPHP.fileExists(path)) {
+							childPHP.mkdir(path);
+						}
+						childPHP[__private__dont__use].FS.mount(
+							childPHP[__private__dont__use].PROXYFS,
+							{
+								root: path,
+								fs: php[__private__dont__use].FS,
+							},
+							path
+						);
+					}
+				}
+
+				let result: PHPResponse | undefined = undefined;
+				try {
+					// @TODO: Run the actual PHP CLI SAPI instead of
+					//        interpreting the arguments and emulating
+					//        the CLI constants and globals.
+					const cliBootstrapScript = `<?php					
+					// Set the argv global.
+					$GLOBALS['argv'] = array_merge([
+						"/wordpress/wp-cli.phar",
+						"--path=/wordpress"
+					], ${phpVar(args.slice(1))});
+			
+					// Provide stdin, stdout, stderr streams outside of
+					// the CLI SAPI.
+					define('STDIN', fopen('php://stdin', 'rb'));
+					define('STDOUT', fopen('php://stdout', 'wb'));
+					define('STDERR', fopen('/tmp/stderr', 'wb'));
+
+					${options.cwd ? 'chdir(getenv("DOCROOT")); ' : ''}
+					`;
+
+					if (args.includes('-r')) {
+						result = await childPHP.run({
+							throwOnError: true,
+							code: `${cliBootstrapScript} ${
+								args[args.indexOf('-r') + 1]
+							}`,
+							env: options.env,
+						});
+					} else if (args[1].includes('wp-cli.phar')) {
+						result = await childPHP.run({
+							throwOnError: true,
+							code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" )`,
+							env: {
+								...options.env,
+								// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+								// the output as ASCII tables.
+								// @see https://github.com/wp-cli/wp-cli/issues/1102
+								SHELL_PIPE: '0',
+							},
+						});
+					} else {
+						result = await childPHP.run({
+							throwOnError: true,
+							scriptPath: args[1],
+						});
+					}
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+				} catch (e) {
+					console.error('Error in childPHP:', e);
+					if (e instanceof Error) {
+						processApi.stderr(e.message);
+					}
+					processApi.exit(1);
+				}
 			} else {
 				processApi.exit(1);
 			}
