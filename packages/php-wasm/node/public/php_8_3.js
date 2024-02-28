@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_3_0/php_8_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 11369513; 
+export const dependenciesTotalSize = 11369519; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5780,7 +5780,6 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     stdoutStream.stream_ops.write(stdoutStream, data, 0, data.length, stdoutAt);
     stdoutAt += data.length;
    }));
-
   }
   if (ProcInfo.stderrChildFd) {
    const stderrStream = SYSCALLS.getStreamFromFD(ProcInfo.stderrChildFd);
@@ -5790,7 +5789,6 @@ function _js_open_process(command, argsPtr, argsLength, descriptorsPtr, descript
     stderrStream.stream_ops.write(stderrStream, data, 0, data.length, stderrAt);
     stderrAt += data.length;
    }));
-
   }
   try {
    await new Promise(((resolve, reject) => {

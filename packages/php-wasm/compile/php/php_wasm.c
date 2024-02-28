@@ -1480,7 +1480,7 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 	_fwrite(headers_file, "\"");
 	for (int i = 0, max = sapi_header->header_len; i < max; i++)
 	{
-		if (sapi_header->header[i] == '"')
+		if (sapi_header->header[i] == '"' || sapi_header->header[i] == '\\')
 		{
 			fwrite(&"\\", sizeof(char), 1, headers_file);
 		}
