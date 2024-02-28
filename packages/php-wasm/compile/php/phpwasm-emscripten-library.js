@@ -19,43 +19,43 @@ const LibraryExample = {
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
-						constructor() {
+					constructor() {
+						this.listeners = {};
+					}
+					emit(eventName, data) {
+						if (this.listeners[eventName]) {
+							this.listeners[eventName].forEach(
+								(callback) => {
+									callback(data);
+								}
+							);
+						}
+					}
+					once(eventName, callback) {
+						const self = this;
+						function removedCallback() {
+							callback(...arguments);
+							self.removeListener(eventName, removedCallback);
+						}
+						this.on(eventName, removedCallback);
+					}
+					removeAllListeners(eventName) {
+						if (eventName) {
+							delete this.listeners[eventName];
+						} else {
 							this.listeners = {};
 						}
-						emit(eventName, data) {
-							if (this.listeners[eventName]) {
-								this.listeners[eventName].forEach(
-									(callback) => {
-										callback(data);
-									}
-								);
+					}
+					removeListener(eventName, callback) {
+						if (this.listeners[eventName]) {
+							const idx =
+								this.listeners[eventName].indexOf(callback);
+							if (idx !== -1) {
+								this.listeners[eventName].splice(idx, 1);
 							}
 						}
-						once(eventName, callback) {
-							const self = this;
-							function removedCallback() {
-								callback(...arguments);
-								self.removeListener(eventName, removedCallback);
-							}
-							this.on(eventName, removedCallback);
-						}
-						removeAllListeners(eventName) {
-							if (eventName) {
-								delete this.listeners[eventName];
-							} else {
-								this.listeners = {};
-							}
-						}
-						removeListener(eventName, callback) {
-							if (this.listeners[eventName]) {
-								const idx =
-									this.listeners[eventName].indexOf(callback);
-								if (idx !== -1) {
-									this.listeners[eventName].splice(idx, 1);
-								}
-							}
-						}
-				  };
+					}
+				};
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
@@ -180,11 +180,11 @@ const LibraryExample = {
 			};
 			return [promise, cancel];
 		},
-		noop: function () {},
+		noop: function () { },
 
-		spawnProcess: function (command, args) {
+		spawnProcess: function (command, args, options) {
 			if (Module['spawnProcess']) {
-				const spawnedPromise = Module['spawnProcess'](command, args);
+				const spawnedPromise = Module['spawnProcess'](command, args, options);
 				return Promise.resolve(spawnedPromise).then(function (spawned) {
 					if (!spawned || !spawned.on) {
 						throw new Error(
@@ -197,6 +197,7 @@ const LibraryExample = {
 
 			if (ENVIRONMENT_IS_NODE) {
 				return require('child_process').spawn(command, args, {
+					...options,
 					shell: true,
 					stdio: ['pipe', 'pipe', 'pipe'],
 					timeout: 100,
@@ -204,8 +205,8 @@ const LibraryExample = {
 			}
 			const e = new Error(
 				'popen(), proc_open() etc. are unsupported in the browser. Call php.setSpawnHandler() ' +
-					'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
-					'and similar functions via php.ini.'
+				'and provide a callback to handle spawning processes, or disable a popen(), proc_open() ' +
+				'and similar functions via php.ini.'
 			);
 			e.code = 'SPAWN_UNSUPPORTED';
 			throw e;
@@ -255,7 +256,7 @@ const LibraryExample = {
 		const device = FS.createDevice(
 			'/dev',
 			filename,
-			function () {},
+			function () { },
 			function (byte) {
 				try {
 					dataBuffer.push(byte);
@@ -300,7 +301,11 @@ const LibraryExample = {
 		argsPtr,
 		argsLength,
 		descriptorsPtr,
-		descriptorsLength
+		descriptorsLength,
+		cwdPtr,
+		cwdLength,
+		envPtr,
+		envLength
 	) {
 		if (!command) {
 			return 1;
@@ -316,6 +321,24 @@ const LibraryExample = {
 			for (var i = 0; i < argsLength; i++) {
 				const charPointer = argsPtr + i * 4;
 				argsArray.push(UTF8ToString(HEAPU32[charPointer >> 2]));
+			}
+		}
+
+		const cwdstr = cwdPtr ? UTF8ToString(cwdPtr) : null;
+		let envObject = null;
+
+		if (envLength) {
+			envObject = {};
+			for (var i = 0; i < envLength; i++) {
+				const envPointer = envPtr + i * 4;
+				const envEntry = UTF8ToString(HEAPU32[envPointer >> 2]);
+				const splitAt = envEntry.indexOf('=');
+				if (splitAt === -1) {
+					continue;
+				}
+				const key = envEntry.substring(0, splitAt);
+				const value = envEntry.substring(splitAt + 1);
+				envObject[key] = value;
 			}
 		}
 
@@ -335,7 +358,14 @@ const LibraryExample = {
 		return Asyncify.handleSleep(async (wakeUp) => {
 			let cp;
 			try {
-				cp = PHPWASM.spawnProcess(cmdstr, argsArray);
+				const options = {};
+				if (cwdstr !== null) {
+					options.cwd = cwdstr;
+				}
+				if (envObject !== null) {
+					options.env = envObject;
+				}
+				cp = PHPWASM.spawnProcess(cmdstr, argsArray, options);
 				if (cp instanceof Promise) {
 					cp = await cp;
 				}
@@ -493,15 +523,18 @@ const LibraryExample = {
 		});
 	},
 
-	js_process_status: function (pid) {
+	js_process_status: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
 			return -1;
 		}
 		if (PHPWASM.child_proc_by_pid[pid].exited) {
+			HEAPU32[exitCodePtr >> 2] =
+				PHPWASM.child_proc_by_pid[pid].exitCode;
 			return 1;
 		}
 		return 0;
 	},
+
 
 	js_waitpid: function (pid, exitCodePtr) {
 		if (!PHPWASM.child_proc_by_pid[pid]) {
@@ -510,9 +543,9 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
-					HEAPU8[exitCodePtr] =
+					HEAPU32[exitCodePtr >> 2] = 
 						PHPWASM.child_proc_by_pid[pid].exitCode;
-					wakeUp(0);
+					wakeUp(pid);
 				} else {
 					setTimeout(poll, 50);
 				}

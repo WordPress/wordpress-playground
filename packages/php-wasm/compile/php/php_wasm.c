@@ -131,7 +131,11 @@ EMSCRIPTEN_KEEPALIVE FILE *wasm_popen(const char *cmd, const char *mode)
 			NULL,
 			0,
 			descv,
-			3
+			3,
+			"",
+			0,
+			0,
+			0
 		);
 		// }}}
 
@@ -555,6 +559,7 @@ typedef struct
 		*php_code;
 
 	struct wasm_array_entry *server_array_entries;
+	struct wasm_array_entry *env_array_entries;
 
 	int content_length,
 		request_port,
@@ -588,6 +593,30 @@ void wasm_init_server_context();
 static char *int_to_string(int i);
 static int EMSCRIPTEN_KEEPALIVE run_php(char *code);
 
+
+#if (PHP_MAJOR_VERSION >= 8)
+static char *wasm_sapi_getenv(const char *name, size_t name_len)
+#else
+#if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4)
+static char *wasm_sapi_getenv(char *name, size_t name_len)
+#else
+static char *wasm_sapi_getenv(char *name, unsigned long name_len)
+#endif
+#endif
+{
+	wasm_array_entry_t *current_entry = wasm_server_context->env_array_entries;
+	while (current_entry != NULL)
+	{
+		if (strncmp(current_entry->key, name, name_len) == 0)
+		{
+			return current_entry->value;
+		}
+		current_entry = current_entry->next;
+	}
+	return NULL;
+}
+
+
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	"wasm",			 /* name */
 	"PHP WASM SAPI", /* pretty name */
@@ -601,7 +630,7 @@ SAPI_API sapi_module_struct php_wasm_sapi_module = {
 	wasm_sapi_ub_write, /* unbuffered write */
 	wasm_sapi_flush,	/* flush */
 	NULL,				/* get uid */
-	NULL,				/* getenv */
+	wasm_sapi_getenv,	/* getenv */
 
 	php_error, /* error handler */
 
@@ -661,6 +690,7 @@ void wasm_init_server_context()
 	wasm_server_context->execution_mode = MODE_EXECUTE_SCRIPT;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
+	wasm_server_context->env_array_entries = NULL;
 }
 
 void wasm_destroy_server_context()
@@ -712,6 +742,17 @@ void wasm_destroy_server_context()
 		free(current_entry);
 		current_entry = next_entry;
 	}
+
+	// Free wasm_server_context->env_array_entries
+	wasm_array_entry_t *current_env_entry = wasm_server_context->env_array_entries;
+	while (current_env_entry != NULL)
+	{
+		wasm_array_entry_t *next_entry = current_env_entry->next;
+		free(current_env_entry->key);
+		free(current_env_entry->value);
+		free(current_env_entry);
+		current_env_entry = next_entry;
+	}
 }
 
 /**
@@ -738,6 +779,23 @@ void wasm_add_SERVER_entry(char *key, char *value)
 	{
 		wasm_server_context->document_root = strdup(value);
 	}
+}
+
+/**
+ * Function: wasm_add_ENV_entry
+ * ----------------------------
+ *   Exposes a new entry to the getenv() function.
+ *
+ *   key: the key of the entry
+ *   value: the value of the entry
+ */
+void wasm_add_ENV_entry(char *key, char *value)
+{
+	wasm_array_entry_t *entry = (wasm_array_entry_t *)malloc(sizeof(wasm_array_entry_t));
+	entry->key = strdup(key);
+	entry->value = strdup(value);
+	entry->next = wasm_server_context->env_array_entries;
+	wasm_server_context->env_array_entries = entry;
 }
 
 /**
@@ -1259,7 +1317,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		run_php(wasm_server_context->php_code);
 	}
 	result = EG(exit_status);
-
+	
 wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;
@@ -1422,7 +1480,6 @@ static void wasm_sapi_send_header(sapi_header_struct *sapi_header, void *server_
 	_fwrite(headers_file, "\"");
 	for (int i = 0, max = sapi_header->header_len; i < max; i++)
 	{
-		// Escape quotes and backslashes
 		if (sapi_header->header[i] == '"' || sapi_header->header[i] == '\\')
 		{
 			fwrite(&"\\", sizeof(char), 1, headers_file);
