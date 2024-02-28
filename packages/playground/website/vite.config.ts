@@ -112,6 +112,23 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			/**
+			 * Copy the `blueprints.phar` file to the `dist/demos` directory.
+			 */
+			{
+				name: 'blueprints-plugin',
+				apply: 'build',
+				writeBundle({ dir: outputDir }) {
+					const blueprintsPath = path('demos/blueprints.phar');
+
+					if (existsSync(blueprintsPath) && outputDir) {
+						copyFileSync(
+							blueprintsPath,
+							join(outputDir, 'demos/blueprints.phar')
+						);
+					}
+				},
+			} as Plugin,
 		],
 
 		// Configuration for building your library.
