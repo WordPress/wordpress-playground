@@ -13,6 +13,7 @@ import {
 } from '@wp-playground/blueprints';
 import { NodePHP } from '@php-wasm/node';
 import { UniversalPHP } from '@php-wasm/universal';
+import { collectPhpLogs, logger } from '@php-wasm/logger';
 
 export interface NodePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -43,6 +44,8 @@ export async function startPlaygroundNode(
 		},
 	});
 
+	collectPhpLogs(logger, playground);
+
 	await defineSiteUrl(playground, {
 		siteUrl: options.serverUrl,
 	});
@@ -64,7 +67,7 @@ export async function allowWpOrgHosts(
 		// Needed because gethostbyname( 'wordpress.org' ) returns
 		// a private network IP address for some reason.
 		add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-			return array( 
+			return array(
 				'wordpress.org',
 				'api.wordpress.org',
 				'downloads.wordpress.org',

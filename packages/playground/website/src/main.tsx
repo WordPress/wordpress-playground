@@ -22,10 +22,11 @@ import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-neede
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExportFormValues } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { PlaygroundContext } from './playground-context';
+import { collectWindowErrors, logger } from '@php-wasm/logger';
 
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
@@ -81,6 +82,10 @@ function Main() {
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
 	>({});
+
+	useEffect(() => {
+		collectWindowErrors(logger);
+	}, []);
 
 	return (
 		<PlaygroundContext.Provider value={{ storage }}>
