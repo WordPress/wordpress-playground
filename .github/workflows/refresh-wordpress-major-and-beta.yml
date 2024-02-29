@@ -34,9 +34,16 @@ jobs:
               run: npx nx bundle-wordpress:major-and-beta playground-wordpress
             - name: Check for uncommitted changes
               id: changes
-              uses: mskri/check-uncommitted-changes-action@v1.0.1
+              run: |
+                  if [ -z "$(git status --porcelain)" ]; then
+                      echo "No changes"
+                      echo 'CHANGES=0' >> $GITHUB_OUTPUT
+                  else
+                      echo "Changes detected"
+                      echo 'CHANGES=1' >> $GITHUB_OUTPUT
+                  fi
             - name: Push rebuilt WordPress to GitHub
-              if: steps.changes.outputs.outcome == failure()
+              if: steps.changes.outputs.CHANGES == '1'
               run: |
                   git config --global user.name "deployment_bot"
                   git config --global user.email "deployment_bot@users.noreply.github.com"
@@ -49,7 +56,7 @@ jobs:
                       git push origin HEAD:trunk
                   fi;
             - name: Deploy website
-              if: steps.changes.outputs.outcome == failure()
+              if: steps.changes.outputs.CHANGES == '1'
               uses: benc-uk/workflow-dispatch@v1
               with:
                   workflow: build-website.yml
