@@ -268,17 +268,18 @@ export class PHPRequestHandler implements RequestHandler {
 	#resolvePHPFilePath(requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
 
-		// If the path mentions a .php extension, that's our file's path.
 		if (filePath.includes('.php')) {
+			// If the path mentions a .php extension, that's our file's path.
 			filePath = filePath.split('.php')[0] + '.php';
-		} else {
-			// Otherwise, let's assume the file is $request_path/index.php
+		} else if (this.php.isDir(`${this.#DOCROOT}${filePath}`)) {
 			if (!filePath.endsWith('/')) {
-				filePath += '/';
+				filePath = `${filePath}/`;
 			}
-			if (!filePath.endsWith('index.php')) {
-				filePath += 'index.php';
-			}
+			// If the path is a directory, let's assume the file is index.php
+			filePath = `${filePath}index.php`;
+		} else {
+			// Otherwise, let's assume the file is /index.php
+			filePath = '/index.php';
 		}
 
 		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
