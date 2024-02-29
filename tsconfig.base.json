@@ -22,6 +22,7 @@
 			"@php-wasm/fs-journal": [
 				"packages/php-wasm/fs-journal/src/index.ts"
 			],
+			"@php-wasm/logger": ["packages/php-wasm/logger/src/index.ts"],
 			"@php-wasm/node": ["packages/php-wasm/node/src/index.ts"],
 			"@php-wasm/node-polyfills": [
 				"packages/php-wasm/node-polyfills/src/index.ts"

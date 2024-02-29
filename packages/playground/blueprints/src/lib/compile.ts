@@ -240,10 +240,8 @@ export function compileBlueprint(
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
-							)}). Inspect the "cause" property of this error for more details`,
-							{
-								cause: e,
-							}
+							)}) ${e instanceof Error ? `: ${e.message}` : e}`,
+							{ cause: e }
 						);
 					}
 				}

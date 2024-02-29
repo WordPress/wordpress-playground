@@ -256,6 +256,9 @@ try {
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(php, {
 			consts: {
+				WP_DEBUG: true,
+				WP_DEBUG_LOG: true,
+				WP_DEBUG_DISPLAY: false,
 				AUTH_KEY: randomString(40),
 				SECURE_AUTH_KEY: randomString(40),
 				LOGGED_IN_KEY: randomString(40),

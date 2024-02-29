@@ -38,6 +38,7 @@ import {
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import { PlaygroundClient } from '@wp-playground/remote';
+import { collectPhpLogs, logger } from '@php-wasm/logger';
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -94,6 +95,7 @@ export async function startPlaygroundWeb({
 		}),
 		progressTracker
 	);
+	collectPhpLogs(logger, playground);
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
