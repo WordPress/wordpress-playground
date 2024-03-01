@@ -40,13 +40,30 @@ try {
 	const wpCli = await wpCliResponse.arrayBuffer();
 	await playground.writeFile('/wordpress/wp-cli.phar', new Uint8Array(wpCli));
 
+	outputDiv.textContent +=
+		'Running the Blueprint...\nLive progress updates:\n';
+	await playground.onMessage((message: string) => {
+		try {
+			const parsed = JSON.parse(message);
+			if (parsed.type === 'progress') {
+				outputDiv.textContent +=
+					parsed.progress + '% ' + (parsed.caption || '') + '\n';
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	});
 	// Blueprint v2, implemented in PHP. The PHP builder is not required. It only
 	// produces a JSON document that is then used to run the Blueprint.
 	const result = await playground.run({
 		code: `<?php
-		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
+		use WordPress\\Blueprints\\ContainerBuilder;
 		use WordPress\\Blueprints\\Model\\BlueprintBuilder;
+		use WordPress\\Blueprints\\Model\\DataClass\\Blueprint;
 		use WordPress\\Blueprints\\Model\\DataClass\\UrlResource;
+		use WordPress\\Blueprints\\Progress\\DoneEvent;
+		use WordPress\\Blueprints\\Progress\\ProgressEvent;
+		use Symfony\\Component\\EventDispatcher\\EventSubscriberInterface;
 		use function WordPress\\Blueprints\\run_blueprint;
 
 		// Provide stdin, stdout, stderr streams outside of
@@ -93,7 +110,7 @@ try {
 				'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
 			] )
 			->withTheme( 'https://downloads.wordpress.org/theme/pendant.zip' )
-			->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
+			// ->withContent( 'https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml' )
 			->andRunSQL( <<<'SQL'
 				CREATE TABLE tmp_table ( id INT );
 				INSERT INTO tmp_table VALUES (1);
@@ -106,15 +123,51 @@ try {
 		
 		echo "Running the following Blueprint:\n";
 		echo json_encode($blueprint, JSON_PRETTY_PRINT)."\n\n";
-		$results = run_blueprint( $blueprint, '/wordpress' );
+		
+		$subscriber = new class implements EventSubscriberInterface {
+			public static function getSubscribedEvents() {
+				return [
+					ProgressEvent::class => 'onProgress',
+					DoneEvent::class     => 'onDone',
+				];
+			}
+		
+			public function onProgress( ProgressEvent $event ) {
+				post_message_to_js(json_encode([
+					'type'    => 'progress',
+					'caption'  => $event->caption,
+					'progress' => $event->progress,
+				]));
+			}
+		
+			public function onDone( DoneEvent $event ) {
+				post_message_to_js(json_encode([
+					'type'    => 'progress',
+					'progress' => 100,
+				]));
+			}
+		};
+
+		
+		$results = run_blueprint(
+			$blueprint,
+			[
+				'environment'        => ContainerBuilder::ENVIRONMENT_PLAYGROUND,
+				'documentRoot'       => '/wordpress',
+				'progressSubscriber' => $subscriber,
+				'progressType'       => 'steps',
+			]
+		);
+		
 		echo "Blueprint execution finished!\n";
 		echo "Contents of /wordpress/wp-content/plugins:";
 		print_r(glob('/wordpress/wp-content/plugins/*'));
+		
 		`,
 		throwOnError: true,
 	});
 
-	outputDiv.textContent = result.text;
+	outputDiv.textContent += result.text;
 	console.log(result.text);
 } catch (e) {
 	console.error(e);
