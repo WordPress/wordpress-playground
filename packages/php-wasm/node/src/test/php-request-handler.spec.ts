@@ -236,32 +236,32 @@ describe.each(SupportedPHPVersions)(
 			expect((await response2).httpStatusCode).toEqual(502);
 		});
 
-		it('should return 200 when a valid request is made to a PHP file', async () => {
-			php.writeFile('/test.php', `<?php echo "Hello";`);
+		it('should return 200 and pass query strings when a valid request is made to a PHP file', async () => {
+			php.writeFile('/test.php', `<?php echo $_GET['key'];`);
 			const response = await handler.request({
-				url: '/test.php',
+				url: '/test.php?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('Hello');
+			expect(response.text).toEqual('value');
 		});
 
-		it('should return 200 status when a valid request is made to a WordPress permalink', async () => {
-			php.writeFile('/index.php', `<?php echo "Hello";`);
+		it('should return 200 status and pass query strings when a valid request is made to a WordPress permalink', async () => {
+			php.writeFile('/index.php', `<?php echo $_GET['key'];`);
 			const response = await handler.request({
-				url: '/category/uncategorized/',
+				url: '/category/uncategorized/?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('Hello');
+			expect(response.text).toEqual('value');
 		});
 
-		it('should return 200 when a valid request is made to a folder', async () => {
+		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
 			php.mkdirTree('/folder');
-			php.writeFile('/folder/index.php', `<?php echo "Hello";`);
+			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
 			const response = await handler.request({
-				url: '/folder/',
+				url: '/folder/?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
-			expect(response.text).toEqual('Hello');
+			expect(response.text).toEqual('value');
 		});
 	}
 );
