@@ -142,7 +142,7 @@ describe.each(SupportedPHPVersions)(
 			 */
 			php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				echo json_encode($_POST);`
 			);
 			const response = await handler.request({
@@ -163,7 +163,7 @@ describe.each(SupportedPHPVersions)(
 			 */
 			php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(file_exists('/tmp/moved.txt'));`
 			);
@@ -180,7 +180,7 @@ describe.each(SupportedPHPVersions)(
 		it('Should allow mixing data and files when `body` is a JavaScript object', async () => {
 			php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(array_merge(
 					$_POST,
@@ -203,7 +203,7 @@ describe.each(SupportedPHPVersions)(
 		it('Should handle an empty file object and post data', async () => {
 			await php.writeFile(
 				'/index.php',
-				`<?php 
+				`<?php
 				echo json_encode($_POST);`
 			);
 			const response = await handler.request({
@@ -234,6 +234,34 @@ describe.each(SupportedPHPVersions)(
 			});
 			expect((await response1).httpStatusCode).toEqual(200);
 			expect((await response2).httpStatusCode).toEqual(502);
+		});
+
+		it('should return 200 and pass query strings when a valid request is made to a PHP file', async () => {
+			php.writeFile('/test.php', `<?php echo $_GET['key'];`);
+			const response = await handler.request({
+				url: '/test.php?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('value');
+		});
+
+		it('should return 200 status and pass query strings when a valid request is made to a WordPress permalink', async () => {
+			php.writeFile('/index.php', `<?php echo $_GET['key'];`);
+			const response = await handler.request({
+				url: '/category/uncategorized/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('value');
+		});
+
+		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
+			php.mkdirTree('/folder');
+			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
+			const response = await handler.request({
+				url: '/folder/?key=value',
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toEqual('value');
 		});
 	}
 );
