@@ -297,6 +297,12 @@ try {
                 'workflow' => 'Test Build Processes',
                 'artifact' => '#wordpress-build-\d+#'
             ],
+            [
+                'org' => 'Automattic',
+                'repo' => 'sensei',
+                'workflow' => 'Plugin Build',
+                'artifact' => '#sensei-lms-\w+#'
+            ],
         ];
         $allowed = false;
         foreach ($allowedInputs as $allowedInput) {
