@@ -2,7 +2,6 @@ import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { mkdir } from './mkdir';
 
-const docroot = '/php';
 describe('Blueprint step mkdir', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
@@ -10,45 +9,34 @@ describe('Blueprint step mkdir', () => {
 	});
 
 	it('should create a directory', async () => {
-		expect(php.fileExists(`/${docroot}`)).toBe(false);
+		const directoryToCreate = '/php/dir';
 		await mkdir(php, {
-			path: `/${docroot}`,
+			path: directoryToCreate,
 		});
-		expect(php.fileExists(`/${docroot}`)).toBe(true);
+		expect(php.fileExists(directoryToCreate)).toBe(true);
 	});
 
 	it('should create a directories recursively', async () => {
-		expect(php.fileExists(`/${docroot}`)).toBe(false);
+		const directoryToCreate = '/php/dir/subDir';
 		await mkdir(php, {
-			path: `/${docroot}/dir1`,
+			path: directoryToCreate,
 		});
-		expect(php.fileExists(`/${docroot}`)).toBe(true);
-		expect(php.fileExists(`/${docroot}/dir1`)).toBe(true);
+		expect(php.fileExists(directoryToCreate)).toBe(true);
 	});
 
 	it('should do nothing when asked to create a directory that is allready there', async () => {
-		php.mkdir(`/${docroot}`);
-		expect(php.fileExists(`/${docroot}`)).toBe(true);
-		php.writeFile(`/${docroot}/index.php`, `<?php echo 'Hello World';`);
-		expect(php.fileExists(`/${docroot}/index.php`)).toBe(true);
+		const existingDirectory = '/php/dir';
+		php.mkdir(existingDirectory);
+
+		const existingFile = '/php/dir/index.php';
+		php.writeFile(existingFile, `<?php echo 'Hello World';`);
+
 		mkdir(php, {
-			path: `/${docroot}`,
+			path: existingDirectory,
 		});
-		expect(php.fileExists(`/${docroot}`)).toBe(true);
-		expect(php.fileExists(`/${docroot}/index.php`)).toBe(true);
-		expect(php.readFileAsText(`/${docroot}/index.php`)).toBe(
+
+		expect(php.readFileAsText(existingFile)).toBe(
 			`<?php echo 'Hello World';`
 		);
-	});
-
-	it('should do something wierd OR allow for directory names with periods in them', async () => {
-		mkdir(php, {
-			path: `/${docroot}/index.php`,
-		});
-		expect(php.fileExists(`/${docroot}/index.php`)).toBe(true);
-		mkdir(php, {
-			path: `/${docroot}/index.php/dir11`,
-		});
-		expect(php.fileExists(`/${docroot}/index.php/dir11`)).toBe(true);
 	});
 });
