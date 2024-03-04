@@ -16,7 +16,7 @@ describe('Blueprint step mkdir', () => {
 		expect(php.fileExists(directoryToCreate)).toBe(true);
 	});
 
-	it('should create a directories recursively', async () => {
+	it('should create a directory recursively', async () => {
 		const directoryToCreate = '/php/dir/subDir';
 		await mkdir(php, {
 			path: directoryToCreate,
