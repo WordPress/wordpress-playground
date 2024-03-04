@@ -13,7 +13,7 @@ describe('Blueprint step mkdir', () => {
 		await mkdir(php, {
 			path: directoryToCreate,
 		});
-		expect(php.fileExists(directoryToCreate)).toBe(true);
+		expect(php.isDir(directoryToCreate)).toBe(true);
 	});
 
 	it('should create a directory recursively', async () => {
@@ -21,7 +21,7 @@ describe('Blueprint step mkdir', () => {
 		await mkdir(php, {
 			path: directoryToCreate,
 		});
-		expect(php.fileExists(directoryToCreate)).toBe(true);
+		expect(php.isDir(directoryToCreate)).toBe(true);
 	});
 
 	it('should do nothing when asked to create a directory that is allready there', async () => {
