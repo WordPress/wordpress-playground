@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/universal",
-	"version": "0.6.4",
+	"version": "0.6.5",
 	"description": "PHP.wasm – emscripten bindings for PHP",
 	"repository": {
 		"type": "git",
