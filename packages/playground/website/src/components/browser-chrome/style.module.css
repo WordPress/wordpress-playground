@@ -17,6 +17,17 @@
 	line-height: 18px;
 	align-items: center;
 	color: #1e1e1e;
+	cursor: pointer;
+
+	svg {
+		margin-right: 10px;
+		width: 20px;
+		fill: #e14640;
+	}
+
+	&.is-hidden {
+		display: none;
+	}
 }
 
 body.is-embedded .fake-window-wrapper {
