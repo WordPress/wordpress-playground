@@ -33,7 +33,9 @@ initializeServiceWorker({
 			}
 		}
 		const unscopedUrl = removeURLScope(fullUrl);
-		const isReservedUrl = unscopedUrl.pathname.startsWith('/plugin-proxy');
+		const isReservedUrl =
+			unscopedUrl.pathname.startsWith('/plugin-proxy') ||
+			unscopedUrl.pathname.startsWith('/client/index.js');
 		if (isReservedUrl) {
 			return;
 		}
