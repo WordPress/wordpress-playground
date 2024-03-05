@@ -214,24 +214,7 @@ export class PHPRequestHandler implements RequestHandler {
 
 			let scriptPath;
 			try {
-				/**
-				 * Support .htaccess-like URL rewriting.
-				 * If the request was rewritten by a service worker,
-				 * the pathname requested by the user will be in
-				 * the `requestedUrl.pathname` property, while the
-				 * rewritten target URL will be in `request.headers['x-rewrite-url']`.
-				 */
-				let requestedPath = requestedUrl.pathname;
-				if (request.headers?.['x-rewrite-url']) {
-					try {
-						requestedPath = new URL(
-							request.headers['x-rewrite-url']
-						).pathname;
-					} catch (error) {
-						// Ignore
-					}
-				}
-				scriptPath = this.#resolvePHPFilePath(requestedPath);
+				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
 			} catch (error) {
 				return new PHPResponse(
 					404,

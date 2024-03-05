@@ -45,47 +45,40 @@ initializeServiceWorker({
 
 			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
 
-			let workerResponse = await convertFetchEventToPHPRequest(event);
-			if (workerResponse.status === 404) {
-				if (workerResponse.headers.get('x-file-type') === 'static') {
-					// If we get a 404 for a static file, try to fetch it from
-					// the from the static assets directory at the remote server.
-					const requestedUrl = new URL(event.request.url);
-					const resolvedUrl = removeURLScope(requestedUrl);
-					if (
-						// Vite dev server requests
-						!resolvedUrl.pathname.startsWith('/@fs') &&
-						!resolvedUrl.pathname.startsWith('/assets')
-					) {
-						resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
-					}
-					const request = await cloneRequest(event.request, {
-						url: resolvedUrl,
-					});
-					return fetch(request).catch((e) => {
-						if (e?.name === 'TypeError') {
-							// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
-							// happen on playground.wordpress.net. Let's add a randomized
-							// delay and retry once
-							return new Promise((resolve) => {
-								setTimeout(() => {
-									resolve(fetch(request));
-								}, Math.random() * 1500);
-							}) as Promise<Response>;
-						}
-
-						// Otherwise let's just re-throw the error
-						throw e;
-					});
-				} else {
-					const indexPhp = setURLScope(
-						new URL('/index.php', unscopedUrl),
-						scope!
-					);
-					workerResponse = await convertFetchEventToPHPRequest(
-						await cloneFetchEvent(event, indexPhp.toString())
-					);
+			const workerResponse = await convertFetchEventToPHPRequest(event);
+			if (
+				workerResponse.status === 404 &&
+				workerResponse.headers.get('x-file-type') === 'static'
+			) {
+				// If we get a 404 for a static file, try to fetch it from
+				// the from the static assets directory at the remote server.
+				const requestedUrl = new URL(event.request.url);
+				const resolvedUrl = removeURLScope(requestedUrl);
+				if (
+					// Vite dev server requests
+					!resolvedUrl.pathname.startsWith('/@fs') &&
+					!resolvedUrl.pathname.startsWith('/assets')
+				) {
+					resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 				}
+				const request = await cloneRequest(event.request, {
+					url: resolvedUrl,
+				});
+				return fetch(request).catch((e) => {
+					if (e?.name === 'TypeError') {
+						// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
+						// happen on playground.wordpress.net. Let's add a randomized
+						// delay and retry once
+						return new Promise((resolve) => {
+							setTimeout(() => {
+								resolve(fetch(request));
+							}, Math.random() * 1500);
+						}) as Promise<Response>;
+					}
+
+					// Otherwise let's just re-throw the error
+					throw e;
+				});
 			}
 
 			// Path the block-editor.js file to ensure the site editor's iframe
@@ -217,18 +210,6 @@ function emptyHtml() {
 			},
 		}
 	);
-}
-
-async function cloneFetchEvent(event: FetchEvent, rewriteUrl: string) {
-	return new FetchEvent(event.type, {
-		...event,
-		request: await cloneRequest(event.request, {
-			headers: {
-				...getRequestHeaders(event.request),
-				'x-rewrite-url': rewriteUrl,
-			},
-		}),
-	});
 }
 
 type WPModuleDetails = {
