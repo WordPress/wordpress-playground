@@ -2,14 +2,13 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope, setURLScope } from '@php-wasm/scopes';
+import { getURLScope, removeURLScope } from '@php-wasm/scopes';
 import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
 	cloneRequest,
 	broadcastMessageExpectReply,
-	getRequestHeaders,
 } from '@php-wasm/web-service-worker';
 
 if (!(self as any).document) {
