@@ -38,17 +38,17 @@ export function consumeAPI<APIType>(
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
 				return async () => {
-					/*
-					 * If exposeAPI() is called after this function,
-					 * the isConnected() call will hang forever. Let's
-					 * retry it a few times.
-					 */
-					for (let i = 0; i < 10; i++) {
+					// Keep retrying until the remote API confirms it's connected.
+					while (true) {
 						try {
 							await runWithTimeout(api.isConnected(), 200);
 							break;
 						} catch (e) {
-							// Timeout exceeded, try again
+							// Timeout exceeded, try again. We can't just use a single
+							// `runWithTimeout` call because it won't reach the remote API
+							// if it's not connected yet. Instead, we need to keep retrying
+							// until the remote API is connected and registers a handler
+							// for the `isConnected` method.
 						}
 					}
 				};
