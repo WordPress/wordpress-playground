@@ -34,7 +34,7 @@ latestVersions = latestVersions
 	.filter((v) => v.response === 'autoupdate')
 
 let beta = null;
-if (latestVersions[0].current.includes('beta') || latestVersions[0].current.includes('rc')) {
+if (latestVersions[0].current.includes('beta') || latestVersions[0].current.toLowerCase().includes('rc')) {
 	beta = latestVersions[0];
 	latestVersions = latestVersions.slice(1);
 }
