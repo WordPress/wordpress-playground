@@ -204,27 +204,4 @@ describe('rotatePHPRuntime()', () => {
 			fs.rmdirSync(tempDir);
 		}
 	}, 30_000);
-
-	it.only('Should read mounted files', async () => {
-		const php = new NodePHP(await recreateRuntime(), {
-			documentRoot: '/test-root',
-		});
-
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
-		const tempFile = path.join(tempDir, 'file.txt');
-		fs.writeFileSync(tempFile, 'playground');
-		php.mkdir('/test-root');
-		try {
-			php.mount(tempDir, '/test-root');
-			console.log(php.listFiles('/test-root'));
-			const reponse = await php.run({
-				code: `<?php echo is_dir('/test-root/');`,
-			});
-			console.log(reponse.text);
-			// expect(php.listFiles('/test-root')).toEqual(['file.txt']);
-		} finally {
-			fs.rmSync(tempFile);
-			fs.rmdirSync(tempDir);
-		}
-	});
 });
