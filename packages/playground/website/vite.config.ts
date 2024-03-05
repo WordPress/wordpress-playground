@@ -20,6 +20,7 @@ import { oAuthMiddleware } from './vite.oauth';
 import { fileURLToPath } from 'node:url';
 import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { VitePWA } from 'vite-plugin-pwa';
 
 const proxy = {
 	'^/plugin-proxy': {
@@ -129,6 +130,53 @@ export default defineConfig(({ command, mode }) => {
 					}
 				},
 			} as Plugin,
+			VitePWA({
+				injectRegister: 'auto',
+				registerType: 'autoUpdate',
+				strategies: 'injectManifest',
+				injectManifest: { injectionPoint: undefined },
+				workbox: {
+					globPatterns: ['**/*'],
+				},
+				includeAssets: ['**/*'],
+				devOptions: {
+					enabled: true,
+					type: 'module',
+				},
+				manifest: {
+					theme_color: '#f4f4f4',
+					background_color: '#f4f4f4',
+					display: 'standalone',
+					scope: '/',
+					start_url: '/',
+					short_name: 'WordPress Playground',
+					description: 'WordPress Playground',
+					name: 'WordPress Playground',
+					icons: [
+						// TODO: Resize the icons
+						{
+							src: '/logo.png',
+							sizes: '192x192',
+							type: 'image/png',
+						},
+						{
+							src: '/logo.png',
+							sizes: '256x256',
+							type: 'image/png',
+						},
+						{
+							src: '/logo.png',
+							sizes: '384x384',
+							type: 'image/png',
+						},
+						{
+							src: '/logo.png',
+							sizes: '512x512',
+							type: 'image/png',
+						},
+					],
+				},
+			}),
 		],
 
 		// Configuration for building your library.
