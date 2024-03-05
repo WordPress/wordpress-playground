@@ -16,7 +16,8 @@ export type WithAPIState = {
 export type RemoteAPI<T> = Comlink.Remote<T> & WithAPIState;
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window
+	remote: Worker | Window,
+	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
@@ -32,7 +33,7 @@ export function consumeAPI<APIType>(
 	 *
 	 * @TODO: Remove this workaround.
 	 */
-	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
+	const api = Comlink.wrap<APIType & WithAPIState>(endpoint, context);
 	const methods = proxyClone(api);
 	return new Proxy(methods, {
 		get: (target, prop) => {

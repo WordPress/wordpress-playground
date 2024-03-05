@@ -143,7 +143,8 @@ async function doStartPlaygroundWeb(
 	// Connect the Comlink client and wait until the
 	// playground is ready.
 	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
 	) as PlaygroundClient;
 	await playground.isConnected();
 	progressTracker.pipe(playground);
@@ -208,7 +209,8 @@ export async function connectPlayground(
 		});
 	}
 	const client = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
 	) as PlaygroundClient;
 	await client.isConnected();
 	return client;
