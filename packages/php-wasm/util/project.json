@@ -5,14 +5,10 @@
 	"projectType": "library",
 	"targets": {
 		"build": {
-			"executor": "@nx/esbuild:esbuild",
+			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"outputPath": "dist/packages/php-wasm/util",
-				"main": "packages/php-wasm/util/src/index.ts",
-				"tsConfig": "packages/php-wasm/util/tsconfig.lib.json",
-				"assets": ["packages/php-wasm/util/*.md"],
-				"thirdParty": true
+				"outputPath": "dist/packages/php-wasm/util"
 			}
 		},
 		"publish": {
@@ -36,6 +32,13 @@
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/php-wasm/util"
 			}
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/php-wasm/util"
+			},
+			"dependsOn": ["build"]
 		}
 	},
 	"tags": ["scope:independent-from-php-binaries"]
