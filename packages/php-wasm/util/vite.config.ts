@@ -21,6 +21,20 @@ export default defineConfig({
 	//  ],
 	// },
 
+	build: {
+		lib: {
+			// Could also be a dictionary or array of multiple entry points.
+			entry: 'src/index.ts',
+			name: 'php-wasm-util',
+			fileName: 'index',
+			formats: ['es', 'cjs'],
+		},
+		rollupOptions: {
+			// External packages that should not be bundled into your library.
+			external: [],
+		},
+	},
+
 	test: {
 		globals: true,
 		cache: {
