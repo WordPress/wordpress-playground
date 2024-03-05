@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import css from './style.module.css';
 import AddressBar from '../address-bar';
+import { close } from '@wordpress/icons';
 import classNames from 'classnames';
 
 interface BrowserChromeProps {
@@ -29,6 +30,26 @@ export default function BrowserChrome({
 		[css.hasSmallWindow]: !isFullSize,
 		[css.hasFullSizeWindow]: isFullSize,
 	});
+
+	const [noticeHidden, setNoticeHidden] = useState(
+		document.cookie.includes('hideExperimentalNotice=true')
+	);
+
+	const hideNotice = () => {
+		document.cookie = 'hideExperimentalNotice=true';
+		setNoticeHidden(true);
+	};
+	useEffect(() => {
+		const hideNoticeTimeout = setTimeout(hideNotice, 20000);
+		return () => {
+			clearTimeout(hideNoticeTimeout);
+		};
+	}, []);
+
+	const experimentalNoticeClass = classNames(css.experimentalNotice, {
+		[css.isHidden]: noticeHidden,
+	});
+
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={css.window}>
@@ -53,7 +74,8 @@ export default function BrowserChrome({
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>
 				</div>
 				<div className={css.content}>{children}</div>
-				<div className={css.experimentalNotice}>
+				<div className={experimentalNoticeClass} onClick={hideNotice}>
+					{close}
 					This is a cool fun experimental WordPress running in your
 					browser :) All your changes are private and gone after a
 					page refresh.
