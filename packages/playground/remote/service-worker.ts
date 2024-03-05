@@ -46,30 +46,11 @@ initializeServiceWorker({
 			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
 
 			let workerResponse = await convertFetchEventToPHPRequest(event);
-			// If we get a 404, try to apply the WordPress URL rewrite rules.
-			let rewrittenUrlString: string | undefined = undefined;
-			if (workerResponse.status === 404) {
-				for (const url of rewriteWordPressUrl(unscopedUrl, scope!)) {
-					rewrittenUrlString = url.toString();
-					workerResponse = await convertFetchEventToPHPRequest(
-						await cloneFetchEvent(event, rewrittenUrlString)
-					);
-					if (
-						workerResponse.status !== 404 ||
-						workerResponse.headers.get('x-file-type') === 'static'
-					) {
-						break;
-					}
-				}
-			}
-
 			if (workerResponse.status === 404) {
 				if (workerResponse.headers.get('x-file-type') === 'static') {
 					// If we get a 404 for a static file, try to fetch it from
 					// the from the static assets directory at the remote server.
-					const requestedUrl = new URL(
-						rewrittenUrlString || event.request.url
-					);
+					const requestedUrl = new URL(event.request.url);
 					const resolvedUrl = removeURLScope(requestedUrl);
 					if (
 						// Vite dev server requests
@@ -253,33 +234,6 @@ async function cloneFetchEvent(event: FetchEvent, rewriteUrl: string) {
 type WPModuleDetails = {
 	staticAssetsDirectory: string;
 };
-
-/**
- * Rewrite the URL according to WordPress .htaccess rules.
- */
-function* rewriteWordPressUrl(unscopedUrl: URL, scope: string) {
-	// RewriteRule ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) wordpress/$2 [L]
-	const rewrittenUrl = unscopedUrl.pathname
-		.toString()
-		.replace(
-			/^\/([_0-9a-zA-Z-]+\/)?(wp-(content|admin|includes).*)/,
-			'/$2'
-		);
-	if (rewrittenUrl !== unscopedUrl.pathname) {
-		// Something changed, let's try the rewritten URL
-		const url = new URL(rewrittenUrl, unscopedUrl);
-		yield setURLScope(url, scope);
-	}
-
-	// RewriteRule ^([_0-9a-zA-Z-]+/)?(.*\.php)$ wordpress/$2 [L]
-	if (unscopedUrl.pathname.endsWith('.php')) {
-		// The URL ends with .php, let's try to rewrite it to
-		// a .php file in the WordPress root directory
-		const filename = unscopedUrl.pathname.split('/').pop();
-		const url = new URL('/' + filename, unscopedUrl);
-		yield setURLScope(url, scope);
-	}
-}
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
