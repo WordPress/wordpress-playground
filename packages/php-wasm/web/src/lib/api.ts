@@ -22,7 +22,9 @@ export function consumeAPI<APIType>(
 	setupTransferHandlers();
 
 	const endpoint =
-		remote instanceof Worker ? remote : Comlink.windowEndpoint(remote);
+		remote instanceof Worker
+			? remote
+			: Comlink.windowEndpoint(remote, context);
 
 	/**
 	 * This shouldn't be necessary, but Comlink doesn't seem to
@@ -33,7 +35,7 @@ export function consumeAPI<APIType>(
 	 *
 	 * @TODO: Remove this workaround.
 	 */
-	const api = Comlink.wrap<APIType & WithAPIState>(endpoint, context);
+	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
 	const methods = proxyClone(api);
 	return new Proxy(methods, {
 		get: (target, prop) => {
