@@ -155,22 +155,22 @@ export default defineConfig(({ command, mode }) => {
 					icons: [
 						// TODO: Resize the icons
 						{
-							src: '/logo.png',
+							src: '/website-server/logo.png',
 							sizes: '192x192',
 							type: 'image/png',
 						},
 						{
-							src: '/logo.png',
+							src: '/website-server/logo.png',
 							sizes: '256x256',
 							type: 'image/png',
 						},
 						{
-							src: '/logo.png',
+							src: '/website-server/logo.png',
 							sizes: '384x384',
 							type: 'image/png',
 						},
 						{
-							src: '/logo.png',
+							src: '/website-server/logo.png',
 							sizes: '512x512',
 							type: 'image/png',
 						},
