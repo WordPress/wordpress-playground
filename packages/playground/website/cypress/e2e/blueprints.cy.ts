@@ -42,6 +42,15 @@ describe('Blueprints', () => {
 		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
 	});
 
+	it('Base64-encoded Blueprints should work', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/',
+			steps: [{ step: 'enableMultisite' }],
+		};
+		cy.visit('/#' + btoa(JSON.stringify(blueprint)));
+		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
+	});
+
 	it('enableMultisite step should re-activate the importer plugin', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/plugins.php',
