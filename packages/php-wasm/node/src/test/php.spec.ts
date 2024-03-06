@@ -1262,6 +1262,45 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(json).toHaveProperty('CONTENT_TYPE', 'text/plain');
 			expect(json).toHaveProperty('CONTENT_LENGTH', '15');
 		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when serving request', async () => {
+			php.writeFile(
+				'/php/index.php',
+				`<?php echo json_encode($_SERVER);`
+			);
+
+			const response = await php.request({
+				url: '/',
+				method: 'GET',
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty('REQUEST_URI', '/');
+			expect(json).toHaveProperty('SCRIPT_NAME', '/index.php');
+			expect(json).toHaveProperty('SCRIPT_FILENAME', '/php/index.php');
+			expect(json).toHaveProperty('PHP_SELF', '/index.php');
+		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when running PHP code', async () => {
+			php.writeFile(
+				'/php/index.php',
+				`<?php echo json_encode($_SERVER);`
+			);
+
+			const response = await php.run({
+				code: '<?php echo json_encode($_SERVER);',
+				method: 'GET',
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty('REQUEST_URI', '');
+			expect(json).toHaveProperty('SCRIPT_NAME', '');
+			expect(json).toHaveProperty('SCRIPT_FILENAME', '');
+			expect(json).toHaveProperty('PHP_SELF', '');
+		});
+
 		it('Should expose urlencoded POST data in $_POST', async () => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
