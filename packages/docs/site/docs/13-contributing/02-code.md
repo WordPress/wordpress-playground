@@ -43,3 +43,18 @@ valet proxy playground.test http://localhost:5400 --secure
 ```
 
 Your dev server is now available via https://playground.test.
+
+## Debugging
+
+### Debugging with VSCode and Chrome
+
+Playground can be debugged using VSCode and Chrome. To do so, follow these steps:
+
+-   Open the project in VSCode
+-   Go to the _Run and Debug_ view (Ctrl+Shift+D)
+-   Select _Launch Chrome_ from the dropdown
+-   Click the green play button to start the debugger (F5)
+
+### Debugging PHP
+
+In the web version of Playground, you can see PHP errors in the browser console. PHP errors are also logged after every PHP request using `console.debug` in the browser console.
