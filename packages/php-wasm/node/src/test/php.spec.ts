@@ -1283,11 +1283,6 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when running PHP code', async () => {
-			php.writeFile(
-				'/php/index.php',
-				`<?php echo json_encode($_SERVER);`
-			);
-
 			const response = await php.run({
 				code: '<?php echo json_encode($_SERVER);',
 				method: 'GET',
@@ -1299,6 +1294,36 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(json).toHaveProperty('SCRIPT_NAME', '');
 			expect(json).toHaveProperty('SCRIPT_FILENAME', '');
 			expect(json).toHaveProperty('PHP_SELF', '');
+		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when serving request from a test file in a subdirectory', async () => {
+			php.mkdir('/php/subdirectory');
+
+			php.writeFile(
+				`/php/subdirectory/test.php`,
+				`<?php echo json_encode($_SERVER);`
+			);
+
+			const response = await php.request({
+				url: '/subdirectory/test.php',
+				method: 'GET',
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty(
+				'REQUEST_URI',
+				'/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty(
+				'SCRIPT_NAME',
+				'/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty(
+				'SCRIPT_FILENAME',
+				'/php/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty('PHP_SELF', '/subdirectory/test.php');
 		});
 
 		it('Should expose urlencoded POST data in $_POST', async () => {
