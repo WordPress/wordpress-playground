@@ -16,6 +16,13 @@ export type LogPrefix = 'Playground' | 'PHP-WASM';
  * A logger for Playground.
  */
 export class Logger {
+	public readonly fatalErrorEvent = 'playground-fatal-error';
+
+	/**
+	 * Log messages
+	 */
+	private logs: string[] = [];
+
 	/**
 	 * Whether the window events are connected.
 	 */
@@ -58,7 +65,7 @@ export class Logger {
 	private logWindowError(event: ErrorEvent) {
 		this.log(
 			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'Fatal'
+			'Error'
 		);
 	}
 
@@ -68,7 +75,19 @@ export class Logger {
 	 * @param PromiseRejectionEvent event
 	 */
 	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		this.log(`${event.reason.stack}`, 'Fatal');
+		this.log(`${event.reason.stack}`, 'Error');
+	}
+
+	public maybeDispatchFatalErrorEvent() {
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(
+				new CustomEvent(this.fatalErrorEvent, {
+					detail: {
+						logs: this.getLogs(),
+					},
+				})
+			);
+		}
 	}
 
 	/**
@@ -115,6 +134,7 @@ export class Logger {
 					'Fatal',
 					'PHP-WASM'
 				);
+				this.maybeDispatchFatalErrorEvent();
 			}
 		});
 	}
@@ -188,7 +208,16 @@ export class Logger {
 	 * @param string log
 	 */
 	public logRaw(log: string): void {
+		this.logs.push(log);
 		console.debug(log);
+	}
+
+	/**
+	 * Get all logs.
+	 * @returns string[]
+	 */
+	public getLogs(): string[] {
+		return this.logs;
 	}
 }
 
