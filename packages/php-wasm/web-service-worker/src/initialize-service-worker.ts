@@ -2,12 +2,7 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
-import {
-	getURLScope,
-	isURLScoped,
-	removeURLScope,
-	setURLScope,
-} from '@php-wasm/scopes';
+import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 
 /**
  * Run this function in the service worker to install the required event
@@ -230,8 +225,4 @@ export function getRequestHeaders(request: Request) {
 		headers[key] = value;
 	});
 	return headers;
-}
-
-function getRelativePart(url: URL): string {
-	return url.toString().substring(url.origin.length);
 }
