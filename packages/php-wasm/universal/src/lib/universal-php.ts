@@ -9,6 +9,14 @@ export interface PHPRequestEndEvent {
 }
 
 /**
+ * Represents an error event related to the PHP request.
+ */
+export interface PHPRequestErrorEvent {
+	type: 'request.error';
+	error: Error;
+}
+
+/**
  * Represents a PHP runtime initialization event.
  */
 export interface PHPRuntimeInitializedEvent {
@@ -29,6 +37,7 @@ export interface PHPRuntimeBeforeDestroyEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
+	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeDestroyEvent;
 
