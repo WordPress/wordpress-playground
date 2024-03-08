@@ -611,7 +611,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
 					reject(rethrown);
-					console.log('PHP runtime crashed:', e.error);
 				};
 				this.#wasmErrorsTarget?.addEventListener(
 					'error',
