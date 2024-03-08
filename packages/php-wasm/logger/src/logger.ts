@@ -245,3 +245,18 @@ export function collectPhpLogs(
 ) {
 	loggerInstance.addPlaygroundRequestEndListener(playground);
 }
+
+/**
+ * Add a listener for the fatal error event.
+ * @param loggerInstance The logger instance
+ * @param callback The callback function
+ */
+export function addFatalErrorListener(
+	loggerInstance: Logger,
+	callback: EventListenerOrEventListenerObject
+) {
+	if (typeof window === 'undefined') {
+		return;
+	}
+	window.addEventListener(loggerInstance.fatalErrorEvent, callback);
+}
