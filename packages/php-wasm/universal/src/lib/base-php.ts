@@ -297,6 +297,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				type: 'request.error',
 				error: e as Error,
 			});
+			throw e;
 		} finally {
 			try {
 				if (heapBodyPointer) {
