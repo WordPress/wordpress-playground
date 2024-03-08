@@ -1,15 +1,21 @@
-import { UniversalPHP } from '@php-wasm/universal/src/lib/universal-php';
+import {
+	PHPRequestErrorEvent,
+	UniversalPHP,
+} from '@php-wasm/universal/src/lib/universal-php';
 /**
  * Log severity levels.
  */
-export type LogSeverity = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
+
+/**
+ * Log prefix.
+ */
+export type LogPrefix = 'Playground' | 'PHP-WASM';
 
 /**
  * A logger for Playground.
  */
 export class Logger {
-	private readonly LOG_PREFIX = 'Playground';
-
 	/**
 	 * Whether the window events are connected.
 	 */
@@ -52,7 +58,7 @@ export class Logger {
 	private logWindowError(event: ErrorEvent) {
 		this.log(
 			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'fatal'
+			'Fatal'
 		);
 	}
 
@@ -62,7 +68,7 @@ export class Logger {
 	 * @param PromiseRejectionEvent event
 	 */
 	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		this.log(`${event.reason.stack}`, 'fatal');
+		this.log(`${event.reason.stack}`, 'Fatal');
 	}
 
 	/**
@@ -101,6 +107,16 @@ export class Logger {
 				this.lastPHPLogLength = log.length;
 			}
 		});
+		playground.addEventListener('request.error', (event) => {
+			event = event as PHPRequestErrorEvent;
+			if (event.error) {
+				this.log(
+					`${event.error.message} ${event.error.stack}`,
+					'Fatal',
+					'PHP-WASM'
+				);
+			}
+		});
 	}
 
 	/**
@@ -134,22 +150,36 @@ export class Logger {
 	 * Format log message and severity and log it.
 	 * @param string message
 	 * @param LogSeverity severity
+	 * @param string prefix
 	 */
-	public formatMessage(message: string, severity: LogSeverity): string {
+	public formatMessage(
+		message: string,
+		severity: LogSeverity,
+		prefix: string
+	): string {
 		const now = this.formatLogDate(new Date());
-		return `[${now}] ${this.LOG_PREFIX} ${severity}: ${message}`;
+		return `[${now}] ${prefix} ${severity}: ${message}`;
 	}
 
 	/**
 	 * Log message with severity and timestamp.
 	 * @param string message
 	 * @param LogSeverity severity
+	 * @param string prefix
 	 */
-	public log(message: string, severity?: LogSeverity): void {
+	public log(
+		message: string,
+		severity?: LogSeverity,
+		prefix?: LogPrefix
+	): void {
 		if (severity === undefined) {
-			severity = 'info';
+			severity = 'Info';
 		}
-		const log = this.formatMessage(message, severity);
+		const log = this.formatMessage(
+			message,
+			severity,
+			prefix ?? 'Playground'
+		);
 		this.logRaw(log);
 	}
 

@@ -292,6 +292,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				throw error;
 			}
 			return response;
+		} catch (e) {
+			this.dispatchEvent({
+				type: 'request.error',
+				error: e as Error,
+			});
 		} finally {
 			try {
 				if (heapBodyPointer) {
@@ -605,6 +610,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
 					reject(rethrown);
+					console.log('PHP runtime crashed:', e.error);
 				};
 				this.#wasmErrorsTarget?.addEventListener(
 					'error',
