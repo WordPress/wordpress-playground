@@ -45,12 +45,6 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 				return;
 			}
 		}
-
-		console.debug(
-			`[ServiceWorker] Serving request: ${getRelativePart(
-				removeURLScope(url)
-			)}`
-		);
 		const responsePromise = handleRequest(event);
 		if (responsePromise) {
 			event.respondWith(responsePromise);
@@ -122,22 +116,12 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);
 		}
-		console.debug(
-			'[ServiceWorker] Forwarding a request to the Worker Thread',
-			{
-				message,
-			}
-		);
 		const requestId = await broadcastMessageExpectReply(message, scope);
 		phpResponse = await awaitReply(self, requestId);
 
 		// X-frame-options gets in a way when PHP is
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
-
-		console.debug('[ServiceWorker] Response received from the main app', {
-			phpResponse,
-		});
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;
