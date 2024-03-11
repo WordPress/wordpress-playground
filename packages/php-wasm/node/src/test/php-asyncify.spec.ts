@@ -269,6 +269,44 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 			});
 		});
 
+		describe('Generators', () => {
+			test('Simple generator', () =>
+				assertNoCrash(`
+				function gen() {
+					yield 1;
+					${networkCall}
+					yield 2;
+				}
+				$gen = gen();
+				$gen->next();
+			`));
+			test('Simple generator that delegates the async call to a function', () =>
+				assertNoCrash(`
+				function doNetworkCall() {
+					${networkCall}
+				}
+				function gen() {
+					yield 1;
+					yield doNetworkCall();
+					yield 2;
+				}
+				$gen = gen();
+				$gen->next();
+			`));
+			test('Generator with return', () =>
+				assertNoCrash(`
+				function gen() {
+					yield 1;
+					${networkCall};
+					yield 2;
+					return 3;
+				}
+				$gen = gen();
+				$gen->next();
+				$gen->next();
+			`));
+		});
+
 		describe('Different types of shutdown handlers, destructors, and other code executing at the end of the request', () => {
 			test('register_shutdown_function', () =>
 				assertNoCrash(`

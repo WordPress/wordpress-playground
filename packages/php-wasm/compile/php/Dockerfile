@@ -432,7 +432,17 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"__fwritex",\
+	export ASYNCIFY_ONLY=$'"call_user_function",\
+"zval_ptr_dtor",\
+"autoload_func_info_zval_dtor",\
+"autoload_func_info_destroy",\
+"zm_deactivate_spl",\
+"zend_hash_destroy",\
+"zend_hash_reverse_apply",\
+"call",\
+"zend_call_destructors",\
+"wasm_sapi_request_shutdown",\
+"__fwritex",\
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
@@ -471,6 +481,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
 "zend_objects_store_del_ref",\
+"zend_deactivate_modules",\
 "_zval_dtor_func",\
 "_zval_ptr_dtor",\
 "zend_hash_del_key_or_index",\
