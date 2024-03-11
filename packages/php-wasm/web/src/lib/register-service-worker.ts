@@ -1,4 +1,4 @@
-import { PlaygroundError } from '@php-wasm/util';
+import { PhpWasmError } from '@php-wasm/util';
 import type { WebPHPEndpoint } from './web-php-endpoint';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
@@ -23,11 +23,11 @@ export async function registerServiceWorker<
 		 * See https://w3c.github.io/webappsec-secure-contexts/
 		 */
 		if (window.isSecureContext) {
-			throw new PlaygroundError(
+			throw new PhpWasmError(
 				'Service workers are not supported in your browser.'
 			);
 		} else {
-			throw new PlaygroundError(
+			throw new PhpWasmError(
 				'WordPress Playground uses service workers and may only work on HTTPS and http://localhost/ sites, but the current site is neither.'
 			);
 		}
