@@ -28,22 +28,23 @@ const js = phpVars({
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']] : SupportedPHPVersions;
 
-describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
+describe.each(['8.0'])('PHP %s – asyncify', (phpVersion) => {
 	const topOfTheStack: Array<string> = [
 		// http:// stream handler
-		`file_get_contents(${js['httpUrl']});`,
+		// `file_get_contents(${js['httpUrl']});`,
 
-		`$fp = fopen(${js['httpUrl']}, "r");
-		 fread($fp, 1024);
-		 fclose($fp);`,
-		// `getimgsize(${js['httpUrl']});`,
+		// `$fp = fopen(${js['httpUrl']}, "r");
+		//  fread($fp, 1024);
+		//  fclose($fp);`,
+		// // `getimgsize(${js['httpUrl']});`,
 
-		// Network functions from https://www.php.net/manual/en/book.network.php
-		`$fp = fsockopen(${js['host']}, ${js['port']});
-		 fwrite($fp, "GET / HTTP/1.1\\r\\n\\r\\n");
-		 fread($fp, 10);
-		 fclose($fp);`,
-		`gethostbyname(${js['httpUrl']});`,
+		// // Network functions from https://www.php.net/manual/en/book.network.php
+		// `$fp = fsockopen(${js['host']}, ${js['port']});
+		//  fwrite($fp, "GET / HTTP/1.1\\r\\n\\r\\n");
+		//  fread($fp, 10);
+		//  fclose($fp);`,
+		// `gethostbyname(${js['httpUrl']});`,
+		`post_message_to_js('');`,
 
 		// @TODO:
 
@@ -56,7 +57,12 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
-		php.setPhpIniEntry('allow_url_fopen', '1');
+		// php.setPhpIniEntry('allow_url_fopen', '1');
+		php.onMessage(async () => {
+			// Sleep 10ms
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			return 'Response';
+		});
 	});
 
 	describe.each(topOfTheStack)('%s', (networkCall) => {
@@ -84,7 +90,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 			test('array_map', () =>
 				assertNoCrash(`
 					function top() { ${networkCall} }
-					array_map(array('top'), 'top');
+					array_map('top', array('top'));
 				`));
 
 			// Network calls in sort() would be silly so let's skip those for now.
@@ -191,13 +197,75 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				unset($x['test']);            
 			`));
 		});
+		describe('Shutdown handlers', () => {
+			// This test case works and it outputs "Before, Response, After"
+			test('post_message_to_js', () =>
+				assertNoCrash(`
+				echo 'Before, ';
+				echo post_message_to_js('');
+				echo ', After';
+			`));
+			// This case does not work as it outputs just "Before, "
+			// It only works with gethostbyname()
+			test.only('register_shutdown_function', async () => {
+				await assertNoCrash(`
+					register_shutdown_function(function() {
+						echo "Before, ";
+						// If this call is asynchronous, the stdout stream gets corrupted
+						// some reason and the output is not appended to the file anymore.
+						echo post_message_to_js(''); 
+						echo ", After";
+						file_put_contents('/internal/additional_info', 'file_put_contents got executed!');
+					});
+				`);
+
+				// The output data is not appended to the stdout file:
+				console.log('stdout: ', php.readFileAsText('/internal/stdout'));
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				console.log('stdout: ', php.readFileAsText('/internal/stdout'));
+
+				// However, the file_put_contents() function actually gets executed:
+				console.log(
+					'additional_info: ',
+					php.readFileAsText('/internal/additional_info')
+				);
+
+				// Something must be off with the wasm_sapi_request_shutdown() function
+			});
+			test('register_shutdown_function with args', () =>
+				assertNoCrash(`
+				register_shutdown_function(function($a) { echo ${networkCall}  }, 1);
+			`));
+			test('register_shutdown_function with static method', () =>
+				assertNoCrash(`
+				class Top {
+					static function my_method() { ${networkCall} }
+				}
+				register_shutdown_function(['Top', 'my_method']);
+			`));
+		});
+		describe('Generators', () => {
+			test('generator', () =>
+				assertNoCrash(`
+				function gen() {
+					yield ${networkCall};
+					return 1;
+				}
+				foreach (gen() as $val) {}
+			`));
+		});
 	});
 
 	async function assertNoCrash(code: string) {
 		try {
+			console.log('Running:', code);
 			const result = await php.run({
 				code: `<?php ${code}`,
+				throwOnError: true,
 			});
+			console.log('result:', result.text);
+			console.log('errors:', result.errors);
+			console.log(result.exitCode);
 			expect(result).toBeTruthy();
 			expect(result.text).toBe('');
 			expect(result.errors).toBeFalsy();

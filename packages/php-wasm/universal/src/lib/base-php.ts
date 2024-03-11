@@ -654,6 +654,9 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
+		console.log(
+			'Preparing the PHP response based on /internal/stdout and /internal/stderr...'
+		);
 		return new PHPResponse(
 			httpStatusCode,
 			headers,

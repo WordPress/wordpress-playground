@@ -5858,23 +5858,15 @@ function _js_module_onMessage(data, bufPtr) {
  }
  if (Module["onMessage"]) {
   const dataStr = UTF8ToString(data);
-  return Asyncify.handleSleep((wakeUp => {
-   Module["onMessage"](dataStr).then((response => {
-    const responseBytes = typeof response === "string" ? (new TextEncoder).encode(response) : response;
-    const responseSize = responseBytes.byteLength;
-    const responsePtr = _malloc(responseSize + 1);
-    HEAPU8.set(responseBytes, responsePtr);
-    HEAPU8[responsePtr + responseSize] = 0;
-    HEAPU8[bufPtr] = responsePtr;
-    HEAPU8[bufPtr + 1] = responsePtr >> 8;
-    HEAPU8[bufPtr + 2] = responsePtr >> 16;
-    HEAPU8[bufPtr + 3] = responsePtr >> 24;
-    wakeUp(responseSize);
-   })).catch((e => {
-    console.error(e);
-    wakeUp(0);
-   }));
-  }));
+     return Asyncify.handleSleep((wakeUp => {
+        // This works in the register_shutdown_function() test:
+        // wakeUp(0);
+        // This breaks the register_shutdown_function() test:
+        setTimeout(() => {
+             wakeUp(0);
+        });
+        return;
+     }));
  }
 }
 
@@ -6645,7 +6637,8 @@ function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen)
  return 0;
 }
 
-function _wasm_shutdown(socketd, how) {
+    function _wasm_shutdown(socketd, how) {
+        console.log("_wasm_shutdown");
  return PHPWASM.shutdownSocket(socketd, how);
 }
 
@@ -6764,7 +6757,8 @@ var Asyncify = {
   runtimeKeepalivePop();
   return start();
  },
- handleSleep: function(startAsync) {
+    handleSleep: function (startAsync) {
+     console.log("Called handleSleep in Asyncify.state=", Asyncify.state)
   if (ABORT) return;
   if (Asyncify.state === Asyncify.State.Normal) {
    var reachedCallback = false;
