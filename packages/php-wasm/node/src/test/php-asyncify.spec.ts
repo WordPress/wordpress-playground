@@ -44,6 +44,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 		 fread($fp, 10);
 		 fclose($fp);`,
 		`gethostbyname(${js['httpUrl']});`,
+		'post_message_to_js("test");',
 
 		// @TODO:
 
@@ -191,16 +192,182 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				unset($x['test']);            
 			`));
 		});
+
+		describe('Closures', () => {
+			test('Simple closure', () =>
+				assertNoCrash(`
+				$x = function() { ${networkCall} };
+				$x();
+			`));
+			describe('call_user_func', () => {
+				test('Closure', () =>
+					assertNoCrash(`
+					$x = function() { ${networkCall} };
+					call_user_func($x);
+				`));
+				test('Named functions', () =>
+					assertNoCrash(`
+					function top() { ${networkCall} }
+					call_user_func('top');
+				`));
+				test('Class methods', () =>
+					assertNoCrash(`
+					class Top {
+						function my_method() { ${networkCall} }
+					}
+					$x = new Top();
+					call_user_func([$x, 'my_method']);
+				`));
+				test('Static methods', () =>
+					assertNoCrash(`
+					class Top {
+						static function my_method() { ${networkCall} }
+					}
+					call_user_func('Top::my_method');
+				`));
+				test('Static methods – array', () =>
+					assertNoCrash(`
+					class Top {
+						static function my_method($a, $b) { ${networkCall} }
+					}
+					call_user_func(array('Top', 'my_method'));
+				`));
+			});
+			describe('call_user_func_array', () => {
+				test('Closure', () =>
+					assertNoCrash(`
+					$x = function($a, $b) { ${networkCall} };
+					call_user_func_array($x, [1, 2]);
+				`));
+				test('Named functions', () =>
+					assertNoCrash(`
+					function top($a, $b) { ${networkCall} }
+					call_user_func_array('top', [1, 2]);
+				`));
+				test('Class methods', () =>
+					assertNoCrash(`
+					class Top {
+						function my_method($a, $b) { ${networkCall} }
+					}
+					$x = new Top();
+					call_user_func_array([$x, 'my_method'], [1, 2]);
+				`));
+				test('Static methods – string', () =>
+					assertNoCrash(`
+					class Top {
+						static function my_method($a, $b) { ${networkCall} }
+					}
+					call_user_func_array('Top::my_method', [1, 2]);
+				`));
+				test('Static methods – array', () =>
+					assertNoCrash(`
+					class Top {
+						static function my_method($a, $b) { ${networkCall} }
+					}
+					call_user_func_array(array('Top', 'my_method'), [1, 2]);
+				`));
+			});
+		});
+
+		describe('Different types of shutdown handlers, destructors, and other code executing at the end of the request', () => {
+			test('register_shutdown_function', () =>
+				assertNoCrash(`
+				register_shutdown_function(function() { ${networkCall} });
+			`));
+			test('Autoloader class', () => {
+				php.writeFile(
+					'/tmp/LoadedClass.php',
+					'<?php class LoadedClass {}'
+				);
+				return assertNoCrash(`
+					class AutoloaderTest {
+						public static $registeredLoaders = [];
+						public function __constructor() {
+							${networkCall}
+						}
+						public function register() {
+							spl_autoload_register(array($this, 'loadClass'), true, true);
+							self::$registeredLoaders[] = $this;
+						}
+						static public function loadStatic() {
+						}
+
+						public function loadClass($class) {
+							require '/tmp/LoadedClass.php';
+						}
+
+						public function __destruct() {
+							${networkCall}
+						}
+					}
+
+					$autoloader = new AutoloaderTest();
+					$autoloader->register();
+					spl_autoload_register(array('AutoloaderTest', 'loadStatic'));
+
+					new LoadedClass();
+				`);
+			});
+			test('Autoloader function as __invoke method', () =>
+				assertNoCrash(`
+					class AutoloaderTest {
+						public function __invoke($class) {
+							${networkCall}
+						}
+					}
+					$autoloader = new AutoloaderTest();
+					spl_autoload_register($autoloader);
+				`));
+			test('Autoloader function', () =>
+				assertNoCrash(`
+					function autoloader($class) {
+						${networkCall}
+					}
+					spl_autoload_register('autoloader');
+				`));
+			test('ArrayObject referenced inside of an autoloader function', () =>
+				assertNoCrash(`
+					$object = new ArrayObject();
+					function autoloader($class) {
+						global $object;
+						$object->offsetSet('test', 'test');
+						${networkCall}
+					}
+					spl_autoload_register('autoloader');
+				`));
+			test('Class with a destructor referenced inside of an autoloader function', () =>
+				assertNoCrash(`
+					class TestClass {
+						public $test = '';
+						function __construct() {}
+						function __destruct() {
+							${networkCall}
+						}
+					}
+					$obj = new TestClass();
+					function autoloader($class) {
+						global $obj;
+						$obj->test = 'test';
+					}
+					spl_autoload_register('autoloader');
+				`));
+		});
 	});
 
 	async function assertNoCrash(code: string) {
 		try {
 			const result = await php.run({
 				code: `<?php ${code}`,
+				throwOnError: true,
 			});
 			expect(result).toBeTruthy();
 			expect(result.text).toBe('');
 			expect(result.errors).toBeFalsy();
+			// Run another request to force cleanup and flush
+			await php.run({
+				code: `<?php `,
+				throwOnError: true,
+			});
 		} catch (e) {
 			if (
 				'FIX_DOCKERFILE' in process.env &&
@@ -235,6 +402,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				err.cause = e;
 				throw err;
 			}
+			throw e;
 		}
 	}
 });
