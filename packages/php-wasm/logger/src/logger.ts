@@ -79,16 +79,6 @@ export class Logger extends EventTarget {
 		this.log(`${event.reason.stack}`, 'Error');
 	}
 
-	public maybeDispatchFatalErrorEvent() {
-		this.dispatchEvent(
-			new CustomEvent(this.fatalErrorEvent, {
-				detail: {
-					logs: this.getLogs(),
-				},
-			})
-		);
-	}
-
 	/**
 	 * Register a listener for the window error events and log the data.
 	 */
@@ -133,7 +123,13 @@ export class Logger extends EventTarget {
 					'Fatal',
 					'PHP-WASM'
 				);
-				this.maybeDispatchFatalErrorEvent();
+				this.dispatchEvent(
+					new CustomEvent(this.fatalErrorEvent, {
+						detail: {
+							logs: this.getLogs(),
+						},
+					})
+				);
 			}
 		});
 	}
