@@ -11,7 +11,35 @@
 				},
 				"description": {
 					"type": "string",
-					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what."
+					"description": "Optional description. It doesn't do anything but is exposed as a courtesy to developers who may want to document which blueprint file does what.",
+					"deprecated": "Use meta.description instead."
+				},
+				"meta": {
+					"type": "object",
+					"properties": {
+						"title": {
+							"type": "string",
+							"description": "A clear and concise name for your Blueprint."
+						},
+						"description": {
+							"type": "string",
+							"description": "A brief explanation of what your Blueprint offers."
+						},
+						"author": {
+							"type": "string",
+							"description": "A GitHub username of the author of this Blueprint."
+						},
+						"categories": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"description": "Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org."
+						}
+					},
+					"required": ["title", "author"],
+					"additionalProperties": false,
+					"description": "Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints"
 				},
 				"preferredVersions": {
 					"type": "object",
@@ -1171,46 +1199,125 @@
 					"$ref": "#/definitions/PHPRequestHeaders",
 					"description": "Request headers."
 				},
-				"files": {
-					"type": "object",
-					"additionalProperties": {
-						"type": "object",
-						"properties": {
-							"size": {
+				"body": {
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"BYTES_PER_ELEMENT": {
+									"type": "number"
+								},
+								"buffer": {
+									"type": "object",
+									"properties": {
+										"byteLength": {
+											"type": "number"
+										}
+									},
+									"required": ["byteLength"],
+									"additionalProperties": false
+								},
+								"byteLength": {
+									"type": "number"
+								},
+								"byteOffset": {
+									"type": "number"
+								},
+								"length": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"BYTES_PER_ELEMENT",
+								"buffer",
+								"byteLength",
+								"byteOffset",
+								"length"
+							],
+							"additionalProperties": {
 								"type": "number"
-							},
-							"type": {
-								"type": "string"
-							},
-							"lastModified": {
-								"type": "number"
-							},
-							"name": {
-								"type": "string"
-							},
-							"webkitRelativePath": {
-								"type": "string"
 							}
 						},
-						"required": [
-							"lastModified",
-							"name",
-							"size",
-							"type",
-							"webkitRelativePath"
-						],
-						"additionalProperties": false
-					},
-					"description": "Uploaded files"
-				},
-				"body": {
-					"type": "string",
-					"description": "Request body without the files."
-				},
-				"formData": {
-					"type": "object",
-					"additionalProperties": {},
-					"description": "Form data. If set, the request body will be ignored and the content-type header will be set to `application/x-www-form-urlencoded`."
+						{
+							"type": "object",
+							"additionalProperties": {
+								"anyOf": [
+									{
+										"type": "string"
+									},
+									{
+										"type": "object",
+										"properties": {
+											"BYTES_PER_ELEMENT": {
+												"type": "number"
+											},
+											"buffer": {
+												"type": "object",
+												"properties": {
+													"byteLength": {
+														"type": "number"
+													}
+												},
+												"required": ["byteLength"],
+												"additionalProperties": false
+											},
+											"byteLength": {
+												"type": "number"
+											},
+											"byteOffset": {
+												"type": "number"
+											},
+											"length": {
+												"type": "number"
+											}
+										},
+										"required": [
+											"BYTES_PER_ELEMENT",
+											"buffer",
+											"byteLength",
+											"byteOffset",
+											"length"
+										],
+										"additionalProperties": {
+											"type": "number"
+										}
+									},
+									{
+										"type": "object",
+										"properties": {
+											"size": {
+												"type": "number"
+											},
+											"type": {
+												"type": "string"
+											},
+											"lastModified": {
+												"type": "number"
+											},
+											"name": {
+												"type": "string"
+											},
+											"webkitRelativePath": {
+												"type": "string"
+											}
+										},
+										"required": [
+											"lastModified",
+											"name",
+											"size",
+											"type",
+											"webkitRelativePath"
+										],
+										"additionalProperties": false
+									}
+								]
+							}
+						}
+					],
+					"description": "Request body. If an object is given, the request will be encoded as multipart and sent with a `multipart/form-data` header."
 				}
 			},
 			"required": ["url"],
@@ -1250,15 +1357,56 @@
 					"description": "Request headers."
 				},
 				"body": {
-					"type": "string",
-					"description": "Request body without the files."
+					"anyOf": [
+						{
+							"type": "string"
+						},
+						{
+							"type": "object",
+							"properties": {
+								"BYTES_PER_ELEMENT": {
+									"type": "number"
+								},
+								"buffer": {
+									"type": "object",
+									"properties": {
+										"byteLength": {
+											"type": "number"
+										}
+									},
+									"required": ["byteLength"],
+									"additionalProperties": false
+								},
+								"byteLength": {
+									"type": "number"
+								},
+								"byteOffset": {
+									"type": "number"
+								},
+								"length": {
+									"type": "number"
+								}
+							},
+							"required": [
+								"BYTES_PER_ELEMENT",
+								"buffer",
+								"byteLength",
+								"byteOffset",
+								"length"
+							],
+							"additionalProperties": {
+								"type": "number"
+							}
+						}
+					],
+					"description": "Request body."
 				},
-				"fileInfos": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/FileInfo"
+				"env": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
 					},
-					"description": "Uploaded files."
+					"description": "Environment variables to set for this run."
 				},
 				"code": {
 					"type": "string",
@@ -1269,59 +1417,6 @@
 					"description": "Whether to throw an error if the PHP process exits with a non-zero code or outputs to stderr."
 				}
 			},
-			"additionalProperties": false
-		},
-		"FileInfo": {
-			"type": "object",
-			"properties": {
-				"key": {
-					"type": "string"
-				},
-				"name": {
-					"type": "string"
-				},
-				"type": {
-					"type": "string"
-				},
-				"data": {
-					"type": "object",
-					"properties": {
-						"BYTES_PER_ELEMENT": {
-							"type": "number"
-						},
-						"buffer": {
-							"type": "object",
-							"properties": {
-								"byteLength": {
-									"type": "number"
-								}
-							},
-							"required": ["byteLength"],
-							"additionalProperties": false
-						},
-						"byteLength": {
-							"type": "number"
-						},
-						"byteOffset": {
-							"type": "number"
-						},
-						"length": {
-							"type": "number"
-						}
-					},
-					"required": [
-						"BYTES_PER_ELEMENT",
-						"buffer",
-						"byteLength",
-						"byteOffset",
-						"length"
-					],
-					"additionalProperties": {
-						"type": "number"
-					}
-				}
-			},
-			"required": ["key", "name", "type", "data"],
 			"additionalProperties": false
 		},
 		"WordPressInstallationOptions": {
