@@ -7,6 +7,7 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
+	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
 import {
 	PHPResponse,
@@ -120,6 +121,7 @@ if (!wordPressAvailableInOPFS) {
 const php = new WebPHP(undefined, {
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
+	rewriteRules: wordPressRewriteRules,
 });
 
 const recreateRuntime = async () =>
@@ -128,6 +130,9 @@ const recreateRuntime = async () =>
 		// We don't yet support loading specific PHP extensions one-by-one.
 		// Let's just indicate whether we want to load all of them.
 		loadAllExtensions: phpExtensions?.length > 0,
+		requestHandler: {
+			rewriteRules: wordPressRewriteRules,
+		},
 	});
 
 // Rotate the PHP runtime periodically to avoid memory leak-related crashes.
@@ -380,13 +385,13 @@ try {
 					// @TODO: Run the actual PHP CLI SAPI instead of
 					//        interpreting the arguments and emulating
 					//        the CLI constants and globals.
-					const cliBootstrapScript = `<?php					
+					const cliBootstrapScript = `<?php
 					// Set the argv global.
 					$GLOBALS['argv'] = array_merge([
 						"/wordpress/wp-cli.phar",
 						"--path=/wordpress"
 					], ${phpVar(args.slice(2))});
-			
+
 					// Provide stdin, stdout, stderr streams outside of
 					// the CLI SAPI.
 					define('STDIN', fopen('php://stdin', 'rb'));

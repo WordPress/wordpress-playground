@@ -3,6 +3,7 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
@@ -10,6 +11,7 @@ import {
 	cloneRequest,
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
+import { wordPressRewriteRules } from '@wp-playground/wordpress';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -53,6 +55,10 @@ initializeServiceWorker({
 				// the from the static assets directory at the remote server.
 				const requestedUrl = new URL(event.request.url);
 				const resolvedUrl = removeURLScope(requestedUrl);
+				resolvedUrl.pathname = applyRewriteRules(
+					resolvedUrl.pathname,
+					wordPressRewriteRules
+				);
 				if (
 					// Vite dev server requests
 					!resolvedUrl.pathname.startsWith('/@fs') &&

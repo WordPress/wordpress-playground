@@ -10,6 +10,12 @@ import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 
+export type RewriteRule = {
+	match: RegExp;
+	remove?: RegExp;
+	keep?: RegExp;
+};
+
 export interface PHPRequestHandlerConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -20,6 +26,11 @@ export interface PHPRequestHandlerConfiguration {
 	 * Request Handler URL. Used to populate $_SERVER details like HTTP_HOST.
 	 */
 	absoluteUrl?: string;
+
+	/**
+	 * Rewrite rules
+	 */
+	rewriteRules?: RewriteRule[];
 }
 
 /** @inheritDoc */
@@ -32,6 +43,7 @@ export class PHPRequestHandler implements RequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#semaphore: Semaphore;
+	rewriteRules: RewriteRule[];
 
 	/**
 	 * The PHP instance
@@ -47,6 +59,7 @@ export class PHPRequestHandler implements RequestHandler {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
+			rewriteRules = [],
 		} = config;
 		this.php = php;
 		this.#DOCROOT = documentRoot;
@@ -70,6 +83,7 @@ export class PHPRequestHandler implements RequestHandler {
 			this.#HOST,
 			this.#PATHNAME,
 		].join('');
+		this.rewriteRules = rewriteRules;
 	}
 
 	/** @inheritDoc */
@@ -110,9 +124,9 @@ export class PHPRequestHandler implements RequestHandler {
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
-		const normalizedRequestedPath = removePathPrefix(
-			requestedUrl.pathname,
-			this.#PATHNAME
+		const normalizedRequestedPath = applyRewriteRules(
+			removePathPrefix(requestedUrl.pathname, this.#PATHNAME),
+			this.rewriteRules
 		);
 		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
 		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
@@ -250,6 +264,7 @@ export class PHPRequestHandler implements RequestHandler {
 	 */
 	#resolvePHPFilePath(requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
+		filePath = applyRewriteRules(filePath, this.rewriteRules);
 
 		if (filePath.includes('.php')) {
 			// If the path mentions a .php extension, that's our file's path.
@@ -352,4 +367,25 @@ function seemsLikeAPHPFile(path: string) {
 function seemsLikeADirectoryRoot(path: string) {
 	const lastSegment = path.split('/').pop();
 	return !lastSegment!.includes('.');
+}
+
+/**
+ * Applies the given rewrite rules to the given path.
+ *
+ * @param  path  The path to apply the rules to.
+ * @param  rules The rules to apply.
+ * @returns The path with the rules applied.
+ */
+export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
+	for (const rule of rules) {
+		if (rule.match.test(path)) {
+			if (rule.keep) {
+				path = path.replace(path.replace(rule.keep, ''), '');
+			}
+			if (rule.remove) {
+				path = path.replace(rule.remove, '');
+			}
+		}
+	}
+	return path;
 }

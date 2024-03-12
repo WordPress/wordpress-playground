@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal/src/lib/universal-php';
+import { UniversalPHP } from '@php-wasm/universal';
 /**
  * Log severity levels.
  */
