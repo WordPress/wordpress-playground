@@ -15,7 +15,7 @@ export type LogPrefix = 'Playground' | 'PHP-WASM';
 /**
  * A logger for Playground.
  */
-export class Logger {
+export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 
 	/**
@@ -39,6 +39,7 @@ export class Logger {
 	private errorLogPath = '/wordpress/wp-content/debug.log';
 
 	constructor(errorLogPath?: string) {
+		super();
 		if (errorLogPath) {
 			this.errorLogPath = errorLogPath;
 		}
@@ -79,15 +80,13 @@ export class Logger {
 	}
 
 	public maybeDispatchFatalErrorEvent() {
-		if (typeof window !== 'undefined') {
-			window.dispatchEvent(
-				new CustomEvent(this.fatalErrorEvent, {
-					detail: {
-						logs: this.getLogs(),
-					},
-				})
-			);
-		}
+		this.dispatchEvent(
+			new CustomEvent(this.fatalErrorEvent, {
+				detail: {
+					logs: this.getLogs(),
+				},
+			})
+		);
 	}
 
 	/**
@@ -255,8 +254,5 @@ export function addFatalErrorListener(
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
 ) {
-	if (typeof window === 'undefined') {
-		return;
-	}
-	window.addEventListener(loggerInstance.fatalErrorEvent, callback);
+	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
 }
