@@ -27,6 +27,7 @@ import { ExportFormValues } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { PlaygroundContext } from './playground-context';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
+import { ErrorReportModal } from './components/error-report-modal';
 
 collectWindowErrors(logger);
 
@@ -87,6 +88,7 @@ function Main() {
 
 	return (
 		<PlaygroundContext.Provider value={{ storage }}>
+			<ErrorReportModal />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
