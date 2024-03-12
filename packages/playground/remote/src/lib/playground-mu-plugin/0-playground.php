@@ -1,4 +1,28 @@
 <?php
+// Define Playground globals
+$playground_scope = get_scope_from_url(get_site_url());
+
+function get_scope_from_url($url)
+{
+	$matches = [];
+	preg_match('/scope:(\d+\.\d+)/', $url, $matches);
+	return $matches[1] ?? false;
+}
+
+function add_scope_to_url($url, $scope = null)
+{
+	global $playground_scope;
+	if ($scope === null) {
+		$scope = $playground_scope;
+	}
+	$host = parse_url($url, PHP_URL_HOST);
+	return str_replace(
+		$host,
+		"$host/scope:$scope",
+		$url
+	);
+}
+
 /**
  * This is a temporary workaround to hide the 32bit integer warnings that
  * appear when using various time related function, such as strtotime and mktime.
