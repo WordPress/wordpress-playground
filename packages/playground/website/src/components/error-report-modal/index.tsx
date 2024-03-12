@@ -75,21 +75,18 @@ export function ErrorReportModal() {
 							onChange={setText}
 							className={css.errorReportModalTextarea}
 						/>
-						{logs && (
-							<TextareaControl
-								label="Logs"
-								value={logs}
-								onChange={setLogs}
-								className={css.errorReportModalTextarea}
-							/>
-						)}
-						{url && (
-							<TextControl
-								label="Url"
-								value={url}
-								onChange={setUrl}
-							/>
-						)}
+						<TextareaControl
+							label="Logs"
+							value={logs}
+							onChange={setLogs}
+							className={css.errorReportModalTextarea}
+						/>
+
+						<TextControl
+							label="Url"
+							value={url}
+							onChange={setUrl}
+						/>
 					</main>
 					<footer className={css.errorReportModalFooter}>
 						<Button variant="primary" onClick={onSubmit}>
