@@ -521,6 +521,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
+"wasm_sapi_request_shutdown",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -786,6 +787,7 @@ RUN set -euxo pipefail; \
 "_wasm_add_ENV_entry", \n\
 "_wasm_read", \n\
 "_wasm_sapi_handle_request", \n\
+"_wasm_sapi_request_shutdown", \n\
 "_wasm_set_content_length", \n\
 "_wasm_set_content_type", \n\
 "_wasm_set_cookies", \n\
