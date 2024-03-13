@@ -58,12 +58,8 @@ export function ErrorReportModal() {
 						<h2>Report error</h2>
 						<p>
 							Playground crashed because of an error. You can help
-							resolve the issue by sharing the error details with us.
-						</p>
-						<p>
-							It is possible that the error was caused by PHP code
-							and is unrelated to Playground. The log might help
-							you fix the PHP error.
+							resolve the issue by sharing the error details with
+							us.
 						</p>
 					</header>
 					<main>
