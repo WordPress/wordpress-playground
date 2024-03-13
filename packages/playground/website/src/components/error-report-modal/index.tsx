@@ -44,7 +44,7 @@ export function ErrorReportModal() {
 				<header className={css.errorReportModalHeader}>
 					<h2>Thank you for reporting the error</h2>
 					<p>
-						We will look into the issue and and open an{' '}
+						We will look into the issue and open an{' '}
 						<a href="https://github.com/WordPress/wordpress-playground/issues/">
 							issue on GitHub if needed
 						</a>
