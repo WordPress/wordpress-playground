@@ -57,9 +57,8 @@ export function ErrorReportModal() {
 					<header className={css.errorReportModalHeader}>
 						<h2>Report error</h2>
 						<p>
-							Playground crashed because of an error. We would
-							appreciate it if you would report this error so that
-							we can fix it.
+							Playground crashed because of an error. You can help
+							resolve the issue by sharing the error details with us.
 						</p>
 						<p>
 							It is possible that the error was caused by PHP code
