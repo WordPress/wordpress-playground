@@ -378,12 +378,15 @@ function seemsLikeADirectoryRoot(path: string) {
  */
 export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 	for (const rule of rules) {
-		if (rule.match.test(path)) {
+		if (new RegExp(rule.match).test(path)) {
 			if (rule.keep) {
-				path = path.replace(path.replace(rule.keep, ''), '');
+				path = path.replace(
+					path.replace(new RegExp(rule.keep), ''),
+					''
+				);
 			}
 			if (rule.remove) {
-				path = path.replace(rule.remove, '');
+				path = path.replace(new RegExp(rule.remove), '');
 			}
 		}
 	}
