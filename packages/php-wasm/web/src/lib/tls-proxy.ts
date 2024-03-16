@@ -14,6 +14,14 @@ export async function generateKeys() {
 	return keyPair;
 }
 
+/**
+ * Creates a self-signed certificate for trusting all connections.
+ *
+ * Actual certificate integrity will be verified by the browser on the other
+ * end of the fake WebSocket. This is necessary to man-in-the-middle sockets
+ * with TLS data, because they might start as an open stream but establish a
+ * secure handshake after opening.
+ */
 export function createCertificate({ commonName }) {
 	// create certificate
 	var pki = forge.pki;
@@ -136,6 +144,108 @@ const CAPair = { certificate, privateKey };
 // 	commonName: ''
 // });
 export const CAPem = forge.pki.certificateToPem(CAPair.certificate);
+
+export function httpRequestToFetch(
+	host: string,
+	port: number,
+	httpRequest: string,
+	onData: (data: ArrayBuffer) => void,
+	onDone: () => void
+) {
+	const firstLine = httpRequest.split('\n')[0];
+	const [method, path] = firstLine.split(' ');
+
+	const headers = new Headers();
+	for (const line of httpRequest.split('\r\n').slice(1)) {
+		if (line === '') {
+			break;
+		}
+		const [name, value] = line.split(': ');
+		console.log({ name, value });
+		headers.set(name, value);
+	}
+	// This is a naive implementation that doesn't handle
+	// PHP writing arbitrary Host headers to IP addresses,
+	// but it's the best we can do in the browser.
+	const protocol = port === 443 ? 'https' : 'http';
+	// @TODO: Decide which host to use. The header is less reliable,
+	//        but in some cases it's more useful. E.g. the Host header
+	//        may be `localhost` when `host` is 127.0.0.1, and, to
+	//        run the fetch() request, we need to use the former since
+	//        the latter may not respond to requests. Similarly,
+	//        PHP may run requests to arbitrary IP addresses with
+	//        the Host header set to a domain name, and we need to
+	//        pass a valid domain to fetch().
+	const hostname = headers.get('Host')
+		? headers.get('Host')
+		: [80, 443].includes(port)
+		? host
+		: `${host}:${port}`;
+	const url = new URL(path, protocol + '://' + hostname).toString();
+	console.log({ httpRequest, method, url });
+
+	return fetch(url, {
+		method,
+		headers,
+	})
+		.then((response) => {
+			console.log('====> Got fetch() response!', response);
+			const reader = response.body?.getReader();
+			if (reader) {
+				const responseHeader = new TextEncoder().encode(
+					`HTTP/1.1 ${response.status} ${response.statusText}\r\n${[
+						...response.headers,
+					]
+						.map(([name, value]) => `${name}: ${value}`)
+						.join('\r\n')}\r\n\r\n`
+				);
+
+				// @TODO: calling onData() and waiting for more reader chunks
+				//        passes the control back to PHP.wasm and never yields
+				//        the control back to JavaScript. It's likely a polling
+				//        issue, or perhaps something specific to a Symfony HTTP
+				//        client. Either way, PHP blocks the thread and the
+				//        read().then() callback is never called.
+				//        We should find a way to yield the control back to
+				//        JavaScript after each onData() call.
+				//
+				//        One clue is PHP runs out of memory when onData() blocks
+				//        the event loop. Then it fails with a regular PHP fatal error
+				//        message. Perhaps there's an infinite loop somewhere that
+				//        fails to correctly poll and increases the memory usage indefinitely.
+				const buffer = [responseHeader.buffer];
+				const read = () => {
+					console.log('Attempt to read the response stream');
+					reader
+						.read()
+						.then(({ done, value }) => {
+							// console.log("got some data", value);
+							if (done) {
+								// @TODO let's stream the chunks as they
+								//       arrive without buffering them
+								for (const chunk of buffer) {
+									onData(chunk);
+								}
+								onDone();
+								return;
+							}
+							buffer.push(value.buffer);
+							read();
+						})
+						.catch((e) => {
+							console.error(e);
+						});
+				};
+				read();
+			}
+		})
+		.catch((e) => {
+			console.log('Could not fetch ', url);
+			console.error(e);
+			throw e;
+		});
+}
+
 /**
  * Websocket that buffers the received bytes and translates them into
  * a fetch() call.
@@ -401,10 +511,18 @@ export const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 								// If it's a HTTP request, we can just fetch it
 								// @TODO: This is very naive. Let's find a more robust way of detecting if
 								//        it's a HTTP request
-								const string = new TextDecoder().decode(data);
-								const firstLine = string.split('\n')[0];
-								const [, , version] = firstLine.split(' ');
-								this.isPlaintext = version?.startsWith('HTTP');
+								try {
+									// Throw a TypeError instead of replacing indecipherable octects with `�`.
+									const string = new TextDecoder('latin1', {
+										fatal: true,
+									}).decode(data);
+									const firstLine = string.split('\n')[0];
+									const [, , version] = firstLine.split(' ');
+									this.isPlaintext =
+										version?.startsWith('HTTP');
+								} catch (e) {
+									this.isPlaintext = false;
+								}
 							}
 							if (this.isPlaintext) {
 								this.close();
