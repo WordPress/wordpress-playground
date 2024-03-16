@@ -189,4 +189,55 @@ blueprint={{
     ]
 }} />
 
+## Code editor (as a Gutenberg block)
+
+<BlueprintExample display={`{
+	"landingPage": "/wp-admin/post.php?post=1&action=edit",
+				"steps": [
+					{
+						"step": "login",
+					},
+					{
+						"step": "installPlugin",
+						"pluginZipFile": {
+							"resource": "wordpress.org/plugins",
+							"slug": "interactive-code-block",
+						},
+					},
+					{
+						"step": "writeFile",
+						"path": "/wordpress/post.txt",
+						"data": "<!-- wp:wordpress-playground/playground {"codeEditor":true,"files":[{"name":"index.php","contents":"<?php\\\\n/**\\\\n * Plugin Name: A WordPress plugin\\\\n */\\\\nadd_action(\'init\', function() {\\\\n  update_option(\'blogname\', \'This is a Playground demo!\');\\\\n});"}]} /-->",
+					},
+					{
+						"step": "runPHP",
+						"code": "<?php require '/wordpress/wp-load.php'; kses_remove_filters(); wp_update_post(['ID'=>1,'post_title' => 'Playground Plugin Editor', 'post_content'=>file_get_contents('/wordpress/post.txt')]);",
+					},
+				]
+}`}
+blueprint={{
+"landingPage": "/wp-admin/post.php?post=1&action=edit",
+				"steps": [
+					{
+						"step": "login",
+					},
+					{
+						"step": "installPlugin",
+						"pluginZipFile": {
+							"resource": "wordpress.org/plugins",
+							"slug": "interactive-code-block",
+						},
+					},
+					{
+						"step": "writeFile",
+						"path": "/wordpress/post.txt",
+						"data": "<!-- wp:wordpress-playground/playground {'codeEditor':true,'files':[{'name':'index.php','contents':'<?php////\\\\n/**////\\\\n * Plugin Name: A WordPress plugin////\\\\n *////\\\\nadd_action(/\'init/\', function() {////\\\\n  update_option(/\'blogname/\', /\'This is a Playground demo!/\');////\\\\n});'}]} /-->",
+					},
+					{
+						"step": "runPHP",
+						"code": "<?php require '/wordpress/wp-load.php'; kses_remove_filters(); wp_update_post(['ID'=>1,'post_title' => 'Playground Plugin Editor', 'post_content'=>file_get_contents('/wordpress/post.txt')]);",
+					},
+				]
+}} />
+
 You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
