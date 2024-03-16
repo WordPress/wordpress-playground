@@ -117,8 +117,7 @@ blueprint={{
 
 ## Enable PHP extensions and networking
 
-<BlueprintExample blueprint={{
-{
+<BlueprintExample display={`{
     "landingPage": "/wp-admin/plugin-install.php",
     "phpExtensionBundles": [
         "kitchen-sink"
@@ -131,15 +130,27 @@ blueprint={{
             "step": "login"
         }
     ]
-}
+}`}
+blueprint={{
+		"landingPage": "/wp-admin/plugin-install.php",
+    "phpExtensionBundles": [
+        "kitchen-sink"
+    ],
+    "features": {
+        "networking": true
+    },
+    "steps": [
+        {
+            "step": "login"
+        }
+    ]
 }} />
 
 ## Load PHP code on every request (mu-plugin)
 
-use the `writeFile` step to add code to a mu-plugin that runs on every request.
+Use the `writeFile` step to add code to a mu-plugin that runs on every request.
 
-<BlueprintExample blueprint={{
-{
+<BlueprintExample display={`{
     "landingPage": "/category/uncategorized/",
     "phpExtensionBundles": [
         "kitchen-sink"
@@ -157,7 +168,25 @@ use the `writeFile` step to add code to a mu-plugin that runs on every request.
             "data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
         }
     ]
-}
+}`}
+blueprint={{
+	"landingPage": "/category/uncategorized/",
+    "phpExtensionBundles": [
+        "kitchen-sink"
+    ],
+    "features": {
+        "networking": true
+    },
+    "steps": [
+        {
+            "step": "login"
+        },
+        {
+            "step": "writeFile",
+            "path": "/wordpress/wp-content/mu-plugins/rewrite.php",
+            "data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+        }
+    ]
 }} />
 
 You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
