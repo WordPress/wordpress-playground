@@ -30,7 +30,7 @@ Overall, WordPress Playground provides a risk-free environment for beginners to 
 
 Web applications like WordPress have long-relied on server technologies [to run logic](https://wordpress.github.io/wordpress-playground/architecture/wasm-php-overview) and [to store data](https://wordpress.github.io/wordpress-playground/architecture/wordpress#sqlite).
 
-Using those technologies has meant either running an web server connected to the internet or using those technologies in a desktop service or app (sometimes called a "WordPress local environment") that either leans on a virtual server with the technologies installed or the underlying technologies on the current device _(either preinstalled or bundled with the app)_.
+Using those technologies has meant either running an web server connected to the internet or using those technologies in a desktop service or app (sometimes called a "WordPress local environment") that either leans on a virtual server with the technologies installed or the underlying technologies on the current device.
 
 **Playground is a novel way to stream server technologies -- and WordPress _(and WP-CLI)_ -- as files that can then run in the browser.**
 
