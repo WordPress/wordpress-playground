@@ -8,6 +8,7 @@
   --wp-admin-border-width-focus:2px;
   --wp-block-synced-color:#7a00df;
   --wp-block-synced-color--rgb:122, 0, 223;
+  --wp-bound-block-color:#9747ff;
 }
 @media (min-resolution:192dpi){
   :root{
@@ -385,12 +386,13 @@ body.is-fullscreen-mode .interface-interface-skeleton{
   scroll-padding-bottom:64px;
   width:100%;
 }
-.dataviews-wrapper>div{
-  min-height:100%;
-}
 
 .dataviews-filters__view-actions{
+  flex-shrink:0;
+  left:0;
+  margin-bottom:12px;
   padding:12px 32px 0;
+  position:sticky;
 }
 .dataviews-filters__view-actions .components-search-control .components-base-control__field{
   max-width:240px;
@@ -405,13 +407,12 @@ body.is-fullscreen-mode .interface-interface-skeleton{
 }
 
 .dataviews-pagination{
-  -webkit-backdrop-filter:blur(6px);
-          backdrop-filter:blur(6px);
-  background-color:#fffc;
+  background-color:#fff;
   border-top:1px solid #f0f0f0;
   bottom:0;
   color:#757575;
-  margin-top:auto;
+  flex-shrink:0;
+  left:0;
   padding:12px 32px;
   position:sticky;
 }
@@ -497,6 +498,11 @@ body.is-fullscreen-mode .interface-interface-skeleton{
 .dataviews-view-table tr.is-selected:hover{
   background-color:rgba(var(--wp-admin-theme-color--rgb), .08);
 }
+.dataviews-view-table thead{
+  inset-block-start:0;
+  position:sticky;
+  z-index:1;
+}
 .dataviews-view-table thead tr{
   border:0;
 }
@@ -508,10 +514,7 @@ body.is-fullscreen-mode .interface-interface-skeleton{
   padding-bottom:8px;
   padding-left:4px;
   padding-top:8px;
-  position:sticky;
   text-transform:uppercase;
-  top:-1px;
-  z-index:1;
 }
 .dataviews-view-table tbody td{
   vertical-align:top;
@@ -554,7 +557,6 @@ body.is-fullscreen-mode .interface-interface-skeleton{
   display:block;
   font-size:13px;
   font-weight:500;
-  overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
   width:100%;
@@ -570,6 +572,11 @@ body.is-fullscreen-mode .interface-interface-skeleton{
 }
 .dataviews-view-grid__primary-field a:hover,.dataviews-view-list__primary-field a:hover,.dataviews-view-table__primary-field a:hover{
   color:#1e1e1e;
+}
+.dataviews-view-grid__primary-field a:focus,.dataviews-view-list__primary-field a:focus,.dataviews-view-table__primary-field a:focus{
+  border-radius:2px;
+  box-shadow:0 0 0 var(--wp-admin-border-width-focus) var(--wp-admin-theme-color, #007cba);
+  color:var(--wp-admin-theme-color--rgb);
 }
 .dataviews-view-grid__primary-field button.components-button.is-link,.dataviews-view-list__primary-field button.components-button.is-link,.dataviews-view-table__primary-field button.components-button.is-link{
   color:inherit;

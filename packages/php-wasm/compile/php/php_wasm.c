@@ -396,7 +396,7 @@ PHP_FUNCTION(post_message_to_js)
 
 	char *response;
 	size_t response_len = js_module_onMessage(data, &response);
-	if (response != NULL)
+	if (response != -1)
 	{
 		zend_string *return_string = zend_string_init(response, response_len, 0);
 		free(response);
@@ -1071,8 +1071,6 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	value = SG(request_info).request_uri;
 	if (value != NULL)
 	{
-		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
-		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("REQUEST_URI", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1081,7 +1079,7 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	{
 		// Confirm path translated starts with the document root
 		/**
-		 * PHP_SELF is the script path relative to the document rooth.
+		 * PHP_SELF is the script path relative to the document root.
 		 *
 		 * For example:
 		 *
@@ -1097,7 +1095,11 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 		if (strncmp(wasm_server_context->document_root, wasm_server_context->path_translated, strlen(wasm_server_context->document_root)) == 0)
 		{
 			// Substring of path translated starting after document root
+			char *script_name = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			char *script_filename = wasm_server_context->path_translated;
 			char *php_self = wasm_server_context->path_translated + strlen(wasm_server_context->document_root);
+			php_register_variable("SCRIPT_NAME", estrdup(script_name), track_vars_array TSRMLS_CC);
+			php_register_variable("SCRIPT_FILENAME", estrdup(script_filename), track_vars_array TSRMLS_CC);
 			php_register_variable("PHP_SELF", estrdup(php_self), track_vars_array TSRMLS_CC);
 			php_self_set = 1;
 		}
@@ -1106,6 +1108,8 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	if (php_self_set == 0 && value != NULL)
 	{
 		// Default to REQUEST_URI
+		php_register_variable("SCRIPT_NAME", value, track_vars_array TSRMLS_CC);
+		php_register_variable("SCRIPT_FILENAME", value, track_vars_array TSRMLS_CC);
 		php_register_variable("PHP_SELF", value, track_vars_array TSRMLS_CC);
 	}
 
@@ -1322,7 +1326,6 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		run_php(wasm_server_context->php_code);
 	}
 	result = EG(exit_status);
-	
 wasm_request_done:
 	wasm_sapi_request_shutdown();
 	return result;

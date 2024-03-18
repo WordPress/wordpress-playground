@@ -52,7 +52,7 @@
 					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
 					"node packages/playground/wordpress/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
 					"node packages/playground/wordpress/build/build.js --wp-version=latest --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public",
-					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public"
+					"node packages/playground/wordpress/build/build.js --wp-version=beta --output-js=packages/playground/wordpress/src/wordpress --output-assets=packages/playground/wordpress/public || true"
 				],
 				"parallel": false
 			}

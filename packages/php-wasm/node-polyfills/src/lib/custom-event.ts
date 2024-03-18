@@ -1,4 +1,6 @@
-if (typeof CustomEvent === 'undefined') {
+import { currentJsRuntime } from './current-js-runtime';
+
+if (currentJsRuntime === 'NODE' && typeof CustomEvent === 'undefined') {
 	class CustomEvent<T = any> extends Event {
 		readonly detail: T;
 		constructor(

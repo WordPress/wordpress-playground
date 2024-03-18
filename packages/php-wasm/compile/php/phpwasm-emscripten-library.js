@@ -20,7 +20,7 @@ const LibraryExample = {
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
 			FS.mkdir("/internal");
-			
+
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
 				: class EventEmitter {
@@ -548,7 +548,7 @@ const LibraryExample = {
 		return Asyncify.handleSleep((wakeUp) => {
 			const poll = function () {
 				if (PHPWASM.child_proc_by_pid[pid]?.exited) {
-					HEAPU32[exitCodePtr >> 2] = 
+					HEAPU32[exitCodePtr >> 2] =
 						PHPWASM.child_proc_by_pid[pid].exitCode;
 					wakeUp(pid);
 				} else {
@@ -950,7 +950,7 @@ const LibraryExample = {
 						// separates JS context from the PHP context so we
 						// don't let PHP crash here.
 						console.error(e);
-						wakeUp(0);
+						wakeUp(-1);
 					});
 			});
 		}
