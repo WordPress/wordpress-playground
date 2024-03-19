@@ -82,7 +82,7 @@ blueprint={{
 
 ## Showcase a product demo
 
-<BlueprintExample blueprint={{
+<BlueprintExample noButton blueprint={{
 	"steps": [
 		{
 			"step": "installPlugin",
@@ -117,127 +117,67 @@ blueprint={{
 
 ## Enable PHP extensions and networking
 
-<BlueprintExample display={`{
-    "landingPage": "/wp-admin/plugin-install.php",
-    "phpExtensionBundles": [
-        "kitchen-sink"
-    ],
-    "features": {
-        "networking": true
-    },
-    "steps": [
-        {
-            "step": "login"
-        }
-    ]
-}`}
-blueprint={{
-		"landingPage": "/wp-admin/plugin-install.php",
-    "phpExtensionBundles": [
-        "kitchen-sink"
-    ],
-    "features": {
-        "networking": true
-    },
-    "steps": [
-        {
-            "step": "login"
-        }
-    ]
+<BlueprintExample blueprint={{
+	"landingPage": "/wp-admin/plugin-install.php",
+	"phpExtensionBundles": [
+		"kitchen-sink"
+	],
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		}
+	]
 }} />
 
 ## Load PHP code on every request (mu-plugin)
 
 Use the `writeFile` step to add code to a mu-plugin that runs on every request.
 
-<BlueprintExample display={`{
-    "landingPage": "/category/uncategorized/",
-    "phpExtensionBundles": [
-        "kitchen-sink"
-    ],
-    "features": {
-        "networking": true
-    },
-    "steps": [
-        {
-            "step": "login"
-        },
-        {
-            "step": "writeFile",
-            "path": "/wordpress/wp-content/mu-plugins/rewrite.php",
-            "data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
-        }
-    ]
-}`}
-blueprint={{
+<BlueprintExample blueprint={{
 	"landingPage": "/category/uncategorized/",
-    "phpExtensionBundles": [
-        "kitchen-sink"
-    ],
-    "features": {
-        "networking": true
-    },
-    "steps": [
-        {
-            "step": "login"
-        },
-        {
-            "step": "writeFile",
-            "path": "/wordpress/wp-content/mu-plugins/rewrite.php",
-            "data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
-        }
-    ]
+	"phpExtensionBundles": [
+		"kitchen-sink"
+	],
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/rewrite.php",
+			"data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+		}
+	]
 }} />
 
 ## Code editor (as a Gutenberg block)
 
-<BlueprintExample display={`{
-	"landingPage": "/wp-admin/post.php?post=1&action=edit",
-				"steps": [
-					{
-						"step": "login",
-					},
-					{
-						"step": "installPlugin",
-						"pluginZipFile": {
-							"resource": "wordpress.org/plugins",
-							"slug": "interactive-code-block",
-						},
-					},
-					{
-						"step": "writeFile",
-						"path": "/wordpress/post.txt",
-						"data": "<!-- wp:wordpress-playground/playground {"codeEditor":true,"files":[{"name":"index.php","contents":"<?php\\\\n/**\\\\n * Plugin Name: A WordPress plugin\\\\n */\\\\nadd_action(\'init\', function() {\\\\n  update_option(\'blogname\', \'This is a Playground demo!\');\\\\n});"}]} /-->",
-					},
-					{
-						"step": "runPHP",
-						"code": "<?php require '/wordpress/wp-load.php'; kses_remove_filters(); wp_update_post(['ID'=>1,'post_title' => 'Playground Plugin Editor', 'post_content'=>file_get_contents('/wordpress/post.txt')]);",
-					},
-				]
-}`}
-blueprint={{
-"landingPage": "/wp-admin/post.php?post=1&action=edit",
-				"steps": [
-					{
-						"step": "login",
-					},
-					{
-						"step": "installPlugin",
-						"pluginZipFile": {
-							"resource": "wordpress.org/plugins",
-							"slug": "interactive-code-block",
-						},
-					},
-					{
-						"step": "writeFile",
-						"path": "/wordpress/post.txt",
-						"data": "<!-- wp:wordpress-playground/playground {'codeEditor':true,'files':[{'name':'index.php','contents':'<?php////\\\\n/**////\\\\n * Plugin Name: A WordPress plugin////\\\\n *////\\\\nadd_action(/\'init/\', function() {////\\\\n  update_option(/\'blogname/\', /\'This is a Playground demo!/\');////\\\\n});'}]} /-->",
-					},
-					{
-						"step": "runPHP",
-						"code": "<?php require '/wordpress/wp-load.php'; kses_remove_filters(); wp_update_post(['ID'=>1,'post_title' => 'Playground Plugin Editor', 'post_content'=>file_get_contents('/wordpress/post.txt')]);",
-					},
-				]
+<BlueprintExample blueprint={{
+  "landingPage": "/wp-admin/post.php?post=4&action=edit",
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "installPlugin",
+      "pluginZipFile": {
+        "resource": "wordpress.org/plugins",
+        "slug": "interactive-code-block"
+      }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-load.php'; wp_insert_post(['post_title' => 'WordPress Playground block demo!','post_content' => '<!-- wp:wordpress-playground/playground /-->', 'post_status' => 'publish', 'post_type' => 'post',]);"
+    }
+  ]
 }} />
 
 You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
