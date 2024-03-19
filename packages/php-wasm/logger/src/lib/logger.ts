@@ -1,14 +1,27 @@
-import { UniversalPHP } from '@php-wasm/universal/src/lib/universal-php';
+import {
+	PHPRequestErrorEvent,
+	UniversalPHP,
+} from '@php-wasm/universal/src/lib/universal-php';
 /**
  * Log severity levels.
  */
-export type LogSeverity = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
+
+/**
+ * Log prefix.
+ */
+export type LogPrefix = 'Playground' | 'PHP-WASM';
 
 /**
  * A logger for Playground.
  */
-export class Logger {
-	private readonly LOG_PREFIX = 'Playground';
+export class Logger extends EventTarget {
+	public readonly fatalErrorEvent = 'playground-fatal-error';
+
+	/**
+	 * Log messages
+	 */
+	private logs: string[] = [];
 
 	/**
 	 * Whether the window events are connected.
@@ -26,6 +39,7 @@ export class Logger {
 	private errorLogPath = '/wordpress/wp-content/debug.log';
 
 	constructor(errorLogPath?: string) {
+		super();
 		if (errorLogPath) {
 			this.errorLogPath = errorLogPath;
 		}
@@ -52,7 +66,7 @@ export class Logger {
 	private logWindowError(event: ErrorEvent) {
 		this.log(
 			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'fatal'
+			'Error'
 		);
 	}
 
@@ -62,7 +76,7 @@ export class Logger {
 	 * @param PromiseRejectionEvent event
 	 */
 	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		this.log(`${event.reason.stack}`, 'fatal');
+		this.log(`${event.reason.stack}`, 'Error');
 	}
 
 	/**
@@ -101,6 +115,23 @@ export class Logger {
 				this.lastPHPLogLength = log.length;
 			}
 		});
+		playground.addEventListener('request.error', (event) => {
+			event = event as PHPRequestErrorEvent;
+			if (event.error) {
+				this.log(
+					`${event.error.message} ${event.error.stack}`,
+					'Fatal',
+					'PHP-WASM'
+				);
+				this.dispatchEvent(
+					new CustomEvent(this.fatalErrorEvent, {
+						detail: {
+							logs: this.getLogs(),
+						},
+					})
+				);
+			}
+		});
 	}
 
 	/**
@@ -134,22 +165,36 @@ export class Logger {
 	 * Format log message and severity and log it.
 	 * @param string message
 	 * @param LogSeverity severity
+	 * @param string prefix
 	 */
-	public formatMessage(message: string, severity: LogSeverity): string {
+	public formatMessage(
+		message: string,
+		severity: LogSeverity,
+		prefix: string
+	): string {
 		const now = this.formatLogDate(new Date());
-		return `[${now}] ${this.LOG_PREFIX} ${severity}: ${message}`;
+		return `[${now}] ${prefix} ${severity}: ${message}`;
 	}
 
 	/**
 	 * Log message with severity and timestamp.
 	 * @param string message
 	 * @param LogSeverity severity
+	 * @param string prefix
 	 */
-	public log(message: string, severity?: LogSeverity): void {
+	public log(
+		message: string,
+		severity?: LogSeverity,
+		prefix?: LogPrefix
+	): void {
 		if (severity === undefined) {
-			severity = 'info';
+			severity = 'Info';
 		}
-		const log = this.formatMessage(message, severity);
+		const log = this.formatMessage(
+			message,
+			severity,
+			prefix ?? 'Playground'
+		);
 		this.logRaw(log);
 	}
 
@@ -158,7 +203,16 @@ export class Logger {
 	 * @param string log
 	 */
 	public logRaw(log: string): void {
+		this.logs.push(log);
 		console.debug(log);
+	}
+
+	/**
+	 * Get all logs.
+	 * @returns string[]
+	 */
+	public getLogs(): string[] {
+		return this.logs;
 	}
 }
 
@@ -185,4 +239,19 @@ export function collectPhpLogs(
 	playground: UniversalPHP
 ) {
 	loggerInstance.addPlaygroundRequestEndListener(playground);
+}
+
+/**
+ * Add a listener for the fatal Playground errors.
+ * These errors include Playground errors like Asyncify errors. PHP errors won't trigger this event.
+ * The callback function will receive an Event object with logs in the detail property.
+ *
+ * @param loggerInstance The logger instance
+ * @param callback The callback function
+ */
+export function addFatalErrorListener(
+	loggerInstance: Logger,
+	callback: EventListenerOrEventListenerObject
+) {
+	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
 }
