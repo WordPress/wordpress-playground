@@ -74,10 +74,6 @@ curl_setopt($ch, CURLOPT_URL, "https://slack.com/api/chat.postMessage?channel=$c
 curl_setopt($ch, CURLOPT_HTTPHEADER, array("Authorization: Bearer $token"));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 
-// Temp remove SSL
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-
 $response = curl_exec($ch);
 $errors = curl_error($ch);
 $response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
