@@ -73,7 +73,7 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 			rm bison-2.7.tar.gz && \
 			cd bison-2.7 && \
 			git apply --no-index /root/bison27.patch && \
-			./configure --prefix=/usr/local --with-libiconv-prefix=/usr/local/libiconv/ && \
+			./configure --prefix=/usr/local && \
 			make && \
 			make install; \
 			if [[ $? -ne 0 ]]; then \
