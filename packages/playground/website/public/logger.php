@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
-$channel = getenv('CHANNEL');
-$token = getenv('TOKEN');
+$channel = getenv('SLACK_CHANNEL');
+$token = getenv('SLACK_TOKEN');
 
 /**
  * Send response to the client
