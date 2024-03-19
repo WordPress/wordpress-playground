@@ -4,13 +4,15 @@ import { addFatalErrorListener, logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
+import { set } from 'cypress/types/lodash';
 
 export function ErrorReportModal() {
-	const [hasError, setHasError] = useState(false);
+	const [hasError, setHasError] = useState(true);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
 	const [url, setUrl] = useState('');
 	const [submitted, setSubmitted] = useState(false);
+	const [submitError, setSubmitError] = useState(false);
 
 	useEffect(() => {
 		addFatalErrorListener(logger, (e) => {
@@ -27,15 +29,31 @@ export function ErrorReportModal() {
 		setLogs('');
 		setUrl('');
 		setSubmitted(false);
+		setSubmitError(false);
 	}
 
-	function onSubmit() {
+	async function onSubmit() {
 		const data = ['What happened?', text, 'Logs', logs, 'Url', url].join(
 			'\n\n'
 		);
-		console.log(data);
-		// TODO: send data to the server
-		setSubmitted(true);
+
+		const formdata = new FormData();
+		formdata.append('data', data);
+		try {
+			const response = await fetch(
+				'https://playground.wordpress.net/logger.php',
+				{
+					method: 'POST',
+					body: formdata,
+				}
+			);
+			if (!response.ok) {
+				throw new Error('Failed to submit the error');
+			}
+			setSubmitted(true);
+		} catch (e) {
+			setSubmitError(true);
+		}
 	}
 
 	return (
@@ -44,11 +62,23 @@ export function ErrorReportModal() {
 				<header className={css.errorReportModalHeader}>
 					<h2>Thank you for reporting the error</h2>
 					<p>
-						We will look into the issue and open an{' '}
+						Your report has been submitted to the{' '}
+						<a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">
+							Making WordPress #playground-logs Slack channel
+						</a>{' '}
+						and will be reviewed by the team.
+					</p>
+				</header>
+			)}
+			{submitError && (
+				<header className={css.errorReportModalHeader}>
+					<h2>Failed to report the error</h2>
+					<p>
+						We were unable to submit the error report. Please try
+						again or open an{' '}
 						<a href="https://github.com/WordPress/wordpress-playground/issues/">
-							issue on GitHub if needed
+							issue on GitHub.
 						</a>
-						.
 					</p>
 				</header>
 			)}
