@@ -15,8 +15,8 @@ describe('Blueprints', () => {
 						},
 						{
 							step: 'runPHP',
-							code: `<?php 
-					require '/wordpress/wp-load.php'; 
+							code: `<?php
+					require '/wordpress/wp-load.php';
 					$wp_rewrite->flush_rules();
 				`,
 						},
@@ -80,5 +80,22 @@ describe('Blueprints', () => {
 			.its('body')
 			.find('[aria-label="“Test post” (Edit)"]')
 			.should('exist');
+	});
+
+	it('PHP Shutdown should work', () => {
+		const blueprint: Blueprint = {
+			landingPage: '/wp-admin/',
+			features: { networking: true },
+			steps: [
+				{ step: 'login' },
+				{
+					step: 'writeFile',
+					path: '/wordpress/wp-content/mu-plugins/rewrite.php',
+					data: "<?php add_action( 'shutdown', function() { post_message_to_js('test'); } );",
+				},
+			],
+		};
+		cy.visit('/#' + JSON.stringify(blueprint));
+		cy.wordPressDocument().its('body').should('contain', 'Dashboard');
 	});
 });

@@ -396,7 +396,7 @@ PHP_FUNCTION(post_message_to_js)
 
 	char *response;
 	size_t response_len = js_module_onMessage(data, &response);
-	if (response != NULL)
+	if (response_len != -1)
 	{
 		zend_string *return_string = zend_string_init(response, response_len, 0);
 		free(response);

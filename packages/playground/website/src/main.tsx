@@ -33,6 +33,8 @@ collectWindowErrors(logger);
 
 collectWindowErrors(logger);
 
+collectWindowErrors(logger);
+
 const query = new URL(document.location.href).searchParams;
 const blueprint = await resolveBlueprint();
 
