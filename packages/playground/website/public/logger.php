@@ -1,15 +1,17 @@
 <?php
 header('Content-Type: application/json');
-$channel = '@Bero';
+$channel = getenv('CHANNEL');
 $token = getenv('TOKEN');
 
-function response($ok, $error = null, $response = null)
+function response($ok, $error = null)
 {
-    die(json_encode(array(
+    $response_data = array(
         'ok' => $ok,
-        'error' => $error,
-        'response' => $response
-    )));
+    );
+    if ($error) {
+        $response_data['error'] = $error;
+    }
+    die(json_encode($response_data));
 }
 
 if (empty($token)) {
@@ -45,4 +47,4 @@ if ($response_data['ok'] !== true) {
     response(false, 'Slack Error: ' . $response_data['error']);
 }
 
-response(true, null, $response_data);
+response(true);
