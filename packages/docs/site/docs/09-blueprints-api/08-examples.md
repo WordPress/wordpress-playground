@@ -9,7 +9,7 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 Let's see some cool things you can do with Blueprints.
 
-### Install a Theme and a Plugin
+## Install a Theme and a Plugin
 
 <BlueprintExample blueprint={{
 	"steps": [
@@ -30,7 +30,7 @@ Let's see some cool things you can do with Blueprints.
 	]
 }} />
 
-### Run custom PHP code
+## Run custom PHP code
 
 <BlueprintExample
 display={`{
@@ -58,7 +58,7 @@ wp_insert_post(array(
 ]
 }} />
 
-#### Enable an option on the Gutenberg Experiments page
+## Enable an option on the Gutenberg Experiments page
 
 Here: Switch on the "new admin views" feature.
 
@@ -80,9 +80,9 @@ blueprint={{
 		]
 }} />
 
-### Showcase a product demo
+## Showcase a product demo
 
-<BlueprintExample blueprint={{
+<BlueprintExample noButton blueprint={{
 	"steps": [
 		{
 			"step": "installPlugin",
@@ -114,3 +114,70 @@ blueprint={{
 		}
 	]
 }} />
+
+## Enable PHP extensions and networking
+
+<BlueprintExample blueprint={{
+	"landingPage": "/wp-admin/plugin-install.php",
+	"phpExtensionBundles": [
+		"kitchen-sink"
+	],
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		}
+	]
+}} />
+
+## Load PHP code on every request (mu-plugin)
+
+Use the `writeFile` step to add code to a mu-plugin that runs on every request.
+
+<BlueprintExample blueprint={{
+	"landingPage": "/category/uncategorized/",
+	"phpExtensionBundles": [
+		"kitchen-sink"
+	],
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "login"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/mu-plugins/rewrite.php",
+			"data": "<?php add_action( 'after_setup_theme', function() { global $wp_rewrite; $wp_rewrite->set_permalink_structure('/%postname%/'); $wp_rewrite->flush_rules(); } );"
+		}
+	]
+}} />
+
+## Code editor (as a Gutenberg block)
+
+<BlueprintExample blueprint={{
+  "landingPage": "/wp-admin/post.php?post=4&action=edit",
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "installPlugin",
+      "pluginZipFile": {
+        "resource": "wordpress.org/plugins",
+        "slug": "interactive-code-block"
+      }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-load.php'; wp_insert_post(['post_title' => 'WordPress Playground block demo!','post_content' => '<!-- wp:wordpress-playground/playground /-->', 'post_status' => 'publish', 'post_type' => 'post',]);"
+    }
+  ]
+}} />
+
+You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).

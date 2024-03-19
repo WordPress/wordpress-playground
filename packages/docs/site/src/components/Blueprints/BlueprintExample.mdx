@@ -4,8 +4,8 @@ import CodeBlock from '@theme/CodeBlock';
 <div className="margin-vert--sm">
 	{!props.justButton && (
 		<CodeBlock title={props.title} language="json">
-			{props.display || JSON.stringify(props.blueprint, null, 4)}
+			{props.display || JSON.stringify(props.blueprint, null, '\t')}
 		</CodeBlock>
 	)}
-	<BlueprintRunButton blueprint={props.blueprint} />
+	{!props.noButton && <BlueprintRunButton blueprint={props.blueprint} />}
 </div>
