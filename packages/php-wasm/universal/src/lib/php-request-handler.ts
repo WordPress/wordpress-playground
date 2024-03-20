@@ -378,10 +378,7 @@ function seemsLikeADirectoryRoot(path: string) {
 export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 	for (const rule of rules) {
 		if (new RegExp(rule.match).test(path)) {
-			if (rule.replacement.startsWith('$')) {
-				return path.replace(rule.match, rule.replacement);
-			}
-			return rule.replacement;
+			return path.replace(rule.match, rule.replacement);
 		}
 	}
 	return path;
