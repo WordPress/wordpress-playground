@@ -164,6 +164,15 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 		$transports[] = 'Fetch';
 		return $transports;
 	});
+
+	/**
+	 * Force the Fetch transport to be used in Requests.
+  	 * The 'http_api_transports' filter was deprecated, and is no longer actively in use.
+  	 */
+	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
+		$options['transport'] = 'Wp_Http_Fetch';
+	}, 10, 5 );
+
 	/**
 	 * Disable signature verification as it doesn't seem to work with
 	 * fetch requests:
