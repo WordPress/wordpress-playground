@@ -54,8 +54,11 @@ export { rethrowFileSystemError } from './rethrow-file-system-error';
 export { isLocalPHP } from './is-local-php';
 export { isRemotePHP } from './is-remote-php';
 
-export type { PHPRequestHandlerConfiguration } from './php-request-handler';
-export { PHPRequestHandler } from './php-request-handler';
+export type {
+	PHPRequestHandlerConfiguration,
+	RewriteRule,
+} from './php-request-handler';
+export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
 export type { PHPBrowserConfiguration } from './php-browser';
 export { PHPBrowser } from './php-browser';
 export { rotatePHPRuntime } from './rotate-php-runtime';

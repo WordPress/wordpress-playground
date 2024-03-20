@@ -8,8 +8,7 @@ import { StepHandler } from '.';
  * <code>
  * {
  * 		"step": "activateTheme",
- * 		"pluginName": "Storefront",
- * 		"pluginPath": "/wordpress/wp-content/themes/storefront"
+ * 		"themeFolderName": "storefront"
  * }
  * </code>
  */
