@@ -48,7 +48,6 @@ export async function registerServiceWorker<
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.debug('[window][sw] Message from ServiceWorker', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.
