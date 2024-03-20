@@ -12,8 +12,7 @@ import { encodeAsMultipart } from './encode-as-multipart';
 
 export type RewriteRule = {
 	match: RegExp;
-	remove?: RegExp;
-	keep?: RegExp;
+	replacement: string;
 };
 
 export interface PHPRequestHandlerConfiguration {
@@ -379,15 +378,10 @@ function seemsLikeADirectoryRoot(path: string) {
 export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 	for (const rule of rules) {
 		if (new RegExp(rule.match).test(path)) {
-			if (rule.keep) {
-				path = path.replace(
-					path.replace(new RegExp(rule.keep), ''),
-					''
-				);
+			if (rule.replacement.startsWith('$')) {
+				return path.replace(rule.match, rule.replacement);
 			}
-			if (rule.remove) {
-				path = path.replace(new RegExp(rule.remove), '');
-			}
+			return rule.replacement;
 		}
 	}
 	return path;
