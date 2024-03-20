@@ -1,5 +1,9 @@
 <?php
+// Disable error reporting
+error_reporting(0);
+
 header('Content-Type: application/json');
+
 $channel = getenv('SLACK_CHANNEL');
 $token = getenv('SLACK_TOKEN');
 
