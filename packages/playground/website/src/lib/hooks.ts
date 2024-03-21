@@ -43,6 +43,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			// Blueprint fails.
 			onClientConnected: (playground) => {
 				playgroundTmp = playground;
+				(window as any)['playground'] = playground;
 			},
 		}).finally(async () => {
 			if (playgroundTmp) {

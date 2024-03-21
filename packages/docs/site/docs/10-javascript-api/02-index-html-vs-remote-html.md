@@ -25,6 +25,15 @@ That last part is how the public API works. The parent window (`index.html`) sen
 
 Sending messages is cumbersome so the PlaygroundClient class provides an object-oriented API that handles the messages internally.
 
+For quick testing and debugging, `remote.html` also exposes the JavaScript API client as `window.playground`. You can use it from your devtools as follows:
+
+```javascript
+> await playground.listFiles("/")
+(6) ['tmp', 'home', 'dev', 'proc', 'internal', 'wordpress']
+```
+
+`playground` is a class instance in this context and you will benefit from browser's autocompletion.
+
 ## Index.html
 
 `index.html` is an independent app built around `remote.html` using the WordPress Playground API client.
@@ -32,3 +41,12 @@ Sending messages is cumbersome so the PlaygroundClient class provides an object-
 It renders the browser UI, version selectors, and renders WordPress by embedding `remote.html` via an iframe. UI features like an address bar or a version selector are implemented by communicating with `remote.html` using `PlaygroundClient`.
 
 `index.html` monitors the query parameters it receives and triggers the appropriate `PlaygroundClient` methods. For instance, `?plugin=coblocks` triggers `installPluginsFromDirectory( client, ['coblocks'] )`. This mechanism forms the basis of the Query API.
+
+For quick testing and debugging, `index.html` also exposes the JavaScript API client as `window.playground`. You can use it from your devtools as follows:
+
+```javascript
+> await playground.listFiles("/")
+(6) ['tmp', 'home', 'dev', 'proc', 'internal', 'wordpress']
+```
+
+Note that `playground` is a Proxy object in this context and you won't get any autocompletion from the browser.
