@@ -64,7 +64,7 @@
 			}
 			import { bootPlaygroundRemote } from './src/index';
 			try {
-				await bootPlaygroundRemote();
+				window.playground = await bootPlaygroundRemote();
 			} catch (e) {
 				console.error(e);
 				document.body.className = 'has-error';
