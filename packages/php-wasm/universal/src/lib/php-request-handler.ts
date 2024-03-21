@@ -119,7 +119,8 @@ export class PHPRequestHandler implements RequestHandler {
 			request.url.startsWith('http://') ||
 			request.url.startsWith('https://');
 		const requestedUrl = new URL(
-			request.url,
+			// Remove the hash part of the URL as it's meant for the server.
+			request.url.split('#')[0],
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
