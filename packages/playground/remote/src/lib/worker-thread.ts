@@ -241,6 +241,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 try {
 	php.initializeRuntime(await recreateRuntime());
+	php.setPhpIniEntry('disable_functions', '');
 
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
@@ -276,6 +277,17 @@ try {
 		});
 	}
 
+	php.writeFile(
+		joinPaths(docroot, 'test-curl.php'),
+		`<?php 
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, 'https://wordpress.org');
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	$output = curl_exec($ch);
+	curl_close($ch);
+	var_dump($output);
+	`
+	);
 	// Always install the playground mu-plugin, even if WordPress is loaded
 	// from the OPFS. This ensures:
 	// * The mu-plugin is always there, even when a custom WordPress directory
