@@ -6,7 +6,7 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 
 export function ErrorReportModal() {
-	const [showModal, setShowModal] = useState(true);
+	const [showModal, setShowModal] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
