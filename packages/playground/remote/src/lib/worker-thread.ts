@@ -285,11 +285,12 @@ try {
 		joinPaths(docroot, 'test-curl.php'),
 		`<?php 
 	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, 'https://wordpress.org');
+	curl_setopt($ch, CURLOPT_URL, 'http://wordpress.org');
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 	$output = curl_exec($ch);
-	curl_close($ch);
 	var_dump($output);
+	var_dump(curl_error($ch));
+	curl_close($ch);
 	`
 	);
 	// Always install the playground mu-plugin, even if WordPress is loaded
