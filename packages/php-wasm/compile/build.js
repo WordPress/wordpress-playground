@@ -129,7 +129,6 @@ const platformDefaults = {
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
 		WITH_CLI_SAPI: 'yes',
