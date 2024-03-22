@@ -127,6 +127,7 @@ export class Logger extends EventTarget {
 					new CustomEvent(this.fatalErrorEvent, {
 						detail: {
 							logs: this.getLogs(),
+							source: event.source,
 						},
 					})
 				);

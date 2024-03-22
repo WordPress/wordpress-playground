@@ -14,6 +14,7 @@ export interface PHPRequestEndEvent {
 export interface PHPRequestErrorEvent {
 	type: 'request.error';
 	error: Error;
+	source?: 'request' | 'php-wasm';
 }
 
 /**

@@ -16,10 +16,13 @@ export function ErrorReportModal() {
 
 	useEffect(() => {
 		addFatalErrorListener(logger, (e) => {
-			setShowModal(true);
-			setText('');
-			setLogs((e as CustomEvent).detail.logs.join(''));
-			setUrl(window.location.href);
+			const error = e as CustomEvent;
+			if (error.detail?.source === 'php-wasm') {
+				setShowModal(true);
+				setText('');
+				setLogs(error.detail.logs.join(''));
+				setUrl(window.location.href);
+			}
 		});
 	}, []);
 
