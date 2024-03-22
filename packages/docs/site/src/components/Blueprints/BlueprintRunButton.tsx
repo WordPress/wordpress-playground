@@ -18,7 +18,7 @@ export function BlueprintRunButton({ blueprint }) {
 		);
 	}
 	const url = `https://playground.wordpress.net/?mode=seamless#${btoa(
-		JSON.stringify(blueprint)
+		typeof blueprint === 'string' ? blueprint : JSON.stringify(blueprint)
 	)}`;
 	return (
 		<iframe
