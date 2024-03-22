@@ -4,41 +4,49 @@ import { addFatalErrorListener, logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
-import { set } from 'cypress/types/lodash';
 
 export function ErrorReportModal() {
-	const [hasError, setHasError] = useState(true);
+	const [showModal, setShowModal] = useState(true);
+	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
 	const [url, setUrl] = useState('');
 	const [submitted, setSubmitted] = useState(false);
-	const [submitError, setSubmitError] = useState(false);
+	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
 		addFatalErrorListener(logger, (e) => {
-			setHasError(true);
+			setShowModal(true);
 			setText('');
 			setLogs((e as CustomEvent).detail.logs.join(''));
 			setUrl(window.location.href);
 		});
 	}, []);
 
-	function onClose() {
-		setHasError(false);
+	function resetForm() {
 		setText('');
 		setLogs('');
 		setUrl('');
+	}
+
+	function resetSubmission() {
 		setSubmitted(false);
-		setSubmitError(false);
+		setSubmitError('');
+	}
+
+	function onClose() {
+		setShowModal(false);
+		resetForm();
+		resetSubmission();
 	}
 
 	async function onSubmit() {
-		const data = ['What happened?', text, 'Logs', logs, 'Url', url].join(
-			'\n\n'
-		);
-
+		setLoading(true);
 		const formdata = new FormData();
-		formdata.append('data', data);
+		formdata.append(
+			'message',
+			['What happened?', text, 'Logs', logs, 'Url', url].join('\n\n')
+		);
 		try {
 			const response = await fetch(
 				'https://playground.wordpress.net/logger.php',
@@ -47,51 +55,77 @@ export function ErrorReportModal() {
 					body: formdata,
 				}
 			);
-			if (!response.ok) {
-				throw new Error('Failed to submit the error');
-			}
 			setSubmitted(true);
+
+			const body = await response.json();
+			if (!body.ok) {
+				throw new Error(body.error);
+			}
+
+			setSubmitError('');
+			resetForm();
 		} catch (e) {
-			setSubmitError(true);
+			setSubmitError((e as Error).message);
+		} finally {
+			setLoading(false);
 		}
 	}
 
-	return (
-		<Modal isOpen={hasError} onRequestClose={onClose}>
-			{submitted && (
-				<header className={css.errorReportModalHeader}>
-					<h2>Thank you for reporting the error</h2>
-					<p>
-						Your report has been submitted to the{' '}
-						<a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">
-							Making WordPress #playground-logs Slack channel
-						</a>{' '}
-						and will be reviewed by the team.
-					</p>
-				</header>
-			)}
-			{submitError && (
-				<header className={css.errorReportModalHeader}>
-					<h2>Failed to report the error</h2>
-					<p>
-						We were unable to submit the error report. Please try
-						again or open an{' '}
-						<a href="https://github.com/WordPress/wordpress-playground/issues/">
-							issue on GitHub.
-						</a>
-					</p>
-				</header>
-			)}
-			{!submitted && (
+	function getTitle() {
+		if (!submitted) {
+			return 'Report error';
+		} else if (submitError) {
+			return 'Failed to report the error';
+		} else {
+			return 'Thank you for reporting the error';
+		}
+	}
+
+	function getContent() {
+		if (!submitted) {
+			return `Playground crashed because of an error. You can help
+				resolve the issue by sharing the error details with
+				us.`;
+		} else if (submitError) {
+			return (
 				<>
-					<header className={css.errorReportModalHeader}>
-						<h2>Report error</h2>
-						<p>
-							Playground crashed because of an error. You can help
-							resolve the issue by sharing the error details with
-							us.
-						</p>
-					</header>
+					We were unable to submit the error report. Please try again
+					or open an{' '}
+					<a href="https://github.com/WordPress/wordpress-playground/issues/">
+						issue on GitHub.
+					</a>
+				</>
+			);
+		} else {
+			return (
+				<>
+					Your report has been submitted to the{' '}
+					<a href="https://wordpress.slack.com/archives/C06Q5DCKZ3L">
+						Making WordPress #playground-logs Slack channel
+					</a>{' '}
+					and will be reviewed by the team.
+				</>
+			);
+		}
+	}
+
+	/**
+	 * Show the form if the error has not been submitted or if there was an error submitting it.
+	 *
+	 * @return {boolean}
+	 */
+	function showForm() {
+		return !submitted || submitError;
+	}
+
+	return (
+		<Modal isOpen={showModal} onRequestClose={onClose}>
+			<header className={css.errorReportModalHeader}>
+				<h2>{getTitle()}</h2>
+				<p>{getContent()}</p>
+			</header>
+			{showForm() && (
+				<>
 					<main>
 						<TextareaControl
 							label="What happened?"
@@ -99,6 +133,7 @@ export function ErrorReportModal() {
 							value={text}
 							onChange={setText}
 							className={css.errorReportModalTextarea}
+							required={true}
 						/>
 						<TextareaControl
 							label="Logs"
@@ -114,7 +149,12 @@ export function ErrorReportModal() {
 						/>
 					</main>
 					<footer className={css.errorReportModalFooter}>
-						<Button variant="primary" onClick={onSubmit}>
+						<Button
+							variant="primary"
+							onClick={onSubmit}
+							isBusy={loading}
+							disabled={loading || !text}
+						>
 							Report error
 						</Button>
 						<Button onClick={onClose}>Cancel</Button>
