@@ -245,6 +245,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--with-layout=GNU  \
 	--disable-cgi      \
 	--disable-opcache  \
+	--disable-posix    \
 	--enable-hash      \
 	--enable-static=yes \
 	--enable-shared=no \
