@@ -9,7 +9,7 @@ import { phpVar } from '@php-wasm/util';
  *
  * <code>
  * {
- * 		"step": "wpCLI",
+ * 		"step": "wp-cli",
  * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some content'"
  * }
  * </code>
