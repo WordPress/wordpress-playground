@@ -922,19 +922,19 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			)) {
 				// Run via `code`
 				it(testName, async () => {
-					const result = await php.run({
+					const promise = php.run({
 						code: testSnippet,
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 
 				// Run via the request handler
 				it(testName, async () => {
 					php.writeFile('/test.php', testSnippet);
-					const result = await php.run({
+					const promise = php.run({
 						scriptPath: '/test.php',
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 			}
 		});
