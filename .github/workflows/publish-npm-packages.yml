@@ -20,7 +20,8 @@ jobs:
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
                 github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak'
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
             )
 
         # Specify runner + deployment step
