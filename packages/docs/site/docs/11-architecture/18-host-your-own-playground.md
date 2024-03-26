@@ -58,9 +58,9 @@ git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-
 ```
 
 Enter the `wordpress-playground` directory.
-cd wordpress-playground
-
 ```sh
+cd wordpress-playground
+```
 
 Install dependencies, and build the website.
 
