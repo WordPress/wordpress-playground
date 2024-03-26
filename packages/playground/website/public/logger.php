@@ -4,6 +4,22 @@ error_reporting(0);
 
 header('Content-Type: application/json');
 
+/**
+ * Rate limit logger requests
+ */
+$max_requests_per_hour = 5;
+
+session_start();
+$rate_limit_key = md5('logger_requests_' . date('Y-m-d H'));
+if (!isset($_SESSION[$rate_limit_key])) {
+    $_SESSION[$rate_limit_key] = 0;
+}
+$_SESSION[$rate_limit_key]++;
+
+if ($_SESSION[$rate_limit_key] > $max_requests_per_hour) {
+    response(false, 'Too many requests');
+}
+
 $channel = getenv('SLACK_CHANNEL');
 $token = getenv('SLACK_TOKEN');
 
