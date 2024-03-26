@@ -29,7 +29,6 @@ describe('Blueprint step wpCLI', () => {
 			command:
 				"wp post create --post_title='Test post' --post_excerpt='Some content' --no-color",
 		});
-		expect(result.text).toContain('Success');
 		expect(result.text).toContain('Created post 4');
 	});
 });

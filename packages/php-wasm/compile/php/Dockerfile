@@ -168,6 +168,13 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
+# Remove fileinfo if needed
+RUN if [ "$WITH_FILEINFO" = "no" ]; \
+    then \
+        # light bundle should compile without fileinfo and libmagic
+        echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
+    fi;
+
 # Add iconv if needed
 RUN if [ "$WITH_ICONV" = "yes" ]; \
 	then \
