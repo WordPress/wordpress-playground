@@ -46,10 +46,13 @@ export function ErrorReportModal() {
 	async function onSubmit() {
 		setLoading(true);
 		const formdata = new FormData();
-		formdata.append(
-			'message',
-			['What happened?', text, 'Logs', logs, 'Url', url].join('\n\n')
-		);
+		formdata.append('description', text);
+		if (logs) {
+			formdata.append('logs', logs);
+		}
+		if (url) {
+			formdata.append('url', url);
+		}
 		try {
 			const response = await fetch(
 				'https://playground.wordpress.net/logger.php',
@@ -88,9 +91,8 @@ export function ErrorReportModal() {
 		if (!submitted) {
 			return (
 				<>
-					Playground crashed because of an error. You can help
-					resolve the issue by sharing the error details with
-					us.
+					Playground crashed because of an error. You can help resolve
+					the issue by sharing the error details with us.
 				</>
 			);
 		} else if (submitError) {

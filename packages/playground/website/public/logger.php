@@ -40,60 +40,29 @@ function response($ok, $error = null)
     die(json_encode($response_data));
 }
 
-/**
- * Validate the message format
- *
- * @param string $message - The message to validate
- * @return bool - If the message is valid
- */
-function validate_message($message)
-{
-    // Validate description. Description is required
-    preg_match('/(?<=What happened\?\n\n)(.+?)(?=\n\nLogs)/s', $message, $description);
-    if (empty($description)) {
-        return false;
-    }
-
-    // Validate logs if exists. Logs need to match the PHP error log format
-    preg_match('/(?<=Logs\n\n)(.+?)(?=\n\nUrl)/s', $message, $logs);
-    if (!empty($logs)) {
-        $logs = $logs[0];
-        if (preg_match('/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\](.*)/s', $logs) !== 1) {
-            return false;
-        }
-    }
-
-    // Validate URL if exists
-    preg_match(
-        '/(?<=Url\n\n)(.+)/s',
-        $message,
-        $url
-    );
-    if (!empty($url)) {
-        $url = $url[0];
-        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 if (empty($token)) {
     response(false, 'No token provided');
 }
 
-if (!isset($_POST['message'])) {
-    response(false, 'No message provided');
+if (!isset($_POST['description'])) {
+    response(false, 'No description provided');
 }
-$message = urldecode($_POST['message']);
-$message = str_replace("\r\n", "\n", $message); // Replace \r\n with \n
-$message = str_replace("\r", "\n", $message); // Replace remaining \r with \n
+$text = "What happened?\n\n" . $_POST['description'];
 
-if (!validate_message($message)) {
-    response(false, 'Invalid message');
+if (isset($_POST['logs'])) {
+    if (preg_match('/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\](.*)/s', $_POST['logs']) !== 1) {
+        response(false, 'Logs do not match the PHP error log format');
+    }
+    $text .= "\n\nLogs\n\n" . $_POST['logs'];
 }
-$text = urlencode($message);
+
+if (isset($_POST['url'])) {
+    if (filter_var($_POST['url'], FILTER_VALIDATE_URL) === false) {
+        response(false, 'Invalid URL');
+    }
+    $text .= "\n\nUrl\n\n" . $_POST['url'];
+}
+$text = urlencode($text);
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, "https://slack.com/api/chat.postMessage?channel=$channel&text=$text");
