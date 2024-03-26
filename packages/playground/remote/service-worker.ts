@@ -5,12 +5,31 @@ declare const self: ServiceWorkerGlobalScope;
 import { getURLScope, removeURLScope, setURLScope } from '@php-wasm/scopes';
 import {
 	awaitReply,
-	convertFetchEventToPHPRequest,
+	convertFetchEventToPHPRequest as convertFetchEvent,
 	initializeServiceWorker,
 	cloneRequest,
 	broadcastMessageExpectReply,
 	getRequestHeaders,
 } from '@php-wasm/web-service-worker';
+
+async function convertFetchEventToPHPRequest(event: any) {
+	const fullUrl = new URL(event.request.url);
+	const scope = getURLScope(fullUrl);
+	const res: any = await convertFetchEvent(event);
+	const contentType: string = res.headers.get('content-type');
+	if (contentType?.match(/text\/html/)) {
+		const canonical: string = await res.text();
+		let relative = canonical.replace(
+			/(http|https):[\/\\]+(localhost|127.0.0.1|playground\.wordpress\.net|diy-pwa\.com)[:0-9]*\/scope:\d.\d*/g,
+			`/scope:${scope}`
+		);
+		relative = relative.replace(/http:/g, 'https:');
+		const resNew = new Response(relative, res);
+		return resNew;
+	} else {
+		return res;
+	}
+}
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url

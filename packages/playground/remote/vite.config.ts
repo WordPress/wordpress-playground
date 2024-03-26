@@ -91,6 +91,7 @@ export default defineConfig({
 		assetsInlineLimit: 0,
 		rollupOptions: {
 			input: {
+				index: path('/index.html'),
 				wordpress: path('/remote.html'),
 			},
 		},
