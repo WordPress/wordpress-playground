@@ -86,9 +86,13 @@ export function ErrorReportModal() {
 
 	function getContent() {
 		if (!submitted) {
-			return `Playground crashed because of an error. You can help
-				resolve the issue by sharing the error details with
-				us.`;
+			return (
+				<>
+					Playground crashed because of an error. You can help
+					resolve the issue by sharing the error details with
+					us.
+				</>
+			);
 		} else if (submitError) {
 			return (
 				<>
