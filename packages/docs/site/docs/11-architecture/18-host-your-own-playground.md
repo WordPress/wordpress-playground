@@ -57,6 +57,11 @@ Create a shallow clone of the Playground repository, or your own fork.
 git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
 ```
 
+Enter the `wordpress-playground` directory.
+cd wordpress-playground
+
+```sh
+
 Install dependencies, and build the website.
 
 ```sh
