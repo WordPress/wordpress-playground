@@ -21,6 +21,7 @@ RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
+COPY ./libcurl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
 COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
@@ -34,6 +35,7 @@ COPY ./oniguruma/dist/root/lib /root/lib
 # Build PHP
 
 # The PHP extensions to build:
+ARG WITH_CURL
 ARG WITH_VRZNO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
@@ -175,6 +177,13 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
 	fi;
 
+# Add curl if needed
+RUN if [ "$WITH_CURL" = "yes" ]; \
+	then \
+		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libcurl.a' >> /root/.emcc-php-wasm-sources; \
+	fi;
+
 # Add mbstring if needed
 RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	then echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
@@ -222,6 +231,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+	CURL_CFLAGS="-I/root/lib/include" \
+	CURL_LIBS="-L/root/lib/lib" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as

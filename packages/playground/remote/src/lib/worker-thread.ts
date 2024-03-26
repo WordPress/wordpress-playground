@@ -1,4 +1,4 @@
-import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { CAPem, WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -241,10 +241,15 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 try {
 	php.initializeRuntime(await recreateRuntime());
+	php.setPhpIniEntry('disable_functions', '');
 
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	php.setPhpIniEntry('allow_url_fopen', 'On');
+	php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
+	// @TODO: Do not import the CA bundle like this.
+	php.writeFile('/tmp/ca-bundle.crt', CAPem);
 	const docroot = php.documentRoot;
 
 	// If WordPress isn't already installed, download and extract it from
@@ -276,6 +281,18 @@ try {
 		});
 	}
 
+	php.writeFile(
+		joinPaths(docroot, 'test-curl.php'),
+		`<?php 
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, 'http://wordpress.org');
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	$output = curl_exec($ch);
+	var_dump($output);
+	var_dump(curl_error($ch));
+	curl_close($ch);
+	`
+	);
 	// Always install the playground mu-plugin, even if WordPress is loaded
 	// from the OPFS. This ensures:
 	// * The mu-plugin is always there, even when a custom WordPress directory
