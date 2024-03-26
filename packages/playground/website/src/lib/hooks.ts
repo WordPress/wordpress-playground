@@ -34,13 +34,22 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 			remoteUrl.searchParams.set('storage', storage);
 		}
 
+		let playgroundTmp: PlaygroundClient | undefined = undefined;
 		startPlaygroundWeb({
 			iframe,
 			remoteUrl: remoteUrl.toString(),
 			blueprint,
-		}).then(async (playground) => {
-			playground.onNavigation((url) => setUrl(url));
-			setPlayground(() => playground);
+			// Intercept the Playground client even if the
+			// Blueprint fails.
+			onClientConnected: (playground) => {
+				playgroundTmp = playground;
+				(window as any)['playground'] = playground;
+			},
+		}).finally(async () => {
+			if (playgroundTmp) {
+				playgroundTmp.onNavigation((url) => setUrl(url));
+				setPlayground(() => playgroundTmp);
+			}
 		});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [iframe, awaitedIframe]);

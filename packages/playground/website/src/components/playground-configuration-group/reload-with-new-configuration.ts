@@ -2,10 +2,10 @@ import { PlaygroundClient } from '@wp-playground/client';
 import { PlaygroundConfiguration } from './form';
 
 export async function reloadWithNewConfiguration(
-	playground: PlaygroundClient,
-	config: PlaygroundConfiguration
+	config: PlaygroundConfiguration,
+	playground?: PlaygroundClient
 ) {
-	if (config.resetSite && config.storage === 'browser') {
+	if (playground && config.resetSite && config.storage === 'browser') {
 		try {
 			await playground?.resetVirtualOpfs();
 		} catch (error) {
@@ -21,10 +21,9 @@ export async function reloadWithNewConfiguration(
 	if (config.withExtensions) {
 		url.searchParams.append('php-extension-bundle', 'kitchen-sink');
 	}
+	url.searchParams.delete('networking');
 	if (config.withNetworking) {
-		url.searchParams.append('networking', 'yes');
-	} else {
-		url.searchParams.delete('networking');
+		url.searchParams.set('networking', 'yes');
 	}
 	window.location.assign(url);
 }

@@ -27,7 +27,13 @@ export async function setupFetchNetworkTransport(playground: UniversalPHP) {
 	});
 
 	await playground.onMessage(async (message: string) => {
-		const envelope: RequestMessage = JSON.parse(message);
+		let envelope: RequestMessage;
+		try {
+			// PHP-WASM sends messages as strings, so we can't expect valid JSON.
+			envelope = JSON.parse(message);
+		} catch (e) {
+			return '';
+		}
 		const { type, data } = envelope;
 		if (type !== 'request') {
 			return '';

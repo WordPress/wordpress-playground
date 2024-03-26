@@ -47,6 +47,14 @@ export interface StartPlaygroundOptions {
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
 	/**
+	 * Called when the playground client is connected, but before the blueprint
+	 * steps are run.
+	 *
+	 * @param playground
+	 * @returns
+	 */
+	onClientConnected?: (playground: PlaygroundClient) => void;
+	/**
 	 * The SAPI name PHP will use.
 	 * @internal
 	 * @private
@@ -68,6 +76,7 @@ export async function startPlaygroundWeb({
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
 	onBlueprintStepCompleted,
+	onClientConnected = () => {},
 	sapiName,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	allowStorageAccessByUserActivation(iframe);
@@ -77,7 +86,13 @@ export async function startPlaygroundWeb({
 	});
 	progressTracker.setCaption('Preparing WordPress');
 	if (!blueprint) {
-		return doStartPlaygroundWeb(iframe, remoteUrl, progressTracker);
+		const playground = await doStartPlaygroundWeb(
+			iframe,
+			remoteUrl,
+			progressTracker
+		);
+		onClientConnected(playground);
+		return playground;
 	}
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
@@ -95,6 +110,7 @@ export async function startPlaygroundWeb({
 		progressTracker
 	);
 	collectPhpLogs(logger, playground);
+	onClientConnected(playground);
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 

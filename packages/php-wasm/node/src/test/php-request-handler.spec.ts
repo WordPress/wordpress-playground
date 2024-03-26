@@ -177,6 +177,17 @@ describe.each(SupportedPHPVersions)(
 			expect(response.text).toEqual('true');
 		});
 
+		/**
+		 * @see https://github.com/WordPress/wordpress-playground/issues/1120
+		 */
+		it('Should not propagate the # part of the URL to PHP', async () => {
+			php.writeFile('/index.php', `<?php echo $_SERVER['REQUEST_URI'];`);
+			const response = await handler.request({
+				url: '/index.php#foo',
+			});
+			expect(response.text).toEqual('/index.php');
+		});
+
 		it('Should allow mixing data and files when `body` is a JavaScript object', async () => {
 			php.writeFile(
 				'/index.php',

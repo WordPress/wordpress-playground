@@ -24,5 +24,8 @@
 	"engines": {
 		"node": ">=18.18.2",
 		"npm": ">=8.11.0"
+	},
+	"dependencies": {
+		"@php-wasm/universal": "^0.6.6"
 	}
 }

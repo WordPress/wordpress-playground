@@ -64,7 +64,7 @@
 			}
 			import { bootPlaygroundRemote } from './src/index';
 			try {
-				await bootPlaygroundRemote();
+				window.playground = await bootPlaygroundRemote();
 			} catch (e) {
 				console.error(e);
 				document.body.className = 'has-error';
@@ -72,7 +72,12 @@
 
 				const div = document.createElement('div');
 				div.className = 'error-message';
-				div.innerText = 'Ooops! WordPress Playground had a hiccup!';
+				const userFriendlyMessage =
+					e?.userFriendlyMessage ||
+					'See the developer tools for error details.';
+				div.innerHTML =
+					'Ooops! WordPress Playground had a hiccup! <br/><br/> ' +
+					userFriendlyMessage;
 				document.body.append(div);
 
 				const button = document.createElement('button');
