@@ -164,7 +164,7 @@ describe('rewriteDefineCalls', () => {
 define('WP_DEBUG', true);
 
 // The third define() argument is also supported:
-@define('SAVEQUERIES', false, true); 
+@define('SAVEQUERIES', false, true);
 
 // Expression
 define(true ? 'WP_DEBUG_LOG' : 'WP_DEBUG_LOG', 123);
@@ -230,9 +230,10 @@ describe('defineBeforeRun', () => {
 			SITE_URL: 'http://test.url',
 		};
 		await defineBeforeRun(php, constants);
-		const response = await php.run({
-			code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
-		});
-		expect(response.errors).toContain('PHP Fatal error:');
+		await expect(
+			php.run({
+				code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
+			})
+		).rejects.toThrow('PHP.run() failed with exit code');
 	});
 });

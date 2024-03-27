@@ -63,7 +63,6 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 
 	// Deactivate all the plugins as required by the multisite installation.
 	const result = await playground.run({
-		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");

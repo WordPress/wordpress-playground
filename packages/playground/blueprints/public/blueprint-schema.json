@@ -1411,10 +1411,6 @@
 				"code": {
 					"type": "string",
 					"description": "The code snippet to eval instead of a php file."
-				},
-				"throwOnError": {
-					"type": "boolean",
-					"description": "Whether to throw an error if the PHP process exits with a non-zero code or outputs to stderr."
 				}
 			},
 			"additionalProperties": false

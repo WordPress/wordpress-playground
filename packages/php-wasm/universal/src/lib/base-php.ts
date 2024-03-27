@@ -276,7 +276,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			}
 
 			const response = await this.#handleRequest();
-			if (request.throwOnError && response.exitCode !== 0) {
+			if (response.exitCode !== 0) {
 				const output = {
 					stdout: response.text,
 					stderr: response.errors,
