@@ -44,15 +44,12 @@ if (empty($token)) {
     response(false, 'No token provided');
 }
 
-if (!isset($_POST['description'])) {
+if (!isset($_POST['description']) || empty($_POST['description'])) {
     response(false, 'No description provided');
 }
 $text = "What happened?\n\n" . $_POST['description'];
 
-if (isset($_POST['logs'])) {
-    if (preg_match('/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\](.*)/s', $_POST['logs']) !== 1) {
-        response(false, 'Logs do not match the PHP error log format');
-    }
+if (isset($_POST['logs']) && !empty($_POST['logs'])) {
     $text .= "\n\nLogs\n\n" . $_POST['logs'];
 }
 
