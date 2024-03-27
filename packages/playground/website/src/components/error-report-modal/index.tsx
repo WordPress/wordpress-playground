@@ -5,8 +5,10 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
 
+import { usePlaygroundContext } from '../../playground-context';
+
 export function ErrorReportModal() {
-	const [showModal, setShowModal] = useState(false);
+	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
@@ -18,13 +20,18 @@ export function ErrorReportModal() {
 		addFatalErrorListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				setShowModal(true);
-				setText('');
-				setLogs(error.detail.logs.join(''));
-				setUrl(window.location.href);
+				setShowErrorModal(true);
 			}
 		});
-	}, []);
+	}, [setShowErrorModal]);
+
+	useEffect(() => {
+		resetForm();
+		if (showErrorModal) {
+			setLogs(logger.getLogs().join(''));
+			setUrl(window.location.href);
+		}
+	}, [showErrorModal, setShowErrorModal, logs, setLogs]);
 
 	function resetForm() {
 		setText('');
@@ -38,7 +45,7 @@ export function ErrorReportModal() {
 	}
 
 	function onClose() {
-		setShowModal(false);
+		setShowErrorModal(false);
 		resetForm();
 		resetSubmission();
 	}
@@ -128,7 +135,7 @@ export function ErrorReportModal() {
 	}
 
 	return (
-		<Modal isOpen={showModal} onRequestClose={onClose}>
+		<Modal isOpen={showErrorModal} onRequestClose={onClose}>
 			<header className={css.errorReportModalHeader}>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>

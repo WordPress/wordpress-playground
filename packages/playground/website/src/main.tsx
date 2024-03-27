@@ -16,6 +16,7 @@ import { StorageType, StorageTypes } from './types';
 import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
+import { ReportError } from './components/toolbar-buttons/report-error';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
@@ -81,13 +82,16 @@ if (currentConfiguration.wp === '6.3') {
 acquireOAuthTokenIfNeeded();
 
 function Main() {
+	const [showErrorModal, setShowErrorModal] = useState(false);
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
 	>({});
 
 	return (
-		<PlaygroundContext.Provider value={{ storage }}>
+		<PlaygroundContext.Provider
+			value={{ storage, showErrorModal, setShowErrorModal }}
+		>
 			<ErrorReportModal />
 			<PlaygroundViewport
 				storage={storage}
@@ -117,6 +121,7 @@ function Main() {
 										storage={currentConfiguration.storage}
 										onClose={onClose}
 									/>
+									<ReportError onClose={onClose} />
 									<DownloadAsZipMenuItem onClose={onClose} />
 									<RestoreFromZipMenuItem onClose={onClose} />
 									<GithubImportMenuItem onClose={onClose} />
