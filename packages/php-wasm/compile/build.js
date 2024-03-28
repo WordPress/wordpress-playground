@@ -118,6 +118,7 @@ const platformDefaults = {
 	},
 	['web-light']: {},
 	['web-kitchen-sink']: {
+		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
@@ -126,10 +127,10 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 	},
 	node: {
+		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
 		WITH_CLI_SAPI: 'yes',
