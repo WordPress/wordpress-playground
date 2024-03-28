@@ -169,7 +169,7 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 	fi;
 
 # Remove fileinfo if needed
-RUN if [ "$WITH_FILEINFO" = "no" ]; \
+RUN if [ ! "$WITH_FILEINFO" = "yes" ]; \
     then \
         # light bundle should compile without fileinfo and libmagic
         echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
