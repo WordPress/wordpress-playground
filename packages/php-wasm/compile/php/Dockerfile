@@ -186,9 +186,9 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	then \
 		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
-		# PHP >= 8.0 use the system oniguruma library.
-		# PHP ≤= 7.4 ship their own oniguruma library.
-		if [[ "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+		# PHP >= 8.0 and 7.4 use the system oniguruma library.
+		# PHP < 7.4 ship their own oniguruma library.
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]] || [ "${PHP_VERSION:0:3}" = "7.4" ]; then \
 			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
 		fi; \
