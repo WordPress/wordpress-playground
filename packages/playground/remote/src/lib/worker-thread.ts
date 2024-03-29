@@ -403,7 +403,6 @@ try {
 
 					if (args.includes('-r')) {
 						result = await childPHP.run({
-							throwOnError: true,
 							code: `${cliBootstrapScript} ${
 								args[args.indexOf('-r') + 1]
 							}`,
@@ -411,7 +410,6 @@ try {
 						});
 					} else if (args[1] === 'wp-cli.phar') {
 						result = await childPHP.run({
-							throwOnError: true,
 							code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" );`,
 							env: {
 								...options.env,
@@ -423,7 +421,6 @@ try {
 						});
 					} else {
 						result = await childPHP.run({
-							throwOnError: true,
 							scriptPath: args[1],
 							env: options.env,
 						});
