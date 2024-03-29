@@ -183,7 +183,7 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 
 # Add mbregex if needed
 # PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
-RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
+RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	then \
 		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
 		# PHP >= 8.0 use the system oniguruma library.
