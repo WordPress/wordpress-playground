@@ -141,7 +141,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 			/root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
 		fi; \
 	else \
-		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
+		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlreader --disable-xmlwriter' >> /root/.php-configure-flags; \
 	fi
 
 # Add sqlite3 if needed
@@ -168,11 +168,22 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
+# Remove fileinfo if needed
+RUN if [ ! "$WITH_FILEINFO" = "yes" ]; \
+    then \
+        # light bundle should compile without fileinfo and libmagic
+        echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
+    fi;
+
 # Add iconv if needed
 RUN if [ "$WITH_ICONV" = "yes" ]; \
 	then \
 		echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
+		# PHP >= 8.0 posix is no longer supported.
+		# PHP ≤= 7.4 posix is supported.
+	else \
+		echo -n ' --without-iconv ' >> /root/.php-configure-flags; \
 	fi;
 
 # Add mbstring if needed
@@ -240,7 +251,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-embed=static \
 	--with-layout=GNU  \
 	--disable-cgi      \
-	--disable-all      \
+	--disable-opcache  \
+	--disable-posix    \
 	--enable-hash      \
 	--enable-static=yes \
 	--enable-shared=no \
