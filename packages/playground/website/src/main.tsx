@@ -24,11 +24,16 @@ import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
 import { useState } from 'react';
-import { ExportFormValues } from './github/github-export-form/form';
+import {
+	ExportFormValues,
+	asPullRequestAction,
+} from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { PlaygroundContext } from './playground-context';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { ErrorReportModal } from './components/error-report-modal';
+import { asContentType } from './github/import-from-github';
+import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 
 collectWindowErrors(logger);
 
@@ -86,7 +91,15 @@ function Main() {
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
-	>({});
+	>({
+		repoUrl: query.get('ghexport-repo-url') ?? undefined,
+		contentType: asContentType(query.get('ghexport-content-type')),
+		prAction: asPullRequestAction(query.get('ghexport-pr-action')),
+		pathInRepo: query.get('ghexport-repo-path') ?? undefined,
+		commitMessage: query.get('ghexport-commit-message') ?? undefined,
+		plugin: query.get('ghexport-plugin') ?? undefined,
+		theme: query.get('ghexport-theme') ?? undefined,
+	});
 
 	return (
 		<PlaygroundContext.Provider
@@ -173,6 +186,11 @@ function Main() {
 					</DropdownMenu>,
 				]}
 			>
+				{query.get('gh-ensure-auth') === 'yes' ? (
+					<GitHubOAuthGuardModal />
+				) : (
+					''
+				)}
 				<GithubImportModal
 					onImported={({
 						url,
@@ -195,6 +213,10 @@ function Main() {
 					}}
 				/>
 				<GithubExportModal
+					allowZipExport={
+						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
+						'yes'
+					}
 					initialValues={githubExportValues}
 					initialFilesBeforeChanges={githubExportFiles}
 					onExported={(prUrl, formValues) => {

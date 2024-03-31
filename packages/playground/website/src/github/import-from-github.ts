@@ -9,6 +9,11 @@ import {
 import { Files, filesListToObject } from '@wp-playground/storage';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content';
+export function asContentType(value: any): ContentType | undefined {
+	if (value === 'plugin' || value === 'theme' || value === 'wp-content') {
+		return value;
+	}
+}
 export async function importFromGitHub(
 	php: UniversalPHP,
 	gitHubFiles: any[],

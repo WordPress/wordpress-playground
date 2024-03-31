@@ -34,6 +34,7 @@ export interface GitHubExportFormProps {
 	playground: PlaygroundClient;
 	initialValues?: Partial<ExportFormValues>;
 	initialFilesBeforeChanges?: any[];
+	allowZipExport?: boolean;
 	onExported?: (prURL: string, formValues: ExportFormValues) => void;
 	onClose: () => void;
 }
@@ -47,6 +48,13 @@ function getClient() {
 }
 
 export type PullRequestAction = 'update' | 'create';
+
+export function asPullRequestAction(value: any): PullRequestAction | undefined {
+	if (value === 'update' || value === 'create') {
+		return value;
+	}
+	return 'create';
+}
 
 export interface ExportFormValues {
 	repoUrl: string;
@@ -66,6 +74,7 @@ export default function GitHubExportForm({
 	onClose,
 	initialValues = {},
 	initialFilesBeforeChanges,
+	allowZipExport = true,
 }: GitHubExportFormProps) {
 	const [pushResult, setPushResult] = useState<PushResult>();
 	const [formValues, _setFormValues] = useState<ExportFormValues>({
@@ -631,25 +640,27 @@ export default function GitHubExportForm({
 										</div>
 									)}
 								</div>
-								<div
-									className={`${forms.formGroup} ${forms.formGroupLast}`}
-								>
-									<label>
-										<input
-											type="checkbox"
-											checked={formValues.includeZip}
-											onChange={(e) =>
-												setValue(
-													'includeZip',
-													e.target.checked
-												)
-											}
-										/>
-										Also export the changes as a zip file,
-										so they can be imported into another
-										Playground instance.
-									</label>
-								</div>
+								{allowZipExport ? (
+									<div
+										className={`${forms.formGroup} ${forms.formGroupLast}`}
+									>
+										<label>
+											<input
+												type="checkbox"
+												checked={formValues.includeZip}
+												onChange={(e) =>
+													setValue(
+														'includeZip',
+														e.target.checked
+													)
+												}
+											/>
+											Also export the changes as a zip
+											file, so they can be imported into
+											another Playground instance.
+										</label>
+									</div>
+								) : null}
 							</>
 						) : null}
 					</>
