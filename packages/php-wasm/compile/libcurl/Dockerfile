@@ -27,6 +27,8 @@ RUN CPPFLAGS="-I/root/lib/include " \
         --enable-static \
         --with-openssl \
         --enable-https \
-        --enable-http
+        --enable-http \
+        --disable-pthreads \
+        --disable-threaded-resolver
 
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz -lcurl" EMCC_FLAGS="-sSIDE_MODULE" emmake make || true

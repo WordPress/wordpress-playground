@@ -213,7 +213,7 @@ CC = /root/emsdk/upstream/emscripten/emcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -Qunused-arguments -Os
 CFLAG_CURL_SYMBOL_HIDING = -fvisibility=hidden
-CONFIGURE_OPTIONS = " '--build' 'i386-pc-linux-gnu' '--target' 'wasm32-unknown-emscripten' '--prefix=/root/install/' '--disable-shared' '--enable-static' '--with-openssl' '--enable-https' '--enable-http' 'build_alias=i386-pc-linux-gnu' 'target_alias=wasm32-unknown-emscripten' 'CC=/root/emsdk/upstream/emscripten/emcc'"
+CONFIGURE_OPTIONS = " '--build' 'i386-pc-linux-gnu' '--target' 'wasm32-unknown-emscripten' '--prefix=/root/install/' '--disable-shared' '--enable-static' '--with-openssl' '--enable-https' '--enable-http' '--disable-pthreads' '--disable-threaded-resolver' 'build_alias=i386-pc-linux-gnu' 'target_alias=wasm32-unknown-emscripten' 'CC=/root/emsdk/upstream/emscripten/emcc'"
 CPP = /root/emsdk/upstream/emscripten/emcc -E
 CPPFLAGS = 
 CPPFLAG_CURL_STATICLIB = -DCURL_STATICLIB
@@ -320,7 +320,7 @@ SSL_BACKENDS =
 SSL_ENABLED = 
 SSL_LIBS = 
 STRIP = strip
-SUPPORT_FEATURES = UnixSockets AsynchDNS
+SUPPORT_FEATURES = UnixSockets
 SUPPORT_PROTOCOLS = DICT FILE FTP GOPHER HTTP IMAP POP3 RTSP SMTP TELNET TFTP
 USE_ARES = 
 USE_BEARSSL = 
