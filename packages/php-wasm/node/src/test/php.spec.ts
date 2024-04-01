@@ -1521,7 +1521,7 @@ bar1
 	 * mbregex support
 	 */
 	describe('mbregex extension support', () => {
-		it.only('Should be able to use mb_regex_encoding functions', async () => {
+		it('Should be able to use mb_regex_encoding functions', async () => {
 			const promise = php.run({
 				code: `<?php
 					mb_regex_encoding('UTF-8');
