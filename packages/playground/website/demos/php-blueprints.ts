@@ -79,11 +79,11 @@ try {
 		 *
 		 * > echo file_get_contents('http://localhost:5400/website-server/');
 		 * > <b>Warning</b>:  PHP Request Startup: Failed to open stream: Operation timed out in <b>php-wasm run script</b> on line <b>13</b><br />
-		 * 
+		 *
 		 * The check is therefore disabled for now.
 		 */
 		require '/wordpress/blueprints.phar';
-		
+
 		$blueprint = BlueprintBuilder::create()
 			// This isn't a WordPress zip file since wordpress.org
 			// doesn't expose the right CORS headers. It is a HTTPS-hosted
@@ -105,7 +105,7 @@ try {
 				'https://downloads.wordpress.org/plugin/hello-dolly.zip',
 				// When the regular UrlDataSource is used, the second
 				// downloaded zip file always errors with:
-				// > Failed to open stream: Operation timed out 
+				// > Failed to open stream: Operation timed out
 				'https://downloads.wordpress.org/plugin/classic-editor.zip',
 				'https://downloads.wordpress.org/plugin/gutenberg.17.7.0.zip',
 			] )
@@ -120,10 +120,10 @@ try {
 			->withFile( 'wordpress.txt', 'Data' )
 			->toBlueprint()
 		;
-		
+
 		echo "Running the following Blueprint:\n";
 		echo json_encode($blueprint, JSON_PRETTY_PRINT)."\n\n";
-		
+
 		$subscriber = new class implements EventSubscriberInterface {
 			public static function getSubscribedEvents() {
 				return [
@@ -131,7 +131,7 @@ try {
 					DoneEvent::class     => 'onDone',
 				];
 			}
-		
+
 			public function onProgress( ProgressEvent $event ) {
 				post_message_to_js(json_encode([
 					'type'    => 'progress',
@@ -139,7 +139,7 @@ try {
 					'progress' => $event->progress,
 				]));
 			}
-		
+
 			public function onDone( DoneEvent $event ) {
 				post_message_to_js(json_encode([
 					'type'    => 'progress',
@@ -148,7 +148,7 @@ try {
 			}
 		};
 
-		
+
 		$results = run_blueprint(
 			$blueprint,
 			[
@@ -158,13 +158,12 @@ try {
 				'progressType'       => 'steps',
 			]
 		);
-		
+
 		echo "Blueprint execution finished!\n";
 		echo "Contents of /wordpress/wp-content/plugins:";
 		print_r(glob('/wordpress/wp-content/plugins/*'));
-		
+
 		`,
-		throwOnError: true,
 	});
 
 	outputDiv.textContent += result.text;

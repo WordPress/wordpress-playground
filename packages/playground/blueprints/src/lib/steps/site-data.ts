@@ -34,7 +34,6 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 ) => {
 	const docroot = await php.documentRoot;
 	await php.run({
-		throwOnError: true,
 		code: `<?php
 		include ${phpVar(docroot)} . '/wp-load.php';
 		$site_options = ${phpVar(options)};
@@ -81,7 +80,6 @@ export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
 ) => {
 	const docroot = await php.documentRoot;
 	await php.run({
-		throwOnError: true,
 		code: `<?php
 		include ${phpVar(docroot)} . '/wp-load.php';
 		$meta = ${phpVar(meta)};

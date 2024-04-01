@@ -922,37 +922,42 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			)) {
 				// Run via `code`
 				it(testName, async () => {
-					const result = await php.run({
+					const promise = php.run({
 						code: testSnippet,
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 
 				// Run via the request handler
 				it(testName, async () => {
 					php.writeFile('/test.php', testSnippet);
-					const result = await php.run({
+					const promise = php.run({
 						scriptPath: '/test.php',
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 			}
 		});
 		it('Returns the correct exit code on subsequent runs', async () => {
-			const result1 = await php.run({
+			const promise1 = php.run({
 				code: '<?php throw new Exception();',
 			});
-			expect(result1.exitCode).toBe(255);
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
 
 			const result2 = await php.run({
 				code: '<?php exit(0);',
 			});
 			expect(result2.exitCode).toBe(0);
 
-			const result3 = await php.run({
+			const promise3 = php.run({
 				code: '<?php exit(1);',
 			});
-			expect(result3.exitCode).toBe(1);
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
 		});
 	});
 
