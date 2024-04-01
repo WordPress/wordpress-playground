@@ -283,16 +283,22 @@ try {
 
 	php.writeFile(
 		joinPaths(docroot, 'test-curl.php'),
-		`<?php 
-	$ch = curl_init();
-	curl_setopt($ch, CURLOPT_URL, 'http://wordpress.org');
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-	$output = curl_exec($ch);
-	var_dump($output);
-	var_dump(curl_error($ch));
-	curl_close($ch);
-	`
+		`<?php
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, 'http://wordpress.org');
+		curl_setopt($ch, CURLOPT_VERBOSE, 1);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		$streamVerboseHandle = fopen('php://stdout', 'w+');
+		curl_setopt($ch, CURLOPT_STDERR, $streamVerboseHandle);
+		$output = curl_exec($ch);
+		var_dump($output);
+		var_dump(curl_error($ch));
+		curl_close($ch);
+		`
 	);
+
 	// Always install the playground mu-plugin, even if WordPress is loaded
 	// from the OPFS. This ensures:
 	// * The mu-plugin is always there, even when a custom WordPress directory
