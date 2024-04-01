@@ -1517,6 +1517,28 @@ bar1
 		});
 	});
 
+	/**
+	 * mbregex support
+	 */
+	describe('mbregex extension support', () => {
+		it('Should be able to use mb_regex_encoding functions', async () => {
+			const promise = php.run({
+				code: `<?php
+					mb_regex_encoding('UTF-8');
+				?>`,
+			});
+			// We don't support mbregex in PHP 7.0
+			if (phpVersion === '7.0') {
+				await expect(promise).rejects.toThrow(
+					'Call to undefined function mb_regex_encoding'
+				);
+			} else {
+				const response = await promise;
+				expect(response.errors).toBe('');
+			}
+		});
+	});
+
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
 			let messageReceived = '';
