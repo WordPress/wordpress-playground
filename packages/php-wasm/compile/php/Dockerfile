@@ -354,11 +354,9 @@ RUN set -euxo pipefail; \
 			echo -n ' --source-map-base http://localhost:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
 		fi; \
 	else \
-		# Preserve symbol names in node.js build – the bundle size doesn't matter as much
-		# as on the web, and this makes debugging **much** easier.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
-		fi; \
+		# Preserve the symbol names. They add ~200kb to the build and
+		# make debugging much easier.
+		echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
