@@ -8,9 +8,14 @@ import {
 } from '@wp-playground/blueprints';
 import { Files, filesListToObject } from '@wp-playground/storage';
 
-export type ContentType = 'plugin' | 'theme' | 'wp-content';
+export type ContentType = 'plugin' | 'theme' | 'wp-content' | 'custom-paths';
 export function asContentType(value: any): ContentType | undefined {
-	if (value === 'plugin' || value === 'theme' || value === 'wp-content') {
+	if (
+		value === 'plugin' ||
+		value === 'theme' ||
+		value === 'wp-content' ||
+		value === 'custom-paths'
+	) {
 		return value;
 	}
 }
@@ -31,7 +36,7 @@ export async function importFromGitHub(
 	} else if (contentType === 'wp-content') {
 		await importWpContent(php, playgroundFiles);
 	} else {
-		throw new Error(`Unknown content type: ${contentType}`);
+		throw new Error(`Unsupported import content type: ${contentType}`);
 	}
 }
 
