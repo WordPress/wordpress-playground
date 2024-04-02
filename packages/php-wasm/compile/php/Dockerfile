@@ -214,6 +214,10 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 COPY ./php/php*.patch /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
+		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+	) && \
 	touch php-src/patched
 
 # Add VRZNO if needed
@@ -270,6 +274,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-bcmath    \
 	--enable-ctype     \
 	--enable-tokenizer \
+	--enable-wasm_memory_storage \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
