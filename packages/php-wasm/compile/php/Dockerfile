@@ -35,6 +35,7 @@ COPY ./oniguruma/dist/root/lib /root/lib
 
 # The PHP extensions to build:
 ARG WITH_VRZNO
+ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
 ARG WITH_LIBPNG
@@ -169,8 +170,10 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 	fi;
 
 # Remove fileinfo if needed
-RUN if [ ! "$WITH_FILEINFO" = "yes" ]; \
+RUN if [ "$WITH_FILEINFO" = "yes" ]; \
     then \
+		echo -n ' --enable-fileinfo' >> /root/.php-configure-flags; \
+	else \
         # light bundle should compile without fileinfo and libmagic
         echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
     fi;
