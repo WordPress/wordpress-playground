@@ -14,6 +14,10 @@ export const oauthCode = urlParams.get('code');
 export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
 	const [isModalOpen, setIsModalOpen] = useState(!oAuthState.value.token);
 
+	if (oAuthState.value.token && !children) {
+		return null;
+	}
+
 	return (
 		<Modal
 			style={{
