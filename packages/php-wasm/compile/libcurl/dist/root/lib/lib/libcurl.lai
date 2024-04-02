@@ -17,7 +17,7 @@ old_library='libcurl.a'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=''
+dependency_libs=' -L/root/lib/lib -lz'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
