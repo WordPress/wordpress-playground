@@ -118,7 +118,7 @@ function Authenticate({
 					className={buttonClass}
 					href={authenticateUrl}
 					onClick={(e) => {
-						if (storage === 'none' && !exported) {
+						if (mayLoseProgress && !exported) {
 							e.preventDefault();
 						}
 					}}
