@@ -485,7 +485,7 @@ export default function GitHubExportForm({
 
 				<div className={`${forms.formGroup} ${forms.formGroupLast}`}>
 					<label>
-						I am exporting a:
+						I am exporting:
 						<select
 							className={css.repoInput}
 							value={formValues.contentType}
@@ -497,12 +497,12 @@ export default function GitHubExportForm({
 							}
 						>
 							<option value="">-- Select an option --</option>
-							<option value="theme">Theme</option>
-							<option value="plugin">Plugin</option>
+							<option value="theme">A theme</option>
+							<option value="plugin">A plugin</option>
 							<option value="wp-content">
 								wp-content directory
 							</option>
-							<option value="custom-paths">custom paths</option>
+							<option value="custom-paths">Specific paths</option>
 						</select>
 					</label>
 					{errors.contentType && (
