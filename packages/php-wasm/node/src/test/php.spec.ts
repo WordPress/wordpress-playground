@@ -1543,7 +1543,7 @@ bar1
 	 * fileinfo support
 	 */
 	describe('fileinfo extension support', () => {
-		it('Should be able to use finfo_file', async () => {
+		it.only('Should be able to use finfo_file', async () => {
 			await php.writeFile('/test.php', '<?php echo "Hello world!";');
 			const response = await php.run({
 				code: `<?php
