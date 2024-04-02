@@ -461,7 +461,13 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"zend_user_it_get_new_iterator",\
+	export ASYNCIFY_ONLY=$'"zend_generator_iterator_move_forward",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"zend_generator_resume",\
+"zend_generator_iterator_rewind",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"zend_user_it_get_new_iterator",\
 "ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
 "__fwritex",\
 "read",\

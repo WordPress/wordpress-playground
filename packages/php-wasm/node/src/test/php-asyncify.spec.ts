@@ -191,7 +191,6 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 					unset($x['test']);
 				`);
 			});
-
 			test('Iterator', () =>
 				assertNoCrash(`
 				$data = new class() implements IteratorAggregate {
@@ -203,6 +202,18 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				echo json_encode( [
 					...$data
 				] );
+			`));
+			test('yield', () =>
+				assertNoCrash(`
+				function countTo2() {
+					${networkCall};
+					yield '1';
+					${networkCall};
+					yield '2';
+				}
+				foreach(countTo2() as $number) {
+					echo $number;
+				}
 			`));
 		});
 	});
