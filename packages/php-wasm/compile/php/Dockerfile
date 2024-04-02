@@ -461,7 +461,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"__fwritex",\
+	export ASYNCIFY_ONLY=$'"zend_user_it_get_new_iterator",\
+"ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"__fwritex",\
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
