@@ -176,19 +176,33 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 				$x = new Top();
 				isset($x->test);
 			`));
-			test('offsetSet', () =>
+			test('offsetSet', () => {
 				assertNoCrash(`
-				class Top implements ArrayAccess {
-					function offsetExists($offset) { ${networkCall} }
-					function offsetGet($offset) { ${networkCall} }
-					function offsetSet($offset, $value) { ${networkCall} }
-					function offsetUnset($offset) { ${networkCall} }
-				}
-				$x = new Top();
-				isset($x['test']); 
-				$a = $x['test'];              
-				$x['test'] = 123;             
-				unset($x['test']);            
+					class Top implements ArrayAccess {
+						function offsetExists($offset) { ${networkCall} }
+						function offsetGet($offset) { ${networkCall} }
+						function offsetSet($offset, $value) { ${networkCall} }
+						function offsetUnset($offset) { ${networkCall} }
+					}
+					$x = new Top();
+					isset($x['test']);
+					$a = $x['test'];
+					$x['test'] = 123;
+					unset($x['test']);
+				`);
+			});
+
+			test('Iterator', () =>
+				assertNoCrash(`
+				$data = new class() implements IteratorAggregate {
+					public function getIterator(): Traversable {
+						${networkCall};
+						return new ArrayIterator( [] );
+					}
+				};
+				echo json_encode( [
+					...$data
+				] );
 			`));
 		});
 	});
