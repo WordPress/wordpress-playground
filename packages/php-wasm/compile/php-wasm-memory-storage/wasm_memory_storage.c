@@ -15,7 +15,6 @@ void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, siz
 	void* ptr = NULL;
 	if (posix_memalign(&ptr, alignment, size) == 0)
 	{
-		//fprintf(stdout, "* chunk_alloc, %p, %#zx, %#zx\n", ptr, size, alignment);
 		return ptr;
 	} else {
 		return NULL;
@@ -24,7 +23,6 @@ void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, siz
 
 void wasm_memory_storage_chunk_free(zend_mm_storage* storage, void* ptr, size_t size)
 {
-	//fprintf(stdout, "* free, %p, %#zx\n", ptr, size);
 	free(ptr);
 }
 
