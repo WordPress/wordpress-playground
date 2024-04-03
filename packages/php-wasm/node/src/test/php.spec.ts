@@ -1539,6 +1539,22 @@ bar1
 		});
 	});
 
+	/**
+	 * fileinfo support
+	 */
+	describe('fileinfo extension support', () => {
+		it('Should be able to use finfo_file', async () => {
+			await php.writeFile('/test.php', '<?php echo "Hello world!";');
+			const response = await php.run({
+				code: `<?php
+					$finfo = new finfo(FILEINFO_MIME_TYPE);
+					echo $finfo->file('/test.php');
+				?>`,
+			});
+			expect(response.text).toEqual('text/x-php');
+		});
+	});
+
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
 			let messageReceived = '';
