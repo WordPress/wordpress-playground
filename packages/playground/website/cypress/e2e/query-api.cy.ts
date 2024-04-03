@@ -57,11 +57,11 @@ describe('Query API', () => {
 				.should('contain', '--disable-xmlwriter');
 		});
 
-		it('should default to the light extension bundle', () => {
+		it('should default to the kitchen sink extension bundle', () => {
 			cy.visit('/?url=/phpinfo.php');
 			cy.wordPressDocument()
 				.its('body')
-				.should('contain', '--disable-xmlwriter');
+				.should('contain', '--enable-xmlwriter');
 		});
 	});
 
