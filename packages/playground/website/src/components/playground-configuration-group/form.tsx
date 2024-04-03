@@ -284,7 +284,8 @@ export function PlaygroundConfigurationForm({
 								}
 							/>
 							&nbsp; Load extensions: libxml, openssl, mbstring,
-							iconv, gd
+							iconv, gd. Uncheck to save ~6MB of initial
+							downloads.
 						</label>
 						<label
 							className={forms.groupLabel}

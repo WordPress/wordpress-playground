@@ -134,6 +134,15 @@ export function compileBlueprint(
 		});
 	}
 
+	if (!blueprint.phpExtensionBundles) {
+		blueprint.phpExtensionBundles = [];
+	}
+	// Default to the "kitchen sink" PHP extensions bundle if no
+	// other bundles are specified.
+	if (blueprint.phpExtensionBundles.length === 0) {
+		blueprint.phpExtensionBundles.push('kitchen-sink');
+	}
+
 	/**
 	 * Download WP-CLI. {{{
 	 * Hardcoding this in the compilt() function is a temporary solution
@@ -145,9 +154,6 @@ export function compileBlueprint(
 		(step) => typeof step === 'object' && step?.step === 'wp-cli'
 	);
 	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
-		if (!blueprint.phpExtensionBundles) {
-			blueprint.phpExtensionBundles = [];
-		}
 		if (!blueprint.phpExtensionBundles.includes('kitchen-sink')) {
 			blueprint.phpExtensionBundles.push('kitchen-sink');
 			console.warn(
