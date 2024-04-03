@@ -49,8 +49,9 @@
 	"supports": {
 		"align": [ "wide", "full" ],
 		"html": false,
-		"layout": true,
-		"interactivity": true
+		"layout": true
 	},
-	"editorStyle": "wp-block-query-editor"
+	"editorStyle": "wp-block-query-editor",
+	"style": "wp-block-query",
+	"viewScript": "file:./view.min.js"
 }

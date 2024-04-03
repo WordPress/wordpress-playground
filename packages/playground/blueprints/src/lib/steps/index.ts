@@ -26,7 +26,7 @@ import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wordpress-files';
-import { ImportFileStep } from './import-file';
+import { ImportWxrStep } from './import-wxr';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
 
@@ -51,7 +51,7 @@ export type GenericStep<Resource> =
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| EnableMultisiteStep
-	| ImportFileStep<Resource>
+	| ImportWxrStep<Resource>
 	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
@@ -79,7 +79,7 @@ export type {
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
 	EnableMultisiteStep,
-	ImportFileStep,
+	ImportWxrStep as importWxrStep,
 	ImportWordPressFilesStep,
 	InstallPluginStep,
 	InstallPluginOptions,

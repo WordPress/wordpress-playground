@@ -86,6 +86,15 @@ export function compileBlueprint(
 		...blueprint,
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
+
+	// Backwards compatibility for the legacy "importFile" name of
+	// the importWxr step
+	for (const step of blueprint.steps!) {
+		if (typeof step === 'object' && (step as any).step === 'importFile') {
+			step!.step = 'importWxr';
+		}
+	}
+
 	// Experimental declarative syntax {{{
 	if (blueprint.constants) {
 		blueprint.steps!.unshift({
@@ -133,10 +142,13 @@ export function compileBlueprint(
 				: blueprint.login),
 		});
 	}
+	if (!blueprint.phpExtensionBundles) {
+		blueprint.phpExtensionBundles = [];
+	}
 
 	/**
 	 * Download WP-CLI. {{{
-	 * Hardcoding this in the compilt() function is a temporary solution
+	 * Hardcoding this in the compile() function is a temporary solution
 	 * to provide the wpCLI step with the wp-cli.phar file it needs. Eventually,
 	 * each Blueprint step may be able to specify any pre-requisite resources.
 	 * Also, wp-cli should only be downloaded if it's not already present.
@@ -145,13 +157,13 @@ export function compileBlueprint(
 		(step) => typeof step === 'object' && step?.step === 'wp-cli'
 	);
 	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
-		if (!blueprint.phpExtensionBundles) {
-			blueprint.phpExtensionBundles = [];
-		}
-		if (!blueprint.phpExtensionBundles.includes('kitchen-sink')) {
-			blueprint.phpExtensionBundles.push('kitchen-sink');
+		if (blueprint.phpExtensionBundles.includes('light')) {
+			blueprint.phpExtensionBundles =
+				blueprint.phpExtensionBundles.filter(
+					(bundle) => bundle !== 'light'
+				);
 			console.warn(
-				`The WP-CLI step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+				`The wpCli step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
@@ -176,6 +188,36 @@ export function compileBlueprint(
 		});
 	}
 	// }}}
+
+	/**
+	 * Download the WordPress-importer plugin. {{{
+	 * Hardcoding this in the compile() function is a temporary solution
+	 */
+	const importWxrStepIndex = blueprint.steps?.findIndex(
+		(step) => typeof step === 'object' && step?.step === 'importWxr'
+	);
+	if (importWxrStepIndex !== undefined && importWxrStepIndex > -1) {
+		if (blueprint.phpExtensionBundles.includes('light')) {
+			blueprint.phpExtensionBundles =
+				blueprint.phpExtensionBundles.filter(
+					(bundle) => bundle !== 'light'
+				);
+			console.warn(
+				`The importWxr step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
+					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
+			);
+		}
+		blueprint.steps?.splice(importWxrStepIndex, 0, {
+			step: 'unzip',
+			extractToPath: '/tmp',
+			zipFile: {
+				resource: 'url',
+				url: 'https://playground.wordpress.net/wordpress-importer.zip',
+				caption: 'Downloading the WordPress Importer plugin',
+			},
+		});
+	}
 
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {

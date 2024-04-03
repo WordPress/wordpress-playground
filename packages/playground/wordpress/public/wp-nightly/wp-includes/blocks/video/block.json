@@ -15,8 +15,8 @@
 			"attribute": "autoplay"
 		},
 		"caption": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "figcaption",
 			"__experimentalRole": "content"
 		},
@@ -88,9 +88,6 @@
 				"margin": false,
 				"padding": false
 			}
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"editorStyle": "wp-block-video-editor",

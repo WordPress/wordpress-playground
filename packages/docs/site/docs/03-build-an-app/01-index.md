@@ -71,7 +71,7 @@ You can still showcase it on Playground by using [JSON Blueprints](../09-bluepri
 			}
 		},
 		{
-			"step": "importFile",
+			"step": "importWxr",
 			"pluginZipFile": {
 				"resource": "url",
 				"url": "https://your-site.com/starter-content.wxz"

@@ -17,9 +17,10 @@
 			"__experimentalRole": "content"
 		},
 		"citation": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "cite",
+			"default": "",
 			"__experimentalRole": "content"
 		},
 		"align": {
@@ -41,7 +42,8 @@
 			"__experimentalTextDecoration": true,
 			"__experimentalLetterSpacing": true,
 			"__experimentalDefaultControls": {
-				"fontSize": true
+				"fontSize": true,
+				"fontAppearance": true
 			}
 		},
 		"color": {
@@ -52,15 +54,6 @@
 				"background": true,
 				"text": true
 			}
-		},
-		"layout": {
-			"allowEditing": false
-		},
-		"spacing": {
-			"blockGap": true
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"styles": [

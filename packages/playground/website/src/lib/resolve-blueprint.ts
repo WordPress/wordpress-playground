@@ -67,7 +67,10 @@ export async function resolveBlueprint() {
 			landingPage: query.get('url') || undefined,
 			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 			importSite: query.get('import-site') || undefined,
-			importContent: query.get('import-content') || undefined,
+			importWxr:
+				query.get('import-wxr') ||
+				query.get('import-content') ||
+				undefined,
 		});
 	}
 

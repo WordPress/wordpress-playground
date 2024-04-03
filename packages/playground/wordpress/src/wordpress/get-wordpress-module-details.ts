@@ -4,6 +4,8 @@ import url_nightly from './wp-nightly.zip?url';
 // @ts-ignore
 import url_beta from './wp-beta.zip?url';
 // @ts-ignore
+import url_6_5 from './wp-6.5.zip?url';
+// @ts-ignore
 import url_6_4 from './wp-6.4.zip?url';
 // @ts-ignore
 import url_6_3 from './wp-6.3.zip?url';
@@ -18,13 +20,13 @@ import url_6_1 from './wp-6.1.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: number, url: string } {
+export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: number, url: string } {
 	switch (wpVersion) {
 		
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 5128045,
+				size: 4876546,
 				url: url_nightly,
 			};
 			
@@ -35,24 +37,31 @@ export function getWordPressModuleDetails(wpVersion: string = "6.4"): { size: nu
 				url: url_beta,
 			};
 			
+		case '6.5':
+			/** @ts-ignore */
+			return {
+				size: 4973463,
+				url: url_6_5,
+			};
+			
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 5015110,
+				size: 4859960,
 				url: url_6_4,
 			};
 			
 		case '6.3':
 			/** @ts-ignore */
 			return {
-				size: 3760135,
+				size: 3605004,
 				url: url_6_3,
 			};
 			
 		case '6.2':
 			/** @ts-ignore */
 			return {
-				size: 3654384,
+				size: 3500300,
 				url: url_6_2,
 			};
 			

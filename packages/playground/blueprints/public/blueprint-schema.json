@@ -537,7 +537,7 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "importFile"
+							"const": "importWxr"
 						},
 						"file": {
 							"$ref": "#/definitions/FileReference",

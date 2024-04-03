@@ -28,9 +28,6 @@
 		},
 		"spacing": {
 			"margin": [ "top", "bottom" ]
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"styles": [
