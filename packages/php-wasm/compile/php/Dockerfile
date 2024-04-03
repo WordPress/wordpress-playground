@@ -14,6 +14,9 @@ RUN git clone https://github.com/php/php-src.git php-src \
 	--single-branch          \
 	--depth 1;
 
+# Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
+COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
