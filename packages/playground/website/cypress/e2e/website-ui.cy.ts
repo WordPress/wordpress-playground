@@ -66,6 +66,7 @@ describe('Playground website UI', () => {
 			// Update settings in Playground configurator
 			cy.get('button#configurator').click();
 			cy.get('select#php-version').select(LatestSupportedPHPVersion);
+			cy.get('input[name=with-extensions]').uncheck();
 			cy.get('#modal-content button[type=submit]').click();
 			// Wait for the page to finish loading
 			cy.document().should('exist');
