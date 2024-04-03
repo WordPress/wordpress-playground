@@ -36,8 +36,7 @@ If you need more control over your Playground, you can use JSON Blueprints. For 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 <BlueprintExample
-display={
-`{
+display={`{
     "steps": [
         { "step": "login" },
         {
@@ -49,20 +48,19 @@ display={
         },
         {
             "step": "runPHP",
-            "code": "<?php
-                include 'wordpress/wp-load.php';
-                wp_insert_post(array(
-                'post_title' => 'Post title',
-                'post_content' => 'Post content',
-                'post_status' => 'publish',
-                'post_author' => 1
-                ));
-            ?>"
-        }
-    ]
-    }`
+            "code": \`<?php
+include 'wordpress/wp-load.php';
+wp_insert_post(array(
+'post_title' => 'Post title',
+'post_content' => 'Post content',
+'post_status' => 'publish',
+'post_author' => 1
+));
+\`
 }
-blueprint={{
+]
+}`	}
+	blueprint={{
 		"steps": [
             {
                 "step": "login"
