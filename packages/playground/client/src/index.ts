@@ -89,7 +89,9 @@ export async function startPlaygroundWeb({
 	if (!blueprint) {
 		const playground = await doStartPlaygroundWeb(
 			iframe,
-			remoteUrl,
+			setQueryParams(remoteUrl, {
+				['php-extension']: 'kitchen-sink',
+			}),
 			progressTracker
 		);
 		onClientConnected(playground);
