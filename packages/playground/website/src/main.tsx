@@ -60,9 +60,7 @@ const currentConfiguration: PlaygroundConfiguration = {
 	wp: blueprint.preferredVersions?.wp || 'latest',
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'none',
-	withExtensions: blueprint.phpExtensionBundles
-		? blueprint.phpExtensionBundles.length > 0
-		: false,
+	withExtensions: blueprint.phpExtensionBundles?.[0] !== 'light',
 	withNetworking: blueprint.features?.networking || false,
 	resetSite: false,
 };

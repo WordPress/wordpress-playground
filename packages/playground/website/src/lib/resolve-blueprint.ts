@@ -56,15 +56,6 @@ export async function resolveBlueprint() {
 		if (query.get('networking') === 'yes') {
 			features['networking'] = true;
 		}
-		let extensionBundles = query.getAll('php-extension-bundle') || [];
-		if (!extensionBundles.length) {
-			extensionBundles = ['kitchen-sink'];
-		} else if (
-			extensionBundles.length === 1 &&
-			extensionBundles[0] === 'light'
-		) {
-			extensionBundles = [];
-		}
 		blueprint = makeBlueprint({
 			php: query.get('php') || '8.0',
 			wp: query.get('wp') || 'latest',
@@ -74,7 +65,7 @@ export async function resolveBlueprint() {
 			features,
 			plugins: query.getAll('plugin'),
 			landingPage: query.get('url') || undefined,
-			phpExtensionBundles: extensionBundles,
+			phpExtensionBundles: query.getAll('php-extension-bundle') || [],
 			importSite: query.get('import-site') || undefined,
 			importContent: query.get('import-content') || undefined,
 		});
