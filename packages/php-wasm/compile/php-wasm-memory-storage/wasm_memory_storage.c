@@ -1,4 +1,15 @@
-/* wasm_memory_storage extension for PHP */
+/**
+ * wasm_memory_storage extension for PHP.
+ *
+ * The purpose of this extension is to work around a memory leak caused by
+ * failing attempts to partially unmap memory allocated with mmap().
+ * By providing custom memory storage, we can avoid mmap()/munmap() calls and
+ * use posix_memalign()/free() instead.
+ *
+ * Background:
+ * Issue: https://github.com/WordPress/wordpress-playground/issues/1128
+ * PR: https://github.com/WordPress/wordpress-playground/pull/1189
+ */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
