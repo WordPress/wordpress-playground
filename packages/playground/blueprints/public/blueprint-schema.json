@@ -334,7 +334,7 @@
 		},
 		"SupportedPHPExtensionBundle": {
 			"type": "string",
-			"const": "kitchen-sink"
+			"enum": ["kitchen-sink", "light"]
 		},
 		"StepDefinition": {
 			"type": "object",

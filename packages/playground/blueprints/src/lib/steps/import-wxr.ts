@@ -17,7 +17,14 @@ import { phpVar } from '@php-wasm/util';
  * </code>
  */
 export interface ImportWxrStep<ResourceType> {
-	step: 'importWxr' | 'importFile';
+	step: 'importWxr';
+	/** The file to import */
+	file: ResourceType;
+}
+
+// For BC with the legacy importFile step name.
+export interface ImportFileStep<ResourceType> {
+	step: 'importFile';
 	/** The file to import */
 	file: ResourceType;
 }

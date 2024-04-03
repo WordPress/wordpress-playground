@@ -20,6 +20,7 @@ const { wpCLI, ...otherStepHandlers } = allStepHandlers;
 const keyedStepHandlers = {
 	...otherStepHandlers,
 	'wp-cli': wpCLI,
+	importFile: otherStepHandlers.importWxr,
 };
 
 import Ajv from 'ajv';
@@ -87,14 +88,6 @@ export function compileBlueprint(
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
 
-	// Backwards compatibility for the legacy "importFile" name of
-	// the importWxr step
-	for (const step of blueprint.steps!) {
-		if (typeof step === 'object' && (step as any).step === 'importFile') {
-			step!.step = 'importWxr';
-		}
-	}
-
 	// Experimental declarative syntax {{{
 	if (blueprint.constants) {
 		blueprint.steps!.unshift({
@@ -144,6 +137,15 @@ export function compileBlueprint(
 	}
 	if (!blueprint.phpExtensionBundles) {
 		blueprint.phpExtensionBundles = [];
+	}
+
+	if (!blueprint.phpExtensionBundles) {
+		blueprint.phpExtensionBundles = [];
+	}
+	// Default to the "kitchen sink" PHP extensions bundle if no
+	// other bundles are specified.
+	if (blueprint.phpExtensionBundles.length === 0) {
+		blueprint.phpExtensionBundles.push('kitchen-sink');
 	}
 
 	/**
