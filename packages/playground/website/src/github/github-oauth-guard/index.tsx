@@ -4,15 +4,46 @@ import { GitHubIcon } from '../github';
 import css from './style.module.css';
 import { useContext, useState } from 'react';
 import { PlaygroundContext } from '../../playground-context';
+import Modal, { defaultStyles } from '../../components/modal';
 import classNames from 'classnames';
 
 const OAUTH_FLOW_URL = 'oauth.php?redirect=1';
 const urlParams = new URLSearchParams(window.location.search);
 export const oauthCode = urlParams.get('code');
-interface GitHubOAuthGuardProps {
-	children: React.ReactNode;
+
+export function GitHubOAuthGuardModal({ children }: GitHubOAuthGuardProps) {
+	const [isModalOpen, setIsModalOpen] = useState(!oAuthState.value.token);
+
+	if (oAuthState.value.token && !children) {
+		return null;
+	}
+
+	return (
+		<Modal
+			style={{
+				...defaultStyles,
+				content: { ...defaultStyles.content, width: 600 },
+			}}
+			isOpen={isModalOpen}
+			onRequestClose={() => {
+				setIsModalOpen(false);
+			}}
+		>
+			<GitHubOAuthGuard mayLoseProgress={false}>
+				{children}
+			</GitHubOAuthGuard>
+		</Modal>
+	);
 }
-export default function GitHubOAuthGuard({ children }: GitHubOAuthGuardProps) {
+
+interface GitHubOAuthGuardProps {
+	children?: React.ReactNode;
+	mayLoseProgress?: boolean;
+}
+export default function GitHubOAuthGuard({
+	children,
+	mayLoseProgress,
+}: GitHubOAuthGuardProps) {
 	if (oAuthState.value.isAuthorizing) {
 		return (
 			<div>
@@ -29,14 +60,30 @@ export default function GitHubOAuthGuard({ children }: GitHubOAuthGuardProps) {
 	const urlParams = new URLSearchParams();
 	urlParams.set('redirect_uri', window.location.href);
 	const oauthUrl = `${OAUTH_FLOW_URL}&${urlParams.toString()}`;
-	return <Authenticate authenticateUrl={oauthUrl} />;
+	return (
+		<Authenticate
+			authenticateUrl={oauthUrl}
+			mayLoseProgress={mayLoseProgress}
+		/>
+	);
 }
 
-function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
+interface AuthenticateProps {
+	authenticateUrl: string;
+	mayLoseProgress?: boolean;
+}
+
+function Authenticate({
+	authenticateUrl,
+	mayLoseProgress = undefined,
+}: AuthenticateProps) {
 	const { storage } = useContext(PlaygroundContext);
+	if (mayLoseProgress === undefined) {
+		mayLoseProgress = storage === 'none';
+	}
 	const [exported, setExported] = useState(false);
 	const buttonClass = classNames(css.githubButton, {
-		[css.disabled]: storage === 'none' && !exported,
+		[css.disabled]: mayLoseProgress && !exported,
 	});
 	return (
 		<div>
@@ -51,7 +98,7 @@ function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
 				To enable this feature, connect your GitHub account with
 				WordPress Playground.
 			</p>
-			{storage === 'none' ? (
+			{mayLoseProgress ? (
 				<>
 					<p>
 						<b>You will lose your progress.</b> Your Playground is
@@ -75,7 +122,7 @@ function Authenticate({ authenticateUrl }: { authenticateUrl: string }) {
 					className={buttonClass}
 					href={authenticateUrl}
 					onClick={(e) => {
-						if (storage === 'none' && !exported) {
+						if (mayLoseProgress && !exported) {
 							e.preventDefault();
 						}
 					}}

@@ -76,7 +76,12 @@ export class Logger extends EventTarget {
 	 * @param PromiseRejectionEvent event
 	 */
 	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		this.log(`${event.reason.stack}`, 'Error');
+		// No reason was provided, so we can't log anything.
+		if (!event?.reason) {
+			return;
+		}
+		const message = event?.reason.stack ?? event.reason;
+		this.log(message, 'Error');
 	}
 
 	/**
@@ -127,6 +132,7 @@ export class Logger extends EventTarget {
 					new CustomEvent(this.fatalErrorEvent, {
 						detail: {
 							logs: this.getLogs(),
+							source: event.source,
 						},
 					})
 				);

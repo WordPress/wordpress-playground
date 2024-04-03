@@ -6,7 +6,6 @@ export async function runPhpWithZipFunctions(
 	code: string
 ) {
 	return await playground.run({
-		throwOnError: true,
 		code: zipFunctions + code,
 	});
 }

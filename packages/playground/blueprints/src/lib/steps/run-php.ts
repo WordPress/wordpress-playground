@@ -27,5 +27,5 @@ export const runPHP: StepHandler<RunPHPStep, Promise<PHPResponse>> = async (
 	playground,
 	{ code }
 ) => {
-	return await playground.run({ code, throwOnError: true });
+	return await playground.run({ code });
 };
