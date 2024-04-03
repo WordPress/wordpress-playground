@@ -47,7 +47,8 @@ zend_mm_storage wasm_memory_storage_struct = {
 	.data = NULL,
 };
 
-// TODO: Show where this was derived from. Defaults in zend_alloc.c
+// These definitions are mirrored from zend_alloc.c:
+// https://github.com/php/php-src/blob/dbaeb62ab1e34067057170ab50cf39d1bde584d8/Zend/zend_alloc.c#L131-L137
 #ifndef ZEND_MM_CUSTOM
 # define ZEND_MM_CUSTOM 1  /* support for custom memory allocator            */
 #endif
@@ -55,7 +56,9 @@ zend_mm_storage wasm_memory_storage_struct = {
 # define ZEND_MM_STORAGE 1 /* support for custom memory storage              */
 #endif
 
-// TODO: Link to struct decl that is being mirrored
+// This struct mirrors the heap structure, which is declared privately
+// in zend_alloc.c. We use this to more easily and clearly assign our custom memory storage handler.
+// https://github.com/php/php-src/blob/dbaeb62ab1e34067057170ab50cf39d1bde584d8/Zend/zend_alloc.c#L234-L240
 typedef struct _wasm_memory_storage_heap {
 #if ZEND_MM_CUSTOM
 	int custom;
