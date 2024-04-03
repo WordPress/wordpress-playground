@@ -21,6 +21,19 @@
 #include "Zend/zend_alloc.h"
 #include "php_wasm_memory_storage.h"
 
+/**
+ * Allocate a chunk of memory.
+ *
+ * This function implements the PHP Zend custom memory storage operation "chunk_free()".
+ *
+ * Here is an example offered in the PHP source code:
+ * https://github.com/php/php-src/blob/dbaeb62ab1e34067057170ab50cf39d1bde584d8/Zend/zend_alloc.h#L325
+ *
+ * @param storage   The zend_mm_storage struct for this allocation.
+ * @param size      The number of bytes to allocate.
+ * @param alignment The byte alignment of the memory allocation.
+ * @returns A pointer to allocated memory or NULL on failure.
+ */
 void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, size_t alignment)
 {
 	void* ptr = NULL;
@@ -32,6 +45,19 @@ void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, siz
 	}
 }
 
+/**
+ * Free a chunk of memory.
+ *
+ * This function implements the PHP Zend custom memory storage operation "chunk_free()".
+ *
+ * Here is an example offered in the PHP source code:
+ * https://github.com/php/php-src/blob/dbaeb62ab1e34067057170ab50cf39d1bde584d8/Zend/zend_alloc.h#L352
+ *
+ * @param storage The zend_mm_storage struct for this memory.
+ * @param ptr	  The pointer to the memory to free.
+ * @param size    The size of the memory to free. Ignored.
+ * @returns void
+ */
 void wasm_memory_storage_chunk_free(zend_mm_storage* storage, void* ptr, size_t size)
 {
 	free(ptr);
