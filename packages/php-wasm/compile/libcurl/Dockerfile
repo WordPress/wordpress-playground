@@ -3,6 +3,7 @@ FROM playground-php-wasm:base
 RUN mkdir -p /root/lib/include /root/lib/lib
 COPY ./libz/dist/root/lib/include /root/lib/include
 COPY ./libz/dist/root/lib/lib /root/lib/lib
+COPY ./libopenssl/dist/root/lib/include /root/lib/include
 COPY ./libopenssl/dist/root/lib/lib /root/lib/lib
 
 ARG CURL_VERSION="curl-7.69.1"
@@ -29,7 +30,6 @@ RUN CPPFLAGS="-I/root/lib/include " \
         --enable-https \
         --enable-http \
         --disable-pthreads \
-        --enable-websockets \
         --disable-threaded-resolver \
         --with-zlib=/root/lib
 

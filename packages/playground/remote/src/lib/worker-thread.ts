@@ -282,14 +282,22 @@ try {
 	}
 
 	php.writeFile(
+		joinPaths(docroot, 'curl-info.php'),
+		`<?php
+		echo json_encode(curl_version(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+		`
+	);
+
+	php.writeFile(
 		joinPaths(docroot, 'test-curl.php'),
 		`<?php
 		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, 'http://wordpress.org');
+		curl_setopt( $ch, CURLOPT_URL, 'http://wordpress.org' );
 		curl_setopt($ch, CURLOPT_VERBOSE, 1);
+		curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
 		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
 		$streamVerboseHandle = fopen('php://stdout', 'w+');
 		curl_setopt($ch, CURLOPT_STDERR, $streamVerboseHandle);
 		$output = curl_exec($ch);
