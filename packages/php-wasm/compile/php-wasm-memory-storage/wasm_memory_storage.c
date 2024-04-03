@@ -94,10 +94,18 @@ typedef struct _wasm_memory_storage_heap {
 #endif
 } wasm_memory_storage_heap;
 
-PHP_RINIT_FUNCTION(wasm_memory_storage)
+PHP_MINIT_FUNCTION(wasm_memory_storage)
 {
 	wasm_memory_storage_heap* heap = (wasm_memory_storage_heap*) zend_mm_get_heap();
 	heap->storage = &wasm_memory_storage_struct;
+
+	return SUCCESS;
+}
+
+PHP_MSHUTDOWN_FUNCTION(wasm_memory_storage)
+{
+	wasm_memory_storage_heap* heap = (wasm_memory_storage_heap*) zend_mm_get_heap();
+	heap->storage = NULL;
 
 	return SUCCESS;
 }
@@ -114,14 +122,14 @@ PHP_MINFO_FUNCTION(wasm_memory_storage)
 /* {{{ wasm_memory_storage_module_entry */
 zend_module_entry wasm_memory_storage_module_entry = {
 	STANDARD_MODULE_HEADER,
-	"wasm_memory_storage",			/* Extension name */
-	NULL,					        /* zend_function_entry */
-	NULL,                           /* PHP_MINIT - Module initialization */
-	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
-	PHP_RINIT(wasm_memory_storage),	/* PHP_RINIT - Request initialization */
-	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
-	PHP_MINFO(wasm_memory_storage),			/* PHP_MINFO - Module info */
-	PHP_WASM_MEMORY_STORAGE_VERSION,		/* Version */
+	"wasm_memory_storage",              /* Extension name */
+	NULL,                               /* zend_function_entry */
+	PHP_MINIT(wasm_memory_storage),     /* PHP_MINIT - Module initialization */
+	PHP_MSHUTDOWN(wasm_memory_storage), /* PHP_MSHUTDOWN - Module shutdown */
+	NULL,                               /* PHP_RINIT - Request initialization */
+	NULL,                               /* PHP_RSHUTDOWN - Request shutdown */
+	PHP_MINFO(wasm_memory_storage),     /* PHP_MINFO - Module info */
+	PHP_WASM_MEMORY_STORAGE_VERSION,    /* Version */
 	STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
