@@ -24,11 +24,16 @@ import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
 import { useState } from 'react';
-import { ExportFormValues } from './github/github-export-form/form';
+import {
+	ExportFormValues,
+	asPullRequestAction,
+} from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { PlaygroundContext } from './playground-context';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { ErrorReportModal } from './components/error-report-modal';
+import { asContentType } from './github/import-from-github';
+import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 
 collectWindowErrors(logger);
 
@@ -86,7 +91,41 @@ function Main() {
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
-	>({});
+	>(() => {
+		const values: Partial<ExportFormValues> = {};
+		if (query.get('ghexport-repo-url')) {
+			values.repoUrl = query.get('ghexport-repo-url')!;
+		}
+		if (query.get('ghexport-content-type')) {
+			values.contentType = asContentType(
+				query.get('ghexport-content-type')
+			);
+		}
+		if (query.get('ghexport-pr-action')) {
+			values.prAction = asPullRequestAction(
+				query.get('ghexport-pr-action')
+			);
+		}
+		if (query.get('ghexport-playground-root')) {
+			values.fromPlaygroundRoot = query.get('ghexport-playground-root')!;
+		}
+		if (query.get('ghexport-repo-root')) {
+			values.toPathInRepo = query.get('ghexport-repo-root')!;
+		}
+		if (query.get('ghexport-path')) {
+			values.relativeExportPaths = query.getAll('ghexport-path');
+		}
+		if (query.get('ghexport-commit-message')) {
+			values.commitMessage = query.get('ghexport-commit-message')!;
+		}
+		if (query.get('ghexport-plugin')) {
+			values.plugin = query.get('ghexport-plugin')!;
+		}
+		if (query.get('ghexport-theme')) {
+			values.theme = query.get('ghexport-theme')!;
+		}
+		return values;
+	});
 
 	return (
 		<PlaygroundContext.Provider
@@ -173,6 +212,11 @@ function Main() {
 					</DropdownMenu>,
 				]}
 			>
+				{query.get('gh-ensure-auth') === 'yes' ? (
+					<GitHubOAuthGuardModal />
+				) : (
+					''
+				)}
 				<GithubImportModal
 					onImported={({
 						url,
@@ -185,7 +229,7 @@ function Main() {
 						setGithubExportValues({
 							repoUrl: url,
 							prNumber: pr?.toString(),
-							pathInRepo: path,
+							toPathInRepo: path,
 							prAction: pr ? 'update' : 'create',
 							contentType,
 							plugin: pluginOrThemeName,
@@ -195,6 +239,10 @@ function Main() {
 					}}
 				/>
 				<GithubExportModal
+					allowZipExport={
+						(query.get('ghexport-allow-include-zip') ?? 'yes') ===
+						'yes'
+					}
 					initialValues={githubExportValues}
 					initialFilesBeforeChanges={githubExportFiles}
 					onExported={(prUrl, formValues) => {
