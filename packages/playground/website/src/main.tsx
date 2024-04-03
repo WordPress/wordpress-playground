@@ -60,7 +60,9 @@ const currentConfiguration: PlaygroundConfiguration = {
 	wp: blueprint.preferredVersions?.wp || 'latest',
 	php: resolveVersion(blueprint.preferredVersions?.php, SupportedPHPVersions),
 	storage: storage || 'none',
-	withExtensions: blueprint.phpExtensionBundles?.[0] === 'kitchen-sink',
+	withExtensions: blueprint.phpExtensionBundles
+		? blueprint.phpExtensionBundles.length > 0
+		: false,
 	withNetworking: blueprint.features?.networking || false,
 	resetSite: false,
 };
