@@ -40,11 +40,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: nu
 		case '6.5':
 			/** @ts-ignore */
 			return {
-<<<<<<< HEAD
 				size: 4973463,
-=======
-				size: 5127429,
->>>>>>> trunk
 				url: url_6_5,
 			};
 			
