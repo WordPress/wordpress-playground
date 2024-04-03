@@ -922,37 +922,42 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			)) {
 				// Run via `code`
 				it(testName, async () => {
-					const result = await php.run({
+					const promise = php.run({
 						code: testSnippet,
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 
 				// Run via the request handler
 				it(testName, async () => {
 					php.writeFile('/test.php', testSnippet);
-					const result = await php.run({
+					const promise = php.run({
 						scriptPath: '/test.php',
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 			}
 		});
 		it('Returns the correct exit code on subsequent runs', async () => {
-			const result1 = await php.run({
+			const promise1 = php.run({
 				code: '<?php throw new Exception();',
 			});
-			expect(result1.exitCode).toBe(255);
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
 
 			const result2 = await php.run({
 				code: '<?php exit(0);',
 			});
 			expect(result2.exitCode).toBe(0);
 
-			const result3 = await php.run({
+			const promise3 = php.run({
 				code: '<?php exit(1);',
 			});
-			expect(result3.exitCode).toBe(1);
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
 		});
 	});
 
@@ -1509,6 +1514,44 @@ bar1
 				sha1: 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3',
 				hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
 			});
+		});
+	});
+
+	/**
+	 * mbregex support
+	 */
+	describe('mbregex extension support', () => {
+		it('Should be able to use mb_regex_encoding functions', async () => {
+			const promise = php.run({
+				code: `<?php
+					mb_regex_encoding('UTF-8');
+				?>`,
+			});
+			// We don't support mbregex in PHP 7.0
+			if (phpVersion === '7.0') {
+				await expect(promise).rejects.toThrow(
+					'Call to undefined function mb_regex_encoding'
+				);
+			} else {
+				const response = await promise;
+				expect(response.errors).toBe('');
+			}
+		});
+	});
+
+	/**
+	 * fileinfo support
+	 */
+	describe('fileinfo extension support', () => {
+		it('Should be able to use finfo_file', async () => {
+			await php.writeFile('/test.php', '<?php echo "Hello world!";');
+			const response = await php.run({
+				code: `<?php
+					$finfo = new finfo(FILEINFO_MIME_TYPE);
+					echo $finfo->file('/test.php');
+				?>`,
+			});
+			expect(response.text).toEqual('text/x-php');
 		});
 	});
 

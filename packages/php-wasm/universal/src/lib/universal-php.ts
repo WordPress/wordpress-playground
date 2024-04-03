@@ -14,6 +14,7 @@ export interface PHPRequestEndEvent {
 export interface PHPRequestErrorEvent {
 	type: 'request.error';
 	error: Error;
+	source?: 'request' | 'php-wasm';
 }
 
 /**
@@ -542,12 +543,6 @@ export interface PHPRunOptions {
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;
-
-	/**
-	 * Whether to throw an error if the PHP process exits with a non-zero code
-	 * or outputs to stderr.
-	 */
-	throwOnError?: boolean;
 }
 
 /**

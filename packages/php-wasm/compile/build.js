@@ -21,6 +21,11 @@ const argParser = yargs(process.argv.slice(2))
 			default: false,
 			description: 'Build with debug symbols',
 		},
+		WITH_FILEINFO: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with fileinfo support',
+		},
 		WITH_LIBXML: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -119,6 +124,7 @@ const platformDefaults = {
 	['web-light']: {},
 	['web-kitchen-sink']: {
 		WITH_CURL: 'yes',
+		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
@@ -129,10 +135,10 @@ const platformDefaults = {
 	},
 	node: {
 		WITH_CURL: 'yes',
+		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
 		WITH_LIBPNG: 'yes',
-		WITH_ICONV: 'yes',
 		WITH_MBSTRING: 'yes',
 		WITH_MBREGEX: 'yes',
 		WITH_CLI_SAPI: 'yes',
@@ -185,6 +191,8 @@ await asyncSpawn(
 		getArg('PHP_VERSION'),
 		'--build-arg',
 		getArg('WITH_VRZNO'),
+		'--build-arg',
+		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
 		'--build-arg',

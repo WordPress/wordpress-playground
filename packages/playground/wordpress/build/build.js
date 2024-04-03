@@ -1,8 +1,8 @@
+
 import path from 'path';
 import { spawn } from 'child_process';
 import yargs from 'yargs';
 import { promises as fs, statSync } from 'fs';
-
 const parser = yargs(process.argv.slice(2))
 	.usage('Usage: $0 [options]')
 	.options({
@@ -21,6 +21,11 @@ const parser = yargs(process.argv.slice(2))
 			type: 'string',
 			description: 'WordPress static files output directory',
 			required: true,
+		},
+		force: {
+			type: 'boolean',
+			description: 'Force rebuild even if the version is already downloaded',
+			default: process.env.FORCE_REBUILD === 'true',
 		},
 	});
 
@@ -83,7 +88,7 @@ const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 const outputAssetsDir = path.resolve(process.cwd(), args.outputAssets);
 const outputJsDir = path.resolve(process.cwd(), args.outputJs);
 
-// Short-circuit if the version is already downloaded
+// Short-circuit if the version is already downloaded and not forced
 const versionsPath = `${outputJsDir}/wp-versions.json`;
 let versions = {};
 try {
@@ -95,14 +100,10 @@ try {
 	versions = {};
 }
 
-// We don't get granular version info for nightly, so we always download it.
-// Otherwise, we only download if the version is not already the latest one
-// in the repository.
-if (versionInfo.slug !== 'nightly' && versions[versionInfo.slug] === versionInfo.version) {
-	process.stdout.write(`The requested version was ${args.wpVersion}, but it's latest release (${versionInfo.version}) is already downloaded\n`);
+if (!args.force && versionInfo.slug !== 'nightly' && versions[versionInfo.slug] === versionInfo.version) {
+	process.stdout.write(`The requested version was ${args.wpVersion}, but its latest release (${versionInfo.version}) is already downloaded\n`);
 	process.exit(0);
 }
-
 
 // Build WordPress
 await asyncSpawn(
@@ -131,8 +132,6 @@ await asyncSpawn(
 		'-v',
 		`${outputAssetsDir}:/output`,
 		'wordpress-playground',
-		// Use sh -c because wildcards are a shell feature and
-		// they don't work without running cp through shell.
 		'sh',
 		'-c',
 		`cp -r /root/output/wp-${versionInfo.slug} /output/`,
@@ -151,8 +150,6 @@ await asyncSpawn(
 		'-v',
 		`${outputJsDir}:/output`,
 		'wordpress-playground',
-		// Use sh -c because wildcards are a shell feature and
-		// they don't work without running cp through shell.
 		'sh',
 		'-c',
 		`cp /root/output/*.zip /output/`,

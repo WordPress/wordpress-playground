@@ -12,7 +12,7 @@ When Playground crashes on Playground.WordPress.net users are able to submit a c
 ## Development
 
 Logs are sent to the [logger API on Playground.WordPress.net](https://github.com/WordPress/wordpress-playground/blob/c52d7dbd94dbe3ffc57adde4d9844545ade97f93/packages/playground/website/public/logger.php). The logger API is a simple REST API that accepts a POST request with a `message` parameter.
-The API validates the message and then sends it to the [#playground-logs channel on the Making WordPress Slack(https://wordpress.slack.com/archives/C06Q5DCKZ3L).
+The API validates the message and then sends it to the [#playground-logs channel on the Making WordPress Slack](https://wordpress.slack.com/archives/C06Q5DCKZ3L).
 
 ### Slack app
 
