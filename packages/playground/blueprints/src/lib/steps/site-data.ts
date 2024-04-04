@@ -40,7 +40,6 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 		foreach($site_options as $name => $value) {
 			update_option($name, $value);
 		}
-		echo "Success";
 		`,
 	});
 };
