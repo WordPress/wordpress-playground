@@ -408,19 +408,10 @@ PHP_FUNCTION(post_message_to_js)
 	}
 }
 
-#if WITH_CLI_SAPI == 1
-#include "sapi/cli/php_cli_process_title.h"
-#if PHP_MAJOR_VERSION >= 8
-#include "sapi/cli/php_cli_process_title_arginfo.h"
-#endif
-
-extern int wasm_shutdown(int sockfd, int how);
-extern int wasm_close(int sockfd);
-
 /**
- * select(2) shim for PHP dev server.
+ * select(2) shim.
  */
-EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
+EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
 {
 	emscripten_sleep(0); // always yield to JS event loop
 	int timeoutms = php_tvtoto(timeouttv);
@@ -438,6 +429,16 @@ EMSCRIPTEN_KEEPALIVE int wasm_select(int max_fd, fd_set *read_fds, fd_set *write
 	}
 	return n;
 }
+
+#if WITH_CLI_SAPI == 1
+#include "sapi/cli/php_cli_process_title.h"
+#if PHP_MAJOR_VERSION >= 8
+#include "sapi/cli/php_cli_process_title_arginfo.h"
+#endif
+
+extern int wasm_shutdown(int sockfd, int how);
+extern int wasm_close(int sockfd);
+
 
 static const zend_function_entry additional_functions[] = {
 	ZEND_FE(dl, arginfo_dl)

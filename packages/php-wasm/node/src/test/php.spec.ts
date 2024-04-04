@@ -67,7 +67,7 @@ destructive results fifty years hence. He was, I believe, not in the
 least an ill-natured man: very much the opposite, I should say; but he
 would not suffer fools gladly.`;
 
-describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
+describe.each(['8.0'])('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any, {

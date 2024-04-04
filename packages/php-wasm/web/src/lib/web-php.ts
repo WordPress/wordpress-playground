@@ -222,6 +222,10 @@ const fetchingWebsocket = (phpModuleArgs: EmscriptenOptions = {}) => {
 							wsUrl.searchParams.get('port')!,
 							10
 						);
+						console.log('====> FetchWebsocketConstructor', {
+							url,
+							options,
+						});
 
 						const ws = this;
 						try {

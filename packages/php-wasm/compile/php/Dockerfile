@@ -301,13 +301,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
-RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
 
 RUN echo 'extern ssize_t wasm_read(int fd, void *buf, size_t count);' >> /root/php-src/main/php.h;
 RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams/plain_wrapper.c
-
-# Provide a custom implementation of the php_select() function.
-RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
 # Provide a custom implementation of the php_exec() function that handles spawning
 # the process inside exec(), passthru(), system(), etc.
@@ -475,7 +471,13 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"zend_generator_iterator_move_forward",\
+	export ASYNCIFY_ONLY=$'"Curl_socket_check",\
+"Curl_is_connected",\
+"multi_runsingle",\
+"curl_multi_perform",\
+"zif_curl_exec",\
+"rc_dtor_func",\
+"zend_generator_iterator_move_forward",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_generator_resume",\
 "zend_generator_iterator_rewind",\
@@ -514,6 +516,10 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "_php_stream_free_enclosed",\
 "stream_resource_persistent_dtor",\
 "stream_resource_regular_dtor",\
+"curl_easy_perform",\
+"curl_multi_poll",\
+"Curl_multi_wait",\
+"Curl_poll",\
 "zend_std_has_dimension",\
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
@@ -725,7 +731,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
-"wasm_select",\
+"__wrap_select",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\
@@ -855,7 +861,7 @@ RUN set -euxo pipefail; \
 	if [ "${WITH_SOURCEMAPS}" = "yes" ]; then \
 		export OPTIMIZATION_FLAGS="-O0"; \
 	fi; \
-	emcc $OPTIMIZATION_FLAGS \
+	emcc -O0 -g2 \
 	--js-library /root/phpwasm-emscripten-library.js \
 	-I .  \
 	-I ext   \
@@ -878,6 +884,7 @@ RUN set -euxo pipefail; \
 	-s NODEJS_CATCH_REJECTION=0      \
 	-s INVOKE_RUN=0                  \
 	-s EXIT_RUNTIME=1                \
+	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \

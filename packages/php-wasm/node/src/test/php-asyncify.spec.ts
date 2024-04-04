@@ -44,6 +44,14 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 		 fread($fp, 10);
 		 fclose($fp);`,
 		`gethostbyname(${js['httpUrl']});`,
+		`$ch = curl_init();
+		curl_setopt( $ch, CURLOPT_URL, ${js['httpUrl']} );
+		curl_setopt($ch, CURLOPT_VERBOSE, 1);
+		curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
+		curl_exec($ch);`,
 
 		// @TODO:
 
@@ -56,6 +64,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
+		php.setPhpIniEntry('disable_functions', '');
 		php.setPhpIniEntry('allow_url_fopen', '1');
 	});
 

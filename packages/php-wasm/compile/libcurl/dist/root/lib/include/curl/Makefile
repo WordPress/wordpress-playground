@@ -200,7 +200,7 @@ CC = /root/emsdk/upstream/emscripten/emcc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -Qunused-arguments -Os
 CFLAG_CURL_SYMBOL_HIDING = -fvisibility=hidden
-CONFIGURE_OPTIONS = " '--build' 'i386-pc-linux-gnu' '--target' 'wasm32-unknown-emscripten' '--prefix=/root/install/' '--disable-shared' '--enable-static' '--with-openssl=/root/lib' '--enable-https' '--enable-http' '--disable-pthreads' '--disable-threaded-resolver' '--with-zlib=/root/lib' 'build_alias=i386-pc-linux-gnu' 'target_alias=wasm32-unknown-emscripten' 'CC=/root/emsdk/upstream/emscripten/emcc'"
+CONFIGURE_OPTIONS = " '--build' 'i386-pc-linux-gnu' '--target' 'wasm32-unknown-emscripten' '--prefix=/root/install/' '--disable-shared' '--enable-static' '--with-openssl' '--enable-https' '--enable-http' '--disable-pthreads' '--disable-threaded-resolver' '--with-zlib=/root/lib' 'build_alias=i386-pc-linux-gnu' 'target_alias=wasm32-unknown-emscripten' 'CC=/root/emsdk/upstream/emscripten/emcc'"
 CPP = /root/emsdk/upstream/emscripten/emcc -E
 CPPFLAGS = -I/root/lib/include
 CPPFLAG_CURL_STATICLIB = -DCURL_STATICLIB

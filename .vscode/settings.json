@@ -16,7 +16,9 @@
 		"array": "c",
 		"string": "c",
 		"string_view": "c",
-		"vector": "c"
+		"vector": "c",
+		"php_cli_process_title_arginfo.h": "c",
+		"php_cli_process_title.h": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"

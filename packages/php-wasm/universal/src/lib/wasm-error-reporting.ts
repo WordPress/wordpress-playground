@@ -86,7 +86,12 @@ export function clarifyErrorMessage(
 	crypticError: Error,
 	asyncifyStack?: string
 ) {
-	if (crypticError.message === 'unreachable') {
+	if (
+		[
+			'unreachable',
+			'null function or function signature mismatch',
+		].includes(crypticError.message)
+	) {
 		let betterMessage = UNREACHABLE_ERROR;
 		if (!asyncifyStack) {
 			betterMessage +=
@@ -159,7 +164,7 @@ function extractPHPFunctionsFromStack(stack: string) {
 				const parts = line.trim().substring('at '.length).split(' ');
 				return {
 					fn: parts.length >= 2 ? parts[0] : '<unknown>',
-					isWasm: line.includes('wasm://'),
+					isWasm: line.includes('wasm:/'),
 				};
 			})
 			.filter(
