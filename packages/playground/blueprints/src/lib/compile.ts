@@ -89,8 +89,11 @@ export function compileBlueprint(
 	};
 	// Convert legacy importFile steps to importWxr
 	for (const step of blueprint.steps!) {
-		if (typeof step === 'object' && step!.step === 'importFile') {
+		if (typeof step === 'object' && (step as any).step === 'importFile') {
 			(step as any).step = 'importWxr';
+			console.warn(
+				`The "importFile" step is deprecated. Use "importWxr" instead.`
+			);
 		}
 	}
 

@@ -22,13 +22,6 @@ export interface ImportWxrStep<ResourceType> {
 	file: ResourceType;
 }
 
-// For BC with the legacy importFile step name.
-export interface ImportFileStep<ResourceType> {
-	step: 'importFile';
-	/** The file to import */
-	file: ResourceType;
-}
-
 /**
  * Imports a WXR file into WordPress.
  *
