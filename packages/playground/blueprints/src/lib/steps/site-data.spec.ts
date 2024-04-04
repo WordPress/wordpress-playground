@@ -1,12 +1,15 @@
 import { NodePHP } from '@php-wasm/node';
-import { getWordPressModule } from '@wp-playground/wordpress';
+import {
+	RecommendedPHPVersion,
+	getWordPressModule,
+} from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load('7.4', {
+		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
 			},
