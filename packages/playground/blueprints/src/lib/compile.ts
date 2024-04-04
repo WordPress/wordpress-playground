@@ -87,6 +87,12 @@ export function compileBlueprint(
 		...blueprint,
 		steps: (blueprint.steps || []).filter(isStepDefinition),
 	};
+	// Convert legacy importFile steps to importWxr
+	for (const step of blueprint.steps!) {
+		if (typeof step === 'object' && step!.step === 'importFile') {
+			(step as any).step = 'importWxr';
+		}
+	}
 
 	// Experimental declarative syntax {{{
 	if (blueprint.constants) {
@@ -211,9 +217,8 @@ export function compileBlueprint(
 			);
 		}
 		blueprint.steps?.splice(importWxrStepIndex, 0, {
-			step: 'unzip',
-			extractToPath: '/tmp',
-			zipFile: {
+			step: 'installPlugin',
+			pluginZipFile: {
 				resource: 'url',
 				url: 'https://playground.wordpress.net/wordpress-importer.zip',
 				caption: 'Downloading the WordPress Importer plugin',
