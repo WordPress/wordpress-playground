@@ -51,15 +51,16 @@ describe('Blueprints', () => {
 		cy.wordPressDocument().its('body').should('contain.text', 'My Sites');
 	});
 
-	it('enableMultisite step should re-activate the importer plugin', () => {
+	it('enableMultisite step should re-activate the plugins', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/plugins.php',
+			plugins: ['hello-dolly'],
 			steps: [{ step: 'enableMultisite' }],
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument()
 			.its('body')
-			.find('[data-slug="wordpress-importer-git-loader"].active')
+			.find('[data-slug="hello-dolly"].active')
 			.should('exist');
 	});
 
