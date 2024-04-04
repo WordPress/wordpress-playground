@@ -1,8 +1,8 @@
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 3343:
-/***/ ((module) => {
+/***/ 7727:
+/***/ (function(module) {
 
 var $ = Backbone.$,
 	Attachment;
@@ -177,8 +177,8 @@ module.exports = Attachment;
 
 /***/ }),
 
-/***/ 8266:
-/***/ ((module) => {
+/***/ 6940:
+/***/ (function(module) {
 
 /**
  * wp.media.model.Attachments
@@ -785,8 +785,8 @@ module.exports = Attachments;
 
 /***/ }),
 
-/***/ 9104:
-/***/ ((module) => {
+/***/ 5927:
+/***/ (function(module) {
 
 /**
  * wp.media.model.PostImage
@@ -946,8 +946,8 @@ module.exports = PostImage;
 
 /***/ }),
 
-/***/ 1288:
-/***/ ((module) => {
+/***/ 4009:
+/***/ (function(module) {
 
 var Attachments = wp.media.model.Attachments,
 	Query;
@@ -1257,8 +1257,8 @@ module.exports = Query;
 
 /***/ }),
 
-/***/ 4134:
-/***/ ((module) => {
+/***/ 6584:
+/***/ (function(module) {
 
 var Attachments = wp.media.model.Attachments,
 	Selection;
@@ -1390,7 +1390,7 @@ module.exports = Selection;
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-(() => {
+!function() {
 /**
  * @output wp-includes/js/media-models.js
  */
@@ -1460,12 +1460,12 @@ l10n = media.model.l10n = window._wpMediaModelsL10n || {};
 media.model.settings = l10n.settings || {};
 delete l10n.settings;
 
-Attachment = media.model.Attachment = __webpack_require__( 3343 );
-Attachments = media.model.Attachments = __webpack_require__( 8266 );
+Attachment = media.model.Attachment = __webpack_require__( 7727 );
+Attachments = media.model.Attachments = __webpack_require__( 6940 );
 
-media.model.Query = __webpack_require__( 1288 );
-media.model.PostImage = __webpack_require__( 9104 );
-media.model.Selection = __webpack_require__( 4134 );
+media.model.Query = __webpack_require__( 4009 );
+media.model.PostImage = __webpack_require__( 5927 );
+media.model.Selection = __webpack_require__( 6584 );
 
 /**
  * ========================================================================
@@ -1630,7 +1630,6 @@ media.query = function( props ) {
 	});
 };
 
-})();
-
+}();
 /******/ })()
 ;

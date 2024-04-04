@@ -1,48 +1,48 @@
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	// The require scope
 /******/ 	var __webpack_require__ = {};
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
-/******/ 	(() => {
+/******/ 	!function() {
 /******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__webpack_require__.n = (module) => {
+/******/ 		__webpack_require__.n = function(module) {
 /******/ 			var getter = module && module.__esModule ?
-/******/ 				() => (module['default']) :
-/******/ 				() => (module);
+/******/ 				function() { return module['default']; } :
+/******/ 				function() { return module; };
 /******/ 			__webpack_require__.d(getter, { a: getter });
 /******/ 			return getter;
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
+/******/ 	!function() {
 /******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 		__webpack_require__.d = function(exports, definition) {
 /******/ 			for(var key in definition) {
 /******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
 /******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 				}
 /******/ 			}
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
+/******/ 	!function() {
+/******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
+/******/ 	!function() {
 /******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = (exports) => {
+/******/ 		__webpack_require__.r = function(exports) {
 /******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 /******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
@@ -51,14 +51,14 @@ __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  MediaUpload: () => (/* reexport */ media_upload),
-  uploadMedia: () => (/* reexport */ uploadMedia)
+  MediaUpload: function() { return /* reexport */ media_upload; },
+  uploadMedia: function() { return /* reexport */ uploadMedia; }
 });
 
 ;// CONCATENATED MODULE: external ["wp","element"]
-const external_wp_element_namespaceObject = window["wp"]["element"];
+var external_wp_element_namespaceObject = window["wp"]["element"];
 ;// CONCATENATED MODULE: external ["wp","i18n"]
-const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
+var external_wp_i18n_namespaceObject = window["wp"]["i18n"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/media-utils/build-module/components/media-upload/index.js
 /**
  * WordPress dependencies
@@ -249,13 +249,44 @@ const getAttachmentsCollection = ids => {
   });
 };
 class MediaUpload extends external_wp_element_namespaceObject.Component {
-  constructor() {
+  constructor({
+    allowedTypes,
+    gallery = false,
+    unstableFeaturedImageFlow = false,
+    modalClass,
+    multiple = false,
+    title = (0,external_wp_i18n_namespaceObject.__)('Select or Upload Media')
+  }) {
     super(...arguments);
     this.openModal = this.openModal.bind(this);
     this.onOpen = this.onOpen.bind(this);
     this.onSelect = this.onSelect.bind(this);
     this.onUpdate = this.onUpdate.bind(this);
     this.onClose = this.onClose.bind(this);
+    const {
+      wp
+    } = window;
+    if (gallery) {
+      this.buildAndSetGalleryFrame();
+    } else {
+      const frameConfig = {
+        title,
+        multiple
+      };
+      if (!!allowedTypes) {
+        frameConfig.library = {
+          type: allowedTypes
+        };
+      }
+      this.frame = wp.media(frameConfig);
+    }
+    if (modalClass) {
+      this.frame.$el.addClass(modalClass);
+    }
+    if (unstableFeaturedImageFlow) {
+      this.buildAndSetFeatureImageFrame();
+    }
+    this.initializeListeners();
   }
   initializeListeners() {
     // When an image is selected in the media frame...
@@ -326,35 +357,22 @@ class MediaUpload extends external_wp_element_namespaceObject.Component {
     const {
       wp
     } = window;
-    const {
-      value: featuredImageId,
-      multiple,
-      allowedTypes
-    } = this.props;
     const featuredImageFrame = getFeaturedImageMediaFrame();
-    const attachments = getAttachmentsCollection(featuredImageId);
+    const attachments = getAttachmentsCollection(this.props.value);
     const selection = new wp.media.model.Selection(attachments.models, {
       props: attachments.props.toJSON()
     });
     this.frame = new featuredImageFrame({
-      mimeType: allowedTypes,
+      mimeType: this.props.allowedTypes,
       state: 'featured-image',
-      multiple,
+      multiple: this.props.multiple,
       selection,
-      editing: featuredImageId
+      editing: this.props.value ? true : false
     });
     wp.media.frame = this.frame;
-    // In order to select the current featured image when opening
-    // the media library we have to set the appropriate settings.
-    // Currently they are set in php for the post editor, but
-    // not for site editor.
-    wp.media.view.settings.post = {
-      ...wp.media.view.settings.post,
-      featuredImageId: featuredImageId || -1
-    };
   }
   componentWillUnmount() {
-    this.frame?.remove();
+    this.frame.remove();
   }
   onUpdate(selections) {
     const {
@@ -444,38 +462,9 @@ class MediaUpload extends external_wp_element_namespaceObject.Component {
     }
   }
   openModal() {
-    const {
-      allowedTypes,
-      gallery = false,
-      unstableFeaturedImageFlow = false,
-      modalClass,
-      multiple = false,
-      title = (0,external_wp_i18n_namespaceObject.__)('Select or Upload Media')
-    } = this.props;
-    const {
-      wp
-    } = window;
-    if (gallery) {
+    if (this.props.gallery) {
       this.buildAndSetGalleryFrame();
-    } else {
-      const frameConfig = {
-        title,
-        multiple
-      };
-      if (!!allowedTypes) {
-        frameConfig.library = {
-          type: allowedTypes
-        };
-      }
-      this.frame = wp.media(frameConfig);
     }
-    if (modalClass) {
-      this.frame.$el.addClass(modalClass);
-    }
-    if (unstableFeaturedImageFlow) {
-      this.buildAndSetFeatureImageFrame();
-    }
-    this.initializeListeners();
     this.frame.open();
   }
   render() {
@@ -484,16 +473,16 @@ class MediaUpload extends external_wp_element_namespaceObject.Component {
     });
   }
 }
-/* harmony default export */ const media_upload = (MediaUpload);
+/* harmony default export */ var media_upload = (MediaUpload);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/media-utils/build-module/components/index.js
 
 
 ;// CONCATENATED MODULE: external ["wp","apiFetch"]
-const external_wp_apiFetch_namespaceObject = window["wp"]["apiFetch"];
+var external_wp_apiFetch_namespaceObject = window["wp"]["apiFetch"];
 var external_wp_apiFetch_default = /*#__PURE__*/__webpack_require__.n(external_wp_apiFetch_namespaceObject);
 ;// CONCATENATED MODULE: external ["wp","blob"]
-const external_wp_blob_namespaceObject = window["wp"]["blob"];
+var external_wp_blob_namespaceObject = window["wp"]["blob"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/media-utils/build-module/utils/upload-media.js
 /**
  * WordPress dependencies

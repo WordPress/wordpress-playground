@@ -13,8 +13,8 @@
 			"default": false
 		},
 		"summary": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "summary"
 		}
 	},
@@ -58,9 +58,6 @@
 		},
 		"layout": {
 			"allowEditing": false
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"editorStyle": "wp-block-details-editor",

@@ -12,9 +12,10 @@
 			"default": false
 		},
 		"caption": {
-			"type": "rich-text",
-			"source": "rich-text",
-			"selector": "figcaption"
+			"type": "string",
+			"source": "html",
+			"selector": "figcaption",
+			"default": ""
 		},
 		"head": {
 			"type": "array",
@@ -29,8 +30,8 @@
 					"selector": "td,th",
 					"query": {
 						"content": {
-							"type": "rich-text",
-							"source": "rich-text"
+							"type": "string",
+							"source": "html"
 						},
 						"tag": {
 							"type": "string",
@@ -74,8 +75,8 @@
 					"selector": "td,th",
 					"query": {
 						"content": {
-							"type": "rich-text",
-							"source": "rich-text"
+							"type": "string",
+							"source": "html"
 						},
 						"tag": {
 							"type": "string",
@@ -119,8 +120,8 @@
 					"selector": "td,th",
 					"query": {
 						"content": {
-							"type": "rich-text",
-							"source": "rich-text"
+							"type": "string",
+							"source": "html"
 						},
 						"tag": {
 							"type": "string",
@@ -195,10 +196,7 @@
 				"width": true
 			}
 		},
-		"__experimentalSelector": ".wp-block-table > table",
-		"interactivity": {
-			"clientNavigation": true
-		}
+		"__experimentalSelector": ".wp-block-table > table"
 	},
 	"styles": [
 		{
