@@ -1,8 +1,8 @@
-/******/ (function() { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 5817:
-/***/ (function(module) {
+/***/ 659:
+/***/ ((module) => {
 
 var l10n = wp.media.view.l10n,
 	EditAttachmentMetadata;
@@ -36,8 +36,8 @@ module.exports = EditAttachmentMetadata;
 
 /***/ }),
 
-/***/ 9525:
-/***/ (function(module) {
+/***/ 2429:
+/***/ ((module) => {
 
 /**
  * wp.media.view.MediaFrame.Manage.Router
@@ -110,8 +110,8 @@ module.exports = Router;
 
 /***/ }),
 
-/***/ 7433:
-/***/ (function(module) {
+/***/ 1312:
+/***/ ((module) => {
 
 var Details = wp.media.view.Attachment.Details,
 	TwoColumn;
@@ -159,8 +159,8 @@ module.exports = TwoColumn;
 
 /***/ }),
 
-/***/ 5562:
-/***/ (function(module) {
+/***/ 5806:
+/***/ ((module) => {
 
 var Button = wp.media.view.Button,
 	DeleteSelected = wp.media.view.DeleteSelectedButton,
@@ -213,8 +213,8 @@ module.exports = DeleteSelectedPermanently;
 
 /***/ }),
 
-/***/ 471:
-/***/ (function(module) {
+/***/ 6606:
+/***/ ((module) => {
 
 var Button = wp.media.view.Button,
 	l10n = wp.media.view.l10n,
@@ -274,8 +274,8 @@ module.exports = DeleteSelected;
 
 /***/ }),
 
-/***/ 6767:
-/***/ (function(module) {
+/***/ 682:
+/***/ ((module) => {
 
 
 var Button = wp.media.view.Button,
@@ -358,8 +358,8 @@ module.exports = SelectModeToggle;
 
 /***/ }),
 
-/***/ 9157:
-/***/ (function(module) {
+/***/ 8521:
+/***/ ((module) => {
 
 var View = wp.media.View,
 	EditImage = wp.media.view.EditImage,
@@ -400,8 +400,8 @@ module.exports = Details;
 
 /***/ }),
 
-/***/ 5169:
-/***/ (function(module) {
+/***/ 1003:
+/***/ ((module) => {
 
 var Frame = wp.media.view.Frame,
 	MediaFrame = wp.media.view.MediaFrame,
@@ -682,8 +682,8 @@ module.exports = EditAttachments;
 
 /***/ }),
 
-/***/ 4817:
-/***/ (function(module) {
+/***/ 8359:
+/***/ ((module) => {
 
 var MediaFrame = wp.media.view.MediaFrame,
 	Library = wp.media.controller.Library,
@@ -1005,23 +1005,24 @@ module.exports = Manage;
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-!function() {
+(() => {
 /**
  * @output wp-includes/js/media-grid.js
  */
 
 var media = wp.media;
 
-media.controller.EditAttachmentMetadata = __webpack_require__( 5817 );
-media.view.MediaFrame.Manage = __webpack_require__( 4817 );
-media.view.Attachment.Details.TwoColumn = __webpack_require__( 7433 );
-media.view.MediaFrame.Manage.Router = __webpack_require__( 9525 );
-media.view.EditImage.Details = __webpack_require__( 9157 );
-media.view.MediaFrame.EditAttachments = __webpack_require__( 5169 );
-media.view.SelectModeToggleButton = __webpack_require__( 6767 );
-media.view.DeleteSelectedButton = __webpack_require__( 471 );
-media.view.DeleteSelectedPermanentlyButton = __webpack_require__( 5562 );
+media.controller.EditAttachmentMetadata = __webpack_require__( 659 );
+media.view.MediaFrame.Manage = __webpack_require__( 8359 );
+media.view.Attachment.Details.TwoColumn = __webpack_require__( 1312 );
+media.view.MediaFrame.Manage.Router = __webpack_require__( 2429 );
+media.view.EditImage.Details = __webpack_require__( 8521 );
+media.view.MediaFrame.EditAttachments = __webpack_require__( 1003 );
+media.view.SelectModeToggleButton = __webpack_require__( 682 );
+media.view.DeleteSelectedButton = __webpack_require__( 6606 );
+media.view.DeleteSelectedPermanentlyButton = __webpack_require__( 5806 );
 
-}();
+})();
+
 /******/ })()
 ;

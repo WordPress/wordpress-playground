@@ -8,6 +8,7 @@
   --wp-admin-border-width-focus:2px;
   --wp-block-synced-color:#7a00df;
   --wp-block-synced-color--rgb:122, 0, 223;
+  --wp-bound-block-color:#9747ff;
 }
 @media (min-resolution:192dpi){
   :root{
@@ -15,10 +16,10 @@
   }
 }
 body{
-  --wp--style--block-gap:2em;
   font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif;
   font-size:18px;
   line-height:1.5;
+  --wp--style--block-gap:2em;
 }
 
 p{

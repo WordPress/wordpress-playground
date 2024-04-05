@@ -1,149 +1,8 @@
-/******/ (function() { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 1919:
-/***/ (function(module) {
-
-"use strict";
-
-
-var isMergeableObject = function isMergeableObject(value) {
-	return isNonNullObject(value)
-		&& !isSpecial(value)
-};
-
-function isNonNullObject(value) {
-	return !!value && typeof value === 'object'
-}
-
-function isSpecial(value) {
-	var stringValue = Object.prototype.toString.call(value);
-
-	return stringValue === '[object RegExp]'
-		|| stringValue === '[object Date]'
-		|| isReactElement(value)
-}
-
-// see https://github.com/facebook/react/blob/b5ac963fb791d1298e7f396236383bc955f916c1/src/isomorphic/classic/element/ReactElement.js#L21-L25
-var canUseSymbol = typeof Symbol === 'function' && Symbol.for;
-var REACT_ELEMENT_TYPE = canUseSymbol ? Symbol.for('react.element') : 0xeac7;
-
-function isReactElement(value) {
-	return value.$$typeof === REACT_ELEMENT_TYPE
-}
-
-function emptyTarget(val) {
-	return Array.isArray(val) ? [] : {}
-}
-
-function cloneUnlessOtherwiseSpecified(value, options) {
-	return (options.clone !== false && options.isMergeableObject(value))
-		? deepmerge(emptyTarget(value), value, options)
-		: value
-}
-
-function defaultArrayMerge(target, source, options) {
-	return target.concat(source).map(function(element) {
-		return cloneUnlessOtherwiseSpecified(element, options)
-	})
-}
-
-function getMergeFunction(key, options) {
-	if (!options.customMerge) {
-		return deepmerge
-	}
-	var customMerge = options.customMerge(key);
-	return typeof customMerge === 'function' ? customMerge : deepmerge
-}
-
-function getEnumerableOwnPropertySymbols(target) {
-	return Object.getOwnPropertySymbols
-		? Object.getOwnPropertySymbols(target).filter(function(symbol) {
-			return Object.propertyIsEnumerable.call(target, symbol)
-		})
-		: []
-}
-
-function getKeys(target) {
-	return Object.keys(target).concat(getEnumerableOwnPropertySymbols(target))
-}
-
-function propertyIsOnObject(object, property) {
-	try {
-		return property in object
-	} catch(_) {
-		return false
-	}
-}
-
-// Protects from prototype poisoning and unexpected merging up the prototype chain.
-function propertyIsUnsafe(target, key) {
-	return propertyIsOnObject(target, key) // Properties are safe to merge if they don't exist in the target yet,
-		&& !(Object.hasOwnProperty.call(target, key) // unsafe if they exist up the prototype chain,
-			&& Object.propertyIsEnumerable.call(target, key)) // and also unsafe if they're nonenumerable.
-}
-
-function mergeObject(target, source, options) {
-	var destination = {};
-	if (options.isMergeableObject(target)) {
-		getKeys(target).forEach(function(key) {
-			destination[key] = cloneUnlessOtherwiseSpecified(target[key], options);
-		});
-	}
-	getKeys(source).forEach(function(key) {
-		if (propertyIsUnsafe(target, key)) {
-			return
-		}
-
-		if (propertyIsOnObject(target, key) && options.isMergeableObject(source[key])) {
-			destination[key] = getMergeFunction(key, options)(target[key], source[key], options);
-		} else {
-			destination[key] = cloneUnlessOtherwiseSpecified(source[key], options);
-		}
-	});
-	return destination
-}
-
-function deepmerge(target, source, options) {
-	options = options || {};
-	options.arrayMerge = options.arrayMerge || defaultArrayMerge;
-	options.isMergeableObject = options.isMergeableObject || isMergeableObject;
-	// cloneUnlessOtherwiseSpecified is added to `options` so that custom arrayMerge()
-	// implementations can use it. The caller may not replace it.
-	options.cloneUnlessOtherwiseSpecified = cloneUnlessOtherwiseSpecified;
-
-	var sourceIsArray = Array.isArray(source);
-	var targetIsArray = Array.isArray(target);
-	var sourceAndTargetTypesMatch = sourceIsArray === targetIsArray;
-
-	if (!sourceAndTargetTypesMatch) {
-		return cloneUnlessOtherwiseSpecified(source, options)
-	} else if (sourceIsArray) {
-		return options.arrayMerge(target, source, options)
-	} else {
-		return mergeObject(target, source, options)
-	}
-}
-
-deepmerge.all = function deepmergeAll(array, options) {
-	if (!Array.isArray(array)) {
-		throw new Error('first argument should be an array')
-	}
-
-	return array.reduce(function(prev, next) {
-		return deepmerge(prev, next, options)
-	}, {})
-};
-
-var deepmerge_1 = deepmerge;
-
-module.exports = deepmerge_1;
-
-
-/***/ }),
-
-/***/ 5619:
-/***/ (function(module) {
+/***/ 7734:
+/***/ ((module) => {
 
 "use strict";
 
@@ -222,8 +81,44 @@ module.exports = function equal(a, b) {
 
 /***/ }),
 
-/***/ 4793:
-/***/ (function(module) {
+/***/ 5373:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+var __webpack_unused_export__;
+/**
+ * @license React
+ * react-is.production.min.js
+ *
+ * Copyright (c) Facebook, Inc. and its affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+var b=Symbol.for("react.element"),c=Symbol.for("react.portal"),d=Symbol.for("react.fragment"),e=Symbol.for("react.strict_mode"),f=Symbol.for("react.profiler"),g=Symbol.for("react.provider"),h=Symbol.for("react.context"),k=Symbol.for("react.server_context"),l=Symbol.for("react.forward_ref"),m=Symbol.for("react.suspense"),n=Symbol.for("react.suspense_list"),p=Symbol.for("react.memo"),q=Symbol.for("react.lazy"),t=Symbol.for("react.offscreen"),u;u=Symbol.for("react.module.reference");
+function v(a){if("object"===typeof a&&null!==a){var r=a.$$typeof;switch(r){case b:switch(a=a.type,a){case d:case f:case e:case m:case n:return a;default:switch(a=a&&a.$$typeof,a){case k:case h:case l:case q:case p:case g:return a;default:return r}}case c:return r}}}__webpack_unused_export__=h;__webpack_unused_export__=g;__webpack_unused_export__=b;__webpack_unused_export__=l;__webpack_unused_export__=d;__webpack_unused_export__=q;__webpack_unused_export__=p;__webpack_unused_export__=c;__webpack_unused_export__=f;__webpack_unused_export__=e;__webpack_unused_export__=m;
+__webpack_unused_export__=n;__webpack_unused_export__=function(){return!1};__webpack_unused_export__=function(){return!1};__webpack_unused_export__=function(a){return v(a)===h};__webpack_unused_export__=function(a){return v(a)===g};__webpack_unused_export__=function(a){return"object"===typeof a&&null!==a&&a.$$typeof===b};__webpack_unused_export__=function(a){return v(a)===l};__webpack_unused_export__=function(a){return v(a)===d};__webpack_unused_export__=function(a){return v(a)===q};__webpack_unused_export__=function(a){return v(a)===p};
+__webpack_unused_export__=function(a){return v(a)===c};__webpack_unused_export__=function(a){return v(a)===f};__webpack_unused_export__=function(a){return v(a)===e};__webpack_unused_export__=function(a){return v(a)===m};__webpack_unused_export__=function(a){return v(a)===n};
+exports.isValidElementType=function(a){return"string"===typeof a||"function"===typeof a||a===d||a===f||a===e||a===m||a===n||a===t||"object"===typeof a&&null!==a&&(a.$$typeof===q||a.$$typeof===p||a.$$typeof===g||a.$$typeof===h||a.$$typeof===l||a.$$typeof===u||void 0!==a.getModuleId)?!0:!1};__webpack_unused_export__=v;
+
+
+/***/ }),
+
+/***/ 8529:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+if (true) {
+  module.exports = __webpack_require__(5373);
+} else {}
+
+
+/***/ }),
+
+/***/ 9681:
+/***/ ((module) => {
 
 var characterMap = {
 	"À": "A",
@@ -710,7 +605,7 @@ module.exports.remove = removeAccents;
 
 /***/ }),
 
-/***/ 7308:
+/***/ 1030:
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_RESULT__;;/*! showdown v 1.9.1 - 02-11-2019 */
@@ -5883,196 +5778,199 @@ if (true) {
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
-/******/ 	!function() {
+/******/ 	(() => {
 /******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__webpack_require__.n = function(module) {
+/******/ 		__webpack_require__.n = (module) => {
 /******/ 			var getter = module && module.__esModule ?
-/******/ 				function() { return module['default']; } :
-/******/ 				function() { return module; };
+/******/ 				() => (module['default']) :
+/******/ 				() => (module);
 /******/ 			__webpack_require__.d(getter, { a: getter });
 /******/ 			return getter;
 /******/ 		};
-/******/ 	}();
+/******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/define property getters */
-/******/ 	!function() {
+/******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = function(exports, definition) {
+/******/ 		__webpack_require__.d = (exports, definition) => {
 /******/ 			for(var key in definition) {
 /******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
 /******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 				}
 /******/ 			}
 /******/ 		};
-/******/ 	}();
+/******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	!function() {
-/******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
-/******/ 	}();
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
-/******/ 	!function() {
+/******/ 	(() => {
 /******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = function(exports) {
+/******/ 		__webpack_require__.r = (exports) => {
 /******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 /******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
-/******/ 	}();
+/******/ 	})();
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be in strict mode.
-!function() {
+(() => {
 "use strict";
 // ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  __EXPERIMENTAL_ELEMENTS: function() { return /* reexport */ __EXPERIMENTAL_ELEMENTS; },
-  __EXPERIMENTAL_PATHS_WITH_MERGE: function() { return /* reexport */ __EXPERIMENTAL_PATHS_WITH_MERGE; },
-  __EXPERIMENTAL_STYLE_PROPERTY: function() { return /* reexport */ __EXPERIMENTAL_STYLE_PROPERTY; },
-  __experimentalCloneSanitizedBlock: function() { return /* reexport */ __experimentalCloneSanitizedBlock; },
-  __experimentalGetAccessibleBlockLabel: function() { return /* reexport */ getAccessibleBlockLabel; },
-  __experimentalGetBlockAttributesNamesByRole: function() { return /* reexport */ __experimentalGetBlockAttributesNamesByRole; },
-  __experimentalGetBlockLabel: function() { return /* reexport */ getBlockLabel; },
-  __experimentalSanitizeBlockAttributes: function() { return /* reexport */ __experimentalSanitizeBlockAttributes; },
-  __unstableGetBlockProps: function() { return /* reexport */ getBlockProps; },
-  __unstableGetInnerBlocksProps: function() { return /* reexport */ getInnerBlocksProps; },
-  __unstableSerializeAndClean: function() { return /* reexport */ __unstableSerializeAndClean; },
-  children: function() { return /* reexport */ children; },
-  cloneBlock: function() { return /* reexport */ cloneBlock; },
-  createBlock: function() { return /* reexport */ createBlock; },
-  createBlocksFromInnerBlocksTemplate: function() { return /* reexport */ createBlocksFromInnerBlocksTemplate; },
-  doBlocksMatchTemplate: function() { return /* reexport */ doBlocksMatchTemplate; },
-  findTransform: function() { return /* reexport */ findTransform; },
-  getBlockAttributes: function() { return /* reexport */ getBlockAttributes; },
-  getBlockContent: function() { return /* reexport */ getBlockInnerHTML; },
-  getBlockDefaultClassName: function() { return /* reexport */ getBlockDefaultClassName; },
-  getBlockFromExample: function() { return /* reexport */ getBlockFromExample; },
-  getBlockMenuDefaultClassName: function() { return /* reexport */ getBlockMenuDefaultClassName; },
-  getBlockSupport: function() { return /* reexport */ getBlockSupport; },
-  getBlockTransforms: function() { return /* reexport */ getBlockTransforms; },
-  getBlockType: function() { return /* reexport */ getBlockType; },
-  getBlockTypes: function() { return /* reexport */ getBlockTypes; },
-  getBlockVariations: function() { return /* reexport */ getBlockVariations; },
-  getCategories: function() { return /* reexport */ categories_getCategories; },
-  getChildBlockNames: function() { return /* reexport */ getChildBlockNames; },
-  getDefaultBlockName: function() { return /* reexport */ getDefaultBlockName; },
-  getFreeformContentHandlerName: function() { return /* reexport */ getFreeformContentHandlerName; },
-  getGroupingBlockName: function() { return /* reexport */ getGroupingBlockName; },
-  getPhrasingContentSchema: function() { return /* reexport */ deprecatedGetPhrasingContentSchema; },
-  getPossibleBlockTransformations: function() { return /* reexport */ getPossibleBlockTransformations; },
-  getSaveContent: function() { return /* reexport */ getSaveContent; },
-  getSaveElement: function() { return /* reexport */ getSaveElement; },
-  getUnregisteredTypeHandlerName: function() { return /* reexport */ getUnregisteredTypeHandlerName; },
-  hasBlockSupport: function() { return /* reexport */ hasBlockSupport; },
-  hasChildBlocks: function() { return /* reexport */ hasChildBlocks; },
-  hasChildBlocksWithInserterSupport: function() { return /* reexport */ hasChildBlocksWithInserterSupport; },
-  isReusableBlock: function() { return /* reexport */ isReusableBlock; },
-  isTemplatePart: function() { return /* reexport */ isTemplatePart; },
-  isUnmodifiedBlock: function() { return /* reexport */ isUnmodifiedBlock; },
-  isUnmodifiedDefaultBlock: function() { return /* reexport */ isUnmodifiedDefaultBlock; },
-  isValidBlockContent: function() { return /* reexport */ isValidBlockContent; },
-  isValidIcon: function() { return /* reexport */ isValidIcon; },
-  node: function() { return /* reexport */ node; },
-  normalizeIconObject: function() { return /* reexport */ normalizeIconObject; },
-  parse: function() { return /* reexport */ parser_parse; },
-  parseWithAttributeSchema: function() { return /* reexport */ parseWithAttributeSchema; },
-  pasteHandler: function() { return /* reexport */ pasteHandler; },
-  rawHandler: function() { return /* reexport */ rawHandler; },
-  registerBlockCollection: function() { return /* reexport */ registerBlockCollection; },
-  registerBlockStyle: function() { return /* reexport */ registerBlockStyle; },
-  registerBlockType: function() { return /* reexport */ registerBlockType; },
-  registerBlockVariation: function() { return /* reexport */ registerBlockVariation; },
-  serialize: function() { return /* reexport */ serialize; },
-  serializeRawBlock: function() { return /* reexport */ serializeRawBlock; },
-  setCategories: function() { return /* reexport */ categories_setCategories; },
-  setDefaultBlockName: function() { return /* reexport */ setDefaultBlockName; },
-  setFreeformContentHandlerName: function() { return /* reexport */ setFreeformContentHandlerName; },
-  setGroupingBlockName: function() { return /* reexport */ setGroupingBlockName; },
-  setUnregisteredTypeHandlerName: function() { return /* reexport */ setUnregisteredTypeHandlerName; },
-  store: function() { return /* reexport */ store; },
-  switchToBlockType: function() { return /* reexport */ switchToBlockType; },
-  synchronizeBlocksWithTemplate: function() { return /* reexport */ synchronizeBlocksWithTemplate; },
-  unregisterBlockStyle: function() { return /* reexport */ unregisterBlockStyle; },
-  unregisterBlockType: function() { return /* reexport */ unregisterBlockType; },
-  unregisterBlockVariation: function() { return /* reexport */ unregisterBlockVariation; },
-  unstable__bootstrapServerSideBlockDefinitions: function() { return /* reexport */ unstable__bootstrapServerSideBlockDefinitions; },
-  updateCategory: function() { return /* reexport */ categories_updateCategory; },
-  validateBlock: function() { return /* reexport */ validateBlock; },
-  withBlockContentContext: function() { return /* reexport */ withBlockContentContext; }
+  __EXPERIMENTAL_ELEMENTS: () => (/* reexport */ __EXPERIMENTAL_ELEMENTS),
+  __EXPERIMENTAL_PATHS_WITH_OVERRIDE: () => (/* reexport */ __EXPERIMENTAL_PATHS_WITH_OVERRIDE),
+  __EXPERIMENTAL_STYLE_PROPERTY: () => (/* reexport */ __EXPERIMENTAL_STYLE_PROPERTY),
+  __experimentalCloneSanitizedBlock: () => (/* reexport */ __experimentalCloneSanitizedBlock),
+  __experimentalGetAccessibleBlockLabel: () => (/* reexport */ getAccessibleBlockLabel),
+  __experimentalGetBlockAttributesNamesByRole: () => (/* reexport */ __experimentalGetBlockAttributesNamesByRole),
+  __experimentalGetBlockLabel: () => (/* reexport */ getBlockLabel),
+  __experimentalSanitizeBlockAttributes: () => (/* reexport */ __experimentalSanitizeBlockAttributes),
+  __unstableGetBlockProps: () => (/* reexport */ getBlockProps),
+  __unstableGetInnerBlocksProps: () => (/* reexport */ getInnerBlocksProps),
+  __unstableSerializeAndClean: () => (/* reexport */ __unstableSerializeAndClean),
+  children: () => (/* reexport */ children),
+  cloneBlock: () => (/* reexport */ cloneBlock),
+  createBlock: () => (/* reexport */ createBlock),
+  createBlocksFromInnerBlocksTemplate: () => (/* reexport */ createBlocksFromInnerBlocksTemplate),
+  doBlocksMatchTemplate: () => (/* reexport */ doBlocksMatchTemplate),
+  findTransform: () => (/* reexport */ findTransform),
+  getBlockAttributes: () => (/* reexport */ getBlockAttributes),
+  getBlockContent: () => (/* reexport */ getBlockInnerHTML),
+  getBlockDefaultClassName: () => (/* reexport */ getBlockDefaultClassName),
+  getBlockFromExample: () => (/* reexport */ getBlockFromExample),
+  getBlockMenuDefaultClassName: () => (/* reexport */ getBlockMenuDefaultClassName),
+  getBlockSupport: () => (/* reexport */ getBlockSupport),
+  getBlockTransforms: () => (/* reexport */ getBlockTransforms),
+  getBlockType: () => (/* reexport */ getBlockType),
+  getBlockTypes: () => (/* reexport */ getBlockTypes),
+  getBlockVariations: () => (/* reexport */ getBlockVariations),
+  getCategories: () => (/* reexport */ categories_getCategories),
+  getChildBlockNames: () => (/* reexport */ getChildBlockNames),
+  getDefaultBlockName: () => (/* reexport */ getDefaultBlockName),
+  getFreeformContentHandlerName: () => (/* reexport */ getFreeformContentHandlerName),
+  getGroupingBlockName: () => (/* reexport */ getGroupingBlockName),
+  getPhrasingContentSchema: () => (/* reexport */ deprecatedGetPhrasingContentSchema),
+  getPossibleBlockTransformations: () => (/* reexport */ getPossibleBlockTransformations),
+  getSaveContent: () => (/* reexport */ getSaveContent),
+  getSaveElement: () => (/* reexport */ getSaveElement),
+  getUnregisteredTypeHandlerName: () => (/* reexport */ getUnregisteredTypeHandlerName),
+  hasBlockSupport: () => (/* reexport */ hasBlockSupport),
+  hasChildBlocks: () => (/* reexport */ hasChildBlocks),
+  hasChildBlocksWithInserterSupport: () => (/* reexport */ hasChildBlocksWithInserterSupport),
+  isReusableBlock: () => (/* reexport */ isReusableBlock),
+  isTemplatePart: () => (/* reexport */ isTemplatePart),
+  isUnmodifiedBlock: () => (/* reexport */ isUnmodifiedBlock),
+  isUnmodifiedDefaultBlock: () => (/* reexport */ isUnmodifiedDefaultBlock),
+  isValidBlockContent: () => (/* reexport */ isValidBlockContent),
+  isValidIcon: () => (/* reexport */ isValidIcon),
+  node: () => (/* reexport */ node),
+  normalizeIconObject: () => (/* reexport */ normalizeIconObject),
+  parse: () => (/* reexport */ parser_parse),
+  parseWithAttributeSchema: () => (/* reexport */ parseWithAttributeSchema),
+  pasteHandler: () => (/* reexport */ pasteHandler),
+  rawHandler: () => (/* reexport */ rawHandler),
+  registerBlockCollection: () => (/* reexport */ registerBlockCollection),
+  registerBlockStyle: () => (/* reexport */ registerBlockStyle),
+  registerBlockType: () => (/* reexport */ registerBlockType),
+  registerBlockVariation: () => (/* reexport */ registerBlockVariation),
+  serialize: () => (/* reexport */ serialize),
+  serializeRawBlock: () => (/* reexport */ serializeRawBlock),
+  setCategories: () => (/* reexport */ categories_setCategories),
+  setDefaultBlockName: () => (/* reexport */ setDefaultBlockName),
+  setFreeformContentHandlerName: () => (/* reexport */ setFreeformContentHandlerName),
+  setGroupingBlockName: () => (/* reexport */ setGroupingBlockName),
+  setUnregisteredTypeHandlerName: () => (/* reexport */ setUnregisteredTypeHandlerName),
+  store: () => (/* reexport */ store),
+  switchToBlockType: () => (/* reexport */ switchToBlockType),
+  synchronizeBlocksWithTemplate: () => (/* reexport */ synchronizeBlocksWithTemplate),
+  unregisterBlockStyle: () => (/* reexport */ unregisterBlockStyle),
+  unregisterBlockType: () => (/* reexport */ unregisterBlockType),
+  unregisterBlockVariation: () => (/* reexport */ unregisterBlockVariation),
+  unstable__bootstrapServerSideBlockDefinitions: () => (/* reexport */ unstable__bootstrapServerSideBlockDefinitions),
+  updateCategory: () => (/* reexport */ categories_updateCategory),
+  validateBlock: () => (/* reexport */ validateBlock),
+  withBlockContentContext: () => (/* reexport */ withBlockContentContext)
 });
 
 // NAMESPACE OBJECT: ./node_modules/@wordpress/blocks/build-module/store/selectors.js
 var selectors_namespaceObject = {};
 __webpack_require__.r(selectors_namespaceObject);
 __webpack_require__.d(selectors_namespaceObject, {
-  __experimentalHasContentRoleAttribute: function() { return __experimentalHasContentRoleAttribute; },
-  getActiveBlockVariation: function() { return getActiveBlockVariation; },
-  getBlockStyles: function() { return getBlockStyles; },
-  getBlockSupport: function() { return selectors_getBlockSupport; },
-  getBlockType: function() { return selectors_getBlockType; },
-  getBlockTypes: function() { return selectors_getBlockTypes; },
-  getBlockVariations: function() { return selectors_getBlockVariations; },
-  getCategories: function() { return getCategories; },
-  getChildBlockNames: function() { return selectors_getChildBlockNames; },
-  getCollections: function() { return getCollections; },
-  getDefaultBlockName: function() { return selectors_getDefaultBlockName; },
-  getDefaultBlockVariation: function() { return getDefaultBlockVariation; },
-  getFreeformFallbackBlockName: function() { return getFreeformFallbackBlockName; },
-  getGroupingBlockName: function() { return selectors_getGroupingBlockName; },
-  getUnregisteredFallbackBlockName: function() { return getUnregisteredFallbackBlockName; },
-  hasBlockSupport: function() { return selectors_hasBlockSupport; },
-  hasChildBlocks: function() { return selectors_hasChildBlocks; },
-  hasChildBlocksWithInserterSupport: function() { return selectors_hasChildBlocksWithInserterSupport; },
-  isMatchingSearchTerm: function() { return isMatchingSearchTerm; }
+  __experimentalHasContentRoleAttribute: () => (__experimentalHasContentRoleAttribute),
+  getActiveBlockVariation: () => (getActiveBlockVariation),
+  getBlockStyles: () => (getBlockStyles),
+  getBlockSupport: () => (selectors_getBlockSupport),
+  getBlockType: () => (selectors_getBlockType),
+  getBlockTypes: () => (selectors_getBlockTypes),
+  getBlockVariations: () => (selectors_getBlockVariations),
+  getCategories: () => (getCategories),
+  getChildBlockNames: () => (selectors_getChildBlockNames),
+  getCollections: () => (getCollections),
+  getDefaultBlockName: () => (selectors_getDefaultBlockName),
+  getDefaultBlockVariation: () => (getDefaultBlockVariation),
+  getFreeformFallbackBlockName: () => (getFreeformFallbackBlockName),
+  getGroupingBlockName: () => (selectors_getGroupingBlockName),
+  getUnregisteredFallbackBlockName: () => (getUnregisteredFallbackBlockName),
+  hasBlockSupport: () => (selectors_hasBlockSupport),
+  hasChildBlocks: () => (selectors_hasChildBlocks),
+  hasChildBlocksWithInserterSupport: () => (selectors_hasChildBlocksWithInserterSupport),
+  isMatchingSearchTerm: () => (isMatchingSearchTerm)
 });
 
 // NAMESPACE OBJECT: ./node_modules/@wordpress/blocks/build-module/store/private-selectors.js
 var private_selectors_namespaceObject = {};
 __webpack_require__.r(private_selectors_namespaceObject);
 __webpack_require__.d(private_selectors_namespaceObject, {
-  getBootstrappedBlockType: function() { return getBootstrappedBlockType; },
-  getSupportedStyles: function() { return getSupportedStyles; },
-  getUnprocessedBlockTypes: function() { return getUnprocessedBlockTypes; }
+  getAllBlockBindingsSources: () => (getAllBlockBindingsSources),
+  getBlockBindingsSource: () => (getBlockBindingsSource),
+  getBootstrappedBlockType: () => (getBootstrappedBlockType),
+  getSupportedStyles: () => (getSupportedStyles),
+  getUnprocessedBlockTypes: () => (getUnprocessedBlockTypes)
 });
 
 // NAMESPACE OBJECT: ./node_modules/@wordpress/blocks/build-module/store/actions.js
 var actions_namespaceObject = {};
 __webpack_require__.r(actions_namespaceObject);
 __webpack_require__.d(actions_namespaceObject, {
-  __experimentalReapplyBlockFilters: function() { return __experimentalReapplyBlockFilters; },
-  addBlockCollection: function() { return addBlockCollection; },
-  addBlockStyles: function() { return addBlockStyles; },
-  addBlockTypes: function() { return addBlockTypes; },
-  addBlockVariations: function() { return addBlockVariations; },
-  reapplyBlockTypeFilters: function() { return reapplyBlockTypeFilters; },
-  removeBlockCollection: function() { return removeBlockCollection; },
-  removeBlockStyles: function() { return removeBlockStyles; },
-  removeBlockTypes: function() { return removeBlockTypes; },
-  removeBlockVariations: function() { return removeBlockVariations; },
-  setCategories: function() { return setCategories; },
-  setDefaultBlockName: function() { return actions_setDefaultBlockName; },
-  setFreeformFallbackBlockName: function() { return setFreeformFallbackBlockName; },
-  setGroupingBlockName: function() { return actions_setGroupingBlockName; },
-  setUnregisteredFallbackBlockName: function() { return setUnregisteredFallbackBlockName; },
-  updateCategory: function() { return updateCategory; }
+  __experimentalReapplyBlockFilters: () => (__experimentalReapplyBlockFilters),
+  addBlockCollection: () => (addBlockCollection),
+  addBlockStyles: () => (addBlockStyles),
+  addBlockTypes: () => (addBlockTypes),
+  addBlockVariations: () => (addBlockVariations),
+  reapplyBlockTypeFilters: () => (reapplyBlockTypeFilters),
+  removeBlockCollection: () => (removeBlockCollection),
+  removeBlockStyles: () => (removeBlockStyles),
+  removeBlockTypes: () => (removeBlockTypes),
+  removeBlockVariations: () => (removeBlockVariations),
+  setCategories: () => (setCategories),
+  setDefaultBlockName: () => (actions_setDefaultBlockName),
+  setFreeformFallbackBlockName: () => (setFreeformFallbackBlockName),
+  setGroupingBlockName: () => (actions_setGroupingBlockName),
+  setUnregisteredFallbackBlockName: () => (setUnregisteredFallbackBlockName),
+  updateCategory: () => (updateCategory)
 });
 
 // NAMESPACE OBJECT: ./node_modules/@wordpress/blocks/build-module/store/private-actions.js
 var private_actions_namespaceObject = {};
 __webpack_require__.r(private_actions_namespaceObject);
 __webpack_require__.d(private_actions_namespaceObject, {
-  addBootstrappedBlockType: function() { return addBootstrappedBlockType; },
-  addUnprocessedBlockType: function() { return addUnprocessedBlockType; }
+  addBootstrappedBlockType: () => (addBootstrappedBlockType),
+  addUnprocessedBlockType: () => (addUnprocessedBlockType),
+  registerBlockBindingsSource: () => (registerBlockBindingsSource)
 });
 
 ;// CONCATENATED MODULE: external ["wp","data"]
-var external_wp_data_namespaceObject = window["wp"]["data"];
+const external_wp_data_namespaceObject = window["wp"]["data"];
 ;// CONCATENATED MODULE: ./node_modules/tslib/tslib.es6.mjs
 /******************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -6415,7 +6313,7 @@ function __disposeResources(env) {
   return next();
 }
 
-/* harmony default export */ var tslib_es6 = ({
+/* harmony default export */ const tslib_es6 = ({
   __extends,
   __assign,
   __rest,
@@ -6564,7 +6462,7 @@ function camelCase(input, options) {
 }
 
 ;// CONCATENATED MODULE: external ["wp","i18n"]
-var external_wp_i18n_namespaceObject = window["wp"]["i18n"];
+const external_wp_i18n_namespaceObject = window["wp"]["i18n"];
 ;// CONCATENATED MODULE: ./node_modules/colord/index.mjs
 var r={grad:.9,turn:360,rad:360/(2*Math.PI)},t=function(r){return"string"==typeof r?r.length>0:"number"==typeof r},n=function(r,t,n){return void 0===t&&(t=0),void 0===n&&(n=Math.pow(10,t)),Math.round(n*r)/n+0},e=function(r,t,n){return void 0===t&&(t=0),void 0===n&&(n=1),r>n?n:r>t?r:t},u=function(r){return(r=isFinite(r)?r%360:0)>0?r:r+360},a=function(r){return{r:e(r.r,0,255),g:e(r.g,0,255),b:e(r.b,0,255),a:e(r.a)}},o=function(r){return{r:n(r.r),g:n(r.g),b:n(r.b),a:n(r.a,3)}},i=/^#([0-9a-f]{3,8})$/i,s=function(r){var t=r.toString(16);return t.length<2?"0"+t:t},h=function(r){var t=r.r,n=r.g,e=r.b,u=r.a,a=Math.max(t,n,e),o=a-Math.min(t,n,e),i=o?a===t?(n-e)/o:a===n?2+(e-t)/o:4+(t-n)/o:0;return{h:60*(i<0?i+6:i),s:a?o/a*100:0,v:a/255*100,a:u}},b=function(r){var t=r.h,n=r.s,e=r.v,u=r.a;t=t/360*6,n/=100,e/=100;var a=Math.floor(t),o=e*(1-n),i=e*(1-(t-a)*n),s=e*(1-(1-t+a)*n),h=a%6;return{r:255*[e,i,o,o,s,e][h],g:255*[s,e,e,i,o,o][h],b:255*[o,o,s,e,e,i][h],a:u}},g=function(r){return{h:u(r.h),s:e(r.s,0,100),l:e(r.l,0,100),a:e(r.a)}},d=function(r){return{h:n(r.h),s:n(r.s),l:n(r.l),a:n(r.a,3)}},f=function(r){return b((n=(t=r).s,{h:t.h,s:(n*=((e=t.l)<50?e:100-e)/100)>0?2*n/(e+n)*100:0,v:e+n,a:t.a}));var t,n,e},c=function(r){return{h:(t=h(r)).h,s:(u=(200-(n=t.s))*(e=t.v)/100)>0&&u<200?n*e/100/(u<=100?u:200-u)*100:0,l:u/2,a:t.a};var t,n,e,u},l=/^hsla?\(\s*([+-]?\d*\.?\d+)(deg|rad|grad|turn)?\s*,\s*([+-]?\d*\.?\d+)%\s*,\s*([+-]?\d*\.?\d+)%\s*(?:,\s*([+-]?\d*\.?\d+)(%)?\s*)?\)$/i,p=/^hsla?\(\s*([+-]?\d*\.?\d+)(deg|rad|grad|turn)?\s+([+-]?\d*\.?\d+)%\s+([+-]?\d*\.?\d+)%\s*(?:\/\s*([+-]?\d*\.?\d+)(%)?\s*)?\)$/i,v=/^rgba?\(\s*([+-]?\d*\.?\d+)(%)?\s*,\s*([+-]?\d*\.?\d+)(%)?\s*,\s*([+-]?\d*\.?\d+)(%)?\s*(?:,\s*([+-]?\d*\.?\d+)(%)?\s*)?\)$/i,m=/^rgba?\(\s*([+-]?\d*\.?\d+)(%)?\s+([+-]?\d*\.?\d+)(%)?\s+([+-]?\d*\.?\d+)(%)?\s*(?:\/\s*([+-]?\d*\.?\d+)(%)?\s*)?\)$/i,y={string:[[function(r){var t=i.exec(r);return t?(r=t[1]).length<=4?{r:parseInt(r[0]+r[0],16),g:parseInt(r[1]+r[1],16),b:parseInt(r[2]+r[2],16),a:4===r.length?n(parseInt(r[3]+r[3],16)/255,2):1}:6===r.length||8===r.length?{r:parseInt(r.substr(0,2),16),g:parseInt(r.substr(2,2),16),b:parseInt(r.substr(4,2),16),a:8===r.length?n(parseInt(r.substr(6,2),16)/255,2):1}:null:null},"hex"],[function(r){var t=v.exec(r)||m.exec(r);return t?t[2]!==t[4]||t[4]!==t[6]?null:a({r:Number(t[1])/(t[2]?100/255:1),g:Number(t[3])/(t[4]?100/255:1),b:Number(t[5])/(t[6]?100/255:1),a:void 0===t[7]?1:Number(t[7])/(t[8]?100:1)}):null},"rgb"],[function(t){var n=l.exec(t)||p.exec(t);if(!n)return null;var e,u,a=g({h:(e=n[1],u=n[2],void 0===u&&(u="deg"),Number(e)*(r[u]||1)),s:Number(n[3]),l:Number(n[4]),a:void 0===n[5]?1:Number(n[5])/(n[6]?100:1)});return f(a)},"hsl"]],object:[[function(r){var n=r.r,e=r.g,u=r.b,o=r.a,i=void 0===o?1:o;return t(n)&&t(e)&&t(u)?a({r:Number(n),g:Number(e),b:Number(u),a:Number(i)}):null},"rgb"],[function(r){var n=r.h,e=r.s,u=r.l,a=r.a,o=void 0===a?1:a;if(!t(n)||!t(e)||!t(u))return null;var i=g({h:Number(n),s:Number(e),l:Number(u),a:Number(o)});return f(i)},"hsl"],[function(r){var n=r.h,a=r.s,o=r.v,i=r.a,s=void 0===i?1:i;if(!t(n)||!t(a)||!t(o))return null;var h=function(r){return{h:u(r.h),s:e(r.s,0,100),v:e(r.v,0,100),a:e(r.a)}}({h:Number(n),s:Number(a),v:Number(o),a:Number(s)});return b(h)},"hsv"]]},N=function(r,t){for(var n=0;n<t.length;n++){var e=t[n][0](r);if(e)return[e,t[n][1]]}return[null,void 0]},x=function(r){return"string"==typeof r?N(r.trim(),y.string):"object"==typeof r&&null!==r?N(r,y.object):[null,void 0]},I=function(r){return x(r)[1]},M=function(r,t){var n=c(r);return{h:n.h,s:e(n.s+100*t,0,100),l:n.l,a:n.a}},H=function(r){return(299*r.r+587*r.g+114*r.b)/1e3/255},$=function(r,t){var n=c(r);return{h:n.h,s:n.s,l:e(n.l+100*t,0,100),a:n.a}},j=function(){function r(r){this.parsed=x(r)[0],this.rgba=this.parsed||{r:0,g:0,b:0,a:1}}return r.prototype.isValid=function(){return null!==this.parsed},r.prototype.brightness=function(){return n(H(this.rgba),2)},r.prototype.isDark=function(){return H(this.rgba)<.5},r.prototype.isLight=function(){return H(this.rgba)>=.5},r.prototype.toHex=function(){return r=o(this.rgba),t=r.r,e=r.g,u=r.b,i=(a=r.a)<1?s(n(255*a)):"","#"+s(t)+s(e)+s(u)+i;var r,t,e,u,a,i},r.prototype.toRgb=function(){return o(this.rgba)},r.prototype.toRgbString=function(){return r=o(this.rgba),t=r.r,n=r.g,e=r.b,(u=r.a)<1?"rgba("+t+", "+n+", "+e+", "+u+")":"rgb("+t+", "+n+", "+e+")";var r,t,n,e,u},r.prototype.toHsl=function(){return d(c(this.rgba))},r.prototype.toHslString=function(){return r=d(c(this.rgba)),t=r.h,n=r.s,e=r.l,(u=r.a)<1?"hsla("+t+", "+n+"%, "+e+"%, "+u+")":"hsl("+t+", "+n+"%, "+e+"%)";var r,t,n,e,u},r.prototype.toHsv=function(){return r=h(this.rgba),{h:n(r.h),s:n(r.s),v:n(r.v),a:n(r.a,3)};var r},r.prototype.invert=function(){return w({r:255-(r=this.rgba).r,g:255-r.g,b:255-r.b,a:r.a});var r},r.prototype.saturate=function(r){return void 0===r&&(r=.1),w(M(this.rgba,r))},r.prototype.desaturate=function(r){return void 0===r&&(r=.1),w(M(this.rgba,-r))},r.prototype.grayscale=function(){return w(M(this.rgba,-1))},r.prototype.lighten=function(r){return void 0===r&&(r=.1),w($(this.rgba,r))},r.prototype.darken=function(r){return void 0===r&&(r=.1),w($(this.rgba,-r))},r.prototype.rotate=function(r){return void 0===r&&(r=15),this.hue(this.hue()+r)},r.prototype.alpha=function(r){return"number"==typeof r?w({r:(t=this.rgba).r,g:t.g,b:t.b,a:r}):n(this.rgba.a,3);var t},r.prototype.hue=function(r){var t=c(this.rgba);return"number"==typeof r?w({h:r,s:t.s,l:t.l,a:t.a}):n(t.h)},r.prototype.isEqual=function(r){return this.toHex()===w(r).toHex()},r}(),w=function(r){return r instanceof j?r:new j(r)},S=[],k=function(r){r.forEach(function(r){S.indexOf(r)<0&&(r(j,y),S.push(r))})},E=function(){return new j({r:255*Math.random(),g:255*Math.random(),b:255*Math.random()})};
 
@@ -6575,9 +6473,11 @@ var r={grad:.9,turn:360,rad:360/(2*Math.PI)},t=function(r){return"string"==typeo
 var a11y_o=function(o){var t=o/255;return t<.04045?t/12.92:Math.pow((t+.055)/1.055,2.4)},a11y_t=function(t){return.2126*a11y_o(t.r)+.7152*a11y_o(t.g)+.0722*a11y_o(t.b)};/* harmony default export */ function a11y(o){o.prototype.luminance=function(){return o=a11y_t(this.rgba),void 0===(r=2)&&(r=0),void 0===n&&(n=Math.pow(10,r)),Math.round(n*o)/n+0;var o,r,n},o.prototype.contrast=function(r){void 0===r&&(r="#FFF");var n,a,i,e,v,u,d,c=r instanceof o?r:new o(r);return e=this.rgba,v=c.toRgb(),u=a11y_t(e),d=a11y_t(v),n=u>d?(u+.05)/(d+.05):(d+.05)/(u+.05),void 0===(a=2)&&(a=0),void 0===i&&(i=Math.pow(10,a)),Math.floor(i*n)/i+0},o.prototype.isReadable=function(o,t){return void 0===o&&(o="#FFF"),void 0===t&&(t={}),this.contrast(o)>=(e=void 0===(i=(r=t).size)?"normal":i,"AAA"===(a=void 0===(n=r.level)?"AA":n)&&"normal"===e?7:"AA"===a&&"large"===e?3:4.5);var r,n,a,i,e}}
 
 ;// CONCATENATED MODULE: external ["wp","element"]
-var external_wp_element_namespaceObject = window["wp"]["element"];
+const external_wp_element_namespaceObject = window["wp"]["element"];
 ;// CONCATENATED MODULE: external ["wp","dom"]
-var external_wp_dom_namespaceObject = window["wp"]["dom"];
+const external_wp_dom_namespaceObject = window["wp"]["dom"];
+;// CONCATENATED MODULE: external ["wp","richText"]
+const external_wp_richText_namespaceObject = window["wp"]["richText"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/constants.js
 const BLOCK_ICON_DEFAULT = 'block-default';
 
@@ -6593,6 +6493,11 @@ const __EXPERIMENTAL_STYLE_PROPERTY = {
     value: ['color', 'link'],
     support: ['color', 'link']
   },
+  aspectRatio: {
+    value: ['dimensions', 'aspectRatio'],
+    support: ['dimensions', 'aspectRatio'],
+    useEngine: true
+  },
   background: {
     value: ['color', 'gradient'],
     support: ['color', 'gradients'],
@@ -6602,6 +6507,16 @@ const __EXPERIMENTAL_STYLE_PROPERTY = {
     value: ['color', 'background'],
     support: ['color', 'background'],
     requiresOptOut: true,
+    useEngine: true
+  },
+  backgroundRepeat: {
+    value: ['background', 'backgroundRepeat'],
+    support: ['background', 'backgroundRepeat'],
+    useEngine: true
+  },
+  backgroundSize: {
+    value: ['background', 'backgroundSize'],
+    support: ['background', 'backgroundSize'],
     useEngine: true
   },
   borderColor: {
@@ -6826,17 +6741,20 @@ const __EXPERIMENTAL_ELEMENTS = {
   caption: '.wp-element-caption, .wp-block-audio figcaption, .wp-block-embed figcaption, .wp-block-gallery figcaption, .wp-block-image figcaption, .wp-block-table figcaption, .wp-block-video figcaption',
   cite: 'cite'
 };
-const __EXPERIMENTAL_PATHS_WITH_MERGE = {
+
+// These paths may have three origins, custom, theme, and default,
+// and are expected to override other origins with custom, theme,
+// and default priority.
+const __EXPERIMENTAL_PATHS_WITH_OVERRIDE = {
   'color.duotone': true,
   'color.gradients': true,
   'color.palette': true,
-  'typography.fontFamilies': true,
   'typography.fontSizes': true,
   'spacing.spacingSizes': true
 };
 
 ;// CONCATENATED MODULE: external ["wp","privateApis"]
-var external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
+const external_wp_privateApis_namespaceObject = window["wp"]["privateApis"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/lock-unlock.js
 /**
  * WordPress dependencies
@@ -6879,7 +6797,7 @@ const i18nBlockSchema = {
  * An icon type definition. One of a Dashicon slug, an element,
  * or a component.
  *
- * @typedef {(string|WPElement|WPComponent)} WPIcon
+ * @typedef {(string|Element|Component)} WPIcon
  *
  * @see https://developer.wordpress.org/resource/dashicons/
  */
@@ -6974,10 +6892,10 @@ const i18nBlockSchema = {
  * @property {string[]}           [keywords]    Additional keywords to produce block
  *                                              type as result in search interfaces.
  * @property {Object}             [attributes]  Block type attributes.
- * @property {WPComponent}        [save]        Optional component describing
+ * @property {Component}          [save]        Optional component describing
  *                                              serialized markup structure of a
  *                                              block type.
- * @property {WPComponent}        edit          Component rendering an element to
+ * @property {Component}          edit          Component rendering an element to
  *                                              manipulate the attributes of a block
  *                                              in the context of an editor.
  * @property {WPBlockVariation[]} [variations]  The list of block variations.
@@ -7017,7 +6935,7 @@ function getBlockSettingsFromMetadata({
   textdomain,
   ...metadata
 }) {
-  const allowedFields = ['apiVersion', 'title', 'category', 'parent', 'ancestor', 'icon', 'description', 'keywords', 'attributes', 'providesContext', 'usesContext', 'selectors', 'supports', 'styles', 'example', 'variations', 'blockHooks'];
+  const allowedFields = ['apiVersion', 'title', 'category', 'parent', 'ancestor', 'icon', 'description', 'keywords', 'attributes', 'providesContext', 'usesContext', 'selectors', 'supports', 'styles', 'example', 'variations', 'blockHooks', 'allowedBlocks'];
   const settings = Object.fromEntries(Object.entries(metadata).filter(([key]) => allowedFields.includes(key)));
   if (textdomain) {
     Object.keys(i18nBlockSchema).forEach(key => {
@@ -7556,533 +7474,6 @@ const unregisterBlockVariation = (blockName, variationName) => {
   (0,external_wp_data_namespaceObject.dispatch)(store).removeBlockVariations(blockName, variationName);
 };
 
-;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/native.js
-const randomUUID = typeof crypto !== 'undefined' && crypto.randomUUID && crypto.randomUUID.bind(crypto);
-/* harmony default export */ var esm_browser_native = ({
-  randomUUID
-});
-;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/rng.js
-// Unique ID creation requires a high quality random # generator. In the browser we therefore
-// require the crypto API and do not support built-in fallback to lower quality random number
-// generators (like Math.random()).
-let getRandomValues;
-const rnds8 = new Uint8Array(16);
-function rng() {
-  // lazy load so that environments that need to polyfill have a chance to do so
-  if (!getRandomValues) {
-    // getRandomValues needs to be invoked in a context where "this" is a Crypto implementation.
-    getRandomValues = typeof crypto !== 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto);
-
-    if (!getRandomValues) {
-      throw new Error('crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported');
-    }
-  }
-
-  return getRandomValues(rnds8);
-}
-;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/stringify.js
-
-/**
- * Convert array of 16 byte values to UUID string format of the form:
- * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
- */
-
-const byteToHex = [];
-
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 0x100).toString(16).slice(1));
-}
-
-function unsafeStringify(arr, offset = 0) {
-  // Note: Be careful editing this code!  It's been tuned for performance
-  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
-  return byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]];
-}
-
-function stringify(arr, offset = 0) {
-  const uuid = unsafeStringify(arr, offset); // Consistency check for valid UUID.  If this throws, it's likely due to one
-  // of the following:
-  // - One or more input array values don't map to a hex octet (leading to
-  // "undefined" in the uuid)
-  // - Invalid input values for the RFC `version` or `variant` fields
-
-  if (!validate(uuid)) {
-    throw TypeError('Stringified UUID is invalid');
-  }
-
-  return uuid;
-}
-
-/* harmony default export */ var esm_browser_stringify = ((/* unused pure expression or super */ null && (stringify)));
-;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/v4.js
-
-
-
-
-function v4(options, buf, offset) {
-  if (esm_browser_native.randomUUID && !buf && !options) {
-    return esm_browser_native.randomUUID();
-  }
-
-  options = options || {};
-  const rnds = options.random || (options.rng || rng)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
-
-  rnds[6] = rnds[6] & 0x0f | 0x40;
-  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
-
-  if (buf) {
-    offset = offset || 0;
-
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-
-    return buf;
-  }
-
-  return unsafeStringify(rnds);
-}
-
-/* harmony default export */ var esm_browser_v4 = (v4);
-;// CONCATENATED MODULE: external ["wp","hooks"]
-var external_wp_hooks_namespaceObject = window["wp"]["hooks"];
-;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/factory.js
-/**
- * External dependencies
- */
-
-
-/**
- * WordPress dependencies
- */
-
-
-/**
- * Internal dependencies
- */
-
-
-
-/**
- * Returns a block object given its type and attributes.
- *
- * @param {string} name        Block name.
- * @param {Object} attributes  Block attributes.
- * @param {?Array} innerBlocks Nested blocks.
- *
- * @return {Object} Block object.
- */
-function createBlock(name, attributes = {}, innerBlocks = []) {
-  const sanitizedAttributes = __experimentalSanitizeBlockAttributes(name, attributes);
-  const clientId = esm_browser_v4();
-
-  // Blocks are stored with a unique ID, the assigned type name, the block
-  // attributes, and their inner blocks.
-  return {
-    clientId,
-    name,
-    isValid: true,
-    attributes: sanitizedAttributes,
-    innerBlocks
-  };
-}
-
-/**
- * Given an array of InnerBlocks templates or Block Objects,
- * returns an array of created Blocks from them.
- * It handles the case of having InnerBlocks as Blocks by
- * converting them to the proper format to continue recursively.
- *
- * @param {Array} innerBlocksOrTemplate Nested blocks or InnerBlocks templates.
- *
- * @return {Object[]} Array of Block objects.
- */
-function createBlocksFromInnerBlocksTemplate(innerBlocksOrTemplate = []) {
-  return innerBlocksOrTemplate.map(innerBlock => {
-    const innerBlockTemplate = Array.isArray(innerBlock) ? innerBlock : [innerBlock.name, innerBlock.attributes, innerBlock.innerBlocks];
-    const [name, attributes, innerBlocks = []] = innerBlockTemplate;
-    return createBlock(name, attributes, createBlocksFromInnerBlocksTemplate(innerBlocks));
-  });
-}
-
-/**
- * Given a block object, returns a copy of the block object while sanitizing its attributes,
- * optionally merging new attributes and/or replacing its inner blocks.
- *
- * @param {Object} block           Block instance.
- * @param {Object} mergeAttributes Block attributes.
- * @param {?Array} newInnerBlocks  Nested blocks.
- *
- * @return {Object} A cloned block.
- */
-function __experimentalCloneSanitizedBlock(block, mergeAttributes = {}, newInnerBlocks) {
-  const clientId = esm_browser_v4();
-  const sanitizedAttributes = __experimentalSanitizeBlockAttributes(block.name, {
-    ...block.attributes,
-    ...mergeAttributes
-  });
-  return {
-    ...block,
-    clientId,
-    attributes: sanitizedAttributes,
-    innerBlocks: newInnerBlocks || block.innerBlocks.map(innerBlock => __experimentalCloneSanitizedBlock(innerBlock))
-  };
-}
-
-/**
- * Given a block object, returns a copy of the block object,
- * optionally merging new attributes and/or replacing its inner blocks.
- *
- * @param {Object} block           Block instance.
- * @param {Object} mergeAttributes Block attributes.
- * @param {?Array} newInnerBlocks  Nested blocks.
- *
- * @return {Object} A cloned block.
- */
-function cloneBlock(block, mergeAttributes = {}, newInnerBlocks) {
-  const clientId = esm_browser_v4();
-  return {
-    ...block,
-    clientId,
-    attributes: {
-      ...block.attributes,
-      ...mergeAttributes
-    },
-    innerBlocks: newInnerBlocks || block.innerBlocks.map(innerBlock => cloneBlock(innerBlock))
-  };
-}
-
-/**
- * Returns a boolean indicating whether a transform is possible based on
- * various bits of context.
- *
- * @param {Object} transform The transform object to validate.
- * @param {string} direction Is this a 'from' or 'to' transform.
- * @param {Array}  blocks    The blocks to transform from.
- *
- * @return {boolean} Is the transform possible?
- */
-const isPossibleTransformForSource = (transform, direction, blocks) => {
-  if (!blocks.length) {
-    return false;
-  }
-
-  // If multiple blocks are selected, only multi block transforms
-  // or wildcard transforms are allowed.
-  const isMultiBlock = blocks.length > 1;
-  const firstBlockName = blocks[0].name;
-  const isValidForMultiBlocks = isWildcardBlockTransform(transform) || !isMultiBlock || transform.isMultiBlock;
-  if (!isValidForMultiBlocks) {
-    return false;
-  }
-
-  // Check non-wildcard transforms to ensure that transform is valid
-  // for a block selection of multiple blocks of different types.
-  if (!isWildcardBlockTransform(transform) && !blocks.every(block => block.name === firstBlockName)) {
-    return false;
-  }
-
-  // Only consider 'block' type transforms as valid.
-  const isBlockType = transform.type === 'block';
-  if (!isBlockType) {
-    return false;
-  }
-
-  // Check if the transform's block name matches the source block (or is a wildcard)
-  // only if this is a transform 'from'.
-  const sourceBlock = blocks[0];
-  const hasMatchingName = direction !== 'from' || transform.blocks.indexOf(sourceBlock.name) !== -1 || isWildcardBlockTransform(transform);
-  if (!hasMatchingName) {
-    return false;
-  }
-
-  // Don't allow single Grouping blocks to be transformed into
-  // a Grouping block.
-  if (!isMultiBlock && direction === 'from' && isContainerGroupBlock(sourceBlock.name) && isContainerGroupBlock(transform.blockName)) {
-    return false;
-  }
-
-  // If the transform has a `isMatch` function specified, check that it returns true.
-  if (!maybeCheckTransformIsMatch(transform, blocks)) {
-    return false;
-  }
-  return true;
-};
-
-/**
- * Returns block types that the 'blocks' can be transformed into, based on
- * 'from' transforms on other blocks.
- *
- * @param {Array} blocks The blocks to transform from.
- *
- * @return {Array} Block types that the blocks can be transformed into.
- */
-const getBlockTypesForPossibleFromTransforms = blocks => {
-  if (!blocks.length) {
-    return [];
-  }
-  const allBlockTypes = getBlockTypes();
-
-  // filter all blocks to find those with a 'from' transform.
-  const blockTypesWithPossibleFromTransforms = allBlockTypes.filter(blockType => {
-    const fromTransforms = getBlockTransforms('from', blockType.name);
-    return !!findTransform(fromTransforms, transform => {
-      return isPossibleTransformForSource(transform, 'from', blocks);
-    });
-  });
-  return blockTypesWithPossibleFromTransforms;
-};
-
-/**
- * Returns block types that the 'blocks' can be transformed into, based on
- * the source block's own 'to' transforms.
- *
- * @param {Array} blocks The blocks to transform from.
- *
- * @return {Array} Block types that the source can be transformed into.
- */
-const getBlockTypesForPossibleToTransforms = blocks => {
-  if (!blocks.length) {
-    return [];
-  }
-  const sourceBlock = blocks[0];
-  const blockType = getBlockType(sourceBlock.name);
-  const transformsTo = blockType ? getBlockTransforms('to', blockType.name) : [];
-
-  // filter all 'to' transforms to find those that are possible.
-  const possibleTransforms = transformsTo.filter(transform => {
-    return transform && isPossibleTransformForSource(transform, 'to', blocks);
-  });
-
-  // Build a list of block names using the possible 'to' transforms.
-  const blockNames = possibleTransforms.map(transformation => transformation.blocks).flat();
-
-  // Map block names to block types.
-  return blockNames.map(getBlockType);
-};
-
-/**
- * Determines whether transform is a "block" type
- * and if so whether it is a "wildcard" transform
- * ie: targets "any" block type
- *
- * @param {Object} t the Block transform object
- *
- * @return {boolean} whether transform is a wildcard transform
- */
-const isWildcardBlockTransform = t => t && t.type === 'block' && Array.isArray(t.blocks) && t.blocks.includes('*');
-
-/**
- * Determines whether the given Block is the core Block which
- * acts as a container Block for other Blocks as part of the
- * Grouping mechanics
- *
- * @param {string} name the name of the Block to test against
- *
- * @return {boolean} whether or not the Block is the container Block type
- */
-const isContainerGroupBlock = name => name === getGroupingBlockName();
-
-/**
- * Returns an array of block types that the set of blocks received as argument
- * can be transformed into.
- *
- * @param {Array} blocks Blocks array.
- *
- * @return {Array} Block types that the blocks argument can be transformed to.
- */
-function getPossibleBlockTransformations(blocks) {
-  if (!blocks.length) {
-    return [];
-  }
-  const blockTypesForFromTransforms = getBlockTypesForPossibleFromTransforms(blocks);
-  const blockTypesForToTransforms = getBlockTypesForPossibleToTransforms(blocks);
-  return [...new Set([...blockTypesForFromTransforms, ...blockTypesForToTransforms])];
-}
-
-/**
- * Given an array of transforms, returns the highest-priority transform where
- * the predicate function returns a truthy value. A higher-priority transform
- * is one with a lower priority value (i.e. first in priority order). Returns
- * null if the transforms set is empty or the predicate function returns a
- * falsey value for all entries.
- *
- * @param {Object[]} transforms Transforms to search.
- * @param {Function} predicate  Function returning true on matching transform.
- *
- * @return {?Object} Highest-priority transform candidate.
- */
-function findTransform(transforms, predicate) {
-  // The hooks library already has built-in mechanisms for managing priority
-  // queue, so leverage via locally-defined instance.
-  const hooks = (0,external_wp_hooks_namespaceObject.createHooks)();
-  for (let i = 0; i < transforms.length; i++) {
-    const candidate = transforms[i];
-    if (predicate(candidate)) {
-      hooks.addFilter('transform', 'transform/' + i.toString(), result => result ? result : candidate, candidate.priority);
-    }
-  }
-
-  // Filter name is arbitrarily chosen but consistent with above aggregation.
-  return hooks.applyFilters('transform', null);
-}
-
-/**
- * Returns normal block transforms for a given transform direction, optionally
- * for a specific block by name, or an empty array if there are no transforms.
- * If no block name is provided, returns transforms for all blocks. A normal
- * transform object includes `blockName` as a property.
- *
- * @param {string}        direction       Transform direction ("to", "from").
- * @param {string|Object} blockTypeOrName Block type or name.
- *
- * @return {Array} Block transforms for direction.
- */
-function getBlockTransforms(direction, blockTypeOrName) {
-  // When retrieving transforms for all block types, recurse into self.
-  if (blockTypeOrName === undefined) {
-    return getBlockTypes().map(({
-      name
-    }) => getBlockTransforms(direction, name)).flat();
-  }
-
-  // Validate that block type exists and has array of direction.
-  const blockType = normalizeBlockType(blockTypeOrName);
-  const {
-    name: blockName,
-    transforms
-  } = blockType || {};
-  if (!transforms || !Array.isArray(transforms[direction])) {
-    return [];
-  }
-  const usingMobileTransformations = transforms.supportedMobileTransforms && Array.isArray(transforms.supportedMobileTransforms);
-  const filteredTransforms = usingMobileTransformations ? transforms[direction].filter(t => {
-    if (t.type === 'raw') {
-      return true;
-    }
-    if (!t.blocks || !t.blocks.length) {
-      return false;
-    }
-    if (isWildcardBlockTransform(t)) {
-      return true;
-    }
-    return t.blocks.every(transformBlockName => transforms.supportedMobileTransforms.includes(transformBlockName));
-  }) : transforms[direction];
-
-  // Map transforms to normal form.
-  return filteredTransforms.map(transform => ({
-    ...transform,
-    blockName,
-    usingMobileTransformations
-  }));
-}
-
-/**
- * Checks that a given transforms isMatch method passes for given source blocks.
- *
- * @param {Object} transform A transform object.
- * @param {Array}  blocks    Blocks array.
- *
- * @return {boolean} True if given blocks are a match for the transform.
- */
-function maybeCheckTransformIsMatch(transform, blocks) {
-  if (typeof transform.isMatch !== 'function') {
-    return true;
-  }
-  const sourceBlock = blocks[0];
-  const attributes = transform.isMultiBlock ? blocks.map(block => block.attributes) : sourceBlock.attributes;
-  const block = transform.isMultiBlock ? blocks : sourceBlock;
-  return transform.isMatch(attributes, block);
-}
-
-/**
- * Switch one or more blocks into one or more blocks of the new block type.
- *
- * @param {Array|Object} blocks Blocks array or block object.
- * @param {string}       name   Block name.
- *
- * @return {?Array} Array of blocks or null.
- */
-function switchToBlockType(blocks, name) {
-  const blocksArray = Array.isArray(blocks) ? blocks : [blocks];
-  const isMultiBlock = blocksArray.length > 1;
-  const firstBlock = blocksArray[0];
-  const sourceName = firstBlock.name;
-
-  // Find the right transformation by giving priority to the "to"
-  // transformation.
-  const transformationsFrom = getBlockTransforms('from', name);
-  const transformationsTo = getBlockTransforms('to', sourceName);
-  const transformation = findTransform(transformationsTo, t => t.type === 'block' && (isWildcardBlockTransform(t) || t.blocks.indexOf(name) !== -1) && (!isMultiBlock || t.isMultiBlock) && maybeCheckTransformIsMatch(t, blocksArray)) || findTransform(transformationsFrom, t => t.type === 'block' && (isWildcardBlockTransform(t) || t.blocks.indexOf(sourceName) !== -1) && (!isMultiBlock || t.isMultiBlock) && maybeCheckTransformIsMatch(t, blocksArray));
-
-  // Stop if there is no valid transformation.
-  if (!transformation) {
-    return null;
-  }
-  let transformationResults;
-  if (transformation.isMultiBlock) {
-    if ('__experimentalConvert' in transformation) {
-      transformationResults = transformation.__experimentalConvert(blocksArray);
-    } else {
-      transformationResults = transformation.transform(blocksArray.map(currentBlock => currentBlock.attributes), blocksArray.map(currentBlock => currentBlock.innerBlocks));
-    }
-  } else if ('__experimentalConvert' in transformation) {
-    transformationResults = transformation.__experimentalConvert(firstBlock);
-  } else {
-    transformationResults = transformation.transform(firstBlock.attributes, firstBlock.innerBlocks);
-  }
-
-  // Ensure that the transformation function returned an object or an array
-  // of objects.
-  if (transformationResults === null || typeof transformationResults !== 'object') {
-    return null;
-  }
-
-  // If the transformation function returned a single object, we want to work
-  // with an array instead.
-  transformationResults = Array.isArray(transformationResults) ? transformationResults : [transformationResults];
-
-  // Ensure that every block object returned by the transformation has a
-  // valid block type.
-  if (transformationResults.some(result => !getBlockType(result.name))) {
-    return null;
-  }
-  const hasSwitchedBlock = transformationResults.some(result => result.name === name);
-
-  // Ensure that at least one block object returned by the transformation has
-  // the expected "destination" block type.
-  if (!hasSwitchedBlock) {
-    return null;
-  }
-  const ret = transformationResults.map((result, index, results) => {
-    /**
-     * Filters an individual transform result from block transformation.
-     * All of the original blocks are passed, since transformations are
-     * many-to-many, not one-to-one.
-     *
-     * @param {Object}   transformedBlock The transformed block.
-     * @param {Object[]} blocks           Original blocks transformed.
-     * @param {Object[]} index            Index of the transformed block on the array of results.
-     * @param {Object[]} results          An array all the blocks that resulted from the transformation.
-     */
-    return (0,external_wp_hooks_namespaceObject.applyFilters)('blocks.switchToBlockType.transformedBlock', result, blocks, index, results);
-  });
-  return ret;
-}
-
-/**
- * Create a block object from the example API.
- *
- * @param {string} name
- * @param {Object} example
- *
- * @return {Object} block.
- */
-const getBlockFromExample = (name, example) => {
-  var _example$innerBlocks;
-  return createBlock(name, example.attributes, ((_example$innerBlocks = example.innerBlocks) !== null && _example$innerBlocks !== void 0 ? _example$innerBlocks : []).map(innerBlock => getBlockFromExample(innerBlock.name, innerBlock)));
-};
-
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/utils.js
 /**
  * External dependencies
@@ -8098,10 +7489,10 @@ const getBlockFromExample = (name, example) => {
 
 
 
+
 /**
  * Internal dependencies
  */
-
 
 
 k([names, a11y]);
@@ -8123,15 +7514,25 @@ const ICON_COLORS = ['#191e23', '#f8f9f9'];
  * @return {boolean} Whether the block is an unmodified block.
  */
 function isUnmodifiedBlock(block) {
-  var _blockType$attributes;
-  // Cache a created default block if no cache exists or the default block
-  // name changed.
-  if (!isUnmodifiedBlock[block.name]) {
-    isUnmodifiedBlock[block.name] = createBlock(block.name);
-  }
-  const newBlock = isUnmodifiedBlock[block.name];
-  const blockType = getBlockType(block.name);
-  return Object.keys((_blockType$attributes = blockType?.attributes) !== null && _blockType$attributes !== void 0 ? _blockType$attributes : {}).every(key => newBlock.attributes[key] === block.attributes[key]);
+  var _getBlockType$attribu;
+  return Object.entries((_getBlockType$attribu = getBlockType(block.name)?.attributes) !== null && _getBlockType$attribu !== void 0 ? _getBlockType$attribu : {}).every(([key, definition]) => {
+    const value = block.attributes[key];
+
+    // Every attribute that has a default must match the default.
+    if (definition.hasOwnProperty('default')) {
+      return value === definition.default;
+    }
+
+    // The rich text type is a bit different from the rest because it
+    // has an implicit default value of an empty RichTextData instance,
+    // so check the length of the value.
+    if (definition.type === 'rich-text') {
+      return !value?.length;
+    }
+
+    // Every attribute that doesn't have a default should be undefined.
+    return value === undefined;
+  });
 }
 
 /**
@@ -8276,6 +7677,14 @@ function getAccessibleBlockLabel(blockType, attributes, position, direction = 'v
   return (0,external_wp_i18n_namespaceObject.sprintf)( /* translators: accessibility text. %s: The block title. */
   (0,external_wp_i18n_namespaceObject.__)('%s Block'), title);
 }
+function getDefault(attributeSchema) {
+  if (attributeSchema.default !== undefined) {
+    return attributeSchema.default;
+  }
+  if (attributeSchema.type === 'rich-text') {
+    return new external_wp_richText_namespaceObject.RichTextData();
+  }
+}
 
 /**
  * Ensure attributes contains only values defined by block type, and merge
@@ -8294,9 +7703,22 @@ function __experimentalSanitizeBlockAttributes(name, attributes) {
   return Object.entries(blockType.attributes).reduce((accumulator, [key, schema]) => {
     const value = attributes[key];
     if (undefined !== value) {
-      accumulator[key] = value;
-    } else if (schema.hasOwnProperty('default')) {
-      accumulator[key] = schema.default;
+      if (schema.type === 'rich-text') {
+        if (value instanceof external_wp_richText_namespaceObject.RichTextData) {
+          accumulator[key] = value;
+        } else if (typeof value === 'string') {
+          accumulator[key] = external_wp_richText_namespaceObject.RichTextData.fromHTMLString(value);
+        }
+      } else if (schema.type === 'string' && value instanceof external_wp_richText_namespaceObject.RichTextData) {
+        accumulator[key] = value.toHTMLString();
+      } else {
+        accumulator[key] = value;
+      }
+    } else {
+      const _default = getDefault(schema);
+      if (undefined !== _default) {
+        accumulator[key] = _default;
+      }
     }
     if (['node', 'children'].indexOf(schema.source) !== -1) {
       // Ensure value passed is always an array, which we're expecting in
@@ -8438,6 +7860,17 @@ function bootstrappedBlockTypes(state = {}, action) {
             ...serverDefinition,
             ...newDefinition,
             blockHooks: blockType.blockHooks
+          };
+        }
+
+        // The `allowedBlocks` prop is not yet included in the server provided
+        // definitions and needs to be polyfilled. This can be removed when the
+        // minimum supported WordPress is >= 6.5.
+        if (serverDefinition.allowedBlocks === undefined && blockType.allowedBlocks) {
+          newDefinition = {
+            ...serverDefinition,
+            ...newDefinition,
+            allowedBlocks: blockType.allowedBlocks
           };
         }
       } else {
@@ -8654,7 +8087,21 @@ function collections(state = {}, action) {
   }
   return state;
 }
-/* harmony default export */ var reducer = ((0,external_wp_data_namespaceObject.combineReducers)({
+function blockBindingsSources(state = {}, action) {
+  if (action.type === 'REGISTER_BLOCK_BINDINGS_SOURCE') {
+    var _action$lockAttribute;
+    return {
+      ...state,
+      [action.sourceName]: {
+        label: action.sourceLabel,
+        useSource: action.useSource,
+        lockAttributesEditing: (_action$lockAttribute = action.lockAttributesEditing) !== null && _action$lockAttribute !== void 0 ? _action$lockAttribute : true
+      }
+    };
+  }
+  return state;
+}
+/* harmony default export */ const reducer = ((0,external_wp_data_namespaceObject.combineReducers)({
   bootstrappedBlockTypes,
   unprocessedBlockTypes,
   blockTypes,
@@ -8665,7 +8112,8 @@ function collections(state = {}, action) {
   unregisteredFallbackBlockName,
   groupingBlockName,
   categories,
-  collections
+  collections,
+  blockBindingsSources
 }));
 
 ;// CONCATENATED MODULE: ./node_modules/rememo/rememo.js
@@ -8967,10 +8415,10 @@ function isShallowEqual(a, b, fromIndex) {
 }
 
 // EXTERNAL MODULE: ./node_modules/remove-accents/index.js
-var remove_accents = __webpack_require__(4793);
+var remove_accents = __webpack_require__(9681);
 var remove_accents_default = /*#__PURE__*/__webpack_require__.n(remove_accents);
 ;// CONCATENATED MODULE: external ["wp","compose"]
-var external_wp_compose_namespaceObject = window["wp"]["compose"];
+const external_wp_compose_namespaceObject = window["wp"]["compose"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/store/utils.js
 /**
  * Helper util to return a value from a certain path of the object.
@@ -9787,13 +9235,13 @@ function filterElementBlockSupports(blockSupports, name, element) {
       return false;
     }
 
-    // This is only available for heading
-    if (support === 'textTransform' && !name && !['heading', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element)) {
+    // This is only available for heading, button, caption and text
+    if (support === 'textTransform' && !name && !(['heading', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element) || element === 'button' || element === 'caption' || element === 'text')) {
       return false;
     }
 
-    // This is only available for headings
-    if (support === 'letterSpacing' && !name && !['heading', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element)) {
+    // This is only available for heading, button, caption and text
+    if (support === 'letterSpacing' && !name && !(['heading', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element) || element === 'button' || element === 'caption' || element === 'text')) {
       return false;
     }
 
@@ -9873,8 +9321,31 @@ function getUnprocessedBlockTypes(state) {
   return state.unprocessedBlockTypes;
 }
 
+/**
+ * Returns all the block bindings sources registered.
+ *
+ * @param {Object} state Data state.
+ *
+ * @return {Object} All the registered sources and their properties.
+ */
+function getAllBlockBindingsSources(state) {
+  return state.blockBindingsSources;
+}
+
+/**
+ * Returns a specific block bindings source.
+ *
+ * @param {Object} state      Data state.
+ * @param {string} sourceName Name of the source to get.
+ *
+ * @return {Object} The specific block binding source and its properties.
+ */
+function getBlockBindingsSource(state, sourceName) {
+  return state.blockBindingsSources[sourceName];
+}
+
 ;// CONCATENATED MODULE: external ["wp","deprecated"]
-var external_wp_deprecated_namespaceObject = window["wp"]["deprecated"];
+const external_wp_deprecated_namespaceObject = window["wp"]["deprecated"];
 var external_wp_deprecated_default = /*#__PURE__*/__webpack_require__.n(external_wp_deprecated_namespaceObject);
 ;// CONCATENATED MODULE: ./node_modules/is-plain-object/dist/is-plain-object.mjs
 /*!
@@ -9912,10 +9383,15 @@ function isPlainObject(o) {
 
 
 
+// EXTERNAL MODULE: ./node_modules/react-is/index.js
+var react_is = __webpack_require__(8529);
+;// CONCATENATED MODULE: external ["wp","hooks"]
+const external_wp_hooks_namespaceObject = window["wp"]["hooks"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/store/process-block-type.js
 /**
  * External dependencies
  */
+
 
 
 /**
@@ -9932,10 +9408,8 @@ function isPlainObject(o) {
 
 /** @typedef {import('../api/registration').WPBlockType} WPBlockType */
 
-const {
-  error,
-  warn
-} = window.console;
+const error = (...args) => window?.console?.error?.(...args);
+const warn = (...args) => window?.console?.warn?.(...args);
 
 /**
  * Mapping of legacy category slugs to their latest normal values, used to
@@ -10006,8 +9480,8 @@ const processBlockType = (name, blockSettings) => ({
     error('The "save" property must be a valid function.');
     return;
   }
-  if ('edit' in settings && typeof settings.edit !== 'function') {
-    error('The "edit" property must be a valid function.');
+  if ('edit' in settings && !(0,react_is.isValidElementType)(settings.edit)) {
+    error('The "edit" property must be a valid component.');
     return;
   }
 
@@ -10398,6 +9872,21 @@ function addUnprocessedBlockType(name, blockType) {
   };
 }
 
+/**
+ * Register new block bindings source.
+ *
+ * @param {string} source Name of the source to register.
+ */
+function registerBlockBindingsSource(source) {
+  return {
+    type: 'REGISTER_BLOCK_BINDINGS_SOURCE',
+    sourceName: source.name,
+    sourceLabel: source.label,
+    useSource: source.useSource,
+    lockAttributesEditing: source.lockAttributesEditing
+  };
+}
+
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/store/constants.js
 const STORE_NAME = 'core/blocks';
 
@@ -10434,12 +9923,547 @@ const store = (0,external_wp_data_namespaceObject.createReduxStore)(STORE_NAME, 
 unlock(store).registerPrivateSelectors(private_selectors_namespaceObject);
 unlock(store).registerPrivateActions(private_actions_namespaceObject);
 
+;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/native.js
+const randomUUID = typeof crypto !== 'undefined' && crypto.randomUUID && crypto.randomUUID.bind(crypto);
+/* harmony default export */ const esm_browser_native = ({
+  randomUUID
+});
+;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/rng.js
+// Unique ID creation requires a high quality random # generator. In the browser we therefore
+// require the crypto API and do not support built-in fallback to lower quality random number
+// generators (like Math.random()).
+let getRandomValues;
+const rnds8 = new Uint8Array(16);
+function rng() {
+  // lazy load so that environments that need to polyfill have a chance to do so
+  if (!getRandomValues) {
+    // getRandomValues needs to be invoked in a context where "this" is a Crypto implementation.
+    getRandomValues = typeof crypto !== 'undefined' && crypto.getRandomValues && crypto.getRandomValues.bind(crypto);
+
+    if (!getRandomValues) {
+      throw new Error('crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported');
+    }
+  }
+
+  return getRandomValues(rnds8);
+}
+;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/stringify.js
+
+/**
+ * Convert array of 16 byte values to UUID string format of the form:
+ * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+ */
+
+const byteToHex = [];
+
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 0x100).toString(16).slice(1));
+}
+
+function unsafeStringify(arr, offset = 0) {
+  // Note: Be careful editing this code!  It's been tuned for performance
+  // and works in ways you may not expect. See https://github.com/uuidjs/uuid/pull/434
+  return byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]];
+}
+
+function stringify(arr, offset = 0) {
+  const uuid = unsafeStringify(arr, offset); // Consistency check for valid UUID.  If this throws, it's likely due to one
+  // of the following:
+  // - One or more input array values don't map to a hex octet (leading to
+  // "undefined" in the uuid)
+  // - Invalid input values for the RFC `version` or `variant` fields
+
+  if (!validate(uuid)) {
+    throw TypeError('Stringified UUID is invalid');
+  }
+
+  return uuid;
+}
+
+/* harmony default export */ const esm_browser_stringify = ((/* unused pure expression or super */ null && (stringify)));
+;// CONCATENATED MODULE: ./node_modules/uuid/dist/esm-browser/v4.js
+
+
+
+
+function v4(options, buf, offset) {
+  if (esm_browser_native.randomUUID && !buf && !options) {
+    return esm_browser_native.randomUUID();
+  }
+
+  options = options || {};
+  const rnds = options.random || (options.rng || rng)(); // Per 4.4, set bits for version and `clock_seq_hi_and_reserved`
+
+  rnds[6] = rnds[6] & 0x0f | 0x40;
+  rnds[8] = rnds[8] & 0x3f | 0x80; // Copy bytes to buffer, if provided
+
+  if (buf) {
+    offset = offset || 0;
+
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+
+    return buf;
+  }
+
+  return unsafeStringify(rnds);
+}
+
+/* harmony default export */ const esm_browser_v4 = (v4);
+;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/factory.js
+/**
+ * External dependencies
+ */
+
+
+/**
+ * WordPress dependencies
+ */
+
+
+/**
+ * Internal dependencies
+ */
+
+
+
+/**
+ * Returns a block object given its type and attributes.
+ *
+ * @param {string} name        Block name.
+ * @param {Object} attributes  Block attributes.
+ * @param {?Array} innerBlocks Nested blocks.
+ *
+ * @return {Object} Block object.
+ */
+function createBlock(name, attributes = {}, innerBlocks = []) {
+  const sanitizedAttributes = __experimentalSanitizeBlockAttributes(name, attributes);
+  const clientId = esm_browser_v4();
+
+  // Blocks are stored with a unique ID, the assigned type name, the block
+  // attributes, and their inner blocks.
+  return {
+    clientId,
+    name,
+    isValid: true,
+    attributes: sanitizedAttributes,
+    innerBlocks
+  };
+}
+
+/**
+ * Given an array of InnerBlocks templates or Block Objects,
+ * returns an array of created Blocks from them.
+ * It handles the case of having InnerBlocks as Blocks by
+ * converting them to the proper format to continue recursively.
+ *
+ * @param {Array} innerBlocksOrTemplate Nested blocks or InnerBlocks templates.
+ *
+ * @return {Object[]} Array of Block objects.
+ */
+function createBlocksFromInnerBlocksTemplate(innerBlocksOrTemplate = []) {
+  return innerBlocksOrTemplate.map(innerBlock => {
+    const innerBlockTemplate = Array.isArray(innerBlock) ? innerBlock : [innerBlock.name, innerBlock.attributes, innerBlock.innerBlocks];
+    const [name, attributes, innerBlocks = []] = innerBlockTemplate;
+    return createBlock(name, attributes, createBlocksFromInnerBlocksTemplate(innerBlocks));
+  });
+}
+
+/**
+ * Given a block object, returns a copy of the block object while sanitizing its attributes,
+ * optionally merging new attributes and/or replacing its inner blocks.
+ *
+ * @param {Object} block           Block instance.
+ * @param {Object} mergeAttributes Block attributes.
+ * @param {?Array} newInnerBlocks  Nested blocks.
+ *
+ * @return {Object} A cloned block.
+ */
+function __experimentalCloneSanitizedBlock(block, mergeAttributes = {}, newInnerBlocks) {
+  const clientId = esm_browser_v4();
+  const sanitizedAttributes = __experimentalSanitizeBlockAttributes(block.name, {
+    ...block.attributes,
+    ...mergeAttributes
+  });
+  return {
+    ...block,
+    clientId,
+    attributes: sanitizedAttributes,
+    innerBlocks: newInnerBlocks || block.innerBlocks.map(innerBlock => __experimentalCloneSanitizedBlock(innerBlock))
+  };
+}
+
+/**
+ * Given a block object, returns a copy of the block object,
+ * optionally merging new attributes and/or replacing its inner blocks.
+ *
+ * @param {Object} block           Block instance.
+ * @param {Object} mergeAttributes Block attributes.
+ * @param {?Array} newInnerBlocks  Nested blocks.
+ *
+ * @return {Object} A cloned block.
+ */
+function cloneBlock(block, mergeAttributes = {}, newInnerBlocks) {
+  const clientId = esm_browser_v4();
+  return {
+    ...block,
+    clientId,
+    attributes: {
+      ...block.attributes,
+      ...mergeAttributes
+    },
+    innerBlocks: newInnerBlocks || block.innerBlocks.map(innerBlock => cloneBlock(innerBlock))
+  };
+}
+
+/**
+ * Returns a boolean indicating whether a transform is possible based on
+ * various bits of context.
+ *
+ * @param {Object} transform The transform object to validate.
+ * @param {string} direction Is this a 'from' or 'to' transform.
+ * @param {Array}  blocks    The blocks to transform from.
+ *
+ * @return {boolean} Is the transform possible?
+ */
+const isPossibleTransformForSource = (transform, direction, blocks) => {
+  if (!blocks.length) {
+    return false;
+  }
+
+  // If multiple blocks are selected, only multi block transforms
+  // or wildcard transforms are allowed.
+  const isMultiBlock = blocks.length > 1;
+  const firstBlockName = blocks[0].name;
+  const isValidForMultiBlocks = isWildcardBlockTransform(transform) || !isMultiBlock || transform.isMultiBlock;
+  if (!isValidForMultiBlocks) {
+    return false;
+  }
+
+  // Check non-wildcard transforms to ensure that transform is valid
+  // for a block selection of multiple blocks of different types.
+  if (!isWildcardBlockTransform(transform) && !blocks.every(block => block.name === firstBlockName)) {
+    return false;
+  }
+
+  // Only consider 'block' type transforms as valid.
+  const isBlockType = transform.type === 'block';
+  if (!isBlockType) {
+    return false;
+  }
+
+  // Check if the transform's block name matches the source block (or is a wildcard)
+  // only if this is a transform 'from'.
+  const sourceBlock = blocks[0];
+  const hasMatchingName = direction !== 'from' || transform.blocks.indexOf(sourceBlock.name) !== -1 || isWildcardBlockTransform(transform);
+  if (!hasMatchingName) {
+    return false;
+  }
+
+  // Don't allow single Grouping blocks to be transformed into
+  // a Grouping block.
+  if (!isMultiBlock && direction === 'from' && isContainerGroupBlock(sourceBlock.name) && isContainerGroupBlock(transform.blockName)) {
+    return false;
+  }
+
+  // If the transform has a `isMatch` function specified, check that it returns true.
+  if (!maybeCheckTransformIsMatch(transform, blocks)) {
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Returns block types that the 'blocks' can be transformed into, based on
+ * 'from' transforms on other blocks.
+ *
+ * @param {Array} blocks The blocks to transform from.
+ *
+ * @return {Array} Block types that the blocks can be transformed into.
+ */
+const getBlockTypesForPossibleFromTransforms = blocks => {
+  if (!blocks.length) {
+    return [];
+  }
+  const allBlockTypes = getBlockTypes();
+
+  // filter all blocks to find those with a 'from' transform.
+  const blockTypesWithPossibleFromTransforms = allBlockTypes.filter(blockType => {
+    const fromTransforms = getBlockTransforms('from', blockType.name);
+    return !!findTransform(fromTransforms, transform => {
+      return isPossibleTransformForSource(transform, 'from', blocks);
+    });
+  });
+  return blockTypesWithPossibleFromTransforms;
+};
+
+/**
+ * Returns block types that the 'blocks' can be transformed into, based on
+ * the source block's own 'to' transforms.
+ *
+ * @param {Array} blocks The blocks to transform from.
+ *
+ * @return {Array} Block types that the source can be transformed into.
+ */
+const getBlockTypesForPossibleToTransforms = blocks => {
+  if (!blocks.length) {
+    return [];
+  }
+  const sourceBlock = blocks[0];
+  const blockType = getBlockType(sourceBlock.name);
+  const transformsTo = blockType ? getBlockTransforms('to', blockType.name) : [];
+
+  // filter all 'to' transforms to find those that are possible.
+  const possibleTransforms = transformsTo.filter(transform => {
+    return transform && isPossibleTransformForSource(transform, 'to', blocks);
+  });
+
+  // Build a list of block names using the possible 'to' transforms.
+  const blockNames = possibleTransforms.map(transformation => transformation.blocks).flat();
+
+  // Map block names to block types.
+  return blockNames.map(getBlockType);
+};
+
+/**
+ * Determines whether transform is a "block" type
+ * and if so whether it is a "wildcard" transform
+ * ie: targets "any" block type
+ *
+ * @param {Object} t the Block transform object
+ *
+ * @return {boolean} whether transform is a wildcard transform
+ */
+const isWildcardBlockTransform = t => t && t.type === 'block' && Array.isArray(t.blocks) && t.blocks.includes('*');
+
+/**
+ * Determines whether the given Block is the core Block which
+ * acts as a container Block for other Blocks as part of the
+ * Grouping mechanics
+ *
+ * @param {string} name the name of the Block to test against
+ *
+ * @return {boolean} whether or not the Block is the container Block type
+ */
+const isContainerGroupBlock = name => name === getGroupingBlockName();
+
+/**
+ * Returns an array of block types that the set of blocks received as argument
+ * can be transformed into.
+ *
+ * @param {Array} blocks Blocks array.
+ *
+ * @return {Array} Block types that the blocks argument can be transformed to.
+ */
+function getPossibleBlockTransformations(blocks) {
+  if (!blocks.length) {
+    return [];
+  }
+  const blockTypesForFromTransforms = getBlockTypesForPossibleFromTransforms(blocks);
+  const blockTypesForToTransforms = getBlockTypesForPossibleToTransforms(blocks);
+  return [...new Set([...blockTypesForFromTransforms, ...blockTypesForToTransforms])];
+}
+
+/**
+ * Given an array of transforms, returns the highest-priority transform where
+ * the predicate function returns a truthy value. A higher-priority transform
+ * is one with a lower priority value (i.e. first in priority order). Returns
+ * null if the transforms set is empty or the predicate function returns a
+ * falsey value for all entries.
+ *
+ * @param {Object[]} transforms Transforms to search.
+ * @param {Function} predicate  Function returning true on matching transform.
+ *
+ * @return {?Object} Highest-priority transform candidate.
+ */
+function findTransform(transforms, predicate) {
+  // The hooks library already has built-in mechanisms for managing priority
+  // queue, so leverage via locally-defined instance.
+  const hooks = (0,external_wp_hooks_namespaceObject.createHooks)();
+  for (let i = 0; i < transforms.length; i++) {
+    const candidate = transforms[i];
+    if (predicate(candidate)) {
+      hooks.addFilter('transform', 'transform/' + i.toString(), result => result ? result : candidate, candidate.priority);
+    }
+  }
+
+  // Filter name is arbitrarily chosen but consistent with above aggregation.
+  return hooks.applyFilters('transform', null);
+}
+
+/**
+ * Returns normal block transforms for a given transform direction, optionally
+ * for a specific block by name, or an empty array if there are no transforms.
+ * If no block name is provided, returns transforms for all blocks. A normal
+ * transform object includes `blockName` as a property.
+ *
+ * @param {string}        direction       Transform direction ("to", "from").
+ * @param {string|Object} blockTypeOrName Block type or name.
+ *
+ * @return {Array} Block transforms for direction.
+ */
+function getBlockTransforms(direction, blockTypeOrName) {
+  // When retrieving transforms for all block types, recurse into self.
+  if (blockTypeOrName === undefined) {
+    return getBlockTypes().map(({
+      name
+    }) => getBlockTransforms(direction, name)).flat();
+  }
+
+  // Validate that block type exists and has array of direction.
+  const blockType = normalizeBlockType(blockTypeOrName);
+  const {
+    name: blockName,
+    transforms
+  } = blockType || {};
+  if (!transforms || !Array.isArray(transforms[direction])) {
+    return [];
+  }
+  const usingMobileTransformations = transforms.supportedMobileTransforms && Array.isArray(transforms.supportedMobileTransforms);
+  const filteredTransforms = usingMobileTransformations ? transforms[direction].filter(t => {
+    if (t.type === 'raw') {
+      return true;
+    }
+    if (!t.blocks || !t.blocks.length) {
+      return false;
+    }
+    if (isWildcardBlockTransform(t)) {
+      return true;
+    }
+    return t.blocks.every(transformBlockName => transforms.supportedMobileTransforms.includes(transformBlockName));
+  }) : transforms[direction];
+
+  // Map transforms to normal form.
+  return filteredTransforms.map(transform => ({
+    ...transform,
+    blockName,
+    usingMobileTransformations
+  }));
+}
+
+/**
+ * Checks that a given transforms isMatch method passes for given source blocks.
+ *
+ * @param {Object} transform A transform object.
+ * @param {Array}  blocks    Blocks array.
+ *
+ * @return {boolean} True if given blocks are a match for the transform.
+ */
+function maybeCheckTransformIsMatch(transform, blocks) {
+  if (typeof transform.isMatch !== 'function') {
+    return true;
+  }
+  const sourceBlock = blocks[0];
+  const attributes = transform.isMultiBlock ? blocks.map(block => block.attributes) : sourceBlock.attributes;
+  const block = transform.isMultiBlock ? blocks : sourceBlock;
+  return transform.isMatch(attributes, block);
+}
+
+/**
+ * Switch one or more blocks into one or more blocks of the new block type.
+ *
+ * @param {Array|Object} blocks Blocks array or block object.
+ * @param {string}       name   Block name.
+ *
+ * @return {?Array} Array of blocks or null.
+ */
+function switchToBlockType(blocks, name) {
+  const blocksArray = Array.isArray(blocks) ? blocks : [blocks];
+  const isMultiBlock = blocksArray.length > 1;
+  const firstBlock = blocksArray[0];
+  const sourceName = firstBlock.name;
+
+  // Find the right transformation by giving priority to the "to"
+  // transformation.
+  const transformationsFrom = getBlockTransforms('from', name);
+  const transformationsTo = getBlockTransforms('to', sourceName);
+  const transformation = findTransform(transformationsTo, t => t.type === 'block' && (isWildcardBlockTransform(t) || t.blocks.indexOf(name) !== -1) && (!isMultiBlock || t.isMultiBlock) && maybeCheckTransformIsMatch(t, blocksArray)) || findTransform(transformationsFrom, t => t.type === 'block' && (isWildcardBlockTransform(t) || t.blocks.indexOf(sourceName) !== -1) && (!isMultiBlock || t.isMultiBlock) && maybeCheckTransformIsMatch(t, blocksArray));
+
+  // Stop if there is no valid transformation.
+  if (!transformation) {
+    return null;
+  }
+  let transformationResults;
+  if (transformation.isMultiBlock) {
+    if ('__experimentalConvert' in transformation) {
+      transformationResults = transformation.__experimentalConvert(blocksArray);
+    } else {
+      transformationResults = transformation.transform(blocksArray.map(currentBlock => currentBlock.attributes), blocksArray.map(currentBlock => currentBlock.innerBlocks));
+    }
+  } else if ('__experimentalConvert' in transformation) {
+    transformationResults = transformation.__experimentalConvert(firstBlock);
+  } else {
+    transformationResults = transformation.transform(firstBlock.attributes, firstBlock.innerBlocks);
+  }
+
+  // Ensure that the transformation function returned an object or an array
+  // of objects.
+  if (transformationResults === null || typeof transformationResults !== 'object') {
+    return null;
+  }
+
+  // If the transformation function returned a single object, we want to work
+  // with an array instead.
+  transformationResults = Array.isArray(transformationResults) ? transformationResults : [transformationResults];
+
+  // Ensure that every block object returned by the transformation has a
+  // valid block type.
+  if (transformationResults.some(result => !getBlockType(result.name))) {
+    return null;
+  }
+  const hasSwitchedBlock = transformationResults.some(result => result.name === name);
+
+  // Ensure that at least one block object returned by the transformation has
+  // the expected "destination" block type.
+  if (!hasSwitchedBlock) {
+    return null;
+  }
+  const ret = transformationResults.map((result, index, results) => {
+    /**
+     * Filters an individual transform result from block transformation.
+     * All of the original blocks are passed, since transformations are
+     * many-to-many, not one-to-one.
+     *
+     * @param {Object}   transformedBlock The transformed block.
+     * @param {Object[]} blocks           Original blocks transformed.
+     * @param {Object[]} index            Index of the transformed block on the array of results.
+     * @param {Object[]} results          An array all the blocks that resulted from the transformation.
+     */
+    return (0,external_wp_hooks_namespaceObject.applyFilters)('blocks.switchToBlockType.transformedBlock', result, blocks, index, results);
+  });
+  return ret;
+}
+
+/**
+ * Create a block object from the example API.
+ *
+ * @param {string} name
+ * @param {Object} example
+ *
+ * @return {Object} block.
+ */
+const getBlockFromExample = (name, example) => {
+  try {
+    var _example$innerBlocks;
+    return createBlock(name, example.attributes, ((_example$innerBlocks = example.innerBlocks) !== null && _example$innerBlocks !== void 0 ? _example$innerBlocks : []).map(innerBlock => getBlockFromExample(innerBlock.name, innerBlock)));
+  } catch {
+    return createBlock('core/missing', {
+      originalName: name,
+      originalContent: '',
+      originalUndelimitedContent: ''
+    });
+  }
+};
+
 ;// CONCATENATED MODULE: external ["wp","blockSerializationDefaultParser"]
-var external_wp_blockSerializationDefaultParser_namespaceObject = window["wp"]["blockSerializationDefaultParser"];
+const external_wp_blockSerializationDefaultParser_namespaceObject = window["wp"]["blockSerializationDefaultParser"];
 ;// CONCATENATED MODULE: external ["wp","autop"]
-var external_wp_autop_namespaceObject = window["wp"]["autop"];
+const external_wp_autop_namespaceObject = window["wp"]["autop"];
+;// CONCATENATED MODULE: external "React"
+const external_React_namespaceObject = window["React"];
 ;// CONCATENATED MODULE: external ["wp","isShallowEqual"]
-var external_wp_isShallowEqual_namespaceObject = window["wp"]["isShallowEqual"];
+const external_wp_isShallowEqual_namespaceObject = window["wp"]["isShallowEqual"];
 var external_wp_isShallowEqual_default = /*#__PURE__*/__webpack_require__.n(external_wp_isShallowEqual_namespaceObject);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/parser/serialize-raw-block.js
 /**
@@ -10583,7 +10607,7 @@ function getInnerBlocksProps(props = {}) {
     isInnerBlocks: true
   });
   // Use special-cased raw HTML tag to avoid default escaping.
-  const children = (0,external_wp_element_namespaceObject.createElement)(external_wp_element_namespaceObject.RawHTML, null, html);
+  const children = (0,external_React_namespaceObject.createElement)(external_wp_element_namespaceObject.RawHTML, null, html);
   return {
     ...props,
     children
@@ -10642,9 +10666,9 @@ function getSaveElement(blockTypeOrName, attributes, innerBlocks = []) {
   /**
    * Filters the save result of a block during serialization.
    *
-   * @param {WPElement} element    Block save result.
-   * @param {WPBlock}   blockType  Block type definition.
-   * @param {Object}    attributes Block attributes.
+   * @param {Element} element    Block save result.
+   * @param {WPBlock} blockType  Block type definition.
+   * @param {Object}  attributes Block attributes.
    */
   return (0,external_wp_hooks_namespaceObject.applyFilters)('blocks.getSaveElement', element, blockType, attributes);
 }
@@ -11733,10 +11757,10 @@ function tokenize(input, options) {
 
 
 // EXTERNAL MODULE: ./node_modules/fast-deep-equal/es6/index.js
-var es6 = __webpack_require__(5619);
+var es6 = __webpack_require__(7734);
 var es6_default = /*#__PURE__*/__webpack_require__.n(es6);
 ;// CONCATENATED MODULE: external ["wp","htmlEntities"]
-var external_wp_htmlEntities_namespaceObject = window["wp"]["htmlEntities"];
+const external_wp_htmlEntities_namespaceObject = window["wp"]["htmlEntities"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/validation/logger.js
 /**
  * @typedef LoggerItem
@@ -12495,11 +12519,14 @@ function convertLegacyBlockNameAndAttributes(name, attributes) {
     // Note that we also had to add a deprecation to the block in order
     // for the ID change to work.
   }
-
   if (name === 'core/post-comments') {
     name = 'core/comments';
     newAttributes.legacy = true;
   }
+
+  // The following code is only relevant for the Gutenberg plugin.
+  // It's a stand-alone if statement for dead-code elimination.
+  if (false) {}
   return [name, newAttributes];
 }
 
@@ -12508,19 +12535,22 @@ function convertLegacyBlockNameAndAttributes(name, attributes) {
  * Given object and string of dot-delimited path segments, returns value at
  * path or undefined if path cannot be resolved.
  *
- * @param object Lookup object
- * @param path   Path to resolve
- * @return       Resolved value
+ * @param  {Object} object Lookup object
+ * @param  {string} path   Path to resolve
+ * @return {?*}            Resolved value
  */
 function getPath(object, path) {
   var segments = path.split('.');
   var segment;
+
   while (segment = segments.shift()) {
     if (!(segment in object)) {
       return;
     }
+
     object = object[segment];
   }
+
   return object;
 }
 ;// CONCATENATED MODULE: ./node_modules/hpq/es/index.js
@@ -12532,162 +12562,133 @@ function getPath(object, path) {
  * Function returning a DOM document created by `createHTMLDocument`. The same
  * document is returned between invocations.
  *
- * @return DOM document.
+ * @return {Document} DOM document.
  */
+
 var getDocument = function () {
   var doc;
   return function () {
     if (!doc) {
       doc = document.implementation.createHTMLDocument('');
     }
+
     return doc;
   };
 }();
-
 /**
  * Given a markup string or DOM element, creates an object aligning with the
  * shape of the matchers object, or the value returned by the matcher.
  *
- * @param source Source content
- * @param matchers Matcher function or object of matchers
+ * @param  {(string|Element)}  source   Source content
+ * @param  {(Object|Function)} matchers Matcher function or object of matchers
+ * @return {(Object|*)}                 Matched value(s), shaped by object
  */
 
-/**
- * Given a markup string or DOM element, creates an object aligning with the
- * shape of the matchers object, or the value returned by the matcher.
- *
- * @param source Source content
- * @param matchers Matcher function or object of matchers
- */
+
 function parse(source, matchers) {
   if (!matchers) {
     return;
-  }
+  } // Coerce to element
 
-  // Coerce to element
+
   if ('string' === typeof source) {
     var doc = getDocument();
     doc.body.innerHTML = source;
     source = doc.body;
-  }
+  } // Return singular value
 
-  // Return singular value
-  if (typeof matchers === 'function') {
+
+  if ('function' === typeof matchers) {
     return matchers(source);
-  }
+  } // Bail if we can't handle matchers
 
-  // Bail if we can't handle matchers
+
   if (Object !== matchers.constructor) {
     return;
-  }
+  } // Shape result by matcher object
 
-  // Shape result by matcher object
+
   return Object.keys(matchers).reduce(function (memo, key) {
-    var inner = matchers[key];
-    memo[key] = parse(source, inner);
+    memo[key] = parse(source, matchers[key]);
     return memo;
   }, {});
 }
-
 /**
  * Generates a function which matches node of type selector, returning an
  * attribute by property if the attribute exists. If no selector is passed,
  * returns property of the query element.
  *
- * @param name Property name
- * @return Property value
+ * @param  {?string} selector Optional selector
+ * @param  {string}  name     Property name
+ * @return {*}                Property value
  */
 
-/**
- * Generates a function which matches node of type selector, returning an
- * attribute by property if the attribute exists. If no selector is passed,
- * returns property of the query element.
- *
- * @param selector Optional selector
- * @param name Property name
- * @return Property value
- */
-function prop(arg1, arg2) {
-  var name;
-  var selector;
+function prop(selector, name) {
   if (1 === arguments.length) {
-    name = arg1;
+    name = selector;
     selector = undefined;
-  } else {
-    name = arg2;
-    selector = arg1;
   }
+
   return function (node) {
     var match = node;
+
     if (selector) {
       match = node.querySelector(selector);
     }
+
     if (match) {
       return getPath(match, name);
     }
   };
 }
-
 /**
  * Generates a function which matches node of type selector, returning an
  * attribute by name if the attribute exists. If no selector is passed,
  * returns attribute of the query element.
  *
- * @param name Attribute name
- * @return Attribute value
+ * @param  {?string} selector Optional selector
+ * @param  {string}  name     Attribute name
+ * @return {?string}          Attribute value
  */
 
-/**
- * Generates a function which matches node of type selector, returning an
- * attribute by name if the attribute exists. If no selector is passed,
- * returns attribute of the query element.
- *
- * @param selector Optional selector
- * @param name Attribute name
- * @return Attribute value
- */
-function attr(arg1, arg2) {
-  var name;
-  var selector;
+function attr(selector, name) {
   if (1 === arguments.length) {
-    name = arg1;
+    name = selector;
     selector = undefined;
-  } else {
-    name = arg2;
-    selector = arg1;
   }
+
   return function (node) {
     var attributes = prop(selector, 'attributes')(node);
-    if (attributes && Object.prototype.hasOwnProperty.call(attributes, name)) {
+
+    if (attributes && attributes.hasOwnProperty(name)) {
       return attributes[name].value;
     }
   };
 }
-
 /**
  * Convenience for `prop( selector, 'innerHTML' )`.
  *
  * @see prop()
  *
- * @param selector Optional selector
- * @return Inner HTML
+ * @param  {?string} selector Optional selector
+ * @return {string}           Inner HTML
  */
+
 function html(selector) {
   return prop(selector, 'innerHTML');
 }
-
 /**
  * Convenience for `prop( selector, 'textContent' )`.
  *
  * @see prop()
  *
- * @param selector Optional selector
- * @return Text content
+ * @param  {?string} selector Optional selector
+ * @return {string}           Text content
  */
+
 function es_text(selector) {
   return prop(selector, 'textContent');
 }
-
 /**
  * Creates a new matching context by first finding elements matching selector
  * using querySelectorAll before then running another `parse` on `matchers`
@@ -12695,10 +12696,11 @@ function es_text(selector) {
  *
  * @see parse()
  *
- * @param selector Selector to match
- * @param matchers Matcher function or object of matchers
- * @return Matcher function which returns an array of matched value(s)
+ * @param  {string}            selector Selector to match
+ * @param  {(Object|Function)} matchers Matcher function or object of matchers
+ * @return {Array.<*,Object>}           Array of matched value(s)
  */
+
 function query(selector, matchers) {
   return function (node) {
     var matches = node.querySelectorAll(selector);
@@ -12876,6 +12878,11 @@ function memize(fn, options) {
 
 
 /**
+ * WordPress dependencies
+ */
+
+
+/**
  * Internal dependencies
  */
 
@@ -12904,6 +12911,12 @@ function matchers_html(selector, multilineTag) {
     return match.innerHTML;
   };
 }
+const richText = (selector, preserveWhiteSpace) => el => {
+  const target = selector ? el.querySelector(selector) : el;
+  return target ? external_wp_richText_namespaceObject.RichTextData.fromHTMLElement(target, {
+    preserveWhiteSpace
+  }) : external_wp_richText_namespaceObject.RichTextData.empty();
+};
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/node.js
 /**
@@ -13055,7 +13068,7 @@ function node_matcher(selector) {
  *
  * @private
  */
-/* harmony default export */ var node = ({
+/* harmony default export */ const node = ({
   isNodeOfType,
   fromDOM,
   toHTML,
@@ -13085,7 +13098,7 @@ function node_matcher(selector) {
  *
  * @param {WPBlockChildren} children Block children object to convert.
  *
- * @return {WPElement} A serialize-capable element.
+ * @return {Element} A serialize-capable element.
  */
 function getSerializeCapableElement(children) {
   // The fact that block children are compatible with the element serializer is
@@ -13230,7 +13243,7 @@ function children_matcher(selector) {
  *
  * @private
  */
-/* harmony default export */ var children = ({
+/* harmony default export */ const children = ({
   concat,
   getChildrenArray,
   fromDOM: children_fromDOM,
@@ -13248,6 +13261,7 @@ function children_matcher(selector) {
 /**
  * WordPress dependencies
  */
+
 
 
 
@@ -13296,6 +13310,8 @@ value => value !== undefined]);
  */
 function isOfType(value, type) {
   switch (type) {
+    case 'rich-text':
+      return value instanceof external_wp_richText_namespaceObject.RichTextData;
     case 'string':
       return typeof value === 'string';
     case 'boolean':
@@ -13357,6 +13373,7 @@ function getBlockAttribute(attributeKey, attributeSchema, innerDOM, commentAttri
     case 'property':
     case 'html':
     case 'text':
+    case 'rich-text':
     case 'children':
     case 'node':
     case 'query':
@@ -13370,7 +13387,7 @@ function getBlockAttribute(attributeKey, attributeSchema, innerDOM, commentAttri
     value = undefined;
   }
   if (value === undefined) {
-    value = attributeSchema.default;
+    value = getDefault(attributeSchema);
   }
   return value;
 }
@@ -13424,6 +13441,8 @@ const matcherFromSource = memize(sourceConfig => {
       return matchers_html(sourceConfig.selector, sourceConfig.multiline);
     case 'text':
       return es_text(sourceConfig.selector);
+    case 'rich-text':
+      return richText(sourceConfig.selector, sourceConfig.__unstablePreserveWhiteSpace);
     case 'children':
       return children_matcher(sourceConfig.selector);
     case 'node':
@@ -13977,8 +13996,14 @@ function getRawTransforms() {
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/html-to-blocks.js
 /**
+ * WordPress dependencies
+ */
+
+
+/**
  * Internal dependencies
  */
+
 
 
 
@@ -14002,6 +14027,11 @@ function htmlToBlocks(html, handler) {
       isMatch
     }) => isMatch(node));
     if (!rawTransform) {
+      // Until the HTML block is supported in the native version, we'll parse it
+      // instead of creating the block to generate it as an unsupported block.
+      if (external_wp_element_namespaceObject.Platform.isNative) {
+        return parser_parse(`<!-- wp:html -->${node.outerHTML}<!-- /wp:html -->`);
+      }
       return createBlock(
       // Should not be hardcoded.
       'core/html', getBlockAttributes('core/html', node.outerHTML));
@@ -14345,7 +14375,7 @@ function figureContentReducer(node, doc, schema) {
 }
 
 ;// CONCATENATED MODULE: external ["wp","shortcode"]
-var external_wp_shortcode_namespaceObject = window["wp"]["shortcode"];
+const external_wp_shortcode_namespaceObject = window["wp"]["shortcode"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/shortcode-converter.js
 /**
  * WordPress dependencies
@@ -14434,17 +14464,9 @@ function segmentHTMLToShortcodeBlock(HTML, lastIndex = 0, excludedBlockNames = [
   }
   return [HTML];
 }
-/* harmony default export */ var shortcode_converter = (segmentHTMLToShortcodeBlock);
+/* harmony default export */ const shortcode_converter = (segmentHTMLToShortcodeBlock);
 
-// EXTERNAL MODULE: ./node_modules/deepmerge/dist/cjs.js
-var cjs = __webpack_require__(1919);
-var cjs_default = /*#__PURE__*/__webpack_require__.n(cjs);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/utils.js
-/**
- * External dependencies
- */
-
-
 /**
  * WordPress dependencies
  */
@@ -14455,44 +14477,6 @@ var cjs_default = /*#__PURE__*/__webpack_require__.n(cjs);
  */
 
 
-const customMerge = key => {
-  return (srcValue, objValue) => {
-    switch (key) {
-      case 'children':
-        {
-          if (objValue === '*' || srcValue === '*') {
-            return '*';
-          }
-          return {
-            ...objValue,
-            ...srcValue
-          };
-        }
-      case 'attributes':
-      case 'require':
-        {
-          return [...(objValue || []), ...(srcValue || [])];
-        }
-      case 'isMatch':
-        {
-          // If one of the values being merge is undefined (matches everything),
-          // the result of the merge will be undefined.
-          if (!objValue || !srcValue) {
-            return undefined;
-          }
-          // When merging two isMatch functions, the result is a new function
-          // that returns if one of the source functions returns true.
-          return (...args) => {
-            return objValue(...args) || srcValue(...args);
-          };
-        }
-    }
-    return cjs_default()(objValue, srcValue, {
-      customMerge,
-      clone: false
-    });
-  };
-};
 function getBlockContentSchemaFromTransforms(transforms, context) {
   const phrasingContentSchema = (0,external_wp_dom_namespaceObject.getPhrasingContentSchema)(context);
   const schemaArgs = {
@@ -14528,10 +14512,60 @@ function getBlockContentSchemaFromTransforms(transforms, context) {
       }];
     }));
   });
-  return cjs_default().all(schemas, {
-    customMerge,
-    clone: false
-  });
+  function mergeTagNameSchemaProperties(objValue, srcValue, key) {
+    switch (key) {
+      case 'children':
+        {
+          if (objValue === '*' || srcValue === '*') {
+            return '*';
+          }
+          return {
+            ...objValue,
+            ...srcValue
+          };
+        }
+      case 'attributes':
+      case 'require':
+        {
+          return [...(objValue || []), ...(srcValue || [])];
+        }
+      case 'isMatch':
+        {
+          // If one of the values being merge is undefined (matches everything),
+          // the result of the merge will be undefined.
+          if (!objValue || !srcValue) {
+            return undefined;
+          }
+          // When merging two isMatch functions, the result is a new function
+          // that returns if one of the source functions returns true.
+          return (...args) => {
+            return objValue(...args) || srcValue(...args);
+          };
+        }
+    }
+  }
+
+  // A tagName schema is an object with children, attributes, require, and
+  // isMatch properties.
+  function mergeTagNameSchemas(a, b) {
+    for (const key in b) {
+      a[key] = a[key] ? mergeTagNameSchemaProperties(a[key], b[key], key) : {
+        ...b[key]
+      };
+    }
+    return a;
+  }
+
+  // A schema is an object with tagName schemas by tag name.
+  function mergeSchemas(a, b) {
+    for (const key in b) {
+      a[key] = a[key] ? mergeTagNameSchemas(a[key], b[key]) : {
+        ...b[key]
+      };
+    }
+    return a;
+  }
+  return schemas.reduce(mergeSchemas, {});
 }
 
 /**
@@ -14842,13 +14876,6 @@ function msListIgnore(node) {
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/ms-list-converter.js
 /**
- * Browser dependencies
- */
-const {
-  parseInt: ms_list_converter_parseInt
-} = window;
-
-/**
  * Internal dependencies
  */
 
@@ -14885,7 +14912,7 @@ function msListConverter(node, doc) {
   // Add content.
   listItem.innerHTML = deepFilterHTML(node.innerHTML, [msListIgnore]);
   const matches = /mso-list\s*:[^;]+level([0-9]+)/i.exec(style);
-  let level = matches ? ms_list_converter_parseInt(matches[1], 10) - 1 || 0 : 0;
+  let level = matches ? parseInt(matches[1], 10) - 1 || 0 : 0;
 
   // Change pointer depending on indentation level.
   while (level--) {
@@ -14910,20 +14937,12 @@ function msListConverter(node, doc) {
 }
 
 ;// CONCATENATED MODULE: external ["wp","blob"]
-var external_wp_blob_namespaceObject = window["wp"]["blob"];
+const external_wp_blob_namespaceObject = window["wp"]["blob"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/image-corrector.js
 /**
  * WordPress dependencies
  */
 
-
-/**
- * Browser dependencies
- */
-const {
-  atob,
-  File
-} = window;
 function imageCorrector(node) {
   if (node.nodeName !== 'IMG') {
     return;
@@ -14954,7 +14973,7 @@ function imageCorrector(node) {
       uint8Array[i] = decoded.charCodeAt(i);
     }
     const name = type.replace('/', '.');
-    const file = new File([uint8Array], name, {
+    const file = new window.File([uint8Array], name, {
       type
     });
     node.src = (0,external_wp_blob_namespaceObject.createBlobURL)(file);
@@ -14979,7 +14998,7 @@ function divNormaliser(node) {
 }
 
 // EXTERNAL MODULE: ./node_modules/showdown/dist/showdown.js
-var showdown = __webpack_require__(7308);
+var showdown = __webpack_require__(1030);
 var showdown_default = /*#__PURE__*/__webpack_require__.n(showdown);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/blocks/build-module/api/raw-handling/markdown-converter.js
 /**
@@ -15222,48 +15241,38 @@ function slackParagraphCorrector(node) {
 
 
 
-
-/**
- * Browser dependencies
- */
-const {
-  console: paste_handler_console
-} = window;
+const log = (...args) => window?.console?.log?.(...args);
 
 /**
  * Filters HTML to only contain phrasing content.
  *
- * @param {string}  HTML               The HTML to filter.
- * @param {boolean} preserveWhiteSpace Whether or not to preserve consequent white space.
+ * @param {string} HTML The HTML to filter.
  *
  * @return {string} HTML only containing phrasing content.
  */
-function filterInlineHTML(HTML, preserveWhiteSpace) {
+function filterInlineHTML(HTML) {
   HTML = deepFilterHTML(HTML, [headRemover, googleDocsUIdRemover, msListIgnore, phrasingContentReducer, commentRemover]);
   HTML = (0,external_wp_dom_namespaceObject.removeInvalidHTML)(HTML, (0,external_wp_dom_namespaceObject.getPhrasingContentSchema)('paste'), {
     inline: true
   });
-  if (!preserveWhiteSpace) {
-    HTML = deepFilterHTML(HTML, [htmlFormattingRemover, brRemover]);
-  }
+  HTML = deepFilterHTML(HTML, [htmlFormattingRemover, brRemover]);
 
   // Allows us to ask for this information when we get a report.
-  paste_handler_console.log('Processed inline HTML:\n\n', HTML);
+  log('Processed inline HTML:\n\n', HTML);
   return HTML;
 }
 
 /**
  * Converts an HTML string to known blocks. Strips everything else.
  *
- * @param {Object}  options
- * @param {string}  [options.HTML]               The HTML to convert.
- * @param {string}  [options.plainText]          Plain text version.
- * @param {string}  [options.mode]               Handle content as blocks or inline content.
- *                                               * 'AUTO': Decide based on the content passed.
- *                                               * 'INLINE': Always handle as inline content, and return string.
- *                                               * 'BLOCKS': Always handle as blocks, and return array of blocks.
- * @param {Array}   [options.tagName]            The tag into which content will be inserted.
- * @param {boolean} [options.preserveWhiteSpace] Whether or not to preserve consequent white space.
+ * @param {Object} options
+ * @param {string} [options.HTML]      The HTML to convert.
+ * @param {string} [options.plainText] Plain text version.
+ * @param {string} [options.mode]      Handle content as blocks or inline content.
+ *                                     * 'AUTO': Decide based on the content passed.
+ *                                     * 'INLINE': Always handle as inline content, and return string.
+ *                                     * 'BLOCKS': Always handle as blocks, and return array of blocks.
+ * @param {Array}  [options.tagName]   The tag into which content will be inserted.
  *
  * @return {Array|string} A list of blocks or a string, depending on `handlerMode`.
  */
@@ -15271,8 +15280,7 @@ function pasteHandler({
   HTML = '',
   plainText = '',
   mode = 'AUTO',
-  tagName,
-  preserveWhiteSpace
+  tagName
 }) {
   // First of all, strip any meta tags.
   HTML = HTML.replace(/<meta[^>]+>/g, '');
@@ -15300,17 +15308,33 @@ function pasteHandler({
     HTML = HTML.normalize();
   }
 
-  // Parse Markdown (and encoded HTML) if:
+  // Must be run before checking if it's inline content.
+  HTML = deepFilterHTML(HTML, [slackParagraphCorrector]);
+
+  // Consider plain text if:
   // * There is a plain text version.
   // * There is no HTML version, or it has no formatting.
-  if (plainText && (!HTML || isPlain(HTML))) {
+  const isPlainText = plainText && (!HTML || isPlain(HTML));
+
+  // Parse Markdown (and encoded HTML) if it's considered plain text.
+  if (isPlainText) {
     HTML = plainText;
 
     // The markdown converter (Showdown) trims whitespace.
     if (!/^\s+$/.test(plainText)) {
       HTML = markdownConverter(HTML);
     }
+  }
 
+  // An array of HTML strings and block objects. The blocks replace matched
+  // shortcodes.
+  const pieces = shortcode_converter(HTML);
+
+  // The call to shortcodeConverter will always return more than one element
+  // if shortcodes are matched. The reason is when shortcodes are matched
+  // empty HTML strings are included.
+  const hasShortcodes = pieces.length > 1;
+  if (isPlainText && !hasShortcodes) {
     // Switch to inline mode if:
     // * The current mode is AUTO.
     // * The original plain text had no line breaks.
@@ -15321,22 +15345,10 @@ function pasteHandler({
     }
   }
   if (mode === 'INLINE') {
-    return filterInlineHTML(HTML, preserveWhiteSpace);
+    return filterInlineHTML(HTML);
   }
-
-  // Must be run before checking if it's inline content.
-  HTML = deepFilterHTML(HTML, [slackParagraphCorrector]);
-
-  // An array of HTML strings and block objects. The blocks replace matched
-  // shortcodes.
-  const pieces = shortcode_converter(HTML);
-
-  // The call to shortcodeConverter will always return more than one element
-  // if shortcodes are matched. The reason is when shortcodes are matched
-  // empty HTML strings are included.
-  const hasShortcodes = pieces.length > 1;
   if (mode === 'AUTO' && !hasShortcodes && isInlineContent(HTML, tagName)) {
-    return filterInlineHTML(HTML, preserveWhiteSpace);
+    return filterInlineHTML(HTML);
   }
   const phrasingContentSchema = (0,external_wp_dom_namespaceObject.getPhrasingContentSchema)('paste');
   const blockContentSchema = getBlockContentSchema('paste');
@@ -15357,7 +15369,7 @@ function pasteHandler({
     piece = deepFilterHTML(piece, [htmlFormattingRemover, brRemover, emptyParagraphRemover], blockContentSchema);
 
     // Allows us to ask for this information when we get a report.
-    paste_handler_console.log('Processed HTML piece:\n\n', piece);
+    log('Processed HTML piece:\n\n', piece);
     return htmlToBlocks(piece, pasteHandler);
   }).flat().filter(Boolean);
 
@@ -15680,8 +15692,8 @@ function synchronizeBlocksWithTemplate(blocks = [], template) {
  *
  * @deprecated
  *
- * @param {WPComponent} OriginalComponent The component to enhance.
- * @return {WPComponent} The same component.
+ * @param {Component} OriginalComponent The component to enhance.
+ * @return {Component} The same component.
  */
 function withBlockContentContext(OriginalComponent) {
   external_wp_deprecated_default()('wp.blocks.withBlockContentContext', {
@@ -15705,7 +15717,8 @@ function withBlockContentContext(OriginalComponent) {
 
 
 
-}();
+})();
+
 (window.wp = window.wp || {}).blocks = __webpack_exports__;
 /******/ })()
 ;

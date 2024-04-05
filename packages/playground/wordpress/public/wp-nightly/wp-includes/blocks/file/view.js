@@ -1,12 +1,34 @@
-"use strict";
-(self["__WordPressPrivateInteractivityAPI__"] = self["__WordPressPrivateInteractivityAPI__"] || []).push([[81],{
+import * as __WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__ from "@wordpress/interactivity";
+/******/ // The require scope
+/******/ var __webpack_require__ = {};
+/******/ 
+/************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__webpack_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
+/************************************************************************/
+var __webpack_exports__ = {};
 
-/***/ 149:
-/***/ (function(__unused_webpack_module, __unused_webpack___webpack_exports__, __webpack_require__) {
-
-
-// EXTERNAL MODULE: ./node_modules/@wordpress/interactivity/src/index.js + 15 modules
-var src = __webpack_require__(754);
+;// CONCATENATED MODULE: external "@wordpress/interactivity"
+var x = (y) => {
+	var x = {}; __webpack_require__.d(x, y); return x
+} 
+var y = (x) => (() => (x))
+const interactivity_namespaceObject = x({ ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store) });
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/file/utils/index.js
 /**
  * Uses a combination of user agent matching and feature detection to determine whether
@@ -53,6 +75,7 @@ const createActiveXObject = type => {
   }
   return ax;
 };
+
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/file/view.js
 /**
  * WordPress dependencies
@@ -62,21 +85,13 @@ const createActiveXObject = type => {
  * Internal dependencies
  */
 
-(0,src/* store */.h)({
-  selectors: {
-    core: {
-      file: {
-        hasPdfPreview: browserSupportsPdfs
-      }
+(0,interactivity_namespaceObject.store)('core/file', {
+  state: {
+    get hasPdfPreview() {
+      return browserSupportsPdfs();
     }
   }
+}, {
+  lock: true
 });
 
-/***/ })
-
-},
-/******/ function(__webpack_require__) { // webpackRuntimeModules
-/******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ var __webpack_exports__ = (__webpack_exec__(149));
-/******/ }
-]);

@@ -1,104 +1,135 @@
-"use strict";
-(self["__WordPressPrivateInteractivityAPI__"] = self["__WordPressPrivateInteractivityAPI__"] || []).push([[155],{
+import * as __WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__ from "@wordpress/interactivity";
+/******/ var __webpack_modules__ = ({
 
-/***/ 890:
-/***/ (function(__unused_webpack_module, __unused_webpack___webpack_exports__, __webpack_require__) {
+/***/ 438:
+/***/ ((module) => {
 
-/* harmony import */ var _wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(754);
+module.exports = import("@wordpress/interactivity-router");;
+
+/***/ })
+
+/******/ });
+/************************************************************************/
+/******/ // The module cache
+/******/ var __webpack_module_cache__ = {};
+/******/ 
+/******/ // The require function
+/******/ function __webpack_require__(moduleId) {
+/******/ 	// Check if module is in cache
+/******/ 	var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 	if (cachedModule !== undefined) {
+/******/ 		return cachedModule.exports;
+/******/ 	}
+/******/ 	// Create a new module (and put it into the cache)
+/******/ 	var module = __webpack_module_cache__[moduleId] = {
+/******/ 		// no module.id needed
+/******/ 		// no module.loaded needed
+/******/ 		exports: {}
+/******/ 	};
+/******/ 
+/******/ 	// Execute the module function
+/******/ 	__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 
+/******/ 	// Return the exports of the module
+/******/ 	return module.exports;
+/******/ }
+/******/ 
+/************************************************************************/
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__webpack_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
+/************************************************************************/
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
+(() => {
+
+;// CONCATENATED MODULE: external "@wordpress/interactivity"
+var x = (y) => {
+	var x = {}; __webpack_require__.d(x, y); return x
+} 
+var y = (x) => (() => (x))
+const interactivity_namespaceObject = x({ ["getContext"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getContext), ["getElement"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.getElement), ["store"]: () => (__WEBPACK_EXTERNAL_MODULE__wordpress_interactivity_8e89b257__.store) });
+;// CONCATENATED MODULE: ./node_modules/@wordpress/block-library/build-module/query/view.js
 /**
  * WordPress dependencies
  */
 
 const isValidLink = ref => ref && ref instanceof window.HTMLAnchorElement && ref.href && (!ref.target || ref.target === '_self') && ref.origin === window.location.origin;
 const isValidEvent = event => event.button === 0 &&
-// left clicks only
+// Left clicks only.
 !event.metaKey &&
-// open in new tab (mac)
+// Open in new tab (Mac).
 !event.ctrlKey &&
-// open in new tab (windows)
+// Open in new tab (Windows).
 !event.altKey &&
-// download
+// Download.
 !event.shiftKey && !event.defaultPrevented;
-(0,_wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__/* .store */ .h)({
-  selectors: {
-    core: {
-      query: {
-        startAnimation: ({
-          context
-        }) => context.core.query.animation === 'start',
-        finishAnimation: ({
-          context
-        }) => context.core.query.animation === 'finish'
-      }
-    }
-  },
+(0,interactivity_namespaceObject.store)('core/query', {
   actions: {
-    core: {
-      query: {
-        navigate: async ({
-          event,
-          ref,
-          context
-        }) => {
-          const isDisabled = ref.closest('[data-wp-navigation-id]')?.dataset.wpNavigationDisabled;
-          if (isValidLink(ref) && isValidEvent(event) && !isDisabled) {
-            event.preventDefault();
-            const id = ref.closest('[data-wp-navigation-id]').dataset.wpNavigationId;
+    *navigate(event) {
+      const ctx = (0,interactivity_namespaceObject.getContext)();
+      const {
+        ref
+      } = (0,interactivity_namespaceObject.getElement)();
+      const queryRef = ref.closest('.wp-block-query[data-wp-router-region]');
+      if (isValidLink(ref) && isValidEvent(event)) {
+        event.preventDefault();
+        const {
+          actions
+        } = yield Promise.resolve(/* import() */).then(__webpack_require__.bind(__webpack_require__, 438));
+        yield actions.navigate(ref.href);
+        ctx.url = ref.href;
 
-            // Don't announce the navigation immediately, wait 300 ms.
-            const timeout = setTimeout(() => {
-              context.core.query.message = context.core.query.loadingText;
-              context.core.query.animation = 'start';
-            }, 400);
-            await (0,_wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__/* .navigate */ .c4)(ref.href);
-
-            // Dismiss loading message if it hasn't been added yet.
-            clearTimeout(timeout);
-
-            // Announce that the page has been loaded. If the message is the
-            // same, we use a no-break space similar to the @wordpress/a11y
-            // package: https://github.com/WordPress/gutenberg/blob/c395242b8e6ee20f8b06c199e4fc2920d7018af1/packages/a11y/src/filter-message.js#L20-L26
-            context.core.query.message = context.core.query.loadedText + (context.core.query.message === context.core.query.loadedText ? '\u00A0' : '');
-            context.core.query.animation = 'finish';
-            context.core.query.url = ref.href;
-
-            // Focus the first anchor of the Query block.
-            const firstAnchor = `[data-wp-navigation-id=${id}] .wp-block-post-template a[href]`;
-            document.querySelector(firstAnchor)?.focus();
-          }
-        },
-        prefetch: async ({
-          ref
-        }) => {
-          const isDisabled = ref.closest('[data-wp-navigation-id]')?.dataset.wpNavigationDisabled;
-          if (isValidLink(ref) && !isDisabled) {
-            await (0,_wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__/* .prefetch */ .tL)(ref.href);
-          }
-        }
+        // Focus the first anchor of the Query block.
+        const firstAnchor = `.wp-block-post-template a[href]`;
+        queryRef.querySelector(firstAnchor)?.focus();
+      }
+    },
+    *prefetch() {
+      const {
+        ref
+      } = (0,interactivity_namespaceObject.getElement)();
+      if (isValidLink(ref)) {
+        const {
+          actions
+        } = yield Promise.resolve(/* import() */).then(__webpack_require__.bind(__webpack_require__, 438));
+        yield actions.prefetch(ref.href);
       }
     }
   },
-  effects: {
-    core: {
-      query: {
-        prefetch: async ({
-          ref,
-          context
-        }) => {
-          if (context.core.query.url && isValidLink(ref)) {
-            await (0,_wordpress_interactivity__WEBPACK_IMPORTED_MODULE_0__/* .prefetch */ .tL)(ref.href);
-          }
-        }
+  callbacks: {
+    *prefetch() {
+      const {
+        url
+      } = (0,interactivity_namespaceObject.getContext)();
+      const {
+        ref
+      } = (0,interactivity_namespaceObject.getElement)();
+      if (url && isValidLink(ref)) {
+        const {
+          actions
+        } = yield Promise.resolve(/* import() */).then(__webpack_require__.bind(__webpack_require__, 438));
+        yield actions.prefetch(ref.href);
       }
     }
   }
+}, {
+  lock: true
 });
 
-/***/ })
+})();
 
-},
-/******/ function(__webpack_require__) { // webpackRuntimeModules
-/******/ var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId); }
-/******/ var __webpack_exports__ = (__webpack_exec__(890));
-/******/ }
-]);

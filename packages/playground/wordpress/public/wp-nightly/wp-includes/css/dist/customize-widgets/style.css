@@ -8,6 +8,7 @@
   --wp-admin-border-width-focus:2px;
   --wp-block-synced-color:#7a00df;
   --wp-block-synced-color--rgb:122, 0, 223;
+  --wp-bound-block-color:#9747ff;
 }
 @media (min-resolution:192dpi){
   :root{
@@ -41,7 +42,7 @@
   margin:-15px -12px 0;
   z-index:8;
 }
-@media (min-width:782px){
+@media (min-width:600px){
   .customize-widgets-header{
     margin-bottom:44px;
   }
@@ -155,17 +156,6 @@
   margin:0 0 0 .2rem;
 }
 
-.block-editor-block-contextual-toolbar.is-fixed{
-  margin-left:-12px;
-  margin-right:-12px;
-  overflow-y:auto;
-  width:calc(100% + 24px) !important;
-  z-index:7;
-}
-.block-editor-block-contextual-toolbar.is-fixed>.block-editor-block-toolbar__group-collapse-fixed-toolbar{
-  display:none;
-}
-
 .customize-control-sidebar_block_editor .block-editor-block-list__block-popover{
   position:fixed !important;
   z-index:7;
@@ -220,26 +210,9 @@
   z-index:999999;
 }
 
-.customize-control-sidebar_block_editor,.customize-widgets-layout__inspector,.customize-widgets-popover{
+.customize-control-sidebar_block_editor,.customize-widgets-layout__inspector{
   box-sizing:border-box;
 }
-.customize-control-sidebar_block_editor *,.customize-control-sidebar_block_editor :after,.customize-control-sidebar_block_editor :before,.customize-widgets-layout__inspector *,.customize-widgets-layout__inspector :after,.customize-widgets-layout__inspector :before,.customize-widgets-popover *,.customize-widgets-popover :after,.customize-widgets-popover :before{
+.customize-control-sidebar_block_editor *,.customize-control-sidebar_block_editor :after,.customize-control-sidebar_block_editor :before,.customize-widgets-layout__inspector *,.customize-widgets-layout__inspector :after,.customize-widgets-layout__inspector :before{
   box-sizing:inherit;
-}
-.block-editor-block-contextual-toolbar.is-fixed{
-  border:none;
-  border-bottom:1px solid #e0e0e0;
-  border-radius:0;
-  left:0;
-  overflow-y:hidden;
-  position:sticky;
-  top:0;
-  width:calc(100% + 24px);
-  z-index:6;
-}
-.block-editor-block-contextual-toolbar.is-fixed .block-editor-block-toolbar .components-toolbar,.block-editor-block-contextual-toolbar.is-fixed .block-editor-block-toolbar .components-toolbar-group{
-  border-right-color:#e0e0e0;
-}
-.block-editor-block-contextual-toolbar.is-fixed.is-collapsed{
-  margin-left:-12px;
 }
