@@ -133,6 +133,16 @@ export class PHPRequestHandler implements RequestHandler {
 			return this.#serveStaticFile(fsPath);
 		}
 
+		// TODO - This is a temporary workaround to prevent the server from running missing wp assets as PHP requests.
+		if (
+			(normalizedRequestedPath.startsWith('/wp-includes/') ||
+				normalizedRequestedPath.startsWith('/wp-admin/')) &&
+			!normalizedRequestedPath.endsWith('.php') &&
+			!normalizedRequestedPath.endsWith('/')
+		) {
+			return this.#serveStatic404();
+		}
+
 		const phpResponse = await this.#dispatchToPHP(request, requestedUrl);
 		if (
 			phpResponse.httpStatusCode === 404 &&
