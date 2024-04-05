@@ -9,6 +9,9 @@
 	"keywords": [ "img", "photo", "picture" ],
 	"textdomain": "default",
 	"attributes": {
+		"align": {
+			"type": "string"
+		},
 		"url": {
 			"type": "string",
 			"source": "attribute",
@@ -25,8 +28,8 @@
 			"__experimentalRole": "content"
 		},
 		"caption": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "figcaption",
 			"__experimentalRole": "content"
 		},
@@ -92,8 +95,6 @@
 		}
 	},
 	"supports": {
-		"interactivity": true,
-		"align": [ "left", "center", "right", "wide", "full" ],
 		"anchor": true,
 		"color": {
 			"text": false,
@@ -112,14 +113,10 @@
 				"radius": true,
 				"width": true
 			}
-		},
-		"shadow": {
-			"__experimentalSkipSerialization": true
 		}
 	},
 	"selectors": {
 		"border": ".wp-block-image img, .wp-block-image .wp-block-image__crop-area, .wp-block-image .components-placeholder",
-		"shadow": ".wp-block-image img, .wp-block-image .wp-block-image__crop-area, .wp-block-image .components-placeholder",
 		"filter": {
 			"duotone": ".wp-block-image img, .wp-block-image .components-placeholder"
 		}
@@ -133,5 +130,6 @@
 		{ "name": "rounded", "label": "Rounded" }
 	],
 	"editorStyle": "wp-block-image-editor",
-	"style": "wp-block-image"
+	"style": "wp-block-image",
+	"viewScript": "file:./view.min.js"
 }

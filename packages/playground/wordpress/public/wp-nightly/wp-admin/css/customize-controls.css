@@ -1566,9 +1566,10 @@ p.customize-section-description {
 }
 
 .customize-control-header .choice:focus {
-	box-shadow: 0 0 0 2px #2271b1;
-	/* Only visible in Windows High Contrast mode */
-	outline: 2px solid transparent;
+	outline: none;
+	box-shadow:
+		0 0 0 1px #4f94d4,
+		0 0 3px 1px rgba(79, 148, 212, 0.8);
 }
 
 .customize-control-header .uploaded div:last-child > .choice {
@@ -1603,6 +1604,7 @@ p.customize-section-description {
 	font-family: Consolas, Monaco, monospace;
 	font-size: 12px;
 	padding: 6px 8px;
+	-o-tab-size: 2;
 	tab-size: 2;
 }
 .customize-control-code_editor textarea,
@@ -2678,9 +2680,9 @@ body.adding-widget .add-new-widget:before,
 
 #available-widgets-filter .clear-results:focus,
 #available-menu-items-search .clear-results:focus {
-	box-shadow: 0 0 0 2px #2271b1;
-	/* Only visible in Windows High Contrast mode */
-	outline: 2px solid transparent;
+	box-shadow:
+		0 0 0 1px #4f94d4,
+		0 0 2px 1px rgba(79, 148, 212, 0.8);
 }
 
 #available-menu-items-search .search-icon:after,

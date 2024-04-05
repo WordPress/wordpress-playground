@@ -278,7 +278,7 @@
 				},
 				{
 					"fluid": {
-						"min": "6.1rem",
+						"min": "4rem",
 						"max": "10rem"
 					},
 					"size": "10rem",
@@ -730,7 +730,7 @@
 		{
 			"area": "uncategorized",
 			"name": "comments",
-			"title": "Comments Template Part"
+			"title": "Comments"
 		},
 		{
 			"area": "uncategorized",

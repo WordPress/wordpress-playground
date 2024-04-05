@@ -31,10 +31,7 @@
 	],
 	"supports": {
 		"reusable": false,
-		"html": false,
-		"interactivity": {
-			"clientNavigation": true
-		}
+		"html": false
 	},
 	"editorStyle": "wp-block-social-link-editor"
 }

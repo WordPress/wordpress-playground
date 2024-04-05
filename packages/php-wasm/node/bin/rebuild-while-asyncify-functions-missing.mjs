@@ -50,7 +50,8 @@ function getHash() {
 	return createHash('sha1')
 		.update(
 			fs.readFileSync(
-				new URL('../../compile/Dockerfile', import.meta.url).pathname
+				new URL('../../compile/php/Dockerfile', import.meta.url)
+					.pathname
 			)
 		)
 		.digest('hex');

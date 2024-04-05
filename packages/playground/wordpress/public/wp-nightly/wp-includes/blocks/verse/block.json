@@ -9,9 +9,10 @@
 	"textdomain": "default",
 	"attributes": {
 		"content": {
-			"type": "rich-text",
-			"source": "rich-text",
+			"type": "string",
+			"source": "html",
 			"selector": "pre",
+			"default": "",
 			"__unstablePreserveWhiteSpace": true,
 			"__experimentalRole": "content"
 		},
@@ -39,7 +40,8 @@
 			"__experimentalTextTransform": true,
 			"__experimentalTextDecoration": true,
 			"__experimentalDefaultControls": {
-				"fontSize": true
+				"fontSize": true,
+				"fontAppearance": true
 			}
 		},
 		"spacing": {
@@ -55,9 +57,6 @@
 			"width": true,
 			"color": true,
 			"style": true
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"style": "wp-block-verse",

@@ -37,7 +37,6 @@
 				"text": true
 			}
 		},
-		"shadow": true,
 		"spacing": {
 			"blockGap": true,
 			"padding": true,
@@ -69,9 +68,6 @@
 				"fontSize": true
 			}
 		},
-		"layout": true,
-		"interactivity": {
-			"clientNavigation": true
-		}
+		"layout": true
 	}
 }

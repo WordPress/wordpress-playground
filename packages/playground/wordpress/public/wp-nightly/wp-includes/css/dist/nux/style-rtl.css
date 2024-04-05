@@ -8,7 +8,6 @@
   --wp-admin-border-width-focus:2px;
   --wp-block-synced-color:#7a00df;
   --wp-block-synced-color--rgb:122, 0, 223;
-  --wp-bound-block-color:#9747ff;
 }
 @media (min-resolution:192dpi){
   :root{
@@ -24,7 +23,7 @@
 }
 .nux-dot-tip:before{
   animation:nux-pulse 1.6s cubic-bezier(.17, .67, .92, .62) infinite;
-  background:#00739ce6;
+  background:rgba(0,115,156,.9);
   height:24px;
   opacity:.9;
   right:-12px;
@@ -41,7 +40,7 @@
 }
 @keyframes nux-pulse{
   to{
-    background:#00739c00;
+    background:rgba(0,115,156,0);
     transform:scale(1);
   }
 }

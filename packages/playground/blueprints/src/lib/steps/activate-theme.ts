@@ -8,8 +8,7 @@ import { StepHandler } from '.';
  * <code>
  * {
  * 		"step": "activateTheme",
- * 		"pluginName": "Storefront",
- * 		"pluginPath": "/wordpress/wp-content/themes/storefront"
+ * 		"themeFolderName": "storefront"
  * }
  * </code>
  */
@@ -35,7 +34,6 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
 	const docroot = await playground.documentRoot;
 	await playground.run({
-		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once( ${phpVar(docroot)}. "/wp-load.php" );

@@ -276,7 +276,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			}
 
 			const response = await this.#handleRequest();
-			if (request.throwOnError && response.exitCode !== 0) {
+			if (response.exitCode !== 0) {
 				const output = {
 					stdout: response.text,
 					stderr: response.errors,
@@ -288,10 +288,20 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				);
 				// @ts-ignore
 				error.output = output;
+				// @ts-ignore
+				error.source = 'request';
 				console.error(error);
 				throw error;
 			}
 			return response;
+		} catch (e) {
+			this.dispatchEvent({
+				type: 'request.error',
+				error: e as Error,
+				// Distinguish between PHP request and PHP-wasm errors
+				source: (e as any).source ?? 'php-wasm',
+			});
+			throw e;
 		} finally {
 			try {
 				if (heapBodyPointer) {

@@ -11,7 +11,7 @@ interface MakeBlueprintOptions {
 	theme?: string;
 	plugins?: string[];
 	importSite?: string;
-	importContent?: string;
+	importWxr?: string;
 }
 
 export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
@@ -41,12 +41,12 @@ export function makeBlueprint(options: MakeBlueprintOptions): Blueprint {
 				username: 'admin',
 				password: 'password',
 			},
-			options.importContent &&
-				/^(http(s?)):\/\//i.test(options.importContent) && {
-					step: 'importFile',
+			options.importWxr &&
+				/^(http(s?)):\/\//i.test(options.importWxr) && {
+					step: 'importWxr',
 					file: {
 						resource: 'url',
-						url: options.importContent,
+						url: options.importWxr,
 					},
 				},
 			options.theme && {

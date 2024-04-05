@@ -4,7 +4,7 @@
 	"name": "core/footnotes",
 	"title": "Footnotes",
 	"category": "text",
-	"description": "Display footnotes added to the page.",
+	"description": "",
 	"keywords": [ "references" ],
 	"textdomain": "default",
 	"usesContext": [ "postId", "postType" ],
@@ -33,7 +33,6 @@
 		"html": false,
 		"multiple": false,
 		"reusable": false,
-		"inserter": false,
 		"spacing": {
 			"margin": true,
 			"padding": true,
@@ -55,9 +54,6 @@
 			"__experimentalDefaultControls": {
 				"fontSize": true
 			}
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"style": "wp-block-footnotes"

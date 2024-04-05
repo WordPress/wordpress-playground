@@ -13,7 +13,7 @@ import TOCInline from '@theme/TOCInline';
 
 ## Start a zero-setup dev environment via VScode extension
 
-You can use the [VScode extension](https://marketplace.visualstudio.com/items?itemName=WordPress.wordpress-playground) to develop your plugin or theme locally without installing Apache or MySQL.
+You can use the [VScode extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) to develop your plugin or theme locally without installing Apache or MySQL.
 
 The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. All you have to do is click the "Start WordPress Server" button in VScode:
 

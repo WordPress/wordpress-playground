@@ -1,5 +1,6 @@
 export { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 export { getWordPressModule } from './wordpress/get-wordpress-module';
+export * from './rewrite-rules';
 import SupportedWordPressVersions from './wordpress/wp-versions.json';
 
 export { SupportedWordPressVersions };

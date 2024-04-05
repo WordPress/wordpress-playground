@@ -51,10 +51,6 @@
 		},
 		"customGradient": {
 			"type": "string"
-		},
-		"useFirstImageFromPost": {
-			"type": "boolean",
-			"default": false
 		}
 	},
 	"usesContext": [ "postId", "postType", "queryId" ],
@@ -81,9 +77,6 @@
 		"spacing": {
 			"margin": true,
 			"padding": true
-		},
-		"interactivity": {
-			"clientNavigation": true
 		}
 	},
 	"editorStyle": "wp-block-post-featured-image-editor",

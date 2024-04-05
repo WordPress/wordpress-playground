@@ -35,6 +35,7 @@ COPY ./oniguruma/dist/root/lib /root/lib
 
 # The PHP extensions to build:
 ARG WITH_VRZNO
+ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
 ARG WITH_LIBPNG
@@ -57,13 +58,30 @@ RUN touch /root/.configure-flags && \
 	touch /root/.emcc-php-wasm-flags && \
 	touch /root/.EXPORTED_FUNCTIONS
 
+# Grab Bison 2.7 patch in case we need it
+COPY ./bison2.7/bison27.patch /root/bison27.patch
 
 # PHP <= 7.3 requires Bison 2.7
 # PHP >= 7.4 and Bison 3.0
 RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then \
-		mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
-        ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
-		ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+		if /libs/bison2.7/usr/local/bison/bin/bison -h >/dev/null; then \
+			mv /libs/bison2.7/usr/local/bison /usr/local/bison && \
+			ln -s /usr/local/bison/bin/bison /usr/bin/bison && \
+			ln -s /usr/local/bison/bin/yacc /usr/bin/yacc; \
+		else \
+			wget https://ftp.gnu.org/gnu/bison/bison-2.7.tar.gz && \
+			tar -xvf bison-2.7.tar.gz && \
+			rm bison-2.7.tar.gz && \
+			cd bison-2.7 && \
+			git apply --no-index /root/bison27.patch && \
+			./configure --prefix=/usr/local && \
+			make && \
+			make install; \
+			if [[ $? -ne 0 ]]; then \
+				echo 'Failed to build Bison 2.7 dependency.'; \
+				exit -1; \
+			fi; \
+		fi; \
 	else \
 		apt install -y bison; \
 	fi;
@@ -124,7 +142,7 @@ RUN if [ "$WITH_LIBXML" = "yes" ]; \
 			/root/replace.sh 's/xmlHashScan\(ht, itemHashScanner, iter\);/xmlHashScan(ht, (xmlHashScanner)itemHashScanner, iter);/g' /root/php-src/ext/dom/dom_iterators.c; \
 		fi; \
 	else \
-		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlwriter' >> /root/.php-configure-flags; \
+		echo -n ' --disable-libxml --without-libxml --disable-dom --disable-xml --disable-simplexml --disable-xmlreader --disable-xmlwriter' >> /root/.php-configure-flags; \
 	fi
 
 # Add sqlite3 if needed
@@ -151,11 +169,24 @@ RUN if [ "$WITH_OPENSSL" = "yes" ]; \
 		echo -n ' -lssl -lcrypto ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
+# Remove fileinfo if needed
+RUN if [ "$WITH_FILEINFO" = "yes" ]; \
+    then \
+		echo -n ' --enable-fileinfo' >> /root/.php-configure-flags; \
+	else \
+        # light bundle should compile without fileinfo and libmagic
+        echo -n ' --disable-fileinfo' >> /root/.php-configure-flags; \
+    fi;
+
 # Add iconv if needed
 RUN if [ "$WITH_ICONV" = "yes" ]; \
 	then \
 		echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
 		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
+		# PHP >= 8.0 posix is no longer supported.
+		# PHP ≤= 7.4 posix is supported.
+	else \
+		echo -n ' --without-iconv ' >> /root/.php-configure-flags; \
 	fi;
 
 # Add mbstring if needed
@@ -166,12 +197,12 @@ RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 
 # Add mbregex if needed
 # PHP == 7.0 likely needs an older version of oniguruma and isn't supported for now.
-RUN if [ "$WITH_MBREGEX" = "yes" && "${PHP_VERSION}" -ne "7.0" ]; \
+RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 	then \
 		echo -n ' --enable-mbregex ' >> /root/.php-configure-flags; \
-		# PHP >= 8.0 use the system oniguruma library.
-		# PHP ≤= 7.4 ship their own oniguruma library.
-		if [[ "${PHP_VERSION:0:1}" -ge "8" ]]; then \
+		# PHP >= 8.0 and 7.4 use the system oniguruma library.
+		# PHP < 7.4 ship their own oniguruma library.
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]] || [ "${PHP_VERSION:0:3}" = "7.4" ]; then \
 			echo -n ' --with-onig=/root/lib ' >> /root/.php-configure-flags; \
 			echo -n ' /root/lib/lib/libonig.a ' >> /root/.emcc-php-wasm-sources; \
 		fi; \
@@ -223,7 +254,8 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-embed=static \
 	--with-layout=GNU  \
 	--disable-cgi      \
-	--disable-all      \
+	--disable-opcache  \
+	--disable-posix    \
 	--enable-hash      \
 	--enable-static=yes \
 	--enable-shared=no \
@@ -432,7 +464,15 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"__fwritex",\
+	export ASYNCIFY_ONLY=$'"zend_generator_iterator_move_forward",\
+"ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
+"zend_generator_resume",\
+"zend_generator_iterator_rewind",\
+"zend_fe_reset_iterator",\
+"ZEND_FE_RESET_R_SPEC_VAR_HANDLER",\
+"zend_user_it_get_new_iterator",\
+"ZEND_ADD_ARRAY_UNPACK_SPEC_HANDLER",\
+"__fwritex",\
 "read",\
 "zif_sleep",\
 "zif_stream_get_contents",\
@@ -521,6 +561,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "get_http_body",\
 "wasm_php_exec",\
 "wasm_sapi_handle_request",\
+"wasm_sapi_request_shutdown",\
 "_call_user_function_ex",\
 "_call_user_function_impl",\
 "_mysqlnd_run_command",\
@@ -786,6 +827,7 @@ RUN set -euxo pipefail; \
 "_wasm_add_ENV_entry", \n\
 "_wasm_read", \n\
 "_wasm_sapi_handle_request", \n\
+"_wasm_sapi_request_shutdown", \n\
 "_wasm_set_content_length", \n\
 "_wasm_set_content_type", \n\
 "_wasm_set_cookies", \n\

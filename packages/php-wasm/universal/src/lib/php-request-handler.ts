@@ -10,6 +10,11 @@ import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 
+export type RewriteRule = {
+	match: RegExp;
+	replacement: string;
+};
+
 export interface PHPRequestHandlerConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
@@ -20,6 +25,11 @@ export interface PHPRequestHandlerConfiguration {
 	 * Request Handler URL. Used to populate $_SERVER details like HTTP_HOST.
 	 */
 	absoluteUrl?: string;
+
+	/**
+	 * Rewrite rules
+	 */
+	rewriteRules?: RewriteRule[];
 }
 
 /** @inheritDoc */
@@ -32,6 +42,7 @@ export class PHPRequestHandler implements RequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#semaphore: Semaphore;
+	rewriteRules: RewriteRule[];
 
 	/**
 	 * The PHP instance
@@ -47,6 +58,7 @@ export class PHPRequestHandler implements RequestHandler {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
+			rewriteRules = [],
 		} = config;
 		this.php = php;
 		this.#DOCROOT = documentRoot;
@@ -70,6 +82,7 @@ export class PHPRequestHandler implements RequestHandler {
 			this.#HOST,
 			this.#PATHNAME,
 		].join('');
+		this.rewriteRules = rewriteRules;
 	}
 
 	/** @inheritDoc */
@@ -106,13 +119,14 @@ export class PHPRequestHandler implements RequestHandler {
 			request.url.startsWith('http://') ||
 			request.url.startsWith('https://');
 		const requestedUrl = new URL(
-			request.url,
+			// Remove the hash part of the URL as it's not meant for the server.
+			request.url.split('#')[0],
 			isAbsolute ? undefined : DEFAULT_BASE_URL
 		);
 
-		const normalizedRequestedPath = removePathPrefix(
-			requestedUrl.pathname,
-			this.#PATHNAME
+		const normalizedRequestedPath = applyRewriteRules(
+			removePathPrefix(requestedUrl.pathname, this.#PATHNAME),
+			this.rewriteRules
 		);
 		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
 		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
@@ -214,24 +228,7 @@ export class PHPRequestHandler implements RequestHandler {
 
 			let scriptPath;
 			try {
-				/**
-				 * Support .htaccess-like URL rewriting.
-				 * If the request was rewritten by a service worker,
-				 * the pathname requested by the user will be in
-				 * the `requestedUrl.pathname` property, while the
-				 * rewritten target URL will be in `request.headers['x-rewrite-url']`.
-				 */
-				let requestedPath = requestedUrl.pathname;
-				if (request.headers?.['x-rewrite-url']) {
-					try {
-						requestedPath = new URL(
-							request.headers['x-rewrite-url']
-						).pathname;
-					} catch (error) {
-						// Ignore
-					}
-				}
-				scriptPath = this.#resolvePHPFilePath(requestedPath);
+				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
 			} catch (error) {
 				return new PHPResponse(
 					404,
@@ -267,6 +264,7 @@ export class PHPRequestHandler implements RequestHandler {
 	 */
 	#resolvePHPFilePath(requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
+		filePath = applyRewriteRules(filePath, this.rewriteRules);
 
 		if (filePath.includes('.php')) {
 			// If the path mentions a .php extension, that's our file's path.
@@ -369,4 +367,20 @@ function seemsLikeAPHPFile(path: string) {
 function seemsLikeADirectoryRoot(path: string) {
 	const lastSegment = path.split('/').pop();
 	return !lastSegment!.includes('.');
+}
+
+/**
+ * Applies the given rewrite rules to the given path.
+ *
+ * @param  path  The path to apply the rules to.
+ * @param  rules The rules to apply.
+ * @returns The path with the rules applied.
+ */
+export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
+	for (const rule of rules) {
+		if (new RegExp(rule.match).test(path)) {
+			return path.replace(rule.match, rule.replacement);
+		}
+	}
+	return path;
 }

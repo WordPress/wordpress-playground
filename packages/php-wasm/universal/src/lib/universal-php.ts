@@ -9,6 +9,15 @@ export interface PHPRequestEndEvent {
 }
 
 /**
+ * Represents an error event related to the PHP request.
+ */
+export interface PHPRequestErrorEvent {
+	type: 'request.error';
+	error: Error;
+	source?: 'request' | 'php-wasm';
+}
+
+/**
  * Represents a PHP runtime initialization event.
  */
 export interface PHPRuntimeInitializedEvent {
@@ -29,6 +38,7 @@ export interface PHPRuntimeBeforeDestroyEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
+	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeDestroyEvent;
 
@@ -533,12 +543,6 @@ export interface PHPRunOptions {
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;
-
-	/**
-	 * Whether to throw an error if the PHP process exits with a non-zero code
-	 * or outputs to stderr.
-	 */
-	throwOnError?: boolean;
 }
 
 /**

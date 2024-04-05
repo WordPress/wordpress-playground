@@ -3376,10 +3376,6 @@ hr.wp-block-separator {
 
 /* Block: Table ------------------------------ */
 
-.wp-block-table table:where(:not(.has-text-color)) * {
-	border-color: inherit;
-}
-
 .wp-block-table.is-style-stripes tbody tr:nth-child(odd) {
 	background: #dcd7ca;
 }
@@ -4529,12 +4525,12 @@ ul.footer-social li {
 }
 
 .footer-copyright a,
-.footer-credits .privacy-policy a,
+.privacy-policy a,
 .powered-by-wordpress a {
 	color: inherit;
 }
 
-.footer-credits .privacy-policy,
+.privacy-policy,
 .powered-by-wordpress,
 .to-the-top {
 	color: #6d6d6d;
@@ -4559,7 +4555,7 @@ a.to-the-top > * {
 	margin: 0 0 0 2.4rem;
 }
 
-.footer-credits .privacy-policy {
+.privacy-policy {
 	margin: 1.2rem 0 0;
 }
 
@@ -5681,7 +5677,7 @@ a.to-the-top > * {
 		font-weight: 700;
 	}
 
-	.footer-credits .privacy-policy {
+	.privacy-policy {
 		margin: 0 0 0 2.4rem;
 	}
 
