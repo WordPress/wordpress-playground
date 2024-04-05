@@ -129,10 +129,37 @@ export class PHPRequestHandler implements RequestHandler {
 			this.rewriteRules
 		);
 		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
-		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return await this.#dispatchToPHP(request, requestedUrl);
+		if (this.#isStaticFile(fsPath)) {
+			return this.#serveStaticFile(fsPath);
 		}
-		return this.#serveStaticFile(fsPath);
+
+		const phpResponse = await this.#dispatchToPHP(request, requestedUrl);
+		if (
+			phpResponse.httpStatusCode === 404 &&
+			!seemsLikeAPHPRequestHandlerPath(fsPath)
+		) {
+			return this.#serveStatic404();
+		}
+		return phpResponse;
+	}
+
+	#serveStatic404(): PHPResponse {
+		return new PHPResponse(
+			404,
+			// Let the service worker know that no static file was found
+			// and that it's okay to issue a real fetch() to the server.
+			{
+				'x-file-type': ['static'],
+			},
+			new TextEncoder().encode('404 File not found')
+		);
+	}
+
+	#isStaticFile(fsPath: string): boolean {
+		return (
+			!seemsLikeAPHPRequestHandlerPath(fsPath) &&
+			this.php.fileExists(fsPath)
+		);
 	}
 
 	/**
@@ -142,17 +169,6 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @returns The response.
 	 */
 	#serveStaticFile(fsPath: string): PHPResponse {
-		if (!this.php.fileExists(fsPath)) {
-			return new PHPResponse(
-				404,
-				// Let the service worker know that no static file was found
-				// and that it's okay to issue a real fetch() to the server.
-				{
-					'x-file-type': ['static'],
-				},
-				new TextEncoder().encode('404 File not found')
-			);
-		}
 		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
