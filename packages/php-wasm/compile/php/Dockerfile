@@ -861,7 +861,9 @@ RUN set -euxo pipefail; \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "PROXYFS"]' \
 	-s INITIAL_MEMORY=1024MB \
 	-s ALLOW_MEMORY_GROWTH=1         \
-	-s ASSERTIONS=0                  \
+	-s ASSERTIONS=1                  \
+	-s SAFE_HEAP=1 \
+	-s SAFE_HEAP_LOG=0 \
 	-s ERROR_ON_UNDEFINED_SYMBOLS=0  \
 	-s NODEJS_CATCH_EXIT=0           \
 	-s NODEJS_CATCH_REJECTION=0      \
