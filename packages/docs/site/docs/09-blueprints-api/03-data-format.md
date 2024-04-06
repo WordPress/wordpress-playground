@@ -3,6 +3,25 @@ sidebar_position: 1
 title: Blueprint data Format
 ---
 
+## Doc Update
+What options can Blueprints provide?
+See **Features** below
+- Uploading images?
+- updating themes?
+- editing images?
+- API usage? etc
+
+Notate what features are necessary for common WordPress functionality
+
+Helps with documenting what the `networking`, `kitchen-sink` etc options
+
+What are `wp_safe_remote_get` and `fetch()` commonly used for?
+
+Please discuss on PR and we can update from here?
+What's a good strategy to collaborate on this?
+
+> > > ---
+
 # Blueprint data Format
 
 A Blueprint can contain the following properties:
