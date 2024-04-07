@@ -21,6 +21,11 @@ const argParser = yargs(process.argv.slice(2))
 			default: false,
 			description: 'Build with debug symbols',
 		},
+		WITH_FILEINFO: {
+			type: 'string',
+			choices: ['yes', 'no'],
+			description: 'Build with fileinfo support',
+		},
 		WITH_LIBXML: {
 			type: 'string',
 			choices: ['yes', 'no'],
@@ -183,6 +188,8 @@ await asyncSpawn(
 		getArg('PHP_VERSION'),
 		'--build-arg',
 		getArg('WITH_VRZNO'),
+		'--build-arg',
+		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
 		'--build-arg',

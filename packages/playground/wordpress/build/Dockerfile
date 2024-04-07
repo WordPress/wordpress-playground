@@ -135,24 +135,6 @@ RUN ls -la && \
 RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x wp-cli.phar
 
-# === Install WordPress Importer ===
-COPY ./build-assets/import-wxz.patch /root/
-RUN cd wordpress/wp-content/plugins && \
-    curl -L $(curl -s https://api.github.com/repos/WordPress/wordpress-importer/releases/latest | grep zip | cut -d '"' -f 4) > out && \
-    unzip out && \
-    rm out && \
-    mv WordPress-* wordpress-importer && \
-    cd wordpress-importer && \
-    # Patch the WordPress Importer to support .wxz files
-    patch -p1 < /root/import-wxz.patch && \
-    cd ../../../ && \
-    ../wp-cli.phar --allow-root plugin activate wordpress-importer
-
-# === Install WordPress WXZ Exporter ===
-COPY ./build-assets/export-wxz.php /root/
-RUN cd wordpress && \
-    cp /root/export-wxz.php wp-content/mu-plugins/export-wxz.php
-
 # Strip whitespaces from PHP files.
 # PHP >= 8.0 is needed to preserve PHP 8.0 attributes,
 # like #[Attribute] and #[Pure]. In PHP 7.4, they are
@@ -161,7 +143,6 @@ COPY ./build-assets/add-newlines-after-annotations.php /root/
 RUN cd wordpress && \
     for phpfile in $(\
     find ./ -type f -name '*.php' \
-    -not -path '*wordpress-importer*' \
     -not -path '*wp-content*' \
     # wp-cli expects an unminified wp-config.php
     -not -path '*wp-config.php' \

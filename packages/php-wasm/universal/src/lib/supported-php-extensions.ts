@@ -10,5 +10,6 @@ export const SupportedPHPExtensionsList = [
 
 export const SupportedPHPExtensionBundles = {
 	'kitchen-sink': SupportedPHPExtensionsList,
+	light: [],
 };
-export type SupportedPHPExtensionBundle = 'kitchen-sink';
+export type SupportedPHPExtensionBundle = 'kitchen-sink' | 'light';

@@ -99,10 +99,10 @@ blueprint={{
 			}
 		},
 		{
-			"step": "importFile",
+			"step": "importWxr",
 			"file": {
 				"resource": "url",
-				"url": "https://your-site.com/starter-content.wxz"
+				"url": "https://your-site.com/starter-content.wxr"
 			}
 		},
 		{

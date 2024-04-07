@@ -18,8 +18,8 @@ export async function reloadWithNewConfiguration(
 	url.searchParams.set('wp', config.wp);
 	url.searchParams.set('storage', config.storage);
 	url.searchParams.delete('php-extension-bundle');
-	if (config.withExtensions) {
-		url.searchParams.append('php-extension-bundle', 'kitchen-sink');
+	if (!config.withExtensions) {
+		url.searchParams.append('php-extension-bundle', 'light');
 	}
 	url.searchParams.delete('networking');
 	if (config.withNetworking) {

@@ -101,13 +101,13 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 
 :::
 
-## Import a WXZ or a WXR file
+## Import a WXR file
 
-You can import a WordPress export file by uploading a WXZ, or WXR file in [/wp-admin/](https://playground.wordpress.net/wp-admin/).
+You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/wp-admin/).
 
 You can also use [JSON Blueprints](../09-blueprints-api/01-index.md). See [getting started with Blueprints](../09-blueprints-api/01-index.md) to learn more.
 
-This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR or WXZ file into an existing site.
+This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR file into an existing site.
 
 ## Build apps with WordPress Playground
 
