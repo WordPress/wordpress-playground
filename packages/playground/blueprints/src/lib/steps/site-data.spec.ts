@@ -6,6 +6,7 @@ import {
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
 import { defineSiteUrl } from './define-site-url';
+import { defineWpConfigConsts } from './define-wp-config-consts';
 
 async function maybeFetch() {
 	try {
@@ -37,6 +38,11 @@ describe('Blueprint step setSiteOptions()', () => {
 		// await defineSiteUrl(php, {
 		// 	siteUrl: 'http://127.0.0.1:8000',
 		// });
+		await defineWpConfigConsts(php, {
+			consts: {
+				TEST: 1,
+			},
+		});
 		await setSiteOptions(php, {
 			options: {
 				blogname: 'My test site!',
