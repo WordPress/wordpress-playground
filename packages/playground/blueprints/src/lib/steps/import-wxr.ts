@@ -39,9 +39,10 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		data: file,
 	});
 	const docroot = await playground.documentRoot;
-	await playground.run({
+	const res = await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
+		kses_remove_filters();
 		$admin_id = get_users(array('role' => 'Administrator') )[0];
 		$importer = new WXR_Importer( array(
 			'fetch_attachments' => true,
@@ -49,7 +50,11 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		) );
 		$logger = new WP_Importer_Logger_CLI();
 		$importer->set_logger( $logger );
+		add_filter( 'content_save_pre', function( $content ) {
+			return wp_slash( $content );
+		});
 		$result = $importer->import( '/tmp/import.wxr' );
 		`,
 	});
+	console.log(res.text);
 };
