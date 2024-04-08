@@ -422,9 +422,14 @@ EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *wri
 		{
 			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
 		}
-		else if (FD_ISSET(i, write_fds))
+		if (FD_ISSET(i, write_fds))
 		{
 			n += wasm_poll_socket(i, POLLOUT, timeoutms);
+		}
+		if (FD_ISSET(i, except_fds))
+		{
+			n += wasm_poll_socket(i, POLLERR, timeoutms);
+			FD_CLR(i, except_fds);
 		}
 	}
 	return n;
