@@ -71,8 +71,8 @@ export class NodePHP extends BasePHP {
 			...(options.emscriptenOptions || {}),
 		};
 		return await loadPHPRuntime(
-			await getPHPLoaderModule(phpVersion)
-			// await withNetworking(emscriptenOptions)
+			await getPHPLoaderModule(phpVersion),
+			await withNetworking(emscriptenOptions)
 		);
 	}
 
