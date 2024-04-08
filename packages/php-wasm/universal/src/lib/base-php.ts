@@ -236,7 +236,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		console.log('Running a request', { request });
 		/*
 		 * Prevent multiple requests from running at the same time.
 		 * For example, if a request is made to a PHP file that

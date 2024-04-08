@@ -6543,7 +6543,6 @@ function _wasm_close(socketd) {
  const POLLNVAL = 32;
     
  const sock = getSocketFromFD(socketd);
- console.log(PHPWASM.getAllWebSockets(sock));
 
  return Asyncify.handleSleep((wakeUp => {
   const polls = [];
@@ -6601,6 +6600,7 @@ function _wasm_close(socketd) {
   if (polls.length === 0) {
    console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
    setTimeout((function() {
+    console.log("POLL FAILED");
     wakeUp(0);
    }), timeout);
    return;
@@ -6612,6 +6612,7 @@ function _wasm_close(socketd) {
   Promise.race(promises).then((function(results) {
    if (!awaken) {
     awaken = true;
+    console.log("POLL SUCCEEDED");
     wakeUp(1);
     if (timeoutId) {
      clearTimeout(timeoutId);
@@ -6622,7 +6623,8 @@ function _wasm_close(socketd) {
   if (timeout !== -1) {
    timeoutId = setTimeout((function() {
     if (!awaken) {
-     awaken = true;
+        awaken = true;
+        console.log("POLL TIMED OUT");
      wakeUp(0);
      clearPolling();
     }
@@ -6844,6 +6846,7 @@ function getCFunc(ident) {
 }
 
 var ccall = function(ident, returnType, argTypes, args, opts) {
+    console.log('---> ccall()', { ident, returnType, argTypes, args, opts });
  var toC = {
   "string": str => {
    var ret = 0;
