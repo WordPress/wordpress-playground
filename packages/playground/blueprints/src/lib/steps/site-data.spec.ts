@@ -7,17 +7,21 @@ import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
 import { defineSiteUrl } from './define-site-url';
 
-it('should fetch 127.0.0.1:8000', async () => {
-	// Add your assertions or further processing here
-});
+async function maybeFetch() {
+	try {
+		const response = await fetch('http://127.0.0.1:8000');
+		const data = await response.text();
+		console.log('fetch succeeded', { data });
+	} catch (e) {
+		console.log('fetch failed');
+		console.error(e);
+	}
+}
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		const response = await fetch('http://127.0.0.1:8000');
-		const data = await response.text();
-		console.log('before', { data });
-
+		await maybeFetch();
 		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
@@ -31,11 +35,7 @@ describe('Blueprint step setSiteOptions()', () => {
 			siteUrl: 'http://127.0.0.1:9842',
 		});
 
-		await (async function () {
-			const response = await fetch('http://127.0.0.1:8000');
-			const data = await response.text();
-			console.log('after', { data });
-		})();
+		await maybeFetch();
 	});
 
 	it('should set the site option', async () => {
