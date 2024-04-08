@@ -471,7 +471,16 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"Curl_socket_check",\
+	export ASYNCIFY_ONLY=$'"RAND_poll",\
+"rand_status",\
+"RAND_status",\
+"Curl_ossl_seed",\
+"ossl_connect_common",\
+"Curl_ossl_connect_nonblocking",\
+"Curl_ssl_connect_nonblocking",\
+"https_connecting",\
+"Curl_http_connect",\
+"Curl_socket_check",\
 "Curl_is_connected",\
 "multi_runsingle",\
 "curl_multi_perform",\
@@ -520,6 +529,17 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "curl_multi_poll",\
 "Curl_multi_wait",\
 "Curl_poll",\
+"Curl_wait_ms",\
+"Curl_readwrite",\
+"Curl_http_connect",\
+"https_connecting",\
+"Curl_ssl_connect_nonblocking",\
+"Curl_ossl_connect_nonblocking"\
+"ossl_connect_common",\
+"Curl_ossl_seed",\
+"RAND_status",\
+"rand_status",\
+"RAND_poll",\
 "zend_std_has_dimension",\
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
