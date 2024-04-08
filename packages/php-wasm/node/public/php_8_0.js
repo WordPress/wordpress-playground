@@ -6773,7 +6773,8 @@ var Asyncify = {
   runtimeKeepalivePop();
   return start();
  },
- handleSleep: function(startAsync) {
+    handleSleep: function (startAsync) {
+        console.log("HANDLE SLEEP CALLED");
   if (ABORT) return;
   if (Asyncify.state === Asyncify.State.Normal) {
    var reachedCallback = false;

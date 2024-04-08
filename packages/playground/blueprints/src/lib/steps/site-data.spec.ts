@@ -21,11 +21,13 @@ describe('Blueprint step setSiteOptions()', () => {
 	});
 
 	it('should set the site option', async () => {
+		console.log('before setSiteOptions');
 		await setSiteOptions(php, {
 			options: {
 				blogname: 'My test site!',
 			},
 		});
+		console.log('after setSiteOptions');
 		const response = await php.run({
 			code: `<?php
                 require '/wordpress/wp-load.php';
