@@ -6530,7 +6530,8 @@ function _wasm_close(socketd) {
  return PHPWASM.shutdownSocket(socketd, 2);
 }
 
-function _wasm_poll_socket(socketd, events, timeout) {
+    function _wasm_poll_socket(socketd, events, timeout) {
+    console.log("_wasm_poll_socket", { socketd, events, timeout }, typeof Asyncify);
  if (typeof Asyncify === "undefined") {
   return 0;
  }
