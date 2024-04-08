@@ -55,17 +55,22 @@ describe('Blueprint step importWxr', () => {
 <div class="wp-block-inseri-core-text-editor" data-attributes="{&quot;blockId&quot;:&quot;DSrQIjN5UjosCHJQImF5z&quot;,&quot;blockName&quot;:&quot;textEditor&quot;,&quot;content&quot;:&quot;\\&quot;#test\\&quot;&quot;,&quot;contentType&quot;:&quot;application/json&quot;,&quot;editable&quot;:false,&quot;height&quot;:60,&quot;isVisible&quot;:true,&quot;label&quot;:&quot;&quot;}">is loading ...</div>
 <!-- /wp:inseri-core/text-editor -->`;
 
-		const res = await php.run({
+		const result = await php.run({
 			code: `<?php
 			require getenv('DOCROOT') . '/wp-load.php';
 			$posts = get_posts();
-			echo $posts[0]->post_content;
+			echo json_encode([
+				'post_content' => $posts[0]->post_content,
+				'post_title' => $posts[0]->post_title,
+			]);
 			`,
 			env: {
 				DOCROOT: await php.documentRoot,
 			},
 		});
+		const json = result.json;
 
-		expect(res.text).toContain(expectedPostContent);
+		expect(json.post_content).toEqual(expectedPostContent);
+		expect(json.post_title).toEqual(`"Issue\\Issue"`);
 	});
 });

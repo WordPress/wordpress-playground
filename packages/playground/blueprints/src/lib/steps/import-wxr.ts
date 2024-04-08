@@ -50,9 +50,12 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		) );
 		$logger = new WP_Importer_Logger_CLI();
 		$importer->set_logger( $logger );
-		add_filter( 'content_save_pre', function( $content ) {
-			return wp_slash( $content );
+
+		// Slashes from the imported content are lost if we don't call wp_slash here.
+		add_action( 'wp_insert_post_data', function( $data ) {
+			return wp_slash($data);
 		});
+
 		$result = $importer->import( '/tmp/import.wxr' );
 		`,
 	});
