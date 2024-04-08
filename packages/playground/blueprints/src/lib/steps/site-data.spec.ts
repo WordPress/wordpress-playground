@@ -21,7 +21,6 @@ async function maybeFetch() {
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		await maybeFetch();
 		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
@@ -32,10 +31,8 @@ describe('Blueprint step setSiteOptions()', () => {
 			extractToPath: '/wordpress',
 		});
 		await defineSiteUrl(php, {
-			siteUrl: 'http://127.0.0.1:9842',
+			siteUrl: 'http://127.0.0.1:8000',
 		});
-
-		await maybeFetch();
 	});
 
 	it('should set the site option', async () => {
