@@ -204,6 +204,8 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 			clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
 		} catch (e) {
 			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
+			// Send empty binary data to notify requester that connection was initiated
+			client.send([]);
 			client.close(3000);
 			return;
 		}
