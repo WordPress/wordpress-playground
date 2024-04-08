@@ -20,7 +20,7 @@
 	"type": "module",
 	"gitHead": "a0eeb66fd5386bb56715fca2b89e9669a5b8618b",
 	"engines": {
-		"node": ">=18.18.2",
+		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
 	}
 }

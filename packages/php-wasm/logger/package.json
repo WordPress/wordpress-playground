@@ -22,7 +22,7 @@
 	"main": "index.cjs",
 	"types": "index.d.ts",
 	"engines": {
-		"node": ">=18.18.2",
+		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
 	}
 }
