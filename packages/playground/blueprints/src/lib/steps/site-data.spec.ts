@@ -5,6 +5,7 @@ import {
 } from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
+import { defineWpConfigConsts } from './define-wp-config-consts';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
@@ -12,6 +13,11 @@ describe('Blueprint step setSiteOptions()', () => {
 		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
+			},
+		});
+		await defineWpConfigConsts(php, {
+			consts: {
+				DISABLE_WP_CRON: true,
 			},
 		});
 		await unzip(php, {
