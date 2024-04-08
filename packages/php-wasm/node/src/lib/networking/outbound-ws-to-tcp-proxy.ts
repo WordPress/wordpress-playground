@@ -67,7 +67,11 @@ export function addSocketOptionsSupportToWebSocketClass(
 	return class PHPWasmWebSocketConstructor extends WebSocketConstructor {
 		// @ts-ignore
 		send(chunk: any, callback: any) {
-			console.log('send', { chunk });
+			console.log(
+				'send',
+				{ chunk },
+				new TextDecoder().decode(new Uint8Array(chunk))
+			);
 			return this.sendCommand(COMMAND_CHUNK, chunk, callback);
 		}
 
