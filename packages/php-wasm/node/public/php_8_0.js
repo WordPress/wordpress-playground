@@ -6540,6 +6540,10 @@ function _wasm_poll_socket(socketd, events, timeout) {
  const POLLERR = 8;
  const POLLHUP = 16;
  const POLLNVAL = 32;
+    
+ const sock = getSocketFromFD(socketd);
+ console.log(PHPWASM.getAllWebSockets(sock));
+
  return Asyncify.handleSleep((wakeUp => {
   const polls = [];
   if (socketd in PHPWASM.child_proc_by_fd) {
@@ -6626,13 +6630,17 @@ function _wasm_poll_socket(socketd, events, timeout) {
  }));
 }
 
-function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen) {
+    function _wasm_setsockopt(socketd, level, optionName, optionValuePtr, optionLen) {
  const optionValue = HEAPU8[optionValuePtr];
  const SOL_SOCKET = 1;
  const SO_KEEPALIVE = 9;
  const IPPROTO_TCP = 6;
  const TCP_NODELAY = 1;
- const isSupported = level === SOL_SOCKET && optionName === SO_KEEPALIVE || level === IPPROTO_TCP && optionName === TCP_NODELAY;
+        const isSupported = level === SOL_SOCKET && optionName === SO_KEEPALIVE || level === IPPROTO_TCP && optionName === TCP_NODELAY;
+        
+        console.log('_wasm_setsockopt', {
+            socketd, level, optionName, optionValuePtr, optionLen, isSupported, optionValue
+    })
  if (!isSupported) {
   console.warn(`Unsupported socket option: ${level}, ${optionName}, ${optionValue}`);
   return -1;
