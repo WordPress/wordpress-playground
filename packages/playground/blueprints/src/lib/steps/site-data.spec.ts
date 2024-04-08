@@ -5,6 +5,7 @@ import {
 } from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
+import { defineSiteUrl } from './define-site-url';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
@@ -17,6 +18,9 @@ describe('Blueprint step setSiteOptions()', () => {
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: '/wordpress',
+		});
+		await defineSiteUrl(php, {
+			siteUrl: 'http://127.0.0.1:9842',
 		});
 	});
 
