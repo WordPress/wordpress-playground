@@ -14,6 +14,9 @@ RUN git clone https://github.com/php/php-src.git php-src \
 	--single-branch          \
 	--depth 1;
 
+# Work around memory leak due to PHP using Emscripten's incomplete mmap/munmap support
+COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
+
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
@@ -214,6 +217,10 @@ RUN if [ "$WITH_MBREGEX" = "yes" ] && [ "${PHP_VERSION:0:3}" != "7.0" ]; \
 COPY ./php/php*.patch /root/
 RUN cd /root && \
 	git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v && \
+	( [[ "${PHP_VERSION:0:3}" == '8.3' ]] && \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.3.patch -v || \
+		git apply --no-index /root/php-chunk-alloc-zend-assert.patch -v \
+	) && \
 	touch php-src/patched
 
 # Add VRZNO if needed
@@ -270,6 +277,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--enable-bcmath    \
 	--enable-ctype     \
 	--enable-tokenizer \
+	--enable-wasm_memory_storage \
 	$(cat /root/.php-configure-flags)
 
 # Silence the errors "munmap() failed: [28] Invalid argument"
@@ -507,6 +515,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_isset_isempty_dim_prop_obj_handler_SPEC_CV_CONST",\
 "zend_assign_to_object",\
 "zif_file_put_contents",\
+"ZEND_SEND_ARRAY_SPEC_HANDLER",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
