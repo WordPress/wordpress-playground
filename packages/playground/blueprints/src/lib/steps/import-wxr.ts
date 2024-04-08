@@ -39,7 +39,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		data: file,
 	});
 	const docroot = await playground.documentRoot;
-	const res = await playground.run({
+	await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
 		kses_remove_filters();
@@ -59,5 +59,4 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		$result = $importer->import( '/tmp/import.wxr' );
 		`,
 	});
-	console.log(res.text);
 };
