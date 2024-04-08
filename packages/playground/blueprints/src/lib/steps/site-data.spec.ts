@@ -34,9 +34,9 @@ describe('Blueprint step setSiteOptions()', () => {
 
 	it('should set the site option', async () => {
 		console.log('before setSiteOptions');
-		await defineSiteUrl(php, {
-			siteUrl: 'http://127.0.0.1:8000',
-		});
+		// await defineSiteUrl(php, {
+		// 	siteUrl: 'http://127.0.0.1:8000',
+		// });
 		await setSiteOptions(php, {
 			options: {
 				blogname: 'My test site!',
