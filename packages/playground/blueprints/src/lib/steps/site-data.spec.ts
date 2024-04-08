@@ -15,14 +15,14 @@ describe('Blueprint step setSiteOptions()', () => {
 				documentRoot: '/wordpress',
 			},
 		});
+		await unzip(php, {
+			zipFile: await getWordPressModule(),
+			extractToPath: '/wordpress',
+		});
 		await defineWpConfigConsts(php, {
 			consts: {
 				DISABLE_WP_CRON: true,
 			},
-		});
-		await unzip(php, {
-			zipFile: await getWordPressModule(),
-			extractToPath: '/wordpress',
 		});
 	});
 
