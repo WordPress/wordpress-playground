@@ -185,7 +185,9 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		clientLog(
 			'WebSocket client disconnected: ' + code + ' [' + reason + ']'
 		);
-		target.end();
+		if (target) {
+			target.end();
+		}
 	} as any);
 	client.on('error', function (a: string | Buffer) {
 		clientLog('WebSocket client error: ' + a);
@@ -196,9 +198,15 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	let reqTargetIp;
 	if (net.isIP(reqTargetHost) === 0) {
 		clientLog('resolving ' + reqTargetHost + '... ');
-		const resolution = await lookup(reqTargetHost);
-		reqTargetIp = resolution.address;
-		clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
+		try {
+			const resolution = await lookup(reqTargetHost);
+			reqTargetIp = resolution.address;
+			clientLog('resolved ' + reqTargetHost + ' -> ' + reqTargetIp);
+		} catch (e) {
+			clientLog("can't resolve " + reqTargetHost + ' due to:', e);
+			client.close(3000);
+			return;
+		}
 	} else {
 		reqTargetIp = reqTargetHost;
 	}
