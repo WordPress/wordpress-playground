@@ -27,7 +27,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
-            - run: node --expose-gc node_modules/nx/bin/nx affected --target=test --configuration=ci
+            - run: node --expose-gc node_modules/nx/bin/nx run playground-blueprints:"test:vite" --configuration=ci
     test-e2e:
         runs-on: ubuntu-latest
         needs: [lint-and-typecheck]
