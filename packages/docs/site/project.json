@@ -9,7 +9,7 @@
 		"playground-client"
 	],
 	"targets": {
-		"build": {
+		"build-docs": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [

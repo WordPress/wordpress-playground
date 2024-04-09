@@ -5,7 +5,7 @@
 	"scripts": {
 		"build": "nx run-many --all --target=build",
 		"build:website": "nx build playground-website",
-		"build:docs": "nx build docs-site",
+		"build:docs": "nx build-docs docs-site",
 		"deploy:docs": "gh-pages -d dist/docs/build -t true",
 		"dev": "nx dev playground-website",
 		"format": "nx format",
