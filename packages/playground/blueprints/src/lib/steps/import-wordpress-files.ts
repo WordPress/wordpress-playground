@@ -11,11 +11,11 @@ import { defineSiteUrl } from './define-site-url';
  *
  * <code>
  * {
- * 		"step": "importWordPressFilesStep",
+ * 		"step": "importWordPressFiles",
  * 		"wordPressFilesZip": {
- * 		"resource": "fetch",
- * 		"url": "https://mysite.com/import.zip"
- *      }
+ * 			"resource": "fetch",
+ * 			"url": "https://mysite.com/import.zip"
+ *  	}
  * }
  * </code>
  */
