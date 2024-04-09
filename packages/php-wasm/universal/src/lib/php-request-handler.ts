@@ -131,15 +131,8 @@ export class PHPRequestHandler implements RequestHandler {
 		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
 		if (this.#isStaticFile(fsPath)) {
 			return this.#serveStaticFile(fsPath);
-		}
-
-		// TODO - This is a temporary workaround to prevent the server from running missing wp assets as PHP requests.
-		if (
-			(normalizedRequestedPath.startsWith('/wp-includes/') ||
-				normalizedRequestedPath.startsWith('/wp-admin/')) &&
-			!normalizedRequestedPath.endsWith('.php') &&
-			!normalizedRequestedPath.endsWith('/')
-		) {
+		} else if (this.#isStaticWpCoreFile(fsPath)) {
+			// Serve static WordPress core files as 404s to trigger a real fetch() from the server.
 			return this.#serveStatic404();
 		}
 
@@ -169,6 +162,19 @@ export class PHPRequestHandler implements RequestHandler {
 		return (
 			!seemsLikeAPHPRequestHandlerPath(fsPath) &&
 			this.php.fileExists(fsPath)
+		);
+	}
+
+	#isStaticWpCoreFile(fsPath: string): boolean {
+		if (fsPath.endsWith('.php')) {
+			return false;
+		}
+		if (fsPath.endsWith('/')) {
+			return false;
+		}
+		return (
+			fsPath.startsWith(`${this.#DOCROOT}/wp-includes/`) ||
+			fsPath.startsWith(`${this.#DOCROOT}/wp-admin/`)
 		);
 	}
 
