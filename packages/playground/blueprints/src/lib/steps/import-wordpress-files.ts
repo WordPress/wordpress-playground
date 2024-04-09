@@ -13,7 +13,7 @@ import { defineSiteUrl } from './define-site-url';
  * {
  * 		"step": "importWordPressFiles",
  * 		"wordPressFilesZip": {
- * 			"resource": "fetch",
+ * 			"resource": "url",
  * 			"url": "https://mysite.com/import.zip"
  *  	}
  * }
