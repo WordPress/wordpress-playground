@@ -42,6 +42,7 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
+		kses_remove_filters();
 		$admin_id = get_users(array('role' => 'Administrator') )[0];
 		$importer = new WXR_Importer( array(
 			'fetch_attachments' => true,
@@ -49,6 +50,12 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 		) );
 		$logger = new WP_Importer_Logger_CLI();
 		$importer->set_logger( $logger );
+
+		// Slashes from the imported content are lost if we don't call wp_slash here.
+		add_action( 'wp_insert_post_data', function( $data ) {
+			return wp_slash($data);
+		});
+
 		$result = $importer->import( '/tmp/import.wxr' );
 		`,
 	});
