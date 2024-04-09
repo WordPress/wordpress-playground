@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/util",
-	"version": "0.6.11",
+	"version": "0.6.12",
 	"type": "commonjs",
 	"typedoc": {
 		"entryPoint": "./src/index.ts",
