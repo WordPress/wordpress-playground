@@ -6,7 +6,7 @@ on:
     pull_request:
 
 jobs:
-	# Use just this CI step to speed repro of mem OOB error
+    # Use just this CI step to speed repro of mem OOB error
     test-unit:
         runs-on: ubuntu-latest
         steps:
