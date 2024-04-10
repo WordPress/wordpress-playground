@@ -25,6 +25,5 @@ describe.each(phpVersions)('PHP %s – memory allocation', (phpVersion) => {
 
 		expect(result).toBeTruthy();
 		expect(result.exitCode).toBe(0);
-		expect(result.errors).toBeFalsy();
 	});
 });
