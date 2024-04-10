@@ -16,6 +16,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "php.h"
 #include "ext/standard/info.h"
 #include "Zend/zend_alloc.h"
@@ -36,11 +37,14 @@
  */
 void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, size_t alignment)
 {
+	fprintf(stderr, "wasm_memory_storage_chunk_alloc: attempt\n");
 	void* ptr = NULL;
 	if (posix_memalign(&ptr, alignment, size) == 0)
 	{
+		fprintf(stderr, "wasm_memory_storage_chunk_alloc: allocated: %p, size=%zu, alignment=%zu\n", ptr, size, alignment);
 		return ptr;
 	} else {
+		fprintf(stderr, "wasm_memory_storage_chunk_alloc: failed\n");
 		return NULL;
 	}
 }
@@ -60,7 +64,9 @@ void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, siz
  */
 void wasm_memory_storage_chunk_free(zend_mm_storage* storage, void* ptr, size_t size)
 {
+	fprintf(stderr, "wasm_memory_storage_chunk_free: %p, size=%zu\n", ptr, size);
 	free(ptr);
+	fprintf(stderr, "wasm_memory_storage_chunk_free: returning\n");
 }
 
 zend_mm_storage wasm_memory_storage_struct = {
