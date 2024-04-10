@@ -179,6 +179,7 @@ await asyncSpawn(
 	'docker',
 	[
 		'build',
+		'--no-cache',
 		'-f',
 		'php/Dockerfile',
 		'.',
