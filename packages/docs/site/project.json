@@ -28,6 +28,14 @@
 			},
 			"dependsOn": ["build:json"]
 		},
+		"build": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["docusaurus build"],
+				"cwd": "packages/docs/site"
+			},
+			"dependsOn": ["build-docs"]
+		},
 		"swizzle": {
 			"executor": "nx:run-commands",
 			"options": {
