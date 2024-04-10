@@ -9,8 +9,9 @@ FROM playground-php-wasm:base
 ARG PHP_VERSION
 
 # Clone PHP
-RUN git clone https://github.com/brandonpayton/php-src.git php-src \
-	--branch php-8-instrumented   \
+ARG CACHEBUST=3
+RUN git clone https://github.com/php/php-src.git php-src \
+	--branch PHP-$PHP_VERSION   \
 	--single-branch          \
 	--depth 1;
 
