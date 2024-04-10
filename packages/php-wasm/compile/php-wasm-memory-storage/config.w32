@@ -1,0 +1,7 @@
+ARG_ENABLE('wasm_memory_storage', 'wasm_memory_storage support', 'no');
+
+if (PHP_WASM_MEMORY_STORAGE != 'no') {
+	AC_DEFINE('HAVE_WASM_MEMORY_STORAGE', 1, 'wasm_memory_storage support enabled');
+
+	EXTENSION('wasm_memory_storage', 'wasm_memory_storage.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}
