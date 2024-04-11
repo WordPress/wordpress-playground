@@ -36,6 +36,7 @@ describe('Blueprints', () => {
 	it('Landing page without the initial slash should work', () => {
 		const blueprint: Blueprint = {
 			landingPage: 'wp-admin/plugins.php',
+			login: true,
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument().its('body').should('contain.text', 'Plugins');
