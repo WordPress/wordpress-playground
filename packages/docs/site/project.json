@@ -9,16 +9,7 @@
 		"playground-client"
 	],
 	"targets": {
-		"build:json": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json"
-				],
-				"parallel": false
-			}
-		},
-		"build-docs": {
+		"build": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
@@ -28,13 +19,15 @@
 			},
 			"dependsOn": ["build:json"]
 		},
-		"build": {
+		"build:json": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus build"],
-				"cwd": "packages/docs/site"
-			},
-			"dependsOn": ["build-docs"]
+				"commands": [
+					"npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json",
+					"echo Built `pwd`/packages/docs/site/src/model.json file"
+				],
+				"parallel": false
+			}
 		},
 		"swizzle": {
 			"executor": "nx:run-commands",
