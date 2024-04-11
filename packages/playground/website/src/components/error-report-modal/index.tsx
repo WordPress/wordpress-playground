@@ -144,8 +144,8 @@ export function ErrorReportModal() {
 				<>
 					<main>
 						<TextareaControl
-							label="What happened?"
-							help="Describe what caused the error and how can we reproduce it."
+							label="How can we recreate this error?"
+							help="Describe what caused the error and how can we recreate it."
 							value={text}
 							onChange={setText}
 							className={css.errorReportModalTextarea}
