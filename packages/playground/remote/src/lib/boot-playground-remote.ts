@@ -130,6 +130,9 @@ export async function bootPlaygroundRemote() {
 			});
 		},
 		async goTo(requestedPath: string) {
+			if (!requestedPath.startsWith('/')) {
+				requestedPath = '/' + requestedPath;
+			}
 			/**
 			 * People often forget to type the trailing slash at the end of
 			 * /wp-admin/ URL and end up with wrong relative hrefs. Let's
