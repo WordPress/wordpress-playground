@@ -13,34 +13,10 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"cd ../../../; npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json",
 					"docusaurus build --out-dir ../../../dist/docs/build"
 				],
-				"cwd": "packages/docs/site"
-			},
-			"dependsOn": ["build:json"]
-		},
-		"build:json": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": [
-					"npx typedoc --plugin typedoc-plugin-mdn-links --plugin typedoc-plugin-resolve-crossmodule-references --json packages/docs/site/src/model.json",
-					"echo Built `pwd`/packages/docs/site/src/model.json file"
-				],
-				"parallel": false
-			}
-		},
-		"swizzle": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": ["docusaurus swizzle"],
-				"cwd": "packages/docs/site"
-			},
-			"dependsOn": ["build:json"]
-		},
-		"deploy": {
-			"executor": "nx:run-commands",
-			"options": {
-				"commands": ["docusaurus deploy"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
