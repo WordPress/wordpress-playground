@@ -62,7 +62,7 @@ describe.each(SupportedPHPVersions)(
 				`Hello World`
 			);
 			const response = await handler.request({
-				url: '/Screenshot-2024-04-05-at-7.13.36%E2%80%AFAM.html',
+				url: '/Screenshot 2024-04-05 at 7.13.36%E2%80%AFAM.html',
 			});
 			expect(response).toEqual({
 				httpStatusCode: 200,
