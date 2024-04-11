@@ -241,6 +241,11 @@ export function compileBlueprint(
 		throw e;
 	}
 
+	let landingPage = blueprint.landingPage || '/';
+	if (!landingPage.startsWith('/')) {
+		landingPage = '/' + landingPage;
+	}
+
 	const steps = (blueprint.steps || []) as StepDefinition[];
 	const totalProgressWeight = steps.reduce(
 		(total, step) => total + (step.progress?.weight || 1),
@@ -299,9 +304,7 @@ export function compileBlueprint(
 				}
 			} finally {
 				try {
-					await (playground as any).goTo(
-						blueprint.landingPage || '/'
-					);
+					await (playground as any).goTo(landingPage);
 				} catch (e) {
 					/*
 					 * NodePHP exposes no goTo method.

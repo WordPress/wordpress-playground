@@ -33,6 +33,14 @@ describe('Blueprints', () => {
 		cy.wordPressDocument().its('body').should('contain', 'Sample Page');
 	});
 
+	it('Landing page without the initial slash should work', () => {
+		const blueprint: Blueprint = {
+			landingPage: 'wp-admin/plugins.php',
+		};
+		cy.visit('/#' + JSON.stringify(blueprint));
+		cy.wordPressDocument().its('body').should('contain.text', 'Plugins');
+	});
+
 	it('enableMultisite step should enable a multisite', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/',
