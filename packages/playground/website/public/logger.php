@@ -47,7 +47,7 @@ if (empty($token)) {
 if (!isset($_POST['description']) || empty($_POST['description'])) {
     response(false, 'No description provided');
 }
-$text = "What happened?\n\n" . $_POST['description'];
+$text = "How can we recreate this error?\n\n" . $_POST['description'];
 
 if (isset($_POST['logs']) && !empty($_POST['logs'])) {
     $text .= "\n\nLogs\n\n" . $_POST['logs'];
