@@ -15,7 +15,8 @@
 # include "config.h"
 #endif
 
-#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "php.h"
 #include "ext/standard/info.h"
 #include "Zend/zend_alloc.h"
@@ -39,6 +40,7 @@ void* wasm_memory_storage_chunk_alloc(zend_mm_storage* storage, size_t size, siz
 	void* ptr = NULL;
 	if (posix_memalign(&ptr, alignment, size) == 0)
 	{
+		memset(ptr, 0, size);
 		return ptr;
 	} else {
 		return NULL;
