@@ -322,11 +322,8 @@ export default function GitHubExportForm({
 
 			if (allowZipExport && formValues.includeZip) {
 				const zipFilename = `playground.zip`;
-				const zipPath = joinPaths(
-					fromPlaygroundRoot,
-					relativeExportPaths[0],
-					zipFilename
-				);
+				const zipPath = joinPaths(fromPlaygroundRoot, zipFilename);
+				relativeExportPaths.push(zipFilename);
 				if (await playground.fileExists(zipPath)) {
 					await playground.unlink(zipPath);
 				}
