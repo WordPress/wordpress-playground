@@ -7,7 +7,7 @@ slug: /
 
 :::info **Looking for the official Playground website?**
 
-WordPress Playground website was moved to [wp.org/playground](https://wp.org/playground). The site you're at now hosts the documentation.
+WordPress Playground website moved to [wordpress.org/playground/](https://wordpress.org/playground/). The site you're at now hosts the documentation.
 
 :::
 
@@ -18,7 +18,7 @@ The documentation consists of two major sections:
 -   [Documentation](./01-index.md) (you're here) – Introduction, concepts, and guides
 -   [API reference](/api) – All the APIs exposed by WordPress Playground
 
-This site (Documentation) is where you will find all the information you need to start doing something awesome things with Playground.
+This site (Documentation) is where you will find all the information you need to start using Playground. To learn more about what this fantastic tool, read [Introduction to Playground: running WordPress in the browser](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 
 ## Quick start
 
