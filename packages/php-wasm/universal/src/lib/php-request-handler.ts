@@ -76,7 +76,8 @@ export class PHPRequestHandler implements RequestHandler {
 			this.#HOSTNAME,
 			isNonStandardPort ? `:${this.#PORT}` : '',
 		].join('');
-		this.#PATHNAME = url.pathname.replace(/\/+$/, '');
+		this.#PATHNAME =
+			url.pathname === '/' ? '/' : url.pathname.replace(/\/+$/, '');
 		this.#ABSOLUTE_URL = [
 			`${this.#PROTOCOL}://`,
 			this.#HOST,
@@ -125,7 +126,9 @@ export class PHPRequestHandler implements RequestHandler {
 		);
 
 		const normalizedRequestedPath = applyRewriteRules(
-			removePathPrefix(requestedUrl.pathname, this.#PATHNAME),
+			decodeURIComponent(
+				removePathPrefix(requestedUrl.pathname, this.#PATHNAME)
+			),
 			this.rewriteRules
 		);
 		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
@@ -228,7 +231,9 @@ export class PHPRequestHandler implements RequestHandler {
 
 			let scriptPath;
 			try {
-				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
+				scriptPath = this.#resolvePHPFilePath(
+					decodeURIComponent(requestedUrl.pathname)
+				);
 			} catch (error) {
 				return new PHPResponse(
 					404,

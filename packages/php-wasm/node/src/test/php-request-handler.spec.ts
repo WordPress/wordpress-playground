@@ -56,6 +56,49 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
+		it('should serve a static file with urlencoded entities in the path', async () => {
+			php.writeFile(
+				'/Screenshot 2024-04-05 at 7.13.36 AM.html',
+				`Hello World`
+			);
+			const response = await handler.request({
+				url: '/Screenshot-2024-04-05-at-7.13.36%E2%80%AFAM.html',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html'],
+
+					'accept-ranges': ['bytes'],
+					'cache-control': ['public, max-age=0'],
+					'content-length': ['11'],
+				},
+				bytes: new TextEncoder().encode('Hello World'),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
+		it('should serve a PHP file with urlencoded entities in the path', async () => {
+			php.writeFile(
+				'/Screenshot 2024-04-05 at 7.13.36 AM.php',
+				`Hello World`
+			);
+			const response = await handler.request({
+				url: '/Screenshot 2024-04-05 at 7.13.36%E2%80%AFAM.php',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Hello World'),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
 		it('should yield x-file-type=static when a static file is not found', async () => {
 			const response = await handler.request({
 				url: '/index.html',
