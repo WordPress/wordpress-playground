@@ -1,4 +1,4 @@
-import { Semaphore } from '@php-wasm/util';
+import { Semaphore, joinPaths } from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -125,10 +125,13 @@ export class PHPRequestHandler implements RequestHandler {
 		);
 
 		const normalizedRequestedPath = applyRewriteRules(
-			removePathPrefix(requestedUrl.pathname, this.#PATHNAME),
+			removePathPrefix(
+				decodeURIComponent(requestedUrl.pathname),
+				this.#PATHNAME
+			),
 			this.rewriteRules
 		);
-		const fsPath = `${this.#DOCROOT}${normalizedRequestedPath}`;
+		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
 			return await this.#dispatchToPHP(request, requestedUrl);
 		}
@@ -228,7 +231,9 @@ export class PHPRequestHandler implements RequestHandler {
 
 			let scriptPath;
 			try {
-				scriptPath = this.#resolvePHPFilePath(requestedUrl.pathname);
+				scriptPath = this.#resolvePHPFilePath(
+					decodeURIComponent(requestedUrl.pathname)
+				);
 			} catch (error) {
 				return new PHPResponse(
 					404,
