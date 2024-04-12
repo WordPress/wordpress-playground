@@ -181,3 +181,43 @@ Use the `writeFile` step to add code to a mu-plugin that runs on every request.
 }} />
 
 You can share your own Blueprint examples in [this dedicated wiki](https://github.com/WordPress/wordpress-playground/wiki/Blueprint-examples).
+
+## Load an older WordPress version
+
+Playground only ships a few recent WordPress releases. If you need to use an older one, this Blueprint will help you. Just need to switch the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip"`. The oldest WordPress version supported this way is `5.9.9` as the SQLite integration plugin does not support older WordPress releases.
+
+<BlueprintExample blueprint={{
+    "landingPage": "/wp-admin",
+    "steps": [
+        {
+            "step": "writeFile",
+            "path": "/tmp/wordpress.zip",
+            "data": {
+                "resource": "url",
+                "url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip",
+                "caption": "Downloading the WordPress Release"
+            }
+        },
+        {
+            "step": "importWordPressFiles",
+            "wordPressFilesZip": {
+                "resource": "vfs",
+                "path": "/tmp/wordpress.zip"
+            },
+            "pathInZip": "/wordpress",
+            "progress": {
+                "weight": 20,
+                "caption": "Importing the WordPress release"
+            }
+        },
+        {
+            "step": "runPHP",
+            "code": "<?php $_GET['step'] = 'upgrade_db'; require '/wordpress/wp-admin/upgrade.php'; "
+        },
+        {
+            "step": "login",
+            "username": "admin",
+            "password": "password"
+        }
+    ]
+}} />
