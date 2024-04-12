@@ -277,17 +277,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 			const response = await this.#handleRequest();
 			if (response.exitCode !== 0) {
-				const output = {
-					stdout: response.text,
-					stderr: response.errors,
-				};
-				console.warn(`PHP.run() output was:`, output);
+				console.warn(`PHP.run() output was:`, response.text);
 				const error = new Error(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
 						response.errors
 				);
 				// @ts-ignore
-				error.output = output;
+				error.response = response;
 				// @ts-ignore
 				error.source = 'request';
 				console.error(error);
