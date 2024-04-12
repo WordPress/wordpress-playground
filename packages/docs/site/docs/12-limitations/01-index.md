@@ -31,7 +31,6 @@ You can track the progress of adding pthreads support at https://github.com/Word
 
 XDebug is not supported in the WebAssembly version of PHP. You can track the progress of adding XDebug support at https://github.com/WordPress/wordpress-playground/issues/314.
 
-### Known unsupported PHP Functions
+### Fibers
 
--   `proc_open`
--   `popen('', 'w')` in the `w` mode. `popen('', 'r')` works fine.
+Fibers are a PHP 8.1+ feature that is currently unsupported in Playground. See https://github.com/WordPress/wordpress-playground/blob/9065025043209ce06c9540886567ca5bc0ccfb11/packages/php-wasm/compile/Dockerfile#L484-L493 for more information.
