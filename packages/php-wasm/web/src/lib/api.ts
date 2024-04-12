@@ -159,6 +159,21 @@ function setupTransferHandlers() {
 			return PHPResponse.fromRawData(responseData);
 		},
 	});
+	// Augment Comlink's throw handler to include Error the response and source
+	// information in the serialized error object. BasePHP throws may include
+	// those information and we'll want to display them for the user.
+	const throwHandler = Comlink.transferHandlers.get('throw')!;
+	const originalSerialize = throwHandler?.serialize;
+	throwHandler.serialize = ({ value }: any) => {
+		const serialized = originalSerialize({ value }) as any;
+		if (value.response) {
+			serialized[0].value.response = value.response;
+		}
+		if (value.source) {
+			serialized[0].value.source = value.source;
+		}
+		return serialized;
+	};
 }
 
 function proxyClone(object: any): any {
