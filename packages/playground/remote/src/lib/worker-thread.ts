@@ -241,6 +241,7 @@ const [setApiReady, setAPIError] = exposeAPI(
 
 try {
 	php.initializeRuntime(await recreateRuntime());
+	php.setPhpIniEntry('memory_limit', '256M');
 
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
