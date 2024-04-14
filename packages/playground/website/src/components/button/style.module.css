@@ -1,9 +1,11 @@
 /* Specificity hack: Override @wordpress/components styles for the button component */
 .button.button.button {
 	flex-grow: 1;
-	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
-	font-size: 16px;
-	font-weight: 50;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, avenir next,
+		avenir, segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto,
+		noto, arial, sans-serif;
+	font-size: 14px;
+	line-height: 24px;
 	height: auto;
 	width: auto;
 	white-space: nowrap;
@@ -21,9 +23,9 @@
 }
 
 .button.button.button.is-browser-chrome {
-	min-height: 26px;
-	min-width: 26px;
-	padding: 0px 15px;
+	min-height: 24px;
+	min-width: 24px;
+	padding: 0px 8px;
 }
 
 .button.button.button:not(.is-browser-chrome) {
