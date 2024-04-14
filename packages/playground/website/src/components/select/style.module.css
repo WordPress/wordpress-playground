@@ -1,7 +1,9 @@
 .select {
 	flex-grow: 1;
 	padding: 0px 10px;
-	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, avenir next,
+		avenir, segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto,
+		noto, arial, sans-serif;
 	font-size: 16px;
 	font-weight: 50;
 	height: 26px;
