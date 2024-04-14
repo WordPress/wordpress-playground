@@ -103,7 +103,7 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 
 ## Import a WXR file
 
-You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/wp-admin/).
+You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
 
 You can also use [JSON Blueprints](../09-blueprints-api/01-index.md). See [getting started with Blueprints](../09-blueprints-api/01-index.md) to learn more.
 
