@@ -10,7 +10,8 @@
 	display: flex;
 	padding: 10px 22px;
 	background: #fff7cc;
-	font-family: 'Andale mono', Helvetica, Monospace, Arial;
+	font-family: 'Andale mono', Menlo, Consolas, Monaco, Liberation Mono,
+		Lucida Console, monospace;
 	font-style: normal;
 	font-weight: 100;
 	font-size: 12px;
