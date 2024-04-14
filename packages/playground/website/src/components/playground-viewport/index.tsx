@@ -63,6 +63,7 @@ export default function PlaygroundViewport({
 					initialIsFullSize={displayMode === 'browser-full-screen'}
 					showAddressBar={!!playground}
 					url={url}
+					storage={storage}
 					toolbarButtons={toolbarButtons}
 					onUrlChange={(url) => playground?.goTo(url)}
 				>
