@@ -20,10 +20,12 @@
 .input {
 	flex-grow: 1;
 	padding: 5px 10px;
-	font-family: 'San Francisco', Helvetica, Arial, sans-serif;
-	font-size: 16px;
-	font-weight: 50;
-	height: 26px;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, avenir next,
+		avenir, segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto,
+		noto, arial, sans-serif;
+	font-size: 14px;
+	line-height: 16px;
+	height: 24px;
 	border: 0;
 	background: #40464d;
 	border-radius: 8px;
