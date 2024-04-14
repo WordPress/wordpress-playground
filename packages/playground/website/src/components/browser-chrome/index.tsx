@@ -3,6 +3,7 @@ import css from './style.module.css';
 import AddressBar from '../address-bar';
 import { close } from '@wordpress/icons';
 import classNames from 'classnames';
+import { usePlaygroundContext } from '../playground-viewport/context';
 
 interface BrowserChromeProps {
 	children?: React.ReactNode;
@@ -10,6 +11,7 @@ interface BrowserChromeProps {
 	url?: string;
 	showAddressBar?: boolean;
 	initialIsFullSize?: boolean;
+	storage?: string;
 	onUrlChange?: (url: string) => void;
 }
 
@@ -20,6 +22,7 @@ export default function BrowserChrome({
 	showAddressBar = true,
 	toolbarButtons,
 	initialIsFullSize = false,
+	storage = 'browser',
 }: BrowserChromeProps) {
 	const [isFullSize, setIsFullSize] = useState(initialIsFullSize);
 
@@ -46,6 +49,10 @@ export default function BrowserChrome({
 		};
 	}, []);
 
+	const { playground } = usePlaygroundContext();
+
+	const opfsStorages = ['browser', 'device'];
+
 	const experimentalNoticeClass = classNames(css.experimentalNotice, {
 		[css.isHidden]: noticeHidden,
 	});
@@ -56,7 +63,20 @@ export default function BrowserChrome({
 				<div className={css.toolbar}>
 					<div className={css.windowControls}>
 						<div
-							className={`${css.windowControl} ${css.isNeutral}`}
+							className={`${css.windowControl} ${css.isRed}`}
+							onClick={async () => {
+								if (
+									!window.confirm(
+										'This will wipe out all data and start a new site. Do you want to proceed?'
+									)
+								) {
+									return;
+								}
+								if (opfsStorages.includes(storage)) {
+									await playground?.resetVirtualOpfs();
+								}
+								window.location.reload();
+							}}
 						></div>
 						<div
 							className={`${css.windowControl} ${css.isNeutral}`}
