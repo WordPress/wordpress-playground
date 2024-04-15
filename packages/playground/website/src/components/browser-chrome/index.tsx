@@ -22,7 +22,7 @@ export default function BrowserChrome({
 	showAddressBar = true,
 	toolbarButtons,
 	initialIsFullSize = false,
-	storage = 'browser',
+	storage,
 }: BrowserChromeProps) {
 	const [isFullSize, setIsFullSize] = useState(initialIsFullSize);
 
