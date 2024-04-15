@@ -220,6 +220,19 @@ export class Logger extends EventTarget {
 	public getLogs(): string[] {
 		return this.logs;
 	}
+
+	/**
+	 * Get context information for the error.
+	 */
+	public getContext(): any {
+		return {
+			PHP: '',
+			WordPress: '',
+			userAgent: navigator.userAgent,
+			'playground-worker-count': '',
+			memory: (window.performance as any)?.memory,
+		};
+	}
 }
 
 /**
