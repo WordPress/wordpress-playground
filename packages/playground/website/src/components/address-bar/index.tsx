@@ -43,7 +43,7 @@ export default function AddressBar({ url, onUpdate }: AddressBarProps) {
 					onBlur={() => setIsFocused(false)}
 					name="url"
 					type="text"
-					title='URL to visit in the WordPress site, like"/wp-admin"'
+					aria-label='URL to visit in the WordPress site, like"/wp-admin"'
 					autoComplete="off"
 				/>
 			</div>

@@ -53,7 +53,7 @@ export default function BrowserChrome({
 	return (
 		<div className={wrapperClass} data-cy="simulated-browser">
 			<div className={css.window}>
-				<div className={css.toolbar}>
+				<header className={css.toolbar} aria-label="Playground toolbar">
 					<div className={css.windowControls}>
 						<div
 							className={`${css.windowControl} ${css.isNeutral}`}
@@ -72,7 +72,7 @@ export default function BrowserChrome({
 					</div>
 
 					<div className={css.toolbarButtons}>{toolbarButtons}</div>
-				</div>
+				</header>
 				<div className={css.content}>{children}</div>
 				<div className={experimentalNoticeClass} onClick={hideNotice}>
 					{close}
