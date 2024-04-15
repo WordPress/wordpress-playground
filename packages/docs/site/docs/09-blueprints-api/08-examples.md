@@ -184,7 +184,9 @@ You can share your own Blueprint examples in [this dedicated wiki](https://githu
 
 ## Load an older WordPress version
 
-Playground only ships a few recent WordPress releases. If you need to use an older one, this Blueprint will help you. Just need to switch the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip"`. The oldest WordPress version supported this way is `5.9.9` as the SQLite integration plugin does not support older WordPress releases.
+Playground only ships with a few recent WordPress releases. If you need to use an older version, this Blueprint can help you: change the version number in `"url": "https://playground.wordpress.net/plugin-proxy.php?url=https://wordpress.org/wordpress-5.9.9.zip"` from `5.9.9` to the release you want to load.
+
+**Note:** the oldest supported WordPress version is `5.9.9`, following the SQLite integration plugin.
 
 <BlueprintExample blueprint={{
     "landingPage": "/wp-admin",

@@ -312,7 +312,13 @@ export function PlaygroundConfigurationForm({
 						>
 							WordPress Version
 						</label>
-						<div style={{ display: 'inline-block' }}>
+						<div
+							style={{
+								display: 'flex',
+								gap: '0.5rem',
+								flexDirection: 'column',
+							}}
+						>
 							<select
 								id="wp-version"
 								value={wp}
@@ -344,7 +350,7 @@ export function PlaygroundConfigurationForm({
 								href="https://wordpress.github.io/wordpress-playground/blueprints-api/examples#load-an-older-wordpress-version"
 								target="_blank"
 								rel="noreferrer"
-								style={{ fontSize: '0.8em' }}
+								style={{ fontSize: '0.9em' }}
 							>
 								Need an older version?
 							</a>

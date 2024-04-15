@@ -50,8 +50,8 @@ JSON files can be tedious to write and easy to get wrong. To help with that, Pla
 
 The `preferredVersions` property, unsurprisingly, declares the preferred of PHP and WordPress versions to use. It can contain the following properties:
 
--   `php` (string): The preferred PHP version to use. Defaults to 'latest'. Only accepts major versions like "7.4" or "8.0". Minor versions like "7.4.1" are not supported.
--   `wp` (string): The preferred WordPress version to use. Defaults to 'latest'. Only accepts major versions like "6.5". Minor versions like "6.5.1" are not supported. Note that only the latest three major releases are supported as well as `"nightly"` and `"beta"`.
+-   `php` (string): The preferred PHP version to use. Defaults to "latest". Only accepts major versions, like "7.4" or "8.0". Minor versions like "7.4.1" are not supported.
+-   `wp` (string): Loads the specified WordPress version. Supported values: The last three major WordPress versions—minor versions, like `6.5.1`, are not supported. As of April 4, 2024, that's `6.3`, `6.4`, `6.5`. You can also use these values: `latest` (default), `nightly`, or `beta`.
 
 ## PHP extensions
 
