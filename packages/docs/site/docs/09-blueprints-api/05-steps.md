@@ -70,7 +70,7 @@ Or
  		"pluginZipFile": {
 			"resource": "url",
 			"url": "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
-    }
+		}
 	}
 ```
 
