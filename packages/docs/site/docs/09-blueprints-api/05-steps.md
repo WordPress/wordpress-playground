@@ -114,22 +114,22 @@ Or
 
 ```json
 	{
-  	"step": "defineWpConfigConsts",
-  	"consts": {
-  		"WP_DISABLE_FATAL_ERROR_HANDLER": true
-  	}
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DISABLE_FATAL_ERROR_HANDLER": true
+		}
 	},
 	{
-  	"step": "defineWpConfigConsts",
-  	"consts": {
-    	"WP_DEBUG": true
-  	}
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DEBUG": true
+		}
 	},
 	{
-  	"step": "defineWpConfigConsts",
-  	"consts": {
-    	"WP_DEBUG_DISPLAY": true
-  	}
+		"step": "defineWpConfigConsts",
+		"consts": {
+			"WP_DEBUG_DISPLAY": true
+		}
 	}
 ```
 
