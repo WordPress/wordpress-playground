@@ -6,8 +6,9 @@ import { Button, TextareaControl, TextControl } from '@wordpress/components';
 import css from './style.module.css';
 
 import { usePlaygroundContext } from '../../playground-context';
+import { Blueprint } from '@wp-playground/blueprints';
 
-export function ErrorReportModal() {
+export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
@@ -48,6 +49,14 @@ export function ErrorReportModal() {
 		setShowErrorModal(false);
 		resetForm();
 		resetSubmission();
+	}
+
+	function getContext() {
+		return {
+			...props.blueprint.preferredVersions,
+			userAgent: navigator.userAgent,
+			...((window.performance as any)?.memory ?? {}),
+		};
 	}
 
 	async function onSubmit() {
