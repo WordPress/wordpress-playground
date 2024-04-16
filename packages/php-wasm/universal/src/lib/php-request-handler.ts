@@ -5,7 +5,11 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { BasePHP, normalizeHeaders } from './base-php';
+import {
+	BasePHP,
+	PHPExecutionFailureError,
+	normalizeHeaders,
+} from './base-php';
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
@@ -255,13 +259,11 @@ export class PHPRequestHandler implements RequestHandler {
 					headers,
 				});
 			} catch (error) {
-				return (
-					error as {
-						message: string;
-						response: PHPResponse;
-						source: string;
-					}
-				).response;
+				const executionError = error as PHPExecutionFailureError;
+				if (executionError?.response) {
+					return executionError.response;
+				}
+				throw error;
 			}
 		} finally {
 			release();

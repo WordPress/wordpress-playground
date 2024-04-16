@@ -33,6 +33,12 @@ const STRING = 'string';
 const NUMBER = 'number';
 
 export const __private__dont__use = Symbol('__private__dont__use');
+
+export interface PHPExecutionFailureError extends Error {
+	response: PHPResponse;
+	source: 'request' | 'php-wasm';
+}
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that universals the super low-level API and provides a more convenient
