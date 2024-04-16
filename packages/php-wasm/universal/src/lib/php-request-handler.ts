@@ -242,17 +242,27 @@ export class PHPRequestHandler implements RequestHandler {
 				);
 			}
 
-			return await this.php.run({
-				relativeUri: ensurePathPrefix(
-					toRelativeUrl(requestedUrl),
-					this.#PATHNAME
-				),
-				protocol: this.#PROTOCOL,
-				method: request.method || preferredMethod,
-				body,
-				scriptPath,
-				headers,
-			});
+			try {
+				return await this.php.run({
+					relativeUri: ensurePathPrefix(
+						toRelativeUrl(requestedUrl),
+						this.#PATHNAME
+					),
+					protocol: this.#PROTOCOL,
+					method: request.method || preferredMethod,
+					body,
+					scriptPath,
+					headers,
+				});
+			} catch (error) {
+				return (
+					error as {
+						message: string;
+						response: PHPResponse;
+						source: string;
+					}
+				).response;
+			}
 		} finally {
 			release();
 		}
