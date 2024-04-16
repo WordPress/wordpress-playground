@@ -42,6 +42,10 @@ export const importWxr: StepHandler<ImportWxrStep<File>> = async (
 	await playground.run({
 		code: `<?php
 		require ${phpVar(docroot)} . '/wp-load.php';
+		if ( ! function_exists( 'wp_crop_image' ) ) {
+			include( ABSPATH . 'wp-admin/includes/image.php' );
+		}
+		include( ABSPATH . 'wp-admin/includes/media.php' );
 		kses_remove_filters();
 		$admin_id = get_users(array('role' => 'Administrator') )[0];
 		$importer = new WXR_Importer( array(

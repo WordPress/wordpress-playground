@@ -338,7 +338,7 @@ try {
         // Proxy the current request to $_GET['url'] and return the response,
         // but only if the URL is allowlisted.
         $url = $_GET['url'];
-        $allowed_domains = ['api.wordpress.org', 'w.org', 'wordpress.org', 's.w.org'];
+        $allowed_domains = ['api.wordpress.org', 'w.org', 'wordpress.org', 's.w.org', 'wpthemetestdata.files.wordpress.com'];
         $parsed_url = parse_url($url);
         if (!in_array($parsed_url['host'], $allowed_domains)) {
             http_response_code(403);
