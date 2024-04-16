@@ -56,6 +56,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 			...props.blueprint.preferredVersions,
 			userAgent: navigator.userAgent,
 			...((window.performance as any)?.memory ?? {}),
+			...logger.getContext(),
 		};
 	}
 
@@ -69,6 +70,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 		if (url) {
 			formdata.append('url', url);
 		}
+		formdata.append('context', JSON.stringify(getContext()));
+		formdata.append('blueprint', JSON.stringify(props.blueprint));
 		try {
 			const response = await fetch(
 				'https://playground.wordpress.net/logger.php',
