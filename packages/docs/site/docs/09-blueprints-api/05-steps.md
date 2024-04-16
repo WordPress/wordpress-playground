@@ -44,7 +44,7 @@ Or
 
 ### `plugins`
 
-(replaces `InstallPluginStep`)
+(replaces the `installPlugin` step)
 
 Use
 
