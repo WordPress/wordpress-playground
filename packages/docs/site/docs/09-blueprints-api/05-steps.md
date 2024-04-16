@@ -52,7 +52,7 @@ Use
 	"plugins": [
 		"hello-dolly",
 		"https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
-  ]
+	]
 ```
 
 Or
