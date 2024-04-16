@@ -47,7 +47,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: nu
 		case '6.4':
 			/** @ts-ignore */
 			return {
-				size: 4863948,
+				size: 4863949,
 				url: url_6_4,
 			};
 			
@@ -61,7 +61,7 @@ export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: nu
 		case '6.2':
 			/** @ts-ignore */
 			return {
-				size: 3590460,
+				size: 3590465,
 				url: url_6_2,
 			};
 			
