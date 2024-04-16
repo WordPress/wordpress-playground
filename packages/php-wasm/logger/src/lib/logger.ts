@@ -1,3 +1,5 @@
+/// <reference lib="WebWorker" />
+
 import {
 	PHPRequestErrorEvent,
 	UniversalPHP,
@@ -32,6 +34,11 @@ export class Logger extends EventTarget {
 	 * The length of the last PHP log.
 	 */
 	private lastPHPLogLength = 0;
+
+	/**
+	 * Context data
+	 */
+	private context: Record<string, any> = {};
 
 	/**
 	 * The path to the error log file.
@@ -106,6 +113,21 @@ export class Logger extends EventTarget {
 			this.logUnhandledRejection.bind(this)
 		);
 		this.windowConnected = true;
+	}
+
+	/**
+	 * Register a listener for service worker messages and log the data.
+	 */
+	public addServiceWorkerMessageListener() {
+		if (!navigator.serviceWorker.controller) {
+			return;
+		}
+		navigator.serviceWorker.controller.postMessage('getClientInfo');
+		navigator.serviceWorker.addEventListener('message', (event) => {
+			if (event.data.clientsCount) {
+				this.addContext({ ...event.data });
+			}
+		});
 	}
 
 	/**
@@ -218,7 +240,21 @@ export class Logger extends EventTarget {
 	 * @returns string[]
 	 */
 	public getLogs(): string[] {
-		return this.logs;
+		return [...this.logs];
+	}
+
+	/**
+	 * Add context data.
+	 */
+	public addContext(data: Record<string, any>): void {
+		this.context = { ...this.context, ...data };
+	}
+
+	/**
+	 * Get context data.
+	 */
+	public getContext(): Record<string, any> {
+		return { ...this.context };
 	}
 }
 
@@ -233,6 +269,7 @@ export const logger: Logger = new Logger();
  */
 export function collectWindowErrors(loggerInstance: Logger) {
 	loggerInstance.addWindowErrorListener();
+	loggerInstance.addServiceWorkerMessageListener();
 }
 
 /**
@@ -245,6 +282,27 @@ export function collectPhpLogs(
 	playground: UniversalPHP
 ) {
 	loggerInstance.addPlaygroundRequestEndListener(playground);
+}
+
+/**
+ * Collect worker metrics.
+ *
+ * @param worker The service worker
+ */
+export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
+	worker.addEventListener('activate', (event) => {
+		event.waitUntil(worker.clients.claim());
+	});
+	worker.addEventListener('message', (event) => {
+		if (event.data === 'getClientInfo') {
+			worker.clients.matchAll().then((clients) => {
+				if (!event.source) {
+					return;
+				}
+				event.source.postMessage({ clientsCount: clients.length });
+			});
+		}
+	});
 }
 
 /**
