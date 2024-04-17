@@ -73,10 +73,13 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 		formdata.append('context', JSON.stringify(getContext()));
 		formdata.append('blueprint', JSON.stringify(props.blueprint));
 		try {
-			const response = await fetch('http://wp.test/logger.php', {
-				method: 'POST',
-				body: formdata,
-			});
+			const response = await fetch(
+				'https://playground.wordpress.net/logger.php',
+				{
+					method: 'POST',
+					body: formdata,
+				}
+			);
 			setSubmitted(true);
 
 			const body = await response.json();
