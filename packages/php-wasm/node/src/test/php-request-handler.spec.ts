@@ -190,7 +190,7 @@ describe.each(SupportedPHPVersions)(
 			php.writeFile(
 				'/index.php',
 				`<?php
-				die('Hello World')
+				echo 'Hello World' // note there is no closing semicolon
 				`
 			);
 			const response2Result = await handler.request({
