@@ -10,12 +10,6 @@ assignees: ''
 ## Describe the bug
 <--! What did you encounter that seems to be broken? -->
 
-## What protocol is used with the blueprint?
-Query API: https://wordpress.github.io/wordpress-playground/apis-overview#query-api
-JavaScript API: https://wordpress.github.io/wordpress-playground/apis-overview#javascript-api
-PR Previewer - Look in `./testing/PROP.md` for more info
-
-
 ## Blueprint or no?
 Did you send a custom blueprint to the instance, or just boot up as-is?
 <!-- 
@@ -32,6 +26,11 @@ If you didn't use a custom blueprint:
 
 
 -->
+
+## What protocol is used with the blueprint?
+Query API: https://wordpress.github.io/wordpress-playground/apis-overview#query-api
+JavaScript API: https://wordpress.github.io/wordpress-playground/apis-overview#javascript-api
+PR Previewer - Look in `./testing/PROP.md` for more info
 
 ## paste blueprint as `JSON` code below
 The best practice is to copy directly from the code editor, this will retain formatting and readibility in most cases. 
@@ -64,14 +63,17 @@ A clear and concise description of what you expected to happen.
 
 ## Screenshots or screencast
 If applicable, add screenshots to help explain your problem.
+
 When recording screencasts, try to get around the time the error occurs and showcase both the opening window and the console window in one view. 
 
 Make sure to use Alt tags for screenshots and to identify video flows.
 
 ## Error reporting
-You can use the [Site Health](site-health.md) Check screen to 
+You can use the [Site Health](https://wordpress.org/documentation/article/site-health-screen/) screen to 
  - submit WordPress environment info
  - submit local system info
+
+In the Playground URL bar, go to `/wp-admin/site-health.php?tab=debug` to access the full debug info for your website
 
 You can use the Playground menu to `Report error`, which will automaticlly send some information and submit to the `#playground-logs` Channel on Making WordPress Slack.
 
