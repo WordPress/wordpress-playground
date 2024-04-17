@@ -57,6 +57,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 			userAgent: navigator.userAgent,
 			...((window.performance as any)?.memory ?? {}),
 			...logger.getContext(),
+			window: {
+				width: window.innerWidth,
+				height: window.innerHeight,
+			},
 		};
 	}
 

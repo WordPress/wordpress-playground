@@ -16,6 +16,10 @@ export interface InstallAssetOptions {
 	 * </code>
 	 */
 	targetPath: string;
+	/**
+	 * What to do if the asset already exists.
+	 */
+	ifAlreadyInstalled?: 'overwrite' | 'skip' | 'error';
 }
 
 /**
@@ -23,7 +27,11 @@ export interface InstallAssetOptions {
  */
 export async function installAsset(
 	playground: UniversalPHP,
-	{ targetPath, zipFile }: InstallAssetOptions
+	{
+		targetPath,
+		zipFile,
+		ifAlreadyInstalled = 'overwrite',
+	}: InstallAssetOptions
 ): Promise<{
 	assetFolderPath: string;
 	assetFolderName: string;
@@ -75,6 +83,30 @@ export async function installAsset(
 
 		// Move asset folder to target path
 		const assetFolderPath = `${targetPath}/${assetFolderName}`;
+
+		// Handle the scenario when the asset is already installed.
+		if (await playground.fileExists(assetFolderPath)) {
+			if (!(await playground.isDir(assetFolderPath))) {
+				throw new Error(
+					`Cannot install asset ${assetFolderName} to ${assetFolderPath} because a file with the same name already exists. Note it's a file, not a directory! Is this by mistake?`
+				);
+			}
+			if (ifAlreadyInstalled === 'overwrite') {
+				await playground.rmdir(assetFolderPath, {
+					recursive: true,
+				});
+			} else if (ifAlreadyInstalled === 'skip') {
+				return {
+					assetFolderPath,
+					assetFolderName,
+				};
+			} else {
+				throw new Error(
+					`Cannot install asset ${assetFolderName} to ${targetPath} because it already exists and ` +
+						`the ifAlreadyInstalled option was set to ${ifAlreadyInstalled}`
+				);
+			}
+		}
 		await playground.mv(tmpAssetPath, assetFolderPath);
 
 		return {

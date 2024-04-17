@@ -1272,6 +1272,8 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 		result = -1;
 		goto wasm_request_done;
 	}
+	
+	EG(exit_status) = 0;
 
 	TSRMLS_FETCH();
 	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)

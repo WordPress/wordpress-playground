@@ -12,7 +12,7 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
-import { collectWorkerMetrics } from '@php-wasm/logger';
+import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -23,7 +23,7 @@ if (!(self as any).document) {
 	self.document = {};
 }
 
-collectWorkerMetrics(self);
+reportServiceWorkerMetrics(self);
 
 initializeServiceWorker({
 	handleRequest(event) {
