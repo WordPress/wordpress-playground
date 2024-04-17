@@ -40,6 +40,7 @@ Use
 Or
 
 ```json
+[
 	{
 		"step": "installPlugin",
 		"pluginZipFile": {
@@ -49,11 +50,12 @@ Or
 	},
 	{
 		"step": "installPlugin",
- 		"pluginZipFile": {
+		"pluginZipFile": {
 			"resource": "url",
 			"url": "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
 		}
 	}
+]
 ```
 
 ### `siteOptions`
@@ -125,29 +127,3 @@ The `shorthand` syntax and the `step` syntax correspond to each other. Every `st
 -   Use explicit `steps` when you need more control over the **execution order**.
 
 :::
-
----
-
-import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
-import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
-import UpdateTopLevelToc from '@site/src/components/UpdateTopLevelToc';
-
-<UpdateTopLevelToc
-toc={toc}
-tocItems={
-BlueprintSteps
-.map(name => ({
-value: name,
-id: name,
-level: 2
-}))
-} />
-
-<span>
-	{BlueprintSteps.map((name) => (
-		<>
-			<BlueprintStep name={name} key={name} />
-			<hr/>
-		</>
-	))}
-</span>
