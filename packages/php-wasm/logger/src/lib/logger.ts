@@ -306,14 +306,14 @@ export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 }
 
 /**
- * Add a listener for the fatal Playground errors.
- * These errors include Playground errors like Asyncify errors. PHP errors won't trigger this event.
+ * Add a listener for the Playground crashes.
+ * These crashes include Playground errors like Asyncify errors.
  * The callback function will receive an Event object with logs in the detail property.
  *
  * @param loggerInstance The logger instance
  * @param callback The callback function
  */
-export function addFatalErrorListener(
+export function addCrashListener(
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
 ) {
