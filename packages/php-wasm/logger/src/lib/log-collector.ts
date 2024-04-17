@@ -45,20 +45,23 @@ function logUnhandledRejection(
  * @param loggerInstance The logger instance
  */
 function addServiceWorkerMessageListener(loggerInstance: Logger) {
-	const requestClientInfo = () => {
+	const getServiceWorkerMetrics = () => {
 		if (!navigator.serviceWorker.controller) {
 			return;
 		}
 		navigator.serviceWorker.controller.postMessage('getClientInfo');
 	};
-	requestClientInfo();
+	getServiceWorkerMetrics();
 	navigator.serviceWorker.addEventListener(
 		'controllerchange',
-		requestClientInfo
+		getServiceWorkerMetrics
 	);
 	navigator.serviceWorker.addEventListener('message', (event) => {
 		if (event.data.clientCount) {
-			loggerInstance.addContext({ clientCount: event.data.clientCount });
+			loggerInstance.addContext({
+				numberOfOpenPlaygroundTabs:
+					event.data.numberOfOpenPlaygroundTabs,
+			});
 		}
 	});
 }
@@ -106,12 +109,11 @@ async function getRequestPhpErrorLog(playground: UniversalPHP) {
 }
 
 /**
- * Register a listener for the request.end event and log the data.
- *
- * @param loggerInstance The logger instance
+ * Collect PHP logs from the error_log file and log them.
  * @param UniversalPHP playground instance
+ * @param loggerInstance The logger instance
  */
-function addPlaygroundRequestEndListener(
+export function collectPhpLogs(
 	loggerInstance: Logger,
 	playground: UniversalPHP
 ) {
@@ -145,40 +147,32 @@ function addPlaygroundRequestEndListener(
 }
 
 /**
- * Collect PHP logs from the error_log file and log them.
- * @param UniversalPHP playground instance
- * @param loggerInstance The logger instance
- */
-export function collectPhpLogs(
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) {
-	addPlaygroundRequestEndListener(loggerInstance, playground);
-}
-
-/**
- * Collect worker metrics.
+ * Report service worker metrics.
+ * Allows the logger to request metrics from the service worker by sending a message.
+ * The service worker will respond with the number of open Playground tabs.
  *
  * @param worker The service worker
  */
-export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
+export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 	worker.addEventListener('activate', (event) => {
+		// Trigger controllerchange event to update the client count.
 		event.waitUntil(worker.clients.claim());
 	});
 	worker.addEventListener('message', (event) => {
-		if (event.data === 'getClientInfo') {
-			worker.clients.matchAll().then((clients) => {
-				if (!event.source) {
-					return;
-				}
-				event.source.postMessage({
-					clientCount: clients.filter(
-						// Only count top-level frames to get the number of tabs.
-						(c) => c.frameType === 'top-level'
-					).length,
-				});
-			});
+		if (!event.source) {
+			return;
 		}
+		if (event.data !== 'getServiceWorkerMetrics') {
+			return;
+		}
+		worker.clients.matchAll().then((clients) => {
+			event.source!.postMessage({
+				clientCount: clients.filter(
+					// Only count top-level frames to get the number of tabs.
+					(c) => c.frameType === 'top-level'
+				).length,
+			});
+		});
 	});
 }
 
