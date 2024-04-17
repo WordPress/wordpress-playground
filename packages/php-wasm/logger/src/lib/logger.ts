@@ -30,6 +30,7 @@ export class Logger extends EventTarget {
 	/**
 	 * Enable console logging.
 	 */
+	// TODO set to false and allow to enable it via APIs
 	private consoleLogging = true;
 
 	/**
@@ -65,7 +66,7 @@ export class Logger extends EventTarget {
 	 * @param LogSeverity severity
 	 * @param string prefix
 	 */
-	public formatMessage(
+	public formatLogEntry(
 		message: any,
 		severity: LogSeverity,
 		prefix: string
@@ -83,7 +84,7 @@ export class Logger extends EventTarget {
 	 * @param LogSeverity severity
 	 * @param string prefix
 	 */
-	public addLogMessage(
+	public addLogEntry(
 		message: any,
 		severity?: LogSeverity,
 		prefix?: LogPrefix
@@ -91,13 +92,12 @@ export class Logger extends EventTarget {
 		if (severity === undefined) {
 			severity = 'Info';
 		}
-		const log = this.formatMessage(
+		const log = this.formatLogEntry(
 			message,
 			severity,
 			prefix ?? 'Playground'
 		);
-		this.addRawLogMessage(log);
-		this.consoleLog(log, severity);
+		this.addRawLogEntry(log);
 	}
 
 	/**
@@ -105,39 +105,8 @@ export class Logger extends EventTarget {
 	 * @param string log
 	 * @returns void
 	 */
-	public addRawLogMessage(log: string): void {
+	public addRawLogEntry(log: string): void {
 		this.logs.push(log);
-	}
-
-	/**
-	 * Log message to the console.
-	 * @param string log
-	 * @param LogSeverity severity
-	 * @returns void
-	 */
-	public consoleLog(log: string, severity?: LogSeverity): void {
-		if (!this.consoleLogging) {
-			return;
-		}
-		switch (severity) {
-			case 'Debug':
-				console.debug(log);
-				break;
-			case 'Info':
-				console.info(log);
-				break;
-			case 'Warn':
-				console.warn(log);
-				break;
-			case 'Error':
-				console.error(log);
-				break;
-			case 'Fatal':
-				console.error(log);
-				break;
-			default:
-				console.log(log);
-		}
 	}
 
 	/**
@@ -162,39 +131,113 @@ export class Logger extends EventTarget {
 		return { ...this.context };
 	}
 
+	private prepareLogMessage(message: any, ...args: any[]): string {
+		return [
+			typeof message === 'object' ? JSON.stringify(message) : message,
+			...args.map((arg) => JSON.stringify(arg)),
+		].join(' ');
+	}
+
+	/**
+	 * Log message with severity.
+	 *
+	 * @param message any
+	 * @param severity LogSeverity
+	 * @param args any
+	 */
+	private logMessage(
+		message: any,
+		severity?: LogSeverity,
+		...args: any[]
+	): void {
+		this.addLogEntry(this.prepareLogMessage(message, ...args), severity);
+		this.consoleLog(message, severity, ...args);
+	}
+
 	/**
 	 * Log message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public log(message: any): void {
-		this.addLogMessage(message);
+	public log(message: any, ...args: any[]): void {
+		this.logMessage(message, undefined, ...args);
 	}
 
 	/**
 	 * Log debug message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public debug(message: any): void {
-		this.addLogMessage(message, 'Debug');
+	public debug(message: any, ...args: any[]): void {
+		this.logMessage(message, 'Debug', ...args);
 	}
 
 	/**
 	 * Log info message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public info(message: any): void {
-		this.addLogMessage(message, 'Info');
+	public info(message: any, ...args: any[]): void {
+		this.logMessage(message, 'Info', ...args);
 	}
 
 	/**
 	 * Log warning message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public warn(message: any): void {
-		this.addLogMessage(message, 'Warn');
+	public warn(message: any, ...args: any[]): void {
+		this.logMessage(message, 'Warn', ...args);
 	}
 
 	/**
 	 * Log error message
+	 *
+	 * @param message any
+	 * @param args any
 	 */
-	public error(message: any): void {
-		this.addLogMessage(message, 'Error');
+	public error(message: any, ...args: any[]): void {
+		this.logMessage(message, 'Error', ...args);
+	}
+
+	/**
+	 * Log message to the console.
+	 * @param string log
+	 * @param LogSeverity severity
+	 * @param any args
+	 * @returns void
+	 */
+	public consoleLog(
+		log: string,
+		severity?: LogSeverity,
+		...args: any[]
+	): void {
+		if (!this.consoleLogging) {
+			return;
+		}
+		switch (severity) {
+			case 'Debug':
+				console.debug(log, ...args);
+				break;
+			case 'Info':
+				console.info(log, ...args);
+				break;
+			case 'Warn':
+				console.warn(log, ...args);
+				break;
+			case 'Error':
+				console.error(log, ...args);
+				break;
+			case 'Fatal':
+				console.error(log, ...args);
+				break;
+			default:
+				console.log(log, ...args);
+		}
 	}
 
 	/**

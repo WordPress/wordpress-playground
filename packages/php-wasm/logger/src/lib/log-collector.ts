@@ -2,7 +2,7 @@ import {
 	PHPRequestErrorEvent,
 	UniversalPHP,
 } from '@php-wasm/universal/src/lib/universal-php';
-import { Logger } from './logger';
+import type { Logger } from './logger';
 
 let windowConnected = false;
 
@@ -13,7 +13,7 @@ let windowConnected = false;
  * @param ErrorEvent event
  */
 function logWindowError(loggerInstance: Logger, event: ErrorEvent) {
-	loggerInstance.addLogMessage(
+	loggerInstance.addLogEntry(
 		`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
 		'Error'
 	);
@@ -34,7 +34,7 @@ function logUnhandledRejection(
 		return;
 	}
 	const message = event?.reason.stack ?? event.reason;
-	loggerInstance.addLogMessage(message, 'Error');
+	loggerInstance.addLogEntry(message, 'Error');
 }
 
 /**
@@ -93,14 +93,10 @@ const errorLogPath = '/wordpress/wp-content/debug.log';
 /**
  * Read the WordPress debug.log file and return its content.
  *
- * @param loggerInstance The logger instance
  * @param UniversalPHP playground instance
  * @returns string The content of the debug.log file
  */
-async function getRequestPhpErrorLog(
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) {
+async function getRequestPhpErrorLog(playground: UniversalPHP) {
 	if (!(await playground.fileExists(errorLogPath))) {
 		return '';
 	}
@@ -118,17 +114,18 @@ function addPlaygroundRequestEndListener(
 	playground: UniversalPHP
 ) {
 	playground.addEventListener('request.end', async () => {
-		const log = await getRequestPhpErrorLog(loggerInstance, playground);
+		const log = await getRequestPhpErrorLog(playground);
 		if (log.length > lastPHPLogLength) {
-			loggerInstance.addRawLogMessage(log.substring(lastPHPLogLength));
-			loggerInstance.consoleLog(log.substring(lastPHPLogLength));
+			const currentLog = log.substring(lastPHPLogLength);
+			loggerInstance.addRawLogEntry(currentLog);
+			loggerInstance.consoleLog(currentLog);
 			lastPHPLogLength = log.length;
 		}
 	});
 	playground.addEventListener('request.error', (event) => {
 		event = event as PHPRequestErrorEvent;
 		if (event.error) {
-			loggerInstance.addLogMessage(
+			loggerInstance.addLogEntry(
 				`${event.error.message} ${event.error.stack}`,
 				'Fatal',
 				'PHP-WASM'
