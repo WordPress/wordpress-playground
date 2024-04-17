@@ -10,22 +10,10 @@ assignees: ''
 ## Describe the bug
 <--! What did you encounter that seems to be broken? -->
 
-## Blueprint or no?
-Did you send a custom blueprint to the instance, or just boot up as-is?
-<!-- 
+## Did you use a blueprint?
+<!-- Did you send a custom blueprint to the instance, or click a link? -->
 
-Yes, I used a custom blueprint: 
-- link to blueprint URL (GitHub, SVN, publicly accessible link)
-- or replace these lines with Blueprint code attached from below
-
-No - I went to a URL pointing to a fragment on playground.wordpress.net 
-If you didn't use a custom blueprint: 
-- write no custom blueprint and
-- explain user flow for how you got to this link
-- Please link to the Issue, Pull Request, or discussion around the link with fragment
-
-
--->
+If you used a blueprint, paste it below or paste a link to it
 
 ## What protocol is used with the blueprint?
 Query API: https://wordpress.github.io/wordpress-playground/apis-overview#query-api
