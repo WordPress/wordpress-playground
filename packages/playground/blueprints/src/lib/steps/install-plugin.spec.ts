@@ -1,113 +1,159 @@
 import { NodePHP } from '@php-wasm/node';
-import { compileBlueprint, runBlueprintSteps } from '../compile';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { installPlugin } from './install-plugin';
+import { phpVar } from '@php-wasm/util';
+
+async function zipFiles(
+	php: NodePHP,
+	fileName: string,
+	files: Record<string, string>
+) {
+	const zipFileName = 'test.zip';
+	const zipFilePath = `/${zipFileName}`;
+
+	await php.run({
+		code: `<?php $zip = new ZipArchive(); 
+					 $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
+					 $files = ${phpVar(files)};
+					 foreach($files as $path => $content) {
+						$zip->addFromString($path, $content);
+					 }
+					 $zip->close();`,
+	});
+
+	const zip = await php.readFileAsBuffer(zipFilePath);
+	php.unlink(zipFilePath);
+	return new File([zip], fileName);
+}
+
+describe('Blueprint step installPlugin – without a root-level folder', () => {
+	it('should install a plugin even when it is zipped directly without a root-level folder', async () => {
+		const php = await NodePHP.load(RecommendedPHPVersion, {
+			requestHandler: {
+				documentRoot: '/wordpress',
+			},
+		});
+
+		// Create plugins folder
+		const rootPath = php.documentRoot;
+		const pluginsPath = `${rootPath}/wp-content/plugins`;
+		php.mkdir(pluginsPath);
+
+		// Create test plugin
+		const pluginName = 'test-plugin';
+
+		await installPlugin(php, {
+			pluginZipFile: await zipFiles(
+				php,
+				// Note the ZIP filename is different from plugin folder name
+				`${pluginName}-0.0.1.zip`,
+				{
+					'index.php': `/**\n * Plugin Name: Test Plugin`,
+				}
+			),
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+
+		expect(php.fileExists(`${pluginsPath}/${pluginName}-0.0.1`)).toBe(true);
+	});
+});
 
 describe('Blueprint step installPlugin', () => {
 	let php: NodePHP;
+	// Create plugins folder
+	let rootPath = '';
+	let installedPluginPath = '';
+	const pluginName = 'test-plugin';
+	const zipFileName = `${pluginName}-0.0.1.zip`;
 	beforeEach(async () => {
 		php = await NodePHP.load(RecommendedPHPVersion, {
 			requestHandler: {
 				documentRoot: '/wordpress',
 			},
 		});
+		rootPath = php.documentRoot;
+		php.mkdir(`${rootPath}/wp-content/plugins`);
+		installedPluginPath = `${rootPath}/wp-content/plugins/${pluginName}`;
+	});
+
+	afterEach(() => {
+		php.exit();
 	});
 
 	it('should install a plugin', async () => {
-		// Create test plugin
-		const pluginName = 'test-plugin';
-
-		php.mkdir(`/${pluginName}`);
-		php.writeFile(
-			`/${pluginName}/index.php`,
-			`/**\n * Plugin Name: Test Plugin`
-		);
-
-		// Note the package name is different from plugin folder name
-		const zipFileName = `${pluginName}-0.0.1.zip`;
-
-		await php.run({
-			code: `<?php $zip = new ZipArchive(); 
-						 $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
-						 $zip->addFile("/${pluginName}/index.php"); 
-						 $zip->close();`,
-		});
-
-		php.rmdir(`/${pluginName}`);
-
-		expect(php.fileExists(zipFileName)).toBe(true);
-
-		// Create plugins folder
-		const rootPath = await php.documentRoot;
-		const pluginsPath = `${rootPath}/wp-content/plugins`;
-
-		php.mkdir(pluginsPath);
-
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'installPlugin',
-						pluginZipFile: {
-							resource: 'vfs',
-							path: zipFileName,
-						},
-						options: {
-							activate: false,
-						},
-					},
-				],
+		await installPlugin(php, {
+			pluginZipFile: await zipFiles(php, zipFileName, {
+				[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
 			}),
-			php
-		);
-
-		php.unlink(zipFileName);
-
-		expect(php.fileExists(`${pluginsPath}/${pluginName}`)).toBe(true);
+			ifAlreadyInstalled: 'overwrite',
+			options: {
+				activate: false,
+			},
+		});
+		expect(php.fileExists(installedPluginPath)).toBe(true);
 	});
 
-	it('should install a plugin even when it is zipped directly without a root-level folder', async () => {
-		// Create test plugin
-		const pluginName = 'test-plugin';
-
-		php.writeFile('/index.php', `/**\n * Plugin Name: Test Plugin`);
-
-		// Note the package name is different from plugin folder name
-		const zipFileName = `${pluginName}-0.0.1.zip`;
-
-		await php.run({
-			code: `<?php $zip = new ZipArchive(); 
-						 $zip->open("${zipFileName}", ZIPARCHIVE::CREATE); 
-						 $zip->addFile("/index.php"); 
-						 $zip->close();`,
+	describe('ifAlreadyInstalled option', () => {
+		beforeEach(async () => {
+			await installPlugin(php, {
+				pluginZipFile: await zipFiles(php, zipFileName, {
+					[`${pluginName}/index.php`]: `/**\n * Plugin Name: Test Plugin`,
+				}),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
 		});
 
-		expect(php.fileExists(zipFileName)).toBe(true);
+		it('ifAlreadyInstalled=overwrite should overwrite the plugin if it already exists', async () => {
+			// Install the plugin
+			await installPlugin(php, {
+				pluginZipFile: await zipFiles(php, zipFileName, {
+					[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
+				}),
+				ifAlreadyInstalled: 'overwrite',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: A different Plugin');
+		});
 
-		// Create plugins folder
-		const rootPath = await php.documentRoot;
-		const pluginsPath = `${rootPath}/wp-content/plugins`;
+		it('ifAlreadyInstalled=skip should skip the plugin if it already exists', async () => {
+			// Install the plugin
+			await installPlugin(php, {
+				pluginZipFile: await zipFiles(php, zipFileName, {
+					[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
+				}),
+				ifAlreadyInstalled: 'skip',
+				options: {
+					activate: false,
+				},
+			});
+			expect(
+				php.readFileAsText(`${installedPluginPath}/index.php`)
+			).toContain('Plugin Name: Test Plugin');
+		});
 
-		php.mkdir(pluginsPath);
-
-		await runBlueprintSteps(
-			compileBlueprint({
-				steps: [
-					{
-						step: 'installPlugin',
-						pluginZipFile: {
-							resource: 'vfs',
-							path: zipFileName,
-						},
-						options: {
-							activate: false,
-						},
+		it('ifAlreadyInstalled=error should throw an error if the plugin already exists', async () => {
+			// Install the plugin
+			await expect(
+				installPlugin(php, {
+					pluginZipFile: await zipFiles(php, zipFileName, {
+						[`${pluginName}/index.php`]: `/**\n * Plugin Name: A different Plugin`,
+					}),
+					ifAlreadyInstalled: 'error',
+					options: {
+						activate: false,
 					},
-				],
-			}),
-			php
-		);
-
-		php.unlink(zipFileName);
-		expect(php.fileExists(`${pluginsPath}/${pluginName}-0.0.1`)).toBe(true);
+				})
+			).rejects.toThrowError();
+		});
 	});
 });

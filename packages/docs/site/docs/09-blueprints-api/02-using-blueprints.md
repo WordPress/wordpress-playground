@@ -20,20 +20,20 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
 		"php": "7.4",
-		"wp": "5.9"
+		"wp": "6.5"
 	}
 }
 ```
 
 And then you would go to
-`https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"5.9"}}`.
+`https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"6.5"}}`.
 
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
 		"php": "7.4",
-		"wp": "5.9"
+		"wp": "6.5"
 	}
 }} />
 

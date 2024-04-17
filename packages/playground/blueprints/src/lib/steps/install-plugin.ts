@@ -1,5 +1,5 @@
 import { StepHandler } from '.';
-import { installAsset } from './install-asset';
+import { InstallAssetOptions, installAsset } from './install-asset';
 import { activatePlugin } from './activate-plugin';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
@@ -23,7 +23,8 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * }
  * </code>
  */
-export interface InstallPluginStep<ResourceType> {
+export interface InstallPluginStep<ResourceType>
+	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
@@ -54,7 +55,7 @@ export interface InstallPluginOptions {
  */
 export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 	playground,
-	{ pluginZipFile, options = {} },
+	{ pluginZipFile, ifAlreadyInstalled, options = {} },
 	progress?
 ) => {
 	const zipFileName = pluginZipFile.name.split('/').pop() || 'plugin.zip';
@@ -62,6 +63,7 @@ export const installPlugin: StepHandler<InstallPluginStep<File>> = async (
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} plugin`);
 	const { assetFolderPath } = await installAsset(playground, {
+		ifAlreadyInstalled,
 		zipFile: pluginZipFile,
 		targetPath: `${await playground.documentRoot}/wp-content/plugins`,
 	});
