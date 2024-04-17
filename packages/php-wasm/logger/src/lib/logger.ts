@@ -116,7 +116,6 @@ export class Logger extends EventTarget {
 	 * @returns void
 	 */
 	public consoleLog(log: string, severity?: LogSeverity): void {
-		// TODO: Add a setting to enable/disable console logging.
 		if (!this.consoleLogging) {
 			return;
 		}
@@ -161,6 +160,48 @@ export class Logger extends EventTarget {
 	 */
 	public getContext(): Record<string, any> {
 		return { ...this.context };
+	}
+
+	/**
+	 * Log message
+	 */
+	public log(message: any): void {
+		this.addLogMessage(message);
+	}
+
+	/**
+	 * Log debug message
+	 */
+	public debug(message: any): void {
+		this.addLogMessage(message, 'Debug');
+	}
+
+	/**
+	 * Log info message
+	 */
+	public info(message: any): void {
+		this.addLogMessage(message, 'Info');
+	}
+
+	/**
+	 * Log warning message
+	 */
+	public warn(message: any): void {
+		this.addLogMessage(message, 'Warn');
+	}
+
+	/**
+	 * Log error message
+	 */
+	public error(message: any): void {
+		this.addLogMessage(message, 'Error');
+	}
+
+	/**
+	 * Enable console logging.
+	 */
+	public enableConsoleLogging(): void {
+		this.consoleLogging = true;
 	}
 }
 
