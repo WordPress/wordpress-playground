@@ -59,6 +59,16 @@ if (isset($_POST['url'])) {
     }
     $text .= "\n\nUrl\n\n" . $_POST['url'];
 }
+
+if (isset($_POST['context']) && !empty($_POST['context'])) {
+    $text .= "\n\nContext\n\n" . print_r($_POST['context'], true);
+}
+
+// Add blueprint
+if (isset($_POST['blueprint']) && !empty($_POST['blueprint'])) {
+    $text .= "\n\nBlueprint\n\n" . print_r($_POST['blueprint'], true);
+}
+
 $text = urlencode($text);
 
 $ch = curl_init();
