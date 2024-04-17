@@ -38,6 +38,7 @@ You can use the [Site Health](https://wordpress.org/documentation/article/site-h
  - submit local system info
 
 In the Playground URL bar, go to `/wp-admin/site-health.php?tab=debug` to access the full debug info for your website
+You can then attach the Site Health report to your issue in a text block
 
 You can use the Playground menu to `Report error`, which will automaticlly send some information and submit to the `#playground-logs` Channel on Making WordPress Slack.
 
@@ -52,4 +53,3 @@ Press F12 and copy/paste or provide a screenshot of any console errors
 Add any other context about the problem here.
 - Links to documentation
 - Related issues
-- screenshots or screen casts relating to issue
