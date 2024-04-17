@@ -1,9 +1,6 @@
+/* eslint-disable no-console */
 /// <reference lib="WebWorker" />
 
-import {
-	PHPRequestErrorEvent,
-	UniversalPHP,
-} from '@php-wasm/universal/src/lib/universal-php';
 /**
  * Log severity levels.
  */
@@ -26,148 +23,14 @@ export class Logger extends EventTarget {
 	private logs: string[] = [];
 
 	/**
-	 * Whether the window events are connected.
-	 */
-	private windowConnected = false;
-
-	/**
-	 * The length of the last PHP log.
-	 */
-	private lastPHPLogLength = 0;
-
-	/**
 	 * Context data
 	 */
 	private context: Record<string, any> = {};
 
 	/**
-	 * The path to the error log file.
+	 * Enable console logging.
 	 */
-	private errorLogPath = '/wordpress/wp-content/debug.log';
-
-	constructor(errorLogPath?: string) {
-		super();
-		if (errorLogPath) {
-			this.errorLogPath = errorLogPath;
-		}
-	}
-
-	/**
-	 * Read the WordPress debug.log file and return its content.
-	 *
-	 * @param UniversalPHP playground instance
-	 * @returns string The content of the debug.log file
-	 */
-	private async getRequestPhpErrorLog(playground: UniversalPHP) {
-		if (!(await playground.fileExists(this.errorLogPath))) {
-			return '';
-		}
-		return await playground.readFileAsText(this.errorLogPath);
-	}
-
-	/**
-	 * Log Windows errors.
-	 *
-	 * @param ErrorEvent event
-	 */
-	private logWindowError(event: ErrorEvent) {
-		this.log(
-			`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-			'Error'
-		);
-	}
-
-	/**
-	 * Log unhandled promise rejections.
-	 *
-	 * @param PromiseRejectionEvent event
-	 */
-	private logUnhandledRejection(event: PromiseRejectionEvent) {
-		// No reason was provided, so we can't log anything.
-		if (!event?.reason) {
-			return;
-		}
-		const message = event?.reason.stack ?? event.reason;
-		this.log(message, 'Error');
-	}
-
-	/**
-	 * Register a listener for the window error events and log the data.
-	 */
-	public addWindowErrorListener() {
-		// Ensure that the window events are connected only once.
-		if (this.windowConnected) {
-			return;
-		}
-		if (typeof window === 'undefined') {
-			return;
-		}
-
-		window.addEventListener('error', this.logWindowError.bind(this));
-		window.addEventListener(
-			'unhandledrejection',
-			this.logUnhandledRejection.bind(this)
-		);
-		window.addEventListener(
-			'rejectionhandled',
-			this.logUnhandledRejection.bind(this)
-		);
-		this.windowConnected = true;
-	}
-
-	/**
-	 * Register a listener for service worker messages and log the data.
-	 */
-	public addServiceWorkerMessageListener() {
-		const requestClientInfo = () => {
-			if (!navigator.serviceWorker.controller) {
-				return;
-			}
-			navigator.serviceWorker.controller.postMessage('getClientInfo');
-		};
-		requestClientInfo();
-		navigator.serviceWorker.addEventListener(
-			'controllerchange',
-			requestClientInfo
-		);
-		navigator.serviceWorker.addEventListener('message', (event) => {
-			if (event.data.clientCount) {
-				this.addContext({ clientCount: event.data.clientCount });
-			}
-		});
-	}
-
-	/**
-	 * Register a listener for the request.end event and log the data.
-	 * @param UniversalPHP playground instance
-	 */
-	public addPlaygroundRequestEndListener(playground: UniversalPHP) {
-		playground.addEventListener('request.end', async () => {
-			const log = await this.getRequestPhpErrorLog(playground);
-			if (log.length > this.lastPHPLogLength) {
-				this.logRaw(log.substring(this.lastPHPLogLength));
-				this.lastPHPLogLength = log.length;
-			}
-		});
-		playground.addEventListener('request.error', (event) => {
-			event = event as PHPRequestErrorEvent;
-			if (event.error) {
-				this.log(
-					`${event.error.message} ${event.error.stack}`,
-					'Fatal',
-					'PHP-WASM'
-				);
-				this.dispatchEvent(
-					new CustomEvent(this.fatalErrorEvent, {
-						detail: {
-							logs: this.getLogs(),
-							source: event.source,
-						},
-					})
-				);
-			}
-		});
-	}
+	private consoleLogging = true;
 
 	/**
 	 * Get UTC date in the PHP log format https://github.com/php/php-src/blob/master/main/main.c#L849
@@ -203,22 +66,25 @@ export class Logger extends EventTarget {
 	 * @param string prefix
 	 */
 	public formatMessage(
-		message: string,
+		message: any,
 		severity: LogSeverity,
 		prefix: string
 	): string {
+		if (typeof message === 'object') {
+			message = JSON.stringify(message);
+		}
 		const now = this.formatLogDate(new Date());
 		return `[${now}] ${prefix} ${severity}: ${message}`;
 	}
 
 	/**
 	 * Log message with severity and timestamp.
-	 * @param string message
+	 * @param any message
 	 * @param LogSeverity severity
 	 * @param string prefix
 	 */
-	public log(
-		message: string,
+	public addLogMessage(
+		message: any,
 		severity?: LogSeverity,
 		prefix?: LogPrefix
 	): void {
@@ -230,16 +96,49 @@ export class Logger extends EventTarget {
 			severity,
 			prefix ?? 'Playground'
 		);
-		this.logRaw(log);
+		this.addRawLogMessage(log);
+		this.consoleLog(log, severity);
 	}
 
 	/**
 	 * Log message without severity and timestamp.
 	 * @param string log
+	 * @returns void
 	 */
-	public logRaw(log: string): void {
+	public addRawLogMessage(log: string): void {
 		this.logs.push(log);
-		console.debug(log);
+	}
+
+	/**
+	 * Log message to the console.
+	 * @param string log
+	 * @param LogSeverity severity
+	 * @returns void
+	 */
+	public consoleLog(log: string, severity?: LogSeverity): void {
+		// TODO: Add a setting to enable/disable console logging.
+		if (!this.consoleLogging) {
+			return;
+		}
+		switch (severity) {
+			case 'Debug':
+				console.debug(log);
+				break;
+			case 'Info':
+				console.info(log);
+				break;
+			case 'Warn':
+				console.warn(log);
+				break;
+			case 'Error':
+				console.error(log);
+				break;
+			case 'Fatal':
+				console.error(log);
+				break;
+			default:
+				console.log(log);
+		}
 	}
 
 	/**
@@ -269,65 +168,3 @@ export class Logger extends EventTarget {
  * The logger instance.
  */
 export const logger: Logger = new Logger();
-
-/**
- * Collect errors from JavaScript window events like error and log them.
- * @param loggerInstance The logger instance
- */
-export function collectWindowErrors(loggerInstance: Logger) {
-	loggerInstance.addWindowErrorListener();
-	loggerInstance.addServiceWorkerMessageListener();
-}
-
-/**
- * Collect PHP logs from the error_log file and log them.
- * @param UniversalPHP playground instance
- * @param loggerInstance The logger instance
- */
-export function collectPhpLogs(
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) {
-	loggerInstance.addPlaygroundRequestEndListener(playground);
-}
-
-/**
- * Collect worker metrics.
- *
- * @param worker The service worker
- */
-export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
-	worker.addEventListener('activate', (event) => {
-		event.waitUntil(worker.clients.claim());
-	});
-	worker.addEventListener('message', (event) => {
-		if (event.data === 'getClientInfo') {
-			worker.clients.matchAll().then((clients) => {
-				if (!event.source) {
-					return;
-				}
-				event.source.postMessage({
-					clientCount: clients.filter(
-						// Only count top-level frames to get the number of tabs.
-						(c) => c.frameType === 'top-level'
-					).length,
-				});
-			});
-		}
-	});
-}
-
-/**
- * Add a listener for the Playground crashes.
- * These crashes include Playground errors like Asyncify errors.
- * The callback function will receive an Event object with logs in the detail property.
- *
- * @param loggerInstance The logger instance
- * @param callback The callback function
- */
-export function addCrashListener(
-	loggerInstance: Logger,
-	callback: EventListenerOrEventListenerObject
-) {
-	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
-}
