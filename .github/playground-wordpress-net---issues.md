@@ -20,26 +20,6 @@ Query API: https://wordpress.github.io/wordpress-playground/apis-overview#query-
 JavaScript API: https://wordpress.github.io/wordpress-playground/apis-overview#javascript-api
 PR Previewer - Look in `./testing/PROP.md` for more info
 
-## paste blueprint as `JSON` code below
-The best practice is to copy directly from the code editor, this will retain formatting and readibility in most cases. 
-
-If there are formatting issues, you can use a `JSON` code formatter like https://jsonformatter.org/
-Please copy/paste your blueprint from a code editor, which will retain spacing
-
-Once copy pasted below, you can delete all of these instructions. 
-It should be just the the `JSON` code directly below the bold sub-section above.
-<!--
-
-```JSON
-
-```
-
--->
-
-If you chose **No** above - you did not have a blueprint...
-Please delete the entire previous section to help keep the issue clean.
-
-
 ## Journey to reproduce issue
 1. Go to '...'
 2. Expected
