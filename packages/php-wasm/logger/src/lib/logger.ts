@@ -119,13 +119,20 @@ export class Logger extends EventTarget {
 	 * Register a listener for service worker messages and log the data.
 	 */
 	public addServiceWorkerMessageListener() {
-		if (!navigator.serviceWorker.controller) {
-			return;
-		}
-		navigator.serviceWorker.controller.postMessage('getClientInfo');
+		const requestClientInfo = () => {
+			if (!navigator.serviceWorker.controller) {
+				return;
+			}
+			navigator.serviceWorker.controller.postMessage('getClientInfo');
+		};
+		requestClientInfo();
+		navigator.serviceWorker.addEventListener(
+			'controllerchange',
+			requestClientInfo
+		);
 		navigator.serviceWorker.addEventListener('message', (event) => {
-			if (event.data.clientsCount) {
-				this.addContext({ ...event.data });
+			if (event.data.clientCount) {
+				this.addContext({ clientCount: event.data.clientCount });
 			}
 		});
 	}
@@ -299,7 +306,12 @@ export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 				if (!event.source) {
 					return;
 				}
-				event.source.postMessage({ clientsCount: clients.length });
+				event.source.postMessage({
+					clientCount: clients.filter(
+						// Only count top-level frames to get the number of tabs.
+						(c) => c.frameType === 'top-level'
+					).length,
+				});
 			});
 		}
 	});

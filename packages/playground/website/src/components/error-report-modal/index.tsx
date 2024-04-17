@@ -18,6 +18,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
+		setShowErrorModal(true);
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
@@ -61,6 +62,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	async function onSubmit() {
+		console.log(getContext());
+		return;
 		setLoading(true);
 		const formdata = new FormData();
 		formdata.append('description', text);
@@ -73,13 +76,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 		formdata.append('context', JSON.stringify(getContext()));
 		formdata.append('blueprint', JSON.stringify(props.blueprint));
 		try {
-			const response = await fetch(
-				'https://playground.wordpress.net/logger.php',
-				{
-					method: 'POST',
-					body: formdata,
-				}
-			);
+			const response = await fetch('http://wp.test/logger.php', {
+				method: 'POST',
+				body: formdata,
+			});
 			setSubmitted(true);
 
 			const body = await response.json();
