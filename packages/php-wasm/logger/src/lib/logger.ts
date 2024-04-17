@@ -65,7 +65,7 @@ export class Logger extends EventTarget {
 	 * @param LogSeverity severity
 	 * @param string prefix
 	 */
-	public formatLogEntry(
+	private formatLogEntry(
 		message: any,
 		severity: LogSeverity,
 		prefix: string
@@ -114,6 +114,13 @@ export class Logger extends EventTarget {
 	 */
 	public getLogs(): string[] {
 		return [...this.logs];
+	}
+
+	/**
+	 * Clear all logs.
+	 */
+	public clearLogs(): void {
+		this.logs = [];
 	}
 
 	/**

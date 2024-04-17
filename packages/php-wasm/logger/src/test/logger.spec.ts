@@ -1,11 +1,13 @@
 import { NodePHP } from '@php-wasm/node';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { logger, addCrashListener, collectPhpLogs } from '../lib/logger';
+import { logger } from '../lib/logger';
+import { addCrashListener, collectPhpLogs } from '../lib/log-collector';
 
 describe('Logger', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
+		logger.clearLogs();
 	});
 	it('Event listener should work', () => {
 		const listener = vi.fn();
@@ -19,5 +21,19 @@ describe('Logger', () => {
 
 		const logs = logger.getLogs();
 		expect(logs.length).toBe(1);
+	});
+
+	it('Log message should be added', () => {
+		logger.warn('test');
+		const logs = logger.getLogs();
+		expect(logs.length).toBe(1);
+		expect(logs[0]).toMatch(
+			/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\] Playground Warn: test/
+		);
+	});
+
+	it('Logger context should be added', () => {
+		logger.addContext({ test: 'test' });
+		expect(logger.getContext()).toEqual({ test: 'test' });
 	});
 });
