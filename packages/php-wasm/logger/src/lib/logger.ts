@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-/// <reference lib="WebWorker" />
 
 /**
  * Log severity levels.

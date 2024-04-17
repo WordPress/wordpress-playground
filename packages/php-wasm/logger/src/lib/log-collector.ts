@@ -1,3 +1,5 @@
+/// <reference lib="WebWorker" />
+
 import {
 	PHPRequestErrorEvent,
 	UniversalPHP,
