@@ -959,6 +959,27 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				'PHP.run() failed with exit code 1'
 			);
 		});
+		it('After failure, returns the correct exit code on subsequent runs', async () => {
+			const promise1 = php.run({
+				code: '<?php throw new Exception();',
+			});
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
+
+			const result2 = await php.run({
+				code: '<?php ',
+			});
+			expect(result2.exitCode).toBe(0);
+
+			const promise3 = php.run({
+				code: '<?php exit(1);',
+			});
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
+		});
 	});
 
 	describe('Stdio', () => {

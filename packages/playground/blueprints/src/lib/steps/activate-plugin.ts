@@ -41,7 +41,7 @@ require_once( ${phpVar(docroot)}. "/wp-load.php" );
 require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
 // Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
 $plugin_path = ${phpVar(pluginPath)};
 
