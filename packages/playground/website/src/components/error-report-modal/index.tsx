@@ -18,7 +18,6 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
-		setShowErrorModal(true);
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
@@ -62,8 +61,6 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	async function onSubmit() {
-		console.log(getContext());
-		return;
 		setLoading(true);
 		const formdata = new FormData();
 		formdata.append('description', text);
