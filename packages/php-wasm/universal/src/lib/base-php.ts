@@ -34,9 +34,14 @@ const NUMBER = 'number';
 
 export const __private__dont__use = Symbol('__private__dont__use');
 
-export interface PHPExecutionFailureError extends Error {
-	response: PHPResponse;
-	source: 'request' | 'php-wasm';
+export class PHPExecutionFailureError extends Error {
+	constructor(
+		message: string,
+		public response: PHPResponse,
+		public source: 'request' | 'php-wasm'
+	) {
+		super(message);
+	}
 }
 
 /**
@@ -284,14 +289,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			const response = await this.#handleRequest();
 			if (response.exitCode !== 0) {
 				console.warn(`PHP.run() output was:`, response.text);
-				const error = new Error(
+				const error = new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
-						response.errors
-				);
-				// @ts-ignore
-				error.response = response;
-				// @ts-ignore
-				error.source = 'request';
+						response.errors,
+					response,
+					'request'
+				) as PHPExecutionFailureError;
 				console.error(error);
 				throw error;
 			}
