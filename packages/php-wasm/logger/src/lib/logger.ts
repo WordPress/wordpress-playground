@@ -119,20 +119,25 @@ export class Logger extends EventTarget {
 	 * Register a listener for service worker messages and log the data.
 	 */
 	public addServiceWorkerMessageListener() {
-		const requestClientInfo = () => {
+		const getServiceWorkerMetrics = () => {
 			if (!navigator.serviceWorker.controller) {
 				return;
 			}
-			navigator.serviceWorker.controller.postMessage('getClientInfo');
+			navigator.serviceWorker.controller.postMessage(
+				'getServiceWorkerMetrics'
+			);
 		};
-		requestClientInfo();
+		getServiceWorkerMetrics();
 		navigator.serviceWorker.addEventListener(
 			'controllerchange',
-			requestClientInfo
+			getServiceWorkerMetrics
 		);
 		navigator.serviceWorker.addEventListener('message', (event) => {
-			if (event.data.clientCount) {
-				this.addContext({ clientCount: event.data.clientCount });
+			if (event.data.numberOfOpenPlaygroundTabs) {
+				this.addContext({
+					numberOfOpenPlaygroundTabs:
+						event.data.numberOfOpenPlaygroundTabs,
+				});
 			}
 		});
 	}
@@ -292,22 +297,25 @@ export function collectPhpLogs(
 }
 
 /**
- * Collect worker metrics.
+ * Report service worker metrics.
+ * Allows the logger to request metrics from the service worker by sending a message.
+ * The service worker will respond with the number of open Playground tabs.
  *
  * @param worker The service worker
  */
-export function collectWorkerMetrics(worker: ServiceWorkerGlobalScope) {
+export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 	worker.addEventListener('activate', (event) => {
+		// Trigger controllerchange event to update the client count.
 		event.waitUntil(worker.clients.claim());
 	});
 	worker.addEventListener('message', (event) => {
-		if (event.data === 'getClientInfo') {
+		if (!event.source) {
+			return;
+		}
+		if (event.data === 'getServiceWorkerMetrics') {
 			worker.clients.matchAll().then((clients) => {
-				if (!event.source) {
-					return;
-				}
-				event.source.postMessage({
-					clientCount: clients.filter(
+				event.source!.postMessage({
+					numberOfOpenPlaygroundTabs: clients.filter(
 						// Only count top-level frames to get the number of tabs.
 						(c) => c.frameType === 'top-level'
 					).length,
