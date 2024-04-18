@@ -30,6 +30,8 @@ And then you would go to
 
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
 
+import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
+
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
 		"php": "7.4",
