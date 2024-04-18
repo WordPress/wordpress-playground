@@ -117,6 +117,7 @@ export class Logger extends EventTarget {
 
 	/**
 	 * Register a listener for service worker messages and log the data.
+	 * The service worker will send the number of open Playground tabs.
 	 */
 	public addServiceWorkerMessageListener() {
 		const getServiceWorkerMetrics = () => {
