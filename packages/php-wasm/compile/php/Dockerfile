@@ -24,6 +24,7 @@ RUN mkdir -p /root/lib/include /root/lib/lib /libs
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
+COPY ./libcurl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
 COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
@@ -37,6 +38,7 @@ COPY ./oniguruma/dist/root/lib /root/lib
 # Build PHP
 
 # The PHP extensions to build:
+ARG WITH_CURL
 ARG WITH_VRZNO
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
@@ -192,6 +194,13 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 		echo -n ' --without-iconv ' >> /root/.php-configure-flags; \
 	fi;
 
+# Add curl if needed
+RUN if [ "$WITH_CURL" = "yes" ]; \
+	then \
+		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
+		echo -n ' /root/lib/lib/libcurl.a' >> /root/.emcc-php-wasm-sources; \
+	fi;
+
 # Add mbstring if needed
 RUN if [ "$WITH_MBSTRING" = "yes" ]; \
 	then echo -n ' --enable-mbstring ' >> /root/.php-configure-flags; \
@@ -243,6 +252,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+	CURL_CFLAGS="-I/root/lib/include" \
+	CURL_LIBS="-L/root/lib/lib" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
@@ -298,13 +309,9 @@ RUN if [[ "${PHP_VERSION:0:1}" -le "7" && "${PHP_VERSION:2:1}" -le "3" ]]; then 
 
 # Rename the original php_pollfd_for() implementation so that we can link our own version.
 RUN /root/replace.sh 's/static inline int php_pollfd_for\(/int php_pollfd_for(php_socket_t fd, int events, struct timeval *timeouttv); static inline int __real_php_pollfd_for(/g' /root/php-src/main/php_network.h
-RUN /root/replace.sh 's/static int php_cli_server_poller_poll/extern int wasm_select(int, fd_set * __restrict, fd_set * __restrict, fd_set * __restrict, struct timeval * __restrict); static int php_cli_server_poller_poll/g' /root/php-src/sapi/cli/php_cli_server.c
 
 RUN echo 'extern ssize_t wasm_read(int fd, void *buf, size_t count);' >> /root/php-src/main/php.h;
 RUN /root/replace.sh 's/ret = read/ret = wasm_read/g' /root/php-src/main/streams/plain_wrapper.c
-
-# Provide a custom implementation of the php_select() function.
-RUN /root/replace.sh 's/return php_select\(/return wasm_select(/g' /root/php-src/sapi/cli/php_cli_server.c
 
 # Provide a custom implementation of the php_exec() function that handles spawning
 # the process inside exec(), passthru(), system(), etc.
@@ -472,7 +479,29 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "dynCall_viiiii",\
 "dynCall_viiiiiii",\
 "dynCall_viiiiiiii",'; \
-	export ASYNCIFY_ONLY=$'"zend_generator_iterator_move_forward",\
+	export ASYNCIFY_ONLY=$'"rc_dtor_func",\
+"zif_curl_exec",\
+"curl_easy_perform",\
+"curl_multi_perform",\
+"multi_runsingle",\
+"curl_multi_poll",\
+"Curl_multi_wait",\
+"Curl_is_connected",\
+"Curl_socket_check",\
+"Curl_poll",\
+"Curl_wait_ms",\
+"Curl_readwrite",\
+"Curl_http_connect",\
+"https_connecting",\
+"Curl_ssl_connect_nonblocking",\
+"Curl_ossl_connect_nonblocking"\
+"ossl_connect_common",\
+"Curl_ossl_seed",\
+"RAND_status",\
+"rand_status",\
+"RAND_poll",\
+"__wrap_select",\
+"zend_generator_iterator_move_forward",\
 "ZEND_FE_FETCH_R_SPEC_VAR_HANDLER",\
 "zend_generator_resume",\
 "zend_generator_iterator_rewind",\
@@ -722,7 +751,6 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "shutdown_executor",\
 "shutdown_destructors",\
 "stream_resource_regular_dtor",\
-"wasm_select",\
 "zend_call_function",\
 "zend_call_known_function",\
 "zend_close_rsrc_list",\
@@ -875,6 +903,7 @@ RUN set -euxo pipefail; \
 	-s NODEJS_CATCH_REJECTION=0      \
 	-s INVOKE_RUN=0                  \
 	-s EXIT_RUNTIME=1                \
+	-Wl,--wrap=select \
 		/root/lib/libphp.a \
 		/root/proc_open.c \
 		/root/php_wasm.c \
