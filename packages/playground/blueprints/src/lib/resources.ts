@@ -212,15 +212,29 @@ export abstract class FetchResource extends Resource {
 	async resolve() {
 		this.progress?.setCaption(this.caption);
 		const url = this.getURL();
-		let response = await fetch(url);
-		response = await cloneResponseMonitorProgress(
-			response,
-			this.progress?.loadingListener ?? noop
-		);
-		if (response.status !== 200) {
-			throw new Error(`Could not download "${url}"`);
+		try {
+			let response = await fetch(url);
+			if (!response.ok) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			response = await cloneResponseMonitorProgress(
+				response,
+				this.progress?.loadingListener ?? noop
+			);
+			if (response.status !== 200) {
+				throw new Error(`Could not download "${url}"`);
+			}
+			return new File([await response.blob()], this.name);
+		} catch (e) {
+			throw new Error(`
+				Could not download "${url}".
+				Check if the URL is correct and the server is reachable.
+				If it's reachable, the server might be blocking the request.
+				Check the console and network for more information.
+				In case of a CORS error, you can try using a proxy server.
+				Error:
+				${e}`);
 		}
-		return new File([await response.blob()], this.name);
 	}
 
 	/**
