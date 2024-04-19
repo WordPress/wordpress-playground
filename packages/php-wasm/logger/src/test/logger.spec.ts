@@ -1,6 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { logger, addFatalErrorListener, collectPhpLogs } from '../lib/logger';
+import { logger, addCrashListener, collectPhpLogs } from '../lib/logger';
 
 describe('Logger', () => {
 	let php: NodePHP;
@@ -10,7 +10,7 @@ describe('Logger', () => {
 	it('Event listener should work', () => {
 		const listener = vi.fn();
 		collectPhpLogs(logger, php);
-		addFatalErrorListener(logger, listener);
+		addCrashListener(logger, listener);
 		php.dispatchEvent({
 			type: 'request.error',
 			error: new Error('test'),

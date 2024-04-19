@@ -131,7 +131,7 @@ function Main() {
 		<PlaygroundContext.Provider
 			value={{ storage, showErrorModal, setShowErrorModal }}
 		>
-			<ErrorReportModal />
+			<ErrorReportModal blueprint={blueprint} />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
