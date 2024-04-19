@@ -77,3 +77,7 @@ With Blueprints, WordPress.org plugin directory may be able to offer live previe
 ### Write it once, use it anywhere
 
 Blueprints work both on the web and in node.js. You can run them both in the same JavaScript process, and through a remote Playground Client. They are the universal language of configuration. Where you can run Playground, you can use Blueprints.
+
+## Learn More
+Enhance your understanding of Blueprints with these resources:
+- [Blueprints 101](https://github.com/adamziel/blueprints/blob/trunk/docs/index.md) - Blueprints API crash course

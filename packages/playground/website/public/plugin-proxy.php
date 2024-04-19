@@ -50,7 +50,7 @@ class PluginDownloader
         if (!$prDetails) {
             throw new ApiException('invalid_pr_number');
         }
-        $branchName = $prDetails->head->ref;
+        $branchName = urlencode($prDetails->head->ref);
         $ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
         if (!$ciRuns) {
             throw new ApiException('no_ci_runs');
@@ -88,8 +88,8 @@ class PluginDownloader
             }
 
             /*
-             * Short-circuit with HTTP 200 OK when we only want to 
-             * verify whether the CI artifact seems to exist but we 
+             * Short-circuit with HTTP 200 OK when we only want to
+             * verify whether the CI artifact seems to exist but we
              * don't want to download it yet.
              */
             if (array_key_exists('verify_only', $_GET)) {
@@ -349,12 +349,12 @@ try {
         /**
          * Pass through the request headers we got from WordPress via fetch(),
          * then filter out:
-         * 
+         *
          * * The browser-specific headers
          * * Headers related to security to avoid leaking any auth information
-         * 
+         *
          * ...and pass the rest to the proxied request.
-         * 
+         *
          * @return array
          */
         function get_request_headers()

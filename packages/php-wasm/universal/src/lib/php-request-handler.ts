@@ -5,7 +5,11 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { BasePHP, normalizeHeaders } from './base-php';
+import {
+	BasePHP,
+	PHPExecutionFailureError,
+	normalizeHeaders,
+} from './base-php';
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
@@ -242,17 +246,25 @@ export class PHPRequestHandler implements RequestHandler {
 				);
 			}
 
-			return await this.php.run({
-				relativeUri: ensurePathPrefix(
-					toRelativeUrl(requestedUrl),
-					this.#PATHNAME
-				),
-				protocol: this.#PROTOCOL,
-				method: request.method || preferredMethod,
-				body,
-				scriptPath,
-				headers,
-			});
+			try {
+				return await this.php.run({
+					relativeUri: ensurePathPrefix(
+						toRelativeUrl(requestedUrl),
+						this.#PATHNAME
+					),
+					protocol: this.#PROTOCOL,
+					method: request.method || preferredMethod,
+					body,
+					scriptPath,
+					headers,
+				});
+			} catch (error) {
+				const executionError = error as PHPExecutionFailureError;
+				if (executionError?.response) {
+					return executionError.response;
+				}
+				throw error;
+			}
 		} finally {
 			release();
 		}
