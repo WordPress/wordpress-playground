@@ -5,6 +5,17 @@ title: Coding standards
 
 # Coding standards
 
+## Error messages
+
+A good error message tells the reader exactly what to do next. This matters especially for errors thrown by Playground public APIs. Any ambiguity in those prompts the developers to open issues in the repo. However, the error message could provide the reader will all the answers.
+
+Consider a network error – can we infer what type of error was that and provide a dedicated message outlining the next steps
+
+-   If it's a network error – say your internet connection twitched and reloading the page should fix the issue.
+-   If it's 404 – say file couldn't be found.
+-   If it's 403 – say it's probably a private resource.
+-   If it's a CORS error, provide a paragraph or two of text to explain it's a browser security thing, provide a link that explains what's CORS, say they need to move their file somewhere else, e.g. GitHub / raw.githubusercontent.com, link out to a resource explaining setting up CORS headers on their existing servers.
+
 ## Formatting
 
 Formatting is handled automatically by the relevant tools and verified by CI. Relax, sit back, and let the machines do the work.
