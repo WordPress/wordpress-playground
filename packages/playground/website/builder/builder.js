@@ -5,8 +5,6 @@ const fetchBlueprintSchema = fetch(
 	'https://playground.wordpress.net/blueprint-schema.json'
 ).then((r) => r.json());
 
-const FALLBACK_TIMEOUT = 30 * 1000;
-
 const deref = (obj, root) => {
 	if (!obj || typeof obj !== 'object' || !('$ref' in obj)) {
 		return obj;
@@ -492,12 +490,16 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 let errorTag;
 const showError = (error) => {
 	console.error(error);
-	if (!errorTag) errorTag = document.getElementById('error-output');
+	if (!errorTag) {
+		errorTag = document.getElementById('error-output');
+	}
 	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${error}</body>`;
 	errorTag.setAttribute('srcdoc', errDoc);
 };
 const clearError = (error) => {
-	if (!errorTag) errorTag = document.getElementById('error-output');
+	if (!errorTag) {
+		errorTag = document.getElementById('error-output');
+	}
 	errorTag.setAttribute('srcdoc', '');
 };
 
@@ -520,57 +522,62 @@ function getCurrentBlueprint(editor) {
 	return blueprint;
 }
 
+let lastRun = 0;
+const startPlaygroundWeb = (await importStartPlaygroundWeb).startPlaygroundWeb;
 const runBlueprint = async (editor) => {
-	const fallback = setTimeout(() => {
-		document.body.setAttribute('data-starting', false);
-		starting = false;
-	}, FALLBACK_TIMEOUT);
+	const currentRun = ++lastRun;
+	// Trash the old iframe and create a new one
+	// to avoid subsequent reloads conflicting with
+	// ones potentially already in progress.
+	const newIframe = document.createElement('iframe');
+	let playgroundIframe = document.getElementById('wp-playground');
+	playgroundIframe.parentNode.insertBefore(newIframe, playgroundIframe);
+	playgroundIframe.remove();
+	playgroundIframe = newIframe;
+	newIframe.id = 'wp-playground';
+
 	try {
 		window.location.hash = JSON.stringify(JSON.parse(editor.getValue()));
-		if (starting) {
-			return;
-		}
-		starting = true;
 		document.body.setAttribute('data-starting', true);
 		clearError();
+
 		const blueprintJsonObject = getCurrentBlueprint(editor);
 		window.location.hash = JSON.stringify(getCurrentBlueprint(editor));
 		formatJson(editor, blueprintJsonObject);
+
 		const blueprintCopy = JSON.parse(JSON.stringify(blueprintJsonObject));
-		delete blueprintCopy.features; // I am getting error otherwise
-		const startPlaygroundWeb = (await importStartPlaygroundWeb)
-			.startPlaygroundWeb;
 		await startPlaygroundWeb({
-			iframe: document.getElementById('wp-playground'),
+			iframe: playgroundIframe,
 			remoteUrl: `https://playground.wordpress.net/remote.html`,
 			blueprint: blueprintCopy,
 		});
-		document.body.setAttribute('data-starting', false);
-		clearTimeout(fallback);
-		starting = false;
 	} catch (error) {
-		starting = false;
-		document.body.setAttribute('data-starting', false);
-		showError(error);
-		clearTimeout(fallback);
+		if (currentRun === lastRun) {
+			showError(error);
+		}
 	} finally {
-		document.body.setAttribute('data-starting', false);
+		if (currentRun === lastRun) {
+			document.body.setAttribute('data-starting', false);
+		}
 	}
 };
 
 const loadFromHash = (editor) => {
 	const hash = decodeURI(window.location.hash.substr(1));
 	try {
-		formatJson(editor, JSON.parse(hash));
+		let json = '';
+		try {
+			json = JSON.parse(atob(hash));
+		} catch (e) {
+			json = JSON.parse(hash);
+		}
+		formatJson(editor, json);
 	} catch (error) {
 		console.error(error);
 	}
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-	const iframeSrc = 'https://playground.wordpress.net/';
-	const iframe = document.querySelector('iframe#wp-playground');
-	const textarea = document.querySelector('#jsontext');
+function onLoaded() {
 	const button = document.querySelector('button#run');
 	const newTab = document.querySelector('button#new-tab');
 
@@ -670,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					.getSession()
 					.insert(
 						{ row: event.end.row, column: event.end.column },
-						' []'
+						' {}'
 					);
 				editor.moveCursorTo(event.end.row, 1 + event.end.column);
 			}
@@ -705,21 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 			}
 
-			if (
-				prevKey.length === 2 &&
-				prevKey[0] === 'step' &&
-				prevKey[1] === 'steps'
-			) {
-				editor.getSession().insert(
-					{
-						row: event.start.row,
-						column: event.start.column + 1,
-					},
-					' ""'
-				);
-				editor.moveCursorTo(event.end.row, 1 + event.end.column);
-				editor.execCommand('startAutocomplete');
-			} else if (prevKey.length === 2 && prevKey[1] === 'steps') {
+			if (prevKey.length === 2 && prevKey[1] === 'steps') {
 				const stepType = await getLastOfType(editor, 'step', event.end);
 				const properties = await getStepProperties(stepType);
 				const property = properties[prevKey[0]] ?? null;
@@ -760,40 +753,8 @@ document.addEventListener('DOMContentLoaded', () => {
 					'}'
 				);
 			return;
-		} else if (inserted === ',') {
-			const nextIndent = (lines[1 + event.start.row].match(/^(\s+)/g) || [
-				'',
-			])[0];
-			if (nextIndent.length >= indent.length) {
-				return;
-			}
-			if (lines[event.start.row][-1 + event.start.column] !== '"') {
-				editor
-					.getSession()
-					.insert(
-						{ row: event.end.row, column: event.end.column },
-						'\n' + indent
-					);
-				editor.moveCursorTo(1 + event.end.row, 1 + indent.length);
-				return;
-			}
-			editor
-				.getSession()
-				.insert(
-					{ row: event.end.row, column: event.end.column },
-					'\n' + indent + '""'
-				);
-			editor.moveCursorTo(1 + event.end.row, 1 + indent.length);
-			editor.execCommand('startAutocomplete');
 		}
 	});
-
-	window.test = {
-		iframeSrc,
-		iframe,
-		textarea,
-		button,
-	};
 
 	button.addEventListener('click', () => {
 		try {
@@ -896,22 +857,18 @@ document.addEventListener('DOMContentLoaded', () => {
 	open.addEventListener('click', openMethod);
 
 	editor.commands.addCommand({
-		name: 'Save Blueprint',
+		name: 'Run Blueprint',
 		bindKey: {
 			win: 'Ctrl-S',
 			mac: 'Command-S',
 		},
-		exec: (editor) => saveMethod(),
+		exec: (editor) => runBlueprint(editor),
 		readOnly: false,
 	});
+}
 
-	editor.commands.addCommand({
-		name: 'Open Blueprint',
-		bindKey: {
-			win: 'Ctrl-O',
-			mac: 'Command-O',
-		},
-		exec: (editor) => openMethod(),
-		readOnly: false,
-	});
-});
+if (document.readyState !== 'loading') {
+	onLoaded();
+} else {
+	document.addEventListener('DOMContentLoaded', onLoaded);
+}
