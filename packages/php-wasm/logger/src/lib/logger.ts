@@ -134,7 +134,7 @@ export class Logger extends EventTarget {
 			getServiceWorkerMetrics
 		);
 		navigator.serviceWorker.addEventListener('message', (event) => {
-			if (event.data.numberOfOpenPlaygroundTabs) {
+			if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
 				this.addContext({
 					numberOfOpenPlaygroundTabs:
 						event.data.numberOfOpenPlaygroundTabs,
