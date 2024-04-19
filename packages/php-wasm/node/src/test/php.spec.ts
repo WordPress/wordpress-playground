@@ -153,21 +153,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('popen("cat", "w")', async () => {
-			const result = await php.run({
-				code: `<?php
-				$fp = popen("cat > out", "w");
-                fwrite($fp, "WordPress\n");
-				fclose($fp);
+			try {
+				const result = await php.run({
+					code: `<?php
+					$fp = popen("cat > out", "w");
+					fwrite($fp, "WordPress\n");
+					fclose($fp);
 
-				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+					sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
-				$fp = popen("cat out", "r");
-				echo 'stdout: ' . fread($fp, 1024);
-				pclose($fp);
-			`,
-			});
+					$fp = popen("cat out", "r");
+					echo 'stdout: ' . fread($fp, 1024);
+					pclose($fp);
+				`,
+				});
 
-			expect(result.text).toEqual('stdout: WordPress\n');
+				expect(result.text).toEqual('stdout: WordPress\n');
+			} finally {
+				rmSync('out', { force: true });
+			}
 		});
 	});
 
