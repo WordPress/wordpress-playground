@@ -120,19 +120,6 @@ export class Logger extends EventTarget {
 	 * The service worker will send the number of open Playground tabs.
 	 */
 	public addServiceWorkerMessageListener() {
-		const getServiceWorkerMetrics = () => {
-			if (!navigator.serviceWorker.controller) {
-				return;
-			}
-			navigator.serviceWorker.controller.postMessage(
-				'getServiceWorkerMetrics'
-			);
-		};
-		getServiceWorkerMetrics();
-		navigator.serviceWorker.addEventListener(
-			'controllerchange',
-			getServiceWorkerMetrics
-		);
 		navigator.serviceWorker.addEventListener('message', (event) => {
 			if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
 				this.addContext({
@@ -307,34 +294,24 @@ export function collectPhpLogs(
  * @param worker The service worker
  */
 export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
-	worker.addEventListener('activate', (event) => {
-		// Trigger controllerchange event to update the client count.
-		/**
-		 * Triggers the `controllerchange` event in other clients to update the count.
-		 *
-		 * > When a service worker is initially registered, pages won't use it until they next load.
-		 * > The claim() method causes those pages to be controlled immediately. Be aware that
-		 * > this results in your service worker controlling pages that loaded regularly over the network,
-		 * > or possibly via a different service worker.
-		 * 
-		 * @see https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
-		 */
-		event.waitUntil(worker.clients.claim());
-	});
-	worker.addEventListener('message', (event) => {
-		if (!event.source) {
-			return;
-		}
-		if (event.data === 'getServiceWorkerMetrics') {
-			worker.clients.matchAll().then((clients) => {
-				event.source!.postMessage({
-					numberOfOpenPlaygroundTabs: clients.filter(
-						// Only count top-level frames to get the number of tabs.
-						(c) => c.frameType === 'top-level'
-					).length,
+	worker.addEventListener('activate', () => {
+		worker.clients.matchAll().then((clients) => {
+			const metrics = {
+				numberOfOpenPlaygroundTabs: clients.filter(
+					// Only count top-level frames to get the number of tabs.
+					(c) => c.frameType === 'top-level'
+				).length,
+			};
+			worker.clients
+				.matchAll({
+					includeUncontrolled: true,
+				})
+				.then((clients) => {
+					for (const client of clients) {
+						client.postMessage(metrics);
+					}
 				});
-			});
-		}
+		});
 	});
 }
 
