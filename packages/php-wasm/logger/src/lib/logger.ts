@@ -298,7 +298,9 @@ export function collectPhpLogs(
 }
 
 /**
- * Report service worker metrics.
+ * **Call this inside a service worker.**
+ *
+ * Reports service worker metrics.
  * Allows the logger to request metrics from the service worker by sending a message.
  * The service worker will respond with the number of open Playground tabs.
  *
