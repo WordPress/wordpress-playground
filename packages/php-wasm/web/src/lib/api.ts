@@ -160,8 +160,8 @@ function setupTransferHandlers() {
 		},
 	});
 	// Augment Comlink's throw handler to include Error the response and source
-	// information in the serialized error object. BasePHP throws may include
-	// those information and we'll want to display them for the user.
+	// information in the serialized error object. BasePHP may throw PHPExecutionFailureError
+	// which includes those information and we'll want to display them for the user.
 	const throwHandler = Comlink.transferHandlers.get('throw')!;
 	const originalSerialize = throwHandler?.serialize;
 	throwHandler.serialize = ({ value }: any) => {

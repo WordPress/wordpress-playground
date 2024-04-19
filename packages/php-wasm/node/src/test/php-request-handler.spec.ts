@@ -177,6 +177,66 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
+		it('should return httpStatus 500 if exit code is not 0', async () => {
+			php.writeFile(
+				'/index.php',
+				`<?php
+				 echo 'Hello World';
+				`
+			);
+			const response1Result = await handler.request({
+				url: '/index.php',
+			});
+			php.writeFile(
+				'/index.php',
+				`<?php
+				echo 'Hello World' // note there is no closing semicolon
+				`
+			);
+			const response2Result = await handler.request({
+				url: '/index.php',
+			});
+			php.writeFile(
+				'/index.php',
+				`<?php
+				 echo 'Hello World!';
+				`
+			);
+			const response3Result = await handler.request({
+				url: '/index.php',
+			});
+			expect(response1Result).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Hello World'),
+				errors: '',
+				exitCode: 0,
+			});
+			expect(response2Result).toEqual({
+				httpStatusCode: 500,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: expect.any(Uint8Array),
+				errors: expect.any(String),
+				exitCode: 255,
+			});
+			expect(response3Result).toEqual({
+				httpStatusCode: 200,
+				headers: {
+					'content-type': ['text/html; charset=UTF-8'],
+					'x-powered-by': [expect.any(String)],
+				},
+				bytes: new TextEncoder().encode('Hello World!'),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
 		it('Should accept `body` as a JavaScript object', async () => {
 			/**
 			 * Tests against calling phpwasm_init_uploaded_files_hash() when

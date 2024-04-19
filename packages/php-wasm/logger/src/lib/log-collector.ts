@@ -46,19 +46,8 @@ function logUnhandledRejection(
  * @param loggerInstance The logger instance
  */
 function addServiceWorkerMessageListener(loggerInstance: Logger) {
-	const getServiceWorkerMetrics = () => {
-		if (!navigator.serviceWorker.controller) {
-			return;
-		}
-		navigator.serviceWorker.controller.postMessage('getClientInfo');
-	};
-	getServiceWorkerMetrics();
-	navigator.serviceWorker.addEventListener(
-		'controllerchange',
-		getServiceWorkerMetrics
-	);
 	navigator.serviceWorker.addEventListener('message', (event) => {
-		if (event.data.clientCount) {
+		if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
 			loggerInstance.addContext({
 				numberOfOpenPlaygroundTabs:
 					event.data.numberOfOpenPlaygroundTabs,
@@ -148,31 +137,33 @@ export function collectPhpLogs(
 }
 
 /**
- * Report service worker metrics.
+ * **Call this inside a service worker.**
+ * These errors include Playground errors like Asyncify errors. PHP errors won't trigger this event.
+ *
+ * Reports service worker metrics.
  * Allows the logger to request metrics from the service worker by sending a message.
  * The service worker will respond with the number of open Playground tabs.
  *
  * @param worker The service worker
  */
 export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
-	worker.addEventListener('activate', (event) => {
-		// Trigger controllerchange event to update the client count.
-		event.waitUntil(worker.clients.claim());
-	});
-	worker.addEventListener('message', (event) => {
-		if (!event.source) {
-			return;
-		}
-		if (event.data !== 'getServiceWorkerMetrics') {
-			return;
-		}
+	worker.addEventListener('activate', () => {
 		worker.clients.matchAll().then((clients) => {
-			event.source!.postMessage({
-				clientCount: clients.filter(
+			const metrics = {
+				numberOfOpenPlaygroundTabs: clients.filter(
 					// Only count top-level frames to get the number of tabs.
 					(c) => c.frameType === 'top-level'
 				).length,
-			});
+			};
+			worker.clients
+				.matchAll({
+					includeUncontrolled: true,
+				})
+				.then((clients) => {
+					for (const client of clients) {
+						client.postMessage(metrics);
+					}
+				});
 		});
 	});
 }
