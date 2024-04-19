@@ -307,6 +307,16 @@ export function collectPhpLogs(
 export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 	worker.addEventListener('activate', (event) => {
 		// Trigger controllerchange event to update the client count.
+		/**
+		 * Triggers the `controllerchange` event in other clients to update the count.
+		 *
+		 * > When a service worker is initially registered, pages won't use it until they next load.
+		 * > The claim() method causes those pages to be controlled immediately. Be aware that
+		 * > this results in your service worker controlling pages that loaded regularly over the network,
+		 * > or possibly via a different service worker.
+		 * 
+		 * @see https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
+		 */
 		event.waitUntil(worker.clients.claim());
 	});
 	worker.addEventListener('message', (event) => {
