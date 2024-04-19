@@ -304,6 +304,7 @@ export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 			};
 			worker.clients
 				.matchAll({
+					// We don't claim the clients, so we need to include uncontrolled clients to inform all tabs.
 					includeUncontrolled: true,
 				})
 				.then((clients) => {
