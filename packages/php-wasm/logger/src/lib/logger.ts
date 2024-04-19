@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-
 /**
  * Log severity levels.
  */
