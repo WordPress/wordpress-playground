@@ -672,7 +672,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
-			this.#serverEntries = {};
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
