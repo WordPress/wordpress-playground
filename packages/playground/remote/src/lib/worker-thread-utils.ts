@@ -26,14 +26,16 @@ import { WebPHP } from '@php-wasm/web';
 import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersionsList,
-	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
-import { DOCROOT, wordPressSiteUrl } from './config';
+import { wordPressSiteUrl } from './config';
 import { setURLScope } from '@php-wasm/scopes';
 import {
+	PHPPool,
 	PHPResponse,
+	RequestHandler,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
+	__private__dont__use,
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
@@ -58,88 +60,44 @@ export type ParsedStartupOptions = {
 	phpExtensions: string[];
 };
 
-export function parseStartupOptions(url = self?.location?.href) {
-	const receivedParams: ReceivedStartupOptions = {};
-	if (typeof url !== 'undefined') {
-		const params = new URL(self.location.href).searchParams;
-		receivedParams.wpVersion = params.get('wpVersion') || undefined;
-		receivedParams.phpVersion = params.get('phpVersion') || undefined;
-		receivedParams.storage = params.get('storage') || undefined;
-		// Default to CLI to support the WP-CLI Blueprint step
-		receivedParams.sapiName = params.get('sapiName') || 'cli';
-		receivedParams.phpExtensions = params.getAll('php-extension');
-	}
-
-	const requestedWPVersion = receivedParams.wpVersion || '';
-
-	return {
-		wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
-			? requestedWPVersion
-			: LatestSupportedWordPressVersion,
-		phpVersion: SupportedPHPVersionsList.includes(
-			receivedParams.phpVersion || ''
-		)
-			? (receivedParams.phpVersion as SupportedPHPVersion)
-			: '8.0',
-		sapiName: receivedParams.sapiName || 'cli',
-		storage: receivedParams.storage || 'local',
-		phpExtensions: receivedParams.phpExtensions || [],
-	} as ParsedStartupOptions;
+export const receivedParams: ReceivedStartupOptions = {};
+const url = self?.location?.href;
+if (typeof url !== 'undefined') {
+	const params = new URL(self.location.href).searchParams;
+	receivedParams.wpVersion = params.get('wpVersion') || undefined;
+	receivedParams.phpVersion = params.get('phpVersion') || undefined;
+	receivedParams.storage = params.get('storage') || undefined;
+	// Default to CLI to support the WP-CLI Blueprint step
+	receivedParams.sapiName = params.get('sapiName') || 'cli';
+	receivedParams.phpExtensions = params.getAll('php-extension');
 }
 
+export const requestedWPVersion = receivedParams.wpVersion || '';
+export const startupOptions = {
+	wpVersion: SupportedWordPressVersionsList.includes(requestedWPVersion)
+		? requestedWPVersion
+		: LatestSupportedWordPressVersion,
+	phpVersion: SupportedPHPVersionsList.includes(
+		receivedParams.phpVersion || ''
+	)
+		? (receivedParams.phpVersion as SupportedPHPVersion)
+		: '8.0',
+	sapiName: receivedParams.sapiName || 'cli',
+	storage: receivedParams.storage || 'local',
+	phpExtensions: receivedParams.phpExtensions || [],
+} as ParsedStartupOptions;
+
+const { phpVersion, phpExtensions } = startupOptions;
 const monitor = new EmscriptenDownloadMonitor();
-const { wpVersion, phpVersion, phpExtensions } = parseStartupOptions();
 const recreateRuntime = async () =>
 	await WebPHP.loadRuntime(phpVersion, {
 		downloadMonitor: monitor,
 		// We don't yet support loading specific PHP extensions one-by-one.
 		// Let's just indicate whether we want to load all of them.
 		loadAllExtensions: phpExtensions?.length > 0,
-		requestHandler: {
-			rewriteRules: wordPressRewriteRules,
-		},
 	});
 
-export function createWebPHP() {
-	const php = new WebPHP(undefined, {
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-		rewriteRules: wordPressRewriteRules,
-	});
-	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
-	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-	rotatePHPRuntime({
-		php,
-		recreateRuntime,
-		// 400 is an arbitrary number that should trigger a rotation
-		// way before the memory gets too fragmented. If the memory
-		// issue returns, let's explore:
-		// * Lowering this number
-		// * Adding a memory usage monitor and rotate based on that
-		maxRequests: 400,
-	});
-	return php;
-}
-
-export async function createChildPHP(php: WebPHP) {
-	const runtime = await recreateRuntime();
-	const child = (await php.clone(runtime)) as WebPHP;
-	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
-	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-	rotatePHPRuntime({
-		php: child,
-		recreateRuntime,
-		// 400 is an arbitrary number that should trigger a rotation
-		// way before the memory gets too fragmented. If the memory
-		// issue returns, let's explore:
-		// * Lowering this number
-		// * Adding a memory usage monitor and rotate based on that
-		maxRequests: 400,
-	});
-	return child;
-}
-
-export function spawnHandlerFactory(getChildPHP: () => WebPHP) {
+export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		if (args[0] === 'exec') {
 			args.shift();
@@ -184,7 +142,7 @@ export function spawnHandlerFactory(getChildPHP: () => WebPHP) {
 			});
 			return;
 		} else if (args[0] === 'php') {
-			const childPHP = getChildPHP();
+			const { php: childPHP, release } = await pool.acquire();
 
 			let result: PHPResponse | undefined = undefined;
 			try {
@@ -240,9 +198,59 @@ export function spawnHandlerFactory(getChildPHP: () => WebPHP) {
 					processApi.stderr(e.message);
 				}
 				processApi.exit(1);
+			} finally {
+				release();
 			}
 		} else {
 			processApi.exit(1);
 		}
 	});
+}
+
+export async function setupPHP(
+	php: WebPHP,
+	pool: PHPPool<WebPHP>,
+	requestHandler: RequestHandler
+) {
+	php.requestHandler = requestHandler as any;
+	php.initializeRuntime(await recreateRuntime());
+	php.setPhpIniEntry('memory_limit', '256M');
+	if (startupOptions.sapiName) {
+		await php.setSapiName(startupOptions.sapiName);
+	}
+	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
+	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
+	rotatePHPRuntime({
+		php,
+		recreateRuntime,
+		// 400 is an arbitrary number that should trigger a rotation
+		// way before the memory gets too fragmented. If the memory
+		// issue returns, let's explore:
+		// * Lowering this number
+		// * Adding a memory usage monitor and rotate based on that
+		maxRequests: 400,
+	});
+	php.setSpawnHandler(spawnHandlerFactory(pool));
+	if (php !== pool.primary) {
+		// Share the parent's MEMFS instance with the child process.
+		// Only mount the document root and the /tmp directory,
+		// the rest of the filesystem (like the devices) should be
+		// private to each PHP instance.
+		for (const path of [requestHandler.documentRoot, '/tmp']) {
+			if (!php.fileExists(path)) {
+				php.mkdir(path);
+			}
+			if (!pool.primary.fileExists(path)) {
+				pool.primary.mkdir(path);
+			}
+			php[__private__dont__use].FS.mount(
+				php[__private__dont__use].PROXYFS,
+				{
+					root: path,
+					fs: pool.primary[__private__dont__use].FS,
+				},
+				path
+			);
+		}
+	}
 }

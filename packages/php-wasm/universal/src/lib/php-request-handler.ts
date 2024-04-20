@@ -49,22 +49,16 @@ export class PHPRequestHandler implements RequestHandler {
 	rewriteRules: RewriteRule[];
 
 	/**
-	 * The PHP instance
-	 */
-	php: BasePHP;
-
-	/**
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(php: BasePHP, config: PHPRequestHandlerConfiguration = {}) {
+	constructor(config: PHPRequestHandlerConfiguration = {}) {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			rewriteRules = [],
 		} = config;
-		this.php = php;
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -118,7 +112,7 @@ export class PHPRequestHandler implements RequestHandler {
 	}
 
 	/** @inheritDoc */
-	async request(request: PHPRequest): Promise<PHPResponse> {
+	async request(php: BasePHP, request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute =
 			request.url.startsWith('http://') ||
 			request.url.startsWith('https://');
@@ -137,9 +131,9 @@ export class PHPRequestHandler implements RequestHandler {
 		);
 		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return await this.#dispatchToPHP(request, requestedUrl);
+			return await this.#dispatchToPHP(php, request, requestedUrl);
 		}
-		return this.#serveStaticFile(fsPath);
+		return this.#serveStaticFile(php, fsPath);
 	}
 
 	/**
@@ -148,8 +142,8 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @param  fsPath - Absolute path of the static file to serve.
 	 * @returns The response.
 	 */
-	#serveStaticFile(fsPath: string): PHPResponse {
-		if (!this.php.fileExists(fsPath)) {
+	#serveStaticFile(php: BasePHP, fsPath: string): PHPResponse {
+		if (!php.fileExists(fsPath)) {
 			return new PHPResponse(
 				404,
 				// Let the service worker know that no static file was found
@@ -160,7 +154,7 @@ export class PHPRequestHandler implements RequestHandler {
 				new TextEncoder().encode('404 File not found')
 			);
 		}
-		const arrayBuffer = this.php.readFileAsBuffer(fsPath);
+		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
 			{
@@ -184,89 +178,88 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @returns The response.
 	 */
 	async #dispatchToPHP(
+		php: BasePHP,
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		if (
-			this.#semaphore.running > 0 &&
-			request.headers?.['x-request-issuer'] === 'php'
-		) {
-			console.warn(
-				`Possible deadlock: Called request() before the previous request() have finished. ` +
-					`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
-					`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +
-					`That's not useful, so PHPRequestHandler will return error 502 instead.`
+		// if (
+		// 	this.#semaphore.running > 0 &&
+		// 	request.headers?.['x-request-issuer'] === 'php'
+		// ) {
+		// 	console.warn(
+		// 		`Possible deadlock: Called request() before the previous request() have finished. ` +
+		// 			`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
+		// 			`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +
+		// 			`That's not useful, so PHPRequestHandler will return error 502 instead.`
+		// 	);
+		// 	return new PHPResponse(
+		// 		502,
+		// 		{},
+		// 		new TextEncoder().encode('502 Bad Gateway')
+		// 	);
+		// }
+		// /*
+		//  * Prevent multiple requests from running at the same time.
+		//  * For example, if a request is made to a PHP file that
+		//  * requests another PHP file, the second request may
+		//  * be dispatched before the first one is finished.
+		//  */
+		// const release = await this.#semaphore.acquire();
+		// try {
+		let preferredMethod: PHPRunOptions['method'] = 'GET';
+
+		const headers: Record<string, string> = {
+			host: this.#HOST,
+			...normalizeHeaders(request.headers || {}),
+		};
+
+		let body = request.body;
+		if (typeof body === 'object' && !(body instanceof Uint8Array)) {
+			preferredMethod = 'POST';
+			const { bytes, contentType } = await encodeAsMultipart(body);
+			body = bytes;
+			headers['content-type'] = contentType;
+		}
+
+		let scriptPath;
+		try {
+			scriptPath = this.#resolvePHPFilePath(
+				php,
+				decodeURIComponent(requestedUrl.pathname)
 			);
+		} catch (error) {
 			return new PHPResponse(
-				502,
+				404,
 				{},
-				new TextEncoder().encode('502 Bad Gateway')
+				new TextEncoder().encode('404 File not found')
 			);
 		}
-		/*
-		 * Prevent multiple requests from running at the same time.
-		 * For example, if a request is made to a PHP file that
-		 * requests another PHP file, the second request may
-		 * be dispatched before the first one is finished.
-		 */
-		const release = await this.#semaphore.acquire();
+
 		try {
-			let preferredMethod: PHPRunOptions['method'] = 'GET';
-
-			const headers: Record<string, string> = {
-				host: this.#HOST,
-				...normalizeHeaders(request.headers || {}),
-			};
-
-			let body = request.body;
-			if (typeof body === 'object' && !(body instanceof Uint8Array)) {
-				preferredMethod = 'POST';
-				const { bytes, contentType } = await encodeAsMultipart(body);
-				body = bytes;
-				headers['content-type'] = contentType;
+			return await php.run({
+				relativeUri: ensurePathPrefix(
+					toRelativeUrl(requestedUrl),
+					this.#PATHNAME
+				),
+				protocol: this.#PROTOCOL,
+				method: request.method || preferredMethod,
+				$_SERVER: {
+					REMOTE_ADDR: '127.0.0.1',
+					DOCUMENT_ROOT: this.#DOCROOT,
+					HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
+						? 'on'
+						: '',
+				},
+				body,
+				scriptPath,
+				headers,
+			});
+		} catch (error) {
+			const executionError = error as PHPExecutionFailureError;
+			if (executionError?.response) {
+				return executionError.response;
 			}
-
-			let scriptPath;
-			try {
-				scriptPath = this.#resolvePHPFilePath(
-					decodeURIComponent(requestedUrl.pathname)
-				);
-			} catch (error) {
-				return new PHPResponse(
-					404,
-					{},
-					new TextEncoder().encode('404 File not found')
-				);
-			}
-
-			try {
-				return await this.php.run({
-					relativeUri: ensurePathPrefix(
-						toRelativeUrl(requestedUrl),
-						this.#PATHNAME
-					),
-					protocol: this.#PROTOCOL,
-					method: request.method || preferredMethod,
-					$_SERVER: {
-						REMOTE_ADDR: '127.0.0.1',
-						DOCUMENT_ROOT: this.#DOCROOT,
-						HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
-							? 'on'
-							: '',
-					},
-					body,
-					scriptPath,
-					headers,
-				});
-			} catch (error) {
-				const executionError = error as PHPExecutionFailureError;
-				if (executionError?.response) {
-					return executionError.response;
-				}
-				throw error;
-			}
-		} finally {
-			release();
+			throw error;
 		}
 	}
 
@@ -279,14 +272,14 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @throws {Error} If the requested path doesn't exist.
 	 * @returns The resolved filesystem path.
 	 */
-	#resolvePHPFilePath(requestedPath: string): string {
+	#resolvePHPFilePath(php: BasePHP, requestedPath: string): string {
 		let filePath = removePathPrefix(requestedPath, this.#PATHNAME);
 		filePath = applyRewriteRules(filePath, this.rewriteRules);
 
 		if (filePath.includes('.php')) {
 			// If the path mentions a .php extension, that's our file's path.
 			filePath = filePath.split('.php')[0] + '.php';
-		} else if (this.php.isDir(`${this.#DOCROOT}${filePath}`)) {
+		} else if (php.isDir(`${this.#DOCROOT}${filePath}`)) {
 			if (!filePath.endsWith('/')) {
 				filePath = `${filePath}/`;
 			}
@@ -298,7 +291,7 @@ export class PHPRequestHandler implements RequestHandler {
 		}
 
 		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
-		if (this.php.fileExists(resolvedFsPath)) {
+		if (php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}
 		throw new Error(`File not found: ${resolvedFsPath}`);

@@ -1,5 +1,6 @@
 import { Remote } from 'comlink';
 import { PHPResponse } from './php-response';
+import { BasePHP } from './base-php';
 
 /**
  * Represents an event related to the PHP request.
@@ -150,7 +151,11 @@ export interface RequestHandler {
 	 *
 	 * @param  request - PHP Request data.
 	 */
-	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
+	request(
+		php: BasePHP,
+		request: PHPRequest,
+		maxRedirects?: number
+	): Promise<PHPResponse>;
 
 	/**
 	 * Converts a path to an absolute URL based at the PHPRequestHandler
@@ -182,7 +187,7 @@ export interface RequestHandler {
 	documentRoot: string;
 }
 
-export interface IsomorphicLocalPHP extends RequestHandler {
+export interface IsomorphicLocalPHP {
 	/**
 	 * Sets the SAPI name exposed by the PHP module.
 	 * @param newName - The new SAPI name.

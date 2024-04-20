@@ -1,3 +1,4 @@
+import { BasePHP } from './base-php';
 import type { PHPRequestHandler } from './php-request-handler';
 import type { PHPResponse } from './php-response';
 import { PHPRequest, RequestHandler } from './universal-php';
@@ -57,8 +58,12 @@ export class PHPBrowser implements RequestHandler {
 	 * @param  redirects - Internal. The number of redirects handled so far.
 	 * @returns PHPRequestHandler response.
 	 */
-	async request(request: PHPRequest, redirects = 0): Promise<PHPResponse> {
-		const response = await this.requestHandler.request({
+	async request(
+		php: BasePHP,
+		request: PHPRequest,
+		redirects = 0
+	): Promise<PHPResponse> {
+		const response = await this.requestHandler.request(php, {
 			...request,
 			headers: {
 				...request.headers,
@@ -80,6 +85,7 @@ export class PHPBrowser implements RequestHandler {
 				this.requestHandler.absoluteUrl
 			);
 			return this.request(
+				php,
 				{
 					url: redirectUrl.toString(),
 					method: 'GET',

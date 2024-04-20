@@ -65,12 +65,18 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	 * that monitors the download #progress.
 	 */
 	#monitorWebAssemblyStreaming() {
+		return;
 		const instantiateStreaming = WebAssembly.instantiateStreaming;
 		WebAssembly.instantiateStreaming = async (
 			responseOrPromise,
 			...args
 		) => {
 			const response = await responseOrPromise;
+			// Couldn't tie the response to a file.
+			if (!response.url) {
+				return instantiateStreaming(response, ...args);
+			}
+
 			const file = response.url.substring(
 				new URL(response.url).origin.length + 1
 			);

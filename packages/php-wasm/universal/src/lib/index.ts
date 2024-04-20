@@ -16,6 +16,8 @@ export type {
 	SpawnHandler,
 } from './universal-php';
 
+export { type AcquiredPHP, PHPPool } from './php-pool';
+
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
@@ -39,7 +41,7 @@ export type {
 	SupportedPHPExtension,
 	SupportedPHPExtensionBundle,
 } from './supported-php-extensions';
-export { BasePHP, PHPPool, __private__dont__use } from './base-php';
+export { BasePHP, __private__dont__use } from './base-php';
 export { loadPHPRuntime } from './load-php-runtime';
 export type {
 	DataModule,

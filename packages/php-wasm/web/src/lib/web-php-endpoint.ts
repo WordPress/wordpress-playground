@@ -10,13 +10,18 @@ import type {
 	PHPEventListener,
 	PHPEvent,
 	SpawnHandler,
+	PHPPool,
+	RequestHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { WebPHP } from './web-php';
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
 		php: BasePHP;
+		phpPool: PHPPool<WebPHP>;
+		requestHandler: RequestHandler;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -31,7 +36,11 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	documentRoot: string;
 
 	/** @inheritDoc */
-	constructor(php: BasePHP, monitor?: EmscriptenDownloadMonitor) {
+	constructor(
+		phpPool: PHPPool<WebPHP>,
+		requestHandler: RequestHandler,
+		monitor?: EmscriptenDownloadMonitor
+	) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -56,11 +65,13 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		 * ```
 		 */
 		_private.set(this, {
-			php,
+			php: phpPool.primary,
+			requestHandler,
+			phpPool,
 			monitor,
 		});
-		this.absoluteUrl = php.absoluteUrl;
-		this.documentRoot = php.documentRoot;
+		this.absoluteUrl = requestHandler.absoluteUrl;
+		this.documentRoot = requestHandler.documentRoot;
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
@@ -95,13 +106,28 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
-	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
-		return _private.get(this)!.php.request(request, redirects);
+	async request(
+		request: PHPRequest,
+		redirects?: number
+	): Promise<PHPResponse> {
+		const { php, release } = await _private.get(this)!.phpPool.acquire();
+		try {
+			return await _private
+				.get(this)!
+				.requestHandler.request(php, request, redirects);
+		} finally {
+			release();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		return _private.get(this)!.php.run(request);
+		const { php, release } = await _private.get(this)!.phpPool.acquire();
+		try {
+			return await php.run(request);
+		} finally {
+			release();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.setSpawnHandler */
