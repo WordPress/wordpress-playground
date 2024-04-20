@@ -820,6 +820,49 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
+	clone(newRuntime: number) {
+		const clone = new (this.constructor())();
+
+		// Initialize the new runtime
+		this.initializeRuntime(newRuntime);
+
+		// Re-apply any set() methods that are not
+		// request related and result in a one-off
+		// C function call.
+		if (this.#sapiName) {
+			clone.setSapiName(this.#sapiName);
+		}
+
+		if (this.#phpIniPath) {
+			clone.setPhpIniPath(this.#phpIniPath);
+		}
+
+		if (this.#phpIniOverrides) {
+			for (const key in this.#phpIniOverrides) {
+				clone.setPhpIniValue(key, this.#phpIniOverrides[key]);
+			}
+		}
+
+		// Share the parent's MEMFS instance with the child process.
+		// Only mount the document root and the /tmp directory,
+		// the rest of the filesystem (like the devices) should be
+		// private to each PHP instance.
+		for (const path of [this.documentRoot, '/tmp']) {
+			if (!clone.fileExists(path)) {
+				clone.mkdir(path);
+			}
+			clone[__private__dont__use].FS.mount(
+				clone[__private__dont__use].PROXYFS,
+				{
+					root: path,
+					fs: this[__private__dont__use].FS,
+				},
+				path
+			);
+		}
+
+		return clone;
+	}
 	/**
 	 * Hot-swaps the PHP runtime for a new one without
 	 * interrupting the operations of this PHP instance.
@@ -955,5 +998,36 @@ export function copyFS(
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
+	}
+}
+
+export class PHPPool<PHP extends BasePHP> {
+	#pool: PHP[] = [];
+
+	static async create(instances: number, phpFactory: () => Promise<PHP>) {
+		const pool = [];
+		for (let i = 0; i < instances; i++) {
+			pool.push(await phpFactory());
+		}
+		return pool;
+	}
+
+	private constructor(instances: PHP[]) {
+		this.#pool = instances;
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public async acquire(requestingRuntimeId: number) {
+		// @TODO: Use requestingRuntimeId to detect deadlocks.
+		if (this.#pool.length === 0) {
+			throw new Error('No PHP instances available in the pool.');
+		}
+		const php = this.#pool.pop()!;
+		return {
+			php,
+			release: () => {
+				this.#pool.push(php);
+			},
+		};
 	}
 }
