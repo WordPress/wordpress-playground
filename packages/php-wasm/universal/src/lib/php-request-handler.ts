@@ -211,13 +211,6 @@ export class PHPRequestHandler implements RequestHandler {
 		 */
 		const release = await this.#semaphore.acquire();
 		try {
-			this.php.addServerGlobalEntry('REMOTE_ADDR', '127.0.0.1');
-			this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
-			this.php.addServerGlobalEntry(
-				'HTTPS',
-				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
-			);
-
 			let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 			const headers: Record<string, string> = {
@@ -254,6 +247,13 @@ export class PHPRequestHandler implements RequestHandler {
 					),
 					protocol: this.#PROTOCOL,
 					method: request.method || preferredMethod,
+					$_SERVER: {
+						REMOTE_ADDS: '127.0.0.1',
+						DOCUMENT_ROOT: this.#DOCROOT,
+						HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
+							? 'on'
+							: '',
+					},
 					body,
 					scriptPath,
 					headers,
