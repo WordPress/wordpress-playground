@@ -187,7 +187,10 @@ export interface RequestHandler {
 	documentRoot: string;
 }
 
-export interface IsomorphicLocalPHP {
+export interface IsomorphicLocalPHP extends Omit<RequestHandler, 'request'> {
+	/** @inheritdoc @php-wasm/universal!RequestHandler.request */
+	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
+
 	/**
 	 * Sets the SAPI name exposed by the PHP module.
 	 * @param newName - The new SAPI name.
@@ -448,15 +451,6 @@ export interface IsomorphicLocalPHP {
 	 * @param listener Callback function to handle the message.
 	 */
 	onMessage(listener: MessageListener): void;
-
-	/**
-	 * Registers a handler to spawns a child process when
-	 * `proc_open()`, `popen()`, `exec()`, `system()`, or `passthru()`
-	 * is called.
-	 *
-	 * @param handler Callback function to spawn a process.
-	 */
-	setSpawnHandler(handler: SpawnHandler | string): void;
 }
 
 export type MessageListener = (
@@ -472,7 +466,9 @@ type ChildProcess = EventEmitter & {
 };
 export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
 
-export type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
+export type IsomorphicRemotePHP = Remote<
+	Omit<IsomorphicLocalPHP, 'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'>
+>;
 export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
 
 export type HTTPMethod =

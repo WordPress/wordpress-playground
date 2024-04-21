@@ -82,9 +82,6 @@ export async function bootPlaygroundRemote() {
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
-		setSpawnHandler(fn) {
-			return workerApi.setSpawnHandler(fn);
-		},
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},
@@ -225,7 +222,10 @@ export async function bootPlaygroundRemote() {
 			await workerApi.scope,
 			serviceWorkerUrl + ''
 		);
-		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		setupPostMessageRelay(
+			wpFrame,
+			getOrigin((await playground.absoluteUrl)!)
+		);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}

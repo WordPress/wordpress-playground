@@ -14,7 +14,11 @@ import {
 	PhpProcessManager,
 	writeFiles,
 } from '@php-wasm/universal';
-import { bindOpfs, playgroundAvailableInOpfs } from './opfs/bind-opfs';
+import {
+	SyncProgressCallback,
+	bindOpfs,
+	playgroundAvailableInOpfs,
+} from './opfs/bind-opfs';
 import {
 	defineSiteUrl,
 	defineWpConfigConsts,
@@ -34,6 +38,11 @@ import {
 	createPhp,
 	startupOptions,
 } from './worker-thread-utils';
+import {
+	FilesystemOperation,
+	journalFSEvents,
+	replayFSJournal,
+} from '@php-wasm/fs-journal';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -127,32 +136,32 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 		});
 	}
 
-	// async reloadFilesFromOpfs() {
-	// 	await this.bindOpfs(lastOpfsDir!);
-	// }
+	async reloadFilesFromOpfs() {
+		await this.bindOpfs(lastOpfsDir!);
+	}
 
-	// async bindOpfs(
-	// 	opfs: FileSystemDirectoryHandle,
-	// 	onProgress?: SyncProgressCallback
-	// ) {
-	// 	lastOpfsDir = opfs;
-	// 	await bindOpfs({
-	// 		php,
-	// 		opfs,
-	// 		onProgress,
-	// 	});
-	// }
+	async bindOpfs(
+		opfs: FileSystemDirectoryHandle,
+		onProgress?: SyncProgressCallback
+	) {
+		lastOpfsDir = opfs;
+		await bindOpfs({
+			php: this.__internal_getPHP()!,
+			opfs,
+			onProgress,
+		});
+	}
 
-	// async journalFSEvents(
-	// 	root: string,
-	// 	callback: (op: FilesystemOperation) => void
-	// ) {
-	// 	return journalFSEvents(php, root, callback);
-	// }
+	async journalFSEvents(
+		root: string,
+		callback: (op: FilesystemOperation) => void
+	) {
+		return journalFSEvents(this.__internal_getPHP()!, root, callback);
+	}
 
-	// async replayFSJournal(events: FilesystemOperation[]) {
-	// 	return replayFSJournal(php, events);
-	// }
+	async replayFSJournal(events: FilesystemOperation[]) {
+		return replayFSJournal(this.__internal_getPHP()!, events);
+	}
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(

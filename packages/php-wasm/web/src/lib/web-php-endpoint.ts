@@ -28,9 +28,9 @@ const _private = new WeakMap<
  */
 export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
-	absoluteUrl?: string;
+	absoluteUrl = '';
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
-	documentRoot?: string;
+	documentRoot = '';
 
 	/** @inheritDoc */
 	constructor(monitor?: EmscriptenDownloadMonitor) {
@@ -60,6 +60,17 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		_private.set(this, {
 			monitor,
 		});
+	}
+
+	/**
+	 * @internal
+	 * @deprecated
+	 * Do not use this method directly in the code consuming
+	 * the web API. It will change or even be removed without
+	 * a warning.
+	 */
+	protected __internal_getPHP() {
+		return _private.get(this)!.processManager!.primaryPhp;
 	}
 
 	setRequestHandler(requestHandler: RequestHandler) {
@@ -103,16 +114,12 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
 	mv(fromPath: string, toPath: string) {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.mv(fromPath, toPath);
+		return this.__internal_getPHP()!.mv(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
 	rmdir(path: string, options?: RmDirOptions) {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.rmdir(path, options);
+		return this.__internal_getPHP()!.rmdir(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
@@ -152,23 +159,17 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
 	readFileAsText(path: string): string {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.readFileAsText(path);
+		return this.__internal_getPHP()!.readFileAsText(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.readFileAsBuffer(path);
+		return this.__internal_getPHP()!.readFileAsBuffer(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.writeFile(path, data);
+		return this.__internal_getPHP()!.writeFile(path, data);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
@@ -178,9 +179,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
 	listFiles(path: string, options?: ListFilesOptions): string[] {
-		return _private
-			.get(this)!
-			.processManager!.primaryPhp!.listFiles(path, options);
+		return this.__internal_getPHP()!.listFiles(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
@@ -200,9 +199,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
 	defineConstant(key: string, value: string | boolean | number | null): void {
-		_private
-			.get(this)!
-			.processManager!.primaryPhp!.defineConstant(key, value);
+		this.__internal_getPHP()!.defineConstant(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
@@ -210,9 +207,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private
-			.get(this)!
-			.processManager!.primaryPhp!.addEventListener(eventType, listener);
+		this.__internal_getPHP()!.addEventListener(eventType, listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
@@ -220,11 +215,6 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private
-			.get(this)!
-			.processManager!.primaryPhp!.removeEventListener(
-				eventType,
-				listener
-			);
+		this.__internal_getPHP()!.removeEventListener(eventType, listener);
 	}
 }
