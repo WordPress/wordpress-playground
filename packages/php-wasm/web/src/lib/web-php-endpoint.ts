@@ -9,7 +9,6 @@ import type {
 	RmDirOptions,
 	PHPEventListener,
 	PHPEvent,
-	SpawnHandler,
 	PHPPool,
 	RequestHandler,
 } from '@php-wasm/universal';
@@ -29,7 +28,7 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHPEndpoint implements IsomorphicLocalPHP {
+export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl: string;
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
@@ -76,12 +75,14 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
-		return _private.get(this)!.php.pathToInternalUrl(path);
+		return _private.get(this)!.requestHandler.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
-		return _private.get(this)!.php.internalUrlToPath(internalUrl);
+		return _private
+			.get(this)!
+			.requestHandler.internalUrlToPath(internalUrl);
 	}
 
 	/**
@@ -130,28 +131,9 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		}
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.setSpawnHandler */
-	setSpawnHandler(listener: string | SpawnHandler) {
-		_private.get(this)!.php.setSpawnHandler(listener);
-	}
-
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
-	}
-
-	/** @inheritDoc @php-wasm/web!WebPHP.setSapiName */
-	setSapiName(newName: string): void {
-		_private.get(this)!.php.setSapiName(newName);
-	}
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
-	setPhpIniPath(path: string): void {
-		return _private.get(this)!.php.setPhpIniPath(path);
-	}
-
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
-	setPhpIniEntry(key: string, value: string): void {
-		return _private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
