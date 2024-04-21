@@ -89,22 +89,29 @@ interface CachedFetchResponse {
 }
 
 function createCachedFetch(_fetch = fetch) {
-	const cache: Record<string, CachedFetchResponse> = {};
+	const cache: Record<
+		string,
+		Promise<CachedFetchResponse> | CachedFetchResponse
+	> = {};
 	return async function cachedFetch(url: string, options?: RequestInit) {
 		if (!cache[url]) {
-			const response = await _fetch(url, options);
-			cache[url] = {
+			// Write to cache synchronously to avoid duplicate requests.
+			cache[url] = _fetch(url, options).then((response) => ({
 				body: response.body!,
 				responseInit: {
 					status: response.status,
 					statusText: response.statusText,
 					headers: response.headers,
 				},
-			};
+			}));
 		}
-		const [stream1, stream2] = cache[url].body.tee();
-		cache[url].body = stream2;
-		return new Response(stream1, cache[url].responseInit);
+		const { body, responseInit } = await cache[url];
+		const [stream1, stream2] = body.tee();
+		cache[url] = {
+			body: stream2,
+			responseInit,
+		};
+		return new Response(stream1, responseInit);
 	};
 }
 
