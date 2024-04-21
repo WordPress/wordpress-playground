@@ -248,7 +248,7 @@ export class PHPRequestHandler implements RequestHandler {
 					protocol: this.#PROTOCOL,
 					method: request.method || preferredMethod,
 					$_SERVER: {
-						REMOTE_ADDS: '127.0.0.1',
+						REMOTE_ADDR: '127.0.0.1',
 						DOCUMENT_ROOT: this.#DOCROOT,
 						HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
 							? 'on'

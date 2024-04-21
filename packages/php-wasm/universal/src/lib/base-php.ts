@@ -304,7 +304,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				] = headers[name];
 			}
 			for (const key in $_SERVER) {
-				this.#setServerGlobalEntry(key, request.$_SERVER![key]);
+				this.#setServerGlobalEntry(key, $_SERVER![key]);
 			}
 
 			const env = request.env || {};
