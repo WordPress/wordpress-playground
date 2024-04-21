@@ -105,6 +105,8 @@ function createCachedFetch() {
 		const [stream1, stream2] = cache[url].body.tee();
 		cache[url].body = stream2;
 		const response = new Response(stream1, cache[url].responseInit);
+		// The `url` property is necessary for progress monitoring
+		// via the EmscriptenDownloadMonitor.
 		Object.defineProperty(response, 'url', { value: url });
 		return response;
 	};
