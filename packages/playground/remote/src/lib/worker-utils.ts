@@ -83,75 +83,6 @@ export const startupOptions = {
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
 
-interface CachedFetchResponse {
-	body: ReadableStream<Uint8Array>;
-	responseInit: ResponseInit;
-}
-
-function createCachedFetch(_fetch = fetch) {
-	const cache: Record<
-		string,
-		Promise<CachedFetchResponse> | CachedFetchResponse
-	> = {};
-	return async function cachedFetch(url: string, options?: RequestInit) {
-		if (!cache[url]) {
-			// Write to cache synchronously to avoid duplicate requests.
-			cache[url] = _fetch(url, options).then((response) => ({
-				body: response.body!,
-				responseInit: {
-					status: response.status,
-					statusText: response.statusText,
-					headers: response.headers,
-				},
-			}));
-		}
-		const { body, responseInit } = await cache[url];
-		const [stream1, stream2] = body.tee();
-		cache[url] = {
-			body: stream2,
-			responseInit,
-		};
-		return new Response(stream1, responseInit);
-	};
-}
-
-export const downloadMonitor = new EmscriptenDownloadMonitor();
-
-const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-	downloadMonitor.monitorFetch(fetch(input, init));
-const cachedFetch = createCachedFetch(monitoredFetch);
-
-const createPhpRuntime = async () => {
-	let wasmUrl = '';
-	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
-		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
-			wasmUrl = phpLoaderModule.dependencyFilename;
-			downloadMonitor.expectAssets({
-				[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
-			});
-		},
-		// We don't yet support loading specific PHP extensions one-by-one.
-		// Let's just indicate whether we want to load all of them.
-		loadAllExtensions: startupOptions.phpExtensions?.length > 0,
-		emscriptenOptions: {
-			instantiateWasm(imports, receiveInstance) {
-				// Using .then because Emscripten typically returns an empty
-				// object here and not a promise.
-				cachedFetch(wasmUrl, {
-					credentials: 'same-origin',
-				})
-					.then((response) =>
-						WebAssembly.instantiateStreaming(response, imports)
-					)
-					.then((wasm) => {
-						receiveInstance(wasm.instance, wasm.module);
-					});
-				return {};
-			},
-		},
-	});
-};
-
 export async function createPhp(
 	processManager: PhpProcessManager<WebPHP>,
 	requestHandler: RequestHandler
@@ -172,6 +103,83 @@ export async function createPhp(
 		maxRequests: 400,
 	});
 	return php;
+}
+
+export const downloadMonitor = new EmscriptenDownloadMonitor();
+
+const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+	downloadMonitor.monitorFetch(fetch(input, init));
+const fetchMemo = memoizedFetch(monitoredFetch);
+
+const createPhpRuntime = async () => {
+	let wasmUrl = '';
+	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
+		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+			wasmUrl = phpLoaderModule.dependencyFilename;
+			downloadMonitor.expectAssets({
+				[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+			});
+		},
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: startupOptions.phpExtensions?.length > 0,
+		emscriptenOptions: {
+			instantiateWasm(imports, receiveInstance) {
+				// Using .then because Emscripten typically returns an empty
+				// object here and not a promise.
+				fetchMemo(wasmUrl, {
+					credentials: 'same-origin',
+				})
+					.then((response) =>
+						WebAssembly.instantiateStreaming(response, imports)
+					)
+					.then((wasm) => {
+						receiveInstance(wasm.instance, wasm.module);
+					});
+				return {};
+			},
+		},
+	});
+};
+
+interface CachedFetchResponse {
+	body: ReadableStream<Uint8Array>;
+	responseInit: ResponseInit;
+}
+
+/**
+ * Creates a fetch function that memoizes the response stream.
+ * Calling it twice will return a response with the same status,
+ * headers, and the body stream.
+ * Memoization is keyed by URL. Method, headers etc are ignored.
+ *
+ * @param originalFetch The fetch function to memoize. Defaults to the global fetch.
+ */
+function memoizedFetch(originalFetch = fetch) {
+	const cache: Record<
+		string,
+		Promise<CachedFetchResponse> | CachedFetchResponse
+	> = {};
+	return async function cachedFetch(url: string, options?: RequestInit) {
+		if (!cache[url]) {
+			// Write to cache synchronously to avoid duplicate requests.
+			cache[url] = originalFetch(url, options).then((response) => ({
+				body: response.body!,
+				responseInit: {
+					status: response.status,
+					statusText: response.statusText,
+					headers: response.headers,
+				},
+			}));
+		}
+		const { body, responseInit } = await cache[url];
+		const [stream1, stream2] = body.tee();
+		cache[url] = {
+			body: stream2,
+			responseInit,
+		};
+		return new Response(stream1, responseInit);
+	};
 }
 
 /**
