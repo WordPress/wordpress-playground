@@ -27,8 +27,6 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersionsList,
 } from '@wp-playground/wordpress';
-import { wordPressSiteUrl } from './config';
-import { setURLScope } from '@php-wasm/scopes';
 import {
 	BasePHP,
 	PHPResponse,
@@ -41,9 +39,6 @@ import {
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
-
-export const scope = Math.random().toFixed(16);
-export const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 
 export type ReceivedStartupOptions = {
 	wpVersion?: string;
@@ -87,6 +82,66 @@ export const startupOptions = {
 	storage: receivedParams.storage || 'local',
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
+
+const monitor = new EmscriptenDownloadMonitor();
+const createPhpRuntime = async () =>
+	await WebPHP.loadRuntime(startupOptions.phpVersion, {
+		downloadMonitor: monitor,
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: startupOptions.phpExtensions?.length > 0,
+	});
+
+export async function createPhp(
+	processManager: PhpProcessManager<WebPHP>,
+	requestHandler: RequestHandler
+) {
+	const php = new WebPHP();
+	php.requestHandler = requestHandler as any;
+	php.initializeRuntime(await createPhpRuntime());
+	php.setPhpIniEntry('memory_limit', '256M');
+	if (startupOptions.sapiName) {
+		await php.setSapiName(startupOptions.sapiName);
+	}
+	php.setSpawnHandler(spawnHandlerFactory(processManager));
+	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
+	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
+	rotatePHPRuntime({
+		php,
+		recreateRuntime: createPhpRuntime,
+		maxRequests: 400,
+	});
+	return php;
+}
+
+/**
+ * Share the parent's MEMFS instance with the child process.
+ * Only mount the document root and the /tmp directory,
+ * the rest of the filesystem (like the devices) should be
+ * private to each PHP instance.
+ */
+export function proxyFileSystem(
+	sourceOfTruth: BasePHP,
+	replica: BasePHP,
+	documentRoot: string
+) {
+	for (const path of [documentRoot, '/tmp']) {
+		if (!replica.fileExists(path)) {
+			replica.mkdir(path);
+		}
+		if (!sourceOfTruth.fileExists(path)) {
+			sourceOfTruth.mkdir(path);
+		}
+		replica[__private__dont__use].FS.mount(
+			replica[__private__dont__use].PROXYFS,
+			{
+				root: path,
+				fs: sourceOfTruth[__private__dont__use].FS,
+			},
+			path
+		);
+	}
+}
 
 export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -196,65 +251,4 @@ export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
 			processApi.exit(1);
 		}
 	});
-}
-
-const { phpVersion, phpExtensions } = startupOptions;
-const monitor = new EmscriptenDownloadMonitor();
-const createPhpRuntime = async () =>
-	await WebPHP.loadRuntime(phpVersion, {
-		downloadMonitor: monitor,
-		// We don't yet support loading specific PHP extensions one-by-one.
-		// Let's just indicate whether we want to load all of them.
-		loadAllExtensions: phpExtensions?.length > 0,
-	});
-
-export async function createPhp(
-	processManager: PhpProcessManager<WebPHP>,
-	requestHandler: RequestHandler
-) {
-	const php = new WebPHP();
-	php.requestHandler = requestHandler as any;
-	php.initializeRuntime(await createPhpRuntime());
-	php.setPhpIniEntry('memory_limit', '256M');
-	if (startupOptions.sapiName) {
-		await php.setSapiName(startupOptions.sapiName);
-	}
-	php.setSpawnHandler(spawnHandlerFactory(processManager));
-	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
-	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
-	rotatePHPRuntime({
-		php,
-		recreateRuntime: createPhpRuntime,
-		maxRequests: 400,
-	});
-	return php;
-}
-
-/**
- * Share the parent's MEMFS instance with the child process.
- * Only mount the document root and the /tmp directory,
- * the rest of the filesystem (like the devices) should be
- * private to each PHP instance.
- */
-export function proxyFileSystem(
-	sourceOfTruth: BasePHP,
-	replica: BasePHP,
-	documentRoot: string
-) {
-	for (const path of [documentRoot, '/tmp']) {
-		if (!replica.fileExists(path)) {
-			replica.mkdir(path);
-		}
-		if (!sourceOfTruth.fileExists(path)) {
-			sourceOfTruth.mkdir(path);
-		}
-		replica[__private__dont__use].FS.mount(
-			replica[__private__dont__use].PROXYFS,
-			{
-				root: path,
-				fs: sourceOfTruth[__private__dont__use].FS,
-			},
-			path
-		);
-	}
 }

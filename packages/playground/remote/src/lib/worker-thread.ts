@@ -37,7 +37,7 @@ import {
 	requestedWPVersion,
 	createPhp,
 	startupOptions,
-} from './worker-thread-utils';
+} from './worker-utils';
 import {
 	FilesystemOperation,
 	journalFSEvents,
@@ -66,7 +66,6 @@ if (
 }
 
 const scope = Math.random().toFixed(16);
-const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const monitor = new EmscriptenDownloadMonitor();
 
 // Start downloading WordPress if needed
@@ -172,6 +171,7 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
+	const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 	const requestHandler = new PHPBrowser(
 		new PHPRequestHandler({
 			documentRoot: DOCROOT,
@@ -187,7 +187,6 @@ try {
 		proxyFileSystem(primaryPhp, php, requestHandler.documentRoot);
 		return php;
 	});
-
 	apiEndpoint.setRequestHandler(requestHandler);
 	apiEndpoint.setProcessManager(procManager);
 

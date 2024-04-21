@@ -76,9 +76,15 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 
 			const response = await responseOrPromise;
 
-			const file = response.url.substring(
-				new URL(response.url).origin.length + 1
-			);
+			let file = '';
+			try {
+				file = response.url.substring(
+					new URL(response.url).origin.length + 1
+				);
+			} catch (e) {
+				console.error(e);
+				return originalMethod(response, ...args);
+			}
 
 			const reportingResponse = cloneResponseMonitorProgress(
 				response,
