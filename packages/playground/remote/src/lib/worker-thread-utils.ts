@@ -133,7 +133,7 @@ export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
 			});
 			return;
 		} else if (args[0] === 'php') {
-			const { php, reap: release } = await processManager.spawn();
+			const { php, reap } = await processManager.spawn();
 
 			let result: PHPResponse | undefined = undefined;
 			try {
@@ -190,7 +190,7 @@ export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
 				}
 				processApi.exit(1);
 			} finally {
-				release();
+				reap();
 			}
 		} else {
 			processApi.exit(1);

@@ -14,14 +14,14 @@ describe.each(SupportedPHPVersions)(
 			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 			const runtimeId = await loadPHPRuntime(phpLoaderModule);
 			php = new NodePHP(runtimeId);
-			handler = new PHPRequestHandler(php, {
+			handler = new PHPRequestHandler({
 				documentRoot: '/',
 			});
 		});
 
 		it('should execute a PHP file', async () => {
 			php.writeFile('/index.php', `<?php echo 'Hello World';`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 			});
 			expect(response).toEqual({
@@ -38,7 +38,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('should serve a static file', async () => {
 			php.writeFile('/index.html', `Hello World`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.html',
 			});
 			expect(response).toEqual({
@@ -61,7 +61,7 @@ describe.each(SupportedPHPVersions)(
 				'/Screenshot 2024-04-05 at 7.13.36 AM.html',
 				`Hello World`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/Screenshot 2024-04-05 at 7.13.36%E2%80%AFAM.html',
 			});
 			expect(response).toEqual({
@@ -84,7 +84,7 @@ describe.each(SupportedPHPVersions)(
 				'/Screenshot 2024-04-05 at 7.13.36 AM.php',
 				`Hello World`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/Screenshot 2024-04-05 at 7.13.36%E2%80%AFAM.php',
 			});
 			expect(response).toEqual({
@@ -100,7 +100,7 @@ describe.each(SupportedPHPVersions)(
 		});
 
 		it('should yield x-file-type=static when a static file is not found', async () => {
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.html',
 			});
 			expect(response).toEqual({
@@ -115,7 +115,7 @@ describe.each(SupportedPHPVersions)(
 		});
 
 		it('should not yield x-file-type=static when a PHP file is not found', async () => {
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 			});
 			expect(response).toEqual({
@@ -142,13 +142,13 @@ describe.each(SupportedPHPVersions)(
 			echo 'Hello World';
 		`
 			);
-			const response1 = handler.request({
+			const response1 = handler.request(php, {
 				url: '/index.php',
 			});
 			expect(handler.isRequestRunning).toBe(true);
 			// No stdout should be written yet
 			expect(php.fileExists('/tmp/stdout')).toBe(false);
-			const response2 = handler.request({
+			const response2 = handler.request(php, {
 				url: '/index.php',
 			});
 			const [response1Result, response2Result] = await Promise.all([
@@ -184,7 +184,7 @@ describe.each(SupportedPHPVersions)(
 				 echo 'Hello World';
 				`
 			);
-			const response1Result = await handler.request({
+			const response1Result = await handler.request(php, {
 				url: '/index.php',
 			});
 			php.writeFile(
@@ -193,7 +193,7 @@ describe.each(SupportedPHPVersions)(
 				echo 'Hello World' // note there is no closing semicolon
 				`
 			);
-			const response2Result = await handler.request({
+			const response2Result = await handler.request(php, {
 				url: '/index.php',
 			});
 			php.writeFile(
@@ -202,7 +202,7 @@ describe.each(SupportedPHPVersions)(
 				 echo 'Hello World!';
 				`
 			);
-			const response3Result = await handler.request({
+			const response3Result = await handler.request(php, {
 				url: '/index.php',
 			});
 			expect(response1Result).toEqual({
@@ -248,7 +248,7 @@ describe.each(SupportedPHPVersions)(
 				`<?php
 				echo json_encode($_POST);`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 				method: 'POST',
 				body: {
@@ -270,7 +270,7 @@ describe.each(SupportedPHPVersions)(
 				move_uploaded_file($_FILES["myFile"]["tmp_name"], '/tmp/moved.txt');
 				echo json_encode(file_exists('/tmp/moved.txt'));`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 				method: 'POST',
 				body: {
@@ -285,7 +285,7 @@ describe.each(SupportedPHPVersions)(
 		 */
 		it('Should not propagate the # part of the URL to PHP', async () => {
 			php.writeFile('/index.php', `<?php echo $_SERVER['REQUEST_URI'];`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php#foo',
 			});
 			expect(response.text).toEqual('/index.php');
@@ -301,7 +301,7 @@ describe.each(SupportedPHPVersions)(
 					array('file_exists' => file_exists('/tmp/moved.txt'))
 				));`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 				method: 'POST',
 				body: {
@@ -320,7 +320,7 @@ describe.each(SupportedPHPVersions)(
 				`<?php
 				echo json_encode($_POST);`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/index.php',
 				method: 'POST',
 				body: 'foo=bar',
@@ -334,13 +334,13 @@ describe.each(SupportedPHPVersions)(
 		it('should return error 502 when a PHP-sourced request is received before the previous request is handled', async () => {
 			php.writeFile('/index.php', `<?php echo "Hello";`);
 
-			const response1 = handler.request({
+			const response1 = handler.request(php, {
 				url: '/index.php',
 				headers: {
 					'x-request-issuer': 'php',
 				},
 			});
-			const response2 = handler.request({
+			const response2 = handler.request(php, {
 				url: '/index.php',
 				headers: {
 					'x-request-issuer': 'php',
@@ -352,7 +352,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('should return 200 and pass query strings when a valid request is made to a PHP file', async () => {
 			php.writeFile('/test.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/test.php?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -361,7 +361,7 @@ describe.each(SupportedPHPVersions)(
 
 		it('should return 200 status and pass query strings when a valid request is made to a WordPress permalink', async () => {
 			php.writeFile('/index.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/category/uncategorized/?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -371,7 +371,7 @@ describe.each(SupportedPHPVersions)(
 		it('should return 200 and pass query strings when a valid request is made to a folder', async () => {
 			php.mkdirTree('/folder');
 			php.writeFile('/folder/index.php', `<?php echo $_GET['key'];`);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/folder/?key=value',
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -390,7 +390,7 @@ describe.each(SupportedPHPVersions)(
 			const runtimeId = await loadPHPRuntime(phpLoaderModule);
 			php = new NodePHP(runtimeId);
 			php.mkdirTree('/var/www');
-			handler = new PHPRequestHandler(php, {
+			handler = new PHPRequestHandler({
 				documentRoot: '/var/www',
 			});
 		});
@@ -407,7 +407,7 @@ describe.each(SupportedPHPVersions)(
 					'/var/www/index.php',
 					`<?php echo $_SERVER['PHP_SELF'];`
 				);
-				const response = await handler.request({
+				const response = await handler.request(php, {
 					url,
 				});
 				expect(response.text).toEqual(expected);
@@ -420,7 +420,7 @@ describe.each(SupportedPHPVersions)(
 				'/var/www/subdir/index.php',
 				`<?php echo $_SERVER['PHP_SELF'];`
 			);
-			const response = await handler.request({
+			const response = await handler.request(php, {
 				url: '/subdir/?foo=bar',
 			});
 			expect(response.text).toEqual('/subdir/index.php');

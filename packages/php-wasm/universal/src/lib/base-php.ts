@@ -24,6 +24,10 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	PHPRequestHandler,
+	PHPRequestHandlerConfiguration,
+} from './php-request-handler';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -70,12 +74,20 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 *
 	 * @internal
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
-	 * @param  serverOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
+	 * @param  requestHandlerOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
 	 */
-	constructor(PHPRuntimeId?: PHPRuntimeId) {
+	constructor(
+		PHPRuntimeId?: PHPRuntimeId,
+		requestHandlerOptions?: PHPRequestHandlerConfiguration
+	) {
 		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
+		}
+		if (requestHandlerOptions) {
+			this.requestHandler = new PHPBrowser(
+				new PHPRequestHandler(requestHandlerOptions)
+			);
 		}
 	}
 
