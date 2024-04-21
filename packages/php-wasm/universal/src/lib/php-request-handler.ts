@@ -1,4 +1,4 @@
-import { Semaphore, joinPaths } from '@php-wasm/util';
+import { joinPaths } from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -45,7 +45,6 @@ export class PHPRequestHandler implements RequestHandler {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
-	#semaphore: Semaphore;
 	rewriteRules: RewriteRule[];
 
 	/**
@@ -53,7 +52,6 @@ export class PHPRequestHandler implements RequestHandler {
 	 * @param  config - Request Handler configuration.
 	 */
 	constructor(config: PHPRequestHandlerConfiguration = {}) {
-		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
@@ -95,10 +93,6 @@ export class PHPRequestHandler implements RequestHandler {
 			url.pathname = url.pathname.slice(this.#PATHNAME.length);
 		}
 		return toRelativeUrl(url);
-	}
-
-	get isRequestRunning() {
-		return this.#semaphore.running > 0;
 	}
 
 	/** @inheritDoc */
@@ -182,30 +176,6 @@ export class PHPRequestHandler implements RequestHandler {
 		request: PHPRequest,
 		requestedUrl: URL
 	): Promise<PHPResponse> {
-		// if (
-		// 	this.#semaphore.running > 0 &&
-		// 	request.headers?.['x-request-issuer'] === 'php'
-		// ) {
-		// 	console.warn(
-		// 		`Possible deadlock: Called request() before the previous request() have finished. ` +
-		// 			`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
-		// 			`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +
-		// 			`That's not useful, so PHPRequestHandler will return error 502 instead.`
-		// 	);
-		// 	return new PHPResponse(
-		// 		502,
-		// 		{},
-		// 		new TextEncoder().encode('502 Bad Gateway')
-		// 	);
-		// }
-		// /*
-		//  * Prevent multiple requests from running at the same time.
-		//  * For example, if a request is made to a PHP file that
-		//  * requests another PHP file, the second request may
-		//  * be dispatched before the first one is finished.
-		//  */
-		// const release = await this.#semaphore.acquire();
-		// try {
 		let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 		const headers: Record<string, string> = {
