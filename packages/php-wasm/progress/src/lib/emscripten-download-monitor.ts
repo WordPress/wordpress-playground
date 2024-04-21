@@ -65,17 +65,16 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	 * that monitors the download #progress.
 	 */
 	#monitorWebAssemblyStreaming() {
-		return;
-		const instantiateStreaming = WebAssembly.instantiateStreaming;
+		const originalMethod = WebAssembly.instantiateStreaming;
 		WebAssembly.instantiateStreaming = async (
 			responseOrPromise,
 			...args
 		) => {
+			// Restore the original method for any subsequent
+			// WASM modules that are loaded.
+			WebAssembly.instantiateStreaming = originalMethod;
+
 			const response = await responseOrPromise;
-			// Couldn't tie the response to a file.
-			if (!response.url) {
-				return instantiateStreaming(response, ...args);
-			}
 
 			const file = response.url.substring(
 				new URL(response.url).origin.length + 1
@@ -87,7 +86,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 					this.#notify(file, loaded, total)
 			);
 
-			return instantiateStreaming(reportingResponse, ...args);
+			return originalMethod(reportingResponse, ...args);
 		};
 	}
 
