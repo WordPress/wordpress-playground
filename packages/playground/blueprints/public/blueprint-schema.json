@@ -955,37 +955,6 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "setPhpIniEntry"
-						},
-						"key": {
-							"type": "string",
-							"description": "Entry name e.g. \"display_errors\""
-						},
-						"value": {
-							"type": "string",
-							"description": "Entry value as a string e.g. \"1\""
-						}
-					},
-					"required": ["key", "step", "value"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
 							"const": "setSiteOptions",
 							"description": "The name of the step. Must be \"setSiteOptions\"."
 						},
@@ -1417,6 +1386,13 @@
 						"type": "string"
 					},
 					"description": "Environment variables to set for this run."
+				},
+				"$_SERVER": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "$_SERVER entries to set for this run."
 				},
 				"code": {
 					"type": "string",

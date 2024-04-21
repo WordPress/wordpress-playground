@@ -118,7 +118,7 @@ export function initOutboundWebsocketProxyServer(
 
 // Handle new WebSocket client
 async function onWsConnect(client: any, request: http.IncomingMessage) {
-	const clientAddr = client._socket.remoteAddress;
+	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
 	};

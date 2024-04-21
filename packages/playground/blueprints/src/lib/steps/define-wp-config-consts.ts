@@ -4,6 +4,10 @@ import { StepHandler } from '.';
 import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
 import { UniversalPHP } from '@php-wasm/universal';
 
+const rewriteWpConfigToDefineConstants = await Bun.file(
+	__dirname + '/rewrite-wp-config-to-define-constants.php'
+).text();
+
 /**
  * @inheritDoc defineWpConfigConsts
  * @hasRunnableExample
@@ -94,7 +98,7 @@ export async function rewriteDefineCalls(
 	const js = phpVars({
 		consts,
 	});
-	await playground.run({
+	const result = await playground.run({
 		code: `${rewriteWpConfigToDefineConstants}
 	$wp_config_path = '/tmp/code.php';
 	$wp_config = file_get_contents($wp_config_path);
