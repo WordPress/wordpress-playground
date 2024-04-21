@@ -284,25 +284,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				this.#setPHPCode(' ?>' + request.code);
 			}
 
-			const $_SERVER = request.$_SERVER || {};
-			$_SERVER['HTTPS'] =
-				$_SERVER['HTTPS'] || port === 443 ? 'on' : 'off';
-			for (const name in headers) {
-				let HTTP_prefix = 'HTTP_';
-				/**
-				 * Some headers are special and don't have the HTTP_ prefix.
-				 */
-				if (
-					['content-type', 'content-length'].includes(
-						name.toLowerCase()
-					)
-				) {
-					HTTP_prefix = '';
-				}
-				$_SERVER[
-					`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`
-				] = headers[name];
-			}
+			const $_SERVER = this.#prepareServerEntries(
+				request.$_SERVER,
+				headers,
+				port
+			);
 			for (const key in $_SERVER) {
 				this.#setServerGlobalEntry(key, $_SERVER![key]);
 			}
@@ -345,6 +331,40 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				});
 			}
 		}
+	}
+
+	/**
+	 * Prepares the $_SERVER entries for the PHP runtime.
+	 *
+	 * @param defaults Default entries to include in $_SERVER.
+	 * @param headers HTTP headers to include in $_SERVER (as HTTP_ prefixed entries).
+	 * @param port HTTP port, used to determine infer $_SERVER['HTTPS'] value if none
+	 *             was provided.
+	 * @returns Computed $_SERVER entries.
+	 */
+	#prepareServerEntries(
+		defaults: Record<string, string> | undefined,
+		headers: PHPRequestHeaders,
+		port: number
+	): Record<string, string> {
+		const $_SERVER = {
+			...(defaults || {}),
+		};
+		$_SERVER['HTTPS'] = $_SERVER['HTTPS'] || port === 443 ? 'on' : 'off';
+		for (const name in headers) {
+			let HTTP_prefix = 'HTTP_';
+			/**
+			 * Some headers are special and don't have the HTTP_ prefix.
+			 */
+			if (
+				['content-type', 'content-length'].includes(name.toLowerCase())
+			) {
+				HTTP_prefix = '';
+			}
+			$_SERVER[`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`] =
+				headers[name];
+		}
+		return $_SERVER;
 	}
 
 	#initWebRuntime() {
