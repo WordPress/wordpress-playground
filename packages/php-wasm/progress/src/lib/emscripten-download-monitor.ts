@@ -32,12 +32,6 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 	#assetsSizes: Record<string, number> = {};
 	#progress: Record<string, number> = {};
 
-	constructor() {
-		super();
-
-		this.#monitorWebAssemblyStreaming();
-	}
-
 	expectAssets(assets: Record<string, number>) {
 		for (const [urlLike, size] of Object.entries(assets)) {
 			const dummyBaseUrl = 'http://example.com/';
@@ -58,42 +52,6 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			this.#notify(response.url, event.detail.loaded, event.detail.total);
 		};
 		return cloneResponseMonitorProgress(response, onProgress);
-	}
-
-	/**
-	 * Replaces the default WebAssembly.instantiateStreaming with a version
-	 * that monitors the download #progress.
-	 */
-	#monitorWebAssemblyStreaming() {
-		const originalMethod = WebAssembly.instantiateStreaming;
-		WebAssembly.instantiateStreaming = async (
-			responseOrPromise,
-			...args
-		) => {
-			// Restore the original method for any subsequent
-			// WASM modules that are loaded.
-			WebAssembly.instantiateStreaming = originalMethod;
-
-			const response = await responseOrPromise;
-
-			let file = '';
-			try {
-				file = response.url.substring(
-					new URL(response.url).origin.length + 1
-				);
-			} catch (e) {
-				console.error(e);
-				return originalMethod(response, ...args);
-			}
-
-			const reportingResponse = cloneResponseMonitorProgress(
-				response,
-				({ detail: { loaded, total } }) =>
-					this.#notify(file, loaded, total)
-			);
-
-			return originalMethod(reportingResponse, ...args);
-		};
 	}
 
 	/**

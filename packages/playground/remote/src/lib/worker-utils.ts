@@ -83,14 +83,69 @@ export const startupOptions = {
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
 
-const monitor = new EmscriptenDownloadMonitor();
-const createPhpRuntime = async () =>
-	await WebPHP.loadRuntime(startupOptions.phpVersion, {
-		downloadMonitor: monitor,
+interface CachedFetchResponse {
+	body: ReadableStream<Uint8Array>;
+	responseInit: ResponseInit;
+}
+
+function createCachedFetch() {
+	const cache: Record<string, CachedFetchResponse> = {};
+	return async function cachedFetch(url: string, options?: RequestInit) {
+		if (!cache[url]) {
+			const response = await fetch(url, options);
+			cache[url] = {
+				body: response.body!,
+				responseInit: {
+					status: response.status,
+					statusText: response.statusText,
+					headers: response.headers,
+				},
+			};
+		}
+		const [stream1, stream2] = cache[url].body.tee();
+		cache[url].body = stream2;
+		const response = new Response(stream1, cache[url].responseInit);
+		Object.defineProperty(response, 'url', { value: url });
+		return response;
+	};
+}
+
+export const downloadMonitor = new EmscriptenDownloadMonitor();
+
+const fetchWasm = createCachedFetch();
+const createPhpRuntime = async () => {
+	let wasmUrl = '';
+	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
+		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+			wasmUrl = phpLoaderModule.dependencyFilename;
+			downloadMonitor.expectAssets({
+				[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+			});
+		},
 		// We don't yet support loading specific PHP extensions one-by-one.
 		// Let's just indicate whether we want to load all of them.
 		loadAllExtensions: startupOptions.phpExtensions?.length > 0,
+		emscriptenOptions: {
+			instantiateWasm(imports, receiveInstance) {
+				// Using .then because Emscripten typically returns an empty
+				// object here and not a promise.
+				downloadMonitor
+					.monitorFetch(
+						fetchWasm(wasmUrl, {
+							credentials: 'same-origin',
+						})
+					)
+					.then((response) =>
+						WebAssembly.instantiateStreaming(response, imports)
+					)
+					.then((wasm) => {
+						receiveInstance(wasm.instance, wasm.module);
+					});
+				return {};
+			},
+		},
 	});
+};
 
 export async function createPhp(
 	processManager: PhpProcessManager<WebPHP>,

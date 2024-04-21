@@ -33,6 +33,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
+	downloadMonitor,
 	proxyFileSystem,
 	requestedWPVersion,
 	createPhp,
@@ -66,7 +67,6 @@ if (
 }
 
 const scope = Math.random().toFixed(16);
-const monitor = new EmscriptenDownloadMonitor();
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
@@ -74,13 +74,15 @@ if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = monitor.monitorFetch(fetch(requestedWPVersion));
+		wordPressRequest = downloadMonitor.monitorFetch(
+			fetch(requestedWPVersion)
+		);
 	} else {
 		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
-		monitor.expectAssets({
+		downloadMonitor.expectAssets({
 			[wpDetails.url]: wpDetails.size,
 		});
-		wordPressRequest = monitor.monitorFetch(fetch(wpDetails.url));
+		wordPressRequest = downloadMonitor.monitorFetch(fetch(wpDetails.url));
 	}
 }
 
@@ -164,7 +166,7 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 }
 
 const apiEndpoint = new PlaygroundWorkerEndpoint(
-	monitor,
+	downloadMonitor,
 	scope,
 	startupOptions.wpVersion
 );

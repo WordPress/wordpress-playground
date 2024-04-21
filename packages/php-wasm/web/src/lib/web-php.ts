@@ -1,17 +1,15 @@
 import {
 	BasePHP,
-	DataModule,
 	EmscriptenOptions,
 	loadPHPRuntime,
+	PHPLoaderModule,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
-import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { getPHPLoaderModule } from './get-php-loader-module';
 
 export interface PHPWebLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
-	downloadMonitor?: EmscriptenDownloadMonitor;
-	dataModules?: Array<DataModule | Promise<DataModule>>;
+	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	/** @deprecated To be replaced with `extensions` in the future */
 	loadAllExtensions?: boolean;
 }
@@ -70,10 +68,7 @@ export class WebPHP extends BasePHP {
 		const variant = options.loadAllExtensions ? 'kitchen-sink' : 'light';
 
 		const phpLoaderModule = await getPHPLoaderModule(phpVersion, variant);
-		options.downloadMonitor?.expectAssets({
-			[phpLoaderModule.dependencyFilename]:
-				phpLoaderModule.dependenciesTotalSize,
-		});
+		options.onPhpLoaderModuleLoaded?.(phpLoaderModule);
 		return await loadPHPRuntime(phpLoaderModule, {
 			...(options.emscriptenOptions || {}),
 			...fakeWebsocket(),
