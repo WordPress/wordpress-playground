@@ -16,7 +16,11 @@ export type {
 	SpawnHandler,
 } from './universal-php';
 
-export { PhpProcessManager } from './php-process-manager';
+export {
+	type SpawnedPHP,
+	PhpProcessManager,
+	MaxPhpInstancesError,
+} from './php-process-manager';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';

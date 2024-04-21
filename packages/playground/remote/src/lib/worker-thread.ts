@@ -173,6 +173,8 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
+	const procManager = new PhpProcessManager();
+
 	const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 	const requestHandler = new PHPBrowser(
 		new PHPRequestHandler({
@@ -181,7 +183,6 @@ try {
 			rewriteRules: wordPressRewriteRules,
 		})
 	);
-	const procManager = new PhpProcessManager();
 	// We need a separate primary PHP to provide the Filesystem.
 	// All other spawned PHP instances will proxy their FS calls
 	// to the primary one.
@@ -205,7 +206,6 @@ try {
 			),
 			extractToPath: requestHandler.documentRoot,
 		});
-		console.log('Unzipped', requestHandler.documentRoot);
 
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(primaryPhp, {

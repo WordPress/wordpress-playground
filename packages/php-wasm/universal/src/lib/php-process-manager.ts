@@ -1,5 +1,4 @@
 import { BasePHP } from './base-php';
-import { PHPResponse } from './php-response';
 
 export interface ProcessManagerOptions {
 	maxPhpInstances?: number;
@@ -8,6 +7,15 @@ export interface ProcessManagerOptions {
 export interface SpawnedPHP<PHP extends BasePHP> {
 	php: PHP;
 	reap: () => void;
+}
+
+export class MaxPhpInstancesError extends Error {
+	constructor(limit: number) {
+		super(
+			`Requested more concurrent PHP instances than the limit (${limit}).`
+		);
+		this.name = 'MaxPhpInstancesError';
+	}
 }
 
 /**
@@ -53,21 +61,9 @@ export class PhpProcessManager<PHP extends BasePHP> {
 		this.phpFactory = phpFactory;
 	}
 
-	async withPhp(callback: (php: PHP) => any): Promise<PHPResponse> {
-		const { php, reap: release } = await this.spawn();
-
-		try {
-			return await callback(php!);
-		} finally {
-			release();
-		}
-	}
-
 	async spawn(): Promise<SpawnedPHP<PHP>> {
 		if (this.activePhpInstances >= this.maxPhpInstances) {
-			throw new Error(
-				`Requested more concurrent PHP instances than the limit of ${this.maxPhpInstances}.`
-			);
+			throw new MaxPhpInstancesError(this.maxPhpInstances);
 		}
 
 		if (!this.phpFactory || !this.primaryPhp) {

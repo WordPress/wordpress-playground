@@ -1,15 +1,17 @@
-import type {
-	MessageListener,
-	IsomorphicLocalPHP,
-	ListFilesOptions,
-	PHPRequest,
+import {
+	type MessageListener,
+	type IsomorphicLocalPHP,
+	type ListFilesOptions,
+	type PHPRequest,
 	PHPResponse,
-	PHPRunOptions,
-	RmDirOptions,
-	PHPEventListener,
-	PHPEvent,
-	RequestHandler,
-	PhpProcessManager,
+	type PHPRunOptions,
+	type RmDirOptions,
+	type PHPEventListener,
+	type PHPEvent,
+	type RequestHandler,
+	type PhpProcessManager,
+	type SpawnedPHP,
+	MaxPhpInstancesError,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { WebPHP } from './web-php';
@@ -127,19 +129,37 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		request: PHPRequest,
 		redirects?: number
 	): Promise<PHPResponse> {
+		let spawnedPHP: SpawnedPHP<WebPHP> | undefined = undefined;
+		try {
+			spawnedPHP = await _private.get(this)!.processManager!.spawn();
+		} catch (e) {
+			if (e instanceof MaxPhpInstancesError) {
+				console.warn(e.message);
+				return new PHPResponse(
+					502,
+					{},
+					new TextEncoder().encode('502 Bad Gateway')
+				);
+			}
+			throw e;
+		}
 		const requestHandler = _private.get(this)!.requestHandler!;
-		return await _private
-			.get(this)!
-			.processManager!.withPhp((php) =>
-				requestHandler.request(php, request, redirects)
-			);
+		const { php, reap } = spawnedPHP;
+		try {
+			return await requestHandler.request(php, request, redirects);
+		} finally {
+			reap();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		return await _private
-			.get(this)!
-			.processManager!.withPhp((php) => php.run(request));
+		const { php, reap } = await _private.get(this)!.processManager!.spawn();
+		try {
+			return await php.run(request);
+		} finally {
+			reap();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
