@@ -420,8 +420,8 @@ function isStepDefinition(
  * Determines if a step is still supported, or was it deprecated
  * and removed.
  *
- * @param step The object to test
- * @returns Whether the object is a StepDefinition
+ * @param step The step definition to test.
+ * @returns Whether the step is still supported.
  */
 function isStepStillSupported(
 	step: Record<string, any>
