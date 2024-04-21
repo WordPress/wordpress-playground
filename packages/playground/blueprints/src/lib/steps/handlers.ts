@@ -3,7 +3,6 @@ export { activateTheme } from './activate-theme';
 export { runPHP } from './run-php';
 export { runPHPWithOptions } from './run-php-with-options';
 export { runSql } from './run-sql';
-export { setPhpIniEntry } from './set-php-ini-entry';
 export { request } from './request';
 export { enableMultisite } from './enable-multisite';
 export { cp } from './cp';
