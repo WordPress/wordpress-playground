@@ -16,8 +16,7 @@ export type {
 	SpawnHandler,
 } from './universal-php';
 
-export { type AcquiredPHP, PHPPool } from './php-pool';
-
+export { PhpProcessManager } from './php-process-manager';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
 
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';

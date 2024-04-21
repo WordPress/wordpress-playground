@@ -1,4 +1,4 @@
-import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -10,9 +10,8 @@ import {
 } from '@wp-playground/wordpress';
 import {
 	PHPBrowser,
-	PHPPool,
 	PHPRequestHandler,
-	RequestHandler,
+	PhpProcessManager,
 	writeFiles,
 } from '@php-wasm/universal';
 import { bindOpfs, playgroundAvailableInOpfs } from './opfs/bind-opfs';
@@ -30,8 +29,9 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
+	proxyFileSystem,
 	requestedWPVersion,
-	setupPHP,
+	createPhp,
 	startupOptions,
 } from './worker-thread-utils';
 
@@ -88,23 +88,14 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	 */
 	wordPressVersion: string;
 
-	/**
-	 * A string representing the version of PHP being used.
-	 */
-	phpVersion: string;
-
 	constructor(
-		phpPool: PHPPool<WebPHP>,
-		requestHandler: RequestHandler,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
-		wordPressVersion: string,
-		phpVersion: string
+		wordPressVersion: string
 	) {
-		super(phpPool, requestHandler, monitor);
+		super(monitor);
 		this.scope = scope;
 		this.wordPressVersion = wordPressVersion;
-		this.phpVersion = phpVersion;
 	}
 
 	/**
@@ -164,51 +155,47 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	// }
 }
 
-const primary = new WebPHP();
-const replicas = [];
-for (let i = 0; i < 1; i++) {
-	replicas.push(new WebPHP());
-}
-
-const pool = new PHPPool(primary, replicas);
-const requestHandler = new PHPBrowser(
-	new PHPRequestHandler({
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-		rewriteRules: wordPressRewriteRules,
-	})
+const apiEndpoint = new PlaygroundWorkerEndpoint(
+	monitor,
+	scope,
+	startupOptions.wpVersion
 );
-
-const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpoint(
-		pool,
-		requestHandler,
-		monitor,
-		scope,
-		startupOptions.wpVersion,
-		startupOptions.phpVersion
-	)
-);
+const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	for (const instance of pool.instances) {
-		await setupPHP(instance, pool, requestHandler);
-	}
+	const requestHandler = new PHPBrowser(
+		new PHPRequestHandler({
+			documentRoot: DOCROOT,
+			absoluteUrl: scopedSiteUrl,
+			rewriteRules: wordPressRewriteRules,
+		})
+	);
+	const procManager = new PhpProcessManager();
+	const primaryPhp = await createPhp(procManager, requestHandler);
+	procManager.setPrimaryPhp(primaryPhp);
+	procManager.setPhpFactory(async () => {
+		const php = await createPhp(procManager, requestHandler);
+		proxyFileSystem(primaryPhp, php, requestHandler.documentRoot);
+		return php;
+	});
 
-	const docroot = requestHandler.documentRoot;
+	apiEndpoint.setRequestHandler(requestHandler);
+	apiEndpoint.setProcessManager(procManager);
+
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		await unzip(primary, {
+		await unzip(primaryPhp, {
 			zipFile: new File(
 				[await (await wordPressRequest!).blob()],
 				'wp.zip'
 			),
-			extractToPath: docroot,
+			extractToPath: requestHandler.documentRoot,
 		});
+		console.log('Unzipped', requestHandler.documentRoot);
 
 		// Randomize the WordPress secrets
-		await defineWpConfigConsts(primary, {
+		await defineWpConfigConsts(primaryPhp, {
 			consts: {
 				WP_DEBUG: true,
 				WP_DEBUG_LOG: true,
@@ -230,16 +217,23 @@ try {
 	// * The mu-plugin is always there, even when a custom WordPress directory
 	//   is mounted.
 	// * The mu-plugin is always up to date.
-	await writeFiles(primary, joinPaths(docroot, '/wp-content/mu-plugins'), {
-		'0-playground.php': playgroundMuPlugin,
-		'playground-includes/wp_http_dummy.php': transportDummy,
-		'playground-includes/wp_http_fetch.php': transportFetch,
-	});
+	await writeFiles(
+		primaryPhp,
+		joinPaths(requestHandler.documentRoot, '/wp-content/mu-plugins'),
+		{
+			'0-playground.php': playgroundMuPlugin,
+			'playground-includes/wp_http_dummy.php': transportDummy,
+			'playground-includes/wp_http_fetch.php': transportFetch,
+		}
+	);
 	// Create phpinfo.php
-	primary.writeFile(joinPaths(docroot, 'phpinfo.php'), '<?php phpinfo(); ');
+	primaryPhp.writeFile(
+		joinPaths(requestHandler.documentRoot, 'phpinfo.php'),
+		'<?php phpinfo(); '
+	);
 	// Create phpinfo.php
-	primary.writeFile(
-		joinPaths(docroot, 'self-request.php'),
+	primaryPhp.writeFile(
+		joinPaths(requestHandler.documentRoot, 'self-request.php'),
 		`<?php 
 	require_once('/wordpress/wp-load.php');
 	echo "Pre";
@@ -261,15 +255,15 @@ try {
 	echo "Finished";
 	`
 	);
-	primary.writeFile(
-		joinPaths(docroot, 'next.php'),
+	primaryPhp.writeFile(
+		joinPaths(requestHandler.documentRoot, 'next.php'),
 		`<?php 
 	echo "YAY, self-request worked!";
 	`
 	);
 
-	primary.writeFile(
-		joinPaths(docroot, 'run-php-file.php'),
+	primaryPhp.writeFile(
+		joinPaths(requestHandler.documentRoot, 'run-php-file.php'),
 		`<?php 
 	echo shell_exec('php /wordpress/next.php');
 	echo "After";
@@ -278,14 +272,14 @@ try {
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
-			php: primary,
+			php: primaryPhp,
 			opfs: virtualOpfsDir!,
 			wordPressAvailableInOPFS,
 		});
 	}
 
 	// Always setup the current site URL.
-	await defineSiteUrl(primary, {
+	await defineSiteUrl(primaryPhp, {
 		siteUrl: scopedSiteUrl,
 	});
 

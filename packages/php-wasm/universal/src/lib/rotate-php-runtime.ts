@@ -25,7 +25,15 @@ export interface RotateOptions<T extends BasePHP> {
 export function rotatePHPRuntime<T extends BasePHP>({
 	php,
 	recreateRuntime,
-	maxRequests,
+	/*
+	 * 400 is an arbitrary number that should trigger a rotation
+	 * way before the memory gets too fragmented. If it doesn't,
+	 * let's explore:
+	 * * Rotating based on an actual memory usage and
+	 *   fragmentation.
+	 * * Resetting HEAP to its initial value.
+	 */
+	maxRequests = 400,
 }: RotateOptions<T>) {
 	let handledCalls = 0;
 	async function rotateRuntime() {

@@ -1,5 +1,4 @@
 import type {
-	BasePHP,
 	MessageListener,
 	IsomorphicLocalPHP,
 	ListFilesOptions,
@@ -9,8 +8,8 @@ import type {
 	RmDirOptions,
 	PHPEventListener,
 	PHPEvent,
-	PHPPool,
 	RequestHandler,
+	PhpProcessManager,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { WebPHP } from './web-php';
@@ -18,9 +17,8 @@ import { WebPHP } from './web-php';
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
-		php: BasePHP;
-		phpPool: PHPPool<WebPHP>;
-		requestHandler: RequestHandler;
+		processManager?: PhpProcessManager<WebPHP>;
+		requestHandler?: RequestHandler;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -30,16 +28,12 @@ const _private = new WeakMap<
  */
 export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
-	absoluteUrl: string;
+	absoluteUrl?: string;
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
-	documentRoot: string;
+	documentRoot?: string;
 
 	/** @inheritDoc */
-	constructor(
-		phpPool: PHPPool<WebPHP>,
-		requestHandler: RequestHandler,
-		monitor?: EmscriptenDownloadMonitor
-	) {
+	constructor(monitor?: EmscriptenDownloadMonitor) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -64,25 +58,36 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		 * ```
 		 */
 		_private.set(this, {
-			php: phpPool.primary,
-			requestHandler,
-			phpPool,
 			monitor,
 		});
+	}
+
+	setRequestHandler(requestHandler: RequestHandler) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
+		_private.set(this, {
+			..._private.get(this)!,
+			requestHandler,
+		});
+	}
+
+	setProcessManager(processManager: PhpProcessManager<WebPHP>) {
+		_private.set(this, {
+			..._private.get(this)!,
+			processManager,
+		});
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
-		return _private.get(this)!.requestHandler.pathToInternalUrl(path);
+		return _private.get(this)!.requestHandler!.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
 		return _private
 			.get(this)!
-			.requestHandler.internalUrlToPath(internalUrl);
+			.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	/**
@@ -98,12 +103,16 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
 	mv(fromPath: string, toPath: string) {
-		return _private.get(this)!.php.mv(fromPath, toPath);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.mv(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
 	rmdir(path: string, options?: RmDirOptions) {
-		return _private.get(this)!.php.rmdir(path, options);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.rmdir(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
@@ -111,84 +120,89 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		request: PHPRequest,
 		redirects?: number
 	): Promise<PHPResponse> {
-		const { php, release } = await _private.get(this)!.phpPool.acquire();
-		try {
-			return await _private
-				.get(this)!
-				.requestHandler.request(php, request, redirects);
-		} finally {
-			release();
-		}
+		const requestHandler = _private.get(this)!.requestHandler!;
+		return await _private
+			.get(this)!
+			.processManager!.withPhp((php) =>
+				requestHandler.request(php, request, redirects)
+			);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		const { php, release } = await _private.get(this)!.phpPool.acquire();
-		try {
-			return await php.run(request);
-		} finally {
-			release();
-		}
+		return await _private
+			.get(this)!
+			.processManager!.withPhp((php) => php.run(request));
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
-		return _private.get(this)!.php.chdir(path);
+		return _private.get(this)!.processManager!.primaryPhp!.chdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
 	mkdir(path: string): void {
-		return _private.get(this)!.php.mkdir(path);
+		return _private.get(this)!.processManager!.primaryPhp!.mkdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
 	mkdirTree(path: string): void {
-		return _private.get(this)!.php.mkdirTree(path);
+		return _private.get(this)!.processManager!.primaryPhp!.mkdirTree(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
 	readFileAsText(path: string): string {
-		return _private.get(this)!.php.readFileAsText(path);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.readFileAsText(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
-		return _private.get(this)!.php.readFileAsBuffer(path);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.readFileAsBuffer(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
-		return _private.get(this)!.php.writeFile(path, data);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.writeFile(path, data);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
 	unlink(path: string): void {
-		return _private.get(this)!.php.unlink(path);
+		return _private.get(this)!.processManager!.primaryPhp!.unlink(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
 	listFiles(path: string, options?: ListFilesOptions): string[] {
-		return _private.get(this)!.php.listFiles(path, options);
+		return _private
+			.get(this)!
+			.processManager!.primaryPhp!.listFiles(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
 	isDir(path: string): boolean {
-		return _private.get(this)!.php.isDir(path);
+		return _private.get(this)!.processManager!.primaryPhp!.isDir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
 	fileExists(path: string): boolean {
-		return _private.get(this)!.php.fileExists(path);
+		return _private.get(this)!.processManager!.primaryPhp!.fileExists(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
 	onMessage(listener: MessageListener): void {
-		_private.get(this)!.php.onMessage(listener);
+		_private.get(this)!.processManager!.primaryPhp!.onMessage(listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
 	defineConstant(key: string, value: string | boolean | number | null): void {
-		_private.get(this)!.php.defineConstant(key, value);
+		_private
+			.get(this)!
+			.processManager!.primaryPhp!.defineConstant(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
@@ -196,7 +210,9 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private.get(this)!.php.addEventListener(eventType, listener);
+		_private
+			.get(this)!
+			.processManager!.primaryPhp!.addEventListener(eventType, listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
@@ -204,6 +220,11 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private.get(this)!.php.removeEventListener(eventType, listener);
+		_private
+			.get(this)!
+			.processManager!.primaryPhp!.removeEventListener(
+				eventType,
+				listener
+			);
 	}
 }

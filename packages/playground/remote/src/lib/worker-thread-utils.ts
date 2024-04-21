@@ -30,8 +30,9 @@ import {
 import { wordPressSiteUrl } from './config';
 import { setURLScope } from '@php-wasm/scopes';
 import {
-	PHPPool,
+	BasePHP,
 	PHPResponse,
+	PhpProcessManager,
 	RequestHandler,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
@@ -87,17 +88,7 @@ export const startupOptions = {
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
 
-const { phpVersion, phpExtensions } = startupOptions;
-const monitor = new EmscriptenDownloadMonitor();
-const recreateRuntime = async () =>
-	await WebPHP.loadRuntime(phpVersion, {
-		downloadMonitor: monitor,
-		// We don't yet support loading specific PHP extensions one-by-one.
-		// Let's just indicate whether we want to load all of them.
-		loadAllExtensions: phpExtensions?.length > 0,
-	});
-
-export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
+export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		if (args[0] === 'exec') {
 			args.shift();
@@ -142,7 +133,7 @@ export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
 			});
 			return;
 		} else if (args[0] === 'php') {
-			const { php: childPHP, release } = await pool.acquire();
+			const { php, reap: release } = await processManager.spawn();
 
 			let result: PHPResponse | undefined = undefined;
 			try {
@@ -166,14 +157,14 @@ export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
                 `;
 
 				if (args.includes('-r')) {
-					result = await childPHP.run({
+					result = await php.run({
 						code: `${cliBootstrapScript} ${
 							args[args.indexOf('-r') + 1]
 						}`,
 						env: options.env,
 					});
 				} else if (args[1] === 'wp-cli.phar') {
-					result = await childPHP.run({
+					result = await php.run({
 						code: `${cliBootstrapScript} require( "/wordpress/wp-cli.phar" );`,
 						env: {
 							...options.env,
@@ -184,7 +175,7 @@ export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
 						},
 					});
 				} else {
-					result = await childPHP.run({
+					result = await php.run({
 						scriptPath: args[1],
 						env: options.env,
 					});
@@ -207,50 +198,63 @@ export function spawnHandlerFactory(pool: PHPPool<WebPHP>) {
 	});
 }
 
-export async function setupPHP(
-	php: WebPHP,
-	pool: PHPPool<WebPHP>,
+const { phpVersion, phpExtensions } = startupOptions;
+const monitor = new EmscriptenDownloadMonitor();
+const createPhpRuntime = async () =>
+	await WebPHP.loadRuntime(phpVersion, {
+		downloadMonitor: monitor,
+		// We don't yet support loading specific PHP extensions one-by-one.
+		// Let's just indicate whether we want to load all of them.
+		loadAllExtensions: phpExtensions?.length > 0,
+	});
+
+export async function createPhp(
+	processManager: PhpProcessManager<WebPHP>,
 	requestHandler: RequestHandler
 ) {
+	const php = new WebPHP();
 	php.requestHandler = requestHandler as any;
-	php.initializeRuntime(await recreateRuntime());
+	php.initializeRuntime(await createPhpRuntime());
 	php.setPhpIniEntry('memory_limit', '256M');
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	php.setSpawnHandler(spawnHandlerFactory(processManager));
 	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 	rotatePHPRuntime({
 		php,
-		recreateRuntime,
-		// 400 is an arbitrary number that should trigger a rotation
-		// way before the memory gets too fragmented. If the memory
-		// issue returns, let's explore:
-		// * Lowering this number
-		// * Adding a memory usage monitor and rotate based on that
+		recreateRuntime: createPhpRuntime,
 		maxRequests: 400,
 	});
-	php.setSpawnHandler(spawnHandlerFactory(pool));
-	if (php !== pool.primary) {
-		// Share the parent's MEMFS instance with the child process.
-		// Only mount the document root and the /tmp directory,
-		// the rest of the filesystem (like the devices) should be
-		// private to each PHP instance.
-		for (const path of [requestHandler.documentRoot, '/tmp']) {
-			if (!php.fileExists(path)) {
-				php.mkdir(path);
-			}
-			if (!pool.primary.fileExists(path)) {
-				pool.primary.mkdir(path);
-			}
-			php[__private__dont__use].FS.mount(
-				php[__private__dont__use].PROXYFS,
-				{
-					root: path,
-					fs: pool.primary[__private__dont__use].FS,
-				},
-				path
-			);
+	return php;
+}
+
+/**
+ * Share the parent's MEMFS instance with the child process.
+ * Only mount the document root and the /tmp directory,
+ * the rest of the filesystem (like the devices) should be
+ * private to each PHP instance.
+ */
+export function proxyFileSystem(
+	sourceOfTruth: BasePHP,
+	replica: BasePHP,
+	documentRoot: string
+) {
+	for (const path of [documentRoot, '/tmp']) {
+		if (!replica.fileExists(path)) {
+			replica.mkdir(path);
 		}
+		if (!sourceOfTruth.fileExists(path)) {
+			sourceOfTruth.mkdir(path);
+		}
+		replica[__private__dont__use].FS.mount(
+			replica[__private__dont__use].PROXYFS,
+			{
+				root: path,
+				fs: sourceOfTruth[__private__dont__use].FS,
+			},
+			path
+		);
 	}
 }
