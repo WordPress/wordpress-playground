@@ -88,11 +88,11 @@ interface CachedFetchResponse {
 	responseInit: ResponseInit;
 }
 
-function createCachedFetch() {
+function createCachedFetch(_fetch = fetch) {
 	const cache: Record<string, CachedFetchResponse> = {};
 	return async function cachedFetch(url: string, options?: RequestInit) {
 		if (!cache[url]) {
-			const response = await fetch(url, options);
+			const response = await _fetch(url, options);
 			cache[url] = {
 				body: response.body!,
 				responseInit: {
@@ -104,17 +104,16 @@ function createCachedFetch() {
 		}
 		const [stream1, stream2] = cache[url].body.tee();
 		cache[url].body = stream2;
-		const response = new Response(stream1, cache[url].responseInit);
-		// The `url` property is necessary for progress monitoring
-		// via the EmscriptenDownloadMonitor.
-		Object.defineProperty(response, 'url', { value: url });
-		return response;
+		return new Response(stream1, cache[url].responseInit);
 	};
 }
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 
-const fetchWasm = createCachedFetch();
+const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+	downloadMonitor.monitorFetch(fetch(input, init));
+const cachedFetch = createCachedFetch(monitoredFetch);
+
 const createPhpRuntime = async () => {
 	let wasmUrl = '';
 	return await WebPHP.loadRuntime(startupOptions.phpVersion, {
@@ -131,12 +130,9 @@ const createPhpRuntime = async () => {
 			instantiateWasm(imports, receiveInstance) {
 				// Using .then because Emscripten typically returns an empty
 				// object here and not a promise.
-				downloadMonitor
-					.monitorFetch(
-						fetchWasm(wasmUrl, {
-							credentials: 'same-origin',
-						})
-					)
+				cachedFetch(wasmUrl, {
+					credentials: 'same-origin',
+				})
 					.then((response) =>
 						WebAssembly.instantiateStreaming(response, imports)
 					)
