@@ -182,6 +182,9 @@ try {
 		})
 	);
 	const procManager = new PhpProcessManager();
+	// We need a separate primary PHP to provide the Filesystem.
+	// All other spawned PHP instances will proxy their FS calls
+	// to the primary one.
 	const primaryPhp = await createPhp(procManager, requestHandler);
 	procManager.setPrimaryPhp(primaryPhp);
 	procManager.setPhpFactory(async () => {
