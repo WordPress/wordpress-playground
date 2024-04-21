@@ -427,6 +427,9 @@ function isStepStillSupported(
 	step: Record<string, any>
 ): step is StepDefinition {
 	if (step['step'] === 'setPhpIniEntry') {
+		console.warn(
+			`The "setPhpIniEntry" Blueprint is no longer supported and you can remove it from your Blueprint.`
+		);
 		return false;
 	}
 	return true;
