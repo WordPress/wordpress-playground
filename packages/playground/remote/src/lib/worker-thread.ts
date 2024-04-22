@@ -8,11 +8,7 @@ import {
 	SupportedWordPressVersions,
 	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
-import {
-	PHPRequestHandler,
-	PHPProcessManager,
-	writeFiles,
-} from '@php-wasm/universal';
+import { PHPRequestHandler, writeFiles } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -164,6 +160,23 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	}
 }
 
+const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
+const requestHandler = new PHPRequestHandler({
+	phpFactory: async ({ isPrimary }) => {
+		const php = await createPhp(requestHandler);
+		if (!isPrimary) {
+			proxyFileSystem(
+				await requestHandler.getPrimaryPhp(),
+				php,
+				requestHandler.documentRoot
+			);
+		}
+		return php;
+	},
+	documentRoot: DOCROOT,
+	absoluteUrl: scopedSiteUrl,
+	rewriteRules: wordPressRewriteRules,
+});
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	downloadMonitor,
 	scope,
@@ -172,26 +185,8 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	const procManager = new PHPProcessManager();
-
-	const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-	const requestHandler = new PHPRequestHandler({
-		processManager: procManager,
-		documentRoot: DOCROOT,
-		absoluteUrl: scopedSiteUrl,
-		rewriteRules: wordPressRewriteRules,
-	});
-	// We need a separate primary PHP to provide the Filesystem.
-	// All other spawned PHP instances will proxy their FS calls
-	// to the primary one.
-	const primaryPhp = await createPhp(requestHandler);
-	procManager.setPrimaryPhp(primaryPhp);
-	procManager.setPhpFactory(async () => {
-		const php = await createPhp(requestHandler);
-		proxyFileSystem(primaryPhp, php, requestHandler.documentRoot);
-		return php;
-	});
-	apiEndpoint.setRequestHandler(requestHandler);
+	await apiEndpoint.setRequestHandler(requestHandler);
+	const primaryPhp = await requestHandler.getPrimaryPhp();
 
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.

@@ -15,6 +15,7 @@ import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import {
 	MaxPhpInstancesError,
+	PHPFactoryArgs,
 	PHPProcessManager,
 	SpawnedPHP,
 } from './php-process-manager';
@@ -42,6 +43,11 @@ interface BaseConfiguration {
 	rewriteRules?: RewriteRule[];
 }
 
+export type PHPRequestHandlerFactoryArgs<PHP extends BasePHP> =
+	PHPFactoryArgs & {
+		requestHandler: PHPRequestHandler<PHP>;
+	};
+
 export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
 	BaseConfiguration &
 		(
@@ -61,7 +67,7 @@ export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
 			  }
 			| {
 					phpFactory: (
-						requestHandler: PHPRequestHandler<PHP>
+						requestHandler: PHPRequestHandlerFactoryArgs<PHP>
 					) => Promise<PHP>;
 			  }
 		);
@@ -153,8 +159,11 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			this.processManager = config.processManager;
 		} else {
 			this.processManager = new PHPProcessManager({
-				phpFactory: async () => {
-					const php = await config.phpFactory!(this);
+				phpFactory: async (info) => {
+					const php = await config.phpFactory!({
+						...info,
+						requestHandler: this,
+					});
 					// @TODO: Decouple PHP and request handler
 					(php as any).requestHandler = this;
 					return php;

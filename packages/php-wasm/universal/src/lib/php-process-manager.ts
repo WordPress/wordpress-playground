@@ -1,9 +1,17 @@
 import { BasePHP } from './base-php';
 
+export type PHPFactoryArgs = {
+	isPrimary: boolean;
+};
+
+export type PHPFactory<PHP extends BasePHP> = ({
+	isPrimary,
+}: PHPFactoryArgs) => Promise<PHP>;
+
 export interface ProcessManagerOptions<PHP extends BasePHP> {
 	maxPhpInstances?: number;
 	primaryPhp?: PHP;
-	phpFactory?: () => Promise<PHP>;
+	phpFactory?: PHPFactory<PHP>;
 }
 
 export interface SpawnedPHP<PHP extends BasePHP> {
@@ -47,7 +55,7 @@ export class PHPProcessManager<PHP extends BasePHP> {
 	private primaryIdle = true;
 	private seenConcurrentRequest = false;
 	private nextInstance: Promise<PHP> | null = null;
-	private phpFactory?: () => Promise<PHP>;
+	private phpFactory?: PHPFactory<PHP>;
 	private maxPhpInstances: number;
 	private activePhpInstances = 0;
 
@@ -68,7 +76,7 @@ export class PHPProcessManager<PHP extends BasePHP> {
 				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
 			);
 		} else if (!this.primaryPhp) {
-			this.primaryPhp = await this.phpFactory!();
+			this.primaryPhp = await this.phpFactory!({ isPrimary: true });
 			++this.activePhpInstances;
 		}
 		return this.primaryPhp!;
@@ -96,11 +104,11 @@ export class PHPProcessManager<PHP extends BasePHP> {
 		} else {
 			if (!this.seenConcurrentRequest) {
 				this.seenConcurrentRequest = true;
-				this.nextInstance = this.phpFactory();
+				this.nextInstance = this.phpFactory({ isPrimary: false });
 				++this.activePhpInstances;
 			}
 			const phpPromise = this.nextInstance!;
-			this.nextInstance = this.phpFactory();
+			this.nextInstance = this.phpFactory({ isPrimary: false });
 			++this.activePhpInstances;
 			php = await phpPromise;
 		}
