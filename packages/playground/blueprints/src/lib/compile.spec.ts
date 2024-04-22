@@ -1,4 +1,4 @@
-import { NodePHP } from '@php-wasm/node';
+import { NodePHP, getPHPLoaderModule } from '@php-wasm/node';
 import {
 	compileBlueprint,
 	runBlueprintSteps,
@@ -6,15 +6,32 @@ import {
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import {
+	PHPProcessManager,
+	PHPRequestHandler,
+	loadPHPRuntime,
+} from '@php-wasm/universal';
 
 describe('Blueprints', () => {
 	let php: NodePHP;
+	let requestHandler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/',
-			},
-		});
+		const phpFactory = async () => {
+			const phpLoaderModule = await getPHPLoaderModule(
+				RecommendedPHPVersion
+			);
+			const runtimeId = await loadPHPRuntime(phpLoaderModule);
+			return new NodePHP(runtimeId);
+		};
+		php = await phpFactory();
+		const processManager = new PHPProcessManager<NodePHP>();
+		processManager.setPhpFactory(phpFactory);
+		processManager.setPrimaryPhp(php);
+
+		requestHandler = new PHPRequestHandler({
+			processManager,
+			documentRoot: '/',
+		}) as any;
 	});
 
 	it('should run a basic blueprint', async () => {
@@ -57,21 +74,21 @@ describe('Blueprints', () => {
 			'/index.php',
 			'<?php require "/wp-config.php"; echo TEST_CONST;'
 		);
-		let result = await php.request({ url: '/index.php' });
+		let result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('test_value');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; echo SITE_URL;'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text).toBe('http://test.url');
 
 		php.writeFile(
 			'/index.php',
 			'<?php require "/wp-config.php"; var_dump(WP_AUTO_UPDATE_CORE);'
 		);
-		result = await php.request({ url: '/index.php' });
+		result = await requestHandler.request({ url: '/index.php' });
 		expect(result.text.trim()).toBe('bool(false)');
 	});
 
