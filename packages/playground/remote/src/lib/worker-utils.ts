@@ -256,7 +256,7 @@ export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
 			});
 			return;
 		} else if (args[0] === 'php') {
-			const { php, reap } = await processManager.spawn();
+			const { php, reap } = await processManager.getInstance();
 
 			let result: PHPResponse | undefined = undefined;
 			try {

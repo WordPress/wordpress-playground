@@ -24,10 +24,6 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
-import {
-	PHPRequestHandler,
-	PHPRequestHandlerConfiguration,
-} from './php-request-handler';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -76,18 +72,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
 	 * @param  requestHandlerOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
 	 */
-	constructor(
-		PHPRuntimeId?: PHPRuntimeId,
-		requestHandlerOptions?: PHPRequestHandlerConfiguration
-	) {
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
 		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
-		}
-		if (requestHandlerOptions) {
-			this.requestHandler = new PHPBrowser(
-				new PHPRequestHandler(requestHandlerOptions)
-			);
 		}
 	}
 
@@ -233,15 +221,21 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].FS.chdir(path);
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Do not use. Use new PHPRequestHandler() instead.
+	 * @deprecated
+	 */
 	async request(
 		request: PHPRequest,
 		maxRedirects?: number
 	): Promise<PHPResponse> {
+		console.warn(
+			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
+		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
-		return this.requestHandler.request(this, request, maxRedirects);
+		return this.requestHandler.request(request, maxRedirects);
 	}
 
 	/** @inheritDoc */

@@ -133,7 +133,9 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		const { php, reap } = await _private.get(this)!.processManager!.spawn();
+		const { php, reap } = await _private
+			.get(this)!
+			.processManager!.getInstance();
 		try {
 			return await php.run(request);
 		} finally {

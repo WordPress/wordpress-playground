@@ -61,7 +61,7 @@ export class PHPProcessManager<PHP extends BasePHP> {
 		this.phpFactory = phpFactory;
 	}
 
-	async spawn(): Promise<SpawnedPHP<PHP>> {
+	async getInstance(): Promise<SpawnedPHP<PHP>> {
 		if (this.activePhpInstances >= this.maxPhpInstances) {
 			throw new MaxPhpInstancesError(this.maxPhpInstances);
 		}
