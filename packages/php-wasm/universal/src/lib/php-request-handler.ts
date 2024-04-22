@@ -25,7 +25,7 @@ export type RewriteRule = {
 	replacement: string;
 };
 
-interface BaeConfiguration {
+interface BaseConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
@@ -43,7 +43,7 @@ interface BaeConfiguration {
 }
 
 export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
-	BaeConfiguration &
+	BaseConfiguration &
 		(
 			| {
 					/**
