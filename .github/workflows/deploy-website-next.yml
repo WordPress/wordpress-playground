@@ -47,7 +47,7 @@ jobs:
             - name: Deploy to playground.wordpress.net
               shell: bash
               run: |
-                  set -euxo pipefail
+                  set -euo pipefail
                   ZIP_URL=$(
                       curl -L -s -S \
                            -H "Accept: application/vnd.github+json" \
