@@ -13,7 +13,7 @@ describe('Blueprint step installPlugin', () => {
 	beforeEach(async () => {
 		requestHandler = new PHPRequestHandler({
 			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
-			documentRoot: '/',
+			documentRoot: '/wordpress',
 		});
 		php = await requestHandler.getPrimaryPhp();
 

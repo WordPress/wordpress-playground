@@ -74,15 +74,11 @@ describe('Blueprint step installPlugin', () => {
 			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
 			documentRoot: '/wordpress',
 		});
-		const php = await handler.getPrimaryPhp();
+		php = await handler.getPrimaryPhp();
 
 		rootPath = php.documentRoot;
 		php.mkdir(`${rootPath}/wp-content/plugins`);
 		installedPluginPath = `${rootPath}/wp-content/plugins/${pluginName}`;
-	});
-
-	afterEach(() => {
-		php.exit();
 	});
 
 	it('should install a plugin', async () => {
