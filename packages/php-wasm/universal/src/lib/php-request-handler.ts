@@ -500,6 +500,8 @@ function inferMimeType(path: string): string {
 			return 'application/javascript';
 		case 'png':
 			return 'image/png';
+		case 'webp':
+			return 'image/webp';
 		case 'jpg':
 		case 'jpeg':
 			return 'image/jpeg';

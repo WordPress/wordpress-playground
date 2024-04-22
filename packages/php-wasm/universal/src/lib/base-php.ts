@@ -869,8 +869,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 		// Delete any links between this PHP instance and the runtime
 		this.#wasmErrorsTarget = null;
-		delete this[__private__dont__use]['onMessage'];
-		delete this[__private__dont__use];
+		if (this[__private__dont__use]) {
+			delete this[__private__dont__use]['onMessage'];
+			delete this[__private__dont__use];
+		}
 	}
 
 	[Symbol.dispose]() {

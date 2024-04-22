@@ -4,10 +4,6 @@ import { StepHandler } from '.';
 import rewriteWpConfigToDefineConstants from './rewrite-wp-config-to-define-constants.php?raw';
 import { UniversalPHP } from '@php-wasm/universal';
 
-const rewriteWpConfigToDefineConstants = await Bun.file(
-	__dirname + '/rewrite-wp-config-to-define-constants.php'
-).text();
-
 /**
  * @inheritDoc defineWpConfigConsts
  * @hasRunnableExample

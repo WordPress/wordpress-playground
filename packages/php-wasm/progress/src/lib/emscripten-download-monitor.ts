@@ -67,6 +67,9 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			.pop()!;
 		if (!fileSize) {
 			fileSize = this.#assetsSizes[fileName];
+		} else if (!(fileName in this.#assetsSizes)) {
+			this.#assetsSizes[fileName] = fileSize;
+			this.#progress[fileName] = loaded;
 		}
 		if (!(fileName in this.#progress)) {
 			console.warn(
@@ -77,9 +80,13 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 		}
 
 		this.#progress[fileName] = loaded;
+		const allDone = Object.values(this.#progress).every(
+			(value) => value === this.#assetsSizes[fileName]
+		);
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
+					finished: allDone,
 					loaded: sumValues(this.#progress),
 					total: sumValues(this.#assetsSizes),
 				},

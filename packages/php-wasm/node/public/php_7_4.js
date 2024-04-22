@@ -2034,7 +2034,8 @@ var FS = {
   var root = mountpoint === "/";
   var pseudo = !mountpoint;
   var node;
-  if (root && FS.root) {
+     if (root && FS.root) {
+      console.log("root already exists");
    throw new FS.ErrnoError(10);
   } else if (!root && !pseudo) {
    var lookup = FS.lookupPath(mountpoint, {
@@ -2042,10 +2043,12 @@ var FS = {
    });
    mountpoint = lookup.path;
    node = lookup.node;
-   if (FS.isMountpoint(node)) {
+         if (FS.isMountpoint(node)) {
+       console.log("node is a mountpoint");
     throw new FS.ErrnoError(10);
    }
-   if (!FS.isDir(node.mode)) {
+         if (!FS.isDir(node.mode)) {
+       console.log("node is not a directory");
     throw new FS.ErrnoError(54);
    }
   }

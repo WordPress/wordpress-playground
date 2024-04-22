@@ -1,0 +1,1 @@
+preload = ["./packages/bun-extensions/src/load-php.ts"]

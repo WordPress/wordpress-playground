@@ -33,10 +33,6 @@ export async function startServer(options: ServerOptions) {
 		});
 	});
 
-	const address = server.address();
-	const port = (address! as AddressInfo).port;
-	await options.onBind(port);
-
 	app.use('/', async (req, res) => {
 		const phpResponse = await options.handleRequest({
 			url: req.url,
@@ -49,9 +45,12 @@ export async function startServer(options: ServerOptions) {
 		for (const key in phpResponse.headers) {
 			res.setHeader(key, phpResponse.headers[key]);
 		}
-
-		res.end(phpResponse.text);
+		res.end(phpResponse.bytes);
 	});
+
+	const address = server.address();
+	const port = (address! as AddressInfo).port;
+	await options.onBind(port);
 }
 
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>

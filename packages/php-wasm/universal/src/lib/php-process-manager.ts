@@ -80,6 +80,11 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
 			);
 		} else if (!this.primaryPhp) {
+			if (this.allInstances.length > 0) {
+				throw new Error(
+					'Started spawning a second PHP instance before the primary instance was created.'
+				);
+			}
 			const spawned = await this.spawn!({ isPrimary: true });
 			this.primaryPhp = spawned.php;
 		}
