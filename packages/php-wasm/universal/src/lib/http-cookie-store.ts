@@ -7,6 +7,9 @@ export class HttpCookieStore {
 	cookies: Record<string, string> = {};
 
 	rememberCookiesFromResponse(response: PHPResponse) {
+		if (!response.headers?.['set-cookie']) {
+			return;
+		}
 		for (const setCookie of response.headers['set-cookie']) {
 			try {
 				if (!setCookie.includes('=')) {

@@ -358,17 +358,11 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			}
 		}
 		try {
-			request.headers = request.headers || {};
-			request.headers['cookie'] =
-				this.#cookieStore.getCookieRequestHeader();
-
-			const response = await this.#dispatchToPHP(
+			return await this.#dispatchToPHP(
 				spawnedPHP.php,
 				request,
 				requestedUrl
 			);
-			this.#cookieStore.rememberCookiesFromResponse(response);
-			return response;
 		} finally {
 			spawnedPHP.reap();
 		}
@@ -391,6 +385,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		const headers: Record<string, string> = {
 			host: this.#HOST,
 			...normalizeHeaders(request.headers || {}),
+			cookie: this.#cookieStore.getCookieRequestHeader(),
 		};
 
 		let body = request.body;
@@ -412,7 +407,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		}
 
 		try {
-			return await php.run({
+			const response = await php.run({
 				relativeUri: ensurePathPrefix(
 					toRelativeUrl(requestedUrl),
 					this.#PATHNAME
@@ -430,6 +425,8 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 				scriptPath,
 				headers,
 			});
+			this.#cookieStore.rememberCookiesFromResponse(response);
+			return response;
 		} catch (error) {
 			const executionError = error as PHPExecutionFailureError;
 			if (executionError?.response) {
