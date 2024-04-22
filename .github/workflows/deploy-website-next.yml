@@ -9,7 +9,7 @@ on:
 
 jobs:
     deploy_to_wp_cloud:
-        # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
+        # Only run this workflow from the trunk branch and when it's triggered by another workflow OR certain maintainers
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.event.workflow_run.conclusion == 'success' ||
