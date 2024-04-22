@@ -12,7 +12,7 @@ import {
 	runBlueprintSteps,
 } from '@wp-playground/blueprints';
 import { NodePHP } from '@php-wasm/node';
-import { UniversalPHP } from '@php-wasm/universal';
+import { PHPRequestHandler, UniversalPHP } from '@php-wasm/universal';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
 
 export interface NodePlaygroundOptions {
@@ -37,23 +37,24 @@ export async function startPlaygroundNode(
 	 * @TODO use this workflow to compile WordPress for the web
 	 */
 	const compiled = compileBlueprint(options.blueprint || {});
-	const playground = await NodePHP.load(compiled.versions.php, {
-		requestHandler: {
-			documentRoot: options.wordpressPathOnHost,
-			absoluteUrl: options.serverUrl,
-		},
+
+	const handler = new PHPRequestHandler({
+		phpFactory: async () => await NodePHP.load(compiled.versions.php),
+		documentRoot: options.wordpressPathOnHost,
+		absoluteUrl: options.serverUrl,
 	});
+	const php = await handler.getPrimaryPhp();
 
-	collectPhpLogs(logger, playground);
+	collectPhpLogs(logger, php);
 
-	await defineSiteUrl(playground, {
+	await defineSiteUrl(php, {
 		siteUrl: options.serverUrl,
 	});
 
-	await allowWpOrgHosts(playground, options.wordpressPathOnHost);
+	await allowWpOrgHosts(php, options.wordpressPathOnHost);
 
-	await runBlueprintSteps(compiled, playground);
-	return playground;
+	await runBlueprintSteps(compiled, php);
+	return php;
 }
 
 export async function allowWpOrgHosts(

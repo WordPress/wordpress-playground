@@ -1,19 +1,10 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	type RequestHandler,
-	PhpProcessManager,
-	rotatePHPRuntime,
-} from '@php-wasm/universal';
+import { rotatePHPRuntime } from '@php-wasm/universal';
 import { Mount } from './server';
 import { rootCertificates } from 'tls';
 
-export async function createPhp(
-	processManager: PhpProcessManager<NodePHP>,
-	requestHandler: RequestHandler,
-	mounts: Mount[]
-) {
+export async function createPhp(mounts: Mount[]) {
 	const php = new NodePHP();
-	php.requestHandler = requestHandler as any;
 	php.initializeRuntime(await createPhpRuntime());
 	php.setPhpIniEntry('disable_functions', '');
 	php.setPhpIniEntry('allow_url_fopen', '1');
@@ -32,6 +23,7 @@ export async function createPhp(
 	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 	rotatePHPRuntime({
 		php,
+		cwd: '/wordpress',
 		recreateRuntime: createPhpRuntime,
 		maxRequests: 400,
 	});

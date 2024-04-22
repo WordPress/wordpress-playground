@@ -2,18 +2,10 @@ import express, { Request } from 'express';
 // import compression from 'compression';
 // import compressible from 'compressible';
 import { addTrailingSlash } from './middleware/add-trailing-slash';
-import {
-	MaxPhpInstancesError,
-	PHPBrowser,
-	PHPRequestHandler,
-	PHPResponse,
-	PhpProcessManager,
-	SpawnedPHP,
-} from '@php-wasm/universal';
+import { PHPRequestHandler } from '@php-wasm/universal';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import { AddressInfo } from 'net';
 import { createPhp } from './setup-php';
-import { NodePHP } from '@php-wasm/node';
 import { defineSiteUrl } from '@wp-playground/blueprints';
 
 export interface Mount {
@@ -56,19 +48,13 @@ export async function startServer(options: ServerOptions) {
 	console.log(`Server is running on ${absoluteUrl}`);
 	// open(absoluteUrl); // Open the URL in the default browser
 
-	const procManager = new PhpProcessManager<NodePHP>();
-	const requestHandler = new PHPBrowser(
-		new PHPRequestHandler({
-			documentRoot: '/wordpress',
-			absoluteUrl,
-		})
-	);
-	const phpFactory = () =>
-		createPhp(procManager, requestHandler, options.mounts || []);
-	procManager.setPhpFactory(phpFactory);
-
-	const primaryPhp = await phpFactory();
-	procManager.setPrimaryPhp(primaryPhp);
+	const requestHandler = new PHPRequestHandler({
+		phpFactory: async () => await createPhp(options.mounts || []),
+		documentRoot: '/wordpress',
+		absoluteUrl,
+	});
+	const primaryPhp = await requestHandler.getPrimaryPhp();
+	console.log({ primaryPhp });
 
 	await defineSiteUrl(primaryPhp, {
 		siteUrl: absoluteUrl,
@@ -77,36 +63,12 @@ export async function startServer(options: ServerOptions) {
 	console.log('PHP started', { absoluteUrl });
 
 	app.use('/', async (req, res) => {
-		console.log('Request received');
-		let spawnedPHP: SpawnedPHP<NodePHP> | undefined = undefined;
-		try {
-			spawnedPHP = await procManager.spawn();
-		} catch (e) {
-			if (e instanceof MaxPhpInstancesError) {
-				res.statusCode = 502;
-				res.end('Max PHP instances reached');
-			} else {
-				res.statusCode = 500;
-				res.end('Internal server error');
-			}
-			return;
-		}
-
-		console.log({
+		const phpResponse = await requestHandler.request({
 			url: req.url,
+			headers: parseHeaders(req),
+			method: req.method as any,
+			body: await bufferRequestBody(req),
 		});
-
-		let phpResponse: PHPResponse | undefined = undefined;
-		try {
-			phpResponse = await requestHandler.request(spawnedPHP!.php, {
-				url: req.url,
-				headers: parseHeaders(req),
-				method: req.method as any,
-				body: await bufferRequestBody(req),
-			});
-		} finally {
-			spawnedPHP!.reap();
-		}
 
 		res.statusCode = phpResponse.httpStatusCode;
 		for (const key in phpResponse.headers) {
