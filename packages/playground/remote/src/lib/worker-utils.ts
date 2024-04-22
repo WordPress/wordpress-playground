@@ -31,11 +31,11 @@ import {
 	BasePHP,
 	PHPResponse,
 	PHPProcessManager,
-	RequestHandler,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
 	__private__dont__use,
 	rotatePHPRuntime,
+	PHPRequestHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
@@ -83,10 +83,7 @@ export const startupOptions = {
 	phpExtensions: receivedParams.phpExtensions || [],
 } as ParsedStartupOptions;
 
-export async function createPhp(
-	processManager: PHPProcessManager<WebPHP>,
-	requestHandler: RequestHandler
-) {
+export async function createPhp(requestHandler: PHPRequestHandler<WebPHP>) {
 	const php = new WebPHP();
 	php.requestHandler = requestHandler as any;
 	php.initializeRuntime(await createPhpRuntime());
@@ -94,7 +91,7 @@ export async function createPhp(
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
-	php.setSpawnHandler(spawnHandlerFactory(processManager));
+	php.setSpawnHandler(spawnHandlerFactory(requestHandler.processManager));
 	// Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 	rotatePHPRuntime({

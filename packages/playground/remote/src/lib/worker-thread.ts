@@ -184,15 +184,14 @@ try {
 	// We need a separate primary PHP to provide the Filesystem.
 	// All other spawned PHP instances will proxy their FS calls
 	// to the primary one.
-	const primaryPhp = await createPhp(procManager, requestHandler);
+	const primaryPhp = await createPhp(requestHandler);
 	procManager.setPrimaryPhp(primaryPhp);
 	procManager.setPhpFactory(async () => {
-		const php = await createPhp(procManager, requestHandler);
+		const php = await createPhp(requestHandler);
 		proxyFileSystem(primaryPhp, php, requestHandler.documentRoot);
 		return php;
 	});
 	apiEndpoint.setRequestHandler(requestHandler);
-	apiEndpoint.setProcessManager(procManager);
 
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.

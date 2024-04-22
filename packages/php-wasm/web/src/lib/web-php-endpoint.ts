@@ -8,8 +8,7 @@ import {
 	type RmDirOptions,
 	type PHPEventListener,
 	type PHPEvent,
-	type RequestHandler,
-	type PHPProcessManager,
+	PHPRequestHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { WebPHP } from './web-php';
@@ -17,8 +16,8 @@ import { WebPHP } from './web-php';
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
-		processManager?: PHPProcessManager<WebPHP>;
-		requestHandler?: RequestHandler;
+		requestHandler?: PHPRequestHandler<WebPHP>;
+		php?: WebPHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -27,9 +26,9 @@ const _private = new WeakMap<
  * A PHP client that can be used to run PHP code in the browser.
  */
 export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
-	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.absoluteUrl  */
 	absoluteUrl = '';
-	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.documentRoot  */
 	documentRoot = '';
 
 	/** @inheritDoc */
@@ -70,31 +69,25 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	 * a warning.
 	 */
 	protected __internal_getPHP() {
-		return _private.get(this)!.processManager!.primaryPhp;
+		return _private.get(this)!.php;
 	}
 
-	setRequestHandler(requestHandler: RequestHandler) {
+	async setRequestHandler(requestHandler: PHPRequestHandler<WebPHP>) {
 		this.absoluteUrl = requestHandler.absoluteUrl;
 		this.documentRoot = requestHandler.documentRoot;
 		_private.set(this, {
 			..._private.get(this)!,
 			requestHandler,
+			php: await requestHandler.getPrimaryPhp(),
 		});
 	}
 
-	setProcessManager(processManager: PHPProcessManager<WebPHP>) {
-		_private.set(this, {
-			..._private.get(this)!,
-			processManager,
-		});
-	}
-
-	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
 		return _private.get(this)!.requestHandler!.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath  */
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
 		return _private
 			.get(this)!
@@ -113,29 +106,26 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
-	mv(fromPath: string, toPath: string) {
-		return this.__internal_getPHP()!.mv(fromPath, toPath);
+	async mv(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.mv(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
-	rmdir(path: string, options?: RmDirOptions) {
-		return this.__internal_getPHP()!.rmdir(path, options);
+	async rmdir(path: string, options?: RmDirOptions) {
+		return _private.get(this)!.php!.rmdir(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
-	async request(
-		request: PHPRequest,
-		redirects?: number
-	): Promise<PHPResponse> {
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.request */
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		const requestHandler = _private.get(this)!.requestHandler!;
-		return await requestHandler.request(request, redirects);
+		return await requestHandler.request(request);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const { php, reap } = await _private
 			.get(this)!
-			.processManager!.getInstance();
+			.requestHandler!.processManager.getInstance();
 		try {
 			return await php.run(request);
 		} finally {
@@ -145,62 +135,62 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
-		return _private.get(this)!.processManager!.primaryPhp!.chdir(path);
+		return _private.get(this)!.php!.chdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
 	mkdir(path: string): void {
-		return _private.get(this)!.processManager!.primaryPhp!.mkdir(path);
+		return _private.get(this)!.php!.mkdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
 	mkdirTree(path: string): void {
-		return _private.get(this)!.processManager!.primaryPhp!.mkdirTree(path);
+		return _private.get(this)!.php!.mkdirTree(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
 	readFileAsText(path: string): string {
-		return this.__internal_getPHP()!.readFileAsText(path);
+		return _private.get(this)!.php!.readFileAsText(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
-		return this.__internal_getPHP()!.readFileAsBuffer(path);
+		return _private.get(this)!.php!.readFileAsBuffer(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
-		return this.__internal_getPHP()!.writeFile(path, data);
+		return _private.get(this)!.php!.writeFile(path, data);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
 	unlink(path: string): void {
-		return _private.get(this)!.processManager!.primaryPhp!.unlink(path);
+		return _private.get(this)!.php!.unlink(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
 	listFiles(path: string, options?: ListFilesOptions): string[] {
-		return this.__internal_getPHP()!.listFiles(path, options);
+		return _private.get(this)!.php!.listFiles(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
 	isDir(path: string): boolean {
-		return _private.get(this)!.processManager!.primaryPhp!.isDir(path);
+		return _private.get(this)!.php!.isDir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
 	fileExists(path: string): boolean {
-		return _private.get(this)!.processManager!.primaryPhp!.fileExists(path);
+		return _private.get(this)!.php!.fileExists(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
 	onMessage(listener: MessageListener): void {
-		_private.get(this)!.processManager!.primaryPhp!.onMessage(listener);
+		_private.get(this)!.php!.onMessage(listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
 	defineConstant(key: string, value: string | boolean | number | null): void {
-		this.__internal_getPHP()!.defineConstant(key, value);
+		_private.get(this)!.php!.defineConstant(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
@@ -208,7 +198,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		this.__internal_getPHP()!.addEventListener(eventType, listener);
+		_private.get(this)!.php!.addEventListener(eventType, listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
@@ -216,6 +206,6 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		this.__internal_getPHP()!.removeEventListener(eventType, listener);
+		_private.get(this)!.php!.removeEventListener(eventType, listener);
 	}
 }
