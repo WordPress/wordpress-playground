@@ -13,14 +13,15 @@ on:
 jobs:
     build_and_deploy:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
-        if: >
-            github.ref == 'refs/heads/trunk' && (
-                github.event.workflow_run.conclusion == 'success' ||
-                github.actor == 'adamziel' ||
-                github.actor == 'dmsnell' ||
-                github.actor == 'bgrgicak' ||
-                github.actor == 'brandonpayton'
-            )
+        # TODO: Re-enable this before merging
+        #if: >
+        #    github.ref == 'refs/heads/trunk' && (
+        #        github.event.workflow_run.conclusion == 'success' ||
+        #        github.actor == 'adamziel' ||
+        #        github.actor == 'dmsnell' ||
+        #        github.actor == 'bgrgicak' ||
+        #        github.actor == 'brandonpayton'
+        #    )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
