@@ -55,7 +55,6 @@ jobs:
                            https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts\?name\=playground-website\&per_page\=1 \
                            | jq -r '.artifacts[0].archive_download_url'
                   )
-                  echo "Zip URL: $ZIP_URL"
 
                   curl -L -s -S \
                        -H "Accept: application/vnd.github+json" \
