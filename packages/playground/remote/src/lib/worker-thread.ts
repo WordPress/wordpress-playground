@@ -9,7 +9,6 @@ import {
 	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
 import {
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPProcessManager,
 	writeFiles,
@@ -176,14 +175,12 @@ try {
 	const procManager = new PHPProcessManager();
 
 	const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-	const requestHandler = new PHPBrowser(
-		new PHPRequestHandler({
-			processManager: procManager,
-			documentRoot: DOCROOT,
-			absoluteUrl: scopedSiteUrl,
-			rewriteRules: wordPressRewriteRules,
-		})
-	);
+	const requestHandler = new PHPRequestHandler({
+		processManager: procManager,
+		documentRoot: DOCROOT,
+		absoluteUrl: scopedSiteUrl,
+		rewriteRules: wordPressRewriteRules,
+	});
 	// We need a separate primary PHP to provide the Filesystem.
 	// All other spawned PHP instances will proxy their FS calls
 	// to the primary one.

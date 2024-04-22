@@ -1,4 +1,3 @@
-import { PHPBrowser } from './php-browser';
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -24,6 +23,7 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import { PHPRequestHandler } from './php-request-handler';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -57,7 +57,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPBrowser;
+	requestHandler?: PHPRequestHandler<any>;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -223,17 +223,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 * Do not use. Use new PHPRequestHandler() instead.
 	 * @deprecated
 	 */
-	async request(
-		request: PHPRequest,
-		maxRedirects?: number
-	): Promise<PHPResponse> {
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		console.warn(
 			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
 		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
-		return this.requestHandler.request(request, maxRedirects);
+		return this.requestHandler.request(request);
 	}
 
 	/** @inheritDoc */

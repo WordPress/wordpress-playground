@@ -22,7 +22,7 @@ export {
 	MaxPhpInstancesError,
 } from './php-process-manager';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
-
+export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
@@ -64,8 +64,6 @@ export type {
 	RewriteRule,
 } from './php-request-handler';
 export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
-export type { PHPBrowserConfiguration } from './php-browser';
-export { PHPBrowser } from './php-browser';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 

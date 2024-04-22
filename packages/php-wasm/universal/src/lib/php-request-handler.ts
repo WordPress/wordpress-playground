@@ -18,6 +18,7 @@ import {
 	PHPProcessManager,
 	SpawnedPHP,
 } from './php-process-manager';
+import { HttpCookieStore } from './http-cookie-store';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -74,6 +75,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 	#HOST: string;
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
+	#cookieStore: HttpCookieStore;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager<PHP>;
 
@@ -106,6 +108,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 				},
 			});
 		}
+		this.#cookieStore = new HttpCookieStore();
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -128,9 +131,6 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
-		// For compat with PHPBrowser. @TODO: remove PHPBrowser.
-		// @ts-ignore
-		this.requestHandler = this;
 	}
 
 	async getPrimaryPhp() {
@@ -241,11 +241,17 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 			}
 		}
 		try {
-			return await this.#dispatchToPHP(
+			request.headers = request.headers || {};
+			request.headers['cookie'] =
+				this.#cookieStore.getCookieRequestHeader();
+
+			const response = await this.#dispatchToPHP(
 				spawnedPHP.php,
 				request,
 				requestedUrl
 			);
+			this.#cookieStore.rememberCookiesFromResponse(response);
+			return response;
 		} finally {
 			spawnedPHP.reap();
 		}
