@@ -5,7 +5,11 @@ import {
 	removePathPrefix,
 	DEFAULT_BASE_URL,
 } from './urls';
-import { BasePHP, normalizeHeaders } from './base-php';
+import {
+	BasePHP,
+	PHPExecutionFailureError,
+	normalizeHeaders,
+} from './base-php';
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
@@ -207,13 +211,6 @@ export class PHPRequestHandler implements RequestHandler {
 		 */
 		const release = await this.#semaphore.acquire();
 		try {
-			this.php.addServerGlobalEntry('REMOTE_ADDR', '127.0.0.1');
-			this.php.addServerGlobalEntry('DOCUMENT_ROOT', this.#DOCROOT);
-			this.php.addServerGlobalEntry(
-				'HTTPS',
-				this.#ABSOLUTE_URL.startsWith('https://') ? 'on' : ''
-			);
-
 			let preferredMethod: PHPRunOptions['method'] = 'GET';
 
 			const headers: Record<string, string> = {
@@ -242,17 +239,32 @@ export class PHPRequestHandler implements RequestHandler {
 				);
 			}
 
-			return await this.php.run({
-				relativeUri: ensurePathPrefix(
-					toRelativeUrl(requestedUrl),
-					this.#PATHNAME
-				),
-				protocol: this.#PROTOCOL,
-				method: request.method || preferredMethod,
-				body,
-				scriptPath,
-				headers,
-			});
+			try {
+				return await this.php.run({
+					relativeUri: ensurePathPrefix(
+						toRelativeUrl(requestedUrl),
+						this.#PATHNAME
+					),
+					protocol: this.#PROTOCOL,
+					method: request.method || preferredMethod,
+					$_SERVER: {
+						REMOTE_ADDR: '127.0.0.1',
+						DOCUMENT_ROOT: this.#DOCROOT,
+						HTTPS: this.#ABSOLUTE_URL.startsWith('https://')
+							? 'on'
+							: '',
+					},
+					body,
+					scriptPath,
+					headers,
+				});
+			} catch (error) {
+				const executionError = error as PHPExecutionFailureError;
+				if (executionError?.response) {
+					return executionError.response;
+				}
+				throw error;
+			}
 		} finally {
 			release();
 		}

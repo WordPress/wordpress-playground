@@ -20,6 +20,8 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 Each step is an object that contains a `step` property that specifies the type of step to run. The rest of the properties depend on the type of step. Learn and try each step type below.
 
+---
+
 import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
 import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
 import UpdateTopLevelToc from '@site/src/components/UpdateTopLevelToc';

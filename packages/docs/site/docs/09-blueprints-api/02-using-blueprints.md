@@ -20,22 +20,42 @@ For example, to create a Playground with specific versions of WordPress and PHP 
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"preferredVersions": {
 		"php": "7.4",
-		"wp": "5.9"
+		"wp": "6.5"
 	}
 }
 ```
 
 And then you would go to
-`https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"5.9"}}`.
+`https://playground.wordpress.net/#{"preferredVersions": {"php":"7.4", "wp":"6.5"}}`.
 
 You won't have to paste links to follow along. We'll use code examples with a "Try it out" button that will automatically run the examples for you:
+
+import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
 <BlueprintExample justButton={true} blueprint={{
 	"preferredVersions": {
 		"php": "7.4",
-		"wp": "5.9"
+		"wp": "6.5"
 	}
 }} />
+
+### Base64 encoded Blueprints
+
+Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, encode your Blueprint in Base64 and append it to the URL. For example, that's the above Blueprint in Base64 format: `eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19`.
+
+To run it, go to https://playground.wordpress.net/#eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiNy40Iiwid3AiOiAiNi41In19
+
+### Load Blueprint from a URL
+
+When your Blueprint gets too wieldy, you can load it via the `?blueprint-url` query parameter in the URL, like this:
+
+[https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/adamziel/blueprints/trunk/blueprints/latest-gutenberg/blueprint.json)
+
+Note that the Blueprint must be publicly accessible and served with [the correct `Access-Control-Allow-Origin` header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin):
+
+```
+Access-Control-Allow-Origin: *
+```
 
 ## JavaScript API
 

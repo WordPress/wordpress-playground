@@ -33,6 +33,17 @@ const STRING = 'string';
 const NUMBER = 'number';
 
 export const __private__dont__use = Symbol('__private__dont__use');
+
+export class PHPExecutionFailureError extends Error {
+	constructor(
+		message: string,
+		public response: PHPResponse,
+		public source: 'request' | 'php-wasm'
+	) {
+		super(message);
+	}
+}
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that universals the super low-level API and provides a more convenient
@@ -48,7 +59,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#serverEntries: Record<string, string> = {};
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
 	requestHandler?: PHPBrowser;
@@ -260,7 +270,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			const headers = normalizeHeaders(request.headers || {});
 			const host = headers['host'] || 'example.com:443';
 
-			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+			const port = this.#inferPortFromHostAndProtocol(
+				host,
+				request.protocol || 'http'
+			);
+			this.#setRequestHost(host);
+			this.#setRequestPort(port);
 			this.#setRequestHeaders(headers);
 			if (request.body) {
 				heapBodyPointer = this.#setRequestBody(request.body);
@@ -268,7 +283,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			if (typeof request.code === 'string') {
 				this.#setPHPCode(' ?>' + request.code);
 			}
-			this.#addServerGlobalEntriesInWasm();
+
+			const $_SERVER = this.#prepareServerEntries(
+				request.$_SERVER,
+				headers,
+				port
+			);
+			for (const key in $_SERVER) {
+				this.#setServerGlobalEntry(key, $_SERVER![key]);
+			}
 
 			const env = request.env || {};
 			for (const key in env) {
@@ -278,14 +301,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			const response = await this.#handleRequest();
 			if (response.exitCode !== 0) {
 				console.warn(`PHP.run() output was:`, response.text);
-				const error = new Error(
+				const error = new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
-						response.errors
-				);
-				// @ts-ignore
-				error.response = response;
-				// @ts-ignore
-				error.source = 'request';
+						response.errors,
+					response,
+					'request'
+				) as PHPExecutionFailureError;
 				console.error(error);
 				throw error;
 			}
@@ -310,6 +331,40 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				});
 			}
 		}
+	}
+
+	/**
+	 * Prepares the $_SERVER entries for the PHP runtime.
+	 *
+	 * @param defaults Default entries to include in $_SERVER.
+	 * @param headers HTTP headers to include in $_SERVER (as HTTP_ prefixed entries).
+	 * @param port HTTP port, used to determine infer $_SERVER['HTTPS'] value if none
+	 *             was provided.
+	 * @returns Computed $_SERVER entries.
+	 */
+	#prepareServerEntries(
+		defaults: Record<string, string> | undefined,
+		headers: PHPRequestHeaders,
+		port: number
+	): Record<string, string> {
+		const $_SERVER = {
+			...(defaults || {}),
+		};
+		$_SERVER['HTTPS'] = $_SERVER['HTTPS'] || port === 443 ? 'on' : 'off';
+		for (const name in headers) {
+			let HTTP_prefix = 'HTTP_';
+			/**
+			 * Some headers are special and don't have the HTTP_ prefix.
+			 */
+			if (
+				['content-type', 'content-length'].includes(name.toLowerCase())
+			) {
+				HTTP_prefix = '';
+			}
+			$_SERVER[`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`] =
+				headers[name];
+		}
+		return $_SERVER;
 	}
 
 	#initWebRuntime() {
@@ -403,14 +458,25 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	#setRequestHostAndProtocol(host: string, protocol: string) {
+	#setRequestHost(host: string) {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_host',
 			null,
 			[STRING],
 			[host]
 		);
+	}
 
+	#setRequestPort(port: number) {
+		this[__private__dont__use].ccall(
+			'wasm_set_request_port',
+			null,
+			[NUMBER],
+			[port]
+		);
+	}
+
+	#inferPortFromHostAndProtocol(host: string, protocol: string) {
 		let port;
 		try {
 			port = parseInt(new URL(host).port, 10);
@@ -421,16 +487,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (!port || isNaN(port) || port === 80) {
 			port = protocol === 'https' ? 443 : 80;
 		}
-		this[__private__dont__use].ccall(
-			'wasm_set_request_port',
-			null,
-			[NUMBER],
-			[port]
-		);
-
-		if (protocol === 'https' || (!protocol && port === 443)) {
-			this.addServerGlobalEntry('HTTPS', 'on');
-		}
+		return port;
 	}
 
 	#setRequestMethod(method: string) {
@@ -465,21 +522,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				null,
 				[NUMBER],
 				[parseInt(headers['content-length'], 10)]
-			);
-		}
-		for (const name in headers) {
-			let HTTP_prefix = 'HTTP_';
-			/**
-			 * Some headers are special and don't have the HTTP_ prefix.
-			 */
-			if (
-				['content-type', 'content-length'].includes(name.toLowerCase())
-			) {
-				HTTP_prefix = '';
-			}
-			this.addServerGlobalEntry(
-				`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`,
-				headers[name]
 			);
 		}
 	}
@@ -538,19 +580,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		);
 	}
 
-	addServerGlobalEntry(key: string, value: string) {
-		this.#serverEntries[key] = value;
-	}
-
-	#addServerGlobalEntriesInWasm() {
-		for (const key in this.#serverEntries) {
-			this[__private__dont__use].ccall(
-				'wasm_add_SERVER_entry',
-				null,
-				[STRING, STRING],
-				[key, this.#serverEntries[key]]
-			);
-		}
+	#setServerGlobalEntry(key: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STRING, STRING],
+			[key, value]
+		);
 	}
 
 	#setEnv(name: string, value: string) {
@@ -656,12 +692,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
-			this.#serverEntries = {};
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
 		return new PHPResponse(
-			httpStatusCode,
+			exitCode === 0 ? httpStatusCode : 500,
 			headers,
 			this.readFileAsBuffer('/internal/stdout'),
 			this.readFileAsText('/internal/stderr'),

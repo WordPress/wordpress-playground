@@ -45,3 +45,4 @@ slug: /links-and-resources
 -   [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
 -   [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 -   [Playground at WordCamp Gliwice (in polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4)
+-   [Watch "WordPress Playground: the ultimate learning, testing, & teaching tool for WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) by Anne McCarthy

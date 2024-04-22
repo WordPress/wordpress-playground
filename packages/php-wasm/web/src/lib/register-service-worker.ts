@@ -2,7 +2,6 @@ import { PhpWasmError } from '@php-wasm/util';
 import type { WebPHPEndpoint } from './web-php-endpoint';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
-import { PHPResponse } from '@php-wasm/universal';
 
 /**
  * Run this in the main application to register the service worker or
@@ -63,21 +62,7 @@ export async function registerServiceWorker<
 			const args = event.data.args || [];
 
 			const method = event.data.method as keyof Client;
-			let result;
-			try {
-				result = await (phpApi[method] as Function)(...args);
-			} catch (e) {
-				if (
-					method === 'request' &&
-					e &&
-					typeof e === 'object' &&
-					'response' in e
-				) {
-					result = e.response as PHPResponse;
-				} else {
-					throw e;
-				}
-			}
+			const result = await (phpApi[method] as Function)(...args);
 			event.source!.postMessage(responseTo(event.data.requestId, result));
 		}
 	);
