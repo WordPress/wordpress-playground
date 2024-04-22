@@ -99,6 +99,7 @@ export async function createPhp(
 	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 	rotatePHPRuntime({
 		php,
+		cwd: requestHandler.documentRoot,
 		recreateRuntime: createPhpRuntime,
 		maxRequests: 400,
 	});

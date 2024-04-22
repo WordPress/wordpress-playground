@@ -25,6 +25,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1000,
 		});
@@ -54,6 +55,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -67,6 +69,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntimeSpy());
 		const cleanup = rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -95,6 +98,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -116,6 +120,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
@@ -133,6 +138,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
@@ -156,6 +162,7 @@ describe('rotatePHPRuntime()', () => {
 		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});

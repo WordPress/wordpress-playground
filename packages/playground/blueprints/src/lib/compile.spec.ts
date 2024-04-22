@@ -1,4 +1,4 @@
-import { NodePHP, getPHPLoaderModule } from '@php-wasm/node';
+import { NodePHP } from '@php-wasm/node';
 import {
 	compileBlueprint,
 	runBlueprintSteps,
@@ -6,32 +6,17 @@ import {
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
-import {
-	PHPProcessManager,
-	PHPRequestHandler,
-	loadPHPRuntime,
-} from '@php-wasm/universal';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprints', () => {
 	let php: NodePHP;
 	let requestHandler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		const phpFactory = async () => {
-			const phpLoaderModule = await getPHPLoaderModule(
-				RecommendedPHPVersion
-			);
-			const runtimeId = await loadPHPRuntime(phpLoaderModule);
-			return new NodePHP(runtimeId);
-		};
-		php = await phpFactory();
-		const processManager = new PHPProcessManager<NodePHP>();
-		processManager.setPhpFactory(phpFactory);
-		processManager.setPrimaryPhp(php);
-
 		requestHandler = new PHPRequestHandler({
-			processManager,
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
 			documentRoot: '/',
-		}) as any;
+		});
+		php = await requestHandler.getPrimaryPhp();
 	});
 
 	it('should run a basic blueprint', async () => {

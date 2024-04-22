@@ -1,17 +1,18 @@
 import { NodePHP } from '@php-wasm/node';
 import { phpVars, randomFilename } from '@php-wasm/util';
 import { runSql } from './run-sql';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 const phpVersion = '8.0';
 describe('Blueprint step runSql', () => {
 	let php: NodePHP;
-
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(phpVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
 	});
 
 	it('should split and "run" sql queries', async () => {

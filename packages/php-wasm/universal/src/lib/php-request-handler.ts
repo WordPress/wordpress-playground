@@ -16,6 +16,7 @@ import { encodeAsMultipart } from './encode-as-multipart';
 import {
 	MaxPhpInstancesError,
 	PHPProcessManager,
+	ProcessManagerOptions,
 	SpawnedPHP,
 } from './php-process-manager';
 
@@ -24,19 +25,7 @@ export type RewriteRule = {
 	replacement: string;
 };
 
-export interface PHPRequestHandlerConfiguration<PHP extends BasePHP> {
-	/**
-	 * PHPProcessManager is required because the request handler needs
-	 * to make a decision for each request.
-	 *
-	 * Static assets are served using the primary PHP's filesystem, even
-	 * when serving 100 static files concurrently. No new PHP interpreter
-	 * is ever created as there's no need for it.
-	 *
-	 * Dynamic PHP requests, however, require grabbing an available PHP
-	 * interpreter, and that's where the PHPProcessManager comes in.
-	 */
-	processManager: PHPProcessManager<PHP>;
+interface BaeConfiguration {
 	/**
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
@@ -53,6 +42,28 @@ export interface PHPRequestHandlerConfiguration<PHP extends BasePHP> {
 	rewriteRules?: RewriteRule[];
 }
 
+export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
+	BaeConfiguration &
+		(
+			| {
+					/**
+					 * PHPProcessManager is required because the request handler needs
+					 * to make a decision for each request.
+					 *
+					 * Static assets are served using the primary PHP's filesystem, even
+					 * when serving 100 static files concurrently. No new PHP interpreter
+					 * is ever created as there's no need for it.
+					 *
+					 * Dynamic PHP requests, however, require grabbing an available PHP
+					 * interpreter, and that's where the PHPProcessManager comes in.
+					 */
+					processManager: PHPProcessManager<PHP>;
+			  }
+			| {
+					phpFactory: ProcessManagerOptions<PHP>['phpFactory'];
+			  }
+		);
+
 /** @inheritDoc */
 export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 	#DOCROOT: string;
@@ -63,7 +74,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	rewriteRules: RewriteRule[];
-	#processManager: PHPProcessManager<PHP>;
+	processManager: PHPProcessManager<PHP>;
 
 	/**
 	 * The request handler needs to decide whether to serve a static asset or
@@ -82,7 +93,18 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			rewriteRules = [],
 		} = config;
-		this.#processManager = config.processManager;
+		if ('processManager' in config) {
+			this.processManager = config.processManager;
+		} else {
+			this.processManager = new PHPProcessManager({
+				phpFactory: async () => {
+					const php = await config.phpFactory!();
+					// @TODO: Decouple PHP and request handler
+					(php as any).requestHandler = this;
+					return php;
+				},
+			});
+		}
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -105,6 +127,10 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+	}
+
+	async getPrimaryPhp() {
+		return this.processManager.getPrimaryPhp();
 	}
 
 	/** @inheritDoc */
@@ -152,7 +178,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
 			return this.#serveStaticFile(
-				this.#processManager.primaryPhp!,
+				this.processManager.primaryPhp!,
 				fsPath
 			);
 		}
@@ -202,7 +228,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
 		try {
-			spawnedPHP = await this.#processManager!.getInstance();
+			spawnedPHP = await this.processManager!.getInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
 				return PHPResponse.forHttpCode(502);

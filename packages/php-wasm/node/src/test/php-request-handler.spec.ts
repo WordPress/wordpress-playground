@@ -1,10 +1,5 @@
-import { NodePHP, getPHPLoaderModule } from '..';
-import {
-	loadPHPRuntime,
-	PHPProcessManager,
-	PHPRequestHandler,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
+import { NodePHP } from '..';
+import { PHPRequestHandler, SupportedPHPVersions } from '@php-wasm/universal';
 
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
@@ -12,19 +7,11 @@ describe.each(SupportedPHPVersions)(
 		let php: NodePHP;
 		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
-			const phpFactory = async () => {
-				const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-				const runtimeId = await loadPHPRuntime(phpLoaderModule);
-				return new NodePHP(runtimeId);
-			};
-			php = await phpFactory();
-			const processManager = new PHPProcessManager<NodePHP>();
-			processManager.setPhpFactory(phpFactory);
-			processManager.setPrimaryPhp(php);
 			handler = new PHPRequestHandler({
-				processManager,
 				documentRoot: '/',
+				phpFactory: async () => NodePHP.load(phpVersion),
 			});
+			php = await handler.getPrimaryPhp();
 		});
 
 		it('should execute a PHP file', async () => {
@@ -322,23 +309,14 @@ describe.each(SupportedPHPVersions)(
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – PHP_SELF',
 	(phpVersion) => {
-		let php: NodePHP;
 		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
-			const phpFactory = async () => {
-				const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-				const runtimeId = await loadPHPRuntime(phpLoaderModule);
-				return new NodePHP(runtimeId);
-			};
-			php = await phpFactory();
-			php.mkdirTree('/var/www');
-			const processManager = new PHPProcessManager<NodePHP>();
-			processManager.setPhpFactory(phpFactory);
-			processManager.setPrimaryPhp(php);
 			handler = new PHPRequestHandler({
-				processManager,
+				phpFactory: () => NodePHP.load(phpVersion),
 				documentRoot: '/var/www',
 			});
+			const php = await handler.getPrimaryPhp();
+			php.mkdirTree('/var/www');
 		});
 
 		it.each([
@@ -349,6 +327,7 @@ describe.each(SupportedPHPVersions)(
 		])(
 			'Should assign the correct PHP_SELF for %s',
 			async (url: string, expected: string) => {
+				const php = await handler.getPrimaryPhp();
 				php.writeFile(
 					'/var/www/index.php',
 					`<?php echo $_SERVER['PHP_SELF'];`
@@ -361,6 +340,7 @@ describe.each(SupportedPHPVersions)(
 		);
 
 		it('should assign the correct PHP_SELF (file in subdirectory, query string present)', async () => {
+			const php = await handler.getPrimaryPhp();
 			php.mkdirTree('/var/www/subdir');
 			php.writeFile(
 				'/var/www/subdir/index.php',

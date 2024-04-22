@@ -1,37 +1,21 @@
-import { NodePHP, getPHPLoaderModule } from '@php-wasm/node';
+import { NodePHP } from '@php-wasm/node';
 import {
 	RecommendedPHPVersion,
 	getWordPressModule,
 } from '@wp-playground/wordpress';
 import { unzip } from './unzip';
 import { enableMultisite } from './enable-multisite';
-import {
-	PHPProcessManager,
-	PHPRequestHandler,
-	loadPHPRuntime,
-} from '@php-wasm/universal';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
 	async function bootWordPress(options: { absoluteUrl: string }) {
-		const phpFactory = async () => {
-			const phpLoaderModule = await getPHPLoaderModule(
-				RecommendedPHPVersion
-			);
-			const runtimeId = await loadPHPRuntime(phpLoaderModule);
-			return new NodePHP(runtimeId);
-		};
-		const php = await phpFactory();
-
-		const processManager = new PHPProcessManager<NodePHP>();
-		processManager.setPhpFactory(phpFactory);
-		processManager.setPrimaryPhp(php);
-
 		const requestHandler = new PHPRequestHandler({
-			processManager,
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
 			absoluteUrl: options.absoluteUrl,
 			documentRoot: '/',
-		}) as any;
+		});
+		const php = await requestHandler.getPrimaryPhp();
 
 		await unzip(php, {
 			zipFile: await getWordPressModule(),

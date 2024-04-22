@@ -1,7 +1,9 @@
 import { BasePHP } from './base-php';
 
-export interface ProcessManagerOptions {
+export interface ProcessManagerOptions<PHP extends BasePHP> {
 	maxPhpInstances?: number;
+	primaryPhp?: PHP;
+	phpFactory?: () => Promise<PHP>;
 }
 
 export interface SpawnedPHP<PHP extends BasePHP> {
@@ -47,14 +49,23 @@ export class PHPProcessManager<PHP extends BasePHP> {
 	private nextInstance: Promise<PHP> | null = null;
 	private phpFactory?: () => Promise<PHP>;
 	private maxPhpInstances: number;
-	private activePhpInstances = 1;
+	private activePhpInstances = 0;
 
-	constructor(options?: ProcessManagerOptions) {
+	constructor(options?: ProcessManagerOptions<PHP>) {
 		this.maxPhpInstances = options?.maxPhpInstances ?? 5;
 	}
 
 	setPrimaryPhp(primaryPhp: PHP) {
 		this.primaryPhp = primaryPhp;
+		this.activePhpInstances = 1;
+	}
+
+	async getPrimaryPhp() {
+		if (!this.primaryPhp && this.phpFactory) {
+			this.primaryPhp = await this.phpFactory();
+			++this.activePhpInstances;
+		}
+		return this.primaryPhp!;
 	}
 
 	setPhpFactory(phpFactory: () => Promise<PHP>) {
@@ -74,7 +85,7 @@ export class PHPProcessManager<PHP extends BasePHP> {
 
 		let php: PHP | null = null;
 		if (this.primaryIdle) {
-			php = this.primaryPhp;
+			php = await this.getPrimaryPhp();
 			this.primaryIdle = false;
 		} else {
 			if (!this.seenConcurrentRequest) {
