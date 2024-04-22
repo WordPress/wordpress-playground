@@ -1,3 +1,5 @@
+/// <reference lib="WebWorker" />
+
 import {
 	PHPRequestErrorEvent,
 	UniversalPHP,
@@ -32,6 +34,11 @@ export class Logger extends EventTarget {
 	 * The length of the last PHP log.
 	 */
 	private lastPHPLogLength = 0;
+
+	/**
+	 * Context data
+	 */
+	private context: Record<string, any> = {};
 
 	/**
 	 * The path to the error log file.
@@ -106,6 +113,21 @@ export class Logger extends EventTarget {
 			this.logUnhandledRejection.bind(this)
 		);
 		this.windowConnected = true;
+	}
+
+	/**
+	 * Register a listener for service worker messages and log the data.
+	 * The service worker will send the number of open Playground tabs.
+	 */
+	public addServiceWorkerMessageListener() {
+		navigator.serviceWorker.addEventListener('message', (event) => {
+			if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
+				this.addContext({
+					numberOfOpenPlaygroundTabs:
+						event.data.numberOfOpenPlaygroundTabs,
+				});
+			}
+		});
 	}
 
 	/**
@@ -218,7 +240,21 @@ export class Logger extends EventTarget {
 	 * @returns string[]
 	 */
 	public getLogs(): string[] {
-		return this.logs;
+		return [...this.logs];
+	}
+
+	/**
+	 * Add context data.
+	 */
+	public addContext(data: Record<string, any>): void {
+		this.context = { ...this.context, ...data };
+	}
+
+	/**
+	 * Get context data.
+	 */
+	public getContext(): Record<string, any> {
+		return { ...this.context };
 	}
 }
 
@@ -233,6 +269,7 @@ export const logger: Logger = new Logger();
  */
 export function collectWindowErrors(loggerInstance: Logger) {
 	loggerInstance.addWindowErrorListener();
+	loggerInstance.addServiceWorkerMessageListener();
 }
 
 /**
@@ -248,14 +285,46 @@ export function collectPhpLogs(
 }
 
 /**
- * Add a listener for the fatal Playground errors.
- * These errors include Playground errors like Asyncify errors. PHP errors won't trigger this event.
+ * **Call this inside a service worker.**
+ *
+ * Reports service worker metrics.
+ * Allows the logger to request metrics from the service worker by sending a message.
+ * The service worker will respond with the number of open Playground tabs.
+ *
+ * @param worker The service worker
+ */
+export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
+	worker.addEventListener('activate', () => {
+		worker.clients.matchAll().then((clients) => {
+			const metrics = {
+				numberOfOpenPlaygroundTabs: clients.filter(
+					// Only count top-level frames to get the number of tabs.
+					(c) => c.frameType === 'top-level'
+				).length,
+			};
+			worker.clients
+				.matchAll({
+					// We don't claim the clients, so we need to include uncontrolled clients to inform all tabs.
+					includeUncontrolled: true,
+				})
+				.then((clients) => {
+					for (const client of clients) {
+						client.postMessage(metrics);
+					}
+				});
+		});
+	});
+}
+
+/**
+ * Add a listener for the Playground crashes.
+ * These crashes include Playground errors like Asyncify errors.
  * The callback function will receive an Event object with logs in the detail property.
  *
  * @param loggerInstance The logger instance
  * @param callback The callback function
  */
-export function addFatalErrorListener(
+export function addCrashListener(
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
 ) {

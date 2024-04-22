@@ -109,3 +109,10 @@ li.footer__item a:hover {
 .footerLogoLink_mPrW {
 	opacity: 1 !important;
 }
+
+iframe {
+	aspect-ratio: 16/9;
+	max-width: 100%;
+	display: block;
+	height: auto;
+}

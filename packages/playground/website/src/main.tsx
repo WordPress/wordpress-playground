@@ -131,7 +131,7 @@ function Main() {
 		<PlaygroundContext.Provider
 			value={{ storage, showErrorModal, setShowErrorModal }}
 		>
-			<ErrorReportModal />
+			<ErrorReportModal blueprint={blueprint} />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
@@ -165,6 +165,28 @@ function Main() {
 									<RestoreFromZipMenuItem onClose={onClose} />
 									<GithubImportMenuItem onClose={onClose} />
 									<GithubExportMenuItem onClose={onClose} />
+									<MenuItem
+										icon={external}
+										iconPosition="left"
+										aria-label="Go to Blueprints Builder"
+										href={
+											[
+												joinPaths(
+													document.location.pathname,
+													'builder/builder.html'
+												),
+												'#',
+												btoa(
+													JSON.stringify(
+														blueprint
+													) as string
+												) as string,
+											].join('') as any
+										}
+										target="_blank"
+									>
+										Edit the Blueprint
+									</MenuItem>
 								</MenuGroup>
 								<MenuGroup label="More resources">
 									<MenuItem

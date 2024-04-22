@@ -85,7 +85,9 @@ export function compileBlueprint(
 ): CompiledBlueprint {
 	blueprint = {
 		...blueprint,
-		steps: (blueprint.steps || []).filter(isStepDefinition),
+		steps: (blueprint.steps || [])
+			.filter(isStepDefinition)
+			.filter(isStepStillSupported),
 	};
 	// Convert legacy importFile steps to importWxr
 	for (const step of blueprint.steps!) {
@@ -412,6 +414,25 @@ function isStepDefinition(
 	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);
+}
+
+/**
+ * Determines if a step is still supported, or was it deprecated
+ * and removed.
+ *
+ * @param step The step definition to test.
+ * @returns Whether the step is still supported.
+ */
+function isStepStillSupported(
+	step: Record<string, any>
+): step is StepDefinition {
+	if (step['step'] === 'setPhpIniEntry') {
+		console.warn(
+			`The "setPhpIniEntry" Blueprint is no longer supported and you can remove it from your Blueprint.`
+		);
+		return false;
+	}
+	return true;
 }
 
 interface CompileStepArgsOptions {
