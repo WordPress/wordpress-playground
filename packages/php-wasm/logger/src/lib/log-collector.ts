@@ -155,16 +155,9 @@ export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 					(c) => c.frameType === 'top-level'
 				).length,
 			};
-			worker.clients
-				.matchAll({
-					// We don't claim the clients, so we need to include uncontrolled clients to inform all tabs.
-					includeUncontrolled: true,
-				})
-				.then((clients) => {
-					for (const client of clients) {
-						client.postMessage(metrics);
-					}
-				});
+			for (const client of clients) {
+				client.postMessage(metrics);
+			}
 		});
 	});
 }
