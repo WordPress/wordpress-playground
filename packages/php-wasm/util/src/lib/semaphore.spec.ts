@@ -1,4 +1,4 @@
-import Semaphore from './semaphore';
+import Semaphore, { AcquireTimeoutError } from './semaphore';
 
 describe('RequestsPerIntervaledSemaphore', () => {
 	it('should limit the number of concurrent lock holders', async () => {
@@ -39,5 +39,14 @@ describe('RequestsPerIntervaledSemaphore', () => {
 		release1();
 
 		expect(semaphore.running).toBe(1);
+	});
+	it('should wait for the lock no longer than the timeout', async () => {
+		const semaphore = new Semaphore({
+			concurrency: 1,
+			timeout: 1,
+		});
+
+		await semaphore.acquire();
+		expect(() => semaphore.acquire()).rejects.toThrow(AcquireTimeoutError);
 	});
 });

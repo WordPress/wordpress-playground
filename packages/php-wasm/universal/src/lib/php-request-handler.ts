@@ -308,7 +308,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
 		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
 			return this.#serveStaticFile(
-				this.processManager.primaryPhp!,
+				await this.processManager.getPrimaryPhp(),
 				fsPath
 			);
 		}

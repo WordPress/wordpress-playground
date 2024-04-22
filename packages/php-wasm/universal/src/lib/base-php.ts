@@ -48,7 +48,7 @@ export class PHPExecutionFailureError extends Error {
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP {
+export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#phpIniPath?: string;
@@ -871,6 +871,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this.#wasmErrorsTarget = null;
 		delete this[__private__dont__use]['onMessage'];
 		delete this[__private__dont__use];
+	}
+
+	[Symbol.dispose]() {
+		if (this.#webSapiInitialized) {
+			this.exit(0);
+		}
 	}
 }
 

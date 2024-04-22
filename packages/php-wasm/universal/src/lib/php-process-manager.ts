@@ -1,3 +1,4 @@
+import { Semaphore } from '@php-wasm/util';
 import { BasePHP } from './base-php';
 
 export type PHPFactoryArgs = {
@@ -10,10 +11,10 @@ export type PHPFactory<PHP extends BasePHP> = ({
 
 export interface ProcessManagerOptions<PHP extends BasePHP> {
 	maxPhpInstances?: number;
+	timeout?: number;
 	primaryPhp?: PHP;
 	phpFactory?: PHPFactory<PHP>;
 }
-
 export interface SpawnedPHP<PHP extends BasePHP> {
 	php: PHP;
 	reap: () => void;
@@ -50,24 +51,27 @@ export class MaxPhpInstancesError extends Error {
  * extra time to spin up a few PHP instances. This is a more resource-friendly tradeoff
  * than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager<PHP extends BasePHP> {
-	primaryPhp?: PHP;
+export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
+	private primaryPhp?: PHP;
 	private primaryIdle = true;
-	private seenConcurrentRequest = false;
-	private nextInstance: Promise<PHP> | null = null;
+	private nextInstance: Promise<SpawnedPHP<PHP>> | null = null;
+	private allInstances: Promise<SpawnedPHP<PHP>>[] = [];
 	private phpFactory?: PHPFactory<PHP>;
 	private maxPhpInstances: number;
-	private activePhpInstances = 0;
+	private semaphore: Semaphore;
 
 	constructor(options?: ProcessManagerOptions<PHP>) {
 		this.maxPhpInstances = options?.maxPhpInstances ?? 5;
 		this.phpFactory = options?.phpFactory;
 		this.primaryPhp = options?.primaryPhp;
-	}
-
-	setPrimaryPhp(primaryPhp: PHP) {
-		this.primaryPhp = primaryPhp;
-		this.activePhpInstances = 1;
+		this.semaphore = new Semaphore({
+			concurrency: this.maxPhpInstances,
+			/**
+			 * Wait up to 5 seconds for resources to become available
+			 * before assuming that all the PHP instances are deadlocked.
+			 */
+			timeout: options?.timeout || 5000,
+		});
 	}
 
 	async getPrimaryPhp() {
@@ -76,8 +80,8 @@ export class PHPProcessManager<PHP extends BasePHP> {
 				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
 			);
 		} else if (!this.primaryPhp) {
-			this.primaryPhp = await this.phpFactory!({ isPrimary: true });
-			++this.activePhpInstances;
+			const spawned = await this.spawn!({ isPrimary: true });
+			this.primaryPhp = spawned.php;
 		}
 		return this.primaryPhp!;
 	}
@@ -87,42 +91,87 @@ export class PHPProcessManager<PHP extends BasePHP> {
 	}
 
 	async getInstance(): Promise<SpawnedPHP<PHP>> {
-		if (this.activePhpInstances >= this.maxPhpInstances) {
+		if (this.primaryIdle) {
+			this.primaryIdle = false;
+			return {
+				php: await this.getPrimaryPhp(),
+				reap: () => (this.primaryIdle = true),
+			};
+		}
+
+		/**
+		 * nextInstance is null:
+		 *
+		 * * Before the first concurrent getInstance() call
+		 * * When the last getInstance() call did not have enough
+		 *   budget left to optimistically start spawning the next
+		 *   instance.
+		 */
+		const spawnedPhp =
+			this.nextInstance || this.spawn({ isPrimary: false });
+
+		/**
+		 * Start spawning the next instance if there's still room. We can't
+		 * just always spawn the next instance because spawn() can fail
+		 * asynchronously and then we'll get an unhandled promise rejection.
+		 */
+		if (this.semaphore.remaining > 0) {
+			this.nextInstance = this.spawn({ isPrimary: false });
+		}
+		return await spawnedPhp;
+	}
+
+	private spawn(factoryArgs: PHPFactoryArgs): Promise<SpawnedPHP<PHP>> {
+		const spawned = this.doSpawn(factoryArgs);
+		this.allInstances.push(spawned);
+		const pop = () => {
+			this.allInstances = this.allInstances.filter(
+				(instance) => instance !== spawned
+			);
+		};
+		return spawned
+			.catch((rejection) => {
+				pop();
+				throw rejection;
+			})
+			.then((result) => ({
+				...result,
+				reap: () => {
+					pop();
+					result.reap();
+				},
+			}));
+	}
+
+	private async doSpawn(
+		factoryArgs: PHPFactoryArgs
+	): Promise<SpawnedPHP<PHP>> {
+		let release: () => void;
+		try {
+			release = await this.semaphore.acquire();
+		} catch (error) {
 			throw new MaxPhpInstancesError(this.maxPhpInstances);
 		}
-
-		if (!this.phpFactory || !this.primaryPhp) {
-			throw new Error(
-				'phpFactory and primaryPhp must be set before calling getInstance().'
-			);
-		}
-
-		let php: PHP | null = null;
-		if (this.primaryIdle) {
-			php = await this.getPrimaryPhp();
-			this.primaryIdle = false;
-		} else {
-			if (!this.seenConcurrentRequest) {
-				this.seenConcurrentRequest = true;
-				this.nextInstance = this.phpFactory({ isPrimary: false });
-				++this.activePhpInstances;
-			}
-			const phpPromise = this.nextInstance!;
-			this.nextInstance = this.phpFactory({ isPrimary: false });
-			++this.activePhpInstances;
-			php = await phpPromise;
-		}
-
+		const php = await this.phpFactory!(factoryArgs);
 		return {
 			php,
-			reap: () => {
-				if (php === this.primaryPhp) {
-					this.primaryIdle = true;
-				} else {
-					--this.activePhpInstances;
-					php!.exit();
-				}
+			reap() {
+				php.exit();
+				release();
 			},
 		};
+	}
+
+	async [Symbol.dispose]() {}
+
+	async [Symbol.asyncDispose]() {
+		if (this.primaryPhp) {
+			this.primaryPhp.exit();
+		}
+		await Promise.all(
+			this.allInstances.map((instance) =>
+				instance.then(({ reap }) => reap())
+			)
+		);
 	}
 }
