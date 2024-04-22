@@ -44,6 +44,7 @@ jobs:
             #          echo "$API_HASH was not $GITHUB_SHA, waiting 10 seconds...";
             #          sleep 10;
             #      done;
+            - uses: actions/checkout@v3
             - uses: actions/download-artifact@v2
               with:
                   name: playground-website
