@@ -32,7 +32,10 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	documentRoot = '';
 
 	/** @inheritDoc */
-	constructor(monitor?: EmscriptenDownloadMonitor) {
+	constructor(
+		requestHandler: PHPRequestHandler<WebPHP>,
+		monitor?: EmscriptenDownloadMonitor
+	) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -58,7 +61,10 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		 */
 		_private.set(this, {
 			monitor,
+			requestHandler,
 		});
+		this.absoluteUrl = requestHandler.absoluteUrl;
+		this.documentRoot = requestHandler.documentRoot;
 	}
 
 	/**
@@ -72,13 +78,10 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		return _private.get(this)!.php;
 	}
 
-	async setRequestHandler(requestHandler: PHPRequestHandler<WebPHP>) {
-		this.absoluteUrl = requestHandler.absoluteUrl;
-		this.documentRoot = requestHandler.documentRoot;
+	async setPrimaryPHP(php: WebPHP) {
 		_private.set(this, {
 			..._private.get(this)!,
-			requestHandler,
-			php: await requestHandler.getPrimaryPhp(),
+			php,
 		});
 	}
 

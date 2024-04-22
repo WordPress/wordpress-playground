@@ -1300,6 +1300,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				relativeUri: '/',
 				scriptPath: '/php/index.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;
@@ -1336,6 +1339,9 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				scriptPath: '/php/subdirectory/test.php',
 				relativeUri: '/subdirectory/test.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;

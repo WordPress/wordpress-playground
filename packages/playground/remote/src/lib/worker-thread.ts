@@ -1,4 +1,4 @@
-import { WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
+import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
 import { DOCROOT, wordPressSiteUrl } from './config';
@@ -94,11 +94,12 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 	wordPressVersion: string;
 
 	constructor(
+		requestHandler: PHPRequestHandler<WebPHP>,
 		monitor: EmscriptenDownloadMonitor,
 		scope: string,
 		wordPressVersion: string
 	) {
-		super(monitor);
+		super(requestHandler, monitor);
 		this.scope = scope;
 		this.wordPressVersion = wordPressVersion;
 	}
@@ -178,6 +179,7 @@ const requestHandler = new PHPRequestHandler({
 	rewriteRules: wordPressRewriteRules,
 });
 const apiEndpoint = new PlaygroundWorkerEndpoint(
+	requestHandler,
 	downloadMonitor,
 	scope,
 	startupOptions.wpVersion
@@ -185,8 +187,8 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	await apiEndpoint.setRequestHandler(requestHandler);
 	const primaryPhp = await requestHandler.getPrimaryPhp();
+	await apiEndpoint.setPrimaryPHP(primaryPhp);
 
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
