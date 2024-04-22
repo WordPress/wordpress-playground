@@ -229,9 +229,14 @@ export abstract class FetchResource extends Resource {
 			throw new Error(`
 				Could not download "${url}".
 				Check if the URL is correct and the server is reachable.
-				If it's reachable, the server might be blocking the request.
+				If the url is reachable, the server might be blocking the request.
 				Check the console and network for more information.
-				In case of a CORS error, you can try using a proxy server.
+
+				If the console shows an error about "No 'Access-Control-Allow-Origin' header", the server might not allow cross-origin requests.
+				You could configure the server to allow cross-origin requests.
+				When that's not possible you can use a proxy server.
+				For GitHub URLs you can use github-proxy.com.
+
 				Error:
 				${e}`);
 		}
