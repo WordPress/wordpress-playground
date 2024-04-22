@@ -30,7 +30,7 @@ import {
 import {
 	BasePHP,
 	PHPResponse,
-	PhpProcessManager,
+	PHPProcessManager,
 	RequestHandler,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
@@ -84,7 +84,7 @@ export const startupOptions = {
 } as ParsedStartupOptions;
 
 export async function createPhp(
-	processManager: PhpProcessManager<WebPHP>,
+	processManager: PHPProcessManager<WebPHP>,
 	requestHandler: RequestHandler
 ) {
 	const php = new WebPHP();
@@ -211,7 +211,7 @@ export function proxyFileSystem(
 	}
 }
 
-export function spawnHandlerFactory(processManager: PhpProcessManager<WebPHP>) {
+export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {
 		if (args[0] === 'exec') {
 			args.shift();

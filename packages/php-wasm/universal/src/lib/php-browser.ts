@@ -1,4 +1,3 @@
-import { BasePHP } from './base-php';
 import type { PHPRequestHandler } from './php-request-handler';
 import type { PHPResponse } from './php-response';
 import { PHPRequest, RequestHandler } from './universal-php';
@@ -25,14 +24,14 @@ export class PHPBrowser implements RequestHandler {
 	#cookies: Record<string, string>;
 	#config;
 
-	requestHandler: PHPRequestHandler;
+	requestHandler: PHPRequestHandler<any>;
 
 	/**
 	 * @param  server - The PHP server to browse.
 	 * @param  config - The browser configuration.
 	 */
 	constructor(
-		requestHandler: PHPRequestHandler,
+		requestHandler: PHPRequestHandler<any>,
 		config: PHPBrowserConfiguration = {}
 	) {
 		this.requestHandler = requestHandler;
@@ -58,12 +57,8 @@ export class PHPBrowser implements RequestHandler {
 	 * @param  redirects - Internal. The number of redirects handled so far.
 	 * @returns PHPRequestHandler response.
 	 */
-	async request(
-		php: BasePHP,
-		request: PHPRequest,
-		redirects = 0
-	): Promise<PHPResponse> {
-		const response = await this.requestHandler.request(php, {
+	async request(request: PHPRequest, redirects = 0): Promise<PHPResponse> {
+		const response = await this.requestHandler.request({
 			...request,
 			headers: {
 				...request.headers,
@@ -85,7 +80,6 @@ export class PHPBrowser implements RequestHandler {
 				this.requestHandler.absoluteUrl
 			);
 			return this.request(
-				php,
 				{
 					url: redirectUrl.toString(),
 					method: 'GET',

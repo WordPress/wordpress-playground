@@ -18,7 +18,7 @@ export type {
 
 export {
 	type SpawnedPHP,
-	PhpProcessManager,
+	PHPProcessManager,
 	MaxPhpInstancesError,
 } from './php-process-manager';
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';

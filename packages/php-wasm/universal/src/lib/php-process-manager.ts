@@ -40,7 +40,7 @@ export class MaxPhpInstancesError extends Error {
  * extra time to spin up a few PHP instances. This is a more resource-friendly tradeoff
  * than keeping 5 idle instances at all times.
  */
-export class PhpProcessManager<PHP extends BasePHP> {
+export class PHPProcessManager<PHP extends BasePHP> {
 	primaryPhp?: PHP;
 	private primaryIdle = true;
 	private seenConcurrentRequest = false;

@@ -13,13 +13,30 @@ import {
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
+import {
+	MaxPhpInstancesError,
+	PHPProcessManager,
+	SpawnedPHP,
+} from './php-process-manager';
 
 export type RewriteRule = {
 	match: RegExp;
 	replacement: string;
 };
 
-export interface PHPRequestHandlerConfiguration {
+export interface PHPRequestHandlerConfiguration<PHP extends BasePHP> {
+	/**
+	 * PHPProcessManager is required because the request handler needs
+	 * to make a decision for each request.
+	 *
+	 * Static assets are served using the primary PHP's filesystem, even
+	 * when serving 100 static files concurrently. No new PHP interpreter
+	 * is ever created as there's no need for it.
+	 *
+	 * Dynamic PHP requests, however, require grabbing an available PHP
+	 * interpreter, and that's where the PHPProcessManager comes in.
+	 */
+	processManager: PHPProcessManager<PHP>;
 	/**
 	 * The directory in the PHP filesystem where the server will look
 	 * for the files to serve. Default: `/var/www`.
@@ -37,7 +54,7 @@ export interface PHPRequestHandlerConfiguration {
 }
 
 /** @inheritDoc */
-export class PHPRequestHandler implements RequestHandler {
+export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -46,17 +63,26 @@ export class PHPRequestHandler implements RequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	rewriteRules: RewriteRule[];
+	#processManager: PHPProcessManager<PHP>;
 
 	/**
+	 * The request handler needs to decide whether to serve a static asset or
+	 * run the PHP interpreter. For static assets it should just reuse the primary
+	 * PHP even if there's 50 concurrent requests to serve. However, for
+	 * dynamic PHP requests, it needs to grab an available interpreter.
+	 * Therefore, it cannot just accept PHP as an argument as serving requests
+	 * requires access to ProcessManager.
+	 *
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(config: PHPRequestHandlerConfiguration = {}) {
+	constructor(config: PHPRequestHandlerConfiguration<PHP>) {
 		const {
 			documentRoot = '/www/',
 			absoluteUrl = typeof location === 'object' ? location?.href : '',
 			rewriteRules = [],
 		} = config;
+		this.#processManager = config.processManager;
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -106,7 +132,7 @@ export class PHPRequestHandler implements RequestHandler {
 	}
 
 	/** @inheritDoc */
-	async request(php: BasePHP, request: PHPRequest): Promise<PHPResponse> {
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		const isAbsolute =
 			request.url.startsWith('http://') ||
 			request.url.startsWith('https://');
@@ -124,10 +150,13 @@ export class PHPRequestHandler implements RequestHandler {
 			this.rewriteRules
 		);
 		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
-		if (seemsLikeAPHPRequestHandlerPath(fsPath)) {
-			return await this.#dispatchToPHP(php, request, requestedUrl);
+		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
+			return this.#serveStaticFile(
+				this.#processManager.primaryPhp!,
+				fsPath
+			);
 		}
-		return this.#serveStaticFile(php, fsPath);
+		return this.#spawnPHPAndDispatchRequest(request, requestedUrl);
 	}
 
 	/**
@@ -165,6 +194,34 @@ export class PHPRequestHandler implements RequestHandler {
 	}
 
 	/**
+	 * Spawns a new PHP instance and dispatches a request to it.
+	 */
+	async #spawnPHPAndDispatchRequest(
+		request: PHPRequest,
+		requestedUrl: URL
+	): Promise<PHPResponse> {
+		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
+		try {
+			spawnedPHP = await this.#processManager!.spawn();
+		} catch (e) {
+			if (e instanceof MaxPhpInstancesError) {
+				return PHPResponse.forHttpCode(502);
+			} else {
+				return PHPResponse.forHttpCode(500);
+			}
+		}
+		try {
+			return await this.#dispatchToPHP(
+				spawnedPHP.php,
+				request,
+				requestedUrl
+			);
+		} finally {
+			spawnedPHP.reap();
+		}
+	}
+
+	/**
 	 * Runs the requested PHP file with all the request and $_SERVER
 	 * superglobals populated.
 	 *
@@ -198,11 +255,7 @@ export class PHPRequestHandler implements RequestHandler {
 				decodeURIComponent(requestedUrl.pathname)
 			);
 		} catch (error) {
-			return new PHPResponse(
-				404,
-				{},
-				new TextEncoder().encode('404 File not found')
-			);
+			return PHPResponse.forHttpCode(404);
 		}
 
 		try {
@@ -229,7 +282,8 @@ export class PHPRequestHandler implements RequestHandler {
 			if (executionError?.response) {
 				return executionError.response;
 			}
-			throw error;
+			console.error(error);
+			return PHPResponse.forHttpCode(500);
 		}
 	}
 

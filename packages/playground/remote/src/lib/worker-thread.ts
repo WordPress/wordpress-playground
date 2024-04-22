@@ -11,7 +11,7 @@ import {
 import {
 	PHPBrowser,
 	PHPRequestHandler,
-	PhpProcessManager,
+	PHPProcessManager,
 	writeFiles,
 } from '@php-wasm/universal';
 import {
@@ -173,11 +173,12 @@ const apiEndpoint = new PlaygroundWorkerEndpoint(
 const [setApiReady, setAPIError] = exposeAPI(apiEndpoint);
 
 try {
-	const procManager = new PhpProcessManager();
+	const procManager = new PHPProcessManager();
 
 	const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 	const requestHandler = new PHPBrowser(
 		new PHPRequestHandler({
+			processManager: procManager,
 			documentRoot: DOCROOT,
 			absoluteUrl: scopedSiteUrl,
 			rewriteRules: wordPressRewriteRules,

@@ -31,6 +31,22 @@ export interface PHPResponseData {
 	readonly httpStatusCode: number;
 }
 
+const responseTexts: Record<number, string> = {
+	500: 'Internal Server Error',
+	502: 'Bad Gateway',
+	404: 'Not Found',
+	403: 'Forbidden',
+	401: 'Unauthorized',
+	400: 'Bad Request',
+	301: 'Moved Permanently',
+	302: 'Found',
+	307: 'Temporary Redirect',
+	308: 'Permanent Redirect',
+	204: 'No Content',
+	201: 'Created',
+	200: 'OK',
+};
+
 /**
  * PHP response. Body is an `ArrayBuffer` because it can
  * contain binary data.
@@ -66,6 +82,16 @@ export class PHPResponse implements PHPResponseData {
 		this.bytes = body;
 		this.exitCode = exitCode;
 		this.errors = errors;
+	}
+
+	static forHttpCode(httpStatusCode: number, text = '') {
+		return new PHPResponse(
+			httpStatusCode,
+			{},
+			new TextEncoder().encode(
+				text || responseTexts[httpStatusCode] || ''
+			)
+		);
 	}
 
 	static fromRawData(data: PHPResponseData): PHPResponse {

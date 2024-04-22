@@ -9,9 +9,7 @@ import {
 	type PHPEventListener,
 	type PHPEvent,
 	type RequestHandler,
-	type PhpProcessManager,
-	type SpawnedPHP,
-	MaxPhpInstancesError,
+	type PHPProcessManager,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { WebPHP } from './web-php';
@@ -19,7 +17,7 @@ import { WebPHP } from './web-php';
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
-		processManager?: PhpProcessManager<WebPHP>;
+		processManager?: PHPProcessManager<WebPHP>;
 		requestHandler?: RequestHandler;
 		monitor?: EmscriptenDownloadMonitor;
 	}
@@ -84,7 +82,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		});
 	}
 
-	setProcessManager(processManager: PhpProcessManager<WebPHP>) {
+	setProcessManager(processManager: PHPProcessManager<WebPHP>) {
 		_private.set(this, {
 			..._private.get(this)!,
 			processManager,
@@ -129,27 +127,8 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 		request: PHPRequest,
 		redirects?: number
 	): Promise<PHPResponse> {
-		let spawnedPHP: SpawnedPHP<WebPHP> | undefined = undefined;
-		try {
-			spawnedPHP = await _private.get(this)!.processManager!.spawn();
-		} catch (e) {
-			if (e instanceof MaxPhpInstancesError) {
-				console.warn(e.message);
-				return new PHPResponse(
-					502,
-					{},
-					new TextEncoder().encode('502 Bad Gateway')
-				);
-			}
-			throw e;
-		}
 		const requestHandler = _private.get(this)!.requestHandler!;
-		const { php, reap } = spawnedPHP;
-		try {
-			return await requestHandler.request(php, request, redirects);
-		} finally {
-			reap();
-		}
+		return await requestHandler.request(request, redirects);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
