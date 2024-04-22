@@ -67,6 +67,7 @@ jobs:
                   tar -xzf wasm-wordpress-net.tar.gz
                   mv dist/packages/playground/wasm-wordpress-net/ playground-website/
 
+                  mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
                   echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" playground-website/ ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:/srv/htdocs/playground-files
