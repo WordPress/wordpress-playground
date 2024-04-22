@@ -98,7 +98,7 @@ export async function rewriteDefineCalls(
 	const js = phpVars({
 		consts,
 	});
-	const result = await playground.run({
+	await playground.run({
 		code: `${rewriteWpConfigToDefineConstants}
 	$wp_config_path = '/tmp/code.php';
 	$wp_config = file_get_contents($wp_config_path);
