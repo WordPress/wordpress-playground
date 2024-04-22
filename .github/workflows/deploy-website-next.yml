@@ -73,5 +73,9 @@ jobs:
                   chmod 0600 ~/.ssh/*
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete playground-website/ ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:/srv/htdocs/playground-files
 
+                  # Purge edge cache
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}
+                    -C 'curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$(php -r "require \"/scripts/env.php\"; echo SITE_API_BASE;")/edge-cache/$ATOMIC_SITE_ID/purge"'
+
             # TODO in subsequent PR: Copy latest custom-redirects.php from git
-            # TODO in subsequent PR: Copy latest purge cache script from website file and run it
