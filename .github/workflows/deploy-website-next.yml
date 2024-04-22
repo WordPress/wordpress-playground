@@ -26,7 +26,8 @@ jobs:
         # Specify runner + deployment step
         runs-on: ubuntu-latest
         environment:
-            name: playground-wordpress-net
+            # TODO: Update environment protection rule to only allow with "Protected branches"
+            name: playground-wordpress-net-wp-cloud
         steps:
             - name: Wait for latest build artifact
               shell: bash
