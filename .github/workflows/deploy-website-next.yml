@@ -11,7 +11,7 @@ on:
     pull_request:
 
 jobs:
-    build_and_deploy:
+    deploy_to_wp_cloud:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
         # TODO: Re-enable this before merging
         #if: >
@@ -44,13 +44,27 @@ jobs:
             #          echo "$API_HASH was not $GITHUB_SHA, waiting 10 seconds...";
             #          sleep 10;
             #      done;
-            - uses: actions/checkout@v3
-            - uses: actions/download-artifact@v2
-              with:
-                  name: playground-website
-                  path: playground-website
             - name: Deploy to playground.wordpress.net
               run: |
+                  ZIP_URL=$(
+                      curl -L -s -S \
+                           -H "Accept: application/vnd.github+json" \
+                           -H "X-GitHub-Api-Version: 2022-11-28" \
+                           https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts\?name\=playground-website\&per_page\=1 \
+                           | jq -r '.artifacts[0].archive_download_url'
+                  )
+
+                  curl -L -s -S \
+                       -H "Accept: application/vnd.github+json" \
+                       -H "Authorization: Bearer $GITHUB_TOKEN" \
+                       -H "X-GitHub-Api-Version: 2022-11-28" \
+                       -o playground-website.zip \
+                       $ZIP_URL
+
+                  unzip playground-website.zip
+                  tar -xzf wasm-wordpress-net.tar.gz
+                  mv dist/packages/playground/wasm-wordpress-net/ playground-website/
+
                   echo "$DEPLOY_WEBSITE_TARGET_HOST_KEY" >> ~/.ssh/known_hosts
                   echo "$DEPLOY_WEBSITE_PRIVATE_KEY" > ~/.ssh/id_ed25519
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" playground-website/ $DEPLOY_WEBSITE_TARGET_USER@$DEPLOY_WEBSITE_TARGET_HOST:/srv/htdocs/playground-files
