@@ -59,7 +59,7 @@ jobs:
 
                   curl -L -s -S \
                        -H "Accept: application/vnd.github+json" \
-                       -H "Authorization: Bearer $GITHUB_TOKEN" \
+                       -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                        -H "X-GitHub-Api-Version: 2022-11-28" \
                        -o playground-website.zip \
                        "$ZIP_URL"
@@ -68,9 +68,9 @@ jobs:
                   tar -xzf wasm-wordpress-net.tar.gz
                   mv dist/packages/playground/wasm-wordpress-net/ playground-website/
 
-                  echo "$DEPLOY_WEBSITE_TARGET_HOST_KEY" >> ~/.ssh/known_hosts
-                  echo "$DEPLOY_WEBSITE_PRIVATE_KEY" > ~/.ssh/id_ed25519
-                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" playground-website/ $DEPLOY_WEBSITE_TARGET_USER@$DEPLOY_WEBSITE_TARGET_HOST:/srv/htdocs/playground-files
+                  echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" playground-website/ ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:/srv/htdocs/playground-files
 
             # TODO in subsequent PR: Copy latest custom-redirects.php from git
             # TODO in subsequent PR: Copy latest purge cache script from website file and run it
