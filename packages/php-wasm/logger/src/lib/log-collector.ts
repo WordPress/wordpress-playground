@@ -6,8 +6,6 @@ import {
 } from '@php-wasm/universal/src/lib/universal-php';
 import type { Logger } from './logger';
 
-let windowConnected = false;
-
 /**
  * Log Windows errors.
  *
@@ -15,19 +13,19 @@ let windowConnected = false;
  * @param ErrorEvent event
  */
 function logWindowError(loggerInstance: Logger, event: ErrorEvent) {
-	loggerInstance.addLogEntry(
-		`${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
-		'Error'
-	);
+	loggerInstance.logMessage({
+		message: `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
+		severity: 'Error',
+	});
 }
 
 /**
- * Log unhandled promise rejections.
+ * Log promise rejections.
  *
  * @param loggerInstance The logger instance
  * @param PromiseRejectionEvent event
  */
-function logUnhandledRejection(
+function logPromiseRejection(
 	loggerInstance: Logger,
 	event: PromiseRejectionEvent
 ) {
@@ -36,7 +34,10 @@ function logUnhandledRejection(
 		return;
 	}
 	const message = event?.reason.stack ?? event.reason;
-	loggerInstance.addLogEntry(message, 'Error');
+	loggerInstance.logMessage({
+		message,
+		severity: 'Error',
+	});
 }
 
 /**
@@ -56,6 +57,9 @@ function addServiceWorkerMessageListener(loggerInstance: Logger) {
 	});
 }
 
+// If the window events are already connected.
+let windowConnected = false;
+
 /**
  * Collect errors from JavaScript window events like error and log them.
  * @param loggerInstance The logger instance
@@ -74,10 +78,10 @@ export function collectWindowErrors(loggerInstance: Logger) {
 		logWindowError(loggerInstance, event as ErrorEvent)
 	);
 	window.addEventListener('unhandledrejection', (event) =>
-		logUnhandledRejection(loggerInstance, event as PromiseRejectionEvent)
+		logPromiseRejection(loggerInstance, event as PromiseRejectionEvent)
 	);
 	window.addEventListener('rejectionhandled', (event) =>
-		logUnhandledRejection(loggerInstance, event as PromiseRejectionEvent)
+		logPromiseRejection(loggerInstance, event as PromiseRejectionEvent)
 	);
 	windowConnected = true;
 }
@@ -111,19 +115,21 @@ export function collectPhpLogs(
 		const log = await getRequestPhpErrorLog(playground);
 		if (log.length > lastPHPLogLength) {
 			const currentLog = log.substring(lastPHPLogLength);
-			loggerInstance.addRawLogEntry(currentLog);
-			loggerInstance.consoleLog(currentLog);
+			loggerInstance.logMessage({
+				message: currentLog,
+				raw: true,
+			});
 			lastPHPLogLength = log.length;
 		}
 	});
 	playground.addEventListener('request.error', (event) => {
 		event = event as PHPRequestErrorEvent;
 		if (event.error) {
-			loggerInstance.addLogEntry(
-				`${event.error.message} ${event.error.stack}`,
-				'Fatal',
-				'PHP-WASM'
-			);
+			loggerInstance.logMessage({
+				message: `${event.error.message} ${event.error.stack}`,
+				severity: 'Fatal',
+				prefix: event.source === 'request' ? 'PHP' : 'PHP-WASM',
+			});
 			loggerInstance.dispatchEvent(
 				new CustomEvent(loggerInstance.fatalErrorEvent, {
 					detail: {
