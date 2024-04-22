@@ -1,7 +1,7 @@
 import { NodePHP } from '@php-wasm/node';
 import { rotatePHPRuntime } from '@php-wasm/universal';
-import { Mount } from './server';
 import { rootCertificates } from 'tls';
+import { Mount } from './cli';
 
 export async function createPhp(mounts: Mount[]) {
 	const php = new NodePHP();
