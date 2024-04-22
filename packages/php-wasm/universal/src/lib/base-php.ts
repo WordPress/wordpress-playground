@@ -128,24 +128,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	get absoluteUrl() {
-		return this.requestHandler!.requestHandler.absoluteUrl;
+		return this.requestHandler!.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return this.requestHandler!.requestHandler.documentRoot;
+		return this.requestHandler!.documentRoot;
 	}
 
 	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
-		return this.requestHandler!.requestHandler.pathToInternalUrl(path);
+		return this.requestHandler!.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
-		return this.requestHandler!.requestHandler.internalUrlToPath(
-			internalUrl
-		);
+		return this.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {

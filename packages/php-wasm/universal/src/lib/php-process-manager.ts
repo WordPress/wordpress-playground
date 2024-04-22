@@ -53,6 +53,8 @@ export class PHPProcessManager<PHP extends BasePHP> {
 
 	constructor(options?: ProcessManagerOptions<PHP>) {
 		this.maxPhpInstances = options?.maxPhpInstances ?? 5;
+		this.phpFactory = options?.phpFactory;
+		this.primaryPhp = options?.primaryPhp;
 	}
 
 	setPrimaryPhp(primaryPhp: PHP) {
@@ -61,8 +63,12 @@ export class PHPProcessManager<PHP extends BasePHP> {
 	}
 
 	async getPrimaryPhp() {
-		if (!this.primaryPhp && this.phpFactory) {
-			this.primaryPhp = await this.phpFactory();
+		if (!this.phpFactory && !this.primaryPhp) {
+			throw new Error(
+				'phpFactory or primaryPhp must be set before calling getPrimaryPhp().'
+			);
+		} else if (!this.primaryPhp) {
+			this.primaryPhp = await this.phpFactory!();
 			++this.activePhpInstances;
 		}
 		return this.primaryPhp!;
@@ -79,7 +85,7 @@ export class PHPProcessManager<PHP extends BasePHP> {
 
 		if (!this.phpFactory || !this.primaryPhp) {
 			throw new Error(
-				'phpFactory and primaryPhp must be set before calling acquire().'
+				'phpFactory and primaryPhp must be set before calling getInstance().'
 			);
 		}
 

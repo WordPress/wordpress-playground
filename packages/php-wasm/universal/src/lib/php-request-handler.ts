@@ -16,7 +16,6 @@ import { encodeAsMultipart } from './encode-as-multipart';
 import {
 	MaxPhpInstancesError,
 	PHPProcessManager,
-	ProcessManagerOptions,
 	SpawnedPHP,
 } from './php-process-manager';
 
@@ -60,7 +59,9 @@ export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
 					processManager: PHPProcessManager<PHP>;
 			  }
 			| {
-					phpFactory: ProcessManagerOptions<PHP>['phpFactory'];
+					phpFactory: (
+						requestHandler: PHPRequestHandler<PHP>
+					) => Promise<PHP>;
 			  }
 		);
 
@@ -98,7 +99,7 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 		} else {
 			this.processManager = new PHPProcessManager({
 				phpFactory: async () => {
-					const php = await config.phpFactory!();
+					const php = await config.phpFactory!(this);
 					// @TODO: Decouple PHP and request handler
 					(php as any).requestHandler = this;
 					return php;
@@ -127,10 +128,13 @@ export class PHPRequestHandler<PHP extends BasePHP> implements RequestHandler {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+		// For compat with PHPBrowser. @TODO: remove PHPBrowser.
+		// @ts-ignore
+		this.requestHandler = this;
 	}
 
 	async getPrimaryPhp() {
-		return this.processManager.getPrimaryPhp();
+		return await this.processManager.getPrimaryPhp();
 	}
 
 	/** @inheritDoc */
