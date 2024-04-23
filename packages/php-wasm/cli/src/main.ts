@@ -12,14 +12,18 @@ import {
 
 import { NodePHP } from '@php-wasm/node';
 import { spawn } from 'child_process';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 let args = process.argv.slice(2);
 if (!args.length) {
 	args = ['--help'];
 }
 
+const tempDir = mkdtempSync(tmpdir() + '/php-wasm-');
+
 // Write the ca-bundle.crt file to disk so that PHP can find it.
-const caBundlePath = new URL('ca-bundle.crt', (import.meta || {}).url).pathname;
+const caBundlePath = join(tempDir, 'ca-bundle.crt');
 if (!existsSync(caBundlePath)) {
 	writeFileSync(caBundlePath, rootCertificates.join('\n'));
 }
@@ -27,13 +31,13 @@ args.unshift('-d', `openssl.cafile=${caBundlePath}`);
 
 async function run() {
 	// @ts-ignore
-	const defaultPhpIniPath = await import('./php.ini');
+	const defaultPhpIniPath = (await import('./php.ini')).default;
 	const phpVersion = (process.env['PHP'] ||
 		LatestSupportedPHPVersion) as SupportedPHPVersion;
 	if (!SupportedPHPVersionsList.includes(phpVersion)) {
 		throw new Error(`Unsupported PHP version ${phpVersion}`);
 	}
-	
+
 	// npm scripts set the TMPDIR env variable
 	// PHP accepts a TMPDIR env variable and expects it to
 	// be a writable directory within the PHP filesystem.
@@ -66,7 +70,6 @@ async function run() {
 		);
 
 		// Create a shell script in a temporary directory
-		const tempDir = mkdtempSync('php-wasm-');
 		const tempScriptPath = `${tempDir}/script.sh`;
 		writeFileSync(
 			tempScriptPath,
