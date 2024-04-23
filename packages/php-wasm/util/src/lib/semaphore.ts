@@ -1,7 +1,13 @@
 import { SleepFinished, sleep } from './sleep';
 
 export interface SemaphoreOptions {
+	/**
+	 * The maximum number of concurrent locks.
+	 */
 	concurrency: number;
+	/**
+	 * The maximum time to wait for a lock to become available.
+	 */
 	timeout?: number;
 }
 
