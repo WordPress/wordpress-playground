@@ -229,14 +229,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc */
-	async request(
-		request: PHPRequest,
-		maxRedirects?: number
-	): Promise<PHPResponse> {
+	async request(request: PHPRequest): Promise<PHPResponse> {
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
-		return this.request(request, maxRedirects);
+		return this.requestHandler.request(request);
 	}
 
 	/** @inheritDoc */
