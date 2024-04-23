@@ -1,4 +1,4 @@
-const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
+import dependencyFilename from './8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
 export const dependenciesTotalSize = 13597709; 
 export function init(RuntimeName, PHPLoader) {
