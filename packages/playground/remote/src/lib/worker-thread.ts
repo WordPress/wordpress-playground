@@ -237,44 +237,6 @@ try {
 		joinPaths(requestHandler.documentRoot, 'phpinfo.php'),
 		'<?php phpinfo(); '
 	);
-	// Create phpinfo.php
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'self-request.php'),
-		`<?php 
-	require_once('/wordpress/wp-load.php');
-	echo "Pre";
-	$result = wp_safe_remote_get(
-		get_site_url() . '/next.php', 
-		array(
-			'method' => 'POST',
-			'body' => array(
-				'key1' => 'value1',
-				'key2' => 'value2',
-			),
-		)
-	);
-	if ( is_wp_error( $result ) ) {
-		print_r($result);
-	} else {
-		echo wp_remote_retrieve_body( $result );
-	}
-	echo "Finished";
-	`
-	);
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'next.php'),
-		`<?php 
-	echo "YAY, self-request worked!";
-	`
-	);
-
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'run-php-file.php'),
-		`<?php 
-	echo shell_exec('php /wordpress/next.php');
-	echo "After";
-	`
-	);
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
