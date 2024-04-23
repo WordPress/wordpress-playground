@@ -25,7 +25,7 @@ export { PHPProcessManager } from './php-process-manager';
 export type {
 	MaxPhpInstancesError,
 	PHPFactory,
-	PHPFactoryArgs,
+	PHPFactoryOptions,
 	ProcessManagerOptions,
 	SpawnedPHP,
 } from './php-process-manager';
