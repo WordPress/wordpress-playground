@@ -1,14 +1,14 @@
 import { NodePHP } from '@php-wasm/node';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { logger } from '../lib/logger';
-import { addCrashListener, collectPhpLogs } from '../lib/log-collector';
-import { clearFileLogs } from '../lib/log-handlers';
+import { logger, addCrashListener } from '../lib/logger';
+import { collectPhpLogs } from '../lib/log-collector';
+import { clearMemoryLogs } from '../lib/log-handlers';
 
 describe('Logger', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
-		clearFileLogs();
+		clearMemoryLogs();
 	});
 	it('Event listener should work', () => {
 		const listener = vi.fn();
