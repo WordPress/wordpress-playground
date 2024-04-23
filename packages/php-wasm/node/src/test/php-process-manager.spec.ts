@@ -66,4 +66,19 @@ describe('PHPProcessManager', () => {
 		await mgr.getInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(3);
 	});
+
+	it('should refuse to spawn two primary PHP instances', async () => {
+		const mgr = new PHPProcessManager({
+			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			maxPhpInstances: 5,
+		});
+
+		mgr.getPrimaryPhp();
+		// No await here, because we want to check if a second,
+		// synchronous call throws an error if issued before
+		// the first call completes asynchronously.
+		await expect(() => mgr.getPrimaryPhp()).rejects.toThrowError(
+			/Requested spawning a primary PHP instance/
+		);
+	});
 });

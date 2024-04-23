@@ -122,6 +122,11 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 	}
 
 	private spawn(factoryArgs: PHPFactoryArgs): Promise<SpawnedPHP<PHP>> {
+		if (factoryArgs.isPrimary && this.allInstances.length > 0) {
+			throw new Error(
+				'Requested spawning a primary PHP instance when another primary instance already started spawning.'
+			);
+		}
 		const spawned = this.doSpawn(factoryArgs);
 		this.allInstances.push(spawned);
 		const pop = () => {
