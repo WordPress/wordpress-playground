@@ -42,6 +42,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
+import { createMemoizedFetch } from './create-memoized-fetch';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -127,6 +128,7 @@ const php = new WebPHP(undefined, {
 	rewriteRules: wordPressRewriteRules,
 });
 
+const memoizedFetch = createMemoizedFetch(monitoredFetch);
 const recreateRuntime = async () => {
 	let wasmUrl = '';
 	return await WebPHP.loadRuntime(phpVersion, {
@@ -146,7 +148,7 @@ const recreateRuntime = async () => {
 			instantiateWasm(imports, receiveInstance) {
 				// Using .then because Emscripten typically returns an empty
 				// object here and not a promise.
-				monitoredFetch(wasmUrl, {
+				memoizedFetch(wasmUrl, {
 					credentials: 'same-origin',
 				})
 					.then((response) =>
