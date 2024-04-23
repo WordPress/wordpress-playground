@@ -352,6 +352,8 @@ function inferMimeType(path: string): string {
 		case 'txt':
 		case 'md':
 			return 'text/plain';
+		case 'pdf':
+			return 'application/pdf';
 		default:
 			return 'application-octet-stream';
 	}
