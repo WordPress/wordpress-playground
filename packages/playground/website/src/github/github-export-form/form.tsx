@@ -297,7 +297,7 @@ export default function GitHubExportForm({
 				relativeExportPaths = [`./`];
 				prTitle = `Update theme ${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				fromPlaygroundRoot = docroot;
+				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
 				relativeExportPaths = [
 					`/wp-content/plugins/${formValues.plugin}`,
 				];
