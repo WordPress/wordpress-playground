@@ -1,14 +1,10 @@
 import { LogHandler } from '../log-handlers';
-import { Log, Logger } from '../logger';
+import { Log } from '../logger';
 
 /**
  * Log message to the console.
  */
-export const logToConsole: LogHandler = (
-	logger: Logger,
-	log: Log,
-	...args: any[]
-): void => {
+export const logToConsole: LogHandler = (log: Log, ...args: any[]): void => {
 	/* eslint-disable no-console */
 	switch (log.severity) {
 		case 'Debug':

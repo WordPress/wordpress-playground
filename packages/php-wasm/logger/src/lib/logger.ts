@@ -1,4 +1,4 @@
-import { logToFile, logToConsole, logs } from './log-handlers';
+import { logToMemory, logToConsole, logs } from './log-handlers';
 
 export type Log = {
 	message: any;
@@ -69,7 +69,7 @@ export class Logger extends EventTarget {
 	 */
 	public logMessage(log: Log, ...args: any[]): void {
 		for (const handler of this.handlers) {
-			handler(this, log, ...args);
+			handler(log, ...args);
 		}
 	}
 
@@ -167,4 +167,19 @@ export class Logger extends EventTarget {
 /**
  * The logger instance.
  */
-export const logger: Logger = new Logger([logToConsole, logToFile]);
+export const logger: Logger = new Logger([logToConsole, logToMemory]);
+
+/**
+ * Add a listener for the Playground crashes.
+ * These crashes include Playground errors like Asyncify errors.
+ * The callback function will receive an Event object with logs in the detail property.
+ *
+ * @param loggerInstance The logger instance
+ * @param callback The callback function
+ */
+export function addCrashListener(
+	loggerInstance: Logger,
+	callback: EventListenerOrEventListenerObject
+) {
+	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
+}

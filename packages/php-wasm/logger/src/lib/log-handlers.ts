@@ -1,8 +1,8 @@
-import { Logger, Log } from './logger';
+import { Log } from './logger';
 
 export interface LogHandler {
-	(logger: Logger, log: Log, ...args: any[]): void;
+	(log: Log, ...args: any[]): void;
 }
 
 export * from './handlers/log-to-console';
-export * from './handlers/log-to-file';
+export * from './handlers/log-to-memory';

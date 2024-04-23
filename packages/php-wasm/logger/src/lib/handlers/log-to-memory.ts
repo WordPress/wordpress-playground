@@ -1,5 +1,5 @@
 import { LogHandler } from '../log-handlers';
-import { LogSeverity, Logger, Log } from '../logger';
+import { LogSeverity, Log } from '../logger';
 
 const formatLogDate = (date: Date): string => {
 	const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -40,17 +40,16 @@ const formatLogEntry = (
 
 export const logs: string[] = [];
 
-const addToLogFile = (message: string): void => {
-	// TODO replace with actual file logging
+const addToLogArray = (message: string): void => {
 	logs.push(message);
 };
 
 /**
- * Log to a file
+ * Log to memory
  */
-export const logToFile: LogHandler = (logger: Logger, log: Log): void => {
+export const logToMemory: LogHandler = (log: Log): void => {
 	if (log.raw === true) {
-		addToLogFile(log.message);
+		addToLogArray(log.message);
 	} else {
 		const message = formatLogEntry(
 			typeof log.message === 'object'
@@ -59,10 +58,10 @@ export const logToFile: LogHandler = (logger: Logger, log: Log): void => {
 			log.severity ?? 'Info',
 			log.prefix ?? 'JavaScript'
 		);
-		addToLogFile(message);
+		addToLogArray(message);
 	}
 };
 
-export const clearFileLogs = (): void => {
+export const clearMemoryLogs = (): void => {
 	logs.length = 0;
 };
