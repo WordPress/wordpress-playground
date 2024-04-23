@@ -814,8 +814,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
-	 * @param cwd. Internal, temporary param required until BasePHP is decoupled from the
-	 *             request handler.
+	 * @param cwd. Internal, the VFS path to recreate in the new runtime.
+	 *             This arg is temporary and will be removed once BasePHP
+	 *             is fully decoupled from the request handler and
+	 *             accepts a constructor-level cwd argument.
 	 */
 	hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,

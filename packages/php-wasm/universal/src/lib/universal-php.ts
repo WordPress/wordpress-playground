@@ -49,7 +49,7 @@ export type PHPEventListener = (event: PHPEvent) => void;
 
 export interface IsomorphicLocalPHP {
 	/** @deprecated Use PHPRequestHandler instead. */
-	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
+	request(request: PHPRequest): Promise<PHPResponse>;
 	/** @deprecated Use PHPRequestHandler instead. */
 	pathToInternalUrl(path: string): string;
 	/** @deprecated Use PHPRequestHandler instead. */

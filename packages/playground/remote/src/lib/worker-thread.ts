@@ -28,17 +28,20 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
-	downloadMonitor,
 	proxyFileSystem,
 	requestedWPVersion,
 	createPhp,
 	startupOptions,
+	monitoredFetch,
+	downloadMonitor,
 } from './worker-utils';
 import {
 	FilesystemOperation,
 	journalFSEvents,
 	replayFSJournal,
 } from '@php-wasm/fs-journal';
+
+const scope = Math.random().toFixed(16);
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -61,23 +64,19 @@ if (
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
-const scope = Math.random().toFixed(16);
-
 // Start downloading WordPress if needed
 let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = downloadMonitor.monitorFetch(
-			fetch(requestedWPVersion)
-		);
+		wordPressRequest = monitoredFetch(requestedWPVersion);
 	} else {
 		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
 		downloadMonitor.expectAssets({
 			[wpDetails.url]: wpDetails.size,
 		});
-		wordPressRequest = downloadMonitor.monitorFetch(fetch(wpDetails.url));
+		wordPressRequest = monitoredFetch(wpDetails.url);
 	}
 }
 

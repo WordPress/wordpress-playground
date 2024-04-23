@@ -1,16 +1,14 @@
-import type { PHPResponse } from './php-response';
-
 /**
  * @public
  */
 export class HttpCookieStore {
 	cookies: Record<string, string> = {};
 
-	rememberCookiesFromResponse(response: PHPResponse) {
-		if (!response.headers?.['set-cookie']) {
+	rememberCookiesFromResponseHeaders(headers: Record<string, string[]>) {
+		if (!headers?.['set-cookie']) {
 			return;
 		}
-		for (const setCookie of response.headers['set-cookie']) {
+		for (const setCookie of headers['set-cookie']) {
 			try {
 				if (!setCookie.includes('=')) {
 					continue;

@@ -203,13 +203,6 @@ function getDocusaurusPluginTypedocApiConfig() {
 		options.entryPoints = packages.map((entry) =>
 			path.join(projectRoot, entry)
 		);
-		options.plugin = [
-			'typedoc-plugin-resolve-crossmodule-references',
-			// This plugin somehow doesn't work with docusaurus-plugin-typedoc-api.
-			// @TODO: Fix it
-			'typedoc-plugin-mdn-links',
-		];
-
 		return old.call(this, options);
 	};
 

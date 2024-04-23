@@ -1,27 +1,3 @@
-/*
-PHP self requests
-
-Idea 1: 
-
-export abstract class PHPPool implements IsomorphicLocalPHP
-
-Implement all BasePHP methods
-Proxy the calls to the underlying instances
-
-It feels off, though:
-* API client would think it talks to PHP but it would talk to... a pool? That's weird. FS calls would affect just the first PHP instance. It's a pool so it should be about locks, but the implementation is mostly glue code to fulfill the interface. 
-* It needs to keep a copy of args like newName in setSapiName(newName: string).
-* How are new instances created and configured? Would PHPPool get a factory function that returns BasePHP instance? Or a Runtime instance? It's unclear how they would they be wired together and configured.
-* PHPPool has a "absoluteUrl" method that relies on PHPRequestHandler.
-* FS methods (writefile, mkdir etc.) are always proxied to the first PHP instance in the pool
-* addEventListener and removeEventListener make sense for events like request.error, request.end but not for runtime.initialized, runtime.beforedestroy
-
-Idea 2:
-
-PHPPool with just acquire(), release(), and grow() methods.
-Split out cloning mechanics.
-*/
-
 import { WebPHP } from '@php-wasm/web';
 import {
 	LatestSupportedWordPressVersion,
@@ -39,6 +15,7 @@ import {
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
+import { createMemoizedFetch } from './create-memoized-fetch';
 
 export type ReceivedStartupOptions = {
 	wpVersion?: string;
@@ -105,9 +82,9 @@ export async function createPhp(requestHandler: PHPRequestHandler<WebPHP>) {
 
 export const downloadMonitor = new EmscriptenDownloadMonitor();
 
-const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+export const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
 	downloadMonitor.monitorFetch(fetch(input, init));
-const fetchMemo = memoizedFetch(monitoredFetch);
+const memoizedFetch = createMemoizedFetch(monitoredFetch);
 
 const createPhpRuntime = async () => {
 	let wasmUrl = '';
@@ -125,7 +102,7 @@ const createPhpRuntime = async () => {
 			instantiateWasm(imports, receiveInstance) {
 				// Using .then because Emscripten typically returns an empty
 				// object here and not a promise.
-				fetchMemo(wasmUrl, {
+				memoizedFetch(wasmUrl, {
 					credentials: 'same-origin',
 				})
 					.then((response) =>
@@ -139,46 +116,6 @@ const createPhpRuntime = async () => {
 		},
 	});
 };
-
-interface CachedFetchResponse {
-	body: ReadableStream<Uint8Array>;
-	responseInit: ResponseInit;
-}
-
-/**
- * Creates a fetch function that memoizes the response stream.
- * Calling it twice will return a response with the same status,
- * headers, and the body stream.
- * Memoization is keyed by URL. Method, headers etc are ignored.
- *
- * @param originalFetch The fetch function to memoize. Defaults to the global fetch.
- */
-function memoizedFetch(originalFetch = fetch) {
-	const cache: Record<
-		string,
-		Promise<CachedFetchResponse> | CachedFetchResponse
-	> = {};
-	return async function cachedFetch(url: string, options?: RequestInit) {
-		if (!cache[url]) {
-			// Write to cache synchronously to avoid duplicate requests.
-			cache[url] = originalFetch(url, options).then((response) => ({
-				body: response.body!,
-				responseInit: {
-					status: response.status,
-					statusText: response.statusText,
-					headers: response.headers,
-				},
-			}));
-		}
-		const { body, responseInit } = await cache[url];
-		const [stream1, stream2] = body.tee();
-		cache[url] = {
-			body: stream2,
-			responseInit,
-		};
-		return new Response(stream1, responseInit);
-	};
-}
 
 /**
  * Share the parent's MEMFS instance with the child process.
