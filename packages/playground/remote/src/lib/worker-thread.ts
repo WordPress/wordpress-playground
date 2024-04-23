@@ -164,6 +164,7 @@ const recreateRuntime = async () => {
 // @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 rotatePHPRuntime({
 	php,
+	cwd: DOCROOT,
 	recreateRuntime,
 	// 400 is an arbitrary number that should trigger a rotation
 	// way before the memory gets too fragmented. If the memory

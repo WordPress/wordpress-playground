@@ -22,11 +22,10 @@ describe('rotatePHPRuntime()', () => {
 
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
 		// Rotate the PHP runtime
-		const php = new NodePHP(await recreateRuntime(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1000,
 		});
@@ -53,11 +52,10 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should recreate the PHP runtime after maxRequests', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new NodePHP(await recreateRuntimeSpy(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -68,11 +66,10 @@ describe('rotatePHPRuntime()', () => {
 
 	it('Should stop rotating after the cleanup handler is called', async () => {
 		const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-		const php = new NodePHP(await recreateRuntimeSpy(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntimeSpy());
 		const cleanup = rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -98,11 +95,10 @@ describe('rotatePHPRuntime()', () => {
 			}
 			return recreateRuntime('8.3');
 		});
-		const php = new NodePHP(await recreateRuntimeSpy(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntimeSpy());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime: recreateRuntimeSpy,
 			maxRequests: 1,
 		});
@@ -121,11 +117,10 @@ describe('rotatePHPRuntime()', () => {
 	}, 30_000);
 
 	it('Should preserve the custom SAPI name', async () => {
-		const php = new NodePHP(await recreateRuntime(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
@@ -140,11 +135,10 @@ describe('rotatePHPRuntime()', () => {
 	});
 
 	it('Should preserve the MEMFS files', async () => {
-		const php = new NodePHP(await recreateRuntime(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
@@ -165,11 +159,10 @@ describe('rotatePHPRuntime()', () => {
 	}, 30_000);
 
 	it('Should not overwrite the NODEFS files', async () => {
-		const php = new NodePHP(await recreateRuntime(), {
-			documentRoot: '/test-root',
-		});
+		const php = new NodePHP(await recreateRuntime());
 		rotatePHPRuntime({
 			php,
+			cwd: '/test-root',
 			recreateRuntime,
 			maxRequests: 1,
 		});
