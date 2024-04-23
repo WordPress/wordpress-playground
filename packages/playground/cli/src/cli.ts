@@ -75,11 +75,31 @@ const args = await yargs(process.argv)
 		return true;
 	}).argv;
 
-const blueprint = args.blueprint as Blueprint | undefined;
-const phpVersion = ((blueprint ? blueprint.preferredVersions?.php : args.php) ||
-	RecommendedPHPVersion) as SupportedPHPVersion;
-const wpVersion = ((blueprint ? blueprint.preferredVersions?.wp : args.wp) ||
-	'latest') as string;
+const tracker = new ProgressTracker();
+let lastCaption = '';
+tracker.addEventListener('progress', (e: any) => {
+	lastCaption = e.detail.caption || lastCaption;
+	process.stdout.write('\r\x1b[K' + `${lastCaption} – ${e.detail.progress}%`);
+});
+tracker.addEventListener('done', () => {
+	process.stdout.write('\n');
+});
+
+let blueprint: Blueprint | undefined;
+if (args.blueprint) {
+	blueprint = args.blueprint as Blueprint;
+} else {
+	blueprint = {
+		preferredVersions: {
+			php: args.php as SupportedPHPVersion,
+			wp: args.wp,
+		},
+		login: args.login,
+	};
+}
+const compiledBlueprint = compileBlueprint(blueprint as Blueprint, {
+	progress: tracker,
+});
 
 export interface Mount {
 	hostPath: string;
@@ -113,7 +133,11 @@ startServer({
 		const absoluteUrl = `http://127.0.0.1:${port}`;
 		requestHandler = new PHPRequestHandler({
 			phpFactory: async ({ isPrimary }) =>
-				createPhp(requestHandler, phpVersion, isPrimary),
+				createPhp(
+					requestHandler,
+					compiledBlueprint.versions.php,
+					isPrimary
+				),
 			documentRoot: '/wordpress',
 			absoluteUrl,
 		});
@@ -127,8 +151,10 @@ startServer({
 
 		// No need to unzip WordPress if it's already mounted at /wordpress
 		if (!mountingAtSlashWordPress) {
-			console.log(`Setting up WordPress`);
-			await setupWordPress(php, wpVersion, monitor);
+			console.log(
+				`Setting up WordPress ${compiledBlueprint.versions.wp}`
+			);
+			await setupWordPress(php, compiledBlueprint.versions.wp, monitor);
 			process.stdout.write('\n');
 		}
 
@@ -140,24 +166,9 @@ startServer({
 			siteUrl: absoluteUrl,
 		});
 
-		if (blueprint) {
+		if (compiledBlueprint) {
 			console.log(`Running a blueprint`);
-			const tracker = new ProgressTracker();
-			let lastCaption = '';
-			tracker.addEventListener('progress', (e: any) => {
-				lastCaption = e.detail.caption || lastCaption;
-				process.stdout.write(
-					'\r\x1b[K' + `${lastCaption} – ${e.detail.progress}%`
-				);
-			});
-			tracker.addEventListener('done', () => {
-				process.stdout.write('\n');
-			});
-
-			const compiled = compileBlueprint(blueprint, {
-				progress: tracker,
-			});
-			await runBlueprintSteps(compiled, php);
+			await runBlueprintSteps(compiledBlueprint, php);
 			console.log(`Finished running the blueprint`);
 		} else {
 			if (args.login) {
