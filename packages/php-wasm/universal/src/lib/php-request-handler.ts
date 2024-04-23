@@ -354,6 +354,36 @@ function inferMimeType(path: string): string {
 			return 'text/plain';
 		case 'pdf':
 			return 'application/pdf';
+		case 'webp':
+			return 'image/webp';
+		case 'mp3':
+			return 'audio/mpeg';
+		case 'mp4':
+			return 'video/mp4';
+		case 'csv':
+			return 'text/csv';
+		case 'xls':
+			return 'application/vnd.ms-excel';
+		case 'xlsx':
+			return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+		case 'doc':
+			return 'application/msword';
+		case 'docx':
+			return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+		case 'ppt':
+			return 'application/vnd.ms-powerpoint';
+		case 'pptx':
+			return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+		case 'zip':
+			return 'application/zip';
+		case 'rar':
+			return 'application/x-rar-compressed';
+		case 'tar':
+			return 'application/x-tar';
+		case 'gz':
+			return 'application/gzip';
+		case '7z':
+			return 'application/x-7z-compressed';
 		default:
 			return 'application-octet-stream';
 	}
