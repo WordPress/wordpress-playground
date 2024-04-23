@@ -5,6 +5,10 @@ title: Coding standards
 
 # Coding standards
 
+## Changelog
+
+Whenever you make a notable change, make sure to add it at the top of the [CHANGELOG.md](https://github.com/WordPress/wordpress-playground/blob/trunk/CHANGELOG.md) file in the repository root.
+
 ## Error messages
 
 A good error message tells the reader exactly what to do next. This matters especially for errors thrown by Playground public APIs. Any ambiguity in those prompts the developers to open issues in the repo. However, the error message could provide the reader will all the answers.
