@@ -148,7 +148,7 @@ const recreateRuntime = async () => {
 			instantiateWasm(imports, receiveInstance) {
 				// Using .then because Emscripten typically returns an empty
 				// object here and not a promise.
-				monitoredFetch(wasmUrl, {
+				memoizedFetch(wasmUrl, {
 					credentials: 'same-origin',
 				})
 					.then((response) =>
