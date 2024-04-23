@@ -13,6 +13,7 @@ import {
 import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions, RequestHandler } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
+import { HttpCookieStore } from './http-cookie-store';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -46,6 +47,7 @@ export class PHPRequestHandler implements RequestHandler {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#semaphore: Semaphore;
+	#cookieStore: HttpCookieStore;
 	rewriteRules: RewriteRule[];
 
 	/**
@@ -65,6 +67,7 @@ export class PHPRequestHandler implements RequestHandler {
 			rewriteRules = [],
 		} = config;
 		this.php = php;
+		this.#cookieStore = new HttpCookieStore();
 		this.#DOCROOT = documentRoot;
 
 		const url = new URL(absoluteUrl);
@@ -216,6 +219,7 @@ export class PHPRequestHandler implements RequestHandler {
 			const headers: Record<string, string> = {
 				host: this.#HOST,
 				...normalizeHeaders(request.headers || {}),
+				cookie: this.#cookieStore.getCookieRequestHeader(),
 			};
 
 			let body = request.body;
@@ -240,7 +244,7 @@ export class PHPRequestHandler implements RequestHandler {
 			}
 
 			try {
-				return await this.php.run({
+				const response = await this.php.run({
 					relativeUri: ensurePathPrefix(
 						toRelativeUrl(requestedUrl),
 						this.#PATHNAME
@@ -258,6 +262,10 @@ export class PHPRequestHandler implements RequestHandler {
 					scriptPath,
 					headers,
 				});
+				this.#cookieStore.rememberCookiesFromResponseHeaders(
+					response.headers
+				);
+				return response;
 			} catch (error) {
 				const executionError = error as PHPExecutionFailureError;
 				if (executionError?.response) {
