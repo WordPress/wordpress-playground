@@ -10,14 +10,11 @@ export type {
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 	PHPRequestHeaders,
-	PHPBrowserConfiguration,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {

@@ -12,7 +12,6 @@ export type {
 	HTTPMethod,
 	PHPRequest,
 	PHPRequestHeaders,
-	RequestHandler,
 	SpawnHandler,
 } from './universal-php';
 
@@ -59,8 +58,6 @@ export type {
 	RewriteRule,
 } from './php-request-handler';
 export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
-export type { PHPBrowserConfiguration } from './php-browser';
-export { PHPBrowser } from './php-browser';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 
