@@ -105,11 +105,16 @@ export async function setupWordPress(
  * as that's viable.
  */
 async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
+	php.mkdir('/tmp/unzipped-wordpress');
 	await unzip(php, {
 		zipFile: wpZip,
-		extractToPath: '/tmp',
+		extractToPath: '/tmp/unzipped-wordpress',
 	});
-	php.mv('/tmp/wordpress', '/wordpress');
+	// The zip file may contain a subdirectory, or not.
+	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+		? '/tmp/unzipped-wordpress/wordpress'
+		: '/tmp/unzipped-wordpress';
+	php.mv(wpPath, '/wordpress');
 
 	php.mkdir('/tmp/sqlite-database-integration');
 	await unzip(php, {

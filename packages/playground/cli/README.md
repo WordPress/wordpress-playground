@@ -54,6 +54,7 @@ It will also support:
 
 -   Loading Blueprints from URLs.
 -   Saving the running WordPress site and loading it later.
+-   Caching all remote resources referenced in Blueprints. Currently, say, plugins are downloaded on each run.
 
 Conceptually, this isn't too different from Docker containers. There are images (zip files),
 containers (running instances), and commands (Blueprints). Playground could support the same
