@@ -222,7 +222,10 @@ export async function bootPlaygroundRemote() {
 			await workerApi.scope,
 			serviceWorkerUrl + ''
 		);
-		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		setupPostMessageRelay(
+			wpFrame,
+			getOrigin((await playground.absoluteUrl)!)
+		);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}
