@@ -9,7 +9,8 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { createPhp, setupWordPress } from './setup-php';
+import { createPhp } from './setup-php';
+import { setupWordPress } from './setup-wp';
 import {
 	Blueprint,
 	compileBlueprint,
@@ -22,6 +23,10 @@ import { NodePHP } from '@php-wasm/node';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 
+/**
+ * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/query-api
+ *       Perhaps the two could be handled by the same code?
+ */
 const args = await yargs(process.argv)
 	.option('php', {
 		describe: 'PHP version to use.',
@@ -50,7 +55,7 @@ const args = await yargs(process.argv)
 		default: false,
 	})
 	.option('blueprint', {
-		describe: 'Blueprint to execute',
+		describe: 'Blueprint to execute.',
 		type: 'string',
 	})
 	.check((args) => {
@@ -85,6 +90,13 @@ tracker.addEventListener('done', () => {
 	process.stdout.write('\n');
 });
 
+/**
+ * @TODO This looks similar to the resolveBlueprint() call in the website package:
+ * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+ *
+ * 		 Also the Blueprint Builder tool does something similar.
+ *       Perhaps all these cases could be handled by the same function?
+ */
 let blueprint: Blueprint | undefined;
 if (args.blueprint) {
 	blueprint = args.blueprint as Blueprint;
@@ -117,10 +129,14 @@ console.log('Starting PHP server...');
 
 let requestHandler: PHPRequestHandler<NodePHP>;
 let wordPressReady = false;
+
+// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
 const monitor = new EmscriptenDownloadMonitor();
 monitor.addEventListener('progress', ((
 	e: CustomEvent<ProgressEvent & { finished: boolean }>
 ) => {
+	// @TODO Every progres bar will want percentages. The
+	//       download monitor should just provide that.
 	const percentProgress = Math.round(
 		Math.min(100, (100 * e.detail.loaded) / e.detail.total)
 	);
@@ -176,11 +192,11 @@ startServer({
 			}
 		}
 		wordPressReady = true;
-		console.log(`Server is running on ${absoluteUrl}`);
+		console.log(`WordPress is running on ${absoluteUrl}`);
 	},
 	async handleRequest(request: PHPRequest) {
 		if (!wordPressReady) {
-			return PHPResponse.forHttpCode(502, 'Server not ready yet');
+			return PHPResponse.forHttpCode(502, 'WordPress is not ready yet');
 		}
 		return await requestHandler.request(request);
 	},
