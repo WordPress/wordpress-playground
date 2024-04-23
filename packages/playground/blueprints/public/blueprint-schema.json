@@ -564,33 +564,6 @@
 						},
 						"step": {
 							"type": "string",
-							"const": "importFile"
-						},
-						"file": {
-							"$ref": "#/definitions/FileReference",
-							"description": "The file to import"
-						}
-					},
-					"required": ["file", "step"]
-				},
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"progress": {
-							"type": "object",
-							"properties": {
-								"weight": {
-									"type": "number"
-								},
-								"caption": {
-									"type": "string"
-								}
-							},
-							"additionalProperties": false
-						},
-						"step": {
-							"type": "string",
 							"const": "importWordPressFiles"
 						},
 						"wordPressFilesZip": {
@@ -619,6 +592,11 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
 						},
 						"step": {
 							"type": "string",
@@ -651,6 +629,11 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"ifAlreadyInstalled": {
+							"type": "string",
+							"enum": ["overwrite", "skip", "error"],
+							"description": "What to do if the asset already exists."
 						},
 						"step": {
 							"type": "string",

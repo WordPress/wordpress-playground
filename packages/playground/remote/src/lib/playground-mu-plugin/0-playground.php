@@ -1,16 +1,28 @@
 <?php
-/**
- * This is a temporary workaround to hide the 32bit integer warnings that
- * appear when using various time related function, such as strtotime and mktime.
- * Examples of the warnings that are displayed:
- * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
- * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
- */
 set_error_handler(function($severity, $message, $file, $line) {
-  if (strpos($message, "fit in a PHP integer") !== false) {
-      return;
-  }
-  return false;
+	/**
+	 * This is a temporary workaround to hide the 32bit integer warnings that
+	 * appear when using various time related function, such as strtotime and mktime.
+	 * Examples of the warnings that are displayed:
+	 * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
+	 * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
+	 */
+	if (strpos($message, "fit in a PHP integer") !== false) {
+		return;
+	}
+	/**
+	 * Don't complain about network errors when not connected to the network.
+	 */
+	if (
+		(
+			! defined('USE_FETCH_FOR_REQUESTS') ||
+			! USE_FETCH_FOR_REQUESTS
+		) &&
+		strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
+	{
+		return;
+	}
+	return false;
 });
 
 /**
@@ -115,16 +127,6 @@ if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
 }
 
 /**
- * Remove the default WordPress requests transports, fsockopen and cURL.
- */
-add_filter('http_api_transports', function ($transports) {
-	return array_diff($transports, [
-		'curl',
-		'streams',
-	]);
-});
-
-/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.
@@ -140,30 +142,14 @@ add_filter('http_api_transports', function ($transports) {
 $__requests_class = class_exists( '\WpOrg\Requests\Requests' ) ? '\WpOrg\Requests\Requests' : 'Requests';
 if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
-	// Force-replace the default WordPress requests transports with the Fetch transport.
-	//
-	// WordPress doesn't provide a way to change the default transports,
-	// that is Curl and FSockopen. Even with all the `http_api_tranports`
-	// filter used below, WordPress tests if they are supported and will
-	// use them if their `::test()` method returns true – which it does
-	// when PHP.wasm runs with the openssl extension loaded.
-	//
-	// @see https://github.com/WordPress/wordpress-playground/pull/1045
-	$reflection = new ReflectionClass($__requests_class);
-	$property = $reflection->getProperty('transports');
-	$property->setAccessible(true);
-	$property->setValue(['Fetch' => 'Wp_Http_Fetch']);
-
-	$__requests_class::add_transport('Wp_Http_Fetch');
-
 	/**
-	 * Add Fetch transport to the list of transports that WordPress
-	 * will test for in the _get_first_available_transport() function.
-	 */
-	add_filter('http_api_transports', function ($transports) {
-		$transports[] = 'Fetch';
-		return $transports;
-	});
+	 * Force the Fetch transport to be used in Requests.
+  	 * The 'http_api_transports' filter was deprecated, and is no longer actively in use.
+  	 */
+	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
+		$options['transport'] = 'Wp_Http_Fetch';
+	}, 10, 5 );
+
 	/**
 	 * Disable signature verification as it doesn't seem to work with
 	 * fetch requests:
@@ -185,10 +171,9 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_dummy.php');
 	$__requests_class::add_transport('Wp_Http_Dummy');
 
-	add_filter('http_api_transports', function ($transports) {
-		$transports[] = 'Dummy';
-		return $transports;
-	});
+	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
+		$options['transport'] = 'Wp_Http_Dummy';
+	}, 10, 5 );
 }
 
 // Configure error logging

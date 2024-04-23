@@ -39,7 +39,7 @@ define( 'WP_ADMIN', true );
 require_once( ${phpVar(docroot)}. "/wp-load.php" );
 
 // Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
 switch_theme( ${phpVar(themeFolderName)} );
 `,

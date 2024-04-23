@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/progress",
-	"version": "0.6.14",
+	"version": "0.6.16",
 	"description": "PHP.wasm – loading progress monitoring",
 	"repository": {
 		"type": "git",

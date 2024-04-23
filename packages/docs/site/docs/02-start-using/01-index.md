@@ -89,7 +89,7 @@ Compatibility testing with so many WordPres and PHP versions was always a pain. 
 
 You can also use the `wp` and `php` query parameters to open Playground with the right versions already loaded:
 
--   https://playground.wordpress.net/?wp=5.9
+-   https://playground.wordpress.net/?wp=6.5
 -   https://playground.wordpress.net/?php=7.4
 -   https://playground.wordpress.net/?php=8.2&wp=6.2
 

@@ -540,6 +540,11 @@ export interface PHPRunOptions {
 	env?: Record<string, string>;
 
 	/**
+	 * $_SERVER entries to set for this run.
+	 */
+	$_SERVER?: Record<string, string>;
+
+	/**
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;

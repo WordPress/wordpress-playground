@@ -68,7 +68,7 @@ define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");
 
 // Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+( get_users(array('role' => 'Administrator') )[0] );
 
 require_once(${phpVar(docroot)} . "/wp-admin/includes/plugin.php");
 $plugins_root = ${phpVar(docroot)} . "/wp-content/plugins";
