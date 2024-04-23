@@ -30,7 +30,7 @@
 					"npx dts-bundle-generator -o packages/playground/blueprints/src/rollup.d.ts -- packages/playground/blueprints/src/index.ts",
 					"rimraf dist/packages/playground/blueprints/lib/*.d.ts",
 					"rimraf dist/packages/playground/blueprints/*.d.ts",
-					"mv packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
+					"cp packages/playground/blueprints/src/rollup.d.ts dist/packages/playground/blueprints/index.d.ts"
 				],
 				"parallel": false
 			},

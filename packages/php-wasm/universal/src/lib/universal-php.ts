@@ -443,15 +443,6 @@ export interface IsomorphicLocalPHP extends RequestHandler {
 	 * @param listener Callback function to handle the message.
 	 */
 	onMessage(listener: MessageListener): void;
-
-	/**
-	 * Registers a handler to spawns a child process when
-	 * `proc_open()`, `popen()`, `exec()`, `system()`, or `passthru()`
-	 * is called.
-	 *
-	 * @param handler Callback function to spawn a process.
-	 */
-	setSpawnHandler(handler: SpawnHandler | string): void;
 }
 
 export type MessageListener = (
