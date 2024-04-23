@@ -9,7 +9,6 @@ import type {
 	RmDirOptions,
 	PHPEventListener,
 	PHPEvent,
-	SpawnHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
