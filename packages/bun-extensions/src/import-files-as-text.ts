@@ -13,7 +13,7 @@ export const ImportFilesAsTextPlugin: BunPlugin = {
 		build.onLoad(
 			{
 				// Looks for paths with a `raw` query parameter.
-				filter: /\?(.*&|)raw(&.*|)$/,
+				filter: /[?&]raw(?:[&=]|$)/,
 			},
 			async (args) => {
 				const path = args.path.split('?')[0];
