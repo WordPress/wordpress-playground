@@ -157,14 +157,19 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 		} catch (error) {
 			throw new MaxPhpInstancesError(this.maxPhpInstances);
 		}
-		const php = await this.phpFactory!(factoryArgs);
-		return {
-			php,
-			reap() {
-				php.exit();
-				release();
-			},
-		};
+		try {
+			const php = await this.phpFactory!(factoryArgs);
+			return {
+				php,
+				reap() {
+					php.exit();
+					release();
+				},
+			};
+		} catch(e) {
+			release();
+			throw e;
+		}
 	}
 
 	async [Symbol.dispose]() {}
