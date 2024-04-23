@@ -82,9 +82,6 @@ export async function bootPlaygroundRemote() {
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
-		setSpawnHandler(fn) {
-			return workerApi.setSpawnHandler(fn);
-		},
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},
