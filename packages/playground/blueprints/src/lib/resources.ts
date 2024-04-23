@@ -232,10 +232,27 @@ export abstract class FetchResource extends Resource {
 				If the url is reachable, the server might be blocking the request.
 				Check the console and network for more information.
 
-				If the console shows an error about "No 'Access-Control-Allow-Origin' header", the server might not allow cross-origin requests.
-				You could configure the server to allow cross-origin requests.
-				When that's not possible you can use a proxy server.
-				For GitHub URLs you can use github-proxy.com.
+				## Does the console shows an error about "No 'Access-Control-Allow-Origin' header"?
+				
+				This means the server where your file is hosted does not allow requests from other sites
+				(cross-origin requests, or CORS).	You will need to move it to another server that allows
+				cross-origin file downloads. You can learn more about CORS at
+				https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS.
+				
+				If you're loading a file from https://github.com/, there's an easy fix – you can load it from 
+				raw.githubusercontent.com instead. Here's how to do that:
+
+				1. Start with the original GitHub URL for the file. For example:
+				```
+				https://github.com/username/repository/blob/branch/filename
+				```
+				2. Replace `github.com` with `raw.githubusercontent.com`.
+				3. Remove the `/blob/` part of the URL.
+
+				The resulting URL should look like this:
+				```
+				https://raw.githubusercontent.com/username/repository/branch/filename
+				```
 
 				Error:
 				${e}`);
