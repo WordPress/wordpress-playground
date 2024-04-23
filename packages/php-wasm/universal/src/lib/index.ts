@@ -12,7 +12,6 @@ export type {
 	HTTPMethod,
 	PHPRequest,
 	PHPRequestHeaders,
-	RequestHandler,
 	SpawnHandler,
 } from './universal-php';
 

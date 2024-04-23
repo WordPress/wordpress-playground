@@ -15,7 +15,6 @@ export type {
 	PHPRequestHeaders,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
