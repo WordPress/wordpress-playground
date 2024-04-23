@@ -60,7 +60,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPRequestHandler;
+	requestHandler?: PHPRequestHandler<any>;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at

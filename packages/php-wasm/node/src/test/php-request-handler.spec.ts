@@ -9,7 +9,7 @@ describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
 		let php: NodePHP;
-		let handler: PHPRequestHandler;
+		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
 			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 			const runtimeId = await loadPHPRuntime(phpLoaderModule);
@@ -384,7 +384,7 @@ describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – PHP_SELF',
 	(phpVersion) => {
 		let php: NodePHP;
-		let handler: PHPRequestHandler;
+		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
 			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
 			const runtimeId = await loadPHPRuntime(phpLoaderModule);

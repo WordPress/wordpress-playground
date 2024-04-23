@@ -91,7 +91,7 @@ export interface PHPRequestHandlerConfiguration {
  * // "Hi from PHP!"
  * ```
  */
-export class PHPRequestHandler {
+export class PHPRequestHandler<PHP extends BasePHP> {
 	#DOCROOT: string;
 	#PROTOCOL: string;
 	#HOSTNAME: string;
@@ -106,13 +106,13 @@ export class PHPRequestHandler {
 	/**
 	 * The PHP instance
 	 */
-	php: BasePHP;
+	php: PHP;
 
 	/**
 	 * @param  php    - The PHP instance.
 	 * @param  config - Request Handler configuration.
 	 */
-	constructor(php: BasePHP, config: PHPRequestHandlerConfiguration = {}) {
+	constructor(php: PHP, config: PHPRequestHandlerConfiguration = {}) {
 		this.#semaphore = new Semaphore({ concurrency: 1 });
 		const {
 			documentRoot = '/www/',
