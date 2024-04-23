@@ -104,11 +104,6 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 		return _private.get(this)!.php.run(request);
 	}
 
-	/** @inheritDoc @php-wasm/web!WebPHP.setSpawnHandler */
-	setSpawnHandler(listener: string | SpawnHandler) {
-		_private.get(this)!.php.setSpawnHandler(listener);
-	}
-
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
