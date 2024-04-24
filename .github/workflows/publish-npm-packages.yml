@@ -30,6 +30,7 @@ jobs:
             name: npm
         env:
             NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
             - uses: actions/checkout@v3
               with:
@@ -37,6 +38,9 @@ jobs:
                   clean: true
                   fetch-depth: 0
                   persist-credentials: false
+            - name: 'Install bun (for the changelog)'
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
             - name: Config git user
               run: |
                   git config --global user.name "deployment_bot"
@@ -53,3 +57,16 @@ jobs:
             - name: Release new version of NPM packages
               shell: bash
               run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
+            - name: '✏️ Generate release changelog'
+              run: |
+                  npm run changelog -- --version=current
+            - name: '📦 Commit and push changelog'
+              run: |
+                  - name: '📦 Commit and push changelog'
+                    run: |
+                        if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
+                            git commit CHANGELOG.md -m "chore: update changelog"
+                            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+                        else
+                            echo "No changes in CHANGELOG.md. Skipping commit and push."
+                        fi

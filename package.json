@@ -6,6 +6,7 @@
 		"build": "nx run-many --all --target=build",
 		"build:website": "nx build playground-website",
 		"build:docs": "nx build docs-site",
+		"changelog": "bun ./packages/meta/bin/update-changelog.ts",
 		"deploy:docs": "gh-pages -d dist/docs/build -t true",
 		"dev": "nx dev playground-website",
 		"format": "nx format",
