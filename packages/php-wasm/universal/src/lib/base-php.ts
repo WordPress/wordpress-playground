@@ -224,9 +224,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	 * @deprecated
 	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
-		console.warn(
-			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
-		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
