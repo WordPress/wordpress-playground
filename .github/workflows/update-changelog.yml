@@ -22,12 +22,9 @@ jobs:
             NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
-            - uses: actions/checkout@v3
-              with:
-                  ref: ${{ github.event.pull_request.head.ref }}
-                  clean: true
-                  fetch-depth: 0
-                  persist-credentials: false
+            - name: Fetch trunk
+              shell: bash
+              run: git fetch origin trunk --depth=1
             - name: 'Install bun (for the changelog)'
               run: |
                   curl -fsSL https://bun.sh/install | bash
