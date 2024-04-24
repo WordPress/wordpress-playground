@@ -43,8 +43,8 @@ jobs:
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
                       git commit CHANGELOG.md -m "chore: update changelog"
-                      git pull --rebase
-                      git push origin HEAD:trunk
+                      git pull origin trunk --rebase
+                      git push origin trunk
                   else
                       echo "No changes in CHANGELOG.md. Skipping commit and push."
                   fi
