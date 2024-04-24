@@ -1,11 +1,12 @@
 import { NodePHP } from '@php-wasm/node';
 import { LatestSupportedPHPVersion } from '@php-wasm/universal';
-import { logger, addCrashListener } from '../lib/logger';
+import { Logger, addCrashListener } from '../lib/logger';
 import { collectPhpLogs } from '../lib/log-collector';
-import { clearMemoryLogs } from '../lib/log-handlers';
+import { clearMemoryLogs, logToMemory } from '../lib/log-handlers';
 
 describe('Logger', () => {
 	let php: NodePHP;
+	const logger = new Logger([logToMemory]);
 	beforeEach(async () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
 		clearMemoryLogs();
