@@ -1,6 +1,7 @@
 import { UniversalPHP } from '@php-wasm/universal';
 // @ts-ignore
-import zipFunctions from './zip-functions.php?raw';
+import zipFunctionsFile from './zip-functions.php';
+const zipFunctions = await Bun.file(zipFunctionsFile).text();
 export async function runPhpWithZipFunctions(
 	playground: UniversalPHP,
 	code: string
