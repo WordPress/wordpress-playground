@@ -1,3 +1,4 @@
+import { UniversalPHP } from '../../universal';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
@@ -9,7 +10,7 @@ const errorLogPath = '/wordpress/wp-content/debug.log';
  * @param UniversalPHP playground instance
  * @returns string The content of the debug.log file
  */
-const getRequestPhpErrorLog = async (playground: any) => {
+const getRequestPhpErrorLog = async (playground: UniversalPHP) => {
 	if (!(await playground.fileExists(errorLogPath))) {
 		return '';
 	}
