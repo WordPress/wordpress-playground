@@ -6,12 +6,12 @@ import { Logger } from '../logger';
  * @param loggerInstance The logger instance
  * @param ErrorEvent event
  */
-function logWindowError(loggerInstance: Logger, event: ErrorEvent) {
+const logWindowError = (loggerInstance: Logger, event: ErrorEvent) => {
 	loggerInstance.logMessage({
 		message: `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
 		severity: 'Error',
 	});
-}
+};
 
 /**
  * Log promise rejections.
@@ -19,10 +19,10 @@ function logWindowError(loggerInstance: Logger, event: ErrorEvent) {
  * @param loggerInstance The logger instance
  * @param PromiseRejectionEvent event
  */
-function logPromiseRejection(
+const logPromiseRejection = (
 	loggerInstance: Logger,
 	event: PromiseRejectionEvent
-) {
+) => {
 	// No reason was provided, so we can't log anything.
 	if (!event?.reason) {
 		return;
@@ -32,7 +32,7 @@ function logPromiseRejection(
 		message,
 		severity: 'Error',
 	});
-}
+};
 
 /**
  * Register a listener for service worker messages and log the data.
@@ -40,7 +40,7 @@ function logPromiseRejection(
  *
  * @param loggerInstance The logger instance
  */
-function addServiceWorkerMessageListener(loggerInstance: Logger) {
+const addServiceWorkerMessageListener = (loggerInstance: Logger) => {
 	navigator.serviceWorker.addEventListener('message', (event) => {
 		if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
 			loggerInstance.addContext({
@@ -49,7 +49,7 @@ function addServiceWorkerMessageListener(loggerInstance: Logger) {
 			});
 		}
 	});
-}
+};
 
 // If the window events are already connected.
 let windowConnected = false;
@@ -58,7 +58,7 @@ let windowConnected = false;
  * Collect errors from JavaScript window events like error and log them.
  * @param loggerInstance The logger instance
  */
-export function collectWindowErrors(loggerInstance: Logger) {
+export const collectWindowErrors = (loggerInstance: Logger) => {
 	// Ensure that the window events are connected only once.
 	if (windowConnected) {
 		return;
@@ -78,4 +78,4 @@ export function collectWindowErrors(loggerInstance: Logger) {
 		logPromiseRejection(loggerInstance, event as PromiseRejectionEvent)
 	);
 	windowConnected = true;
-}
+};

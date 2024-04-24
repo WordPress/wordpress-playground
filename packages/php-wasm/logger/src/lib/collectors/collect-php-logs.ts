@@ -13,22 +13,22 @@ const errorLogPath = '/wordpress/wp-content/debug.log';
  * @param UniversalPHP playground instance
  * @returns string The content of the debug.log file
  */
-async function getRequestPhpErrorLog(playground: UniversalPHP) {
+const getRequestPhpErrorLog = async (playground: UniversalPHP) => {
 	if (!(await playground.fileExists(errorLogPath))) {
 		return '';
 	}
 	return await playground.readFileAsText(errorLogPath);
-}
+};
 
 /**
  * Collect PHP logs from the error_log file and log them.
  * @param UniversalPHP playground instance
  * @param loggerInstance The logger instance
  */
-export function collectPhpLogs(
+export const collectPhpLogs = (
 	loggerInstance: Logger,
 	playground: UniversalPHP
-) {
+) => {
 	playground.addEventListener('request.end', async () => {
 		const log = await getRequestPhpErrorLog(playground);
 		if (log.length > lastPHPLogLength) {
@@ -58,4 +58,4 @@ export function collectPhpLogs(
 			);
 		}
 	});
-}
+};

@@ -169,6 +169,33 @@ export class Logger extends EventTarget {
  */
 export const logger: Logger = new Logger([logToConsole, logToMemory]);
 
+export const formatLogEntry = (
+	message: string,
+	severity: LogSeverity,
+	prefix: string
+): string => {
+	const date = new Date();
+	const formattedDate = new Intl.DateTimeFormat('en-GB', {
+		year: 'numeric',
+		month: 'short',
+		day: '2-digit',
+		timeZone: 'UTC',
+	})
+		.format(date)
+		.replace(/ /g, '-');
+
+	const formattedTime = new Intl.DateTimeFormat('en-GB', {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: false,
+		timeZone: 'UTC',
+		timeZoneName: 'short',
+	}).format(date);
+	const now = formattedDate + ' ' + formattedTime;
+	return `[${now}] ${prefix} ${severity}: ${message}`;
+};
+
 /**
  * Add a listener for the Playground crashes.
  * These crashes include Playground errors like Asyncify errors.
@@ -177,9 +204,9 @@ export const logger: Logger = new Logger([logToConsole, logToMemory]);
  * @param loggerInstance The logger instance
  * @param callback The callback function
  */
-export function addCrashListener(
+export const addCrashListener = (
 	loggerInstance: Logger,
 	callback: EventListenerOrEventListenerObject
-) {
+) => {
 	loggerInstance.addEventListener(loggerInstance.fatalErrorEvent, callback);
-}
+};

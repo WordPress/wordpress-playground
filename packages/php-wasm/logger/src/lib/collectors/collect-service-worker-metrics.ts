@@ -10,7 +10,9 @@
  *
  * @param worker The service worker
  */
-export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
+export const reportServiceWorkerMetrics = (
+	worker: ServiceWorkerGlobalScope
+) => {
 	worker.addEventListener('activate', () => {
 		worker.clients.matchAll().then((clients) => {
 			const metrics = {
@@ -24,4 +26,4 @@ export function reportServiceWorkerMetrics(worker: ServiceWorkerGlobalScope) {
 			}
 		});
 	});
-}
+};
