@@ -4,73 +4,74 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## Unreleased
+## [v0.7.0] (2024-04-24)
 
 ### **Breaking Changes**
 
 #### PHP WebAssembly
 
--   Breaking: Remove PHPBrowser. ([1302](https://github.com/WordPress/playground/pull/1302))
+-   Breaking: Remove PHPBrowser. ([1302](https://github.com/WordPress/wordpress-playground/pull/1302))
 
 ### Enhancements
 
--   Bump TypeScript to 5.4.5. ([1299](https://github.com/WordPress/playground/pull/1299))
--   Semaphore: Add timeout option. ([1300](https://github.com/WordPress/playground/pull/1300))
+-   Bump TypeScript to 5.4.5. ([1299](https://github.com/WordPress/wordpress-playground/pull/1299))
+-   Semaphore: Add timeout option. ([1300](https://github.com/WordPress/wordpress-playground/pull/1300))
 
 ### Blueprints
 
--   Builder: Fix stuck loader bar. ([1284](https://github.com/WordPress/playground/pull/1284))
--   Remove setPhpIniEntry step. ([1288](https://github.com/WordPress/playground/pull/1288))
+-   Builder: Fix stuck loader bar. ([1284](https://github.com/WordPress/wordpress-playground/pull/1284))
+-   Remove setPhpIniEntry step. ([1288](https://github.com/WordPress/wordpress-playground/pull/1288))
 
 ### Tools
 
 #### GitHub integration
 
--   GitHub: Don't delete all the files when exporting a theme. ([1308](https://github.com/WordPress/playground/pull/1308))
--   Urlencode branch name. ([1275](https://github.com/WordPress/playground/pull/1275))
+-   GitHub: Don't delete all the files when exporting a theme. ([1308](https://github.com/WordPress/wordpress-playground/pull/1308))
+-   Urlencode branch name. ([1275](https://github.com/WordPress/wordpress-playground/pull/1275))
 
 #### Blueprints
 
--   Blueprints builder: Support ?blueprint-url. ([1309](https://github.com/WordPress/playground/pull/1309))
+-   Blueprints builder: Support ?blueprint-url. ([1309](https://github.com/WordPress/wordpress-playground/pull/1309))
 
 ### Documentation
 
--   Use new learning resources in Playground documentation. ([1276](https://github.com/WordPress/playground/pull/1276))
+-   Use new learning resources in Playground documentation. ([1276](https://github.com/WordPress/wordpress-playground/pull/1276))
 
 ### PHP WebAssembly
 
--   Browser: Remove setSpawnHandler function from the public API. ([1303](https://github.com/WordPress/playground/pull/1303))
--   PHP: Add a cwd argument to hotSwapPHPRuntime(). ([1304](https://github.com/WordPress/playground/pull/1304))
--   PHP: Remove addServerGlobalEntry() method, accept $\_SERVER as php.run() property. ([1286](https://github.com/WordPress/playground/pull/1286))
--   PHPRequestHandler: Add a generic PHP argument. ([1310](https://github.com/WordPress/playground/pull/1310))
--   nit: Clean up after node PHP popen() test. ([1280](https://github.com/WordPress/playground/pull/1280))
+-   Browser: Remove setSpawnHandler function from the public API. ([1303](https://github.com/WordPress/wordpress-playground/pull/1303))
+-   PHP: Add a cwd argument to hotSwapPHPRuntime(). ([1304](https://github.com/WordPress/wordpress-playground/pull/1304))
+-   PHP: Remove addServerGlobalEntry() method, accept $\_SERVER as php.run() property. ([1286](https://github.com/WordPress/wordpress-playground/pull/1286))
+-   PHPRequestHandler: Add a generic PHP argument. ([1310](https://github.com/WordPress/wordpress-playground/pull/1310))
+-   nit: Clean up after node PHP popen() test. ([1280](https://github.com/WordPress/wordpress-playground/pull/1280))
 
 ### Website
 
--   Add more info to crash reports. ([1253](https://github.com/WordPress/playground/pull/1253))
--   Memoize fetch() responses when requesting php.wasm. ([1306](https://github.com/WordPress/playground/pull/1306))
--   Progress monitoring: Use a custom instantiateWasm handler to avoid monkey-patching WebAssembly.instantiateStreaming. ([1305](https://github.com/WordPress/playground/pull/1305))
--   Remove sandbox attribute from iframe. ([1313](https://github.com/WordPress/playground/pull/1313))
--   Service Worker: Fetch credentialless to play more nicely with server caches (#1311). ([1311](https://github.com/WordPress/playground/pull/1311))
+-   Add more info to crash reports. ([1253](https://github.com/WordPress/wordpress-playground/pull/1253))
+-   Memoize fetch() responses when requesting php.wasm. ([1306](https://github.com/WordPress/wordpress-playground/pull/1306))
+-   Progress monitoring: Use a custom instantiateWasm handler to avoid monkey-patching WebAssembly.instantiateStreaming. ([1305](https://github.com/WordPress/wordpress-playground/pull/1305))
+-   Remove sandbox attribute from iframe. ([1313](https://github.com/WordPress/wordpress-playground/pull/1313))
+-   Service Worker: Fetch credentialless to play more nicely with server caches (#1311). ([1311](https://github.com/WordPress/wordpress-playground/pull/1311))
 
 ### Internal
 
--   CI: Fix intermittent documentation build failures. ([1307](https://github.com/WordPress/playground/pull/1307))
+-   Automate Changelog generation after each npm release. ([1312](https://github.com/WordPress/wordpress-playground/pull/1312))
+-   CI: Fix intermittent documentation build failures. ([1307](https://github.com/WordPress/wordpress-playground/pull/1307))
 
 ### Bug Fixes
 
--   Add styles to ensure `iframes` are responsive. ([1267](https://github.com/WordPress/playground/pull/1267))
--   Docs: Fix the Blueprint example of the Gutenberg PR preview. ([1268](https://github.com/WordPress/playground/pull/1268))
--   Docs: Move Steps Shorthands to a separate page to fix Steps TOC. ([1265](https://github.com/WordPress/playground/pull/1265))
+-   Add styles to ensure `iframes` are responsive. ([1267](https://github.com/WordPress/wordpress-playground/pull/1267))
+-   Docs: Fix the Blueprint example of the Gutenberg PR preview. ([1268](https://github.com/WordPress/wordpress-playground/pull/1268))
+-   Docs: Move Steps Shorthands to a separate page to fix Steps TOC. ([1265](https://github.com/WordPress/wordpress-playground/pull/1265))
 
 ### Reliability
 
--   Add network error message. ([1281](https://github.com/WordPress/playground/pull/1281))
--   Explore logging to a file. ([1292](https://github.com/WordPress/playground/pull/1292))
+-   Add network error message. ([1281](https://github.com/WordPress/wordpress-playground/pull/1281))
+-   Explore logging to a file. ([1292](https://github.com/WordPress/wordpress-playground/pull/1292))
 
 ### Various
 
--   Add PDF to infer mime type list. ([1298](https://github.com/WordPress/playground/pull/1298))
+-   Add PDF to infer mime type list. ([1298](https://github.com/WordPress/wordpress-playground/pull/1298))
 
 ### Contributors
 

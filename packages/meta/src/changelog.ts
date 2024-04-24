@@ -793,18 +793,6 @@ async function fetchAllPullRequests(
 		issuesBeforeDate
 	);
 
-	if (!issues.length) {
-		if (settings.unreleased) {
-			throw new Error(
-				'There are no unreleased pull requests associated with the milestone.'
-			);
-		} else {
-			throw new Error(
-				'There are no pull requests associated with the milestone.'
-			);
-		}
-	}
-
 	return issues.filter((issue) => issue.pull_request);
 }
 
@@ -815,15 +803,8 @@ async function fetchAllPullRequests(
  *
  * @return The formatted changelog string.
  */
-function getChangelog(
-	pullRequests: IssuesListForRepoResponseItem[],
-	version?: string,
-	date?: string
-): string {
-	let changelog = `## ${
-		version ? `[${version}] (${date})` : 'Unreleased'
-	} \n\n`;
-
+function getChangelog(pullRequests: IssuesListForRepoResponseItem[]): string {
+	let changelog = '';
 	const groupedPullRequests = skipCreatedByBots(pullRequests).reduce(
 		(
 			/** @type {Record<string, IssuesListForRepoResponseItem[]>} */ acc: Record<
@@ -1145,13 +1126,19 @@ async function createChangelog(settings: WPChangelogSettings) {
 			.split('T')[0];
 	}
 
-	const pullRequests = await fetchAllPullRequests(octokit, settings);
+	const headline = `## ${
+		version ? `[${version}] (${date})` : 'Unreleased'
+	} \n\n`;
 
-	const changelog = getChangelog(pullRequests, version, date);
+	const pullRequests = await fetchAllPullRequests(octokit, settings);
+	if (!pullRequests.length) {
+		return headline;
+	}
+	const changelog = getChangelog(pullRequests);
 	const contributorProps = getContributorProps(pullRequests);
 	const contributorsList = getContributorsList(pullRequests);
 
-	return ''.concat(changelog, contributorProps, contributorsList);
+	return ''.concat(headline, changelog, contributorProps, contributorsList);
 }
 
 /**
