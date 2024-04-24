@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { addFatalErrorListener, logger } from '@php-wasm/logger';
+import { addCrashListener, logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
 
 import { usePlaygroundContext } from '../../playground-context';
+import { Blueprint } from '@wp-playground/blueprints';
 
-export function ErrorReportModal() {
+export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
@@ -17,7 +18,7 @@ export function ErrorReportModal() {
 	const [submitError, setSubmitError] = useState('');
 
 	useEffect(() => {
-		addFatalErrorListener(logger, (e) => {
+		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
 				setShowErrorModal(true);
@@ -50,6 +51,19 @@ export function ErrorReportModal() {
 		resetSubmission();
 	}
 
+	function getContext() {
+		return {
+			...props.blueprint.preferredVersions,
+			userAgent: navigator.userAgent,
+			...((window.performance as any)?.memory ?? {}),
+			...logger.getContext(),
+			window: {
+				width: window.innerWidth,
+				height: window.innerHeight,
+			},
+		};
+	}
+
 	async function onSubmit() {
 		setLoading(true);
 		const formdata = new FormData();
@@ -60,6 +74,8 @@ export function ErrorReportModal() {
 		if (url) {
 			formdata.append('url', url);
 		}
+		formdata.append('context', JSON.stringify(getContext()));
+		formdata.append('blueprint', JSON.stringify(props.blueprint));
 		try {
 			const response = await fetch(
 				'https://playground.wordpress.net/logger.php',
