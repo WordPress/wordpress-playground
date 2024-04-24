@@ -13,7 +13,7 @@
 		"jsx": "react",
 		"target": "ES2021",
 		"module": "esnext",
-		"lib": ["ES2022", "dom"],
+		"lib": ["ES2022", "esnext.disposable", "dom"],
 		"skipLibCheck": true,
 		"skipDefaultLibCheck": true,
 		"baseUrl": ".",
