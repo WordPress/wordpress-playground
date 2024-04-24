@@ -28,6 +28,7 @@ import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
  *       Perhaps the two could be handled by the same code?
  */
 const yargsObject = await yargs(process.argv.slice(2))
+	.usage('Usage: playground-cli <command> [options]')
 	.positional('command', {
 		describe: 'Command to run',
 		type: 'string',
@@ -102,6 +103,7 @@ const yargsObject = await yargs(process.argv.slice(2))
 		}
 		return true;
 	});
+yargsObject.wrap(yargsObject.terminalWidth());
 const args = await yargsObject.argv;
 
 async function serverCommandHandler() {
