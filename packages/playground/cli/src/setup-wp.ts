@@ -158,6 +158,14 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 		'/wordpress/wp-includes/default-filters.php',
 		php.readFileAsText('/wordpress/wp-includes/default-filters.php') +
 			`
+		// Redirect /wp-admin to /wp-admin/
+		add_filter( 'redirect_canonical', function( $redirect_url ) {
+			if ( '/wp-admin' === $redirect_url ) {
+				return $redirect_url . '/';
+			}
+			return $redirect_url;
+		} );
+
 		// Needed because gethostbyname( 'wordpress.org' ) returns
 		// a private network IP address for some reason.
 		add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
