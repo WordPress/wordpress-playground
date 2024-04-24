@@ -19,7 +19,6 @@ jobs:
         environment:
             name: npm
         env:
-            NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
             - uses: actions/checkout@v3
@@ -36,6 +35,7 @@ jobs:
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
             - name: '✏️ Generate release changelog'
               run: |
+                  ls ./
                   PATH="${PATH}:${HOME}/.bun/bin" npm run changelog -- --version=current
             - name: '📦 Commit and push changelog'
               run: |
