@@ -53,11 +53,7 @@
 		</style>
 	</head>
 	<body class="is-loading">
-		<iframe
-			id="wp"
-			title="The WordPress site"
-			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
-		></iframe>
+		<iframe id="wp" title="The WordPress site"></iframe>
 		<script type="module">
 			if (window.top != window.self) {
 				document.body.classList.add('is-embedded');
@@ -134,23 +130,23 @@
 									<p>
 										Oops! Playground failed to start. Here's what to do:
 									</p>
-									
+
 									<h3>Did you disable third-party cookies?</h3>
 									<p>
-										It also disables the required Service Worker API. Please re-enable 
+										It also disables the required Service Worker API. Please re-enable
 										third-party cookies and try again.
 									</p>
 
 									<h3>Did you refuse to grant Playground storage access?</h3>
 									<p>
-										Click the button below and grant storage access. Note the button may 
+										Click the button below and grant storage access. Note the button may
 										not work if you have disabled third-party cookies in your browser.
 									</p>
 									`;
 								const reportIssues =
 									document.createElement('p');
 								reportIssues.innerHTML = `
-									If neither method helped, please 
+									If neither method helped, please
 									<a href="https://github.com/WordPress/playground-tools/issues/new"
 									   target="_blank">
 										report an issue on GitHub
