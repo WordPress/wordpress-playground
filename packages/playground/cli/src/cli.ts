@@ -78,11 +78,6 @@ const yargsObject = await yargs(process.argv.slice(2))
 		default: false,
 	})
 	.check((args) => {
-		if (args.blueprint && (args.wp || args.php || args.login)) {
-			throw new Error(
-				'The --blueprint option cannot be used with --wp, --php, or --login. The blueprint is the source of truth for those.'
-			);
-		}
 		if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 			throw new Error(
 				'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
@@ -197,14 +192,21 @@ async function buildSite(siteUrl: string) {
 
 	const tracker = new ProgressTracker();
 	let lastCaption = '';
+	let progress100 = false;
 	tracker.addEventListener('progress', (e: any) => {
-		lastCaption = e.detail.caption || lastCaption;
+		if (progress100) {
+			return;
+		} else if (e.detail.progress === 100) {
+			progress100 = true;
+		}
+		lastCaption =
+			e.detail.caption || lastCaption || 'Running the Blueprint';
 		process.stdout.write(
-			'\r\x1b[K' + `${lastCaption} – ${e.detail.progress}%`
+			'\r\x1b[K' + `${lastCaption.trim()} – ${e.detail.progress}%`
 		);
-	});
-	tracker.addEventListener('done', () => {
-		process.stdout.write('\n');
+		if (progress100) {
+			process.stdout.write('\n');
+		}
 	});
 	const compiledBlueprint = compileBlueprint(blueprint as Blueprint, {
 		progress: tracker,
@@ -251,7 +253,6 @@ async function buildSite(siteUrl: string) {
 	if (!args.skipWordPressSetup) {
 		console.log(`Setting up WordPress ${compiledBlueprint.versions.wp}`);
 		await setupWordPress(php, compiledBlueprint.versions.wp, monitor);
-		process.stdout.write('\n');
 	}
 
 	for (const mount of mounts) {
@@ -263,7 +264,7 @@ async function buildSite(siteUrl: string) {
 	});
 
 	if (compiledBlueprint) {
-		console.log(`Running a blueprint`);
+		console.log(`Running the Blueprint...`);
 		await runBlueprintSteps(compiledBlueprint, php);
 		console.log(`Finished running the blueprint`);
 	} else {
