@@ -1,4 +1,4 @@
-import { UniversalPHP } from '../../universal';
+import { UniversalPHP, PHPRequestErrorEvent } from '../../universal';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
@@ -22,7 +22,10 @@ const getRequestPhpErrorLog = async (playground: UniversalPHP) => {
  * @param UniversalPHP playground instance
  * @param loggerInstance The logger instance
  */
-export const collectPhpLogs = (loggerInstance: Logger, playground: any) => {
+export const collectPhpLogs = (
+	loggerInstance: Logger,
+	playground: UniversalPHP
+) => {
 	playground.addEventListener('request.end', async () => {
 		const log = await getRequestPhpErrorLog(playground);
 		if (log.length > lastPHPLogLength) {
@@ -34,7 +37,8 @@ export const collectPhpLogs = (loggerInstance: Logger, playground: any) => {
 			lastPHPLogLength = log.length;
 		}
 	});
-	playground.addEventListener('request.error', (event: any) => {
+	playground.addEventListener('request.error', (event) => {
+		event = event as PHPRequestErrorEvent;
 		if (event.error) {
 			loggerInstance.logMessage({
 				message: `${event.error.message} ${event.error.stack}`,

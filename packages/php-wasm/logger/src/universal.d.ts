@@ -13,6 +13,15 @@ export interface UniversalPHP {
 	 * @returns boolean Whether the file exists
 	 */
 	fileExists(path: string): Promise<boolean>;
+
+	addEventListener(
+		event: string,
+		listener: (event: PHPRequestEndEvent | PHPRequestErrorEvent) => void
+	): void;
 }
 
-export const LatestSupportedPHPVersion = '8.3';
+export interface PHPRequestErrorEvent {
+	type: 'request.error';
+	error: Error;
+	source?: 'request' | 'php-wasm';
+}
