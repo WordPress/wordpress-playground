@@ -27,7 +27,22 @@ import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
  * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/query-api
  *       Perhaps the two could be handled by the same code?
  */
-const args = await yargs(process.argv)
+const args = await yargs(process.argv.slice(2))
+	.positional('command', {
+		describe: 'Command to run',
+		type: 'string',
+		choices: ['build', 'server'],
+	})
+	.option('outfile', {
+		describe: 'When building, write to this output file.',
+		type: 'string',
+		default: 'wordpress.zip',
+	})
+	.option('port', {
+		describe: 'Port to listen on when serving.',
+		type: 'number',
+		default: 9400,
+	})
 	.option('php', {
 		describe: 'PHP version to use.',
 		type: 'string',
@@ -38,11 +53,6 @@ const args = await yargs(process.argv)
 		describe: 'WordPress version to use.',
 		type: 'string',
 		default: 'latest',
-	})
-	.option('port', {
-		describe: 'Port to listen on.',
-		type: 'number',
-		default: 9400,
 	})
 	.option('mount', {
 		describe: 'Mount a directory to the PHP runtime.',
@@ -58,7 +68,18 @@ const args = await yargs(process.argv)
 		describe: 'Blueprint to execute.',
 		type: 'string',
 	})
+	.option('skipWordPressSetup', {
+		describe:
+			'Do not download, unzip, and install WordPress. Useful for mounting a pre-configured WordPress directory at /wordpress.',
+		type: 'boolean',
+		default: false,
+	})
 	.check((args) => {
+		if (args.blueprint && (args.wp || args.php || args.login)) {
+			throw new Error(
+				'The --blueprint option cannot be used with --wp, --php, or --login. The blueprint is the source of truth for those.'
+			);
+		}
 		if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 			throw new Error(
 				'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
@@ -79,75 +100,131 @@ const args = await yargs(process.argv)
 		}
 		return true;
 	}).argv;
-
-const tracker = new ProgressTracker();
-let lastCaption = '';
-tracker.addEventListener('progress', (e: any) => {
-	lastCaption = e.detail.caption || lastCaption;
-	process.stdout.write('\r\x1b[K' + `${lastCaption} – ${e.detail.progress}%`);
-});
-tracker.addEventListener('done', () => {
-	process.stdout.write('\n');
-});
-
-/**
- * @TODO This looks similar to the resolveBlueprint() call in the website package:
- * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
- *
- * 		 Also the Blueprint Builder tool does something similar.
- *       Perhaps all these cases could be handled by the same function?
- */
-let blueprint: Blueprint | undefined;
-if (args.blueprint) {
-	blueprint = args.blueprint as Blueprint;
-} else {
-	blueprint = {
-		preferredVersions: {
-			php: args.php as SupportedPHPVersion,
-			wp: args.wp,
+async function serverCommandHandler() {
+	let requestHandler: PHPRequestHandler<NodePHP>;
+	let wordPressReady = false;
+	console.log('Starting PHP server...');
+	startServer({
+		port: args['port'] as number,
+		onBind: async (port: number) => {
+			const absoluteUrl = `http://127.0.0.1:${port}`;
+			requestHandler = await buildSite(absoluteUrl);
+			wordPressReady = true;
+			console.log(`WordPress is running on ${absoluteUrl}`);
 		},
-		login: args.login,
-	};
+		async handleRequest(request: PHPRequest) {
+			if (!wordPressReady) {
+				return PHPResponse.forHttpCode(
+					502,
+					'WordPress is not ready yet'
+				);
+			}
+			return await requestHandler.request(request);
+		},
+	});
 }
-const compiledBlueprint = compileBlueprint(blueprint as Blueprint, {
-	progress: tracker,
-});
+
+async function buildCommandHandler() {
+	// Fake URL for the build
+	const siteUrl = 'http://playground.internal';
+	const requestHandler = await buildSite(siteUrl);
+
+	const outfile = args['outfile'] as string;
+	console.log(`Zipping WordPress to ${outfile}`);
+
+	const php = await requestHandler.getPrimaryPhp();
+	await php.run({
+		code: `<?php 
+			$zip = new ZipArchive();
+			if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+				throw new Exception('Failed to create ZIP');
+			}
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator('/wordpress')
+			);
+			foreach ($files as $file) {
+				echo $file . PHP_EOL;
+				if (!$file->isFile()) {
+					continue;
+				}
+				$zip->addFile($file->getPathname(), $file->getPathname());
+			}
+			$zip->close();
+			
+		`,
+	});
+	const zip = php.readFileAsBuffer('/tmp/build.zip');
+	fs.writeFileSync(outfile, zip);
+	console.log(`WordPress saved to ${outfile}`);
+	process.exit(0);
+}
 
 export interface Mount {
 	hostPath: string;
 	vfsPath: string;
 }
-const mounts: Mount[] = (args.mount || []).map((mount) => {
-	const [source, vfsPath] = mount.split(':');
-	return {
-		hostPath: path.resolve(process.cwd(), source),
-		vfsPath,
-	};
-});
 
-console.log('Starting PHP server...');
+async function buildSite(siteUrl: string) {
+	/**
+	 * @TODO This looks similar to the resolveBlueprint() call in the website package:
+	 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
+	 *
+	 * 		 Also the Blueprint Builder tool does something similar.
+	 *       Perhaps all these cases could be handled by the same function?
+	 */
+	let blueprint: Blueprint | undefined;
+	if (args.blueprint) {
+		blueprint = args.blueprint as Blueprint;
+	} else {
+		blueprint = {
+			preferredVersions: {
+				php: args.php as SupportedPHPVersion,
+				wp: args.wp,
+			},
+			login: args.login,
+		};
+	}
 
-let requestHandler: PHPRequestHandler<NodePHP>;
-let wordPressReady = false;
+	const tracker = new ProgressTracker();
+	let lastCaption = '';
+	tracker.addEventListener('progress', (e: any) => {
+		lastCaption = e.detail.caption || lastCaption;
+		process.stdout.write(
+			'\r\x1b[K' + `${lastCaption} – ${e.detail.progress}%`
+		);
+	});
+	tracker.addEventListener('done', () => {
+		process.stdout.write('\n');
+	});
+	const compiledBlueprint = compileBlueprint(blueprint as Blueprint, {
+		progress: tracker,
+	});
 
-// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
-const monitor = new EmscriptenDownloadMonitor();
-monitor.addEventListener('progress', ((
-	e: CustomEvent<ProgressEvent & { finished: boolean }>
-) => {
-	// @TODO Every progres bar will want percentages. The
-	//       download monitor should just provide that.
-	const percentProgress = Math.round(
-		Math.min(100, (100 * e.detail.loaded) / e.detail.total)
-	);
-	process.stdout.write(`\rDownloading WordPress ${percentProgress}%...    `);
-}) as any);
+	const mounts: Mount[] = (args.mount || []).map((mount) => {
+		const [source, vfsPath] = mount.split(':');
+		return {
+			hostPath: path.resolve(process.cwd(), source),
+			vfsPath,
+		};
+	});
 
-startServer({
-	port: args.port,
-	onBind: async (port: number) => {
-		const absoluteUrl = `http://127.0.0.1:${port}`;
-		requestHandler = new PHPRequestHandler({
+	// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
+	const monitor = new EmscriptenDownloadMonitor();
+	monitor.addEventListener('progress', ((
+		e: CustomEvent<ProgressEvent & { finished: boolean }>
+	) => {
+		// @TODO Every progres bar will want percentages. The
+		//       download monitor should just provide that.
+		const percentProgress = Math.round(
+			Math.min(100, (100 * e.detail.loaded) / e.detail.total)
+		);
+		process.stdout.write(
+			`\rDownloading WordPress ${percentProgress}%...    `
+		);
+	}) as any);
+
+	const requestHandler: PHPRequestHandler<NodePHP> =
+		new PHPRequestHandler<NodePHP>({
 			phpFactory: async ({ isPrimary }) =>
 				createPhp(
 					requestHandler,
@@ -155,49 +232,44 @@ startServer({
 					isPrimary
 				),
 			documentRoot: '/wordpress',
-			absoluteUrl,
+			absoluteUrl: siteUrl,
 		});
-		// Warm up and setup the PHP runtime
-		const php = await requestHandler.getPrimaryPhp();
+	// Warm up and setup the PHP runtime
+	const php = await requestHandler.getPrimaryPhp();
 
-		// Put pre-configured WordPress in the /wordpress directory
-		const mountingAtSlashWordPress = mounts.some(
-			(mount) => mount.vfsPath === '/wordpress'
-		);
+	// No need to unzip WordPress if it's already mounted at /wordpress
+	if (!args.skipWordPressSetup) {
+		console.log(`Setting up WordPress ${compiledBlueprint.versions.wp}`);
+		await setupWordPress(php, compiledBlueprint.versions.wp, monitor);
+		process.stdout.write('\n');
+	}
 
-		// No need to unzip WordPress if it's already mounted at /wordpress
-		if (!mountingAtSlashWordPress) {
-			console.log(
-				`Setting up WordPress ${compiledBlueprint.versions.wp}`
-			);
-			await setupWordPress(php, compiledBlueprint.versions.wp, monitor);
-			process.stdout.write('\n');
+	for (const mount of mounts) {
+		php.mount(mount.hostPath, mount.vfsPath);
+	}
+
+	await defineSiteUrl(php, {
+		siteUrl,
+	});
+
+	if (compiledBlueprint) {
+		console.log(`Running a blueprint`);
+		await runBlueprintSteps(compiledBlueprint, php);
+		console.log(`Finished running the blueprint`);
+	} else {
+		if (args.login) {
+			await login(php, {});
 		}
+	}
+	return requestHandler;
+}
 
-		for (const mount of mounts) {
-			php.mount(mount.hostPath, mount.vfsPath);
-		}
-
-		await defineSiteUrl(php, {
-			siteUrl: absoluteUrl,
-		});
-
-		if (compiledBlueprint) {
-			console.log(`Running a blueprint`);
-			await runBlueprintSteps(compiledBlueprint, php);
-			console.log(`Finished running the blueprint`);
-		} else {
-			if (args.login) {
-				await login(php, {});
-			}
-		}
-		wordPressReady = true;
-		console.log(`WordPress is running on ${absoluteUrl}`);
-	},
-	async handleRequest(request: PHPRequest) {
-		if (!wordPressReady) {
-			return PHPResponse.forHttpCode(502, 'WordPress is not ready yet');
-		}
-		return await requestHandler.request(request);
-	},
-});
+const command = args._[0];
+if (command === 'build') {
+	await buildCommandHandler();
+} else if (command === 'server') {
+	await serverCommandHandler();
+} else {
+	console.error('Unknown command');
+	process.exit(1);
+}
