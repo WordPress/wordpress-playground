@@ -54,8 +54,10 @@ const yargsObject = await yargs(process.argv.slice(2))
 		type: 'string',
 		default: 'latest',
 	})
+	// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom ReadOnlyNODEFS, or by copying the files into MEMFS
 	.option('mount', {
-		describe: 'Mount a directory to the PHP runtime.',
+		describe:
+			'Mount a directory to the PHP runtime. You can provide --mount multiple times. Format: /host/path:/vfs/path',
 		type: 'array',
 		string: true,
 	})
