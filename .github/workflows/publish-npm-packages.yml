@@ -59,14 +59,13 @@ jobs:
               run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
             - name: '✏️ Generate release changelog'
               run: |
+                  source /home/runner/.bashrc
                   npm run changelog -- --version=current
             - name: '📦 Commit and push changelog'
               run: |
-                  - name: '📦 Commit and push changelog'
-                    run: |
-                        if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
-                            git commit CHANGELOG.md -m "chore: update changelog"
-                            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-                        else
-                            echo "No changes in CHANGELOG.md. Skipping commit and push."
-                        fi
+                  if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
+                      git commit CHANGELOG.md -m "chore: update changelog"
+                      git push origin HEAD:${{ github.event.pull_request.head.ref }}
+                  else
+                      echo "No changes in CHANGELOG.md. Skipping commit and push."
+                  fi
