@@ -27,7 +27,7 @@ import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
  * @TODO This looks similar to Query API args https://wordpress.github.io/wordpress-playground/query-api
  *       Perhaps the two could be handled by the same code?
  */
-const args = await yargs(process.argv.slice(2))
+const yargsObject = await yargs(process.argv.slice(2))
 	.positional('command', {
 		describe: 'Command to run',
 		type: 'string',
@@ -99,7 +99,9 @@ const args = await yargs(process.argv.slice(2))
 			}
 		}
 		return true;
-	}).argv;
+	});
+const args = await yargsObject.argv;
+
 async function serverCommandHandler() {
 	let requestHandler: PHPRequestHandler<NodePHP>;
 	let wordPressReady = false;
@@ -274,6 +276,6 @@ if (command === 'build') {
 } else if (command === 'server') {
 	await serverCommandHandler();
 } else {
-	console.error('Unknown command');
+	yargsObject.showHelp();
 	process.exit(1);
 }
