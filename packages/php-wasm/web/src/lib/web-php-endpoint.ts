@@ -9,7 +9,6 @@ import type {
 	RmDirOptions,
 	PHPEventListener,
 	PHPEvent,
-	SpawnHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
@@ -95,18 +94,13 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	}
 
 	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
-	request(request: PHPRequest, redirects?: number): Promise<PHPResponse> {
-		return _private.get(this)!.php.request(request, redirects);
+	request(request: PHPRequest): Promise<PHPResponse> {
+		return _private.get(this)!.php.request(request);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		return _private.get(this)!.php.run(request);
-	}
-
-	/** @inheritDoc @php-wasm/web!WebPHP.setSpawnHandler */
-	setSpawnHandler(listener: string | SpawnHandler) {
-		_private.get(this)!.php.setSpawnHandler(listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */

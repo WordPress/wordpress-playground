@@ -233,6 +233,13 @@ export type EmscriptenOptions = {
 	onRuntimeInitialized?: () => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
+	instantiateWasm?: (
+		info: WebAssembly.Imports,
+		receiveInstance: (
+			instance: WebAssembly.Instance,
+			module: WebAssembly.Module
+		) => void
+	) => void;
 } & Record<string, any>;
 
 export type EmscriptenMessageListener = (type: string, data: string) => void;

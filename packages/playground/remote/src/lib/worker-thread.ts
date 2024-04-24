@@ -42,6 +42,7 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 /** @ts-ignore */
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
+import { createMemoizedFetch } from './create-memoized-fetch';
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -100,7 +101,10 @@ if (
 
 const scope = Math.random().toFixed(16);
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
-const monitor = new EmscriptenDownloadMonitor();
+const downloadMonitor = new EmscriptenDownloadMonitor();
+
+const monitoredFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+	downloadMonitor.monitorFetch(fetch(input, init));
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
@@ -108,13 +112,13 @@ if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = monitor.monitorFetch(fetch(requestedWPVersion));
+		wordPressRequest = monitoredFetch(requestedWPVersion);
 	} else {
 		const wpDetails = getWordPressModuleDetails(wpVersion);
-		monitor.expectAssets({
+		downloadMonitor.expectAssets({
 			[wpDetails.url]: wpDetails.size,
 		});
-		wordPressRequest = monitor.monitorFetch(fetch(wpDetails.url));
+		wordPressRequest = monitoredFetch(wpDetails.url);
 	}
 }
 
@@ -124,21 +128,45 @@ const php = new WebPHP(undefined, {
 	rewriteRules: wordPressRewriteRules,
 });
 
-const recreateRuntime = async () =>
-	await WebPHP.loadRuntime(phpVersion, {
-		downloadMonitor: monitor,
+const memoizedFetch = createMemoizedFetch(monitoredFetch);
+const recreateRuntime = async () => {
+	let wasmUrl = '';
+	return await WebPHP.loadRuntime(phpVersion, {
+		onPhpLoaderModuleLoaded: (phpLoaderModule) => {
+			wasmUrl = phpLoaderModule.dependencyFilename;
+			downloadMonitor.expectAssets({
+				[wasmUrl]: phpLoaderModule.dependenciesTotalSize,
+			});
+		},
 		// We don't yet support loading specific PHP extensions one-by-one.
 		// Let's just indicate whether we want to load all of them.
 		loadAllExtensions: phpExtensions?.length > 0,
 		requestHandler: {
 			rewriteRules: wordPressRewriteRules,
 		},
+		emscriptenOptions: {
+			instantiateWasm(imports, receiveInstance) {
+				// Using .then because Emscripten typically returns an empty
+				// object here and not a promise.
+				memoizedFetch(wasmUrl, {
+					credentials: 'same-origin',
+				})
+					.then((response) =>
+						WebAssembly.instantiateStreaming(response, imports)
+					)
+					.then((wasm) => {
+						receiveInstance(wasm.instance, wasm.module);
+					});
+				return {};
+			},
+		},
 	});
-
+};
 // Rotate the PHP runtime periodically to avoid memory leak-related crashes.
 // @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 rotatePHPRuntime({
 	php,
+	cwd: DOCROOT,
 	recreateRuntime,
 	// 400 is an arbitrary number that should trigger a rotation
 	// way before the memory gets too fragmented. If the memory
@@ -236,7 +264,13 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 }
 
 const [setApiReady, setAPIError] = exposeAPI(
-	new PlaygroundWorkerEndpoint(php, monitor, scope, wpVersion, phpVersion)
+	new PlaygroundWorkerEndpoint(
+		php,
+		downloadMonitor,
+		scope,
+		wpVersion,
+		phpVersion
+	)
 );
 
 try {
