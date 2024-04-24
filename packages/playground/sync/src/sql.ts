@@ -1,4 +1,5 @@
 import { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 /** @ts-ignore */
 import logSqlQueries from './sync-mu-plugin.php?raw';
 import { phpVar, phpVars } from '@php-wasm/util';
@@ -119,11 +120,11 @@ export async function replaySQLJournal(
 
 function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 	if (result.text.trim() || result.errors.trim()) {
-		console.error({
+		logger.error({
 			text: result.text,
 			errors: result.errors,
 		});
-		throw new Error(`${errorMessage}. See the console for more details.`);
+		throw new Error(`${errorMessage}. See the logger for more details.`);
 	}
 }
 

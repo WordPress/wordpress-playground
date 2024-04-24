@@ -1,5 +1,6 @@
 import { PlaygroundClient } from '@wp-playground/client';
 import { PlaygroundConfiguration } from './form';
+import { logger } from '@php-wasm/logger';
 
 export async function reloadWithNewConfiguration(
 	config: PlaygroundConfiguration,
@@ -9,7 +10,7 @@ export async function reloadWithNewConfiguration(
 		try {
 			await playground?.resetVirtualOpfs();
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 		}
 	}
 

@@ -1,5 +1,6 @@
 import { PHPRequest, PHPResponse } from '@php-wasm/universal';
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc request
@@ -38,7 +39,7 @@ export const request: StepHandler<RequestStep, Promise<PHPResponse>> = async (
 ) => {
 	const response = await playground.request(request);
 	if (response.httpStatusCode > 399 || response.httpStatusCode < 200) {
-		console.warn('WordPress response was', { response });
+		logger.warn('WordPress response was', { response });
 		throw new Error(
 			`Request failed with status ${response.httpStatusCode}`
 		);

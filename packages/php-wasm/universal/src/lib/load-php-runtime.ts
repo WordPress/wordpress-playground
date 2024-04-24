@@ -1,3 +1,5 @@
+import { logger } from '@php-wasm/logger';
+
 const RuntimeId = Symbol('RuntimeId');
 const loadedRuntimes: Map<number, PHPRuntime> = new Map();
 let lastRuntimeId = 0;
@@ -130,7 +132,7 @@ export async function loadPHPRuntime(
 			rejectPHP(reason);
 			// This can happen after PHP has been initialized so
 			// let's just log it.
-			console.error(reason);
+			logger.error(reason);
 		},
 		ENV: {},
 		// Emscripten sometimes prepends a '/' to the path, which

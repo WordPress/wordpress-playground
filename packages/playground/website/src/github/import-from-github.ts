@@ -7,6 +7,7 @@ import {
 	wpContentFilesExcludedFromExport,
 } from '@wp-playground/blueprints';
 import { Files, filesListToObject } from '@wp-playground/storage';
+import { logger } from '@php-wasm/logger';
 
 export type ContentType = 'plugin' | 'theme' | 'wp-content' | 'custom-paths';
 export function asContentType(value: any): ContentType | undefined {
@@ -28,7 +29,7 @@ export async function importFromGitHub(
 ) {
 	repoPath = repoPath.replace(/^\//, '');
 	const playgroundFiles = filesListToObject(gitHubFiles, repoPath);
-	console.log({ contentType });
+	logger.log({ contentType });
 	if (contentType === 'theme') {
 		await importTheme(php, pluginOrThemeName, playgroundFiles);
 	} else if (contentType === 'plugin') {
