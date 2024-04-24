@@ -24,9 +24,9 @@ This site (Documentation) is where you will find all the information you need to
 
 -   [Start using WordPress Playground](../02-start-using/01-index.md) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
 -   [Build your first app](../03-build-an-app/01-index.md) with WordPress Playground
--   Use Playground as a zero-setup [local development environment](../04-nodejs/01-index.md#start-a-zero-setup-dev-environment-via-vscode-extension)
+-   Use Playground as a zero-setup [local development environment](../05-local-development/02-vscode-extension.md)
 -   Read about the [limitations](../12-limitations/01-index.md)
--   [WordCamp Contributor Day](../14-contributor-day/01-index.md)
+-   [WordCamp Contributor Day](../13-contributing/09-contributor-day.md)
 
 ## Take a deep dive
 
