@@ -26,6 +26,11 @@ jobs:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
             - uses: actions/checkout@v3
+              with:
+                  ref: trunk
+                  clean: true
+                  fetch-depth: 0
+                  persist-credentials: false
             - name: Fetch trunk
               shell: bash
               run: git fetch origin trunk --depth=1
