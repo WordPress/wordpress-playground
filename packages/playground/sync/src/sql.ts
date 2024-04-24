@@ -124,7 +124,7 @@ function assertEmptyOutput(result: PHPResponse, errorMessage: string) {
 			text: result.text,
 			errors: result.errors,
 		});
-		throw new Error(`${errorMessage}. See the logger for more details.`);
+		throw new Error(`${errorMessage}. See the console for more details.`);
 	}
 }
 
