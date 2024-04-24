@@ -32,9 +32,4 @@ describe('Logger', () => {
 			/\[\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\] JavaScript Warn: test/
 		);
 	});
-
-	it('Logger context should be added', () => {
-		logger.addContext({ test: 'test' });
-		expect(logger.getContext()).toEqual({ test: 'test' });
-	});
 });

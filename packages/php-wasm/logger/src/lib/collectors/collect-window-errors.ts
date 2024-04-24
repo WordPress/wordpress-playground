@@ -35,6 +35,11 @@ const logPromiseRejection = (
 };
 
 /**
+ * The number of open Playground tabs.
+ */
+let numberOfOpenPlaygroundTabs = 0;
+
+/**
  * Register a listener for service worker messages and log the data.
  * The service worker will send the number of open Playground tabs.
  *
@@ -42,12 +47,20 @@ const logPromiseRejection = (
  */
 const addServiceWorkerMessageListener = (loggerInstance: Logger) => {
 	navigator.serviceWorker.addEventListener('message', (event) => {
-		if (event.data?.numberOfOpenPlaygroundTabs !== undefined) {
-			loggerInstance.addContext({
-				numberOfOpenPlaygroundTabs:
-					event.data.numberOfOpenPlaygroundTabs,
-			});
+		if (event.data?.numberOfOpenPlaygroundTabs === undefined) {
+			return;
 		}
+		// Each tab sends an activate event on load. Prevent sending the same metrics multiple times if a tab is reloaded.
+		if (
+			numberOfOpenPlaygroundTabs ===
+			event.data?.numberOfOpenPlaygroundTabs
+		) {
+			return;
+		}
+		numberOfOpenPlaygroundTabs = event.data?.numberOfOpenPlaygroundTabs;
+		loggerInstance.debug(
+			`Number of open Playground tabs is: ${numberOfOpenPlaygroundTabs}`
+		);
 	});
 };
 

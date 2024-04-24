@@ -23,11 +23,6 @@ export type LogPrefix = 'PHP-WASM' | 'PHP' | 'JavaScript';
 export class Logger extends EventTarget {
 	public readonly fatalErrorEvent = 'playground-fatal-error';
 
-	/**
-	 * Context data
-	 */
-	private context: Record<string, any> = {};
-
 	// constructor
 	constructor(
 		// Log handlers
@@ -43,20 +38,6 @@ export class Logger extends EventTarget {
 	public getLogs(): string[] {
 		// TODO use handlers to get logs
 		return [...logs];
-	}
-
-	/**
-	 * Add context data.
-	 */
-	public addContext(data: Record<string, any>): void {
-		this.context = { ...this.context, ...data };
-	}
-
-	/**
-	 * Get context data.
-	 */
-	public getContext(): Record<string, any> {
-		return { ...this.context };
 	}
 
 	/**
