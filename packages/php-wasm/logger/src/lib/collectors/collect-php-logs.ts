@@ -1,7 +1,3 @@
-import {
-	UniversalPHP,
-	PHPRequestErrorEvent,
-} from '@php-wasm/universal/src/lib/universal-php';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
@@ -13,7 +9,7 @@ const errorLogPath = '/wordpress/wp-content/debug.log';
  * @param UniversalPHP playground instance
  * @returns string The content of the debug.log file
  */
-const getRequestPhpErrorLog = async (playground: UniversalPHP) => {
+const getRequestPhpErrorLog = async (playground: any) => {
 	if (!(await playground.fileExists(errorLogPath))) {
 		return '';
 	}
@@ -25,10 +21,7 @@ const getRequestPhpErrorLog = async (playground: UniversalPHP) => {
  * @param UniversalPHP playground instance
  * @param loggerInstance The logger instance
  */
-export const collectPhpLogs = (
-	loggerInstance: Logger,
-	playground: UniversalPHP
-) => {
+export const collectPhpLogs = (loggerInstance: Logger, playground: any) => {
 	playground.addEventListener('request.end', async () => {
 		const log = await getRequestPhpErrorLog(playground);
 		if (log.length > lastPHPLogLength) {
@@ -40,8 +33,7 @@ export const collectPhpLogs = (
 			lastPHPLogLength = log.length;
 		}
 	});
-	playground.addEventListener('request.error', (event) => {
-		event = event as PHPRequestErrorEvent;
+	playground.addEventListener('request.error', (event: any) => {
 		if (event.error) {
 			loggerInstance.logMessage({
 				message: `${event.error.message} ${event.error.stack}`,
