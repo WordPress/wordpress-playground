@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## Unreleased 
+
+### Website
+
+- Stop WP rewrite rules from matching files like wp-admin.css. ([1317](https://github.com/WordPress/wordpress-playground/pull/1317))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@brandonpayton
+
+
 ## [v0.7.1] (2024-04-24) 
 
 
