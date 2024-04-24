@@ -39,7 +39,7 @@ export class Logger extends EventTarget {
 		if (!this.handlers.includes(logToMemory)) {
 			this
 				.error(`Logs aren't stored because the logToMemory handler isn't registered.
-				If you are using a custom logger instance, make sure to register logToMemory handler.
+				If you're using a custom logger instance, make sure to register logToMemory handler.
 			`);
 			return [];
 		}
@@ -154,7 +154,7 @@ export class Logger extends EventTarget {
 /**
  * The logger instance.
  */
-export const logger: Logger = new Logger([logToConsole]);
+export const logger: Logger = new Logger([logToMemory, logToConsole]);
 
 export const formatLogEntry = (
 	message: string,
