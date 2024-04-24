@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { logger } from '@php-wasm/logger';
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
@@ -56,7 +55,7 @@ export const oAuthMiddleware = async (
 				'Content-Type': 'application/json',
 			});
 			res.end(JSON.stringify({ error: (error as any)?.message }));
-			logger.log({ error });
+			console.log({ error });
 		}
 	} else {
 		res.writeHead(400);
