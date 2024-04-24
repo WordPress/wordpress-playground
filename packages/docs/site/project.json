@@ -64,7 +64,11 @@
 		"start": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": [
+					"sed -i 's/namedDeclarations\\[i\\]\\./namedDeclarations[i]?./g' ../../../node_modules/typedoc/dist/lib/converter/types.js  ",
+					"docusaurus start"
+				],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
@@ -72,7 +76,11 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": [
+					"sed -i 's/namedDeclarations\\[i\\]\\./namedDeclarations[i]?./g' ../../../node_modules/typedoc/dist/lib/converter/types.js  ",
+					"docusaurus start"
+				],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
