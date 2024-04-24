@@ -124,6 +124,10 @@ async function serverCommandHandler() {
 	});
 }
 
+/**
+ * TODO: This exact feature will be provided in the PHP Blueprints library.
+ *       Let's use it when it ships. Let's also use it in the web Playground app.
+ */
 async function buildCommandHandler() {
 	// Fake URL for the build
 	const siteUrl = 'http://playground.internal';
