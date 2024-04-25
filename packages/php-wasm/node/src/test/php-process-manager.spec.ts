@@ -30,13 +30,28 @@ describe('PHPProcessManager', () => {
 		expect(phpFactory).toHaveBeenCalled();
 	});
 
-	it('should refuse to spawn more PHP instances than the maximum', async () => {
+	it('should refuse to spawn more PHP instances than the maximum (limit=2)', async () => {
 		const mgr = new PHPProcessManager({
 			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
 			maxPhpInstances: 2,
 			timeout: 100,
 		});
 
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
+		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
+			/Requested more concurrent PHP instances/
+		);
+	});
+
+	it('should refuse to spawn more PHP instances than the maximum (limit=3)', async () => {
+		const mgr = new PHPProcessManager({
+			phpFactory: async () => NodePHP.load(RecommendedPHPVersion),
+			maxPhpInstances: 3,
+			timeout: 100,
+		});
+
+		await mgr.acquirePHPInstance();
 		await mgr.acquirePHPInstance();
 		await mgr.acquirePHPInstance();
 		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
