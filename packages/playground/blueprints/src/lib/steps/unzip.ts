@@ -1,6 +1,7 @@
 import { phpVars } from '@php-wasm/util';
 import { StepHandler } from '.';
 import { runPhpWithZipFunctions } from '../utils/run-php-with-zip-functions';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc unzip
@@ -50,7 +51,7 @@ export const unzip: StepHandler<UnzipStep<File>> = async (
 			tmpPath,
 			await playground.readFileAsBuffer(zipPath)
 		);
-		console.warn(
+		logger.warn(
 			`The "zipPath" option of the unzip() Blueprint step is deprecated and will be removed. ` +
 				`Use "zipFile" instead.`
 		);

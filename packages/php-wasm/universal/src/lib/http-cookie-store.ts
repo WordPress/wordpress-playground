@@ -1,3 +1,5 @@
+import { logger } from '@php-wasm/logger';
+
 /**
  * @public
  */
@@ -20,7 +22,7 @@ export class HttpCookieStore {
 					.split(';')[0];
 				this.cookies[name] = value;
 			} catch (e) {
-				console.error(e);
+				logger.error(e);
 			}
 		}
 	}

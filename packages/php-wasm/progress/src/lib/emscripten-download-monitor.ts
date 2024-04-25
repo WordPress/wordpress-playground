@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 /*
  * An approximate total file size to use when the actual
  * total number of bytes is missing.
@@ -69,7 +70,7 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			fileSize = this.#assetsSizes[fileName];
 		}
 		if (!(fileName in this.#progress)) {
-			console.warn(
+			logger.warn(
 				`Registered a download #progress of an unregistered file "${fileName}". ` +
 					`This may cause a sudden **decrease** in the #progress percentage as the ` +
 					`total number of bytes increases during the download.`
@@ -156,7 +157,7 @@ export function cloneResponseMonitorProgress(
 							controller.enqueue(value);
 						}
 					} catch (e) {
-						console.error({ e });
+						logger.error({ e });
 						controller.error(e);
 						break;
 					}

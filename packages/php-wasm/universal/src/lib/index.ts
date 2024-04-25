@@ -25,6 +25,14 @@ export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export { PHPProcessManager } from './php-process-manager';
+export type {
+	MaxPhpInstancesError,
+	PHPFactory,
+	PHPFactoryOptions,
+	ProcessManagerOptions,
+	SpawnedPHP,
+} from './php-process-manager';
 
 export { PHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';

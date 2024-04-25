@@ -24,6 +24,7 @@ import {
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
 import { PHPRequestHandler } from './php-request-handler';
+import { logger } from '@php-wasm/logger';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -289,14 +290,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 			const response = await this.#handleRequest();
 			if (response.exitCode !== 0) {
-				console.warn(`PHP.run() output was:`, response.text);
+				logger.warn(`PHP.run() output was:`, response.text);
 				const error = new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
 						response.errors,
 					response,
 					'request'
 				) as PHPExecutionFailureError;
-				console.error(error);
+				logger.error(error);
 				throw error;
 			}
 			return response;
@@ -518,7 +519,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	#setRequestBody(body: string | Uint8Array) {
 		let size, contentLength;
 		if (typeof body === 'string') {
-			console.warn(
+			logger.warn(
 				'Passing a string as the request body is deprecated. Please use a Uint8Array instead. See ' +
 					'https://github.com/WordPress/wordpress-playground/issues/997 for more details'
 			);
@@ -630,8 +631,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>((resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
-					console.error(e);
-					console.error(e.error);
+					logger.error(e);
+					logger.error(e.error);
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
@@ -677,7 +678,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			) as string;
 			const rethrown = new Error(message);
 			rethrown.cause = err;
-			console.error(rethrown);
+			logger.error(rethrown);
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
@@ -782,7 +783,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			}
 			return files;
 		} catch (e) {
-			console.error(e, { path });
+			logger.error(e, { path });
 			return [];
 		}
 	}

@@ -20,6 +20,7 @@ import {
 	SpawnedPHP,
 } from './php-process-manager';
 import { HttpCookieStore } from './http-cookie-store';
+import { logger } from '@php-wasm/logger';
 
 export type RewriteRule = {
 	match: RegExp;

@@ -14,6 +14,7 @@ import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
+import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
 const { wpCLI, ...otherStepHandlers } = allStepHandlers;
@@ -93,7 +94,7 @@ export function compileBlueprint(
 	for (const step of blueprint.steps!) {
 		if (typeof step === 'object' && (step as any).step === 'importFile') {
 			(step as any).step = 'importWxr';
-			console.warn(
+			logger.warn(
 				`The "importFile" step is deprecated. Use "importWxr" instead.`
 			);
 		}
@@ -175,7 +176,7 @@ export function compileBlueprint(
 				blueprint.phpExtensionBundles.filter(
 					(bundle) => bundle !== 'light'
 				);
-			console.warn(
+			logger.warn(
 				`The wpCli step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
@@ -215,7 +216,7 @@ export function compileBlueprint(
 				blueprint.phpExtensionBundles.filter(
 					(bundle) => bundle !== 'light'
 				);
-			console.warn(
+			logger.warn(
 				`The importWxr step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
@@ -290,7 +291,7 @@ export function compileBlueprint(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (e) {
-						console.error(e);
+						logger.error(e);
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
@@ -427,7 +428,7 @@ function isStepStillSupported(
 	step: Record<string, any>
 ): step is StepDefinition {
 	if (step['step'] === 'setPhpIniEntry') {
-		console.warn(
+		logger.warn(
 			`The "setPhpIniEntry" Blueprint is no longer supported and you can remove it from your Blueprint.`
 		);
 		return false;

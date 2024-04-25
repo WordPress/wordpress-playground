@@ -261,7 +261,6 @@ const completeFeature = async (prefix) => {
 };
 
 let debounce = null;
-let starting = null;
 
 const getCompletions = async (editor, session, pos, prefix, callback) => {
 	const list = [];
@@ -623,8 +622,6 @@ function onLoaded() {
 		if (lines[event.end.row][event.end.column]) {
 			return;
 		}
-
-		const indent = (lines[event.start.row].match(/^(\s+)/g) || [''])[0];
 
 		const inserted = event.lines.join('\n');
 		const prevKey = getPrevKeys(editor, event.end);

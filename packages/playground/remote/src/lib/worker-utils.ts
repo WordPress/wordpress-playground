@@ -16,6 +16,7 @@ import {
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 import { createMemoizedFetch } from './create-memoized-fetch';
+import { logger } from '@php-wasm/logger';
 
 export type ReceivedStartupOptions = {
 	wpVersion?: string;
@@ -242,7 +243,7 @@ export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
 				processApi.stderr(result.errors);
 				processApi.exit(result.exitCode);
 			} catch (e) {
-				console.error('Error in childPHP:', e);
+				logger.error('Error in childPHP:', e);
 				if (e instanceof Error) {
 					processApi.stderr(e.message);
 				}
