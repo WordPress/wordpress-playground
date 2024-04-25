@@ -24,6 +24,10 @@ jobs:
         environment:
             name: playground-wordpress-net-wp-cloud
         steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: |
+                      packages/playground/website-deployment
             - name: Wait for latest build artifact
               shell: bash
               # Sleep to give the GitHub API time to register the artifact,
@@ -64,14 +68,18 @@ jobs:
                   echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
                   echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
                   chmod 0600 ~/.ssh/*
-                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete playground-website/ ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:/srv/htdocs/playground-files
 
-                  # Purge edge cache
+                  # Website files
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    playground-website/ \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:~/updated-playground-files
+
+                  # Host-specific deployment scripts and server config
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    wordpress-playground/packages/playground/website-deployment/ \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:~/website-deployment
+
+                  # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt \
-                    -C 'curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$(php -r "require \"/scripts/env.php\"; echo SITE_API_BASE;")/edge-cache/$ATOMIC_SITE_ID/purge"' \
-                    > /dev/null \
-                    && echo "Edge cache purged" \
-                    || (>&2 echo "Failed to purge edge cache" && false)
-              # TODO in subsequent PR: Copy latest custom-redirects.php from git
+                    -tt -C '~/website-deployment/apply-update.sh'
