@@ -154,6 +154,8 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 		 */
 		if (this.semaphore.remaining > 0) {
 			this.nextInstance = this.spawn({ isPrimary: false });
+		} else {
+			this.nextInstance = null;
 		}
 		return await spawnedPhp;
 	}
