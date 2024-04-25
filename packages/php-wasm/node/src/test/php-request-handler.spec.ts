@@ -1,5 +1,7 @@
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { NodePHP } from '..';
 import { PHPRequestHandler, SupportedPHPVersions } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
 
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
@@ -10,6 +12,7 @@ describe.each(SupportedPHPVersions)(
 			handler = new PHPRequestHandler({
 				documentRoot: '/',
 				phpFactory: async () => NodePHP.load(phpVersion),
+				maxPhpInstances: 1,
 			});
 			php = await handler.getPrimaryPhp();
 		});
@@ -314,6 +317,7 @@ describe.each(SupportedPHPVersions)(
 			handler = new PHPRequestHandler({
 				phpFactory: () => NodePHP.load(phpVersion),
 				documentRoot: '/var/www',
+				maxPhpInstances: 1,
 			});
 			const php = await handler.getPrimaryPhp();
 			php.mkdirTree('/var/www');
@@ -353,3 +357,78 @@ describe.each(SupportedPHPVersions)(
 		});
 	}
 );
+
+describe('PHPRequestHandler – Loopback call', () => {
+	let handler: PHPRequestHandler<NodePHP>;
+
+	it('Spawn: exec() can spawn another PHP before the previous run() concludes', async () => {
+		async function createPHP() {
+			const php = await NodePHP.load(RecommendedPHPVersion);
+			php.setSpawnHandler(
+				createSpawnHandler(async function (args, processApi, options) {
+					if (args[0] !== 'php') {
+						throw new Error(
+							`Unexpected command: ${args.join(' ')}`
+						);
+					}
+					const { php, reap } =
+						await handler.processManager.acquirePHPInstance();
+					const result = await php.run({
+						scriptPath: args[1],
+						env: options.env,
+					});
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+					reap();
+				})
+			);
+			php.writeFile(
+				'/first.php',
+				`<?php echo 'Starting: '; echo exec("php /second.php", $output, $return_var); echo ' Done';`
+			);
+			php.writeFile('/second.php', `<?php echo 'Ran second.php!'; `);
+			return php;
+		}
+		handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: createPHP,
+			maxPhpInstances: 2,
+		});
+		const response = await handler.request({
+			url: '/first.php',
+		});
+		expect(response.text).toEqual('Starting: Ran second.php! Done');
+	});
+
+	it('Loopback: handler.request() can be called before the previous call concludes', async () => {
+		async function createPHP() {
+			const php = await NodePHP.load(RecommendedPHPVersion);
+			php.setSpawnHandler(
+				createSpawnHandler(async function (args, processApi) {
+					const result = await handler.request({
+						url: '/second.php',
+					});
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+				})
+			);
+			php.writeFile(
+				'/first.php',
+				`<?php echo 'Starting: '; echo exec("php /second.php", $output, $return_var); echo ' Done';`
+			);
+			php.writeFile('/second.php', `<?php echo 'Ran second.php!'; `);
+			return php;
+		}
+		handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: createPHP,
+			maxPhpInstances: 2,
+		});
+		const response = await handler.request({
+			url: '/first.php',
+		});
+		expect(response.text).toEqual('Starting: Ran second.php! Done');
+	});
+});

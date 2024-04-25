@@ -28,17 +28,20 @@ import transportDummy from './playground-mu-plugin/playground-includes/wp_http_d
 import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
-	downloadMonitor,
 	proxyFileSystem,
 	requestedWPVersion,
 	createPhp,
 	startupOptions,
+	monitoredFetch,
+	downloadMonitor,
 } from './worker-utils';
 import {
 	FilesystemOperation,
 	journalFSEvents,
 	replayFSJournal,
 } from '@php-wasm/fs-journal';
+
+const scope = Math.random().toFixed(16);
 
 // post message to parent
 self.postMessage('worker-script-started');
@@ -61,23 +64,19 @@ if (
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
 
-const scope = Math.random().toFixed(16);
-
 // Start downloading WordPress if needed
 let wordPressRequest = null;
 if (!wordPressAvailableInOPFS) {
 	if (requestedWPVersion.startsWith('http')) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
-		wordPressRequest = downloadMonitor.monitorFetch(
-			fetch(requestedWPVersion)
-		);
+		wordPressRequest = monitoredFetch(requestedWPVersion);
 	} else {
 		const wpDetails = getWordPressModuleDetails(startupOptions.wpVersion);
 		downloadMonitor.expectAssets({
 			[wpDetails.url]: wpDetails.size,
 		});
-		wordPressRequest = downloadMonitor.monitorFetch(fetch(wpDetails.url));
+		wordPressRequest = monitoredFetch(wpDetails.url);
 	}
 }
 
@@ -237,44 +236,6 @@ try {
 	primaryPhp.writeFile(
 		joinPaths(requestHandler.documentRoot, 'phpinfo.php'),
 		'<?php phpinfo(); '
-	);
-	// Create phpinfo.php
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'self-request.php'),
-		`<?php 
-	require_once('/wordpress/wp-load.php');
-	echo "Pre";
-	$result = wp_safe_remote_get(
-		get_site_url() . '/next.php', 
-		array(
-			'method' => 'POST',
-			'body' => array(
-				'key1' => 'value1',
-				'key2' => 'value2',
-			),
-		)
-	);
-	if ( is_wp_error( $result ) ) {
-		print_r($result);
-	} else {
-		echo wp_remote_retrieve_body( $result );
-	}
-	echo "Finished";
-	`
-	);
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'next.php'),
-		`<?php 
-	echo "YAY, self-request worked!";
-	`
-	);
-
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'run-php-file.php'),
-		`<?php 
-	echo shell_exec('php /wordpress/next.php');
-	echo "After";
-	`
 	);
 
 	if (virtualOpfsDir) {

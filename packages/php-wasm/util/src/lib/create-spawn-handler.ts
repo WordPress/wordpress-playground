@@ -50,8 +50,16 @@ export function createSpawnHandler(
 			try {
 				await program(commandArray, processApi, options);
 			} catch (e) {
+				childProcess.emit('error', e);
+				if (
+					typeof e === 'object' &&
+					e !== null &&
+					'message' in e &&
+					typeof e.message === 'string'
+				) {
+					processApi.stderr(e.message);
+				}
 				processApi.exit(1);
-				throw e;
 			}
 			childProcess.emit('spawn', true);
 		});
