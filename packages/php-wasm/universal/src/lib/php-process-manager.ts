@@ -160,7 +160,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 
 	/**
 	 * Initiated spawning of a new PHP instance.
-	 * This function is not async on purpose – it needs to synchronously
+	 * This function is synchronous on purpose – it needs to synchronously
 	 * add the spawn promise to the allInstances array without waiting
 	 * for PHP to spawn.
 	 */
