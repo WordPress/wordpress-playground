@@ -104,26 +104,26 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
-And here's a few more interesting CLI commands, which expect that you [have `nx` installed globally](https://nx.dev/getting-started/installation#installing-nx-globally):
+And here's a few more interesting scripts you can run in this repo:
 
 ```bash
 # Build and run PHP.wasm CLI
-nx start php-wasm-cli
+npx nx start php-wasm-cli
 
 # Build latest WordPress releases
-nx bundle-wordpress:all playground-wordpress
+npx nx bundle-wordpress:all playground-wordpress
 
 # Recompile PHP 5.6 - 8.2 releases to .wasm for web
-nx recompile-php:all php-wasm-web
+npx nx recompile-php:all php-wasm-web
 
 # Recompile PHP 5.6 - 8.2 releases to .wasm for node
-nx recompile-php:all php-wasm-node
+npx nx recompile-php:all php-wasm-node
 
 # Builds the documentation site
-nx build docs-site
+npx nx build docs-site
 
 # Builds the Playground Client npm package
-nx build playground-client
+npx nx build playground-client
 
 # Bonus: Run PHP.wasm in your local CLI:
 npx @php-wasm/cli -v
