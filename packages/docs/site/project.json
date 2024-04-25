@@ -13,7 +13,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"sed -i 's/namedDeclarations\\[i\\]\\./namedDeclarations[i]?./g' ../../../node_modules/typedoc/dist/lib/converter/types.js  ",
+					"node patch-typedoc.js",
 					"cd ../../../; npx typedoc --json packages/docs/site/src/model.json",
 					"docusaurus build --out-dir ../../../dist/docs/build"
 				],
@@ -64,7 +64,8 @@
 		"start": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": ["node patch-typedoc.js", "docusaurus start"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
@@ -72,7 +73,8 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"commands": ["docusaurus start"],
+				"commands": ["node patch-typedoc.js", "docusaurus start"],
+				"parallel": false,
 				"cwd": "packages/docs/site"
 			},
 			"dependsOn": ["build:json"]
