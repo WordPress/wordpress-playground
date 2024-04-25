@@ -1,0 +1,77 @@
+name: Finish deploying to playground.wordpress.net (don't use manually)
+# Sorry, the previous job just built it and uploaded it to GitHub
+
+on:
+    workflow_run:
+        workflows: [Deploy to playground.wordpress.net]
+        types:
+            - completed
+
+jobs:
+    deploy_to_wp_cloud:
+        # Only run this workflow from the trunk branch and when it's triggered by another workflow OR certain maintainers
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.event.workflow_run.conclusion == 'success' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
+            )
+
+        # Specify runner + deployment step
+        runs-on: ubuntu-latest
+        environment:
+            name: playground-wordpress-net-wp-cloud
+        steps:
+            - name: Wait for latest build artifact
+              shell: bash
+              # Sleep to give the GitHub API time to register the artifact,
+              # otherwise the artifact will not be available when the webhook is called
+              run: |
+                  while true; do
+                      API_HASH=$(curl 'https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts?name=playground-website&per_page=2' \
+                          | jq -r '.artifacts[0].workflow_run.head_sha')
+                      if [ "$API_HASH" = "$GITHUB_SHA" ]; then
+                          break;
+                      fi;
+                      echo "$API_HASH was not $GITHUB_SHA, waiting 10 seconds...";
+                      sleep 10;
+                  done;
+            - name: Deploy to playground.wordpress.net
+              shell: bash
+              run: |
+                  ZIP_URL=$(
+                      curl -L -s -S \
+                           -H "Accept: application/vnd.github+json" \
+                           -H "X-GitHub-Api-Version: 2022-11-28" \
+                           https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts\?name\=playground-website\&per_page\=1 \
+                           | jq -r '.artifacts[0].archive_download_url'
+                  )
+
+                  curl -L -s -S \
+                       -H "Accept: application/vnd.github+json" \
+                       -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                       -H "X-GitHub-Api-Version: 2022-11-28" \
+                       -o playground-website.zip \
+                       "$ZIP_URL"
+
+                  unzip playground-website.zip
+                  tar -xzf wasm-wordpress-net.tar.gz
+                  mv dist/packages/playground/wasm-wordpress-net/ playground-website/
+
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  chmod 0600 ~/.ssh/*
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete playground-website/ ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:/srv/htdocs/playground-files
+
+                  # Purge edge cache
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
+                    -tt \
+                    -C 'curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$(php -r "require \"/scripts/env.php\"; echo SITE_API_BASE;")/edge-cache/$ATOMIC_SITE_ID/purge"' \
+                    > /dev/null \
+                    && echo "Edge cache purged" \
+                    || (>&2 echo "Failed to purge edge cache" && false)
+              # TODO in subsequent PR: Copy latest custom-redirects.php from git

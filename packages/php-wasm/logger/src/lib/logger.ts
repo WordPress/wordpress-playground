@@ -15,7 +15,7 @@ export type LogSeverity = 'Debug' | 'Info' | 'Warn' | 'Error' | 'Fatal';
 /**
  * Log prefix.
  */
-export type LogPrefix = 'PHP-WASM' | 'PHP' | 'JavaScript';
+export type LogPrefix = 'WASM Crash' | 'PHP' | 'JavaScript';
 
 /**
  * A logger for Playground.

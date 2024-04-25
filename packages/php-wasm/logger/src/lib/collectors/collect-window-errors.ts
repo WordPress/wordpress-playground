@@ -6,7 +6,7 @@ import { Logger } from '../logger';
  * @param loggerInstance The logger instance
  * @param ErrorEvent event
  */
-const logWindowError = (loggerInstance: Logger, event: ErrorEvent) => {
+const logWindowErrorEvent = (loggerInstance: Logger, event: ErrorEvent) => {
 	loggerInstance.logMessage({
 		message: `${event.message} in ${event.filename} on line ${event.lineno}:${event.colno}`,
 		severity: 'Error',
@@ -82,7 +82,7 @@ export const collectWindowErrors = (loggerInstance: Logger) => {
 	}
 
 	window.addEventListener('error', (event) =>
-		logWindowError(loggerInstance, event as ErrorEvent)
+		logWindowErrorEvent(loggerInstance, event as ErrorEvent)
 	);
 	window.addEventListener('unhandledrejection', (event) =>
 		logPromiseRejection(loggerInstance, event as PromiseRejectionEvent)

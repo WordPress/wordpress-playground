@@ -43,7 +43,7 @@ export const collectPhpLogs = (
 			loggerInstance.logMessage({
 				message: `${event.error.message} ${event.error.stack}`,
 				severity: 'Fatal',
-				prefix: event.source === 'request' ? 'PHP' : 'PHP-WASM',
+				prefix: event.source === 'request' ? 'PHP' : 'WASM Crash',
 			});
 			loggerInstance.dispatchEvent(
 				new CustomEvent(loggerInstance.fatalErrorEvent, {
