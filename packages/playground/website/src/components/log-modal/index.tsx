@@ -1,46 +1,64 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { addCrashListener, logger } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
 
 import { usePlaygroundContext } from '../../playground-context';
+import { TextControl } from '@wordpress/components';
 
 export function LogModal() {
 	const { activeModal, setActiveModal } = usePlaygroundContext();
-	const [logs, setLogs] = useState('');
+	const [logs, setLogs] = useState<string[]>([]);
+	const [searchTerm, setSearchTerm] = useState('');
 
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				setActiveModal('log');
-			}
-		});
-	}, [setActiveModal]);
-
-	useEffect(() => {
-		if (activeModal) {
-			setLogs(logger.getLogs().join('\n'));
-		}
-	}, [activeModal, setActiveModal, logs, setLogs]);
-
-	function onClose() {
-		setActiveModal(false);
-	}
+	useEffect(getLogs, [activeModal]);
 
 	function showModal() {
 		return activeModal === 'log';
 	}
 
+	function getLogs() {
+		if (!showModal()) {
+			return;
+		}
+		setLogs(logger.getLogs());
+	}
+
+	function onClose() {
+		setActiveModal(false);
+	}
+
+	function logList() {
+		return logs
+			.filter((log) =>
+				log.toLowerCase().includes(searchTerm.toLowerCase())
+			)
+			.map((log, index) => (
+				<pre className={css.logModalLog} key={index}>
+					{log}
+				</pre>
+			));
+	}
+
+	const styles = {
+		content: { width: 800 },
+	};
+
 	return (
-		<Modal isOpen={showModal()} onRequestClose={onClose}>
-			<header className={css.errorReportModalHeader}>
+		<Modal isOpen={showModal()} onRequestClose={onClose} styles={styles}>
+			<header>
 				<h2>Logs</h2>
+				<TextControl
+					title="Search"
+					placeholder="Search logs"
+					value={searchTerm}
+					onChange={setSearchTerm}
+					autoFocus={true}
+					className={css.logModalSearch}
+				/>
 			</header>
-			<main>
-				<pre>{logs}</pre>
-			</main>
+			<main className={css.logModalMain}>{logList()}</main>
 		</Modal>
 	);
 }
