@@ -173,6 +173,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 					(php as any).requestHandler = this;
 					return php;
 				},
+				maxPhpInstances: config.maxPhpInstances,
 			});
 		}
 		this.#cookieStore = new HttpCookieStore();
