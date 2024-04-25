@@ -3,7 +3,6 @@ declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
-import { logger } from '@php-wasm/logger';
 
 /**
  * Run this function in the service worker to install the required event
@@ -121,7 +120,7 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
 	} catch (e) {
-		logger.error(e, { url: url.toString() });
+		console.error(e, { url: url.toString() });
 		throw e;
 	}
 
