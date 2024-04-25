@@ -1,6 +1,7 @@
 import { WebPHP, WebPHPEndpoint, exposeAPI } from '@php-wasm/web';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
+import { logger } from '@php-wasm/logger';
 import { DOCROOT, wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
@@ -464,7 +465,7 @@ try {
 					processApi.stderr(result.errors);
 					processApi.exit(result.exitCode);
 				} catch (e) {
-					console.error('Error in childPHP:', e);
+					logger.error('Error in childPHP:', e);
 					if (e instanceof Error) {
 						processApi.stderr(e.message);
 					}

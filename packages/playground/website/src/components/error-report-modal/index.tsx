@@ -29,7 +29,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	useEffect(() => {
 		resetForm();
 		if (showErrorModal) {
-			setLogs(logger.getLogs().join(''));
+			setLogs(logger.getLogs().join('\n'));
 			setUrl(window.location.href);
 		}
 	}, [showErrorModal, setShowErrorModal, logs, setLogs]);

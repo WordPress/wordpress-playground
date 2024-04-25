@@ -214,7 +214,7 @@ export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: { loadRemote?: string }
 ): Promise<PlaygroundClient> {
-	console.warn(
+	logger.warn(
 		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
 	);
 	if (options?.loadRemote) {

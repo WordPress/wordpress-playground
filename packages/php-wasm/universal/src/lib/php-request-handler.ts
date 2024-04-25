@@ -14,6 +14,7 @@ import { PHPResponse } from './php-response';
 import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import { HttpCookieStore } from './http-cookie-store';
+import { logger } from '@php-wasm/logger';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -311,7 +312,7 @@ export class PHPRequestHandler {
 			this.#semaphore.running > 0 &&
 			request.headers?.['x-request-issuer'] === 'php'
 		) {
-			console.warn(
+			logger.warn(
 				`Possible deadlock: Called request() before the previous request() have finished. ` +
 					`PHP likely issued an HTTP call to itself. Normally this would lead to infinite ` +
 					`waiting as Request 1 holds the lock that the Request 2 is waiting to acquire. ` +

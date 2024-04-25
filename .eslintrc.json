@@ -28,7 +28,7 @@
 				"no-inner-declarations": 0,
 				"no-use-before-define": "off",
 				"react/prop-types": 0,
-				"no-console": 0,
+				"no-console": 1,
 				"no-empty": 0,
 				"no-async-promise-executor": 0,
 				"no-constant-condition": 0,
@@ -60,6 +60,12 @@
 			"files": "*.json",
 			"parser": "jsonc-eslint-parser",
 			"rules": {}
+		},
+		{
+			"files": "*.spec.ts",
+			"rules": {
+				"no-console": 0
+			}
 		}
 	]
 }

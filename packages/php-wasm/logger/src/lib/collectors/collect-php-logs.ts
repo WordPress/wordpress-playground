@@ -1,7 +1,4 @@
-import {
-	UniversalPHP,
-	PHPRequestErrorEvent,
-} from '@php-wasm/universal/src/lib/universal-php';
+import { UniversalPHP, PHPRequestErrorEvent } from '../../universal';
 import { Logger } from '../logger';
 
 let lastPHPLogLength = 0;
