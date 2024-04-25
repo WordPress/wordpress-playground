@@ -71,7 +71,7 @@ export class MaxPhpInstancesError extends Error {
  * extra time to spin up a few PHP instances. This is a more resource-friendly tradeoff
  * than keeping 5 idle instances at all times.
  */
-export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
+export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 	private primaryPhp?: PHP;
 	private primaryIdle = true;
 	private nextInstance: Promise<SpawnedPHP<PHP>> | null = null;
@@ -220,8 +220,6 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 			throw e;
 		}
 	}
-
-	async [Symbol.dispose]() {}
 
 	async [Symbol.asyncDispose]() {
 		if (this.primaryPhp) {
