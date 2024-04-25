@@ -15,7 +15,7 @@ import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import {
 	MaxPhpInstancesError,
-	PHPFactoryArgs,
+	PHPFactoryOptions,
 	PHPProcessManager,
 	SpawnedPHP,
 } from './php-process-manager';
@@ -44,7 +44,7 @@ interface BaseConfiguration {
 }
 
 export type PHPRequestHandlerFactoryArgs<PHP extends BasePHP> =
-	PHPFactoryArgs & {
+	PHPFactoryOptions & {
 		requestHandler: PHPRequestHandler<PHP>;
 	};
 
@@ -69,6 +69,11 @@ export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
 					phpFactory: (
 						requestHandler: PHPRequestHandlerFactoryArgs<PHP>
 					) => Promise<PHP>;
+					/**
+					 * The maximum number of PHP instances that can exist at
+					 * the same time.
+					 */
+					maxPhpInstances?: number;
 			  }
 		);
 
@@ -168,6 +173,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 					(php as any).requestHandler = this;
 					return php;
 				},
+				maxPhpInstances: config.maxPhpInstances,
 			});
 		}
 		this.#cookieStore = new HttpCookieStore();
@@ -358,7 +364,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.getInstance();
+			spawnedPHP = await this.processManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
 				return PHPResponse.forHttpCode(502);
@@ -434,15 +440,16 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 				scriptPath,
 				headers,
 			});
-			this.#cookieStore.rememberCookiesFromResponse(response);
+			this.#cookieStore.rememberCookiesFromResponseHeaders(
+				response.headers
+			);
 			return response;
 		} catch (error) {
 			const executionError = error as PHPExecutionFailureError;
 			if (executionError?.response) {
 				return executionError.response;
 			}
-			console.error(error);
-			return PHPResponse.forHttpCode(500);
+			throw error;
 		}
 	}
 
@@ -500,8 +507,6 @@ function inferMimeType(path: string): string {
 			return 'application/javascript';
 		case 'png':
 			return 'image/png';
-		case 'webp':
-			return 'image/webp';
 		case 'jpg':
 		case 'jpeg':
 			return 'image/jpeg';
@@ -530,6 +535,38 @@ function inferMimeType(path: string): string {
 		case 'txt':
 		case 'md':
 			return 'text/plain';
+		case 'pdf':
+			return 'application/pdf';
+		case 'webp':
+			return 'image/webp';
+		case 'mp3':
+			return 'audio/mpeg';
+		case 'mp4':
+			return 'video/mp4';
+		case 'csv':
+			return 'text/csv';
+		case 'xls':
+			return 'application/vnd.ms-excel';
+		case 'xlsx':
+			return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+		case 'doc':
+			return 'application/msword';
+		case 'docx':
+			return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+		case 'ppt':
+			return 'application/vnd.ms-powerpoint';
+		case 'pptx':
+			return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+		case 'zip':
+			return 'application/zip';
+		case 'rar':
+			return 'application/x-rar-compressed';
+		case 'tar':
+			return 'application/x-tar';
+		case 'gz':
+			return 'application/gzip';
+		case '7z':
+			return 'application/x-7z-compressed';
 		default:
 			return 'application-octet-stream';
 	}

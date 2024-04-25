@@ -49,7 +49,7 @@ export type PHPEventListener = (event: PHPEvent) => void;
 
 export interface IsomorphicLocalPHP {
 	/** @deprecated Use PHPRequestHandler instead. */
-	request(request: PHPRequest, maxRedirects?: number): Promise<PHPResponse>;
+	request(request: PHPRequest): Promise<PHPResponse>;
 	/** @deprecated Use PHPRequestHandler instead. */
 	pathToInternalUrl(path: string): string;
 	/** @deprecated Use PHPRequestHandler instead. */
@@ -334,6 +334,12 @@ type ChildProcess = EventEmitter & {
 };
 export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
 
+/**
+ * The omited methods must either be called synchronously before
+ * the PHP internal state is initialized, or with a complex argument
+ * that can't be serialized over a remote connection. Therefeore,
+ * they don't make sense in a remote PHP instance.
+ */
 export type IsomorphicRemotePHP = Remote<
 	Omit<IsomorphicLocalPHP, 'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'>
 >;

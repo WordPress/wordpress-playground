@@ -41,7 +41,7 @@
 					"npx dts-bundle-generator -o packages/php-wasm/web/src/rollup.d.ts -- packages/php-wasm/web/src/index.ts",
 					"rimraf dist/packages/php-wasm/web/lib/*.d.ts",
 					"rimraf dist/packages/php-wasm/web/*.d.ts",
-					"mv packages/php-wasm/web/src/rollup.d.ts dist/packages/php-wasm/web/index.d.ts"
+					"cp packages/php-wasm/web/src/rollup.d.ts dist/packages/php-wasm/web/index.d.ts"
 				],
 				"parallel": false
 			},

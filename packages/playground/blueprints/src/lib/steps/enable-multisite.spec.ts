@@ -13,7 +13,7 @@ describe('Blueprint step enableMultisite', () => {
 		const requestHandler = new PHPRequestHandler({
 			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
 			absoluteUrl: options.absoluteUrl,
-			documentRoot: '/',
+			documentRoot: DOCROOT,
 		});
 		const php = await requestHandler.getPrimaryPhp();
 

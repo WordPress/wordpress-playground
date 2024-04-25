@@ -1,4 +1,4 @@
-import type { PHPResponse } from './php-response';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @public
@@ -6,11 +6,11 @@ import type { PHPResponse } from './php-response';
 export class HttpCookieStore {
 	cookies: Record<string, string> = {};
 
-	rememberCookiesFromResponse(response: PHPResponse) {
-		if (!response.headers?.['set-cookie']) {
+	rememberCookiesFromResponseHeaders(headers: Record<string, string[]>) {
+		if (!headers?.['set-cookie']) {
 			return;
 		}
-		for (const setCookie of response.headers['set-cookie']) {
+		for (const setCookie of headers['set-cookie']) {
 			try {
 				if (!setCookie.includes('=')) {
 					continue;
@@ -22,7 +22,7 @@ export class HttpCookieStore {
 					.split(';')[0];
 				this.cookies[name] = value;
 			} catch (e) {
-				console.error(e);
+				logger.error(e);
 			}
 		}
 	}

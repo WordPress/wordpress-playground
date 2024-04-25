@@ -25,11 +25,17 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
-	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.absoluteUrl  */
-	absoluteUrl = '';
-	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.documentRoot  */
-	documentRoot = '';
+export class WebPHPEndpoint
+	implements
+		Omit<
+			IsomorphicLocalPHP,
+			'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'
+		>
+{
+	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
+	absoluteUrl: string;
+	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
+	documentRoot: string;
 
 	/** @inheritDoc */
 	constructor(
@@ -128,7 +134,7 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
 		const { php, reap } = await _private
 			.get(this)!
-			.requestHandler!.processManager.getInstance();
+			.requestHandler!.processManager.acquirePHPInstance();
 		try {
 			return await php.run(request);
 		} finally {
@@ -139,6 +145,20 @@ export class WebPHPEndpoint implements Partial<IsomorphicLocalPHP> {
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php!.chdir(path);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.setSapiName */
+	setSapiName(newName: string): void {
+		_private.get(this)!.php!.setSapiName(newName);
+	}
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
+	setPhpIniPath(path: string): void {
+		return _private.get(this)!.php!.setPhpIniPath(path);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
+	setPhpIniEntry(key: string, value: string): void {
+		return _private.get(this)!.php!.setPhpIniEntry(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
