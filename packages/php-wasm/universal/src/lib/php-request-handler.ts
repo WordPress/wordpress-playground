@@ -358,7 +358,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	): Promise<PHPResponse> {
 		let spawnedPHP: SpawnedPHP<PHP> | undefined = undefined;
 		try {
-			spawnedPHP = await this.processManager!.getInstance();
+			spawnedPHP = await this.processManager!.acquirePHPInstance();
 		} catch (e) {
 			if (e instanceof MaxPhpInstancesError) {
 				return PHPResponse.forHttpCode(502);

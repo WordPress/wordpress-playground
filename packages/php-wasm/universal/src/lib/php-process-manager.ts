@@ -90,7 +90,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 		this.phpFactory = phpFactory;
 	}
 
-	async getInstance(): Promise<SpawnedPHP<PHP>> {
+	async acquirePHPInstance(): Promise<SpawnedPHP<PHP>> {
 		if (this.primaryIdle) {
 			this.primaryIdle = false;
 			return {
