@@ -45,7 +45,7 @@ export class MaxPhpInstancesError extends Error {
 		super(
 			`Requested more concurrent PHP instances than the limit (${limit}).`
 		);
-		this.name = 'MaxPhpInstancesError';
+		this.name = this.constructor.name;
 	}
 }
 
