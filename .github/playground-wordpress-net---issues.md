@@ -4,52 +4,29 @@ about: Something did not work as expected in the online version of Playground?
 title: 'Playground Online: Report an issue with playground.wordpress.net'
 labels: bug
 assignees: ''
-
 ---
 
 ## Describe the bug
-<--! What did you encounter that seems to be broken? -->
 
-
-## Did you use a blueprint?
-<!-- Did you send a custom blueprint to the instance, or click a link? -->
-
-If you used a blueprint, paste it below or paste a link to it
-
+<!-- What did you encounter that seems to be broken? -->
 
 ## Journey to reproduce issue
-1. Go to '...'
-2. Expected
-3. What happened
-4. See errors - if applicable
 
-
-## Expected behavior
-A clear and concise description of what you expected to happen.
-
-
-## Screenshots or screencast
-If applicable, add screenshots to help explain your problem.
-
-
-## Error reporting
-You can use the [Site Health](https://wordpress.org/documentation/article/site-health-screen/) screen to 
- - submit WordPress environment info
- - submit local system info
-
-In the Playground URL bar, go to `/wp-admin/site-health.php?tab=debug` to access the full debug info for your website
-You can then attach the Site Health report to your issue in a text block
-
-You can use the Playground menu to `Report error`, which will automaticlly send some information and submit to the `#playground-logs` Channel on Making WordPress Slack.
-
-
-## Include Console errors
 <!--
-Press F12 and copy/paste or provide a screenshot of any console errors
-
+1. Went to URL, or clicked...
+2. I saw...
+3. I expected...
+4. Instead...
 -->
 
-**Additional context**
-Add any other context about the problem here.
-- Links to documentation
-- Related issues
+## What did you expect to happen?
+
+<!-- Fill in the blank :) -->
+
+## Blueprints, screenshots or additional context
+
+<!-- If you used a Blueprint, have a screenshot to share, or any other relevant thoughts, put them here -->
+
+## Console errors
+
+<!-- Please include the output from your web browser console. If you're not sure how to do that, see https://support.google.com/docs/thread/1873663/collecting-console-logs-chrome-browser-only   -->
