@@ -104,7 +104,7 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
-And here's a few more interesting scripts you can run in this repo:
+And here's a few more interesting CLI commands you can run in this repo:
 
 ```bash
 # Build and run PHP.wasm CLI
