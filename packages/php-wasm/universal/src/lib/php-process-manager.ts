@@ -1,4 +1,4 @@
-import { Semaphore } from '@php-wasm/util';
+import { AcquireTimeoutError, Semaphore } from '@php-wasm/util';
 import { BasePHP } from './base-php';
 
 export type PHPFactoryOptions = {
@@ -201,7 +201,10 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 		try {
 			release = await this.semaphore.acquire();
 		} catch (error) {
-			throw new MaxPhpInstancesError(this.maxPhpInstances);
+			if (error instanceof AcquireTimeoutError) {
+				throw new MaxPhpInstancesError(this.maxPhpInstances);
+			}
+			throw error;
 		}
 		try {
 			const php = await this.phpFactory!(factoryArgs);
@@ -212,7 +215,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements Disposable {
 					release();
 				},
 			};
-		} catch(e) {
+		} catch (e) {
 			release();
 			throw e;
 		}
