@@ -24,6 +24,7 @@ jobs:
         environment:
             name: playground-wordpress-net-wp-cloud
         steps:
+            # TODO: Remove this unnecessary checkout when we merge this into the website build workflow
             - uses: actions/checkout@v4
               with:
                   sparse-checkout: |
