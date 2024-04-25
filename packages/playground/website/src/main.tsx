@@ -17,6 +17,7 @@ import { ResetSiteMenuItem } from './components/toolbar-buttons/reset-site';
 import { DownloadAsZipMenuItem } from './components/toolbar-buttons/download-as-zip';
 import { RestoreFromZipMenuItem } from './components/toolbar-buttons/restore-from-zip';
 import { ReportError } from './components/toolbar-buttons/report-error';
+import { ViewLogs } from './components/toolbar-buttons/view-logs';
 import { resolveBlueprint } from './lib/resolve-blueprint';
 import { GithubImportMenuItem } from './components/toolbar-buttons/github-import-menu-item';
 import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-needed';
@@ -29,11 +30,12 @@ import {
 	asPullRequestAction,
 } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
-import { PlaygroundContext } from './playground-context';
+import { ActiveModal, PlaygroundContext } from './playground-context';
 import { collectWindowErrors, logger } from '@php-wasm/logger';
 import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
+import { LogModal } from './components/log-modal';
 
 collectWindowErrors(logger);
 
@@ -87,7 +89,7 @@ if (currentConfiguration.wp === '6.3') {
 acquireOAuthTokenIfNeeded();
 
 function Main() {
-	const [showErrorModal, setShowErrorModal] = useState(false);
+	const [activeModal, setActiveModal] = useState<ActiveModal | false>(false);
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
@@ -129,9 +131,10 @@ function Main() {
 
 	return (
 		<PlaygroundContext.Provider
-			value={{ storage, showErrorModal, setShowErrorModal }}
+			value={{ storage, activeModal, setActiveModal }}
 		>
 			<ErrorReportModal blueprint={blueprint} />
+			<LogModal />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
@@ -165,6 +168,7 @@ function Main() {
 									<RestoreFromZipMenuItem onClose={onClose} />
 									<GithubImportMenuItem onClose={onClose} />
 									<GithubExportMenuItem onClose={onClose} />
+									<ViewLogs onClose={onClose} />
 									<MenuItem
 										icon={external}
 										iconPosition="left"
