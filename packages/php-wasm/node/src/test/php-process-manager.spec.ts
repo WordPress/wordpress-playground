@@ -9,10 +9,10 @@ describe('PHPProcessManager', () => {
 			maxPhpInstances: 4,
 		});
 
-		const php1 = await mgr.getInstance();
+		const php1 = await mgr.acquirePHPInstance();
 		expect(php1.php).toBeInstanceOf(NodePHP);
 
-		const php2 = await mgr.getInstance();
+		const php2 = await mgr.acquirePHPInstance();
 		expect(php1.php).not.toBe(php2.php);
 	});
 
@@ -26,7 +26,7 @@ describe('PHPProcessManager', () => {
 		});
 
 		expect(phpFactory).not.toHaveBeenCalled();
-		await mgr.getInstance();
+		await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalled();
 	});
 
@@ -37,9 +37,9 @@ describe('PHPProcessManager', () => {
 			timeout: 100,
 		});
 
-		await mgr.getInstance();
-		await mgr.getInstance();
-		await expect(() => mgr.getInstance()).rejects.toThrowError(
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
+		await expect(() => mgr.acquirePHPInstance()).rejects.toThrowError(
 			/Requested more concurrent PHP instances/
 		);
 	});
@@ -54,16 +54,16 @@ describe('PHPProcessManager', () => {
 		});
 
 		expect(phpFactory).not.toHaveBeenCalled();
-		const php1 = await mgr.getInstance();
+		const php1 = await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(1);
 		php1.reap();
 
-		const php2 = await mgr.getInstance();
+		const php2 = await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(1);
 		php2.reap();
 
-		await mgr.getInstance();
-		await mgr.getInstance();
+		await mgr.acquirePHPInstance();
+		await mgr.acquirePHPInstance();
 		expect(phpFactory).toHaveBeenCalledTimes(3);
 	});
 });
