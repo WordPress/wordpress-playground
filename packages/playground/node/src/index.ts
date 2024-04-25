@@ -13,7 +13,6 @@ import {
 } from '@wp-playground/blueprints';
 import { NodePHP } from '@php-wasm/node';
 import { PHPRequestHandler, UniversalPHP } from '@php-wasm/universal';
-import { collectPhpLogs, logger } from '@php-wasm/logger';
 
 export interface NodePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -37,14 +36,17 @@ export async function startPlaygroundNode(
 	 * @TODO use this workflow to compile WordPress for the web
 	 */
 	const compiled = compileBlueprint(options.blueprint || {});
-	const requestHandler = new PHPRequestHandler({
+	const requestHandler = new PHPRequestHandler<NodePHP>({
 		phpFactory: () => NodePHP.load(compiled.versions.php),
 		absoluteUrl: options.serverUrl,
 		documentRoot: options.wordpressPathOnHost,
 	});
 	const playground = await requestHandler.getPrimaryPhp();
 
-	collectPhpLogs(logger, playground);
+	// @TODO: figure out how to avoid type errors.
+	//        startPlaygroundNode isn't used anywhere now so it
+	//        doesn't matter that much at the moment.
+	// collectPhpLogs(logger, playground);
 
 	await defineSiteUrl(playground, {
 		siteUrl: options.serverUrl,
