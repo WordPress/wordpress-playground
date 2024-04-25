@@ -23,7 +23,13 @@ const _private = new WeakMap<
 /**
  * A PHP client that can be used to run PHP code in the browser.
  */
-export class WebPHPEndpoint implements IsomorphicLocalPHP {
+export class WebPHPEndpoint
+	implements
+		Omit<
+			IsomorphicLocalPHP,
+			'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'
+		>
+{
 	/** @inheritDoc @php-wasm/universal!RequestHandler.absoluteUrl  */
 	absoluteUrl: string;
 	/** @inheritDoc @php-wasm/universal!RequestHandler.documentRoot  */
@@ -106,20 +112,6 @@ export class WebPHPEndpoint implements IsomorphicLocalPHP {
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
 		return _private.get(this)!.php.chdir(path);
-	}
-
-	/** @inheritDoc @php-wasm/web!WebPHP.setSapiName */
-	setSapiName(newName: string): void {
-		_private.get(this)!.php.setSapiName(newName);
-	}
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
-	setPhpIniPath(path: string): void {
-		return _private.get(this)!.php.setPhpIniPath(path);
-	}
-
-	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
-	setPhpIniEntry(key: string, value: string): void {
-		return _private.get(this)!.php.setPhpIniEntry(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
