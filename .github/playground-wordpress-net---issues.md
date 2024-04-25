@@ -25,8 +25,12 @@ assignees: ''
 
 ## Blueprints, screenshots or additional context
 
-<!-- If you used a Blueprint, have a screenshot to share, or any other relevant thoughts, put them here -->
+<!--
+If you used a Blueprint, have a screenshot to share, or any other relevant thoughts, put them here
+-->
 
 ## Console errors
 
-<!-- Please include the output from your web browser console. If you're not sure how to do that, see https://support.google.com/docs/thread/1873663/collecting-console-logs-chrome-browser-only   -->
+<!--
+Please include the output from your web browser console. If you're not sure how to do that, see https://support.google.com/docs/thread/1873663/collecting-console-logs-chrome-browser-only
+-->
