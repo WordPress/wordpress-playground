@@ -4,8 +4,10 @@
  * whenever making changes here.
  */
 
-define('PLAYGROUND_DEBUG', true);
-playground_handle_request();
+if ( 'cli' !== php_sapi_name() ) {
+	define('PLAYGROUND_DEBUG', false);
+	playground_handle_request();
+}
 
 // Used during deployment to identify files that need to be served in a custom way via PHP
 function playground_file_needs_special_treatment( $path ) {
