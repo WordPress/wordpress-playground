@@ -1,21 +1,23 @@
-import type {
-	BasePHP,
-	MessageListener,
-	IsomorphicLocalPHP,
-	ListFilesOptions,
-	PHPRequest,
+import {
+	type MessageListener,
+	type IsomorphicLocalPHP,
+	type ListFilesOptions,
+	type PHPRequest,
 	PHPResponse,
-	PHPRunOptions,
-	RmDirOptions,
-	PHPEventListener,
-	PHPEvent,
+	type PHPRunOptions,
+	type RmDirOptions,
+	type PHPEventListener,
+	type PHPEvent,
+	PHPRequestHandler,
 } from '@php-wasm/universal';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { WebPHP } from './web-php';
 
 const _private = new WeakMap<
 	WebPHPEndpoint,
 	{
-		php: BasePHP;
+		requestHandler?: PHPRequestHandler<WebPHP>;
+		php?: WebPHP;
 		monitor?: EmscriptenDownloadMonitor;
 	}
 >();
@@ -36,7 +38,10 @@ export class WebPHPEndpoint
 	documentRoot: string;
 
 	/** @inheritDoc */
-	constructor(php: BasePHP, monitor?: EmscriptenDownloadMonitor) {
+	constructor(
+		requestHandler: PHPRequestHandler<WebPHP>,
+		monitor?: EmscriptenDownloadMonitor
+	) {
 		/**
 		 * Workaround for TypeScript limitation.
 		 * Declaring a private field using the EcmaScript syntax like this:
@@ -61,21 +66,41 @@ export class WebPHPEndpoint
 		 * ```
 		 */
 		_private.set(this, {
-			php,
 			monitor,
+			requestHandler,
 		});
-		this.absoluteUrl = php.absoluteUrl;
-		this.documentRoot = php.documentRoot;
+		this.absoluteUrl = requestHandler.absoluteUrl;
+		this.documentRoot = requestHandler.documentRoot;
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.pathToInternalUrl  */
+	/**
+	 * @internal
+	 * @deprecated
+	 * Do not use this method directly in the code consuming
+	 * the web API. It will change or even be removed without
+	 * a warning.
+	 */
+	protected __internal_getPHP() {
+		return _private.get(this)!.php;
+	}
+
+	async setPrimaryPHP(php: WebPHP) {
+		_private.set(this, {
+			..._private.get(this)!,
+			php,
+		});
+	}
+
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.pathToInternalUrl  */
 	pathToInternalUrl(path: string): string {
-		return _private.get(this)!.php.pathToInternalUrl(path);
+		return _private.get(this)!.requestHandler!.pathToInternalUrl(path);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.internalUrlToPath  */
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.internalUrlToPath  */
 	internalUrlToPath(internalUrl: string): string {
-		return _private.get(this)!.php.internalUrlToPath(internalUrl);
+		return _private
+			.get(this)!
+			.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	/**
@@ -90,83 +115,105 @@ export class WebPHPEndpoint
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.mv  */
-	mv(fromPath: string, toPath: string) {
-		return _private.get(this)!.php.mv(fromPath, toPath);
+	async mv(fromPath: string, toPath: string) {
+		return _private.get(this)!.php!.mv(fromPath, toPath);
 	}
 
 	/** @inheritDoc @php-wasm/universal!IsomorphicLocalPHP.rmdir  */
-	rmdir(path: string, options?: RmDirOptions) {
-		return _private.get(this)!.php.rmdir(path, options);
+	async rmdir(path: string, options?: RmDirOptions) {
+		return _private.get(this)!.php!.rmdir(path, options);
 	}
 
-	/** @inheritDoc @php-wasm/universal!RequestHandler.request */
-	request(request: PHPRequest): Promise<PHPResponse> {
-		return _private.get(this)!.php.request(request);
+	/** @inheritDoc @php-wasm/universal!PHPRequestHandler.request */
+	async request(request: PHPRequest): Promise<PHPResponse> {
+		const requestHandler = _private.get(this)!.requestHandler!;
+		return await requestHandler.request(request);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.run */
 	async run(request: PHPRunOptions): Promise<PHPResponse> {
-		return _private.get(this)!.php.run(request);
+		const { php, reap } = await _private
+			.get(this)!
+			.requestHandler!.processManager.acquirePHPInstance();
+		try {
+			return await php.run(request);
+		} finally {
+			reap();
+		}
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.chdir */
 	chdir(path: string): void {
-		return _private.get(this)!.php.chdir(path);
+		return _private.get(this)!.php!.chdir(path);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.setSapiName */
+	setSapiName(newName: string): void {
+		_private.get(this)!.php!.setSapiName(newName);
+	}
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniPath */
+	setPhpIniPath(path: string): void {
+		return _private.get(this)!.php!.setPhpIniPath(path);
+	}
+
+	/** @inheritDoc @php-wasm/web!WebPHP.setPhpIniEntry */
+	setPhpIniEntry(key: string, value: string): void {
+		return _private.get(this)!.php!.setPhpIniEntry(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdir */
 	mkdir(path: string): void {
-		return _private.get(this)!.php.mkdir(path);
+		return _private.get(this)!.php!.mkdir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.mkdirTree */
 	mkdirTree(path: string): void {
-		return _private.get(this)!.php.mkdirTree(path);
+		return _private.get(this)!.php!.mkdirTree(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsText */
 	readFileAsText(path: string): string {
-		return _private.get(this)!.php.readFileAsText(path);
+		return _private.get(this)!.php!.readFileAsText(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.readFileAsBuffer */
 	readFileAsBuffer(path: string): Uint8Array {
-		return _private.get(this)!.php.readFileAsBuffer(path);
+		return _private.get(this)!.php!.readFileAsBuffer(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.writeFile */
 	writeFile(path: string, data: string | Uint8Array): void {
-		return _private.get(this)!.php.writeFile(path, data);
+		return _private.get(this)!.php!.writeFile(path, data);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.unlink */
 	unlink(path: string): void {
-		return _private.get(this)!.php.unlink(path);
+		return _private.get(this)!.php!.unlink(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.listFiles */
 	listFiles(path: string, options?: ListFilesOptions): string[] {
-		return _private.get(this)!.php.listFiles(path, options);
+		return _private.get(this)!.php!.listFiles(path, options);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.isDir */
 	isDir(path: string): boolean {
-		return _private.get(this)!.php.isDir(path);
+		return _private.get(this)!.php!.isDir(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
 	fileExists(path: string): boolean {
-		return _private.get(this)!.php.fileExists(path);
+		return _private.get(this)!.php!.fileExists(path);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.onMessage */
 	onMessage(listener: MessageListener): void {
-		_private.get(this)!.php.onMessage(listener);
+		_private.get(this)!.php!.onMessage(listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.defineConstant */
 	defineConstant(key: string, value: string | boolean | number | null): void {
-		_private.get(this)!.php.defineConstant(key, value);
+		_private.get(this)!.php!.defineConstant(key, value);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.addEventListener */
@@ -174,7 +221,7 @@ export class WebPHPEndpoint
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private.get(this)!.php.addEventListener(eventType, listener);
+		_private.get(this)!.php!.addEventListener(eventType, listener);
 	}
 
 	/** @inheritDoc @php-wasm/web!WebPHP.removeEventListener */
@@ -182,6 +229,6 @@ export class WebPHPEndpoint
 		eventType: PHPEvent['type'],
 		listener: PHPEventListener
 	): void {
-		_private.get(this)!.php.removeEventListener(eventType, listener);
+		_private.get(this)!.php!.removeEventListener(eventType, listener);
 	}
 }

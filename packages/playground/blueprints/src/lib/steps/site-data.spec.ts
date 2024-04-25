@@ -5,15 +5,17 @@ import {
 } from '@wp-playground/wordpress';
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step setSiteOptions()', () => {
 	let php: NodePHP;
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: '/wordpress',

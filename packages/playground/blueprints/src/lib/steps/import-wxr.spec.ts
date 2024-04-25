@@ -7,15 +7,17 @@ import { importWxr } from './import-wxr';
 import { readFile } from 'fs/promises';
 import { unzip } from './unzip';
 import { installPlugin } from './install-plugin';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step importWxr', () => {
 	let php: NodePHP;
+	let handler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
 
 		await unzip(php, {
 			zipFile: await getWordPressModule(),

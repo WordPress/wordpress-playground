@@ -1,7 +1,3 @@
-import {
-	PHPRequestHandler,
-	PHPRequestHandlerConfiguration,
-} from './php-request-handler';
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -27,6 +23,7 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 
 const STRING = 'string';
@@ -52,7 +49,7 @@ export class PHPExecutionFailureError extends Error {
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP {
+export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#phpIniPath?: string;
@@ -61,7 +58,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPRequestHandler;
+	requestHandler?: PHPRequestHandler<any>;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -74,18 +71,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 *
 	 * @internal
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
-	 * @param  serverOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
+	 * @param  requestHandlerOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
 	 */
-	constructor(
-		PHPRuntimeId?: PHPRuntimeId,
-		serverOptions?: PHPRequestHandlerConfiguration
-	) {
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
 		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
-		}
-		if (serverOptions) {
-			this.requestHandler = new PHPRequestHandler(this, serverOptions);
 		}
 	}
 
@@ -229,8 +220,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].FS.chdir(path);
 	}
 
-	/** @inheritDoc */
+	/**
+	 * Do not use. Use new PHPRequestHandler() instead.
+	 * @deprecated
+	 */
 	async request(request: PHPRequest): Promise<PHPResponse> {
+		console.warn(
+			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
+		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
@@ -283,7 +280,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				port
 			);
 			for (const key in $_SERVER) {
-				this.#setServerGlobalEntry(key, $_SERVER![key]);
+				this.#setServerGlobalEntry(key, $_SERVER[key]);
 			}
 
 			const env = request.env || {};
@@ -877,6 +874,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this.#wasmErrorsTarget = null;
 		delete this[__private__dont__use]['onMessage'];
 		delete this[__private__dont__use];
+	}
+
+	[Symbol.dispose]() {
+		if (this.#webSapiInitialized) {
+			this.exit(0);
+		}
 	}
 }
 

@@ -5,15 +5,18 @@ import {
 } from '@wp-playground/wordpress';
 import { login } from './login';
 import { unzip } from './unzip';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprint step installPlugin', () => {
 	let php: NodePHP;
+	let requestHandler: PHPRequestHandler<NodePHP>;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		requestHandler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await requestHandler.getPrimaryPhp();
+
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: '/wordpress',
@@ -22,7 +25,7 @@ describe('Blueprint step installPlugin', () => {
 
 	it('should log the user in', async () => {
 		await login(php, {});
-		const response = await php.request({
+		const response = await requestHandler.request({
 			url: '/wp-admin',
 		});
 		expect(response.text).toContain('Dashboard');

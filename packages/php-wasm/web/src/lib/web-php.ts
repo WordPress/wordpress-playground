@@ -3,14 +3,12 @@ import {
 	EmscriptenOptions,
 	loadPHPRuntime,
 	PHPLoaderModule,
-	PHPRequestHandlerConfiguration,
 	SupportedPHPVersion,
 } from '@php-wasm/universal';
 import { getPHPLoaderModule } from './get-php-loader-module';
 
 export interface PHPWebLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
-	requestHandler?: PHPRequestHandlerConfiguration;
 	onPhpLoaderModuleLoaded?: (module: PHPLoaderModule) => void;
 	/** @deprecated To be replaced with `extensions` in the future */
 	loadAllExtensions?: boolean;
@@ -59,10 +57,7 @@ export class WebPHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPWebLoaderOptions = {}
 	) {
-		return new WebPHP(
-			await WebPHP.loadRuntime(phpVersion, options),
-			options.requestHandler
-		);
+		return new WebPHP(await WebPHP.loadRuntime(phpVersion, options));
 	}
 
 	static async loadRuntime(

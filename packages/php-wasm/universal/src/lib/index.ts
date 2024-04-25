@@ -16,7 +16,7 @@ export type {
 } from './universal-php';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
-
+export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';

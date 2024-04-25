@@ -2,6 +2,7 @@ import { NodePHP } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { installPlugin } from './install-plugin';
 import { phpVar } from '@php-wasm/util';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 async function zipFiles(
 	php: NodePHP,
@@ -28,11 +29,11 @@ async function zipFiles(
 
 describe('Blueprint step installPlugin – without a root-level folder', () => {
 	it('should install a plugin even when it is zipped directly without a root-level folder', async () => {
-		const php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		const handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		const php = await handler.getPrimaryPhp();
 
 		// Create plugins folder
 		const rootPath = php.documentRoot;
@@ -69,18 +70,15 @@ describe('Blueprint step installPlugin', () => {
 	const pluginName = 'test-plugin';
 	const zipFileName = `${pluginName}-0.0.1.zip`;
 	beforeEach(async () => {
-		php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: '/wordpress',
-			},
+		const handler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			documentRoot: '/wordpress',
 		});
+		php = await handler.getPrimaryPhp();
+
 		rootPath = php.documentRoot;
 		php.mkdir(`${rootPath}/wp-content/plugins`);
 		installedPluginPath = `${rootPath}/wp-content/plugins/${pluginName}`;
-	});
-
-	afterEach(() => {
-		php.exit();
 	});
 
 	it('should install a plugin', async () => {
