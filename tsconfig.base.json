@@ -46,7 +46,6 @@
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
 			],
-			"@wp-playground/node": ["packages/playground/node/src/index.ts"],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],

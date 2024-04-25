@@ -73,6 +73,8 @@ initializeServiceWorker({
 				}
 				const request = await cloneRequest(event.request, {
 					url: resolvedUrl,
+					// Omit credentials to avoid causing cache aborts due to presence of cookies
+					credentials: 'omit',
 				});
 				return fetch(request).catch((e) => {
 					if (e?.name === 'TypeError') {

@@ -35,4 +35,25 @@ describe('createSpawnHandler', () => {
 			});
 		});
 	});
+
+	it('should exit with code 1 when the spawned process throws an exception', async () => {
+		const command = 'testCommand';
+		const program = vitest.fn(() => {
+			throw new Error('Program crash');
+		});
+
+		const spawnHandler = createSpawnHandler(program);
+		const childProcess = spawnHandler(command);
+
+		const errorfn = vitest.fn();
+		await new Promise((done) => {
+			childProcess.on('error', errorfn);
+			childProcess.on('exit', (code: number) => {
+				expect(code).toBe(1);
+				expect(program).toHaveBeenCalled();
+				done(null);
+			});
+		});
+		expect(errorfn).toHaveBeenCalledWith(new Error('Program crash'));
+	});
 });

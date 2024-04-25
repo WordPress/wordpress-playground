@@ -9,6 +9,7 @@
  */
 
 /* eslint-disable prefer-rest-params */
+import { logger } from '@php-wasm/logger';
 import type { WebPHP } from '@php-wasm/web';
 import type { EmscriptenFS } from './types';
 import { FilesystemOperation, journalFSEvents } from '@php-wasm/fs-journal';
@@ -136,8 +137,8 @@ class OpfsRewriter {
 		} catch (e) {
 			// Useful for debugging – the original error gets lost in the
 			// Comlink proxy.
-			console.log({ entry, name });
-			console.error(e);
+			logger.log({ entry, name });
+			logger.error(e);
 			throw e;
 		}
 	}

@@ -7,5 +7,6 @@
  */
 export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: number, url: string } {
 	// no-op for now, we don't want to bundle the whole WordPress with the single executable
+
 	throw new Error('Unsupported WordPress module: ' + wpVersion);
 }

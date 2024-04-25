@@ -35,7 +35,7 @@ function prependByte(
 		buffer.set(new Uint8Array(chunk), 1);
 		chunk = buffer.buffer;
 	} else {
-		console.log({ chunk });
+		log({ chunk });
 		throw new Error('Unsupported chunk type: ' + typeof chunk);
 	}
 	return chunk;

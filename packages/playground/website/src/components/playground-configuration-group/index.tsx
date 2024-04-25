@@ -15,6 +15,7 @@ import {
 import { OPFSButton } from './opfs-button';
 import { usePlaygroundContext } from '../playground-viewport/context';
 import { SyncLocalFilesButton } from './sync-local-files-button';
+import { logger } from '@php-wasm/logger';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -120,7 +121,7 @@ export default function PlaygroundConfigurationGroup({
 			});
 		} catch (e) {
 			// No directory selected but log the error just in case.
-			console.error(e);
+			logger.error(e);
 			return;
 		}
 		setDirName(dirHandle.name);

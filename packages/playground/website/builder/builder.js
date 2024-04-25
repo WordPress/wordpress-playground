@@ -261,7 +261,6 @@ const completeFeature = async (prefix) => {
 };
 
 let debounce = null;
-let starting = null;
 
 const getCompletions = async (editor, session, pos, prefix, callback) => {
 	const list = [];
@@ -537,15 +536,16 @@ const runBlueprint = async (editor) => {
 	newIframe.id = 'wp-playground';
 
 	try {
-		window.location.hash = JSON.stringify(JSON.parse(editor.getValue()));
 		document.body.setAttribute('data-starting', true);
 		clearError();
 
 		const blueprintJsonObject = getCurrentBlueprint(editor);
-		window.location.hash = JSON.stringify(getCurrentBlueprint(editor));
 		formatJson(editor, blueprintJsonObject);
 
-		const blueprintCopy = JSON.parse(JSON.stringify(blueprintJsonObject));
+		const blueprintString = JSON.stringify(blueprintJsonObject);
+		window.location.hash = blueprintString;
+
+		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
 			remoteUrl: `https://playground.wordpress.net/remote.html`,
@@ -571,7 +571,7 @@ const loadFromHash = (editor) => {
 		} catch (e) {
 			json = JSON.parse(hash);
 		}
-		formatJson(editor, json);
+		return json;
 	} catch (error) {
 		console.error(error);
 	}
@@ -622,8 +622,6 @@ function onLoaded() {
 		if (lines[event.end.row][event.end.column]) {
 			return;
 		}
-
-		const indent = (lines[event.start.row].match(/^(\s+)/g) || [''])[0];
 
 		const inserted = event.lines.join('\n');
 		const prevKey = getPrevKeys(editor, event.end);
@@ -781,30 +779,8 @@ function onLoaded() {
 		prevWin = window.open(url, '_blank');
 	});
 
-	if (window.location.hash) {
-		loadFromHash(editor);
-	} else {
-		formatJson(editor, {
-			landingPage: '/wp-admin/',
-			phpExtensionBundles: ['kitchen-sink'],
-			preferredVersions: {
-				php: '7.4',
-				wp: '5.9',
-			},
-			steps: [
-				{
-					step: 'login',
-					username: 'admin',
-					password: 'password',
-				},
-			],
-		});
-	}
-
-	runBlueprint(editor);
-
-	window.addEventListener('hashchange', () => {
-		loadFromHash(editor);
+	initializeBlueprint().then((blueprint) => {
+		formatJson(editor, blueprint);
 		runBlueprint(editor);
 	});
 
@@ -865,6 +841,50 @@ function onLoaded() {
 		exec: (editor) => runBlueprint(editor),
 		readOnly: false,
 	});
+}
+
+const defaultBlueprint = {
+	landingPage: '/wp-admin/',
+	phpExtensionBundles: ['kitchen-sink'],
+	preferredVersions: {
+		php: '7.4',
+		wp: '5.9',
+	},
+	steps: [
+		{
+			step: 'login',
+			username: 'admin',
+			password: 'password',
+		},
+	],
+};
+
+async function initializeBlueprint() {
+	if (window.location.hash) {
+		return loadFromHash();
+	}
+
+	const urlParams = new URLSearchParams(window.location.search);
+	if (urlParams.has('blueprint-url')) {
+		try {
+			const blueprintUrl = new URL(urlParams.get('blueprint-url'));
+			if (blueprintUrl.hostname === 'github.com') {
+				blueprintUrl.pathname = blueprintUrl.pathname.replace(
+					/^\/([^/]+)\/([^/]+)\/blob/,
+					'/$1/$2/'
+				);
+				blueprintUrl.hostname = 'raw.githubusercontent.com';
+			}
+			console.log('blueprintUrl.toString()', blueprintUrl.toString());
+			const response = await fetch(blueprintUrl.toString());
+			return await response.json();
+		} catch (error) {
+			showError(error);
+			return defaultBlueprint;
+		}
+	}
+
+	return defaultBlueprint;
 }
 
 if (document.readyState !== 'loading') {
