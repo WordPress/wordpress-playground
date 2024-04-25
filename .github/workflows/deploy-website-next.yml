@@ -72,12 +72,12 @@ jobs:
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     playground-website/ \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:~/updated-playground-files
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
 
                   # Host-specific deployment scripts and server config
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     wordpress-playground/packages/playground/website-deployment/ \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:~/website-deployment
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
 
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
