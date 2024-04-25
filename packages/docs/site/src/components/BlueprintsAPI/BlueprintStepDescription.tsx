@@ -1,5 +1,6 @@
 import React from 'react';
 import { getStepAPI } from './model';
+import ReactMarkdown from 'react-markdown';
 
 export function BlueprintStepDescription({ name }) {
 	const stepApi = getStepAPI(name);
@@ -8,9 +9,22 @@ export function BlueprintStepDescription({ name }) {
 		<p>
 			{stepApi.stepDetails.summary.map((part) => {
 				if (part.kind === 'code') {
-					return <code>{part.text.replace(/^`|`$/g, '')}</code>;
+					return (
+						<>
+							{' '}
+							<code>{part.text.replace(/^`|`$/g, '')}</code>{' '}
+						</>
+					);
 				}
-				return part.text;
+				return (
+					<ReactMarkdown
+						components={{
+							p: 'span',
+						}}
+					>
+						{part.text}
+					</ReactMarkdown>
+				);
 			})}
 		</p>
 	);
