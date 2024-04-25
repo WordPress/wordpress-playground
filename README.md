@@ -104,7 +104,7 @@ Any changes you make to `.ts` files will be live-reloaded. Changes to `Dockerfil
 
 From here, the [documentation](https://wordpress.github.io/wordpress-playground/) will help you learn how WordPress Playground works and how to use it to build amazing things!
 
-And here's a few more interesting CLI commands, which expect that you have `nx` installed globally:
+And here's a few more interesting CLI commands, which expect that you [have `nx` installed globally](https://nx.dev/getting-started/installation#installing-nx-globally):
 
 ```bash
 # Build and run PHP.wasm CLI
