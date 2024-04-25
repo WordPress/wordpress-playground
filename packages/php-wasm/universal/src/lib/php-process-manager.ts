@@ -127,7 +127,7 @@ export class PHPProcessManager<PHP extends BasePHP> implements AsyncDisposable {
 	 * @throws {MaxPhpInstancesError} when the maximum number of PHP instances is reached
 	 *                                and the waiting timeout is exceeded.
 	 */
-	async getInstance(): Promise<SpawnedPHP<PHP>> {
+	async acquirePHPInstance(): Promise<SpawnedPHP<PHP>> {
 		if (this.primaryIdle) {
 			this.primaryIdle = false;
 			return {
