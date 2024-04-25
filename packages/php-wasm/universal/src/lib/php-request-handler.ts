@@ -15,12 +15,11 @@ import { PHPRequest, PHPRunOptions } from './universal-php';
 import { encodeAsMultipart } from './encode-as-multipart';
 import {
 	MaxPhpInstancesError,
-	PHPFactoryArgs,
+	PHPFactoryOptions,
 	PHPProcessManager,
 	SpawnedPHP,
 } from './php-process-manager';
 import { HttpCookieStore } from './http-cookie-store';
-import { logger } from '@php-wasm/logger';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -45,7 +44,7 @@ interface BaseConfiguration {
 }
 
 export type PHPRequestHandlerFactoryArgs<PHP extends BasePHP> =
-	PHPFactoryArgs & {
+	PHPFactoryOptions & {
 		requestHandler: PHPRequestHandler<PHP>;
 	};
 
@@ -70,6 +69,11 @@ export type PHPRequestHandlerConfiguration<PHP extends BasePHP> =
 					phpFactory: (
 						requestHandler: PHPRequestHandlerFactoryArgs<PHP>
 					) => Promise<PHP>;
+					/**
+					 * The maximum number of PHP instances that can exist at
+					 * the same time.
+					 */
+					maxPhpInstances?: number;
 			  }
 		);
 
