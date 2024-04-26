@@ -87,7 +87,80 @@ EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buff
 
 
 extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
-extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+/**
+ * Shims popen(3) functionallity:
+ * https://man7.org/linux/man-pages/man3/popen.3.html
+ *
+ * Uses the same PHPWASM.spawnProcess callback as js_open_process,
+ * but waits for the process to exit and returns a path to a file
+ * with all the output bufferred.
+ *
+ * @TODO: get rid of this function and only rely on js_open_process
+ * instead.
+ *
+ * @param {int} command Command to execute
+ * @param {int} mode Mode to open the command in
+ * @param {int} exitCodePtr Pointer to the exit code
+ * @returns {int} File descriptor of the command output
+ */
+EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t *exit_code_ptr), {
+	// Parse args
+	if (!command)
+		return 1; // shell is available
+
+	const cmdstr = UTF8ToString(command);
+	if (!cmdstr.length)
+		return 0; // this is what glibc seems to do (shell works test?)
+
+	const modestr = UTF8ToString(mode);
+	if (!modestr.length)
+		return 0; // this is what glibc seems to do (shell works test?)
+	if (modestr === 'w')
+	{
+		console.error('popen($cmd, "w") is not implemented yet');
+	}
+
+	return new Promise(async (wakeUp) => {
+		let cp;
+		try {
+			cp = PHPWASM.spawnProcess(cmdstr, []);
+			if (cp instanceof Promise) {
+				cp = await cp;
+			}
+		} catch (e) {
+			console.error(e);
+			if (e.code === 'SPAWN_UNSUPPORTED') {
+				return 1;
+			}
+			throw e;
+		}
+
+		const outByteArrays = [];
+		cp.stdout.on('data', function (data) {
+			outByteArrays.push(data);
+		});
+
+		const outputPath = '/tmp/popen_output';
+		cp.on('exit', function (exitCode) {
+			// Concat outByteArrays, an array of UInt8Arrays
+			// into a single Uint8Array.
+			const outBytes = new Uint8Array(
+				outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
+			);
+			let offset = 0;
+			for (const byteArray of outByteArrays) {
+				outBytes.set(byteArray, offset);
+				offset += byteArray.length;
+			}
+
+			FS.writeFile(outputPath, outBytes);
+
+			HEAPU8[exitCodePtr] = exitCode;
+			wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
+		});
+	});
+});
+
 extern int __wasi_syscall_ret(__wasi_errno_t code);
 extern __wasi_errno_t js_fd_read(
 	__wasi_fd_t fd,

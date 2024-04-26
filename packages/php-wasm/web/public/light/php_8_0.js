@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 6283711; 
+export const dependenciesTotalSize = 6284874; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -625,6 +625,8 @@ var tempI64;
 
 function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.handleAsync(async () => { if (Module['onMessage']) { const dataStr = UTF8ToString(data); console.log("onMessage"); return Module['onMessage'](dataStr) .then((response) => { const responseBytes = typeof response === 'string' ? new TextEncoder().encode(response) : response; console.log("Response", { response, responseBytes }); const responseSize = responseBytes.byteLength; console.log("Response size", responseSize); const responsePtr = _malloc(responseSize + 1); HEAPU8.set(responseBytes, responsePtr); HEAPU8[responsePtr + responseSize] = 0; HEAPU8[response_buffer] = responsePtr; HEAPU8[response_buffer + 1] = responsePtr >> 8; HEAPU8[response_buffer + 2] = responsePtr >> 16; HEAPU8[response_buffer + 3] = responsePtr >> 24; return responseSize; }) .catch((e) => { console.error(e); return -1; }); } }); }
 __asyncjs__js_module_onMessage.sig = 'iii';
+function __asyncjs__js_popen_to_file(cmd,mode,exit_code_ptr) { return Asyncify.handleAsync(async () => { if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return new Promise(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }); }
+__asyncjs__js_popen_to_file.sig = 'iiii';
 
 // end include: preamble.js
 
@@ -6970,61 +6972,6 @@ url = Module["websocket"]["url"](...arguments);
   		});
   	}
 
-  
-  function _js_popen_to_file(command, mode, exitCodePtr) {
-  		// Parse args
-  		if (!command) return 1; // shell is available
-  
-  		const cmdstr = UTF8ToString(command);
-  		if (!cmdstr.length) return 0; // this is what glibc seems to do (shell works test?)
-  
-  		const modestr = UTF8ToString(mode);
-  		if (!modestr.length) return 0; // this is what glibc seems to do (shell works test?)
-  		if (modestr === 'w') {
-  			console.error('popen($cmd, "w") is not implemented yet');
-  		}
-  
-  		return Asyncify.handleSleep(async (wakeUp) => {
-  			let cp;
-  			try {
-  				cp = PHPWASM.spawnProcess(cmdstr, []);
-  				if (cp instanceof Promise) {
-  					cp = await cp;
-  				}
-  			} catch (e) {
-  				console.error(e);
-  				if (e.code === 'SPAWN_UNSUPPORTED') {
-  					return 1;
-  				}
-  				throw e;
-  			}
-  
-  			const outByteArrays = [];
-  			cp.stdout.on('data', function (data) {
-  				outByteArrays.push(data);
-  			});
-  
-  			const outputPath = '/tmp/popen_output';
-  			cp.on('exit', function (exitCode) {
-  				// Concat outByteArrays, an array of UInt8Arrays
-  				// into a single Uint8Array.
-  				const outBytes = new Uint8Array(
-  					outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
-  				);
-  				let offset = 0;
-  				for (const byteArray of outByteArrays) {
-  					outBytes.set(byteArray, offset);
-  					offset += byteArray.length;
-  				}
-  
-  				FS.writeFile(outputPath, outBytes);
-  
-  				HEAPU8[exitCodePtr] = exitCode;
-  				wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
-  			});
-  		});
-  	}
-
   function _js_process_status(pid, exitCodePtr) {
   		if (!PHPWASM.child_proc_by_pid[pid]) {
   			return -1;
@@ -7961,6 +7908,8 @@ var wasmImports = {
   /** @export */
   __asyncjs__js_module_onMessage,
   /** @export */
+  __asyncjs__js_popen_to_file,
+  /** @export */
   __call_sighandler: ___call_sighandler,
   /** @export */
   __syscall_accept4: ___syscall_accept4,
@@ -8107,8 +8056,6 @@ var wasmImports = {
   /** @export */
   js_open_process: _js_open_process,
   /** @export */
-  js_popen_to_file: _js_popen_to_file,
-  /** @export */
   js_process_status: _js_process_status,
   /** @export */
   js_waitpid: _js_waitpid,
@@ -8192,7 +8139,7 @@ var dynCall_jiiiji = Module['dynCall_jiiiji'] = (a0, a1, a2, a3, a4, a5, a6) => 
 var dynCall_iiiji = Module['dynCall_iiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiji = Module['dynCall_iiiji'] = wasmExports['dynCall_iiiji'])(a0, a1, a2, a3, a4, a5);
 var dynCall_jiji = Module['dynCall_jiji'] = (a0, a1, a2, a3, a4) => (dynCall_jiji = Module['dynCall_jiji'] = wasmExports['dynCall_jiji'])(a0, a1, a2, a3, a4);
 var ___start_em_js = Module['___start_em_js'] = 1658124;
-var ___stop_em_js = Module['___stop_em_js'] = 1658999;
+var ___stop_em_js = Module['___stop_em_js'] = 1660087;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

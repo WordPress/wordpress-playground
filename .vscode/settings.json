@@ -17,7 +17,8 @@
 		"string": "c",
 		"string_view": "c",
 		"vector": "c",
-		"span": "c"
+		"span": "c",
+		"numeric": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"
