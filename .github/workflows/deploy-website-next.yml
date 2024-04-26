@@ -51,8 +51,6 @@ jobs:
             - name: Deploy to playground.wordpress.net
               shell: bash
               run: |
-                  echo Looking at what files are present
-                  ls -R
                   ZIP_URL=$(
                       curl -L -s -S \
                            -H "Accept: application/vnd.github+json" \
@@ -84,7 +82,7 @@ jobs:
 
                   # Host-specific deployment scripts and server config
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
-                    wordpress-playground/packages/playground/website-deployment/ \
+                    packages/playground/website-deployment/ \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
 
                   # Apply update
