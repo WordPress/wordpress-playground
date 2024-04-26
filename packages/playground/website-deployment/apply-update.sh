@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-
 # Explicitly use the site's declared PHP version.
 # Otherwise, we've seen this defaulting to PHP 7.4 which breaks our custom-redirects script.
 SITE_PHP="/usr/local/php${PHP_VERSION}/bin/php"
@@ -18,12 +17,15 @@ mkdir website-update/files-to-serve-via-php
 
 echo Copy supporting files for WP Cloud
 cp -r ~/website-deployment/__wp__ ~/website-update/
+cp ~/website-deployment/custom-redirects-lib.php ~/website-update/
 cp ~/website-deployment/custom-redirects.php ~/website-update/
 cp ~/website-deployment/mime-types.php ~/website-update/
 
-function match_files_to_serve_via_php() {
+function match_files_to_serve_via_php() (
+    cd ~/website-deployment
+
     "$SITE_PHP" -r '
-    require_once "/srv/htdocs/custom-redirects.php";
+    require "custom-redirects-lib.php";
     while ( $path = fgets( STDIN ) ) {
         $path = trim( $path );
         $filename = basename( $path );
@@ -32,7 +34,7 @@ function match_files_to_serve_via_php() {
         }
     }
     '
-}
+)
 
 function set_aside_files_to_serve_via_php() {
     while read FILE_TO_SERVE_VIA_PHP; do
@@ -49,7 +51,7 @@ find -type f \
     | set_aside_files_to_serve_via_php
 
 echo Syncing staged files to production
-rsync -av --delete ~/website-update/* /srv/htdocs/ 2>&1 | tee ~/website-deployment/rsync-log
+rsync -av --delete ~/website-update/* /srv/htdocs/
 
 echo Purging edge cache
 curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
