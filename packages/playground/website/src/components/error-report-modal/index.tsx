@@ -17,10 +17,6 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitted, setSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
 
-	function showModal() {
-		return activeModal === 'error-report';
-	}
-
 	useEffect(() => {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
@@ -32,10 +28,8 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 
 	useEffect(() => {
 		resetForm();
-		if (showModal()) {
-			setLogs(logger.getLogs().join('\n'));
-			setUrl(window.location.href);
-		}
+		setLogs(logger.getLogs().join('\n'));
+		setUrl(window.location.href);
 	}, [activeModal, setActiveModal, logs, setLogs]);
 
 	function resetForm() {
@@ -154,7 +148,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	return (
-		<Modal isOpen={showModal()} onRequestClose={onClose}>
+		<Modal isOpen={true} onRequestClose={onClose}>
 			<header className={css.errorReportModalHeader}>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>

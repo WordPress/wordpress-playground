@@ -36,6 +36,7 @@ import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
+import { StartErrorModal } from './components/start-error-modal';
 
 collectWindowErrors(logger);
 
@@ -129,12 +130,22 @@ function Main() {
 		return values;
 	});
 
+	const modal = () => {
+		if (activeModal === 'log') {
+			return <LogModal />;
+		} else if (activeModal === 'error-report') {
+			return <ErrorReportModal blueprint={blueprint} />;
+		} else if (activeModal === 'start-error') {
+			return <StartErrorModal />;
+		}
+		return null;
+	};
+
 	return (
 		<PlaygroundContext.Provider
 			value={{ storage, activeModal, setActiveModal }}
 		>
-			<ErrorReportModal blueprint={blueprint} />
-			<LogModal />
+			{modal()}
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}

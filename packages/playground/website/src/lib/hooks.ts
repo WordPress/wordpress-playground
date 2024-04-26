@@ -51,7 +51,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 		})
 			.catch((error) => {
 				logger.error(error);
-				setActiveModal('log');
+				setActiveModal('start-error');
 			})
 			.finally(async () => {
 				if (playgroundTmp) {

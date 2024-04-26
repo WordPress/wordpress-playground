@@ -14,14 +14,7 @@ export function LogModal() {
 
 	useEffect(getLogs, [activeModal]);
 
-	function showModal() {
-		return activeModal === 'log';
-	}
-
 	function getLogs() {
-		if (!showModal()) {
-			return;
-		}
 		setLogs(logger.getLogs());
 	}
 
@@ -47,7 +40,7 @@ export function LogModal() {
 	};
 
 	return (
-		<Modal isOpen={showModal()} onRequestClose={onClose} styles={styles}>
+		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
 			<header>
 				<h2>Logs</h2>
 				<TextControl
