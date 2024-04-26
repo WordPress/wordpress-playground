@@ -9,5 +9,6 @@
 
 .log-modal__log {
 	text-wrap: wrap;
+	word-wrap: break-word;
 	margin: 0.5rem 0;
 }
