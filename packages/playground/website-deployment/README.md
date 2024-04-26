@@ -26,3 +26,7 @@ New website builds are pushed to the WP Cloud site via SSH.
 During deployment, we consult `custom-redirects-lib.php` about each file, and if it needs special treatment (e.g., URL rewrites, redirects, etc), it is set aside into the `<web-root>/files-to-serve-via-php/` folder with its relative path otherwise preserved. For example, if a file `a/b/c/playground.png` requires special handling, it is moved to `<web-root>/files-to-serve-via-php/a/b/c/playground.png`. Nginx will no longer find the file based on the request URI `a/b/c/playground.png` and will delegate the request to PHP, giving us a chance to customize how the file is served.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
+
+## Secrets
+
+Secrets are provided by a "Persistent Data" feature of WP Cloud and are set manually via a WP Cloud API. Once set, the secrets are synched to the site in an encrypted form which is accessed by `custom-redirects-lib.php` via the `Atomic_Persistent_Data`. Here is an [example of retrieving Slack-related secrets](https://github.com/WordPress/wordpress-playground/blob/776e8bbddecdde287ae7bb1d42d711dedf71f138/packages/playground/website-deployment/custom-redirects-lib.php#L186-L192).
