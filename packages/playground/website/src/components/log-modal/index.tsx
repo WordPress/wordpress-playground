@@ -34,6 +34,7 @@ export function LogModal() {
 			.filter((log) =>
 				log.toLowerCase().includes(searchTerm.toLowerCase())
 			)
+			.reverse()
 			.map((log, index) => (
 				<pre className={css.logModalLog} key={index}>
 					{log}
