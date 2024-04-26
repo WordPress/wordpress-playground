@@ -1,6 +1,6 @@
 import { Button } from '@wordpress/components';
 import { LogModal } from '../log-modal';
-import { useEffect, useState } from '@wordpress/element';
+import { useState } from '@wordpress/element';
 
 import css from './style.module.css';
 
