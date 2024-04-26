@@ -336,7 +336,7 @@ RUN echo '' > /root/php-src/ext/standard/proc_open.c;
 
 RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
-	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec -s ASYNCIFY=2 " \
+	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec -s ASYNCIFY=2 -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
 	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
 	emmake make -j1
@@ -446,6 +446,7 @@ RUN set -euxo pipefail; \
 	-L/root/lib -L/root/lib/lib/ \
 	-lproxyfs.js \
 	$(cat /root/.emcc-php-wasm-flags) \
+	-sSUPPORT_LONGJMP=wasm -fwasm-exceptions \
 	-s ASYNCIFY=2 \
 	-s ASYNCIFY_EXPORTS='["wasm_sleep", "wasm_read", "wasm_sapi_handle_request", "wasm_sapi_request_shutdown"]' \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \

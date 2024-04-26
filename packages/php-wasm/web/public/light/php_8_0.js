@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 6306073; 
+export const dependenciesTotalSize = 6283711; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -427,6 +427,19 @@ function abort(what) {
   // definition for WebAssembly.RuntimeError claims it takes no arguments even
   // though it can.
   // TODO(https://github.com/google/closure-compiler/pull/3913): Remove if/when upstream closure gets fixed.
+  // See above, in the meantime, we resort to wasm code for trapping.
+  //
+  // In case abort() is called before the module is initialized, wasmExports
+  // and its exported '__trap' function is not available, in which case we throw
+  // a RuntimeError.
+  //
+  // We trap instead of throwing RuntimeError to prevent infinite-looping in
+  // Wasm EH code (because RuntimeError is considered as a foreign exception and
+  // caught by 'catch_all'), but in case throwing RuntimeError is fine because
+  // the module has not even been instantiated, even less running.
+  if (runtimeInitialized) {
+    ___trap();
+  }
   /** @suppress {checkTypes} */
   var e = new WebAssembly.RuntimeError(what);
 
@@ -610,7 +623,7 @@ var tempI64;
 // end include: runtime_debug.js
 // === Body ===
 
-function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.handleAsync(async () => { return Promise.resolve(0); if (Module['onMessage']) { const dataStr = UTF8ToString(data); return Module['onMessage'](dataStr) .then((response) => { const responseBytes = typeof response === 'string' ? new TextEncoder().encode(response) : response; const responseSize = responseBytes.byteLength; const responsePtr = _malloc(responseSize + 1); HEAPU8.set(responseBytes, responsePtr); HEAPU8[responsePtr + responseSize] = 0; HEAPU8[response_buffer] = responsePtr; HEAPU8[response_buffer + 1] = responsePtr >> 8; HEAPU8[response_buffer + 2] = responsePtr >> 16; HEAPU8[response_buffer + 3] = responsePtr >> 24; return responseSize; }) .catch((e) => { console.error(e); return -1; }); } }); }
+function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.handleAsync(async () => { if (Module['onMessage']) { const dataStr = UTF8ToString(data); console.log("onMessage"); return Module['onMessage'](dataStr) .then((response) => { const responseBytes = typeof response === 'string' ? new TextEncoder().encode(response) : response; console.log("Response", { response, responseBytes }); const responseSize = responseBytes.byteLength; console.log("Response size", responseSize); const responsePtr = _malloc(responseSize + 1); HEAPU8.set(responseBytes, responsePtr); HEAPU8[responsePtr + responseSize] = 0; HEAPU8[response_buffer] = responsePtr; HEAPU8[response_buffer + 1] = responsePtr >> 8; HEAPU8[response_buffer + 2] = responsePtr >> 16; HEAPU8[response_buffer + 3] = responsePtr >> 24; return responseSize; }) .catch((e) => { console.error(e); return -1; }); } }); }
 __asyncjs__js_module_onMessage.sig = 'iii';
 
 // end include: preamble.js
@@ -672,10 +685,6 @@ __asyncjs__js_module_onMessage.sig = 'iii';
       default: abort(`invalid type for setValue: ${type}`);
     }
   }
-
-  var stackRestore = (val) => __emscripten_stack_restore(val);
-
-  var stackSave = () => _emscripten_stack_get_current();
 
   var UTF8Decoder = typeof TextDecoder != 'undefined' ? new TextDecoder('utf8') : undefined;
   
@@ -5524,11 +5533,6 @@ url = Module["websocket"]["url"](...arguments);
     };
   __emscripten_runtime_keepalive_clear.sig = 'v';
 
-  var __emscripten_throw_longjmp = () => {
-      throw Infinity;
-    };
-  __emscripten_throw_longjmp.sig = 'v';
-
   function __gmtime_js(time_low, time_high,tmPtr) {
     var time = convertI32PairToI53Checked(time_low, time_high);
   
@@ -7760,7 +7764,6 @@ url = Module["websocket"]["url"](...arguments);
   	}
 
 
-
   var runAndAbortIfError = (func) => {
       try {
         return func();
@@ -7878,7 +7881,9 @@ url = Module["websocket"]["url"](...arguments);
   
   
   
+  var stackSave = () => _emscripten_stack_get_current();
   
+  var stackRestore = (val) => __emscripten_stack_restore(val);
   
   
   
@@ -8046,8 +8051,6 @@ var wasmImports = {
   /** @export */
   _emscripten_runtime_keepalive_clear: __emscripten_runtime_keepalive_clear,
   /** @export */
-  _emscripten_throw_longjmp: __emscripten_throw_longjmp,
-  /** @export */
   _gmtime_js: __gmtime_js,
   /** @export */
   _localtime_js: __localtime_js,
@@ -8097,40 +8100,6 @@ var wasmImports = {
   getprotobyname: _getprotobyname,
   /** @export */
   getprotobynumber: _getprotobynumber,
-  /** @export */
-  invoke_i,
-  /** @export */
-  invoke_ii,
-  /** @export */
-  invoke_iii,
-  /** @export */
-  invoke_iiii,
-  /** @export */
-  invoke_iiiii,
-  /** @export */
-  invoke_iiiiii,
-  /** @export */
-  invoke_iiiiiii,
-  /** @export */
-  invoke_iiiiiiii,
-  /** @export */
-  invoke_iiiiiiiiii,
-  /** @export */
-  invoke_v,
-  /** @export */
-  invoke_vi,
-  /** @export */
-  invoke_vii,
-  /** @export */
-  invoke_viidii,
-  /** @export */
-  invoke_viii,
-  /** @export */
-  invoke_viiii,
-  /** @export */
-  invoke_viiiii,
-  /** @export */
-  invoke_viiiiii,
   /** @export */
   js_create_input_device: _js_create_input_device,
   /** @export */
@@ -8192,7 +8161,7 @@ var _php_wasm_init = Module['_php_wasm_init'] = () => (_php_wasm_init = Module['
 var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports['__funcs_on_exit'])();
 var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports['emscripten_builtin_memalign'])(a0, a1);
 var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports['_emscripten_timeout'])(a0, a1);
-var _setThrew = (a0, a1) => (_setThrew = wasmExports['setThrew'])(a0, a1);
+var ___trap = () => (___trap = wasmExports['__trap'])();
 var __emscripten_tempret_set = (a0) => (__emscripten_tempret_set = wasmExports['_emscripten_tempret_set'])(a0);
 var __emscripten_stack_restore = (a0) => (__emscripten_stack_restore = wasmExports['_emscripten_stack_restore'])(a0);
 var __emscripten_stack_alloc = (a0) => (__emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'])(a0);
@@ -8223,194 +8192,7 @@ var dynCall_jiiiji = Module['dynCall_jiiiji'] = (a0, a1, a2, a3, a4, a5, a6) => 
 var dynCall_iiiji = Module['dynCall_iiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiji = Module['dynCall_iiiji'] = wasmExports['dynCall_iiiji'])(a0, a1, a2, a3, a4, a5);
 var dynCall_jiji = Module['dynCall_jiji'] = (a0, a1, a2, a3, a4) => (dynCall_jiji = Module['dynCall_jiji'] = wasmExports['dynCall_jiji'])(a0, a1, a2, a3, a4);
 var ___start_em_js = Module['___start_em_js'] = 1658124;
-var ___stop_em_js = Module['___stop_em_js'] = 1658902;
-function invoke_iiiiiii(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vi(index,a1) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_ii(index,a1) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiii(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_i(index) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viii(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_v(index) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viidii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
+var ___stop_em_js = Module['___stop_em_js'] = 1658999;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===
