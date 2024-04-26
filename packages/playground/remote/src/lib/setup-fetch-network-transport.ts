@@ -133,5 +133,6 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 	jointBuffer.set(headersBuffer);
 	jointBuffer.set(bodyBuffer, headersBuffer.byteLength);
 
+	console.log('Returning jointBuffer from handleRequest()');
 	return jointBuffer;
 }

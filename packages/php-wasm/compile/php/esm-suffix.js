@@ -54,7 +54,7 @@ PHPLoader['removeRunDependency'] = function (...args) {
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
-PHPLoader['free'] = _free;
+PHPLoader['free'] = () => { console.warn("free isn't exported by the latest Emscripten anymore"); }//_free;
 
 return PHPLoader;
 

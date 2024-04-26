@@ -760,9 +760,12 @@ const LibraryExample = {
 	 * @see https://github.com/emscripten-core/emscripten/issues/13214
 	 */
 	js_fd_read: function (fd, iov, iovcnt, pnum) {
-		// Only run the read operation on a regular call,
-		// never when rewinding the stack.
-        if (Asyncify.state === Asyncify.State.Normal) {
+		if (
+			// When running JSPI
+			!Asyncify || !('State' in Asyncify)
+			// When running Asyncify and not rewinding the stack.
+			|| Asyncify.state === Asyncify.State.Normal
+		) {
             var returnCode;
             var stream;
 			let num = 0;
@@ -917,44 +920,40 @@ const LibraryExample = {
 		});
 	},
 
-	js_module_onMessage: function (data, bufPtr) {
-		if (typeof Asyncify === 'undefined') {
-			return;
-		}
+	// js_module_onMessage: function (data, bufPtr) {
+	// 	if (Module['onMessage']) {
+	// 		const dataStr = UTF8ToString(data);
 
-		if (Module['onMessage']) {
-			const dataStr = UTF8ToString(data);
+	// 		return Asyncify.handleSleep((wakeUp) => {
+	// 			Module['onMessage'](dataStr)
+	// 				.then((response) => {
+	// 					const responseBytes =
+	// 						typeof response === 'string'
+	// 							? new TextEncoder().encode(response)
+	// 							: response;
 
-			return Asyncify.handleSleep((wakeUp) => {
-				Module['onMessage'](dataStr)
-					.then((response) => {
-						const responseBytes =
-							typeof response === 'string'
-								? new TextEncoder().encode(response)
-								: response;
+	// 					// Copy the response bytes to heap
+	// 					const responseSize = responseBytes.byteLength;
+	// 					const responsePtr = _malloc(responseSize + 1);
+	// 					HEAPU8.set(responseBytes, responsePtr);
+	// 					HEAPU8[responsePtr + responseSize] = 0;
+	// 					HEAPU8[bufPtr] = responsePtr;
+	// 					HEAPU8[bufPtr + 1] = responsePtr >> 8;
+	// 					HEAPU8[bufPtr + 2] = responsePtr >> 16;
+	// 					HEAPU8[bufPtr + 3] = responsePtr >> 24;
 
-						// Copy the response bytes to heap
-						const responseSize = responseBytes.byteLength;
-						const responsePtr = _malloc(responseSize + 1);
-						HEAPU8.set(responseBytes, responsePtr);
-						HEAPU8[responsePtr + responseSize] = 0;
-						HEAPU8[bufPtr] = responsePtr;
-						HEAPU8[bufPtr + 1] = responsePtr >> 8;
-						HEAPU8[bufPtr + 2] = responsePtr >> 16;
-						HEAPU8[bufPtr + 3] = responsePtr >> 24;
-
-						wakeUp(responseSize);
-					})
-					.catch((e) => {
-						// Log the error and return NULL. Message passing
-						// separates JS context from the PHP context so we
-						// don't let PHP crash here.
-						console.error(e);
-						wakeUp(-1);
-					});
-			});
-		}
-	},
+	// 					wakeUp(responseSize);
+	// 				})
+	// 				.catch((e) => {
+	// 					// Log the error and return NULL. Message passing
+	// 					// separates JS context from the PHP context so we
+	// 					// don't let PHP crash here.
+	// 					console.error(e);
+	// 					wakeUp(-1);
+	// 				});
+	// 		});
+	// 	}
+	// },
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');

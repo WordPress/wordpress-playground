@@ -51,8 +51,8 @@ libsqlite3: libsqlite3/dist/root/lib/lib/libsqlite3.a
 libsqlite3/dist/root/lib/lib/libsqlite3.a: base-image libz
 	mkdir -p ./libsqlite3/dist/root/lib
 	docker build -f ./libsqlite3/Dockerfile -t playground-php-wasm:libsqlite3 . --progress=plain
-	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/install/lib ./libsqlite3/dist/root/lib
-	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/install/include ./libsqlite3/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/lib ./libsqlite3/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libsqlite3):/root/lib/include ./libsqlite3/dist/root/lib
 
 libiconv: libiconv/dist/root/lib/lib/libiconv.a
 libiconv/dist/root/lib/lib/libiconv.a: base-image libz

@@ -12,7 +12,6 @@ RUN set -euxo pipefail &&\
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
-        --prefix=/root/install/ && \
+        --prefix=/root/lib/ && \
     EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
     emmake make install
-RUN ls -R /root/install

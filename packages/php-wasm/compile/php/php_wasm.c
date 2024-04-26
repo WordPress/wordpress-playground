@@ -32,18 +32,6 @@ unsigned int wasm_sleep(unsigned int time)
 	return time;
 }
 
-extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
-extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
-extern int __wasi_syscall_ret(__wasi_errno_t code);
-extern __wasi_errno_t js_fd_read(
-	__wasi_fd_t fd,
-	const __wasi_iovec_t *iovs,
-	size_t iovs_len,
-	__wasi_size_t *nread);
-
-// Exit code of the last exited child process call.
-int wasm_pclose_ret = -1;
-
 /**
  * Passes a message to the JavaScript module and writes the response
  * data, if any, to the response_buffer pointer.
@@ -61,7 +49,53 @@ int wasm_pclose_ret = -1;
  * to handle exceptions and errors gracefully within the function to ensure
  * the stability of the system.
  */
-extern size_t js_module_onMessage(const char *data, char **response_buffer);
+EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buffer), {
+	return Promise.resolve(0);
+	if (Module['onMessage']) {
+		const dataStr = UTF8ToString(data);
+
+		return Module['onMessage'](dataStr)
+			.then((response) => {
+				const responseBytes =
+					typeof response === 'string'
+						? new TextEncoder().encode(response)
+						: response;
+
+				// Copy the response bytes to heap
+				const responseSize = responseBytes.byteLength;
+				const responsePtr = _malloc(responseSize + 1);
+				HEAPU8.set(responseBytes, responsePtr);
+				HEAPU8[responsePtr + responseSize] = 0;
+				HEAPU8[response_buffer] = responsePtr;
+				HEAPU8[response_buffer + 1] = responsePtr >> 8;
+				HEAPU8[response_buffer + 2] = responsePtr >> 16;
+				HEAPU8[response_buffer + 3] = responsePtr >> 24;
+
+				return responseSize;
+			})
+			.catch((e) => {
+				// Log the error and return NULL. Message passing
+				// separates JS context from the PHP context so we
+				// don't let PHP crash here.
+				console.error(e);
+				return -1;
+			});
+	}
+});
+
+
+extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
+extern char *js_popen_to_file(const char *cmd, const char *mode, uint8_t *exit_code_ptr);
+extern int __wasi_syscall_ret(__wasi_errno_t code);
+extern __wasi_errno_t js_fd_read(
+	__wasi_fd_t fd,
+	const __wasi_iovec_t *iovs,
+	size_t iovs_len,
+	__wasi_size_t *nread);
+
+// Exit code of the last exited child process call.
+int wasm_pclose_ret = -1;
+
 
 // popen() shim
 // -----------------------------------------------------------
@@ -1280,6 +1314,7 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 	}
 
 	EG(exit_status) = 0;
+	// Get JSPI to pick up this function is async
 
 	TSRMLS_FETCH();
 	if (wasm_server_context->execution_mode == MODE_EXECUTE_SCRIPT)
@@ -1326,7 +1361,6 @@ int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 			zend_end_try();
 			goto wasm_request_done;
 		}
-
 		php_execute_script(&file_handle TSRMLS_CC);
 	}
 	else

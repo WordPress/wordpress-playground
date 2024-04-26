@@ -5736,6 +5736,7 @@ function _js_create_input_device(deviceId) {
 }
 
 function _js_fd_read(fd, iov, iovcnt, pnum) {
+    console.log('Asyncify.State', Asyncify.State);
  if (Asyncify.state === Asyncify.State.Normal) {
   var returnCode;
   var stream;
@@ -6660,6 +6661,7 @@ var Asyncify = {
   return id;
  },
  maybeStopUnwind: function() {
+    console.log('Asyncify.State', Asyncify.State);
   if (Asyncify.currData && Asyncify.state === Asyncify.State.Unwinding && Asyncify.exportCallStack.length === 0) {
    Asyncify.state = Asyncify.State.Normal;
    runtimeKeepalivePush();
@@ -6704,7 +6706,8 @@ var Asyncify = {
   return start();
  },
  handleSleep: function(startAsync) {
-  if (ABORT) return;
+     if (ABORT) return;
+     console.log('Asyncify.State', Asyncify.State);
   if (Asyncify.state === Asyncify.State.Normal) {
    var reachedCallback = false;
    var reachedAfterCallback = false;
@@ -6750,6 +6753,7 @@ var Asyncify = {
     runAndAbortIfError((() => _asyncify_start_unwind(Asyncify.currData)));
    }
   } else if (Asyncify.state === Asyncify.State.Rewinding) {
+    console.log('Asyncify.State', Asyncify.State);
    Asyncify.state = Asyncify.State.Normal;
    runAndAbortIfError(_asyncify_stop_rewind);
    _free(Asyncify.currData);
@@ -7130,6 +7134,16 @@ var wasmImports = {
  q: _wasm_setsockopt,
  V: _wasm_shutdown
 };
+    
+for(const key in wasmImports) {
+    const fn = wasmImports[key];
+    if(!fn.sig && key.startsWith('invoke_v')) {
+        fn.sig = key.split('_v')[1];
+    }
+    else if(!fn.sig && key.startsWith('invoke_')) {
+        fn.sig = key.split('_')[1];
+    }
+}
 
 var asm = createWasm();
 
