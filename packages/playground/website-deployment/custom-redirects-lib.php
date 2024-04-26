@@ -9,7 +9,8 @@ function playground_file_needs_special_treatment( $path ) {
 	return (
 		!! playground_maybe_rewrite( $path ) ||
 		!! playground_maybe_redirect( $path ) ||
-		!! playground_get_custom_response_headers( $path )
+		!! playground_get_custom_response_headers( basename( $path ) ) ||
+		!! playground_maybe_set_environment( $path )
 	);
 }
 
@@ -127,12 +128,7 @@ function playground_handle_request() {
 
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$resolved_path'" );
-		// TODO: Set these from persistent data for logger.php
-		/*
-		# Slack All
-		SetEnv SLACK_CHANNEL --secret--
-		SetEnv SLACK_TOKEN --secret--
-		*/
+		playground_maybe_set_environment( $requested_path );
 		require $resolved_path;
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
@@ -172,6 +168,32 @@ function playground_maybe_redirect( $requested_path ) {
 			'location' => '/index.html',
 			'status' => 302,
 		);
+	}
+
+	return false;
+}
+
+function playground_maybe_set_environment( $requested_path ) {
+	if ( ! str_ends_with( $requested_path, '.php' ) ) {
+		return false;
+	}
+
+	if ( str_ends_with( $requested_path, 'logger.php' ) ) {
+		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+		// which is not set yet. But we can force its definition.
+		__atomic_env_define( 'DB_PASSWORD' );
+
+		$secrets = new Atomic_Persistent_Data;
+		if ( isset(
+			$secrets->LOGGER_SLACK_CHANNEL,
+			$secrets->LOGGER_SLACK_TOKEN,
+		) ) {
+			putenv( "SLACK_CHANNEL={$secrets->LOGGER_SLACK_CHANNEL}" );
+			putenv( "SLACK_TOKEN={$secrets->LOGGER_SLACK_TOKEN}" );
+		} else {
+			error_log( 'PLAYGROUND: Missing secrets for logger.php' );
+		}
+		return true;
 	}
 
 	return false;
