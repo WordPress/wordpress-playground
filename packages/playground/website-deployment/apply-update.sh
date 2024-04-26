@@ -44,9 +44,11 @@ function set_aside_files_to_serve_via_php() {
         mv "$FILE_TO_SERVE_VIA_PHP" "$TARGET_DIR/"
     done
 }
+
 echo Configure which files should be served by Nginx and which by PHP
 cd ~/website-update
 find -type f \
+    | grep -v files-to-serve-via-php \
     | match_files_to_serve_via_php \
     | set_aside_files_to_serve_via_php
 
