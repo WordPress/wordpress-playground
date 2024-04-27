@@ -850,9 +850,22 @@ const LibraryExample = {
 		});
 	},
 
-	
-
 };
 
 autoAddDeps(LibraryExample, '$PHPWASM');
 mergeInto(LibraryManager.library, LibraryExample);
+
+/*
+wasm_sleep.sig = 'ii';
+wasm_setsockopt.sig = 'iiiiiii';
+wasm_popen.sig = 'iii';
+wasm_shutdown.sig = 'iii';
+wasm_poll_socket.sig = 'iiii';
+wasm_socket_has_data.sig = 'ii';
+wasm_close.sig = 'ii';
+js_waitpid.sig = 'iii';
+js_open_process.sig = 'iiiiiiiiii';
+js_create_input_device.sig = 'ii';
+js_fd_read.sig = 'iiiii;
+
+*/

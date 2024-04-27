@@ -25,7 +25,7 @@ RUN set -euxo pipefail; \
 
 RUN set -euxo pipefail; \
 	source /root/emsdk/emsdk_env.sh; \
-	EMCC_FLAGS="-fPIC" emmake make; \
+	EMCC_FLAGS="-fPIC -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make; \
 	emmake make install;
 
 RUN ls -R /root/install

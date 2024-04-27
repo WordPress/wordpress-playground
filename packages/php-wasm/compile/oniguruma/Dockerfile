@@ -13,7 +13,7 @@ RUN cd oniguruma && \
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \
-        EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE " emmake make;
+        EMCC_SKIP="-lz" EMCC_FLAGS=" -sSIDE_MODULE -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make;
 
 RUN cd oniguruma && \
         source /root/emsdk/emsdk_env.sh && \

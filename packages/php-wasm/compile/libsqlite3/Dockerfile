@@ -13,5 +13,5 @@ RUN set -euxo pipefail &&\
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
         --prefix=/root/lib/ && \
-    EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE " emmake make && \
+    EMCC_SKIP="-lc" EMCC_FLAGS=" -sSIDE_MODULE -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make && \
     emmake make install

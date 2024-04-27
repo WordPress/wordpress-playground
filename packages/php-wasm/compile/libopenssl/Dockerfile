@@ -16,4 +16,4 @@ RUN set -euxo pipefail && \
     EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make -j 12 build_generated libssl.a libcrypto.a; \
     cp -RL include/openssl /root/lib/include && \
     cp libcrypto.a libssl.a /root/lib/lib && \
-    EMCC_FLAGS=" -sSIDE_MODULE " EMCC_SKIP="-lz" emmake make install_sw;
+    EMCC_FLAGS=" -sSIDE_MODULE -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " EMCC_SKIP="-lz" emmake make install_sw;

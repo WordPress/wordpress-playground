@@ -15,5 +15,5 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/install/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
