@@ -121,13 +121,11 @@ RUN if [ "$WITH_LIBZIP" = "yes" ]; then \
 RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 	then \
 		# Configure build flags
-		echo -n ' --enable-phar --enable-cli=static --enable-readline --with-libedit=/root/lib ' >> /root/.php-configure-flags && \
+		echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
 		echo -n ' sapi/cli/php_cli_process_title.c sapi/cli/ps_title.c sapi/cli/php_http_parser.c sapi/cli/php_cli_server.c sapi/cli/php_cli.c ' \
 			>> /root/.emcc-php-wasm-sources && \
 		echo -n ', "_run_cli", "_wasm_add_cli_arg"' >> /root/.EXPORTED_FUNCTIONS && \
-		echo -n ' -DWITH_CLI_SAPI=1 -lncurses -ledit ' >> /root/.emcc-php-wasm-flags && \
-		# Disable dlopen() in the readline PHP extension
-		echo '#undef COMPILE_DL_READLINE' >> /root/php-src/main/php_config.h && \
+		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
 		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
 	else \
 		echo -n ' --disable-cli ' >> /root/.php-configure-flags; \
@@ -253,6 +251,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
+	CURL_LIBS="-I/root/lib/lib" \
+	CURL_CFLAGS="-I/root/lib/include" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as

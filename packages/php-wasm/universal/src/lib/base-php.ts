@@ -632,10 +632,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 					[],
 					[]
 				);
-				response.then((r) => {
-					console.log({ r });
-				});
-				console.log({ response });
 				if (response instanceof Promise) {
 					return response.then(resolve, reject);
 				}

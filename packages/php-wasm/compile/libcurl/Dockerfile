@@ -16,23 +16,34 @@ RUN set -euxo pipefail && \
 
 WORKDIR /root/$CURL_VERSION
 
-RUN CPPFLAGS="-I/root/lib/include " \
+RUN source /root/emsdk/emsdk_env.sh && \
+    CPPFLAGS="-I/root/lib/include " \
     LDFLAGS="-L/root/lib/lib " \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-    source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
-        --prefix=/root/install/ \
+        --prefix=/root/lib/ \
         --disable-shared \
         --enable-static \
+        --with-ssl \
         --with-openssl=/root/lib \
         --enable-https \
         --enable-http \
+        --disable-pop3 \
+        --disable-imap \
+        --disable-smb \
+        --disable-smtp \
+        --disable-telnet \
+        --disable-gopher \
+        --disable-ftp \
+        --disable-ftps \
+        --disable-rtsp \
+        --disable-tftp \
         --disable-pthreads \
         --disable-threaded-resolver \
         --with-zlib=/root/lib
 
 RUN source /root/emsdk/emsdk_env.sh && \
-    EMCC_SKIP="-lc -lz -lcurl" \
+    EMCC_SKIP="-lc -lz -lcurl -lssl " \
     EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select -sSUPPORT_LONGJMP=wasm -fwasm-exceptions " emmake make || true

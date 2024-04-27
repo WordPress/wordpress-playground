@@ -123,6 +123,7 @@ const platformDefaults = {
 	},
 	['web-light']: {},
 	['web-kitchen-sink']: {
+		WITH_CURL: 'yes',
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',

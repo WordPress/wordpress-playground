@@ -1,6 +1,6 @@
 import dependencyFilename from './8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 18695463; 
+export const dependenciesTotalSize = 18897510; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -427,6 +427,19 @@ function abort(what) {
   // definition for WebAssembly.RuntimeError claims it takes no arguments even
   // though it can.
   // TODO(https://github.com/google/closure-compiler/pull/3913): Remove if/when upstream closure gets fixed.
+  // See above, in the meantime, we resort to wasm code for trapping.
+  //
+  // In case abort() is called before the module is initialized, wasmExports
+  // and its exported '__trap' function is not available, in which case we throw
+  // a RuntimeError.
+  //
+  // We trap instead of throwing RuntimeError to prevent infinite-looping in
+  // Wasm EH code (because RuntimeError is considered as a foreign exception and
+  // caught by 'catch_all'), but in case throwing RuntimeError is fine because
+  // the module has not even been instantiated, even less running.
+  if (runtimeInitialized) {
+    ___trap();
+  }
   /** @suppress {checkTypes} */
   var e = new WebAssembly.RuntimeError(what);
 
@@ -609,6 +622,12 @@ var tempI64;
 // include: runtime_debug.js
 // end include: runtime_debug.js
 // === Body ===
+
+function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.handleAsync(async () => { if (Module['onMessage']) { const dataStr = UTF8ToString(data); console.log("onMessage"); return Module['onMessage'](dataStr) .then((response) => { const responseBytes = typeof response === 'string' ? new TextEncoder().encode(response) : response; console.log("Response", { response, responseBytes }); const responseSize = responseBytes.byteLength; console.log("Response size", responseSize); const responsePtr = _malloc(responseSize + 1); HEAPU8.set(responseBytes, responsePtr); HEAPU8[responsePtr + responseSize] = 0; HEAPU8[response_buffer] = responsePtr; HEAPU8[response_buffer + 1] = responsePtr >> 8; HEAPU8[response_buffer + 2] = responsePtr >> 16; HEAPU8[response_buffer + 3] = responsePtr >> 24; return responseSize; }) .catch((e) => { console.error(e); return -1; }); } }); }
+__asyncjs__js_module_onMessage.sig = 'iii';
+function __asyncjs__js_popen_to_file(cmd,mode,exit_code_ptr) { return Asyncify.handleAsync(async () => { if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return new Promise(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }); }
+__asyncjs__js_popen_to_file.sig = 'iiii';
+
 // end include: preamble.js
 
 
@@ -668,10 +687,6 @@ var tempI64;
       default: abort(`invalid type for setValue: ${type}`);
     }
   }
-
-  var stackRestore = (val) => __emscripten_stack_restore(val);
-
-  var stackSave = () => _emscripten_stack_get_current();
 
   var UTF8Decoder = typeof TextDecoder != 'undefined' ? new TextDecoder('utf8') : undefined;
   
@@ -766,153 +781,6 @@ var tempI64;
     };
   var ___call_sighandler = (fp, sig) => getWasmTableEntry(fp)(sig);
   ___call_sighandler.sig = 'vpi';
-
-  var exceptionCaught =  [];
-  
-  
-  var uncaughtExceptionCount = 0;
-  var ___cxa_begin_catch = (ptr) => {
-      var info = new ExceptionInfo(ptr);
-      if (!info.get_caught()) {
-        info.set_caught(true);
-        uncaughtExceptionCount--;
-      }
-      info.set_rethrown(false);
-      exceptionCaught.push(info);
-      ___cxa_increment_exception_refcount(info.excPtr);
-      return info.get_exception_ptr();
-    };
-  ___cxa_begin_catch.sig = 'pp';
-
-  var exceptionLast = 0;
-  
-  class ExceptionInfo {
-      // excPtr - Thrown object pointer to wrap. Metadata pointer is calculated from it.
-      constructor(excPtr) {
-        this.excPtr = excPtr;
-        this.ptr = excPtr - 24;
-      }
-  
-      set_type(type) {
-        HEAPU32[(((this.ptr)+(4))>>2)] = type;
-      }
-  
-      get_type() {
-        return HEAPU32[(((this.ptr)+(4))>>2)];
-      }
-  
-      set_destructor(destructor) {
-        HEAPU32[(((this.ptr)+(8))>>2)] = destructor;
-      }
-  
-      get_destructor() {
-        return HEAPU32[(((this.ptr)+(8))>>2)];
-      }
-  
-      set_caught(caught) {
-        caught = caught ? 1 : 0;
-        HEAP8[(this.ptr)+(12)] = caught;
-      }
-  
-      get_caught() {
-        return HEAP8[(this.ptr)+(12)] != 0;
-      }
-  
-      set_rethrown(rethrown) {
-        rethrown = rethrown ? 1 : 0;
-        HEAP8[(this.ptr)+(13)] = rethrown;
-      }
-  
-      get_rethrown() {
-        return HEAP8[(this.ptr)+(13)] != 0;
-      }
-  
-      // Initialize native structure fields. Should be called once after allocated.
-      init(type, destructor) {
-        this.set_adjusted_ptr(0);
-        this.set_type(type);
-        this.set_destructor(destructor);
-      }
-  
-      set_adjusted_ptr(adjustedPtr) {
-        HEAPU32[(((this.ptr)+(16))>>2)] = adjustedPtr;
-      }
-  
-      get_adjusted_ptr() {
-        return HEAPU32[(((this.ptr)+(16))>>2)];
-      }
-  
-      // Get pointer which is expected to be received by catch clause in C++ code. It may be adjusted
-      // when the pointer is casted to some of the exception object base classes (e.g. when virtual
-      // inheritance is used). When a pointer is thrown this method should return the thrown pointer
-      // itself.
-      get_exception_ptr() {
-        // Work around a fastcomp bug, this code is still included for some reason in a build without
-        // exceptions support.
-        var isPointer = ___cxa_is_pointer_type(this.get_type());
-        if (isPointer) {
-          return HEAPU32[((this.excPtr)>>2)];
-        }
-        var adjusted = this.get_adjusted_ptr();
-        if (adjusted !== 0) return adjusted;
-        return this.excPtr;
-      }
-    }
-  
-  var ___resumeException = (ptr) => {
-      if (!exceptionLast) {
-        exceptionLast = ptr;
-      }
-      throw exceptionLast;
-    };
-  ___resumeException.sig = 'vp';
-  
-  
-  var setTempRet0 = (val) => __emscripten_tempret_set(val);
-  var findMatchingCatch = (args) => {
-      var thrown =
-        exceptionLast;
-      if (!thrown) {
-        // just pass through the null ptr
-        setTempRet0(0);
-        return 0;
-      }
-      var info = new ExceptionInfo(thrown);
-      info.set_adjusted_ptr(thrown);
-      var thrownType = info.get_type();
-      if (!thrownType) {
-        // just pass through the thrown ptr
-        setTempRet0(0);
-        return thrown;
-      }
-  
-      // can_catch receives a **, add indirection
-      // The different catch blocks are denoted by different types.
-      // Due to inheritance, those types may not precisely match the
-      // type of the thrown object. Find one which matches, and
-      // return the type of the catch block which should be called.
-      for (var arg in args) {
-        var caughtType = args[arg];
-  
-        if (caughtType === 0 || caughtType === thrownType) {
-          // Catch all clause matched or exactly the same type is caught
-          break;
-        }
-        var adjusted_ptr_addr = info.ptr + 16;
-        if (___cxa_can_catch(caughtType, thrownType, adjusted_ptr_addr)) {
-          setTempRet0(caughtType);
-          return thrown;
-        }
-      }
-      setTempRet0(thrownType);
-      return thrown;
-    };
-  var ___cxa_find_matching_catch_2 = () => findMatchingCatch([]);
-  ___cxa_find_matching_catch_2.sig = 'p';
-
-  var ___cxa_find_matching_catch_3 = (arg0) => findMatchingCatch([arg0]);
-  ___cxa_find_matching_catch_3.sig = 'pp';
-
 
   var initRandomFill = () => {
       if (typeof crypto == 'object' && typeof crypto['getRandomValues'] == 'function') {
@@ -5667,11 +5535,6 @@ url = Module["websocket"]["url"](...arguments);
     };
   __emscripten_runtime_keepalive_clear.sig = 'v';
 
-  var __emscripten_throw_longjmp = () => {
-      throw Infinity;
-    };
-  __emscripten_throw_longjmp.sig = 'v';
-
   function __gmtime_js(time_low, time_high,tmPtr) {
     var time = convertI32PairToI53Checked(time_low, time_high);
   
@@ -5732,6 +5595,8 @@ url = Module["websocket"]["url"](...arguments);
   __localtime_js.sig = 'viip';
 
   
+  /** @suppress {duplicate } */
+  var setTempRet0 = (val) => __emscripten_tempret_set(val);
   var _setTempRet0 = setTempRet0;
   
   var __mktime_js = function(tmPtr) {
@@ -6789,9 +6654,12 @@ url = Module["websocket"]["url"](...arguments);
   	}
 
   function _js_fd_read(fd, iov, iovcnt, pnum) {
-  		// Only run the read operation on a regular call,
-  		// never when rewinding the stack.
-          if (Asyncify.state === Asyncify.State.Normal) {
+  		if (
+  			// When running JSPI
+  			!Asyncify || !('State' in Asyncify)
+  			// When running Asyncify and not rewinding the stack.
+  			|| Asyncify.state === Asyncify.State.Normal
+  		) {
               var returnCode;
               var stream;
   			let num = 0;
@@ -6874,46 +6742,6 @@ url = Module["websocket"]["url"](...arguments);
   			}
   			poll();
   		});
-  	}
-
-  
-  function _js_module_onMessage(data, bufPtr) {
-  		if (typeof Asyncify === 'undefined') {
-  			return;
-  		}
-  
-  		if (Module['onMessage']) {
-  			const dataStr = UTF8ToString(data);
-  
-  			return Asyncify.handleSleep((wakeUp) => {
-  				Module['onMessage'](dataStr)
-  					.then((response) => {
-  						const responseBytes =
-  							typeof response === 'string'
-  								? new TextEncoder().encode(response)
-  								: response;
-  
-  						// Copy the response bytes to heap
-  						const responseSize = responseBytes.byteLength;
-  						const responsePtr = _malloc(responseSize + 1);
-  						HEAPU8.set(responseBytes, responsePtr);
-  						HEAPU8[responsePtr + responseSize] = 0;
-  						HEAPU8[bufPtr] = responsePtr;
-  						HEAPU8[bufPtr + 1] = responsePtr >> 8;
-  						HEAPU8[bufPtr + 2] = responsePtr >> 16;
-  						HEAPU8[bufPtr + 3] = responsePtr >> 24;
-  
-  						wakeUp(responseSize);
-  					})
-  					.catch((e) => {
-  						// Log the error and return NULL. Message passing
-  						// separates JS context from the PHP context so we
-  						// don't let PHP crash here.
-  						console.error(e);
-  						wakeUp(-1);
-  					});
-  			});
-  		}
   	}
 
   
@@ -7144,61 +6972,6 @@ url = Module["websocket"]["url"](...arguments);
   		});
   	}
 
-  
-  function _js_popen_to_file(command, mode, exitCodePtr) {
-  		// Parse args
-  		if (!command) return 1; // shell is available
-  
-  		const cmdstr = UTF8ToString(command);
-  		if (!cmdstr.length) return 0; // this is what glibc seems to do (shell works test?)
-  
-  		const modestr = UTF8ToString(mode);
-  		if (!modestr.length) return 0; // this is what glibc seems to do (shell works test?)
-  		if (modestr === 'w') {
-  			console.error('popen($cmd, "w") is not implemented yet');
-  		}
-  
-  		return Asyncify.handleSleep(async (wakeUp) => {
-  			let cp;
-  			try {
-  				cp = PHPWASM.spawnProcess(cmdstr, []);
-  				if (cp instanceof Promise) {
-  					cp = await cp;
-  				}
-  			} catch (e) {
-  				console.error(e);
-  				if (e.code === 'SPAWN_UNSUPPORTED') {
-  					return 1;
-  				}
-  				throw e;
-  			}
-  
-  			const outByteArrays = [];
-  			cp.stdout.on('data', function (data) {
-  				outByteArrays.push(data);
-  			});
-  
-  			const outputPath = '/tmp/popen_output';
-  			cp.on('exit', function (exitCode) {
-  				// Concat outByteArrays, an array of UInt8Arrays
-  				// into a single Uint8Array.
-  				const outBytes = new Uint8Array(
-  					outByteArrays.reduce((acc, curr) => acc + curr.length, 0)
-  				);
-  				let offset = 0;
-  				for (const byteArray of outByteArrays) {
-  					outBytes.set(byteArray, offset);
-  					offset += byteArray.length;
-  				}
-  
-  				FS.writeFile(outputPath, outBytes);
-  
-  				HEAPU8[exitCodePtr] = exitCode;
-  				wakeUp(allocateUTF8OnStack(outputPath)); // 2 is SIGINT
-  			});
-  		});
-  	}
-
   function _js_process_status(pid, exitCodePtr) {
   		if (!PHPWASM.child_proc_by_pid[pid]) {
   			return -1;
@@ -7229,13 +7002,6 @@ url = Module["websocket"]["url"](...arguments);
   		});
   	}
 
-
-  /** @type {function(...*):?} */
-  function _saveSetjmp(
-  ) {
-  abort('missing function: saveSetjmp');
-  }
-  _saveSetjmp.stub = true;
 
   
   var arraySum = (array, index) => {
@@ -7807,13 +7573,6 @@ url = Module["websocket"]["url"](...arguments);
     };
   _strptime.sig = 'pppp';
 
-  /** @type {function(...*):?} */
-  function _testSetjmp(
-  ) {
-  abort('missing function: testSetjmp');
-  }
-  _testSetjmp.stub = true;
-
   function _wasm_poll_socket(socketd, events, timeout) {
   		if (typeof Asyncify === 'undefined') {
   			return 0;
@@ -7952,7 +7711,6 @@ url = Module["websocket"]["url"](...arguments);
   	}
 
 
-
   var runAndAbortIfError = (func) => {
       try {
         return func();
@@ -7993,11 +7751,14 @@ url = Module["websocket"]["url"](...arguments);
             let isAsyncifyImport = original.isAsync || importPattern.test(x);
             // Wrap async imports with a suspending WebAssembly function.
             if (isAsyncifyImport) {
-              if(!original.sig && x.startsWith("invoke_")) {
+              
+            if(!original.sig && x.startsWith("invoke_")) {
                 const l = "invoke_".length;
                 original.sig = x[l] + "i" + x.slice(l + 1);
             }
-              let type = sigToWasmTypes(original.sig);
+
+            let type = sigToWasmTypes(original.sig);
+        
               // Add space for the suspender promise that will be used in the
               // Wasm wrapper function.
               type.parameters.unshift('externref');
@@ -8011,7 +7772,7 @@ url = Module["websocket"]["url"](...arguments);
         }
       },
   instrumentWasmExports(exports) {
-        var exportPattern = /^(main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
+        var exportPattern = /^(wasm_sleep|wasm_read|wasm_sapi_handle_request|wasm_sapi_request_shutdown|main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
         Asyncify.asyncExports = new Set();
         var ret = {};
         for (let [x, original] of Object.entries(exports)) {
@@ -8067,7 +7828,9 @@ url = Module["websocket"]["url"](...arguments);
   
   
   
+  var stackSave = () => _emscripten_stack_get_current();
   
+  var stackRestore = (val) => __emscripten_stack_restore(val);
   
   
   
@@ -8125,7 +7888,7 @@ url = Module["websocket"]["url"](...arguments);
       }
     var asyncMode = opts?.async;
   
-      if (asyncMode) return ret.then(onDone);
+      if (asyncMode && ret?.then) return ret.then(onDone);
   
       ret = onDone(ret);
       return ret;
@@ -8143,15 +7906,11 @@ var wasmImports = {
   /** @export */
   __assert_fail: ___assert_fail,
   /** @export */
+  __asyncjs__js_module_onMessage,
+  /** @export */
+  __asyncjs__js_popen_to_file,
+  /** @export */
   __call_sighandler: ___call_sighandler,
-  /** @export */
-  __cxa_begin_catch: ___cxa_begin_catch,
-  /** @export */
-  __cxa_find_matching_catch_2: ___cxa_find_matching_catch_2,
-  /** @export */
-  __cxa_find_matching_catch_3: ___cxa_find_matching_catch_3,
-  /** @export */
-  __resumeException: ___resumeException,
   /** @export */
   __syscall_accept4: ___syscall_accept4,
   /** @export */
@@ -8241,8 +8000,6 @@ var wasmImports = {
   /** @export */
   _emscripten_runtime_keepalive_clear: __emscripten_runtime_keepalive_clear,
   /** @export */
-  _emscripten_throw_longjmp: __emscripten_throw_longjmp,
-  /** @export */
   _gmtime_js: __gmtime_js,
   /** @export */
   _localtime_js: __localtime_js,
@@ -8293,51 +8050,11 @@ var wasmImports = {
   /** @export */
   getprotobynumber: _getprotobynumber,
   /** @export */
-  invoke_i,
-  /** @export */
-  invoke_ii,
-  /** @export */
-  invoke_iii,
-  /** @export */
-  invoke_iiii,
-  /** @export */
-  invoke_iiiii,
-  /** @export */
-  invoke_iiiiii,
-  /** @export */
-  invoke_iiiiiii,
-  /** @export */
-  invoke_iiiiiiii,
-  /** @export */
-  invoke_iiiiiiiiii,
-  /** @export */
-  invoke_v,
-  /** @export */
-  invoke_vi,
-  /** @export */
-  invoke_vii,
-  /** @export */
-  invoke_viidii,
-  /** @export */
-  invoke_viii,
-  /** @export */
-  invoke_viiii,
-  /** @export */
-  invoke_viiiii,
-  /** @export */
-  invoke_viiiiii,
-  /** @export */
-  invoke_viiiiiiiii,
-  /** @export */
   js_create_input_device: _js_create_input_device,
   /** @export */
   js_fd_read: _js_fd_read,
   /** @export */
-  js_module_onMessage: _js_module_onMessage,
-  /** @export */
   js_open_process: _js_open_process,
-  /** @export */
-  js_popen_to_file: _js_popen_to_file,
   /** @export */
   js_process_status: _js_process_status,
   /** @export */
@@ -8345,15 +8062,11 @@ var wasmImports = {
   /** @export */
   proc_exit: _proc_exit,
   /** @export */
-  saveSetjmp: _saveSetjmp,
-  /** @export */
   strftime: _strftime,
   /** @export */
   strftime_l: _strftime_l,
   /** @export */
   strptime: _strptime,
-  /** @export */
-  testSetjmp: _testSetjmp,
   /** @export */
   wasm_poll_socket: _wasm_poll_socket,
   /** @export */
@@ -8395,16 +8108,11 @@ var _php_wasm_init = Module['_php_wasm_init'] = () => (_php_wasm_init = Module['
 var ___funcs_on_exit = () => (___funcs_on_exit = wasmExports['__funcs_on_exit'])();
 var _emscripten_builtin_memalign = (a0, a1) => (_emscripten_builtin_memalign = wasmExports['emscripten_builtin_memalign'])(a0, a1);
 var __emscripten_timeout = (a0, a1) => (__emscripten_timeout = wasmExports['_emscripten_timeout'])(a0, a1);
-var _setThrew = (a0, a1) => (_setThrew = wasmExports['setThrew'])(a0, a1);
+var ___trap = () => (___trap = wasmExports['__trap'])();
 var __emscripten_tempret_set = (a0) => (__emscripten_tempret_set = wasmExports['_emscripten_tempret_set'])(a0);
 var __emscripten_stack_restore = (a0) => (__emscripten_stack_restore = wasmExports['_emscripten_stack_restore'])(a0);
 var __emscripten_stack_alloc = (a0) => (__emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'])(a0);
 var _emscripten_stack_get_current = () => (_emscripten_stack_get_current = wasmExports['emscripten_stack_get_current'])();
-var ___cxa_free_exception = (a0) => (___cxa_free_exception = wasmExports['__cxa_free_exception'])(a0);
-var ___cxa_increment_exception_refcount = (a0) => (___cxa_increment_exception_refcount = wasmExports['__cxa_increment_exception_refcount'])(a0);
-var ___cxa_decrement_exception_refcount = (a0) => (___cxa_decrement_exception_refcount = wasmExports['__cxa_decrement_exception_refcount'])(a0);
-var ___cxa_can_catch = (a0, a1, a2) => (___cxa_can_catch = wasmExports['__cxa_can_catch'])(a0, a1, a2);
-var ___cxa_is_pointer_type = (a0) => (___cxa_is_pointer_type = wasmExports['__cxa_is_pointer_type'])(a0);
 var dynCall_iiiij = Module['dynCall_iiiij'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiij = Module['dynCall_iiiij'] = wasmExports['dynCall_iiiij'])(a0, a1, a2, a3, a4, a5);
 var dynCall_vijii = Module['dynCall_vijii'] = (a0, a1, a2, a3, a4, a5) => (dynCall_vijii = Module['dynCall_vijii'] = wasmExports['dynCall_vijii'])(a0, a1, a2, a3, a4, a5);
 var dynCall_iijj = Module['dynCall_iijj'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iijj = Module['dynCall_iijj'] = wasmExports['dynCall_iijj'])(a0, a1, a2, a3, a4, a5);
@@ -8430,205 +8138,8 @@ var dynCall_jiiji = Module['dynCall_jiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCa
 var dynCall_jiiiji = Module['dynCall_jiiiji'] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_jiiiji = Module['dynCall_jiiiji'] = wasmExports['dynCall_jiiiji'])(a0, a1, a2, a3, a4, a5, a6);
 var dynCall_iiiji = Module['dynCall_iiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiji = Module['dynCall_iiiji'] = wasmExports['dynCall_iiiji'])(a0, a1, a2, a3, a4, a5);
 var dynCall_jiji = Module['dynCall_jiji'] = (a0, a1, a2, a3, a4) => (dynCall_jiji = Module['dynCall_jiji'] = wasmExports['dynCall_jiji'])(a0, a1, a2, a3, a4);
-
-function invoke_iiiiiii(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vi(index,a1) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_ii(index,a1) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiii(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiii(index,a1,a2,a3,a4) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_vii(index,a1,a2) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_i(index) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viii(index,a1,a2,a3) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_v(index) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)();
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiiii(index,a1,a2,a3,a4,a5,a6) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viidii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_viiiiiiiii(index,a1,a2,a3,a4,a5,a6,a7,a8,a9) {
-  var sp = stackSave();
-  try {
-    getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7,a8,a9);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1,a2,a3,a4,a5,a6,a7);
-  } catch(e) {
-    stackRestore(sp);
-    if (e !== e+0) throw e;
-    _setThrew(1, 0);
-  }
-}
-
+var ___start_em_js = Module['___start_em_js'] = 11034124;
+var ___stop_em_js = Module['___stop_em_js'] = 11036087;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===
@@ -8763,7 +8274,7 @@ PHPLoader['removeRunDependency'] = function (...args) {
  * Therefore, we export them here.
  */
 PHPLoader['malloc'] = _malloc;
-  PHPLoader['free'] = () => { };
+PHPLoader['free'] = () => { console.warn("free isn't exported by the latest Emscripten anymore"); }//_free;
 
 return PHPLoader;
 
