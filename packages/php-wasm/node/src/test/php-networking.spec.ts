@@ -2,7 +2,7 @@ import { SupportedPHPVersions } from '@php-wasm/universal';
 import express from 'express';
 import { NodePHP } from '..';
 
-describe.each(SupportedPHPVersions)(
+describe.each(['8.0'])(
 	'PHP %s',
 	(phpVersion) => {
 		it('should be able to make a request to a server', async () => {

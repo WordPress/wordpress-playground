@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 19415105; 
+export const dependenciesTotalSize = 19415339; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -8202,7 +8202,7 @@ url = Module["websocket"]["url"](...arguments);
         }
       },
   instrumentWasmExports(exports) {
-        var exportPattern = /^(wasm_sleep|wasm_read|wasm_sapi_handle_request|wasm_sapi_request_shutdown|main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
+        var exportPattern = /^(wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
         Asyncify.asyncExports = new Set();
         var ret = {};
         for (let [x, original] of Object.entries(exports)) {
