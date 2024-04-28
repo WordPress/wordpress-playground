@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 20025717; 
+export const dependenciesTotalSize = 20025780; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -646,7 +646,7 @@ function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.
 __asyncjs__js_module_onMessage.sig = 'iii';
 function __asyncjs__js_popen_to_file(cmd,mode,exit_code_ptr) { return Asyncify.handleAsync(async () => { if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return new Promise(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }); }
 __asyncjs__js_popen_to_file.sig = 'iiii';
-function __asyncjs__wasm_poll_socket(socketd,events,timeout) { return Asyncify.handleAsync(async () => { if (typeof Asyncify === 'undefined') { return 0; } const POLLIN = 0x0001; const POLLPRI = 0x0002; const POLLOUT = 0x0004; const POLLERR = 0x0008; const POLLHUP = 0x0010; const POLLNVAL = 0x0020; return new Promise((wakeUp) => { const polls = []; if (socketd in PHPWASM.child_proc_by_fd) { const procInfo = PHPWASM.child_proc_by_fd[socketd]; if (procInfo.exited) { wakeUp(0); return; } polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data')); } else { const sock = getSocketFromFD(socketd); if (!sock) { wakeUp(0); return; } const lookingFor = new Set(); if (events & POLLIN || events & POLLPRI) { if (sock.server) { for (const client of sock.pending) { if ((client.recv_queue || []).length > 0) { wakeUp(1); return; } } } else if ((sock.recv_queue || []).length > 0) { wakeUp(1); return; } } const webSockets = PHPWASM.getAllWebSockets(sock); if (!webSockets.length) { wakeUp(0); return; } for (const ws of webSockets) { if (events & POLLIN || events & POLLPRI) { polls.push(PHPWASM.awaitData(ws)); lookingFor.add('POLLIN'); } if (events & POLLOUT) { polls.push(PHPWASM.awaitConnection(ws)); lookingFor.add('POLLOUT'); } if (events & POLLHUP) { polls.push(PHPWASM.awaitClose(ws)); lookingFor.add('POLLHUP'); } if (events & POLLERR || events & POLLNVAL) { polls.push(PHPWASM.awaitError(ws)); lookingFor.add('POLLERR'); } } } if (polls.length === 0) { console.warn( 'Unsupported poll event ' + events + ', defaulting to setTimeout().' ); setTimeout(function () { wakeUp(0); }, timeout); return; } const promises = polls.map(([promise]) => promise); const clearPolling = () => polls.forEach(([, clear]) => clear()); let awaken = false; let timeoutId; Promise.race(promises).then(function (results) { if (!awaken) { awaken = true; wakeUp(1); if (timeoutId) { clearTimeout(timeoutId); } clearPolling(); } }); if (timeout !== -1) { timeoutId = setTimeout(function () { if (!awaken) { awaken = true; wakeUp(0); clearPolling(); } }, timeout); } }); }); }
+function __asyncjs__wasm_poll_socket(socketd,events,timeout) { return Asyncify.handleAsync(async () => { if (typeof Asyncify === 'undefined') { return 0; } const POLLIN = 0x0001; const POLLPRI = 0x0002; const POLLOUT = 0x0004; const POLLERR = 0x0008; const POLLHUP = 0x0010; const POLLNVAL = 0x0020; return new Promise((wakeUp) => { const polls = []; if (socketd in PHPWASM.child_proc_by_fd) { const procInfo = PHPWASM.child_proc_by_fd[socketd]; if (procInfo.exited) { wakeUp(0); return; } polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data')); } else if (FS.isSocket(stream.node.mode)) { const sock = getSocketFromFD(socketd); if (!sock) { wakeUp(0); return; } const lookingFor = new Set(); if (events & POLLIN || events & POLLPRI) { if (sock.server) { for (const client of sock.pending) { if ((client.recv_queue || []).length > 0) { wakeUp(1); return; } } } else if ((sock.recv_queue || []).length > 0) { wakeUp(1); return; } } const webSockets = PHPWASM.getAllWebSockets(sock); if (!webSockets.length) { wakeUp(0); return; } for (const ws of webSockets) { if (events & POLLIN || events & POLLPRI) { polls.push(PHPWASM.awaitData(ws)); lookingFor.add('POLLIN'); } if (events & POLLOUT) { polls.push(PHPWASM.awaitConnection(ws)); lookingFor.add('POLLOUT'); } if (events & POLLHUP) { polls.push(PHPWASM.awaitClose(ws)); lookingFor.add('POLLHUP'); } if (events & POLLERR || events & POLLNVAL) { polls.push(PHPWASM.awaitError(ws)); lookingFor.add('POLLERR'); } } } else { wakeUp(0); return; } if (polls.length === 0) { console.warn( 'Unsupported poll event ' + events + ', defaulting to setTimeout().' ); setTimeout(function () { wakeUp(0); }, timeout); return; } const promises = polls.map(([promise]) => promise); const clearPolling = () => polls.forEach(([, clear]) => clear()); let awaken = false; let timeoutId; Promise.race(promises).then(function (results) { if (!awaken) { awaken = true; wakeUp(1); if (timeoutId) { clearTimeout(timeoutId); } clearPolling(); } }); if (timeout !== -1) { timeoutId = setTimeout(function () { if (!awaken) { awaken = true; wakeUp(0); clearPolling(); } }, timeout); } }); }); }
 __asyncjs__wasm_poll_socket.sig = 'iiii';
 function __asyncjs__js_fd_read(fd,iovs,iovs_len,nread) { return Asyncify.handleAsync(async () => { var returnCode; var stream; let num = 0; try { stream = SYSCALLS.getStreamFromFD(fd); const num = doReadv(stream, iov, iovcnt); HEAPU32[pnum >> 2] = num; return 0; } catch (e) { if (typeof FS == "undefined" || !(e.name === "ErrnoError")) { throw e; } if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) { HEAPU32[pnum >> 2] = 0; return returnCode } } return new Promise((wakeUp) => { var retries = 0; var interval = 50; var timeout = 5000; var maxRetries = timeout / interval; function poll() { var returnCode; var stream; let num; try { stream = SYSCALLS.getStreamFromFD(fd); num = doReadv(stream, iov, iovcnt); returnCode = 0; } catch (e) { if ( typeof FS == 'undefined' || !(e.name === 'ErrnoError') ) { console.error(e); throw e; } returnCode = e.errno; } const success = returnCode === 0; const failure = ( ++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream) ); if (success) { HEAPU32[pnum >> 2] = num; wakeUp(0); } else if (failure) { HEAPU32[pnum >> 2] = 0; wakeUp(returnCode === 6 ? 0 : returnCode); } else { setTimeout(poll, interval); } } poll(); }) }); }
 __asyncjs__js_fd_read.sig = 'iiiii';
@@ -6924,6 +6924,41 @@ url = Module["websocket"]["url"](...arguments);
   			PHPWASM.child_proc_by_fd = {};
   			PHPWASM.child_proc_by_pid = {};
   			PHPWASM.input_devices = {};
+  
+  			function extractPHPFunctionsFromStack(stack) {
+  				try {
+  					const names = stack
+  						.split('\n')
+  						.slice(1)
+  						.map((line) => {
+  							const parts = line.trim().substring('at '.length).split(' ');
+  							return {
+  								fn: parts.length >= 2 ? parts[0] : '<unknown>',
+  								isWasm: line.includes('wasm://'),
+  							};
+  						})
+  						.filter(
+  							({ fn, isWasm }) =>
+  								isWasm &&
+  								!fn.startsWith('dynCall_') &&
+  								!fn.startsWith('invoke_')
+  						)
+  						.map(({ fn }) => fn);
+  					return Array.from(new Set(names));
+  				} catch (err) {
+  					return [];
+  				}
+  			}
+  					
+  			global.asyncifyFunctions = new Set();
+  			const originalHandleSleep = Asyncify.handleSleep;
+  			Asyncify.handleSleep = function (fn) {
+  				const e = new Error();
+  				global.asyncifyFunctions.add(
+  					...extractPHPFunctionsFromStack(e.stack)
+  				);
+  				return originalHandleSleep(fn);
+  			};
   		},
   getAllWebSockets:function (sock) {
   			const webSockets = /* @__PURE__ */ new Set();
@@ -8391,7 +8426,7 @@ var dynCall_jiiiji = Module['dynCall_jiiiji'] = (a0, a1, a2, a3, a4, a5, a6) => 
 var dynCall_iiiji = Module['dynCall_iiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiji = Module['dynCall_iiiji'] = wasmExports['dynCall_iiiji'])(a0, a1, a2, a3, a4, a5);
 var dynCall_jiji = Module['dynCall_jiji'] = (a0, a1, a2, a3, a4) => (dynCall_jiji = Module['dynCall_jiji'] = wasmExports['dynCall_jiji'])(a0, a1, a2, a3, a4);
 var ___start_em_js = Module['___start_em_js'] = 11128540;
-var ___stop_em_js = Module['___stop_em_js'] = 11133825;
+var ___stop_em_js = Module['___stop_em_js'] = 11133888;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

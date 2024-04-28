@@ -449,7 +449,7 @@ RUN set -euxo pipefail; \
 	$(cat /root/.emcc-php-wasm-flags) \
 	-sSUPPORT_LONGJMP=wasm -fwasm-exceptions \
 	-s ASYNCIFY=2 \
-	-s ASYNCIFY_EXPORTS='["wasm_sleep", "wasm_read","emscripten_sleep","wasm_sapi_handle_request", "wasm_sapi_request_shutdown", "wrap_select", "__wrap_select","select","php_pollfd_for","fflush","wasm_popen","wasm_read","wasm_php_exec","run_cli"]' \
+	-s ASYNCIFY_EXPORTS='["wasm_sleep", "wasm_read","emscripten_sleep","wasm_sapi_handle_request", "wasm_sapi_request_shutdown","wasm_poll_socket","wrap_select", "__wrap_select","select","php_pollfd_for","fflush","wasm_popen","wasm_read","wasm_php_exec","run_cli"]' \
 	-s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS='["_free", "_malloc", "ccall", "PROXYFS"]' \
 	-s INITIAL_MEMORY=1024MB \

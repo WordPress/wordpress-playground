@@ -198,7 +198,7 @@ EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeou
                 return;
             }
             polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-        } else if (FS.isSocket(stream.node.mode)) {
+        } else if (FS.isSocket(FS.getStream(socketd)?.node.mode)) {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {

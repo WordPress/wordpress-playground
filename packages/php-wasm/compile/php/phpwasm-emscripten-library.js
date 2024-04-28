@@ -64,6 +64,43 @@ const LibraryExample = {
 			PHPWASM.child_proc_by_fd = {};
 			PHPWASM.child_proc_by_pid = {};
 			PHPWASM.input_devices = {};
+
+			function extractPHPFunctionsFromStack(stack) {
+				try {
+					console.log('stack', stack);
+					process.exit(0);
+					const names = stack
+						.split('\n')
+						.slice(1)
+						.map((line) => {
+							const parts = line.trim().substring('at '.length).split(' ');
+							return {
+								fn: parts.length >= 2 ? parts[0] : '<unknown>',
+								isWasm: line.includes('wasm://'),
+							};
+						})
+						.filter(
+							({ fn, isWasm }) =>
+								isWasm &&
+								!fn.startsWith('dynCall_') &&
+								!fn.startsWith('invoke_')
+						)
+						.map(({ fn }) => fn);
+					return Array.from(new Set(names));
+				} catch (err) {
+					return [];
+				}
+			}
+					
+			global.asyncifyFunctions = new Set();
+			const originalHandleSleep = Asyncify.handleSleep;
+			Asyncify.handleSleep = function (fn) {
+				const e = new Error();
+				for (const elem of extractPHPFunctionsFromStack2(e.stack)) {
+					global.asyncifyFunctions.add(elem);
+				}
+				return originalHandleSleep(fn);
+			};
 		},
 		/**
 		 * A utility function to get all websocket objects associated
@@ -655,5 +692,4 @@ js_waitpid.sig = 'iii';
 js_open_process.sig = 'iiiiiiiiii';
 js_create_input_device.sig = 'ii';
 js_fd_read.sig = 'iiiii;
-
 */
