@@ -749,6 +749,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "php_stream_url_wrap_http",\
 "php_stream_url_wrap_http_ex",\
 "php_stream_xport_crypto_enable",\
+"php_stream_xport_crypto_setup",\
 "php_tcp_sockop_set_option",\
 "preg_replace_func_impl",\
 "readline_shell_run",\
