@@ -497,6 +497,9 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "curl_multi_poll",\
 "easy_perform",\
 "RAND_poll",\
+"rand_bytes",\
+"SSL_CTX_new",\
+"rand_nopseudo_bytes",\
 "rand_enough",\
 "Curl_ossl_seed",\
 "zif_curl_multi_exec",\
