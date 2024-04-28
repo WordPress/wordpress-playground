@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/8_0_30/php_8_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 19415339; 
+export const dependenciesTotalSize = 20025717; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -646,6 +646,10 @@ function __asyncjs__js_module_onMessage(data,response_buffer) { return Asyncify.
 __asyncjs__js_module_onMessage.sig = 'iii';
 function __asyncjs__js_popen_to_file(cmd,mode,exit_code_ptr) { return Asyncify.handleAsync(async () => { if (!command) return 1; const cmdstr = UTF8ToString(command); if (!cmdstr.length) return 0; const modestr = UTF8ToString(mode); if (!modestr.length) return 0; if (modestr === 'w') { console.error('popen($cmd, "w") is not implemented yet'); } return new Promise(async (wakeUp) => { let cp; try { cp = PHPWASM.spawnProcess(cmdstr, []); if (cp instanceof Promise) { cp = await cp; } } catch (e) { console.error(e); if (e.code === 'SPAWN_UNSUPPORTED') { return 1; } throw e; } const outByteArrays = []; cp.stdout.on('data', function (data) { outByteArrays.push(data); }); const outputPath = '/tmp/popen_output'; cp.on('exit', function (exitCode) { const outBytes = new Uint8Array( outByteArrays.reduce((acc, curr) => acc + curr.length, 0) ); let offset = 0; for (const byteArray of outByteArrays) { outBytes.set(byteArray, offset); offset += byteArray.length; } FS.writeFile(outputPath, outBytes); HEAPU8[exitCodePtr] = exitCode; wakeUp(allocateUTF8OnStack(outputPath)); }); }); }); }
 __asyncjs__js_popen_to_file.sig = 'iiii';
+function __asyncjs__wasm_poll_socket(socketd,events,timeout) { return Asyncify.handleAsync(async () => { if (typeof Asyncify === 'undefined') { return 0; } const POLLIN = 0x0001; const POLLPRI = 0x0002; const POLLOUT = 0x0004; const POLLERR = 0x0008; const POLLHUP = 0x0010; const POLLNVAL = 0x0020; return new Promise((wakeUp) => { const polls = []; if (socketd in PHPWASM.child_proc_by_fd) { const procInfo = PHPWASM.child_proc_by_fd[socketd]; if (procInfo.exited) { wakeUp(0); return; } polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data')); } else { const sock = getSocketFromFD(socketd); if (!sock) { wakeUp(0); return; } const lookingFor = new Set(); if (events & POLLIN || events & POLLPRI) { if (sock.server) { for (const client of sock.pending) { if ((client.recv_queue || []).length > 0) { wakeUp(1); return; } } } else if ((sock.recv_queue || []).length > 0) { wakeUp(1); return; } } const webSockets = PHPWASM.getAllWebSockets(sock); if (!webSockets.length) { wakeUp(0); return; } for (const ws of webSockets) { if (events & POLLIN || events & POLLPRI) { polls.push(PHPWASM.awaitData(ws)); lookingFor.add('POLLIN'); } if (events & POLLOUT) { polls.push(PHPWASM.awaitConnection(ws)); lookingFor.add('POLLOUT'); } if (events & POLLHUP) { polls.push(PHPWASM.awaitClose(ws)); lookingFor.add('POLLHUP'); } if (events & POLLERR || events & POLLNVAL) { polls.push(PHPWASM.awaitError(ws)); lookingFor.add('POLLERR'); } } } if (polls.length === 0) { console.warn( 'Unsupported poll event ' + events + ', defaulting to setTimeout().' ); setTimeout(function () { wakeUp(0); }, timeout); return; } const promises = polls.map(([promise]) => promise); const clearPolling = () => polls.forEach(([, clear]) => clear()); let awaken = false; let timeoutId; Promise.race(promises).then(function (results) { if (!awaken) { awaken = true; wakeUp(1); if (timeoutId) { clearTimeout(timeoutId); } clearPolling(); } }); if (timeout !== -1) { timeoutId = setTimeout(function () { if (!awaken) { awaken = true; wakeUp(0); clearPolling(); } }, timeout); } }); }); }
+__asyncjs__wasm_poll_socket.sig = 'iiii';
+function __asyncjs__js_fd_read(fd,iovs,iovs_len,nread) { return Asyncify.handleAsync(async () => { var returnCode; var stream; let num = 0; try { stream = SYSCALLS.getStreamFromFD(fd); const num = doReadv(stream, iov, iovcnt); HEAPU32[pnum >> 2] = num; return 0; } catch (e) { if (typeof FS == "undefined" || !(e.name === "ErrnoError")) { throw e; } if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) { HEAPU32[pnum >> 2] = 0; return returnCode } } return new Promise((wakeUp) => { var retries = 0; var interval = 50; var timeout = 5000; var maxRetries = timeout / interval; function poll() { var returnCode; var stream; let num; try { stream = SYSCALLS.getStreamFromFD(fd); num = doReadv(stream, iov, iovcnt); returnCode = 0; } catch (e) { if ( typeof FS == 'undefined' || !(e.name === 'ErrnoError') ) { console.error(e); throw e; } returnCode = e.errno; } const success = returnCode === 0; const failure = ( ++retries > maxRetries || !(fd in PHPWASM.child_proc_by_fd) || PHPWASM.child_proc_by_fd[fd]?.exited || FS.isClosed(stream) ); if (success) { HEAPU32[pnum >> 2] = num; wakeUp(0); } else if (failure) { HEAPU32[pnum >> 2] = 0; wakeUp(returnCode === 6 ? 0 : returnCode); } else { setTimeout(poll, interval); } } poll(); }) }); }
+__asyncjs__js_fd_read.sig = 'iiiii';
 
 // end include: preamble.js
 
@@ -7075,97 +7079,6 @@ url = Module["websocket"]["url"](...arguments);
   		return allocateUTF8OnStack(devicePath);
   	}
 
-  function _js_fd_read(fd, iov, iovcnt, pnum) {
-  		if (
-  			// When running JSPI
-  			!Asyncify || !('State' in Asyncify)
-  			// When running Asyncify and not rewinding the stack.
-  			|| Asyncify.state === Asyncify.State.Normal
-  		) {
-              var returnCode;
-              var stream;
-  			let num = 0;
-              try {
-                  stream = SYSCALLS.getStreamFromFD(fd);
-                  const num = doReadv(stream, iov, iovcnt);
-                  HEAPU32[pnum >> 2] = num;
-  				return 0;
-  			} catch (e) {
-  				// Rethrow any unexpected non-filesystem errors.
-  				if (typeof FS == "undefined" || !(e.name === "ErrnoError")) {
-  					throw e;
-  				}
-                  // Only return synchronously if this isn't an asynchronous pipe.
-  				// Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
-  				// We also need to distinguish between a process pipe and a file pipe, otherwise
-  				// reading from an empty file would block until the timeout.
-  				if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd)) {
-  					// On failure, yield 0 bytes read to indicate EOF.
-  					HEAPU32[pnum >> 2] = 0;
-  					return returnCode
-  				}
-              }
-  		}
-  
-  		// At this point we know we have to poll.
-  		// You might wonder why we duplicate the code here instead of always using
-  		// Asyncify.handleSleep(). The reason is performance. Most of the time,
-  		// the read operation will work synchronously and won't require yielding
-  		// back to JS. In these cases we don't want to pay the Asyncify overhead,
-  		// save the stack, yield back to JS, restore the stack etc.
-  		return Asyncify.handleSleep(function (wakeUp) {
-  			var retries = 0;
-  			var interval = 50;
-  			var timeout = 5000;
-  			// We poll for data and give up after a timeout.
-  			// We can't simply rely on PHP timeout here because we don't want
-  			// to, say, block the entire PHPUnit test suite without any visible
-  			// feedback.
-  			var maxRetries = timeout / interval;
-  			function poll() {
-  				var returnCode;
-  				var stream;
-  				let num;
-  				try {
-  					stream = SYSCALLS.getStreamFromFD(fd);
-  					num = doReadv(stream, iov, iovcnt);
-  					returnCode = 0;
-  				} catch (e) {
-  					if (
-  						typeof FS == 'undefined' ||
-  						!(e.name === 'ErrnoError')
-  					) {
-  						console.error(e);
-  						throw e;
-  					}
-  					returnCode = e.errno;
-  				}
-  
-  				const success = returnCode === 0;
-  				const failure = (
-  					++retries > maxRetries ||
-  					!(fd in PHPWASM.child_proc_by_fd) ||
-  					PHPWASM.child_proc_by_fd[fd]?.exited ||
-  					FS.isClosed(stream)
-  				);
-  
-  				if (success) {
-  					HEAPU32[pnum >> 2] = num;
-  					wakeUp(0);
-  				} else if (failure) {
-  					// On failure, yield 0 bytes read to indicate EOF.
-  					HEAPU32[pnum >> 2] = 0;
-  					// If the failure is due to a timeout, return 0 to indicate that we
-  					// reached EOF. Otherwise, propagate the error code.
-  					wakeUp(returnCode === 6 ? 0 : returnCode);
-  				} else {
-  					setTimeout(poll, interval);
-  				}
-  			}
-  			poll();
-  		});
-  	}
-
   
   function _js_open_process(
   		command,
@@ -7407,6 +7320,7 @@ url = Module["websocket"]["url"](...arguments);
   	}
 
   function _js_waitpid(pid, exitCodePtr) {
+  		console.log("js_waitpid", pid, exitCodePtr);
   		if (!PHPWASM.child_proc_by_pid[pid]) {
   			return -1;
   		}
@@ -7996,115 +7910,8 @@ url = Module["websocket"]["url"](...arguments);
   _strptime.sig = 'pppp';
 
   function _wasm_close(socketd) {
+  		console.log("wasm_close", socketd);
   		return PHPWASM.shutdownSocket(socketd, 2);
-  	}
-
-  function _wasm_poll_socket(socketd, events, timeout) {
-  		if (typeof Asyncify === 'undefined') {
-  			return 0;
-  		}
-  
-  		const POLLIN = 0x0001; /* There is data to read */
-  		const POLLPRI = 0x0002; /* There is urgent data to read */
-  		const POLLOUT = 0x0004; /* Writing now will not block */
-  		const POLLERR = 0x0008; /* Error condition */
-  		const POLLHUP = 0x0010; /* Hung up */
-  		const POLLNVAL = 0x0020; /* Invalid request: fd not open */
-  
-  		return Asyncify.handleSleep((wakeUp) => {
-  			const polls = [];
-  			if (socketd in PHPWASM.child_proc_by_fd) {
-  				// This is a child process-related socket.
-  				const procInfo = PHPWASM.child_proc_by_fd[socketd];
-  				if (procInfo.exited) {
-  					wakeUp(0);
-  					return;
-  				}
-  				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-  			} else {
-  				// This is, most likely, a websocket. Let's make sure.
-  				const sock = getSocketFromFD(socketd);
-  				if (!sock) {
-  					wakeUp(0);
-  					return;
-  				}
-  				const lookingFor = new Set();
-  
-  				if (events & POLLIN || events & POLLPRI) {
-  					if (sock.server) {
-  						for (const client of sock.pending) {
-  							if ((client.recv_queue || []).length > 0) {
-  								wakeUp(1);
-  								return;
-  							}
-  						}
-  					} else if ((sock.recv_queue || []).length > 0) {
-  						wakeUp(1);
-  						return;
-  					}
-  				}
-  
-  				const webSockets = PHPWASM.getAllWebSockets(sock);
-  				if (!webSockets.length) {
-  					wakeUp(0);
-  					return;
-  				}
-  				for (const ws of webSockets) {
-  					if (events & POLLIN || events & POLLPRI) {
-  						polls.push(PHPWASM.awaitData(ws));
-  						lookingFor.add('POLLIN');
-  					}
-  					if (events & POLLOUT) {
-  						polls.push(PHPWASM.awaitConnection(ws));
-  						lookingFor.add('POLLOUT');
-  					}
-  					if (events & POLLHUP) {
-  						polls.push(PHPWASM.awaitClose(ws));
-  						lookingFor.add('POLLHUP');
-  					}
-  					if (events & POLLERR || events & POLLNVAL) {
-  						polls.push(PHPWASM.awaitError(ws));
-  						lookingFor.add('POLLERR');
-  					}
-  				}
-  			}
-  			if (polls.length === 0) {
-  				console.warn(
-  					'Unsupported poll event ' +
-  						events +
-  						', defaulting to setTimeout().'
-  				);
-  				setTimeout(function () {
-  					wakeUp(0);
-  				}, timeout);
-  				return;
-  			}
-  
-  			const promises = polls.map(([promise]) => promise);
-  			const clearPolling = () => polls.forEach(([, clear]) => clear());
-  			let awaken = false;
-  			let timeoutId;
-  			Promise.race(promises).then(function (results) {
-  				if (!awaken) {
-  					awaken = true;
-  					wakeUp(1);
-  					if (timeoutId) {
-  						clearTimeout(timeoutId);
-  					}
-  					clearPolling();
-  				}
-  			});
-  
-  			if (timeout !== -1) {
-  				timeoutId = setTimeout(function () {
-  					if (!awaken) {
-  						awaken = true;
-  						wakeUp(0);
-  						clearPolling();
-  					}
-  				}, timeout);
-  			}
-  		});
   	}
 
   function _wasm_setsockopt(
@@ -8114,6 +7921,13 @@ url = Module["websocket"]["url"](...arguments);
   		optionValuePtr,
   		optionLen
   	) {
+  		console.log("wasm_setsockopt", {
+  			socketd,
+  			level,
+  			optionName,
+  			optionValuePtr,
+  			optionLen,
+  		});
   		const optionValue = HEAPU8[optionValuePtr];
   		const SOL_SOCKET = 1;
   		const SO_KEEPALIVE = 9;
@@ -8137,6 +7951,7 @@ url = Module["websocket"]["url"](...arguments);
   	}
 
   function _wasm_shutdown(socketd, how) {
+  		console.log("wasm_shutdown", socketd, how);
   		return PHPWASM.shutdownSocket(socketd, how);
   	}
 
@@ -8202,7 +8017,7 @@ url = Module["websocket"]["url"](...arguments);
         }
       },
   instrumentWasmExports(exports) {
-        var exportPattern = /^(wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
+        var exportPattern = /^(wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_read|wasm_php_exec|run_cli|main|__main_argc_argv|_ZN10emscripten8internal5async.*)$/;
         Asyncify.asyncExports = new Set();
         var ret = {};
         for (let [x, original] of Object.entries(exports)) {
@@ -8337,9 +8152,13 @@ var wasmImports = {
   /** @export */
   __assert_fail: ___assert_fail,
   /** @export */
+  __asyncjs__js_fd_read,
+  /** @export */
   __asyncjs__js_module_onMessage,
   /** @export */
   __asyncjs__js_popen_to_file,
+  /** @export */
+  __asyncjs__wasm_poll_socket,
   /** @export */
   __call_sighandler: ___call_sighandler,
   /** @export */
@@ -8483,8 +8302,6 @@ var wasmImports = {
   /** @export */
   js_create_input_device: _js_create_input_device,
   /** @export */
-  js_fd_read: _js_fd_read,
-  /** @export */
   js_open_process: _js_open_process,
   /** @export */
   js_process_status: _js_process_status,
@@ -8500,8 +8317,6 @@ var wasmImports = {
   strptime: _strptime,
   /** @export */
   wasm_close: _wasm_close,
-  /** @export */
-  wasm_poll_socket: _wasm_poll_socket,
   /** @export */
   wasm_setsockopt: _wasm_setsockopt,
   /** @export */
@@ -8575,8 +8390,8 @@ var dynCall_jiiji = Module['dynCall_jiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCa
 var dynCall_jiiiji = Module['dynCall_jiiiji'] = (a0, a1, a2, a3, a4, a5, a6) => (dynCall_jiiiji = Module['dynCall_jiiiji'] = wasmExports['dynCall_jiiiji'])(a0, a1, a2, a3, a4, a5, a6);
 var dynCall_iiiji = Module['dynCall_iiiji'] = (a0, a1, a2, a3, a4, a5) => (dynCall_iiiji = Module['dynCall_iiiji'] = wasmExports['dynCall_iiiji'])(a0, a1, a2, a3, a4, a5);
 var dynCall_jiji = Module['dynCall_jiji'] = (a0, a1, a2, a3, a4) => (dynCall_jiji = Module['dynCall_jiji'] = wasmExports['dynCall_jiji'])(a0, a1, a2, a3, a4);
-var ___start_em_js = Module['___start_em_js'] = 11122156;
-var ___stop_em_js = Module['___stop_em_js'] = 11124119;
+var ___start_em_js = Module['___start_em_js'] = 11128540;
+var ___stop_em_js = Module['___stop_em_js'] = 11133825;
 
 // include: postamble.js
 // === Auto-generated postamble setup entry stuff ===

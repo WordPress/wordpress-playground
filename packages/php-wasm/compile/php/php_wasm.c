@@ -32,6 +32,9 @@ unsigned int wasm_sleep(unsigned int time)
 	return time;
 }
 
+
+extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
+
 /**
  * Passes a message to the JavaScript module and writes the response
  * data, if any, to the response_buffer pointer.
@@ -85,8 +88,6 @@ EM_ASYNC_JS(size_t, js_module_onMessage, (const char *data, char **response_buff
 	}
 });
 
-
-extern int *wasm_setsockopt(int sockfd, int level, int optname, intptr_t optval, size_t optlen, int dummy);
 /**
  * Shims popen(3) functionallity:
  * https://man7.org/linux/man-pages/man3/popen.3.html
@@ -161,12 +162,231 @@ EM_ASYNC_JS(char*, js_popen_to_file, (const char *cmd, const char *mode, uint8_t
 	});
 });
 
+
+/**
+ * Shims poll(2) functionallity for asynchronous websockets:
+ * https://man7.org/linux/man-pages/man2/poll.2.html
+ *
+ * The semantics don't line up exactly with poll(2) but
+ * the intent does. This function is called in php_pollfd_for()
+ * to await a websocket-related event.
+ *
+ * @param {int} socketd The socket descriptor
+ * @param {int} events  The events to wait for
+ * @param {int} timeout The timeout in milliseconds
+ * @returns {int} 1 if any event was triggered, 0 if the timeout expired
+ */
+EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
+    if (typeof Asyncify === 'undefined') {
+        return 0;
+    }
+
+    const POLLIN = 0x0001; /* There is data to read */
+    const POLLPRI = 0x0002; /* There is urgent data to read */
+    const POLLOUT = 0x0004; /* Writing now will not block */
+    const POLLERR = 0x0008; /* Error condition */
+    const POLLHUP = 0x0010; /* Hung up */
+    const POLLNVAL = 0x0020; /* Invalid request: fd not open */
+
+    return new Promise((wakeUp) => {
+        const polls = [];
+        if (socketd in PHPWASM.child_proc_by_fd) {
+            // This is a child process-related socket.
+            const procInfo = PHPWASM.child_proc_by_fd[socketd];
+            if (procInfo.exited) {
+                wakeUp(0);
+                return;
+            }
+            polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
+        } else if (FS.isSocket(stream.node.mode)) {
+            // This is, most likely, a websocket. Let's make sure.
+            const sock = getSocketFromFD(socketd);
+            if (!sock) {
+                wakeUp(0);
+                return;
+            }
+            const lookingFor = new Set();
+
+            if (events & POLLIN || events & POLLPRI) {
+                if (sock.server) {
+                    for (const client of sock.pending) {
+                        if ((client.recv_queue || []).length > 0) {
+                            wakeUp(1);
+                            return;
+                        }
+                    }
+                } else if ((sock.recv_queue || []).length > 0) {
+                    wakeUp(1);
+                    return;
+                }
+            }
+
+            const webSockets = PHPWASM.getAllWebSockets(sock);
+            if (!webSockets.length) {
+                wakeUp(0);
+                return;
+            }
+            for (const ws of webSockets) {
+                if (events & POLLIN || events & POLLPRI) {
+                    polls.push(PHPWASM.awaitData(ws));
+                    lookingFor.add('POLLIN');
+                }
+                if (events & POLLOUT) {
+                    polls.push(PHPWASM.awaitConnection(ws));
+                    lookingFor.add('POLLOUT');
+                }
+                if (events & POLLHUP) {
+                    polls.push(PHPWASM.awaitClose(ws));
+                    lookingFor.add('POLLHUP');
+                }
+                if (events & POLLERR || events & POLLNVAL) {
+                    polls.push(PHPWASM.awaitError(ws));
+                    lookingFor.add('POLLERR');
+                }
+            }
+        } else {
+          wakeUp(0);
+          return;
+        }
+        if (polls.length === 0) {
+            console.warn(
+                'Unsupported poll event ' +
+                    events +
+                    ', defaulting to setTimeout().'
+            );
+            setTimeout(function () {
+                wakeUp(0);
+            }, timeout);
+            return;
+        }
+
+        const promises = polls.map(([promise]) => promise);
+        const clearPolling = () => polls.forEach(([, clear]) => clear());
+        let awaken = false;
+        let timeoutId;
+        Promise.race(promises).then(function (results) {
+            if (!awaken) {
+                awaken = true;
+                wakeUp(1);
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                clearPolling();
+            }
+        });
+
+        if (timeout !== -1) {
+            timeoutId = setTimeout(function () {
+                if (!awaken) {
+                    awaken = true;
+                    wakeUp(0);
+                    clearPolling();
+                }
+            }, timeout);
+        }
+    });
+});
+	
+/**
+ * Shims read(2) functionallity.
+ * Enables reading from blocking pipes. By default, Emscripten
+ * will throw an EWOULDBLOCK error when trying to read from a
+ * blocking pipe. This function overrides that behavior and
+ * instead waits for the pipe to become readable.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/951
+ * @see https://github.com/emscripten-core/emscripten/issues/13214
+ */
+EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iovs, size_t iovs_len, __wasi_size_t *nread), {
+    var returnCode;
+    var stream;
+    let num = 0;
+    try
+    {
+        stream = SYSCALLS.getStreamFromFD(fd);
+        const num = doReadv(stream, iov, iovcnt);
+        HEAPU32[pnum >> 2] = num;
+        return 0;
+    }
+    catch (e)
+    {
+        // Rethrow any unexpected non-filesystem errors.
+        if (typeof FS == "undefined" || !(e.name === "ErrnoError"))
+        {
+            throw e;
+        }
+        // Only return synchronously if this isn't an asynchronous pipe.
+        // Error code 6 indicates EWOULDBLOCK – this is our signal to wait.
+        // We also need to distinguish between a process pipe and a file pipe, otherwise
+        // reading from an empty file would block until the timeout.
+        if (e.errno !== 6 || !(stream?.fd in PHPWASM.child_proc_by_fd))
+        {
+            // On failure, yield 0 bytes read to indicate EOF.
+            HEAPU32[pnum >> 2] = 0;
+            return returnCode
+        }
+    }
+
+    // At this point we know we have to poll.
+    // You might wonder why we duplicate the code here instead of always using
+    // Asyncify.handleSleep(). The reason is performance. Most of the time,
+    // the read operation will work synchronously and won't require yielding
+    // back to JS. In these cases we don't want to pay the Asyncify overhead,
+    // save the stack, yield back to JS, restore the stack etc.
+    return new Promise((wakeUp) => {
+        var retries = 0;
+        var interval = 50;
+        var timeout = 5000;
+        // We poll for data and give up after a timeout.
+        // We can't simply rely on PHP timeout here because we don't want
+        // to, say, block the entire PHPUnit test suite without any visible
+        // feedback.
+        var maxRetries = timeout / interval;
+        function poll() {
+            var returnCode;
+            var stream;
+            let num;
+            try {
+                stream = SYSCALLS.getStreamFromFD(fd);
+                num = doReadv(stream, iov, iovcnt);
+                returnCode = 0;
+            } catch (e) {
+                if (
+                    typeof FS == 'undefined' ||
+                    !(e.name === 'ErrnoError')
+                ) {
+                    console.error(e);
+                    throw e;
+                }
+                returnCode = e.errno;
+            }
+
+            const success = returnCode === 0;
+            const failure = (
+                ++retries > maxRetries ||
+                !(fd in PHPWASM.child_proc_by_fd) ||
+                PHPWASM.child_proc_by_fd[fd]?.exited ||
+                FS.isClosed(stream)
+            );
+
+            if (success) {
+                HEAPU32[pnum >> 2] = num;
+                wakeUp(0);
+            } else if (failure) {
+                // On failure, yield 0 bytes read to indicate EOF.
+                HEAPU32[pnum >> 2] = 0;
+                // If the failure is due to a timeout, return 0 to indicate that we
+                // reached EOF. Otherwise, propagate the error code.
+                wakeUp(returnCode === 6 ? 0 : returnCode);
+            } else {
+                setTimeout(poll, interval);
+            }
+        }
+        poll();
+    })
+});
 extern int __wasi_syscall_ret(__wasi_errno_t code);
-extern __wasi_errno_t js_fd_read(
-	__wasi_fd_t fd,
-	const __wasi_iovec_t *iovs,
-	size_t iovs_len,
-	__wasi_size_t *nread);
+
 
 // Exit code of the last exited child process call.
 int wasm_pclose_ret = -1;
@@ -452,11 +672,6 @@ err:
 }
 
 // }}}
-
-// -----------------------------------------------------------
-
-int wasm_socket_has_data(php_socket_t fd);
-int wasm_poll_socket(php_socket_t fd, int events, int timeoutms);
 
 /* hybrid select(2)/poll(2) for a single descriptor.
  * timeouttv follows same rules as select(2), but is reduced to millisecond accuracy.
