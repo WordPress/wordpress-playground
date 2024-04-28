@@ -23,12 +23,23 @@ RUN CPPFLAGS="-I/root/lib/include " \
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \
-        --prefix=/root/install/ \
+        --prefix=/root/lib/ \
         --disable-shared \
         --enable-static \
+        --with-ssl \
         --with-openssl=/root/lib \
         --enable-https \
         --enable-http \
+        --disable-pop3 \
+        --disable-imap \
+        --disable-smb \
+        --disable-smtp \
+        --disable-telnet \
+        --disable-gopher \
+        --disable-ftp \
+        --disable-ftps \
+        --disable-rtsp \
+        --disable-tftp \
         --disable-pthreads \
         --disable-threaded-resolver \
         --with-zlib=/root/lib
