@@ -96,7 +96,7 @@ const LibraryExample = {
 			const originalHandleSleep = Asyncify.handleSleep;
 			Asyncify.handleSleep = function (fn) {
 				const e = new Error();
-				for (const elem of extractPHPFunctionsFromStack2(e.stack)) {
+				for (const elem of extractPHPFunctionsFromStack(e.stack)) {
 					global.asyncifyFunctions.add(elem);
 				}
 				return originalHandleSleep(fn);

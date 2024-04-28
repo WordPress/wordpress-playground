@@ -297,7 +297,7 @@ EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeou
  * @see https://github.com/WordPress/wordpress-playground/issues/951
  * @see https://github.com/emscripten-core/emscripten/issues/13214
  */
-EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iovs, size_t iovs_len, __wasi_size_t *nread), {
+EM_ASYNC_JS(__wasi_errno_t, js_fd_read, (__wasi_fd_t fd, const __wasi_iovec_t *iov, size_t iovcnt, __wasi_size_t *pnum), {
     var returnCode;
     var stream;
     let num = 0;
