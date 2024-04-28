@@ -20,6 +20,27 @@ describe.each(SupportedPHPVersions)(
 			});
 			expect(text).toEqual('response from express');
 		});
+
+		it('should be able to make a request using curl', async () => {
+			const serverUrl = await startServer();
+			const php = await NodePHP.load(phpVersion);
+			php.setPhpIniEntry('disable_functions', '');
+			php.writeFile(
+				'/tmp/test.php',
+				`<?php
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, "${serverUrl}");
+			curl_setopt($ch, CURLOPT_TCP_NODELAY, 0);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			echo curl_exec($ch);
+			curl_close($ch);
+			`
+			);
+			const { text } = await php.run({
+				scriptPath: '/tmp/test.php',
+			});
+			expect(text).toEqual('response from express');
+		});
 	},
 	1000
 );
