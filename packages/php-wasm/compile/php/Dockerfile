@@ -498,6 +498,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "easy_perform",\
 "RAND_poll",\
 "rand_bytes",\
+"RAND_bytes",\
 "SSL_CTX_new",\
 "rand_nopseudo_bytes",\
 "rand_enough",\
