@@ -175,7 +175,7 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 	}
 
 	client.on('message', function (msg: Buffer) {
-		// clientLog('PHP -> network buffer:', msg);
+		clientLog('PHP -> network buffer:', msg);
 		recvQueue.unshift(msg);
 		if (target) {
 			flushMessagesQueue();
@@ -220,10 +220,10 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 		flushMessagesQueue();
 	});
 	target.on('data', function (data: any) {
-		// clientLog(
-		// 	'network -> PHP buffer:',
-		// 	[...data.slice(0, 100)].join(', ') + '...'
-		// );
+		clientLog(
+			'network -> PHP buffer:',
+			[...data.slice(0, 100)].join(', ') + '...'
+		);
 		try {
 			client.send(data);
 		} catch (e) {
