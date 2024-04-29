@@ -5,112 +5,108 @@ slug: /wordcamp-contributor-day
 
 # WordCamp Contributor Day
 
-The WordPress Playground VS Code extension and wp-now are tools that streamline the process of setting up a local WordPress environment. Both are powered by WordPress Playground, eliminating the need for other tools like Docker and MySQL.
+The [WordPress Playground VS Code extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) and [wp-now](https://www.npmjs.com/package/@wp-now/wp-now) streamline the process of setting up a local WordPress environment. Both are powered by WordPress Playground—no Docker, MySQL, or Apache required.
 
-Read on to see how you can use either for contributing to WordPress. Please note that they’re currently in an alpha state and not all Make teams are fully supported.
+Keep reading to learn how to use these tools for [local development](../05-local-development/01-wp-now.md) when contributing to WordPress. Please note that the extension and the NPM package are under development, and not all [Make WordPress teams](https://make.wordpress.org/) are fully supported.
 
 ## Getting Started
 
-If you're a visual learner – here's a step-by-step video for you! If you prefer reading at your own pace, you're welcome to skip over to the written instructions below.
+If you’re a visual learner, here’s a step-by-step video tutorial. If you prefer reading at your own pace, skip to the written instructions below.
 
-<iframe title="Getting Started with wp-now for WordPress development at Contributor Day" aria-label="Getting Started with wp-now for WordPress development at Contributor Day" width="752" height="423.2" src="https://video.wordpress.com/embed/Gn7XOCAM?cover=1&amp;preloadContent=metadata&amp;useAverageColor=1&amp;hd=1&amp;metadata_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ3b3JkcHJlc3MuY29tIiwiaWF0IjoxNjg2MTQ4ODQ5LCJleHAiOjE2ODYzMjE2NDksImJsb2dfaWQiOiIyMDMxMjIxMTIiLCJndWlkIjoiR243WE9DQU0iLCJhdXRoIjoidmlkZW9wcmVzc19wbGF5YmFja190b2tlbiIsImFjY2VzcyI6InZpZGVvIiwiZXhwaXJlcyI6MTY4NjMyMTY0OX0.DJWVfePHl2nUKo8ziG81CK2VlG5Ui8vNg-dZJ7dOSq8" frameborder="0" allowfullscreen="" data-resize-to-parent="true" allow="clipboard-write"></iframe>
+<iframe title="Getting Started with wp-now for WordPress development at Contributor Day" width="752" height="423" src="https://video.wordpress.com/embed/Gn7XOCAM?cover=1&amp;preloadContent=metadata&amp;useAverageColor=1&amp;hd=1&amp;metadata_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJ3b3JkcHJlc3MuY29tIiwiaWF0IjoxNjg2MTQ4ODQ5LCJleHAiOjE2ODYzMjE2NDksImJsb2dfaWQiOiIyMDMxMjIxMTIiLCJndWlkIjoiR243WE9DQU0iLCJhdXRoIjoidmlkZW9wcmVzc19wbGF5YmFja190b2tlbiIsImFjY2VzcyI6InZpZGVvIiwiZXhwaXJlcyI6MTY4NjMyMTY0OX0.DJWVfePHl2nUKo8ziG81CK2VlG5Ui8vNg-dZJ7dOSq8" allow="fullscreen" loading="eager"></iframe>
 
-### VSCode Playground extension
+### VS Code Playground extension
 
-[Visual Studio Code Playground extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) offers a friendly user interface to a local WordPress environment.
+The [Visual Studio Code Playground extension](https://marketplace.visualstudio.com/items?itemName=WordPressPlayground.wordpress-playground) is a friendly zero-setup development environment.
 
-To get started, open your Visual Studio Code and navigate to the extensions tab. In the search bar, type 'WordPress playground' and click 'Install'. This will add a new icon on your sidebar.
+1. Open VS Code and navigate to the **Extensions** tab (**View > Extensions**).
+2. In the search bar, type _WordPress Playground_ and click **Install**.
+3. To interact with Playground, click the new icon in the **Activity Bar** and hit the **Start WordPress Server** button.
+4. A new tab will open in your browser within a few seconds.
 
-## wp-now
+### wp-now NPM package
 
-### Minimum Requirements
+`@wp-now/wp-now` is a CLI tool that allows you to quickly spin up a WordPress site with a single command. No Docker, MySQL, or Apache required.
 
-To get started with wp-now, you need to have Node and npm installed on your system. You can follow this guide to install them: [Node and npm installation guide](https://nodejs.org/en/download/package-manager). We also recommend using nvm to easily change the node version: [nvm installation guide](https://github.com/nvm-sh/nvm#installing-and-updating).
+#### Prerequisites
 
-### Installing
+`wp-now` requires Node.js and NPM. If you haven't yet, [download and install](https://nodejs.org/en/download) both before you begin.
 
-You can globally install wp-now npm package in your machine, or if you prefer, you can run these commands directly from your browser using GitHub codespaces.: [https://www.npmjs.com/package/@wp-now/wp-now](https://www.npmjs.com/package/@wp-now/wp-now).
+Depending on the Make WordPress team you're contributing to, you may need a different Node.js version than the one you have installed. You can use Node Version Manager (NVM) to quickly switch between versions. [Find the installation guide here](https://github.com/nvm-sh/nvm#installing-and-updating).
 
-```
-npm install -g @wp-now/wp-now
-```
+#### Run wp-now
 
-### Running
+You don't have to install `wp-now` on your device to use it. Navigate to your plugin or theme directory and start `wp-now` with the following commands:
 
-To start a new server, navigate to your WordPress plugin or theme directory and run the command wp-now start. This will start the server with the default PHP and WordPress versions. A new tab will open automatically in your browser.
-
-```
-cd gutenberg
-wp-now start
-```
-
-You can stop wp-now by killing the process by pressing the keys `CTRL + C`.
-
-To change the PHP or WordPress version, you can use the `--php` and `--wp` arguments. For example, to start a server with PHP 7.4 and WordPress 6.1, you can run:
-
-```
-wp-now start --php 7.4 --wp 6.1
+```bash
+cd my-plugin-or-theme-directory
+npx @wp-now/wp-now start
 ```
 
-## Contributing to Gutenberg
+## Ideas for contributors
 
-### Create a Gutenberg PR Step By Step
+### Create a Gutenberg Pull Request (PR)
 
-Begin by creating a fork of the Gutenberg repository using your GitHub account. Once you've done that, clone your forked repository to your local machine to download the code. Following this, install the necessary dependencies and build the Gutenberg files.
+1. Begin by creating a fork of the [Gutenberg repository](https://github.com/WordPress/gutenberg) in your GitHub account.
+2. Then, clone the forked repository to download the files.
+3. Install the necessary dependencies, and build the code in development mode.
 
-```
+```bash
 git clone git@github.com:WordPress/gutenberg.git
 cd gutenberg
 npm install
 npm run dev
 ```
 
-Ensure that wp-now is installed on your system. Then, open a new terminal window and start the WordPress server by executing the wp-now command.
+:::info
 
-```
+If you're unsure about the steps listed above, visit the official [Gutenberg Project Contributor Guide](https://developer.wordpress.org/block-editor/contributors/). Note that in this case, `wp-now` replaces `wp-env`.
+
+:::
+
+Open a new terminal terminal tab, navigate to the Gutenberg directory, and start WordPress using `wp-now`:
+
+```bash
 cd gutenberg
-wp-now start
+npx @wp-now/wp-now start
 ```
 
-Commit and push your changes to your forked repository on GitHub and create a new pull request on the Gutenberg repository.
+When you're ready, commit and push your changes to your forked repository on GitHub and open a Pull Request on the Gutenberg repository.
 
-For more in detail information, check the block editor handbook: https://developer.wordpress.org/block-editor/contributors/code/getting-started-with-code-contribution/#getting-the-gutenberg-code
+### Test a Gutenberg PR
 
-### Test a Gutenberg PR Step By Step
+1. To test other Gutenberg PRs, checkout the branch associated with it.
+2. Pull the latest changes to ensure your local copy is up to date.
+3. Next, install the necessary dependencies, ensuring that your testing environment matches the latest changes.
+4. Finally, build the code in development mode.
 
-To test a Gutenberg PR with wp-now, start by navigating to the PR on the Gutenberg repository. Once there, checkout the PR branch to switch your local environment to the version of the code that includes the proposed changes. After checking out the branch, pull the latest changes to ensure your local copy is up to date. Next, run npm install to ensure all dependencies are up to date. This step is crucial as it ensures that your testing environment matches the one in which the changes were made. Finally, test the changes in your local environment. This could involve running unit tests and manually testing features in a browser.
-
-```
-# copy the branch-name from GitHub
+```bash
+# copy the branch-name from GitHub #
 git checkout branch-name
 git pull
 npm install
 npm run dev
 
-# In a different terminal inside the gutenberg folder
-wp-now start
+# In a different terminal inside the Gutenberg directory *
+npx @wp-now/wp-now start
 ```
 
-### Test a Gutenberg PR with the web version of WordPress Playground
+#### Test a Gutenberg PR with Playground in the browser
 
-You can manually test a Gutenberg pull request directly from your browser. Given a pull request URL, https://github.com/WordPress/gutenberg/pull/51239, copy the ID (in this case, `51239`) and paste it at https://playground.wordpress.net/gutenberg.html. Use your specific pull request ID. Once you press "Go," your Pull Request will open in a new WordPress Playground where you can review the proposed changes!
+You don't need a local development environment to test Gutenberg PRs—use Playground to do it directly in the browser.
 
-![Mermaid chart](https://github.com/WordPress/wordpress-playground/assets/779993/d4bc5a27-1401-4f35-bc68-2fad0ef699d5)
+1. Copy the ID of the PR you'd like to test (pick one from the [list of open Pull Requests](https://github.com/WordPress/gutenberg/pulls)).
+2. Open Playground's [Gutenberg PR Previewer](https://playground.wordpress.net/gutenberg.html), and paste the ID you copied.
+3. Once you click **Go**, Playground will verify the PR is valid, and open a new tab with the relevant PR, allowing you to review the proposed changes.
 
-## Translate WordPress Plugins using the WordPress Playground
+## Translate WordPress Plugins with Playground in the browser
 
-You can translate WordPress Plugins and Themes the traditional way in the table view at https://translate.wordpress.org/, or you can load the plugin to be translated and use Inline Translation to do so. Find the `Translate Live` link on the top right of the translation view for this. See [this blog post for more context](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
+You can translate supported WordPress Plugins by loading the plugin you want to translate and use Inline Translation. If the plugin developers have added the option, you'll find the **Translate Live** link on the top right toolbar of the translation view. You can read more about this exciting new option on [this Polyglots' blog post](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
 
-## Contributing to other Make projects
+## Get help and contribute to WordPress Playground
 
-At this time, contributing to other Make projects is not fully supported at this time.
+Have a question or an idea for a new feature? Found a bug? Something's not working as expected? We're here to help:
 
-## Known Limitations
-
-wp-now is in alpha version. Check out the known issues [https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md#known-issues](https://github.com/WordPress/playground-tools/blob/trunk/packages/wp-now/README.md#known-issues).
-
-## Getting Help and Contributing to WordPress Playground
-
-If you encounter any issues when running your project with 'wp-now' or the VSCode Playground extension, don't hesitate to reach out to the Playground table or ask in the #meta-playground Slack channel. Someone will be around to assist you during the day.
-
-If you come across a bug or if you have an idea for a potential feature, we encourage you to share your input. You can create an issue on our GitHub repository at [https://github.com/WordPress/playground-tools](https://github.com/WordPress/playground-tools). Alternatively, you can share your thoughts in the ‘#meta-playground’ channel on Slack.
+-   During Contributor Day, you can reach out to us at the **Playground table**.
+-   Open an issue on the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground).
+-   Share your feedback on the [**#meta-playground** Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K).
