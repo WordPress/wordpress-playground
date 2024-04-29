@@ -38,7 +38,7 @@
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
-				"scriptPath": "dist/packages/playground/cli/playground-cli.js"
+				"scriptPath": "dist/packages/playground/cli/wp-playground.js"
 			},
 			"dependsOn": ["build"]
 		},

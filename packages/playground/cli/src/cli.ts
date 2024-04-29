@@ -34,7 +34,7 @@ async function run() {
 	 *       Perhaps the two could be handled by the same code?
 	 */
 	const yargsObject = await yargs(process.argv.slice(2))
-		.usage('Usage: playground-cli <command> [options]')
+		.usage('Usage: wp-playground <command> [options]')
 		.positional('command', {
 			describe: 'Command to run',
 			type: 'string',
