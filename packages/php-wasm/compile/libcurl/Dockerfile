@@ -44,6 +44,23 @@ RUN CPPFLAGS="-I/root/lib/include " \
         --disable-threaded-resolver \
         --with-zlib=/root/lib
 
+RUN cp /root/emsdk/upstream/bin/wasm-ld /root/emsdk/upstream/bin/wasm-ld-original && \
+    echo $'#!/bin/bash\n\
+if [[ " $@ " =~ " -o curl " ]]; then \n\
+echo '' > /root/curl-7.69.1/src/curl; \n\
+echo '' > /root/curl-7.69.1/curl; \n\
+fi; \n\
+/root/emsdk/upstream/bin/wasm-ld-original "$@" || true; \n\
+exit 0; \n' > /root/emsdk/upstream/bin/wasm-ld && \
+    chmod a+x /root/emsdk/upstream/bin/wasm-ld
+
+
 RUN source /root/emsdk/emsdk_env.sh && \
-    EMCC_SKIP="-lc -lz -lcurl" \
-    EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make || true
+EMCC_SKIP="-lc -lz -lcurl -lssl " \
+EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make -i || true 
+
+RUN source /root/emsdk/emsdk_env.sh && \
+EMCC_SKIP="-lc -lz -lcurl -lssl " \
+EMCC_FLAGS="-sSIDE_MODULE -Wl,--wrap=select " emmake make install -i || true
+
+RUN ls -R /root/lib
