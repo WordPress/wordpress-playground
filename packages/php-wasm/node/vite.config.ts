@@ -5,8 +5,10 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { viteWasmLoader } from '../../vite-wasm-loader';
 
-export default defineConfig(() => {
+export default defineConfig(function () {
 	return {
 		cacheDir: '../../../node_modules/.vite/php-wasm',
 
@@ -14,14 +16,7 @@ export default defineConfig(() => {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			{
-				name: 'resolve-wasm-path',
-				load(id): any {
-					if (id.endsWith('.wasm')) {
-						return `export default ${JSON.stringify(id)}`;
-					}
-				},
-			},
+			viteWasmLoader,
 		],
 
 		// Configuration for building your library.
