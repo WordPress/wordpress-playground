@@ -132,6 +132,7 @@ const platformDefaults = {
 		WITH_OPENSSL: 'yes',
 	},
 	node: {
+		WITH_CURL: 'yes',
 		WITH_FILEINFO: 'yes',
 		WITH_ICONV: 'yes',
 		WITH_LIBXML: 'yes',
