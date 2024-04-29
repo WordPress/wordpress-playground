@@ -27,7 +27,7 @@ export default defineConfig({
 				'dns',
 				'ws',
 			],
-			input: 'packages/wp-playground/cli/src/index.ts',
+			input: 'packages/playground/cli/src/index.ts',
 			output: {
 				format: 'esm',
 				entryFileNames: '[name].js',

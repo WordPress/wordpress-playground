@@ -9,6 +9,7 @@ import {
 	SupportedPHPVersion,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
+import { logger } from '@php-wasm/logger';
 import { createPhp } from './setup-php';
 import { setupWordPress } from './setup-wp';
 import {
@@ -97,6 +98,7 @@ const yargsObject = await yargs(process.argv.slice(2))
 		}
 		return true;
 	});
+
 yargsObject.wrap(yargsObject.terminalWidth());
 const args = await yargsObject.argv;
 
@@ -144,7 +146,7 @@ export interface Mount {
 async function prepareSite(php: NodePHP, wpVersion: string, siteUrl: string) {
 	// No need to unzip WordPress if it's already mounted at /wordpress
 	if (!args.skipWordPressSetup) {
-		console.log(`Setting up WordPress ${wpVersion}`);
+		logger.log(`Setting up WordPress ${wpVersion}`);
 		// @TODO: Rename to FetchProgressMonitor. There's nothing Emscripten about that class anymore.
 		const monitor = new EmscriptenDownloadMonitor();
 		monitor.addEventListener('progress', ((
@@ -232,7 +234,9 @@ const compiledBlueprint = compileInputBlueprint();
 
 let requestHandler: PHPRequestHandler<NodePHP>;
 let wordPressReady = false;
-console.log('Starting PHP server...');
+
+logger.log('Starting a PHP server...');
+
 startServer({
 	port: args['port'] as number,
 	onBind: async (port: number) => {
@@ -257,9 +261,9 @@ startServer({
 			const { php, reap } =
 				await requestHandler.processManager.acquirePHPInstance();
 			try {
-				console.log(`Running the Blueprint...`);
+				logger.log(`Running the Blueprint...`);
 				await runBlueprintSteps(compiledBlueprint, php);
-				console.log(`Finished running the blueprint`);
+				logger.log(`Finished running the blueprint`);
 			} finally {
 				reap();
 			}
@@ -267,13 +271,13 @@ startServer({
 
 		if (command === 'build-snapshot') {
 			zipSite(args.outfile as string);
-			console.log(`WordPress exported to ${args.outfile}`);
+			logger.log(`WordPress exported to ${args.outfile}`);
 			process.exit(0);
 		} else if (command === 'run-blueprint') {
-			console.log(`Blueprint executed`);
+			logger.log(`Blueprint executed`);
 			process.exit(0);
 		} else {
-			console.log(`WordPress is running on ${absoluteUrl}`);
+			logger.log(`WordPress is running on ${absoluteUrl}`);
 		}
 	},
 	async handleRequest(request: PHPRequest) {
