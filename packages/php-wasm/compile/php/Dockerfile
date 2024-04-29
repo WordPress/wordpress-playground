@@ -390,11 +390,9 @@ RUN set -euxo pipefail; \
 			echo -n ' --source-map-base http://localhost:5400/@fs/Users/cloudnik/www/Automattic/core/plugins/playground/packages/php-wasm/web/public/${PHP_VERSION_ESCAPED}/' >> /root/.emcc-php-wasm-flags; \
 		fi; \
 	else \
-		# Preserve symbol names in node.js build – the bundle size doesn't matter as much
-		# as on the web, and this makes debugging **much** easier.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
-		fi; \
+		# Preserve symbol names in all build – it's much easier debugging
+		# for a slightly larger bundle.
+		echo -n ' -g2 ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # PHP < 8.0 errors out with "null function or function signature mismatch"
@@ -572,6 +570,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_assign_to_object",\
 "zif_file_put_contents",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
 "zend_objects_store_del_ref",\
