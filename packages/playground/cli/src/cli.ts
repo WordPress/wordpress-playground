@@ -83,6 +83,11 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.option('quiet', {
+			describe: 'Do not output logs and progress messages.',
+			type: 'boolean',
+			default: false,
+		})
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 				throw new Error(
@@ -110,6 +115,11 @@ async function run() {
 
 	yargsObject.wrap(yargsObject.terminalWidth());
 	const args = await yargsObject.argv;
+
+	if (args.quiet) {
+		// @ts-ignore
+		logger.handlers = [];
+	}
 
 	/**
 	 * TODO: This exact feature will be provided in the PHP Blueprints library.
@@ -165,9 +175,11 @@ async function run() {
 				const percentProgress = Math.round(
 					Math.min(100, (100 * e.detail.loaded) / e.detail.total)
 				);
-				process.stdout.write(
-					`\rDownloading WordPress ${percentProgress}%...    `
-				);
+				if (!args.quiet) {
+					process.stdout.write(
+						`\rDownloading WordPress ${percentProgress}%...    `
+					);
+				}
 			}) as any);
 			await setupWordPress(php, wpVersion, monitor);
 		}
