@@ -34,6 +34,8 @@ export async function createPhp(
 	php.setPhpIniPath('/tmp/php.ini');
 	php.writeFile('/tmp/php.ini', '');
 	php.setPhpIniEntry('memory_limit', '256M');
+	php.setPhpIniEntry('allow_url_fopen', '1');
+	php.setPhpIniEntry('disable_functions', '');
 
 	// Write the ca-bundle.crt file to disk so that PHP can find it.
 	php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
