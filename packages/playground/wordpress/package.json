@@ -16,7 +16,6 @@
 		}
 	],
 	"main": "./index.js",
-	"module": "./index.mjs",
 	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"type": "module",

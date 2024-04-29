@@ -1,7 +1,7 @@
 {
-	"name": "@php-wasm/web-service-worker",
+	"name": "@wp-playground/cli",
 	"version": "0.7.2",
-	"description": "PHP.wasm – service worker utils",
+	"description": "WordPress Playground CLI",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"
@@ -17,15 +17,11 @@
 	],
 	"publishConfig": {
 		"access": "public",
-		"directory": "../../../dist/packages/php-wasm/web-service-worker"
+		"directory": "../../../dist/packages/playground/cli"
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"main": "src/index.js",
-	"types": "src/index.d.ts",
-	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
-	"engines": {
-		"node": ">=18.18.0",
-		"npm": ">=8.11.0"
-	}
+	"main": "main.js",
+	"bin": "wp-playground.js",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }

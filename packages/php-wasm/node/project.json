@@ -22,7 +22,9 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node"
+					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node",
+					"node packages/php-wasm/node/bin/postprocess-php-modules.cjs dist/packages/php-wasm/node",
+					"rm -rf dist/packages/php-wasm/node/*.wasm"
 				],
 				"parallel": false
 			},

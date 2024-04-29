@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/logger",
-	"version": "0.7.1",
+	"version": "0.7.2",
 	"description": "A logger for PHP-wasm clients like Playground and WP-now.",
 	"repository": {
 		"type": "git",
@@ -19,7 +19,8 @@
 		"directory": "../../../dist/packages/php-wasm/logger"
 	},
 	"license": "GPL-2.0-or-later",
-	"main": "index.cjs",
+	"type": "module",
+	"main": "index.js",
 	"types": "index.d.ts",
 	"engines": {
 		"node": ">=18.18.0",
