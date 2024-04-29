@@ -1,8 +1,9 @@
 /// <reference types="vitest" />
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
+
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import ignoreWasmImports from '../ignore-wasm-imports';
+import { viteWasmLoader } from '../../vite-wasm-loader';
 
 export default {
 	base: '/',
@@ -19,7 +20,7 @@ export default {
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-		ignoreWasmImports(),
+		viteWasmLoader,
 	],
 
 	// Configuration for building your library.
