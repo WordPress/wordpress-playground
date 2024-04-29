@@ -30,6 +30,7 @@ export async function createPhp(
 	 * })
 	 */
 	php.initializeRuntime(await createPhpRuntime());
+	php.setSapiName('cli');
 	php.setPhpIniPath('/tmp/php.ini');
 	php.writeFile('/tmp/php.ini', '');
 	php.setPhpIniEntry('memory_limit', '256M');

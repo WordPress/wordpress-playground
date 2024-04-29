@@ -13,6 +13,7 @@ import { createPhp } from './setup-php';
 import { setupWordPress } from './setup-wp';
 import {
 	Blueprint,
+	CompiledBlueprint,
 	compileBlueprint,
 	defineSiteUrl,
 	login,
@@ -103,14 +104,33 @@ const args = await yargsObject.argv;
 
 async function serverCommandHandler() {
 	let requestHandler: PHPRequestHandler<NodePHP>;
+	let compiledBlueprint: CompiledBlueprint;
 	let wordPressReady = false;
 	console.log('Starting PHP server...');
 	startServer({
 		port: args['port'] as number,
 		onBind: async (port: number) => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			requestHandler = await buildSite(absoluteUrl);
+			const result = await buildSite(absoluteUrl);
+			requestHandler = result.requestHandler;
+			compiledBlueprint = result.compiledBlueprint;
 			wordPressReady = true;
+
+			const { php, reap } =
+				await requestHandler.processManager.acquirePHPInstance();
+			try {
+				if (compiledBlueprint) {
+					console.log(`Running the Blueprint...`);
+					await runBlueprintSteps(compiledBlueprint, php);
+					console.log(`Finished running the blueprint`);
+				} else {
+					if (args.login) {
+						await login(php, {});
+					}
+				}
+			} finally {
+				reap();
+			}
 			console.log(`WordPress is running on ${absoluteUrl}`);
 		},
 		async handleRequest(request: PHPRequest) {
@@ -132,35 +152,49 @@ async function serverCommandHandler() {
 async function buildCommandHandler() {
 	// Fake URL for the build
 	const siteUrl = 'http://playground.internal';
-	const requestHandler = await buildSite(siteUrl);
+	const { requestHandler, compiledBlueprint } = await buildSite(siteUrl);
 
-	const outfile = args['outfile'] as string;
-	console.log(`Zipping WordPress to ${outfile}`);
-
-	const php = await requestHandler.getPrimaryPhp();
-	await php.run({
-		code: `<?php 
-			$zip = new ZipArchive();
-			if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
-				throw new Exception('Failed to create ZIP');
+	const { php, reap } =
+		await requestHandler.processManager.acquirePHPInstance();
+	try {
+		if (compiledBlueprint) {
+			console.log(`Running the Blueprint...`);
+			await runBlueprintSteps(compiledBlueprint, php);
+			console.log(`Finished running the blueprint`);
+		} else {
+			if (args.login) {
+				await login(php, {});
 			}
-			$files = new RecursiveIteratorIterator(
-				new RecursiveDirectoryIterator('/wordpress')
-			);
-			foreach ($files as $file) {
-				echo $file . PHP_EOL;
-				if (!$file->isFile()) {
-					continue;
+		}
+		const outfile = args['outfile'] as string;
+		console.log(`Zipping WordPress to ${outfile}`);
+
+		await php.run({
+			code: `<?php 
+				$zip = new ZipArchive();
+				if(false === $zip->open('/tmp/build.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+					throw new Exception('Failed to create ZIP');
 				}
-				$zip->addFile($file->getPathname(), $file->getPathname());
-			}
-			$zip->close();
-			
-		`,
-	});
-	const zip = php.readFileAsBuffer('/tmp/build.zip');
-	fs.writeFileSync(outfile, zip);
-	console.log(`WordPress saved to ${outfile}`);
+				$files = new RecursiveIteratorIterator(
+					new RecursiveDirectoryIterator('/wordpress')
+				);
+				foreach ($files as $file) {
+					echo $file . PHP_EOL;
+					if (!$file->isFile()) {
+						continue;
+					}
+					$zip->addFile($file->getPathname(), $file->getPathname());
+				}
+				$zip->close();
+				
+			`,
+		});
+		const zip = php.readFileAsBuffer('/tmp/build.zip');
+		fs.writeFileSync(outfile, zip);
+		console.log(`WordPress saved to ${outfile}`);
+	} finally {
+		reap();
+	}
 	process.exit(0);
 }
 
@@ -263,16 +297,7 @@ async function buildSite(siteUrl: string) {
 		siteUrl,
 	});
 
-	if (compiledBlueprint) {
-		console.log(`Running the Blueprint...`);
-		await runBlueprintSteps(compiledBlueprint, php);
-		console.log(`Finished running the blueprint`);
-	} else {
-		if (args.login) {
-			await login(php, {});
-		}
-	}
-	return requestHandler;
+	return { compiledBlueprint, requestHandler };
 }
 
 const command = args._[0];
