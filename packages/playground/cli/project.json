@@ -9,14 +9,14 @@
 			"options": {
 				"tsConfig": "packages/playground/cli/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/cli",
-				"buildTarget": "php-wasm-cli:build:bundle:production"
+				"buildTarget": "wp-playground-cli:build:bundle:production"
 			}
 		},
 		"build:bundle": {
 			"executor": "@nx/vite:build",
 			"outputs": ["{options.outputPath}"],
 			"options": {
-				"main": "dist/packages/playground/cli/main.js",
+				"main": "dist/packages/playground/cli/src/cli.js",
 				"outputPath": "dist/packages/playground/cli"
 			},
 			"defaultConfiguration": "production",
@@ -32,13 +32,13 @@
 		"dev": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "bun --watch ./packages/playground/cli/src/index.ts"
+				"command": "bun --watch ./packages/playground/cli/src/cli.ts"
 			}
 		},
 		"start": {
 			"executor": "@wp-playground/nx-extensions:built-script",
 			"options": {
-				"scriptPath": "dist/packages/playground/cli/main.js"
+				"scriptPath": "dist/packages/playground/cli/playground-cli.js"
 			},
 			"dependsOn": ["build"]
 		},

@@ -1,7 +1,7 @@
 {
 	"name": "@wp-playground/cli",
 	"version": "0.6.16",
-	"description": "PHP.wasm CLI for node.js",
+	"description": "WordPress Playground CLI",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"
@@ -22,10 +22,6 @@
 	"license": "GPL-2.0-or-later",
 	"type": "module",
 	"main": "main.js",
-	"bin": "php-wasm.js",
-	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
-	"devDependencies": {
-		"@types/compressible": "2.0.2",
-		"@types/compression": "1.7.5"
-	}
+	"bin": "playground-cli.js",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
 }
