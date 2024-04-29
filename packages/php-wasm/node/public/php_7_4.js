@@ -1,4 +1,4 @@
-import dependencyFilename from './7_4_33/php_7_4.wasm'; 
+import dependencyFilename from './7_4_33/php_7_4.wasm';
 export { dependencyFilename }; 
 export const dependenciesTotalSize = 14675209; 
 export function init(RuntimeName, PHPLoader) {
@@ -2034,8 +2034,7 @@ var FS = {
   var root = mountpoint === "/";
   var pseudo = !mountpoint;
   var node;
-     if (root && FS.root) {
-      console.log("root already exists");
+  if (root && FS.root) {
    throw new FS.ErrnoError(10);
   } else if (!root && !pseudo) {
    var lookup = FS.lookupPath(mountpoint, {
@@ -2043,12 +2042,10 @@ var FS = {
    });
    mountpoint = lookup.path;
    node = lookup.node;
-         if (FS.isMountpoint(node)) {
-       console.log("node is a mountpoint");
+   if (FS.isMountpoint(node)) {
     throw new FS.ErrnoError(10);
    }
-         if (!FS.isDir(node.mode)) {
-       console.log("node is not a directory");
+   if (!FS.isDir(node.mode)) {
     throw new FS.ErrnoError(54);
    }
   }
