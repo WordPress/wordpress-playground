@@ -81,13 +81,9 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 		}
 
 		this.#progress[fileName] = loaded;
-		const allDone = Object.values(this.#progress).every(
-			(value) => value === this.#assetsSizes[fileName]
-		);
 		this.dispatchEvent(
 			new CustomEvent('progress', {
 				detail: {
-					finished: allDone,
 					loaded: sumValues(this.#progress),
 					total: sumValues(this.#assetsSizes),
 				},

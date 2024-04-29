@@ -80,9 +80,9 @@ export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 		scriptPath: '/wordpress/run-cli.php',
 	});
 
-	// if (result.errors) {
-	// 	throw  new Error(result.errors);
-	// }
+	if (result.errors) {
+		throw new Error(result.errors);
+	}
 
 	return result;
 };

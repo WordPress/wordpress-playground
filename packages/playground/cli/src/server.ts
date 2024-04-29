@@ -9,16 +9,8 @@ export interface ServerOptions {
 	handleRequest: (request: PHPRequest) => Promise<PHPResponse>;
 }
 
-// function shouldCompress(_, res) {
-// 	const types = res.getHeader('content-type');
-// 	const type = Array.isArray(types) ? types[0] : types;
-// 	return type && compressible(type);
-// }
-
 export async function startServer(options: ServerOptions) {
 	const app = express();
-	// app.use(compression({ filter: shouldCompress }));
-	// app.use(addTrailingSlash('/wp-admin'));
 
 	const server = await new Promise<
 		Server<typeof IncomingMessage, typeof ServerResponse>
