@@ -572,6 +572,7 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "zend_assign_to_object",\
 "zif_file_put_contents",\
 "ZEND_ASSIGN_OBJ_SPEC_CV_CONST_HANDLER",\
+"ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER",\
 "zend_std_call_user_call",\
 "zend_objects_store_del_ref_by_handle_ex",\
 "zend_objects_store_del_ref",\
