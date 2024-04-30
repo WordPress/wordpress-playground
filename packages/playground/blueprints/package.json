@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/blueprints",
-	"version": "0.7.16",
+	"version": "0.7.17",
 	"exports": {
 		".": {
 			"import": "./index.js",

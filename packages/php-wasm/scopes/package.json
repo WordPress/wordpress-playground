@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/scopes",
-	"version": "0.7.16",
+	"version": "0.7.17",
 	"description": "PHP.wasm – scoped URLs utils",
 	"repository": {
 		"type": "git",
