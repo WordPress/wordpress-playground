@@ -3,7 +3,6 @@ import {
 	BasePHP,
 	PHPRequestHandler,
 	SupportedPHPVersion,
-	__private__dont__use,
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { rootCertificates } from 'tls';
@@ -82,6 +81,10 @@ export function proxyFileSystem(
 	replica: BasePHP,
 	documentRoot: string
 ) {
+	// We can't just import the symbol from the library because
+	// Playground CLI is built as ESM and php-wasm-node is built as
+	// CJS and the imported symbols will different in the production build.
+	const __private__symbol = Object.getOwnPropertySymbols(sourceOfTruth)[0];
 	for (const path of [documentRoot, '/tmp']) {
 		if (!replica.fileExists(path)) {
 			replica.mkdir(path);
@@ -89,11 +92,14 @@ export function proxyFileSystem(
 		if (!sourceOfTruth.fileExists(path)) {
 			sourceOfTruth.mkdir(path);
 		}
-		replica[__private__dont__use].FS.mount(
-			replica[__private__dont__use].PROXYFS,
+		// @ts-ignore
+		replica[__private__symbol].FS.mount(
+			// @ts-ignore
+			replica[__private__symbol].PROXYFS,
 			{
 				root: path,
-				fs: sourceOfTruth[__private__dont__use].FS,
+				// @ts-ignore
+				fs: sourceOfTruth[__private__symbol].FS,
 			},
 			path
 		);
