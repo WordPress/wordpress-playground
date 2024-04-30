@@ -45,10 +45,25 @@ function playground_handle_request() {
 	//
 	$redirect = playground_maybe_redirect( $requested_path );
 	if ( false !== $redirect ) {
-		$log( "Redirecting to '${redirect['location']}' with status '${redirect['status']}'" );
-		header( "Location: ${redirect['location']}" );
-		http_response_code( $redirect['status'] );
-		die();
+		$should_redirect = true;
+		if ( isset( $redirect['condition']['referers'] ) ) {
+			$should_redirect = false;
+			if ( isset( $_SERVER['HTTP_REFERER'] ) ) {
+				foreach ( $redirect['condition']['referers'] as $referer ) {
+					if ( str_starts_with( $_SERVER['HTTP_REFERER'], $referer ) ) {
+						$should_redirect = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if ( $should_redirect ) {
+			$log( "Redirecting to '${redirect['location']}' with status '${redirect['status']}'" );
+			header( "Location: ${redirect['location']}" );
+			http_response_code( $redirect['status'] );
+			die();
+		}
 	}
 
 	//
@@ -159,12 +174,14 @@ function playground_maybe_redirect( $requested_path ) {
 		);
 	}
 
-	$has_dotorg_referrer = isset( $_SERVER['HTTP_REFERER'] ) && (
-		str_starts_with( $_SERVER['HTTP_REFERER'], 'https://developer.wordpress.org/' ) ||
-		str_starts_with( $_SERVER['HTTP_REFERER'], 'https://wordpress.org/' )
-	);
-	if ( $has_dotorg_referrer && str_ends_with( $requested_path, '/wordpress.html' ) ) {
+	if ( str_ends_with( $requested_path, '/wordpress.html' ) ) {
 		return array(
+			'condition' => array(
+				'referers' => array(
+					'https://developer.wordpress.org/',
+					'https://wordpress.org/',
+				),
+			),
 			'location' => '/index.html',
 			'status' => 302,
 		);
