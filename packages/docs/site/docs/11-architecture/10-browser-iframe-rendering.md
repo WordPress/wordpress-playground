@@ -20,5 +20,5 @@ This time, clicking the link the browser to load `page.php` **inside the iframe*
 
 ## Iframes caveats
 
--   `target="_top"` isn't handled yet. This means that clicking on `<a target="_top">Click here</a>` will reload the main browser tab.
--   JavaScript popup windows originating in the iframe may not work correctly yet.
+-   `target="_top"` isn't handled yet, so clicking links with `target="_top"` will reload the page you’re working on.
+-   JavaScript popup originating in the `iframe` may not always display.
