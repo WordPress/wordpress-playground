@@ -1,0 +1,86 @@
+{
+	"name": "playground-wordpress-builds",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/wordpress-builds/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"defaultConfiguration": "production",
+			"options": {
+				"outputPath": "dist/packages/playground/wordpress-builds"
+			},
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			},
+			"dependsOn": ["^build"]
+		},
+		"bundle-wordpress": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/wordpress-builds/build/build.js --wp-version={args.wp-version} --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+				"parallel": false
+			}
+		},
+		"bundle-wordpress:all": {
+			"executor": "nx:noop",
+			"dependsOn": [
+				"bundle-wordpress:nightly",
+				"bundle-wordpress:major-and-beta"
+			]
+		},
+		"bundle-wordpress:nightly": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public"
+				],
+				"parallel": false
+			}
+		},
+		"bundle-wordpress:major-and-beta": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-3 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=latest --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public || true"
+				],
+				"parallel": false
+			}
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:vite": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/wordpress-builds"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/wordpress-builds"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": [
+					"packages/playground/wordpress-builds/**/*.ts",
+					"packages/playground/wordpress-builds/package.json"
+				]
+			}
+		}
+	},
+	"tags": []
+}

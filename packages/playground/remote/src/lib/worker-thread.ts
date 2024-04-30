@@ -6,8 +6,8 @@ import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
-	wordPressRewriteRules,
-} from '@wp-playground/wordpress';
+} from '@wp-playground/wordpress-builds';
+import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { PHPRequestHandler, writeFiles } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,

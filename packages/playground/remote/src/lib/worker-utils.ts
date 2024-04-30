@@ -2,7 +2,7 @@ import { WebPHP } from '@php-wasm/web';
 import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersionsList,
-} from '@wp-playground/wordpress';
+} from '@wp-playground/wordpress-builds';
 import {
 	BasePHP,
 	PHPResponse,

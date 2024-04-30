@@ -38,7 +38,7 @@ jobs:
               shell: bash
               env:
                   FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
-              run: npx nx bundle-wordpress:major-and-beta playground-wordpress
+              run: npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
             - name: Check for uncommitted changes
               id: changes
               run: |

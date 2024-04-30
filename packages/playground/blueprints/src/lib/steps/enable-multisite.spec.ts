@@ -1,8 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { enableMultisite } from './enable-multisite';
 import { PHPRequestHandler } from '@php-wasm/universal';

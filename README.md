@@ -111,7 +111,7 @@ And here's a few more interesting CLI commands you can run in this repo:
 npx nx start php-wasm-cli
 
 # Build latest WordPress releases
-npx nx bundle-wordpress:all playground-wordpress
+npx nx bundle-wordpress:all playground-wordpress-builds
 
 # Recompile PHP 5.6 - 8.2 releases to .wasm for web
 npx nx recompile-php:all php-wasm-web
