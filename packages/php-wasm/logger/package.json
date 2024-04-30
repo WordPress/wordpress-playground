@@ -20,7 +20,8 @@
 	},
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"main": "index.js",
+	"module": "./index.js",
+	"main": "./index.cjs",
 	"types": "index.d.ts",
 	"engines": {
 		"node": ">=18.18.0",
