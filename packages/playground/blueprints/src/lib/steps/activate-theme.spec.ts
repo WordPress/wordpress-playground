@@ -1,8 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { activateTheme } from './activate-theme';
 import { phpVar } from '@php-wasm/util';
