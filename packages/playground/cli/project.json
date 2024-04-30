@@ -1,5 +1,5 @@
 {
-	"name": "wp-playground-cli",
+	"name": "playground-cli",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/cli/src",
 	"projectType": "library",
@@ -9,7 +9,7 @@
 			"options": {
 				"tsConfig": "packages/playground/cli/tsconfig.lib.json",
 				"outputPath": "dist/packages/playground/cli",
-				"buildTarget": "wp-playground-cli:build:bundle:production"
+				"buildTarget": "playground-cli:build:bundle:production"
 			}
 		},
 		"build:bundle": {
