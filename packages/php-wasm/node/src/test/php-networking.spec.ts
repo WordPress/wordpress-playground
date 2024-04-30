@@ -1,9 +1,9 @@
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { type SupportedPHPVersion } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { NodePHP } from '..';
 
-describe.each(['8.0'])(
+describe.each(['8.0' as SupportedPHPVersion])(
 	'PHP %s',
 	(phpVersion) => {
 		it('should be able to make a request to a server', async () => {
