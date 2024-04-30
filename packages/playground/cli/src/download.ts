@@ -29,10 +29,24 @@ async function downloadTo(
 	const writer = fs.createWriteStream(localPath);
 	while (true) {
 		const { done, value } = await reader.read();
+		if (value) {
+			writer.write(value);
+		}
 		if (done) {
 			break;
 		}
-		writer.write(Buffer.from(value));
+	}
+	writer.close();
+	if (!writer.closed) {
+		await new Promise((resolve, reject) => {
+			writer.on('finish', (err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+			});
+		});
 	}
 }
 
