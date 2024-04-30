@@ -30,6 +30,7 @@ jobs:
                   ref: trunk
                   clean: true
                   persist-credentials: false
+                  sparse-checkout: CHANGELOG.md
             - name: Fetch trunk
               shell: bash
               run: git fetch origin trunk --depth=1
