@@ -36,7 +36,6 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
             - name: Config git user
               run: |
