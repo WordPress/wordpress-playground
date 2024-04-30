@@ -95,14 +95,7 @@ libcurl/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/dist/root/lib
 
-libcurl7.15: libcurl7.15/dist/root/lib/lib/libcurl.a
-libcurl7.15/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
-	mkdir -p ./libcurl7.15/dist/root/lib
-	docker build -f ./libcurl7.15/Dockerfile -t playground-php-wasm:libcurl7.15 . --progress=plain
-	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.15.5/lib/.libs ./libcurl7.15/dist/root/lib/lib
-	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.15.5/include/ ./libcurl7.15/dist/root/lib
-
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma libcurl libcurl7.15
+all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma libcurl
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist
