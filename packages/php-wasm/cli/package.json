@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/cli",
-	"version": "0.7.13",
+	"version": "0.7.14",
 	"description": "PHP.wasm CLI for node.js",
 	"repository": {
 		"type": "git",
