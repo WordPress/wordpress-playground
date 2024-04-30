@@ -23,6 +23,10 @@
 		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
 	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/wordpress"
+	},
 	"dependencies": {
 		"@php-wasm/universal": "^0.6.6"
 	}
