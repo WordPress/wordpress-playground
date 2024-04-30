@@ -4,15 +4,59 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
-## Unreleased 
+## [v0.7.2] (2024-04-29)
 
+### **Breaking Changes**
 
+-   PHP: Remove setSapiName, setPhpIniEntry, setPhpIniPath methods from the remote PHP API client. ([1321](https://github.com/WordPress/wordpress-playground/pull/1321))
+-   Remove the wp-playground/node package. ([1323](https://github.com/WordPress/wordpress-playground/pull/1323))
 
+#### PHP WebAssembly
 
-## [v0.7.1] (2024-04-24) 
+-   Breaking: Loopback Request Support. ([1287](https://github.com/WordPress/wordpress-playground/pull/1287))
 
+### Tools
 
+-   Centralize log storage. ([1315](https://github.com/WordPress/wordpress-playground/pull/1315))
 
+### Documentation
+
+-   Link to Installing Nx Globally in the README. ([1325](https://github.com/WordPress/wordpress-playground/pull/1325))
+
+### PHP WebAssembly
+
+-   Add PHPResponse.forHttpCode() shorthand. ([1322](https://github.com/WordPress/wordpress-playground/pull/1322))
+-   Asyncify: List ZEND_FETCH_OBJ_R_SPEC_CV_CV_HANDLER. ([1342](https://github.com/WordPress/wordpress-playground/pull/1342))
+-   Curl extension for the Node.js build of PHP.wasm. ([1273](https://github.com/WordPress/wordpress-playground/pull/1273))
+-   Explore curl support. ([1133](https://github.com/WordPress/wordpress-playground/pull/1133))
+-   PHP Process Manager. ([1301](https://github.com/WordPress/wordpress-playground/pull/1301))
+-   PHPProcessManager: Clear nextInstance when the concurrency limit is exhausted. ([1324](https://github.com/WordPress/wordpress-playground/pull/1324))
+-   Spawn handler: Wrap the program call with try/catch, exit gracefully on error. ([1320](https://github.com/WordPress/wordpress-playground/pull/1320))
+
+### Website
+
+-   Add initial workflow for deploying the website to WP Cloud. ([1293](https://github.com/WordPress/wordpress-playground/pull/1293))
+
+-   Eliminate 404s due to nested files-to-serve-via-php dir. ([1333](https://github.com/WordPress/wordpress-playground/pull/1333))
+-   Stop WP rewrite rules from matching files like wp-admin.css. ([1317](https://github.com/WordPress/wordpress-playground/pull/1317))
+-   Stop using PHP to serve most static files on WP Cloud. ([1331](https://github.com/WordPress/wordpress-playground/pull/1331))
+-   WP Cloud: Relay secrets for error logger. ([1337](https://github.com/WordPress/wordpress-playground/pull/1337))
+
+#### Documentation
+
+-   Document WP Cloud website setup. ([1338](https://github.com/WordPress/wordpress-playground/pull/1338))
+
+### Reliability
+
+-   Add log methods, log handlers, and separate log collection. ([1264](https://github.com/WordPress/wordpress-playground/pull/1264))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @bgrgicak @brandonpayton @juanmaguitar @mho22
+
+## [v0.7.1] (2024-04-24)
 
 ## [v0.7.0] (2024-04-24)
 

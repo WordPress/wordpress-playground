@@ -712,9 +712,10 @@ function getFeatureEntry(
 	issue: IssuesListForRepoResponseItem,
 	featureName: string
 ): string | undefined {
+	const featureNameRegex = escapeRegExp(featureName.toLowerCase());
 	return getEntry(issue)
-		?.replace(new RegExp(`\\[${featureName.toLowerCase()} \- `, 'i'), '[')
-		.replace(new RegExp(`(?<=^- )${featureName.toLowerCase()}: `, 'i'), '');
+		?.replace(new RegExp(`\\[${featureNameRegex} \- `, 'i'), '[')
+		.replace(new RegExp(`(?<=^- )${featureNameRegex}: `, 'i'), '');
 }
 
 async function getPreviousReleaseTag(
