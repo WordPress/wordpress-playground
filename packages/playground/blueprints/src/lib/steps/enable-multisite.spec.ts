@@ -31,10 +31,6 @@ describe('Blueprint step enableMultisite', () => {
 		const response = await requestHandler.request({
 			url: '/wp-admin/network/',
 		});
-
-		for (const fn of global.asyncifyFunctions) {
-			console.log(`"${fn}",`);
-		}
 		expect(response.text).toContain('My Sites');
 	}, 30_000);
 

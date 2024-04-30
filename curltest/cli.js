@@ -2,24 +2,29 @@
 
 // import { NodePHP } from '@php-wasm/node';
 import { NodePHP } from '../dist/packages/php-wasm/node/index.cjs';
+import { rootCertificates } from 'tls';
+
+const caBundlePath = new URL('ca-bundle.crt', (import.meta || {}).url).pathname;
 
 NodePHP.load('8.0')
 	.then((php) => {
 		php.setPhpIniEntry('allow_url_fopen', '1');
 		php.setPhpIniEntry('disable_functions', '');
+		php.setPhpIniEntry('openssl.cafile', caBundlePath);
 		php.useHostFilesystem();
+		php.writeFile(caBundlePath, rootCertificates.join('\n'));
 
-		// return php.run({
-		//     code: `<?php
-		//     echo file_get_contents('https://wordpress.org');
-		//     `
-		// });
+		console.log('php.run');
+		return php.run({
+			code: `<?php
+		    echo file_get_contents('https://wordpress.org');
+		    `,
+		});
 		return php.cli(['php', ...process.argv.slice(2)]);
 	})
-	.then(() => {
-		for (const fn of global.asyncifyFunctions) {
-			console.log(`"${fn}",`);
-		}
+	.then((result) => {
+		console.log('done!');
+		console.log(result.text);
 	})
 	.catch((e) => {
 		console.error(e);

@@ -16,10 +16,7 @@
 		"array": "c",
 		"string": "c",
 		"string_view": "c",
-		"vector": "c",
-		"span": "c",
-		"numeric": "c",
-		"fcntl.h": "c"
+		"vector": "c"
 	},
 	"autoImportFileExcludePatterns": [
 		"@wp-playground/client"

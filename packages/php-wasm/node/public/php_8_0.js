@@ -6949,17 +6949,6 @@ url = Module["websocket"]["url"](...arguments);
   					return [];
   				}
   			}
-  					
-  			global.asyncifyFunctions = new Set();
-  			const originalHandleSleep = Asyncify.handleSleep;
-  			Asyncify.handleSleep = function (fn) {
-          const e = new Error();
-          console.error(e.stack);
-  				global.asyncifyFunctions.add(
-  					...extractPHPFunctionsFromStack(e.stack)
-  				);
-  				return originalHandleSleep(fn);
-  			};
   		},
   getAllWebSockets:function (sock) {
   			const webSockets = /* @__PURE__ */ new Set();

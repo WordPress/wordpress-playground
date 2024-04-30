@@ -91,16 +91,6 @@ const LibraryExample = {
 					return [];
 				}
 			}
-					
-			global.asyncifyFunctions = new Set();
-			const originalHandleSleep = Asyncify.handleSleep;
-			Asyncify.handleSleep = function (fn) {
-				const e = new Error();
-				for (const elem of extractPHPFunctionsFromStack(e.stack)) {
-					global.asyncifyFunctions.add(elem);
-				}
-				return originalHandleSleep(fn);
-			};
 		},
 		/**
 		 * A utility function to get all websocket objects associated
