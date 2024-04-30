@@ -32,7 +32,6 @@ jobs:
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
             - uses: ./.github/actions/prepare-playground
             - name: 'Recompile WordPress'
