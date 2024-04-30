@@ -1,6 +1,6 @@
 {
 	"name": "@php-wasm/web-service-worker",
-	"version": "0.7.11",
+	"version": "0.7.12",
 	"description": "PHP.wasm – service worker utils",
 	"repository": {
 		"type": "git",
