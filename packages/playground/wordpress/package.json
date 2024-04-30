@@ -1,7 +1,7 @@
 {
 	"name": "@wp-playground/wordpress",
 	"version": "0.0.1",
-	"description": "WordPress Compilation Pipeline for the WordPress Playground",
+	"description": "WordPress-related plumbing for WordPress Playground",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/WordPress/wordpress-playground"
@@ -19,7 +19,6 @@
 	"typings": "./index.d.ts",
 	"license": "GPL-2.0-or-later",
 	"type": "module",
-	"private": true,
 	"engines": {
 		"node": ">=18.18.0",
 		"npm": ">=8.11.0"
