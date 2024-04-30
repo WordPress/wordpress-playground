@@ -40,7 +40,7 @@ export default defineConfig({
 			input: 'packages/playground/cli/src/cli.ts',
 			output: {
 				format: 'cjs',
-				entryFileNames: '[name].js',
+				entryFileNames: '[name].cjs',
 			},
 		},
 	},
