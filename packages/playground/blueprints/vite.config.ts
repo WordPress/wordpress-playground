@@ -6,8 +6,6 @@ import { join } from 'path';
 
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteWasmLoader } from '../../vite-wasm-loader';
 
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/playground-blueprints',
@@ -21,8 +19,6 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-
-		viteWasmLoader,
 	],
 
 	// Uncomment this if you are using workers.

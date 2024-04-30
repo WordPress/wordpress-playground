@@ -5,8 +5,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import viteTsConfigPaths from 'vite-tsconfig-paths';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteWasmLoader } from '../../vite-wasm-loader';
 
 export default defineConfig(function () {
 	return {
@@ -16,7 +14,6 @@ export default defineConfig(function () {
 			viteTsConfigPaths({
 				root: '../../../',
 			}),
-			viteWasmLoader,
 		],
 
 		// Configuration for building your library.
