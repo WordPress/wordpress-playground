@@ -12,6 +12,7 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -21,6 +22,8 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+reportServiceWorkerMetrics(self);
 
 initializeServiceWorker({
 	handleRequest(event) {
@@ -70,6 +73,8 @@ initializeServiceWorker({
 				}
 				const request = await cloneRequest(event.request, {
 					url: resolvedUrl,
+					// Omit credentials to avoid causing cache aborts due to presence of cookies
+					credentials: 'omit',
 				});
 				return fetch(request).catch((e) => {
 					if (e?.name === 'TypeError') {

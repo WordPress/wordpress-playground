@@ -5,6 +5,7 @@ import {
 } from '@php-wasm/universal';
 import type { IsomorphicLocalPHP } from '@php-wasm/universal';
 import { Semaphore, basename, joinPaths } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export type EmscriptenFS = any;
 
@@ -401,7 +402,7 @@ export function normalizeFilesystemOperations(
 				//
 				// But that's not a straightforward transformation so let's just not handle
 				// it for now.
-				console.warn(
+				logger.warn(
 					'[FS Journal] Normalizing a double rename is not yet supported:',
 					{
 						current: latter,
@@ -547,11 +548,11 @@ async function hydrateOp(php: UniversalPHP, op: UpdateFileOperation) {
 		op.data = await php.readFileAsBuffer(op.path);
 	} catch (e) {
 		// Log the error but don't throw.
-		console.warn(
+		logger.warn(
 			`Journal failed to hydrate a file on flush: the ` +
 				`path ${op.path} no longer exists`
 		);
-		console.error(e);
+		logger.error(e);
 	}
 
 	release();

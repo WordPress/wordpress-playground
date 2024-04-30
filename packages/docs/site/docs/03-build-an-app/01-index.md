@@ -115,47 +115,43 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <BlueprintExample
 blueprint={{
-		"landingPage": "/wp-admin/plugins.php?test=42test",
-		"preferredVersions": {
-			"php": "7.4"
+	"landingPage": "/wp-admin/plugins.php?test=42test",
+	"steps": [
+		{
+			"step": "login",
+			"username": "admin",
+			"password": "password"
 		},
-		"steps": [
-			{
-				"step": "login"
+		{
+			"step": "mkdir",
+			"path": "/wordpress/pr"
+		},
+		{
+			"step": "writeFile",
+			"path": "/wordpress/pr/pr.zip",
+			"data": {
+				"resource": "url",
+				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=60819",
+				"caption": "Downloading Gutenberg PR 47739"
 			},
-			{
-				step: 'mkdir',
-				path: '/wordpress/pr',
-			},
-			{
-				"//": "GitHub provides doubly zipped files so we'll save it first",
-				step: 'writeFile',
-				path: '/wordpress/pr/pr.zip',
-				data: {
-					resource: 'url',
-					url: `/plugin-proxy?pr=47739&org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin`,
-					caption: "Downloading Gutenberg PR 47739",
-				},
-				progress: {
-					weight: 2,
-					caption: "Applying Gutenberg PR 47739",
-				},
-			},
-			{
-				"//": "Unzip the outer zip",
-				step: 'unzip',
-				zipPath: '/wordpress/pr/pr.zip',
-				extractToPath: '/wordpress/pr',
-			},
-			{
-				"//": "And install the inner zip!",
-				step: 'installPlugin',
-				pluginZipFile: {
-					resource: 'vfs',
-					path: '/wordpress/pr/gutenberg.zip',
-				},
-			},
-		]
+			"progress": {
+				"weight": 2,
+				"caption": "Applying Gutenberg PR 47739"
+			}
+		},
+		{
+			"step": "unzip",
+			"zipPath": "/wordpress/pr/pr.zip",
+			"extractToPath": "/wordpress/pr"
+		},
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "vfs",
+				"path": "/wordpress/pr/gutenberg.zip"
+			}
+		}
+	]
 	}} />
 
 ## Build a compatibility testing environment

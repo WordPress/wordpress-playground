@@ -1,8 +1,3 @@
-import { PHPBrowser } from './php-browser';
-import {
-	PHPRequestHandler,
-	PHPRequestHandlerConfiguration,
-} from './php-request-handler';
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -28,6 +23,8 @@ import {
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
 import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import { PHPRequestHandler } from './php-request-handler';
+import { logger } from '@php-wasm/logger';
 
 const STRING = 'string';
 const NUMBER = 'number';
@@ -52,17 +49,16 @@ export class PHPExecutionFailureError extends Error {
  * It exposes a minimal set of methods to run PHP scripts and to
  * interact with the PHP filesystem.
  */
-export abstract class BasePHP implements IsomorphicLocalPHP {
+export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
 	#phpIniPath?: string;
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
-	#serverEntries: Record<string, string> = {};
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map();
 	#messageListeners: MessageListener[] = [];
-	requestHandler?: PHPBrowser;
+	requestHandler?: PHPRequestHandler<any>;
 
 	/**
 	 * An exclusive lock that prevent multiple requests from running at
@@ -75,20 +71,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 *
 	 * @internal
 	 * @param  PHPRuntime - Optional. PHP Runtime ID as initialized by loadPHPRuntime.
-	 * @param  serverOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
+	 * @param  requestHandlerOptions - Optional. Options for the PHPRequestHandler. If undefined, no request handler will be initialized.
 	 */
-	constructor(
-		PHPRuntimeId?: PHPRuntimeId,
-		serverOptions?: PHPRequestHandlerConfiguration
-	) {
+	constructor(PHPRuntimeId?: PHPRuntimeId) {
 		this.semaphore = new Semaphore({ concurrency: 1 });
 		if (PHPRuntimeId !== undefined) {
 			this.initializeRuntime(PHPRuntimeId);
-		}
-		if (serverOptions) {
-			this.requestHandler = new PHPBrowser(
-				new PHPRequestHandler(this, serverOptions)
-			);
 		}
 	}
 
@@ -141,24 +129,22 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 	/** @inheritDoc */
 	get absoluteUrl() {
-		return this.requestHandler!.requestHandler.absoluteUrl;
+		return this.requestHandler!.absoluteUrl;
 	}
 
 	/** @inheritDoc */
 	get documentRoot() {
-		return this.requestHandler!.requestHandler.documentRoot;
+		return this.requestHandler!.documentRoot;
 	}
 
 	/** @inheritDoc */
 	pathToInternalUrl(path: string): string {
-		return this.requestHandler!.requestHandler.pathToInternalUrl(path);
+		return this.requestHandler!.pathToInternalUrl(path);
 	}
 
 	/** @inheritDoc */
 	internalUrlToPath(internalUrl: string): string {
-		return this.requestHandler!.requestHandler.internalUrlToPath(
-			internalUrl
-		);
+		return this.requestHandler!.internalUrlToPath(internalUrl);
 	}
 
 	initializeRuntime(runtimeId: PHPRuntimeId) {
@@ -234,15 +220,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this[__private__dont__use].FS.chdir(path);
 	}
 
-	/** @inheritDoc */
-	async request(
-		request: PHPRequest,
-		maxRedirects?: number
-	): Promise<PHPResponse> {
+	/**
+	 * Do not use. Use new PHPRequestHandler() instead.
+	 * @deprecated
+	 */
+	async request(request: PHPRequest): Promise<PHPResponse> {
+		logger.warn(
+			'PHP.request() is deprecated. Please use new PHPRequestHandler() instead.'
+		);
 		if (!this.requestHandler) {
 			throw new Error('No request handler available.');
 		}
-		return this.requestHandler.request(request, maxRedirects);
+		return this.requestHandler.request(request);
 	}
 
 	/** @inheritDoc */
@@ -272,7 +261,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			const headers = normalizeHeaders(request.headers || {});
 			const host = headers['host'] || 'example.com:443';
 
-			this.#setRequestHostAndProtocol(host, request.protocol || 'http');
+			const port = this.#inferPortFromHostAndProtocol(
+				host,
+				request.protocol || 'http'
+			);
+			this.#setRequestHost(host);
+			this.#setRequestPort(port);
 			this.#setRequestHeaders(headers);
 			if (request.body) {
 				heapBodyPointer = this.#setRequestBody(request.body);
@@ -280,7 +274,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			if (typeof request.code === 'string') {
 				this.#setPHPCode(' ?>' + request.code);
 			}
-			this.#addServerGlobalEntriesInWasm();
+
+			const $_SERVER = this.#prepareServerEntries(
+				request.$_SERVER,
+				headers,
+				port
+			);
+			for (const key in $_SERVER) {
+				this.#setServerGlobalEntry(key, $_SERVER[key]);
+			}
 
 			const env = request.env || {};
 			for (const key in env) {
@@ -289,14 +291,14 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 
 			const response = await this.#handleRequest();
 			if (response.exitCode !== 0) {
-				console.warn(`PHP.run() output was:`, response.text);
+				logger.warn(`PHP.run() output was:`, response.text);
 				const error = new PHPExecutionFailureError(
 					`PHP.run() failed with exit code ${response.exitCode} and the following output: ` +
 						response.errors,
 					response,
 					'request'
 				) as PHPExecutionFailureError;
-				console.error(error);
+				logger.error(error);
 				throw error;
 			}
 			return response;
@@ -320,6 +322,40 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				});
 			}
 		}
+	}
+
+	/**
+	 * Prepares the $_SERVER entries for the PHP runtime.
+	 *
+	 * @param defaults Default entries to include in $_SERVER.
+	 * @param headers HTTP headers to include in $_SERVER (as HTTP_ prefixed entries).
+	 * @param port HTTP port, used to determine infer $_SERVER['HTTPS'] value if none
+	 *             was provided.
+	 * @returns Computed $_SERVER entries.
+	 */
+	#prepareServerEntries(
+		defaults: Record<string, string> | undefined,
+		headers: PHPRequestHeaders,
+		port: number
+	): Record<string, string> {
+		const $_SERVER = {
+			...(defaults || {}),
+		};
+		$_SERVER['HTTPS'] = $_SERVER['HTTPS'] || port === 443 ? 'on' : 'off';
+		for (const name in headers) {
+			let HTTP_prefix = 'HTTP_';
+			/**
+			 * Some headers are special and don't have the HTTP_ prefix.
+			 */
+			if (
+				['content-type', 'content-length'].includes(name.toLowerCase())
+			) {
+				HTTP_prefix = '';
+			}
+			$_SERVER[`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`] =
+				headers[name];
+		}
+		return $_SERVER;
 	}
 
 	#initWebRuntime() {
@@ -413,14 +449,25 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 	}
 
-	#setRequestHostAndProtocol(host: string, protocol: string) {
+	#setRequestHost(host: string) {
 		this[__private__dont__use].ccall(
 			'wasm_set_request_host',
 			null,
 			[STRING],
 			[host]
 		);
+	}
 
+	#setRequestPort(port: number) {
+		this[__private__dont__use].ccall(
+			'wasm_set_request_port',
+			null,
+			[NUMBER],
+			[port]
+		);
+	}
+
+	#inferPortFromHostAndProtocol(host: string, protocol: string) {
 		let port;
 		try {
 			port = parseInt(new URL(host).port, 10);
@@ -431,16 +478,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		if (!port || isNaN(port) || port === 80) {
 			port = protocol === 'https' ? 443 : 80;
 		}
-		this[__private__dont__use].ccall(
-			'wasm_set_request_port',
-			null,
-			[NUMBER],
-			[port]
-		);
-
-		if (protocol === 'https' || (!protocol && port === 443)) {
-			this.addServerGlobalEntry('HTTPS', 'on');
-		}
+		return port;
 	}
 
 	#setRequestMethod(method: string) {
@@ -477,27 +515,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 				[parseInt(headers['content-length'], 10)]
 			);
 		}
-		for (const name in headers) {
-			let HTTP_prefix = 'HTTP_';
-			/**
-			 * Some headers are special and don't have the HTTP_ prefix.
-			 */
-			if (
-				['content-type', 'content-length'].includes(name.toLowerCase())
-			) {
-				HTTP_prefix = '';
-			}
-			this.addServerGlobalEntry(
-				`${HTTP_prefix}${name.toUpperCase().replace(/-/g, '_')}`,
-				headers[name]
-			);
-		}
 	}
 
 	#setRequestBody(body: string | Uint8Array) {
 		let size, contentLength;
 		if (typeof body === 'string') {
-			console.warn(
+			logger.warn(
 				'Passing a string as the request body is deprecated. Please use a Uint8Array instead. See ' +
 					'https://github.com/WordPress/wordpress-playground/issues/997 for more details'
 			);
@@ -548,19 +571,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		);
 	}
 
-	addServerGlobalEntry(key: string, value: string) {
-		this.#serverEntries[key] = value;
-	}
-
-	#addServerGlobalEntriesInWasm() {
-		for (const key in this.#serverEntries) {
-			this[__private__dont__use].ccall(
-				'wasm_add_SERVER_entry',
-				null,
-				[STRING, STRING],
-				[key, this.#serverEntries[key]]
-			);
-		}
+	#setServerGlobalEntry(key: string, value: string) {
+		this[__private__dont__use].ccall(
+			'wasm_add_SERVER_entry',
+			null,
+			[STRING, STRING],
+			[key, value]
+		);
 	}
 
 	#setEnv(name: string, value: string) {
@@ -615,8 +632,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			// eslint-disable-next-line no-async-promise-executor
 			exitCode = await new Promise<number>((resolve, reject) => {
 				errorListener = (e: ErrorEvent) => {
-					console.error(e);
-					console.error(e.error);
+					logger.error(e);
+					logger.error(e.error);
 					const rethrown = new Error('Rethrown');
 					rethrown.cause = e.error;
 					(rethrown as any).betterMessage = e.message;
@@ -661,11 +678,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			) as string;
 			const rethrown = new Error(message);
 			rethrown.cause = err;
-			console.error(rethrown);
+			logger.error(rethrown);
 			throw rethrown;
 		} finally {
 			this.#wasmErrorsTarget?.removeEventListener('error', errorListener);
-			this.#serverEntries = {};
 		}
 
 		const { headers, httpStatusCode } = this.#getResponseHeaders();
@@ -767,7 +783,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 			}
 			return files;
 		} catch (e) {
-			console.error(e, { path });
+			logger.error(e, { path });
 			return [];
 		}
 	}
@@ -799,8 +815,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
+	 * @param cwd. Internal, the VFS path to recreate in the new runtime.
+	 *             This arg is temporary and will be removed once BasePHP
+	 *             is fully decoupled from the request handler and
+	 *             accepts a constructor-level cwd argument.
 	 */
-	hotSwapPHPRuntime(runtime: number) {
+	hotSwapPHPRuntime(runtime: number, cwd?: string) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -832,9 +852,8 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		}
 
 		// Copy the MEMFS directory structure from the old FS to the new one
-		if (this.requestHandler) {
-			const docroot = this.documentRoot;
-			copyFS(oldFS, this[__private__dont__use].FS, docroot);
+		if (cwd) {
+			copyFS(oldFS, this[__private__dont__use].FS, cwd);
 		}
 	}
 
@@ -855,6 +874,12 @@ export abstract class BasePHP implements IsomorphicLocalPHP {
 		this.#wasmErrorsTarget = null;
 		delete this[__private__dont__use]['onMessage'];
 		delete this[__private__dont__use];
+	}
+
+	[Symbol.dispose]() {
+		if (this.#webSapiInitialized) {
+			this.exit(0);
+		}
 	}
 }
 

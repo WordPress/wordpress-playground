@@ -1,0 +1,27 @@
+{
+	"name": "@wp-playground/cli",
+	"version": "0.7.4",
+	"description": "WordPress Playground CLI",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Adam Zielinski",
+			"email": "adam@adamziel.com",
+			"url": "https://github.com/adamziel"
+		}
+	],
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/cli"
+	},
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"main": "main.js",
+	"bin": "wp-playground.js",
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
+}

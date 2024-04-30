@@ -47,7 +47,20 @@ export function createSpawnHandler(
 			} else {
 				throw new Error('Invalid command ', command);
 			}
-			await program(commandArray, processApi, options);
+			try {
+				await program(commandArray, processApi, options);
+			} catch (e) {
+				childProcess.emit('error', e);
+				if (
+					typeof e === 'object' &&
+					e !== null &&
+					'message' in e &&
+					typeof e.message === 'string'
+				) {
+					processApi.stderr(e.message);
+				}
+				processApi.exit(1);
+			}
 			childProcess.emit('spawn', true);
 		});
 		return childProcess;

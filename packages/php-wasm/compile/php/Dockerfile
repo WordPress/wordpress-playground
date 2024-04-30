@@ -186,7 +186,7 @@ RUN if [ "$WITH_FILEINFO" = "yes" ]; \
 RUN if [ "$WITH_ICONV" = "yes" ]; \
 	then \
 		echo -n ' --with-iconv=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libiconv.a' >> /root/.emcc-php-wasm-sources; \
+		echo -n ' /root/lib/lib/libiconv.a ' >> /root/.emcc-php-wasm-sources; \
 		# PHP >= 8.0 posix is no longer supported.
 		# PHP ≤= 7.4 posix is supported.
 	else \
@@ -196,8 +196,26 @@ RUN if [ "$WITH_ICONV" = "yes" ]; \
 # Add curl if needed
 RUN if [ "$WITH_CURL" = "yes" ]; \
 	then \
+		# libcurl version check fails in PHP <= 7.3 even though
+		# the version is correct. Let's make the check always pass.
+		/root/replace.sh 's/\$PKG_CONFIG --atleast-version 7.\d+.\d+ \$PKNAME/test "1" = "1"/g' /root/php-src/configure; \
+		/root/replace.sh 's/test "\$curl_version" -ge 7010005/test "1" = "1"/g' /root/php-src/configure; \
 		echo -n ' --with-curl=/root/lib ' >> /root/.php-configure-flags; \
-		echo -n ' /root/lib/lib/libcurl.a' >> /root/.emcc-php-wasm-sources; \
+		echo -n ' /root/lib/lib/libcurl.a ' >> /root/.emcc-php-wasm-sources; \
+		# The way we build libcurl doesn't produce a `.pc` file that seems
+		# to be required by PHP <= 7.3. Let's create  manually.
+		echo 'prefix=/root/lib \
+exec_prefix=${prefix} \
+libdir=${exec_prefix}/lib \
+includedir=${prefix}/include \
+modules=1 \
+\
+Name: libcurl\
+Version: 7.69.1\
+Description: libcurl.\
+Requires:\
+Libs: -L${libdir} -lcurl\
+Cflags: -I${includedir}' > /root/lib/lib/pkgconfig/libcurl.pc; \
 	fi;
 
 # Add mbstring if needed
@@ -555,11 +573,7 @@ RUN set -euxo pipefail; \
 	# Turn the php.js file into an ES module
 		# Manually turn the output into a esm module instead of relying on -s MODULARIZE=1.
 		# which pollutes the global namespace and does not play well with import() mechanics.
-		if [ "$EMSCRIPTEN_ENVIRONMENT" = "node" ]; then \
-			echo "const dependencyFilename = __dirname + '/${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-		else \
-			echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
-		fi; \
+		echo "import dependencyFilename from './${PHP_VERSION_ESCAPED}/$WASM_FILENAME'; " >> /root/output/php-module.js; \
 		echo "export { dependencyFilename }; " >> /root/output/php-module.js && \
 		echo "export const dependenciesTotalSize = $FILE_SIZE; " >> /root/output/php-module.js && \
 		cat /root/esm-prefix.js >> /root/output/php-module.js && \

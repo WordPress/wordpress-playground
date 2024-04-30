@@ -96,7 +96,6 @@ export async function handleRequest(data: RequestData, fetchFn = fetch) {
 			credentials: 'omit',
 		});
 	} catch (e) {
-		// console.error(e);
 		return new TextEncoder().encode(
 			`HTTP/1.1 400 Invalid Request\r\ncontent-type: text/plain\r\n\r\nPlayground could not serve the request.`
 		);

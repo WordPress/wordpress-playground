@@ -26,7 +26,7 @@ export const workerUrl: string = new URL(moduleWorkerUrl, origin) + '';
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
-import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress';
+import { LatestSupportedWordPressVersion } from '@wp-playground/wordpress-builds';
 import type { SyncProgressCallback } from './opfs/bind-opfs';
 import { FilesystemOperation } from '@php-wasm/fs-journal';
 import { setupFetchNetworkTransport } from './setup-fetch-network-transport';
@@ -82,9 +82,6 @@ export async function bootPlaygroundRemote() {
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
 	const webApi: WebClientMixin = {
-		setSpawnHandler(fn) {
-			return workerApi.setSpawnHandler(fn);
-		},
 		async onDownloadProgress(fn) {
 			return workerApi.onDownloadProgress(fn);
 		},
@@ -225,7 +222,10 @@ export async function bootPlaygroundRemote() {
 			await workerApi.scope,
 			serviceWorkerUrl + ''
 		);
-		setupPostMessageRelay(wpFrame, getOrigin(await playground.absoluteUrl));
+		setupPostMessageRelay(
+			wpFrame,
+			getOrigin((await playground.absoluteUrl)!)
+		);
 		if (withNetworking) {
 			await setupFetchNetworkTransport(workerApi);
 		}

@@ -15,7 +15,7 @@
 					"npx dts-bundle-generator -o packages/playground/client/src/rollup.d.ts -- packages/playground/client/src/index.ts",
 					"rimraf dist/packages/playground/client/lib/*.d.ts",
 					"rimraf dist/packages/playground/client/*.d.ts",
-					"mv packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
+					"cp packages/playground/client/src/rollup.d.ts dist/packages/playground/client/index.d.ts"
 				],
 				"parallel": false
 			},

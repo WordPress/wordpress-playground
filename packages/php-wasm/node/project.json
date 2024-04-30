@@ -22,7 +22,9 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node"
+					"cp -rf packages/php-wasm/node/public/* dist/packages/php-wasm/node",
+					"node packages/php-wasm/node/bin/postprocess-php-modules.cjs dist/packages/php-wasm/node",
+					"rm -rf dist/packages/php-wasm/node/*.wasm"
 				],
 				"parallel": false
 			},
@@ -35,7 +37,7 @@
 					"npx dts-bundle-generator -o packages/php-wasm/node/src/rollup.d.ts -- packages/php-wasm/node/src/index.ts",
 					"rimraf dist/packages/php-wasm/node/lib/*.d.ts",
 					"rimraf dist/packages/php-wasm/node/*.d.ts",
-					"mv packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
+					"cp packages/php-wasm/node/src/rollup.d.ts dist/packages/php-wasm/node/index.d.ts"
 				],
 				"parallel": false
 			},

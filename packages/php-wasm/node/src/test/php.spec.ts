@@ -70,11 +70,7 @@ would not suffer fools gladly.`;
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any, {
-			requestHandler: {
-				documentRoot: '/php',
-			},
-		});
+		php = await NodePHP.load(phpVersion as any);
 		php.mkdir('/php');
 		php.setPhpIniEntry('disable_functions', '');
 	});
@@ -153,21 +149,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('popen("cat", "w")', async () => {
-			const result = await php.run({
-				code: `<?php
-				$fp = popen("cat > out", "w");
-                fwrite($fp, "WordPress\n");
-				fclose($fp);
+			try {
+				const result = await php.run({
+					code: `<?php
+					$fp = popen("cat > out", "w");
+					fwrite($fp, "WordPress\n");
+					fclose($fp);
 
-				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+					sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
-				$fp = popen("cat out", "r");
-				echo 'stdout: ' . fread($fp, 1024);
-				pclose($fp);
-			`,
-			});
+					$fp = popen("cat out", "r");
+					echo 'stdout: ' . fread($fp, 1024);
+					pclose($fp);
+				`,
+				});
 
-			expect(result.text).toEqual('stdout: WordPress\n');
+				expect(result.text).toEqual('stdout: WordPress\n');
+			} finally {
+				rmSync('out', { force: true });
+			}
 		});
 	});
 
@@ -1157,8 +1157,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of 1MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode('#'.repeat(1024 * 1024)),
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -1169,8 +1169,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of ~512MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode(
 					'#'.repeat(1024 * 1024 * 512 + -24)
 				),
@@ -1191,7 +1191,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			// The initial request will allocate a lot of memory so let's get that
 			// out of the way before we start measuring.
-			await php.request({ url: '/' });
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			await php.run({ scriptPath: '/php/index.php' });
 
 			// Overwrite the memory-related functions to:
 			// * Capture the body HEAP pointer
@@ -1246,8 +1247,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const getFreeMemoryBefore = estimateFreeMemory();
 
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			await php.request({
-				url: '/',
+			await php.run({
+				scriptPath: '/php/index.php',
 				body,
 			});
 
@@ -1295,9 +1296,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				`<?php echo json_encode($_SERVER);`
 			);
 
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				relativeUri: '/',
+				scriptPath: '/php/index.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;
@@ -1330,9 +1335,13 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 				`<?php echo json_encode($_SERVER);`
 			);
 
-			const response = await php.request({
-				url: '/subdirectory/test.php',
+			const response = await php.run({
+				scriptPath: '/php/subdirectory/test.php',
+				relativeUri: '/subdirectory/test.php',
 				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
 			});
 
 			const json = response.json;

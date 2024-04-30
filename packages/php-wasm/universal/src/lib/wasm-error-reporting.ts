@@ -1,5 +1,6 @@
 import { ErrorEvent } from './error-event-polyfill';
 import { isExitCodeZero } from './is-exit-code-zero';
+import { logger } from '@php-wasm/logger';
 
 type Runtime = {
 	asm: Record<string, unknown>;
@@ -143,11 +144,11 @@ export function showCriticalErrorBox(message: string) {
 	if (message?.trim().startsWith('Program terminated with exit')) {
 		return;
 	}
-	console.log(`${redBg}\n${eol}\n${bold}  WASM ERROR${reset}${redBg}`);
+	logger.log(`${redBg}\n${eol}\n${bold}  WASM ERROR${reset}${redBg}`);
 	for (const line of message.split('\n')) {
-		console.log(`${eol}  ${line} `);
+		logger.log(`${eol}  ${line} `);
 	}
-	console.log(`${reset}`);
+	logger.log(`${reset}`);
 }
 
 function extractPHPFunctionsFromStack(stack: string) {

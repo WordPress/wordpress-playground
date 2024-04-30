@@ -21,6 +21,7 @@ import { ContentType, importFromGitHub } from '../import-from-github';
 import { Spinner } from '../../components/spinner';
 import GitHubOAuthGuard from '../github-oauth-guard';
 import { basename, normalizePath } from '@php-wasm/util';
+import { logger } from '@php-wasm/logger';
 
 export interface GitHubImportFormProps {
 	playground: PlaygroundClient;
@@ -85,7 +86,7 @@ export default function GitHubImportForm({
 					url: 'This URL is not supported',
 				});
 			}
-			console.log(info);
+			logger.log(info);
 			setUrlInformation(info);
 			const octokit = getClient();
 			setIsAnalyzing(true);
@@ -100,7 +101,7 @@ export default function GitHubImportForm({
 				setContentType(await guessContentType(octokit, info));
 				return;
 			} catch (e: any) {
-				console.error(e);
+				logger.error(e);
 				// Handle the "Bad Credentials" error
 				if (e && e.status) {
 					switch (e.status) {

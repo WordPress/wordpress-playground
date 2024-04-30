@@ -16,10 +16,10 @@ RUN set -euxo pipefail && \
 
 WORKDIR /root/$CURL_VERSION
 
-RUN source /root/emsdk/emsdk_env.sh && \
-    CPPFLAGS="-I/root/lib/include " \
+RUN CPPFLAGS="-I/root/lib/include " \
     LDFLAGS="-L/root/lib/lib " \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+    source /root/emsdk/emsdk_env.sh && \
     emconfigure ./configure \
         --build i386-pc-linux-gnu \
         --target wasm32-unknown-emscripten \

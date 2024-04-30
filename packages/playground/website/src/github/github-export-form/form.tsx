@@ -293,16 +293,12 @@ export default function GitHubExportForm({
 				relativeExportPaths = ['/wp-content'];
 				prTitle = 'Update wp-content';
 			} else if (formValues.contentType === 'theme') {
-				fromPlaygroundRoot = docroot;
-				relativeExportPaths = [
-					`${docroot}/wp-content/themes/${formValues.theme}`,
-				];
+				fromPlaygroundRoot = `${docroot}/wp-content/themes/${formValues.theme}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update theme ${formValues.theme}`;
 			} else if (formValues.contentType === 'plugin') {
-				fromPlaygroundRoot = docroot;
-				relativeExportPaths = [
-					`${docroot}/wp-content/plugins/${formValues.plugin}`,
-				];
+				fromPlaygroundRoot = `${docroot}/wp-content/plugins/${formValues.plugin}`;
+				relativeExportPaths = [`./`];
 				prTitle = `Update plugin ${formValues.plugin}`;
 			} else if (formValues.contentType === 'custom-paths') {
 				fromPlaygroundRoot = formValues.fromPlaygroundRoot;
@@ -380,9 +376,7 @@ export default function GitHubExportForm({
 					allPlaygroundFiles.push({
 						path: joinPaths(
 							toPathInRepo,
-							file.path.substring(
-								formValues.fromPlaygroundRoot.length
-							)
+							file.path.substring(fromPlaygroundRoot.length)
 						),
 						read: file.read,
 					});

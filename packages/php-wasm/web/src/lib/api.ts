@@ -1,5 +1,6 @@
 import { PHPResponse, PHPResponseData } from '@php-wasm/universal';
 import * as Comlink from 'comlink';
+import { logger } from '@php-wasm/logger';
 
 export type WithAPIState = {
 	/**
@@ -133,7 +134,7 @@ function setupTransferHandlers() {
 	Comlink.transferHandlers.set('FUNCTION', {
 		canHandle: (obj: unknown): obj is Function => typeof obj === 'function',
 		serialize(obj: Function) {
-			console.debug('[Comlink][Performance] Proxying a function');
+			logger.debug('[Comlink][Performance] Proxying a function');
 			const { port1, port2 } = new MessageChannel();
 			Comlink.expose(obj, port1);
 			return [port2, [port2]];

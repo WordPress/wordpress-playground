@@ -10,14 +10,11 @@ export type {
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 	PHPRequestHeaders,
-	PHPBrowserConfiguration,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
@@ -217,7 +214,7 @@ export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: { loadRemote?: string }
 ): Promise<PlaygroundClient> {
-	console.warn(
+	logger.warn(
 		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
 	);
 	if (options?.loadRemote) {
