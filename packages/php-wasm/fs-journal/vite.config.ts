@@ -7,9 +7,6 @@ import { join } from 'path';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-ts-config-paths';
 
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { viteWasmLoader } from '../../vite-wasm-loader';
-
 export default defineConfig({
 	cacheDir: '../../../node_modules/.vite/php-wasm-fs-journal',
 
@@ -22,8 +19,6 @@ export default defineConfig({
 		viteTsConfigPaths({
 			root: '../../../',
 		}),
-
-		viteWasmLoader,
 	],
 
 	// Configuration for building your library.
