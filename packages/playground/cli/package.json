@@ -23,5 +23,8 @@
 	"type": "module",
 	"main": "main.js",
 	"bin": "wp-playground.js",
-	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593"
+	"gitHead": "2f8d8f3cea548fbd75111e8659a92f601cddc593",
+	"dependencies": {
+		"express": "4.18.2"
+	}
 }
