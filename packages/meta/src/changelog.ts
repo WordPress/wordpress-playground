@@ -696,7 +696,7 @@ function getFormattedItemDescription(
 	number: number,
 	url: string
 ): string {
-	return `${title} ([${number}](${url}))`;
+	return `${title} ([#${number}](${url}))`;
 }
 
 /**
@@ -879,7 +879,7 @@ function getChangelog(pullRequests: IssuesListForRepoResponseItem[]): string {
 				featureName !== UNKNOWN_FEATURE_FALLBACK_NAME
 			) {
 				// Start new <ul> for the Feature group.
-				changelog += '#### ' + featureName + '\n\n';
+				changelog += '\n#### ' + featureName + '\n\n';
 			}
 
 			// Add a <li> for each PR in the Feature.
@@ -887,11 +887,6 @@ function getChangelog(pullRequests: IssuesListForRepoResponseItem[]): string {
 				// Add a new bullet point to the list.
 				changelog += `${entry}\n`;
 			});
-
-			// Close the <ul> for the Feature group.
-			if (index < featuredGroupNames.length - 1) {
-				changelog += '\n';
-			}
 		});
 
 		changelog += '\n';

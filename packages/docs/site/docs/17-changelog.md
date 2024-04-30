@@ -1,3 +1,8 @@
+---
+title: Changelog
+slug: /changelog
+---
+
 # Changelog
 
 All notable changes to this project are documented in this file by a CI job
