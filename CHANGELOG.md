@@ -6,20 +6,7 @@ format.
 
 ## Unreleased
 
-### Website
-
--   Stop WP rewrite rules from matching files like wp-admin.css. ([1317](https://github.com/WordPress/wordpress-playground/pull/1317))
-
-### Contributors
-
-The following contributors merged PRs in this release:
-
-@brandonpayton
-
-## [v0.7.1] (2024-04-24) 
-
-
-
+## [v0.7.1] (2024-04-24)
 
 ## [v0.7.0] (2024-04-24)
 
