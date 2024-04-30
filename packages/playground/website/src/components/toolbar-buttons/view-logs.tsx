@@ -1,23 +1,23 @@
 import { MenuItem } from '@wordpress/components';
-import { bug } from '@wordpress/icons';
+import { details } from '@wordpress/icons';
 
 import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void };
-export function ReportError({ onClose }: Props) {
+export function ViewLogs({ onClose }: Props) {
 	const { setActiveModal } = usePlaygroundContext();
 	return (
 		<MenuItem
-			icon={bug}
+			icon={details}
 			iconPosition="left"
-			data-cy="report-error"
-			aria-label="Report an error in Playground"
+			data-cy="view-logs"
+			aria-label="View logs"
 			onClick={() => {
-				setActiveModal('error-report');
+				setActiveModal('log');
 				onClose();
 			}}
 		>
-			Report error
+			View logs
 		</MenuItem>
 	);
 }
