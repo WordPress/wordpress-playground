@@ -15,6 +15,10 @@ function playground_file_needs_special_treatment( $path ) {
 }
 
 function playground_handle_request() {
+	$may_edge_cache = true;
+
+	// TODO: If needed, switch to a printf style signature
+	// so string interpolation only occurs when actually logging.
 	$log = defined( 'PLAYGROUND_DEBUG' ) && PLAYGROUND_DEBUG
 		? function ( $str ) { error_log( "PLAYGROUND: $str" ); }
 		: function () {};
@@ -45,6 +49,10 @@ function playground_handle_request() {
 	//
 	$redirect = playground_maybe_redirect( $requested_path );
 	if ( false !== $redirect ) {
+		// Disable edge caching because this resource may be redirected by PHP.
+		// Note: Using the header `Vary: Referer` does not seem to affect cacheability.
+		$may_edge_cache = false;
+
 		$should_redirect = true;
 		if ( isset( $redirect['condition']['referers'] ) ) {
 			$should_redirect = false;
@@ -128,9 +136,13 @@ function playground_handle_request() {
 			header( $custom_header );
 		}
 	} else {
-		$log( "Marking for cache: '$resolved_path'" );
-		header( 'A8C-Edge-Cache: cache' );
-		//header( 'Cache-Control: max-age=300, must-revalidate' );	
+		if ( $may_edge_cache ) {
+			$log( "Marking for cache: '$resolved_path'" );
+			header( 'A8C-Edge-Cache: cache' );
+		} else {
+			$log( "Skipping edge cache: '$resolved_path'" );
+			header( 'Cache-Control: no-cache' );
+		}
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
