@@ -9,7 +9,7 @@ import { usePlaygroundContext } from '../../playground-context';
 import { Blueprint } from '@wp-playground/blueprints';
 
 export function ErrorReportModal(props: { blueprint: Blueprint }) {
-	const { showErrorModal, setShowErrorModal } = usePlaygroundContext();
+	const { activeModal, setActiveModal } = usePlaygroundContext();
 	const [loading, setLoading] = useState(false);
 	const [text, setText] = useState('');
 	const [logs, setLogs] = useState('');
@@ -17,22 +17,26 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitted, setSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
 
+	function showModal() {
+		return activeModal === 'error-report';
+	}
+
 	useEffect(() => {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
 			if (error.detail?.source === 'php-wasm') {
-				setShowErrorModal(true);
+				setActiveModal('error-report');
 			}
 		});
-	}, [setShowErrorModal]);
+	}, [setActiveModal]);
 
 	useEffect(() => {
 		resetForm();
-		if (showErrorModal) {
+		if (showModal()) {
 			setLogs(logger.getLogs().join('\n'));
 			setUrl(window.location.href);
 		}
-	}, [showErrorModal, setShowErrorModal, logs, setLogs]);
+	}, [activeModal, setActiveModal, logs, setLogs]);
 
 	function resetForm() {
 		setText('');
@@ -46,7 +50,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	function onClose() {
-		setShowErrorModal(false);
+		setActiveModal(false);
 		resetForm();
 		resetSubmission();
 	}
@@ -150,7 +154,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	return (
-		<Modal isOpen={showErrorModal} onRequestClose={onClose}>
+		<Modal isOpen={showModal()} onRequestClose={onClose}>
 			<header className={css.errorReportModalHeader}>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>
