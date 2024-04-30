@@ -1,3 +1,4 @@
+
 // @ts-ignore
 import url_nightly from './wp-nightly.zip?url';
 // @ts-ignore
@@ -19,59 +20,59 @@ import url_6_1 from './wp-6.1.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getWordPressModuleDetails(wpVersion = '6.5'): {
-	size: number;
-	url: string;
-} {
+export function getWordPressModuleDetails(wpVersion: string = "6.5"): { size: number, url: string } {
 	switch (wpVersion) {
+		
 		case 'nightly':
 			/** @ts-ignore */
 			return {
-				size: 4983422,
+				size: 4876546,
 				url: url_nightly,
 			};
-
+			
 		case 'beta':
 			/** @ts-ignore */
 			return {
 				size: 5127314,
 				url: url_beta,
 			};
-
+			
 		case '6.5':
 			/** @ts-ignore */
 			return {
 				size: 4977795,
 				url: url_6_5,
 			};
-
+			
 		case '6.4':
 			/** @ts-ignore */
 			return {
 				size: 4864982,
 				url: url_6_4,
 			};
-
+			
 		case '6.3':
 			/** @ts-ignore */
 			return {
 				size: 3685906,
 				url: url_6_3,
 			};
-
+			
 		case '6.2':
 			/** @ts-ignore */
 			return {
 				size: 3591503,
 				url: url_6_2,
 			};
-
+			
 		case '6.1':
 			/** @ts-ignore */
 			return {
 				size: 3533940,
 				url: url_6_1,
 			};
+			
+
 	}
 	throw new Error('Unsupported WordPress module: ' + wpVersion);
 }

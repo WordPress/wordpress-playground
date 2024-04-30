@@ -1,0 +1,25 @@
+{
+	"name": "wordpress/sqlite-database-integration",
+	"license": "GPL-2.0-or-later",
+	"description": "SQLite integration plugin for WordPress.",
+	"homepage": "https://github.com/wordpress/sqlite-database-integration",
+	"keywords": [ "wordpress", "plugin", "database", "sqlite" ],
+	"support": {
+		"issues": "https://github.com/wordpress/sqlite-database-integration/issues"
+	},
+	"require": {
+		"php": ">=5.6"
+	},
+	"require-dev": {
+		"dealerdirect/phpcodesniffer-composer-installer": "^0.7.0",
+		"squizlabs/php_codesniffer": "^3.7",
+		"wp-coding-standards/wpcs": "^3.0",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"yoast/phpunit-polyfills": "^1.0.1"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	}
+}
