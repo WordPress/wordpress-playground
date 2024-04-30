@@ -30,11 +30,6 @@ jobs:
                   ref: trunk
                   clean: true
                   persist-credentials: false
-                  sparse-checkout: |
-                      CHANGELOG.md
-                      package.json
-                      ./packages/meta
-                      ./packages/bun-extensions
             - name: Fetch trunk
               shell: bash
               run: git fetch origin trunk --depth=1
