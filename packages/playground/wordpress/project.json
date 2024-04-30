@@ -21,6 +21,14 @@
 			},
 			"dependsOn": ["^build"]
 		},
+		"publish": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node tools/scripts/publish.mjs playground-wordpress {args.ver} {args.tag}",
+				"parallel": false
+			},
+			"dependsOn": ["build"]
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]
