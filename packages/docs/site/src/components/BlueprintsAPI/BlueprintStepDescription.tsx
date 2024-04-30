@@ -12,7 +12,7 @@ export function BlueprintStepDescription({ name }) {
 			}
 			return part.text;
 		})
-		.join(' ');
+		.join('');
 
 	return <ReactMarkdown>{summary}</ReactMarkdown>;
 }
