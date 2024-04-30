@@ -39,11 +39,11 @@ async function downloadTo(
 	writer.close();
 	if (!writer.closed) {
 		await new Promise((resolve, reject) => {
-			writer.on('finish', (err) => {
+			writer.on('finish', (err: any) => {
 				if (err) {
 					reject(err);
 				} else {
-					resolve();
+					resolve(null);
 				}
 			});
 		});
