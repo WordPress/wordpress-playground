@@ -42,7 +42,7 @@
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
-			"@wp-playground/cli": ["packages/playground/cli/src/index.ts"],
+			"@wp-playground/cli": ["packages/playground/cli/src/cli.ts"],
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
 			],
@@ -64,6 +64,9 @@
 			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
+			],
+			"@wp-playground/wordpress-builds": [
+				"packages/playground/wordpress-builds/src/index.ts"
 			]
 		}
 	},

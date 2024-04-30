@@ -23,7 +23,7 @@ export default defineConfig({
 				'@wp-playground/wordpress',
 				'@wp-playground/blueprints',
 				'yargs',
-				'express',
+				// 'express',
 				'os',
 				'net',
 				'fs',
