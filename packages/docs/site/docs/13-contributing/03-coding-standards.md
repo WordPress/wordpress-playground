@@ -35,18 +35,15 @@ Blueprint steps should be **concise and focused**. They should do one thing and 
 
 -   If you need to create a new step, try refactoring an existing one first.
 -   If that's not enough, ensure the new step delivers a new capability. Don't replicate the functionality of existing steps.
-
-Blueprint steps should be **idempotent**, so you can run them multiple times and get similar results.
-
--   Assume the step would run more than once.
+-   Assume the step would be called more than once.
 -   Assume it would run in a specific order.
 -   Add unit tests to verify that.
--   Define constants in virtual JSON files—don't modify PHP files.
 
 Blueprints should be **intuitive and straightforward**.
 
 -   Don't require arguments that can be optional.
 -   Use plain argument. For example, `slug` instead of `path`.
+-   Define constants in virtual JSON files—don't modify PHP files.
 -   Define a TypeScript type for the Blueprint. That's how Playground generates its JSON schema.
 -   Write a function to handle a Blueprint step. Accept the argument of the type you defined.
 -   Provide a usage example in the doc string. It's automatically reflected in the docs.
