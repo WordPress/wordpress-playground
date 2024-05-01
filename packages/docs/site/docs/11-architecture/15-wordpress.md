@@ -1,14 +1,10 @@
----
-title: WordPress support
----
-
 # WordPress support
 
 WordPress, as a PHP application, can run on PHP WebAssembly. However, there are a few caveats.
 
 ## SQLite
 
-First, WordPress requires MySQL. However, there isn't a WebAssembly version of MySQL you could run in the browser. WordPress Playground therefore ships PHP with the [native SQLite driver](https://www.php.net/manual/en/ref.pdo-sqlite.php) and leans on SQLite.
+First, WordPress requires MySQL. However, there isn't a WebAssembly version of MySQL you could run in the browser. WordPress Playground, therefore, ships PHP with the [native SQLite driver](https://www.php.net/manual/en/ref.pdo-sqlite.php) and leans on SQLite.
 
 But how can WordPress run on a different database?
 
@@ -16,7 +12,7 @@ Behind the scenes, the official [SQLite Database Integration](https://github.com
 
 ## WordPress in the browser
 
-WordPress Playground ships a [bundled WordPress](./06-wasm-php-data-dependencies.md) that you can use in the browser. It's optimized for size and the installation wizard is already completed for you.
+WordPress Playground ships a [bundled WordPress](./06-wasm-php-data-dependencies.md) that you can use in the browser. It's optimized for size, and the installation wizard is run for you.
 
 ## WordPress in Node.js
 

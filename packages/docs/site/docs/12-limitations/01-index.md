@@ -1,36 +1,41 @@
 ---
-title: Limitations
 slug: /limitations
 ---
 
 # Limitations
 
-WordPress Playground has a few limitations that you should be aware of.
+WordPress Playground is under active development and has some limitations you should keep in mind when running it and developing with it.
 
-## If you are a user
+You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180).
 
-import Limitations from '@site/docs/\_fragments/\_limitations_ui.md';
+## In the browser
 
-<Limitations />
+### Access the Plugins, Themes, Blocks, or Patterns directories
 
-## If you are a developer
+Playground [disables network connections](../09-blueprints-api/03-data-format.md#features) by default, blocking access to wp.org assets (themes, plugins, blocks, or patterns) in `wp-admin`. You can still upload zipped plugin and theme files from your device or enable the option via the [Query API](../08-query-api/01-index.md#available-options) or [Blueprints API](../09-blueprints-api/09-troubleshoot-and-debug-blueprints.md#review-common-gotchas).
+
+### Temporary by design
+
+As Playground [streams rather than serves](../01-start-here/02-overview.md#streamed-not-served) WordPress, all database changes and uploads will be gone when you refresh the page. To avoid losing your work, either [export your work](../02-start-using/01-index.md#save-your-site) before or enable storage in the browser/device via the [Query API](../08-query-api/01-index.md#available-options) or the UI.
+
+## When developing with Playground
 
 ### Iframe quirks
 
-WordPress is rendered in an iframe, which makes it hard to correctly handle `target="_top"` in links. This means that clicking on `<a target="_top">Click here</a>` may reload the main browser tab.
+Playground renders WordPress in an `iframe` so clicking links with `target="_top"` will reload the page you’re working on.
+Also, JavaScript popups originating in the `iframe` may not always display.
 
-Also, JavaScript popup windows originating in the iframe may not be displayed in certain cases.
+### Run WordPress PHP functions
 
-### Pthreads Support
+Playground supports running PHP code in Blueprints using the [`runPHP` step](../09-blueprints-api/05-steps.md#RunPHPStep). To run WordPress-specific PHP functions, you’d need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
 
-The WebAssembly version of PHP is built without pthreads support, which means you cannot use `pcntl_` functions like `pcntl_fork()` or `pcntl_exec()`. Most of the time, you don't need them, but there are a few WP-CLI commands and a few corner-cases in PHPUnit tests that use them.
+```json
+{
+	"step": "runPHP",
+	"code": "<?php require_once('wordpress/wp-load.php'); OTHER_CODE ?>"
+}
+```
 
-You can track the progress of adding pthreads support at https://github.com/WordPress/wordpress-playground/issues/347.
+### Using WP-CLI
 
-### XDebug Support
-
-XDebug is not supported in the WebAssembly version of PHP. You can track the progress of adding XDebug support at https://github.com/WordPress/wordpress-playground/issues/314.
-
-### Fibers
-
-Fibers are a PHP 8.1+ feature that is currently unsupported in Playground. See https://github.com/WordPress/wordpress-playground/blob/9065025043209ce06c9540886567ca5bc0ccfb11/packages/php-wasm/compile/Dockerfile#L484-L493 for more information.
+You can execute `wp-cli` commands via the Blueprints [`wp-cli`](../09-blueprints-api/05-steps.md#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.

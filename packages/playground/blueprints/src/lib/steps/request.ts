@@ -32,7 +32,7 @@ export interface RequestStep {
 }
 
 /**
- * Sends a HTTP request to the Playground.
+ * Sends a HTTP request to Playground.
  */
 export const request: StepHandler<RequestStep, Promise<PHPResponse>> = async (
 	playground,

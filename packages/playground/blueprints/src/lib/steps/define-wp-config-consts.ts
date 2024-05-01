@@ -23,13 +23,14 @@ export interface DefineWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 	/**
-	 * The method of defining the constants. Possible values are:
+	 * The method of defining the constants in wp-config.php. Possible values are:
 	 *
 	 * - rewrite-wp-config: Default. Rewrites the wp-config.php file to
 	 *                      explicitly call define() with the requested
 	 *                      name and value. This method alters the file
 	 *                      on the disk, but it doesn't conflict with
 	 *                      existing define() calls in wp-config.php.
+	 *
 	 * - define-before-run: Defines the constant before running the requested
 	 *                      script. It doesn't alter any files on the disk, but
 	 *                      constants defined this way may conflict with existing
@@ -45,7 +46,7 @@ export interface DefineWpConfigConstsStep {
 }
 
 /**
- * Defines constants in a wp-config.php file.
+ * Defines constants in a [`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/) file.
  *
  * This step can be called multiple times, and the constants will be merged.
  *

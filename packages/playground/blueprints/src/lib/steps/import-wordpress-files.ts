@@ -34,9 +34,9 @@ export interface ImportWordPressFilesStep<ResourceType> {
 
 /**
  * Imports top-level WordPress files from a given zip file into
- * the documentRoot. For example, if a zip file contains the
+ * the `documentRoot`. For example, if a zip file contains the
  * `wp-content` and `wp-includes` directories, they will replace
- * the corresponding directories in Playground's documentRoot.
+ * the corresponding directories in Playground's `documentRoot`.
  *
  * Any files that Playground recognizes as "excluded from the export"
  * will carry over from the existing document root into the imported

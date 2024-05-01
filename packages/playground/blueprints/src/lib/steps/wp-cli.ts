@@ -24,7 +24,7 @@ export interface WPCLIStep {
 }
 
 /**
- * Runs PHP code.
+ * Runs PHP code using [WP-CLI](https://developer.wordpress.org/cli/commands/).
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,

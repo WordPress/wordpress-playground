@@ -1,71 +1,43 @@
-# Contributing Documentation
+# Documentation contributions
 
-WordPress Playground is documented by volunteers and we welcome your contributions.
+[WordPress Playground's documentation site](https://wordpress.github.io/wordpress-playground) is maintained by volunteers like you, who'd love your help.
 
-The [documentation tracking issue](https://github.com/WordPress/wordpress-playground/issues/772) contains a list of all documentation-related issues. It’s a good starting point to see what’s missing and what’s already there.
-
-Anything that you were missing when exploring Playground for the first time is a great addition to the documentation, even if it requires a fundamental change in how the documentation speaks to the user.
+All [documentation-related topics](https://github.com/WordPress/wordpress-playground/labels/%5BType%5D%20Documentation) are labeled `documentation`. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 
 ## How can I contribute?
 
-### I am not familiar with Markdown
+You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.
 
-If you are not familiar with Markdown, you can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you would like to see added or changed.
+If you feel up to it, write the content in the issue description, and the project contributors will take care of the rest.
 
-You could even write the content in the issue description and the project contributors will take care of the rest.
+### I'm familiar with markdown and GitHub
 
-### I am familiar with Markdown
+If you are familiar with markdown, you can propose changes and new documentation pages by submitting a Pull Request.
 
-If you are familiar with [Markdown](https://www.markdownguide.org/), you can directly propose changes and new documentation pages by submitting a Pull Request. If you're not familiar with Pull Requests, read the [Collaborating with pull requests](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests) guide first.
+The documentation is stored in Playground's GitHub repository, [under `/packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs).
 
-The existing documentation lives in the GitHub repository as Markdown files:
+## Edit in the browser
 
-https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs
-
-Then, the documentation site is published here:
-
-https://wordpress.github.io/wordpress-playground
-
-Some pages are written in [MDX](https://mdxjs.com/), which is Markdown with JSX. If you are not familiar with MDX, don't worry at all – you can still contribute to these pages by editing just the Markdown part.
-
-### Your first Pull Request
-
-#### An easy way to start
-
-Here's an easy way to start your first Pull Request:
-
-1. Go to https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs
-2. Find the page you'd like to edit or a directory where you'd like to add a new page
-3. Click the "Add Files" button to add a new file, or click on an existing file and then click the pencil icon to edit it
-4. GitHub will ask you to fork the repository and create a new branch for your changes – do that
-5. An editor will open where you can make your changes
-6. When you're done, click the Commit Changes button and start a Pull Request
+1. Find the page you'd like to edit or the directory of the chapter you'd like to add a new page to.
+2. Click the **Add Files** button to add a new file, or click on an existing file and then click the pencil icon to edit it.
+3. GitHub will ask you to fork the repository and create a new branch with your changes.
+4. An editor will open where you can make the changes.
+5. When you're done, click the **Commit Changes** button and submit a Pull Request.
 
 That's it! You've just contributed to the WordPress Playground documentation.
 
-The upside of this approach is that you don't need to clone the repository, set up a local development environment, or run any commands. You can edit the documentation directly in your browser.
+This approach means you don't need to clone the repository, set up a local development environment, or run any commands.
 
-The downside is that you won't be able to preview your changes on the documentation site. Previewing is not critical and you can be a successful contributor without it, but if you'd still like to see your changes before submitting a Pull Request, follow the instructions below.
+The downside is that you won't be able to preview your changes. Keep reading to learn how to review your changes before submitting a Pull Request.
 
-#### A more difficult way with a preview
+### Local preview
 
-If you'd like to a preview of your changes, you'll need to clone the repository and run the following commands:
+Clone the repository and navigate to the directory on your device. Now run the following commands:
 
 ```bash
-npm install -g nx
 npm install
-nx dev docs-site
+npm run build:docs
+npm run dev:docs
 ```
 
-This will start a local server where you can preview your changes. From there, you can edit the documentation files
-in your code editor and see the changes in real-time.
-
-## What to contribute?
-
-See the [documentation tracking issue](https://github.com/WordPress/wordpress-playground/issues/772) for an up to date list of specific tasks and documentation pages that need to be written.
-
-## General guidelines
-
--   Document any limitations you run into at https://wordpress.github.io/wordpress-playground/limitations/
--   The documentation structure needs brushing up, you are welcome to move pages around and propose new structures
--   Use simple language and avoid jargon
+The documentation site opens in a new browser tab and refreshes automatically with each change. Continue to edit the relevant file in your code editor and test the changes in real-time.
