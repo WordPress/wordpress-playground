@@ -20,6 +20,7 @@ import {
 	SpawnedPHP,
 } from './php-process-manager';
 import { HttpCookieStore } from './http-cookie-store';
+import mimeTypes from './mime-types.json';
 
 export type RewriteRule = {
 	match: RegExp;
@@ -499,77 +500,8 @@ export class PHPRequestHandler<PHP extends BasePHP> {
  * @returns The inferred mime type.
  */
 function inferMimeType(path: string): string {
-	const extension = path.split('.').pop();
-	switch (extension) {
-		case 'css':
-			return 'text/css';
-		case 'js':
-			return 'application/javascript';
-		case 'png':
-			return 'image/png';
-		case 'jpg':
-		case 'jpeg':
-			return 'image/jpeg';
-		case 'gif':
-			return 'image/gif';
-		case 'svg':
-			return 'image/svg+xml';
-		case 'woff':
-			return 'font/woff';
-		case 'woff2':
-			return 'font/woff2';
-		case 'ttf':
-			return 'font/ttf';
-		case 'otf':
-			return 'font/otf';
-		case 'eot':
-			return 'font/eot';
-		case 'ico':
-			return 'image/x-icon';
-		case 'html':
-			return 'text/html';
-		case 'json':
-			return 'application/json';
-		case 'xml':
-			return 'application/xml';
-		case 'txt':
-		case 'md':
-			return 'text/plain';
-		case 'pdf':
-			return 'application/pdf';
-		case 'webp':
-			return 'image/webp';
-		case 'mp3':
-			return 'audio/mpeg';
-		case 'mp4':
-			return 'video/mp4';
-		case 'csv':
-			return 'text/csv';
-		case 'xls':
-			return 'application/vnd.ms-excel';
-		case 'xlsx':
-			return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-		case 'doc':
-			return 'application/msword';
-		case 'docx':
-			return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-		case 'ppt':
-			return 'application/vnd.ms-powerpoint';
-		case 'pptx':
-			return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-		case 'zip':
-			return 'application/zip';
-		case 'rar':
-			return 'application/x-rar-compressed';
-		case 'tar':
-			return 'application/x-tar';
-		case 'gz':
-			return 'application/gzip';
-		case '7z':
-			return 'application/x-7z-compressed';
-		default:
-			return 'application-octet-stream';
-	}
+	const extension = path.split('.').pop() as keyof typeof mimeTypes;
+	return mimeTypes[extension] || 'application/octet-stream';
 }
 
 /**
