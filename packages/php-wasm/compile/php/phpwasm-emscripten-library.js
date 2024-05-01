@@ -594,7 +594,7 @@ const LibraryExample = {
 					return;
 				}
 				polls.push(PHPWASM.awaitEvent(procInfo.stdout, 'data'));
-			} else {
+			} else if (FS.isSocket(FS.getStream(socketd).node.mode)) {
 				// This is, most likely, a websocket. Let's make sure.
 				const sock = getSocketFromFD(socketd);
 				if (!sock) {
@@ -640,6 +640,11 @@ const LibraryExample = {
 						lookingFor.add('POLLERR');
 					}
 				}
+			} else {
+				setTimeout(function () {
+					wakeUp(1);
+				}, timeout);
+				return;
 			}
 			if (polls.length === 0) {
 				console.warn(

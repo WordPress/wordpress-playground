@@ -3,11 +3,11 @@ dist
 packages/php-wasm/node/public
 packages/php-wasm/web/public
 packages/php-wasm/compile/php
-packages/playground/wordpress/build
+packages/playground/wordpress-builds/build
 packages/playground/compile-wordpress/build-assets
 __pycache__
-packages/playground/wordpress/src/wordpress
-packages/playground/wordpress/public
+packages/playground/wordpress-builds/src/wordpress
+packages/playground/wordpress-builds/public
 packages/php-wasm/node/src/test/__test*
 *.timestamp-1678999213403.mjs
 .local

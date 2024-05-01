@@ -2,7 +2,6 @@ import {
 	SupportedPHPVersion,
 	loadPHPRuntime,
 	EmscriptenOptions,
-	PHPRequestHandlerConfiguration,
 	BasePHP,
 	rethrowFileSystemError,
 	__private__dont__use,
@@ -15,7 +14,6 @@ import { withNetworking } from './networking/with-networking.js';
 
 export interface PHPLoaderOptions {
 	emscriptenOptions?: EmscriptenOptions;
-	requestHandler?: PHPRequestHandlerConfiguration;
 }
 
 export type MountSettings = {
@@ -42,10 +40,7 @@ export class NodePHP extends BasePHP {
 		phpVersion: SupportedPHPVersion,
 		options: PHPLoaderOptions = {}
 	) {
-		return new NodePHP(
-			await NodePHP.loadRuntime(phpVersion, options),
-			options.requestHandler
-		);
+		return new NodePHP(await NodePHP.loadRuntime(phpVersion, options));
 	}
 
 	/**
@@ -109,7 +104,12 @@ export class NodePHP extends BasePHP {
 	 */
 	@rethrowFileSystemError('Could not mount {path}')
 	mount(localPath: string | MountSettings, virtualFSPath: string) {
-		if (!this.fileExists(virtualFSPath)) {
+		const localRoot =
+			typeof localPath === 'object' ? localPath.root : localPath;
+		if (
+			!this.fileExists(virtualFSPath) &&
+			lstatSync(localRoot).isDirectory()
+		) {
 			this.mkdirTree(virtualFSPath);
 		}
 		this[__private__dont__use].FS.mount(

@@ -35,7 +35,7 @@ function prependByte(
 		buffer.set(new Uint8Array(chunk), 1);
 		chunk = buffer.buffer;
 	} else {
-		console.log({ chunk });
+		log({ chunk });
 		throw new Error('Unsupported chunk type: ' + typeof chunk);
 	}
 	return chunk;
@@ -118,7 +118,7 @@ export function initOutboundWebsocketProxyServer(
 
 // Handle new WebSocket client
 async function onWsConnect(client: any, request: http.IncomingMessage) {
-	const clientAddr = client._socket.remoteAddress;
+	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
 	};

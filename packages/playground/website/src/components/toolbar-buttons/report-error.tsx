@@ -5,7 +5,7 @@ import { usePlaygroundContext } from '../../playground-context';
 
 type Props = { onClose: () => void };
 export function ReportError({ onClose }: Props) {
-	const { setShowErrorModal } = usePlaygroundContext();
+	const { setActiveModal } = usePlaygroundContext();
 	return (
 		<MenuItem
 			icon={bug}
@@ -13,7 +13,7 @@ export function ReportError({ onClose }: Props) {
 			data-cy="report-error"
 			aria-label="Report an error in Playground"
 			onClick={() => {
-				setShowErrorModal(true);
+				setActiveModal('error-report');
 				onClose();
 			}}
 		>

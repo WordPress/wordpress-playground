@@ -4,4 +4,4 @@ export {
 	SupportedWordPressVersions,
 	SupportedWordPressVersionsList,
 	LatestSupportedWordPressVersion,
-} from '@wp-playground/wordpress';
+} from '@wp-playground/wordpress-builds';

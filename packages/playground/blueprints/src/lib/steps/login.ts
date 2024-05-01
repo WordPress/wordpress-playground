@@ -1,4 +1,5 @@
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc login
@@ -52,7 +53,7 @@ export const login: StepHandler<LoginStep> = async (
 	});
 
 	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
-		console.warn('WordPress response was', {
+		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
 		});

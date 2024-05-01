@@ -6,6 +6,7 @@ import { request } from './request';
 import { setSiteOptions } from './site-data';
 import { activatePlugin } from './activate-plugin';
 import { getURLScope, isURLScoped } from '@php-wasm/scopes';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc enableMultisite
@@ -136,7 +137,7 @@ echo json_encode($deactivated_plugins);
 		},
 	});
 	if (response.httpStatusCode !== 200) {
-		console.warn('WordPress response was', {
+		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
 			headers: response.headers,

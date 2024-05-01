@@ -8,7 +8,7 @@ Keep this point in mind as you read through the rest of the docs. At this point 
 
 Here's what a boot sequence for a minimal app looks like:
 
-![The boot sequence](../../static/img/boot-sequence.png)
+![The boot sequence](@site/static/img/boot-sequence.png)
 
 The main app initiates the Iframe, the Service Worker, and the Worker Thread. Note how the main app doesn't use the PHP stack directly – it's all handled in the Worker Thread.
 
@@ -66,7 +66,7 @@ Keep reading to learn how all these pieces fit together.
 
 Here's what happens whenever the iframe issues a same-domain request:
 
-![The data flow](../../static/img/data-flow.png)
+![The data flow](@site/static/img/data-flow.png)
 
 A step-by-step breakdown:
 

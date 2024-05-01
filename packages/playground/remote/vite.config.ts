@@ -42,7 +42,7 @@ export default defineConfig({
 	// Other than that, the `remote` package has no public assets of its own.
 	// Therefore, let's just point the `remote` public directory to the `wordpress`
 	// package to make WordPress assets available.
-	publicDir: path('../wordpress/public'),
+	publicDir: path('../wordpress-builds/public'),
 
 	css: {
 		modules: {
