@@ -8,6 +8,7 @@
   --wp-admin-border-width-focus:2px;
   --wp-block-synced-color:#7a00df;
   --wp-block-synced-color--rgb:122, 0, 223;
+  --wp-bound-block-color:#9747ff;
 }
 @media (min-resolution:192dpi){
   :root{
@@ -109,9 +110,8 @@
 }
 
 .screen-reader-text{
-  clip:rect(1px, 1px, 1px, 1px);
-  word-wrap:normal !important;
   border:0;
+  clip:rect(1px, 1px, 1px, 1px);
   -webkit-clip-path:inset(50%);
   clip-path:inset(50%);
   height:1px;
@@ -120,11 +120,12 @@
   padding:0;
   position:absolute;
   width:1px;
+  word-wrap:normal !important;
 }
 
 .screen-reader-text:focus{
-  clip:auto !important;
   background-color:#ddd;
+  clip:auto !important;
   -webkit-clip-path:none;
           clip-path:none;
   color:#444;

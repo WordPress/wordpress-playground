@@ -1,23 +1,23 @@
-/******/ (function() { // webpackBootstrap
+/******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 4470:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ 4140:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 
-var m = __webpack_require__(1850);
+var m = __webpack_require__(5795);
 if (true) {
-  exports.s = m.createRoot;
-  exports.a = m.hydrateRoot;
+  exports.H = m.createRoot;
+  exports.c = m.hydrateRoot;
 } else { var i; }
 
 
 /***/ }),
 
-/***/ 1850:
-/***/ (function(module) {
+/***/ 5795:
+/***/ ((module) => {
 
 module.exports = window["ReactDOM"];
 
@@ -51,97 +51,102 @@ module.exports = window["ReactDOM"];
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/define property getters */
-/******/ 	!function() {
+/******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = function(exports, definition) {
+/******/ 		__webpack_require__.d = (exports, definition) => {
 /******/ 			for(var key in definition) {
 /******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
 /******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 				}
 /******/ 			}
 /******/ 		};
-/******/ 	}();
+/******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	!function() {
-/******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
-/******/ 	}();
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
-/******/ 	!function() {
+/******/ 	(() => {
 /******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = function(exports) {
+/******/ 		__webpack_require__.r = (exports) => {
 /******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 /******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
-/******/ 	}();
+/******/ 	})();
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-!function() {
+(() => {
 // ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
 
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, {
-  Children: function() { return /* reexport */ external_React_namespaceObject.Children; },
-  Component: function() { return /* reexport */ external_React_namespaceObject.Component; },
-  Fragment: function() { return /* reexport */ external_React_namespaceObject.Fragment; },
-  Platform: function() { return /* reexport */ platform; },
-  RawHTML: function() { return /* reexport */ RawHTML; },
-  StrictMode: function() { return /* reexport */ external_React_namespaceObject.StrictMode; },
-  Suspense: function() { return /* reexport */ external_React_namespaceObject.Suspense; },
-  cloneElement: function() { return /* reexport */ external_React_namespaceObject.cloneElement; },
-  concatChildren: function() { return /* reexport */ concatChildren; },
-  createContext: function() { return /* reexport */ external_React_namespaceObject.createContext; },
-  createElement: function() { return /* reexport */ external_React_namespaceObject.createElement; },
-  createInterpolateElement: function() { return /* reexport */ create_interpolate_element; },
-  createPortal: function() { return /* reexport */ external_ReactDOM_.createPortal; },
-  createRef: function() { return /* reexport */ external_React_namespaceObject.createRef; },
-  createRoot: function() { return /* reexport */ client/* createRoot */.s; },
-  findDOMNode: function() { return /* reexport */ external_ReactDOM_.findDOMNode; },
-  flushSync: function() { return /* reexport */ external_ReactDOM_.flushSync; },
-  forwardRef: function() { return /* reexport */ external_React_namespaceObject.forwardRef; },
-  hydrate: function() { return /* reexport */ external_ReactDOM_.hydrate; },
-  hydrateRoot: function() { return /* reexport */ client/* hydrateRoot */.a; },
-  isEmptyElement: function() { return /* reexport */ isEmptyElement; },
-  isValidElement: function() { return /* reexport */ external_React_namespaceObject.isValidElement; },
-  lazy: function() { return /* reexport */ external_React_namespaceObject.lazy; },
-  memo: function() { return /* reexport */ external_React_namespaceObject.memo; },
-  render: function() { return /* reexport */ external_ReactDOM_.render; },
-  renderToString: function() { return /* reexport */ serialize; },
-  startTransition: function() { return /* reexport */ external_React_namespaceObject.startTransition; },
-  switchChildrenNodeName: function() { return /* reexport */ switchChildrenNodeName; },
-  unmountComponentAtNode: function() { return /* reexport */ external_ReactDOM_.unmountComponentAtNode; },
-  useCallback: function() { return /* reexport */ external_React_namespaceObject.useCallback; },
-  useContext: function() { return /* reexport */ external_React_namespaceObject.useContext; },
-  useDebugValue: function() { return /* reexport */ external_React_namespaceObject.useDebugValue; },
-  useDeferredValue: function() { return /* reexport */ external_React_namespaceObject.useDeferredValue; },
-  useEffect: function() { return /* reexport */ external_React_namespaceObject.useEffect; },
-  useId: function() { return /* reexport */ external_React_namespaceObject.useId; },
-  useImperativeHandle: function() { return /* reexport */ external_React_namespaceObject.useImperativeHandle; },
-  useInsertionEffect: function() { return /* reexport */ external_React_namespaceObject.useInsertionEffect; },
-  useLayoutEffect: function() { return /* reexport */ external_React_namespaceObject.useLayoutEffect; },
-  useMemo: function() { return /* reexport */ external_React_namespaceObject.useMemo; },
-  useReducer: function() { return /* reexport */ external_React_namespaceObject.useReducer; },
-  useRef: function() { return /* reexport */ external_React_namespaceObject.useRef; },
-  useState: function() { return /* reexport */ external_React_namespaceObject.useState; },
-  useSyncExternalStore: function() { return /* reexport */ external_React_namespaceObject.useSyncExternalStore; },
-  useTransition: function() { return /* reexport */ external_React_namespaceObject.useTransition; }
+  Children: () => (/* reexport */ external_React_namespaceObject.Children),
+  Component: () => (/* reexport */ external_React_namespaceObject.Component),
+  Fragment: () => (/* reexport */ external_React_namespaceObject.Fragment),
+  Platform: () => (/* reexport */ platform),
+  PureComponent: () => (/* reexport */ external_React_namespaceObject.PureComponent),
+  RawHTML: () => (/* reexport */ RawHTML),
+  StrictMode: () => (/* reexport */ external_React_namespaceObject.StrictMode),
+  Suspense: () => (/* reexport */ external_React_namespaceObject.Suspense),
+  cloneElement: () => (/* reexport */ external_React_namespaceObject.cloneElement),
+  concatChildren: () => (/* reexport */ concatChildren),
+  createContext: () => (/* reexport */ external_React_namespaceObject.createContext),
+  createElement: () => (/* reexport */ external_React_namespaceObject.createElement),
+  createInterpolateElement: () => (/* reexport */ create_interpolate_element),
+  createPortal: () => (/* reexport */ external_ReactDOM_.createPortal),
+  createRef: () => (/* reexport */ external_React_namespaceObject.createRef),
+  createRoot: () => (/* reexport */ client/* createRoot */.H),
+  findDOMNode: () => (/* reexport */ external_ReactDOM_.findDOMNode),
+  flushSync: () => (/* reexport */ external_ReactDOM_.flushSync),
+  forwardRef: () => (/* reexport */ external_React_namespaceObject.forwardRef),
+  hydrate: () => (/* reexport */ external_ReactDOM_.hydrate),
+  hydrateRoot: () => (/* reexport */ client/* hydrateRoot */.c),
+  isEmptyElement: () => (/* reexport */ isEmptyElement),
+  isValidElement: () => (/* reexport */ external_React_namespaceObject.isValidElement),
+  lazy: () => (/* reexport */ external_React_namespaceObject.lazy),
+  memo: () => (/* reexport */ external_React_namespaceObject.memo),
+  render: () => (/* reexport */ external_ReactDOM_.render),
+  renderToString: () => (/* reexport */ serialize),
+  startTransition: () => (/* reexport */ external_React_namespaceObject.startTransition),
+  switchChildrenNodeName: () => (/* reexport */ switchChildrenNodeName),
+  unmountComponentAtNode: () => (/* reexport */ external_ReactDOM_.unmountComponentAtNode),
+  useCallback: () => (/* reexport */ external_React_namespaceObject.useCallback),
+  useContext: () => (/* reexport */ external_React_namespaceObject.useContext),
+  useDebugValue: () => (/* reexport */ external_React_namespaceObject.useDebugValue),
+  useDeferredValue: () => (/* reexport */ external_React_namespaceObject.useDeferredValue),
+  useEffect: () => (/* reexport */ external_React_namespaceObject.useEffect),
+  useId: () => (/* reexport */ external_React_namespaceObject.useId),
+  useImperativeHandle: () => (/* reexport */ external_React_namespaceObject.useImperativeHandle),
+  useInsertionEffect: () => (/* reexport */ external_React_namespaceObject.useInsertionEffect),
+  useLayoutEffect: () => (/* reexport */ external_React_namespaceObject.useLayoutEffect),
+  useMemo: () => (/* reexport */ external_React_namespaceObject.useMemo),
+  useReducer: () => (/* reexport */ external_React_namespaceObject.useReducer),
+  useRef: () => (/* reexport */ external_React_namespaceObject.useRef),
+  useState: () => (/* reexport */ external_React_namespaceObject.useState),
+  useSyncExternalStore: () => (/* reexport */ external_React_namespaceObject.useSyncExternalStore),
+  useTransition: () => (/* reexport */ external_React_namespaceObject.useTransition)
 });
 
 ;// CONCATENATED MODULE: external "React"
-var external_React_namespaceObject = window["React"];
+const external_React_namespaceObject = window["React"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/element/build-module/create-interpolate-element.js
 /**
  * Internal dependencies
  */
 
 
-/** @typedef {import('./react').WPElement} WPElement */
+/**
+ * Object containing a React element.
+ *
+ * @typedef {import('react').ReactElement} Element
+ */
 
 let indoc, offset, output, stack;
 
@@ -167,17 +172,17 @@ const tokenizer = /<(\/)?(\w+)\s*(\/)?>/g;
  *
  * @typedef Frame
  *
- * @property {WPElement}   element            A parent element which may still have
- * @property {number}      tokenStart         Offset at which parent element first
- *                                            appears.
- * @property {number}      tokenLength        Length of string marking start of parent
- *                                            element.
- * @property {number}      [prevOffset]       Running offset at which parsing should
- *                                            continue.
- * @property {number}      [leadingTextStart] Offset at which last closing element
- *                                            finished, used for finding text between
- *                                            elements.
- * @property {WPElement[]} children           Children.
+ * @property {Element}   element            A parent element which may still have
+ * @property {number}    tokenStart         Offset at which parent element first
+ *                                          appears.
+ * @property {number}    tokenLength        Length of string marking start of parent
+ *                                          element.
+ * @property {number}    [prevOffset]       Running offset at which parsing should
+ *                                          continue.
+ * @property {number}    [leadingTextStart] Offset at which last closing element
+ *                                          finished, used for finding text between
+ *                                          elements.
+ * @property {Element[]} children           Children.
  */
 
 /**
@@ -187,17 +192,17 @@ const tokenizer = /<(\/)?(\w+)\s*(\/)?>/g;
  * parsed.
  *
  * @private
- * @param {WPElement} element            A parent element which may still have
- *                                       nested children not yet parsed.
- * @param {number}    tokenStart         Offset at which parent element first
- *                                       appears.
- * @param {number}    tokenLength        Length of string marking start of parent
- *                                       element.
- * @param {number}    [prevOffset]       Running offset at which parsing should
- *                                       continue.
- * @param {number}    [leadingTextStart] Offset at which last closing element
- *                                       finished, used for finding text between
- *                                       elements.
+ * @param {Element} element            A parent element which may still have
+ *                                     nested children not yet parsed.
+ * @param {number}  tokenStart         Offset at which parent element first
+ *                                     appears.
+ * @param {number}  tokenLength        Length of string marking start of parent
+ *                                     element.
+ * @param {number}  [prevOffset]       Running offset at which parsing should
+ *                                     continue.
+ * @param {number}  [leadingTextStart] Offset at which last closing element
+ *                                     finished, used for finding text between
+ *                                     elements.
  *
  * @return {Frame} The stack frame tracking parse progress.
  */
@@ -233,11 +238,11 @@ function createFrame(element, tokenStart, tokenLength, prevOffset, leadingTextSt
  * }
  * ```
  *
- * @param {string}                    interpolatedString The interpolation string to be parsed.
- * @param {Record<string, WPElement>} conversionMap      The map used to convert the string to
- *                                                       a react element.
+ * @param {string}                  interpolatedString The interpolation string to be parsed.
+ * @param {Record<string, Element>} conversionMap      The map used to convert the string to
+ *                                                     a react element.
  * @throws {TypeError}
- * @return {WPElement}  A wp element.
+ * @return {Element}  A wp element.
  */
 const createInterpolateElement = (interpolatedString, conversionMap) => {
   indoc = interpolatedString;
@@ -246,7 +251,7 @@ const createInterpolateElement = (interpolatedString, conversionMap) => {
   stack = [];
   tokenizer.lastIndex = 0;
   if (!isValidConversionMap(conversionMap)) {
-    throw new TypeError('The conversionMap provided is not valid. It must be an object with values that are WPElements');
+    throw new TypeError('The conversionMap provided is not valid. It must be an object with values that are React Elements');
   }
   do {
     // twiddle our thumbs
@@ -258,7 +263,7 @@ const createInterpolateElement = (interpolatedString, conversionMap) => {
  * Validate conversion map.
  *
  * A map is considered valid if it's an object and every value in the object
- * is a WPElement
+ * is a React Element
  *
  * @private
  *
@@ -439,7 +444,7 @@ function closeOuterElement(endOffset) {
   }
   output.push((0,external_React_namespaceObject.cloneElement)(element, null, ...children));
 }
-/* harmony default export */ var create_interpolate_element = (createInterpolateElement);
+/* harmony default export */ const create_interpolate_element = (createInterpolateElement);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/element/build-module/react.js
 /**
@@ -451,19 +456,19 @@ function closeOuterElement(endOffset) {
 /**
  * Object containing a React element.
  *
- * @typedef {import('react').ReactElement} WPElement
+ * @typedef {import('react').ReactElement} Element
  */
 
 /**
  * Object containing a React component.
  *
- * @typedef {import('react').ComponentType} WPComponent
+ * @typedef {import('react').ComponentType} ComponentType
  */
 
 /**
  * Object containing a React synthetic event.
  *
- * @typedef {import('react').SyntheticEvent} WPSyntheticEvent
+ * @typedef {import('react').SyntheticEvent} SyntheticEvent
  */
 
 /**
@@ -481,10 +486,10 @@ function closeOuterElement(endOffset) {
 /**
  * Creates a copy of an element with extended props.
  *
- * @param {WPElement} element Element
- * @param {?Object}   props   Props to apply to cloned element
+ * @param {Element} element Element
+ * @param {?Object} props   Props to apply to cloned element
  *
- * @return {WPElement} Cloned element.
+ * @return {Element} Cloned element.
  */
 
 
@@ -510,9 +515,9 @@ function closeOuterElement(endOffset) {
  * @param {Object}             props    Element properties, either attribute
  *                                      set to apply to DOM node or values to
  *                                      pass through to element creator
- * @param {...WPElement}       children Descendant elements
+ * @param {...Element}         children Descendant elements
  *
- * @return {WPElement} Element.
+ * @return {Element} Element.
  */
 
 
@@ -534,7 +539,7 @@ function closeOuterElement(endOffset) {
  * @param {Function} forwarder Function passed `props` and `ref`, expected to
  *                             return an element.
  *
- * @return {WPComponent} Enhanced component.
+ * @return {Component} Enhanced component.
  */
 
 
@@ -544,11 +549,11 @@ function closeOuterElement(endOffset) {
 
 
 /**
- * Checks if an object is a valid WPElement.
+ * Checks if an object is a valid React Element.
  *
  * @param {Object} objectToCheck The object to be checked.
  *
- * @return {boolean} true if objectToTest is a valid WPElement and false otherwise.
+ * @return {boolean} true if objectToTest is a valid React Element and false otherwise.
  */
 
 
@@ -653,6 +658,11 @@ function closeOuterElement(endOffset) {
 
 
 /**
+ * @see https://reactjs.org/docs/react-api.html#reactpurecomponent
+ */
+
+
+/**
  * Concatenate two or more React children objects.
  *
  * @param {...?Object} childrenArguments Array of children arguments (array of arrays/strings/objects) to concatenate.
@@ -700,9 +710,9 @@ function switchChildrenNodeName(children, nodeName) {
 }
 
 // EXTERNAL MODULE: external "ReactDOM"
-var external_ReactDOM_ = __webpack_require__(1850);
+var external_ReactDOM_ = __webpack_require__(5795);
 // EXTERNAL MODULE: ./node_modules/react-dom/client.js
-var client = __webpack_require__(4470);
+var client = __webpack_require__(4140);
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/element/build-module/react-platform.js
 /**
  * External dependencies
@@ -715,16 +725,16 @@ var client = __webpack_require__(4470);
  *
  * @see https://github.com/facebook/react/issues/10309#issuecomment-318433235
  *
- * @param {import('./react').WPElement} child     Any renderable child, such as an element,
- *                                                string, or fragment.
- * @param {HTMLElement}                 container DOM node into which element should be rendered.
+ * @param {import('react').ReactElement} child     Any renderable child, such as an element,
+ *                                                 string, or fragment.
+ * @param {HTMLElement}                  container DOM node into which element should be rendered.
  */
 
 
 /**
  * Finds the dom node of a React component.
  *
- * @param {import('./react').WPComponent} component Component's instance.
+ * @param {import('react').ComponentType} component Component's instance.
  */
 
 
@@ -825,7 +835,7 @@ const Platform = {
  * } );
  * ```
  */
-/* harmony default export */ var platform = (Platform);
+/* harmony default export */ const platform = (Platform);
 
 ;// CONCATENATED MODULE: ./node_modules/is-plain-object/dist/is-plain-object.mjs
 /*!
@@ -1205,7 +1215,7 @@ function __disposeResources(env) {
   return next();
 }
 
-/* harmony default export */ var tslib_es6 = ({
+/* harmony default export */ const tslib_es6 = ({
   __extends,
   __assign,
   __rest,
@@ -1333,7 +1343,7 @@ function paramCase(input, options) {
 }
 
 ;// CONCATENATED MODULE: external ["wp","escapeHtml"]
-var external_wp_escapeHtml_namespaceObject = window["wp"]["escapeHtml"];
+const external_wp_escapeHtml_namespaceObject = window["wp"]["escapeHtml"];
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/element/build-module/raw-html.js
 /**
  * Internal dependencies
@@ -1422,7 +1432,7 @@ function RawHTML({
 
 
 
-/** @typedef {import('./react').WPElement} WPElement */
+/** @typedef {import('react').ReactElement} ReactElement */
 
 const {
   Provider,
@@ -1742,21 +1752,21 @@ function renderNativeComponent(type, props, context, legacyContext = {}) {
   return '<' + type + attributes + '>' + content + '</' + type + '>';
 }
 
-/** @typedef {import('./react').WPComponent} WPComponent */
+/** @typedef {import('react').ComponentType} ComponentType */
 
 /**
  * Serializes a non-native component type to string.
  *
- * @param {WPComponent} Component       Component type to serialize.
- * @param {Object}      props           Props object.
- * @param {Object}      [context]       Context object.
- * @param {Object}      [legacyContext] Legacy context object.
+ * @param {ComponentType} Component       Component type to serialize.
+ * @param {Object}        props           Props object.
+ * @param {Object}        [context]       Context object.
+ * @param {Object}        [legacyContext] Legacy context object.
  *
  * @return {string} Serialized element
  */
 function renderComponent(Component, props, context, legacyContext = {}) {
-  const instance = new /** @type {import('react').ComponentClass} */
-  Component(props, legacyContext);
+  const instance = new ( /** @type {import('react').ComponentClass} */
+  Component)(props, legacyContext);
   if (typeof
   // Ignore reason: Current prettier reformats parens and mangles type assertion
   // prettier-ignore
@@ -1868,7 +1878,7 @@ function renderStyle(style) {
   }
   return result;
 }
-/* harmony default export */ var serialize = (renderElement);
+/* harmony default export */ const serialize = (renderElement);
 
 ;// CONCATENATED MODULE: ./node_modules/@wordpress/element/build-module/index.js
 
@@ -1879,7 +1889,8 @@ function renderStyle(style) {
 
 
 
-}();
+})();
+
 (window.wp = window.wp || {}).element = __webpack_exports__;
 /******/ })()
 ;
