@@ -273,6 +273,23 @@ async function run() {
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
+
+			const mounts: Mount[] = (args.mount || []).map((mount) => {
+				const [source, vfsPath] = mount.split(':');
+				return {
+					hostPath: path.resolve(process.cwd(), source),
+					vfsPath,
+				};
+			});
+			for (const mount of mounts) {
+				php.mount(mount.hostPath, mount.vfsPath);
+			}
+			console.log(php.listFiles('/home'));
+			console.log(php.listFiles('/home/another_user'));
+			console.log(php.listFiles('/home/web_user'));
+			php.writeFile('/home/web_user/test.txt', 'Hello, world!');
+			process.exit(0);
+
 			await prepareSite(php, compiledBlueprint.versions.wp, absoluteUrl);
 
 			wordPressReady = true;

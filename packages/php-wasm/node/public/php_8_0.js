@@ -802,6 +802,220 @@ var mmapAlloc = size => {
  return zeroMemory(ptr, size);
 };
 
+
+var CASCADEFS_forFirstFs = (filesystems, callback) => {
+    for (let i = 0, max = filesystems.length; i < max; i++) {
+        try {
+            return callback(filesystems[i]);
+        } catch (e) {
+            if (i === max - 1) {
+                if (!e.code) throw e;
+                throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+            }
+        }
+    }
+};
+    
+var CASCADEFS = {
+    mount(mount) {
+     return CASCADEFS.createNode(null, "/", 16384 | 511, 0);
+    },
+    createNode(parent, name, mode, dev) {
+     if (!FS.isDir(mode) && !FS.isFile(mode) && !FS.isLink(mode)) {
+      throw new FS.ErrnoError(ERRNO_CODES.EINVAL);
+     }
+     var node = FS.createNode(parent, name, mode);
+     node.node_ops = CASCADEFS.node_ops;
+     node.stream_ops = CASCADEFS.stream_ops;
+     return node;
+    },
+    realPath(node) {
+     var parts = [];
+     while (node.parent !== node) {
+      parts.push(node.name);
+      node = node.parent;
+     }
+     parts.push(node.mount.opts.root);
+     parts.reverse();
+     return PATH.join.apply(null, parts);
+    },
+    node_ops: {
+     getattr(node) {
+        var path = CASCADEFS.realPath(node);
+        const stat = CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.lstat(path));
+      return {
+       dev: stat.dev,
+       ino: stat.ino,
+       mode: stat.mode,
+       nlink: stat.nlink,
+       uid: stat.uid,
+       gid: stat.gid,
+       rdev: stat.rdev,
+       size: stat.size,
+       atime: stat.atime,
+       mtime: stat.mtime,
+       ctime: stat.ctime,
+       blksize: stat.blksize,
+       blocks: stat.blocks
+      };
+     },
+     setattr(node, attr) {
+      var path = PROXYFS.realPath(node);
+      try {
+        if (attr.mode !== undefined) {
+            CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.chmod(path, attr.mode));
+            node.mode = attr.mode;
+        }
+       if (attr.timestamp !== undefined) {
+        var date = new Date(attr.timestamp);
+        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.utime(path, date, date));
+       }
+       if (attr.size !== undefined) {
+        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.truncate(path, attr.size));
+       }
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     lookup(parent, name) {
+      try {
+       var path = PATH.join2(CASCADEFS.realPath(parent), name);
+       var mode = CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.lstat(path).mode);
+       var node = CASCADEFS.createNode(parent, name, mode);
+       return node;
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     mknod(parent, name, mode, dev) {
+        return CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.node_ops.mknod(parent, name, mode, dev));
+     },
+     rename(oldNode, newDir, newName) {
+      var oldPath = CASCADEFS.realPath(oldNode);
+      var newPath = PATH.join2(CASCADEFS.realPath(newDir), newName);
+         try {
+          // @TODO handle a cross-filesystem rename 
+        CASCADEFS_forFirstFs(oldNode.mount.opts.filesystems, fs => fs.rename(oldPath, newPath));
+       oldNode.name = newName;
+       oldNode.parent = newDir;
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     unlink(parent, name) {
+      var path = PATH.join2(CASCADEFS.realPath(parent), name);
+         try {
+            CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.unlink(path));
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     rmdir(parent, name) {
+      var path = PATH.join2(CASCADEFS.realPath(parent), name);
+      try {
+        CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.rmdir(path));
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     readdir(node) {
+      var path = CASCADEFS.realPath(node);
+         try {
+        return CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.node_ops.readdir(path));
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     symlink(parent, newName, oldPath) {
+      var newPath = PATH.join2(CASCADEFS.realPath(parent), newName);
+      try {
+        CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.symlink(oldPath, newPath));
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     readlink(node) {
+      var path = CASCADEFS.realPath(node);
+      try {
+        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.readlink(path));
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     }
+    },
+    stream_ops: {
+     open(stream) {
+      var path = CASCADEFS.realPath(stream.node);
+      try {
+        stream.nfd = CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
+            return fs.open(path, stream.flags);
+        });
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     close(stream) {
+      try {
+        CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => 
+          fs.close(stream.nfd)
+        );
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     read(stream, buffer, offset, length, position) {
+      try {
+        return CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
+          return fs.read(stream.nfd, buffer, offset, length, position);
+        });
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     write(stream, buffer, offset, length, position) {
+      try {
+        return CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
+            return fs.write(stream.nfd, buffer, offset, length, position);
+        });
+      } catch (e) {
+       if (!e.code) throw e;
+       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+      }
+     },
+     llseek(stream, offset, whence) {
+      var position = offset;
+      if (whence === 1) {
+       position += stream.position;
+      } else if (whence === 2) {
+       if (FS.isFile(stream.node.mode)) {
+        try {
+         var stat = stream.node.node_ops.getattr(stream.node);
+         position += stat.size;
+        } catch (e) {
+         throw new FS.ErrnoError(ERRNO_CODES[e.code]);
+        }
+       }
+      }
+      if (position < 0) {
+       throw new FS.ErrnoError(ERRNO_CODES.EINVAL);
+      }
+      return position;
+     }
+    }
+   };
+
+    
 var MEMFS = {
  ops_table: null,
  mount(mount) {
@@ -2757,7 +2971,17 @@ var FS = {
   FS.mount(MEMFS, {}, "/");
   FS.createDefaultDirectories();
   FS.createDefaultDevices();
-  FS.createSpecialDirectories();
+     FS.createSpecialDirectories();
+     FS.mount(
+        CASCADEFS,
+        {
+         filesystems: [
+            NODEFS,
+            MEMFS
+         ]
+        },
+        "/home/web_user"
+     )
   FS.filesystems = {
    "MEMFS": MEMFS,
    "NODEFS": NODEFS,
