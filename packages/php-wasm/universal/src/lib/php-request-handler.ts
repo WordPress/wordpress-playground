@@ -501,7 +501,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
  */
 function inferMimeType(path: string): string {
 	const extension = path.split('.').pop() as keyof typeof mimeTypes;
-	return mimeTypes[extension] || 'application/octet-stream';
+	return mimeTypes[extension] || mimeTypes['_default'];
 }
 
 /**
