@@ -68,6 +68,9 @@ export class EmscriptenDownloadMonitor extends EventTarget {
 			.pop()!;
 		if (!fileSize) {
 			fileSize = this.#assetsSizes[fileName];
+		} else if (!(fileName in this.#assetsSizes)) {
+			this.#assetsSizes[fileName] = fileSize;
+			this.#progress[fileName] = loaded;
 		}
 		if (!(fileName in this.#progress)) {
 			logger.warn(

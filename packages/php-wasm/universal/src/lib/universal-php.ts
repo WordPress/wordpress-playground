@@ -334,7 +334,15 @@ type ChildProcess = EventEmitter & {
 };
 export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
 
-export type IsomorphicRemotePHP = Remote<IsomorphicLocalPHP>;
+/**
+ * The omited methods must either be called synchronously before
+ * the PHP internal state is initialized, or with a complex argument
+ * that can't be serialized over a remote connection. Therefeore,
+ * they don't make sense in a remote PHP instance.
+ */
+export type IsomorphicRemotePHP = Remote<
+	Omit<IsomorphicLocalPHP, 'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'>
+>;
 export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
 
 export type HTTPMethod =

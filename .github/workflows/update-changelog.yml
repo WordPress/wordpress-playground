@@ -29,7 +29,6 @@ jobs:
               with:
                   ref: trunk
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
             - name: Fetch trunk
               shell: bash

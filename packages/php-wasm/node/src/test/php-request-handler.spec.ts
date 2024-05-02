@@ -1,22 +1,20 @@
-import { NodePHP, getPHPLoaderModule } from '..';
-import {
-	loadPHPRuntime,
-	PHPRequestHandler,
-	SupportedPHPVersions,
-} from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { NodePHP } from '..';
+import { PHPRequestHandler, SupportedPHPVersions } from '@php-wasm/universal';
+import { createSpawnHandler } from '@php-wasm/util';
 
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – request',
 	(phpVersion) => {
 		let php: NodePHP;
-		let handler: PHPRequestHandler;
+		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
-			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-			const runtimeId = await loadPHPRuntime(phpLoaderModule);
-			php = new NodePHP(runtimeId);
-			handler = new PHPRequestHandler(php, {
+			handler = new PHPRequestHandler({
 				documentRoot: '/',
+				phpFactory: async () => NodePHP.load(phpVersion),
+				maxPhpInstances: 1,
 			});
+			php = await handler.getPrimaryPhp();
 		});
 
 		it('should execute a PHP file', async () => {
@@ -122,56 +120,6 @@ describe.each(SupportedPHPVersions)(
 				httpStatusCode: 404,
 				headers: {},
 				bytes: expect.any(Uint8Array),
-				errors: '',
-				exitCode: 0,
-			});
-		});
-
-		it('should only handle a single PHP request at a time', async () => {
-			php.writeFile(
-				'/index.php',
-				`<?php
-			// A unique function name to force a fatal error
-			// if this file gets loaded twice during the same
-			// request
-			function a_function() {}
-			// Use an async operation so that the second
-			// request is dispatched before the first one
-			// finishes
-			@stream_socket_client('http://localhost:1235');
-			echo 'Hello World';
-		`
-			);
-			const response1 = handler.request({
-				url: '/index.php',
-			});
-			expect(handler.isRequestRunning).toBe(true);
-			// No stdout should be written yet
-			expect(php.fileExists('/tmp/stdout')).toBe(false);
-			const response2 = handler.request({
-				url: '/index.php',
-			});
-			const [response1Result, response2Result] = await Promise.all([
-				response1,
-				response2,
-			]);
-			expect(response1Result).toEqual({
-				httpStatusCode: 200,
-				headers: {
-					'content-type': ['text/html; charset=UTF-8'],
-					'x-powered-by': [expect.any(String)],
-				},
-				bytes: new TextEncoder().encode('Hello World'),
-				errors: '',
-				exitCode: 0,
-			});
-			expect(response2Result).toEqual({
-				httpStatusCode: 200,
-				headers: {
-					'content-type': ['text/html; charset=UTF-8'],
-					'x-powered-by': [expect.any(String)],
-				},
-				bytes: new TextEncoder().encode('Hello World'),
 				errors: '',
 				exitCode: 0,
 			});
@@ -331,25 +279,6 @@ describe.each(SupportedPHPVersions)(
 			expect(response.json).toEqual({ foo: 'bar' });
 		});
 
-		it('should return error 502 when a PHP-sourced request is received before the previous request is handled', async () => {
-			php.writeFile('/index.php', `<?php echo "Hello";`);
-
-			const response1 = handler.request({
-				url: '/index.php',
-				headers: {
-					'x-request-issuer': 'php',
-				},
-			});
-			const response2 = handler.request({
-				url: '/index.php',
-				headers: {
-					'x-request-issuer': 'php',
-				},
-			});
-			expect((await response1).httpStatusCode).toEqual(200);
-			expect((await response2).httpStatusCode).toEqual(502);
-		});
-
 		it('should return 200 and pass query strings when a valid request is made to a PHP file', async () => {
 			php.writeFile('/test.php', `<?php echo $_GET['key'];`);
 			const response = await handler.request({
@@ -383,16 +312,15 @@ describe.each(SupportedPHPVersions)(
 describe.each(SupportedPHPVersions)(
 	'[PHP %s] PHPRequestHandler – PHP_SELF',
 	(phpVersion) => {
-		let php: NodePHP;
-		let handler: PHPRequestHandler;
+		let handler: PHPRequestHandler<NodePHP>;
 		beforeEach(async () => {
-			const phpLoaderModule = await getPHPLoaderModule(phpVersion);
-			const runtimeId = await loadPHPRuntime(phpLoaderModule);
-			php = new NodePHP(runtimeId);
-			php.mkdirTree('/var/www');
-			handler = new PHPRequestHandler(php, {
+			handler = new PHPRequestHandler({
+				phpFactory: () => NodePHP.load(phpVersion),
 				documentRoot: '/var/www',
+				maxPhpInstances: 1,
 			});
+			const php = await handler.getPrimaryPhp();
+			php.mkdirTree('/var/www');
 		});
 
 		it.each([
@@ -403,6 +331,7 @@ describe.each(SupportedPHPVersions)(
 		])(
 			'Should assign the correct PHP_SELF for %s',
 			async (url: string, expected: string) => {
+				const php = await handler.getPrimaryPhp();
 				php.writeFile(
 					'/var/www/index.php',
 					`<?php echo $_SERVER['PHP_SELF'];`
@@ -415,6 +344,7 @@ describe.each(SupportedPHPVersions)(
 		);
 
 		it('should assign the correct PHP_SELF (file in subdirectory, query string present)', async () => {
+			const php = await handler.getPrimaryPhp();
 			php.mkdirTree('/var/www/subdir');
 			php.writeFile(
 				'/var/www/subdir/index.php',
@@ -427,3 +357,78 @@ describe.each(SupportedPHPVersions)(
 		});
 	}
 );
+
+describe('PHPRequestHandler – Loopback call', () => {
+	let handler: PHPRequestHandler<NodePHP>;
+
+	it('Spawn: exec() can spawn another PHP before the previous run() concludes', async () => {
+		async function createPHP() {
+			const php = await NodePHP.load(RecommendedPHPVersion);
+			php.setSpawnHandler(
+				createSpawnHandler(async function (args, processApi, options) {
+					if (args[0] !== 'php') {
+						throw new Error(
+							`Unexpected command: ${args.join(' ')}`
+						);
+					}
+					const { php, reap } =
+						await handler.processManager.acquirePHPInstance();
+					const result = await php.run({
+						scriptPath: args[1],
+						env: options.env,
+					});
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+					reap();
+				})
+			);
+			php.writeFile(
+				'/first.php',
+				`<?php echo 'Starting: '; echo exec("php /second.php", $output, $return_var); echo ' Done';`
+			);
+			php.writeFile('/second.php', `<?php echo 'Ran second.php!'; `);
+			return php;
+		}
+		handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: createPHP,
+			maxPhpInstances: 2,
+		});
+		const response = await handler.request({
+			url: '/first.php',
+		});
+		expect(response.text).toEqual('Starting: Ran second.php! Done');
+	});
+
+	it('Loopback: handler.request() can be called before the previous call concludes', async () => {
+		async function createPHP() {
+			const php = await NodePHP.load(RecommendedPHPVersion);
+			php.setSpawnHandler(
+				createSpawnHandler(async function (args, processApi) {
+					const result = await handler.request({
+						url: '/second.php',
+					});
+					processApi.stdout(result.bytes);
+					processApi.stderr(result.errors);
+					processApi.exit(result.exitCode);
+				})
+			);
+			php.writeFile(
+				'/first.php',
+				`<?php echo 'Starting: '; echo exec("php /second.php", $output, $return_var); echo ' Done';`
+			);
+			php.writeFile('/second.php', `<?php echo 'Ran second.php!'; `);
+			return php;
+		}
+		handler = new PHPRequestHandler({
+			documentRoot: '/',
+			phpFactory: createPHP,
+			maxPhpInstances: 2,
+		});
+		const response = await handler.request({
+			url: '/first.php',
+		});
+		expect(response.text).toEqual('Starting: Ran second.php! Done');
+	});
+});

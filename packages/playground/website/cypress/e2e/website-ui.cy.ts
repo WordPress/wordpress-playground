@@ -8,7 +8,7 @@ import {
 // directly.
 // @ts-ignore
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import * as SupportedWordPressVersions from '../../../wordpress/src/wordpress/wp-versions.json';
+import * as SupportedWordPressVersions from '../../../wordpress-builds/src/wordpress/wp-versions.json';
 import { Blueprint } from '@wp-playground/blueprints';
 
 describe('Playground website UI', () => {

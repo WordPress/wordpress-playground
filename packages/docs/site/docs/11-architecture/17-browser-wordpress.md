@@ -7,15 +7,15 @@ The [web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/b
 -   Runs the WordPress installation wizard.
 -   Bundles WordPress as a [data dependency](./06-wasm-php-data-dependencies.md)
 
-Build a new bundle with `nx bundle-wordpress playground-wordpress --wp-version=<version>`, e.g.:
+Build a new bundle with `nx bundle-wordpress playground-wordpress-builds --wp-version=<version>`, e.g.:
 
 ```
-nx bundle-wordpress playground-wordpress --wp-version=6.1
+nx bundle-wordpress playground-wordpress-builds --wp-version=6.1
 ```
 
 The bundler outputs:
 
--   `packages/playground/wordpress/public/wp-6.1.zip` – zipped WordPress files
--   `packages/playground/wordpress/public/wp-6.1/` – a directory with static assets for the specified WordPress versions
+-   `packages/playground/wordpress-builds/public/wp-6.1.zip` – zipped WordPress files
+-   `packages/playground/wordpress-builds/public/wp-6.1/` – a directory with static assets for the specified WordPress versions
 
 Consult [the web bundler Dockerfile](https://github.com/WordPress/wordpress-playground/blob/trunk/src/wordpress-playground/wordpress/Dockerfile) for more details (like the list of supported WordPress versions) and modify it to customize the default WordPress installation.

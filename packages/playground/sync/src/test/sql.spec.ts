@@ -4,10 +4,8 @@ import {
 	installSqlSyncMuPlugin,
 	journalSQLQueries,
 } from '../sql';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
 import { unzip } from '@wp-playground/blueprints';
 
 describe('Sync tests', () => {
