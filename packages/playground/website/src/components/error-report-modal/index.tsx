@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { addCrashListener, logger } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
@@ -16,15 +16,6 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [url, setUrl] = useState('');
 	const [submitted, setSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
-
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				setActiveModal('error-report');
-			}
-		});
-	}, [setActiveModal]);
 
 	useEffect(() => {
 		resetForm();

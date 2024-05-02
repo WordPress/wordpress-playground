@@ -23,14 +23,18 @@ export function StartErrorModal() {
 	const description = (
 		<>
 			<p>
-				An error occurred while starting Playground. Please read the
-				logs below to understand the issue. If there is Invalid
-				blueprint error, the error will include the step which caused
-				the issue. You can review your blueprint and{' '}
-				<a href="https://wordpress.github.io/wordpress-playground/blueprints-api/troubleshoot-and-debug-blueprints">
-					check out the documentation
+				Oops! There was a problem starting Playground. To figure out
+				what went wrong, please take a look at the error logs provided
+				below. If you see an "Invalid blueprint error," the logs will
+				point out the specific step causing the issue. You can then
+				double-check your blueprint. For more help, you can also{' '}
+				<a
+					href="https://wordpress.github.io/wordpress-playground/blueprints-api/troubleshoot-and-debug-blueprints"
+					target="_blank"
+					rel="noreferrer"
+				>
+					visit our documentation.
 				</a>{' '}
-				for more information.
 			</p>
 			<Button
 				className={css.startErrorModalDismiss}
