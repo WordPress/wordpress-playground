@@ -368,7 +368,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		 * WASM SAPI method to pass consts directly.
 		 * @see https://github.com/WordPress/wordpress-playground/issues/750
 		 */
-		this.setPhpIniEntry('auto_prepend_file', '/internal/consts.php');
+		// this.setPhpIniEntry('auto_prepend_file', '/internal/consts.php');
 		if (!this.fileExists('/internal/consts.php')) {
 			this.writeFile(
 				'/internal/consts.php',
