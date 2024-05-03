@@ -171,9 +171,8 @@ const requestHandler = new PHPRequestHandler({
 				requestHandler.documentRoot
 			);
 		}
-		php.setPhpIniEntry('auto_prepend_file', '/internal/env.php');
 		php.writeFile(
-			'/internal/env.php',
+			'/internal/preload/env.php',
 			`<?php
 
 		// Allow adding filters/actions prior to loading WordPress.
@@ -257,7 +256,6 @@ try {
 	// * The mu-plugin is always up to date.
 	await writeFiles(primaryPhp, joinPaths('/internal/mu-plugins'), {
 		'0-playground.php': playgroundMuPlugin,
-		'load-consts.php': `<?php require "/internal/consts.php"; `,
 		'playground-includes/wp_http_dummy.php': transportDummy,
 		'playground-includes/wp_http_fetch.php': transportFetch,
 	});
