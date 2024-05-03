@@ -92,7 +92,7 @@ find -type f \
     | set_aside_files_to_serve_via_php
 
 echo Syncing staged files to production
-rsync -av --delete ~/website-update/* /srv/htdocs/
+rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/
 
 echo Purging edge cache
 curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
