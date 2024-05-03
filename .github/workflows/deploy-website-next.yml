@@ -32,20 +32,21 @@ jobs:
               with:
                   sparse-checkout: |
                       packages/playground/website-deployment
-            - name: Wait for latest build artifact
-              shell: bash
-              # Sleep to give the GitHub API time to register the artifact,
-              # otherwise the artifact will not be available when the webhook is called
-              run: |
-                  while true; do
-                      API_HASH=$(curl 'https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts?name=playground-website&per_page=2' \
-                          | jq -r '.artifacts[0].workflow_run.head_sha')
-                      if [ "$API_HASH" = "$GITHUB_SHA" ]; then
-                          break;
-                      fi;
-                      echo "$API_HASH was not $GITHUB_SHA, waiting 10 seconds...";
-                      sleep 10;
-                  done;
+            # TODO: Re-enable waiting for build artifact after testing
+            #- name: Wait for latest build artifact
+            #  shell: bash
+            #  # Sleep to give the GitHub API time to register the artifact,
+            #  # otherwise the artifact will not be available when the webhook is called
+            #  run: |
+            #      while true; do
+            #          API_HASH=$(curl 'https://api.github.com/repos/wordpress/wordpress-playground/actions/artifacts?name=playground-website&per_page=2' \
+            #              | jq -r '.artifacts[0].workflow_run.head_sha')
+            #          if [ "$API_HASH" = "$GITHUB_SHA" ]; then
+            #              break;
+            #          fi;
+            #          echo "$API_HASH was not $GITHUB_SHA, waiting 10 seconds...";
+            #          sleep 10;
+            #      done;
             - name: Deploy to playground.wordpress.net
               shell: bash
               run: |
