@@ -79,6 +79,11 @@ jobs:
                     packages/playground/website-deployment/ \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
 
+                  # Copy MIME types for use with PHP-served files
+                  scp -i ~/.ssh/id_ed25519 \
+                    packages/php-wasm/universal/src/lib/mime-types.json \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
+
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
