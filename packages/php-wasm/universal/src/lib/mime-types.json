@@ -1,5 +1,5 @@
 {
-	"_default": "application-octet-stream",
+	"_default": "application/octet-stream",
 	"3gpp": "video/3gpp",
 	"7z": "application/x-7z-compressed",
 	"asx": "video/x-ms-asf",
