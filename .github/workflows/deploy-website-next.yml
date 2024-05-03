@@ -6,6 +6,9 @@ on:
         workflows: [Deploy to playground.wordpress.net]
         types:
             - completed
+
+	# TODO: Remove after test
+	pull_request:
 jobs:
     deploy_to_wp_cloud:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR certain maintainers
