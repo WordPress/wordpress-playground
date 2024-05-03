@@ -27,6 +27,7 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   sparse-checkout: |
+                      packages/php-wasm/universal/src/lib/mime-types.json
                       packages/playground/website-deployment
             - name: Wait for latest build artifact
               shell: bash
@@ -78,6 +79,11 @@ jobs:
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     packages/playground/website-deployment/ \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
+
+                  # Copy MIME types for use with PHP-served files
+                  scp -i ~/.ssh/id_ed25519 \
+                    packages/php-wasm/universal/src/lib/mime-types.json \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
 
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
