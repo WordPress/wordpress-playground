@@ -223,6 +223,39 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
+	if ( str_ends_with( $requested_path, '/plugin-proxy.php' ) ) {
+		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+		// which is not set yet. But we can force its definition.
+		__atomic_env_define( 'DB_PASSWORD' );
+
+		$secrets = new Atomic_Persistent_Data;
+		if ( isset( $secrets->GITHUB_TOKEN ) ) {
+				putenv( "GITHUB_TOKEN={$secrets->GITHUB_TOKEN}" );
+		} else {
+				error_log( 'PLAYGROUND: Missing secrets for plugin-proxy.php' );
+		}
+		return true;
+	}
+
+	if ( str_ends_with( $requested_path, '/oauth.php' ) ) {
+		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+		// which is not set yet. But we can force its definition.
+		__atomic_env_define( 'DB_PASSWORD' );
+
+		$secrets = new Atomic_Persistent_Data;
+		if ( isset(
+			$secrets->GITHUB_APP_CLIENT_ID,
+			$secrets->GITHUB_APP_CLIENT_SECRET,
+		) ) {
+				putenv( "GITHUB_APP_CLIENT_ID={$secrets->GITHUB_APP_CLIENT_ID}" );
+				putenv( "GITHUB_APP_CLIENT_SECRET={$secrets->GITHUB_APP_CLIENT_SECRET}" );
+		} else {
+				error_log( 'PLAYGROUND: Missing secrets for oauth.php' );
+		}
+		return true;
+	}
+
+
 	return false;
 }
 
