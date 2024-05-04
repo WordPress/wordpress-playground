@@ -206,51 +206,67 @@ function playground_maybe_set_environment( $requested_path ) {
 	}
 
 	if ( str_ends_with( $requested_path, 'logger.php' ) ) {
-		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
-		// which is not set yet. But we can force its definition.
-		__atomic_env_define( 'DB_PASSWORD' );
+		// TODO: Remove this condition when we can confirm __atomic_env_define() is again always defined
+		if ( function_exists( '__atomic_env_define' ) ) {
+			// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+			// which is not set yet. But we can force its definition.
+			__atomic_env_define( 'DB_PASSWORD' );
 
-		$secrets = new Atomic_Persistent_Data;
-		if ( isset(
-			$secrets->LOGGER_SLACK_CHANNEL,
-			$secrets->LOGGER_SLACK_TOKEN,
-		) ) {
-			putenv( "SLACK_CHANNEL={$secrets->LOGGER_SLACK_CHANNEL}" );
-			putenv( "SLACK_TOKEN={$secrets->LOGGER_SLACK_TOKEN}" );
+			$secrets = new Atomic_Persistent_Data;
+			if ( isset(
+				$secrets->LOGGER_SLACK_CHANNEL,
+				$secrets->LOGGER_SLACK_TOKEN,
+			) ) {
+				putenv( "SLACK_CHANNEL={$secrets->LOGGER_SLACK_CHANNEL}" );
+				putenv( "SLACK_TOKEN={$secrets->LOGGER_SLACK_TOKEN}" );
+			} else {
+				error_log( 'PLAYGROUND: Missing secrets for logger.php' );
+			}
 		} else {
-			error_log( 'PLAYGROUND: Missing secrets for logger.php' );
+			error_log( 'PLAYGROUND: Unable to access secrets for logger.php' );
 		}
+
 		return true;
 	}
 
-	if ( str_ends_with( $requested_path, '/plugin-proxy.php' ) ) {
-		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
-		// which is not set yet. But we can force its definition.
-		__atomic_env_define( 'DB_PASSWORD' );
+	if ( str_ends_with( $requested_path, 'plugin-proxy.php' ) ) {
+		// TODO: Remove this condition when we can confirm __atomic_env_define() is again always defined
+		if ( function_exists( '__atomic_env_define' ) ) {
+			// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+			// which is not set yet. But we can force its definition.
+			__atomic_env_define( 'DB_PASSWORD' );
 
-		$secrets = new Atomic_Persistent_Data;
-		if ( isset( $secrets->GITHUB_TOKEN ) ) {
+			$secrets = new Atomic_Persistent_Data;
+			if ( isset( $secrets->GITHUB_TOKEN ) ) {
 				putenv( "GITHUB_TOKEN={$secrets->GITHUB_TOKEN}" );
-		} else {
+			} else {
 				error_log( 'PLAYGROUND: Missing secrets for plugin-proxy.php' );
+			}
+		} else {
+			error_log( 'PLAYGROUND: Unable to access secrets for plugin-proxy.php' );
 		}
 		return true;
 	}
 
-	if ( str_ends_with( $requested_path, '/oauth.php' ) ) {
-		// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
-		// which is not set yet. But we can force its definition.
-		__atomic_env_define( 'DB_PASSWORD' );
+	if ( str_ends_with( $requested_path, 'oauth.php' ) ) {
+		// TODO: Remove this condition when we can confirm __atomic_env_define() is again always defined
+		if ( function_exists( '__atomic_env_define' ) ) {
+			// WORKAROUND: Atomic_Persistent_Data wants the DB_PASSWORD constant
+			// which is not set yet. But we can force its definition.
+			__atomic_env_define( 'DB_PASSWORD' );
 
-		$secrets = new Atomic_Persistent_Data;
-		if ( isset(
-			$secrets->GITHUB_APP_CLIENT_ID,
-			$secrets->GITHUB_APP_CLIENT_SECRET,
-		) ) {
+			$secrets = new Atomic_Persistent_Data;
+			if ( isset(
+				$secrets->GITHUB_APP_CLIENT_ID,
+				$secrets->GITHUB_APP_CLIENT_SECRET,
+			) ) {
 				putenv( "GITHUB_APP_CLIENT_ID={$secrets->GITHUB_APP_CLIENT_ID}" );
 				putenv( "GITHUB_APP_CLIENT_SECRET={$secrets->GITHUB_APP_CLIENT_SECRET}" );
-		} else {
+			} else {
 				error_log( 'PLAYGROUND: Missing secrets for oauth.php' );
+			}
+		} else {
+			error_log( 'PLAYGROUND: Unable to access secrets for oauth.php' );
 		}
 		return true;
 	}
@@ -278,6 +294,7 @@ function playground_get_custom_response_headers( $filename ) {
 				'index.js',
 				'blueprint-schema.json',
 				'logger.php',
+				'oauth.php',
 				'wp-cli.phar',
 				'wordpress-importer.zip',
 			),
@@ -302,3 +319,4 @@ function playground_resolve_to_index_file( $real_path ) {
 		return false;
 	}
 }
+
