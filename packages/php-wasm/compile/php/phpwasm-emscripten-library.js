@@ -19,7 +19,7 @@ const LibraryExample = {
 			// The /internal directory is required by the C module. It's where the
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
-			FS.mkdir("/internal");FS.mkdir("/internal/preload");
+			FS.mkdir("/internal");
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
 			FS.mkdir("/internal/preload");
