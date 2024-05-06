@@ -360,11 +360,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	#initWebRuntime() {
 		this.writeFile(
 			'/internal/auto_prepend_file.php',
-			new TextEncoder().encode(`<?php
-		foreach (glob('/internal/preload/*.php') as $file) {
-			require_once $file;
-		}
-		`)
+			`<?php
+			foreach (glob('/internal/preload/*.php') as $file) {
+				require_once $file;
+			}
+		`
 		);
 		this.setPhpIniEntry(
 			'auto_prepend_file',
@@ -382,15 +382,15 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		 */
 		this.writeFile(
 			'/internal/preload/consts.php',
-			new TextEncoder().encode(`<?php
-		if(file_exists('/internal/consts.json')) {
-			$consts = json_decode(file_get_contents('/internal/consts.json'), true);
-			foreach ($consts as $const => $value) {
-				if (!defined($const) && is_scalar($value)) {
-					define($const, $value);
+			`<?php
+			if(file_exists('/internal/consts.json')) {
+				$consts = json_decode(file_get_contents('/internal/consts.json'), true);
+				foreach ($consts as $const => $value) {
+					if (!defined($const) && is_scalar($value)) {
+						define($const, $value);
+					}
 				}
-			}
-		}`)
+			}`
 		);
 		if (this.#phpIniOverrides.length > 0) {
 			const overridesAsIni =

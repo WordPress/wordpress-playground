@@ -4,12 +4,10 @@ import {
 	SupportedWordPressVersionsList,
 } from '@wp-playground/wordpress-builds';
 import {
-	BasePHP,
 	PHPResponse,
 	PHPProcessManager,
 	SupportedPHPVersion,
 	SupportedPHPVersionsList,
-	__private__dont__use,
 	rotatePHPRuntime,
 	PHPRequestHandler,
 } from '@php-wasm/universal';
@@ -117,35 +115,6 @@ const createPhpRuntime = async () => {
 		},
 	});
 };
-
-/**
- * Share the parent's MEMFS instance with the child process.
- * Only mount the document root and the /tmp directory,
- * the rest of the filesystem (like the devices) should be
- * private to each PHP instance.
- */
-export function proxyFileSystem(
-	sourceOfTruth: BasePHP,
-	replica: BasePHP,
-	documentRoot: string
-) {
-	for (const path of [documentRoot, '/tmp']) {
-		if (!replica.fileExists(path)) {
-			replica.mkdir(path);
-		}
-		if (!sourceOfTruth.fileExists(path)) {
-			sourceOfTruth.mkdir(path);
-		}
-		replica[__private__dont__use].FS.mount(
-			replica[__private__dont__use].PROXYFS,
-			{
-				root: path,
-				fs: sourceOfTruth[__private__dont__use].FS,
-			},
-			path
-		);
-	}
-}
 
 export function spawnHandlerFactory(processManager: PHPProcessManager<WebPHP>) {
 	return createSpawnHandler(async function (args, processApi, options) {

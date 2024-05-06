@@ -7,8 +7,16 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
-import { PHPRequestHandler, writeFiles } from '@php-wasm/universal';
+import {
+	envPHP_to_loadMuPlugins,
+	playgroundMuPlugin,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
+import {
+	PHPRequestHandler,
+	proxyFileSystem,
+	writeFiles,
+} from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -25,10 +33,9 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /** @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
-import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
-	proxyFileSystem,
 	requestedWPVersion,
 	createPhp,
 	startupOptions,
@@ -165,40 +172,21 @@ const requestHandler = new PHPRequestHandler({
 	phpFactory: async ({ isPrimary }) => {
 		const php = await createPhp(requestHandler);
 		if (!isPrimary) {
-			proxyFileSystem(
-				await requestHandler.getPrimaryPhp(),
-				php,
-				requestHandler.documentRoot
-			);
+			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
+				'/tmp',
+				requestHandler.documentRoot,
+				'/internal/mu-plugins',
+			]);
 		}
+		php.writeFile('/internal/preload/env.php', envPHP_to_loadMuPlugins);
+		php.defineConstant('SCOPED_SITE_PATH', new URL(scopedSiteUrl).pathname);
 		php.writeFile(
-			'/internal/preload/env.php',
+			'/internal/preload/phpinfo.php',
 			`<?php
-
-		// Allow adding filters/actions prior to loading WordPress.
-		// $function_to_add MUST be a string.
-		function playground_add_filter( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
-			global $wp_filter;
-			$wp_filter[$tag][$priority][$function_to_add] = array('function' => $function_to_add, 'accepted_args' => $accepted_args);
-		}
-		function playground_add_action( $tag, $function_to_add, $priority = 10, $accepted_args = 1 ) {
-			playground_add_filter( $tag, $function_to_add, $priority, $accepted_args );
-		}
-		
-		// Load our mu-plugins after customer mu-plugins
-		// NOTE: this means our mu-plugins can't use the muplugins_loaded action!
-		playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
-		function playground_load_mu_plugins() {
-			// Load all PHP files from /internal/mu-plugins, sorted by filename
-			$mu_plugins_dir = '/internal/mu-plugins';
-			if(!is_dir($mu_plugins_dir)){
-				return;
-			}
-			$mu_plugins = glob( $mu_plugins_dir . '/*.php' );
-			sort( $mu_plugins );
-			foreach ( $mu_plugins as $mu_plugin ) {
-				require_once $mu_plugin;
-			}
+		// Render PHPInfo if the requested page is /phpinfo.php
+		if ( SCOPED_SITE_PATH . '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
+			phpinfo();
+			exit;
 		}
 		`
 		);
@@ -256,14 +244,10 @@ try {
 	// * The mu-plugin is always up to date.
 	await writeFiles(primaryPhp, joinPaths('/internal/mu-plugins'), {
 		'0-playground.php': playgroundMuPlugin,
+		'1-playground-web.php': playgroundWebMuPlugin,
 		'playground-includes/wp_http_dummy.php': transportDummy,
 		'playground-includes/wp_http_fetch.php': transportFetch,
 	});
-	// Create phpinfo.php
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'phpinfo.php'),
-		'<?php phpinfo(); '
-	);
 
 	if (virtualOpfsDir) {
 		await bindOpfs({

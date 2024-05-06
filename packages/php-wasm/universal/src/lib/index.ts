@@ -77,3 +77,4 @@ export {
 } from './urls';
 
 export { isExitCodeZero } from './is-exit-code-zero';
+export { proxyFileSystem } from './proxy-file-system';
