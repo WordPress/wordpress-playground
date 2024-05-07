@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from '../modal';
-import { addCrashListener, logger } from '@php-wasm/logger';
+import { logger } from '@php-wasm/logger';
 import { Button, TextareaControl, TextControl } from '@wordpress/components';
 
 import css from './style.module.css';
@@ -17,25 +17,10 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	const [submitted, setSubmitted] = useState(false);
 	const [submitError, setSubmitError] = useState('');
 
-	function showModal() {
-		return activeModal === 'error-report';
-	}
-
-	useEffect(() => {
-		addCrashListener(logger, (e) => {
-			const error = e as CustomEvent;
-			if (error.detail?.source === 'php-wasm') {
-				setActiveModal('error-report');
-			}
-		});
-	}, [setActiveModal]);
-
 	useEffect(() => {
 		resetForm();
-		if (showModal()) {
-			setLogs(logger.getLogs().join('\n'));
-			setUrl(window.location.href);
-		}
+		setLogs(logger.getLogs().join('\n'));
+		setUrl(window.location.href);
 	}, [activeModal, setActiveModal, logs, setLogs]);
 
 	function resetForm() {
@@ -154,7 +139,7 @@ export function ErrorReportModal(props: { blueprint: Blueprint }) {
 	}
 
 	return (
-		<Modal isOpen={showModal()} onRequestClose={onClose}>
+		<Modal isOpen={true} onRequestClose={onClose}>
 			<header className={css.errorReportModalHeader}>
 				<h2>{getTitle()}</h2>
 				<p>{getContent()}</p>

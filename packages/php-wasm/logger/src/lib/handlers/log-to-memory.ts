@@ -1,11 +1,11 @@
 import { LogHandler } from '../log-handlers';
 import { formatLogEntry, Log } from '../logger';
 
-const prepareLogMessage = (message: any, ...args: any[]): string => {
-	return [
-		typeof message === 'object' ? JSON.stringify(message) : message,
-		...args.map((arg) => JSON.stringify(arg)),
-	].join(' ');
+const prepareLogMessage = (logMessage: object): string => {
+	if (logMessage instanceof Error) {
+		return [logMessage.message, logMessage.stack].join('\n');
+	}
+	return JSON.stringify(logMessage, null, 2);
 };
 
 export const logs: string[] = [];

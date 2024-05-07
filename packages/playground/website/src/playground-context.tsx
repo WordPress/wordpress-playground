@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { StorageType } from './types';
 
-export type ActiveModal = 'error-report' | 'log' | false;
+export type ActiveModal = 'error-report' | 'log' | 'start-error' | false;
 
 export const PlaygroundContext = createContext<{
 	storage: StorageType;

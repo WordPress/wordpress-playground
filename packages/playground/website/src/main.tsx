@@ -24,18 +24,23 @@ import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-neede
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
 	ExportFormValues,
 	asPullRequestAction,
 } from './github/github-export-form/form';
 import { joinPaths } from '@php-wasm/util';
 import { ActiveModal, PlaygroundContext } from './playground-context';
-import { collectWindowErrors, logger } from '@php-wasm/logger';
+import {
+	addCrashListener,
+	collectWindowErrors,
+	logger,
+} from '@php-wasm/logger';
 import { ErrorReportModal } from './components/error-report-modal';
 import { asContentType } from './github/import-from-github';
 import { GitHubOAuthGuardModal } from './github/github-oauth-guard';
 import { LogModal } from './components/log-modal';
+import { StartErrorModal } from './components/start-error-modal';
 
 collectWindowErrors(logger);
 
@@ -88,8 +93,28 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
+function Modals({ activeModal }: { activeModal: ActiveModal }) {
+	// Use a ref to store the current modal to avoid re-rendering from resetting the modal state.
+	const currentModal = useRef<ActiveModal>(false);
+
+	if (currentModal.current === false || activeModal === false) {
+		currentModal.current = activeModal;
+	}
+
+	if (currentModal.current === 'log') {
+		return <LogModal />;
+	} else if (currentModal.current === 'error-report') {
+		return <ErrorReportModal blueprint={blueprint} />;
+	} else if (currentModal.current === 'start-error') {
+		return <StartErrorModal />;
+	}
+
+	return null;
+}
+
 function Main() {
-	const [activeModal, setActiveModal] = useState<ActiveModal | false>(false);
+	const [activeModal, setActiveModal] = useState<ActiveModal>(false);
+
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
@@ -129,12 +154,24 @@ function Main() {
 		return values;
 	});
 
+	useEffect(() => {
+		addCrashListener(logger, (e) => {
+			const error = e as CustomEvent;
+			if (error.detail?.source === 'php-wasm') {
+				setActiveModal('error-report');
+			}
+		});
+	}, []);
+
 	return (
 		<PlaygroundContext.Provider
-			value={{ storage, activeModal, setActiveModal }}
+			value={{
+				storage,
+				activeModal,
+				setActiveModal,
+			}}
 		>
-			<ErrorReportModal blueprint={blueprint} />
-			<LogModal />
+			<Modals activeModal={activeModal} />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
@@ -298,3 +335,4 @@ function resolveVersion<T>(
 	}
 	return version as T;
 }
+

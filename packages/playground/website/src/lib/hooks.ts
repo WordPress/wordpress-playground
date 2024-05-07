@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Blueprint, startPlaygroundWeb } from '@wp-playground/client';
 import type { PlaygroundClient } from '@wp-playground/client';
 import { getRemoteUrl } from './config';
+import { usePlaygroundContext } from '../playground-context';
+import { logger } from '@php-wasm/logger';
 
 interface UsePlaygroundOptions {
 	blueprint?: Blueprint;
@@ -14,6 +16,7 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 	const [url, setUrl] = useState<string>();
 	const [playground, setPlayground] = useState<PlaygroundClient>();
 	const [awaitedIframe, setAwaitedIframe] = useState(false);
+	const { setActiveModal } = usePlaygroundContext();
 
 	useEffect(() => {
 		if (started.current) {
@@ -45,12 +48,17 @@ export function usePlayground({ blueprint, storage }: UsePlaygroundOptions) {
 				playgroundTmp = playground;
 				(window as any)['playground'] = playground;
 			},
-		}).finally(async () => {
-			if (playgroundTmp) {
-				playgroundTmp.onNavigation((url) => setUrl(url));
-				setPlayground(() => playgroundTmp);
-			}
-		});
+		})
+			.catch((error) => {
+				logger.error(error);
+				setActiveModal('start-error');
+			})
+			.finally(async () => {
+				if (playgroundTmp) {
+					playgroundTmp.onNavigation((url) => setUrl(url));
+					setPlayground(() => playgroundTmp);
+				}
+			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [iframe, awaitedIframe]);
 

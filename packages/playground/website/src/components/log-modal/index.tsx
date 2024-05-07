@@ -7,21 +7,14 @@ import css from './style.module.css';
 import { usePlaygroundContext } from '../../playground-context';
 import { TextControl } from '@wordpress/components';
 
-export function LogModal() {
+export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	const { activeModal, setActiveModal } = usePlaygroundContext();
 	const [logs, setLogs] = useState<string[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 
 	useEffect(getLogs, [activeModal]);
 
-	function showModal() {
-		return activeModal === 'log';
-	}
-
 	function getLogs() {
-		if (!showModal()) {
-			return;
-		}
 		setLogs(logger.getLogs());
 	}
 
@@ -47,9 +40,10 @@ export function LogModal() {
 	};
 
 	return (
-		<Modal isOpen={showModal()} onRequestClose={onClose} styles={styles}>
+		<Modal isOpen={true} onRequestClose={onClose} styles={styles}>
 			<header>
-				<h2>Logs</h2>
+				<h2>{props.title || 'Logs'}</h2>
+				{props.description}
 				<TextControl
 					title="Search"
 					placeholder="Search logs"
