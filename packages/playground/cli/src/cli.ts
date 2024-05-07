@@ -290,7 +290,7 @@ async function run() {
 			}
 
 			if (command === 'build-snapshot') {
-				zipSite(args.outfile as string);
+				await zipSite(args.outfile as string);
 				logger.log(`WordPress exported to ${args.outfile}`);
 				process.exit(0);
 			} else if (command === 'run-blueprint') {
