@@ -24,7 +24,7 @@ import { acquireOAuthTokenIfNeeded } from './github/acquire-oauth-token-if-neede
 import { GithubImportModal } from './github/github-import-form';
 import { GithubExportMenuItem } from './components/toolbar-buttons/github-export-menu-item';
 import { GithubExportModal } from './github/github-export-form';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
 	ExportFormValues,
 	asPullRequestAction,
@@ -94,7 +94,13 @@ if (currentConfiguration.wp === '6.3') {
 acquireOAuthTokenIfNeeded();
 
 function Main() {
-	const [activeModal, setActiveModal] = useState<ActiveModal | false>(false);
+	/**
+	 * To ensure the modal is only shown once, we use a ref to store the active modal.
+	 * Because refs don't trigger re-renders, we also use a state to force a re-render.
+	 */
+	const activeModal = useRef<ActiveModal>(false);
+	const [, forceModalUpdate] = useState<ActiveModal>(false);
+
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
 		Partial<ExportFormValues>
@@ -134,6 +140,14 @@ function Main() {
 		return values;
 	});
 
+	const setActiveModal = (modal: ActiveModal) => {
+		// Prevent one modal from overriding another and allow the modal to be closed.
+		if (activeModal.current === false || modal === false) {
+			activeModal.current = modal;
+			forceModalUpdate(modal);
+		}
+	};
+
 	useEffect(() => {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
@@ -141,14 +155,14 @@ function Main() {
 				setActiveModal('error-report');
 			}
 		});
-	}, [setActiveModal]);
+	}, []);
 
 	const modal = () => {
-		if (activeModal === 'log') {
+		if (activeModal.current === 'log') {
 			return <LogModal />;
-		} else if (activeModal === 'error-report') {
+		} else if (activeModal.current === 'error-report') {
 			return <ErrorReportModal blueprint={blueprint} />;
-		} else if (activeModal === 'start-error') {
+		} else if (activeModal.current === 'start-error') {
 			return <StartErrorModal />;
 		}
 		return null;
@@ -156,7 +170,11 @@ function Main() {
 
 	return (
 		<PlaygroundContext.Provider
-			value={{ storage, activeModal, setActiveModal }}
+			value={{
+				storage,
+				activeModal: activeModal.current,
+				setActiveModal,
+			}}
 		>
 			{modal()}
 			<PlaygroundViewport
