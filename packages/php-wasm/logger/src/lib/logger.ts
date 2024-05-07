@@ -151,10 +151,21 @@ export class Logger extends EventTarget {
 	}
 }
 
+const getDefaultHandlers = () => {
+	try {
+		if (process.env['NODE_ENV'] === 'test') {
+			return [logToMemory];
+		}
+	} catch (e) {
+		// Process.env is not available in the browser
+	}
+	return [logToMemory, logToConsole];
+};
+
 /**
  * The logger instance.
  */
-export const logger: Logger = new Logger([logToMemory, logToConsole]);
+export const logger: Logger = new Logger(getDefaultHandlers());
 
 export const formatLogEntry = (
 	message: string,
