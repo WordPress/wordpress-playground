@@ -93,13 +93,27 @@ if (currentConfiguration.wp === '6.3') {
 
 acquireOAuthTokenIfNeeded();
 
+function Modals({ activeModal }: { activeModal: ActiveModal }) {
+	// Use a ref to store the current modal to avoid re-rendering from resetting the modal state.
+	const currentModal = useRef<ActiveModal>(false);
+
+	if (currentModal.current === false || activeModal === false) {
+		currentModal.current = activeModal;
+	}
+
+	if (currentModal.current === 'log') {
+		return <LogModal />;
+	} else if (currentModal.current === 'error-report') {
+		return <ErrorReportModal blueprint={blueprint} />;
+	} else if (currentModal.current === 'start-error') {
+		return <StartErrorModal />;
+	}
+
+	return null;
+}
+
 function Main() {
-	/**
-	 * To ensure the modal is only shown once, we use a ref to store the active modal.
-	 * Because refs don't trigger re-renders, we also use a state to force a re-render.
-	 */
-	const activeModal = useRef<ActiveModal>(false);
-	const [, forceModalUpdate] = useState<ActiveModal>(false);
+	const [activeModal, setActiveModal] = useState<ActiveModal>(false);
 
 	const [githubExportFiles, setGithubExportFiles] = useState<any[]>();
 	const [githubExportValues, setGithubExportValues] = useState<
@@ -140,14 +154,6 @@ function Main() {
 		return values;
 	});
 
-	const setActiveModal = (modal: ActiveModal) => {
-		// Prevent one modal from overriding another and allow the modal to be closed.
-		if (activeModal.current === false || modal === false) {
-			activeModal.current = modal;
-			forceModalUpdate(modal);
-		}
-	};
-
 	useEffect(() => {
 		addCrashListener(logger, (e) => {
 			const error = e as CustomEvent;
@@ -157,26 +163,15 @@ function Main() {
 		});
 	}, []);
 
-	const modal = () => {
-		if (activeModal.current === 'log') {
-			return <LogModal />;
-		} else if (activeModal.current === 'error-report') {
-			return <ErrorReportModal blueprint={blueprint} />;
-		} else if (activeModal.current === 'start-error') {
-			return <StartErrorModal />;
-		}
-		return null;
-	};
-
 	return (
 		<PlaygroundContext.Provider
 			value={{
 				storage,
-				activeModal: activeModal.current,
+				activeModal,
 				setActiveModal,
 			}}
 		>
-			{modal()}
+			<Modals activeModal={activeModal} />
 			<PlaygroundViewport
 				storage={storage}
 				displayMode={displayMode}
