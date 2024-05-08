@@ -45,7 +45,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 				<h2>{props.title || 'Logs'}</h2>
 				{props.description}
 				<TextControl
-					title="Search"
+					aria-label="Search"
 					placeholder="Search logs"
 					value={searchTerm}
 					onChange={setSearchTerm}
