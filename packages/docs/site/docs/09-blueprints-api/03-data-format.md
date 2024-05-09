@@ -57,11 +57,11 @@ The `preferredVersions` property, unsurprisingly, declares the preferred of PHP 
 
 The `phpExtensionBundles` property is an array of PHP extension bundles to load. The following bundles are supported:
 
--   `kitchen-sink`: Default choice. Installs `gd`, `mbstring`, `iconv`, `openssl`, `libxml`, `xml`, `dom`, `simplexml`, `xmlreader`, `xmlwriter`
--   `light`: Saves 6MB of downloads, loads none of the above extensions.
+-   `light`: Default choice. Saves 6MB of downloads, loads none of the  extensions below.
+-   `kitchen-sink`: Installs [`gd`](https://www.php.net/manual/en/book.image.php), [`mbstring`](https://www.php.net/manual/en/mbstring.installation.php), [`iconv`](https://www.php.net/manual/en/function.iconv.php), [`openssl`](https://www.php.net/manual/en/book.openssl.php), [`libxml`](https://www.php.net/manual/en/book.libxml.php), [`xml`](https://www.php.net/manual/en/xml.installation.php), [`dom`](https://www.php.net/manual/en/intro.dom.php), [`simplexml`](https://www.php.net/manual/en/book.simplexml.php), [`xmlreader`](https://www.php.net/manual/en/book.xmlreader.php), [`xmlwriter`](https://www.php.net/manual/en/book.xmlwriter.php)
 
 ## Features
 
 The `features` property is used to enable or disable certain features of the Playground. It can contain the following properties:
 
--   `networking`: Defaults to `false`. Enables or disables the networking support for Playground. If enabled, `wp_safe_remote_get` and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead.
+-   `networking`: Defaults to `false`. Enables or disables the networking support for Playground. If enabled, [`wp_safe_remote_get`](https://developer.wordpress.org/reference/functions/wp_safe_remote_get/) and similar WordPress functions will actually use `fetch()` to make HTTP requests. If disabled, they will immediately fail instead.
