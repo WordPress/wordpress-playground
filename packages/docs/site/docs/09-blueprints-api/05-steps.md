@@ -23,7 +23,7 @@ Each step is an object that contains a `step` property that specifies the type o
 ---
 
 import BlueprintStep from '@site/src/components/BlueprintsAPI/BlueprintStep';
-import { BlueprintSteps } from '@site/src/components/BlueprintsAPI/model';
+import { BlueprintSteps, getStepAPI } from '@site/src/components/BlueprintsAPI/model';
 import UpdateTopLevelToc from '@site/src/components/UpdateTopLevelToc';
 
 <UpdateTopLevelToc
@@ -31,7 +31,7 @@ toc={toc}
 tocItems={
 BlueprintSteps
 .map(name => ({
-value: name,
+value: getStepAPI(name).fnDetails.name,
 id: name,
 level: 2
 }))
