@@ -10,7 +10,7 @@ export default function BlueprintStep({ name }) {
 	return (
 		<section className="margin-vert--md markdown">
 			<h2 className="anchor anchorWithStickyNavbar_blueprint" id={name}>
-				{stepApi.stepDetails.name}
+				{stepApi.fnDetails.name}
 				<a
 					href={`#${name}`}
 					className="hash-link"
