@@ -31,7 +31,7 @@ toc={toc}
 tocItems={
 BlueprintSteps
 .map(name => ({
-value: getStepAPI(name).fnDetails.name,
+value: getStepAPI(name).stepId,
 id: name,
 level: 2
 }))
