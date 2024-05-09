@@ -130,14 +130,6 @@ export async function bootPlaygroundRemote() {
 			if (!requestedPath.startsWith('/')) {
 				requestedPath = '/' + requestedPath;
 			}
-			/**
-			 * People often forget to type the trailing slash at the end of
-			 * /wp-admin/ URL and end up with wrong relative hrefs. Let's
-			 * fix it for them.
-			 */
-			if (requestedPath === '/wp-admin') {
-				requestedPath = '/wp-admin/';
-			}
 			const newUrl = await playground.pathToInternalUrl(requestedPath);
 			const oldUrl = wpFrame.src;
 

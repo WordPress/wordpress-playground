@@ -7,8 +7,16 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
-import { PHPRequestHandler, writeFiles } from '@php-wasm/universal';
+import {
+	envPHP_to_loadMuPlugins,
+	playgroundMuPlugin,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
+import {
+	PHPRequestHandler,
+	proxyFileSystem,
+	writeFiles,
+} from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -25,10 +33,9 @@ import transportFetch from './playground-mu-plugin/playground-includes/wp_http_f
 /** @ts-ignore */
 import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
 /** @ts-ignore */
-import playgroundMuPlugin from './playground-mu-plugin/0-playground.php?raw';
+import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
 import { joinPaths, randomString } from '@php-wasm/util';
 import {
-	proxyFileSystem,
 	requestedWPVersion,
 	createPhp,
 	startupOptions,
@@ -165,12 +172,24 @@ const requestHandler = new PHPRequestHandler({
 	phpFactory: async ({ isPrimary }) => {
 		const php = await createPhp(requestHandler);
 		if (!isPrimary) {
-			proxyFileSystem(
-				await requestHandler.getPrimaryPhp(),
-				php,
-				requestHandler.documentRoot
-			);
+			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
+				'/tmp',
+				requestHandler.documentRoot,
+				'/internal/mu-plugins',
+			]);
 		}
+		php.writeFile('/internal/preload/env.php', envPHP_to_loadMuPlugins);
+		php.defineConstant('SCOPED_SITE_PATH', new URL(scopedSiteUrl).pathname);
+		php.writeFile(
+			'/internal/preload/phpinfo.php',
+			`<?php
+		// Render PHPInfo if the requested page is /phpinfo.php
+		if ( SCOPED_SITE_PATH . '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
+			phpinfo();
+			exit;
+		}
+		`
+		);
 		return php;
 	},
 	documentRoot: DOCROOT,
@@ -223,20 +242,12 @@ try {
 	// * The mu-plugin is always there, even when a custom WordPress directory
 	//   is mounted.
 	// * The mu-plugin is always up to date.
-	await writeFiles(
-		primaryPhp,
-		joinPaths(requestHandler.documentRoot, '/wp-content/mu-plugins'),
-		{
-			'0-playground.php': playgroundMuPlugin,
-			'playground-includes/wp_http_dummy.php': transportDummy,
-			'playground-includes/wp_http_fetch.php': transportFetch,
-		}
-	);
-	// Create phpinfo.php
-	primaryPhp.writeFile(
-		joinPaths(requestHandler.documentRoot, 'phpinfo.php'),
-		'<?php phpinfo(); '
-	);
+	await writeFiles(primaryPhp, joinPaths('/internal/mu-plugins'), {
+		'0-playground.php': playgroundMuPlugin,
+		'1-playground-web.php': playgroundWebMuPlugin,
+		'playground-includes/wp_http_dummy.php': transportDummy,
+		'playground-includes/wp_http_fetch.php': transportFetch,
+	});
 
 	if (virtualOpfsDir) {
 		await bindOpfs({

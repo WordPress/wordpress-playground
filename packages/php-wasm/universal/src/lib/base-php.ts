@@ -358,9 +358,21 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	#initWebRuntime() {
+		this.writeFile(
+			'/internal/auto_prepend_file.php',
+			`<?php
+			foreach (glob('/internal/preload/*.php') as $file) {
+				require_once $file;
+			}
+		`
+		);
+		this.setPhpIniEntry(
+			'auto_prepend_file',
+			'/internal/auto_prepend_file.php'
+		);
 		/**
 		 * This creates a consts.php file in an in-memory
-		 * /internal directory and sets the auto_prepend_file PHP option
+		 * /internal/preload directory and sets the auto_prepend_file PHP option
 		 * to always load that file.
 		 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
 		 *
@@ -368,22 +380,18 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		 * WASM SAPI method to pass consts directly.
 		 * @see https://github.com/WordPress/wordpress-playground/issues/750
 		 */
-		this.setPhpIniEntry('auto_prepend_file', '/internal/consts.php');
-		if (!this.fileExists('/internal/consts.php')) {
-			this.writeFile(
-				'/internal/consts.php',
-				`<?php
-				if(file_exists('/internal/consts.json')) {
-					$consts = json_decode(file_get_contents('/internal/consts.json'), true);
-					foreach ($consts as $const => $value) {
-						if (!defined($const) && is_scalar($value)) {
-							define($const, $value);
-						}
+		this.writeFile(
+			'/internal/preload/consts.php',
+			`<?php
+			if(file_exists('/internal/consts.json')) {
+				$consts = json_decode(file_get_contents('/internal/consts.json'), true);
+				foreach ($consts as $const => $value) {
+					if (!defined($const) && is_scalar($value)) {
+						define($const, $value);
 					}
-				}`
-			);
-		}
-
+				}
+			}`
+		);
 		if (this.#phpIniOverrides.length > 0) {
 			const overridesAsIni =
 				this.#phpIniOverrides

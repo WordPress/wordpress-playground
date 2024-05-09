@@ -1,12 +1,13 @@
 import { NodePHP } from '@php-wasm/node';
 import {
-	BasePHP,
 	PHPRequestHandler,
 	SupportedPHPVersion,
+	proxyFileSystem,
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { rootCertificates } from 'tls';
 import { dirname } from '@php-wasm/util';
+import { envPHP_to_loadMuPlugins } from '@wp-playground/wordpress';
 
 export async function createPhp(
 	requestHandler: PHPRequestHandler<NodePHP>,
@@ -40,17 +41,29 @@ export async function createPhp(
 	php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
 	php.writeFile('/tmp/ca-bundle.crt', rootCertificates.join('\n'));
 
+	php.writeFile('/internal/preload/env.php', envPHP_to_loadMuPlugins);
+	php.writeFile(
+		'/internal/preload/phpinfo.php',
+		`<?php
+    // Render PHPInfo if the requested page is /phpinfo.php
+    if ( '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
+        phpinfo();
+        exit;
+    }`
+	);
+	php.mkdir('/internal/mu-plugins');
+
 	if (!isPrimary) {
 		/**
 		 * @TODO: Consider an API similar to
 		 *
 		 * php.mount('/wordpress', primaryPHP.getMountPoint('/wordpress'));
 		 */
-		proxyFileSystem(
-			await requestHandler.getPrimaryPhp(),
-			php,
-			'/wordpress'
-		);
+		proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
+			'/tmp',
+			requestHandler.documentRoot,
+			'/internal/mu-plugins',
+		]);
 	}
 
 	// php.setSpawnHandler(spawnHandlerFactory(processManager));
@@ -58,52 +71,11 @@ export async function createPhp(
 	// @see https://github.com/WordPress/wordpress-playground/pull/990 for more context
 	rotatePHPRuntime({
 		php,
-		cwd: '/wordpress',
+		cwd: requestHandler.documentRoot,
 		recreateRuntime: createPhpRuntime,
 		maxRequests: 400,
 	});
 	return php;
-}
-
-/**
- * Share the parent's MEMFS instance with the child process.
- * Only mount the document root and the /tmp directory,
- * the rest of the filesystem (like the devices) should be
- * private to each PHP instance.
- *
- * @TODO: Ship this feature in the php-wasm library. It
- *        will be commonly used in multi-instance Playground
- *        applications. The website app does something similar,
- *        and so will wp-now, VSCode, etc.
- */
-export function proxyFileSystem(
-	sourceOfTruth: BasePHP,
-	replica: BasePHP,
-	documentRoot: string
-) {
-	// We can't just import the symbol from the library because
-	// Playground CLI is built as ESM and php-wasm-node is built as
-	// CJS and the imported symbols will different in the production build.
-	const __private__symbol = Object.getOwnPropertySymbols(sourceOfTruth)[0];
-	for (const path of [documentRoot, '/tmp']) {
-		if (!replica.fileExists(path)) {
-			replica.mkdir(path);
-		}
-		if (!sourceOfTruth.fileExists(path)) {
-			sourceOfTruth.mkdir(path);
-		}
-		// @ts-ignore
-		replica[__private__symbol].FS.mount(
-			// @ts-ignore
-			replica[__private__symbol].PROXYFS,
-			{
-				root: path,
-				// @ts-ignore
-				fs: sourceOfTruth[__private__symbol].FS,
-			},
-			path
-		);
-	}
 }
 
 /**
