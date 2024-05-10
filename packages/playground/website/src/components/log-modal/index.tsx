@@ -29,9 +29,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 			)
 			.reverse()
 			.map((log, index) => (
-				<pre className={css.logModalLog} key={index}>
-					{log}
-				</pre>
+				<div
+					className={css.logModalLog}
+					key={index}
+					dangerouslySetInnerHTML={{
+						__html: log.replace(/Error:/, '<mark>$&</mark>'),
+					}}
+				/>
 			));
 	}
 
