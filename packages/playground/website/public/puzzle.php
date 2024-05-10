@@ -1,5 +1,5 @@
 <?php
-// error_reporting(0);
+error_reporting(0);
 header('Content-Type: application/json');
 
 $open_ai_api_key = getenv('OPEN_AI_API_KEY');
