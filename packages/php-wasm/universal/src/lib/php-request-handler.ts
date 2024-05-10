@@ -481,7 +481,12 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			filePath = '/index.php';
 		}
 
-		const resolvedFsPath = `${this.#DOCROOT}${filePath}`;
+		let resolvedFsPath = `${this.#DOCROOT}${filePath}`;
+		// If the requested PHP file doesn't exist, let's fall back to /index.php
+		// as the request may need to be rewritten.
+		if (!php.fileExists(resolvedFsPath)) {
+			resolvedFsPath = `${this.#DOCROOT}/index.php`;
+		}
 		if (php.fileExists(resolvedFsPath)) {
 			return resolvedFsPath;
 		}

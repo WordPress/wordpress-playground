@@ -16,6 +16,7 @@ import {
 	readAsFile,
 } from './download';
 import { withPHPIniValues } from './setup-php';
+import { playgroundMuPlugin } from '@wp-playground/wordpress';
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -105,6 +106,10 @@ export async function setupWordPress(
  * as that's viable.
  */
 async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
+	php.mkdir('/internal/mu-plugins');
+	php.writeFile('/internal/mu-plugins/0-playground.php', playgroundMuPlugin);
+
+	// Extract WordPress {{{
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzip(php, {
 		zipFile: wpZip,
@@ -114,74 +119,39 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
 		? '/tmp/unzipped-wordpress/wordpress'
 		: '/tmp/unzipped-wordpress';
-	php.mv(wpPath, '/wordpress');
 
+	php.mv(wpPath, '/wordpress');
+	php.writeFile(
+		'/wordpress/wp-config.php',
+		php.readFileAsText('/wordpress/wp-config-sample.php')
+	);
+	// }}}
+
+	// Setup the SQLite integration {{{
 	php.mkdir('/tmp/sqlite-database-integration');
 	await unzip(php, {
 		zipFile: sqliteZip,
 		extractToPath: '/tmp/sqlite-database-integration',
 	});
-
 	php.mv(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
-		'/wordpress/sqlite-database-integration'
+		'/internal/mu-plugins/sqlite-database-integration'
 	);
 
-	const db = php.readFileAsText(
-		'/wordpress/sqlite-database-integration/db.copy'
-	);
-	const updatedDb = db
+	const dbPhp = php
+		.readFileAsText(
+			'/internal/mu-plugins/sqlite-database-integration/db.copy'
+		)
 		.replace(
 			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
-			"__DIR__.'/../sqlite-database-integration/'"
+			"'/internal/mu-plugins/sqlite-database-integration/'"
 		)
 		.replace(
 			"'{SQLITE_PLUGIN}'",
-			"__DIR__.'/../sqlite-database-integration/load.php'"
+			"'/internal/mu-plugins/sqlite-database-integration/load.php'"
 		);
-	php.writeFile('/wordpress/wp-content/db.php', updatedDb);
-
-	/**
-	 * This should be a mu-plugin, but since the user may have
-	 * provided custom mounts, we avoid writing to the mu-plugins
-	 * directory
-	 *
-	 * @TODO: Either document this hack, or find a better way to
-	 *        handle this.
-	 * @TODO: The web version also uses an mu-plugin and it has the
-	 *        same filters as this one. Also wp-now and VS Code.
-	 *        There seems to be an opportunity to share the code between
-	 *        the two.
-	 */
-
-	php.writeFile(
-		'/wordpress/wp-includes/default-filters.php',
-		php.readFileAsText('/wordpress/wp-includes/default-filters.php') +
-			`
-		// Redirect /wp-admin to /wp-admin/
-		add_filter( 'redirect_canonical', function( $redirect_url ) {
-			if ( '/wp-admin' === $redirect_url ) {
-				return $redirect_url . '/';
-			}
-			return $redirect_url;
-		} );
-
-		// Needed because gethostbyname( 'wordpress.org' ) returns
-		// a private network IP address for some reason.
-		add_filter( 'allowed_redirect_hosts', function( $deprecated = '' ) {
-			return array(
-				'wordpress.org',
-				'api.wordpress.org',
-				'downloads.wordpress.org',
-			);
-		} );
-
-		// Support permalinks without "index.php"
-		add_filter( 'got_url_rewrite', '__return_true' );
-		`
-	);
-	php.writeFile(
-		'/wordpress/wp-config.php',
-		php.readFileAsText('/wordpress/wp-config-sample.php')
-	);
+	// @TODO do not create the db.php file. Either find a way to mount it, or
+	//       load the custom $wpdb object in a different way.
+	php.writeFile('/wordpress/wp-content/db.php', dbPhp);
+	// }}}
 }

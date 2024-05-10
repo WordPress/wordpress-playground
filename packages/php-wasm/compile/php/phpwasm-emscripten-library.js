@@ -20,6 +20,9 @@ const LibraryExample = {
 			// stdout, stderr, and headers information are written for the JavaScript
 			// code to read later on.
 			FS.mkdir("/internal");
+			// The files from the preload directory are preloaded using the
+			// auto_prepend_file php.ini directive.
+			FS.mkdir("/internal/preload");
 
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter

@@ -5561,7 +5561,7 @@ var allocateUTF8OnStack = stringToUTF8OnStack;
 
 var PHPWASM = {
  init: function() {
-  FS.mkdir("/internal");
+  FS.mkdir("/internal");FS.mkdir("/internal/preload");
   PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE ? require("events").EventEmitter : class EventEmitter {
    constructor() {
     this.listeners = {};

@@ -1,29 +1,4 @@
 <?php
-set_error_handler(function($severity, $message, $file, $line) {
-	/**
-	 * This is a temporary workaround to hide the 32bit integer warnings that
-	 * appear when using various time related function, such as strtotime and mktime.
-	 * Examples of the warnings that are displayed:
-	 * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
-	 * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
-	 */
-	if (strpos($message, "fit in a PHP integer") !== false) {
-		return;
-	}
-	/**
-	 * Don't complain about network errors when not connected to the network.
-	 */
-	if (
-		(
-			! defined('USE_FETCH_FOR_REQUESTS') ||
-			! USE_FETCH_FOR_REQUESTS
-		) &&
-		strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
-	{
-		return;
-	}
-	return false;
-});
 
 /**
  * Add a notice to wp-login.php offering the username and password.
@@ -55,12 +30,12 @@ EOT;
  *
  */
 add_action('admin_head', function () {
-  echo '<style>
-					:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
-					button.button.try-again) {
-							display: none;
-					}
-  			</style>';
+	echo '<style>
+				:is(.plugins-popular-tags-wrapper:has(div.networking_err_msg),
+				button.button.try-again) {
+						display: none;
+				}
+		</style>';
 });
 
 add_action('init', 'networking_disabled');
@@ -82,7 +57,7 @@ add_filter('plugins_api_result', function ($res) {
 		$res = new WP_Error(
 			'plugins_api_failed',
 			networking_disabled()
-    );
+		);
 	}
 	return $res;
 });
@@ -90,7 +65,7 @@ add_filter('plugins_api_result', function ($res) {
 add_filter('gettext', function ($translation) {
 	if( $GLOBALS['pagenow'] === 'theme-install.php') {
 		if ($translation === 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.') {
-		return networking_disabled();
+			return networking_disabled();
 		}
 	}
 	return $translation;
@@ -117,16 +92,6 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
- * Supports URL rewriting to remove `index.php` from permalinks.
- */
-add_filter('got_url_rewrite', '__return_true');
-
-// Create the fonts directory if missing
-if(!file_exists(WP_CONTENT_DIR . '/fonts')) {
-	mkdir(WP_CONTENT_DIR . '/fonts');
-}
-
-/**
  * The default WordPress requests transports have been disabled
  * at this point. However, the Requests class requires at least
  * one working transport or else it throws warnings and acts up.
@@ -144,8 +109,8 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	require(__DIR__ . '/playground-includes/wp_http_fetch.php');
 	/**
 	 * Force the Fetch transport to be used in Requests.
-  	 * The 'http_api_transports' filter was deprecated, and is no longer actively in use.
-  	 */
+	 * The 'http_api_transports' filter was deprecated, and is no longer actively in use.
+	 */
 	add_action( 'requests-requests.before_request', function( $url, $headers, $data, $type, &$options ) {
 		$options['transport'] = 'Wp_Http_Fetch';
 	}, 10, 5 );
@@ -176,11 +141,4 @@ if (defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS) {
 	}, 10, 5 );
 }
 
-// Configure error logging
-$log_file = WP_CONTENT_DIR . '/debug.log';
-error_reporting(E_ALL);
-define('ERROR_LOG_FILE', $log_file);
-ini_set('error_log', $log_file);
-ini_set('ignore_repeated_errors', true);
-ini_set('display_errors', false);
-ini_set('log_errors', true);
+?>
