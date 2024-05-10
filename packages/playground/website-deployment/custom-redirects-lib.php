@@ -260,8 +260,8 @@ function playground_maybe_set_environment( $requested_path ) {
 				$secrets->GITHUB_APP_CLIENT_ID,
 				$secrets->GITHUB_APP_CLIENT_SECRET,
 			) ) {
-				putenv( "GITHUB_APP_CLIENT_ID={$secrets->GITHUB_APP_CLIENT_ID}" );
-				putenv( "GITHUB_APP_CLIENT_SECRET={$secrets->GITHUB_APP_CLIENT_SECRET}" );
+				putenv( "CLIENT_ID={$secrets->GITHUB_APP_CLIENT_ID}" );
+				putenv( "CLIENT_SECRET={$secrets->GITHUB_APP_CLIENT_SECRET}" );
 			} else {
 				error_log( 'PLAYGROUND: Missing secrets for oauth.php' );
 			}
