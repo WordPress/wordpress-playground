@@ -103,7 +103,7 @@ export class NodePHP extends BasePHP {
 	 * @see {@link https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.mount}
 	 */
 	@rethrowFileSystemError('Could not mount {path}')
-	mount(localPath: string | MountSettings, virtualFSPath: string) {
+	mount(localPath: string | MountSettings, virtualFSPath: string, fs: any) {
 		const localRoot =
 			typeof localPath === 'object' ? localPath.root : localPath;
 		if (
@@ -113,7 +113,7 @@ export class NodePHP extends BasePHP {
 			this.mkdirTree(virtualFSPath);
 		}
 		this[__private__dont__use].FS.mount(
-			this[__private__dont__use].FS.filesystems.NODEFS,
+			fs || this[__private__dont__use].FS.filesystems.NODEFS,
 			typeof localPath === 'object' ? localPath : { root: localPath },
 			virtualFSPath
 		);

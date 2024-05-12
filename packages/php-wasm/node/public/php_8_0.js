@@ -7768,6 +7768,8 @@ PHPLoader['removeRunDependency'] = function (...args) {
  */
 PHPLoader['malloc'] = _malloc;
 PHPLoader['free'] = _free;
+PHPLoader['PATH'] = PATH;
+PHPLoader['ERRNO_CODES'] = ERRNO_CODES;
 
 return PHPLoader;
 

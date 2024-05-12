@@ -1,4 +1,4 @@
-import fs from 'fs';
+// import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
 import { startServer } from './server';
@@ -8,6 +8,7 @@ import {
 	PHPResponse,
 	SupportedPHPVersion,
 	SupportedPHPVersions,
+	__private__dont__use,
 } from '@php-wasm/universal';
 import { logger } from '@php-wasm/logger';
 import { createPhp } from './setup-php';
@@ -22,6 +23,10 @@ import { NodePHP } from '@php-wasm/node';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { configure, InMemory, fs, Overlay } from '@zenfs/core';
+import { Zip } from '@zenfs/zip';
+import nodefs from 'fs';
+import EmscriptenFS from './emsc';
 
 export interface Mount {
 	hostPath: string;
@@ -184,16 +189,60 @@ async function run() {
 			await setupWordPress(php, wpVersion, monitor);
 		}
 
-		const mounts: Mount[] = (args.mount || []).map((mount) => {
-			const [source, vfsPath] = mount.split(':');
-			return {
-				hostPath: path.resolve(process.cwd(), source),
-				vfsPath,
-			};
+		// const mounts: Mount[] = (args.mount || []).map((mount) => {
+		// 	const [source, vfsPath] = mount.split(':');
+		// 	return {
+		// 		hostPath: path.resolve(process.cwd(), source),
+		// 		vfsPath,
+		// 	};
+		// });
+		// for (const mount of mounts) {
+		// 	php.mount(mount.hostPath, mount.vfsPath);
+		// }
+
+		const writableFs = InMemory.create({ name: 'yay' });
+		const originalCreateFileSync = writableFs.createFileSync;
+		writableFs.createFileSync = function (path, flag, mode, cred) {
+			const parentDir = path.split('/').slice(0, -1).join('/');
+			if (!writableFs.existsSync(parentDir, cred)) {
+				writableFs.mkdirSync(parentDir, 0o777, cred);
+			}
+			return originalCreateFileSync.call(this, path, flag, mode, cred);
+		};
+
+		const zipData = nodefs.readFileSync('testfs/test.zip').buffer;
+		const zipfs = Zip.create({ zipData });
+
+		await configure({
+			'/': Overlay.create({
+				readable: zipfs,
+				writable: writableFs,
+			}).fs,
 		});
-		for (const mount of mounts) {
-			php.mount(mount.hostPath, mount.vfsPath);
-		}
+		await zipfs.ready();
+
+		const BFS = new EmscriptenFS(
+			php[__private__dont__use].FS,
+			php[__private__dont__use].PATH,
+			php[__private__dont__use].ERRNO_CODES
+		);
+		php.mount('/', '/wordpress', BFS);
+
+		console.log(fs.readdirSync('/'));
+		console.log(fs.readFileSync('/zipdir/noop.ts'));
+		console.log(php.listFiles('/wordpress/zipdir'));
+		// console.log(php.writeFile('/wordpress/noop.ts', 'a'));
+		console.log(php.readFileAsBuffer('/wordpress/zipdir/noop.ts'));
+		console.log(php.readFileAsText('/wordpress/zipdir/noop.ts'));
+		process.exit(0);
+		fs.writeFileSync('/wordpress/newfile.txt', 'hello world');
+		console.log(fs.readdirSync('/wordpress'));
+		console.log(
+			new TextDecoder().decode(fs.readFileSync('/zipdir/noop.ts'))
+		);
+		console.log(
+			new TextDecoder().decode(fs.readFileSync('/zipdir/newfile.txt'))
+		);
 
 		await defineSiteUrl(php, {
 			siteUrl,
