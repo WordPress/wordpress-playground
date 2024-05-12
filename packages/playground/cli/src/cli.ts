@@ -284,6 +284,10 @@ async function run() {
 			for (const mount of mounts) {
 				php.mount(mount.hostPath, mount.vfsPath);
 			}
+			php.mount(
+				'/Users/cloudnik/www/Automattic/core/plugins/playground',
+				'/home/web_user'
+			);
 			console.log(php.listFiles('/home'));
 			console.log(php.listFiles('/home/another_user'));
 			console.log(php.listFiles('/home/web_user'));

@@ -803,7 +803,7 @@ var mmapAlloc = size => {
 };
 
 
-var CASCADEFS_forFirstFs = (filesystems, callback) => {
+var OVERLAYFS_forFirstFs = (filesystems, callback) => {
     for (let i = 0, max = filesystems.length; i < max; i++) {
         try {
             return callback(filesystems[i]);
@@ -816,17 +816,17 @@ var CASCADEFS_forFirstFs = (filesystems, callback) => {
     }
 };
     
-var CASCADEFS = {
+var OVERLAYFS = {
     mount(mount) {
-     return CASCADEFS.createNode(null, "/", 16384 | 511, 0);
+     return OVERLAYFS.createNode(null, "/", 16384 | 511, 0);
     },
     createNode(parent, name, mode, dev) {
      if (!FS.isDir(mode) && !FS.isFile(mode) && !FS.isLink(mode)) {
       throw new FS.ErrnoError(ERRNO_CODES.EINVAL);
      }
      var node = FS.createNode(parent, name, mode);
-     node.node_ops = CASCADEFS.node_ops;
-     node.stream_ops = CASCADEFS.stream_ops;
+     node.node_ops = OVERLAYFS.node_ops;
+     node.stream_ops = OVERLAYFS.stream_ops;
      return node;
     },
     realPath(node) {
@@ -841,8 +841,8 @@ var CASCADEFS = {
     },
     node_ops: {
      getattr(node) {
-        var path = CASCADEFS.realPath(node);
-        const stat = CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.lstat(path));
+        var path = OVERLAYFS.realPath(node);
+        const stat = OVERLAYFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.lstat(path));
       return {
        dev: stat.dev,
        ino: stat.ino,
@@ -863,15 +863,15 @@ var CASCADEFS = {
       var path = PROXYFS.realPath(node);
       try {
         if (attr.mode !== undefined) {
-            CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.chmod(path, attr.mode));
+            OVERLAYFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.chmod(path, attr.mode));
             node.mode = attr.mode;
         }
        if (attr.timestamp !== undefined) {
         var date = new Date(attr.timestamp);
-        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.utime(path, date, date));
+        OVERLAYFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.utime(path, date, date));
        }
        if (attr.size !== undefined) {
-        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.truncate(path, attr.size));
+        OVERLAYFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.truncate(path, attr.size));
        }
       } catch (e) {
        if (!e.code) throw e;
@@ -880,9 +880,9 @@ var CASCADEFS = {
      },
      lookup(parent, name) {
       try {
-       var path = PATH.join2(CASCADEFS.realPath(parent), name);
-       var mode = CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.lstat(path).mode);
-       var node = CASCADEFS.createNode(parent, name, mode);
+       var path = PATH.join2(OVERLAYFS.realPath(parent), name);
+       var mode = OVERLAYFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.lstat(path).mode);
+       var node = OVERLAYFS.createNode(parent, name, mode);
        return node;
       } catch (e) {
        if (!e.code) throw e;
@@ -890,14 +890,14 @@ var CASCADEFS = {
       }
      },
      mknod(parent, name, mode, dev) {
-        return CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.node_ops.mknod(parent, name, mode, dev));
+         return parent.mount.opts.readable.node_ops.mknod(parent, name, mode, dev);
      },
      rename(oldNode, newDir, newName) {
-      var oldPath = CASCADEFS.realPath(oldNode);
-      var newPath = PATH.join2(CASCADEFS.realPath(newDir), newName);
+      var oldPath = OVERLAYFS.realPath(oldNode);
+      var newPath = PATH.join2(OVERLAYFS.realPath(newDir), newName);
          try {
           // @TODO handle a cross-filesystem rename 
-        CASCADEFS_forFirstFs(oldNode.mount.opts.filesystems, fs => fs.rename(oldPath, newPath));
+        OVERLAYFS_forFirstFs(oldNode.mount.opts.filesystems, fs => fs.rename(oldPath, newPath));
        oldNode.name = newName;
        oldNode.parent = newDir;
       } catch (e) {
@@ -906,45 +906,58 @@ var CASCADEFS = {
       }
      },
      unlink(parent, name) {
-      var path = PATH.join2(CASCADEFS.realPath(parent), name);
+      var path = PATH.join2(OVERLAYFS.realPath(parent), name);
          try {
-            CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.unlink(path));
+            OVERLAYFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.unlink(path));
       } catch (e) {
        if (!e.code) throw e;
        throw new FS.ErrnoError(ERRNO_CODES[e.code]);
       }
      },
      rmdir(parent, name) {
-      var path = PATH.join2(CASCADEFS.realPath(parent), name);
+      var path = PATH.join2(OVERLAYFS.realPath(parent), name);
       try {
-        CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.rmdir(path));
+        OVERLAYFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.rmdir(path));
       } catch (e) {
        if (!e.code) throw e;
        throw new FS.ErrnoError(ERRNO_CODES[e.code]);
       }
      },
      readdir(node) {
-      var path = CASCADEFS.realPath(node);
+         var path = OVERLAYFS.realPath(node);
+         let files1 = [];
+         let error1 = null;
          try {
-        return CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.node_ops.readdir(path));
-      } catch (e) {
-       if (!e.code) throw e;
-       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
-      }
+             files1 = node.mount.opts.readable.node_ops.readdir(node);
+         } catch (e) {
+             error1 = e;
+         }
+
+         let files2 = [];
+         let error2 = null;
+         try {
+             files2 = node.mount.opts.writable.node_ops.readdir(node);
+         } catch (e) {
+             error2 = e;
+         }
+         if (error1 && error2) {
+             throw error1;
+         }
+         return files1.concat(files2);
      },
      symlink(parent, newName, oldPath) {
-      var newPath = PATH.join2(CASCADEFS.realPath(parent), newName);
+      var newPath = PATH.join2(OVERLAYFS.realPath(parent), newName);
       try {
-        CASCADEFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.symlink(oldPath, newPath));
+        OVERLAYFS_forFirstFs(parent.mount.opts.filesystems, (fs) => fs.symlink(oldPath, newPath));
       } catch (e) {
        if (!e.code) throw e;
        throw new FS.ErrnoError(ERRNO_CODES[e.code]);
       }
      },
      readlink(node) {
-      var path = CASCADEFS.realPath(node);
+      var path = OVERLAYFS.realPath(node);
       try {
-        CASCADEFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.readlink(path));
+        OVERLAYFS_forFirstFs(node.mount.opts.filesystems, (fs) => fs.readlink(path));
       } catch (e) {
        if (!e.code) throw e;
        throw new FS.ErrnoError(ERRNO_CODES[e.code]);
@@ -953,9 +966,9 @@ var CASCADEFS = {
     },
     stream_ops: {
      open(stream) {
-      var path = CASCADEFS.realPath(stream.node);
+      var path = OVERLAYFS.realPath(stream.node);
       try {
-        stream.nfd = CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
+        stream.nfd = OVERLAYFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
             return fs.open(path, stream.flags);
         });
       } catch (e) {
@@ -965,7 +978,7 @@ var CASCADEFS = {
      },
      close(stream) {
       try {
-        CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => 
+        OVERLAYFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => 
           fs.close(stream.nfd)
         );
       } catch (e) {
@@ -975,7 +988,7 @@ var CASCADEFS = {
      },
      read(stream, buffer, offset, length, position) {
       try {
-        return CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
+        return OVERLAYFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
           return fs.read(stream.nfd, buffer, offset, length, position);
         });
       } catch (e) {
@@ -983,16 +996,9 @@ var CASCADEFS = {
        throw new FS.ErrnoError(ERRNO_CODES[e.code]);
       }
      },
-     write(stream, buffer, offset, length, position) {
-      try {
-        return CASCADEFS_forFirstFs(stream.node.mount.opts.filesystems, (fs) => {
-            return fs.write(stream.nfd, buffer, offset, length, position);
-        });
-      } catch (e) {
-       if (!e.code) throw e;
-       throw new FS.ErrnoError(ERRNO_CODES[e.code]);
-      }
-     },
+        write(stream, buffer, offset, length, position) {
+            return stream.node.mount.opts.writable.node_ops.write(stream, buffer, offset, length, position);
+        },
      llseek(stream, offset, whence) {
       var position = offset;
       if (whence === 1) {
@@ -2973,12 +2979,10 @@ var FS = {
   FS.createDefaultDevices();
      FS.createSpecialDirectories();
      FS.mount(
-        CASCADEFS,
+        OVERLAYFS,
         {
-         filesystems: [
-            NODEFS,
-            MEMFS
-         ]
+            writable: MEMFS,
+            readable: NODEFS,
         },
         "/home/web_user"
      )
