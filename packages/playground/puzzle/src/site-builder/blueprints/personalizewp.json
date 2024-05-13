@@ -1,0 +1,15 @@
+{
+	"landingPage": "/wp-admin/admin.php?page=personalizewp",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "personalizewp"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}
