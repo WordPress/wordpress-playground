@@ -138,6 +138,16 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 		'/internal/mu-plugins/sqlite-database-integration'
 	);
 
+	php.writeFile(
+		`/internal/mu-plugins/sqlite-test.php`,
+		`<?php
+		global $wpdb;
+		if(!($wpdb instanceof WP_SQLite_DB)) {
+			var_dump(isset($wpdb));
+			die("SQLite integration not loaded " . get_class($wpdb));
+		}
+		`
+	);
 	const dbPhp = php
 		.readFileAsText(
 			'/internal/mu-plugins/sqlite-database-integration/db.copy'
@@ -150,8 +160,8 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 			"'{SQLITE_PLUGIN}'",
 			"'/internal/mu-plugins/sqlite-database-integration/load.php'"
 		);
-	// @TODO do not create the db.php file. Either find a way to mount it, or
-	//       load the custom $wpdb object in a different way.
-	php.writeFile('/wordpress/wp-content/db.php', dbPhp);
-	// }}}
+	php.writeFile(
+		'/internal/mu-plugins/sqlite-database-integration.php',
+		dbPhp
+	);
 }

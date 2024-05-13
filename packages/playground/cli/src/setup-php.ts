@@ -51,8 +51,43 @@ export async function createPhp(
         exit;
     }`
 	);
-	php.mkdir('/internal/mu-plugins');
+	// Setup the SQLite integration {{{
+	php.writeFile(
+		`/internal/preload/sqlite.php`,
+		`<?php
+function load_sqlite_integration() {
+	require_once '/internal/mu-plugins/sqlite-database-integration.php';
+}
 
+class FakeWPDBToLoadSQLite {
+
+	public function __call($name, $arguments) {
+		load_sqlite_integration();
+		if($GLOBALS['wpdb'] === $this) {
+			throw new Exception('Infinite loop detected');
+		}
+		return call_user_func_array(
+			array($GLOBALS['wpdb'], $name),
+			$arguments
+		);
+	}
+
+	public function __get($name) {
+		load_sqlite_integration();
+		if($GLOBALS['wpdb'] === $this) {
+			throw new Exception('Infinite loop detected');
+		}
+		return $GLOBALS['wpdb']->$name;
+	}
+
+}
+
+$wpdb = $GLOBALS['wpdb'] = new FakeWPDBToLoadSQLite();
+		`
+	);
+	// }}}
+
+	php.mkdir('/internal/mu-plugins');
 	if (!isPrimary) {
 		/**
 		 * @TODO: Consider an API similar to
