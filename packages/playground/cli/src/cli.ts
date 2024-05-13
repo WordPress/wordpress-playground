@@ -27,6 +27,7 @@ import { configure, InMemory, fs, Overlay } from '@zenfs/core';
 import { Zip } from '@zenfs/zip';
 import nodefs from 'fs';
 import EmscriptenFS from './emsc';
+import { NodeFs } from './nodefs';
 
 export interface Mount {
 	hostPath: string;
@@ -200,40 +201,67 @@ async function run() {
 		// 	php.mount(mount.hostPath, mount.vfsPath);
 		// }
 
-		const writableFs = InMemory.create({ name: 'yay' });
-		const originalCreateFileSync = writableFs.createFileSync;
-		writableFs.createFileSync = function (path, flag, mode, cred) {
+		// const writableFs = InMemory.create({ name: 'yay' });
+		const nodeFs = NodeFs.create({
+			name: 'yay',
+			root: __dirname + '/root',
+		});
+		const originalCreateFileSync = nodeFs.createFileSync;
+		nodeFs.createFileSync = function (path, flag, mode, cred) {
 			const parentDir = path.split('/').slice(0, -1).join('/');
-			if (!writableFs.existsSync(parentDir, cred)) {
-				writableFs.mkdirSync(parentDir, 0o777, cred);
+			if (!nodeFs.existsSync(parentDir, cred)) {
+				nodeFs.mkdirSync(parentDir, 0o777, cred);
 			}
 			return originalCreateFileSync.call(this, path, flag, mode, cred);
 		};
 
-		const zipData = nodefs.readFileSync('testfs/test.zip').buffer;
-		const zipfs = Zip.create({ zipData });
+		const inMemoryFs = InMemory.create({ name: 'yay' });
+		inMemoryFs.mkdirSync('/wordpress', 0o777, 0);
+		inMemoryFs.createFileSync('/wordpress/virtual.txt', 'w', 0o777, 0);
+		const handle = inMemoryFs.openFileSync(
+			'/wordpress/virtual.txt',
+			'w',
+			0o777,
+			0
+		);
+		handle.writeSync(new TextEncoder().encode('test'), 0, 'test'.length, 0);
+		handle.closeSync();
+
+		// const zipData = nodefs.readFileSync('testfs/test.zip').buffer;
+		// const zipfs = Zip.create({ zipData });
 
 		await configure({
 			'/': Overlay.create({
-				readable: zipfs,
-				writable: writableFs,
+				readable: nodeFs,
+				writable: inMemoryFs,
 			}).fs,
 		});
-		await zipfs.ready();
+		// await configure({
+		// 	'/': inMemoryFs
+		// });
+		// await zipfs.ready();
+
+		console.log(fs.readdirSync('/'));
+		console.log(fs.readdirSync('/wordpress'));
+		console.log(fs.readFileSync('/wordpress/virtual.txt'));
+
+		console.log(fs.writeFileSync('/wordpress/virtual2.txt', 'test'));
+		console.log(fs.readFileSync('/wordpress/virtual2.txt'));
 
 		const BFS = new EmscriptenFS(
 			php[__private__dont__use].FS,
 			php[__private__dont__use].PATH,
 			php[__private__dont__use].ERRNO_CODES
 		);
-		php.mount('/', '/wordpress', BFS);
-
-		console.log(fs.readdirSync('/'));
-		console.log(fs.readFileSync('/zipdir/noop.ts'));
-		console.log(php.listFiles('/wordpress/zipdir'));
-		// console.log(php.writeFile('/wordpress/noop.ts', 'a'));
-		console.log(php.readFileAsBuffer('/wordpress/zipdir/noop.ts'));
-		console.log(php.readFileAsText('/wordpress/zipdir/noop.ts'));
+		php.mkdir('/wordpress');
+		php.mount('/wordpress', '/wordpress', BFS);
+		// console.log(php.writeFile('/wordpress/hi.txt', 'a'));
+		// console.log(fs.readFileSync('/wordpress/hi.txt'));
+		console.log(php.listFiles('/wordpress'));
+		console.log(php.readFileAsBuffer('/wordpress/virtual.txt'));
+		console.log(php.readFileAsBuffer('/wordpress/virtual2.txt'));
+		console.log(php.readFileAsBuffer('/wordpress/host.txt'));
+		// console.log(php.readFileAsText('/wordpress/zipdir/noop.ts'));
 		process.exit(0);
 		fs.writeFileSync('/wordpress/newfile.txt', 'hello world');
 		console.log(fs.readdirSync('/wordpress'));
