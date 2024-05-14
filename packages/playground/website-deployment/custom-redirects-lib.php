@@ -319,6 +319,7 @@ function playground_get_custom_response_headers( $filename ) {
 				'blueprint-schema.json',
 				'logger.php',
 				'oauth.php',
+				'puzzle.php',
 				'wp-cli.phar',
 				'wordpress-importer.zip',
 			),
