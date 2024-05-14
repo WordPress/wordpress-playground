@@ -9,15 +9,15 @@ import './App.scss';
 
 const router = createBrowserRouter([
 	{
-		path: '/',
+		path: '/puzzle/',
 		element: <Home />,
 	},
 	{
-		path: '/scan',
+		path: '/puzzle/scan',
 		element: <Scan />,
 	},
 	{
-		path: '/playground',
+		path: '/puzzle/playground',
 		element: <Site />,
 	},
 ]);

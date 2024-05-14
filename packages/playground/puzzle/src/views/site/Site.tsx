@@ -26,7 +26,7 @@ export const Site = () => {
 
 	useEffect(() => {
 		if (!blueprint) {
-			navigate('/scan');
+			navigate('/puzzle/scan');
 			return;
 		}
 		if (!iframe.current) {

@@ -6,10 +6,13 @@ import { Footer } from '../../components/footer/Footer';
 import { Button } from '@wordpress/components';
 import { capturePhoto } from '@wordpress/icons';
 
+// @ts-ignore-next-linea
+import backgroundImage from '../../assets/home-background.png';
+
 export const Home = () => {
 	const navigate = useNavigate();
 	const onClick = () => {
-		navigate('/scan');
+		navigate('/puzzle/scan');
 	};
 	return (
 		<>
@@ -30,7 +33,7 @@ export const Home = () => {
 					Build your site
 				</Button>
 				<img
-					src={'../../../assets/home-background.png'}
+					src={backgroundImage}
 					alt="Playground sites"
 					className="home__image"
 				/>

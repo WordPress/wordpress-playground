@@ -1,5 +1,5 @@
 const API_URL = 'https://playground.wordpress.net/puzzle.php';
-const API_KEY: string | undefined = process.env['REACT_APP_API_KEY'];
+const API_KEY = 'test';
 
 const apiRequest = async (
 	action: string,

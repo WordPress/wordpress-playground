@@ -12,6 +12,27 @@
 				"outputPath": "dist/packages/playground/puzzle"
 			}
 		},
+		"dev": {
+			"executor": "@nx/vite:dev-server",
+			"defaultConfiguration": "development",
+			"options": {
+				"buildTarget": "playground-puzzle:build"
+			},
+			"configurations": {
+				"development": {
+					"buildTarget": "playground-puzzle:build:development",
+					"hmr": true
+				},
+				"development-for-website": {
+					"buildTarget": "playground-puzzle:build:development",
+					"hmr": true
+				},
+				"production": {
+					"buildTarget": "playground-puzzle:build:production",
+					"hmr": false
+				}
+			}
+		},
 		"test": {
 			"executor": "nx:noop",
 			"dependsOn": ["test:vite"]

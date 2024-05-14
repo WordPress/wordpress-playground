@@ -42,7 +42,9 @@ export const Scan = () => {
 		setSiteLoading(true);
 		processImage(detectedActions)
 			.then((blueprint) => {
-				navigate('/playground#' + encodeURI(JSON.stringify(blueprint)));
+				navigate(
+					'/puzzle/playground#' + encodeURI(JSON.stringify(blueprint))
+				);
 			})
 			.catch((error) => {
 				setError(error.message);

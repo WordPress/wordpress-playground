@@ -4,6 +4,9 @@ import { useEffect, useRef } from 'react';
 import './ScanOverlay.scss';
 import { useScanContext } from '../../context/scan';
 
+// @ts-ignore-next-line
+import overlayImage from '../../assets/shape.png';
+
 export const ScanOverlay = () => {
 	const { setScanArea } = useScanContext();
 	const overlay = useRef(null);
@@ -26,7 +29,7 @@ export const ScanOverlay = () => {
 		const originalImageWidth = 526;
 		const originalImageHeight = 458;
 		const img = new Image();
-		img.src = '../../assets/shape.png';
+		img.src = overlayImage;
 
 		img.onload = () => {
 			img.width = window.innerWidth - 70;
