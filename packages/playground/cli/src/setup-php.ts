@@ -7,7 +7,11 @@ import {
 } from '@php-wasm/universal';
 import { rootCertificates } from 'tls';
 import { dirname } from '@php-wasm/util';
-import { envPHP_to_loadMuPlugins } from '@wp-playground/wordpress';
+import {
+	preloadPhpInfoRoute,
+	enablePlatformMuPlugins,
+	preloadRequiredMuPlugin,
+} from '@wp-playground/wordpress';
 
 export async function createPhp(
 	requestHandler: PHPRequestHandler<NodePHP>,
@@ -44,20 +48,9 @@ export async function createPhp(
 			'/internal/shared/ca-bundle.crt',
 			rootCertificates.join('\n')
 		);
-		php.writeFile(
-			'/internal/shared/preload/env.php',
-			envPHP_to_loadMuPlugins
-		);
-		php.writeFile(
-			'/internal/shared/preload/phpinfo.php',
-			`<?php
-		// Render PHPInfo if the requested page is /phpinfo.php
-		if ( '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
-			phpinfo();
-			exit;
-		}`
-		);
-		php.mkdir('/internal/shared/mu-plugins');
+		await preloadPhpInfoRoute(php);
+		await enablePlatformMuPlugins(php);
+		await preloadRequiredMuPlugin(php);
 	} else {
 		/**
 		 * @TODO: Consider an API similar to
