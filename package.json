@@ -66,6 +66,7 @@
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"react-modal": "^3.16.1",
+		"react-router-dom": "6.23.1",
 		"unzipper": "0.10.11",
 		"vite-plugin-api": "1.0.4",
 		"xterm": "5.3.0",

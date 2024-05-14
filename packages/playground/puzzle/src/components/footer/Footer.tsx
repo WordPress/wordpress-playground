@@ -6,12 +6,7 @@ import './Footer.scss';
 export const Footer = () => {
 	return (
 		<footer className="footer">
-			Powered by{' '}
-			<Icon
-				icon={wordpress}
-				onPointerEnterCapture={undefined}
-				onPointerLeaveCapture={undefined}
-			/>
+			Powered by <Icon icon={wordpress} />
 			<a
 				href="https://wordpress.org/playground/"
 				target="_blank"
