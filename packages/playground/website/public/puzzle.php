@@ -185,7 +185,6 @@ function readImage($image)
                             - /wp-admin/
                             - Multisite
                             - Omnisend
-                            - WooCommerce
                             - Google
                             - Jetpack
                             - Elementor
