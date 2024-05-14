@@ -358,6 +358,10 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	#initWebRuntime() {
+		this.setPhpIniEntry(
+			'auto_prepend_file',
+			'/internal/shared/auto_prepend_file.php'
+		);
 		if (!this.fileExists('/internal/shared/auto_prepend_file.php')) {
 			this.writeFile(
 				'/internal/shared/auto_prepend_file.php',
@@ -366,10 +370,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 				require_once $file;
 			}
 		`
-			);
-			this.setPhpIniEntry(
-				'auto_prepend_file',
-				'/internal/shared/auto_prepend_file.php'
 			);
 			/**
 			 * This creates a consts.php file in an in-memory
