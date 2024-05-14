@@ -861,7 +861,7 @@ async function pushToGithub(
 		>['data'];
 		if (shouldCreateNewPR) {
 			const { data: branch } = await octokit.rest.repos.getBranch({
-				owner,
+				owner: pushToOwner,
 				repo,
 				branch: againstBranch,
 			});
