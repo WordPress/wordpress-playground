@@ -16,14 +16,7 @@ import {
 	readAsFile,
 } from './download';
 import { withPHPIniValues } from './setup-php';
-<<<<<<< HEAD
 import { preloadSqliteIntegration } from '@wp-playground/wordpress';
-=======
-import {
-	playgroundMuPlugin,
-	preloadSqliteIntegration,
-} from '@wp-playground/wordpress';
->>>>>>> ba99209da (Extract preloadSqliteIntegration to a separate function)
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -56,17 +49,11 @@ export async function setupWordPress(
 			monitor
 		),
 	]);
-<<<<<<< HEAD
 	await prepareWordPress(php, wpZip);
 	// Setup the SQLite integration if no custom database drop-in is present
 	if (!php.fileExists('/wordpress/wp-content/db.php')) {
 		await preloadSqliteIntegration(php, sqliteZip);
 	}
-=======
-
-	await prepareWordPress(php, wpZip);
-	await preloadSqliteIntegration(php, sqliteZip);
->>>>>>> ba99209da (Extract preloadSqliteIntegration to a separate function)
 
 	const preinstalledWpContentPath = path.join(
 		CACHE_FOLDER,
