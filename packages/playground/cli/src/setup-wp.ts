@@ -16,7 +16,10 @@ import {
 	readAsFile,
 } from './download';
 import { withPHPIniValues } from './setup-php';
-import { playgroundMuPlugin } from '@wp-playground/wordpress';
+import {
+	playgroundMuPlugin,
+	preloadSqliteIntegration,
+} from '@wp-playground/wordpress';
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -49,7 +52,9 @@ export async function setupWordPress(
 			monitor
 		),
 	]);
-	await prepareWordPress(php, wpZip, sqliteZip);
+
+	await prepareWordPress(php, wpZip);
+	await preloadSqliteIntegration(php, sqliteZip);
 
 	const preinstalledWpContentPath = path.join(
 		CACHE_FOLDER,
@@ -105,7 +110,7 @@ export async function setupWordPress(
  * accept the limitation, and switch to the PHP implementation as soon
  * as that's viable.
  */
-async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
+async function prepareWordPress(php: NodePHP, wpZip: File) {
 	php.mkdir('/internal/shared/mu-plugins');
 	php.writeFile(
 		'/internal/shared/mu-plugins/0-playground.php',
@@ -127,44 +132,5 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 	php.writeFile(
 		'/wordpress/wp-config.php',
 		php.readFileAsText('/wordpress/wp-config-sample.php')
-	);
-	// }}}
-
-	// Setup the SQLite integration {{{
-	php.mkdir('/tmp/sqlite-database-integration');
-	await unzip(php, {
-		zipFile: sqliteZip,
-		extractToPath: '/tmp/sqlite-database-integration',
-	});
-	php.mv(
-		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
-		'/internal/shared/mu-plugins/sqlite-database-integration'
-	);
-
-	php.writeFile(
-		`/internal/mu-plugins/sqlite-test.php`,
-		`<?php
-		global $wpdb;
-		if(!($wpdb instanceof WP_SQLite_DB)) {
-			var_dump(isset($wpdb));
-			die("SQLite integration not loaded " . get_class($wpdb));
-		}
-		`
-	);
-	const dbPhp = php
-		.readFileAsText(
-			'/internal/shared/mu-plugins/sqlite-database-integration/db.copy'
-		)
-		.replace(
-			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
-			"'/internal/shared/mu-plugins/sqlite-database-integration/'"
-		)
-		.replace(
-			"'{SQLITE_PLUGIN}'",
-			"'/internal/shared/mu-plugins/sqlite-database-integration/load.php'"
-		);
-	php.writeFile(
-		'/internal/mu-plugins/sqlite-database-integration.php',
-		dbPhp
 	);
 }
