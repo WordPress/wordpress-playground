@@ -33,6 +33,14 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
 	const docroot = await playground.documentRoot;
+	if (!(await playground.fileExists(themeFolderName))) {
+		throw new Error(`
+			Couldn't activate theme ${themeFolderName}.
+			Check the plugin path to ensure it's correct.
+			If the plugin is not installed, you can install it using the installTheme step.
+			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivateThemeStep
+		`);
+	}
 	await playground.run({
 		code: `<?php
 define( 'WP_ADMIN', true );
