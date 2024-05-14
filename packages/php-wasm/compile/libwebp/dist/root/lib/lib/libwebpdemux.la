@@ -17,7 +17,7 @@ old_library='libwebpdemux.a'
 inherited_linker_flags=''
 
 # Libraries that this one depends upon.
-dependency_libs=' -L/root/lib/lib /root/install/lib/libwebp.la /root/install/lib/libsharpyuv.la -lm'
+dependency_libs=' -L/root/lib/lib /root/lib/lib/libwebp.la /root/lib/lib/libsharpyuv.la -lm'
 
 # Names of additional weak libraries provided by this library
 weak_library_names=''
@@ -38,4 +38,4 @@ dlopen=''
 dlpreopen=''
 
 # Directory that this library needs to be installed in:
-libdir='/root/install/lib'
+libdir='/root/lib/lib'

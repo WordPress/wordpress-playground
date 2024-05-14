@@ -44,8 +44,8 @@ libwebp: libwebp/dist/root/lib/lib/libwebp.a
 libwebp/dist/root/lib/lib/libwebp.a: base-image libz
 	mkdir -p ./libwebp/dist/root/lib
 	docker build -f ./libwebp/Dockerfile -t playground-php-wasm:libpng .
-	docker cp $$(docker create playground-php-wasm:libpng):/root/install/lib ./libwebp/dist/root/lib
-	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libwebp/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/lib ./libwebp/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/include ./libwebp/dist/root/lib
 
 libxml2: libxml2/dist/root/lib/lib/libxml2.a
 libxml2/dist/root/lib/lib/libxml2.a: base-image

@@ -16,3 +16,6 @@ RUN     source /root/emsdk/emsdk_env.sh && \
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
 RUN sed -i 's/lib32/lib/g' /root/lib/lib32/pkgconfig/libjpeg.pc
+# @TODO: Do not remove dependencies like this – it's too easy to miss something.
+#        Instead, source them from another directory and end up with a clean build.
+RUN rm -rf /root/lib/lib/pkgconfig /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h
