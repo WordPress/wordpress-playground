@@ -5,7 +5,7 @@ import {
 	journalSQLQueries,
 } from '../sql';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { unzip } from '@wp-playground/blueprints';
 
 describe('Sync tests', () => {
