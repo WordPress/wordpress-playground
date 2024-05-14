@@ -1,10 +1,8 @@
 import React from 'react';
 import { useEffect, useRef } from 'react';
 
-import shape from '../../assets/shape.png';
-
 import './ScanOverlay.scss';
-import { useScanContext } from '../../context/scan.ts';
+import { useScanContext } from '../../context/scan';
 
 export const ScanOverlay = () => {
 	const { setScanArea } = useScanContext();
@@ -28,7 +26,7 @@ export const ScanOverlay = () => {
 		const originalImageWidth = 526;
 		const originalImageHeight = 458;
 		const img = new Image();
-		img.src = shape;
+		img.src = '../../assets/shape.png';
 
 		img.onload = () => {
 			img.width = window.innerWidth - 70;
@@ -52,14 +50,12 @@ export const ScanOverlay = () => {
 		};
 	};
 
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	useEffect(drawOverlay, [overlay]);
 	useEffect(() => {
 		window.addEventListener('resize', drawOverlay);
 		return () => {
 			window.removeEventListener('resize', drawOverlay);
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	return <canvas ref={overlay} className="scan-overlay" />;

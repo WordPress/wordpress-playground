@@ -6,7 +6,10 @@ import { Spinner } from '@wordpress/components';
 export const Loader = () => {
 	return (
 		<div className="loader">
-			<Spinner />
+			<Spinner
+				onPointerEnterCapture={undefined}
+				onPointerLeaveCapture={undefined}
+			/>
 		</div>
 	);
 };

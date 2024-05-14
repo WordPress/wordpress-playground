@@ -2,7 +2,8 @@
 	"name": "playground-puzzle",
 	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
 	"sourceRoot": "packages/playground/puzzle/src",
-	"projectType": "library",
+	"projectType": "application",
+	"implicitDependencies": ["playground-client"],
 	"targets": {
 		"build": {
 			"executor": "@nx/vite:build",
@@ -46,5 +47,6 @@
 				"tsc -p packages/playground/puzzle/tsconfig.spec.json --noEmit"
 			]
 		}
-	}
+	},
+	"tags": ["scope:web-client"]
 }

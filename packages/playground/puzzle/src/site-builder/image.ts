@@ -1,12 +1,15 @@
-export const getImageFromCanvas = (canvas, scanArea) => {
+export const getImageFromVideo = (
+	video: HTMLVideoElement,
+	scanArea: { width: number; height: number }
+) => {
 	const videoCanvas = document.createElement('canvas');
-	videoCanvas.width = canvas.width;
-	videoCanvas.height = canvas.height;
+	videoCanvas.width = video.width;
+	videoCanvas.height = video.height;
 	const videoCtx = videoCanvas.getContext('2d');
 	if (!videoCtx) {
 		return;
 	}
-	videoCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+	videoCtx.drawImage(video, 0, 0, video.width, video.height);
 
 	const imageCanvas = document.createElement('canvas');
 	imageCanvas.width = scanArea.width;
@@ -15,8 +18,8 @@ export const getImageFromCanvas = (canvas, scanArea) => {
 	if (!imageCtx) {
 		return;
 	}
-	const x = (canvas.width - scanArea.width) / 2;
-	const y = (canvas.height - scanArea.height) / 2;
+	const x = (video.width - scanArea.width) / 2;
+	const y = (video.height - scanArea.height) / 2;
 	imageCtx.drawImage(
 		videoCanvas,
 		x,

@@ -1,1 +1,1 @@
-export * from './processor.ts';
+export * from './processor';

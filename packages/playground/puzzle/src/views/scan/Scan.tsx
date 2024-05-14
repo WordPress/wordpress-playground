@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { ScanVideo } from '../../components/scan-video/ScanVideo.tsx';
+import { ScanVideo } from '../../components/scan-video/ScanVideo';
 
 import './Scan.scss';
-import { ScanContext } from '../../context/scan.ts';
-import { ScanButton } from '../../components/scan-button/ScanButton.tsx';
+import { ScanContext } from '../../context/scan';
+import { ScanButton } from '../../components/scan-button/ScanButton';
 import { Icon, Notice } from '@wordpress/components';
 import { useNavigate } from 'react-router-dom';
-import { SiteButton } from '../../components/SiteButton/SiteButton.tsx';
+import { SiteButton } from '../../components/SiteButton/SiteButton';
 import { capturePhoto } from '@wordpress/icons';
 import {
 	Action,
 	actions,
 	getActions,
 	processImage,
-} from '../../site-builder/processor.ts';
+} from '../../site-builder/processor';
 
 export const Scan = () => {
 	const navigate = useNavigate();
@@ -57,7 +57,7 @@ export const Scan = () => {
 	};
 
 	const onSuccess = (newActionTitles: string[]) => {
-		let newActions = getActions(newActionTitles).filter(
+		const newActions = getActions(newActionTitles).filter(
 			(newAction) =>
 				!detectedActions ||
 				!detectedActions.find(

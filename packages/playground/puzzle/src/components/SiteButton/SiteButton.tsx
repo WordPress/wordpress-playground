@@ -5,7 +5,15 @@ import React, { useEffect, useState } from 'react';
 
 const mainCta = 'Take me to my site';
 
-export const SiteButton = ({ onClick, newAction, isBusy }) => {
+export const SiteButton = ({
+	onClick,
+	newAction,
+	isBusy,
+}: {
+	onClick: () => void;
+	newAction: any;
+	isBusy: boolean;
+}) => {
 	const [title, setTitle] = useState<string>();
 
 	useEffect(() => {

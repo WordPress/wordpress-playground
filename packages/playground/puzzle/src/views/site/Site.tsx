@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { startPlaygroundWeb } from '@wp-playground/client';
-
 import { useNavigate } from 'react-router-dom';
-
+const importStartPlaygroundWeb = import(
+	// @ts-ignore-next-line
+	'https://playground.wordpress.net/client/index.js'
+);
+const startPlaygroundWeb = (await importStartPlaygroundWeb).startPlaygroundWeb;
 import './Site.scss';
 
 const currentBlueprint = () => {

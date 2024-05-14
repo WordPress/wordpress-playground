@@ -1,4 +1,4 @@
-import { siteName, post } from './api.ts';
+import { siteName, post } from './api';
 import woocommerce from './blueprints/woocommerce.json';
 import omnisend from './blueprints/omnisend.json';
 import google from './blueprints/google.json';
@@ -8,11 +8,11 @@ import yith from './blueprints/yith.json';
 import dynamicOoo from './blueprints/dynamic-ooo.json';
 import personalizewp from './blueprints/personalizewp.json';
 import jetformbuilder from './blueprints/jetformbuilder.json';
-import fastspring from './blueprints/fastspring.json';
+// import fastspring from './blueprints/fastspring.json';
 import cookiebot from './blueprints/cookiebot.json';
 import w3TotalCache from './blueprints/w3-total-cache.json';
 import siteground from './blueprints/siteground.json';
-import yoast from './blueprints/yoast.json';
+// import yoast from './blueprints/yoast.json';
 
 export type Action = {
 	title: string;
@@ -109,8 +109,11 @@ export const processImage = async (actions: string[]) => {
 	}
 
 	const blueprint: any = (actions as string[]).reduce(
-		(acc: any, action: string) =>
-			mergeBlueprints([acc, actionBlueprints[action]]),
+		(acc, action: string) =>
+			mergeBlueprints([
+				acc,
+				actionBlueprints[action as keyof typeof actionBlueprints],
+			]),
 		{}
 	);
 	if (actions.includes('/wp-admin/')) {

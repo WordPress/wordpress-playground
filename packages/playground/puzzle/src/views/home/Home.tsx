@@ -1,10 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import background from '../../assets/home-background.png';
-
 import './Home.scss';
-import { Footer } from '../../components/footer/Footer.tsx';
+import { Footer } from '../../components/footer/Footer';
 import { Button } from '@wordpress/components';
 import { capturePhoto } from '@wordpress/icons';
 
@@ -32,7 +30,7 @@ export const Home = () => {
 					Build your site
 				</Button>
 				<img
-					src={background}
+					src={'../../../assets/home-background.png'}
 					alt="Playground sites"
 					className="home__image"
 				/>

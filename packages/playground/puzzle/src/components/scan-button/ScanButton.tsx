@@ -1,14 +1,14 @@
 import { Button } from '@wordpress/components';
 import { capturePhoto } from '@wordpress/icons';
 import React, { useState } from 'react';
-import { useScanContext } from '../../context/scan.ts';
+import { useScanContext } from '../../context/scan';
 
-import { getImageFromCanvas } from '../../site-builder/image.ts';
+import { getImageFromVideo } from '../../site-builder/image';
 
 import './ScanButton.scss';
-import { readImageContent } from '../../site-builder/api.ts';
+import { readImageContent } from '../../site-builder/api';
 
-export const ScanButton = ({ onSuccess }) => {
+export const ScanButton = ({ onSuccess }: { onSuccess: Function }) => {
 	const { videoElement, scanArea, setError } = useScanContext();
 	const [loading, setLoading] = useState(false);
 
@@ -17,7 +17,7 @@ export const ScanButton = ({ onSuccess }) => {
 			return;
 		}
 
-		const image = getImageFromCanvas(videoElement, scanArea);
+		const image = getImageFromVideo(videoElement, scanArea);
 		if (!image) {
 			return;
 		}

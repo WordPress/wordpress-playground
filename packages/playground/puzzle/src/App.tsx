@@ -1,9 +1,9 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import { Home } from './views/home/Home.tsx';
-import { Scan } from './views/scan/Scan.tsx';
-import { Site } from './views/site/Site.tsx';
+import { Home } from './views/home/Home';
+import { Scan } from './views/scan/Scan';
+import { Site } from './views/site/Site';
 
 import './App.scss';
 

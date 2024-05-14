@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 
 import './ScanVideo.scss';
-import { Loader } from '../loader/Loader.tsx';
-import { useScanContext } from '../../context/scan.ts';
-import { ScanOverlay } from '../../components/scan-overlay/ScanOverlay.tsx';
+import { Loader } from '../loader/Loader';
+import { useScanContext } from '../../context/scan';
+import { ScanOverlay } from '../../components/scan-overlay/ScanOverlay';
 
 export const ScanVideo = () => {
 	const { loading, setLoading, videoElement, setVideoElement } =
