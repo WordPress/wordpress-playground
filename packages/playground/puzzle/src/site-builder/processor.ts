@@ -1,5 +1,4 @@
 import { siteName, post } from './api';
-import woocommerce from './blueprints/woocommerce.json';
 import omnisend from './blueprints/omnisend.json';
 import google from './blueprints/google.json';
 import jetpack from './blueprints/jetpack.json';
@@ -33,9 +32,6 @@ export const actions: { [key: string]: Action } = {
 	},
 	omnisend: {
 		title: 'Omnisend',
-	},
-	woocommerce: {
-		title: 'WooCommerce',
 	},
 	google: {
 		title: 'Google',
@@ -76,7 +72,6 @@ export const actions: { [key: string]: Action } = {
 };
 
 const actionBlueprints = {
-	woocommerce,
 	omnisend,
 	google,
 	jetpack,
