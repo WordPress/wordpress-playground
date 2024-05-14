@@ -54,7 +54,7 @@ export const Scan = () => {
 			});
 	};
 
-	const onDismiss = () => {
+	const onRemove = () => {
 		setError(null);
 	};
 
@@ -111,7 +111,7 @@ export const Scan = () => {
 					status="info"
 					isDismissible
 					className="scan__error"
-					onDismiss={onDismiss}
+					onRemove={onRemove}
 				>
 					{error}
 				</Notice>
