@@ -32,8 +32,8 @@ libpng16/dist/root/lib/lib/libpng16.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/lib ./libpng16/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libpng16/dist/root/lib
 
-libjpeg: libjpeg/dist/root/lib/lib/libjpeg.a
-libjpeg/dist/root/lib/lib/libjpeg.a: base-image libz
+libjpeg: libjpeg/dist/root/lib/lib32/libjpeg.a
+libjpeg/dist/root/lib/lib32/libjpeg.a: base-image libz
 	mkdir -p ./libjpeg/dist/root/lib
 	docker build -f ./libjpeg/Dockerfile -t playground-php-wasm:libpng . --progress=plain
 	docker cp $$(docker create playground-php-wasm:libpng):/opt/libjpeg-turbo/lib32 ./libjpeg/dist/root/lib
