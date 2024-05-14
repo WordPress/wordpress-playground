@@ -47,10 +47,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": [
-					"packages/playground/wordpress/**/*.ts",
-					"packages/playground/wordpress/package.json"
-				]
+				"lintFilePatterns": ["packages/playground/wordpress/**/*.ts"]
 			}
 		}
 	},
