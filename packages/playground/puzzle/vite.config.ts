@@ -32,80 +32,76 @@ try {
 	buildVersion = (new Date().getTime() / 1000).toFixed(0);
 }
 
-export default defineConfig(({ command, mode }) => {
-	return {
-		// Split traffic from this server on dev so that the iframe content and outer
-		// content can be served from the same origin. In production it's already
-		// the same host, but dev builds run two separate servers.
-		// See proxy config above.
-		base: '/puzzle/',
+export default defineConfig({
+	// Split traffic from this server on dev so that the iframe content and outer
+	// content can be served from the same origin. In production it's already
+	// the same host, but dev builds run two separate servers.
+	// See proxy config above.
+	base: '/puzzle/',
 
-		cacheDir: '../../../node_modules/.vite/packages-playground-puzzle',
+	cacheDir: '../../../node_modules/.vite/packages-playground-puzzle',
 
-		css: {
-			modules: {
-				localsConvention: 'camelCaseOnly',
+	css: {
+		modules: {
+			localsConvention: 'camelCaseOnly',
+		},
+	},
+
+	preview: {
+		port: websiteDevServerPort,
+		host: websiteDevServerHost,
+		proxy,
+	},
+
+	server: {
+		port: websiteDevServerPort,
+		host: websiteDevServerHost,
+		proxy: {
+			...proxy,
+			// Proxy requests to the remote content through this server for dev builds.
+			// See base config below.
+			'^[/]((?!puzzle).)': {
+				target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
 			},
 		},
-
-		preview: {
-			port: websiteDevServerPort,
-			host: websiteDevServerHost,
-			proxy,
+		fs: {
+			strict: false, // Serve files from the other project directories.
 		},
+	},
 
-		server: {
-			port: websiteDevServerPort,
-			host: websiteDevServerHost,
-			proxy: {
-				...proxy,
-				// Proxy requests to the remote content through this server for dev builds.
-				// See base config below.
-				'^[/]((?!puzzle).)': {
-					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
-				},
-			},
-			fs: {
-				strict: false, // Serve files from the other project directories.
-			},
-		},
-
-		plugins: [
-			react({
-				jsxRuntime: 'automatic',
-			}),
-			viteTsConfigPaths({
-				root: '../../../',
-			}),
-			ignoreWasmImports(),
-			virtualModule({
-				name: 'puzzle-config',
-				content: `
+	plugins: [
+		react({
+			jsxRuntime: 'automatic',
+		}),
+		viteTsConfigPaths({
+			root: '../../../',
+		}),
+		ignoreWasmImports(),
+		virtualModule({
+			name: 'puzzle-config',
+			content: `
 				export const buildVersion = ${JSON.stringify(buildVersion)};`,
-			}),
-		],
+		}),
+	],
 
-		// Configuration for building your library.
-		// See: https://vitejs.dev/guide/build.html#library-mode
-		build: {
-			target: 'esnext',
-			rollupOptions: {
-				input: {
-					index: fileURLToPath(
-						new URL('./index.html', import.meta.url)
-					),
-				},
-				external: [],
+	// Configuration for building your library.
+	// See: https://vitejs.dev/guide/build.html#library-mode
+	build: {
+		target: 'esnext',
+		rollupOptions: {
+			input: {
+				index: fileURLToPath(new URL('./index.html', import.meta.url)),
 			},
+			external: [],
 		},
+	},
 
-		test: {
-			globals: true,
-			cache: {
-				dir: '../../../node_modules/.vitest',
-			},
-			environment: 'jsdom',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+	test: {
+		globals: true,
+		cache: {
+			dir: '../../../node_modules/.vitest',
 		},
-	};
+		environment: 'jsdom',
+		include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+	},
 });
