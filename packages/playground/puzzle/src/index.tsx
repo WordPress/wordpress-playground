@@ -1,4 +1,4 @@
-import '../node_modules/@wordpress/components/build-style/style.css';
+import '../../../../node_modules/@wordpress/components/build-style/style.css';
 import './index.css';
 
 import React from 'react';
