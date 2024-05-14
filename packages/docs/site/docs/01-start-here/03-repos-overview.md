@@ -8,7 +8,7 @@ The repo is there to guide the core contributors to the Playground identify issu
 
 Opening issues in the WordPress Playground repository for the "online" version of the Playground, IE: playground.wordpress.net, is a great way to get visibility on a problem or feature request. But there may be a better suited repo below to open the issue, and we'll discuss that shortly.
 
-Searching for issues is a great way to find a fix or workaround, or to see if a feature request has already been made. If you find an issue that matches your problem, you can add a comment to the issue to provide more information or to show that you are also experiencing the same problem.
+Over time many issues will be discussed in the primary repository. If you are new to using Playground and trying it online, try searching for any issue you may be having in the main repo. 
 
 ### Available in the WordPress Playground repository
 - [Blueprint Builder](https://playground.wordpress.net/builder/builder.html) - a tool to create a view Blueprints side-by-side
