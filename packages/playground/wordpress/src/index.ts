@@ -18,8 +18,8 @@ function playground_add_action( $tag, $function_to_add, $priority = 10, $accepte
 // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
 function playground_load_mu_plugins() {
-    // Load all PHP files from /internal/mu-plugins, sorted by filename
-    $mu_plugins_dir = '/internal/mu-plugins';
+    // Load all PHP files from /internal/shared/mu-plugins, sorted by filename
+    $mu_plugins_dir = '/internal/shared/mu-plugins';
     if(!is_dir($mu_plugins_dir)){
         return;
     }

@@ -358,40 +358,42 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	#initWebRuntime() {
-		this.writeFile(
-			'/internal/auto_prepend_file.php',
-			`<?php
-			foreach (glob('/internal/preload/*.php') as $file) {
+		if (!this.fileExists('/internal/shared/auto_prepend_file.php')) {
+			this.writeFile(
+				'/internal/shared/auto_prepend_file.php',
+				`<?php
+			foreach (glob('/internal/shared/preload/*.php') as $file) {
 				require_once $file;
 			}
 		`
-		);
-		this.setPhpIniEntry(
-			'auto_prepend_file',
-			'/internal/auto_prepend_file.php'
-		);
-		/**
-		 * This creates a consts.php file in an in-memory
-		 * /internal/preload directory and sets the auto_prepend_file PHP option
-		 * to always load that file.
-		 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
-		 *
-		 * Technically, this is a workaround. In the future, let's implement a
-		 * WASM SAPI method to pass consts directly.
-		 * @see https://github.com/WordPress/wordpress-playground/issues/750
-		 */
-		this.writeFile(
-			'/internal/preload/consts.php',
-			`<?php
-			if(file_exists('/internal/consts.json')) {
-				$consts = json_decode(file_get_contents('/internal/consts.json'), true);
+			);
+			this.setPhpIniEntry(
+				'auto_prepend_file',
+				'/internal/shared/auto_prepend_file.php'
+			);
+			/**
+			 * This creates a consts.php file in an in-memory
+			 * /internal/preload directory and sets the auto_prepend_file PHP option
+			 * to always load that file.
+			 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
+			 *
+			 * Technically, this is a workaround. In the future, let's implement a
+			 * WASM SAPI method to pass consts directly.
+			 * @see https://github.com/WordPress/wordpress-playground/issues/750
+			 */
+			this.writeFile(
+				'/internal/shared/preload/consts.php',
+				`<?php
+			if(file_exists('/internal/shared/consts.json')) {
+				$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
 				foreach ($consts as $const => $value) {
 					if (!defined($const) && is_scalar($value)) {
 						define($const, $value);
 					}
 				}
 			}`
-		);
+			);
+		}
 		if (this.#phpIniOverrides.length > 0) {
 			const overridesAsIni =
 				this.#phpIniOverrides
@@ -600,15 +602,16 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 		let consts = {};
 		try {
 			consts = JSON.parse(
-				this.fileExists('/internal/consts.json')
-					? this.readFileAsText('/internal/consts.json') || '{}'
+				this.fileExists('/internal/shared/consts.json')
+					? this.readFileAsText('/internal/shared/consts.json') ||
+							'{}'
 					: '{}'
 			);
 		} catch (e) {
 			// ignore
 		}
 		this.writeFile(
-			'/internal/consts.json',
+			'/internal/shared/consts.json',
 			JSON.stringify({
 				...consts,
 				[key]: value,
