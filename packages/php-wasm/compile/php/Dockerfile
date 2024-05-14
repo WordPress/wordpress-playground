@@ -20,7 +20,7 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
-RUN mkdir -p /root/lib/include /root/lib/lib /libs
+RUN mkdir -p /root/lib/include /root/lib/lib /libs /root/install /root/install/lib /root/install/include
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
@@ -28,6 +28,8 @@ COPY ./libcurl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
 COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
+COPY ./libjpeg/dist/root/lib /root/install
+COPY ./libwebp/dist/root/lib /root/install
 COPY ./libsqlite3/dist/root/lib /root/lib
 COPY ./libxml2/dist/root/lib /root/lib
 COPY ./libz/dist/root/lib /root/lib
@@ -160,11 +162,11 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 		fi; \
 	fi;
 
-# Add libpng if needed
+# Add GD if needed
 RUN if [ "$WITH_LIBPNG" = "yes" ]; \
 	then \
-		echo -n ' --with-png-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
-		echo -n ' -I /root/lib -I /root/lib -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
+		echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-webp-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
+		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # Add openssl if needed
@@ -874,6 +876,8 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 RUN mkdir /root/output
 COPY ./php/phpwasm-emscripten-library.js /root/phpwasm-emscripten-library.js
 ARG WITH_SOURCEMAPS
+COPY ./libjpeg/dist/root/lib /root/lib
+COPY ./libwebp/dist/root/lib /root/lib
 RUN set -euxo pipefail; \
 	mkdir -p /build/output; \
 	source /root/emsdk/emsdk_env.sh; \

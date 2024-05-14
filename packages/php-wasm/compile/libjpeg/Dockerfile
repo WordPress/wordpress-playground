@@ -11,6 +11,8 @@ RUN ls -a
 RUN     source /root/emsdk/emsdk_env.sh && \
         CPPFLAGS="-I/root/lib/include " \
         LDFLAGS="-L/root/lib/lib " \
-        emcmake cmake -G"Unix Makefiles" -DCMAKE_PREFIX_PATH=/root/lib
+        CMAKE_INSTALL_DEFAULT_PREFIX="/root/lib " \
+        emcmake cmake -G"Unix Makefiles" -DCMAKE_INSTALL_DEFAULT_PREFIX=/root/lib
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
+RUN sed -i 's/lib32/lib/g' /root/lib/lib32/pkgconfig/libjpeg.pc

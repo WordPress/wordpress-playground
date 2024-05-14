@@ -18,3 +18,4 @@ RUN     source /root/emsdk/emsdk_env.sh && \
             --prefix=/root/install/
 RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
 RUN source /root/emsdk/emsdk_env.sh && emmake make install
+RUN for i in /root/install/lib/pkgconfig/*.pc; do sed -i 's/\/root\/install/\/root\/lib/g' /root/install/lib/pkgconfig/$i; done
