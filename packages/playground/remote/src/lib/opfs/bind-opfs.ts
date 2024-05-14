@@ -9,6 +9,7 @@
  */
 
 /* eslint-disable prefer-rest-params */
+import { logger } from '@php-wasm/logger';
 import { __private__dont__use } from '@php-wasm/universal';
 import { Semaphore, joinPaths } from '@php-wasm/util';
 import type { WebPHP } from '@php-wasm/web';
@@ -105,7 +106,7 @@ export async function copyOpfsToMemfs(
 						FS.mkdir(memfsEntryPath);
 					} catch (e) {
 						if ((e as any)?.errno !== 20) {
-							console.error(e);
+							logger.error(e);
 							// We ignore the error if the directory already exists,
 							// and throw otherwise.
 							throw e;

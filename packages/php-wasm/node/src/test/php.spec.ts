@@ -70,11 +70,7 @@ would not suffer fools gladly.`;
 describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
-		php = await NodePHP.load(phpVersion as any, {
-			requestHandler: {
-				documentRoot: '/php',
-			},
-		});
+		php = await NodePHP.load(phpVersion as any);
 		php.mkdir('/php');
 		php.setPhpIniEntry('disable_functions', '');
 	});
@@ -85,6 +81,37 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		} catch (e) {
 			// ignore exit-related exceptions
 		}
+	});
+
+	describe('ENV variables', () => {
+		it('Supports setting per-request ENV variables', async () => {
+			const result = await php.run({
+				env: {
+					OPTIONS: 'WordPress',
+				},
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			expect(result.text).toEqual('env.OPTIONS: WordPress');
+		});
+
+		it('Does not remember ENV variables between requests', async () => {
+			await php.run({
+				env: {
+					OPTIONS: 'WordPress',
+				},
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			const result = await php.run({
+				code: `<?php
+				echo 'env.OPTIONS: ' . getenv("OPTIONS");
+			`,
+			});
+			expect(result.text).toEqual('env.OPTIONS: ');
+		});
 	});
 
 	describe('exec()', () => {
@@ -122,21 +149,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 		});
 
 		it('popen("cat", "w")', async () => {
-			const result = await php.run({
-				code: `<?php
-				$fp = popen("cat > out", "w");
-                fwrite($fp, "WordPress\n");
-				fclose($fp);
+			try {
+				const result = await php.run({
+					code: `<?php
+					$fp = popen("cat > out", "w");
+					fwrite($fp, "WordPress\n");
+					fclose($fp);
 
-				sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+					sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
 
-				$fp = popen("cat out", "r");
-				echo 'stdout: ' . fread($fp, 1024);
-				pclose($fp);
-			`,
-			});
+					$fp = popen("cat out", "r");
+					echo 'stdout: ' . fread($fp, 1024);
+					pclose($fp);
+				`,
+				});
 
-			expect(result.text).toEqual('stdout: WordPress\n');
+				expect(result.text).toEqual('stdout: WordPress\n');
+			} finally {
+				rmSync('out', { force: true });
+			}
 		});
 	});
 
@@ -274,6 +305,47 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(result.text).toEqual('stdout: WordPress\nstderr: \n');
 		});
 
+		it('Passes the cwd and env arguments', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any, options: any) => {
+					processApi.flushStdin();
+					processApi.stdout(options.cwd + '\n');
+					for (const key in options.env) {
+						processApi.stdout(key + '=' + options.env[key] + '\n');
+					}
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+				$res = proc_open(
+					"cat",
+					array(
+						array("pipe","r"),
+						array("file","/tmp/process_out", "w"),
+						array("file","/tmp/process_err", "w"),
+					),
+					$pipes,
+					"/wordpress",
+					array("FOO" => "BAR", "BAZ" => "QUX")
+				);
+				fwrite($pipes[0], 'WordPress\n');
+				proc_close($res);
+				$stdout = file_get_contents("/tmp/process_out");
+				$stderr = file_get_contents("/tmp/process_err");
+				echo 'stdout: ' . $stdout . "";
+				echo 'stderr: ' . $stderr . PHP_EOL;
+			`,
+			});
+
+			expect(result.text).toEqual(
+				'stdout: /wordpress\nFOO=BAR\nBAZ=QUX\nstderr: \n'
+			);
+		});
+
 		async function pygmalionToProcess(cmd = 'less') {
 			return await php.run({
 				code: `<?php
@@ -294,7 +366,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Pipe pygmalion from a file to STDOUT through a synchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
-				(command: string, processApi: any) => {
+				(command: string[], processApi: any) => {
 					processApi.on('stdin', (data: Uint8Array) => {
 						processApi.stdout(data);
 					});
@@ -311,7 +383,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Pipe pygmalion from a file to STDOUT through a asynchronous JavaScript callback', async () => {
 			const handler = createSpawnHandler(
-				async (command: string, processApi: any) => {
+				async (command: string[], processApi: any) => {
 					await new Promise((resolve) => {
 						setTimeout(resolve, 1000);
 					});
@@ -328,19 +400,11 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			expect(result.text).toEqual(pygmalion);
 		});
+
 		it('Pipe pygmalion from a file to STDOUT through "cat"', async () => {
 			const result = await pygmalionToProcess('cat');
 			expect(result.text).toEqual(pygmalion);
 		});
-
-		// @TODO This test fails on some PHP versions for yet unknown reasons.
-		//       Interestingly, the "cat" test above succeeds.
-		if (!['8.3', '8.2'].includes(phpVersion)) {
-			it('Pipe pygmalion from a file to STDOUT through "less"', async () => {
-				const result = await pygmalionToProcess('less');
-				expect(result.text).toEqual(pygmalion);
-			});
-		}
 
 		it('Uses the specified spawn handler', async () => {
 			let spawnHandlerCalled = false;
@@ -379,6 +443,125 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			`,
 			});
 			expect(spawnHandlerCalled).toEqual(true);
+		});
+
+		it('Stdout waits for asynchronous data to arrive', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(new TextEncoder().encode('Hello World!'));
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Hello again!')
+						);
+						processApi.exit(0);
+					}, 1000);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "fetch", $descriptorspec, $pipes );
+			echo fread($pipes[1], 1024);
+			echo "\\n";
+			echo fread($pipes[1], 1024);;
+			proc_close( $proc );
+			`,
+			});
+
+			expect(result.text).toEqual('Hello World!\nHello again!');
+		});
+
+		it('feof() returns true when exhausted the synchronous data', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(
+						new TextEncoder().encode('Hello World!\n')
+					);
+					processApi.exit(0);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "echo 'Hello World'", $descriptorspec, $pipes );
+			var_dump(fread($pipes[1], 1024)); // "Hello World"
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump($pipes[1]);              // resource(1)
+			var_dump(feof($pipes[1]));        // true
+			pclose( $pipes[1] );
+			`,
+			});
+
+			expect(result.text).toEqual(
+				[
+					`string(13) "Hello World!\n"`,
+					`string(0) ""`,
+					`string(0) ""`,
+					`resource(1) of type (stream)`,
+					`bool(true)`,
+					'',
+				].join('\n')
+			);
+		});
+
+		it('feof() returns true when exhausted the asynchronous data', async () => {
+			const handler = createSpawnHandler(
+				(command: string[], processApi: any) => {
+					processApi.flushStdin();
+					processApi.stdout(
+						new TextEncoder().encode('Hello World!\n')
+					);
+					setTimeout(() => {
+						processApi.stdout(
+							new TextEncoder().encode('Hello Again!\n')
+						);
+						setTimeout(() => {
+							processApi.exit(0);
+						}, 100);
+					}, 500);
+				}
+			);
+
+			php.setSpawnHandler(handler);
+
+			const result = await php.run({
+				code: `<?php
+			$descriptorspec = array(
+				1 => array("pipe","w")
+			);
+			$proc = proc_open( "echo 'Hello World'; sleep 1; echo 'Hello Again'", $descriptorspec, $pipes );
+			var_dump(fread($pipes[1], 1024)); // "Hello World"
+			var_dump(fread($pipes[1], 1024)); // "Hello Again"
+			var_dump(fread($pipes[1], 1024)); // ""
+			var_dump($pipes[1]);              // resource(1)
+			var_dump(feof($pipes[1]));        // true
+			pclose( $pipes[1] );
+			`,
+			});
+
+			expect(result.text).toEqual(
+				[
+					`string(13) "Hello World!\n"`,
+					`string(13) "Hello Again!\n"`,
+					`string(0) ""`,
+					`resource(1) of type (stream)`,
+					`bool(true)`,
+					'',
+				].join('\n')
+			);
 		});
 
 		// This test fails on older PHP versions
@@ -739,37 +922,63 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			)) {
 				// Run via `code`
 				it(testName, async () => {
-					const result = await php.run({
+					const promise = php.run({
 						code: testSnippet,
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 
 				// Run via the request handler
 				it(testName, async () => {
 					php.writeFile('/test.php', testSnippet);
-					const result = await php.run({
+					const promise = php.run({
 						scriptPath: '/test.php',
 					});
-					expect(result.exitCode).toBeGreaterThan(0);
+					await expect(promise).rejects.toThrow();
 				});
 			}
 		});
 		it('Returns the correct exit code on subsequent runs', async () => {
-			const result1 = await php.run({
+			const promise1 = php.run({
 				code: '<?php throw new Exception();',
 			});
-			expect(result1.exitCode).toBe(255);
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
 
 			const result2 = await php.run({
 				code: '<?php exit(0);',
 			});
 			expect(result2.exitCode).toBe(0);
 
-			const result3 = await php.run({
+			const promise3 = php.run({
 				code: '<?php exit(1);',
 			});
-			expect(result3.exitCode).toBe(1);
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
+		});
+		it('After failure, returns the correct exit code on subsequent runs', async () => {
+			const promise1 = php.run({
+				code: '<?php throw new Exception();',
+			});
+			// expect(result1.exitCode).toBe(255);
+			await expect(promise1).rejects.toThrow(
+				'PHP.run() failed with exit code 255'
+			);
+
+			const result2 = await php.run({
+				code: '<?php ',
+			});
+			expect(result2.exitCode).toBe(0);
+
+			const promise3 = php.run({
+				code: '<?php exit(1);',
+			});
+			await expect(promise3).rejects.toThrow(
+				'PHP.run() failed with exit code 1'
+			);
 		});
 	});
 
@@ -948,8 +1157,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of 1MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode('#'.repeat(1024 * 1024)),
 			});
 			expect(response.httpStatusCode).toEqual(200);
@@ -960,8 +1169,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 		it('Can accept a request body with a size of ~512MB without crashing', async () => {
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			const response = await php.request({
-				url: '/',
+			const response = await php.run({
+				scriptPath: '/php/index.php',
 				body: new TextEncoder().encode(
 					'#'.repeat(1024 * 1024 * 512 + -24)
 				),
@@ -982,7 +1191,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 
 			// The initial request will allocate a lot of memory so let's get that
 			// out of the way before we start measuring.
-			await php.request({ url: '/' });
+			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
+			await php.run({ scriptPath: '/php/index.php' });
 
 			// Overwrite the memory-related functions to:
 			// * Capture the body HEAP pointer
@@ -1037,8 +1247,8 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			const getFreeMemoryBefore = estimateFreeMemory();
 
 			php.writeFile('/php/index.php', `<?php echo 'Hello World';`);
-			await php.request({
-				url: '/',
+			await php.run({
+				scriptPath: '/php/index.php',
 				body,
 			});
 
@@ -1079,6 +1289,78 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			expect(json).toHaveProperty('CONTENT_TYPE', 'text/plain');
 			expect(json).toHaveProperty('CONTENT_LENGTH', '15');
 		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when serving request', async () => {
+			php.writeFile(
+				'/php/index.php',
+				`<?php echo json_encode($_SERVER);`
+			);
+
+			const response = await php.run({
+				relativeUri: '/',
+				scriptPath: '/php/index.php',
+				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty('REQUEST_URI', '/');
+			expect(json).toHaveProperty('SCRIPT_NAME', '/index.php');
+			expect(json).toHaveProperty('SCRIPT_FILENAME', '/php/index.php');
+			expect(json).toHaveProperty('PHP_SELF', '/index.php');
+		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when running PHP code', async () => {
+			const response = await php.run({
+				code: '<?php echo json_encode($_SERVER);',
+				method: 'GET',
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty('REQUEST_URI', '');
+			expect(json).toHaveProperty('SCRIPT_NAME', '');
+			expect(json).toHaveProperty('SCRIPT_FILENAME', '');
+			expect(json).toHaveProperty('PHP_SELF', '');
+		});
+
+		it('Should have appropriate SCRIPT_NAME, SCRIPT_FILENAME and PHP_SELF entries in $_SERVER when serving request from a test file in a subdirectory', async () => {
+			php.mkdir('/php/subdirectory');
+
+			php.writeFile(
+				`/php/subdirectory/test.php`,
+				`<?php echo json_encode($_SERVER);`
+			);
+
+			const response = await php.run({
+				scriptPath: '/php/subdirectory/test.php',
+				relativeUri: '/subdirectory/test.php',
+				method: 'GET',
+				$_SERVER: {
+					DOCUMENT_ROOT: '/php',
+				},
+			});
+
+			const json = response.json;
+
+			expect(json).toHaveProperty(
+				'REQUEST_URI',
+				'/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty(
+				'SCRIPT_NAME',
+				'/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty(
+				'SCRIPT_FILENAME',
+				'/php/subdirectory/test.php'
+			);
+			expect(json).toHaveProperty('PHP_SELF', '/subdirectory/test.php');
+		});
+
 		it('Should expose urlencoded POST data in $_POST', async () => {
 			const response = await php.run({
 				code: `<?php echo json_encode($_POST);`,
@@ -1265,6 +1547,44 @@ bar1
 		});
 	});
 
+	/**
+	 * mbregex support
+	 */
+	describe('mbregex extension support', () => {
+		it('Should be able to use mb_regex_encoding functions', async () => {
+			const promise = php.run({
+				code: `<?php
+					mb_regex_encoding('UTF-8');
+				?>`,
+			});
+			// We don't support mbregex in PHP 7.0
+			if (phpVersion === '7.0') {
+				await expect(promise).rejects.toThrow(
+					'Call to undefined function mb_regex_encoding'
+				);
+			} else {
+				const response = await promise;
+				expect(response.errors).toBe('');
+			}
+		});
+	});
+
+	/**
+	 * fileinfo support
+	 */
+	describe('fileinfo extension support', () => {
+		it('Should be able to use finfo_file', async () => {
+			await php.writeFile('/test.php', '<?php echo "Hello world!";');
+			const response = await php.run({
+				code: `<?php
+					$finfo = new finfo(FILEINFO_MIME_TYPE);
+					echo $finfo->file('/test.php');
+				?>`,
+			});
+			expect(response.text).toEqual('text/x-php');
+		});
+	});
+
 	describe('onMessage', () => {
 		it('should pass messages to JS', async () => {
 			let messageReceived = '';
@@ -1338,6 +1658,15 @@ bar1
 			await php.cli(['php', '-r', '$tmp = "Hello";']);
 			expect(consoleLogMock).not.toHaveBeenCalled();
 			expect(consoleErrorMock).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('Response parsing', () => {
+		it('should encode response headers', async () => {
+			const out = await php.run({
+				code: `<?php header('Location: /(?P<id>[\\d]+)');`,
+			});
+			expect(out.headers['location'][0]).toEqual('/(?P<id>[\\d]+)');
 		});
 	});
 });

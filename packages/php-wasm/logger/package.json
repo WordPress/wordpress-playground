@@ -1,0 +1,30 @@
+{
+	"name": "@php-wasm/logger",
+	"version": "0.7.19",
+	"description": "A logger for PHP-wasm clients like Playground and WP-now.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WordPress/wordpress-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"typedoc": {
+		"entryPoint": "./src/index.ts",
+		"readmeFile": "./README.md",
+		"displayName": "@php-wasm/logger",
+		"tsconfig": "./tsconfig.lib.json"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/php-wasm/logger"
+	},
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"module": "./index.js",
+	"main": "./index.cjs",
+	"types": "index.d.ts",
+	"engines": {
+		"node": ">=18.18.0",
+		"npm": ">=8.11.0"
+	}
+}

@@ -10,14 +10,11 @@ export type {
 	PHPOutput,
 	PHPResponseData,
 	ErrnoError,
-	PHPBrowser,
 	PHPRequestHandler,
 	PHPRequestHandlerConfiguration,
 	PHPRequestHeaders,
-	PHPBrowserConfiguration,
 	SupportedPHPVersion,
 	RmDirOptions,
-	RequestHandler,
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
@@ -38,6 +35,7 @@ import {
 import { consumeAPI } from '@php-wasm/web';
 import { ProgressTracker } from '@php-wasm/progress';
 import { PlaygroundClient } from '@wp-playground/remote';
+import { collectPhpLogs, logger } from '@php-wasm/logger';
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
@@ -45,6 +43,14 @@ export interface StartPlaygroundOptions {
 	disableProgressBar?: boolean;
 	blueprint?: Blueprint;
 	onBlueprintStepCompleted?: OnStepCompleted;
+	/**
+	 * Called when the playground client is connected, but before the blueprint
+	 * steps are run.
+	 *
+	 * @param playground
+	 * @returns
+	 */
+	onClientConnected?: (playground: PlaygroundClient) => void;
 	/**
 	 * The SAPI name PHP will use.
 	 * @internal
@@ -67,6 +73,7 @@ export async function startPlaygroundWeb({
 	progressTracker = new ProgressTracker(),
 	disableProgressBar,
 	onBlueprintStepCompleted,
+	onClientConnected = () => {},
 	sapiName,
 }: StartPlaygroundOptions): Promise<PlaygroundClient> {
 	assertValidRemote(remoteUrl);
@@ -77,7 +84,15 @@ export async function startPlaygroundWeb({
 	});
 	progressTracker.setCaption('Preparing WordPress');
 	if (!blueprint) {
-		return doStartPlaygroundWeb(iframe, remoteUrl, progressTracker);
+		const playground = await doStartPlaygroundWeb(
+			iframe,
+			setQueryParams(remoteUrl, {
+				['php-extension']: 'kitchen-sink',
+			}),
+			progressTracker
+		);
+		onClientConnected(playground);
+		return playground;
 	}
 	const compiled = compileBlueprint(blueprint, {
 		progress: progressTracker.stage(0.5),
@@ -94,6 +109,8 @@ export async function startPlaygroundWeb({
 		}),
 		progressTracker
 	);
+	collectPhpLogs(logger, playground);
+	onClientConnected(playground);
 	await runBlueprintSteps(compiled, playground);
 	progressTracker.finish();
 
@@ -141,7 +158,8 @@ async function doStartPlaygroundWeb(
 	// Connect the Comlink client and wait until the
 	// playground is ready.
 	const playground = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
 	) as PlaygroundClient;
 	await playground.isConnected();
 	progressTracker.pipe(playground);
@@ -196,7 +214,7 @@ export async function connectPlayground(
 	iframe: HTMLIFrameElement,
 	options?: { loadRemote?: string }
 ): Promise<PlaygroundClient> {
-	console.warn(
+	logger.warn(
 		'`connectPlayground` is deprecated and will be removed. Use `startPlayground` instead.'
 	);
 	if (options?.loadRemote) {
@@ -206,7 +224,8 @@ export async function connectPlayground(
 		});
 	}
 	const client = consumeAPI<PlaygroundClient>(
-		iframe.contentWindow!
+		iframe.contentWindow!,
+		iframe.ownerDocument!.defaultView!
 	) as PlaygroundClient;
 	await client.isConnected();
 	return client;

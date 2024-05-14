@@ -13,7 +13,7 @@
 		"jsx": "react",
 		"target": "ES2021",
 		"module": "esnext",
-		"lib": ["ES2022", "dom"],
+		"lib": ["ES2022", "esnext.disposable", "dom"],
 		"skipLibCheck": true,
 		"skipDefaultLibCheck": true,
 		"baseUrl": ".",
@@ -22,6 +22,7 @@
 			"@php-wasm/fs-journal": [
 				"packages/php-wasm/fs-journal/src/index.ts"
 			],
+			"@php-wasm/logger": ["packages/php-wasm/logger/src/index.ts"],
 			"@php-wasm/node": ["packages/php-wasm/node/src/index.ts"],
 			"@php-wasm/node-polyfills": [
 				"packages/php-wasm/node-polyfills/src/index.ts"
@@ -41,10 +42,10 @@
 			"@wp-playground/blueprints": [
 				"packages/playground/blueprints/src/index.ts"
 			],
+			"@wp-playground/cli": ["packages/playground/cli/src/cli.ts"],
 			"@wp-playground/client": [
 				"packages/playground/client/src/index.ts"
 			],
-			"@wp-playground/node": ["packages/playground/node/src/index.ts"],
 			"@wp-playground/nx-extensions": [
 				"packages/nx-extensions/src/index.ts"
 			],
@@ -63,6 +64,9 @@
 			],
 			"@wp-playground/wordpress": [
 				"packages/playground/wordpress/src/index.ts"
+			],
+			"@wp-playground/wordpress-builds": [
+				"packages/playground/wordpress-builds/src/index.ts"
 			]
 		}
 	},

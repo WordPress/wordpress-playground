@@ -25,8 +25,8 @@ export type SetSiteOptionsStep = {
 };
 
 /**
- * Sets site options. This is equivalent to calling `update_option` for each
- * option in the `options` object.
+ * Sets site options. This is equivalent to calling [`update_option`](https://developer.wordpress.org/reference/functions/update_option/) for each
+ * option in the [`options`](https://developer.wordpress.org/apis/options/#available-options-by-category) object.
  */
 export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 	php,
@@ -34,7 +34,6 @@ export const setSiteOptions: StepHandler<SetSiteOptionsStep> = async (
 ) => {
 	const docroot = await php.documentRoot;
 	await php.run({
-		throwOnError: true,
 		code: `<?php
 		include ${phpVar(docroot)} . '/wp-load.php';
 		$site_options = ${phpVar(options)};
@@ -72,7 +71,7 @@ export interface UpdateUserMetaStep {
 }
 
 /**
- * Updates user meta. This is equivalent to calling `update_user_meta` for each
+ * Updates user meta. This is equivalent to calling [`update_user_meta`](https://developer.wordpress.org/reference/functions/update_user_meta/) for each
  * meta value in the `meta` object.
  */
 export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
@@ -81,7 +80,6 @@ export const updateUserMeta: StepHandler<UpdateUserMetaStep> = async (
 ) => {
 	const docroot = await php.documentRoot;
 	await php.run({
-		throwOnError: true,
 		code: `<?php
 		include ${phpVar(docroot)} . '/wp-load.php';
 		$meta = ${phpVar(meta)};

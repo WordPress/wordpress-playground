@@ -1,0 +1,14 @@
+.log-modal__main {
+	padding-bottom: 20px;
+}
+
+.log-modal__search {
+	/* Title margin bottom + log margin top */
+	margin-bottom: 1.33rem;
+}
+
+.log-modal__log {
+	text-wrap: wrap;
+	word-wrap: break-word;
+	margin: 0.5rem 0;
+}

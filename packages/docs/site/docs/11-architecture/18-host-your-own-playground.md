@@ -57,6 +57,12 @@ Create a shallow clone of the Playground repository, or your own fork.
 git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
 ```
 
+Enter the `wordpress-playground` directory.
+
+```sh
+cd wordpress-playground
+```
+
 Install dependencies, and build the website.
 
 ```sh
@@ -93,11 +99,9 @@ For these to work, you need a server environment with Apache and PHP installed.
 
 As an alternative to Apache, here is an example of using NGINX to serve the Playground.
 
-:::info Refer to source files
+:::info Refer to the source file
 
-This example may go out of date. It is recommended to refer to the source files.
-
--   [packages/playground/wordpress/public/.htaccess](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/wordpress/public/.htaccess)
+The example may be outdated. Please check [the source file](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/remote/.htaccess) for the latest version.
 
 :::
 

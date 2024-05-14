@@ -2,15 +2,17 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { getURLScope, removeURLScope, setURLScope } from '@php-wasm/scopes';
+import { getURLScope, removeURLScope } from '@php-wasm/scopes';
+import { applyRewriteRules } from '@php-wasm/universal';
 import {
 	awaitReply,
 	convertFetchEventToPHPRequest,
 	initializeServiceWorker,
 	cloneRequest,
 	broadcastMessageExpectReply,
-	getRequestHeaders,
 } from '@php-wasm/web-service-worker';
+import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -20,6 +22,8 @@ if (!(self as any).document) {
 	// eslint-disable-next-line no-global-assign
 	self.document = {};
 }
+
+reportServiceWorkerMetrics(self);
 
 initializeServiceWorker({
 	handleRequest(event) {
@@ -33,7 +37,9 @@ initializeServiceWorker({
 			}
 		}
 		const unscopedUrl = removeURLScope(fullUrl);
-		const isReservedUrl = unscopedUrl.pathname.startsWith('/plugin-proxy');
+		const isReservedUrl =
+			unscopedUrl.pathname.startsWith('/plugin-proxy') ||
+			unscopedUrl.pathname.startsWith('/client/index.js');
 		if (isReservedUrl) {
 			return;
 		}
@@ -45,66 +51,46 @@ initializeServiceWorker({
 
 			const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
 
-			let workerResponse = await convertFetchEventToPHPRequest(event);
-			// If we get a 404, try to apply the WordPress URL rewrite rules.
-			let rewrittenUrlString: string | undefined = undefined;
-			if (workerResponse.status === 404) {
-				for (const url of rewriteWordPressUrl(unscopedUrl, scope!)) {
-					rewrittenUrlString = url.toString();
-					workerResponse = await convertFetchEventToPHPRequest(
-						await cloneFetchEvent(event, rewrittenUrlString)
-					);
-					if (
-						workerResponse.status !== 404 ||
-						workerResponse.headers.get('x-file-type') === 'static'
-					) {
-						break;
-					}
+			const workerResponse = await convertFetchEventToPHPRequest(event);
+			if (
+				workerResponse.status === 404 &&
+				workerResponse.headers.get('x-file-type') === 'static'
+			) {
+				// If we get a 404 for a static file, try to fetch it from
+				// the from the static assets directory at the remote server.
+				const requestedUrl = new URL(event.request.url);
+				const resolvedUrl = removeURLScope(requestedUrl);
+				resolvedUrl.pathname = applyRewriteRules(
+					resolvedUrl.pathname,
+					wordPressRewriteRules
+				);
+				if (
+					// Vite dev server requests
+					!resolvedUrl.pathname.startsWith('/@fs') &&
+					!resolvedUrl.pathname.startsWith('/assets')
+				) {
+					resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
 				}
-			}
-
-			if (workerResponse.status === 404) {
-				if (workerResponse.headers.get('x-file-type') === 'static') {
-					// If we get a 404 for a static file, try to fetch it from
-					// the from the static assets directory at the remote server.
-					const requestedUrl = new URL(
-						rewrittenUrlString || event.request.url
-					);
-					const resolvedUrl = removeURLScope(requestedUrl);
-					if (
-						// Vite dev server requests
-						!resolvedUrl.pathname.startsWith('/@fs') &&
-						!resolvedUrl.pathname.startsWith('/assets')
-					) {
-						resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+				const request = await cloneRequest(event.request, {
+					url: resolvedUrl,
+					// Omit credentials to avoid causing cache aborts due to presence of cookies
+					credentials: 'omit',
+				});
+				return fetch(request).catch((e) => {
+					if (e?.name === 'TypeError') {
+						// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
+						// happen on playground.wordpress.net. Let's add a randomized
+						// delay and retry once
+						return new Promise((resolve) => {
+							setTimeout(() => {
+								resolve(fetch(request));
+							}, Math.random() * 1500);
+						}) as Promise<Response>;
 					}
-					const request = await cloneRequest(event.request, {
-						url: resolvedUrl,
-					});
-					return fetch(request).catch((e) => {
-						if (e?.name === 'TypeError') {
-							// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
-							// happen on playground.wordpress.net. Let's add a randomized
-							// delay and retry once
-							return new Promise((resolve) => {
-								setTimeout(() => {
-									resolve(fetch(request));
-								}, Math.random() * 1500);
-							}) as Promise<Response>;
-						}
 
-						// Otherwise let's just re-throw the error
-						throw e;
-					});
-				} else {
-					const indexPhp = setURLScope(
-						new URL('/index.php', unscopedUrl),
-						scope!
-					);
-					workerResponse = await convertFetchEventToPHPRequest(
-						await cloneFetchEvent(event, indexPhp.toString())
-					);
-				}
+					// Otherwise let's just re-throw the error
+					throw e;
+				});
 			}
 
 			// Path the block-editor.js file to ensure the site editor's iframe
@@ -238,48 +224,9 @@ function emptyHtml() {
 	);
 }
 
-async function cloneFetchEvent(event: FetchEvent, rewriteUrl: string) {
-	return new FetchEvent(event.type, {
-		...event,
-		request: await cloneRequest(event.request, {
-			headers: {
-				...getRequestHeaders(event.request),
-				'x-rewrite-url': rewriteUrl,
-			},
-		}),
-	});
-}
-
 type WPModuleDetails = {
 	staticAssetsDirectory: string;
 };
-
-/**
- * Rewrite the URL according to WordPress .htaccess rules.
- */
-function* rewriteWordPressUrl(unscopedUrl: URL, scope: string) {
-	// RewriteRule ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) wordpress/$2 [L]
-	const rewrittenUrl = unscopedUrl.pathname
-		.toString()
-		.replace(
-			/^\/([_0-9a-zA-Z-]+\/)?(wp-(content|admin|includes).*)/,
-			'/$2'
-		);
-	if (rewrittenUrl !== unscopedUrl.pathname) {
-		// Something changed, let's try the rewritten URL
-		const url = new URL(rewrittenUrl, unscopedUrl);
-		yield setURLScope(url, scope);
-	}
-
-	// RewriteRule ^([_0-9a-zA-Z-]+/)?(.*\.php)$ wordpress/$2 [L]
-	if (unscopedUrl.pathname.endsWith('.php')) {
-		// The URL ends with .php, let's try to rewrite it to
-		// a .php file in the WordPress root directory
-		const filename = unscopedUrl.pathname.split('/').pop();
-		const url = new URL('/' + filename, unscopedUrl);
-		yield setURLScope(url, scope);
-	}
-}
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
 async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {

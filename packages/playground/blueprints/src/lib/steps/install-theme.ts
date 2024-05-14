@@ -1,5 +1,5 @@
 import { StepHandler } from '.';
-import { installAsset } from './install-asset';
+import { InstallAssetOptions, installAsset } from './install-asset';
 import { activateTheme } from './activate-theme';
 import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
 
@@ -22,7 +22,8 @@ import { zipNameToHumanName } from '../utils/zip-name-to-human-name';
  * }
  * </code>
  */
-export interface InstallThemeStep<ResourceType> {
+export interface InstallThemeStep<ResourceType>
+	extends Pick<InstallAssetOptions, 'ifAlreadyInstalled'> {
 	/**
 	 * The step identifier.
 	 */
@@ -58,13 +59,14 @@ export interface InstallThemeOptions {
  */
 export const installTheme: StepHandler<InstallThemeStep<File>> = async (
 	playground,
-	{ themeZipFile, options = {} },
+	{ themeZipFile, ifAlreadyInstalled, options = {} },
 	progress
 ) => {
 	const zipNiceName = zipNameToHumanName(themeZipFile.name);
 
 	progress?.tracker.setCaption(`Installing the ${zipNiceName} theme`);
 	const { assetFolderName } = await installAsset(playground, {
+		ifAlreadyInstalled,
 		zipFile: themeZipFile,
 		targetPath: `${await playground.documentRoot}/wp-content/themes`,
 	});

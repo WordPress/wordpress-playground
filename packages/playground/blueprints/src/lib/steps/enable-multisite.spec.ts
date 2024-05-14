@@ -1,46 +1,46 @@
 import { NodePHP } from '@php-wasm/node';
-import {
-	RecommendedPHPVersion,
-	getWordPressModule,
-} from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { enableMultisite } from './enable-multisite';
+import { PHPRequestHandler } from '@php-wasm/universal';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
 	async function bootWordPress(options: { absoluteUrl: string }) {
-		const php = await NodePHP.load(RecommendedPHPVersion, {
-			requestHandler: {
-				documentRoot: DOCROOT,
-				...options,
-			},
+		const requestHandler = new PHPRequestHandler({
+			phpFactory: () => NodePHP.load(RecommendedPHPVersion),
+			absoluteUrl: options.absoluteUrl,
+			documentRoot: DOCROOT,
 		});
+		const php = await requestHandler.getPrimaryPhp();
+
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: DOCROOT,
 		});
-		return php;
+		return { php, requestHandler };
 	}
 
 	it('should enable a multisite on a scoped URL', async () => {
-		const php = await bootWordPress({
+		const { php, requestHandler } = await bootWordPress({
 			absoluteUrl: 'http://playground-domain/scope:987987/',
 		});
 		await enableMultisite(php, {});
 
-		const response = await php.request({
+		const response = await requestHandler.request({
 			url: '/wp-admin/network/',
 		});
 		expect(response.text).toContain('My Sites');
 	}, 30_000);
 
 	it('should enable a multisite on a scopeless URL', async () => {
-		const php = await bootWordPress({
+		const { php, requestHandler } = await bootWordPress({
 			absoluteUrl: 'http://playground-domain/',
 		});
 		await enableMultisite(php, {});
 
-		const response = await php.request({
+		const response = await requestHandler.request({
 			url: '/wp-admin/network/',
 		});
 		expect(response.text).toContain('My Sites');

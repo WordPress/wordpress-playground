@@ -11,11 +11,11 @@ import { defineSiteUrl } from './define-site-url';
  *
  * <code>
  * {
- * 		"step": "importWordPressFilesStep",
+ * 		"step": "importWordPressFiles",
  * 		"wordPressFilesZip": {
- * 		"resource": "fetch",
- * 		"url": "https://mysite.com/import.zip"
- *      }
+ * 			"resource": "url",
+ * 			"url": "https://mysite.com/import.zip"
+ *  	}
  * }
  * </code>
  */
@@ -34,9 +34,9 @@ export interface ImportWordPressFilesStep<ResourceType> {
 
 /**
  * Imports top-level WordPress files from a given zip file into
- * the documentRoot. For example, if a zip file contains the
+ * the `documentRoot`. For example, if a zip file contains the
  * `wp-content` and `wp-includes` directories, they will replace
- * the corresponding directories in Playground's documentRoot.
+ * the corresponding directories in Playground's `documentRoot`.
  *
  * Any files that Playground recognizes as "excluded from the export"
  * will carry over from the existing document root into the imported
@@ -119,7 +119,6 @@ export const importWordPressFiles: StepHandler<
 		joinPaths(documentRoot, 'wp-admin', 'upgrade.php')
 	);
 	await playground.run({
-		throwOnError: true,
 		code: `<?php
             $_GET['step'] = 'upgrade_db';
             require ${upgradePhp};

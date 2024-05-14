@@ -2,12 +2,7 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { awaitReply, getNextRequestId } from './messaging';
-import {
-	getURLScope,
-	isURLScoped,
-	removeURLScope,
-	setURLScope,
-} from '@php-wasm/scopes';
+import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 
 /**
  * Run this function in the service worker to install the required event
@@ -45,12 +40,6 @@ export function initializeServiceWorker(config: ServiceWorkerConfiguration) {
 				return;
 			}
 		}
-
-		console.debug(
-			`[ServiceWorker] Serving request: ${getRelativePart(
-				removeURLScope(url)
-			)}`
-		);
 		const responsePromise = handleRequest(event);
 		if (responsePromise) {
 			event.respondWith(responsePromise);
@@ -68,6 +57,8 @@ async function defaultRequestHandler(event: FetchEvent) {
 	) {
 		const request = await cloneRequest(event.request, {
 			url,
+			// Omit credentials to avoid causing cache aborts due to presence of cookies
+			credentials: 'omit',
 		});
 		return fetch(request);
 	}
@@ -122,22 +113,12 @@ export async function convertFetchEventToPHPRequest(event: FetchEvent) {
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);
 		}
-		console.debug(
-			'[ServiceWorker] Forwarding a request to the Worker Thread',
-			{
-				message,
-			}
-		);
 		const requestId = await broadcastMessageExpectReply(message, scope);
 		phpResponse = await awaitReply(self, requestId);
 
 		// X-frame-options gets in a way when PHP is
 		// being displayed in an iframe.
 		delete phpResponse.headers['x-frame-options'];
-
-		console.debug('[ServiceWorker] Response received from the main app', {
-			phpResponse,
-		});
 	} catch (e) {
 		console.error(e, { url: url.toString() });
 		throw e;
@@ -246,8 +227,4 @@ export function getRequestHeaders(request: Request) {
 		headers[key] = value;
 	});
 	return headers;
-}
-
-function getRelativePart(url: URL): string {
-	return url.toString().substring(url.origin.length);
 }

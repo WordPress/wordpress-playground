@@ -14,8 +14,31 @@ export interface Blueprint {
 	 * Optional description. It doesn't do anything but is exposed as
 	 * a courtesy to developers who may want to document which blueprint
 	 * file does what.
+	 *
+	 * @deprecated Use meta.description instead.
 	 */
 	description?: string;
+	/**
+	 * Optional metadata. Used by the Blueprints gallery at https://github.com/WordPress/blueprints
+	 */
+	meta?: {
+		/**
+		 * A clear and concise name for your Blueprint.
+		 */
+		title: string;
+		/**
+		 * A brief explanation of what your Blueprint offers.
+		 */
+		description?: string;
+		/**
+		 * A GitHub username of the author of this Blueprint.
+		 */
+		author: string;
+		/**
+		 * Relevant categories to help users find your Blueprint in the future Blueprints section on WordPress.org.
+		 */
+		categories?: string[];
+	};
 	/**
 	 * The preferred PHP and WordPress versions to use.
 	 */

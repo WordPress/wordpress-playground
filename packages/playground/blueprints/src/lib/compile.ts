@@ -14,12 +14,14 @@ import { FileReference, isFileReference, Resource } from './resources';
 import { Step, StepDefinition } from './steps';
 import * as allStepHandlers from './steps/handlers';
 import { Blueprint } from './blueprint';
+import { logger } from '@php-wasm/logger';
 
 // @TODO: Configure this in the `wp-cli` step, not here.
 const { wpCLI, ...otherStepHandlers } = allStepHandlers;
 const keyedStepHandlers = {
 	...otherStepHandlers,
 	'wp-cli': wpCLI,
+	importFile: otherStepHandlers.importWxr,
 };
 
 import Ajv from 'ajv';
@@ -84,8 +86,20 @@ export function compileBlueprint(
 ): CompiledBlueprint {
 	blueprint = {
 		...blueprint,
-		steps: (blueprint.steps || []).filter(isStepDefinition),
+		steps: (blueprint.steps || [])
+			.filter(isStepDefinition)
+			.filter(isStepStillSupported),
 	};
+	// Convert legacy importFile steps to importWxr
+	for (const step of blueprint.steps!) {
+		if (typeof step === 'object' && (step as any).step === 'importFile') {
+			(step as any).step = 'importWxr';
+			logger.warn(
+				`The "importFile" step is deprecated. Use "importWxr" instead.`
+			);
+		}
+	}
+
 	// Experimental declarative syntax {{{
 	if (blueprint.constants) {
 		blueprint.steps!.unshift({
@@ -133,10 +147,22 @@ export function compileBlueprint(
 				: blueprint.login),
 		});
 	}
+	if (!blueprint.phpExtensionBundles) {
+		blueprint.phpExtensionBundles = [];
+	}
+
+	if (!blueprint.phpExtensionBundles) {
+		blueprint.phpExtensionBundles = [];
+	}
+	// Default to the "kitchen sink" PHP extensions bundle if no
+	// other bundles are specified.
+	if (blueprint.phpExtensionBundles.length === 0) {
+		blueprint.phpExtensionBundles.push('kitchen-sink');
+	}
 
 	/**
 	 * Download WP-CLI. {{{
-	 * Hardcoding this in the compilt() function is a temporary solution
+	 * Hardcoding this in the compile() function is a temporary solution
 	 * to provide the wpCLI step with the wp-cli.phar file it needs. Eventually,
 	 * each Blueprint step may be able to specify any pre-requisite resources.
 	 * Also, wp-cli should only be downloaded if it's not already present.
@@ -145,13 +171,13 @@ export function compileBlueprint(
 		(step) => typeof step === 'object' && step?.step === 'wp-cli'
 	);
 	if (wpCliStepIndex !== undefined && wpCliStepIndex > -1) {
-		if (!blueprint.phpExtensionBundles) {
-			blueprint.phpExtensionBundles = [];
-		}
-		if (!blueprint.phpExtensionBundles.includes('kitchen-sink')) {
-			blueprint.phpExtensionBundles.push('kitchen-sink');
-			console.warn(
-				`The WP-CLI step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+		if (blueprint.phpExtensionBundles.includes('light')) {
+			blueprint.phpExtensionBundles =
+				blueprint.phpExtensionBundles.filter(
+					(bundle) => bundle !== 'light'
+				);
+			logger.warn(
+				`The wpCli step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
 					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
 					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
 			);
@@ -176,6 +202,35 @@ export function compileBlueprint(
 		});
 	}
 	// }}}
+
+	/**
+	 * Download the WordPress-importer plugin. {{{
+	 * Hardcoding this in the compile() function is a temporary solution
+	 */
+	const importWxrStepIndex = blueprint.steps?.findIndex(
+		(step) => typeof step === 'object' && step?.step === 'importWxr'
+	);
+	if (importWxrStepIndex !== undefined && importWxrStepIndex > -1) {
+		if (blueprint.phpExtensionBundles.includes('light')) {
+			blueprint.phpExtensionBundles =
+				blueprint.phpExtensionBundles.filter(
+					(bundle) => bundle !== 'light'
+				);
+			logger.warn(
+				`The importWxr step used in your Blueprint requires the iconv and mbstring PHP extensions. ` +
+					`However, you did not specify the kitchen-sink extension bundle. Playground will override your ` +
+					`choice and load the kitchen-sink PHP extensions bundle to prevent the WP-CLI step from failing. `
+			);
+		}
+		blueprint.steps?.splice(importWxrStepIndex, 0, {
+			step: 'installPlugin',
+			pluginZipFile: {
+				resource: 'url',
+				url: 'https://playground.wordpress.net/wordpress-importer.zip',
+				caption: 'Downloading the WordPress Importer plugin',
+			},
+		});
+	}
 
 	const { valid, errors } = validateBlueprint(blueprint);
 	if (!valid) {
@@ -236,14 +291,12 @@ export function compileBlueprint(
 						const result = await run(playground);
 						onStepCompleted(result, step);
 					} catch (e) {
-						console.error(e);
+						logger.error(e);
 						throw new Error(
 							`Error when executing the blueprint step #${i} (${JSON.stringify(
 								step
-							)}). Inspect the "cause" property of this error for more details`,
-							{
-								cause: e,
-							}
+							)}) ${e instanceof Error ? `: ${e.message}` : e}`,
+							{ cause: e }
 						);
 					}
 				}
@@ -362,6 +415,25 @@ function isStepDefinition(
 	step: Step | string | undefined | false | null
 ): step is StepDefinition {
 	return !!(typeof step === 'object' && step);
+}
+
+/**
+ * Determines if a step is still supported, or was it deprecated
+ * and removed.
+ *
+ * @param step The step definition to test.
+ * @returns Whether the step is still supported.
+ */
+function isStepStillSupported(
+	step: Record<string, any>
+): step is StepDefinition {
+	if (step['step'] === 'setPhpIniEntry') {
+		logger.warn(
+			`The "setPhpIniEntry" Blueprint is no longer supported and you can remove it from your Blueprint.`
+		);
+		return false;
+	}
+	return true;
 }
 
 interface CompileStepArgsOptions {

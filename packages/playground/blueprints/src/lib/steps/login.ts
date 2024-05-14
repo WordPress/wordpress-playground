@@ -1,4 +1,5 @@
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc login
@@ -26,8 +27,8 @@ export type LoginStep = {
 };
 
 /**
- * Logs in to the Playground.
- * Under the hood, this function submits the wp-login.php form
+ * Logs in to Playground.
+ * Under the hood, this function submits the [`wp-login.php`](https://developer.wordpress.org/reference/files/wp-login.php/) [form](https://developer.wordpress.org/reference/functions/wp_login_form/)
  * just like a user would.
  */
 export const login: StepHandler<LoginStep> = async (
@@ -52,7 +53,7 @@ export const login: StepHandler<LoginStep> = async (
 	});
 
 	if (!response.headers?.['location']?.[0]?.includes('/wp-admin/')) {
-		console.warn('WordPress response was', {
+		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
 		});

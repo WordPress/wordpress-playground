@@ -9,7 +9,7 @@ import { phpVar } from '@php-wasm/util';
  *
  * <code>
  * {
- * 		"step": "wpCLI",
+ * 		"step": "wp-cli",
  * 		"command": "wp post create --post_title='Test post' --post_excerpt='Some content'"
  * }
  * </code>
@@ -24,7 +24,7 @@ export interface WPCLIStep {
 }
 
 /**
- * Runs PHP code.
+ * Runs PHP code using [WP-CLI](https://developer.wordpress.org/cli/commands/).
  */
 export const wpCLI: StepHandler<WPCLIStep, Promise<PHPResponse>> = async (
 	playground,

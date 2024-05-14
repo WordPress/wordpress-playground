@@ -1,0 +1,50 @@
+{
+	"name": "php-wasm-logger",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/php-wasm/logger/src",
+	"projectType": "library",
+	"targets": {
+		"build": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/php-wasm/logger"
+			}
+		},
+		"test": {
+			"executor": "nx:noop",
+			"dependsOn": ["test:vite"]
+		},
+		"test:esmcjs": {
+			"executor": "@wp-playground/nx-extensions:assert-built-esm-and-cjs",
+			"options": {
+				"outputPath": "dist/packages/php-wasm/logger"
+			},
+			"dependsOn": ["build"]
+		},
+		"test:vite": {
+			"executor": "@nx/vite:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/logger"],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/php-wasm/logger"
+			}
+		},
+		"lint": {
+			"executor": "@nx/linter:eslint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"lintFilePatterns": ["packages/php-wasm/logger/**/*.ts"]
+			}
+		}
+	},
+	"typecheck": {
+		"executor": "nx:run-commands",
+		"options": {
+			"commands": [
+				"tsc -p packages/php-wasm/logger/tsconfig.lib.json --noEmit",
+				"tsc -p packages/php-wasm/logger/tsconfig.spec.json --noEmit"
+			]
+		}
+	}
+}

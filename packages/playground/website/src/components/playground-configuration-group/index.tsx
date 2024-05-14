@@ -15,6 +15,7 @@ import {
 import { OPFSButton } from './opfs-button';
 import { usePlaygroundContext } from '../playground-viewport/context';
 import { SyncLocalFilesButton } from './sync-local-files-button';
+import { logger } from '@php-wasm/logger';
 
 interface SiteSetupGroupProps {
 	initialConfiguration: PlaygroundConfiguration;
@@ -40,6 +41,7 @@ export default function PlaygroundConfigurationGroup({
 	const playgroundRef = useRef<{
 		promise: Promise<PlaygroundClient>;
 		resolve: any;
+		isResolved: boolean;
 	}>();
 	const { playground } = usePlaygroundContext();
 	useEffect(() => {
@@ -51,10 +53,12 @@ export default function PlaygroundConfigurationGroup({
 			playgroundRef.current = {
 				promise,
 				resolve,
+				isResolved: false,
 			};
 		}
 		if (playground) {
 			playgroundRef.current!.resolve(playground);
+			playgroundRef.current!.isResolved = true;
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [!!playground]);
@@ -117,7 +121,7 @@ export default function PlaygroundConfigurationGroup({
 			});
 		} catch (e) {
 			// No directory selected but log the error just in case.
-			console.error(e);
+			logger.error(e);
 			return;
 		}
 		setDirName(dirHandle.name);
@@ -182,8 +186,11 @@ export default function PlaygroundConfigurationGroup({
 	}
 
 	async function handleSubmit(config: PlaygroundConfiguration) {
-		const playground = await playgroundRef.current!.promise;
-		if (config.resetSite && config.storage === 'browser') {
+		const hasPlayground = playgroundRef.current?.isResolved;
+		const playground = hasPlayground
+			? await playgroundRef.current!.promise
+			: undefined;
+		if (hasPlayground && config.resetSite && config.storage === 'browser') {
 			if (
 				!window.confirm(
 					'This will wipe out all stored data and start a new site. Do you want to proceed?'
@@ -193,7 +200,7 @@ export default function PlaygroundConfigurationGroup({
 			}
 		}
 
-		reloadWithNewConfiguration(playground!, config);
+		reloadWithNewConfiguration(config, playground);
 	}
 	let WPLabel =
 		wpVersionChoices[currentConfiguration.wp] || currentConfiguration.wp;
@@ -250,10 +257,13 @@ export default function PlaygroundConfigurationGroup({
 						<Button
 							size="large"
 							onClick={() => {
-								reloadWithNewConfiguration(playground!, {
-									...initialConfiguration,
-									storage: 'none',
-								});
+								reloadWithNewConfiguration(
+									{
+										...initialConfiguration,
+										storage: 'none',
+									},
+									playground
+								);
 							}}
 						>
 							Start a fresh site

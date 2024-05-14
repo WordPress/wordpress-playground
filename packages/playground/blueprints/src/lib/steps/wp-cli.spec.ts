@@ -3,7 +3,7 @@ import { splitShellCommand, wpCLI } from './wp-cli';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { unzip } from './unzip';
-import { getWordPressModule } from '@wp-playground/wordpress';
+import { getWordPressModule } from '@wp-playground/wordpress-builds';
 
 const phpVersion = '8.0';
 describe('Blueprint step wpCLI', () => {
@@ -29,7 +29,7 @@ describe('Blueprint step wpCLI', () => {
 			command:
 				"wp post create --post_title='Test post' --post_excerpt='Some content' --no-color",
 		});
-		expect(result.text).toMatch(/Success: Created post/);
+		expect(result.text).toContain('Created post 4');
 	});
 });
 

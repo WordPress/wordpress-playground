@@ -29,7 +29,7 @@ export default async function runExecutor(
 	);
 	const checkForSuccess = (scriptName) =>
 		new Promise((resolve, reject) => {
-			const test = spawn('sh', ['node', scriptName], {
+			const test = spawn('node', [scriptName], {
 				cwd: testsPath,
 				stdio: 'pipe',
 			});

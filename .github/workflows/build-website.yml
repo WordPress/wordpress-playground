@@ -2,10 +2,9 @@ name: Deploy to playground.wordpress.net
 
 on:
     workflow_dispatch:
-    workflow_run:
-        workflows: [Refresh WordPress assets]
-        types:
-            - completed
+    # Deploy the website every day at 9am and 6pm UTC
+    schedule:
+        - cron: '0 9,18 * * *'
 
 jobs:
     build_and_deploy:
@@ -13,8 +12,11 @@ jobs:
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.event_name == 'workflow_run' ||
+                github.event_name == 'workflow_dispatch' ||
                 github.actor == 'adamziel' ||
-                github.actor == 'dmsnell'
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
             )
 
         # Specify runner + deployment step

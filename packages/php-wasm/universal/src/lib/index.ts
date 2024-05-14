@@ -12,15 +12,22 @@ export type {
 	HTTPMethod,
 	PHPRequest,
 	PHPRequestHeaders,
-	RequestHandler,
 	SpawnHandler,
 } from './universal-php';
 
 export { UnhandledRejectionsTarget } from './wasm-error-reporting';
-
+export { HttpCookieStore } from './http-cookie-store';
 export type { IteratePhpFilesOptions as IterateFilesOptions } from './iterate-files';
 export { iteratePhpFiles as iterateFiles } from './iterate-files';
 export { writeFilesStreamToPhp } from './write-files-stream-to-php';
+export { PHPProcessManager } from './php-process-manager';
+export type {
+	MaxPhpInstancesError,
+	PHPFactory,
+	PHPFactoryOptions,
+	ProcessManagerOptions,
+	SpawnedPHP,
+} from './php-process-manager';
 
 export { PHPResponse } from './php-response';
 export type { PHPResponseData } from './php-response';
@@ -54,10 +61,11 @@ export { rethrowFileSystemError } from './rethrow-file-system-error';
 export { isLocalPHP } from './is-local-php';
 export { isRemotePHP } from './is-remote-php';
 
-export type { PHPRequestHandlerConfiguration } from './php-request-handler';
-export { PHPRequestHandler } from './php-request-handler';
-export type { PHPBrowserConfiguration } from './php-browser';
-export { PHPBrowser } from './php-browser';
+export type {
+	PHPRequestHandlerConfiguration,
+	RewriteRule,
+} from './php-request-handler';
+export { PHPRequestHandler, applyRewriteRules } from './php-request-handler';
 export { rotatePHPRuntime } from './rotate-php-runtime';
 export { writeFiles } from './write-files';
 
@@ -69,3 +77,4 @@ export {
 } from './urls';
 
 export { isExitCodeZero } from './is-exit-code-zero';
+export { proxyFileSystem } from './proxy-file-system';

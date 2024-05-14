@@ -31,13 +31,6 @@
 					// Initial API used "start_button" - this preserves compatibility.
 					'1' === query.get('start_button');
 
-				if (
-					'seamless' !== query.get('mode') &&
-					!shouldLazyLoadPlayground
-				) {
-					document.body.classList.add('with-background');
-				}
-
 				if (shouldLazyLoadPlayground) {
 					const query = new URLSearchParams(window.location.search);
 					query.delete('lazy');

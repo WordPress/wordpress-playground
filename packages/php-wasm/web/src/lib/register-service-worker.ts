@@ -1,6 +1,8 @@
+import { PhpWasmError } from '@php-wasm/util';
 import type { WebPHPEndpoint } from './web-php-endpoint';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
+import { logger } from '@php-wasm/logger';
 
 /**
  * Run this in the main application to register the service worker or
@@ -17,19 +19,22 @@ export async function registerServiceWorker<
 >(phpApi: Client, scope: string, scriptUrl: string) {
 	const sw = navigator.serviceWorker;
 	if (!sw) {
-		if (location.protocol === 'https:') {
-			throw new Error(
-				'Service workers are not supported in this browser.'
+		/**
+		 * Service workers may only run in secure contexts.
+		 * See https://w3c.github.io/webappsec-secure-contexts/
+		 */
+		if (window.isSecureContext) {
+			throw new PhpWasmError(
+				'Service workers are not supported in your browser.'
 			);
 		} else {
-			throw new Error(
-				'WordPress Playground requires service workers which are only supported ' +
-					'on HTTPS sites. This site does not use HTTPS, please retry on one that does. '
+			throw new PhpWasmError(
+				'WordPress Playground uses service workers and may only work on HTTPS and http://localhost/ sites, but the current site is neither.'
 			);
 		}
 	}
 
-	console.debug(`[window][sw] Registering a Service Worker`);
+	logger.debug(`[window][sw] Registering a Service Worker`);
 	const registration = await sw.register(scriptUrl, {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
@@ -44,7 +49,6 @@ export async function registerServiceWorker<
 	navigator.serviceWorker.addEventListener(
 		'message',
 		async function onMessage(event) {
-			console.debug('[window][sw] Message from ServiceWorker', event);
 			/**
 			 * Ignore events meant for other PHP instances to
 			 * avoid handling the same event twice.

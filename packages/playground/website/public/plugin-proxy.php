@@ -50,7 +50,7 @@ class PluginDownloader
         if (!$prDetails) {
             throw new ApiException('invalid_pr_number');
         }
-        $branchName = $prDetails->head->ref;
+        $branchName = urlencode($prDetails->head->ref);
         $ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/runs?branch=$branchName")['body'];
         if (!$ciRuns) {
             throw new ApiException('no_ci_runs');
@@ -88,8 +88,8 @@ class PluginDownloader
             }
 
             /*
-             * Short-circuit with HTTP 200 OK when we only want to 
-             * verify whether the CI artifact seems to exist but we 
+             * Short-circuit with HTTP 200 OK when we only want to
+             * verify whether the CI artifact seems to exist but we
              * don't want to download it yet.
              */
             if (array_key_exists('verify_only', $_GET)) {
@@ -297,6 +297,12 @@ try {
                 'workflow' => 'Test Build Processes',
                 'artifact' => '#wordpress-build-\d+#'
             ],
+            [
+                'org' => 'Automattic',
+                'repo' => 'sensei',
+                'workflow' => 'Plugin Build',
+                'artifact' => '#sensei-lms-\w+#'
+            ],
         ];
         $allowed = false;
         foreach ($allowedInputs as $allowedInput) {
@@ -332,7 +338,7 @@ try {
         // Proxy the current request to $_GET['url'] and return the response,
         // but only if the URL is allowlisted.
         $url = $_GET['url'];
-        $allowed_domains = ['api.wordpress.org', 'w.org', 's.w.org'];
+        $allowed_domains = ['api.wordpress.org', 'w.org', 'wordpress.org', 's.w.org'];
         $parsed_url = parse_url($url);
         if (!in_array($parsed_url['host'], $allowed_domains)) {
             http_response_code(403);
@@ -343,12 +349,12 @@ try {
         /**
          * Pass through the request headers we got from WordPress via fetch(),
          * then filter out:
-         * 
+         *
          * * The browser-specific headers
          * * Headers related to security to avoid leaking any auth information
-         * 
+         *
          * ...and pass the rest to the proxied request.
-         * 
+         *
          * @return array
          */
         function get_request_headers()

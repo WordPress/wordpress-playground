@@ -17,7 +17,6 @@ import { RmdirStep } from './rmdir';
 import { RunSqlStep } from './run-sql';
 import { MkdirStep } from './mkdir';
 import { MvStep } from './mv';
-import { SetPhpIniEntryStep } from './set-php-ini-entry';
 import { RunPHPStep } from './run-php';
 import { RunPHPWithOptionsStep } from './run-php-with-options';
 import { RequestStep } from './request';
@@ -26,7 +25,7 @@ import { DefineWpConfigConstsStep } from './define-wp-config-consts';
 import { ActivateThemeStep } from './activate-theme';
 import { UnzipStep } from './unzip';
 import { ImportWordPressFilesStep } from './import-wordpress-files';
-import { ImportFileStep } from './import-file';
+import { ImportWxrStep } from './import-wxr';
 import { EnableMultisiteStep } from './enable-multisite';
 import { WPCLIStep } from './wp-cli';
 
@@ -51,7 +50,7 @@ export type GenericStep<Resource> =
 	| DefineWpConfigConstsStep
 	| DefineSiteUrlStep
 	| EnableMultisiteStep
-	| ImportFileStep<Resource>
+	| ImportWxrStep<Resource>
 	| ImportWordPressFilesStep<Resource>
 	| InstallPluginStep<Resource>
 	| InstallThemeStep<Resource>
@@ -65,7 +64,6 @@ export type GenericStep<Resource> =
 	| RunPHPWithOptionsStep
 	| RunWpInstallationWizardStep
 	| RunSqlStep<Resource>
-	| SetPhpIniEntryStep
 	| SetSiteOptionsStep
 	| UnzipStep<Resource>
 	| UpdateUserMetaStep
@@ -79,7 +77,7 @@ export type {
 	DefineWpConfigConstsStep,
 	DefineSiteUrlStep,
 	EnableMultisiteStep,
-	ImportFileStep,
+	ImportWxrStep,
 	ImportWordPressFilesStep,
 	InstallPluginStep,
 	InstallPluginOptions,
@@ -96,7 +94,6 @@ export type {
 	RunWpInstallationWizardStep,
 	RunSqlStep,
 	WordPressInstallationOptions,
-	SetPhpIniEntryStep,
 	SetSiteOptionsStep,
 	UnzipStep,
 	UpdateUserMetaStep,

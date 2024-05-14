@@ -6,6 +6,7 @@ import { request } from './request';
 import { setSiteOptions } from './site-data';
 import { activatePlugin } from './activate-plugin';
 import { getURLScope, isURLScoped } from '@php-wasm/scopes';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc enableMultisite
@@ -23,7 +24,7 @@ export interface EnableMultisiteStep {
 }
 
 /**
- * Defines constants in a wp-config.php file.
+ * Defines the [Multisite](https://developer.wordpress.org/advanced-administration/multisite/create-network/) constants in a `wp-config.php` file.
  *
  * This step can be called multiple times, and the constants will be merged.
  *
@@ -63,13 +64,12 @@ export const enableMultisite: StepHandler<EnableMultisiteStep> = async (
 
 	// Deactivate all the plugins as required by the multisite installation.
 	const result = await playground.run({
-		throwOnError: true,
 		code: `<?php
 define( 'WP_ADMIN', true );
 require_once(${phpVar(docroot)} . "/wp-load.php");
 
 // Set current user to admin
-set_current_user( get_users(array('role' => 'Administrator') )[0] );
+( get_users(array('role' => 'Administrator') )[0] );
 
 require_once(${phpVar(docroot)} . "/wp-admin/includes/plugin.php");
 $plugins_root = ${phpVar(docroot)} . "/wp-content/plugins";
@@ -137,7 +137,7 @@ echo json_encode($deactivated_plugins);
 		},
 	});
 	if (response.httpStatusCode !== 200) {
-		console.warn('WordPress response was', {
+		logger.warn('WordPress response was', {
 			response,
 			text: response.text,
 			headers: response.headers,

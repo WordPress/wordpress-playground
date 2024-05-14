@@ -1,45 +1,82 @@
 ---
 sidebar_position: 1
-title: Code Contributions
 ---
 
-# Code Contributions
+# Code contributions
 
-The WordPress Playground project uses GitHub for managing code and tracking issues. The main repository is at: [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground).
+Like all WordPress projects, Playground uses GitHub to manage code and track issues. The main repository is at [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and the Playground Tools repository is at [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
-To contribute Pull Requests, you'll need to fork the Playground repository and clone it to your local machine. You can then create a branch, make changes, and submit a pull request.
+:::info Contribute to Playground Tools
 
-Once you have a fork, you can clone it as follows – just replace `WordPress/wordpress-playground` with your GitHub username and repository name:
+This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
+
+:::
+
+Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
+
+Be sure to review the following resources before you begin:
+
+-   [Coding principles](./03-coding-standards.md)
+-   [Architecture](../11-architecture/01-index.md)
+-   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
+-   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
+
+## Contribute Pull Requests
+
+[Fork the Playground repository](https://github.com/WordPress/wordpress-playground/fork) and clone it to your local machine. To do that, copy and paste these commands into your terminal:
 
 ```bash
-git clone -b trunk --single-branch --depth 1 git@github.com:WordPress/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1
+
+# replace `YOUR-GITHUB-USERNAME` with your GitHub username:
+git@github.com:YOUR-GITHUB-USERNAME/wordpress-playground.git
 cd wordpress-playground
-nvm use # You'll need Node 16 or later
 npm install
+```
+
+Create a branch, make changes, and test it locally by running the following command:
+
+```bash
 npm run dev
 ```
 
-That's it, WordPress Playground is now running on your machine and you're ready to contribute!
+Playground will open in a new browser tab and refresh automatically with each change.
 
-Browse [the issues list](https://github.com/wordpress/wordpress-playground/issues) to find issues to work on. The [good first issue](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) labels are good starting points.
+When your'e ready, commit the changes and submit a Pull Request.
 
-Be sure to also review the following resources:
+:::info Formatting
 
--   [Coding Standards](./03-coding-standards.md)
--   [Packages and projects](./04-packages-and-projects.md)
--   [Vision and Philosophy](https://github.com/WordPress/wordpress-playground/issues/472)
--   [Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
+We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-## HTTPS setup
+:::
 
-Some Playground features, like multisite, require a local test domain running via HTTPS.
+### Running a local Multisite
 
-One way to get it set up is with [Laravel Valet](https://laravel.com/docs/10.x/valet).
+WordPress Multisite has a few [restrictions when run locally](https://developer.wordpress.org/advanced-administration/multisite/prepare-network/#restrictions). If you plan to test a Multisite network using Playground's `enableMultisite` step, make sure you either change `wp-now`'s default port or set a local test domain running via HTTPS.
 
-Once your Valet is installed, run:
+To change `wp-now`'s default port to the one supported by WordPress Multisite, run it using the `--port=80` flag:
+
+```bash
+npx @wp-now/wp-now start --port=80
+```
+
+There are a few ways to set up a local test domain, including editing your `hosts` file. If you're unsure how to do that, we suggest installing [Laravel Valet](https://laravel.com/docs/11.x/valet) and then running the following command:
 
 ```bash
 valet proxy playground.test http://localhost:5400 --secure
 ```
 
-Your dev server is now available via https://playground.test.
+Your dev server is now available on https://playground.test.
+
+## Debugging
+
+### Use VS Code and Chrome
+
+If you're using VS Code and have Chrome installed, you can debug Playground in the code editor:
+
+-   Open the project folder in VS Code.
+-   Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
+
+### Debugging PHP
+
+Playground logs PHP errors in the browser console after every PHP request.

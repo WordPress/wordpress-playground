@@ -186,29 +186,6 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 		[playground]
 	);
 
-	useEffect(() => {
-		playground.setSpawnHandler(
-			((command: string, processApi: any) => {
-				if (command.startsWith('/usr/bin/env stty size ')) {
-					// These numbers are hardcoded because this
-					// spawnHandler is transmitted as a string to
-					// the PHP backend and has no access to local
-					// scope. It would be nice to find a way to
-					// transfer / proxy a live object instead.
-					// @TODO: Do not hardcode this
-					processApi.stdout(`18 140`);
-					processApi.exit(0);
-				} else if (command.startsWith('less')) {
-					processApi.on('stdin', (data: Uint8Array) => {
-						processApi.stdout(data);
-					});
-					processApi.flushStdin();
-					processApi.exit(0);
-				}
-			}).toString()
-		);
-	}, []);
-
 	const [counter, setCounter] = useState(0);
 
 	useEffect(() => {

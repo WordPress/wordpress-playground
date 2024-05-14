@@ -25,6 +25,11 @@ slug: /links-and-resources
 -   [Blocknotes](https://twitter.com/adamzielin/status/1669478239771799552) – the first ever iOS app running WordPress on your phone
 -   [Playground embedder](https://joost.blog/embedded-playground/) to embed Playground examples in WordPress.org documentation using shortcodes
 -   [Plugin demos on wp.org](https://gist.github.com/adamziel/0fe3ffc1fb5202a907a87d055ee37135) – a user script that adds a "demo" tab to plugin pages on WordPress.org
+-   [WordPress Pull Request previewer](https://playground.wordpress.net/wordpress.html)
+-   [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
+-   [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
+-   [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
+-   [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 
 ## Reading materials
 
@@ -40,3 +45,4 @@ slug: /links-and-resources
 -   [Playground at State of the Word](https://youtu.be/VeigCZuxnfY?t=2912)
 -   [Playground at WCEU 2023](https://www.youtube.com/watch?v=e-CwouzTGp4&t=26946s)
 -   [Playground at WordCamp Gliwice (in polish)](https://www.youtube.com/watch?v=AUHklF9GdL8&list=PLiCne9CeL82_hGuJOAJlsc84WxVDSH-c9&index=4)
+-   [Watch "WordPress Playground: the ultimate learning, testing, & teaching tool for WordPress"](https://www.youtube.com/watch?v=dN_LaenY8bI) by Anne McCarthy

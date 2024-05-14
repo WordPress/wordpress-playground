@@ -1,4 +1,11 @@
+import { splitShellCommand } from './split-shell-command';
+
 type Listener = (...args: any[]) => any;
+
+export interface ProcessOptions {
+	cwd?: string;
+	env?: Record<string, string>;
+}
 
 /**
  * Usage:
@@ -15,14 +22,45 @@ type Listener = (...args: any[]) => any;
  * @returns
  */
 export function createSpawnHandler(
-	program: (command: string, processApi: ProcessApi) => void
+	program: (
+		command: string[],
+		processApi: ProcessApi,
+		options: ProcessOptions
+	) => void | Promise<void>
 ): any {
-	return function (command: string) {
+	return function (
+		command: string | string[],
+		argsArray: string[] = [],
+		options: ProcessOptions = {}
+	) {
 		const childProcess = new ChildProcess();
 		const processApi = new ProcessApi(childProcess);
 		// Give PHP a chance to register listeners
 		setTimeout(async () => {
-			await program(command, processApi);
+			let commandArray = [];
+			if (argsArray.length) {
+				commandArray = [command as string, ...argsArray];
+			} else if (typeof command === 'string') {
+				commandArray = splitShellCommand(command);
+			} else if (Array.isArray(command)) {
+				commandArray = command;
+			} else {
+				throw new Error('Invalid command ', command);
+			}
+			try {
+				await program(commandArray, processApi, options);
+			} catch (e) {
+				childProcess.emit('error', e);
+				if (
+					typeof e === 'object' &&
+					e !== null &&
+					'message' in e &&
+					typeof e.message === 'string'
+				) {
+					processApi.stderr(e.message);
+				}
+				processApi.exit(1);
+			}
 			childProcess.emit('spawn', true);
 		});
 		return childProcess;
@@ -67,11 +105,17 @@ export class ProcessApi extends EventEmitter {
 		}
 		this.childProcess.stdout.emit('data', data);
 	}
+	stdoutEnd() {
+		this.childProcess.stdout.emit('end', {});
+	}
 	stderr(data: string | ArrayBuffer) {
 		if (typeof data === 'string') {
 			data = new TextEncoder().encode(data);
 		}
 		this.childProcess.stderr.emit('data', data);
+	}
+	stderrEnd() {
+		this.childProcess.stderr.emit('end', {});
 	}
 	exit(code: number) {
 		if (!this.exited) {

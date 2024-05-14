@@ -19,7 +19,9 @@ jobs:
         if: >
             github.ref == 'refs/heads/trunk' && (
                 github.actor == 'adamziel' ||
-                github.actor == 'dmsnell'
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
             )
 
         # Specify runner + deployment step
@@ -28,12 +30,12 @@ jobs:
             name: npm
         env:
             NPM_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
             - uses: actions/checkout@v3
               with:
                   ref: ${{ github.event.pull_request.head.ref }}
                   clean: true
-                  fetch-depth: 0
                   persist-credentials: false
             - name: Config git user
               run: |
@@ -51,3 +53,8 @@ jobs:
             - name: Release new version of NPM packages
               shell: bash
               run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
+            - name: Update CHANGELOG.md
+              uses: benc-uk/workflow-dispatch@v1
+              with:
+                  workflow: update-changelog.yml
+                  token: ${{ secrets.GITHUB_TOKEN }}
