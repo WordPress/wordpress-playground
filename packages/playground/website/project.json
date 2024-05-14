@@ -118,7 +118,8 @@
 				"cypressConfig": "packages/playground/website/cypress.config.ts",
 				"testingType": "e2e",
 				"devServerTarget": "playground-website:dev:local",
-				"browser": "chrome"
+				"browser": "chrome",
+				"parallel": false
 			},
 			"configurations": {
 				"ci": {
