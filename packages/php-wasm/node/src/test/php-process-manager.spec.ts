@@ -1,4 +1,4 @@
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { NodePHP } from '..';
 import { PHPProcessManager } from '@php-wasm/universal';
 

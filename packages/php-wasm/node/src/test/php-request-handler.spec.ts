@@ -1,4 +1,4 @@
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { NodePHP } from '..';
 import { PHPRequestHandler, SupportedPHPVersions } from '@php-wasm/universal';
 import { createSpawnHandler } from '@php-wasm/util';

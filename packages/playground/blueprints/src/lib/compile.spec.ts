@@ -5,7 +5,7 @@ import {
 	validateBlueprint,
 } from './compile';
 import { defineWpConfigConsts } from './steps/define-wp-config-consts';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { PHPRequestHandler } from '@php-wasm/universal';
 
 describe('Blueprints', () => {
