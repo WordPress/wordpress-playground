@@ -171,25 +171,29 @@ const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const requestHandler = new PHPRequestHandler({
 	phpFactory: async ({ isPrimary }) => {
 		const php = await createPhp(requestHandler);
-		if (!isPrimary) {
+		php.defineConstant('SCOPED_SITE_PATH', new URL(scopedSiteUrl).pathname);
+		if (isPrimary) {
+			php.writeFile(
+				'/internal/shared/preload/env.php',
+				envPHP_to_loadMuPlugins
+			);
+			php.writeFile(
+				'/internal/shared/preload/phpinfo.php',
+				`<?php
+			// Render PHPInfo if the requested page is /phpinfo.php
+			if ( SCOPED_SITE_PATH . '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
+				phpinfo();
+				exit;
+			}
+			`
+			);
+		} else {
 			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
 				'/tmp',
 				requestHandler.documentRoot,
-				'/internal/mu-plugins',
+				'/internal/shared',
 			]);
 		}
-		php.writeFile('/internal/preload/env.php', envPHP_to_loadMuPlugins);
-		php.defineConstant('SCOPED_SITE_PATH', new URL(scopedSiteUrl).pathname);
-		php.writeFile(
-			'/internal/preload/phpinfo.php',
-			`<?php
-		// Render PHPInfo if the requested page is /phpinfo.php
-		if ( SCOPED_SITE_PATH . '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
-			phpinfo();
-			exit;
-		}
-		`
-		);
 		return php;
 	},
 	documentRoot: DOCROOT,
@@ -242,7 +246,7 @@ try {
 	// * The mu-plugin is always there, even when a custom WordPress directory
 	//   is mounted.
 	// * The mu-plugin is always up to date.
-	await writeFiles(primaryPhp, joinPaths('/internal/mu-plugins'), {
+	await writeFiles(primaryPhp, joinPaths('/internal/shared/mu-plugins'), {
 		'0-playground.php': playgroundMuPlugin,
 		'1-playground-web.php': playgroundWebMuPlugin,
 		'playground-includes/wp_http_dummy.php': transportDummy,

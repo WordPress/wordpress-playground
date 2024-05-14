@@ -31,29 +31,34 @@ export async function createPhp(
 	 */
 	php.initializeRuntime(await createPhpRuntime());
 	php.setSapiName('cli');
-	php.setPhpIniPath('/tmp/php.ini');
-	php.writeFile('/tmp/php.ini', '');
+	php.setPhpIniPath('/internal/shared/php.ini');
+	php.setPhpIniEntry('openssl.cafile', '/internal/shared/ca-bundle.crt');
 	php.setPhpIniEntry('memory_limit', '256M');
 	php.setPhpIniEntry('allow_url_fopen', '1');
 	php.setPhpIniEntry('disable_functions', '');
 
 	// Write the ca-bundle.crt file to disk so that PHP can find it.
-	php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
-	php.writeFile('/tmp/ca-bundle.crt', rootCertificates.join('\n'));
-
-	php.writeFile('/internal/preload/env.php', envPHP_to_loadMuPlugins);
-	php.writeFile(
-		'/internal/preload/phpinfo.php',
-		`<?php
-    // Render PHPInfo if the requested page is /phpinfo.php
-    if ( '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
-        phpinfo();
-        exit;
-    }`
-	);
-	php.mkdir('/internal/mu-plugins');
-
-	if (!isPrimary) {
+	if (isPrimary) {
+		php.writeFile('/internal/shared/php.ini', '');
+		php.writeFile(
+			'/internal/shared/ca-bundle.crt',
+			rootCertificates.join('\n')
+		);
+		php.writeFile(
+			'/internal/shared/preload/env.php',
+			envPHP_to_loadMuPlugins
+		);
+		php.writeFile(
+			'/internal/shared/preload/phpinfo.php',
+			`<?php
+		// Render PHPInfo if the requested page is /phpinfo.php
+		if ( '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
+			phpinfo();
+			exit;
+		}`
+		);
+		php.mkdir('/internal/shared/mu-plugins');
+	} else {
 		/**
 		 * @TODO: Consider an API similar to
 		 *
@@ -62,7 +67,7 @@ export async function createPhp(
 		proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
 			'/tmp',
 			requestHandler.documentRoot,
-			'/internal/mu-plugins',
+			'/internal/shared',
 		]);
 	}
 
