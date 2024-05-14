@@ -1,3 +1,7 @@
+import { UniversalPHP } from '@php-wasm/universal';
+import { joinPaths, phpVar } from '@php-wasm/util';
+import { unzip } from '@wp-playground/blueprints';
+
 export * from './rewrite-rules';
 
 export const RecommendedPHPVersion = '8.0';
@@ -18,8 +22,8 @@ function playground_add_action( $tag, $function_to_add, $priority = 10, $accepte
 // NOTE: this means our mu-plugins can't use the muplugins_loaded action!
 playground_add_action( 'muplugins_loaded', 'playground_load_mu_plugins', 0 );
 function playground_load_mu_plugins() {
-    // Load all PHP files from /internal/mu-plugins, sorted by filename
-    $mu_plugins_dir = '/internal/mu-plugins';
+    // Load all PHP files from /internal/shared/mu-plugins, sorted by filename
+    $mu_plugins_dir = '/internal/shared/mu-plugins';
     if(!is_dir($mu_plugins_dir)){
         return;
     }
@@ -105,3 +109,111 @@ export const specificMuPlugins = {
 export const playgroundMuPlugin = Object.values(specificMuPlugins)
 	.map((p) => p.trim())
 	.join('\n');
+
+export async function preloadSqliteIntegration(
+	php: UniversalPHP,
+	sqliteZip: File
+) {
+	if (await php.isDir('/tmp/sqlite-database-integration')) {
+		await php.rmdir('/tmp/sqlite-database-integration', {
+			recursive: true,
+		});
+	}
+	await php.mkdir('/tmp/sqlite-database-integration');
+	await unzip(php, {
+		zipFile: sqliteZip,
+		extractToPath: '/tmp/sqlite-database-integration',
+	});
+	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
+	await php.mv(
+		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
+		SQLITE_PLUGIN_FOLDER
+	);
+	const dbCopy = await php.readFileAsText(
+		joinPaths(SQLITE_PLUGIN_FOLDER, 'db.copy')
+	);
+	const dbPhp = dbCopy
+		.replace(
+			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
+			phpVar(SQLITE_PLUGIN_FOLDER)
+		)
+		.replace(
+			"'{SQLITE_PLUGIN}'",
+			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
+		);
+	const SQLITE_MUPLUGIN_PATH =
+		'/internal/shared/mu-plugins/sqlite-database-integration.php';
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, dbPhp);
+	await php.writeFile(
+		`/internal/shared/preload/0-sqlite.php`,
+		`<?php
+    /**
+     * Loads the SQLite integration plugin before WordPress is loaded
+     * and without creating a drop-in "db.php" file. 
+     *
+     * Technically, it creates a global $wpdb object whose only two
+     * purposes are to:
+     *
+     * * Exist – because the require_wp_db() WordPress function won't
+     *           connect to MySQL if $wpdb is already set.
+     * * Load the SQLite integration plugin the first time it's used
+     *   and replace the global $wpdb reference with the SQLite one.
+     *
+     * This lets Playground keep the WordPress installation clean and
+     * solves dillemas like:
+     *
+     * * Should we include db.php in Playground exports?
+     * * Should we remove db.php from Playground imports?
+     * * How should we treat stale db.php from long-lived OPFS sites?
+     *
+     * @see https://github.com/WordPress/wordpress-playground/discussions/1379 for
+     *      more context.
+     */
+    class Playground_SQLite_Integration_Loader {
+        public function __call($name, $arguments) {
+            $this->load_sqlite_integration();
+            if($GLOBALS['wpdb'] === $this) {
+                throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
+            }
+            return call_user_func_array(
+                array($GLOBALS['wpdb'], $name),
+                $arguments
+            );
+        }
+        public function __get($name) {
+            $this->load_sqlite_integration();
+            if($GLOBALS['wpdb'] === $this) {
+                throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
+            }
+            return $GLOBALS['wpdb']->$name;
+        }
+        public function __set($name, $value) {
+            $this->load_sqlite_integration();
+            if($GLOBALS['wpdb'] === $this) {
+                throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
+            }
+            $GLOBALS['wpdb']->$name = $value;
+        }
+        protected function load_sqlite_integration() {
+            require_once ${phpVar(SQLITE_MUPLUGIN_PATH)};
+        }
+    }
+    $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
+            `
+	);
+	/**
+	 * Ensure the SQLite integration is loaded and clearly communicate
+	 * if it isn't. This is useful because WordPress database errors
+	 * may be cryptic and won't mention the SQLite integration.
+	 */
+	await php.writeFile(
+		`/internal/shared/mu-plugins/sqlite-test.php`,
+		`<?php
+            global $wpdb;
+            if(!($wpdb instanceof WP_SQLite_DB)) {
+                var_dump(isset($wpdb));
+                die("SQLite integration not loaded " . get_class($wpdb));
+            }
+            `
+	);
+}

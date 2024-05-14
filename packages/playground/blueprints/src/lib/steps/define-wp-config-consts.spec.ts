@@ -1,6 +1,6 @@
 import { NodePHP } from '@php-wasm/node';
 import { rewriteDefineCalls, defineBeforeRun } from './define-wp-config-consts';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 describe('rewriteDefineCalls', () => {
 	let php: NodePHP;

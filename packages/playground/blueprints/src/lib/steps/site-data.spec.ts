@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { setSiteOptions } from './site-data';
 import { unzip } from './unzip';

@@ -1,5 +1,5 @@
 import { NodePHP } from '@php-wasm/node';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import { mkdir } from './mkdir';
 
 describe('Blueprint step mkdir', () => {

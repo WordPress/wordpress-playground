@@ -21,7 +21,7 @@ import {
 import { NodePHP } from '@php-wasm/node';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
-import { RecommendedPHPVersion } from '@wp-playground/wordpress';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 export interface Mount {
 	hostPath: string;

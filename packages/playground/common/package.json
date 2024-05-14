@@ -1,0 +1,30 @@
+{
+	"name": "@wp-playground/common",
+	"version": "0.7.19",
+	"description": "Common exports and utilities for WordPress Playground",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/common/common-playground"
+	},
+	"homepage": "https://developer.wordpress.org/playground",
+	"author": "The WordPress contributors",
+	"contributors": [
+		{
+			"name": "Adam Zielinski",
+			"email": "adam@adamziel.com",
+			"url": "https://github.com/adamziel"
+		}
+	],
+	"main": "./index.js",
+	"typings": "./index.d.ts",
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"engines": {
+		"node": ">=18.18.0",
+		"npm": ">=8.11.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"directory": "../../../dist/packages/playground/common"
+	}
+}

@@ -106,8 +106,11 @@ export async function setupWordPress(
  * as that's viable.
  */
 async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
-	php.mkdir('/internal/mu-plugins');
-	php.writeFile('/internal/mu-plugins/0-playground.php', playgroundMuPlugin);
+	php.mkdir('/internal/shared/mu-plugins');
+	php.writeFile(
+		'/internal/shared/mu-plugins/0-playground.php',
+		playgroundMuPlugin
+	);
 
 	// Extract WordPress {{{
 	php.mkdir('/tmp/unzipped-wordpress');
@@ -135,7 +138,7 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 	});
 	php.mv(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',
-		'/internal/mu-plugins/sqlite-database-integration'
+		'/internal/shared/mu-plugins/sqlite-database-integration'
 	);
 
 	php.writeFile(
@@ -150,15 +153,15 @@ async function prepareWordPress(php: NodePHP, wpZip: File, sqliteZip: File) {
 	);
 	const dbPhp = php
 		.readFileAsText(
-			'/internal/mu-plugins/sqlite-database-integration/db.copy'
+			'/internal/shared/mu-plugins/sqlite-database-integration/db.copy'
 		)
 		.replace(
 			"'{SQLITE_IMPLEMENTATION_FOLDER_PATH}'",
-			"'/internal/mu-plugins/sqlite-database-integration/'"
+			"'/internal/shared/mu-plugins/sqlite-database-integration/'"
 		)
 		.replace(
 			"'{SQLITE_PLUGIN}'",
-			"'/internal/mu-plugins/sqlite-database-integration/load.php'"
+			"'/internal/shared/mu-plugins/sqlite-database-integration/load.php'"
 		);
 	php.writeFile(
 		'/internal/mu-plugins/sqlite-database-integration.php',
