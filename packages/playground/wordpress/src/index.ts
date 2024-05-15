@@ -100,8 +100,8 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
 	);
 
 	// Load the error handler before any other PHP file to ensure it
-	// treats all errors, even those trigerred before mu-plugins are
-	// loaded.
+	// treats all the errors, even those trigerred before mu-plugins
+	// are loaded.
 	await php.writeFile(
 		'/internal/shared/preload/error-handler.php',
 		`<?php
