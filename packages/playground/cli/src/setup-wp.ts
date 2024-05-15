@@ -16,10 +16,7 @@ import {
 	readAsFile,
 } from './download';
 import { withPHPIniValues } from './setup-php';
-import {
-	playgroundMuPlugin,
-	preloadSqliteIntegration,
-} from '@wp-playground/wordpress';
+import { preloadSqliteIntegration } from '@wp-playground/wordpress';
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -52,9 +49,11 @@ export async function setupWordPress(
 			monitor
 		),
 	]);
-
 	await prepareWordPress(php, wpZip);
-	await preloadSqliteIntegration(php, sqliteZip);
+	// Setup the SQLite integration if no custom database drop-in is present
+	if (!php.fileExists('/wordpress/wp-content/db.php')) {
+		await preloadSqliteIntegration(php, sqliteZip);
+	}
 
 	const preinstalledWpContentPath = path.join(
 		CACHE_FOLDER,
@@ -101,7 +100,7 @@ export async function setupWordPress(
  * the sqlite-database-integration zip file.
  *
  * This is a TypeScript function for now, just to get something off the
- * ground, but it will be superseded by the PHP Blueprints library developed
+ * ground, but it may be superseded by the PHP Blueprints library developed
  * at https://github.com/WordPress/blueprints-library/
  *
  * That PHP library will come with a set of functions and a CLI tool to
@@ -111,13 +110,6 @@ export async function setupWordPress(
  * as that's viable.
  */
 async function prepareWordPress(php: NodePHP, wpZip: File) {
-	php.mkdir('/internal/shared/mu-plugins');
-	php.writeFile(
-		'/internal/shared/mu-plugins/0-playground.php',
-		playgroundMuPlugin
-	);
-
-	// Extract WordPress {{{
 	php.mkdir('/tmp/unzipped-wordpress');
 	await unzip(php, {
 		zipFile: wpZip,

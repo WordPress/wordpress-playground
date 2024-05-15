@@ -7,16 +7,8 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import {
-	envPHP_to_loadMuPlugins,
-	playgroundMuPlugin,
-	wordPressRewriteRules,
-} from '@wp-playground/wordpress';
-import {
-	PHPRequestHandler,
-	proxyFileSystem,
-	writeFiles,
-} from '@php-wasm/universal';
+import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { PHPRequestHandler } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -28,13 +20,7 @@ import {
 	unzip,
 } from '@wp-playground/blueprints';
 
-/** @ts-ignore */
-import transportFetch from './playground-mu-plugin/playground-includes/wp_http_fetch.php?raw';
-/** @ts-ignore */
-import transportDummy from './playground-mu-plugin/playground-includes/wp_http_dummy.php?raw';
-/** @ts-ignore */
-import playgroundWebMuPlugin from './playground-mu-plugin/0-playground.php?raw';
-import { joinPaths, randomString } from '@php-wasm/util';
+import { randomString } from '@php-wasm/util';
 import {
 	requestedWPVersion,
 	createPhp,
@@ -169,37 +155,12 @@ export class PlaygroundWorkerEndpoint extends WebPHPEndpoint {
 
 const scopedSiteUrl = setURLScope(wordPressSiteUrl, scope).toString();
 const requestHandler = new PHPRequestHandler({
-	phpFactory: async ({ isPrimary }) => {
-		const php = await createPhp(requestHandler);
-		php.defineConstant('SCOPED_SITE_PATH', new URL(scopedSiteUrl).pathname);
-		if (isPrimary) {
-			php.writeFile(
-				'/internal/shared/preload/env.php',
-				envPHP_to_loadMuPlugins
-			);
-			php.writeFile(
-				'/internal/shared/preload/phpinfo.php',
-				`<?php
-			// Render PHPInfo if the requested page is /phpinfo.php
-			if ( SCOPED_SITE_PATH . '/phpinfo.php' === $_SERVER['REQUEST_URI'] ) {
-				phpinfo();
-				exit;
-			}
-			`
-			);
-		} else {
-			proxyFileSystem(await requestHandler.getPrimaryPhp(), php, [
-				'/tmp',
-				requestHandler.documentRoot,
-				'/internal/shared',
-			]);
-		}
-		return php;
-	},
+	phpFactory: async ({ isPrimary }) =>
+		await createPhp(requestHandler, scopedSiteUrl, isPrimary),
 	documentRoot: DOCROOT,
 	absoluteUrl: scopedSiteUrl,
 	rewriteRules: wordPressRewriteRules,
-});
+}) as PHPRequestHandler<WebPHP>;
 const apiEndpoint = new PlaygroundWorkerEndpoint(
 	requestHandler,
 	downloadMonitor,
@@ -240,18 +201,6 @@ try {
 			},
 		});
 	}
-
-	// Always install the playground mu-plugin, even if WordPress is loaded
-	// from the OPFS. This ensures:
-	// * The mu-plugin is always there, even when a custom WordPress directory
-	//   is mounted.
-	// * The mu-plugin is always up to date.
-	await writeFiles(primaryPhp, joinPaths('/internal/shared/mu-plugins'), {
-		'0-playground.php': playgroundMuPlugin,
-		'1-playground-web.php': playgroundWebMuPlugin,
-		'playground-includes/wp_http_dummy.php': transportDummy,
-		'playground-includes/wp_http_fetch.php': transportFetch,
-	});
 
 	if (virtualOpfsDir) {
 		await bindOpfs({
