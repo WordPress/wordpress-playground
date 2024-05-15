@@ -18,14 +18,13 @@ describe('Blueprint step enableMultisite', () => {
 			documentRoot: DOCROOT,
 		});
 		const php = await requestHandler.getPrimaryPhp();
-		// Ensure we're preloading platform-level mu-plugins
-		await enablePlatformMuPlugins(php);
-		await preloadRequiredMuPlugin(php);
-
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: DOCROOT,
 		});
+		// Ensure we're preloading platform-level mu-plugins
+		await enablePlatformMuPlugins(php);
+		await preloadRequiredMuPlugin(php);
 		return { php, requestHandler };
 	}
 

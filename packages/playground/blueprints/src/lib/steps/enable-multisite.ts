@@ -1,4 +1,4 @@
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { login } from './login';
@@ -149,7 +149,6 @@ echo json_encode($deactivated_plugins);
 
 	await defineWpConfigConsts(playground, {
 		consts: {
-			SUNRISE: 'on',
 			MULTISITE: true,
 			SUBDOMAIN_INSTALL: false,
 			SITE_ID_CURRENT_SITE: 1,
@@ -171,7 +170,7 @@ echo json_encode($deactivated_plugins);
 		? 'scope:' + getURLScope(playgroundUrl)
 		: null;
 	await playground.writeFile(
-		'/internal/shared/mu-plugins/0-sunrise.php',
+		'/internal/shared/mu-plugins/sunrise.php',
 		`<?php
 	if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
 		define( 'BLOG_ID_CURRENT_SITE', 1 );
