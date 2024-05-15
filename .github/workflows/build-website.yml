@@ -49,7 +49,7 @@ jobs:
 
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
-                    dist/packages/artifacts/wasm-wordpress-net/ \
+                    dist/packages/playground/wasm-wordpress-net/ \
                     ${{ secrets.STAGING_WEBSITE_TARGET_USER }}@${{ secrets.STAGING_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
 
                   # Host-specific deployment scripts and server config
