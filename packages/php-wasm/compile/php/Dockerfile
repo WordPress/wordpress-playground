@@ -165,7 +165,7 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 # Add GD if needed
 RUN if [ "$WITH_LIBPNG" = "yes" ]; \
 	then \
-		echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-webp-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
+		echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags && \
 		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
@@ -272,8 +272,10 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-	CURL_CFLAGS="-I/root/lib/include" \
-	CURL_LIBS="-L/root/lib/lib" \
+CURL_CFLAGS="-I/root/lib/include" \
+WEBP_LIBS="-L/root/lib/lib" \
+WEBP_CFLAGS="-I/root/lib/include" \
+CURL_LIBS="-L/root/lib/lib" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
