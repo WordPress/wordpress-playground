@@ -34,41 +34,32 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 
 	const docroot = await playground.documentRoot;
-	if (!(await playground.fileExists(pluginPath))) {
-		throw new Error(`
-			Couldn't activate ${pluginName}.
-			Plugin not found at the provided plugin path: ${pluginPath}.
-			Check the plugin path to ensure it's correct.
-			If the plugin is not installed, you can install it using the installPlugin step.
-			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivatePluginStep
-		`);
-	}
 	await playground.run({
 		code: `<?php
-			define( 'WP_ADMIN', true );
-			require_once( ${phpVar(docroot)}. "/wp-load.php" );
-			require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+define( 'WP_ADMIN', true );
+require_once( ${phpVar(docroot)}. "/wp-load.php" );
+require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
-			// Set current user to admin
-			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+// Set current user to admin
+wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-			$plugin_path = ${phpVar(pluginPath)};
+$plugin_path = ${phpVar(pluginPath)};
 
-			if (!is_dir($plugin_path)) {
-				activate_plugin($plugin_path);
-				die();
-			}
+if (!is_dir($plugin_path)) {
+	activate_plugin($plugin_path);
+	die();
+}
 
-			foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
-				$info = get_plugin_data( $file, false, false );
-				if ( ! empty( $info['Name'] ) ) {
-					activate_plugin( $file );
-					die();
-				}
-			}
+foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+	$info = get_plugin_data( $file, false, false );
+	if ( ! empty( $info['Name'] ) ) {
+		activate_plugin( $file );
+		die();
+	}
+}
 
-			// If we got here, the plugin was not found.
-			exit(1);
-		`,
+// If we got here, the plugin was not found.
+exit(1);
+`,
 	});
 };
