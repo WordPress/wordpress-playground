@@ -68,7 +68,7 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 				}
 			}
 
-			if ( is_wp_error( $response ) ) {
+			if ( is_wp_error( $response ) || is_null( $response ) ) {
 				throw new Exception( $response->get_error_message() );
 			}
 
