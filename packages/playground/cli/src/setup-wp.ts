@@ -122,7 +122,7 @@ async function prepareWordPress(php: NodePHP, wpZip: File) {
 
 	php.mv(wpPath, '/wordpress');
 	php.writeFile(
-		'/wordpress/wp-config.php',
+		'/wp-config.php',
 		php.readFileAsText('/wordpress/wp-config-sample.php')
 	);
 }
