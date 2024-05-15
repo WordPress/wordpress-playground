@@ -1,6 +1,6 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import { unzip } from '@wp-playground/blueprints';
+import { unzipFile } from '@wp-playground/common';
 
 export * from './rewrite-rules';
 
@@ -184,10 +184,7 @@ export async function preloadSqliteIntegration(
 		});
 	}
 	await php.mkdir('/tmp/sqlite-database-integration');
-	await unzip(php, {
-		zipFile: sqliteZip,
-		extractToPath: '/tmp/sqlite-database-integration',
-	});
+	await unzipFile(php, sqliteZip, '/tmp/sqlite-database-integration');
 	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
 	await php.mv(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',

@@ -1,6 +1,10 @@
 import { NodePHP } from '@php-wasm/node';
 import { rewriteDefineCalls, defineBeforeRun } from './define-wp-config-consts';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	enablePlatformMuPlugins,
+	preloadRequiredMuPlugin,
+} from '@wp-playground/wordpress';
 
 describe('rewriteDefineCalls', () => {
 	let php: NodePHP;
@@ -235,5 +239,33 @@ describe('defineBeforeRun', () => {
 				code: `<?php echo json_encode(['SITE_URL' => SITE_URL]);`,
 			})
 		).rejects.toThrow('PHP.run() failed with exit code');
+	});
+
+	it('should not raise a warning when conflicting with a user-defined constant', async () => {
+		// Preload the warning-silencing error handler
+		await enablePlatformMuPlugins(php);
+		await preloadRequiredMuPlugin(php);
+
+		const constants = {
+			SITE_URL: 'http://test.url',
+		};
+		await defineBeforeRun(php, constants);
+		php.writeFile(
+			'/index.php',
+			`<?php
+			// This should be warning-free:
+			define('SITE_URL', 'another value');
+
+			// This should trigger a warning:
+			define('ANOTHER_CONSTANT', 'first');
+			define('ANOTHER_CONSTANT', 'second');
+			`
+		);
+		const response = await php.run({
+			scriptPath: '/index.php',
+		});
+		expect(response.errors).toEqual(
+			'PHP Warning:  Constant ANOTHER_CONSTANT already defined in /index.php on line 7\n'
+		);
 	});
 });
