@@ -1,6 +1,6 @@
 import { UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import { unzip } from '@wp-playground/blueprints';
+import { unzipFile } from '@wp-playground/common';
 
 export * from './rewrite-rules';
 
@@ -80,33 +80,6 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
             mkdir(WP_CONTENT_DIR . '/fonts');
         }
         ?>`,
-		silenceUnfixableErrors: `<?php
-        set_error_handler(function($severity, $message, $file, $line) {
-            /**
-             * This is a temporary workaround to hide the 32bit integer warnings that
-             * appear when using various time related function, such as strtotime and mktime.
-             * Examples of the warnings that are displayed:
-             * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
-             * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
-             */
-            if (strpos($message, "fit in a PHP integer") !== false) {
-                return;
-            }
-            /**
-             * Don't complain about network errors when not connected to the network.
-             */
-            if (
-                (
-                    ! defined('USE_FETCH_FOR_REQUESTS') ||
-                    ! USE_FETCH_FOR_REQUESTS
-                ) &&
-                strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
-            {
-                return;
-            }
-            return false;
-        });
-        ?>`,
 		configureErrorLogging: `<?php
         $log_file = WP_CONTENT_DIR . '/debug.log';
         error_reporting(E_ALL);
@@ -124,6 +97,61 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
 	await php.writeFile(
 		'/internal/shared/mu-plugins/0-playground.php',
 		playgroundMuPlugin
+	);
+
+	// Load the error handler before any other PHP file to ensure it
+	// treats all the errors, even those trigerred before mu-plugins
+	// are loaded.
+	await php.writeFile(
+		'/internal/shared/preload/error-handler.php',
+		`<?php
+		(function() { 
+			$playground_consts = [];
+			if(file_exists('/internal/shared/consts.json')) {
+				$playground_consts = @json_decode(file_get_contents('/internal/shared/consts.json'), true) ?: [];
+				$playground_consts = array_keys($playground_consts);
+			}
+			set_error_handler(function($severity, $message, $file, $line) use($playground_consts) {
+				/**
+				 * This is a temporary workaround to hide the 32bit integer warnings that
+				 * appear when using various time related function, such as strtotime and mktime.
+				 * Examples of the warnings that are displayed:
+				 *
+				 * Warning: mktime(): Epoch doesn't fit in a PHP integer in <file>
+				 * Warning: strtotime(): Epoch doesn't fit in a PHP integer in <file>
+				 */
+				if (strpos($message, "fit in a PHP integer") !== false) {
+					return;
+				}
+				/**
+				 * Playground defines some constants upfront, and some of them may be redefined
+				 * in wp-config.php. For example, SITE_URL or WP_DEBUG. This is expected and
+				 * we want Playground constants to take priority without showing warnings like:
+				 *
+				 * Warning: Constant SITE_URL already defined in
+				 */
+				if (strpos($message, "already defined") !== false) {
+					foreach($playground_consts as $const) {
+						if(strpos($message, "Constant $const already defined") !== false) {
+							return;
+						}
+					}
+				}
+				/**
+				 * Don't complain about network errors when not connected to the network.
+				 */
+				if (
+					(
+						! defined('USE_FETCH_FOR_REQUESTS') ||
+						! USE_FETCH_FOR_REQUESTS
+					) &&
+					strpos($message, "WordPress could not establish a secure connection to WordPress.org") !== false)
+				{
+					return;
+				}
+				return false;
+			});
+		})();`
 	);
 }
 
@@ -156,10 +184,7 @@ export async function preloadSqliteIntegration(
 		});
 	}
 	await php.mkdir('/tmp/sqlite-database-integration');
-	await unzip(php, {
-		zipFile: sqliteZip,
-		extractToPath: '/tmp/sqlite-database-integration',
-	});
+	await unzipFile(php, sqliteZip, '/tmp/sqlite-database-integration');
 	const SQLITE_PLUGIN_FOLDER = '/internal/shared/sqlite-database-integration';
 	await php.mv(
 		'/tmp/sqlite-database-integration/sqlite-database-integration-main',

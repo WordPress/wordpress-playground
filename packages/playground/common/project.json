@@ -45,10 +45,7 @@
 			"executor": "@nx/linter:eslint",
 			"outputs": ["{options.outputFile}"],
 			"options": {
-				"lintFilePatterns": [
-					"packages/playground/common/**/*.ts",
-					"packages/playground/common/package.json"
-				]
+				"lintFilePatterns": ["packages/playground/common/**/*.ts"]
 			}
 		}
 	},
