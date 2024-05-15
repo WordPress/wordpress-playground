@@ -33,7 +33,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 					className={css.logModalLog}
 					key={index}
 					dangerouslySetInnerHTML={{
-						__html: log.replace(/Error:/, '<mark>$&</mark>'),
+						__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
 					}}
 				/>
 			));
