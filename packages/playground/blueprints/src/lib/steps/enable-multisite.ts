@@ -1,4 +1,4 @@
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
 import { defineWpConfigConsts } from './define-wp-config-consts';
 import { login } from './login';
@@ -149,7 +149,6 @@ echo json_encode($deactivated_plugins);
 
 	await defineWpConfigConsts(playground, {
 		consts: {
-			SUNRISE: 'on',
 			MULTISITE: true,
 			SUBDOMAIN_INSTALL: false,
 			SITE_ID_CURRENT_SITE: 1,
@@ -159,15 +158,19 @@ echo json_encode($deactivated_plugins);
 		},
 	});
 
-	// Create a sunrise.php file to tell WordPress which site to load
-	// by default. Without this, requiring `wp-load.php` will result in
-	// a redirect to the main site.
+	// Preload a sunrise.php file. Without it, requiring `wp-load.php`
+	// would result in a redirect to the main site.
+	//
+	// Normally that's a drop-in plugin living in wp-content, but:
+	// * We only need this logic in Playground runtime.
+	// * We don't want to modify the user site in any way not explicitly
+	//   requested.
 	const playgroundUrl = new URL(await playground.absoluteUrl);
 	const wpInstallationFolder = isURLScoped(playgroundUrl)
 		? 'scope:' + getURLScope(playgroundUrl)
 		: null;
 	await playground.writeFile(
-		joinPaths(docroot, '/wp-content/sunrise.php'),
+		'/internal/shared/mu-plugins/sunrise.php',
 		`<?php
 	if ( !defined( 'BLOG_ID_CURRENT_SITE' ) ) {
 		define( 'BLOG_ID_CURRENT_SITE', 1 );

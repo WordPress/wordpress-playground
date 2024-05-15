@@ -4,6 +4,10 @@ import { getWordPressModule } from '@wp-playground/wordpress-builds';
 import { unzip } from './unzip';
 import { enableMultisite } from './enable-multisite';
 import { PHPRequestHandler } from '@php-wasm/universal';
+import {
+	enablePlatformMuPlugins,
+	preloadRequiredMuPlugin,
+} from '@wp-playground/wordpress';
 
 const DOCROOT = '/test-dir';
 describe('Blueprint step enableMultisite', () => {
@@ -14,11 +18,13 @@ describe('Blueprint step enableMultisite', () => {
 			documentRoot: DOCROOT,
 		});
 		const php = await requestHandler.getPrimaryPhp();
-
 		await unzip(php, {
 			zipFile: await getWordPressModule(),
 			extractToPath: DOCROOT,
 		});
+		// Ensure we're preloading platform-level mu-plugins
+		await enablePlatformMuPlugins(php);
+		await preloadRequiredMuPlugin(php);
 		return { php, requestHandler };
 	}
 
