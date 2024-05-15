@@ -6,6 +6,11 @@ on:
     schedule:
         - cron: '0 9,18 * * *'
 
+concurrency:
+    group: website-deployment
+    # TODO: Enable cancel-in-progress once we are deploying per commit?
+    #cancel-in-progress: true
+
 jobs:
     build_and_deploy:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
@@ -27,11 +32,31 @@ jobs:
             - uses: actions/checkout@v3
             - uses: ./.github/actions/prepare-playground
             - run: npm run build
-            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
-            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
-            - uses: actions/upload-artifact@v2
-              with:
-                  name: playground-website
-                  path: wasm-wordpress-net.tar.gz
-            # The artifact only becomes available after this workflow wraps up, so let's wrap.
-            # The deploy-website.yml workflow will pick up the artifact and deploy it.
+
+            - name: Deploy to playground.wordpress.net
+              shell: bash
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
+                  echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+                  chmod 0600 ~/.ssh/*
+
+                  # Website files
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    dist/packages/artifacts/wasm-wordpress-net/ \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
+
+                  # Host-specific deployment scripts and server config
+                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
+                    packages/playground/website-deployment/ \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
+
+                  # Copy MIME types for use with PHP-served files
+                  scp -i ~/.ssh/id_ed25519 \
+                    packages/php-wasm/universal/src/lib/mime-types.json \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
+
+                  # Apply update
+                  ssh -i ~/.ssh/id_ed25519 \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
+                    -tt -C '~/website-deployment/apply-update.sh'
