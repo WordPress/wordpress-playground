@@ -3,12 +3,8 @@ name: Deploy to playground.wordpress.net
 on:
     workflow_dispatch:
     # Deploy the website every day at 9am and 6pm UTC
-    # TODO: Re-enable this before merge
-    #schedule:
-    #    - cron: '0 9,18 * * *'
-
-    # TODO: Remove this before merging
-    pull_request:
+    schedule:
+        - cron: '0 9,18 * * *'
 
 concurrency:
     group: website-deployment
@@ -18,16 +14,15 @@ concurrency:
 jobs:
     build_and_deploy:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
-        #TODO: Re-enable this check before merging
-        #if: >
-        #github.ref == 'refs/heads/trunk' && (
-        #    github.event_name == 'workflow_run' ||
-        #    github.event_name == 'workflow_dispatch' ||
-        #    github.actor == 'adamziel' ||
-        #    github.actor == 'dmsnell' ||
-        #    github.actor == 'bgrgicak' ||
-        #    github.actor == 'brandonpayton'
-        #)
+        if: >
+        github.ref == 'refs/heads/trunk' && (
+            github.event_name == 'workflow_run' ||
+            github.event_name == 'workflow_dispatch' ||
+            github.actor == 'adamziel' ||
+            github.actor == 'dmsnell' ||
+            github.actor == 'bgrgicak' ||
+            github.actor == 'brandonpayton'
+        )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
@@ -38,7 +33,6 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: npm run build
 
-            # TODO: Target production site before merging
             - name: Deploy to playground.wordpress.net
               shell: bash
               run: |
@@ -50,19 +44,19 @@ jobs:
                   # Website files
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     dist/packages/playground/wasm-wordpress-net/ \
-                    ${{ secrets.STAGING_WEBSITE_TARGET_USER }}@${{ secrets.STAGING_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
 
                   # Host-specific deployment scripts and server config
                   rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
                     packages/playground/website-deployment/ \
-                    ${{ secrets.STAGING_WEBSITE_TARGET_USER }}@${{ secrets.STAGING_WEBSITE_TARGET_HOST }}:'~/website-deployment'
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
 
                   # Copy MIME types for use with PHP-served files
                   scp -i ~/.ssh/id_ed25519 \
                     packages/php-wasm/universal/src/lib/mime-types.json \
-                    ${{ secrets.STAGING_WEBSITE_TARGET_USER }}@${{ secrets.STAGING_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment/'
 
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
-                    ${{ secrets.STAGING_WEBSITE_TARGET_USER }}@${{ secrets.STAGING_WEBSITE_TARGET_HOST }} \
+                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
                     -tt -C '~/website-deployment/apply-update.sh'
