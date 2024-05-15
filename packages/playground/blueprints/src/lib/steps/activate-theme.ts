@@ -46,13 +46,13 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	}
 	await playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			define( 'WP_ADMIN', true );
+			require_once( ${phpVar(docroot)}. "/wp-load.php" );
 
-// Set current user to admin
-wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+			// Set current user to admin
+			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-switch_theme( ${phpVar(themeFolderName)} );
-`,
+			switch_theme( ${phpVar(themeFolderName)} );
+		`,
 	});
 };

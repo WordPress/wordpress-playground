@@ -53,22 +53,26 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
 			$plugin_path = ${phpVar(pluginPath)};
-
+			$response = null;
 			if (!is_dir($plugin_path)) {
-				activate_plugin($plugin_path);
-				die();
+				$response = activate_plugin($plugin_path);
 			}
 
-			foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
-				$info = get_plugin_data( $file, false, false );
-				if ( ! empty( $info['Name'] ) ) {
-					activate_plugin( $file );
-					die();
+			if (is_null($response)) {
+				foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+					$info = get_plugin_data( $file, false, false );
+					if ( ! empty( $info['Name'] ) ) {
+						$response = activate_plugin( $file );
+						break;
+					}
 				}
 			}
 
-			// If we got here, the plugin was not found.
-			exit(1);
+			if ( is_wp_error( $response ) ) {
+				throw new Exception( $response->get_error_message() );
+			}
+
+			die();
 		`,
 	});
 };
