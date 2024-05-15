@@ -15,14 +15,14 @@ jobs:
     build_and_deploy:
         # Only run this workflow from the trunk branch and when it's triggered by another workflow OR dmsnell OR adamziel
         if: >
-        github.ref == 'refs/heads/trunk' && (
-            github.event_name == 'workflow_run' ||
-            github.event_name == 'workflow_dispatch' ||
-            github.actor == 'adamziel' ||
-            github.actor == 'dmsnell' ||
-            github.actor == 'bgrgicak' ||
-            github.actor == 'brandonpayton'
-        )
+            github.ref == 'refs/heads/trunk' && (
+                github.event_name == 'workflow_run' ||
+                github.event_name == 'workflow_dispatch' ||
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
+            )
 
         # Specify runner + deployment step
         runs-on: ubuntu-latest
