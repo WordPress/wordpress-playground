@@ -55,7 +55,7 @@ export interface DefineWpConfigConstsStep {
  */
 export const defineWpConfigConsts: StepHandler<
 	DefineWpConfigConstsStep
-> = async (playground, { consts, method = 'rewrite-wp-config' }) => {
+> = async (playground, { consts, method = 'define-before-run' }) => {
 	switch (method) {
 		case 'define-before-run':
 			await defineBeforeRun(playground, consts);
