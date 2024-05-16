@@ -88,6 +88,13 @@ const sourceDir = path.dirname(new URL(import.meta.url).pathname);
 const outputAssetsDir = path.resolve(process.cwd(), args.outputAssets);
 const outputJsDir = path.resolve(process.cwd(), args.outputJs);
 
+// @TODO: Put this in a separate script and set up nx, npm, and GitHub Actions to run it
+// Refresh sqlite-database-integration.zip
+const outputZipPath = `${outputJsDir}/sqlite-database-integration.zip`;
+const sqliteResponse = await fetch('https://github.com/WordPress/sqlite-database-integration/archive/refs/heads/main.zip');
+const sqliteZip = Buffer.from(await sqliteResponse.arrayBuffer());
+await fs.writeFile(outputZipPath, sqliteZip);
+
 // Short-circuit if the version is already downloaded and not forced
 const versionsPath = `${outputJsDir}/wp-versions.json`;
 let versions = {};

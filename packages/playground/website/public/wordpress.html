@@ -204,65 +204,12 @@
 			const blueprint = {
 				$schema:
 					'https://playground.wordpress.net/blueprint-schema.json',
+				login: true,
 				landingPage: urlParams.get('url') || '/wp-admin',
-				steps: [
-					{
-						step: 'mkdir',
-						path: '/wordpress-new',
-					},
-					/*
-					 * Download WordPress build from a given GitHub PR.
-					 *
-					 * Because the zip file is not publicly accessible, we use the
-					 * plugin-proxy API endpoint to download it. The source code of
-					 * that endpoint is available at:
-					 * https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/public/plugin-proxy.php
-					 */
-					{
-						step: 'writeFile',
-						path: '/tmp/pr.zip',
-						data: {
-							resource: 'url',
-							url: zipArtifactUrl,
-							caption: `Downloading WordPress PR ${prNumber}`,
-						},
-					},
-					// Extract and remove the zip file.
-					{
-						step: 'unzip',
-						zipPath: '/tmp/pr.zip',
-						extractToPath: '/tmp',
-					},
-					{
-						step: 'rm',
-						path: '/tmp/pr.zip',
-					},
-					// Import the unzipped PR.
-					{
-						step: 'importWordPressFiles',
-						wordPressFilesZip: {
-							resource: 'vfs',
-							path: '/tmp/wordpress.zip',
-						},
-						pathInZip: '/build',
-						progress: {
-							weight: 20,
-							caption: `Applying WordPress PR ${prNumber}`,
-						},
-					},
-					{
-						step: 'runPHP',
-						code: `<?php
-							$_GET['step'] = 'upgrade_db';
-							require '/wordpress/wp-admin/upgrade.php';
-						`,
-					},
-					{
-						step: 'login',
-						username: 'admin',
-						password: 'password',
-					},
-				],
+				preferredVersions: {
+					wp: zipArtifactUrl,
+					php: '7.4',
+				},
 			};
 			const encoded = JSON.stringify(blueprint);
 

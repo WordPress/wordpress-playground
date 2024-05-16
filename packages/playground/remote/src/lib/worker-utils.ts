@@ -84,10 +84,12 @@ export async function createPhp(
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	php.setPhpIniPath('/internal/shared/php.ini');
 	php.setPhpIniEntry('memory_limit', '256M');
 	php.setSpawnHandler(spawnHandlerFactory(requestHandler.processManager));
 
 	if (isPrimary) {
+		php.writeFile('/internal/shared/php.ini', '');
 		const scopedSitePath = new URL(siteUrl).pathname;
 		await preloadPhpInfoRoute(
 			php,

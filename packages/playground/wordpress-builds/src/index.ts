@@ -9,3 +9,6 @@ export const SupportedWordPressVersionsList = Object.keys(
 export const LatestSupportedWordPressVersion =
 	SupportedWordPressVersionsList.filter((v) => v.match(/^\d/))[0] as string;
 
+// @ts-ignore
+import sqliteIntegrationUrl from './wordpress/sqlite-database-integration.zip?url';
+export { sqliteIntegrationUrl };

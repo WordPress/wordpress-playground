@@ -5,9 +5,15 @@ import { DOCROOT, wordPressSiteUrl } from './config';
 import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
+	sqliteIntegrationUrl,
 	SupportedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import {
+	preloadSqliteIntegration,
+	unzipWordPress,
+	withPHPIniValues,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
@@ -17,7 +23,7 @@ import {
 import {
 	defineSiteUrl,
 	defineWpConfigConsts,
-	unzip,
+	runWpInstallationWizard,
 } from '@wp-playground/blueprints';
 
 import { randomString } from '@php-wasm/util';
@@ -59,8 +65,14 @@ if (
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
+let sqliteIntegrationRequest = null;
 if (!wordPressAvailableInOPFS) {
-	if (requestedWPVersion.startsWith('http')) {
+	sqliteIntegrationRequest = monitoredFetch(sqliteIntegrationUrl);
+	if (
+		requestedWPVersion.startsWith('http://') ||
+		requestedWPVersion.startsWith('https://') ||
+		requestedWPVersion.startsWith('/plugin-proxy.php')
+	) {
 		// We don't know the size upfront, but we can still monitor the download.
 		// monitorFetch will read the content-length response header when available.
 		wordPressRequest = monitoredFetch(requestedWPVersion);
@@ -176,13 +188,10 @@ try {
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		await unzip(primaryPhp, {
-			zipFile: new File(
-				[await (await wordPressRequest!).blob()],
-				'wp.zip'
-			),
-			extractToPath: requestHandler.documentRoot,
-		});
+		await unzipWordPress(
+			primaryPhp,
+			new File([await (await wordPressRequest!).blob()], 'wp.zip')
+		);
 
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(primaryPhp, {
@@ -208,6 +217,49 @@ try {
 			opfs: virtualOpfsDir!,
 			wordPressAvailableInOPFS,
 		});
+	}
+
+	// Setup the SQLite integration if no custom database drop-in is present
+	if (
+		!primaryPhp.fileExists(primaryPhp.documentRoot + '/wp-content/db.php')
+	) {
+		const sqliteIntegrationZip = await (
+			await sqliteIntegrationRequest
+		)?.blob();
+		if (sqliteIntegrationZip) {
+			await preloadSqliteIntegration(
+				primaryPhp,
+				new File([sqliteIntegrationZip], 'sqlite.zip')
+			);
+		}
+	}
+
+	// Install WordPress if it isn't installed yet
+	const isInstalled =
+		(
+			await primaryPhp.run({
+				code: `<?php 
+		require '${primaryPhp.documentRoot}/wp-load.php';
+		echo is_blog_installed() ? '1' : '0';
+		`,
+			})
+		).text === '1';
+	if (!isInstalled) {
+		// Disable networking for the installation wizard
+		// to avoid loopback requests and also speed it up.
+		// @TODO: Expose withPHPIniValues as a function from the
+		//    php-wasm library.
+		await withPHPIniValues(
+			primaryPhp,
+			{
+				disable_functions: 'fsockopen',
+				allow_url_fopen: '0',
+			},
+			async () =>
+				await runWpInstallationWizard(primaryPhp, {
+					options: {},
+				})
+		);
 	}
 
 	// Always setup the current site URL.

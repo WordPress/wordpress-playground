@@ -1,5 +1,5 @@
-import { UniversalPHP } from '@php-wasm/universal';
-import { joinPaths, phpVar } from '@php-wasm/util';
+import { BasePHP, UniversalPHP } from '@php-wasm/universal';
+import { dirname, joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 
 export * from './rewrite-rules';
@@ -232,6 +232,7 @@ export async function preloadSqliteIntegration(
  */
 class Playground_SQLite_Integration_Loader {
 	public function __call($name, $arguments) {
+		die("Loading");
 		$this->load_sqlite_integration();
 		if($GLOBALS['wpdb'] === $this) {
 			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
@@ -242,6 +243,7 @@ class Playground_SQLite_Integration_Loader {
 		);
 	}
 	public function __get($name) {
+		die("Loading");
 		$this->load_sqlite_integration();
 		if($GLOBALS['wpdb'] === $this) {
 			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
@@ -260,6 +262,17 @@ class Playground_SQLite_Integration_Loader {
     }
 }
 $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
+
+/**
+ * WordPress is capable of using a preloaded global $wpdb. However, if
+ * it cannot find the drop-in db.php plugin it still checks whether
+ * the mysqli_connect() function exists even though it's not used.
+ *
+ * Well, if WordPress demands, Playground shall provide.
+ */
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
 		`
 	);
 	/**
@@ -277,4 +290,89 @@ $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
 		}
 		`
 	);
+}
+
+/**
+ * Prepare the WordPress document root given a WordPress zip file and
+ * the sqlite-database-integration zip file.
+ *
+ * This is a TypeScript function for now, just to get something off the
+ * ground, but it may be superseded by the PHP Blueprints library developed
+ * at https://github.com/WordPress/blueprints-library/
+ *
+ * That PHP library will come with a set of functions and a CLI tool to
+ * turn a Blueprint into a WordPress directory structure or a zip Snapshot.
+ * Let's **not** invest in the TypeScript implementation of this function,
+ * accept the limitation, and switch to the PHP implementation as soon
+ * as that's viable.
+ */
+export async function unzipWordPress(php: BasePHP, wpZip: File) {
+	php.mkdir('/tmp/unzipped-wordpress');
+	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+	// The zip file may contain another zip file if it's coming from GitHub artifacts
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
+		await unzipFile(
+			php,
+			'/tmp/unzipped-wordpress/wordpress.zip',
+			'/tmp/unzipped-wordpress'
+		);
+	}
+
+	// The zip file may contain a subdirectory, or not.
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+		? '/tmp/unzipped-wordpress/wordpress'
+		: php.fileExists('/tmp/unzipped-wordpress/build')
+		? '/tmp/unzipped-wordpress/build'
+		: '/tmp/unzipped-wordpress';
+
+	php.mv(wpPath, '/wordpress');
+	php.writeFile(
+		'/wp-config.php',
+		php.readFileAsText('/wordpress/wp-config-sample.php')
+	);
+}
+
+/**
+ * @TODO: Ship this feature in the php-wasm library.
+ *
+ *        Perhaps change the implementation of the setPhpIniValue()?
+ *        We could ensure there's always a valid php.ini file,
+ *        even if empty. php_wasm.c wouldn't provide any defaults.
+ *        BasePHP would, and it would write them to the default php.ini
+ *        file. Then we'd be able to use setPhpIniValue() at any time, not
+ *        just before the first run() call.
+ */
+export async function withPHPIniValues(
+	php: BasePHP,
+	phpIniValues: Record<string, string>,
+	callback: () => Promise<void>
+) {
+	const phpIniPath = (
+		await php.run({
+			code: '<?php echo php_ini_loaded_file();',
+		})
+	).text;
+	const phpIniDir = dirname(phpIniPath);
+	if (!php.fileExists(phpIniDir)) {
+		php.mkdir(phpIniDir);
+	}
+	if (!php.fileExists(phpIniPath)) {
+		php.writeFile(phpIniPath, '');
+	}
+	const originalPhpIni = php.readFileAsText(phpIniPath);
+	const newPhpIni = Object.entries(phpIniValues)
+		.map(([key, value]) => `${key} = ${value}`)
+		.join('\n');
+	php.writeFile(phpIniPath, [originalPhpIni, newPhpIni].join('\n'));
+	try {
+		await callback();
+	} finally {
+		php.writeFile(phpIniPath, originalPhpIni);
+	}
 }

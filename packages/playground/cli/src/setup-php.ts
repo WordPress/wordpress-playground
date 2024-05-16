@@ -6,7 +6,6 @@ import {
 	rotatePHPRuntime,
 } from '@php-wasm/universal';
 import { rootCertificates } from 'tls';
-import { dirname } from '@php-wasm/util';
 import {
 	preloadPhpInfoRoute,
 	enablePlatformMuPlugins,
@@ -74,43 +73,4 @@ export async function createPhp(
 		maxRequests: 400,
 	});
 	return php;
-}
-
-/**
- * @TODO: Ship this feature in the php-wasm library.
- *
- *        Perhaps change the implementation of the setPhpIniValue()?
- *        We could ensure there's always a valid php.ini file,
- *        even if empty. php_wasm.c wouldn't provide any defaults.
- *        BasePHP would, and it would write them to the default php.ini
- *        file. Then we'd be able to use setPhpIniValue() at any time, not
- *        just before the first run() call.
- */
-export async function withPHPIniValues(
-	php: NodePHP,
-	phpIniValues: Record<string, string>,
-	callback: () => Promise<void>
-) {
-	const phpIniPath = (
-		await php.run({
-			code: '<?php echo php_ini_loaded_file();',
-		})
-	).text;
-	const phpIniDir = dirname(phpIniPath);
-	if (!php.fileExists(phpIniDir)) {
-		php.mkdir(phpIniDir);
-	}
-	if (!php.fileExists(phpIniPath)) {
-		php.writeFile(phpIniPath, '');
-	}
-	const originalPhpIni = php.readFileAsText(phpIniPath);
-	const newPhpIni = Object.entries(phpIniValues)
-		.map(([key, value]) => `${key} = ${value}`)
-		.join('\n');
-	php.writeFile(phpIniPath, [originalPhpIni, newPhpIni].join('\n'));
-	try {
-		await callback();
-	} finally {
-		php.writeFile(phpIniPath, originalPhpIni);
-	}
 }

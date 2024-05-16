@@ -34,11 +34,14 @@ jobs:
                   clean: true
                   persist-credentials: false
             - uses: ./.github/actions/prepare-playground
+            - name: 'Install bun (for the changelog)'
+              run: |
+                  curl -fsSL https://bun.sh/install | bash
             - name: 'Recompile WordPress'
               shell: bash
               env:
                   FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
-              run: npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
+              run: PATH="${PATH}:${HOME}/.bun/bin" npx nx bundle-wordpress:major-and-beta playground-wordpress-builds
             - name: Check for uncommitted changes
               id: changes
               run: |
