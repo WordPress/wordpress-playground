@@ -232,7 +232,6 @@ export async function preloadSqliteIntegration(
  */
 class Playground_SQLite_Integration_Loader {
 	public function __call($name, $arguments) {
-		die("Loading");
 		$this->load_sqlite_integration();
 		if($GLOBALS['wpdb'] === $this) {
 			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
@@ -243,7 +242,6 @@ class Playground_SQLite_Integration_Loader {
 		);
 	}
 	public function __get($name) {
-		die("Loading");
 		$this->load_sqlite_integration();
 		if($GLOBALS['wpdb'] === $this) {
 			throw new Exception('Infinite loop detected in $wpdb – SQLite integration plugin could not be loaded');
@@ -331,10 +329,10 @@ export async function unzipWordPress(php: BasePHP, wpZip: File) {
 		? '/tmp/unzipped-wordpress/build'
 		: '/tmp/unzipped-wordpress';
 
-	php.mv(wpPath, '/wordpress');
+	php.mv(wpPath, php.documentRoot);
 	php.writeFile(
 		'/wp-config.php',
-		php.readFileAsText('/wordpress/wp-config-sample.php')
+		php.readFileAsText(php.documentRoot + '/wp-config-sample.php')
 	);
 }
 
