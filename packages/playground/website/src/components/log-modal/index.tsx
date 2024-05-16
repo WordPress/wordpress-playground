@@ -15,7 +15,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	useEffect(getLogs, [activeModal]);
 
 	function getLogs() {
-		setLogs(logger.getLogs().map((log) => log.replace(/\t/g, '')));
+		setLogs(logger.getLogs());
 	}
 
 	function onClose() {

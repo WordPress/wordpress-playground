@@ -167,6 +167,10 @@ const getDefaultHandlers = () => {
  */
 export const logger: Logger = new Logger(getDefaultHandlers());
 
+export const prepareLogMessage = (message: string) => {
+	return message.replace(/\t/g, '');
+};
+
 export const formatLogEntry = (
 	message: string,
 	severity: LogSeverity,
@@ -191,6 +195,7 @@ export const formatLogEntry = (
 		timeZoneName: 'short',
 	}).format(date);
 	const now = formattedDate + ' ' + formattedTime;
+	message = prepareLogMessage(message);
 	return `[${now}] ${prefix} ${severity}: ${message}`;
 };
 

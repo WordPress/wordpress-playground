@@ -1,10 +1,15 @@
 import { LogHandler } from '../log-handlers';
-import { Log } from '../logger';
+import { Log, prepareLogMessage } from '../logger';
 
 /**
  * Log message to the console.
  */
 export const logToConsole: LogHandler = (log: Log, ...args: any[]): void => {
+	if (typeof log.message === 'string') {
+		log.message = prepareLogMessage(log.message);
+	} else if (log.message.message && typeof log.message.message === 'string') {
+		log.message.message = prepareLogMessage(log.message.message);
+	}
 	/* eslint-disable no-console */
 	switch (log.severity) {
 		case 'Debug':

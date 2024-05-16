@@ -63,8 +63,18 @@ describe('Blueprints', () => {
 	it('enableMultisite step should re-activate the plugins', () => {
 		const blueprint: Blueprint = {
 			landingPage: '/wp-admin/plugins.php',
-			plugins: ['hello-dolly'],
-			steps: [{ step: 'enableMultisite' }],
+			steps: [
+				{ step: 'login' },
+				{
+					step: 'installPlugin',
+					pluginZipFile: {
+						resource: 'wordpress.org/plugins',
+						slug: 'hello-dolly',
+					},
+					options: { activate: true },
+				},
+				{ step: 'enableMultisite' },
+			],
 		};
 		cy.visit('/#' + JSON.stringify(blueprint));
 		cy.wordPressDocument()

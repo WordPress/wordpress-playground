@@ -36,30 +36,37 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	const docroot = await playground.documentRoot;
 	await playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once( ${phpVar(docroot)}. "/wp-load.php" );
-require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+			define( 'WP_ADMIN', true );
+			require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
-// Set current user to admin
-wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+			// Set current user to admin
+			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-$plugin_path = ${phpVar(pluginPath)};
+			$plugin_path = ${phpVar(pluginPath)};
+			$response = false;
+			if (!is_dir($plugin_path)) {
+				$response = activate_plugin($plugin_path);
+			}
 
-if (!is_dir($plugin_path)) {
-	activate_plugin($plugin_path);
-	die();
-}
+			// Activate plugin by name if activation by path wasn't successful
+			if ( null !== $response ) {
+				foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
+					$info = get_plugin_data( $file, false, false );
+					if ( ! empty( $info['Name'] ) ) {
+						$response = activate_plugin( $file );
+						break;
+					}
+				}
+			}
 
-foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
-	$info = get_plugin_data( $file, false, false );
-	if ( ! empty( $info['Name'] ) ) {
-		activate_plugin( $file );
-		die();
-	}
-}
+			if ( null === $response ) {
+				die('Plugin activated successfully');
+			} else if ( is_wp_error( $response ) ) {
+				throw new Exception( $response->get_error_message() );
+			}
 
-// If we got here, the plugin was not found.
-exit(1);
-`,
+			throw new Exception( 'Unable to activate plugin' );
+		`,
 	});
 };

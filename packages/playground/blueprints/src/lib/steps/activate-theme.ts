@@ -33,15 +33,26 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 ) => {
 	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
 	const docroot = await playground.documentRoot;
+
+	const themeFolderPath = `${docroot}/wp-content/themes/${themeFolderName}`;
+	if (!(await playground.fileExists(themeFolderPath))) {
+		throw new Error(`
+			Couldn't activate theme ${themeFolderName}.
+			Theme not found at the provided theme path: ${themeFolderPath}.
+			Check the theme path to ensure it's correct.
+			If the theme is not installed, you can install it using the installTheme step.
+			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivateThemeStep
+		`);
+	}
 	await playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			define( 'WP_ADMIN', true );
+			require_once( ${phpVar(docroot)}. "/wp-load.php" );
 
-// Set current user to admin
-wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+			// Set current user to admin
+			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-switch_theme( ${phpVar(themeFolderName)} );
-`,
+			switch_theme( ${phpVar(themeFolderName)} );
+		`,
 	});
 };
