@@ -1,6 +1,6 @@
 import dependencyFilename from './8_3_0/php_8_3.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 5866747; 
+export const dependenciesTotalSize = 5872403; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -194,10 +194,10 @@ function preRun() {
 
 function initRuntime() {
  runtimeInitialized = true;
+ SOCKFS.root = FS.mount(SOCKFS, {}, null);
  if (!Module["noFSInit"] && !FS.init.initialized) FS.init();
  FS.ignorePermissions = false;
  TTY.init();
- SOCKFS.root = FS.mount(SOCKFS, {}, null);
  PIPEFS.root = FS.mount(PIPEFS, {}, null);
  callRuntimeCallbacks(__ATINIT__);
 }
@@ -351,10 +351,10 @@ function createWasm() {
   var exports = instance.exports;
   exports = Asyncify.instrumentWasmExports(exports);
   Module["asm"] = exports;
-  wasmMemory = Module["asm"]["$a"];
+  wasmMemory = Module["asm"]["_a"];
   updateMemoryViews();
-  wasmTable = Module["asm"]["db"];
-  addOnInit(Module["asm"]["ab"]);
+  wasmTable = Module["asm"]["cb"];
+  addOnInit(Module["asm"]["$a"]);
   removeRunDependency("wasm-instantiate");
   return exports;
  }
@@ -437,6 +437,14 @@ var ___assert_fail = (condition, filename, line, func) => {
 
 var ___call_sighandler = (fp, sig) => (a1 => dynCall_vi.apply(null, [ fp, a1 ]))(sig);
 
+var initRandomFill = () => {
+ if (typeof crypto == "object" && typeof crypto["getRandomValues"] == "function") {
+  return view => crypto.getRandomValues(view);
+ } else abort("initRandomDevice");
+};
+
+var randomFill = view => (randomFill = initRandomFill())(view);
+
 var PATH = {
  isAbs: path => path.charAt(0) === "/",
  splitPath: filename => {
@@ -499,14 +507,6 @@ var PATH = {
  },
  join2: (l, r) => PATH.normalize(l + "/" + r)
 };
-
-var initRandomFill = () => {
- if (typeof crypto == "object" && typeof crypto["getRandomValues"] == "function") {
-  return view => crypto.getRandomValues(view);
- } else abort("initRandomDevice");
-};
-
-var randomFill = view => (randomFill = initRandomFill())(view);
 
 var PATH_FS = {
  resolve: function() {
@@ -2785,152 +2785,6 @@ var FS = {
 
 Module["FS"] = FS;
 
-var SYSCALLS = {
- DEFAULT_POLLMASK: 5,
- calculateAt: function(dirfd, path, allowEmpty) {
-  if (PATH.isAbs(path)) {
-   return path;
-  }
-  var dir;
-  if (dirfd === -100) {
-   dir = FS.cwd();
-  } else {
-   var dirstream = SYSCALLS.getStreamFromFD(dirfd);
-   dir = dirstream.path;
-  }
-  if (path.length == 0) {
-   if (!allowEmpty) {
-    throw new FS.ErrnoError(44);
-   }
-   return dir;
-  }
-  return PATH.join2(dir, path);
- },
- doStat: function(func, path, buf) {
-  try {
-   var stat = func(path);
-  } catch (e) {
-   if (e && e.node && PATH.normalize(path) !== PATH.normalize(FS.getPath(e.node))) {
-    return -54;
-   }
-   throw e;
-  }
-  HEAP32[buf >> 2] = stat.dev;
-  HEAP32[buf + 4 >> 2] = stat.mode;
-  HEAPU32[buf + 8 >> 2] = stat.nlink;
-  HEAP32[buf + 12 >> 2] = stat.uid;
-  HEAP32[buf + 16 >> 2] = stat.gid;
-  HEAP32[buf + 20 >> 2] = stat.rdev;
-  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
-  HEAP32[buf + 32 >> 2] = 4096;
-  HEAP32[buf + 36 >> 2] = stat.blocks;
-  var atime = stat.atime.getTime();
-  var mtime = stat.mtime.getTime();
-  var ctime = stat.ctime.getTime();
-  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
-  HEAPU32[buf + 48 >> 2] = atime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
-  HEAPU32[buf + 64 >> 2] = mtime % 1e3 * 1e3;
-  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), 
-  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
-  HEAPU32[buf + 80 >> 2] = ctime % 1e3 * 1e3;
-  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
-  HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
-  return 0;
- },
- doMsync: function(addr, stream, len, flags, offset) {
-  if (!FS.isFile(stream.node.mode)) {
-   throw new FS.ErrnoError(43);
-  }
-  if (flags & 2) {
-   return 0;
-  }
-  var buffer = HEAPU8.slice(addr, addr + len);
-  FS.msync(stream, buffer, offset, len, flags);
- },
- varargs: undefined,
- get() {
-  SYSCALLS.varargs += 4;
-  var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
-  return ret;
- },
- getStr(ptr) {
-  var ret = UTF8ToString(ptr);
-  return ret;
- },
- getStreamFromFD: function(fd) {
-  var stream = FS.getStreamChecked(fd);
-  return stream;
- }
-};
-
-function ___syscall__newselect(nfds, readfds, writefds, exceptfds, timeout) {
- try {
-  var total = 0;
-  var srcReadLow = readfds ? HEAP32[readfds >> 2] : 0, srcReadHigh = readfds ? HEAP32[readfds + 4 >> 2] : 0;
-  var srcWriteLow = writefds ? HEAP32[writefds >> 2] : 0, srcWriteHigh = writefds ? HEAP32[writefds + 4 >> 2] : 0;
-  var srcExceptLow = exceptfds ? HEAP32[exceptfds >> 2] : 0, srcExceptHigh = exceptfds ? HEAP32[exceptfds + 4 >> 2] : 0;
-  var dstReadLow = 0, dstReadHigh = 0;
-  var dstWriteLow = 0, dstWriteHigh = 0;
-  var dstExceptLow = 0, dstExceptHigh = 0;
-  var allLow = (readfds ? HEAP32[readfds >> 2] : 0) | (writefds ? HEAP32[writefds >> 2] : 0) | (exceptfds ? HEAP32[exceptfds >> 2] : 0);
-  var allHigh = (readfds ? HEAP32[readfds + 4 >> 2] : 0) | (writefds ? HEAP32[writefds + 4 >> 2] : 0) | (exceptfds ? HEAP32[exceptfds + 4 >> 2] : 0);
-  var check = function(fd, low, high, val) {
-   return fd < 32 ? low & val : high & val;
-  };
-  for (var fd = 0; fd < nfds; fd++) {
-   var mask = 1 << fd % 32;
-   if (!check(fd, allLow, allHigh, mask)) {
-    continue;
-   }
-   var stream = SYSCALLS.getStreamFromFD(fd);
-   var flags = SYSCALLS.DEFAULT_POLLMASK;
-   if (stream.stream_ops?.poll) {
-    var timeoutInMillis = -1;
-    if (timeout) {
-     var tv_sec = readfds ? HEAP32[timeout >> 2] : 0, tv_usec = readfds ? HEAP32[timeout + 8 >> 2] : 0;
-     timeoutInMillis = (tv_sec + tv_usec / 1e6) * 1e3;
-    }
-    flags = stream.stream_ops.poll(stream, timeoutInMillis);
-   }
-   if (flags & 1 && check(fd, srcReadLow, srcReadHigh, mask)) {
-    fd < 32 ? dstReadLow = dstReadLow | mask : dstReadHigh = dstReadHigh | mask;
-    total++;
-   }
-   if (flags & 4 && check(fd, srcWriteLow, srcWriteHigh, mask)) {
-    fd < 32 ? dstWriteLow = dstWriteLow | mask : dstWriteHigh = dstWriteHigh | mask;
-    total++;
-   }
-   if (flags & 2 && check(fd, srcExceptLow, srcExceptHigh, mask)) {
-    fd < 32 ? dstExceptLow = dstExceptLow | mask : dstExceptHigh = dstExceptHigh | mask;
-    total++;
-   }
-  }
-  if (readfds) {
-   HEAP32[readfds >> 2] = dstReadLow;
-   HEAP32[readfds + 4 >> 2] = dstReadHigh;
-  }
-  if (writefds) {
-   HEAP32[writefds >> 2] = dstWriteLow;
-   HEAP32[writefds + 4 >> 2] = dstWriteHigh;
-  }
-  if (exceptfds) {
-   HEAP32[exceptfds >> 2] = dstExceptLow;
-   HEAP32[exceptfds + 4 >> 2] = dstExceptHigh;
-  }
-  return total;
- } catch (e) {
-  if (typeof FS == "undefined" || !(e.name === "ErrnoError")) throw e;
-  return -e.errno;
- }
-}
-
 var SOCKFS = {
  mount(mount) {
   Module["websocket"] = Module["websocket"] && "object" === typeof Module["websocket"] ? Module["websocket"] : {};
@@ -3498,6 +3352,91 @@ var DNS = {
    return DNS.address_map.names[addr];
   }
   return null;
+ }
+};
+
+var SYSCALLS = {
+ DEFAULT_POLLMASK: 5,
+ calculateAt: function(dirfd, path, allowEmpty) {
+  if (PATH.isAbs(path)) {
+   return path;
+  }
+  var dir;
+  if (dirfd === -100) {
+   dir = FS.cwd();
+  } else {
+   var dirstream = SYSCALLS.getStreamFromFD(dirfd);
+   dir = dirstream.path;
+  }
+  if (path.length == 0) {
+   if (!allowEmpty) {
+    throw new FS.ErrnoError(44);
+   }
+   return dir;
+  }
+  return PATH.join2(dir, path);
+ },
+ doStat: function(func, path, buf) {
+  try {
+   var stat = func(path);
+  } catch (e) {
+   if (e && e.node && PATH.normalize(path) !== PATH.normalize(FS.getPath(e.node))) {
+    return -54;
+   }
+   throw e;
+  }
+  HEAP32[buf >> 2] = stat.dev;
+  HEAP32[buf + 4 >> 2] = stat.mode;
+  HEAPU32[buf + 8 >> 2] = stat.nlink;
+  HEAP32[buf + 12 >> 2] = stat.uid;
+  HEAP32[buf + 16 >> 2] = stat.gid;
+  HEAP32[buf + 20 >> 2] = stat.rdev;
+  tempI64 = [ stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
+  HEAP32[buf + 32 >> 2] = 4096;
+  HEAP32[buf + 36 >> 2] = stat.blocks;
+  var atime = stat.atime.getTime();
+  var mtime = stat.mtime.getTime();
+  var ctime = stat.ctime.getTime();
+  tempI64 = [ Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
+  HEAPU32[buf + 48 >> 2] = atime % 1e3 * 1e3;
+  tempI64 = [ Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
+  HEAPU32[buf + 64 >> 2] = mtime % 1e3 * 1e3;
+  tempI64 = [ Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), 
+  +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
+  HEAPU32[buf + 80 >> 2] = ctime % 1e3 * 1e3;
+  tempI64 = [ stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? +Math.floor(tempDouble / 4294967296) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0) ], 
+  HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
+  return 0;
+ },
+ doMsync: function(addr, stream, len, flags, offset) {
+  if (!FS.isFile(stream.node.mode)) {
+   throw new FS.ErrnoError(43);
+  }
+  if (flags & 2) {
+   return 0;
+  }
+  var buffer = HEAPU8.slice(addr, addr + len);
+  FS.msync(stream, buffer, offset, len, flags);
+ },
+ varargs: undefined,
+ get() {
+  SYSCALLS.varargs += 4;
+  var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
+  return ret;
+ },
+ getStr(ptr) {
+  var ret = UTF8ToString(ptr);
+  return ret;
+ },
+ getStreamFromFD: function(fd) {
+  var stream = FS.getStreamChecked(fd);
+  return stream;
  }
 };
 
@@ -5302,7 +5241,7 @@ var allocateUTF8OnStack = stringToUTF8OnStack;
 
 var PHPWASM = {
  init: function() {
-  FS.mkdir("/internal");
+  FS.mkdir("/internal");FS.mkdir("/internal/shared");FS.mkdir("/internal/shared/preload");
   PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE ? require("events").EventEmitter : class EventEmitter {
    constructor() {
     this.listeners = {};
@@ -6235,7 +6174,7 @@ function _wasm_poll_socket(socketd, events, timeout) {
     return;
    }
    polls.push(PHPWASM.awaitEvent(procInfo.stdout, "data"));
-  } else {
+  } else if (FS.isSocket(FS.getStream(socketd).node.mode)) {
    const sock = getSocketFromFD(socketd);
    if (!sock) {
     wakeUp(0);
@@ -6278,6 +6217,11 @@ function _wasm_poll_socket(socketd, events, timeout) {
      lookingFor.add("POLLERR");
     }
    }
+  } else {
+   setTimeout((function() {
+    wakeUp(1);
+   }), timeout);
+   return;
   }
   if (polls.length === 0) {
    console.warn("Unsupported poll event " + events + ", defaulting to setTimeout().");
@@ -6762,24 +6706,23 @@ PHPWASM.init();
 
 var wasmImports = {
  p: ___assert_fail,
- _a: ___call_sighandler,
- Za: ___syscall__newselect,
+ Za: ___call_sighandler,
  Ya: ___syscall_accept4,
  Xa: ___syscall_bind,
  Wa: ___syscall_chdir,
- M: ___syscall_chmod,
+ N: ___syscall_chmod,
  Va: ___syscall_connect,
  Ua: ___syscall_dup,
  Ta: ___syscall_dup3,
  Sa: ___syscall_faccessat,
- X: ___syscall_fallocate,
+ Y: ___syscall_fallocate,
  Ra: ___syscall_fchmod,
  Qa: ___syscall_fchown32,
- L: ___syscall_fchownat,
+ M: ___syscall_fchownat,
  k: ___syscall_fcntl64,
  Pa: ___syscall_fdatasync,
  Oa: ___syscall_fstat64,
- W: ___syscall_ftruncate64,
+ X: ___syscall_ftruncate64,
  Na: ___syscall_getcwd,
  Ma: ___syscall_getdents64,
  La: ___syscall_getpeername,
@@ -6790,146 +6733,150 @@ var wasmImports = {
  Ga: ___syscall_lstat64,
  Fa: ___syscall_mkdirat,
  Ea: ___syscall_newfstatat,
- z: ___syscall_openat,
+ A: ___syscall_openat,
  Da: ___syscall_pipe,
  Ca: ___syscall_poll,
  Ba: ___syscall_readlinkat,
  Aa: ___syscall_recvfrom,
  za: ___syscall_renameat,
- K: ___syscall_rmdir,
+ L: ___syscall_rmdir,
  ya: ___syscall_sendto,
- J: ___syscall_socket,
+ K: ___syscall_socket,
  xa: ___syscall_stat64,
  wa: ___syscall_statfs64,
  va: ___syscall_symlink,
- I: ___syscall_unlinkat,
+ J: ___syscall_unlinkat,
  ua: ___syscall_utimensat,
  pa: __emscripten_get_now_is_monotonic,
  oa: __emscripten_throw_longjmp,
- U: __gmtime_js,
- T: __localtime_js,
- S: __mktime_js,
- R: __mmap_js,
- Q: __munmap_js,
- F: __setitimer_js,
+ V: __gmtime_js,
+ U: __localtime_js,
+ T: __mktime_js,
+ S: __mmap_js,
+ R: __munmap_js,
+ G: __setitimer_js,
  na: __tzset_js,
- u: _abort,
- x: _emscripten_date_now,
+ v: _abort,
+ y: _emscripten_date_now,
  ma: _emscripten_get_heap_max,
- r: _emscripten_get_now,
+ s: _emscripten_get_now,
  la: _emscripten_memcpy_big,
  ka: _emscripten_resize_heap,
- ja: _emscripten_sleep,
+ F: _emscripten_sleep,
  ta: _environ_get,
  sa: _environ_sizes_get,
- t: _exit,
+ u: _exit,
  o: _fd_close,
- H: _fd_fdstat_get,
- G: _fd_read,
- V: _fd_seek,
+ I: _fd_fdstat_get,
+ H: _fd_read,
+ W: _fd_seek,
  ra: _fd_sync,
- y: _fd_write,
- ia: _getaddrinfo,
- ha: _getcontext,
- ga: _getdtablesize,
+ z: _fd_write,
+ ja: _getaddrinfo,
+ ia: _getcontext,
+ ha: _getdtablesize,
  E: _gethostbyname_r,
- fa: _getloadavg,
- s: _getnameinfo,
- ea: _getprotobyname,
- da: _getprotobynumber,
+ ga: _getloadavg,
+ t: _getnameinfo,
+ fa: _getprotobyname,
+ ea: _getprotobynumber,
  j: invoke_i,
  e: invoke_ii,
  b: invoke_iii,
  f: invoke_iiii,
  i: invoke_iiiii,
  n: invoke_iiiiii,
- q: invoke_iiiiiii,
- ca: invoke_iiiiiiii,
- ba: invoke_iiiiiiiiii,
+ r: invoke_iiiiiii,
+ da: invoke_iiiiiiii,
+ ca: invoke_iiiiiiiiii,
  c: invoke_v,
  a: invoke_vi,
  g: invoke_vii,
- w: invoke_viidii,
+ x: invoke_viidii,
  h: invoke_viii,
  l: invoke_viiii,
  d: invoke_viiiii,
- v: invoke_viiiiii,
+ w: invoke_viiiiii,
  D: _js_create_input_device,
- aa: _js_fd_read,
- $: _js_module_onMessage,
+ ba: _js_fd_read,
+ aa: _js_module_onMessage,
  C: _js_open_process,
- _: _js_popen_to_file,
- Z: _js_process_status,
- Y: _js_waitpid,
- P: _makecontext,
+ $: _js_popen_to_file,
+ _: _js_process_status,
+ Z: _js_waitpid,
+ Q: _makecontext,
  qa: _proc_exit,
  B: _strftime,
- O: _strptime,
- N: _swapcontext,
- A: _wasm_poll_socket,
+ P: _strptime,
+ O: _swapcontext,
+ q: _wasm_poll_socket,
  m: _wasm_setsockopt
 };
 
 var asm = createWasm();
 
 var ___wasm_call_ctors = function() {
- return (___wasm_call_ctors = Module["asm"]["ab"]).apply(null, arguments);
+ return (___wasm_call_ctors = Module["asm"]["$a"]).apply(null, arguments);
 };
 
 var _free = function() {
- return (_free = Module["asm"]["bb"]).apply(null, arguments);
+ return (_free = Module["asm"]["ab"]).apply(null, arguments);
 };
 
 var _memcpy = function() {
- return (_memcpy = Module["asm"]["cb"]).apply(null, arguments);
+ return (_memcpy = Module["asm"]["bb"]).apply(null, arguments);
 };
 
 var _malloc = function() {
- return (_malloc = Module["asm"]["eb"]).apply(null, arguments);
+ return (_malloc = Module["asm"]["db"]).apply(null, arguments);
 };
 
 var ___errno_location = function() {
- return (___errno_location = Module["asm"]["fb"]).apply(null, arguments);
+ return (___errno_location = Module["asm"]["eb"]).apply(null, arguments);
 };
 
 var setTempRet0 = function() {
- return (setTempRet0 = Module["asm"]["gb"]).apply(null, arguments);
+ return (setTempRet0 = Module["asm"]["fb"]).apply(null, arguments);
 };
 
 var _wasm_popen = Module["_wasm_popen"] = function() {
- return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["hb"]).apply(null, arguments);
+ return (_wasm_popen = Module["_wasm_popen"] = Module["asm"]["gb"]).apply(null, arguments);
 };
 
 var _wasm_php_exec = Module["_wasm_php_exec"] = function() {
- return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["ib"]).apply(null, arguments);
+ return (_wasm_php_exec = Module["_wasm_php_exec"] = Module["asm"]["hb"]).apply(null, arguments);
 };
 
 var _php_pollfd_for = Module["_php_pollfd_for"] = function() {
- return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["jb"]).apply(null, arguments);
+ return (_php_pollfd_for = Module["_php_pollfd_for"] = Module["asm"]["ib"]).apply(null, arguments);
 };
 
 var _htons = function() {
- return (_htons = Module["asm"]["kb"]).apply(null, arguments);
+ return (_htons = Module["asm"]["jb"]).apply(null, arguments);
 };
 
 var _ntohs = function() {
- return (_ntohs = Module["asm"]["lb"]).apply(null, arguments);
+ return (_ntohs = Module["asm"]["kb"]).apply(null, arguments);
 };
 
 var _htonl = function() {
- return (_htonl = Module["asm"]["mb"]).apply(null, arguments);
+ return (_htonl = Module["asm"]["lb"]).apply(null, arguments);
 };
 
 var _wasm_sleep = Module["_wasm_sleep"] = function() {
- return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["nb"]).apply(null, arguments);
+ return (_wasm_sleep = Module["_wasm_sleep"] = Module["asm"]["mb"]).apply(null, arguments);
 };
 
 var _wasm_read = Module["_wasm_read"] = function() {
- return (_wasm_read = Module["_wasm_read"] = Module["asm"]["ob"]).apply(null, arguments);
+ return (_wasm_read = Module["_wasm_read"] = Module["asm"]["nb"]).apply(null, arguments);
 };
 
 var _fflush = Module["_fflush"] = function() {
- return (_fflush = Module["_fflush"] = Module["asm"]["pb"]).apply(null, arguments);
+ return (_fflush = Module["_fflush"] = Module["asm"]["ob"]).apply(null, arguments);
+};
+
+var ___wrap_select = Module["___wrap_select"] = function() {
+ return (___wrap_select = Module["___wrap_select"] = Module["asm"]["pb"]).apply(null, arguments);
 };
 
 var _wasm_set_sapi_name = Module["_wasm_set_sapi_name"] = function() {
