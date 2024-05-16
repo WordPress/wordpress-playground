@@ -18,20 +18,13 @@ format.
 ### Blueprints
 
 -   Define constants in auto_prepend_file, silence warnings related to redefining those constants. ([#1400](https://github.com/WordPress/wordpress-playground/pull/1400))
--   Support resources defined as URLs, not just objects. ([#1020](https://github.com/WordPress/wordpress-playground/pull/1020))
 -   Throw an error when activating a theme or plugin that doesn't exist. ([#1391](https://github.com/WordPress/wordpress-playground/pull/1391))
 -   Write sunrise.php to /internal in enableMultisite step. ([#1401](https://github.com/WordPress/wordpress-playground/pull/1401))
 
 ### Tools
 
 -   Add VSCode branch protection. ([#1408](https://github.com/WordPress/wordpress-playground/pull/1408))
--   First stab at GH workflow to build PHP in CI. ([#178](https://github.com/WordPress/wordpress-playground/pull/178))
 -   Show error log if Playground fails to start. ([#1336](https://github.com/WordPress/wordpress-playground/pull/1336))
-
-#### Import/Export
-
--   Support wp_crop_image in import wxr. ([#1357](https://github.com/WordPress/wordpress-playground/pull/1357))
--   WXR Import: Allow media files from wpthemetestdata.files.wordpress.com. ([#1250](https://github.com/WordPress/wordpress-playground/pull/1250))
 
 #### Blueprints
 
@@ -40,6 +33,10 @@ format.
 #### GitHub integration
 
 -   GitHub export: Create new commits in your fork when writing to the upstream repo isn't allowed. ([#1392](https://github.com/WordPress/wordpress-playground/pull/1392))
+
+#### Import/Export
+
+-   Support wp_crop_image in import wxr. ([#1357](https://github.com/WordPress/wordpress-playground/pull/1357))
 
 ### Documentation
 
@@ -51,14 +48,9 @@ format.
 
 -   Explore: Setup SQLite database integration without creating wp-content/db.php. ([#1382](https://github.com/WordPress/wordpress-playground/pull/1382))
 
-#### PHP WebAssembly
-
--   Use browserfs/zenfs to overlay one filesystem on top of another. ([#1380](https://github.com/WordPress/wordpress-playground/pull/1380))
-
 ### PHP WebAssembly
 
 -   Add shareable extension-to-MIME-type mapping. ([#1355](https://github.com/WordPress/wordpress-playground/pull/1355))
--   Fix another asyncify issue. ([#1100](https://github.com/WordPress/wordpress-playground/pull/1100))
 -   JSPI: Enable the origin trial on Chrome. ([#1346](https://github.com/WordPress/wordpress-playground/pull/1346))
 -   PHP: Always set the auto_prepend_file php.ini entry, even when the auto_prepend_file.php file exists. ([#1388](https://github.com/WordPress/wordpress-playground/pull/1388))
 -   PHP: Move internal shared directories to /internal/shared. ([#1386](https://github.com/WordPress/wordpress-playground/pull/1386))
@@ -90,10 +82,7 @@ format.
 ### Various
 
 -   Add links to kitchen sink (PHP extensions), networking. ([#1363](https://github.com/WordPress/wordpress-playground/pull/1363))
--   DO NOT MERGE: Run end-to-end tests against WP Cloud site. ([#1394](https://github.com/WordPress/wordpress-playground/pull/1394))
--   DO NOT MERGE: Run end-to-end tests against WP Cloud site. ([#1402](https://github.com/WordPress/wordpress-playground/pull/1402))
 -   Reorganize and update documentation. ([#1354](https://github.com/WordPress/wordpress-playground/pull/1354))
--   Try: Update Blueprint formatting - create a new post with runPHP step. ([#1364](https://github.com/WordPress/wordpress-playground/pull/1364))
 
 ### Contributors
 
