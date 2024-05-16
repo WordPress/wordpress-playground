@@ -69,7 +69,6 @@ async function getIssues(
 		const issues = response.data as any;
 		pulls.push(...issues);
 	}
-
 	if (closedAfter) {
 		const closedAfterTimestamp = new Date(closedAfter);
 
@@ -88,6 +87,8 @@ async function getIssues(
 				closedBeforeTimestamp > new Date(pull.closed_at)
 		);
 	}
+
+	pulls = pulls.filter((pull) => pull.pull_request?.merged_at);
 
 	return pulls;
 }

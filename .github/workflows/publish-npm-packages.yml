@@ -53,8 +53,3 @@ jobs:
             - name: Release new version of NPM packages
               shell: bash
               run: npx lerna@6.6.2 publish ${{ inputs.version_bump }} --yes --no-private --loglevel=verbose --dist-tag=${{ inputs.dist_tag }}
-            - name: Update CHANGELOG.md
-              uses: benc-uk/workflow-dispatch@v1
-              with:
-                  workflow: update-changelog.yml
-                  token: ${{ secrets.GITHUB_TOKEN }}
