@@ -1,4 +1,5 @@
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { createHash } from 'crypto';
 import fs from 'fs-extra';
 import os from 'os';
 import path, { basename } from 'path';
@@ -55,6 +56,17 @@ export function readAsFile(path: string, fileName?: string): File {
 }
 
 export async function resolveWPRelease(version = 'latest') {
+	// Support custom URLs
+	if (version.startsWith('https://') || version.startsWith('http://')) {
+		const shasum = createHash('sha1');
+		shasum.update(version);
+		const sha1 = shasum.digest('hex');
+		return {
+			url: version,
+			version: 'custom-' + sha1.substring(0, 8),
+		};
+	}
+
 	if (version === 'trunk' || version === 'nightly') {
 		return {
 			url: 'https://wordpress.org/nightly-builds/wordpress-latest.zip',

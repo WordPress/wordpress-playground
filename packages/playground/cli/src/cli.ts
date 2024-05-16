@@ -97,9 +97,14 @@ async function run() {
 		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
-				throw new Error(
-					'Unrecognized WordPress version. Please use "latest" or numeric versions such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
-				);
+				try {
+					// Check if is valid URL
+					new URL(args.wp);
+				} catch (e) {
+					throw new Error(
+						'Unrecognized WordPress version. Please use "latest", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1"'
+					);
+				}
 			}
 			if (args.blueprint !== undefined) {
 				const blueprintPath = path.resolve(
