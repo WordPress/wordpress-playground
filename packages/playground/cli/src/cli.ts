@@ -88,6 +88,7 @@ async function run() {
 			type: 'boolean',
 			default: false,
 		})
+		.showHelpOnFail(false)
 		.check((args) => {
 			if (args.wp !== undefined && !isValidWordPressSlug(args.wp)) {
 				throw new Error(
