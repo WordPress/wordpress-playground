@@ -20,6 +20,7 @@ export const RecommendedPHPVersion = '8.0';
 /**
  * Unzip a zip file inside Playground.
  */
+const tmpPath = '/tmp/file.zip';
 export const unzipFile = async (
 	php: UniversalPHP,
 	zipPath: string | File,
@@ -27,7 +28,7 @@ export const unzipFile = async (
 ) => {
 	if (zipPath instanceof File) {
 		const zipFile = zipPath;
-		zipPath = '/tmp/file.zip';
+		zipPath = tmpPath;
 		await php.writeFile(
 			zipPath,
 			new Uint8Array(await zipFile.arrayBuffer())
@@ -41,8 +42,8 @@ export const unzipFile = async (
 		php,
 		`unzip(${js.zipPath}, ${js.extractToPath});`
 	);
-	if (php.fileExists(zipPath)) {
-		await php.unlink(zipPath);
+	if (php.fileExists(tmpPath)) {
+		await php.unlink(tmpPath);
 	}
 };
 
