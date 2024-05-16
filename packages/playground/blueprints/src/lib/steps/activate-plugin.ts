@@ -34,31 +34,21 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	progress?.tracker.setCaption(`Activating ${pluginName || pluginPath}`);
 
 	const docroot = await playground.documentRoot;
-	if (!(await playground.fileExists(pluginPath))) {
-		throw new Error(`
-			Couldn't activate ${pluginName}.
-			Plugin not found at the provided plugin path: ${pluginPath}.
-			Check the plugin path to ensure it's correct.
-			If the plugin is not installed, you can install it using the installPlugin step.
-			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivatePluginStep
-		`);
-	}
 	await playground.run({
 		code: `<?php
-			define( 'WP_ADMIN', true );
-			require_once( ${phpVar(docroot)}. "/wp-load.php" );
-			require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+define( 'WP_ADMIN', true );
+require_once( ${phpVar(docroot)}. "/wp-load.php" );
+require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
-			// Set current user to admin
-			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+// Set current user to admin
+wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
 			$plugin_path = ${phpVar(pluginPath)};
-			$response = null;
+			$response = false;
 			if (!is_dir($plugin_path)) {
 				$response = activate_plugin($plugin_path);
-			}
-
-			if (is_null($response)) {
+			} else {
+				// A plugin name was provided instead of a path
 				foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 					$info = get_plugin_data( $file, false, false );
 					if ( ! empty( $info['Name'] ) ) {
@@ -68,7 +58,9 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 				}
 			}
 
-			if ( is_wp_error( $response ) || is_null( $response ) ) {
+			if (  false === $response ) {
+				throw new Exception( 'Plugin not found' );
+			}else if ( is_wp_error( $response ) ) {
 				throw new Exception( $response->get_error_message() );
 			}
 

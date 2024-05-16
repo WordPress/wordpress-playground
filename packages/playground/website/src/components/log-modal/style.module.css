@@ -8,7 +8,14 @@
 }
 
 .log-modal__log {
-	text-wrap: wrap;
+	font-family: monospace;
 	word-wrap: break-word;
+	padding: 0.5rem 0;
 	margin: 0.5rem 0;
+	white-space-collapse: preserve-breaks;
+	border-block-end: 1px dashed currentcolor;
+}
+
+.log-modal__log:has(mark) {
+	background-color: ivory;
 }
