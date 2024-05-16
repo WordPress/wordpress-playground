@@ -1,0 +1,29 @@
+{
+	"landingPage": "/wp-admin/edit.php?post_type=gift_card&post_status=publish&yith-plugin-fw-panel-skip-redirect=1",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "woocommerce"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php require_once '/wordpress/wp-load.php'; update_option('woocommerce_onboarding_profile', ['skipped' => true]);"
+		},
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "yith-woocommerce-gift-cards"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}

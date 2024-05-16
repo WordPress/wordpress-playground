@@ -505,7 +505,7 @@
                 "rewrite-wp-config",
                 "define-before-run"
               ],
-              "description": "The method of defining the constants. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+              "description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
             },
             "virtualize": {
               "type": "boolean",
@@ -972,7 +972,7 @@
             },
             "options": {
               "$ref": "#/definitions/PHPRunOptions",
-              "description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions)"
+              "description": "Run options (See /wordpress-playground/api/universal/interface/PHPRunOptions/))"
             }
           },
           "required": [

@@ -1,0 +1,25 @@
+{
+	"landingPage": "/wp-admin/",
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "elementor"
+			},
+			"options": {
+				"activate": true
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginZipFile": {
+				"resource": "wordpress.org/plugins",
+				"slug": "dynamic-visibility-for-elementor"
+			},
+			"options": {
+				"activate": true
+			}
+		}
+	]
+}
