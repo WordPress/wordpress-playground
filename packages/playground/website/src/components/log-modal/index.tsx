@@ -29,9 +29,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 			)
 			.reverse()
 			.map((log, index) => (
-				<pre className={css.logModalLog} key={index}>
-					{log}
-				</pre>
+				<div
+					className={css.logModalLog}
+					key={index}
+					dangerouslySetInnerHTML={{
+						__html: log.replace(/Error:|Fatal:/, '<mark>$&</mark>'),
+					}}
+				/>
 			));
 	}
 
@@ -45,7 +49,7 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 				<h2>{props.title || 'Logs'}</h2>
 				{props.description}
 				<TextControl
-					title="Search"
+					aria-label="Search"
 					placeholder="Search logs"
 					value={searchTerm}
 					onChange={setSearchTerm}
