@@ -10,6 +10,7 @@
 		]
 	},
 	"include": [
+		"src/**/*.d.ts",
 		"src/**/*.ts",
 		"../web/src/php-library/parse-worker-startup-options.ts",
 		"../web/src/lib/api.ts"

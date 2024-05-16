@@ -1,3 +1,4 @@
+/// <reference types="emscripten" />
 import { PHPResponse } from './php-response';
 import {
 	getEmscriptenFsError,
@@ -22,12 +23,29 @@ import {
 	improveWASMErrorReporting,
 	UnhandledRejectionsTarget,
 } from './wasm-error-reporting';
-import { Semaphore, createSpawnHandler, joinPaths } from '@php-wasm/util';
+import {
+	Semaphore,
+	createSpawnHandler,
+	dirname,
+	joinPaths,
+} from '@php-wasm/util';
 import { PHPRequestHandler } from './php-request-handler';
 import { logger } from '@php-wasm/logger';
 
 const STRING = 'string';
 const NUMBER = 'number';
+
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Emscripten {
+	type NamespaceToInstance<T> = {
+		[K in keyof T]: T[K] extends (...args: any[]) => any ? T[K] : never;
+	};
+
+	export type FileSystemInstance = NamespaceToInstance<typeof FS> & {
+		mkdirTree(path: string): void;
+		lookupPath(path: string, opts?: any): FS.Lookup;
+	};
+}
 
 export const __private__dont__use = Symbol('__private__dont__use');
 
@@ -743,8 +761,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 	/** @inheritDoc */
 	mv(fromPath: string, toPath: string) {
+		const FS = this[__private__dont__use].FS;
+
+		const fromMount = FS.lookupPath(fromPath).node.mount;
+		const toMount = FS.lookupPath(dirname(toPath)).node.mount;
 		try {
-			this[__private__dont__use].FS.rename(fromPath, toPath);
+			copyRecursive(FS, fromPath, toPath);
+			// if (fromMount.mountpoint === toMount.mountpoint) {
+			// 	FS.rename(fromPath, toPath);
+			// } else {
+			// 	copyRecursive(FS, fromPath, toPath);
+			// }
 		} catch (e) {
 			const errmsg = getEmscriptenFsError(e);
 			if (!errmsg) {
@@ -904,8 +931,6 @@ export function normalizeHeaders(
 	return normalized;
 }
 
-type EmscriptenFS = any;
-
 export function syncFSTo(
 	source: BasePHP,
 	target: BasePHP,
@@ -923,8 +948,8 @@ export function syncFSTo(
  * Non-MEMFS nodes are ignored.
  */
 export function copyFS(
-	source: EmscriptenFS,
-	target: EmscriptenFS,
+	source: Emscripten.FileSystemInstance,
+	target: Emscripten.FileSystemInstance,
 	path: string
 ) {
 	let oldNode;
@@ -965,5 +990,28 @@ export function copyFS(
 		.filter((name: string) => name !== '.' && name !== '..');
 	for (const filename of filenames) {
 		copyFS(source, target, joinPaths(path, filename));
+	}
+}
+
+function copyRecursive(
+	FS: Emscripten.FileSystemInstance,
+	fromPath: string,
+	toPath: string
+) {
+	const fromNode = FS.lookupPath(fromPath).node;
+	if (FS.isDir(fromNode.mode)) {
+		FS.mkdirTree(toPath);
+		const filenames = FS.readdir(fromPath).filter(
+			(name: string) => name !== '.' && name !== '..'
+		);
+		for (const filename of filenames) {
+			copyRecursive(
+				FS,
+				joinPaths(fromPath, filename),
+				joinPaths(toPath, filename)
+			);
+		}
+	} else {
+		FS.writeFile(toPath, FS.readFile(fromPath));
 	}
 }
