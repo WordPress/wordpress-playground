@@ -761,17 +761,28 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 	/** @inheritDoc */
 	mv(fromPath: string, toPath: string) {
-		const FS = this[__private__dont__use].FS;
+		const FS = this[__private__dont__use]
+			.FS as Emscripten.FileSystemInstance;
 
+		// FS.rename moves the inode within the same filesystem.
+		// If fromPath and toPath are on different filesystems,
+		// the operation will fail. In that case, we need to do
+		// a recursive copy of all the files and remove the original.
+		// Note this is also what happens in the linux `mv` command.
 		const fromMount = FS.lookupPath(fromPath).node.mount;
-		const toMount = FS.lookupPath(dirname(toPath)).node.mount;
+		const toMount = this.fileExists(toPath)
+			? FS.lookupPath(toPath).node.mount
+			: FS.lookupPath(dirname(toPath)).node.mount;
+		const movingBetweenFilesystems =
+			fromMount.mountpoint !== toMount.mountpoint;
+
 		try {
-			copyRecursive(FS, fromPath, toPath);
-			// if (fromMount.mountpoint === toMount.mountpoint) {
-			// 	FS.rename(fromPath, toPath);
-			// } else {
-			// 	copyRecursive(FS, fromPath, toPath);
-			// }
+			if (movingBetweenFilesystems) {
+				copyRecursive(FS, fromPath, toPath);
+				this.rmdir(fromPath, { recursive: true });
+			} else {
+				FS.rename(fromPath, toPath);
+			}
 		} catch (e) {
 			const errmsg = getEmscriptenFsError(e);
 			if (!errmsg) {

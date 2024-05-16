@@ -68,12 +68,6 @@ async function run() {
 			type: 'array',
 			string: true,
 		})
-		.option('mountBeforeInstall', {
-			describe:
-				'Mount a directory to the PHP runtime before installing WordPress. You can provide --mount-before-install multiple times. Format: /host/path:/vfs/path',
-			type: 'array',
-			string: true,
-		})
 		.option('login', {
 			describe: 'Should log the user in',
 			type: 'boolean',
@@ -164,26 +158,11 @@ async function run() {
 		}
 	}
 
-	function mountResources(php: NodePHP, rawMounts: string[]) {
-		const parsedMounts = rawMounts.map((mount) => {
-			const [source, vfsPath] = mount.split(':');
-			return {
-				hostPath: path.resolve(process.cwd(), source),
-				vfsPath,
-			};
-		});
-		for (const mount of parsedMounts) {
-			php.mount(mount.hostPath, mount.vfsPath);
-		}
-	}
-
 	async function prepareSite(
 		php: NodePHP,
 		wpVersion: string,
 		siteUrl: string
 	) {
-		mountResources(php, args.mountBeforeInstall || []);
-
 		// No need to unzip WordPress if it's already mounted at /wordpress
 		if (!args.skipWordPressSetup) {
 			logger.log(`Setting up WordPress ${wpVersion}`);
@@ -206,7 +185,16 @@ async function run() {
 			await setupWordPress(php, wpVersion, monitor);
 		}
 
-		mountResources(php, args.mount || []);
+		const mounts: Mount[] = (args.mount || []).map((mount) => {
+			const [source, vfsPath] = mount.split(':');
+			return {
+				hostPath: path.resolve(process.cwd(), source),
+				vfsPath,
+			};
+		});
+		for (const mount of mounts) {
+			php.mount(mount.hostPath, mount.vfsPath);
+		}
 
 		await defineSiteUrl(php, {
 			siteUrl,
