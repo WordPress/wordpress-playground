@@ -42,7 +42,7 @@ export const unzipFile = async (
 		php,
 		`unzip(${js.zipPath}, ${js.extractToPath});`
 	);
-	if (php.fileExists(tmpPath)) {
+	if (await php.fileExists(tmpPath)) {
 		await php.unlink(tmpPath);
 	}
 };
