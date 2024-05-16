@@ -7,7 +7,7 @@
 		"noPropertyAccessFromIndexSignature": true,
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
-		"types": ["vitest", "vite/client"]
+		"types": ["vitest", "vite/client", "emscripten"]
 	},
 	"files": [],
 	"include": [],

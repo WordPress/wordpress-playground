@@ -21,6 +21,7 @@ export default defineConfig({
 				'@php-wasm/progress',
 				'@php-wasm/util',
 				'@wp-playground/wordpress',
+				'@wp-playground/common',
 				'@wp-playground/blueprints',
 				'yargs',
 				'express',

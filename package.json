@@ -101,6 +101,7 @@
 		"@testing-library/react": "14.0.0",
 		"@tsconfig/docusaurus": "^1.0.5",
 		"@types/ajv": "1.0.0",
+		"@types/emscripten": "1.39.12",
 		"@types/file-saver": "^2.0.5",
 		"@types/jest": "^29.4.0",
 		"@types/node": "18.14.2",

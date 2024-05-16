@@ -5,7 +5,7 @@ import {
 	loadPHPRuntime,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
-import { existsSync, rmSync, readFileSync } from 'fs';
+import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
 import { createSpawnHandler, phpVar } from '@php-wasm/util';
 
 const testDirPath = '/__test987654321';
@@ -816,6 +816,25 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 			}).toThrowError(
 				`Could not move ${testDirPath}/1.txt to ${testDirPath}/nowhere/2.txt: There is no such file or directory OR the parent directory does not exist.`
 			);
+		});
+
+		it('mv() from NODEFS to MEMFS should work', () => {
+			mkdirSync(__dirname + '/test-data/mount-contents/a/b', {
+				recursive: true,
+			});
+			writeFileSync(
+				__dirname + '/test-data/mount-contents/a/b/test.txt',
+				'contents'
+			);
+			php.mkdir('/nodefs');
+			php.mount(__dirname + '/test-data/mount-contents', '/nodefs');
+			php.mv('/nodefs/a', '/tmp/a');
+			expect(
+				existsSync(__dirname + '/test-data/mount-contents/a')
+			).toEqual(false);
+			expect(php.fileExists('/nodefs/a')).toEqual(false);
+			expect(php.fileExists('/tmp/a')).toEqual(true);
+			expect(php.readFileAsText('/tmp/a/b/test.txt')).toEqual('contents');
 		});
 
 		it('mkdir() should create a directory', () => {
