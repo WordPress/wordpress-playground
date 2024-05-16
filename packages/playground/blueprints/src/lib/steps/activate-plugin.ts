@@ -47,8 +47,10 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 			$response = false;
 			if (!is_dir($plugin_path)) {
 				$response = activate_plugin($plugin_path);
-			} else {
-				// A plugin name was provided instead of a path
+			}
+
+			// Activate plugin by name if activation by path wasn't successful
+			if ( null !== $response ) {
 				foreach ( ( glob( $plugin_path . '/*.php' ) ?: array() ) as $file ) {
 					$info = get_plugin_data( $file, false, false );
 					if ( ! empty( $info['Name'] ) ) {
@@ -58,13 +60,13 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 				}
 			}
 
-			if ( false === $response ) {
-				throw new Exception( 'Plugin not found' );
+			if ( null === $response ) {
+				die('Plugin activated successfully');
 			} else if ( is_wp_error( $response ) ) {
 				throw new Exception( $response->get_error_message() );
 			}
 
-			die('Plugin activated successfully');
+			throw new Exception( 'Unable to activate plugin' );
 		`,
 	});
 };
