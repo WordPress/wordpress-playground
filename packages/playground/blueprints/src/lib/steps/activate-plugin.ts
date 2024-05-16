@@ -36,12 +36,12 @@ export const activatePlugin: StepHandler<ActivatePluginStep> = async (
 	const docroot = await playground.documentRoot;
 	await playground.run({
 		code: `<?php
-define( 'WP_ADMIN', true );
-require_once( ${phpVar(docroot)}. "/wp-load.php" );
-require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
+			define( 'WP_ADMIN', true );
+			require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			require_once( ${phpVar(docroot)}. "/wp-admin/includes/plugin.php" );
 
-// Set current user to admin
-wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
+			// Set current user to admin
+			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
 			$plugin_path = ${phpVar(pluginPath)};
 			$response = false;
@@ -58,13 +58,13 @@ wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 				}
 			}
 
-			if (  false === $response ) {
+			if ( false === $response ) {
 				throw new Exception( 'Plugin not found' );
-			}else if ( is_wp_error( $response ) ) {
+			} else if ( is_wp_error( $response ) ) {
 				throw new Exception( $response->get_error_message() );
 			}
 
-			die();
+			die('Plugin activated successfully');
 		`,
 	});
 };
