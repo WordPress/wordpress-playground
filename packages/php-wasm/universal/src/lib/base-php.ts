@@ -70,7 +70,7 @@ export class PHPExecutionFailureError extends Error {
 export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
-	#phpIniPath?: string;
+	#phpIniPath = '/internal/shared/php.ini';
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;

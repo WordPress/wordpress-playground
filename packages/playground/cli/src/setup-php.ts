@@ -35,7 +35,6 @@ export async function createPhp(
 	 */
 	php.initializeRuntime(await createPhpRuntime());
 	php.setSapiName('cli');
-	php.setPhpIniPath('/internal/shared/php.ini');
 	php.setPhpIniEntry('openssl.cafile', '/internal/shared/ca-bundle.crt');
 	php.setPhpIniEntry('memory_limit', '256M');
 	php.setPhpIniEntry('allow_url_fopen', '1');
