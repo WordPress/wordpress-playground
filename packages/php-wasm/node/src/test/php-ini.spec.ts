@@ -5,14 +5,7 @@ import {
 } from '@php-wasm/universal';
 import { NodePHP } from '../lib';
 
-/**
- * This is an awkward place to test phpVar() which lives in a
- * different package, but it's convenient because we can use a
- * NodePHP instance here. Unfortunately, using NodePHP in
- * @php-wasm/util creates a circular dependency between the
- * two packages.
- */
-describe('ini manimulation', () => {
+describe('php.ini manipulation', () => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(LatestSupportedPHPVersion);
