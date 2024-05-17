@@ -66,6 +66,12 @@
 			"rules": {
 				"no-console": 0
 			}
+		},
+		{
+			"files": ["**/bin/**/*"],
+			"rules": {
+				"no-console": 0
+			}
 		}
 	]
 }
