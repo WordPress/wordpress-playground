@@ -66,6 +66,17 @@
 			"rules": {
 				"no-console": 0
 			}
+		},
+		{
+			"files": [
+				"packages/playground/website/demos/**/*",
+				"packages/playground/website/cypress/**/*",
+				"packages/playground/website/builder/**/*",
+				"**/bin/**/*"
+			],
+			"rules": {
+				"no-console": 0
+			}
 		}
 	]
 }
