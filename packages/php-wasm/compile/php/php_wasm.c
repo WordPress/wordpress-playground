@@ -1594,35 +1594,3 @@ static int EMSCRIPTEN_KEEPALIVE run_php(char *code)
 
 	return EG(exit_status);
 }
-
-#ifdef WITH_VRZNO
-#include "../php-src/ext/vrzno/php_vrzno.h"
-
-/*
- * Function: exec_callback
- * ----------------------------
- *   Required by the VRZNO module.
- *
- *   @see https://github.com/seanmorris/vrzno
- */
-int EMSCRIPTEN_KEEPALIVE exec_callback(zend_function *fptr)
-{
-	int retVal = vrzno_exec_callback(fptr);
-
-	fflush(stdout);
-
-	return retVal;
-}
-
-/*
- * Function: del_callback
- * ----------------------------
- *   Required by the VRZNO module.
- *
- *   @see https://github.com/seanmorris/vrzno
- */
-int EMSCRIPTEN_KEEPALIVE del_callback(zend_function *fptr)
-{
-	return vrzno_del_callback(fptr);
-}
-#endif
