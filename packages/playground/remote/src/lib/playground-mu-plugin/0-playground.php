@@ -99,8 +99,6 @@ add_action('admin_print_scripts', function () {
  * This mu-plugin provides that transport. It's one of the two:
  *
  * * WP_Http_Fetch – Sends requests using browser's fetch() function.
- *                   Only enabled when PHP was compiled with the VRZNO
- * 					 extension.
  * * Requests_Transport_Dummy – Does not send any requests and only exists to keep
  * 								the Requests class happy.
  */
