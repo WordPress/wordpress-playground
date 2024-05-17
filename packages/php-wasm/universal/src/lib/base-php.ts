@@ -289,11 +289,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (typeof request.code === 'string') {
-				// @TODO: prepend the auto_prepend_file even when running code and not a file
-				this.#setPHPCode(
-					' ?><?php require_once "/internal/shared/auto_prepend_file.php"; ?>' +
-						request.code
-				);
+				this.#setPHPCode(' ?>' + request.code);
 			}
 
 			const $_SERVER = this.#prepareServerEntries(
