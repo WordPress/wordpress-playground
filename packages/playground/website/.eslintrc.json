@@ -31,9 +31,9 @@
 		},
 		{
 			"files": [
-				"website/demos/**/*",
-				"website/cypress/**/*",
-				"website/builder/**/*"
+				"demos/**/*",
+				"cypress/**/*",
+				"builder/**/*"
 			],
 			"rules": {
 				"no-console": 0
