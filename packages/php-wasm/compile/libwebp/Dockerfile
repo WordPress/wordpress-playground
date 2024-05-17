@@ -9,16 +9,15 @@ RUN tar -xzf libwebp.tar.gz
 RUN     autoreconf --install
 RUN     autoconf
 RUN     source /root/emsdk/emsdk_env.sh && \
-        CPPFLAGS="-fPIC -I/root/lib/include " \
+        CPPFLAGS="-I/root/lib/include " \
         LDFLAGS="-L/root/lib/lib " \
         emconfigure ./configure \
             PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-            --enable-shared \
             --build i386-pc-linux-gnu \
             --target wasm32-unknown-emscripten \
             --prefix=/root/lib/
-RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-fPIC -sSIDE_MODULE" emmake make
-RUN source /root/emsdk/emsdk_env.sh && EMCC_FLAGS="-fPIC" emmake make install
+RUN source /root/emsdk/emsdk_env.sh && EMCC_SKIP="-lc -lz" EMCC_FLAGS="-sSIDE_MODULE" emmake make
+RUN source /root/emsdk/emsdk_env.sh && emmake make install
 # @TODO: Do not remove dependencies like this – it's too easy to miss something.
 #        Instead, source them from another directory and end up with a clean build.
 RUN rm -rf /root/lib/lib/pkgconfig /root/lib/lib/libz.a /root/lib/include/zconf.h /root/lib/include/zlib.h

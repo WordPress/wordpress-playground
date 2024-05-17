@@ -20,7 +20,7 @@ COPY ./php-wasm-memory-storage /root/php-src/ext/wasm_memory_storage
 RUN cd php-src && ./buildconf --force
 
 # Bring in the libraries
-RUN mkdir -p /root/lib/include /root/lib/lib /libs
+RUN mkdir -p /root/lib/include /root/lib/lib /libs 
 COPY ./bison2.7/dist/ /libs/bison2.7
 COPY ./libedit/dist/root/lib /root/lib
 COPY ./libiconv/dist/root/lib /root/lib
@@ -28,6 +28,8 @@ COPY ./libcurl/dist/root/lib /root/lib
 COPY ./libncurses/dist/root/lib /root/lib
 COPY ./libopenssl/dist/root/lib /root/lib
 COPY ./libpng16/dist/root/lib /root/lib
+COPY ./libjpeg/dist/root/lib /root/lib
+COPY ./libwebp/dist/root/lib /root/lib
 COPY ./libsqlite3/dist/root/lib /root/lib
 COPY ./libxml2/dist/root/lib /root/lib
 COPY ./libz/dist/root/lib /root/lib
@@ -42,7 +44,7 @@ ARG WITH_CURL
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
-ARG WITH_LIBPNG
+ARG WITH_GD
 ARG WITH_MBSTRING
 ARG WITH_MBREGEX
 ARG WITH_CLI_SAPI
@@ -159,11 +161,16 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 		fi; \
 	fi;
 
-# Add libpng if needed
-RUN if [ "$WITH_LIBPNG" = "yes" ]; \
+# Add GD if needed
+RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		echo -n ' --with-png-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags && \
-		echo -n ' -I /root/lib -I /root/lib -lz -lpng16 ' >> /root/.emcc-php-wasm-flags; \
+		if [[ "${PHP_VERSION:0:1}" -eq "7" ]] && [ "${PHP_VERSION:0:3}" != "7.4" ]; then \
+			# @TODO support webp for PHP 7.0 – 7.3
+			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		else \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		fi; \
+		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
 # Add openssl if needed
@@ -257,8 +264,10 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 # Build the patched PHP
 WORKDIR /root/php-src
 RUN source /root/emsdk/emsdk_env.sh && \
-	CURL_CFLAGS="-I/root/lib/include" \
-	CURL_LIBS="-L/root/lib/lib" \
+CURL_CFLAGS="-I/root/lib/include" \
+WEBP_LIBS="-L/root/lib/lib" \
+WEBP_CFLAGS="-I/root/lib/include" \
+CURL_LIBS="-L/root/lib/lib" \
 	emconfigure ./configure \
 	PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
 	# Fibers are a PHP 8.1+ feature. They are compiled as
@@ -344,7 +353,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	# We're compiling PHP as emscripten's side module...
 	EMCC_FLAGS=" -sSIDE_MODULE -Dsetsockopt=wasm_setsockopt -Dphp_exec=wasm_php_exec " \
 	# ...which means we must skip all the libraries - they will be provided in the final linking step.
-	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so" \
+	EMCC_SKIP="-lz -ledit -ldl -lncurses -lzip -lpng16 -lssl -lcrypto -lxml2 -lc -lm -lsqlite3 /root/lib/lib/libxml2.a /root/lib/lib/libsqlite3.so /root/lib/lib/libsqlite3.a /root/lib/lib/libsqlite3.a /root/lib/lib/libpng16.so /root/lib/lib/libwebp.a /root/lib/lib/libjpeg.a" \
 	emmake make -j8
 
 RUN cp -v /root/php-src/.libs/libphp*.la /root/lib/libphp.la

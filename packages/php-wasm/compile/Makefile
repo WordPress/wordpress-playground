@@ -32,6 +32,21 @@ libpng16/dist/root/lib/lib/libpng16.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/lib ./libpng16/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libpng):/root/install/include ./libpng16/dist/root/lib
 
+libjpeg: libjpeg/dist/root/lib/lib/libjpeg.a
+libjpeg/dist/root/lib/lib/libjpeg.a: base-image libz
+	mkdir -p ./libjpeg/dist/root/lib
+	docker build -f ./libjpeg/Dockerfile -t playground-php-wasm:libpng . --progress=plain
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/lib32 ./libjpeg/dist/root/lib
+	mv ./libjpeg/dist/root/lib/lib32 ./libjpeg/dist/root/lib/lib
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/include ./libjpeg/dist/root/lib
+
+libwebp: libwebp/dist/root/lib/lib/libwebp.a
+libwebp/dist/root/lib/lib/libwebp.a: base-image libz
+	mkdir -p ./libwebp/dist/root/lib
+	docker build -f ./libwebp/Dockerfile -t playground-php-wasm:libpng .
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/lib ./libwebp/dist/root/lib
+	docker cp $$(docker create playground-php-wasm:libpng):/root/lib/include ./libwebp/dist/root/lib
+
 libxml2: libxml2/dist/root/lib/lib/libxml2.a
 libxml2/dist/root/lib/lib/libxml2.a: base-image
 	mkdir -p ./libxml2/dist/root/lib
@@ -95,11 +110,13 @@ libcurl/dist/root/lib/lib/libcurl.a: base-image libz libopenssl
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/dist/root/lib
 
-all: libz libzip libpng16 libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma libcurl
+all: libz libzip libpng16 libjpeg libwebp libxml2 libopenssl libsqlite3 libiconv libncurses libedit bison2.7 oniguruma libcurl
 clean:
 	rm -rf ./libz/dist
 	rm -rf ./libzip/dist
 	rm -rf ./libpng16/dist
+	rm -rf ./libjpeg/dist
+	rm -rf ./libwebp/dist
 	rm -rf ./libxml2/dist
 	rm -rf ./libopenssl/dist
 	rm -rf ./libsqlite3/dist
