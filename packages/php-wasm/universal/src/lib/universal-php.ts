@@ -93,21 +93,6 @@ export interface IsomorphicLocalPHP {
 	): void;
 
 	/**
-	 * Sets the path to the php.ini file to use for the PHP instance.
-	 *
-	 * @param path - The path to the php.ini file.
-	 */
-	setPhpIniPath(path: string): void;
-
-	/**
-	 * Sets a value for a specific key in the php.ini file for the PHP instance.
-	 *
-	 * @param key - The key to set the value for.
-	 * @param value - The value to set for the key.
-	 */
-	setPhpIniEntry(key: string, value: string): void;
-
-	/**
 	 * Recursively creates a directory with the given path in the PHP filesystem.
 	 * For example, if the path is `/root/php/data`, and `/root` already exists,
 	 * it will create the directories `/root/php` and `/root/php/data`.
@@ -341,7 +326,7 @@ export type SpawnHandler = (command: string, args: string[]) => ChildProcess;
  * they don't make sense in a remote PHP instance.
  */
 export type IsomorphicRemotePHP = Remote<
-	Omit<IsomorphicLocalPHP, 'setSapiName' | 'setPhpIniEntry' | 'setPhpIniPath'>
+	Omit<IsomorphicLocalPHP, 'setSapiName'>
 >;
 export type UniversalPHP = IsomorphicLocalPHP | IsomorphicRemotePHP;
 

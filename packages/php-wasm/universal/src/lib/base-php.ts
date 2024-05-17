@@ -59,6 +59,9 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
+export const PHP_INI_PATH = '/internal/shared/php.ini';
+const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
+
 /**
  * An environment-agnostic wrapper around the Emscripten PHP runtime
  * that universals the super low-level API and provides a more convenient
@@ -69,8 +72,6 @@ export class PHPExecutionFailureError extends Error {
  */
 export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
-	#phpIniOverrides: [string, string][] = [];
-	#phpIniPath = '/internal/shared/php.ini';
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
@@ -174,6 +175,13 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			throw new Error('Invalid PHP runtime id.');
 		}
 		this[__private__dont__use] = runtime;
+		this[__private__dont__use].ccall(
+			'wasm_set_phpini_path',
+			null,
+			['string'],
+			[PHP_INI_PATH]
+		);
+
 		runtime['onMessage'] = async (
 			data: string
 		): Promise<string | Uint8Array> => {
@@ -209,28 +217,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			);
 		}
 		this.#sapiName = newName;
-	}
-
-	/** @inheritDoc */
-	setPhpIniPath(path: string) {
-		if (this.#webSapiInitialized) {
-			throw new Error('Cannot set PHP ini path after calling run().');
-		}
-		this.#phpIniPath = path;
-		this[__private__dont__use].ccall(
-			'wasm_set_phpini_path',
-			null,
-			['string'],
-			[path]
-		);
-	}
-
-	/** @inheritDoc */
-	setPhpIniEntry(key: string, value: string) {
-		if (this.#webSapiInitialized) {
-			throw new Error('Cannot set PHP ini entries after calling run().');
-		}
-		this.#phpIniOverrides.push([key, value]);
 	}
 
 	/** @inheritDoc */
@@ -376,52 +362,50 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	#initWebRuntime() {
-		this.setPhpIniEntry(
-			'auto_prepend_file',
-			'/internal/shared/auto_prepend_file.php'
-		);
-		if (!this.fileExists('/internal/shared/auto_prepend_file.php')) {
+		if (!this.fileExists(PHP_INI_PATH)) {
 			this.writeFile(
-				'/internal/shared/auto_prepend_file.php',
-				`<?php
-			foreach (glob('/internal/shared/preload/*.php') as $file) {
-				require_once $file;
-			}
-		`
-			);
-			/**
-			 * This creates a consts.php file in an in-memory
-			 * /internal/preload directory and sets the auto_prepend_file PHP option
-			 * to always load that file.
-			 * @see https://www.php.net/manual/en/ini.core.php#ini.auto-prepend-file
-			 *
-			 * Technically, this is a workaround. In the future, let's implement a
-			 * WASM SAPI method to pass consts directly.
-			 * @see https://github.com/WordPress/wordpress-playground/issues/750
-			 */
-			this.writeFile(
-				'/internal/shared/preload/consts.php',
-				`<?php
-			if(file_exists('/internal/shared/consts.json')) {
-				$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
-				foreach ($consts as $const => $value) {
-					if (!defined($const) && is_scalar($value)) {
-						define($const, $value);
-					}
-				}
-			}`
+				PHP_INI_PATH,
+				[
+					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
+					'memory_limit=256M',
+					'ignore_repeated_errors = 1',
+					'error_reporting = E_ALL',
+					'display_errors = 1',
+					'html_errors = 1',
+					'display_startup_errors = On',
+					'log_errors = 1',
+					'always_populate_raw_post_data = -1',
+					'upload_max_filesize = 2000M',
+					'post_max_size = 2000M',
+					'disable_functions = curl_exec,curl_multi_exec',
+					'allow_url_fopen = Off',
+					'allow_url_include = Off',
+					'session.save_path = /home/web_user',
+					'implicit_flush = 1',
+					'output_buffering = 0',
+					'max_execution_time = 0',
+					'max_input_time = -1',
+				].join('\n')
 			);
 		}
-		if (this.#phpIniOverrides.length > 0) {
-			const overridesAsIni =
-				this.#phpIniOverrides
-					.map(([key, value]) => `${key}=${value}`)
-					.join('\n') + '\n\n';
-			this[__private__dont__use].ccall(
-				'wasm_set_phpini_entries',
-				null,
-				[STRING],
-				[overridesAsIni]
+		if (!this.fileExists(AUTO_PREPEND_SCRIPT)) {
+			this.writeFile(
+				AUTO_PREPEND_SCRIPT,
+				`<?php
+				// Define constants set via defineConstant() calls
+				if(file_exists('/internal/shared/consts.json')) {
+					$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
+					foreach ($consts as $const => $value) {
+						if (!defined($const) && is_scalar($value)) {
+							define($const, $value);
+						}
+					}
+				}
+				// Preload all the files from /internal/shared/preload
+				foreach (glob('/internal/shared/preload/*.php') as $file) {
+					require_once $file;
+				}
+				`
 			);
 		}
 		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
@@ -888,13 +872,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 		// Initialize the new runtime
 		this.initializeRuntime(runtime);
-
-		// Re-apply any set() methods that are not
-		// request related and result in a one-off
-		// C function call.
-		if (this.#phpIniPath) {
-			this.setPhpIniPath(this.#phpIniPath);
-		}
 
 		if (this.#sapiName) {
 			this.setSapiName(this.#sapiName);

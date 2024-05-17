@@ -15,8 +15,16 @@ import {
 	CACHE_FOLDER,
 	readAsFile,
 } from './download';
+<<<<<<< Updated upstream
 import { withPHPIniValues } from './setup-php';
 import { preloadSqliteIntegration } from '@wp-playground/wordpress';
+=======
+import {
+	playgroundMuPlugin,
+	preloadSqliteIntegration,
+} from '@wp-playground/wordpress';
+import { withPHPIniValues } from '@php-wasm/universal';
+>>>>>>> Stashed changes
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -75,9 +83,8 @@ export async function setupWordPress(
 		});
 
 		// Disable networking for the installation wizard
-		// to avoid loopback requests and also speed it up.
-		// @TODO: Expose withPHPIniValues as a function from the
-		//        php-wasm library.
+		// to avoid loopback requests and also speed up
+		// the installation.
 		await withPHPIniValues(
 			php,
 			{
