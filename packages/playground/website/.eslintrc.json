@@ -30,6 +30,16 @@
 			}
 		},
 		{
+			"files": [
+				"website/demos/**/*",
+				"website/cypress/**/*",
+				"website/builder/**/*"
+			],
+			"rules": {
+				"no-console": 0
+			}
+		},
+		{
 			"files": ["*.ts", "*.tsx"],
 			"rules": {}
 		},

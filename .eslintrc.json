@@ -68,12 +68,7 @@
 			}
 		},
 		{
-			"files": [
-				"packages/playground/website/demos/**/*",
-				"packages/playground/website/cypress/**/*",
-				"packages/playground/website/builder/**/*",
-				"**/bin/**/*"
-			],
+			"files": ["**/bin/**/*"],
 			"rules": {
 				"no-console": 0
 			}
