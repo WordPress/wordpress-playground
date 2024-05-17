@@ -188,8 +188,6 @@ await asyncSpawn(
 		'--build-arg',
 		getArg('PHP_VERSION'),
 		'--build-arg',
-		getArg('WITH_VRZNO'),
-		'--build-arg',
 		getArg('WITH_FILEINFO'),
 		'--build-arg',
 		getArg('WITH_LIBXML'),
