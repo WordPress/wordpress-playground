@@ -182,6 +182,53 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			[PHP_INI_PATH]
 		);
 
+		if (!this.fileExists(PHP_INI_PATH)) {
+			this.writeFile(
+				PHP_INI_PATH,
+				[
+					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
+					'memory_limit=256M',
+					'ignore_repeated_errors = 1',
+					'error_reporting = E_ALL',
+					'display_errors = 1',
+					'html_errors = 1',
+					'display_startup_errors = On',
+					'log_errors = 1',
+					'always_populate_raw_post_data = -1',
+					'upload_max_filesize = 2000M',
+					'post_max_size = 2000M',
+					'disable_functions = curl_exec,curl_multi_exec',
+					'allow_url_fopen = Off',
+					'allow_url_include = Off',
+					'session.save_path = /home/web_user',
+					'implicit_flush = 1',
+					'output_buffering = 0',
+					'max_execution_time = 0',
+					'max_input_time = -1',
+				].join('\n')
+			);
+		}
+		if (!this.fileExists(AUTO_PREPEND_SCRIPT)) {
+			this.writeFile(
+				AUTO_PREPEND_SCRIPT,
+				`<?php
+				// Define constants set via defineConstant() calls
+				if(file_exists('/internal/shared/consts.json')) {
+					$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
+					foreach ($consts as $const => $value) {
+						if (!defined($const) && is_scalar($value)) {
+							define($const, $value);
+						}
+					}
+				}
+				// Preload all the files from /internal/shared/preload
+				foreach (glob('/internal/shared/preload/*.php') as $file) {
+					require_once $file;
+				}
+				`
+			);
+		}
+
 		runtime['onMessage'] = async (
 			data: string
 		): Promise<string | Uint8Array> => {
@@ -362,52 +409,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	}
 
 	#initWebRuntime() {
-		if (!this.fileExists(PHP_INI_PATH)) {
-			this.writeFile(
-				PHP_INI_PATH,
-				[
-					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
-					'memory_limit=256M',
-					'ignore_repeated_errors = 1',
-					'error_reporting = E_ALL',
-					'display_errors = 1',
-					'html_errors = 1',
-					'display_startup_errors = On',
-					'log_errors = 1',
-					'always_populate_raw_post_data = -1',
-					'upload_max_filesize = 2000M',
-					'post_max_size = 2000M',
-					'disable_functions = curl_exec,curl_multi_exec',
-					'allow_url_fopen = Off',
-					'allow_url_include = Off',
-					'session.save_path = /home/web_user',
-					'implicit_flush = 1',
-					'output_buffering = 0',
-					'max_execution_time = 0',
-					'max_input_time = -1',
-				].join('\n')
-			);
-		}
-		if (!this.fileExists(AUTO_PREPEND_SCRIPT)) {
-			this.writeFile(
-				AUTO_PREPEND_SCRIPT,
-				`<?php
-				// Define constants set via defineConstant() calls
-				if(file_exists('/internal/shared/consts.json')) {
-					$consts = json_decode(file_get_contents('/internal/shared/consts.json'), true);
-					foreach ($consts as $const => $value) {
-						if (!defined($const) && is_scalar($value)) {
-							define($const, $value);
-						}
-					}
-				}
-				// Preload all the files from /internal/shared/preload
-				foreach (glob('/internal/shared/preload/*.php') as $file) {
-					require_once $file;
-				}
-				`
-			);
-		}
 		this[__private__dont__use].ccall('php_wasm_init', null, [], []);
 	}
 
