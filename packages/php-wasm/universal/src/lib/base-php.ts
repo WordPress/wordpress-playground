@@ -186,6 +186,7 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 			this.writeFile(
 				PHP_INI_PATH,
 				[
+					'disable_functions = abc',
 					'auto_prepend_file=' + AUTO_PREPEND_SCRIPT,
 					'memory_limit=256M',
 					'ignore_repeated_errors = 1',
@@ -197,7 +198,6 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 					'always_populate_raw_post_data = -1',
 					'upload_max_filesize = 2000M',
 					'post_max_size = 2000M',
-					'disable_functions = curl_exec,curl_multi_exec',
 					'allow_url_fopen = Off',
 					'allow_url_include = Off',
 					'session.save_path = /home/web_user',

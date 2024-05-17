@@ -20,11 +20,7 @@ export async function setPhpIniEntries(
 ) {
 	const ini = parse(await php.readFileAsText(PHP_INI_PATH));
 	for (const [key, value] of Object.entries(entries)) {
-		if (value === null || value === undefined) {
-			delete ini[key];
-		} else {
-			ini[key] = value;
-		}
+		ini[key] = value;
 	}
 	await php.writeFile(PHP_INI_PATH, stringify(ini));
 }
