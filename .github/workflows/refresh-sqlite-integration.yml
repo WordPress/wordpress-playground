@@ -1,0 +1,70 @@
+name: 'Refresh WordPress Major&Beta'
+
+on:
+    workflow_dispatch:
+        inputs:
+            force_rebuild:
+                description: 'Force rebuild of WordPress (true/false)'
+                required: false
+                default: 'false'
+    # Every 20 minutes
+    schedule:
+        - cron: '*/20 * * * *'
+
+jobs:
+    build_and_deploy:
+        # Only run this workflow from the trunk branch and when it's triggered by dmsnell OR adamziel
+        if: >
+            github.ref == 'refs/heads/trunk' && (
+                github.actor == 'adamziel' ||
+                github.actor == 'dmsnell' ||
+                github.actor == 'bgrgicak' ||
+                github.actor == 'brandonpayton'
+            )
+
+        runs-on: ubuntu-latest
+        environment:
+            name: wordpress-assets
+        concurrency:
+            group: check-version-and-run-build
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.event.pull_request.head.ref }}
+                  clean: true
+                  persist-credentials: false
+            - uses: ./.github/actions/prepare-playground
+            - name: 'Recompile WordPress'
+              shell: bash
+              env:
+                  FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
+              run: npx nx bundle-sqlite-database playground-wordpress-builds
+            - name: Check for uncommitted changes
+              id: changes
+              run: |
+                  if [ -z "$(git status --porcelain)" ]; then
+                      echo "No changes"
+                      echo 'CHANGES=0' >> $GITHUB_OUTPUT
+                  else
+                      echo "Changes detected"
+                      echo 'CHANGES=1' >> $GITHUB_OUTPUT
+                  fi
+            - name: Push rebuilt WordPress to GitHub
+              if: steps.changes.outputs.CHANGES == '1'
+              run: |
+                  git config --global user.name "deployment_bot"
+                  git config --global user.email "deployment_bot@users.noreply.github.com"
+                  git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+                  git add -A
+                  git commit -a -m "Recompile WordPress major and beta versions"
+                  git pull --rebase
+                  # Push if the pull did not result in a conflict
+                  if [ $? -eq 0 ]; then
+                      git push origin HEAD:trunk
+                  fi;
+            - name: Deploy website
+              if: steps.changes.outputs.CHANGES == '1'
+              uses: benc-uk/workflow-dispatch@v1
+              with:
+                  workflow: build-website.yml
+                  token: ${{ secrets.GITHUB_TOKEN }}

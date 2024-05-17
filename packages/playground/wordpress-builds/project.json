@@ -35,11 +35,11 @@
 				"bundle-wordpress:major-and-beta"
 			]
 		},
-		"bundle-wordpress:nightly": {
+		"bundle-sqlite-database": {
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public"
+					"node packages/playground/wordpress-builds/build/refresh-sqlite-integration-plugin.js --output-dir=packages/playground/wordpress-builds/src/sqlite-database-integration "
 				],
 				"parallel": false
 			}
