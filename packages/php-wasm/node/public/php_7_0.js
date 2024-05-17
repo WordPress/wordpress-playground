@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_0_33/php_7_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13118939; 
+export const dependenciesTotalSize = 13119490; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5562,7 +5562,9 @@ var allocateUTF8OnStack = stringToUTF8OnStack;
 
 var PHPWASM = {
  init: function() {
-  FS.mkdir("/internal");FS.mkdir("/internal/shared");FS.mkdir("/internal/shared/preload");
+  FS.mkdir("/internal");
+  FS.mkdir("/internal/shared");
+  FS.mkdir("/internal/shared/preload");
   PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE ? require("events").EventEmitter : class EventEmitter {
    constructor() {
     this.listeners = {};
