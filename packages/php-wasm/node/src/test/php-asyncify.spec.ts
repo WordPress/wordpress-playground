@@ -56,7 +56,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
-		setPhpIniEntries(php, { allow_url_fopen: 1 });
+		await setPhpIniEntries(php, { allow_url_fopen: 1 });
 	});
 
 	describe.each(topOfTheStack)('%s', (networkCall) => {

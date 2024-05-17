@@ -13,7 +13,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		let php: NodePHP;
 		beforeEach(async () => {
 			php = await NodePHP.load(phpVersion as any);
-			setPhpIniEntries(php, { allow_url_fopen: 1 });
+			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 			vi.restoreAllMocks();
 		});
 

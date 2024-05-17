@@ -73,7 +73,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
 		php.mkdir('/php');
-		setPhpIniEntries(php, { disable_functions: '' });
+		await setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
 		// Clean up

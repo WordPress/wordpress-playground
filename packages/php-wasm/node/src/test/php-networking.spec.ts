@@ -9,7 +9,7 @@ describe.each(SupportedPHPVersions)(
 		it('should be able to make a request to a server', async () => {
 			const serverUrl = await startServer();
 			const php = await NodePHP.load(phpVersion);
-			setPhpIniEntries(php, {
+			await setPhpIniEntries(php, {
 				allow_url_fopen: 1,
 				disable_functions: '',
 			});
@@ -106,7 +106,7 @@ describe.each(SupportedPHPVersions)(
 
 			it('should support HTTPS requests', async () => {
 				const php = await NodePHP.load(phpVersion);
-				setPhpIniEntries(php, {
+				await setPhpIniEntries(php, {
 					'openssl.cafile': '/tmp/ca-bundle.crt',
 				});
 				php.writeFile(

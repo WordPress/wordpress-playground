@@ -44,7 +44,6 @@ export async function createPhp(
 
 	// Write the ca-bundle.crt file to disk so that PHP can find it.
 	if (isPrimary) {
-		php.writeFile('/internal/shared/php.ini', '');
 		php.writeFile(
 			'/internal/shared/ca-bundle.crt',
 			rootCertificates.join('\n')
