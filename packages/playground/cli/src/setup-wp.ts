@@ -15,16 +15,8 @@ import {
 	CACHE_FOLDER,
 	readAsFile,
 } from './download';
-<<<<<<< Updated upstream
-import { withPHPIniValues } from './setup-php';
 import { preloadSqliteIntegration } from '@wp-playground/wordpress';
-=======
-import {
-	playgroundMuPlugin,
-	preloadSqliteIntegration,
-} from '@wp-playground/wordpress';
 import { withPHPIniValues } from '@php-wasm/universal';
->>>>>>> Stashed changes
 
 /**
  * Ensures a functional WordPress installation in php document root.
