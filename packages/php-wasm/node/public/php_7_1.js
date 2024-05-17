@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_1_30/php_7_1.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13643732; 
+export const dependenciesTotalSize = 14209638; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -7026,7 +7026,7 @@ ERRNO_CODES = {
 PHPWASM.init();
 
 var wasmImports = {
- l: ___assert_fail,
+ m: ___assert_fail,
  Wa: ___call_sighandler,
  Va: ___syscall_accept4,
  Ua: ___syscall_bind,
@@ -7098,23 +7098,23 @@ var wasmImports = {
  ga: _getnameinfo,
  fa: _getprotobyname,
  ea: _getprotobynumber,
- i: invoke_i,
+ j: invoke_i,
  c: invoke_ii,
  b: invoke_iii,
- g: invoke_iiii,
+ f: invoke_iiii,
  h: invoke_iiiii,
  t: invoke_iiiiii,
  s: invoke_iiiiiii,
  x: invoke_iiiiiiii,
  z: invoke_iiiiiiiiii,
  T: invoke_jii,
- f: invoke_v,
+ g: invoke_v,
  a: invoke_vi,
  d: invoke_vii,
- k: invoke_viii,
- m: invoke_viiii,
+ i: invoke_viii,
+ l: invoke_viiii,
  o: invoke_viiiii,
- j: invoke_viiiiii,
+ k: invoke_viiiiii,
  y: invoke_viiiiiiiii,
  F: _js_create_input_device,
  da: _js_fd_read,
