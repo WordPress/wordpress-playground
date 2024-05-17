@@ -70,7 +70,7 @@ export class PHPExecutionFailureError extends Error {
 export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 	protected [__private__dont__use]: any;
 	#phpIniOverrides: [string, string][] = [];
-	#phpIniPath?: string;
+	#phpIniPath = '/internal/shared/php.ini';
 	#sapiName?: string;
 	#webSapiInitialized = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
@@ -289,7 +289,11 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 				heapBodyPointer = this.#setRequestBody(request.body);
 			}
 			if (typeof request.code === 'string') {
-				this.#setPHPCode(' ?>' + request.code);
+				// @TODO: prepend the auto_prepend_file even when running code and not a file
+				this.#setPHPCode(
+					' ?><?php require_once "/internal/shared/auto_prepend_file.php"; ?>' +
+						request.code
+				);
 			}
 
 			const $_SERVER = this.#prepareServerEntries(

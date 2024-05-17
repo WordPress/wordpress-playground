@@ -84,6 +84,8 @@ export async function createPhp(
 	if (startupOptions.sapiName) {
 		await php.setSapiName(startupOptions.sapiName);
 	}
+	php.mkdir('/usr/local/etc');
+	php.writeFile('/usr/local/etc/php.ini', 'disable_functions = ');
 	php.setPhpIniEntry('memory_limit', '256M');
 	php.setSpawnHandler(spawnHandlerFactory(requestHandler.processManager));
 

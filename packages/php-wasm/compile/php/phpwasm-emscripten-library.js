@@ -26,6 +26,8 @@ const LibraryExample = {
 			// The files from the preload directory are preloaded using the
 			// auto_prepend_file php.ini directive.
 			FS.mkdir('/internal/shared/preload');
+			// Create a default php.ini file.
+			FS.writeFile('/internal/shared/php.ini', '');
 
 			PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE
 				? require('events').EventEmitter
