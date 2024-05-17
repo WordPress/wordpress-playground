@@ -158,7 +158,6 @@ export async function broadcastMessageExpectReply(message: any, scope: string) {
 		// registration of the service worker.
 		includeUncontrolled: true,
 	})) {
-		client.frameType;
 		client.postMessage({
 			...message,
 			/**

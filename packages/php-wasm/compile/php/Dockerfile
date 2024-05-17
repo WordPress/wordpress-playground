@@ -45,7 +45,7 @@ ARG WITH_VRZNO
 ARG WITH_FILEINFO
 ARG WITH_LIBXML
 ARG WITH_LIBZIP
-ARG WITH_LIBPNG
+ARG WITH_GD
 ARG WITH_MBSTRING
 ARG WITH_MBREGEX
 ARG WITH_CLI_SAPI
@@ -163,7 +163,7 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 	fi;
 
 # Add GD if needed
-RUN if [ "$WITH_LIBPNG" = "yes" ]; \
+RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
 		echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags && \
 		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
