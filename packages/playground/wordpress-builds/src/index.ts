@@ -1,6 +1,6 @@
 export { getWordPressModuleDetails } from './wordpress/get-wordpress-module-details';
 export { getWordPressModule } from './wordpress/get-wordpress-module';
-export { getSqliteDatabaseIntegrationDetails } from './sqlite-database-integration/get-sqlite-database-plugin-details';
+export * as sqliteDatabaseIntegration from './sqlite-database-integration/get-sqlite-database-plugin-details';
 import SupportedWordPressVersions from './wordpress/wp-versions.json';
 
 export { SupportedWordPressVersions };

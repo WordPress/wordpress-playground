@@ -31,12 +31,8 @@ import url from './sqlite-database-integration.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getSqliteDatabaseIntegrationDetails(): { size: number, url: string } {
-	/** @ts-ignore */
-	return {
-		size: ${JSON.stringify((await fs.stat(outputZipPath)).size)},
-		url: url,
-	};
-}
+export const size = ${JSON.stringify((await fs.stat(outputZipPath)).size)};
+export { url };
+
 `;
 await fs.writeFile(getWordPressModulePath, getWordPressModuleContent);

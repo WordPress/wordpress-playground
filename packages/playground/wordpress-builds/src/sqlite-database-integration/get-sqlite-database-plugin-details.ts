@@ -7,13 +7,5 @@ import url from './sqlite-database-integration.zip?url';
  * This file must statically exists in the project because of the way
  * vite resolves imports.
  */
-export function getSqliteDatabaseIntegrationDetails(): {
-	size: number;
-	url: string;
-} {
-	/** @ts-ignore */
-	return {
-		size: 83948,
-		url: url,
-	};
-}
+export const size = 83948;
+export { url };
