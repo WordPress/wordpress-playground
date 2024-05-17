@@ -1,4 +1,4 @@
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { SupportedPHPVersions, setPhpIniEntries } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { NodePHP } from '..';
@@ -9,7 +9,10 @@ describe.each(SupportedPHPVersions)(
 		it('should be able to make a request to a server', async () => {
 			const serverUrl = await startServer();
 			const php = await NodePHP.load(phpVersion);
-			php.setPhpIniEntry('allow_url_fopen', '1');
+			setPhpIniEntries(php, {
+				allow_url_fopen: 1,
+				disable_functions: '',
+			});
 			php.writeFile(
 				'/tmp/test.php',
 				`<?php
@@ -26,7 +29,6 @@ describe.each(SupportedPHPVersions)(
 			it('should support single handle requests', async () => {
 				const serverUrl = await startServer();
 				const php = await NodePHP.load(phpVersion);
-				php.setPhpIniEntry('disable_functions', '');
 				php.writeFile(
 					'/tmp/test.php',
 					`<?php
@@ -47,7 +49,6 @@ describe.each(SupportedPHPVersions)(
 			it('should support multi handle requests', async () => {
 				const serverUrl = await startServer();
 				const php = await NodePHP.load(phpVersion);
-				php.setPhpIniEntry('disable_functions', '');
 				php.writeFile(
 					'/tmp/test.php',
 					`<?php
@@ -86,7 +87,6 @@ describe.each(SupportedPHPVersions)(
 			it('should follow redirects', async () => {
 				const serverUrl = await startServer();
 				const php = await NodePHP.load(phpVersion);
-				php.setPhpIniEntry('disable_functions', '');
 				php.writeFile(
 					'/tmp/test.php',
 					`<?php
@@ -106,8 +106,9 @@ describe.each(SupportedPHPVersions)(
 
 			it('should support HTTPS requests', async () => {
 				const php = await NodePHP.load(phpVersion);
-				php.setPhpIniEntry('disable_functions', '');
-				php.setPhpIniEntry('openssl.cafile', '/tmp/ca-bundle.crt');
+				setPhpIniEntries(php, {
+					'openssl.cafile': '/tmp/ca-bundle.crt',
+				});
 				php.writeFile(
 					'/tmp/ca-bundle.crt',
 					rootCertificates.join('\n')
@@ -129,7 +130,6 @@ describe.each(SupportedPHPVersions)(
 
 			it('should support HTTPS requests when certificate verification is disabled', async () => {
 				const php = await NodePHP.load(phpVersion);
-				php.setPhpIniEntry('disable_functions', '');
 				const { text } = await php.run({
 					code: `<?php
 					$ch = curl_init();

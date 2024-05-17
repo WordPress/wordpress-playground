@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import {
 	__private__dont__use,
 	loadPHPRuntime,
+	setPhpIniEntries,
 	SupportedPHPVersions,
 } from '@php-wasm/universal';
 import { existsSync, rmSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
@@ -72,7 +73,7 @@ describe.each(SupportedPHPVersions)('PHP %s', (phpVersion) => {
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
 		php.mkdir('/php');
-		php.setPhpIniEntry('disable_functions', '');
+		setPhpIniEntries(php, { disable_functions: '' });
 	});
 	afterEach(async () => {
 		// Clean up
