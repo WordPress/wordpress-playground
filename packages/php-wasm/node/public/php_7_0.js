@@ -1,6 +1,6 @@
 const dependencyFilename = __dirname + '/7_0_33/php_7_0.wasm'; 
 export { dependencyFilename }; 
-export const dependenciesTotalSize = 13118939; 
+export const dependenciesTotalSize = 13685226; 
 export function init(RuntimeName, PHPLoader) {
     /**
      * Overrides Emscripten's default ExitStatus object which gets
@@ -5562,7 +5562,9 @@ var allocateUTF8OnStack = stringToUTF8OnStack;
 
 var PHPWASM = {
  init: function() {
-  FS.mkdir("/internal");FS.mkdir("/internal/shared");FS.mkdir("/internal/shared/preload");
+  FS.mkdir("/internal");
+  FS.mkdir("/internal/shared");
+  FS.mkdir("/internal/shared/preload");
   PHPWASM.EventEmitter = ENVIRONMENT_IS_NODE ? require("events").EventEmitter : class EventEmitter {
    constructor() {
     this.listeners = {};
@@ -7082,7 +7084,7 @@ var wasmImports = {
  I: _emscripten_sleep,
  sa: _environ_get,
  ra: _environ_sizes_get,
- o: _exit,
+ n: _exit,
  t: _fd_close,
  L: _fd_fdstat_get,
  K: _fd_read,
@@ -7096,10 +7098,10 @@ var wasmImports = {
  ha: _getnameinfo,
  ga: _getprotobyname,
  fa: _getprotobynumber,
- i: invoke_i,
+ j: invoke_i,
  c: invoke_ii,
  b: invoke_iii,
- g: invoke_iiii,
+ f: invoke_iiii,
  h: invoke_iiiii,
  s: invoke_iiiiii,
  x: invoke_iiiiiii,
@@ -7107,13 +7109,13 @@ var wasmImports = {
  ea: invoke_iiiiiiiii,
  z: invoke_iiiiiiiiii,
  T: invoke_jii,
- f: invoke_v,
+ g: invoke_v,
  a: invoke_vi,
  d: invoke_vii,
- k: invoke_viii,
- q: invoke_viiii,
- n: invoke_viiiii,
- j: invoke_viiiiii,
+ i: invoke_viii,
+ p: invoke_viiii,
+ o: invoke_viiiii,
+ k: invoke_viiiiii,
  y: invoke_viiiiiiiii,
  F: _js_create_input_device,
  da: _js_fd_read,
@@ -7124,7 +7126,7 @@ var wasmImports = {
  $: _js_waitpid,
  D: _strftime,
  S: _strptime,
- p: _wasm_close,
+ q: _wasm_close,
  u: _wasm_poll_socket,
  r: _wasm_setsockopt
 };
