@@ -2,7 +2,6 @@ import { PhpWasmError } from '@php-wasm/util';
 import type { WebPHPEndpoint } from './web-php-endpoint';
 import { responseTo } from '@php-wasm/web-service-worker';
 import { Remote } from 'comlink';
-import { logger } from '@php-wasm/logger';
 
 /**
  * Run this in the main application to register the service worker or
@@ -34,7 +33,6 @@ export async function registerServiceWorker<
 		}
 	}
 
-	logger.debug(`[window][sw] Registering a Service Worker`);
 	const registration = await sw.register(scriptUrl, {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
