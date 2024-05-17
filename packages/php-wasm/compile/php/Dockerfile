@@ -165,7 +165,11 @@ RUN if [ "$WITH_SQLITE" = "yes" ]; \
 # Add GD if needed
 RUN if [ "$WITH_GD" = "yes" ]; \
 	then \
-		echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags && \
+		if [[ "${PHP_VERSION:0:1}" -ge "8" ]] && [ "${PHP_VERSION:0:3}" -ne "7.4" ]; then \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg-dir=/root/lib --with-webp-dir=/root/lib --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		else \
+			echo -n ' --with-png-dir=/root/lib --with-jpeg --with-webp --with-gd --enable-gd ' >> /root/.php-configure-flags; \
+		fi; \
 		echo -n ' -I /root/lib -I /root/install -lz -lpng16 -lwebp -ljpeg ' >> /root/.emcc-php-wasm-flags; \
 	fi;
 
