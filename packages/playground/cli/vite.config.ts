@@ -25,6 +25,7 @@ export default defineConfig({
 				'@wp-playground/blueprints',
 				'yargs',
 				'express',
+				'crypto',
 				'os',
 				'net',
 				'fs',
