@@ -141,6 +141,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	#PATHNAME: string;
 	#ABSOLUTE_URL: string;
 	#cookieStore: HttpCookieStore;
+	#remoteAssetPaths: Set<string>;
 	rewriteRules: RewriteRule[];
 	processManager: PHPProcessManager<PHP>;
 
@@ -200,6 +201,8 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			this.#PATHNAME,
 		].join('');
 		this.rewriteRules = rewriteRules;
+
+		this.#remoteAssetPaths = new Set<string>();
 	}
 
 	async getPrimaryPhp() {
@@ -313,7 +316,7 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			this.rewriteRules
 		);
 		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
-		if (!seemsLikeAPHPRequestHandlerPath(fsPath)) {
+		if (!(await this.#seemsLikeAPHPRequestHandlerPath(fsPath))) {
 			return this.#serveStaticFile(
 				await this.processManager.getPrimaryPhp(),
 				fsPath
@@ -330,13 +333,16 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 */
 	#serveStaticFile(php: BasePHP, fsPath: string): PHPResponse {
 		if (!php.fileExists(fsPath)) {
+			// If this path is listed as a remote asset, mark it as a static file
+			// so the service worker knows it can issue a real fetch() to the server.
+			const headers: Record<string, string[]> =
+				this.#remoteAssetPaths.has(fsPath)
+					? { 'x-file-type': ['static'] }
+					: {};
+
 			return new PHPResponse(
 				404,
-				// Let the service worker know that no static file was found
-				// and that it's okay to issue a real fetch() to the server.
-				{
-					'x-file-type': ['static'],
-				},
+				headers,
 				new TextEncoder().encode('404 File not found')
 			);
 		}
@@ -492,6 +498,58 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 		}
 		throw new Error(`File not found: ${resolvedFsPath}`);
 	}
+
+	/**
+	 * Add paths to static files we can assume exist remotely.
+	 *
+	 * @param relativePaths A list of paths to remote assets, relative to the document root.
+	 */
+	addRemoteAssetPaths(relativePaths: string[]) {
+		const separator = this.#DOCROOT.endsWith('/') ? '' : '/';
+		relativePaths.forEach((relativePath) => {
+			const fsPath = `${this.#DOCROOT}${separator}${relativePath}`;
+			this.#remoteAssetPaths.add(fsPath);
+		});
+	}
+
+	/**
+	 * Guesses whether the given path looks like a PHP file.
+	 *
+	 * @example
+	 * ```js
+	 * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+	 * seemsLikeAPHPRequestHandlerPath('/index.php') // true
+	 * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
+	 * seemsLikeAPHPRequestHandlerPath('/index.html') // false
+	 * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
+	 * seemsLikeAPHPRequestHandlerPath('/') // true
+	 * ```
+	 *
+	 * @param  path The path to check.
+	 * @returns Whether the path seems like a PHP server path.
+	 */
+	async #seemsLikeAPHPRequestHandlerPath(path: string): Promise<boolean> {
+		if (
+			this.#seemsLikeAPHPFile(path) ||
+			this.#seemsLikeADirectoryRoot(path)
+		) {
+			return true;
+		}
+
+		const primaryPhp = await this.getPrimaryPhp();
+		const fileDoesNotExist = !primaryPhp.fileExists(path);
+		const isNotAKnownRemoteAsset = !this.#remoteAssetPaths.has(path);
+		return fileDoesNotExist && isNotAKnownRemoteAsset;
+	}
+
+	#seemsLikeAPHPFile(path: string) {
+		return path.endsWith('.php') || path.includes('.php/');
+	}
+
+	#seemsLikeADirectoryRoot(path: string) {
+		const lastSegment = path.split('/').pop();
+		return !lastSegment!.includes('.');
+	}
 }
 
 /**
@@ -507,35 +565,6 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 function inferMimeType(path: string): string {
 	const extension = path.split('.').pop() as keyof typeof mimeTypes;
 	return mimeTypes[extension] || mimeTypes['_default'];
-}
-
-/**
- * Guesses whether the given path looks like a PHP file.
- *
- * @example
- * ```js
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php') // true
- * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
- * seemsLikeAPHPRequestHandlerPath('/index.html') // false
- * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
- * seemsLikeAPHPRequestHandlerPath('/') // true
- * ```
- *
- * @param  path The path to check.
- * @returns Whether the path seems like a PHP server path.
- */
-export function seemsLikeAPHPRequestHandlerPath(path: string): boolean {
-	return seemsLikeAPHPFile(path) || seemsLikeADirectoryRoot(path);
-}
-
-function seemsLikeAPHPFile(path: string) {
-	return path.endsWith('.php') || path.includes('.php/');
-}
-
-function seemsLikeADirectoryRoot(path: string) {
-	const lastSegment = path.split('/').pop();
-	return !lastSegment!.includes('.');
 }
 
 /**

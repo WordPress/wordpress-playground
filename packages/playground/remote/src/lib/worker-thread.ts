@@ -194,6 +194,17 @@ try {
 			new File([await (await wordPressRequest!).blob()], 'wp.zip')
 		);
 
+		// TODO: Move file to /internal?
+		// TODO: This feels like some kind of metadata we mentioned when discussing boot protocol
+		const remoteAssetListPath = `${requestHandler.documentRoot}/playground-remote-asset-paths`;
+		if (primaryPhp.fileExists(remoteAssetListPath)) {
+			const remoteAssetPaths = primaryPhp
+				.readFileAsText(remoteAssetListPath)
+				.split('\n');
+			requestHandler.addRemoteAssetPaths(remoteAssetPaths);
+			// TODO: Delete the listing file?
+		}
+
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(primaryPhp, {
 			consts: {

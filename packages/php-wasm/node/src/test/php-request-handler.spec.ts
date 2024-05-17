@@ -97,7 +97,8 @@ describe.each(SupportedPHPVersions)(
 			});
 		});
 
-		it('should yield x-file-type=static when a static file is not found', async () => {
+		it('should yield x-file-type=static when a static file is not found and is listed as a remote asset', async () => {
+			handler.addRemoteAssetPaths(['index.html']);
 			const response = await handler.request({
 				url: '/index.html',
 			});
@@ -106,6 +107,19 @@ describe.each(SupportedPHPVersions)(
 				headers: {
 					'x-file-type': ['static'],
 				},
+				bytes: expect.any(Uint8Array),
+				errors: '',
+				exitCode: 0,
+			});
+		});
+
+		it('should not yield x-file-type=static when a static file is not found and is not listed as a remote asset', async () => {
+			const response = await handler.request({
+				url: '/index.html',
+			});
+			expect(response).toEqual({
+				httpStatusCode: 404,
+				headers: {},
 				bytes: expect.any(Uint8Array),
 				errors: '',
 				exitCode: 0,
