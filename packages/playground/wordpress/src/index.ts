@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 
@@ -276,5 +276,52 @@ $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
 			die("SQLite integration not loaded " . get_class($wpdb));
 		}
 		`
+	);
+}
+
+/**
+ * Prepare the WordPress document root given a WordPress zip file and
+ * the sqlite-database-integration zip file.
+ *
+ * This is a TypeScript function for now, just to get something off the
+ * ground, but it may be superseded by the PHP Blueprints library developed
+ * at https://github.com/WordPress/blueprints-library/
+ *
+ * That PHP library will come with a set of functions and a CLI tool to
+ * turn a Blueprint into a WordPress directory structure or a zip Snapshot.
+ * Let's **not** invest in the TypeScript implementation of this function,
+ * accept the limitation, and switch to the PHP implementation as soon
+ * as that's viable.
+ */
+export async function unzipWordPress(php: BasePHP, wpZip: File) {
+	php.mkdir('/tmp/unzipped-wordpress');
+	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+
+	// The zip file may contain another zip file if it's coming from GitHub artifacts
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
+		await unzipFile(
+			php,
+			'/tmp/unzipped-wordpress/wordpress.zip',
+			'/tmp/unzipped-wordpress'
+		);
+	}
+
+	// The zip file may contain a subdirectory, or not.
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+		? '/tmp/unzipped-wordpress/wordpress'
+		: php.fileExists('/tmp/unzipped-wordpress/build')
+		? '/tmp/unzipped-wordpress/build'
+		: '/tmp/unzipped-wordpress';
+
+	php.mv(wpPath, php.documentRoot);
+	php.writeFile(
+		'/wp-config.php',
+		php.readFileAsText(php.documentRoot + '/wp-config-sample.php')
 	);
 }

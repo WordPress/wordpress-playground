@@ -16,7 +16,10 @@ import {
 	readAsFile,
 } from './download';
 import { withPHPIniValues } from './setup-php';
-import { preloadSqliteIntegration } from '@wp-playground/wordpress';
+import {
+	preloadSqliteIntegration,
+	unzipWordPress,
+} from '@wp-playground/wordpress';
 
 /**
  * Ensures a functional WordPress installation in php document root.
@@ -49,7 +52,7 @@ export async function setupWordPress(
 			monitor
 		),
 	]);
-	await prepareWordPress(php, wpZip);
+	await unzipWordPress(php, wpZip);
 	// Setup the SQLite integration if no custom database drop-in is present
 	if (!php.fileExists('/wordpress/wp-content/db.php')) {
 		await preloadSqliteIntegration(php, sqliteZip);
@@ -93,36 +96,4 @@ export async function setupWordPress(
 		const wpContent = await zipWpContent(php);
 		fs.writeFileSync(preinstalledWpContentPath, wpContent);
 	}
-}
-
-/**
- * Prepare the WordPress document root given a WordPress zip file and
- * the sqlite-database-integration zip file.
- *
- * This is a TypeScript function for now, just to get something off the
- * ground, but it may be superseded by the PHP Blueprints library developed
- * at https://github.com/WordPress/blueprints-library/
- *
- * That PHP library will come with a set of functions and a CLI tool to
- * turn a Blueprint into a WordPress directory structure or a zip Snapshot.
- * Let's **not** invest in the TypeScript implementation of this function,
- * accept the limitation, and switch to the PHP implementation as soon
- * as that's viable.
- */
-async function prepareWordPress(php: NodePHP, wpZip: File) {
-	php.mkdir('/tmp/unzipped-wordpress');
-	await unzip(php, {
-		zipFile: wpZip,
-		extractToPath: '/tmp/unzipped-wordpress',
-	});
-	// The zip file may contain a subdirectory, or not.
-	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
-		? '/tmp/unzipped-wordpress/wordpress'
-		: '/tmp/unzipped-wordpress';
-
-	php.mv(wpPath, '/wordpress');
-	php.writeFile(
-		'/wp-config.php',
-		php.readFileAsText('/wordpress/wp-config-sample.php')
-	);
 }

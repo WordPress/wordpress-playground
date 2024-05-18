@@ -7,18 +7,17 @@ import {
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import {
+	unzipWordPress,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
 import { PHPRequestHandler } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import {
-	defineSiteUrl,
-	defineWpConfigConsts,
-	unzip,
-} from '@wp-playground/blueprints';
+import { defineSiteUrl, defineWpConfigConsts } from '@wp-playground/blueprints';
 
 import { randomString } from '@php-wasm/util';
 import {
@@ -176,13 +175,10 @@ try {
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		await unzip(primaryPhp, {
-			zipFile: new File(
-				[await (await wordPressRequest!).blob()],
-				'wp.zip'
-			),
-			extractToPath: requestHandler.documentRoot,
-		});
+		await unzipWordPress(
+			primaryPhp,
+			new File([await (await wordPressRequest!).blob()], 'wp.zip')
+		);
 
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(primaryPhp, {
