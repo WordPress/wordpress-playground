@@ -80,4 +80,28 @@ describe('Blueprint step activateTheme()', () => {
 
 		expect(php.fileExists(createdFilePath)).toBe(true);
 	});
+
+	it('should detect a silent failure in activating the theme', async () => {
+		const docroot = php.documentRoot;
+		php.mkdir(`${docroot}/wp-content/themes/test-theme`);
+		php.writeFile(
+			`${docroot}/wp-content/themes/test-theme/style.css`,
+			`/**
+* Theme Name: Test Theme
+* Theme URI: https://example.com/test-theme
+* Author: Test Author
+*/
+			`
+		);
+		php.writeFile(
+			`/${docroot}/wp-content/mu-plugins/0-exit.php`,
+			`<?php exit(0); `
+		);
+		expect(
+			async () =>
+				await activateTheme(php, {
+					themeFolderName: 'test-theme',
+				})
+		).rejects.toThrow(/Theme test-theme could not be activated/);
+	});
 });
