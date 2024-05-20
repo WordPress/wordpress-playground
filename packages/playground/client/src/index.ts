@@ -18,6 +18,7 @@ export type {
 	RuntimeType,
 } from '@php-wasm/universal';
 export {
+	setPhpIniEntries,
 	SupportedPHPVersions,
 	SupportedPHPVersionsList,
 	LatestSupportedPHPVersion,
