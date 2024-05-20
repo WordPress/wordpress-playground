@@ -59,30 +59,6 @@ function join_paths()
 
     return preg_replace('#/+#', '/', join('/', $paths));
 }
-
-function unzip($zipPath, $extractTo, $overwrite = true)
-{
-    if (!is_dir($extractTo)) {
-        mkdir($extractTo, 0777, true);
-    }
-    $zip = new ZipArchive;
-    $res = $zip->open($zipPath);
-    if ($res === TRUE) {
-        $zip->extractTo($extractTo);
-        $zip->close();
-        chmod($extractTo, 0777);
-    }
-}
-
-
-function delTree($dir)
-{
-    $files = array_diff(scandir($dir), array('.', '..'));
-    foreach ($files as $file) {
-        (is_dir("$dir/$file")) ? delTree("$dir/$file") : unlink("$dir/$file");
-    }
-    return rmdir($dir);
-}
 `;
 
 export async function runPhpWithZipFunctions(
