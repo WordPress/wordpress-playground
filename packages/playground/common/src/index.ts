@@ -14,9 +14,6 @@ import { phpVars } from '@php-wasm/util';
 
 export const RecommendedPHPVersion = '8.0';
 
-// @TODO Make these ZIP functions more versatile and
-//       move them to one of the @php-wasm packages.
-
 /**
  * Unzip a zip file inside Playground.
  */
