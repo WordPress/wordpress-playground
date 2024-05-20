@@ -77,7 +77,11 @@ $plugins = glob($plugins_root . "/*");
 
 $deactivated_plugins = [];
 foreach($plugins as $plugin_path) {
+	if (str_ends_with($plugin_path, '/index.php')) {
+		continue;
+	}
 	if (!is_dir($plugin_path)) {
+		$deactivated_plugins[] = substr($plugin_path, strlen($plugins_root) + 1);
 		deactivate_plugins($plugin_path);
 		continue;
 	}
