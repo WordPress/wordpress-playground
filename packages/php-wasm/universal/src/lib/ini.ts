@@ -49,6 +49,20 @@ export async function setPhpIniEntries(
  * disabling network-related PHP functions just to run WordPress
  * installer.
  *
+ * @example
+ * ```ts
+ *	await withPHPIniValues(
+ *		php,
+ *		{
+ *			disable_functions: 'fsockopen',
+ *			allow_url_fopen: '0',
+ *		},
+ *		async () => await runWpInstallationWizard(php, {
+ *			options: {},
+ *		})
+ *	);
+ *	```
+ *
  * @param php The PHP instance.
  * @param phpIniValues The php.ini values to set.
  * @param callback The callback to execute.
