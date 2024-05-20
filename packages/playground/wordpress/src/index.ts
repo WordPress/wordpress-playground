@@ -1,6 +1,7 @@
 import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
+export { bootWordPress } from './boot';
 
 export * from './rewrite-rules';
 
