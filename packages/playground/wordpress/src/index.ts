@@ -82,12 +82,8 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
         ?>`,
 		configureErrorLogging: `<?php
         $log_file = WP_CONTENT_DIR . '/debug.log';
-        error_reporting(E_ALL);
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
-        ini_set('ignore_repeated_errors', true);
-        ini_set('display_errors', false);
-        ini_set('log_errors', true);
         ?>`,
 	};
 
@@ -202,12 +198,21 @@ export async function preloadSqliteIntegration(
 			"'{SQLITE_PLUGIN}'",
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
+	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
+	const stopIfDbPhpExists = `<?php
+	// Do not preload this if WordPress comes with a custom db.php file.
+	if(file_exists(${phpVar(dbPhpPath)})) {
+		return;
+	}
+	?>`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, dbPhp);
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		`<?php
+		stopIfDbPhpExists +
+			`<?php
+
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
  * and without creating a drop-in "db.php" file. 
@@ -260,6 +265,18 @@ class Playground_SQLite_Integration_Loader {
     }
 }
 $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
+
+/**
+ * WordPress is capable of using a preloaded global $wpdb. However, if
+ * it cannot find the drop-in db.php plugin it still checks whether
+ * the mysqli_connect() function exists even though it's not used.
+ *
+ * What WordPress demands, Playground shall provide.
+ */
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
 		`
 	);
 	/**
