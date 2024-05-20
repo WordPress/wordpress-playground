@@ -2241,6 +2241,7 @@ var FS = {
   } catch (e) {
    throw e;
   } finally {
+   old_node.parent = new_dir;
    FS.hashAddNode(old_node);
   }
  },
