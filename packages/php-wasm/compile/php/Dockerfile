@@ -771,7 +771,6 @@ RUN echo -n ' -s ASYNCIFY=1 -s ASYNCIFY_IGNORE_INDIRECT=1 ' >> /root/.emcc-php-w
 "readline_shell_run",\
 "reflection_method_invoke",\
 "run_cli",\
-"run_php",\
 "user_shutdown_function_call",\
 "shutdown_executor",\
 "shutdown_destructors",\
@@ -892,7 +891,6 @@ RUN set -euxo pipefail; \
 "_wasm_set_content_type", \n\
 "_wasm_set_cookies", \n\
 "_wasm_set_path_translated", \n\
-"_wasm_set_php_code", \n\
 "_wasm_set_query_string", \n\
 "_wasm_set_request_body", \n\
 "_wasm_set_request_host", \n\
