@@ -6,9 +6,14 @@ import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
+	sqliteDatabaseIntegration,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import {
+	unzipWordPress,
+	preloadSqliteIntegration,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
+import { PHPRequestHandler, withPHPIniValues } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
@@ -17,7 +22,7 @@ import {
 import {
 	defineSiteUrl,
 	defineWpConfigConsts,
-	unzip,
+	runWpInstallationWizard,
 } from '@wp-playground/blueprints';
 
 import { randomString } from '@php-wasm/util';
@@ -56,6 +61,14 @@ if (
 	lastOpfsDir = virtualOpfsDir;
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
+
+// The SQLite integration must always be downloaded, even when using OPFS or Native FS,
+// because it can't be assumed to exist in WordPress document root. Instead, it's installed
+// in the /internal directory to avoid polluting the mounted directory structure.
+downloadMonitor.expectAssets({
+	[sqliteDatabaseIntegration.url]: sqliteDatabaseIntegration.size,
+});
+const sqliteIntegrationRequest = monitoredFetch(sqliteDatabaseIntegration.url);
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
@@ -176,13 +189,10 @@ try {
 	// If WordPress isn't already installed, download and extract it from
 	// the zip file.
 	if (!wordPressAvailableInOPFS) {
-		await unzip(primaryPhp, {
-			zipFile: new File(
-				[await (await wordPressRequest!).blob()],
-				'wp.zip'
-			),
-			extractToPath: requestHandler.documentRoot,
-		});
+		await unzipWordPress(
+			primaryPhp,
+			new File([await (await wordPressRequest!).blob()], 'wp.zip')
+		);
 
 		// Randomize the WordPress secrets
 		await defineWpConfigConsts(primaryPhp, {
@@ -208,6 +218,40 @@ try {
 			opfs: virtualOpfsDir!,
 			wordPressAvailableInOPFS,
 		});
+	}
+
+	const sqliteIntegrationZip = await (await sqliteIntegrationRequest).blob();
+	await preloadSqliteIntegration(
+		primaryPhp,
+		new File([sqliteIntegrationZip], 'sqlite.zip')
+	);
+
+	// Install WordPress if it isn't installed yet
+	const isInstalled =
+		(
+			await primaryPhp.run({
+				code: `<?php 
+		require '${primaryPhp.documentRoot}/wp-load.php';
+		echo is_blog_installed() ? '1' : '0';
+		`,
+			})
+		).text === '1';
+	if (!isInstalled) {
+		// Disable networking for the installation wizard
+		// to avoid loopback requests and also speed it up.
+		// @TODO: Expose withPHPIniValues as a function from the
+		//    php-wasm library.
+		await withPHPIniValues(
+			primaryPhp,
+			{
+				disable_functions: 'fsockopen',
+				allow_url_fopen: '0',
+			},
+			async () =>
+				await runWpInstallationWizard(primaryPhp, {
+					options: {},
+				})
+		);
 	}
 
 	// Always setup the current site URL.

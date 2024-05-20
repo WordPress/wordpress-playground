@@ -1,4 +1,4 @@
-import { UniversalPHP } from '@php-wasm/universal';
+import { BasePHP, UniversalPHP } from '@php-wasm/universal';
 import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 
@@ -82,12 +82,8 @@ export async function preloadRequiredMuPlugin(php: UniversalPHP) {
         ?>`,
 		configureErrorLogging: `<?php
         $log_file = WP_CONTENT_DIR . '/debug.log';
-        error_reporting(E_ALL);
         define('ERROR_LOG_FILE', $log_file);
         ini_set('error_log', $log_file);
-        ini_set('ignore_repeated_errors', true);
-        ini_set('display_errors', false);
-        ini_set('log_errors', true);
         ?>`,
 	};
 
@@ -202,12 +198,21 @@ export async function preloadSqliteIntegration(
 			"'{SQLITE_PLUGIN}'",
 			phpVar(joinPaths(SQLITE_PLUGIN_FOLDER, 'load.php'))
 		);
+	const dbPhpPath = joinPaths(await php.documentRoot, 'wp-content/db.php');
+	const stopIfDbPhpExists = `<?php
+	// Do not preload this if WordPress comes with a custom db.php file.
+	if(file_exists(${phpVar(dbPhpPath)})) {
+		return;
+	}
+	?>`;
 	const SQLITE_MUPLUGIN_PATH =
 		'/internal/shared/mu-plugins/sqlite-database-integration.php';
-	await php.writeFile(SQLITE_MUPLUGIN_PATH, dbPhp);
+	await php.writeFile(SQLITE_MUPLUGIN_PATH, stopIfDbPhpExists + dbPhp);
 	await php.writeFile(
 		`/internal/shared/preload/0-sqlite.php`,
-		`<?php
+		stopIfDbPhpExists +
+			`<?php
+
 /**
  * Loads the SQLite integration plugin before WordPress is loaded
  * and without creating a drop-in "db.php" file. 
@@ -260,6 +265,18 @@ class Playground_SQLite_Integration_Loader {
     }
 }
 $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
+
+/**
+ * WordPress is capable of using a preloaded global $wpdb. However, if
+ * it cannot find the drop-in db.php plugin it still checks whether
+ * the mysqli_connect() function exists even though it's not used.
+ *
+ * What WordPress demands, Playground shall provide.
+ */
+if(!function_exists('mysqli_connect')) {
+	function mysqli_connect() {}
+}
+
 		`
 	);
 	/**
@@ -276,5 +293,52 @@ $wpdb = $GLOBALS['wpdb'] = new Playground_SQLite_Integration_Loader();
 			die("SQLite integration not loaded " . get_class($wpdb));
 		}
 		`
+	);
+}
+
+/**
+ * Prepare the WordPress document root given a WordPress zip file and
+ * the sqlite-database-integration zip file.
+ *
+ * This is a TypeScript function for now, just to get something off the
+ * ground, but it may be superseded by the PHP Blueprints library developed
+ * at https://github.com/WordPress/blueprints-library/
+ *
+ * That PHP library will come with a set of functions and a CLI tool to
+ * turn a Blueprint into a WordPress directory structure or a zip Snapshot.
+ * Let's **not** invest in the TypeScript implementation of this function,
+ * accept the limitation, and switch to the PHP implementation as soon
+ * as that's viable.
+ */
+export async function unzipWordPress(php: BasePHP, wpZip: File) {
+	php.mkdir('/tmp/unzipped-wordpress');
+	await unzipFile(php, wpZip, '/tmp/unzipped-wordpress');
+
+	// The zip file may contain another zip file if it's coming from GitHub artifacts
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	if (php.fileExists('/tmp/unzipped-wordpress/wordpress.zip')) {
+		await unzipFile(
+			php,
+			'/tmp/unzipped-wordpress/wordpress.zip',
+			'/tmp/unzipped-wordpress'
+		);
+	}
+
+	// The zip file may contain a subdirectory, or not.
+	// @TODO: Don't make so many guesses about the zip file contents. Allow the
+	//        API consumer to specify the exact "coordinates" of WordPress inside
+	//        the zip archive.
+	const wpPath = php.fileExists('/tmp/unzipped-wordpress/wordpress')
+		? '/tmp/unzipped-wordpress/wordpress'
+		: php.fileExists('/tmp/unzipped-wordpress/build')
+		? '/tmp/unzipped-wordpress/build'
+		: '/tmp/unzipped-wordpress';
+
+	php.mv(wpPath, php.documentRoot);
+	php.writeFile(
+		'/wp-config.php',
+		php.readFileAsText(php.documentRoot + '/wp-config-sample.php')
 	);
 }

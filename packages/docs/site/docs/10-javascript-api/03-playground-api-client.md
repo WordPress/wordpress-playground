@@ -33,14 +33,13 @@ import TSDocstring from '@site/src/components/TSDocstring';
 
 ## Customizing PHP.ini
 
-The API client also allows you to change the php.ini file. You can either set a single entry or replace the entire file:
+The API client also allows you to change the php.ini file:
 
 ```ts
-// Set a single entry...
-await client.setPhpIniEntry('display_errors', 'On');
-
-// ... or replace the entire php.ini file
-await client.setPhpIniPath('/path/to/php.ini');
+await setPhpIniEntries(client, {
+	display_errors: 'On',
+	error_reporting: 'E_ALL',
+});
 ```
 
 ## Managing files and directories

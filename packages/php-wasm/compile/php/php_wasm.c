@@ -512,25 +512,6 @@ static const zend_function_entry additional_functions[] = {
 #define TSRMLS_FETCH()
 #endif
 
-// Lowest precedence ini rules. May be overwritten by a /usr/local/etc/php.ini file:
-const char WASM_HARDCODED_INI[] =
-	"error_reporting = E_ALL\n"
-	"display_errors = 1\n"
-	"html_errors = 1\n"
-	"display_startup_errors = On\n"
-	"log_errors = 1\n"
-	"always_populate_raw_post_data = -1\n"
-	"upload_max_filesize = 2000M\n"
-	"post_max_size = 2000M\n"
-	"disable_functions = curl_exec,curl_multi_exec\n"
-	"allow_url_fopen = Off\n"
-	"allow_url_include = Off\n"
-	"session.save_path = /home/web_user\n"
-	"implicit_flush = 1\n"
-	"output_buffering = 0\n"
-	"max_execution_time = 0\n"
-	"max_input_time = -1\n\0";
-
 typedef struct wasm_array_entry
 {
 	char *key;
@@ -672,12 +653,6 @@ void wasm_set_phpini_path(char *path)
 	phpini_path_override = strdup(path);
 }
 
-char *additional_phpini_entries = NULL;
-void wasm_set_phpini_entries(char *ini_entries)
-{
-	free(additional_phpini_entries);
-	additional_phpini_entries = strdup(ini_entries);
-}
 
 void wasm_init_server_context()
 {
@@ -1541,21 +1516,6 @@ int php_wasm_init()
 	{
 		free(php_wasm_sapi_module.php_ini_path_override);
 		php_wasm_sapi_module.php_ini_path_override = phpini_path_override;
-	}
-
-	if (additional_phpini_entries != NULL)
-	{
-		int ini_entries_len = strlen(additional_phpini_entries);
-		additional_phpini_entries = realloc(additional_phpini_entries, ini_entries_len + sizeof(WASM_HARDCODED_INI));
-		memmove(additional_phpini_entries + sizeof(WASM_HARDCODED_INI) - 2, additional_phpini_entries, ini_entries_len + 1);
-		memcpy(additional_phpini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI) - 2);
-		php_wasm_sapi_module.ini_entries = strdup(additional_phpini_entries);
-		free(additional_phpini_entries);
-	}
-	else
-	{
-		php_wasm_sapi_module.ini_entries = malloc(sizeof(WASM_HARDCODED_INI));
-		memcpy(php_wasm_sapi_module.ini_entries, WASM_HARDCODED_INI, sizeof(WASM_HARDCODED_INI));
 	}
 
 	php_sapi_started = 1;

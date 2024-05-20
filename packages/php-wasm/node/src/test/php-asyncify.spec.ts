@@ -2,7 +2,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { NodePHP } from '..';
-import { SupportedPHPVersions } from '@php-wasm/universal';
+import { SupportedPHPVersions, setPhpIniEntries } from '@php-wasm/universal';
 import { phpVars } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import InitialDockerfile from '../../../compile/php/Dockerfile?raw';
@@ -56,7 +56,7 @@ describe.each(phpVersions)('PHP %s – asyncify', (phpVersion) => {
 	let php: NodePHP;
 	beforeEach(async () => {
 		php = await NodePHP.load(phpVersion as any);
-		php.setPhpIniEntry('allow_url_fopen', '1');
+		await setPhpIniEntries(php, { allow_url_fopen: 1 });
 	});
 
 	describe.each(topOfTheStack)('%s', (networkCall) => {

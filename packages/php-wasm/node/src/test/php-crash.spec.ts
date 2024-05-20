@@ -2,6 +2,7 @@ import { NodePHP } from '..';
 import { vi } from 'vitest';
 import {
 	SupportedPHPVersions,
+	setPhpIniEntries,
 	__private__dont__use,
 } from '@php-wasm/universal';
 
@@ -12,7 +13,7 @@ describe.each(['7.0', '7.1', '7.3', '7.4', '8.0', '8.1'])(
 		let php: NodePHP;
 		beforeEach(async () => {
 			php = await NodePHP.load(phpVersion as any);
-			php.setPhpIniEntry('allow_url_fopen', '1');
+			await setPhpIniEntries(php, { allow_url_fopen: 1 });
 			vi.restoreAllMocks();
 		});
 
