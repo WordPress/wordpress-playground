@@ -315,14 +315,59 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			),
 			this.rewriteRules
 		);
-		const fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
-		if (!(await this.#seemsLikeAPHPRequestHandlerPath(fsPath))) {
-			return this.#serveStaticFile(
-				await this.processManager.getPrimaryPhp(),
-				fsPath
-			);
+
+		const primaryPhp = await this.getPrimaryPhp();
+
+		// TODO: Convert default path conditional to helper function
+		let fsPath = joinPaths(this.#DOCROOT, normalizedRequestedPath);
+
+		// We can only satisfy requests for directories with a default file
+		// so let's first resolve to a default path when available.
+		if (primaryPhp.isDir(fsPath)) {
+			const localDefaultPath = joinPaths(fsPath, 'index.php');
+			if (primaryPhp.isFile(localDefaultPath)) {
+				fsPath = localDefaultPath;
+			}
 		}
-		return this.#spawnPHPAndDispatchRequest(request, requestedUrl);
+
+		if (fsPath.endsWith('.php')) {
+			if (primaryPhp.isFile(fsPath)) {
+				const effectiveRequest: PHPRequest = {
+					...request,
+					url: joinPaths(this.#ABSOLUTE_URL, fsPath),
+				};
+				return this.#spawnPHPAndDispatchRequest(
+					effectiveRequest,
+					requestedUrl
+				);
+			}
+		} else {
+			if (primaryPhp.isFile(fsPath)) {
+				// TODO: Serve static file
+				return this.#serveStaticFile(primaryPhp, fsPath);
+			} else if (
+				// Make sure fsPath doesn't describe any other entity on the filesystem
+				!primaryPhp.fileExists(fsPath) &&
+				this.#remoteAssetPaths.has(fsPath)
+			) {
+				// This path is listed as a remote asset. Mark it as a static file
+				// so the service worker knows it can issue a real fetch() to the server.
+				return new PHPResponse(
+					404,
+					{ 'x-file-type': ['static'] },
+					new TextEncoder().encode('404 File not found')
+				);
+			}
+		}
+
+		// Delegate unresolved requests to WordPress. This makes WP magic possible,
+		// like pretty permalinks and dynamically generated sitemaps.
+		const wpDefaultPath = joinPaths(this.#DOCROOT, 'index.php');
+		const effectiveRequest: PHPRequest = {
+			...request,
+			url: joinPaths(this.#ABSOLUTE_URL, wpDefaultPath),
+		};
+		return this.#spawnPHPAndDispatchRequest(effectiveRequest, requestedUrl);
 	}
 
 	/**
@@ -332,20 +377,6 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 	 * @returns The response.
 	 */
 	#serveStaticFile(php: BasePHP, fsPath: string): PHPResponse {
-		if (!php.fileExists(fsPath)) {
-			// If this path is listed as a remote asset, mark it as a static file
-			// so the service worker knows it can issue a real fetch() to the server.
-			const headers: Record<string, string[]> =
-				this.#remoteAssetPaths.has(fsPath)
-					? { 'x-file-type': ['static'] }
-					: {};
-
-			return new PHPResponse(
-				404,
-				headers,
-				new TextEncoder().encode('404 File not found')
-			);
-		}
 		const arrayBuffer = php.readFileAsBuffer(fsPath);
 		return new PHPResponse(
 			200,
@@ -510,45 +541,6 @@ export class PHPRequestHandler<PHP extends BasePHP> {
 			const fsPath = `${this.#DOCROOT}${separator}${relativePath}`;
 			this.#remoteAssetPaths.add(fsPath);
 		});
-	}
-
-	/**
-	 * Guesses whether the given path looks like a PHP file.
-	 *
-	 * @example
-	 * ```js
-	 * seemsLikeAPHPRequestHandlerPath('/index.php') // true
-	 * seemsLikeAPHPRequestHandlerPath('/index.php') // true
-	 * seemsLikeAPHPRequestHandlerPath('/index.php/foo/bar') // true
-	 * seemsLikeAPHPRequestHandlerPath('/index.html') // false
-	 * seemsLikeAPHPRequestHandlerPath('/index.html/foo/bar') // false
-	 * seemsLikeAPHPRequestHandlerPath('/') // true
-	 * ```
-	 *
-	 * @param  path The path to check.
-	 * @returns Whether the path seems like a PHP server path.
-	 */
-	async #seemsLikeAPHPRequestHandlerPath(path: string): Promise<boolean> {
-		if (
-			this.#seemsLikeAPHPFile(path) ||
-			this.#seemsLikeADirectoryRoot(path)
-		) {
-			return true;
-		}
-
-		const primaryPhp = await this.getPrimaryPhp();
-		const fileDoesNotExist = !primaryPhp.fileExists(path);
-		const isNotAKnownRemoteAsset = !this.#remoteAssetPaths.has(path);
-		return fileDoesNotExist && isNotAKnownRemoteAsset;
-	}
-
-	#seemsLikeAPHPFile(path: string) {
-		return path.endsWith('.php') || path.includes('.php/');
-	}
-
-	#seemsLikeADirectoryRoot(path: string) {
-		const lastSegment = path.split('/').pop();
-		return !lastSegment!.includes('.');
 	}
 }
 
