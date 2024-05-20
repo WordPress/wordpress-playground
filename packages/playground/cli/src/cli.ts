@@ -22,6 +22,7 @@ import { NodePHP } from '@php-wasm/node';
 import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { bootWordPress } from '@wp-playground/wordpress';
 
 export interface Mount {
 	hostPath: string;
@@ -279,15 +280,38 @@ async function run() {
 		port: args['port'] as number,
 		onBind: async (port: number) => {
 			const absoluteUrl = `http://127.0.0.1:${port}`;
-			requestHandler = new PHPRequestHandler<NodePHP>({
-				phpFactory: async ({ isPrimary }) =>
+
+			requestHandler = await bootWordPress({
+				siteUrl: absoluteUrl,
+				createPhpInstance() {
+					return new NodePHP();
+				},
+				createPhpRuntime: async ({ isPrimary }) =>
 					createPhp(
 						requestHandler,
 						compiledBlueprint.versions.php,
 						isPrimary
 					),
-				documentRoot: '/wordpress',
-				absoluteUrl,
+				wordPressZip,
+				sqliteIntegrationPluginZip,
+				spawnHandler: spawnHandlerFactory,
+				sapiName: startupOptions.sapiName,
+				hooks: {
+					async beforeDatabase(php) {
+						if (virtualOpfsDir) {
+							await bindOpfs({
+								php,
+								opfs: virtualOpfsDir!,
+								wordPressAvailableInOPFS,
+							});
+						}
+					},
+				},
+				muPlugins: {
+					'1-playground-web.php': playgroundWebMuPlugin,
+					'playground-includes/wp_http_dummy.php': transportDummy,
+					'playground-includes/wp_http_fetch.php': transportFetch,
+				},
 			});
 
 			const php = await requestHandler.getPrimaryPhp();
