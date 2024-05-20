@@ -539,8 +539,7 @@ typedef struct
 		*request_host,
 		*content_type,
 		*request_body,
-		*cookies,
-		*php_code;
+		*cookies;
 
 	struct wasm_array_entry *server_array_entries;
 	struct wasm_array_entry *env_array_entries;
@@ -662,7 +661,6 @@ void wasm_init_server_context()
 	wasm_server_context->request_port = -1;
 	wasm_server_context->request_body = NULL;
 	wasm_server_context->cookies = NULL;
-	wasm_server_context->php_code = NULL;
 	wasm_server_context->skip_shebang = 0;
 	wasm_server_context->server_array_entries = NULL;
 	wasm_server_context->env_array_entries = NULL;
@@ -701,10 +699,6 @@ void wasm_destroy_server_context()
 	if (wasm_server_context->cookies != NULL)
 	{
 		free(wasm_server_context->cookies);
-	}
-	if (wasm_server_context->php_code != NULL)
-	{
-		free(wasm_server_context->php_code);
 	}
 
 	// Free wasm_server_context->server_array_entries
@@ -1221,8 +1215,7 @@ void wasm_sapi_request_shutdown()
 /**
  * Function: wasm_sapi_handle_request
  * ----------------------------
- *   Runs the PHP code snippet set up with wasm_set_php_code or,
- *   if missing, executes the PHP file set up with wasm_set_path_translated.
+ *   Executes the PHP file set up with wasm_set_path_translated.
  */
 int EMSCRIPTEN_KEEPALIVE wasm_sapi_handle_request()
 {
