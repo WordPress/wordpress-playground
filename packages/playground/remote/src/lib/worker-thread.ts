@@ -6,8 +6,12 @@ import {
 	getWordPressModuleDetails,
 	LatestSupportedWordPressVersion,
 	SupportedWordPressVersions,
+	sqliteDatabaseIntegration,
 } from '@wp-playground/wordpress-builds';
-import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import {
+	preloadSqliteIntegration,
+	wordPressRewriteRules,
+} from '@wp-playground/wordpress';
 import { PHPRequestHandler, withPHPIniValues } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
@@ -57,6 +61,14 @@ if (
 	lastOpfsDir = virtualOpfsDir;
 	wordPressAvailableInOPFS = await playgroundAvailableInOpfs(virtualOpfsDir!);
 }
+
+// The SQLite integration must always be downloaded, even when using OPFS or Native FS,
+// because it can't be assumed to exist in WordPress document root. Instead, it's installed
+// in the /internal directory to avoid polluting the mounted directory structure.
+downloadMonitor.expectAssets({
+	[sqliteDatabaseIntegration.url]: sqliteDatabaseIntegration.size,
+});
+const sqliteIntegrationRequest = monitoredFetch(sqliteDatabaseIntegration.url);
 
 // Start downloading WordPress if needed
 let wordPressRequest = null;
@@ -210,6 +222,12 @@ try {
 			wordPressAvailableInOPFS,
 		});
 	}
+
+	const sqliteIntegrationZip = await (await sqliteIntegrationRequest).blob();
+	await preloadSqliteIntegration(
+		primaryPhp,
+		new File([sqliteIntegrationZip], 'sqlite.zip')
+	);
 
 	// Install WordPress if it isn't installed yet
 	const isInstalled =
