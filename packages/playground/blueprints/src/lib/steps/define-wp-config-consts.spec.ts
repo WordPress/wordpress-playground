@@ -229,7 +229,7 @@ describe('defineBeforeRun', () => {
 		expect(response.json).toEqual(constants);
 	});
 
-	it('should not work when PHP code is run via the php.run({ code: `` }) call instead of the scriptPath mode (KNOWN LIMITATION)', async () => {
+	it('should work when the first PHP code run is trigerred via the php.run({ code: `` }) call instead of the scriptPath mode', async () => {
 		const constants = {
 			SITE_URL: 'http://test.url',
 		};
