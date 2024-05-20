@@ -1,5 +1,5 @@
-import { phpVar } from '@php-wasm/util';
 import { StepHandler } from '.';
+import { logger } from '@php-wasm/logger';
 
 /**
  * @inheritDoc activateTheme
@@ -44,15 +44,33 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 			More info can be found in the Blueprint documentation: https://wordpress.github.io/wordpress-playground/blueprints-api/steps/#ActivateThemeStep
 		`);
 	}
-	await playground.run({
+	const result = await playground.run({
 		code: `<?php
 			define( 'WP_ADMIN', true );
-			require_once( ${phpVar(docroot)}. "/wp-load.php" );
+			require_once( getenv('docroot') . "/wp-load.php" );
 
 			// Set current user to admin
 			wp_set_current_user( get_users(array('role' => 'Administrator') )[0]->ID );
 
-			switch_theme( ${phpVar(themeFolderName)} );
+			switch_theme( getenv('themeFolderName') );
+
+			if( wp_get_theme()->get_stylesheet() !== getenv('themeFolderName') ) {
+				throw new Exception( 'Theme ' . getenv('themeFolderName') . ' could not be activated.' );				
+			}
+			die('Theme activated successfully');
 		`,
+		env: {
+			docroot,
+			themeFolderName,
+		},
 	});
+	if (result.text !== 'Theme activated successfully') {
+		logger.debug(result);
+		throw new Error(
+			`Theme ${themeFolderName} could not be activated – WordPress exited with no error. ` +
+				`Sometimes, when $_SERVER or site options are not configured correctly, ` +
+				`WordPress exits early with a 301 redirect. ` +
+				`Inspect the "debug" logs in the console for more details`
+		);
+	}
 };
