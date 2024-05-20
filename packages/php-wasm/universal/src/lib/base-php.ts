@@ -835,6 +835,17 @@ export abstract class BasePHP implements IsomorphicLocalPHP, Disposable {
 
 	/** @inheritDoc */
 	@rethrowFileSystemError('Could not stat "{path}"')
+	isFile(path: string): boolean {
+		if (!this.fileExists(path)) {
+			return false;
+		}
+		return this[__private__dont__use].FS.isFile(
+			this[__private__dont__use].FS.lookupPath(path).node.mode
+		);
+	}
+
+	/** @inheritDoc */
+	@rethrowFileSystemError('Could not stat "{path}"')
 	fileExists(path: string): boolean {
 		try {
 			this[__private__dont__use].FS.lookupPath(path);

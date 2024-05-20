@@ -186,6 +186,11 @@ export class WebPHPEndpoint implements Omit<IsomorphicLocalPHP, 'setSapiName'> {
 		return _private.get(this)!.php!.isDir(path);
 	}
 
+	/** @inheritDoc @php-wasm/web!WebPHP.isFile */
+	isFile(path: string): boolean {
+		return _private.get(this)!.php!.isFile(path);
+	}
+
 	/** @inheritDoc @php-wasm/web!WebPHP.fileExists */
 	fileExists(path: string): boolean {
 		return _private.get(this)!.php!.fileExists(path);

@@ -176,6 +176,14 @@ export interface IsomorphicLocalPHP {
 	isDir(path: string): boolean;
 
 	/**
+	 * Checks if a file exists at the given path in the PHP filesystem.
+	 *
+	 * @param   path The path to check
+	 * @returns True if the path is a file, false otherwise.
+	 */
+	isFile(path: string): boolean;
+
+	/**
 	 * Checks if a file (or a directory) exists in the PHP filesystem.
 	 *
 	 * @param  path - The file path to check.
