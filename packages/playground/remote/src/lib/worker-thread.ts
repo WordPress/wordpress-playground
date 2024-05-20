@@ -13,13 +13,17 @@ import {
 	preloadSqliteIntegration,
 	wordPressRewriteRules,
 } from '@wp-playground/wordpress';
-import { PHPRequestHandler } from '@php-wasm/universal';
+import { PHPRequestHandler, withPHPIniValues } from '@php-wasm/universal';
 import {
 	SyncProgressCallback,
 	bindOpfs,
 	playgroundAvailableInOpfs,
 } from './opfs/bind-opfs';
-import { defineSiteUrl, defineWpConfigConsts } from '@wp-playground/blueprints';
+import {
+	defineSiteUrl,
+	defineWpConfigConsts,
+	runWpInstallationWizard,
+} from '@wp-playground/blueprints';
 
 import { randomString } from '@php-wasm/util';
 import {
@@ -221,6 +225,34 @@ try {
 		primaryPhp,
 		new File([sqliteIntegrationZip], 'sqlite.zip')
 	);
+
+	// Install WordPress if it isn't installed yet
+	const isInstalled =
+		(
+			await primaryPhp.run({
+				code: `<?php 
+		require '${primaryPhp.documentRoot}/wp-load.php';
+		echo is_blog_installed() ? '1' : '0';
+		`,
+			})
+		).text === '1';
+	if (!isInstalled) {
+		// Disable networking for the installation wizard
+		// to avoid loopback requests and also speed it up.
+		// @TODO: Expose withPHPIniValues as a function from the
+		//    php-wasm library.
+		await withPHPIniValues(
+			primaryPhp,
+			{
+				disable_functions: 'fsockopen',
+				allow_url_fopen: '0',
+			},
+			async () =>
+				await runWpInstallationWizard(primaryPhp, {
+					options: {},
+				})
+		);
+	}
 
 	// Always setup the current site URL.
 	await defineSiteUrl(primaryPhp, {
