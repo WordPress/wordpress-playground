@@ -7,7 +7,7 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:wasm-wordpress-net"]
+			"dependsOn": ["build:wasm-wordpress-net", "build:playground-puzzle"]
 		},
 		"build:wasm-wordpress-net": {
 			"executor": "nx:run-commands",
