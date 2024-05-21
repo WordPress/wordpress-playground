@@ -53,7 +53,9 @@ jobs:
                   git config --global user.email "deployment_bot@users.noreply.github.com"
                   git remote set-url origin https://${{ secrets.GH_ACTOR }}:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
                   if [[ -n $(git status --porcelain CHANGELOG.md) ]]; then
-                      git commit CHANGELOG.md -m "chore: update changelog"
+                      git commit -m "chore: update changelog" \
+                          CHANGELOG.md \
+                          packages/docs/site/docs/*changelog*.md
                       git pull origin trunk --rebase
                       git push origin trunk
                   else
